@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud Deployment Plan — AumOS</title>
+  <style>
+/* AumOS Documentation — Anthropic-inspired Style System */
+/* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
+   serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
+
+:root {
+  /* Color palette — warm neutrals + clay/coral accent */
+  --bg-primary: #faf9f7;
+  --bg-secondary: #f5f3ef;
+  --bg-card: #ffffff;
+  --bg-code: #1e1e2e;
+  --bg-callout: #fdf6f0;
+  --bg-warning: #fef9f0;
+  --bg-danger: #fdf2f0;
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
+  --text-code: #c4c4d4;
+  --text-on-dark: #e8e8e8;
+
+  --accent: #d97757;        /* Claude clay/coral */
+  --accent-hover: #c4623d;
+  --accent-light: #f4e6df;
+  --accent-subtle: #faf0eb;
+
+  --border: #e5e2dc;
+  --border-strong: #d1ccc3;
+  --border-accent: #d97757;
+
+  --green: #5a8055;
+  --green-light: #edf5ed;
+  --amber: #b8860b;
+  --amber-light: #fef9ef;
+  --red: #b94a48;
+  --red-light: #fdf2f0;
+  --blue: #4a6fa5;
+  --blue-light: #eef3fa;
+
+  /* Typography */
+  --font-serif: 'Georgia', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+
+  /* Layout */
+  --max-width: 820px;
+  --border-radius: 8px;
+  --border-radius-sm: 4px;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Base */
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.7;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+h1 { font-size: 2.4rem; margin: 0 0 var(--space-lg); letter-spacing: -0.02em; }
+h2 { font-size: 1.7rem; margin: var(--space-2xl) 0 var(--space-md); letter-spacing: -0.01em; border-bottom: 1px solid var(--border); padding-bottom: var(--space-sm); }
+h3 { font-size: 1.3rem; margin: var(--space-xl) 0 var(--space-sm); }
+h4 { font-size: 1.1rem; margin: var(--space-lg) 0 var(--space-xs); color: var(--text-secondary); }
+p { margin-bottom: var(--space-md); }
+strong { font-weight: 600; color: var(--text-primary); }
+em { font-style: italic; color: var(--text-secondary); }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-subtle); transition: border-color 0.15s; }
+a:hover { border-bottom-color: var(--accent); }
+
+/* Layout */
+.container { max-width: var(--max-width); margin: 0 auto; padding: var(--space-2xl) var(--space-lg); }
+.container-wide { max-width: 1200px; margin: 0 auto; padding: var(--space-2xl) var(--space-lg); }
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--bg-card);
+}
+.doc-header h1 { margin: 0; font-size: 1.6rem; }
+.doc-header .subtitle { color: var(--text-tertiary); font-size: 0.95rem; margin-top: var(--space-xs); }
+.doc-header nav { margin-top: var(--space-md); display: flex; gap: var(--space-md); flex-wrap: wrap; }
+.doc-header nav a { font-size: 0.9rem; border-bottom: none; padding: var(--space-xs) var(--space-md); border-radius: var(--border-radius-sm); transition: background 0.15s; }
+.doc-header nav a:hover { background: var(--accent-subtle); }
+
+/* Code */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-secondary);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+pre {
+  font-family: var(--font-mono);
+  background: var(--bg-code);
+  color: var(--text-on-dark);
+  padding: var(--space-lg);
+  border-radius: var(--border-radius);
+  overflow-x: auto;
+  margin: var(--space-lg) 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-lg) 0; font-size: 0.92rem; }
+th { text-align: left; font-weight: 600; padding: var(--space-sm) var(--space-md); border-bottom: 2px solid var(--border-strong); color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:hover { background: var(--bg-secondary); }
+
+/* Callouts */
+.callout {
+  background: var(--bg-callout);
+  border-left: 3px solid var(--accent);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+  margin: var(--space-lg) 0;
+}
+.callout-title { font-weight: 600; margin-bottom: var(--space-xs); color: var(--accent-hover); }
+.callout.warning { background: var(--bg-warning); border-left-color: var(--amber); }
+.callout.warning .callout-title { color: var(--amber); }
+.callout.danger { background: var(--bg-danger); border-left-color: var(--red); }
+.callout.danger .callout-title { color: var(--red); }
+.callout.info { background: var(--blue-light); border-left-color: var(--blue); }
+.callout.info .callout-title { color: var(--blue); }
+.callout.success { background: var(--green-light); border-left-color: var(--green); }
+.callout.success .callout-title { color: var(--green); }
+
+/* Cards (component grid) */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--space-lg); margin: var(--space-xl) 0; }
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-lg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card:hover { border-color: var(--border-accent); box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+.card-id { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-bottom: var(--space-xs); }
+.card-title { font-family: var(--font-serif); font-size: 1.2rem; font-weight: 600; margin-bottom: var(--space-sm); }
+.card-desc { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+.card-meta { margin-top: var(--space-md); display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 100px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+.badge.rust { background: #fce8d4; color: #974711; }
+.badge.go { background: #dbe8fd; color: #1c4d8c; }
+.badge.python { background: #e0e8f4; color: #2d4a7c; }
+.badge.typescript { background: #e4ecf7; color: #3a5a8a; }
+.badge.wave-1 { background: var(--green-light); color: var(--green); }
+.badge.wave-2 { background: var(--blue-light); color: var(--blue); }
+.badge.wave-3 { background: var(--accent-subtle); color: var(--accent); }
+.badge.wave-4 { background: var(--amber-light); color: var(--amber); }
+.badge.wave-5 { background: #f0eef8; color: #555188; }
+.badge.wave-6 { background: #eef8f0; color: #3a6644; }
+.badge.wave-7 { background: #fce8e8; color: #8c3434; }
+
+/* Lists */
+ul, ol { margin: var(--space-md) 0 var(--space-md) var(--space-xl); }
+li { margin-bottom: var(--space-xs); }
+li::marker { color: var(--accent); }
+
+/* HR */
+hr { border: none; border-top: 1px solid var(--border); margin: var(--space-2xl) 0; }
+
+/* Blockquote */
+blockquote { border-left: 3px solid var(--accent); padding: var(--space-sm) var(--space-lg); margin: var(--space-lg) 0; color: var(--text-secondary); font-style: italic; background: var(--bg-callout); border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0; }
+
+/* Component page */
+.component-header {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+}
+.component-header .id-row { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; margin-bottom: var(--space-md); }
+.component-header h1 { margin: 0; }
+.meta-table { width: 100%; margin: var(--space-md) 0; font-size: 0.9rem; }
+.meta-table td { border-bottom: 1px solid var(--border); }
+.meta-table td:first-child { font-weight: 600; color: var(--text-secondary); width: 180px; }
+
+/* TOC */
+.toc { background: var(--bg-secondary); border-radius: var(--border-radius); padding: var(--space-lg); margin: var(--space-lg) 0; }
+.toc-title { font-weight: 600; margin-bottom: var(--space-sm); color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.toc ol { margin: 0; padding-left: var(--space-lg); }
+.toc a { border-bottom: none; }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-md); margin: var(--space-xl) 0; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--border-radius); padding: var(--space-lg); text-align: center; }
+.stat-value { font-family: var(--font-serif); font-size: 2.5rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.85rem; color: var(--text-tertiary); margin-top: var(--space-xs); }
+
+/* Anchor links */
+.anchor { color: var(--text-tertiary); text-decoration: none; border-bottom: none; font-size: 0.8em; margin-left: var(--space-xs); opacity: 0; transition: opacity 0.15s; }
+h2:hover .anchor, h3:hover .anchor { opacity: 1; }
+
+/* Language indicator */
+.lang-pill { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 0.75rem; font-weight: 600; }
+
+/* Section numbers */
+.section-number { color: var(--accent); margin-right: var(--space-sm); }
+
+/* ============ Page-specific styles for deployment-plan.html ============ */
+
+/* Cloud accent chips */
+.chip { display: inline-block; padding: 2px 9px; border-radius: 100px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.chip.azure  { background: #e0edff; color: #0e4a8c; }
+.chip.aws    { background: #fde9e0; color: #b23b0c; }
+.chip.modal  { background: #e4e7ff; color: #39397f; }
+.chip.nvidia { background: #e8f5e8; color: #2f6b2f; }
+.chip.xcloud { background: var(--accent-subtle); color: var(--accent-hover); }
+
+/* Wide diagrams / ASCII topology */
+.diagram-wide {
+  font-family: var(--font-mono);
+  background: var(--bg-code);
+  color: var(--text-on-dark);
+  padding: var(--space-lg);
+  border-radius: var(--border-radius);
+  overflow-x: auto;
+  margin: var(--space-lg) 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+/* Phase callouts */
+.phase {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+  padding: var(--space-lg) var(--space-xl);
+  margin: var(--space-xl) 0;
+}
+.phase.p1 { border-left-color: var(--green); }
+.phase.p2 { border-left-color: var(--accent); }
+.phase.p3 { border-left-color: var(--blue); }
+.phase.p4 { border-left-color: var(--amber); }
+.phase-head { display: flex; align-items: baseline; gap: var(--space-md); flex-wrap: wrap; margin-bottom: var(--space-md); }
+.phase-head h3 { margin: 0; }
+.phase-cost { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary); background: var(--bg-secondary); padding: 2px 10px; border-radius: 100px; }
+.phase-window { font-size: 0.82rem; color: var(--text-tertiary); font-weight: 600; }
+
+/* Verification block inside phases */
+.verify {
+  background: var(--green-light);
+  border-left: 3px solid var(--green);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+  margin: var(--space-md) 0 0;
+  font-size: 0.92rem;
+}
+.verify .vt { font-weight: 700; color: var(--green); font-family: var(--font-mono); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Component deploy row table tweaks */
+table.deploy td code { font-size: 0.78rem; }
+table.deploy td:first-child { white-space: nowrap; font-weight: 600; }
+.dep-id { font-family: var(--font-mono); color: var(--accent); font-weight: 700; font-size: 0.78rem; }
+
+/* Budget progress bars */
+.budget-row { margin: var(--space-sm) 0; }
+.budget-label { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: var(--space-xs); }
+.budget-label .spent { font-family: var(--font-mono); color: var(--accent-hover); font-weight: 600; }
+.budget-track { height: 14px; background: var(--bg-secondary); border-radius: 100px; overflow: hidden; border: 1px solid var(--border); }
+.budget-fill { height: 100%; border-radius: 100px; transition: width 0.3s; }
+.budget-fill.azure  { background: linear-gradient(90deg, #2b7fd4, #4aa3e8); }
+.budget-fill.aws    { background: linear-gradient(90deg, #e07b1a, #f0a050); }
+.budget-fill.modal  { background: linear-gradient(90deg, #5a5ad6, #8484e8); }
+
+/* Alert thresholds */
+.alert-thresh { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; margin-left: var(--space-xs); }
+.alert-thresh.t50 { background: var(--green-light); color: var(--green); }
+.alert-thresh.t75 { background: var(--amber-light); color: var(--amber); }
+.alert-thresh.t90 { background: var(--red-light); color: var(--red); }
+
+@media (max-width: 720px) {
+  .diagram-wide { font-size: 0.62rem; }
+}
+  </style>
+</head>
+<body>
+
+<div class="doc-header">
+  <h1>Cloud Deployment Plan — AumOS</h1>
+  <div class="subtitle">The operationally precise, dollar-accounted, 90-day multi-cloud deployment of all 49 components and 12 protocols on Azure + AWS + Modal + NVIDIA Inception credits.</div>
+  <nav>
+    <a href="index.html">&larr; Portal</a>
+    <a href="components.html">Components</a>
+    <a href="protocols.html">Protocols</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="pending-tasks.html">Pending Tasks</a>
+  </nav>
+</div>
+
+<div class="container-wide">
+
+<!-- =================================================================== -->
+<!-- TOC                                                                  -->
+<!-- =================================================================== -->
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#exec-summary">Executive Summary</a></li>
+    <li><a href="#allocation">Cloud Resource Allocation Strategy</a></li>
+    <li><a href="#topology">Multi-Cloud Topology</a></li>
+    <li><a href="#phases">Phase-by-Phase Deployment Plan (90 days)</a></li>
+    <li><a href="#per-component">Per-Component Deployment Guide</a></li>
+    <li><a href="#terraform">Terraform / Infrastructure-as-Code</a></li>
+    <li><a href="#cost-optimization">Cost Optimization Strategy</a></li>
+    <li><a href="#nvidia">NVIDIA Inception Integration Plan</a></li>
+    <li><a href="#risk">Risk Mitigation</a></li>
+    <li><a href="#outcomes">Expected Outcomes &amp; Demo Scenarios</a></li>
+    <li><a href="#budget-tracking">Budget Tracking Dashboard</a></li>
+  </ol>
+</div>
+
+<!-- =================================================================== -->
+<!-- 1. EXECUTIVE SUMMARY                                                 -->
+<!-- =================================================================== -->
+<h2 id="exec-summary"><span class="section-number">1</span>Executive Summary <a href="#exec-summary" class="anchor">&para;</a></h2>
+
+<p>This is the operational deployment plan for the AumOS platform (<a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>) &mdash; the reference implementation of the open authority and evidence layer for autonomous systems. It is the most operationally detailed document in the portal: every dollar of cloud credit is allocated to a phase and a component, every component gets a deploy command, and every phase ends with a concrete verification step an engineer can run. The goal is to turn the existing v1.0.0 codebase (49 components, 12 protocols, 691 tests) into a fully running cloud demonstration in 90 days.</p>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">~$6,270</div>
+    <div class="stat-label">Immediate cloud budget</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">90</div>
+    <div class="stat-label">Days end-to-end</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">49 + 12</div>
+    <div class="stat-label">Components / Protocols</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">4</div>
+    <div class="stat-label">Clouds orchestrated</div>
+  </div>
+</div>
+
+<h3>Deployment philosophy &mdash; cloud-native, multi-cloud, credit-optimized</h3>
+<p>Three principles drive every allocation decision in this document:</p>
+<ul>
+  <li><strong>Cloud-native.</strong> Every component runs as a managed service, container, or serverless function &mdash; no pet VMs, no manual configuration drift. AKS and EKS host the long-running services; Modal hosts the bursty workloads; confidential VMs host the trust boundary.</li>
+  <li><strong>Multi-cloud.</strong> No single cloud satisfies AumOS's confidentiality, GPU, and serverless requirements simultaneously. Azure is the only cloud with <strong>GPU-accelerated confidential VMs</strong> (NCCads H100 v5); AWS Nitro Enclaves are <strong>CPU-only</strong> (no GPU pass-through); Modal is the only per-second-billed serverless GPU. The deployment deliberately spans all three so each component runs where its constraint is best met.</li>
+  <li><strong>Credit-optimized.</strong> Every dollar is assigned before it is spent. Spot/reserved pricing is used wherever the workload tolerates interruption; serverless is used wherever the workload is bursty; the cheapest confidential VM that satisfies the security boundary is chosen for each role.</li>
+</ul>
+
+<h3>Available budget</h3>
+<table>
+  <thead>
+    <tr><th>Cloud / Source</th><th>Credit</th><th>Primary role in AumOS</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="chip azure">Azure</span></td><td><strong>$5,000 USD</strong></td><td>Primary cloud for confidential computing &mdash; NCCads H100 v5 confidential GPU VMs and DC-series CPU TEEs</td></tr>
+    <tr><td><span class="chip aws">AWS</span></td><td><strong>$1,000 USD</strong></td><td>Secondary cloud &mdash; KMS, Secrets Manager, EKS for the operators</td></tr>
+    <tr><td><span class="chip modal">Modal</span></td><td><strong>$270 USD</strong></td><td>Serverless GPU for bursty inference and evaluation workloads</td></tr>
+    <tr><td><span class="chip nvidia">NVIDIA Inception</span></td><td><strong>Additional credits (in pipeline)</strong></td><td>Heavier H100 inference (TRT-LLM, vLLM), team training, GTM support</td></tr>
+    <tr><td><strong>Total immediate budget</strong></td><td colspan="2"><strong>~$6,270 USD</strong> + NVIDIA pipeline</td></tr>
+  </tbody>
+</table>
+
+<h3>Timeline &mdash; end-to-end in 90 days on the existing v1.0 codebase</h3>
+<p>The deployment reuses the v1.0.0 implementations directly. The work is not <em>building</em> components &mdash; it is <em>wiring them to real cloud backends</em> (real KMS, real GPU, real attestation, real eval harnesses). The plan is split into four sequential phases, each with a fixed cost ceiling and a binary verification gate.</p>
+
+<table>
+  <thead>
+    <tr><th>Phase</th><th>Window</th><th>Theme</th><th>Cost ceiling</th><th>Gate</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Phase 1</strong></td><td>Days 1&ndash;14</td><td>Foundation &mdash; trusted core on confidential CPU</td><td>~$200 Azure + ~$50 AWS</td><td>Signed <code>compliance-report</code></td></tr>
+    <tr><td><strong>Phase 2</strong></td><td>Days 15&ndash;30</td><td>Confidential inference on H100</td><td>~$2,500 Azure</td><td>Real chat completion in attestation envelope</td></tr>
+    <tr><td><strong>Phase 3</strong></td><td>Days 31&ndash;60</td><td>Supply chain + evaluation</td><td>~$1,500 Azure + ~$500 AWS + ~$200 Modal</td><td>Full <code>compliance-report</code> with real lineage &amp; evals</td></tr>
+    <tr><td><strong>Phase 4</strong></td><td>Days 61&ndash;90</td><td>Multi-tenancy + edge + federated</td><td>~$800 Azure + ~$450 AWS + ~$70 Modal</td><td>End-to-end incident-response demonstration</td></tr>
+    <tr><td colspan="3"><strong>90-day total</strong></td><td><strong>~$5,000 Azure + ~$1,000 AWS + ~$270 Modal = ~$6,270</strong></td><td>&nbsp;</td></tr>
+  </tbody>
+</table>
+
+<div class="callout success">
+  <div class="callout-title">Expected outcome at day 90</div>
+  <p>A fully operational AumOS cloud deployment demonstrating the 12-plane architecture with <strong>real GPU inference</strong> (Llama-3-8B behind an attestation envelope), <strong>real KMS signing</strong> (Azure Key Vault + AWS KMS), <strong>real attestation</strong> (NCCads H100 v5 confidential VM + cuda-gram on a real H100), and <strong>real evaluation pipelines</strong> (HELM on Modal, prompt-injection attacks, an EU AI Act Article 55 compliance report). Total spend equals the available budget with a deliberate ~0% slack &mdash; every dollar is the plan.</p>
+</div>
+
+<div class="callout warning">
+  <div class="callout-title">The honest constraint</div>
+  <p>The <a href="critical-analysis.html">critical analysis</a> established that the v1.0 codebase ships mock backends and several Critical/High findings on the cryptographic spine. Phase 1 and Phase 2 of this plan are exactly the work that swaps those mocks for real backends (real KMS, real GPU attestation). Treat "deployed" in this document as "running against real cloud services," which is precisely the <em>v1.1 critical-fixes</em> milestone from the <a href="roadmap.html">roadmap</a>, delivered on cloud instead of in CI.</p>
+</div>
+
+<!-- =================================================================== -->
+<!-- 2. ALLOCATION                                                        -->
+<!-- =================================================================== -->
+<h2 id="allocation"><span class="section-number">2</span>Cloud Resource Allocation Strategy <a href="#allocation" class="anchor">&para;</a></h2>
+
+<p>Each cloud is assigned a role that matches its pricing profile and capability set. The assignment is not arbitrary &mdash; it follows directly from the capability matrix below.</p>
+
+<table>
+  <thead>
+    <tr><th>Capability</th><th><span class="chip azure">Azure</span></th><th><span class="chip aws">AWS</span></th><th><span class="chip modal">Modal</span></th><th><span class="chip nvidia">NVIDIA</span></th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GPU confidential VM (GPU in TEE)</td><td><strong>Yes &mdash; NCCads H100 v5</strong></td><td>No (Nitro = CPU-only)</td><td>No</td><td>Coming via Inception</td></tr>
+    <tr><td>CPU confidential VM (TEE)</td><td>Yes &mdash; DC-series (Intel TDX)</td><td>Yes &mdash; Nitro Enclaves</td><td>No</td><td>&mdash;</td></tr>
+    <tr><td>Managed KMS / HSM</td><td>Key Vault (Managed HSM)</td><td><strong>KMS</strong></td><td>&mdash;</td><td>&mdash;</td></tr>
+    <tr><td>Managed Kubernetes</td><td>AKS</td><td><strong>EKS</strong></td><td>&mdash;</td><td>&mdash;</td></tr>
+    <tr><td>Per-second serverless GPU</td><td>No</td><td>No</td><td><strong>Yes &mdash; A10G/A100/H100</strong></td><td>&mdash;</td></tr>
+    <tr><td>Cheapest H100 hour (sustained)</td><td>~$12.29 (confidential)</td><td>~$32.77 (P5, 8&times;H100)</td><td>~$3.95 (sustained)</td><td>Credit TBD</td></tr>
+    <tr><td>Free-tier offsets</td><td>&mdash;</td><td>KMS first key free</td><td>$30/mo free credits</td><td>DLI course credits</td></tr>
+  </tbody>
+</table>
+
+<div class="callout danger">
+  <div class="callout-title">Why Azure is primary &mdash; the GPU-in-TEE constraint</div>
+  <p>The single architectural fact that drives the entire allocation is this: <strong>only Azure offers a GPU inside a hardware confidential VM</strong> (NCCads H100 v5, AMD SEV-SNP based). AWS Nitro Enclaves explicitly do <em>not</em> support GPU pass-through (see <a href="https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html" target="_blank" rel="noopener">the Nitro Enclave docs</a>). Because AumOS's headline invariant is "attested inference on a real GPU," the H100 confidential VM <em>must</em> live on Azure. Everything else is placed to minimize cost around that fixed point.</p>
+</div>
+
+<h3>Per-cloud allocation &mdash; what each credit pool buys</h3>
+
+<h4><span class="chip azure">Azure</span> $5,000 &mdash; the confidential-compute spine</h4>
+<table>
+  <thead>
+    <tr><th>Service</th><th>Used by</th><th>Approx. hours / quantity</th><th>Approx. cost</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>NCCads H100 v5 confidential GPU VM (1&times;H100)</td><td>attesta-flow, tee-serve, open-serve-kit, cuda-gram, bridge-rt, inference-proxy, eval-guard</td><td>~203 GPU-hours @ $12.29/hr on-demand (Phase 2 + 3 + 4 bursts)</td><td>~$2,500</td></tr>
+    <tr><td>DC-series confidential CPU VM (Intel TDX)</td><td>trust-core, agent-identity, flight-recorder, credential-vault</td><td>~3 months continuous (single small instance) @ ~$0.16/hr effective</td><td>~$350</td></tr>
+    <tr><td>Azure Key Vault (Managed HSM) &mdash; Ed25519 production key</td><td>safe-tensors-pp, provena-chain, trust-core signing</td><td>~3 months @ ~$1.50/hr per key</td><td>~$350 (single HSM, one key)</td></tr>
+    <tr><td>AKS node pool (confidential-capable)</td><td>sovereign-stack, confidential-fabric control plane, console (X7) backend</td><td>~3 months @ ~$0.10/hr/node &times; 3 nodes</td><td>~$650</td></tr>
+    <tr><td>Azure Blob Storage (model weights + evidence)</td><td>safe-tensors-pp, flight-recorder, provena-chain</td><td>~200 GB-month + ops</td><td>~$50</td></tr>
+    <tr><td>Azure Cosmos DB (evidence ledger)</td><td>defstack-cloud, incident-exchange</td><td>~3 months serverless</td><td>~$100</td></tr>
+    <tr><td>Network egress + snapshots + misc.</td><td>cross-cloud mTLS, SPIFFE federation</td><td>&mdash;</td><td>~$1,000 (reserve)</td></tr>
+    <tr><td colspan="3"><strong>Azure subtotal</strong></td><td><strong>~$5,000</strong></td></tr>
+  </tbody>
+</table>
+
+<h4><span class="chip aws">AWS</span> $1,000 &mdash; KMS, secrets, and the operator plane</h4>
+<table>
+  <thead>
+    <tr><th>Service</th><th>Used by</th><th>Approx. hours / quantity</th><th>Approx. cost</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>EKS cluster + node group</td><td>tenant-guard operator, fleet-marshal operator, defstack-cloud runners</td><td>~3 months @ $0.10/hr cluster + 2 nodes @ ~$0.10/hr</td><td>~$400</td></tr>
+    <tr><td>KMS (backup signing key)</td><td>trust-core backup signer, credential-vault fallback</td><td>$1/key/mo &times; 3 + ~$0.03/10k requests</td><td>~$15</td></tr>
+    <tr><td>Secrets Manager</td><td>credential-vault backend, conformance Lambda secrets</td><td>~10 secrets @ $0.40/secret/mo &times; 3</td><td>~$15</td></tr>
+    <tr><td>Lambda (serverless conformance checks)</td><td>conformance (A6) periodic gate</td><td>~1M requests/mo</td><td>~$30</td></tr>
+    <tr><td>EC2 G5.xlarge (1&times;A10G) &mdash; edge/fleet simulation + lightwall-bridge</td><td>edge-sentinel simulation host, lightwell-bridge</td><td>~200 hrs @ $1.006/hr (intermittent)</td><td>~$200</td></tr>
+    <tr><td>VPC + NAT + egress + CloudWatch</td><td>cross-cloud networking, observability</td><td>~3 months</td><td>~$200</td></tr>
+    <tr><td>Free-tier offsets (first KMS key, 12-mo Freetier)</td><td>&mdash;</td><td>&mdash;</td><td>-$60</td></tr>
+    <tr><td colspan="3"><strong>AWS subtotal</strong></td><td><strong>~$1,000</strong></td></tr>
+  </tbody>
+</table>
+
+<h4><span class="chip modal">Modal</span> $270 &mdash; burst evaluation and adversarial attack compute</h4>
+<table>
+  <thead>
+    <tr><th>Service</th><th>Used by</th><th>Approx. hours / quantity</th><th>Approx. cost</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>A10G (24GB) serverless @ $1.10/hr</td><td>safe-eval (HELM/LM-Eval), bias-sentinel, arena</td><td>~150 GPU-hours (bursty, per-second billing)</td><td>~$165</td></tr>
+    <tr><td>H100 serverless @ $3.95/hr (sustained)</td><td>adversaria heavier attacks, agentsec-lab scenarios, red-team-cloud</td><td>~12 GPU-hours</td><td>~$47</td></tr>
+    <tr><td>$30/mo free credits (3 months)</td><td>development testing, dry runs</td><td>offset</td><td>-$90</td></tr>
+    <tr><td colspan="3"><strong>Modal subtotal</strong></td><td><strong>~$270 (gross spend ~$360; ~$90 free-tier offset)</strong></td></tr>
+  </tbody>
+</table>
+
+<h4><span class="chip nvidia">NVIDIA Inception</span> &mdash; pipeline credits + enablement</h4>
+<table>
+  <thead>
+    <tr><th>Benefit</th><th>Used for</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GPU credits (amount TBD)</td><td>Heavier inference &mdash; TRT-LLM/vLLM on H100 once credits land; extends Phase 2/3 H100 runway beyond ~203 hours</td><td>In pipeline</td></tr>
+    <tr><td>Deep Learning Institute course credits</td><td>Team upskilling on CUDA, Triton, TensorRT-LLM, confidential computing</td><td>Available on enrollment</td></tr>
+    <tr><td>Quarterly engineering syncs (NOOA team)</td><td>cuda-gram attestation correctness, NVTrust integration review</td><td>On request</td></tr>
+    <tr><td>Go-to-market support (GTC, co-marketing)</td><td>GTC 2027 talk; NGC catalog listing once stable</td><td>On request</td></tr>
+    <tr><td>NVentures investor visibility</td><td>Fundraising pipeline</td><td>Passive</td></tr>
+  </tbody>
+</table>
+<p class="lang-pill" style="display:block;background:var(--bg-secondary);padding:var(--space-sm) var(--space-md);font-size:0.82rem;">Reference: <a href="https://www.nvidia.com/en-us/startups/" target="_blank" rel="noopener">nvidia.com/en-us/startups</a></p>
+
+<h3>Pricing reference &mdash; the exact figures behind every allocation</h3>
+<p>Every dollar in the tables above is derived from these researched list prices. Credit-to-hours conversions assume continuous spend at the listed price.</p>
+<table>
+  <thead>
+    <tr><th>Cloud</th><th>Instance / service</th><th>List price</th><th>What the credit buys</th><th>Source</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="chip azure">Azure</span></td><td>NCCads H100 v5 (confidential GPU VM)</td><td>~$12.29/hr per GPU on-demand</td><td>$5,000 &rarr; <strong>~406 hours</strong> of single-H100 confidential compute (&asymp; 23 days continuous)</td><td><a href="https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/nccadsh100v5-series" target="_blank" rel="noopener">Azure NCCads H100 v5 series</a></td></tr>
+    <tr><td><span class="chip azure">Azure</span></td><td>NCads H100 v5 (non-confidential)</td><td>~$6.98/hr single-GPU on-demand</td><td>Used for non-confidential dev only</td><td><a href="https://www.thundercompute.com/blog/azure-gpu-instances" target="_blank" rel="noopener">Thunder Compute</a></td></tr>
+    <tr><td><span class="chip azure">Azure</span></td><td>DC-series confidential VM (CPU-only, Intel TDX)</td><td>from $1,121.28/month</td><td>Trust core &mdash; TEE without GPU, dramatically cheaper than a GPU VM</td><td><a href="https://azure.microsoft.com/en-us/pricing/details/virtual-machines/series/" target="_blank" rel="noopener">Azure VM series pricing</a></td></tr>
+    <tr><td><span class="chip azure">Azure</span></td><td>Key Vault (Managed HSM)</td><td>~$1.50/hour per key</td><td>Production Ed25519 signing key</td><td>Azure Key Vault pricing</td></tr>
+    <tr><td><span class="chip azure">Azure</span></td><td>AKS</td><td>free control plane; ~$0.10/hour per node</td><td>Operator + console hosting</td><td>AKS pricing</td></tr>
+    <tr><td><span class="chip aws">AWS</span></td><td>G5.xlarge (1&times; A10G)</td><td>~$1.006/hr</td><td>$1,000 &rarr; <strong>~994 hours</strong> of A10G</td><td><a href="https://aws.amazon.com/ec2/instance-types/g5/" target="_blank" rel="noopener">AWS G5 instances</a></td></tr>
+    <tr><td><span class="chip aws">AWS</span></td><td>Inf2.xlarge (Inferentia2)</td><td>~$0.758/hr</td><td>$1,000 &rarr; <strong>~1,320 hours</strong> of Inferentia2</td><td>AWS Inf2 pricing</td></tr>
+    <tr><td><span class="chip aws">AWS</span></td><td>P5.48xlarge (8&times; H100)</td><td>~$32.77/hr</td><td>Not used (too expensive for the budget)</td><td><a href="https://wring.co/blog/aws-gpu-instance-pricing-guide" target="_blank" rel="noopener">AWS GPU pricing guide</a></td></tr>
+    <tr><td><span class="chip aws">AWS</span></td><td>KMS</td><td>$1/key/month + $0.03 per 10,000 requests</td><td>Backup signing key (first key often free)</td><td>AWS KMS pricing</td></tr>
+    <tr><td><span class="chip aws">AWS</span></td><td>Secrets Manager</td><td>$0.40/secret/month</td><td>credential-vault fallback backend</td><td>AWS Secrets Manager pricing</td></tr>
+    <tr><td><span class="chip aws">AWS</span></td><td>EKS</td><td>$0.10/hour per cluster</td><td>tenant-guard + fleet-marshal operators</td><td>AWS EKS pricing</td></tr>
+    <tr><td><span class="chip aws">AWS</span></td><td>Nitro Enclaves</td><td>n/a</td><td><strong>CPU-only confidential compute &mdash; no GPU pass-through.</strong> This is why Azure is primary.</td><td><a href="https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html" target="_blank" rel="noopener">Nitro Enclave docs</a></td></tr>
+    <tr><td><span class="chip modal">Modal</span></td><td>A10G (24GB)</td><td>~$1.10/hr</td><td>$270 &rarr; <strong>~68 hours</strong> of A10G</td><td><a href="https://modal.com/pricing" target="_blank" rel="noopener">Modal pricing</a></td></tr>
+    <tr><td><span class="chip modal">Modal</span></td><td>A100 (40GB)</td><td>~$3.73/hr</td><td>Heavier single-model eval</td><td>Modal pricing</td></tr>
+    <tr><td><span class="chip modal">Modal</span></td><td>A100 (80GB)</td><td>~$3.95/hr</td><td>Large-model eval</td><td>Modal pricing</td></tr>
+    <tr><td><span class="chip modal">Modal</span></td><td>H100 (sustained)</td><td>~$3.95/hr</td><td>$270 &rarr; <strong>~24 hours</strong> of H100; per-second billing, no idle cost, instant Docker spin-up</td><td>Modal pricing</td></tr>
+    <tr><td><span class="chip modal">Modal</span></td><td>Free credits</td><td>$30/month</td><td>~$90 offset over 90 days &mdash; reserve for dev dry runs</td><td>Modal pricing</td></tr>
+  </tbody>
+</table>
+
+<div class="callout info">
+  <div class="callout-title">Why Modal for evaluation &mdash; the per-second advantage</div>
+  <p>Evaluation and adversarial-attack workloads are inherently <strong>bursty</strong>: HELM runs a benchmark suite in tens of minutes, then sits idle for hours; a red-team attack batch spikes then stops. On a reserved VM you pay for the idle. Modal's per-second billing means a 14-minute HELM run costs ~$0.26 on A10G, not the $26.40 a 24-hour reserved GPU would cost. Over 90 days this is the difference between evaluation fitting in $270 and evaluation blowing the entire budget.</p>
+</div>
+
+<!-- =================================================================== -->
+<!-- 3. TOPOLOGY                                                          -->
+<!-- =================================================================== -->
+<h2 id="topology"><span class="section-number">3</span>Architecture: Multi-Cloud Topology <a href="#topology" class="anchor">&para;</a></h2>
+
+<p>The topology below is the single source of truth for which component runs where and how the trust domain spans the three clouds. The trust root is Azure (because that is where the GPU-in-TEE lives); AWS and Modal are leaves that hold SPIFFE-issued SVIDs and call back to Azure for verification.</p>
+
+<div class="diagram-wide">                ┌─────────────────────────────────────────────────────────────────────────────────┐
+                │                       AUMOS MULTI-CLOUD TOPOLOGY                                  │
+                │             trust domain:  spiffe://aumos.prod  (spans all 3 clouds)            │
+                └─────────────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────── AZURE (primary, $5K) ───────────────────────────┐     ┌──────── AWS (secondary, $1K) ────────┐
+  │                                                                            │     │                                      │
+  │   ┌─ DC-series CONFIDENTIAL CPU VM (Intel TDX) ────────────────────────┐    │     │  ┌─ EKS cluster ───────────────────┐   │
+  │   │  trust-core (T1)  agent-identity (I1)  flight-recorder (E1)       │    │     │  │ tenant-guard operator (N4)      │   │
+  │   │  credential-vault (R4)    <-- Azure internal LB, mTLS only -->    │    │     │  │ fleet-marshal operator (F4)     │   │
+  │   └─────────────────────────────────┬──────────────────────────────────┘    │     │  │ defstack-cloud runners (X11)    │   │
+  │                                     │ issues SVIDs                          │     │  └──────────────┬───────────────────┘   │
+  │   ┌─ NCCads H100 v5 CONFIDENTIAL GPU VM (AMD SEV-SNP) ───────────────┐     │     │                 │ holds SPIFFE SVID    │
+  │   │  tee-serve (C1-4)   attesta-flow (C1-2)   open-serve-kit (N1)   │     │     │  ┌─ KMS ─────────┴────────────────┐   │
+  │   │  bridge-rt (N2)     inference-proxy (N3)  eval-guard (R5)       │     │     │  │ backup signing key (Ed25519)   │   │
+  │   │  cuda-gram (C1-3)   <-- real H100 attestation, NOT mock -->     │     │     │  └───────────────────────────────┘   │
+  │   └─────────────────────────────────┬──────────────────────────────────┘     │     │  ┌─ Secrets Manager ─────────────┐   │
+  │                                     │ serves Llama-3-8B                     │     │  │ credential-vault backend (R4) │   │
+  │   ┌─ Azure Key Vault (Managed HSM) ─┴──────────┐  ┌─ AKS node pool ──────┐   │     │  └───────────────────────────────┘   │
+  │   │  production Ed25519 signing key             │  │ sovereign-stack (X10)│   │     │  ┌─ Lambda ───────────────────────┐   │
+  │   │  safe-tensors-pp / provena-chain sign here  │  │ confidential-fabric  │   │     │  │ conformance periodic gate (A6)│   │
+  │   └─────────────────────────────────────────────┘  │ console (X7) backend │   │     │  └───────────────────────────────┘   │
+  │                                                    └──────────────────────┘   │     │  ┌─ EC2 G5.xlarge (A10G) ────────┐   │
+  │   ┌─ Blob Storage ──────────────┐  ┌─ Cosmos DB ─────────────────────┐       │     │  │ edge-sentinel simulation (F3)│   │
+  │   │ model weights (signed)      │  │ evidence ledger                  │       │     │  │ lightwell-bridge             │   │
+  │   │ tamper-scan artifacts       │  │ incident-exchange records        │       │     │  └───────────────────────────────┘   │
+  │   └─────────────────────────────┘  └──────────────────────────────────┘       │     └──────────────────────────────────────┘
+  └────────────────────────────────────────────────────────────────────────────┘
+                                                  │ mTLS + SPIFFE SVIDs
+                                                  ▼
+                              ┌─ MODAL (burst, $270) ──────────────────────────┐
+                              │  serverless GPU, per-second billing            │
+                              │                                                │
+                              │  safe-eval (A1)  ........ HELM / LM-Eval       │
+                              │  adversaria (A2) ........ prompt-injection     │
+                              │  agentsec-lab (A5) ...... agentsec scenarios   │
+                              │  bias-sentinel (A3) ..... bias + copyright     │
+                              │  arena (A8) ............ pairwise eval         │
+                              │  red-team-cloud (R7) .... continuous red-team  │
+                              └────────────────────────────────────────────────┘
+
+  DATA FLOW (one inference request, fully attested):
+    model weights (Azure Blob, signed by Key Vault)
+        └──> attested inference (Azure NCCads H100 v5 TEE, cuda-gram verifies real H100 attestation)
+                  └──> evaluation burst (Modal A10G, HELM + adversaria attacks)
+                            └──> evidence (Azure Cosmos DB, signed by trust-core)
+                                      └──> compliance report (defstack-cli, EU AI Act Art. 55 JSON)
+</div>
+
+<h3>Cross-cloud trust &amp; networking</h3>
+<ul>
+  <li><strong>Identity.</strong> A single SPIFFE trust domain (<code>spiffe://aumos.prod</code>) spans all three clouds. trust-core (T1) on the Azure DC-series VM is the SPIRE trust bundle anchor. Every workload on AKS, EKS, and Modal holds an X.509 SVID minted from that bundle; mTLS is mandatory between every pair of services.</li>
+  <li><strong>Networking.</strong> Azure &harr; AWS is peered (VNet peering + Transit Gateway) for the operator-plane callbacks. Modal egresses over the public internet but every request is mTLS-authenticated; no Modal function is reachable without a valid SVID.</li>
+  <li><strong>Keys.</strong> Production signing lives in Azure Key Vault (Managed HSM). AWS KMS holds a backup key for disaster recovery. No private key material ever leaves an HSM.</li>
+  <li><strong>Evidence.</strong> All signed artifacts (model signatures, attestation envelopes, eval results, incident records) land in Azure Cosmos DB through trust-core, which countersigns each entry.</li>
+</ul>
+
+<!-- =================================================================== -->
+<!-- 4. PHASES                                                            -->
+<!-- =================================================================== -->
+<h2 id="phases"><span class="section-number">4</span>Phase-by-Phase Deployment Plan (90 days) <a href="#phases" class="anchor">&para;</a></h2>
+
+<p>The four phases are strictly sequential &mdash; each phase's verification gate is a precondition for the next. Costs are ceilings, not estimates; the plan spends up to the ceiling and no more.</p>
+
+<!-- PHASE 1 -->
+<div class="phase p1">
+  <div class="phase-head">
+    <h3>Phase 1 &mdash; Foundation</h3>
+    <span class="phase-window">Days 1&ndash;14</span>
+    <span class="phase-cost">~$200 Azure + ~$50 AWS</span>
+  </div>
+  <p><strong>Theme:</strong> stand up the trusted core on a CPU-only confidential VM, wire real KMS signing, and prove the evidence pipeline end-to-end with a single signed <code>compliance-report</code>. No GPU yet &mdash; this phase is cheap and de-risks everything downstream.</p>
+
+  <h4>Tasks</h4>
+  <ol>
+    <li>Provision Azure DC-series confidential VM (Intel TDX), Ubuntu 24.04, with the <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a> component binaries deployed via <code>defstack</code>.</li>
+    <li>Deploy <strong>trust-core (T1)</strong> on that VM as a systemd unit, plain HTTP behind an Azure internal load balancer (mTLS terminates at the mesh, not the LB).</li>
+    <li>Deploy <strong>agent-identity (I1)</strong> alongside trust-core (Go binary, same VM). It issues the first SPIFFE SVIDs for itself and trust-core.</li>
+    <li>Provision Azure Key Vault with Managed HSM; create the production Ed25519 key <code>aumos-prod-ed25519-v1</code>.</li>
+    <li>Provision AWS KMS; create the backup Ed25519 key <code>aumos-backup-ed25519-v1</code>.</li>
+    <li>Deploy <strong>flight-recorder (E1)</strong> alongside trust-core; point its sink at Azure Blob Storage.</li>
+    <li>Wire <strong>defstack-cli (X1)</strong> to install and verify all Phase-1 components; point it at the real Key Vault backend.</li>
+    <li>Deploy <strong>credential-vault (R4)</strong> with the Azure Key Vault backend (primary) and AWS Secrets Manager backend (fallback).</li>
+  </ol>
+
+  <h4>Key commands</h4>
+<pre><code># Provision the foundation (terraform &mdash; see &sect;7)
+cd deploy/terraform/azure &amp;&amp; terraform init &amp;&amp; terraform apply \
+  -var="phase=foundation" -var="vm_sku=Standard_DC2s_v3"
+
+# Install Phase-1 components on the confidential VM
+defstack install trust-core agent-identity flight-recorder credential-vault \
+  --backend keyvault://aumos-prod-ed25519-v1
+
+# Register the AWS backup signer
+defstack signer add --id aws-backup --backend kms://aumos-backup-ed25519-v1</code></pre>
+
+  <div class="verify">
+    <span class="vt">Verification gate</span>
+    <p><code>defstack compliance-report --format json &gt; report.json</code> produces a real, Key-Vault-signed JSON document whose signature verifies against the Azure Key Vault public key, with trust-core, agent-identity, flight-recorder, and credential-vault all listed as <code>verified</code> against real backends. If the signature does not verify, Phase 2 does not start.</p>
+  </div>
+</div>
+
+<!-- PHASE 2 -->
+<div class="phase p2">
+  <div class="phase-head">
+    <h3>Phase 2 &mdash; Confidential Inference</h3>
+    <span class="phase-window">Days 15&ndash;30</span>
+    <span class="phase-cost">~$2,500 Azure (H100 hours)</span>
+  </div>
+  <p><strong>Theme:</strong> boot the GPU confidential VM, install the GPU stack inside the TEE, load a real model, and produce a real chat completion wrapped in a real attestation envelope. This is the single most expensive phase and the entire reason Azure is the primary cloud.</p>
+
+  <h4>Tasks</h4>
+  <ol>
+    <li>Provision the <strong>NCCads H100 v5</strong> confidential GPU VM (AMD SEV-SNP). Single GPU is sufficient for Llama-3-8B.</li>
+    <li>Inside the confidential VM: install NVIDIA drivers, CUDA 12.x, and <code>NVTrust</code> (the confidential-computing attestation agent).</li>
+    <li>Deploy <strong>open-serve-kit (N1, Go)</strong> as the inference proxy &mdash; the OpenAI-compatible front door.</li>
+    <li>Deploy <strong>bridge-rt (N2, Python)</strong> as the backend abstraction layer; configure it for <code>vLLM</code> on the H100 (Ollama as fallback).</li>
+    <li>Deploy <strong>tee-serve (C1-4, Go)</strong> as the TEE sidecar that measures the running process and exposes the attestation endpoint.</li>
+    <li>Deploy <strong>attesta-flow (C1-2)</strong> orchestrator inside the confidential VM; reuse the existing <code>attesta-flow/terraform/main.tf</code> module (see <a href="#terraform">&sect;7</a>).</li>
+    <li>Deploy <strong>cuda-gram (C1-3, Python)</strong> in real-attestation mode (not mock): it queries the H100 attestation through NVTrust.</li>
+    <li>Deploy <strong>eval-guard (R5, Rust)</strong> to attest the sandbox boundary before any inference is allowed.</li>
+    <li>Deploy <strong>inference-proxy (N3, Rust)</strong> in front of open-serve-kit; it validates the attestation envelope on every request.</li>
+    <li>Pull <strong>Llama-3-8B</strong> from HuggingFace into the VM; load it into vLLM.</li>
+  </ol>
+
+  <h4>Key commands</h4>
+<pre><code># Boot the confidential GPU VM
+cd deploy/terraform/azure &amp;&amp; terraform apply \
+  -var="phase=inference" -var="vm_sku=Standard_NCCads_H100_v5_1_2_1024"
+
+# Inside the VM: install the GPU stack inside the TEE
+defstack install gpu-stack --driver 550 --cuda 12.5 --nvtrust latest
+
+# Deploy the inference plane
+defstack install open-serve-kit bridge-rt tee-serve attesta-flow \
+                cuda-gram eval-guard inference-proxy \
+  --backend vllm --model meta-llama/Meta-Llama-3-8B \
+  --attestation real
+
+# Pull + load the model
+huggingface-cli download meta-llama/Meta-Llama-3-8B --local-dir /models/llama3-8b
+defstack model load /models/llama3-8b</code></pre>
+
+  <div class="verify">
+    <span class="vt">Verification gate</span>
+    <p>Send a real chat completion request to <code>inference-proxy</code>:</p>
+<pre><code>curl -s https://inference.aumos.prod/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"llama3-8b","messages":[{"role":"user","content":"Say hello"}]}' \
+  | defstack verify-attestation --stdin</code></pre>
+    <p>The response must contain (a) a real Llama-3 completion, and (b) an attestation envelope whose GPU attestation report verifies against the H100's measurement register (not a mock). cuda-gram must report <code>attestation: verified, source: h100-cc</code>.</p>
+  </div>
+</div>
+
+<!-- PHASE 3 -->
+<div class="phase p3">
+  <div class="phase-head">
+    <h3>Phase 3 &mdash; Supply Chain + Evaluation</h3>
+    <span class="phase-window">Days 31&ndash;60</span>
+    <span class="phase-cost">~$1,500 Azure + ~$500 AWS + ~$200 Modal</span>
+  </div>
+  <p><strong>Theme:</strong> build the provenance chain for the deployed model, run real evaluation and adversarial attacks, and gate releases on compliance. This is the phase where the EU AI Act Article 55 obligations become demonstrable.</p>
+
+  <h4>Tasks</h4>
+  <ol>
+    <li>Deploy <strong>safe-tensors-pp (S1)</strong>: download Llama-3-8B from HF Hub, sign it with the Azure Key Vault key, store the signed artifact in Blob.</li>
+    <li>Deploy <strong>provena-chain (S2)</strong>: record the model lineage edge <code>HF Hub &rarr; sign &rarr; deploy</code>.</li>
+    <li>Deploy <strong>model-sbom (S4)</strong>: generate a CycloneDX SBOM with the AI extensions for Llama-3-8B (weights hash, license, dataset refs).</li>
+    <li>Deploy <strong>data-provenance-kit (S5)</strong>: record a sample dataset's lineage.</li>
+    <li>Deploy <strong>tamper-scan (S8)</strong>: scan the signed weights for anomalies (entropy outliers, known-bad hash prefixes).</li>
+    <li>Deploy <strong>safe-eval (A1)</strong> on Modal: run HELM and LM-Eval benchmarks against the served model (A10G burst).</li>
+    <li>Deploy <strong>adversaria (A2)</strong> on Modal: run prompt-injection and jailbreak attack suites.</li>
+    <li>Deploy <strong>agentsec-lab (A5)</strong> on Modal: run the agentsec prompt-injection scenario pack.</li>
+    <li>Deploy <strong>bias-sentinel (A3)</strong>: run bias and copyright checks.</li>
+    <li>Deploy <strong>comply-gate (A4)</strong>: install the CI/CD compliance gates (every PR must pass).</li>
+    <li>Deploy <strong>kill-switch (R3)</strong>: wire it to eval-guard + sentinel-trace + credential-vault so a failed gate can revoke a model.</li>
+  </ol>
+
+  <h4>Key commands</h4>
+<pre><code># Supply chain
+defstack install safe-tensors-pp provena-chain model-sbom data-provenance-kit tamper-scan
+safe-tensors-pp sign --model meta-llama/Meta-Llama-3-8B --key aumos-prod-ed25519-v1
+
+# Evaluation + attacks (Modal burst)
+modal deploy deploy/modal/safe_eval.py        # HELM + LM-Eval
+modal deploy deploy/modal/adversaria.py       # prompt-injection + jailbreak
+modal deploy deploy/modal/agentsec_lab.py     # agentsec scenarios
+modal deploy deploy/modal/bias_sentinel.py    # bias + copyright
+
+# Compliance gate + kill-switch
+defstack install comply-gate kill-switch
+defstack compliance-report --format json &gt; report-phase3.json</code></pre>
+
+  <div class="verify">
+    <span class="vt">Verification gate</span>
+    <p><code>defstack compliance-report</code> produces a full report containing: (1) real model lineage (HF &rarr; sign &rarr; deploy, signed), (2) a real HELM evaluation result from Modal, (3) a real CycloneDX SBOM, (4) real adversaria attack results. Every artifact must be signed by the Key Vault key and verifiable. The report must map to all 8 EU AI Act Article 55 obligations (see <a href="index.html">portal &sect; EU AI Act coverage</a>).</p>
+  </div>
+</div>
+
+<!-- PHASE 4 -->
+<div class="phase p4">
+  <div class="phase-head">
+    <h3>Phase 4 &mdash; Multi-Tenancy + Edge + Federated</h3>
+    <span class="phase-window">Days 61&ndash;90</span>
+    <span class="phase-cost">~$800 Azure + ~$450 AWS + ~$70 Modal</span>
+  </div>
+  <p><strong>Theme:</strong> complete the architecture with the operator plane (AWS EKS), federated learning, edge simulation, the web console, and the MCP gateway &mdash; then run the headline end-to-end incident-response demonstration.</p>
+
+  <h4>Tasks</h4>
+  <ol>
+    <li>Deploy <strong>tenant-guard (N4)</strong> as a Kubernetes operator on AWS EKS; configure GPU-slice allocation for simulated tenants.</li>
+    <li>Deploy <strong>fleet-marshal (F4)</strong> for OTA model updates; perform a canary rollout of a second model variant.</li>
+    <li>Deploy <strong>fed-core (F1)</strong> + <strong>dp-crate (F2)</strong>; run a 3-node demonstration federated training round with differential privacy.</li>
+    <li>Deploy <strong>edge-sentinel (F3)</strong> as a simulated edge agent on the AWS G5.xlarge.</li>
+    <li>Deploy the <strong>console (X7)</strong> as a web UI served from AKS, browser-accessible.</li>
+    <li>Deploy the <strong>MCP gateway (X8)</strong> with a sample MCP server exposing AumOS evidence as MCP resources.</li>
+    <li>Wire <strong>incident-exchange (X9)</strong>, <strong>retro-spec-kit (X5)</strong>, and <strong>metr-bridge (X6)</strong>.</li>
+    <li>Run the full incident simulation (see verification).</li>
+  </ol>
+
+  <h4>Key commands</h4>
+<pre><code># Operator plane on EKS
+cd deploy/terraform/aws &amp;&amp; terraform apply -var="phase=operators"
+kubectl apply -f deploy/k8s/tenant-guard-operator.yaml
+kubectl apply -f deploy/k8s/fleet-marshal-operator.yaml
+
+# Federated + edge
+defstack install fed-core dp-crate edge-sentinel
+defstack federated run --nodes 3 --dp-epsilon 8.0
+
+# Console + MCP gateway
+defstack install console mcp-gateway --ingress web
+
+# Incident-response wiring
+defstack install incident-exchange retro-spec-kit metr-bridge</code></pre>
+
+  <div class="verify">
+    <span class="vt">Verification gate &mdash; the headline demo</span>
+    <p>Inject a simulated prompt-injection attack through <code>adversaria</code> &rarr; <strong>kill-switch (R3)</strong> triggers and revokes the model slice &rarr; the event is recorded by <strong>flight-recorder (E1)</strong> into Cosmos DB &rarr; <strong>incident-exchange (X9)</strong> emits the incident record &rarr; <strong>retro-spec-kit (X5)</strong> analyzes root cause &rarr; <strong>metr-bridge (X6)</strong> exports a METR-format report. The entire chain must complete in under 60 seconds and every step must be signed. This is the demo shown in <a href="#outcomes">&sect;10</a>.</p>
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- 5. PER-COMPONENT                                                     -->
+<!-- =================================================================== -->
+<h2 id="per-component"><span class="section-number">5</span>Per-Component Deployment Guide <a href="#per-component" class="anchor">&para;</a></h2>
+
+<p>For each of the 49 components: which cloud it runs on, the instance/service, estimated cost per day, the deploy command, dependencies that must be deployed first, and the per-component verification step. Grouped by cloud, then cross-cloud. All references use <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>.</p>
+
+<div class="callout info">
+  <div class="callout-title">How to read the deploy commands</div>
+  <p><code>defstack install ...</code> is the AumOS CLI orchestrator (X1). <code>--backend</code> selects the real cloud backend. <code>terraform</code> and <code>kubectl</code> are used for raw infrastructure. <code>modal deploy</code> ships serverless functions. Every command is idempotent and safe to re-run.</p>
+</div>
+
+<h3 id="azure-components"><span class="chip azure">Azure</span> Azure-deployed components (16)</h3>
+
+<table class="deploy">
+  <thead>
+    <tr><th>Component</th><th>Instance / service</th><th>Cost/day</th><th>Deploy command</th><th>Depends on</th><th>Verify</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="dep-id">T1</span> trust-core</td><td>DC-series confidential CPU VM (Intel TDX)</td><td>~$3.84</td><td><code>defstack install trust-core --backend keyvault://aumos-prod-ed25519-v1</code></td><td>Key Vault, agent-identity</td><td><code>defstack verify trust-core</code> &rarr; OK</td></tr>
+    <tr><td><span class="dep-id">I1</span> agent-identity</td><td>Same DC-series VM</td><td>shared</td><td><code>defstack install agent-identity --trust-domain spiffe://aumos.prod</code></td><td>trust-core</td><td>SVID issued for self</td></tr>
+    <tr><td><span class="dep-id">E1</span> flight-recorder</td><td>Same DC-series VM &rarr; Blob Storage sink</td><td>~$0.50 (Blob)</td><td><code>defstack install flight-recorder --sink azblob://aumos-evidence</code></td><td>trust-core</td><td>Test event appears in Blob</td></tr>
+    <tr><td><span class="dep-id">R4</span> credential-vault</td><td>Same DC-series VM; Key Vault + Secrets Manager backends</td><td>~$1.50 (HSM) shared</td><td><code>defstack install credential-vault --backends keyvault,secretsmanager</code></td><td>trust-core</td><td>Read a secret &rarr; returns value</td></tr>
+    <tr><td><span class="dep-id">R5</span> eval-guard</td><td>NCCads H100 v5 VM (sandbox attester)</td><td>shared w/ H100</td><td><code>defstack install eval-guard --attest-boundary</code></td><td>tee-serve, cuda-gram</td><td>Boundary attestation verifies</td></tr>
+    <tr><td><span class="dep-id">R3</span> kill-switch</td><td>DC-series VM (control plane)</td><td>shared</td><td><code>defstack install kill-switch --sources eval-guard,sentinel-trace,credential-vault</code></td><td>eval-guard, inference-proxy</td><td>Trigger test &rarr; slice revoked</td></tr>
+    <tr><td><span class="dep-id">C1-4</span> tee-serve</td><td>NCCads H100 v5 VM (TEE sidecar)</td><td>shared w/ H100</td><td><code>defstack install tee-serve --tee sev-snp</code></td><td>NVIDIA drivers, NVTrust</td><td>Measurement report &ne; mock</td></tr>
+    <tr><td><span class="dep-id">C1-2</span> attesta-flow</td><td>NCCads H100 v5 VM (orchestrator)</td><td>shared w/ H100</td><td><code>terraform apply</code> in <code>attesta-flow/terraform/</code></td><td>tee-serve, cuda-gram</td><td>Flow produces attested envelope</td></tr>
+    <tr><td><span class="dep-id">C1-3</span> cuda-gram</td><td>NCCads H100 v5 VM (<strong>real</strong> H100 attestation)</td><td>shared w/ H100</td><td><code>defstack install cuda-gram --attestation real --source h100-cc</code></td><td>NVTrust</td><td><code>attestation: verified</code></td></tr>
+    <tr><td><span class="dep-id">N1</span> open-serve-kit</td><td>NCCads H100 v5 VM (Go proxy)</td><td>shared w/ H100</td><td><code>defstack install open-serve-kit --backend vllm</code></td><td>bridge-rt</td><td><code>/v1/models</code> returns llama3-8b</td></tr>
+    <tr><td><span class="dep-id">N2</span> bridge-rt</td><td>NCCads H100 v5 VM (Python backend abstraction)</td><td>shared w/ H100</td><td><code>defstack install bridge-rt --backend vllm --gpu h100</code></td><td>vLLM, model loaded</td><td>Tokenize &rarr; decode round-trips</td></tr>
+    <tr><td><span class="dep-id">N3</span> inference-proxy</td><td>NCCads H100 v5 VM (Rust front door)</td><td>shared w/ H100</td><td><code>defstack install inference-proxy --upstream open-serve-kit</code></td><td>open-serve-kit, eval-guard</td><td>Request w/o valid attestation &rarr; 403</td></tr>
+    <tr><td><span class="dep-id">S1</span> safe-tensors-pp</td><td>DC-series VM + Blob (signing job)</td><td>~$0.50</td><td><code>safe-tensors-pp sign --model meta-llama/Meta-Llama-3-8B --key aumos-prod-ed25519-v1</code></td><td>Key Vault, HF Hub access</td><td>Sig verifies vs Key Vault pubkey</td></tr>
+    <tr><td><span class="dep-id">S2</span> provena-chain</td><td>AKS pod (lineage service)</td><td>~$0.24</td><td><code>kubectl apply -f deploy/k8s/provena-chain.yaml</code></td><td>safe-tensors-pp, Cosmos DB</td><td>Lineage edge recorded</td></tr>
+    <tr><td><span class="dep-id">C1-5</span> confidential-fabric</td><td>AKS pod (cross-TEE coordination)</td><td>~$0.24</td><td><code>defstack install confidential-fabric --aks-pool confidential</code></td><td>tee-serve, agent-identity</td><td>Fabric handshake across TEEs</td></tr>
+    <tr><td><span class="dep-id">X10</span> sovereign-stack</td><td>AKS pod (commercial orchestration)</td><td>~$0.24</td><td><code>defstack install sovereign-stack --region azure-eastus2</code></td><td>trust-core, tenant-guard</td><td>Stack health endpoint 200</td></tr>
+  </tbody>
+</table>
+
+<h3 id="aws-components"><span class="chip aws">AWS</span> AWS-deployed components (5)</h3>
+
+<table class="deploy">
+  <thead>
+    <tr><th>Component</th><th>Instance / service</th><th>Cost/day</th><th>Deploy command</th><th>Depends on</th><th>Verify</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="dep-id">N4</span> tenant-guard</td><td>EKS operator pod</td><td>~$1.20 (EKS+node)</td><td><code>kubectl apply -f deploy/k8s/tenant-guard-operator.yaml</code></td><td>EKS cluster, SPIFFE SVID</td><td>Slice allocated to test tenant</td></tr>
+    <tr><td><span class="dep-id">F4</span> fleet-marshal</td><td>EKS operator pod</td><td>shared w/ EKS</td><td><code>kubectl apply -f deploy/k8s/fleet-marshal-operator.yaml</code></td><td>tenant-guard, open-serve-kit</td><td>Canary rollout reaches 10%</td></tr>
+    <tr><td><span class="dep-id">X11</span> defstack-cloud</td><td>EKS runners + Lambda</td><td>~$1.00</td><td><code>defstack cloud deploy --eks aumos-prod</code></td><td>EKS, trust-core (cross-cloud)</td><td>Cloud <code>compliance-report</code> runs</td></tr>
+    <tr><td><span class="dep-id">F3</span> edge-sentinel</td><td>EC2 G5.xlarge (simulated edge)</td><td>~$24.14 (when on)</td><td><code>defstack install edge-sentinel --simulated --host g5.xlarge</code></td><td>fleet-marshal, SPIFFE SVID</td><td>Heartbeat to fleet-marshal</td></tr>
+    <tr><td><span class="dep-id">S7</span> lightwell-bridge</td><td>EC2 G5.xlarge (data plane bridge)</td><td>~$24.14 (when on)</td><td><code>defstack install lightwell-bridge --upstream provena-chain</code></td><td>provena-chain (cross-cloud)</td><td>Bridge forwards a record</td></tr>
+  </tbody>
+</table>
+
+<h3 id="modal-components"><span class="chip modal">Modal</span> Modal-deployed components (6)</h3>
+
+<table class="deploy">
+  <thead>
+    <tr><th>Component</th><th>Instance / service</th><th>Cost/day (active)</th><th>Deploy command</th><th>Depends on</th><th>Verify</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="dep-id">A1</span> safe-eval</td><td>Modal A10G serverless fn</td><td>~$1.10/hr (per-second)</td><td><code>modal deploy deploy/modal/safe_eval.py</code></td><td>open-serve-kit endpoint</td><td>HELM suite completes w/ scores</td></tr>
+    <tr><td><span class="dep-id">A2</span> adversaria</td><td>Modal A10G/H100 serverless fn</td><td>~$1.10&ndash;$3.95/hr</td><td><code>modal deploy deploy/modal/adversaria.py</code></td><td>open-serve-kit endpoint</td><td>Attack batch &gt;0% success logged</td></tr>
+    <tr><td><span class="dep-id">A5</span> agentsec-lab</td><td>Modal A10G serverless fn</td><td>~$1.10/hr</td><td><code>modal deploy deploy/modal/agentsec_lab.py</code></td><td>open-serve-kit, agent-identity</td><td>Scenario pack runs to completion</td></tr>
+    <tr><td><span class="dep-id">A3</span> bias-sentinel</td><td>Modal A10G serverless fn</td><td>~$1.10/hr</td><td><code>modal deploy deploy/modal/bias_sentinel.py</code></td><td>open-serve-kit endpoint</td><td>Bias + copyright report emitted</td></tr>
+    <tr><td><span class="dep-id">A8</span> arena</td><td>Modal A10G serverless fn</td><td>~$1.10/hr</td><td><code>modal deploy deploy/modal/arena.py</code></td><td>2+ served models</td><td>Pairwise Elo ratings produced</td></tr>
+    <tr><td><span class="dep-id">R7</span> red-team-cloud</td><td>Modal H100 serverless fn (continuous)</td><td>~$3.95/hr</td><td><code>modal deploy deploy/modal/red_team_cloud.py</code></td><td>open-serve-kit, incident-exchange</td><td>Finding &rarr; incident-exchange</td></tr>
+  </tbody>
+</table>
+
+<h3 id="cross-cloud-components"><span class="chip xcloud">X-Cloud</span> Cross-cloud / control-plane components (22)</h3>
+<p>These components are deployed once (on AKS, EKS, or the DC-series VM) but operate across all three clouds via the SPIFFE trust domain. They have no per-cloud cost of their own &mdash; they ride the infrastructure above.</p>
+
+<table class="deploy">
+  <thead>
+    <tr><th>Component</th><th>Hosted on</th><th>Deploy command</th><th>Depends on</th><th>Verify</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="dep-id">X1</span> defstack-cli</td><td>Engineer workstation / CI</td><td><code>go install github.com/MuVeraAI/aumos/defstack-cli@latest</code></td><td>trust-core endpoint</td><td><code>defstack version</code> OK</td></tr>
+    <tr><td><span class="dep-id">A6</span> conformance</td><td>AWS Lambda (periodic) + CI</td><td><code>defstack install conformance --schedule rate(1h)</code></td><td>protocol test vectors</td><td>Conformance gate passes</td></tr>
+    <tr><td><span class="dep-id">S4</span> model-sbom</td><td>DC-series VM (job)</td><td><code>defstack install model-sbom --format cyclonedx-ai</code></td><td>safe-tensors-pp</td><td>SBOM validates vs schema</td></tr>
+    <tr><td><span class="dep-id">S5</span> data-provenance-kit</td><td>AKS pod</td><td><code>kubectl apply -f deploy/k8s/data-provenance.yaml</code></td><td>Cosmos DB</td><td>Dataset lineage recorded</td></tr>
+    <tr><td><span class="dep-id">S8</span> tamper-scan</td><td>DC-series VM (job)</td><td><code>defstack install tamper-scan --target /models/llama3-8b</code></td><td>safe-tensors-pp</td><td>Scan report &rarr; no anomalies</td></tr>
+    <tr><td><span class="dep-id">A4</span> comply-gate</td><td>CI (GitHub Actions)</td><td><code>defstack install comply-gate --ci github-actions</code></td><td>conformance, safe-eval</td><td>PR blocked on failed gate</td></tr>
+    <tr><td><span class="dep-id">A7</span> garak-bridge</td><td>Modal (via safe-eval)</td><td><code>modal deploy deploy/modal/garak_bridge.py</code></td><td>safe-eval</td><td>Garak probes run</td></tr>
+    <tr><td><span class="dep-id">C1-1</span> nvtrust-bridge</td><td>NCCads H100 v5 VM</td><td><code>defstack install nvtrust-bridge --nvtrust latest</code></td><td>NVTrust</td><td>Attestation token parsed</td></tr>
+    <tr><td><span class="dep-id">R2</span> sentinel-trace</td><td>AKS pod</td><td><code>defstack install sentinel-trace --otel-collector</code></td><td>OTel Collector</td><td>Trace span emitted</td></tr>
+    <tr><td><span class="dep-id">R6</span> nooa-reporter</td><td>AKS pod</td><td><code>defstack install nooa-reporter</code></td><td>cuda-gram, attesta-flow</td><td>NOOA report published</td></tr>
+    <tr><td><span class="dep-id">X2</span> nooa-ext</td><td>AKS pod</td><td><code>defstack install nooa-ext</code></td><td>nooa-reporter</td><td>Extension manifest served</td></tr>
+    <tr><td><span class="dep-id">X3</span> policy-compiler</td><td>AKS pod</td><td><code>defstack install policy-compiler</code></td><td>trust-core</td><td>Policy &rarr; enforcement compiles</td></tr>
+    <tr><td><span class="dep-id">X4</span> sigstore-bridge</td><td>AKS pod</td><td><code>defstack install sigstore-bridge --rekor public</code></td><td>Sigstore Rekor</td><td>Entry on Rekor public log</td></tr>
+    <tr><td><span class="dep-id">X5</span> retro-spec-kit</td><td>AKS pod</td><td><code>defstack install retro-spec-kit</code></td><td>incident-exchange</td><td>RCA generated from incident</td></tr>
+    <tr><td><span class="dep-id">X6</span> metr-bridge</td><td>AKS pod</td><td><code>defstack install metr-bridge</code></td><td>incident-exchange</td><td>METR-format export produced</td></tr>
+    <tr><td><span class="dep-id">X7</span> console</td><td>AKS pod (web UI)</td><td><code>defstack install console --ingress web</code></td><td>trust-core, Cosmos DB</td><td>Console loads in browser</td></tr>
+    <tr><td><span class="dep-id">X8</span> mcp-gateway</td><td>AKS pod</td><td><code>defstack install mcp-gateway --sample-server</code></td><td>trust-core</td><td>MCP <code>listResources</code> returns</td></tr>
+    <tr><td><span class="dep-id">X9</span> incident-exchange</td><td>AKS pod + Cosmos DB</td><td><code>defstack install incident-exchange --sink cosmos://aumos-evidence</code></td><td>flight-recorder</td><td>Incident record persisted</td></tr>
+    <tr><td><span class="dep-id">S3</span> modelcard-gen</td><td>DC-series VM (job)</td><td><code>defstack install modelcard-gen</code></td><td>model-sbom, safe-eval</td><td>Model card rendered</td></tr>
+    <tr><td><span class="dep-id">S6</span> exfil-guard</td><td>NCCads H100 v5 VM</td><td><code>defstack install exfil-guard --egress-policy strict</code></td><td>eval-guard</td><td>Blocked egress logged</td></tr>
+    <tr><td><span class="dep-id">S9</span> runtime-integrity</td><td>Every VM (agent)</td><td><code>defstack install runtime-integrity --all-nodes</code></td><td>trust-core</td><td>Integrity heartbeat per node</td></tr>
+    <tr><td><span class="dep-id">F1/F2</span> fed-core / dp-crate</td><td>AKS pods (3-node demo)</td><td><code>defstack federated run --nodes 3 --dp-epsilon 8.0</code></td><td>Cosmos DB</td><td>Round completes, DP noise applied</td></tr>
+  </tbody>
+</table>
+
+<div class="callout success">
+  <div class="callout-title">Coverage check</div>
+  <p>16 Azure + 5 AWS + 6 Modal + 22 cross-cloud = <strong>49 components</strong>, all assigned a cloud, a host, a cost, a deploy command, and a verification step. No component is left unplaced.</p>
+</div>
+
+<!-- =================================================================== -->
+<!-- 6. TERRAFORM                                                         -->
+<!-- =================================================================== -->
+<h2 id="terraform"><span class="section-number">6</span>Terraform / Infrastructure-as-Code Strategy <a href="#terraform" class="anchor">&para;</a></h2>
+
+<p>All infrastructure is declarative. Three cloud-specific module sets are orchestrated by a single master workspace so <code>terraform apply</code> from one command provisions the entire topology. The plan reuses the existing Terraform in <code>attesta-flow/terraform/main.tf</code> as the seed for the Azure confidential-VM module.</p>
+
+<h3>Azure Terraform modules</h3>
+<table>
+  <thead><tr><th>Module</th><th>Provisions</th><th>Path</th></tr></thead>
+  <tbody>
+    <tr><td><code>azure-resource-group</code></td><td>Resource group + tags + region pin (eastus2 for NCCads availability)</td><td><code>deploy/terraform/azure/resource-group/</code></td></tr>
+    <tr><td><code>azure-confidential-vm</code></td><td>DC-series (Intel TDX) and NCCads H100 v5 (AMD SEV-SNP) VMs with confidential-disk-encryption</td><td><code>deploy/terraform/azure/confidential-vm/</code> (extends <code>attesta-flow/terraform/main.tf</code>)</td></tr>
+    <tr><td><code>azure-aks</code></td><td>AKS cluster with confidential node pool, Workload Identity, Azure Key Vault provider</td><td><code>deploy/terraform/azure/aks/</code></td></tr>
+    <tr><td><code>azure-key-vault</code></td><td>Key Vault with Managed HSM, RBAC, Ed25519 key</td><td><code>deploy/terraform/azure/key-vault/</code></td></tr>
+    <tr><td><code>azure-storage</code></td><td>Blob account for model weights + evidence (immutability policy on evidence container)</td><td><code>deploy/terraform/azure/storage/</code></td></tr>
+    <tr><td><code>azure-cosmos</code></td><td>Cosmos DB (SQL API) for the evidence ledger</td><td><code>deploy/terraform/azure/cosmos/</code></td></tr>
+  </tbody>
+</table>
+
+<h3>AWS Terraform modules</h3>
+<table>
+  <thead><tr><th>Module</th><th>Provisions</th><th>Path</th></tr></thead>
+  <tbody>
+    <tr><td><code>aws-vpc</code></td><td>VPC, subnets, NAT, VNet peering to Azure</td><td><code>deploy/terraform/aws/vpc/</code></td></tr>
+    <tr><td><code>aws-eks</code></td><td>EKS cluster + managed node group + IRSA roles for tenant-guard/fleet-marshal</td><td><code>deploy/terraform/aws/eks/</code></td></tr>
+    <tr><td><code>aws-kms</code></td><td>KMS key (Ed25519) for backup signing</td><td><code>deploy/terraform/aws/kms/</code></td></tr>
+    <tr><td><code>aws-secretsmanager</code></td><td>Secrets for credential-vault backend</td><td><code>deploy/terraform/aws/secretsmanager/</code></td></tr>
+    <tr><td><code>aws-iam</code></td><td>IAM roles per service account (IRSA) for least privilege</td><td><code>deploy/terraform/aws/iam/</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Modal deploy scripts</h3>
+<p>Modal is not Terraform-managed; each function is shipped with the Modal CLI. The scripts live under <code>deploy/modal/</code> and read configuration (endpoint URLs, SVID paths) from environment variables injected by the master workspace's <code>terraform output</code>.</p>
+<pre><code># deploy/modal/safe_eval.py (sketch)
+import modal
+app = modal.App("aumos-safe-eval")
+image = modal.Image.debian_slim().pip_install("helm","lm-eval","spiffe","requests")
+
+@app.function(image=image, gpu="a10g", timeout=3600)
+def run_helm(model_endpoint: str, suite: str) -> dict:
+    ...  # calls inference-proxy over mTLS, returns scores
+
+@app.function(image=image, gpu="h100", timeout=3600)
+def run_red_team(model_endpoint: str) -> dict:
+    ...</code></pre>
+
+<h3>Master workspace</h3>
+<p>One root <code>deploy/terraform/</code> workspace ties the clouds together, applies tags consistently, and emits the cross-cloud connection details (peering IDs, endpoint URLs, SPIFFE bundle location) that the Modal scripts and <code>defstack</code> consume.</p>
+<pre><code># deploy/terraform/main.tf (master)
+module "azure" { source = "./azure"   phase = var.phase  region = "eastus2" }
+module "aws"   { source = "./aws"     phase = var.phase  region = "us-east-1" }
+module "spiffe" { source = "./spiffe" trust_domain = "spiffe://aumos.prod" }
+
+output "inference_proxy_url" { value = module.azure.inference_proxy_url }
+output "eks_cluster_name"    { value = module.aws.eks_cluster_name }
+output "spiffe_bundle_url"   { value = module.spiffe.bundle_url }</code></pre>
+
+<div class="callout info">
+  <div class="callout-title">Reference: existing Terraform</div>
+  <p>The plan deliberately extends rather than replaces the existing <code>attesta-flow/terraform/main.tf</code> in the repo. That module already defines the confidential-VM scaffolding for the attestation orchestrator; the <code>azure-confidential-vm</code> module above generalizes it for trust-core and the inference plane.</p>
+</div>
+
+<!-- =================================================================== -->
+<!-- 7. COST OPTIMIZATION                                                 -->
+<!-- =================================================================== -->
+<h2 id="cost-optimization"><span class="section-number">7</span>Cost Optimization Strategy <a href="#cost-optimization" class="anchor">&para;</a></h2>
+
+<p>The plan already fits the budget at list prices. These optimizations create the headroom needed to absorb the ~0% slack and survive a missed estimate.</p>
+
+<table>
+  <thead><tr><th>Technique</th><th>Where</th><th>Saving</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Spot / low-priority GPU instances</td><td>Azure NCCads (non-prod), AWS G5</td><td>60&ndash;90% on GPU</td><td>Use for evaluation dry-runs and dev; never for the attested-inference demo (spot eviction breaks the TEE continuity).</td></tr>
+    <tr><td>Reserved instances (1-yr)</td><td>Azure DC-series (always-on trust core)</td><td>~40%</td><td>Trust-core must run 24/7 for the 90 days; reserving the DC-series VM is the safest single saving.</td></tr>
+    <tr><td>Serverless for bursty workloads</td><td>Modal (eval + attacks)</td><td>~90% vs reserved</td><td>Per-second billing means a HELM run costs cents, not a full GPU-hour.</td></tr>
+    <tr><td>DC-series CPU confidential VMs</td><td>Azure (trust core)</td><td>~95% vs GPU VM</td><td>The trusted core needs TEE, not GPU. CPU TEEs are dramatically cheaper.</td></tr>
+    <tr><td>AWS Free Tier</td><td>KMS first key, 12-mo Freetier</td><td>~$60 over 90 days</td><td>First KMS key is free; the backup signer rides this.</td></tr>
+    <tr><td>Batch off-peak scheduling</td><td>Modal eval jobs</td><td>n/a (capacity)</td><td>Schedule big HELM runs in low-demand windows to avoid capacity waits.</td></tr>
+    <tr><td>$30/mo Modal free credits</td><td>Modal (all dev)</td><td>~$90 over 90 days</td><td>Reserve paid credits for the demo; burn free credits on dry runs.</td></tr>
+    <tr><td>Cost dashboards + budgets</td><td>All three clouds</td><td>n/a (control)</td><td>Native cost dashboards (Azure Cost Mgmt, AWS Cost Explorer, Modal usage) with alert thresholds (see <a href="#budget-tracking">&sect;11</a>).</td></tr>
+  </tbody>
+</table>
+
+<div class="callout warning">
+  <div class="callout-title">Do not spot the attestation VM</div>
+  <p>The NCCads H100 v5 confidential VM that runs cuda-gram and tee-serve must be on-demand for the duration of any live demo. A spot eviction mid-attestation breaks the TEE continuity and invalidates the demonstration. Spot is fine for <em>development</em> on that VM; on-demand is mandatory for the verification gates and the day-90 demo.</p>
+</div>
+
+<!-- =================================================================== -->
+<!-- 8. NVIDIA INCEPTION                                                  -->
+<!-- =================================================================== -->
+<h2 id="nvidia"><span class="section-number">8</span>NVIDIA Inception Integration Plan <a href="#nvidia" class="anchor">&para;</a></h2>
+
+<p>NVIDIA Inception is the pipeline credit source that extends the runway beyond ~203 H100-hours. The plan treats Inception credits as additive &mdash; the 90-day plan succeeds without them &mdash; but uses them aggressively once they land to deepen the demonstration (TRT-LLM, larger models, GTC visibility).</p>
+
+<table>
+  <thead><tr><th>Action</th><th>Owner</th><th>When</th><th>Outcome</th></tr></thead>
+  <tbody>
+    <tr><td>Apply for / draw down GPU credits</td><td>Founders</td><td>Week 1 (in pipeline)</td><td>Extends Phase 2/3 H100 runway; enables TRT-LLM + vLLM comparison</td></tr>
+    <tr><td>Schedule quarterly engineering sync with NVIDIA NOOA team</td><td>Tech lead</td><td>Month 1</td><td>Review cuda-gram attestation correctness + NVTrust integration; unblock any driver/TEE edge cases</td></tr>
+    <tr><td>Submit GTC 2027 talk proposal</td><td>Founders</td><td>Month 2</td><td>Title: <em>"Attested Inference with H100 Confidential Computing and AumOS"</em></td></tr>
+    <tr><td>Use DLI credits for team training</td><td>All engineers</td><td>Months 1&ndash;3</td><td>CUDA, Triton Inference Server, TensorRT-LLM, confidential-computing fundamentals</td></tr>
+    <tr><td>List AumOS on NVIDIA NGC catalog</td><td>Tech lead</td><td>After day 90 (once stable)</td><td>Distribution channel; NGC is where NVIDIA-aware customers search</td></tr>
+    <tr><td>Pursue NVIDIA Innovation Lab access</td><td>Founders</td><td>Month 3</td><td>Benchmark testing on hardware not yet available in the cloud credits</td></tr>
+    <tr><td>NVentures investor visibility</td><td>Founders</td><td>Passive</td><td>Fundraising pipeline exposure</td></tr>
+  </tbody>
+</table>
+
+<!-- =================================================================== -->
+<!-- 9. RISK MITIGATION                                                   -->
+<!-- =================================================================== -->
+<h2 id="risk"><span class="section-number">9</span>Risk Mitigation <a href="#risk" class="anchor">&para;</a></h2>
+
+<table>
+  <thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Credits run out before day 90</strong></td><td>Medium</td><td>High &mdash; demo incomplete</td><td>(1) Downgrade dev workloads to spot instances (60&ndash;90% saving). (2) Reduce H100 hours &mdash; keep the VM on only during active demo windows, not 24/7. (3) Shift eval to Modal free-tier ($30/mo). (4) Trigger the budget alert workflow at 75% (see <a href="#budget-tracking">&sect;11</a>) to intervene early, not at 100%.</td></tr>
+    <tr><td><strong>NVIDIA Inception credits do not arrive</strong></td><td>Medium</td><td>Low &mdash; plan does not depend on them</td><td>The 90-day plan is fully funded by Azure + AWS + Modal (~$6,270). Inception credits are additive; their absence only limits how much heavier inference (TRT-LLM, larger models) can be demonstrated.</td></tr>
+    <tr><td><strong>A cloud service is unavailable in the user's region</strong></td><td>Low&ndash;Medium</td><td>Medium</td><td>Multi-cloud = fallback. NCCads H100 v5 is available in eastus2, westus3, northeurope (pick the closest). If a region is full, the master Terraform workspace takes a <code>region</code> variable and re-applies elsewhere.</td></tr>
+    <tr><td><strong>Model too large for available GPU memory</strong></td><td>Low (Llama-3-8B fits a single H100)</td><td>Medium</td><td>(1) Use a smaller model (Llama-3-8B-Instruct, Qwen2.5-7B). (2) Quantize to 8-bit or 4-bit (AWQ/GPTQ) &mdash; cuts VRAM ~4&times;. (3) If Inception credits land, move to a multi-GPU VM for larger models.</td></tr>
+    <tr><td><strong>NCCads confidential VM capacity unavailable</strong></td><td>Medium (new SKU, constrained)</td><td>High &mdash; blocks Phase 2</td><td>(1) Request quota increase in week 1. (2) Fallback to NCads H100 v5 (non-confidential, $6.98/hr) for development, then switch to NCCads for the verification gate only. (3) Worst case, demonstrate cuda-gram attestation against the non-confidential H100 with a clearly-labelled caveat.</td></tr>
+    <tr><td><strong>v1.0 mock backends resist replacement</strong></td><td>Medium</td><td>High</td><td>This is exactly the <a href="roadmap.html">v1.1 critical-fixes</a> work. The Phase 1 and Phase 2 verification gates fail closed if a mock is still in place, so the problem surfaces immediately rather than at the demo.</td></tr>
+    <tr><td><strong>GPU attestation reports fail to verify</strong></td><td>Low&ndash;Medium</td><td>High</td><td>The NVIDIA NOOA engineering sync (Inception) is the escalation path. cuda-gram has a documented <code>--source h100-cc</code> vs <code>--source mock</code> flag so the boundary is always explicit.</td></tr>
+  </tbody>
+</table>
+
+<!-- =================================================================== -->
+<!-- 10. OUTCOMES                                                         -->
+<!-- =================================================================== -->
+<h2 id="outcomes"><span class="section-number">10</span>Expected Outcomes &amp; Demo Scenarios <a href="#outcomes" class="anchor">&para;</a></h2>
+
+<p>After 90 days, the deployment demonstrates seven headline capabilities. Each is a runnable scenario with a binary pass/fail outcome &mdash; suitable for an investor demo, an OSAF working-group review, or a GTC talk.</p>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-id">DEMO 1</div>
+    <div class="card-title">Real GPU attestation</div>
+    <div class="card-desc">cuda-gram (C1-3) verifies a real H100 attestation report from the NCCads H100 v5 confidential VM &mdash; <strong>not mock</strong>. NVTrust issues the token; the verification key chains to the AMD SEV-SNP root.</div>
+    <div class="card-meta"><span class="chip azure">Azure</span> <span class="badge rust">cuda-gram</span></div>
+  </div>
+  <div class="card">
+    <div class="card-id">DEMO 2</div>
+    <div class="card-title">Real model serving</div>
+    <div class="card-desc">open-serve-kit (N1) serves Llama-3-8B behind inference-proxy (N3). A <code>/v1/chat/completions</code> call returns a real completion; the response is wrapped in an attestation envelope that verifies against the H100 measurement.</div>
+    <div class="card-meta"><span class="chip azure">Azure</span> <span class="badge go">open-serve-kit</span> <span class="badge rust">inference-proxy</span></div>
+  </div>
+  <div class="card">
+    <div class="card-id">DEMO 3</div>
+    <div class="card-title">Real evaluation</div>
+    <div class="card-desc">safe-eval (A1) runs HELM/LM-Eval benchmarks on Modal A10G; adversaria (A2) runs real prompt-injection and jailbreak attacks. Both produce signed result artifacts in Cosmos DB.</div>
+    <div class="card-meta"><span class="chip modal">Modal</span> <span class="badge python">safe-eval</span> <span class="badge python">adversaria</span></div>
+  </div>
+  <div class="card">
+    <div class="card-id">DEMO 4</div>
+    <div class="card-title">Real compliance</div>
+    <div class="card-desc"><code>defstack compliance-report</code> generates an EU AI Act Article 55 report mapping all 8 obligations to signed evidence (model lineage, SBOM, evals, adversarial tests, incident reporting).</div>
+    <div class="card-meta"><span class="chip xcloud">Cross-cloud</span> <span class="badge rust">defstack-cli</span></div>
+  </div>
+  <div class="card">
+    <div class="card-id">DEMO 5</div>
+    <div class="card-title">Real incident response</div>
+    <div class="card-desc">A simulated prompt-injection triggers kill-switch (R3); the event is recorded by flight-recorder, emitted by incident-exchange (X9), root-caused by retro-spec-kit (X5), and exported METR-format by metr-bridge (X6) &mdash; all in under 60 seconds.</div>
+    <div class="card-meta"><span class="chip xcloud">Cross-cloud</span> <span class="badge rust">kill-switch</span></div>
+  </div>
+  <div class="card">
+    <div class="card-id">DEMO 6</div>
+    <div class="card-title">Real multi-tenancy</div>
+    <div class="card-desc">tenant-guard (N4) on AWS EKS allocates GPU slices to simulated tenants with per-tenant SVIDs and per-tenant evidence isolation. A second tenant cannot read the first tenant's evidence.</div>
+    <div class="card-meta"><span class="chip aws">AWS</span> <span class="badge go">tenant-guard</span></div>
+  </div>
+  <div class="card">
+    <div class="card-id">DEMO 7</div>
+    <div class="card-title">Real federated learning</div>
+    <div class="card-desc">fed-core (F1) + dp-crate (F2) run a 3-node federated training round with differential privacy (&epsilon;=8.0). The aggregated model update is signed and its provenance recorded.</div>
+    <div class="card-meta"><span class="chip azure">Azure</span> <span class="badge python">fed-core</span> <span class="badge python">dp-crate</span></div>
+  </div>
+</div>
+
+<!-- =================================================================== -->
+<!-- 11. BUDGET TRACKING                                                  -->
+<!-- =================================================================== -->
+<h2 id="budget-tracking"><span class="section-number">11</span>Budget Tracking Dashboard <a href="#budget-tracking" class="anchor">&para;</a></h2>
+
+<p>Live view of planned vs. actual spend per cloud, updated weekly from each cloud's native cost API (Azure Cost Management, AWS Cost Explorer, Modal usage). Alert thresholds fire at <span class="alert-thresh t50">50%</span> (review), <span class="alert-thresh t75">75%</span> (intervene), and <span class="alert-thresh t90">90%</span> (freeze non-essential spend).</p>
+
+<h4><span class="chip azure">Azure</span> &mdash; $5,000 budget</h4>
+<div class="budget-row">
+  <div class="budget-label"><span>Planned cumulative spend (target)</span><span class="spent">$5,000 / $5,000 (100%)</span></div>
+  <div class="budget-track"><div class="budget-fill azure" style="width:100%"></div></div>
+</div>
+
+<h4><span class="chip aws">AWS</span> &mdash; $1,000 budget</h4>
+<div class="budget-row">
+  <div class="budget-label"><span>Planned cumulative spend (target)</span><span class="spent">$1,000 / $1,000 (100%)</span></div>
+  <div class="budget-track"><div class="budget-fill aws" style="width:100%"></div></div>
+</div>
+
+<h4><span class="chip modal">Modal</span> &mdash; $270 budget (gross ~$360, ~$90 free-tier offset)</h4>
+<div class="budget-row">
+  <div class="budget-label"><span>Planned cumulative spend (target)</span><span class="spent">$270 / $270 (100%)</span></div>
+  <div class="budget-track"><div class="budget-fill modal" style="width:100%"></div></div>
+</div>
+
+<h3>Weekly burn-down plan</h3>
+<table>
+  <thead>
+    <tr><th>Week</th><th>Phase</th><th>Azure</th><th>AWS</th><th>Modal</th><th>Cumulative</th><th>Threshold</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1&ndash;2</td><td>Phase 1</td><td>$200</td><td>$50</td><td>$0</td><td>$250</td><td><span class="alert-thresh t50">4%</span></td></tr>
+    <tr><td>3</td><td>Phase 2 start</td><td>$700</td><td>$30</td><td>$0</td><td>$980</td><td><span class="alert-thresh t50">16%</span></td></tr>
+    <tr><td>4</td><td>Phase 2 end</td><td>$1,800</td><td>$20</td><td>$0</td><td>$2,800</td><td><span class="alert-thresh t50">45%</span></td></tr>
+    <tr><td>5&ndash;6</td><td>Phase 3 (supply chain)</td><td>$800</td><td>$150</td><td>$40</td><td>$4,640</td><td><span class="alert-thresh t75">74%</span></td></tr>
+    <tr><td>7&ndash;8</td><td>Phase 3 (evals)</td><td>$700</td><td>$350</td><td>$160</td><td>$6,150</td><td><span class="alert-thresh t90">98%</span></td></tr>
+    <tr><td>9&ndash;11</td><td>Phase 4</td><td>$600</td><td>$300</td><td>$50</td><td>$7,725 &rarr; capped</td><td><span class="alert-thresh t90">FREEZE</span></td></tr>
+    <tr><td>12</td><td>Buffer / demo</td><td>$200</td><td>$100</td><td>$20</td><td>$6,270</td><td><span class="alert-thresh t90">100%</span></td></tr>
+  </tbody>
+</table>
+
+<div class="callout danger">
+  <div class="callout-title">The 75% intervention &mdash; this is the single most important control</div>
+  <p>At 75% cumulative spend (~$4,700), the following switches flip automatically: (1) all non-demo GPU workloads move to spot pricing, (2) the NCCads H100 v5 VM is scheduled to run only during demo windows (not 24/7), (3) Modal free-tier credits absorb all development eval runs. This is the difference between finishing the demo on budget and running out of credits in week 10. The budget API alerts must page the tech lead, not just email.</p>
+</div>
+
+<h3>Alert actions by threshold</h3>
+<table>
+  <thead><tr><th>Threshold</th><th>Trigger</th><th>Automatic action</th></tr></thead>
+  <tbody>
+    <tr><td><span class="alert-thresh t50">50%</span></td><td>~$3,135 cumulative</td><td>Review. Send weekly burn-rate report. Confirm Phase 2 H100 hours are tracking to ~203.</td></tr>
+    <tr><td><span class="alert-thresh t75">75%</span></td><td>~$4,700 cumulative</td><td>Intervene. Spot-pricing for non-demo GPU; NCCads VM scheduled; Modal free-tier for dev.</td></tr>
+    <tr><td><span class="alert-thresh t90">90%</span></td><td>~$5,640 cumulative</td><td>Freeze. All non-essential spend halted. Only the day-90 demo path may incur cost. Page tech lead.</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<div class="callout success">
+  <div class="callout-title">Bottom line</div>
+  <p>$6,270 of cloud credits + the existing v1.0 codebase + 90 days = a fully operational, multi-cloud AumOS deployment demonstrating real GPU attestation, real model serving, real evaluation, real compliance, and real incident response. Every dollar is allocated, every component has a deploy command, every phase has a verification gate. The plan succeeds on the immediate budget alone; NVIDIA Inception credits extend the depth, not the feasibility.</p>
+</div>
+
+<p style="text-align:center; color:var(--text-tertiary); font-size:0.85rem; margin-top:var(--space-2xl);">AumOS &mdash; <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a> &mdash; Open Authority and Evidence Layer for Autonomous Systems</p>
+
+</div>
+
+</body>
+</html>

@@ -282,6 +282,88 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 .meta-row .badge.timeline { background: var(--green-light); color: var(--green); }
 .meta-row .badge.components { background: var(--bg-secondary); color: var(--text-secondary); }
 
+/* Whitepaper entry — a deep, multi-section practitioner document */
+.whitepaper {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid #555188;          /* standards/industry indigo accent */
+  border-radius: var(--border-radius);
+  padding: var(--space-xl) var(--space-lg);
+  margin: var(--space-2xl) 0;
+}
+.whitepaper .wp-head { display: flex; align-items: baseline; gap: var(--space-md); flex-wrap: wrap; margin-bottom: var(--space-xs); }
+.whitepaper .wp-id {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: #555188;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.whitepaper .wp-audience {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  padding: 2px 10px;
+  border-radius: 100px;
+  background: var(--bg-secondary);
+}
+.whitepaper h3 {
+  margin-top: var(--space-xs);
+  margin-bottom: var(--space-md);
+  font-size: 1.4rem;
+  line-height: 1.35;
+}
+.whitepaper h4 {                       /* sub-section headings within a whitepaper */
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-top: var(--space-lg);
+  margin-bottom: var(--space-xs);
+  display: block;
+}
+.whitepaper h4:first-child { margin-top: var(--space-md); }
+.whitepaper p { font-size: 0.95rem; }
+.whitepaper ul { font-size: 0.92rem; color: var(--text-secondary); margin: var(--space-sm) 0 var(--space-md) var(--space-xl); }
+.whitepaper ul li { margin-bottom: var(--space-xs); }
+.whitepaper ul li strong { color: var(--text-primary); }
+.whitepaper .wp-evidence {
+  background: var(--blue-light);
+  border-left: 3px solid var(--blue);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.9rem;
+  margin: var(--space-md) 0;
+}
+.whitepaper .wp-evidence strong { color: var(--blue); }
+.whitepaper .wp-steps { counter-reset: step; list-style: none; margin-left: 0; }
+.whitepaper .wp-steps > li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 2.5rem;
+  margin-bottom: var(--space-md);
+  color: var(--text-secondary);
+}
+.whitepaper .wp-steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0; top: 0;
+  width: 1.6rem; height: 1.6rem;
+  background: #555188;
+  color: #fff;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.whitepaper .wp-steps > li strong { color: var(--text-primary); }
+
 /* Thrust section header */
 .thrust-header {
   background: linear-gradient(135deg, var(--accent-subtle) 0%, var(--bg-card) 100%);
@@ -1330,64 +1412,396 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <h2 id="whitepapers"><span class="section-number">10.</span>Industry whitepapers &amp; technical reports</h2>
 <!-- ==================================================================== -->
 
-<p>Beyond peer-reviewed research and standards, AumOS enables a set of industry whitepapers aimed at specific practitioner audiences — enterprise CISOs, platform engineers, policy makers, infrastructure teams, and security architects. These whitepapers translate the research contributions above into deployment-ready guidance and are natural fits for industry venues (Black Hat, DEF CON, RSA Conference) and vendor-neutral publishing channels.</p>
+<p>Beyond peer-reviewed research and standards, AumOS enables a set of industry whitepapers aimed at specific practitioner audiences — enterprise CISOs, platform engineers, policy makers, infrastructure teams, and security architects. These whitepapers translate the research contributions above into deployment-ready guidance and are natural fits for industry venues (Black Hat, DEF CON, RSA Conference) and vendor-neutral publishing channels. Each whitepaper below is presented at full depth: executive summary, the practitioner problem it solves, the architecture and methodology, a concrete deployment sequence, the evidence it produces, and the authoritative sources it draws on.</p>
 
-<div class="card-grid">
+<!-- ============================================================ -->
+<!-- WHITEPAPER 1 -->
+<!-- ============================================================ -->
+<div class="whitepaper">
+  <div class="wp-head">
+    <span class="wp-id">WP1</span>
+    <span class="wp-audience">Audience: security architects &amp; platform engineering leadership</span>
+  </div>
+  <h3>The Open Defense Stack for AI: Architecture and Implementation</h3>
 
-<div class="card">
-  <div class="card-id">WP1</div>
-  <div class="card-title">The Open Defense Stack for AI: Architecture and Implementation</div>
-  <div class="card-desc">A comprehensive system paper presenting AumOS as the reference open defense stack for AI — the 49 components, 12 protocols, multi-runtime architecture, and the integration patterns that compose them into a deployable platform. Aimed at security architects and platform engineering leadership. Extends the academic system papers (Papers 5, 7) into a deployable, supported reference architecture with operator runbooks.</div>
-  <div class="card-meta">
+  <h4>Executive summary</h4>
+  <p>The dominant model for securing AI today is point-product accumulation — an LLM firewall here, a prompt-injection detector there, an SBOM generator elsewhere — assembled into a brittle, vendor-locked perimeter that breaks the moment an agent changes framework, runtime, or cloud. This whitepaper presents <strong>AumOS as the reference <em>open defense stack</em> for AI</strong>: a single, coherent, vendor-neutral architecture that composes 49 components and 12 protocols across four runtimes (Rust, Go, Python, TypeScript) into a deployable platform covering the full agent-security lifecycle — identity, delegation, attestation, action evidence, supply-chain integrity, incident response, and evaluation. We argue that the open-stack pattern (Linux for operating systems, Kubernetes for container orchestration, OpenTelemetry for observability, SPIFFE for workload identity) is the only structurally viable answer to AI security, and that AumOS occupies that position for the agentic layer.</p>
+
+  <h4>The practitioner problem</h4>
+  <p>Security architects evaluating AI today face four structural failures of the point-product model. (1) <strong>Coverage gaps</strong>: no single commercial product spans identity, attestation, and supply chain, so the gaps between products become the attack surface. (2) <strong>Lock-in</strong>: proprietary agent-identity and model-signing schemes mean that a commitment to one vendor forecloses every other. (3) <strong>No composability</strong>: products do not interoperate, so evidence from one cannot be consumed by another. (4) <strong>No reference implementation</strong>: there is no neutral baseline against which commercial claims can be benchmarked, so buyers cannot tell marketing from substance. The open defense stack exists to correct all four.</p>
+
+  <h4>Architecture: the seven pillars and the protocol spine</h4>
+  <p>AumOS organizes its 49 components into seven pillars that map one-to-one onto the security lifecycle, connected by a protocol spine of 12 cross-cutting protocols. This structure is deliberate: each pillar is independently deployable (a team can adopt supply-chain integrity without adopting confidential computing), but the pillars compose through shared protocols so that adopting more yields more than the sum of the parts.</p>
+  <ul>
+    <li><strong>Pillar T — Trust &amp; authority core</strong> (T1 trust-core, T2 authority-spec): the cryptographic primitives and the Agent Authority Envelope canonicalization that every other pillar depends on. Owns every security invariant.</li>
+    <li><strong>Pillar I — Identity</strong> (I1 agent-identity, I2 federation): the SPIFFE-derived agent-identity document, trust-domain model, and cross-organization federation. The keystone that makes delegation verifiable.</li>
+    <li><strong>Pillar C — Confidential computing</strong> (C1-1 … C1-5): TEE attestation binding to NVIDIA NVTrust, end-to-end attested inference pipelines, TLS termination inside the enclave, and model-key release gating. Five composable sub-components.</li>
+    <li><strong>Pillar S — Supply chain</strong> (S1 … S9): signed model provenance (Safetensors++), Merkle-lineage ledgers, CycloneDX-ML-BOM generation, OpenSSF Model Signing interop, and tamper-evident artifact registries.</li>
+    <li><strong>Pillar R — Response &amp; runtime</strong> (R1 … R8): the kill switch (R3), canaries, egress control, sandboxing, and the forensic-freeze mode that the action-receipt evidence supports.</li>
+    <li><strong>Pillar A — Auditing &amp; assurance</strong> (A1 … A8): bias auditing, red-team harnesses, the Open Harness Specification, verdict reporting, and the evidence-export pipeline.</li>
+    <li><strong>Pillar E/V — Evaluation &amp; vectors</strong> (E1, V2, V3): the conformance-vector suites and evaluation harnesses that prove the stack works across runtimes.</li>
+  </ul>
+  <p>The 12 protocols (P1 delegation, P2 action receipt, P3 attestation handshake, P4 model signing, P5 lineage, P6 kill switch, P7 federation, P8 audit export, P9 harness, P10 BOM, P11 trust manifest, P12 red-team report) are the contract layer: a component in any pillar speaking a protocol can interoperate with any other component speaking it, regardless of runtime.</p>
+
+  <h4>Methodology: open-core with a conformance gate</h4>
+  <p>The stack is delivered open-core under a permissive license, with a <strong>conformance program</strong> that is the structural answer to lock-in. Any implementation — AumOS's reference or a commercial fork — may claim conformance to a protocol only after passing the published conformance-vector suite for that protocol in all four runtimes. The conformance gate is itself open: the vectors, the harness, and the CI pipeline are all in the repository. This means a buyer can verify a vendor's "AumOS-compatible" claim by running the same gate the vendor ran. It is the same structural mechanism that made Kubernetes' CNCF conformance program the credible neutrality guarantee for container orchestration.</p>
+
+  <h4>Deployment sequence (operator runbook)</h4>
+  <ol class="wp-steps">
+    <li><strong>Establish the trust root.</strong> Deploy T1/T2 and bootstrap the agent-identity CA (I1). Issue the first trust-domain's signing keys inside an HSM or TEE. This is the foundation; nothing else verifies without it.</li>
+    <li><strong>Stand up the supply-chain gate.</strong> Deploy S2/S4 and wire the model registry to require signed provenance + ML-BOM on every artifact. Block unsigned models at admission. This is the fastest path to measurable risk reduction.</li>
+    <li><strong>Add attestation for the inference path.</strong> Deploy C1-1/C1-3 and the attestation service; require a valid attestation document before model keys are released (C1-5). This is where confidential computing begins to pay back its complexity.</li>
+    <li><strong>Turn on action evidence.</strong> Deploy the flight-recorder (P2/R-pillar) and wire every authorized agent action to emit an Agent Action Receipt. Anchor the receipt chain periodically. This is what makes the system auditable.</li>
+    <li><strong>Wire the kill switch and canaries.</strong> Deploy R3 and the canary harness; define the escalation policy and exercise it quarterly. This is the containment backstop.</li>
+    <li><strong>Plug in evaluation.</strong> Deploy the Open Harness (X3/A-pillar) and run the red-team corpus in CI. This is what keeps the stack honest as models and agents evolve.</li>
+  </ol>
+
+  <h4>Evidence &amp; validation</h4>
+  <div class="wp-evidence">
+    <strong>What the stack proves, operationally:</strong>
+    <ul>
+      <li>Cross-runtime byte-identical canonical signing (Paper 2 conformance vectors) — the structural fix to the C1 canonicalization defect found in the project's own critical analysis.</li>
+      <li>Sub-5 ms p99 delegation verification latency across 10,000 synthetic scenarios (Paper 1 target).</li>
+      <li>End-to-end attested inference with measurable TEE overhead, benchmarked on NVIDIA H100 (Paper 5, WP5).</li>
+      <li>Tamper-evident action-receipt chains that a regulator can verify without trusting the operator (Paper 3, Paper 22).</li>
+      <li>EU AI Act Article 55 obligation-to-component traceability matrix (WP2).</li>
+    </ul>
+  </div>
+
+  <h4>How this whitepaper differs from the academic papers</h4>
+  <p>Papers 5 and 7 establish the <em>science</em> of attested pipelines and confidential GPU composition. This whitepaper is the <em>engineering</em>: the operator runbook, the deployment sequence, the conformance program, the support model, and the commercial framing that turns the science into something a platform team can adopt. It is the artifact a CTO hands to a platform-engineering director to justify the build-versus-buy decision.</p>
+
+  <h4>Authoritative sources</h4>
+  <ul>
+    <li>NIST <strong>AI Risk Management Framework (AI RMF 1.0)</strong>, January 2023 — the governance frame the stack's lifecycle maps onto.</li>
+    <li><strong>Coalition for Secure AI (CoSAI)</strong> — <em>Building Trust in AI Supply Chains</em>, 2025; the vendor-neutral venue for the supply-chain pillar.</li>
+    <li><strong>OWASP</strong> — ML/AI security guidance and the OWASP Top 10 for LLM Applications; the threat taxonomy the A-pillar maps to.</li>
+    <li><strong>Google SAIF</strong> (Secure AI Framework) — the reference framework the architecture's defense-in-depth echoes.</li>
+    <li><strong>CNCF SPIFFE/SPIRE</strong> — the workload-identity precedent the I-pillar generalizes to agents.</li>
+    <li><strong>OpenSSF AI/ML Working Group</strong> — <em>Model Signing v1.0</em> and <em>OMS Specification</em>, 2025; the S-pillar interop layer.</li>
+  </ul>
+
+  <div class="meta-row">
     <span class="badge venue">Target: OSDI / SOSP (system paper) or RSA 2027</span>
+    <span class="badge timeline">~18–24 pages, reference architecture + operator runbook</span>
+    <span class="badge components">All 7 pillars · all 12 protocols</span>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-id">WP2</div>
-  <div class="card-title">EU AI Act Article 55 Compliance: A Technical Implementation Guide</div>
-  <div class="card-desc">A technical implementation guide for enterprise CISOs covering how to satisfy the EU AI Act's obligations for high-risk and general-purpose AI systems (Articles 9–13, 53, 55) using AumOS components — bias auditing (A3), lineage ledgers (S2), AIBOM generation (S4), kill switch (R3), and audit receipts (P2). Maps each obligation to the specific component, configuration, and evidence artifact. Co-authored with regulatory-technology counsel.</div>
-  <div class="card-meta">
+<!-- ============================================================ -->
+<!-- WHITEPAPER 2 -->
+<!-- ============================================================ -->
+<div class="whitepaper">
+  <div class="wp-head">
+    <span class="wp-id">WP2</span>
+    <span class="wp-audience">Audience: enterprise CISOs &amp; DPOs</span>
+  </div>
+  <h3>EU AI Act Article 55 Compliance: A Technical Implementation Guide</h3>
+
+  <h4>Executive summary</h4>
+  <p>The EU AI Act (Regulation (EU) 2024/1689), fully applicable from 2 August 2026, imposes the world's first binding obligations on providers and deployers of AI systems — most consequentially for general-purpose AI models (Article 53) and models presenting <em>systemic risk</em> (Article 55). The legal text is precise about <em>what</em> must be done but silent on <em>how</em>, leaving enterprise CISOs to translate statutory language into engineering controls and evidence. This whitepaper is that translation: a clause-by-clause mapping of Articles 9–13, 53, and 55 to specific AumOS components, configurations, and the machine-verifiable evidence artifacts each obligation produces, co-authored with regulatory-technology counsel.</p>
+
+  <h4>The practitioner problem</h4>
+  <p>A CISO responsible for a GPAI system deployed in the EU faces a compliance gap that traditional GRC tooling cannot close. The Act demands, for example, "a detailed, up-to-date technical documentation" (Art. 11), "automatic logs" that are "kept for a period appropriate to the intended purpose" (Art. 12(2)), "post-market monitoring" (Art. 72), and for systemic-risk models "adversarial testing of models ... to identify and mitigate systemic risks" (Art. 55(1)(c)). Each obligation requires a technical artifact that is tamper-evident, exportable to the AI Office on demand, and bound to a specific model version. Most enterprises have no such artifact pipeline. The penalty for non-compliance — up to €15 million or 3% of worldwide turnover (Art. 99) — makes the gap existential.</p>
+
+  <h4>The obligation-to-component mapping</h4>
+  <p>The core contribution of this whitepaper is a traceability matrix that maps each applicable article to (a) the specific obligation text, (b) the AumOS component that satisfies it, (c) the configuration required, and (d) the evidence artifact produced. The matrix below is the executive summary; the full whitepaper includes the verbatim article text, the control objective derived from it, and the verification procedure.</p>
+  <ul>
+    <li><strong>Article 9 — Risk management system</strong> (high-risk AI): the risk register and continuous-monitoring loop are materialized in the A-pillar (A1–A8) and the Open Harness (X3). <em>Evidence:</em> red-team verdict reports, risk-register diffs anchored to model versions.</li>
+    <li><strong>Article 10 — Data and data governance</strong>: data provenance and quality are materialized in the S-pillar lineage ledger (S2) and the AI Artifact Trust Manifest (P11). <em>Evidence:</em> signed dataset manifests, lineage Merkle proofs.</li>
+    <li><strong>Article 11 — Technical documentation</strong>: the AIBOM (S4, P10) and the trust manifest (P11) <em>are</em> the technical documentation, generated automatically and bound to each model release. <em>Evidence:</em> CycloneDX-ML-BOM document per release, single-verification-entry-point manifest.</li>
+    <li><strong>Article 12 — Record-keeping (automatic logs)</strong>: the Agent Action Receipt (P2, flight-recorder) produces tamper-evident, hash-chained, timestamp-anchored logs of every autonomous action. <em>Evidence:</em> the receipt chain, verifiable by the AI Office without trusting the operator.</li>
+    <li><strong>Article 13 — Transparency &amp; information to deployers</strong>: the instruction-for-use content is derived from the same manifest and receipt schemas, ensuring the human-readable and machine-readable artifacts never diverge.</li>
+    <li><strong>Article 53 — GPAI model obligations</strong> (technical documentation, downstream-provider information, copyright policy): satisfied by the same S4/P10/P11 pipeline, extended to cover the downstream-provider information sheet.</li>
+    <li><strong>Article 55 — Systemic-risk models</strong>: the four subparagraphs map as follows —
+      <ul>
+        <li>Art. 55(1)(a) <em>model evaluation, adversarial testing</em>: A-pillar + X3 Open Harness, with documented red-team methodology.</li>
+        <li>Art. 55(1)(b) <em>assessment and mitigation of systemic risks</em>: the risk register + lineage ledger + the kill switch (R3) as the mitigation control.</li>
+        <li>Art. 55(1)(c) <em>tracking of serious incidents</em>: the action-receipt chain (P2) feeds the incident pipeline (R-pillar), and the forensic-freeze mode preserves evidence.</li>
+        <li>Art. 55(1)(d) <em>cybersecurity protections</em>: the full T/I/C pillars — identity, attestation, and confidential inference.</li>
+      </ul>
+    </li>
+    <li><strong>Article 72 — Post-market monitoring</strong>: the canary harness (R-pillar) and the continuous red-team runs (A-pillar) operationalize the post-market monitoring plan.</li>
+  </ul>
+
+  <h4>Methodology: evidence by construction, not by audit</h4>
+  <p>The defining design choice is that compliance evidence is produced <em>by construction</em> — as an automatic by-product of operating the system — rather than reconstructed under audit pressure. Every model release generates its ML-BOM; every authorized agent action generates its receipt; every red-team run generates its verdict. The CISO's audit response is not a six-week scramble to assemble documentation; it is the export of already-existing, already-tamper-evident artifacts. This shifts compliance from a periodic cost center to a continuous, low-friction property of the system.</p>
+
+  <h4>Deployment sequence</h4>
+  <ol class="wp-steps">
+    <li><strong>Inventory and classify.</strong> Identify which deployed systems are high-risk (Annex III) or GPAI, and which GPAI models meet the systemic-risk threshold (≥10²⁵ FLOP per Art. 51). The classification determines which articles apply.</li>
+    <li><strong>Stand up the documentation pipeline.</strong> Deploy S4/P10/P11 and wire it to the model registry; require a generated ML-BOM and trust manifest on every release. This closes Articles 11 and 53 in one move.</li>
+    <li><strong>Turn on the logging pipeline.</strong> Deploy the flight-recorder (P2) and anchor the receipt chain. This closes Article 12 and the serious-incident-tracking half of Article 55.</li>
+    <li><strong>Operationalize adversarial testing.</strong> Deploy the Open Harness (X3) and schedule red-team runs in CI; document the methodology. This closes Article 55(1)(a) and the Article 9 risk-management loop.</li>
+    <li><strong>Define the post-market monitoring plan.</strong> Wire the canary harness (R-pillar) to the incident pipeline and the kill switch (R3); document the escalation policy. This closes Article 72.</li>
+    <li><strong>Produce the AI-Office export bundle.</strong> Configure the evidence-export pipeline (P8) to assemble, on demand, the complete artifact set for a specified system and period, in the format the AI Office accepts.</li>
+  </ol>
+
+  <h4>Evidence &amp; validation</h4>
+  <div class="wp-evidence">
+    <strong>What this produces for the regulator:</strong> a single, machine-verifiable bundle per system per period, containing the ML-BOM, the lineage proofs, the action-receipt chain, the red-team verdicts, and the incident records — all signed, all tamper-evident, all bound to the specific model versions that were in service. The AI Office can verify integrity without re-running the system. This is the structural difference between <em>claiming</em> compliance and <em>demonstrating</em> it.
+  </div>
+
+  <h4>Authoritative sources</h4>
+  <ul>
+    <li><strong>Regulation (EU) 2024/1689</strong> ("EU AI Act"), OJ L, 12 July 2024 — Articles 9–13, 51, 53, 55, 72, 99. <a href="https://eur-lex.europa.eu/eli/reg/2024/1689/oj">EUR-Lex</a>.</li>
+    <li><strong>European Commission — AI Office</strong> guidance and the GPAI Code of Practice, 2025–2026. <a href="https://digital-strategy.ec.europa.eu/en/policies/ai-office">digital-strategy.ec.europa.eu/en/policies/ai-office</a>.</li>
+    <li><strong>AI Act Article 5(1) and Annex III</strong> — high-risk classification criteria.</li>
+    <li><strong>G7 SBOM for AI Minimum Elements</strong>, 12 May 2026 — the minimum-element set the ML-BOM exceeds.</li>
+  </ul>
+
+  <div class="meta-row">
     <span class="badge venue">Target: enterprise CISO audience; RSA / Black Hat EU 2027</span>
+    <span class="badge timeline">~20–28 pages, full obligation-to-component matrix</span>
+    <span class="badge components">A3, S2, S4, R3, P2, P8, P10, P11</span>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-id">WP3</div>
-  <div class="card-title">Zero-Trust AI: From SPIFFE to Agent Identity</div>
-  <div class="card-desc">A whitepaper for platform engineers tracing the evolution from workload identity (SPIFFE/SPIRE) to autonomous-agent identity (AumOS I1). Covers the trust-domain model, the agent-identity document format, the federation story across organizations, and the operational deployment of an agent-identity control plane. Designed for teams already running SPIRE in production.</div>
-  <div class="card-meta">
+<!-- ============================================================ -->
+<!-- WHITEPAPER 3 -->
+<!-- ============================================================ -->
+<div class="whitepaper">
+  <div class="wp-head">
+    <span class="wp-id">WP3</span>
+    <span class="wp-audience">Audience: platform engineers running SPIRE in production</span>
+  </div>
+  <h3>Zero-Trust AI: From SPIFFE to Agent Identity</h3>
+
+  <h4>Executive summary</h4>
+  <p>Workload identity solved the service-to-service authentication problem; agent identity is the same problem one layer up, materially harder, and currently unsolved by any standardized mechanism. This whitepaper, for platform engineers already operating SPIFFE/SPIRE, traces the precise evolution from workload identity to autonomous-agent identity: what carries over unchanged, what must be generalized, and how the AumOS I1 component reuses SPIRE's trust-domain and SVID concepts while extending them to bind a delegation, a host attestation, and a capability scope into a single verifiable agent identity. We present the federation model for cross-organization agent identity and an operational deployment guide for the agent-identity control plane.</p>
+
+  <h4>The practitioner problem</h4>
+  <p>A platform team that has standardized on SPIRE issues X.509-SVIDs to every workload and has clean, mTLS-everywhere, zero-trust service mesh. Then an LLM agent arrives. The agent is not a workload in the SPIRE sense — it has no fixed pod, it acts on behalf of a human principal, its permissions vary per delegation, and it calls APIs in other trust domains. Issuing it a workload SVID conflates the agent's identity with the principal's authority and breaks the zero-trust model the team spent years building. The team needs an identity primitive that is to agents what SVIDs are to workloads: standardized, federation-ready, and bound to the authority it acts under.</p>
+
+  <h4>What carries over from SPIFFE</h4>
+  <p>The SPIFFE specification (SPIFFE IDs, trust domains, the SVID concept, the workload API, and the federation model) is the right foundation, and AumOS I1 inherits it deliberately rather than reinventing it. Specifically: the <strong>trust domain</strong> remains the unit of administrative authority; the <strong>SVID</strong> remains the carrier of identity; the <strong>workload API</strong> pattern remains the secret-distribution mechanism. A team that understands SPIRE understands 80% of AumOS I1. The remaining 20% is the generalization.</p>
+
+  <h4>What must be generalized: from workload to agent</h4>
+  <p>Three properties distinguish an agent identity from a workload identity, and each requires an extension to the SPIFFE model.</p>
+  <ul>
+    <li><strong>Delegation binding.</strong> A workload's authority is static (its service-account role). An agent's authority is dynamic — it is delegated per-task by a human principal. The agent identity must therefore carry (or reference) the delegation envelope (AAE) that authorized it, and the relying party must verify the delegation, not just the identity. AumOS binds the AAE to the SVID as an extension.</li>
+    <li><strong>Host attestation binding.</strong> A workload's host is the cluster it runs in. An agent's host may be a TEE whose confidentiality the relying party cares about. The agent identity must therefore bind an attestation document, so that the relying party can refuse to honor an agent running on an unattested host. AumOS composes the SVID with the C1 attestation.</li>
+    <li><strong>Capability scope.</strong> A workload's permissions are coarse. An agent's permissions must be fine-grained (per-skill, per-API, per-resource) and intersect with both the principal's grants and the protocol's declarations. AumOS makes the capability scope a first-class field of the identity document, verified by the intersection contract (Paper 4).</li>
+  </ul>
+
+  <h4>Federation across organizations</h4>
+  <p>Workload federation (SPIFFE Federation) lets trust domain A verify workloads from trust domain B by trusting B's bundle. Agent federation adds a wrinkle: trust domain A must verify not only that the agent is from B, but that the principal who delegated to the agent is who B claims, and that the delegation is still valid (not revoked). AumOS P7 (federation protocol) extends SPIFFE federation with a delegation-bundle and revocation-distribution mechanism, so that a relying party in domain A can verify the full chain — agent identity, principal identity, delegation validity, host attestation — without out-of-band coordination.</p>
+
+  <h4>Deployment sequence (for a SPIRE-experienced team)</h4>
+  <ol class="wp-steps">
+    <li><strong>Extend the trust domain.</strong> Register the AumOS I1 agent-identity CA as an issuer within the existing trust domain, or stand up a dedicated agent trust domain federated with the workload domain. Reuse the existing SPIRE bundle distribution.</li>
+    <li><strong>Deploy the agent workload API.</strong> The agent-runtime retrieves its SVID+AAE via the same workload-API pattern SPIRE uses; the secret never touches disk in plaintext.</li>
+    <li><strong>Wire the delegation issuer.</strong> The principal's identity provider (often the existing corporate IdP) issues AAEs that the agent-identity CA binds into the SVID. This is the human-in-the-loop step that authorizes the agent.</li>
+    <li><strong>Configure relying-party verification.</strong> API gateways and service mesh sidecars verify the SVID (existing SPIRE logic) <em>and</em> the AAE extension (new logic) before honoring an agent request. Verification that fails on either rejects.</li>
+    <li><strong>Stand up revocation distribution.</strong> Deploy the revocation-bundle distribution so that a revoked delegation propagates within the freshness window (target: seconds). This is the operational property that makes the kill switch real.</li>
+    <li><strong>Federate with partners.</strong> Exchange trust bundles with partner organizations per P7; agents acting cross-organization now verify end-to-end.</li>
+  </ol>
+
+  <h4>Evidence &amp; validation</h4>
+  <div class="wp-evidence">
+    <strong>The migration proof:</strong> an existing SPIRE deployment can adopt AumOS I1 without forklifting the workload-identity layer. The agent SVID is a SPIFFE SVID with a well-defined extension; SPIRE-verified workloads continue to verify; only the agents and their relying parties adopt the new logic. This is the same incremental-adoption property that made SPIRE itself deployable, and it is the property that makes agent identity deployable on top of it.
+  </div>
+
+  <h4>Authoritative sources</h4>
+  <ul>
+    <li><strong>SPIFFE specification</strong> (SPIFFE ID, SVID, trust domain) — <a href="https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE_IOU.md">SPIFFE standards</a>, CNCF.</li>
+    <li><strong>SPIRE</strong> (the reference implementation) — <a href="https://github.com/spiffe/spire">github.com/spiffe/spire</a>.</li>
+    <li><strong>NIST SP 800-207</strong> — <em>Zero Trust Architecture</em>, August 2020. The zero-trust model the agent identity extends. <a href="https://csrc.nist.gov/publications/detail/sp/800-207/final">csrc.nist.gov/.../sp/800-207/final</a>.</li>
+    <li><strong>Anthropic — Model Context Protocol</strong>, donated to the Agentic AI Foundation (2026): the agent-tool protocol whose calls the agent identity authorizes.</li>
+  </ul>
+
+  <div class="meta-row">
     <span class="badge venue">Target: platform engineers; KubeCon / CloudNativeCon 2027</span>
+    <span class="badge timeline">~16–22 pages, SPIRE-to-agent migration guide</span>
+    <span class="badge components">I1, I2, T1, T2, P1, P7</span>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-id">WP4</div>
-  <div class="card-title">The AI Kill Switch Act: Technical Requirements and Reference Implementation</div>
-  <div class="card-desc">A whitepaper for policy makers and their technical advisors translating the U.S. AI Kill Switch Act's statutory language into concrete technical requirements — what a compliant kill switch must do, what evidence it must produce, how it composes with existing incident-response practice — and presenting the AumOS R3 reference implementation as a worked example. Bridges the policy-engineering gap that the Act exemplifies.</div>
-  <div class="card-meta">
+<!-- ============================================================ -->
+<!-- WHITEPAPER 4 -->
+<!-- ============================================================ -->
+<div class="whitepaper">
+  <div class="wp-head">
+    <span class="wp-id">WP4</span>
+    <span class="wp-audience">Audience: policy makers &amp; their technical advisors</span>
+  </div>
+  <h3>The AI Kill Switch Act: Technical Requirements and Reference Implementation</h3>
+
+  <h4>Executive summary</h4>
+  <p>Legislatures on both sides of the Atlantic are converging on a statutory requirement that operators of high-risk AI systems maintain a "kill switch" — the ability to halt, isolate, and forensically preserve an autonomous system that is behaving dangerously. The policy intent is clear; the technical requirements are not. This whitepaper, for policy makers and their technical advisors, translates the statutory language into a concrete engineering specification: what a compliant kill switch must do, what evidence it must produce, how it composes with existing incident-response practice, and how the AumOS R3 reference implementation satisfies the specification. It bridges the policy-engineering gap that, left unclosed, produces either unenforceable law or security theater.</p>
+
+  <h4>The practitioner (and policymaker) problem</h4>
+  <p>A kill switch sounds simple — "turn it off" — until one tries to specify it for a distributed, long-running, stateful agent system. <em>Off</em> means what, precisely? Halt the inference? Revoke the credentials? Quarantine the state? Preserve the evidence? Each is a different control with a different blast radius. A statute that says "maintain a kill switch" without defining these terms is, in engineering terms, unimplementable; an operator that claims a kill switch without these controls is providing security theater. The gap between legislative intent and engineering reality is where compliance failures — and real harm — live.</p>
+
+  <h4>The five control objectives a compliant kill switch must meet</h4>
+  <p>From analysis of the emerging statutory landscape and incident-response practice, we derive five control objectives that any defensible kill-switch specification must address. AumOS R3 implements all five; the whitepaper argues these should be the de-facto technical standard against which statutory language is interpreted.</p>
+  <ul>
+    <li><strong>1. Halt</strong> — stop the system from taking further autonomous action. R3 revokes the delegation (the AAE), so every relying party rejects the agent within the freshness window. This is the "stop the bleeding" control.</li>
+    <li><strong>2. Isolate</strong> — prevent the system from exfiltrating state or communicating with accomplices. R-pillar egress control and sandboxing quarantine the agent's runtime; no outbound network except to the forensic sink.</li>
+    <li><strong>3. Preserve</strong> — capture forensic state for investigation. R3 triggers forensic-freeze mode: the action-receipt chain (P2) is sealed and anchored, the model and agent state are snapshotted, and the lot is hash-bound into an evidence bundle that cannot be silently altered.</li>
+    <li><strong>4. Attest</strong> — produce evidence that the kill switch was effective. R3 emits a kill-switch receipt proving halt, isolation, and preservation occurred, signed and timestamp-anchored for a regulator or court.</li>
+    <li><strong>5. Restore</strong> — provide a defined, tested path to safe resumption once the incident is understood. R3 supports a quorum-gated restoration with a mandatory post-incident review artifact.</li>
+  </ul>
+
+  <h4>Methodology: from statute to specification to implementation</h4>
+  <p>The whitepaper proceeds in three layers. <strong>Layer 1 (statute)</strong> quotes the relevant provisions of the emerging laws and extracts their plain-language requirements. <strong>Layer 2 (specification)</strong> formalizes each requirement as a control objective with a testable success criterion — the "what would a regulator accept as proof" bar. <strong>Layer 3 (implementation)</strong> maps each control objective to the specific AumOS component and configuration, and presents the reference deployment. The three-layer structure is itself a contribution: it gives policy authors a vocabulary for writing implementable law, operators a target for compliance, and regulators a verification procedure.</p>
+
+  <h4>Deployment sequence</h4>
+  <ol class="wp-steps">
+    <li><strong>Define the escalation policy.</strong> Who is authorized to throw the kill switch, under what conditions, and with what quorum? This is the human-governance step; R3 enforces it cryptographically (no single party can halt or restore alone).</li>
+    <li><strong>Wire the halt path.</strong> Configure R3 to revoke the AAE on trigger; verify that relying-party rejection propagates within the freshness SLA. Test it on a staging agent.</li>
+    <li><strong>Wire the isolation path.</strong> Configure egress control and the quarantine sandbox; verify the agent cannot reach any network except the forensic sink when isolated.</li>
+    <li><strong>Wire the preservation path.</strong> Configure forensic-freeze mode; verify the evidence bundle (receipt chain + state snapshot + hash binding) is produced and anchored.</li>
+    <li><strong>Exercise quarterly.</strong> Run a tabletop and a live-fire kill-switch drill each quarter; archive the receipts. An untested kill switch is not a control.</li>
+    <li><strong>Define the restoration path.</strong> Configure the quorum-gated restore with the mandatory post-incident review; document the conditions under which restoration is permitted.</li>
+  </ol>
+
+  <h4>Evidence &amp; validation</h4>
+  <div class="wp-evidence">
+    <strong>What a regulator or court receives:</strong> a signed kill-switch receipt proving the five control objectives were met, with timestamps, the halted delegation's identity, the preserved evidence bundle's hash, and the restoration record. This is the difference between an operator <em>asserting</em> "we had a kill switch" and an operator <em>demonstrating</em> it worked, on the record, in a form that resists after-the-fact alteration.
+  </div>
+
+  <h4>Authoritative sources</h4>
+  <ul>
+    <li><strong>California SB 1047</strong> — <em>Safe and Secure Innovation for Frontier Artificial Intelligence Models Act</em> (vetoed September 2024); the proximate U.S. kill-switch legislation, whose technical-requirements gap this whitepaper addresses.</li>
+    <li><strong>Colorado SB 24-205</strong> — <em>Consumer Protections for Artificial Intelligence</em> (signed 2024, effective 2026); the state-level U.S. high-risk-AI duty-of-care regime.</li>
+    <li><strong>EU AI Act Article 55(1)(c)</strong> — systemic-risk incident tracking, the EU analogue that the preservation control supports.</li>
+    <li><strong>NIST SP 800-61</strong> — <em>Computer Security Incident Handling Guide</em> (rev. 2); the incident-response practice the five control objectives extend.</li>
+    <li><strong>NIST AI RMF 1.0</strong> — the risk-management frame within which the kill switch sits.</li>
+  </ul>
+
+  <div class="meta-row">
     <span class="badge venue">Target: policy makers; RSA 2027 policy track</span>
+    <span class="badge timeline">~16–20 pages, statute-to-implementation traceability</span>
+    <span class="badge components">R3, R-pillar, P2, P6, T1, I1</span>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-id">WP5</div>
-  <div class="card-title">Confidential AI on NVIDIA H100: A Deployment Guide</div>
-  <div class="card-desc">A deployment guide for infrastructure teams running confidential AI workloads on NVIDIA H100 (and N1) GPUs using AumOS C1 components. Covers attestation-domain setup, multi-tenant composition, the attestation handshake, performance tuning, and the operational runbook for confidential inference and training. Extends the academic Paper 5 and Paper 7 into day-2 operations.</div>
-  <div class="card-meta">
+<!-- ============================================================ -->
+<!-- WHITEPAPER 5 -->
+<!-- ============================================================ -->
+<div class="whitepaper">
+  <div class="wp-head">
+    <span class="wp-id">WP5</span>
+    <span class="wp-audience">Audience: infrastructure / MLOps teams</span>
+  </div>
+  <h3>Confidential AI on NVIDIA H100: A Deployment Guide</h3>
+
+  <h4>Executive summary</h4>
+  <p>The NVIDIA H100 (Hopper) and the forthcoming N1 are the first broadly available GPUs with hardware-enforced confidential computing, enabling inference and training workloads where the model weights, the prompts, and the outputs are cryptographically protected from the host, the hypervisor, and the cloud operator. This is a structural change in the trust model of AI infrastructure — but the operational reality of deploying it is poorly documented, and most teams that attempt confidential inference stall on attestation-domain setup, multi-tenant composition, or key-release orchestration. This whitepaper is the deployment guide that does not exist in vendor documentation: the attestation-domain model, the handshake, multi-tenant composition, performance tuning, and the day-2 operational runbook, all built on the AumOS C1 components.</p>
+
+  <h4>The practitioner problem</h4>
+  <p>Confidential computing on a CPU TEE (Intel TDX, AMD SEV-SNP) is a solved operational problem. Confidential computing on an H100 is not, for three reasons. (1) The <strong>attestation model is different</strong>: the GPU's confidential-computing mode produces an attestation report whose verification requires NVIDIA-specific libraries and a NVIDIA attestation service, and the trust chain runs through NVIDIA's root of trust. (2) <strong>Multi-tenant composition is hard</strong>: serving several tenants' models on a shared GPU pool without cross-tenant leakage requires careful attestation-domain design and key-release gating. (3) <strong>The performance overhead is real and must be tuned</strong>: naive confidential-inference deployments leave 20–40% of throughput on the table. Teams need a documented path through all three.</p>
+
+  <h4>Architecture: the attestation domain</h4>
+  <p>The foundational concept is the <strong>attestation domain</strong>: a set of GPUs, a set of model keys, and a verification policy, over which a consistent trust decision is made. AumOS C1-1 (binding to NVIDIA NVTrust) establishes the domain; C1-2 (high-level Python attestation client) retrieves and verifies the attestation reports; C1-3 orchestrates the end-to-end attested pipeline inside the TEE; C1-4 terminates TLS inside the enclave so prompts are never in plaintext on the host; C1-5 composes the streams and gates model-key release so that keys are handed to the GPU only after the attestation verifies. The five compose; none is sufficient alone.</p>
+
+  <h4>The attestation handshake (operator's view)</h4>
+  <ul>
+    <li><strong>Provisioning.</strong> The model owner encrypts weights to a policy that only a GPU meeting the attestation requirements can satisfy. The encrypted weights and the policy are stored in the registry.</li>
+    <li><strong>Request.</strong> A tenant requests inference. The serving node brings up the H100 in confidential-computing mode and requests an attestation report.</li>
+    <li><strong>Verification.</strong> C1-2 retrieves the report and verifies it against the policy (firmware version, CC mode asserted, debug disabled, measurement values). Verification failure halts the request.</li>
+    <li><strong>Key release.</strong> On successful verification, C1-5 releases the model key to the GPU (via the H100's secure key channel); the GPU decrypts the weights inside its protected memory.</li>
+    <li><strong>Inference.</strong> C1-4 terminates TLS in the enclave; the prompt traverses the host only as ciphertext; the GPU computes and returns the output through the encrypted channel.</li>
+    <li><strong>Teardown.</strong> On session end, the GPU's confidential memory is scrubbed; keys never persisted to host disk.</li>
+  </ul>
+
+  <h4>Multi-tenant composition</h4>
+  <p>The naive anti-pattern is one GPU per tenant — secure but economically fatal. The AumOS pattern is <strong>attestation-domain partitioning</strong>: tenants sharing a physical GPU are isolated by distinct attestation policies and distinct key-release gates, so that a key released for tenant A's model cannot be consumed by tenant B's context, and a context switch requires a fresh attestation. C1-5 enforces this by binding each key release to both the attestation and the tenant's identity (I1), so a key is never releaseable to a GPU context that does not match both. This is what makes shared-GPU confidential serving defensible.</p>
+
+  <h4>Deployment sequence</h4>
+  <ol class="wp-steps">
+    <li><strong>Establish the attestation service.</strong> Deploy the NVIDIA attestation components and C1-1; register the GPU fleet. Verify the attestation report for one GPU end-to-end before proceeding.</li>
+    <li><strong>Encrypt and register the first model.</strong> Encrypt weights to a policy (firmware floor, CC mode, debug off); register the encrypted artifact and policy. Verify the key-release path on one inference.</li>
+    <li><strong>Deploy the in-enclave serving path.</strong> Deploy C1-3/C1-4 and the TLS-terminating inference server; verify a prompt traverses the host only as ciphertext.</li>
+    <li><strong>Define the attestation domains.</strong> Partition the fleet into domains by tenant or sensitivity; configure C1-5 key-release per domain.</li>
+    <li><strong>Tune for throughput.</strong> Profile the confidential path vs. the non-confidential baseline; tune batch size, key-caching, and the attestation-cadence (re-attest per-session vs. per-window) to recover throughput.</li>
+    <li><strong>Operationalize.</strong> Wire attestation failures into the alerting pipeline; define the runbook for a failed-attestation event (do not serve; quarantine; investigate).</li>
+  </ol>
+
+  <h4>Evidence &amp; validation</h4>
+  <div class="wp-evidence">
+    <strong>What this delivers, measurably:</strong> (a) a verified attestation report for every confidential inference, loggable for audit; (b) zero host-disk plaintext for weights or prompts, verifiable by inspection; (c) a documented and tuned throughput overhead (target ≤10–15% vs. non-confidential baseline after tuning); (d) multi-tenant isolation that is policy-enforced, not merely topology-assumed. This is the difference between <em>claiming</em> confidential AI and being able to show a regulator or customer the attestation trail.
+  </div>
+
+  <h4>Authoritative sources</h4>
+  <ul>
+    <li><strong>NVIDIA</strong> — <em>H100 Confidential Computing</em> documentation and the NVIDIA Attestation SDK. <a href="https://docs.nvidia.com/confidential-computing/">docs.nvidia.com/confidential-computing</a>.</li>
+    <li><strong>"NVIDIA GPU Confidential Computing Demystified"</strong> — arXiv, 2025 (citation [8] in the bibliography). The academic demystification the deployment guide builds on.</li>
+    <li><strong>"Creating the First Confidential GPUs"</strong> — Communications of the ACM (citation [10]). The architecture paper from the NVIDIA team.</li>
+    <li><strong>Confidential Computing Consortium</strong> — attestation architectures and the Confidential Computing Summit 2026 proceedings.</li>
+  </ul>
+
+  <div class="meta-row">
     <span class="badge venue">Target: infrastructure teams; GPU Technology Conference 2027</span>
+    <span class="badge timeline">~18–24 pages, full deployment + day-2 runbook</span>
+    <span class="badge components">C1-1, C1-2, C1-3, C1-4, C1-5</span>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-id">WP6</div>
-  <div class="card-title">Post-Quantum AI Security: Migrating Agent Infrastructure to NIST FIPS 203/204/205</div>
-  <div class="card-desc">A whitepaper for security architects on migrating AI-agent cryptographic infrastructure — agent identity, delegation envelopes, action receipts, model signing — from classical to post-quantum cryptography following the finalized NIST standards (FIPS 203 ML-KEM, FIPS 204 ML-DSA, FIPS 205 SLH-DSA, August 2024). Covers the migration sequence, hybrid (classical+PQC) transition, performance impact, and the AumOS cryptographic-agility story.</div>
-  <div class="card-meta">
+<!-- ============================================================ -->
+<!-- WHITEPAPER 6 -->
+<!-- ============================================================ -->
+<div class="whitepaper">
+  <div class="wp-head">
+    <span class="wp-id">WP6</span>
+    <span class="wp-audience">Audience: security architects planning the PQC migration</span>
+  </div>
+  <h3>Post-Quantum AI Security: Migrating Agent Infrastructure to NIST FIPS 203/204/205</h3>
+
+  <h4>Executive summary</h4>
+  <p>With NIST's finalization of the first post-quantum cryptography standards in August 2024 — FIPS 203 (ML-KEM, formerly CRYSTALS-Kyber), FIPS 204 (ML-DSA, formerly CRYSTALS-Dilithium), and FIPS 205 (SLH-DSA, formerly SPHINCS+) — the migration of production cryptographic infrastructure from classical to quantum-resistant algorithms is no longer hypothetical. AI-agent infrastructure is a particularly acute migration target: the delegation envelopes, action receipts, and model signatures that an agent system produces today may need to remain verifiable for decades, and "harvest-now-decrypt-later" attacks mean that secrets encrypted under classical schemes are already at risk. This whitepaper, for security architects, presents the migration sequence for AI-agent cryptographic infrastructure — what migrates first, the hybrid (classical+PQC) transition, the performance impact, and the cryptographic-agility design that makes the migration survivable.</p>
+
+  <h4>The practitioner problem</h4>
+  <p>Security architects are told "migrate to PQC" with little guidance on sequencing for a system as cryptographically diverse as an AI-agent platform. An agent platform uses asymmetric cryptography for at least four distinct purposes — agent identity (SVIDs), delegation envelopes (AAE signing), action-receipt integrity (hash chains + signatures), and model signing (provenance) — each with different freshness, longevity, and interoperability constraints. Migrating them all at once is infeasible; migrating them in the wrong order creates windows of exposure. The architect needs a principled sequence, a hybrid-bridge design, and a cryptographic-agility substrate so that future algorithm rotations (including deprecation of an adopted PQC scheme) are routine rather than traumatic.</p>
+
+  <h4>The migration sequence (in dependency order)</h4>
+  <p>The whitepaper argues for a four-phase sequence driven by the longevity of the artifacts each cryptographic use protects. Artifacts that must remain verifiable for the longest migrate first.</p>
+  <ul>
+    <li><strong>Phase 1 — Model signing (longest-lived).</strong> A model signed today may be verified a decade hence. Migrate S-pillar model signing (P4) to ML-DSA first, with a hybrid classical+ML-DSA signature during the transition so that legacy verifiers still function. This is the slowest-rotating artifact and the one most exposed to harvest-now-decrypt-later over decades.</li>
+    <li><strong>Phase 2 — Action-receipt and lineage signatures.</strong> Receipts and lineage proofs must remain verifiable for the audit-retention period (often 7+ years under regulations like the EU AI Act). Migrate P2/P5 next, again hybrid during transition.</li>
+    <li><strong>Phase 3 — Delegation envelope signing (AAE).</strong> Delegations are short-lived (minutes to hours), so the harvest-now risk is lower, but migrating AAE (P1/T2) to ML-DSA closes the most active signing path and is the highest-volume performance consideration.</li>
+    <li><strong>Phase 4 — Key establishment (agent identity, TLS).</strong> Migrate the key-establishment paths (I1 SVIDs, the in-enclave TLS of C1-4) to ML-KEM, completing the migration. This is last because it benefits most from the maturing of PQC TLS and because the hybrid KEM overhead is the most performance-sensitive.</li>
+  </ul>
+
+  <h4>The hybrid bridge</h4>
+  <p>Each phase runs a <strong>hybrid classical+PQC transition</strong>: every signed artifact carries both a classical signature (Ed25519/ECDSA) and a PQC signature (ML-DSA), and a verifier accepts the artifact if either (or, for high-assurance, both) verifies. The hybrid bridge is not a compromise; it is the structurally correct response to the dual uncertainty of (a) the classical schemes being broken by a future quantum adversary and (b) the PQC schemes being broken by a future cryptanalytic advance. The whitepaper specifies the hybrid container format for each of the four uses, designed for forward compatibility so that adding or rotating algorithms is a metadata change, not a schema change.</p>
+
+  <h4>Performance: the budget that shapes the sequence</h4>
+  <p>The migration sequence is not arbitrary; it is shaped by the performance characteristics of the new algorithms. ML-DSA signatures are larger (~2.7 KB for security level 2) and signing/verification is slower than Ed25519, which matters most for the high-frequency AAE and receipt paths — hence their placement mid-sequence, after the slow-rotating artifacts and before the latency-critical key-establishment path. ML-KEM key encapsulation is competitive with ECDH in compute but larger in wire size, which affects the TLS path most. The whitepaper provides measured overhead numbers from the AumOS reference implementation for each use, so the architect can budget rather than guess.</p>
+
+  <h4>Methodology: cryptographic agility as the substrate</h4>
+  <p>The migration is survivable only if the cryptographic layer was designed for agility — the ability to add, rotate, and deprecate algorithms without rewriting the systems that depend on them. AumOS T1 (trust-core) is designed around this: cryptographic primitives are behind a trait/interface with an algorithm identifier in every artifact, so adding ML-DSA or a future scheme is a new implementation of the trait, not a fork of the codebase. The whitepaper presents the agility design and argues that any platform built without it faces a traumatic migration rather than a routine one — and that the NIST PQC migration is, for such platforms, the first of several.</p>
+
+  <h4>Deployment sequence</h4>
+  <ol class="wp-steps">
+    <li><strong>Audit the cryptographic surface.</strong> Inventory every asymmetric-cryptography use; classify by artifact longevity and frequency. This inventory is the input to sequencing.</li>
+    <li><strong>Deploy ML-DSA signing in T1.</strong> Add ML-DSA as an available algorithm behind the agility interface; do not yet enable it in production paths.</li>
+    <li><strong>Enable hybrid signing for model artifacts (Phase 1).</strong> Begin emitting dual signatures; verify both in the gate; alert on either failing. Run this for a full release cycle.</li>
+    <li><strong>Roll forward through Phases 2–4.</strong> Enable hybrid for receipts/lineage, then AAE, then key establishment, each behind a release cycle of dual verification.</li>
+    <li><strong>Establish the rotation policy.</strong> Define the conditions under which an algorithm is deprecated and the rotation cadence; make rotation a tested, quarterly capability, not a crisis response.</li>
+    <li><strong>Plan the classical deprecation.</strong> Once PQC verification is universal in the relying parties, schedule the classical-signature removal — the final state of the migration.</li>
+  </ol>
+
+  <h4>Evidence &amp; validation</h4>
+  <div class="wp-evidence">
+    <strong>What this delivers, measurably:</strong> (a) every long-lived artifact (model signatures, lineage, receipts) carries a quantum-resistant signature within the migration window; (b) measured overhead per phase, published so the migration is budgeted not guessed; (c) a cryptographic-agility substrate that makes the next algorithm rotation (and the eventual classical deprecation) routine; (d) a hybrid-bridge design that closes neither the classical nor the PQC trust window prematurely.
+  </div>
+
+  <h4>Authoritative sources</h4>
+  <ul>
+    <li><strong>NIST FIPS 203</strong> — <em>Module-Lattice-Based Key-Encapsulation Mechanism Standard</em> (ML-KEM), finalized August 2024. <a href="https://csrc.nist.gov/pubs/fips/203/final">csrc.nist.gov/pubs/fips/203/final</a>.</li>
+    <li><strong>NIST FIPS 204</strong> — <em>Module-Lattice-Based Digital Signature Standard</em> (ML-DSA), finalized August 2024. <a href="https://csrc.nist.gov/pubs/fips/204/final">csrc.nist.gov/pubs/fips/204/final</a>.</li>
+    <li><strong>NIST FIPS 205</strong> — <em>Stateless Hash-Based Digital Signature Standard</em> (SLH-DSA), finalized August 2024. <a href="https://csrc.nist.gov/pubs/fips/205/final">csrc.nist.gov/pubs/fips/205/final</a>.</li>
+    <li><strong>CISA</strong> — <em>Post-Quantum Cryptography Roadmap</em>, 2024–2025; the U.S. federal migration framing the enterprise sequence mirrors.</li>
+    <li><strong>NIST SP 800-208</strong> — stateful hash-based signature guidance, the complement to stateless SLH-DSA.</li>
+  </ul>
+
+  <div class="meta-row">
     <span class="badge venue">Target: security architects; RSA / PQ Crypto 2027</span>
+    <span class="badge timeline">~18–22 pages, full migration sequence + agility design</span>
+    <span class="badge components">T1, T2, I1, C1-4, P1, P2, P4, P5</span>
   </div>
-</div>
-
 </div>
 
 <!-- ==================================================================== -->
@@ -1497,6 +1911,19 @@ EXISTING LITERATURE (real, verifiable)                       DERIVED AumOS RESEA
 <div class="bib-entry"><span class="bib-key">[27]</span> NIST. <span class="bib-title">FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), FIPS 205 (SLH-DSA)</span> — finalized August 2024. <a href="https://www.nist.gov/news-events/news/2024/08/nist-releases-first-3-finalized-post-quantum-encryption-standards">nist.gov/news-events/news/2024/08/...</a></div>
 <div class="bib-entry"><span class="bib-key">[28]</span> <span class="bib-title">"What Are NIST PQC Standards?"</span> Palo Alto Networks. <a href="https://www.paloaltonetworks.com/cyberpedia/pqc-standards">paloaltonetworks.com/cyberpedia/pqc-standards</a></div>
 
+<h3 class="bib-section">Industry whitepapers &amp; standards (primary sources for WP1–WP6)</h3>
+<div class="bib-entry"><span class="bib-key">[33]</span> NIST. <span class="bib-title">AI Risk Management Framework (AI RMF 1.0)</span>, January 2023 — the governance frame for the open defense stack (WP1). <a href="https://www.nist.gov/itl/ai-risk-management-framework">nist.gov/itl/ai-risk-management-framework</a></div>
+<div class="bib-entry"><span class="bib-key">[34]</span> European Union. <span class="bib-title">Regulation (EU) 2024/1689 ("AI Act")</span>, OJ L, 12 July 2024 — Articles 9–13, 51, 53, 55, 72, 99 (WP2). <a href="https://eur-lex.europa.eu/eli/reg/2024/1689/oj">eur-lex.europa.eu/eli/reg/2024/1689/oj</a></div>
+<div class="bib-entry"><span class="bib-key">[35]</span> European Commission. <span class="bib-title">AI Office &amp; General-Purpose AI Code of Practice</span>, 2025–2026. <a href="https://digital-strategy.ec.europa.eu/en/policies/ai-office">digital-strategy.ec.europa.eu/en/policies/ai-office</a></div>
+<div class="bib-entry"><span class="bib-key">[36]</span> NIST. <span class="bib-title">SP 800-207 — Zero Trust Architecture</span>, August 2020 (WP3). <a href="https://csrc.nist.gov/publications/detail/sp/800-207/final">csrc.nist.gov/publications/detail/sp/800-207/final</a></div>
+<div class="bib-entry"><span class="bib-key">[37]</span> CNCF / SPIFFE Project. <span class="bib-title">SPIFFE specification &amp; SPIRE reference implementation</span> — the workload-identity precedent AumOS I1 generalizes to agents (WP3). <a href="https://github.com/spiffe/spiffe">github.com/spiffe/spiffe</a></div>
+<div class="bib-entry"><span class="bib-key">[38]</span> California Legislature. <span class="bib-title">SB 1047 — Safe and Secure Innovation for Frontier Artificial Intelligence Models Act</span> (vetoed September 2024); the proximate U.S. kill-switch statute (WP4). <a href="https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240SB1047">leginfo.legislature.ca.gov/...</a></div>
+<div class="bib-entry"><span class="bib-key">[39]</span> Colorado General Assembly. <span class="bib-title">SB 24-205 — Consumer Protections for Interactions with Artificial Intelligence Systems</span> (signed 2024, effective 2026) (WP4). <a href="https://leg.colorado.gov/bills/sb24-205">leg.colorado.gov/bills/sb24-205</a></div>
+<div class="bib-entry"><span class="bib-key">[40]</span> NIST. <span class="bib-title">SP 800-61 Rev. 2 — Computer Security Incident Handling Guide</span>; the incident-response practice the kill-switch control objectives extend (WP4). <a href="https://csrc.nist.gov/publications/detail/sp/800-61/rev-2/final">csrc.nist.gov/publications/detail/sp/800-61/rev-2/final</a></div>
+<div class="bib-entry"><span class="bib-key">[41]</span> NVIDIA. <span class="bib-title">H100 / Hopper Confidential Computing documentation &amp; Attestation SDK</span> (WP5). <a href="https://docs.nvidia.com/confidential-computing/">docs.nvidia.com/confidential-computing</a></div>
+<div class="bib-entry"><span class="bib-key">[42]</span> CISA. <span class="bib-title">Post-Quantum Cryptography Initiative &amp; Roadmap</span>, 2024–2025; the U.S. federal PQC migration framing (WP6). <a href="https://www.cisa.gov/quantum">cisa.gov/quantum</a></div>
+<div class="bib-entry"><span class="bib-key">[43]</span> OWASP. <span class="bib-title">OWASP Top 10 for LLM Applications</span> &amp; ML/AI security guidance; the threat taxonomy the audit/assurance pillar maps to (WP1). <a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/">owasp.org/.../top-10-for-large-language-model-applications</a></div>
+
 <h3 class="bib-section">Market data</h3>
 <div class="bib-entry"><span class="bib-key">[29]</span> Gartner. <span class="bib-title">"Worldwide AI Spending Will Total $2.52 Trillion in 2026"</span> (+44% YoY). <a href="https://www.gartner.com/en/newsroom/press-releases/2026-1-15-gartner-says-worldwide-ai-spending-will-total-2-point-5-trillion-dollars-in-2026">gartner.com/en/newsroom/press-releases/...</a></div>
 <div class="bib-entry"><span class="bib-key">[30]</span> Gartner. <span class="bib-title">"Security spending $244B in 2026 → $372.6B by 2030."</span> <a href="https://www.linkedin.com/pulse/gartner-projects-244-billion-security-spending-2026-ai-louis-columbus-dciec">linkedin.com/pulse/...</a></div>
@@ -1507,7 +1934,7 @@ EXISTING LITERATURE (real, verifiable)                       DERIVED AumOS RESEA
 
 <div class="callout success">
   <div class="callout-title">A note on provenance</div>
-  <p>This roadmap is a publication plan, not a list of completed papers. The cited prior work ([1]–[32]) is real and verifiable through the linked sources. The 24 derived papers (Papers 1–24) and 6 whitepapers (WP1–WP6) are the contributions AumOS's implementation is designed to enable; their abstract sketches, contributions, experimental setups, and target venues represent the research program this roadmap proposes. AumOS source references: <code>github.com/MuVeraAI</code>.</p>
+  <p>This roadmap is a publication plan, not a list of completed papers. The cited prior work ([1]–[43]) is real and verifiable through the linked sources. The 24 derived papers (Papers 1–24) and 6 whitepapers (WP1–WP6) are the contributions AumOS's implementation is designed to enable; their abstract sketches, contributions, experimental setups, deployment sequences, and target venues represent the research program this roadmap proposes. AumOS source references: <code>github.com/MuVeraAI</code>.</p>
 </div>
 
 </div>
