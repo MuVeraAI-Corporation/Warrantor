@@ -9,7 +9,29 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
-### Added — Wave 5 (confidential compute + federated/edge)
+### Added — Wave 6 (cross-cutting aggregation)
+
+13 components at v1.0.0:
+- **X2 nooa-ext** (Python, 14 tests): PolicyEnforcer (OPA/Rego), AuditStreamer, IdentityBinder, AttestationHook.
+- **X3 open-harness-spec** (Python, 10 tests): 5 vendor-neutral interfaces + conformance checker.
+- **X4 crypto-audit-ai** (Python, 16 tests): IMPLEMENTATION_AUDIT / ALGORITHM_STRESS_TEST / DEPENDENCY_SCAN.
+- **X5 retro-spec-kit** (Python, 17 tests): 6 transcript analyzers (network/real-system/behavioral/credential/supply-chain/unauthorized).
+- **X6 metr-bridge** (Python, 10 tests): METREvalAdapter, TranscriptExporter, RiskReportBridge, IndependentVerifier.
+- **X9 incident-exchange** (Python, 14 tests): 6 incident types, OCSF extension, MITRE ATLAS mapping.
+- **A3 bias-sentinel** (Python, 15 tests): bias (BOLD/HONEST/CrowS-Pairs/WinoBias) + copyright (n-gram).
+- **A4 comply-gate** (Python, 16 tests): CI/CD gates (coverage/sbom/eval/disclosure), break-glass overrides.
+- **A7 red-team-cloud** (Python, 15 tests): continuous adversarial simulation wrapping A2.
+- **R5 policy-compiler** (Python, 17 tests): NL/rules → OPA Rego + Cedar policy emitter.
+- **R7 egress-filter** (Rust, 12 tests): eBPF egress enforcement; domain blocklist; canary IP detection.
+- **S6 exfil-guard** (Rust, 20 tests): PatternMatcher (AWS/GitHub/OpenAI/SSN/CC), EntropyDetector, VolumeMonitor.
+- **S9 lightwell-bridge** (Go, 17 tests): AI-artifact patch distribution extending Lightwell.
+
+### Verified at the Wave-6 exit gate
+- 592 tests passing total (148 Rust + 113 Go + 331 Python).
+- 44 components at v1.0.0 shipped across Waves 1–6.
+- clippy clean; buf clean; conformance verified; docs sound.
+
+## [1.0.0] — Wave 5 (confidential compute + federated/edge)
 
 - **C1-3 attesta-flow** v1.0 (Python, 5 tests + Terraform): E2E attested inference pipeline
   orchestrator running inside a TEE; emits signed PipelineAttestation per batch; Azure

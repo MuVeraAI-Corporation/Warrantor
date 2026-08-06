@@ -14,6 +14,8 @@ members = [
     "provena-chain",
     "inference-proxy",
     "confidential-fabric",
+    "egress-filter",
+    "exfil-guard",
 ]
 exclude = [
     "trust-core/fuzz",  # nested cargo-fuzz workspace (own [workspace] table)
