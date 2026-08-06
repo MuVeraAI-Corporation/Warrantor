@@ -1,0 +1,19 @@
+# Buf configuration — the contract plane is the real platform spine.
+# Breaking changes here are load-bearing across every language implementation.
+# See docs/cross-cutting/19-inter-component-protocol.md and the polyglot stack pressure test §10.
+
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+  except:
+    # Allow fields to be reserved but unused during Wave-1 prototyping
+    - FIELD_NOT_REQUIRED
+breaking:
+  use:
+    - FILE
+  # We allow adding new optional fields (forward-compatible), but not
+  # removing/renaming/reserving existing ones, and not changing types.
+  except: []

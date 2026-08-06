@@ -1,0 +1,24 @@
+[package]
+name = "aumos-kill-switch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Kill switch for the AI Kill Switch Act (H.R. 2026) — <5s end-to-end"
+
+[lib]
+name = "aumos_kill_switch"
+path = "src/lib.rs"
+
+[[bin]]
+name = "kill-switch"
+path = "src/cli.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+clap.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

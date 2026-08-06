@@ -1,0 +1,28 @@
+[package]
+name = "aumos-eval-guard"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Cryptographic sandbox boundary attestation (eBPF egress filter)"
+
+[lib]
+name = "aumos_eval_guard"
+path = "src/lib.rs"
+
+[[bin]]
+name = "eval-guard"
+path = "src/cli.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+clap.workspace = true
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+hex = "0.4"
+aumos-api = { path = "../aumos-api" }
+
+[dev-dependencies]
+proptest = "1"

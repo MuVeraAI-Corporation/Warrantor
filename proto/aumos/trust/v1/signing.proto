@@ -1,0 +1,78 @@
+// AumOS trust-core (T1) wire contracts.
+// The Rust crate `aumos-trust-core` is the single authoritative implementation of every
+// sign/verify operation. Other languages call it via these RPCs or via in-process bindings.
+syntax = "proto3";
+
+package aumos.trust.v1;
+
+// TrustService is the gRPC service exposed when trust-core runs as a sidecar (e.g. for batch verify).
+// Most callers embed trust-core as a library and do NOT use this service.
+service TrustService {
+  // Sign a canonical-CBOR payload with a key reference.
+  rpc Sign(SignRequest) returns (SignResponse);
+  // Verify a signature against a payload and key reference.
+  rpc Verify(VerifyRequest) returns (VerifyResponse);
+  // Record a notarization in the Sigstore Rekor transparency log.
+  rpc Notarize(NotarizeRequest) returns (NotarizeResponse);
+}
+
+// A reference to a signing key: either a local key, a KMS key, or a HSM slot.
+message KeyReference {
+  oneof key {
+    // A local key identified by its fingerprint (managed by trust-core's key store).
+    string local_key_fingerprint = 1;
+    // A KMS key ARN (e.g. "aws://arn:aws:kms:us-east-1:...").
+    string kms_arn = 2;
+    // A YubiKey PIV slot (e.g. "yubikey:9c").
+    string yubikey_slot = 3;
+    // A PKCS#11 HSM key label.
+    string pkcs11_label = 4;
+  }
+  // The signature algorithm. Default "ed25519".
+  string algorithm = 5;
+}
+
+message SignRequest {
+  // The canonical-CBOR-encoded payload bytes.
+  bytes payload = 1;
+  KeyReference key = 2;
+  string request_id = 3;
+}
+
+message SignResponse {
+  // The raw signature bytes (Ed25519 = 64 bytes).
+  bytes signature = 1;
+  // The verifying key that matches the signing key used.
+  bytes verifying_key = 2;
+  // Rekor transparency-log entry, if notarization was requested.
+  string rekor_entry = 3;
+}
+
+message VerifyRequest {
+  bytes payload = 1;
+  bytes signature = 2;
+  bytes verifying_key = 3;
+  // Optional: re-confirm the entry exists in Rekor.
+  string rekor_entry = 4;
+}
+
+message VerifyResponse {
+  bool valid = 1;
+  string reason = 2;
+}
+
+message NotarizeRequest {
+  bytes payload = 1;
+  bytes signature = 2;
+  bytes verifying_key = 3;
+  string request_id = 4;
+}
+
+message NotarizeResponse {
+  // The Rekor transparency-log entry ID.
+  string rekor_entry = 1;
+  // The Rekor log index.
+  int64 log_index = 2;
+  // The integrated time (Unix seconds).
+  int64 integrated_time = 3;
+}

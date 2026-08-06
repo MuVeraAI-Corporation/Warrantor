@@ -1,0 +1,50 @@
+# Rust
+rust/**/target/
+rust/**/*.rs.bk
+rust/**/Cargo.lock
+
+# Python
+python/**/__pycache__/
+python/**/*.pyc
+python/**/.pytest_cache/
+python/**/.ruff_cache/
+python/**/.venv/
+python/**/venv/
+python/**/*.egg-info/
+python/**/build/
+python/**/dist/
+
+# TypeScript / Node
+typescript/**/node_modules/
+typescript/**/dist/
+typescript/**/build/
+typescript/**/.next/
+typescript/**/out/
+typescript/**/npm-debug.log*
+typescript/**/yarn-error.log*
+
+# Go
+go/**/*.test
+go/**/*.out
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Secrets / local config (NEVER commit)
+.env
+.env.*
+*.key
+*.pem
+secrets/
+
+# Build outputs
+*.log
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/

@@ -1,0 +1,26 @@
+[package]
+name = "aumos-nvtrust-bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "NVTrust FFI bindings + nvtrust-verify CLI (with offline/mock mode for CI)"
+
+[lib]
+name = "aumos_nvtrust_bridge"
+path = "src/lib.rs"
+
+[[bin]]
+name = "nvtrust-verify"
+path = "src/cli.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+clap.workspace = true
+hex = "0.4"
+aumos-api = { path = "../aumos-api" }
+
+[dev-dependencies]
+proptest = "1"

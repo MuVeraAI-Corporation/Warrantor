@@ -1,0 +1,30 @@
+[package]
+name = "aumos-trust-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "The single authoritative implementation of every security invariant in AumOS"
+
+[lib]
+name = "aumos_trust_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "trust-core"
+path = "src/cli.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_cbor = "0.11"
+zeroize.workspace = true
+clap.workspace = true
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+sha2 = "0.10"
+hex = "0.4"
+aumos-api = { path = "../aumos-api" }
+
+[dev-dependencies]
+proptest = "1"

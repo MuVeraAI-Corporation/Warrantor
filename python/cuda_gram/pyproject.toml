@@ -1,0 +1,38 @@
+[project]
+name = "aumos-cuda-gram"
+version = "1.0.0"
+description = "High-level GPU attestation SDK (AumOS C1-2 cuda-gram)"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "AumOS contributors" }]
+requires-python = ">=3.11"
+dependencies = [
+    # No ctypes — C1-2 calls the C1-1 Rust core via PyO3 in task 02.
+    # For Wave-1 scaffolding, we keep a pure-Python mock so the package is importable without Rust.
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-cov>=4",
+    "ruff>=0.4",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

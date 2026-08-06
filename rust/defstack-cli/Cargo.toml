@@ -1,0 +1,20 @@
+[package]
+name = "defstack-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Unified AumOS installer/orchestrator CLI"
+
+[[bin]]
+name = "defstack"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

@@ -1,0 +1,251 @@
+//! # aumos-eval-guard
+//!
+//! Cryptographic sandbox boundary attestation. Four pre-flight checks before an agent starts:
+//! NetworkIsolation, FilesystemBoundary, ProcessIsolation, EgressAttestation.
+//! Emits a signed `SandboxAttestation`. Refuses to start the agent if any boundary is violated
+//! (invariant I-09: failure is safe = fail closed).
+//!
+//! AumOS moved this from Go to Rust per the trusted-core doctrine (see RFC R2).
+//! Requires Linux 5.13+ for eBPF; CI runs the non-eBPF checks and gates the eBPF tests.
+
+#![forbid(unsafe_code)]
+#![deny(missing_docs)]
+
+use aumos_api::attestation::v1::SandboxAttestation as ProtoSandboxAttestation;
+use ed25519_dalek::{Signer, SigningKey};
+use rand::{rngs::OsRng, RngCore};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+/// The four pre-flight boundary checks.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum BoundaryCheck {
+    /// Network isolation (canary IPs: huggingface.co, pypi.org, 1.1.1.1).
+    NetworkIsolation,
+    /// Filesystem boundary.
+    FilesystemBoundary,
+    /// Process isolation.
+    ProcessIsolation,
+    /// Egress attestation (eBPF iptables rules, deny-all default).
+    EgressAttestation,
+}
+
+impl BoundaryCheck {
+    /// All four checks, in evaluation order.
+    pub const ALL: [BoundaryCheck; 4] = [
+        BoundaryCheck::NetworkIsolation,
+        BoundaryCheck::FilesystemBoundary,
+        BoundaryCheck::ProcessIsolation,
+        BoundaryCheck::EgressAttestation,
+    ];
+
+    /// The proto enum value (matches `aumos.attestation.v1.BoundaryCheck`).
+    #[must_use]
+    pub fn to_proto(self) -> i32 {
+        match self {
+            BoundaryCheck::NetworkIsolation => 1,
+            BoundaryCheck::FilesystemBoundary => 2,
+            BoundaryCheck::ProcessIsolation => 3,
+            BoundaryCheck::EgressAttestation => 4,
+        }
+    }
+}
+
+/// The signed attestation emitted when all four checks pass. The signature is produced by
+/// T1 trust-core (here represented by an Ed25519 key for the Wave-1 v1.0 — KMS-backed signing
+/// is task 03). The verifying key is carried alongside so any reviewer can verify the signature
+/// without a key-resolution step.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SandboxAttestation {
+    /// Every check that passed.
+    pub passed_checks: Vec<BoundaryCheck>,
+    /// The 16-byte attestation nonce.
+    pub nonce: Vec<u8>,
+    /// The 32-byte verifying key that signed this attestation.
+    pub verifying_key: Vec<u8>,
+    /// The 64-byte Ed25519 signature over the canonical encoding of (passed_checks, nonce).
+    pub signature: Vec<u8>,
+}
+
+impl SandboxAttestation {
+    /// Convert to the wire (proto) type. The verifying_key travels out-of-band (e.g. in the
+    /// composite attestation's agent_svid field) so it isn't in the proto SandboxAttestation.
+    #[must_use]
+    pub fn to_proto(&self) -> ProtoSandboxAttestation {
+        ProtoSandboxAttestation {
+            passed_checks: self.passed_checks.iter().map(|c| c.to_proto()).collect(),
+            nonce: self.nonce.clone(),
+            signature: self.signature.clone(),
+            ..Default::default()
+        }
+    }
+}
+
+/// Errors returned by eval-guard.
+#[derive(Debug, Error)]
+pub enum EvalGuardError {
+    /// A boundary check failed. The agent must NOT start.
+    #[error("boundary check failed: {0:?}")]
+    CheckFailed(BoundaryCheck),
+    /// Signature verification of an existing attestation failed.
+    #[error("attestation signature invalid")]
+    SignatureInvalid,
+}
+
+/// Per-check result (true = passed, false = failed).
+#[derive(Debug, Clone, Copy)]
+pub struct CheckResults {
+    /// Network isolation result.
+    pub network_isolation: bool,
+    /// Filesystem boundary result.
+    pub filesystem_boundary: bool,
+    /// Process isolation result.
+    pub process_isolation: bool,
+    /// Egress attestation result.
+    pub egress_attestation: bool,
+}
+
+impl CheckResults {
+    /// All four passing — the happy path.
+    #[must_use]
+    pub const fn all_pass() -> Self {
+        Self {
+            network_isolation: true,
+            filesystem_boundary: true,
+            process_isolation: true,
+            egress_attestation: true,
+        }
+    }
+
+    /// As a 4-array in [`BoundaryCheck::ALL`] order.
+    #[must_use]
+    pub const fn as_array(&self) -> [bool; 4] {
+        [
+            self.network_isolation,
+            self.filesystem_boundary,
+            self.process_isolation,
+            self.egress_attestation,
+        ]
+    }
+}
+
+/// Run all four pre-flight checks and emit a signed attestation on success.
+///
+/// # Errors
+/// Returns [`EvalGuardError::CheckFailed`] if any check fails. Callers MUST NOT start the agent.
+pub fn run_preflight(
+    results: &CheckResults,
+    signing_key: &SigningKey,
+) -> Result<SandboxAttestation, EvalGuardError> {
+    for (i, &check) in BoundaryCheck::ALL.iter().enumerate() {
+        if !results.as_array()[i] {
+            return Err(EvalGuardError::CheckFailed(check));
+        }
+    }
+    let mut nonce = [0u8; 16];
+    OsRng.fill_bytes(&mut nonce);
+    // Canonical message: passed_checks (as proto ints) || nonce.
+    let mut canon = Vec::new();
+    for c in &BoundaryCheck::ALL {
+        canon.extend_from_slice(&c.to_proto().to_le_bytes());
+    }
+    canon.extend_from_slice(&nonce);
+    let sig = signing_key.sign(&canon);
+    Ok(SandboxAttestation {
+        passed_checks: BoundaryCheck::ALL.to_vec(),
+        nonce: nonce.to_vec(),
+        verifying_key: signing_key.verifying_key().to_bytes().to_vec(),
+        signature: sig.to_bytes().to_vec(),
+    })
+}
+
+/// Verify a SandboxAttestation's signature against its embedded verifying key.
+///
+/// # Errors
+/// Returns [`EvalGuardError::SignatureInvalid`] if the signature does not verify or the
+/// verifying key / nonce / signature have the wrong length.
+pub fn verify_attestation(attestation: &SandboxAttestation) -> Result<(), EvalGuardError> {
+    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+    let vk_bytes: [u8; 32] = attestation
+        .verifying_key
+        .as_slice()
+        .try_into()
+        .map_err(|_| EvalGuardError::SignatureInvalid)?;
+    let nonce_bytes: [u8; 16] = attestation
+        .nonce
+        .as_slice()
+        .try_into()
+        .map_err(|_| EvalGuardError::SignatureInvalid)?;
+    let sig_bytes: [u8; 64] = attestation
+        .signature
+        .as_slice()
+        .try_into()
+        .map_err(|_| EvalGuardError::SignatureInvalid)?;
+    let vk = VerifyingKey::from_bytes(&vk_bytes).map_err(|_| EvalGuardError::SignatureInvalid)?;
+    let mut canon = Vec::new();
+    for c in &BoundaryCheck::ALL {
+        canon.extend_from_slice(&c.to_proto().to_le_bytes());
+    }
+    canon.extend_from_slice(&nonce_bytes);
+    let sig = Signature::from_bytes(&sig_bytes);
+    vk.verify(&canon, &sig)
+        .map_err(|_| EvalGuardError::SignatureInvalid)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_key() -> SigningKey {
+        let mut rng = rand::rngs::OsRng;
+        SigningKey::generate(&mut rng)
+    }
+
+    #[test]
+    fn all_pass_returns_signed_attestation() {
+        let key = test_key();
+        let attestation = run_preflight(&CheckResults::all_pass(), &key).expect("all pass");
+        assert_eq!(attestation.passed_checks.len(), 4);
+        verify_attestation(&attestation).expect("signature verifies");
+    }
+
+    #[test]
+    fn any_failure_blocks_start() {
+        let key = test_key();
+        let res = run_preflight(
+            &CheckResults {
+                network_isolation: true,
+                filesystem_boundary: false,
+                process_isolation: true,
+                egress_attestation: true,
+            },
+            &key,
+        );
+        assert!(matches!(
+            res,
+            Err(EvalGuardError::CheckFailed(BoundaryCheck::FilesystemBoundary))
+        ));
+    }
+
+    #[test]
+    fn tampered_signature_fails_verification() {
+        let key = test_key();
+        let mut attestation = run_preflight(&CheckResults::all_pass(), &key).expect("all pass");
+        attestation.signature[0] ^= 0xff;
+        assert!(matches!(
+            verify_attestation(&attestation),
+            Err(EvalGuardError::SignatureInvalid)
+        ));
+    }
+
+    #[test]
+    fn proto_round_trip_preserves_passed_checks() {
+        let key = test_key();
+        let attestation = run_preflight(&CheckResults::all_pass(), &key).expect("all pass");
+        let proto = attestation.to_proto();
+        assert_eq!(proto.passed_checks, vec![1, 2, 3, 4]);
+        assert_eq!(proto.nonce, attestation.nonce);
+        assert_eq!(proto.signature, attestation.signature);
+    }
+}

@@ -1,0 +1,22 @@
+[package]
+name = "aumos-credential-vault"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Agent-scoped credential brokering — 15-min TTL, <1s revocation"
+
+[lib]
+name = "aumos_credential_vault"
+path = "src/lib.rs"
+
+[[bin]]
+name = "credential-vault"
+path = "src/cli.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+clap.workspace = true
+regex = "1"

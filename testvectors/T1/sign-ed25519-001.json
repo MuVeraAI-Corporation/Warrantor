@@ -1,0 +1,10 @@
+{
+  "id": "T1-sign-ed25519-001",
+  "description": "Ed25519 sign/verify round-trip on a canonical byte payload. This is the foundational golden vector: a signature produced by aumos-trust-core must verify in Python (via the PyO3 binding) and Go (via cgo) identically.",
+  "payload_utf8": "hello aumos",
+  "payload_hex": "68656c6c6f2061756d6f73",
+  "verifying_key_hex": "5dca1b301eddb87b709f7fe6bae48e25ec829ac6e5413c45f5d37cbe01f83845",
+  "signature_hex": "6ae72a3afadf64d2cea2b5b911c7c63adc11a2199bfea17aa184372abcd45200f257c60188bbc917a2e4a2e2fc45fe7c7c2ca034d04d8969be454f0f48797100",
+  "expected": "valid",
+  "notes": "Signing key intentionally omitted — only the verifying key and signature are needed to verify. The signing key was used once to produce this signature and is not part of the public vector. Re-generate by running: trust-core key-gen | trust-core sign --key <sk>."
+}
