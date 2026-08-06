@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AumOS — Open Authority and Evidence Layer for Autonomous Systems</title>
+  <link rel="stylesheet" href="aumos-docs.css">
+</head>
+<body>
+
+<div class="doc-header">
+  <h1>AumOS Documentation Portal</h1>
+  <div class="subtitle">The open authority and evidence layer for autonomous systems — 49 components, 12 protocols, 691 tests across Rust, Go, Python, and TypeScript.</div>
+  <nav>
+    <a href="components.html">Components</a>
+    <a href="protocols.html">Protocols</a>
+    <a href="pending-tasks.html">Pending Tasks & Infrastructure</a>
+    <a href="critical-analysis.html">Critical Analysis & Stress Test</a>
+  </nav>
+</div>
+
+<div class="container">
+
+<h2>Mission</h2>
+
+<blockquote>
+  Build the open authority and evidence layer for autonomous systems — the specifications,
+  reference enforcement, and conformance tests that make agent actions verifiable across
+  models, harnesses, tools, and infrastructure.
+</blockquote>
+
+<p>AumOS reconciles four source portfolios (DefStack 36-component, AumSecure 20+protocols,
+AumSecure-V3 6-repo, PROJECT SENTINEL 10-framework) into one unified catalog of
+<strong>49 implementable components</strong> and <strong>12 spec-only protocols</strong>. It is
+the reference implementation for the Open Secure AI Alliance (OSAF / OSAA).</p>
+
+<h2>Implementation at a Glance</h2>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">49</div>
+    <div class="stat-label">Components at v1.0.0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">691</div>
+    <div class="stat-label">Tests Passing</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">12</div>
+    <div class="stat-label">Open Protocols</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">4</div>
+    <div class="stat-label">Languages</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">7</div>
+    <div class="stat-label">Waves Delivered</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">53</div>
+    <div class="stat-label">Component RFCs</div>
+  </div>
+</div>
+
+<h2>Documentation Artifacts</h2>
+
+<div class="card-grid">
+
+  <a href="components.html" style="text-decoration:none;border-bottom:none;">
+    <div class="card">
+      <div class="card-id">DOCUMENT</div>
+      <div class="card-title">Component Reference</div>
+      <div class="card-desc">Maximum-depth documentation for all 49 components. Each component includes its real API surface (types, functions, methods), usage examples, benefits, dependencies, and deferred work. Grouped by domain: Trust Core, Confidential Compute, Supply Chain, Evaluation, Inference, Federated/Edge, Cross-Cutting, and Commercial.</div>
+      <div class="card-meta">
+        <span class="badge rust">Rust (15)</span>
+        <span class="badge go">Go (9)</span>
+        <span class="badge python">Python (22)</span>
+        <span class="badge typescript">TypeScript (3)</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="protocols.html" style="text-decoration:none;border-bottom:none;">
+    <div class="card">
+      <div class="card-id">DOCUMENT</div>
+      <div class="card-title">Protocol Reference</div>
+      <div class="card-desc">Maximum-depth documentation for all 12 open protocols (P1–P12). Each protocol includes its schema, signing requirements, revocation semantics, adversarial test vectors, consuming components, usage examples, and the security invariant it enforces.</div>
+      <div class="card-meta">
+        <span class="badge wave-2">Spec-only</span>
+        <span class="badge rust">Canonical types</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="pending-tasks.html" style="text-decoration:none;border-bottom:none;">
+    <div class="card">
+      <div class="card-id">DOCUMENT</div>
+      <div class="card-title">Pending Tasks & External Infrastructure</div>
+      <div class="card-desc">Comprehensive per-component breakdown of what's needed to move from v1.0 mock backends to production real backends. Covers NVIDIA GPU + NVTrust, KMS/HSM, SPIFFE/SPIRE, Sigstore Rekor, OTel Collector, Kafka, HELM/garak/PyRIT, Kubernetes, eBPF, Falco/Tetragon. Includes a 15-item infrastructure checklist and the optimal dependency order for integration.</div>
+      <div class="card-meta">
+        <span class="badge" style="background:var(--amber-light);color:var(--amber)">15 infra items</span>
+        <span class="badge" style="background:var(--red-light);color:var(--red)">3 critical</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="critical-analysis.html" style="text-decoration:none;border-bottom:none;">
+    <div class="card">
+      <div class="card-id">DOCUMENT</div>
+      <div class="card-title">Critical Analysis & Stress Test</div>
+      <div class="card-desc">Brutally honest assessment of the implementation's gaps: security weaknesses, cross-component integration mismatches, missing test coverage, architecture gaps, protocol completeness, production-readiness gaps, compliance gaps, and code-quality issues. Every finding cites the specific file and line.</div>
+      <div class="card-meta">
+        <span class="badge" style="background:var(--red-light);color:var(--red)">Critical findings</span>
+        <span class="badge" style="background:var(--amber-light);color:var(--amber)">Architecture</span>
+      </div>
+    </div>
+  </a>
+
+</div>
+
+<hr>
+
+<h2>The Architecture in One Diagram</h2>
+
+<pre><code>                        ┌────────────────────────────────────────────────┐
+                        │  specs/  proto/  testvectors/  policies/        │   ← normative contract plane
+                        │       (Buf breaking-change gate)                │
+                        └───────────────────────┬────────────────────────┘
+                                                │ generate / consume
+        ┌───────────────┬───────────────────────┼───────────────────────┬────────────────┐
+        ▼               ▼                       ▼                       ▼                ▼
+   ┌─────────┐    ┌──────────┐           ┌────────────┐          ┌────────────┐    ┌──────────┐
+   │  RUST   │    │ PYTHON   │           │TYPESCRIPT  │          │    GO      │    │ DEPLOY   │
+   │ trusted │    │ agents,  │           │ console,   │          │ K8s ops,   │    │ Docker,  │
+   │   core  │    │  evals,  │           │ MCP, SDK,  │          │ reconcilia- │    │ Helm,    │
+   │ (sign / │    │ adapters │           │  IDE tool  │          │  tion only  │    │ k8s,     │
+   │ verify /│    │          │           │            │          │ (gated)     │    │ systemd  │
+   │ enforce)│    │          │           │            │          │             │    │ air-gap  │
+   └─────────┘    └──────────┘           └────────────┘          └────────────┘    └──────────┘</code></pre>
+
+<h2>Component Groups</h2>
+
+<table>
+  <thead>
+    <tr><th>Group</th><th>Count</th><th>Key Components</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Trust Core / Identity / Runtime</td><td>14</td><td>T1 trust-core, I1 agent-identity, R3 kill-switch, E1 flight-recorder</td></tr>
+    <tr><td>Confidential Compute</td><td>5</td><td>C1-1 nvtrust-bridge, C1-4 tee-serve, C1-5 confidential-fabric</td></tr>
+    <tr><td>Supply Chain</td><td>9</td><td>S1 safe-tensors-pp, S2 provena-chain, S4 model-sbom, S6 exfil-guard</td></tr>
+    <tr><td>Evaluation</td><td>8</td><td>A1 safe-eval, A2 adversaria, A5 agentsec-lab, A6 conformance</td></tr>
+    <tr><td>Inference</td><td>4</td><td>N1 open-serve-kit, N2 bridge-rt, N3 inference-proxy, N4 tenant-guard</td></tr>
+    <tr><td>Federated / Edge</td><td>4</td><td>F1 fed-core, F2 dp-crate, F3 edge-sentinel, F4 fleet-marshal</td></tr>
+    <tr><td>Cross-Cutting</td><td>9</td><td>X1 defstack-cli, X2 nooa-ext, X7 console, X8 mcp-gateway</td></tr>
+    <tr><td>Commercial</td><td>2</td><td>X10 sovereign-stack, X11 defstack-cloud</td></tr>
+  </tbody>
+</table>
+
+<h2>EU AI Act Article 55 Coverage</h2>
+
+<table>
+  <thead>
+    <tr><th>Obligation</th><th>AumOS Components</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>§1 Model documentation</td><td>S4 model-sbom</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Delivered</span></td></tr>
+    <tr><td>§2 Training-data summary</td><td>S5 data-provenance-kit</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Delivered</span></td></tr>
+    <tr><td>§3 Downstream provider info</td><td>S2 provena-chain</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Delivered</span></td></tr>
+    <tr><td>§4 Copyright compliance</td><td>A3 bias-sentinel</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Delivered</span></td></tr>
+    <tr><td>§5 Technical documentation</td><td>S4 + S2 + S1</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Delivered</span></td></tr>
+    <tr><td>§6 Systemic-risk assessment</td><td>A1 safe-eval + A2 adversaria</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Delivered</span></td></tr>
+    <tr><td>§7 Adversarial testing</td><td>A2 adversaria</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Delivered</span></td></tr>
+    <tr><td>§8 Serious-incident reporting</td><td>X5 retro-spec-kit + A4 comply-gate + X9 incident-exchange</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Delivered</span></td></tr>
+  </tbody>
+</table>
+
+<div class="callout success">
+  <div class="callout-title">All 8 EU AI Act Article 55 obligations addressed</div>
+  <p>A GPAI model provider using the full AumOS stack can demonstrate Article 55 compliance with a single <code>defstack compliance-report</code> command.</p>
+</div>
+
+<h2>Git History</h2>
+
+<table>
+  <thead>
+    <tr><th>Commit</th><th>Wave</th><th>Components</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>879e720</code></td><td>Wave 1</td><td>T1, X1, C1-1, C1-2, R2, R3, R4 (7)</td></tr>
+    <tr><td><code>69fd4b1</code></td><td>Wave 1.5</td><td>CI hardening (workflows, fuzz, SBOM, SLSA)</td></tr>
+    <tr><td><code>0c1532c</code></td><td>Wave 2</td><td>T2, I1, E1, S1, S4, A6, A5 (7)</td></tr>
+    <tr><td><code>a5c717a</code></td><td>Wave 3</td><td>S2, S5, S7, S8, A1, A2 (6)</td></tr>
+    <tr><td><code>0a21ab8</code></td><td>Wave 4</td><td>N1, N2, N3, N4 (4)</td></tr>
+    <tr><td><code>779afdf</code></td><td>Wave 5</td><td>C1-3, C1-4, C1-5, F1, F2, F3, F4 (7)</td></tr>
+    <tr><td><code>bced6f9</code></td><td>Wave 6</td><td>X2/X3/X4/X5/X6/X9 + A3/A4/A7 + R5/R7 + S6/S9 (13)</td></tr>
+    <tr><td><code>396719e</code></td><td>Wave 7</td><td>X7, X8, A8, X10, X11 (5)</td></tr>
+  </tbody>
+</table>
+
+</div>
+
+</body>
+</html>

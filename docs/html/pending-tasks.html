@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pending Tasks & External Infrastructure — AumOS</title>
+  <link rel="stylesheet" href="aumos-docs.css">
+</head>
+<body>
+
+<div class="doc-header">
+  <h1>Pending Tasks & External Infrastructure Requirements</h1>
+  <div class="subtitle">What each component needs to move from v1.0 mock → production real — comprehensive, per-component, with exact external dependencies, versions, access requirements, and verification procedures.</div>
+  <nav>
+    <a href="index.html">← Portal</a>
+    <a href="components.html">Components</a>
+    <a href="protocols.html">Protocols</a>
+    <a href="critical-analysis.html">Critical Analysis</a>
+  </nav>
+</div>
+
+<div class="container">
+
+<h2>Executive Summary</h2>
+
+<p>AumOS ships 49 components at v1.0.0 with 691 passing tests across 4 languages. Every component implements real logic against well-defined interfaces — but many integrate with <strong>mock or stub backends</strong> for external systems that require infrastructure, credentials, or NDA-gated access. This document enumerates <strong>every pending integration</strong>, what exactly is needed, and how to verify each one is complete.</p>
+
+<div class="callout warning">
+  <div class="callout-title">The "Task 03" Pattern</div>
+  <p>Each component's RFC defines an 8-task sprint. Tasks 01–02 (setup, MVP) and 07–08 (docs, release) are done. Tasks 03–06 (external integration, bindings, fuzz, release hardening) are the <strong>pending work</strong>. This document is the master index for all task-03 work across all 49 components.</p>
+</div>
+
+<h2>Infrastructure Requirements by Category</h2>
+
+<div class="card-grid">
+
+<div class="card">
+  <div class="card-id">CATEGORY 1</div>
+  <div class="card-title">NVIDIA GPU + Confidential Computing</div>
+  <div class="card-desc">
+    <strong>Components affected:</strong> C1-1 nvtrust-bridge, C1-2 cuda-gram, C1-3 attesta-flow, C1-4 tee-serve, C1-5 confidential-fabric, N1 open-serve-kit, N2 bridge-rt, F1 fed-core, F3 edge-sentinel
+  </div>
+  <div class="card-meta">
+    <span class="badge rust">Rust</span>
+    <span class="badge go">Go</span>
+    <span class="badge python">Python</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-id">CATEGORY 2</div>
+  <div class="card-title">Key Management & Signing Infrastructure</div>
+  <div class="card-desc">
+    <strong>Components affected:</strong> T1 trust-core, S1 safe-tensors-pp, S2 provena-chain, R4 credential-vault
+  </div>
+  <div class="card-meta">
+    <span class="badge rust">Rust</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-id">CATEGORY 3</div>
+  <div class="card-title">Identity & SPIFFE/SPIRE</div>
+  <div class="card-desc">
+    <strong>Components affected:</strong> I1 agent-identity, all components that verify SVIDs
+  </div>
+  <div class="card-meta">
+    <span class="badge go">Go</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-id">CATEGORY 4</div>
+  <div class="card-title">Observability & Transparency Logs</div>
+  <div class="card-desc">
+    <strong>Components affected:</strong> E1 flight-recorder, S2 provena-chain, T1 trust-core (Rekor)
+  </div>
+  <div class="card-meta">
+    <span class="badge rust">Rust</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-id">CATEGORY 5</div>
+  <div class="card-title">Evaluation Tooling</div>
+  <div class="card-desc">
+    <strong>Components affected:</strong> A1 safe-eval, A2 adversaria, A5 agentsec-lab
+  </div>
+  <div class="card-meta">
+    <span class="badge python">Python</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-id">CATEGORY 6</div>
+  <div class="card-title">Kubernetes & eBPF</div>
+  <div class="card-desc">
+    <strong>Components affected:</strong> N4 tenant-guard, F4 fleet-marshal, R2 eval-guard, R7 egress-filter, S6 exfil-guard
+  </div>
+  <div class="card-meta">
+    <span class="badge go">Go</span>
+    <span class="badge rust">Rust</span>
+  </div>
+</div>
+
+</div>
+
+<hr>
+
+<h2>Category 1 — NVIDIA GPU & Confidential Compute</h2>
+
+<h3>What's needed</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Item</th>
+      <th>Specification</th>
+      <th>Why</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>NVIDIA H100 or H200 GPU</strong></td>
+      <td>PCIe or SXM; 80GB HBM3; CC mode capable</td>
+      <td>NVTrust attestation requires a real GPU. The MockBackend in C1-1 always returns "aumos-mock-attestation"; real GPU returns an attestation report signed by the GPU's hardware root of trust.</td>
+    </tr>
+    <tr>
+      <td><strong>NVTrust SDK</strong></td>
+      <td>Accessed via NVIDIA Developer Program; C-callable library</td>
+      <td>C1-1's <code>Real</code> backend (behind a feature flag) makes FFI calls into NVTrust. The SDK is NDA-gated and CANNOT be downloaded in CI.</td>
+    </tr>
+    <tr>
+      <td><strong>CUDA 12.x toolkit</strong></td>
+      <td>v12.4+</td>
+      <td>Required by NVTrust; C1-2 cuda-gram links against CUDA libraries for GPU memory access during attestation.</td>
+    </tr>
+    <tr>
+      <td><strong>Triton Inference Server</strong></td>
+      <td>v24.x (NGC container)</td>
+      <td>N1 open-serve-kit routes to Triton as one of its backends. C1-4 tee-serve is a sidecar to Triton that terminates TLS in the TEE.</td>
+    </tr>
+    <tr>
+      <td><strong>TensorRT-LLM</strong></td>
+      <td>v0.16+ (the breaking-change version N2 bridge-rt adapts for)</td>
+      <td>N2 bridge-rt auto-detects the version and injects <code>sampler_type=trtllm</code> for v0.16+. Real verification requires running TRT-LLM with a real model.</td>
+    </tr>
+    <tr>
+      <td><strong>vLLM</strong></td>
+      <td>v0.6+</td>
+      <td>N1 open-serve-kit's HTTPBackend can route to vLLM's OpenAI-compatible endpoint. N2 bridge-rt probes <code>vllm --version</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Azure DC-series Confidential VM</strong></td>
+      <td>Standard_DC48ads_v5 (Intel TDX) or Standard_ND_H100_v5 (GPU + CC)</td>
+      <td>C1-3 attesta-flow's Terraform provisions a confidential VM; the orchestrator runs inside the TEE. Real attestation requires Azure's Confidential VM attestation service.</td>
+    </tr>
+    <tr>
+      <td><strong>AWS Nitro Enclaves</strong></td>
+      <td>Nitro Enclave on an EC2 instance with GPU attachment</td>
+      <td>C1-3 attesta-flow's Terraform has an equivalent AWS module. Requires AWS Enclave CLI.</td>
+    </tr>
+    <tr>
+      <td><strong>NVIDIA Jetson (for edge)</strong></td>
+      <td>Jetson Orin AGX or Jetson AGX Xavier</td>
+      <td>F3 edge-sentinel runs on Jetson/EGX as a systemd service. The <5MB binary must be cross-compiled for aarch64.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Per-component integration checklist</h3>
+
+<h4>C1-1 nvtrust-bridge</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td><code>MockBackend</code> returns deterministic mock attestation; <code>Real</code> backend stubbed behind a feature flag that is never enabled.</td></tr>
+  <tr><td>Integration step</td><td>1. Obtain NVTrust SDK access. 2. Implement the FFI calls in <code>src/lib.rs</code> behind <code>#[cfg(feature = "real-nvtrust")]</code>. 3. Add <code>nvtrust-sys</code> crate as a build dependency (sys crate wrapping the C headers). 4. Wire the <code>Real</code> backend to call <code>nvtrust_attest()</code>.</td></tr>
+  <tr><td>Verification</td><td>Run <code>nvtrust-verify issue-mock</code> → must return a real attestation report from the GPU (not "aumos-mock-attestation"). The <code>verify</code> subcommand must call NVTrust's <code>nvtrust_verify()</code> and confirm the report is signed by the GPU's hardware key.</td></tr>
+  <tr><td>Blocked on</td><td>NVIDIA Developer Program access for NVTrust SDK</td></tr>
+</table>
+
+<h4>C1-2 cuda-gram</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>Pure-Python <code>MockBackend</code> mirrors C1-1's mock shape; the real path calls C1-1's Rust core via PyO3 (not ctypes).</td></tr>
+  <tr><td>Integration step</td><td>1. Build the PyO3 binding from C1-1's Rust crate (<code>maturin develop</code>). 2. Replace <code>MockBackend</code> with <code>NvTrustPyBackend</code> that calls into the Rust core via PyO3. 3. Wire <code>AttestationVerifier</code> to use the real GPU attestation.</td></tr>
+  <tr><td>Verification</td><td><code>establish_session(NvTrustPyBackend())</code> on a real H100 must return a <code>CCSession</code> with <code>verified=True</code> and <code>gpu_model="H100"</code>.</td></tr>
+  <tr><td>Blocked on</td><td>C1-1 real NVTrust + PyO3 cross-compilation (non-trivial on Windows; needs Linux)</td></tr>
+</table>
+
+<h4>C1-3 attesta-flow</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td><code>Pipeline</code> runs 5 stages with a <code>MockHardwareAttestor</code>; Terraform module is written but not <code>apply</code>'d.</td></tr>
+  <tr><td>Integration step</td><td>1. <code>terraform init && terraform apply</code> on Azure with the DC-series confidential VM. 2. Install AumOS + NVTrust inside the VM. 3. Replace <code>MockHardwareAttestor</code> with <code>RealHardwareAttestor</code> that calls C1-2. 4. Wire <code>infer_fn</code> to call N1 open-serve-kit via HTTP.</td></tr>
+  <tr><td>Verification</td><td><code>run_batch()</code> must produce a <code>PipelineAttestation</code> with <code>gpu_model="H100"</code> and a real attestation hex (not "aumos-mock-attestation").</td></tr>
+  <tr><td>Blocked on</td><td>Azure subscription + DC-series VM availability + C1-1/C1-2 real NVTrust</td></tr>
+</table>
+
+<h4>C1-4 tee-serve</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td><code>TeeProxy</code> forwards HTTP to an upstream via Unix Domain Socket; <code>MockAttestationProvider</code> returns synthetic attestation; <code>TeeAttestationProvider</code> stubbed.</td></tr>
+  <tr><td>Integration step</td><td>1. Deploy inside a confidential container (CoCo or Trustee). 2. Wire <code>TeeAttestationProvider</code> to read the CoCo attestation document. 3. Set the upstream to Triton's Unix socket. 4. Sign attestation envelopes with T1 trust-core's key.</td></tr>
+  <tr><td>Verification</td><td>Curl through tee-serve → response must carry an <code>AttestationEnvelope</code> with a valid signature that verifies via T1 trust-core. Overhead must be <2ms per request (benchmark).</td></tr>
+  <tr><td>Blocked on</td><td>Confidential Containers infrastructure (CoCo/Trustee) + Triton deployment</td></tr>
+</table>
+
+<h4>N1 open-serve-kit</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td><code>MockBackend</code> echoes the prompt; <code>HTTPBackend</code> is fully implemented but untested against a real backend.</td></tr>
+  <tr><td>Integration step</td><td>1. Deploy vLLM or Triton on a GPU. 2. Start open-serve-kit with <code>--backend vllm --backend-url http://localhost:8000</code>. 3. Send a real chat completion request through the proxy.</td></tr>
+  <tr><td>Verification</td><td><code>curl -X POST http://localhost:8443/v1/chat/completions -d '{"model":"llama-3-8b","messages":[{"role":"user","content":"hello"}]}'</code> must return a real completion from the model.</td></tr>
+  <tr><td>Blocked on</td><td>GPU + model weights deployment</td></tr>
+</table>
+
+<h4>N2 bridge-rt</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>Backend selection logic + TRT-LLM v0.16 sampler_type adaptation fully implemented and tested against mock backends.</td></tr>
+  <tr><td>Integration step</td><td>1. Install TRT-LLM, vLLM, and Ollama. 2. <code>bridge-rt probe --json</code> should report all three as available. 3. <code>bridge-rt generate --model llama-3-8b --prompt "hi"</code> should return a real completion from TRT-LLM (the highest-preference backend).</td></tr>
+  <tr><td>Verification</td><td>The <code>sampler_type_adapted</code> field in the response must be <code>true</code> when TRT-LLM >= 0.16 is detected.</td></tr>
+  <tr><td>Blocked on</td><td>GPU + TRT-LLM/vLLM/Ollama installation</td></tr>
+</table>
+
+<hr>
+
+<h2>Category 2 — Key Management & Signing Infrastructure</h2>
+
+<h3>What's needed</h3>
+
+<table>
+  <thead>
+    <tr><th>Item</th><th>Specification</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>AWS KMS</strong></td>
+      <td> symmetric + asymmetric keys; Ed25519 support or RSA-PSS fallback; IAM policy scoping the key to the AumOS service</td>
+      <td>T1 trust-core's <code>KmsSigningKey::Aws(arn)</code> calls AWS KMS to sign without the private key leaving KMS. Required for all production signing (model weights, AARs, AAEs, checkpoint anchors).</td>
+    </tr>
+    <tr>
+      <td><strong>GCP Cloud KMS</strong></td>
+      <td>HSM-backed keys (Cloud HSM); Ed25519 or EC-P256</td>
+      <td>T1 trust-core's <code>KmsSigningKey::Gcp(arn)</code>. Required for GCP deployments and for FedRAMP authorization.</td>
+    </tr>
+    <tr>
+      <td><strong>Azure Key Vault</strong></td>
+      <td>Managed HSM tier; EC or RSA keys</td>
+      <td>T1 trust-core's <code>KmsSigningKey::Azure(uri)</code>. Required for Azure deployments.</td>
+    </tr>
+    <tr>
+      <td><strong>YubiKey</strong></td>
+      <td>YubiKey 5 series; PIV slot 9c (signing) or 9a (auth)</td>
+      <td>T1 trust-core's <code>KmsSigningKey::Yubikey(slot)</code>. Used for offline signing (air-gapped sovereign deployments) and for the release-key ceremony.</td>
+    </tr>
+    <tr>
+      <td><strong>PKCS#11 HSM</strong></td>
+      <td>FIPS 140-2 Level 3; Thales Luna, AWS CloudHSM, or equivalent</td>
+      <td>T1 trust-core's <code>KmsSigningKey::Pkcs11(label)</code>. Required for FedRAMP High and for regulated deployments (HIPAA, government CUI).</td>
+    </tr>
+    <tr>
+      <td><strong>HashiCorp Vault</strong></td>
+      <td>v1.15+; Transit engine for signing; KV v2 for secret storage</td>
+      <td>R4 credential-vault's <code>HashiCorpVaultBackend</code> calls Vault's Transit engine to broker credentials to agents.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Per-component integration checklist</h3>
+
+<h4>T1 trust-core</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>Ed25519 local signing fully working; CLI <code>key-gen</code>, <code>sign</code>, <code>verify</code> tested end-to-end. KMS traits defined but backends stubbed.</td></tr>
+  <tr><td>Integration step</td><td>1. Add <code>aws-sdk-kms</code>, <code>google-cloud-kms</code>, <code>azure_security_keyvault</code>, <code>yubikey</code>, <code>pkcs11</code> crate dependencies. 2. Implement each <code>KmsSigningKey</code> variant's <code>sign()</code> method. 3. Add integration tests against mock KMS (<code>aws-smithy-mocks-experimental</code>). 4. Add <code>trust-core sign --key aws://arn:...</code> CLI wiring.</td></tr>
+  <tr><td>Verification</td><td><code>trust-core sign --payload x --key aws://arn:aws:kms:us-east-1:...:key/...</code> must produce a signature verifiable by <code>trust-core verify</code> with the matching public key. Rekor entry must be returned for <code>notarize</code>.</td></tr>
+  <tr><td>Blocked on</td><td>AWS/GCP/Azure accounts with KMS access; YubiKey hardware for YubiKey tests.</td></tr>
+</table>
+
+<h4>S1 safe-tensors-pp</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>Sign/verify with local Ed25519 key; write/read round-trip tested. KMS-backed signing is task 03.</td></tr>
+  <tr><td>Integration step</td><td>1. Wire <code>sign()</code> to accept a <code>SigningKey</code> from T1 trust-core (which may be KMS-backed). 2. Add <code>safetensors-pp sign --kms aws://...</code> CLI. 3. Test against a real .safetensors file from HuggingFace Hub.</td></tr>
+  <tr><td>Verification</td><td>Download a real model from HF Hub → sign with KMS key → verify → tamper a weight → verify must fail.</td></tr>
+  <tr><td>Blocked on</td><td>T1 KMS integration + real .safetensors files</td></tr>
+</table>
+
+<h4>R4 credential-vault</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td><code>CredentialBackend</code> trait + <code>MockBackend</code> working. <code>HashiCorpVaultBackend</code>, <code>AwsSecretsManagerBackend</code>, <code>KubernetesSecretsBackend</code> are stubs returning <code>BackendUnavailable</code>.</td></tr>
+  <tr><td>Integration step</td><td>1. Add <code>vault-rs</code> (HashiCorp Vault client). 2. Implement <code>HashiCorpVaultBackend::resolve()</code> to call Vault's KV v2 read endpoint. 3. Add <code>aws-sdk-secretsmanager</code> for AWS. 4. Add <code>kube</code> crate for K8s Secrets. 5. Wire the CLI <code>--backend vault|aws|k8s</code> flag.</td></tr>
+  <tr><td>Verification</td><td><code>credential-vault issue --spiffe-id spiffe://... --task open-pr --secret-key github_token --backend vault</code> must retrieve a real secret from Vault and return a scoped credential.</td></tr>
+  <tr><td>Blocked on</td><td>HashiCorp Vault deployment + AWS Secrets Manager + K8s cluster</td></tr>
+</table>
+
+<hr>
+
+<h2>Category 3 — Identity & SPIFFE/SPIRE</h2>
+
+<h3>What's needed</h3>
+
+<table>
+  <tbody>
+    <tr><td><strong>SPIRE server</strong></td><td>v1.10+; deployed as a K8s StatefulSet or standalone binary</td><td>I1 agent-identity's real implementation wraps SPIRE's WorkloadAPI to issue SVIDs. The v1.0 uses an in-process Ed25519 CA instead.</td></tr>
+    <tr><td><strong>SPIRE agents</strong></td><td>One per node; workload attestor configured for the AumOS agents</td><td>SPIRE agents run alongside each component process and provide SVIDs via the WorkloadAPI (Unix socket).</td></tr>
+    <tr><td><strong>Trust domain</strong></td><td><code>spiffe://aumos.dev</code> (or customer-specific)</td><td>Configured on the SPIRE server; all SVIDs carry this trust domain.</td></tr>
+    <tr><td><strong>OPA / Rego</strong></td><td>v0.70+; deployed as a sidecar or standalone</td><td>R3 kill-switch and R5 policy-compiler use OPA for policy evaluation. v1.0 uses <code>MockPolicyEngine</code> with hardcoded thresholds.</td></tr>
+    <tr><td><strong>Cedar</strong></td><td>v4.0+ (Rust crate)</td><td>R5 policy-compiler emits Cedar policies as an alternative to Rego. v1.0 generates the text but doesn't evaluate it.</td></tr>
+  </tbody>
+</table>
+
+<h4>I1 agent-identity</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>Real SVID issuance + JWT capability tokens + delegation chain with intersection (I-02) + revocation <5s (I-05). Uses in-process Ed25519 CA. HTTP/JSON gateway works. 8 tests pass.</td></tr>
+  <tr><td>Integration step</td><td>1. Deploy SPIRE server + agents. 2. Replace the in-process CA with SPIRE WorkloadAPI calls. 3. Register AumOS components as SPIRE workloads. 4. Wire the <code>AgentIdentityService.Issue</code> to call SPIRE's <code>NewSVID</code>. 5. Replace deterministic JSON signing with T1 trust-core canonical CBOR signing.</td></tr>
+  <tr><td>Verification</td><td>Every Wave-1 component (R2, R3, R4) that currently calls the mock I1 must successfully call the real I1 and get a real SPIFFE SVID. The <code>spire-agent verify</code> CLI must confirm the SVID is valid against the trust domain's bundle.</td></tr>
+  <tr><td>Blocked on</td><td>SPIRE deployment + trust domain setup</td></tr>
+</table>
+
+<hr>
+
+<h2>Category 4 — Observability & Transparency Logs</h2>
+
+<h3>What's needed</h3>
+
+<table>
+  <tbody>
+    <tr><td><strong>Sigstore Rekor</strong></td><td>Public instance (<code>rekor.sigstore.dev</code>) or self-hosted</td><td>T1 trust-core's <code>notarize</code> records signatures in Rekor's append-only transparency log. S2 provena-chain anchors Merkle roots in Rekor periodically. v1.0 stubs both.</td></tr>
+    <tr><td><strong>OpenTelemetry Collector</strong></td><td>v0.100+; OTLP receiver enabled</td><td>E1 flight-recorder emits OTel-shaped JSON in v1.0; real OTLP export requires a collector running and the OTLP exporter wired.</td></tr>
+    <tr><td><strong>Kafka (or equivalent)</strong></td><td>v3.7+; topics <code>aumos.identity.revoked.v1</code>, <code>aumos.evidence.receipt.v1</code>, etc.</td><td>I1 revocation fan-out and E1 receipt emission use CloudEvents + Kafka for async delivery. v1.0 is in-process.</td></tr>
+    <tr><td><strong>OCSF-compatible SIEM</strong></td><td>Splunk, Elastic, Microsoft Sentinel, or any OCSF-compatible system</td><td>E1 flight-recorder's OCSF export (class_uid 6003) must be ingested by the SIEM for audit.</td></tr>
+  </tbody>
+</table>
+
+<h4>E1 flight-recorder</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>Signed AAR emission pre-commit (I-07); OCSF + OTel JSON export working. No real OTLP/Kafka/SIEM wiring.</td></tr>
+  <tr><td>Integration step</td><td>1. Add <code>opentelemetry-otlp</code> exporter. 2. Replace the JSON export with real OTLP gRPC push to the collector. 3. Add <code>kafka</code> producer for the <code>aumos.evidence.receipt.v1</code> CloudEvent topic. 4. Verify OCSF JSON is accepted by the SIEM.</td></tr>
+  <tr><td>Verification</td><td>Emit an AAR → it must appear in the OTel collector's trace pipeline and in the SIEM as an OCSF event.</td></tr>
+  <tr><td>Blocked on</td><td>OTel Collector deployment + Kafka cluster + SIEM integration</td></tr>
+</table>
+
+<hr>
+
+<h2>Category 5 — Evaluation Tooling</h2>
+
+<h3>What's needed</h3>
+
+<table>
+  <tbody>
+    <tr><td><strong>HELM (Holistic Evaluation of Language Models)</strong></td><td>Stanford CRFM; pip installable</td><td>A1 safe-eval's <code>benchmarks</code> stage adapter wraps HELM's runner. v1.0 emits synthetic metrics.</td></tr>
+    <tr><td><strong>LM-Evaluation-Harness</strong></td><td>EleutherAI; pip installable</td><td>Alternative benchmark suite for A1's <code>benchmarks</code> stage.</td></tr>
+    <tr><td><strong>garak</strong></td><td>NVIDIA; LLM vulnerability scanner; pip installable</td><td>A2 adversaria's <code>garak</code> backend wraps garak's probe runner. v1.0 uses built-in generators with synthetic prompts.</td></tr>
+    <tr><td><strong>PyRIT (Python Risk Identification Toolkit)</strong></td><td>Microsoft; pip installable</td><td>A2 adversaria's <code>pyrit</code> backend wraps PyRIT's attack orchestrator.</td></tr>
+    <tr><td><strong>MDASH (Multi-model Agentic Scanning Harness)</strong></td><td>Microsoft; access via OSAF</td><td>A1 safe-eval's <code>red_team</code> stage is designed to orchestrate MDASH. Requires MDASH access (OSAF working group).</td></tr>
+    <tr><td><strong>Real model for evaluation</strong></td><td>Any model served via N1 open-serve-kit (vLLM/Triton/Ollama)</td><td>All eval tools need a target model to evaluate. A1/A2's <code>target</code> must be a live endpoint.</td></tr>
+  </tbody>
+</table>
+
+<h4>A1 safe-eval</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>5 stage adapters (benchmarks/adversarial/safety/bias/red_team) with synthetic metrics. YAML pipeline parsing + VEB emission working.</td></tr>
+  <tr><td>Integration step</td><td>1. <code>pip install lm-eval garak</code>. 2. Replace the <code>_BenchmarksAdapter</code> synthetic metrics with real <code>lm_eval.simple_evaluate()</code> calls. 3. Replace the <code>_AdversarialAdapter</code> with real garak probe invocation. 4. Wire the target to N1 open-serve-kit's endpoint.</td></tr>
+  <tr><td>Verification</td><td><code>safe-eval --pipeline eval.yaml</code> must produce real benchmark scores (accuracy, F1) from LM-Eval and real vulnerability findings from garak against the target model.</td></tr>
+  <tr><td>Blocked on</td><td>Model deployment via N1 + HELM/LM-Eval/garak/PyRIT installation</td></tr>
+</table>
+
+<h4>A2 adversaria</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>5 built-in attack generators with deterministic synthetic prompts; per-type detectors; CLI with refusing/compliant baselines.</td></tr>
+  <tr><td>Integration step</td><td>1. <code>pip install garak pyrit</code>. 2. Register garak and PyRIT as backends via <code>register_backend()</code>. 3. The <code>garak</code> backend wraps <code>garak.probes</code> and translates results into <code>AttackResult</code> records. 4. The <code>pyrit</code> backend wraps PyRIT's <code>Orchestrator</code>.</td></tr>
+  <tr><td>Verification</td><td><code>adversaria run --target-script my_model.sh --attacks prompt_injection jailbreak</code> must run real garak probes and report real vulnerabilities (not synthetic).</td></tr>
+  <tr><td>Blocked on</td><td>garak/PyRIT installation + model deployment</td></tr>
+</table>
+
+<hr>
+
+<h2>Category 6 — Kubernetes & eBPF</h2>
+
+<h3>What's needed</h3>
+
+<table>
+  <tbody>
+    <tr><td><strong>Kubernetes cluster</strong></td><td>v1.29+; NVIDIA GPU operator installed</td><td>N4 tenant-guard and F4 fleet-marshal run as K8s operators (controllers watching CRDs). v1.0 implements the scheduling logic without the controller-runtime wrapper.</td></tr>
+    <tr><td><strong>Linux 5.13+ kernel</strong></td><td>For eBPF CO-RE (BTF-enabled)</td><td>R2 eval-guard, R7 egress-filter, and S6 exfil-guard use eBPF for kernel-level enforcement. v1.0 implements the policy/decision layer; eBPF programs are task 03.</td></tr>
+    <tr><td><strong>Falco / Tetragon</strong></td><td>CNCF graduated (Falco); CNCF incubating (Tetragon)</td><td>S6 exfil-guard integrates Falco (rules) + Tetragon (real-time enforcement) rather than reinventing eBPF.</td></tr>
+    <tr><td><strong>controller-runtime (Go)</strong></td><td>v0.18+</td><td>N4 and F4 need the K8s controller-runtime to watch CRDs and reconcile. The scheduling logic is already implemented and tested.</td></tr>
+  </tbody>
+</table>
+
+<h4>R2 eval-guard</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>4 pre-flight boundary checks; signed SandboxAttestation via Ed25519. No eBPF.</td></tr>
+  <tr><td>Integration step</td><td>1. Add <code>aya</code> crate (Rust eBPF). 2. Write the <code>EgressAttestation</code> eBPF program that installs iptables rules (deny-all default + allowlisted IPs). 3. Wire the <code>NetworkIsolation</code> check to verify the eBPF program is loaded. 4. Gate eBPF tests behind Linux CI.</td></tr>
+  <tr><td>Verification</td><td><code>eval-guard --agent test-agent</code> on a real Linux 5.13+ system must load the eBPF program and confirm the deny-all rule is active. The canary IPs (huggingface.co, pypi.org, 1.1.1.1) must be blocked.</td></tr>
+  <tr><td>Blocked on</td><td>Linux 5.13+ CI runner (current CI is Ubuntu latest which has 6.x, so this is actually available — but eBPF tests need elevated privileges).</td></tr>
+</table>
+
+<h4>S6 exfil-guard</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>PatternMatcher (AWS/GitHub/OpenAI/SSN/CC), EntropyDetector, VolumeMonitor all implemented in pure Rust (user-space). 20 tests pass.</td></tr>
+  <tr><td>Integration step</td><td>1. Write the eBPF programs that hook <code>sys_connect</code> and <code>sys_write</code> before TLS encryption. 2. Deploy Falco rules for AI-agent exfil detection patterns. 3. Deploy Tetragon policies for real-time enforcement. 4. Wire the coordinator service that combines Falco alerts + Tetragon enforcement + AumOS kill-switch.</td></tr>
+  <tr><td>Verification</td><td>A test agent that attempts to send an AWS key to <code>pastebin.com</code> must be blocked at the kernel level and trigger a kill-switch event.</td></tr>
+  <tr><td>Blocked on</td><td>Falco + Tetragon deployment + eBPF program authoring + Linux with CAP_BPF.</td></tr>
+</table>
+
+<h4>N4 tenant-guard</h4>
+<table class="meta-table">
+  <tr><td>Current state</td><td>Scheduling logic (MIG/MPS/none), per-tenant quota, per-tenant AAE attestation. 9 tests pass. No K8s controller-runtime wiring.</td></tr>
+  <tr><td>Integration step</td><td>1. Add <code>sigs.k8s.io/controller-runtime</code> dependency. 2. Define the <code>GPUQuota</code> and <code>TenantWorkload</code> CRDs. 3. Implement the <code>Reconcile</code> loop that calls <code>Scheduler.Allocate</code>. 4. Deploy as a K8s Deployment with RBAC for CRD access. 5. Wire NVIDIA MIG partitioning via the GPU operator.</td></tr>
+  <tr><td>Verification</td><td>Create a <code>GPUQuota</code> CR for a tenant → the controller must allocate a MIG slice and report it in the <code>GPUQuota</code> status.</td></tr>
+  <tr><td>Blocked on</td><td>K8s cluster + GPU operator + MIG-enabled GPUs</td></tr>
+</table>
+
+<hr>
+
+<h2>Summary: External Infrastructure Checklist</h2>
+
+<div class="callout info">
+  <div class="callout-title">Complete External Infrastructure Requirements</div>
+  <p>To take AumOS from v1.0 (mock backends) to production (real backends), the following infrastructure must be provisioned:</p>
+</div>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Infrastructure</th><th>Cloud / Provider</th><th>Components Unblocked</th><th>Priority</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td>NVIDIA H100/H200 GPU + NVTrust SDK access</td><td>On-prem / cloud GPU instance</td><td>C1-1, C1-2, C1-3, C1-4, C1-5, N1, N2</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Critical</span></td></tr>
+    <tr><td>2</td><td>AWS KMS key (Ed25519 or RSA)</td><td>AWS</td><td>T1, S1, S2</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Critical</span></td></tr>
+    <tr><td>3</td><td>SPIRE server + agents</td><td>K8s or standalone</td><td>I1 → unblocks all dependents</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Critical</span></td></tr>
+    <tr><td>4</td><td>HashiCorp Vault</td><td>K8s or standalone</td><td>R4</td><td><span class="badge" style="background:var(--amber-light);color:var(--amber)">High</span></td></tr>
+    <tr><td>5</td><td>Sigstore Rekor (public or self-hosted)</td><td>Public (free) or self-hosted</td><td>T1, S2</td><td><span class="badge" style="background:var(--amber-light);color:var(--amber)">High</span></td></tr>
+    <tr><td>6</td><td>OTel Collector + Kafka + SIEM</td><td>K8s</td><td>E1, I1 (revocation fan-out)</td><td><span class="badge" style="background:var(--amber-light);color:var(--amber)">High</span></td></tr>
+    <tr><td>7</td><td>K8s cluster + GPU operator</td><td>Any K8s</td><td>N4, F4</td><td><span class="badge" style="background:var(--amber-light);color:var(--amber)">High</span></td></tr>
+    <tr><td>8</td><td>HELM / LM-Eval / garak / PyRIT</td><td>pip install</td><td>A1, A2</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Medium</span></td></tr>
+    <tr><td>9</td><td>vLLM / Triton / TensorRT-LLM / Ollama</td><td>GPU instance</td><td>N1, N2, A1, A2</td><td><span class="badge" style="background:var(--amber-light);color:var(--amber)">High</span></td></tr>
+    <tr><td>10</td><td>Linux 5.13+ with CAP_BPF</td><td>CI runner or prod node</td><td>R2, R7, S6</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Medium</span></td></tr>
+    <tr><td>11</td><td>Falco + Tetragon</td><td>K8s</td><td>S6</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Medium</span></td></tr>
+    <tr><td>12</td><td>Azure DC-series Confidential VM</td><td>Azure</td><td>C1-3</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Medium</span></td></tr>
+    <tr><td>13</td><td>OPA + Cedar</td><td>K8s sidecar or standalone</td><td>R3, R5</td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Medium</span></td></tr>
+    <tr><td>14</td><td>YubiKey 5 hardware</td><td>Physical</td><td>T1 (offline signing)</td><td><span class="badge" style="background:var(--bg-secondary);color:var(--text-tertiary)">Low</span></td></tr>
+    <tr><td>15</td><td>NVIDIA Jetson Orin AGX</td><td>Physical edge device</td><td>F3 edge-sentinel</td><td><span class="badge" style="background:var(--bg-secondary);color:var(--text-tertiary)">Low</span></td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>Dependency Order for Integration</h2>
+
+<p>The optimal order to integrate external infrastructure, respecting component dependencies:</p>
+
+<ol>
+  <li><strong>AWS KMS</strong> (item 2) → unblocks T1 trust-core KMS → unblocks S1, S2, E1 signing</li>
+  <li><strong>SPIRE</strong> (item 3) → unblocks I1 real → unblocks R2, R3, R4 wire-off-mock</li>
+  <li><strong>GPU + NVTrust</strong> (item 1) → unblocks C1-1, C1-2 → unblocks C1-3, C1-4, C1-5</li>
+  <li><strong>Rekor</strong> (item 5) → unblocks T1 notarize, S2 checkpoint anchoring</li>
+  <li><strong>OTel + Kafka + SIEM</strong> (item 6) → unblocks E1 real OTLP, I1 revocation fan-out</li>
+  <li><strong>vLLM/Triton/TRT-LLM</strong> (item 9) → unblocks N1, N2 → unblocks A1, A2 (they need a target model)</li>
+  <li><strong>HELM/garak/PyRIT</strong> (item 8) → unblocks A1, A2 real evaluation</li>
+  <li><strong>K8s + GPU operator</strong> (item 7) → unblocks N4, F4 controller deployment</li>
+  <li><strong>Vault</strong> (item 4) → unblocks R4 real credential brokering</li>
+  <li><strong>Linux eBPF + Falco/Tetragon</strong> (items 10-11) → unblocks R2, R7, S6 kernel enforcement</li>
+</ol>
+
+</div>
+
+</body>
+</html>

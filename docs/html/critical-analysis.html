@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Critical Analysis & Stress Test — AumOS</title>
+  <link rel="stylesheet" href="aumos-docs.css">
+</head>
+<body>
+
+<div class="doc-header">
+  <h1>Critical Analysis & Stress Test</h1>
+  <div class="subtitle">Brutally honest code-level audit of the 49-component implementation. Every finding cites the specific file and line. No proxy signals — only real issues confirmed by reading the source.</div>
+  <nav>
+    <a href="index.html">← Portal</a>
+    <a href="components.html">Components</a>
+    <a href="protocols.html">Protocols</a>
+    <a href="pending-tasks.html">Pending Tasks</a>
+  </nav>
+</div>
+
+<div class="container">
+
+<div class="callout danger">
+  <div class="callout-title">Important Framing</div>
+  <p>The repo's own <code>docs/final-verification-report.md</code> claims "691 tests passing, feature-complete at v1.0.0". Many of the issues below contradict that claim. Most "implementations" are stubs the report admits are deferred to "task 03" — but the security invariants (I-02, I-05, I-07, I-08, I-09) are advertised as shipping in v1.0.0 and several of them are broken at the cryptographic level. The repo is best understood as a <strong>comprehensive architectural specification with reference-shape implementations</strong>, not as deployable v1.0 software.</p>
+</div>
+
+<h2>Executive Summary</h2>
+
+<p>The audit identified <strong>7 Critical</strong>, <strong>11 High</strong>, and <strong>10 Medium</strong> issues across the codebase. The critical findings are concentrated in the cryptographic spine that is supposed to make the security invariants trustworthy. Any one of the critical findings is sufficient to block production deployment of the corresponding security claim.</p>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value" style="color:var(--red)">7</div>
+    <div class="stat-label">Critical (blocks production)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="color:var(--amber)">11</div>
+    <div class="stat-label">High</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="color:var(--blue)">10</div>
+    <div class="stat-label">Medium</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="color:var(--green)">28</div>
+    <div class="stat-label">Total Findings</div>
+  </div>
+</div>
+
+<hr>
+
+<h2>Critical Findings — Security Invariants That Do Not Hold</h2>
+
+<p>These are cryptographic-level breaks where the security claim is actively false. They are not "missing features" — they are claims that the code makes but does not deliver.</p>
+
+<!-- C1 -->
+<h3>C1. Canonical CBOR is NOT deterministic — cross-language signing contract is broken</h3>
+<table class="meta-table">
+  <tr><td>Severity</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Critical</span> — blocks production</td></tr>
+  <tr><td>Component</td><td>T1 trust-core (the "single authoritative implementation of every security invariant")</td></tr>
+  <tr><td>File</td><td><code>rust/trust-core/src/canonical.rs:26-30</code> and <code>rust/trust-core/Cargo.toml:20</code></td></tr>
+</table>
+<p><strong>What's wrong:</strong> The doc comment claims RFC 8949 §4.2.2 determinism ("Map keys sorted by length-first then bytewise"). The implementation is <code>serde_cbor::to_vec(value)</code> with <strong>no features enabled</strong>. <code>Cargo.toml</code> declares <code>serde_cbor = "0.11"</code> with no <code>features = ["deterministic"]</code>. Without that feature, <code>serde_cbor</code> does NOT sort map keys — it serializes in map-iteration order. The library is also unmaintained (deprecated upstream).</p>
+<p><strong>Consequence:</strong> Two different CBOR encodings (and therefore two different signatures) can be produced for the same logical payload depending on HashMap iteration order. The <code>determinism_same_input_same_output</code> test passes only because it uses a <code>BTreeMap</code> (which is already sorted). The whole T1 cross-language contract advertised in the README ("locks this cross-language contract") is not actually locked.</p>
+<p><strong>Fix:</strong> Switch to a maintained crate (<code>ciborium</code> with explicit canonicalization, or <code>coset</code>), explicitly enable the deterministic feature, and add a golden vector that uses an unordered map (e.g. an <code>IndexMap</code> or round-tripped <code>Value</code>) so this can't regress.</p>
+
+<!-- C2 -->
+<h3>C2. flight-recorder canonical_bytes is unambiguous-concatenation — signature collision forgery</h3>
+<table class="meta-table">
+  <tr><td>Severity</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Critical</span> — blocks production</td></tr>
+  <tr><td>Component</td><td>E1 flight-recorder (the AAR issuer — invariant I-07 keystone)</td></tr>
+  <tr><td>File</td><td><code>rust/flight-recorder/src/lib.rs:160-187</code></td></tr>
+</table>
+<p><strong>What's wrong:</strong> The AAR canonical encoding is <code>out.extend_from_slice(field1); out.extend_from_slice(field2); …</code> with <strong>no length prefixes or delimiters</strong>. The comment claims this "is just as verifiable cross-language [as CBOR]". It is not — it is ambiguous. Concrete forgery: a receipt with <code>tool_or_api_op = "github.create_pr"</code> followed by <code>approvers = ["abc"]</code> produces the same canonical bytes as <code>tool_or_api_op = "github"</code> followed by <code>approvers = ["create_prabc"]</code>. An attacker who controls any two adjacent variable-length fields can construct a second valid receipt that verifies against the original signature.</p>
+<p>The same anti-pattern appears in <code>provena-chain/src/lib.rs:70-84</code> (<code>Entry::canonical_bytes</code>) and <code>provena-chain/src/lib.rs:250-255</code> (checkpoint canon).</p>
+<p><strong>Fix:</strong> Length-prefix every field (TLV) or use real canonical CBOR. Length-prefix is mandatory for any concatenation-based canonicalization.</p>
+
+<!-- C3 -->
+<h3>C3. eval-guard signature does NOT cover actual check results — fail-closed bypass</h3>
+<table class="meta-table">
+  <tr><td>Severity</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Critical</span> — blocks production</td></tr>
+  <tr><td>Component</td><td>R2 eval-guard (invariant I-09: fail-closed)</td></tr>
+  <tr><td>File</td><td><code>rust/eval-guard/src/lib.rs:148-153</code> (signing) and <code>186-190</code> (verify)</td></tr>
+</table>
+<p><strong>What's wrong:</strong> The signature covers only <code>passed_checks (as proto ints) || nonce</code> — but <code>passed_checks</code> is <strong>always the constant <code>BoundaryCheck::ALL</code></strong> (lines 150-152 and 187-189 hardcode the loop over <code>BoundaryCheck::ALL</code>, not over the actual <code>results</code>). The real <code>CheckResults</code> that decided whether to issue the attestation is never bound into the signature.</p>
+<p><strong>Consequence:</strong> An attacker who obtains one signed attestation can present it as proof that all four checks passed for ANY future sandbox — the attestation carries no binding to the host, the timestamp, or the actual results it represents. A single attestation is a permanent skeleton key.</p>
+<p><strong>Fix:</strong> The signed message must include (a) the actual per-check results, (b) a fresh timestamp within a tight freshness window, (c) a binding to the target host/agent SVID.</p>
+
+<!-- C4 -->
+<h3>C4. GPU attestation nonce is never verified — replay attack</h3>
+<table class="meta-table">
+  <tr><td>Severity</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Critical</span> — blocks production</td></tr>
+  <tr><td>Components</td><td>C1-1 nvtrust-bridge, C1-2 cuda-gram</td></tr>
+  <tr><td>Files</td><td><code>rust/nvtrust-bridge/src/lib.rs:107-123</code>; <code>python/cuda_gram/src/cuda_gram/__init__.py:122-133</code></td></tr>
+</table>
+<p><strong>What's wrong:</strong> The CLAUDE.md, RFC, and proto comment all say "16-byte nonce used to prevent replay". But neither backend checks that the nonce in the report equals the nonce the verifier sent. <code>nvtrust-bridge</code> MockBackend returns <code>Ok(())</code> iff <code>attestation_bytes == b"aumos-mock-attestation"</code> — the nonce is ignored entirely. This is the textbook replay attack against challenge-response attestation.</p>
+<p><strong>Fix:</strong> <code>verify</code> must take the challenge nonce as an argument and reject any report whose <code>report.nonce != challenge</code>. <code>establish_session</code> must require a caller-supplied nonce from <code>os.urandom(16)</code>.</p>
+
+<!-- C5 -->
+<h3>C5. agent-identity "audience" check is a no-op — confused-deputy defense is fictional</h3>
+<table class="meta-table">
+  <tr><td>Severity</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Critical</span> — blocks production</td></tr>
+  <tr><td>Component</td><td>I1 agent-identity (the keystone)</td></tr>
+  <tr><td>File</td><td><code>go/agent-identity/service.go:127-132</code></td></tr>
+</table>
+<p><strong>What's wrong:</strong> The "confused-deputy defense" code checks <code>strings.HasPrefix(claims.Issuer, "spiffe://"+g.svc.trustDomain)</code>. But <code>claims.Issuer</code> is always set to <code>fmt.Sprintf("spiffe://%s/agent-identity", s.trustDomain)</code> at issue time. So this condition is <strong>always false</strong> — the check literally cannot fail for any token this service issued. Furthermore, the SVID token type has no <code>aud</code> field at all. The audience supplied by the caller is compared to nothing relevant.</p>
+<p><strong>Consequence:</strong> Any SVID accepted by this service can be replayed against any audience. The P2 spec explicitly lists "Confused deputy — an instance presented to the wrong audience is rejected" as a mandatory adversarial vector; the implementation does not provide this property.</p>
+
+<!-- C6 -->
+<h3>C6. authority-spec AAE validator takes canonical bytes from the caller — signature is meaningless</h3>
+<table class="meta-table">
+  <tr><td>Severity</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Critical</span> — blocks production</td></tr>
+  <tr><td>Component</td><td>T2 authority-spec (the AAE validator)</td></tr>
+  <tr><td>File</td><td><code>rust/authority-spec/src/lib.rs:179-197</code></td></tr>
+</table>
+<p><strong>What's wrong:</strong> <code>validate(envelope, unsigned_canonical_cbor, options)</code> verifies the signature over a byte buffer that the <strong>caller supplies separately from the envelope</strong>. The validator never recomputes the canonical bytes from the envelope's own fields. If a caller passes any bytes that match the signature, the validator will say the envelope is valid regardless of what the envelope actually contains. The signature does not bind to the envelope contents in the validator.</p>
+<p><strong>Fix:</strong> The validator must reconstruct canonical bytes from the envelope itself (via T1's <code>canonical_cbor</code>) before verifying. The caller must never be allowed to supply the to-be-verified bytes.</p>
+
+<!-- C7 -->
+<h3>C7. kill-switch Government Compliance API silently fakes <code>confirmed: true</code></h3>
+<table class="meta-table">
+  <tr><td>Severity</td><td><span class="badge" style="background:var(--amber-light);color:var(--amber)">High</span> — compliance blocking</td></tr>
+  <tr><td>Component</td><td>R3 kill-switch</td></tr>
+  <tr><td>File</td><td><code>rust/kill-switch/src/lib.rs:24</code> (URL constant), <code>178-185</code> (<code>notify_government_api</code>)</td></tr>
+</table>
+<p><strong>What's wrong:</strong> <code>GOVERNMENT_API_URL = "https://gov.killswitch.api/v1"</code> is presented as the AI Kill Switch Act endpoint. The implementation returns <code>Ok(GovernmentAck { ack_id: format!("ack-{order_id}"), confirmed: true })</code> — it never makes any HTTP call, never contacts any government service, and <code>confirmed: true</code> is a literal constant. For a kill triggered by a <code>RegulatoryOrder</code>, the law requires notification; the code reports <code>confirmed: true</code> without doing it.</p>
+<p><strong>Fix:</strong> Either ship the real call or return <code>confirmed: false</code> / a not-yet-implemented error. Reporting <code>confirmed: true</code> for a stub is the worst of both worlds.</p>
+
+<hr>
+
+<h2>High Findings — Cross-Component Integration & Production Gaps</h2>
+
+<h3>H1. AAR <code>to_proto</code> swallows malformed hex with <code>unwrap_or_default()</code></h3>
+<table class="meta-table">
+  <tr><td>Component</td><td>E1 flight-recorder → P2 proto contract</td></tr>
+  <tr><td>File</td><td><code>rust/flight-recorder/src/lib.rs:131-155</code></td></tr>
+</table>
+<p><code>hex::decode(&self.authority_hash_hex).unwrap_or_default()</code> silently produces <code>bytes {}</code> on malformed hex. Downstream proto consumers see empty signature/authority hash while the Rust-side receipt "verifies" because verify uses the hex strings directly. The proto contract is not what's actually signed.</p>
+
+<h3>H2. Go agent-identity JSON wire shape does NOT match the proto</h3>
+<table class="meta-table">
+  <tr><td>Component</td><td>I1 agent-identity (Go) ↔ proto <code>IssueIdentityResponse</code></td></tr>
+  <tr><td>File</td><td><code>go/agent-identity/service.go:29-34</code> vs <code>proto/aumos/identity/v1/agent.proto:77-83</code></td></tr>
+</table>
+<p>Mismatches: (a) <code>capability_jti</code> vs <code>capability_token</code> — different field names AND different content. (b) Go adds a <code>verifying_key</code> field absent from the proto. (c) Go omits the timestamp wrapper. Also: the capability token is never actually issued (<code>_ = capJTI</code>).</p>
+
+<h3>H3. Cross-language conformance covers only 1 raw-byte Ed25519 vector</h3>
+<table class="meta-table">
+  <tr><td>Component</td><td>A6 conformance</td></tr>
+  <tr><td>File</td><td><code>tools/conformance/run.sh:54-128</code></td></tr>
+</table>
+<p>The entire "cross-language conformance lane" is <strong>one</strong> Ed25519 signature over the literal bytes "hello aumos conformance". The bytes are verified raw — NOT on canonical_cbor(payload). The conformance does not exercise the canonicalization the actual T1 API uses. The <code>testvectors/README.md</code> promises C1-1/C1-2/R2/R3/R4/I1/P1/P2 vectors — none exist.</p>
+
+<h3>H4. No CDDL/JSON-Schema for 11 of the 12 protocols</h3>
+<table class="meta-table">
+  <tr><td>Component</td><td>Protocol completeness</td></tr>
+  <tr><td>File</td><td><code>specs/protocols/</code> — only <code>P1-aae.cddl</code> and <code>P1-aae.schema.json</code> exist</td></tr>
+</table>
+<p>Each protocol spec file claims "normative schema lives at ... CDDL" but only P1 actually has CDDL + JSON-Schema. P2–P12 each have only a markdown sketch.</p>
+
+<h3>H5–H11: Additional High Findings</h3>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Finding</th><th>File</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>H5</strong></td><td>Error codes don't match a central registry — each crate invents ad-hoc error enums; HTTP gateways just stringify <code>err.Error()</code></td><td>Cross-cutting 19</td></tr>
+    <tr><td><strong>H6</strong></td><td>agent-identity serves plain HTTP — no TLS, no mTLS, no auth on issue/revoke. Anyone on the network can issue SVIDs.</td><td><code>go/agent-identity/cmd/agent-identity/main.go:32-49</code></td></tr>
+    <tr><td><strong>H7</strong></td><td><code>Mutex::lock().expect()</code> in inference-proxy hot path — poisoned mutex crashes the proxy (<code>panic=abort</code> in release)</td><td><code>rust/inference-proxy/src/lib.rs:143,259,265,271</code></td></tr>
+    <tr><td><strong>H8</strong></td><td>Kill-switch <5s budget is enforced AFTER work completes, not as a deadline</td><td><code>rust/kill-switch/src/lib.rs:140-172</code></td></tr>
+    <tr><td><strong>H9</strong></td><td>No metrics, no distributed tracing, no OTel export. Trace IDs are invalid W3C (derived from UUID string-slicing). No <code>/metrics</code> endpoint anywhere.</td><td>All components</td></tr>
+    <tr><td><strong>H10</strong></td><td>Provena-chain ledger is in-memory only — no persistence, no backup, no restore. A tamper-evident ledger in RAM is not tamper-evident across restarts.</td><td><code>rust/provena-chain/src/lib.rs:138-153</code></td></tr>
+    <tr><td><strong>H11</strong></td><td><code>revoke_all()</code> in credential-vault is a no-op — all previously-issued 15-minute credentials remain valid until natural expiry.</td><td><code>rust/credential-vault/src/lib.rs:216-227</code></td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>Medium Findings — Design & Quality Gaps</h2>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Finding</th><th>File / Component</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>M1</strong></td><td>No data retention policy or right-to-erasure implementation. The AAR (P2) and provena ledger are append-only — directly conflicts with GDPR right-to-erasure.</td><td>Compliance</td></tr>
+    <tr><td><strong>M2</strong></td><td>eval-guard/exfil-guard/egress-filter have NO actual eBPF. The entire containment plane is decision functions that nothing acts on.</td><td><code>rust/eval-guard/src/lib.rs:11</code>; <code>rust/exfil-guard/src/lib.rs:21-22</code>; <code>rust/egress-filter/src/lib.rs:13-14</code></td></tr>
+    <tr><td><strong>M3</strong></td><td>exfil-guard entropy detector only checks fixed 32-byte windows — trivially evaded by splitting secrets across boundaries.</td><td><code>rust/exfil-guard/src/lib.rs:319-347</code></td></tr>
+    <tr><td><strong>M4</strong></td><td>egress-filter/exfil-guard allowlist overrides blocklist with no authentication, no audit, no break-glass log.</td><td><code>rust/egress-filter/src/lib.rs:139-145, 192-196</code></td></tr>
+    <tr><td><strong>M5</strong></td><td>No <code>clippy::pedantic</code> and <code>publish = false</code>. For security-critical crates the bar should be pedantic.</td><td><code>rust/Cargo.toml:31</code></td></tr>
+    <tr><td><strong>M6</strong></td><td><code>SigningKeyWrapper::Drop</code> reads the key into a stack local that is not zeroized; <code>ed25519-dalek</code> is missing the <code>zeroize</code> feature so the inner key's own zeroize-on-drop is OFF.</td><td><code>rust/trust-core/src/signing.rs:31-46</code>; <code>Cargo.toml:23</code></td></tr>
+    <tr><td><strong>M7</strong></td><td>Mock backends return fixed string <code>b"aumos-mock-attestation"</code> — "cross-language interop" is tautological since neither verifies the nonce (C4).</td><td><code>rust/nvtrust-bridge/src/lib.rs:111</code>; <code>python/cuda_gram/.../py:117</code></td></tr>
+    <tr><td><strong>M8</strong></td><td>inference-proxy <code>OpenAuth</code> is the default — any caller using <code>ProxyBuilder::new().build()</code> gets a proxy that admits any identity. Should default fail-closed.</td><td><code>rust/inference-proxy/src/lib.rs:105-111, 308-313</code></td></tr>
+    <tr><td><strong>M9</strong></td><td>cuda-gram <code>from_dict</code> does not validate <code>gpu_model</code> or <code>attestation_bytes</code> — combined with C4, widens the attack surface.</td><td><code>python/cuda_gram/.../py:58-68</code></td></tr>
+    <tr><td><strong>M10</strong></td><td>Merkle orphan-promotion promotes the orphan leaf unchanged (not re-hashed) — not second-preimage resistant. RFC 6962 specifically hashes the lone node.</td><td><code>rust/trust-core/src/merkle.rs:42-49</code>; <code>rust/provena-chain/src/lib.rs:230-232</code></td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>What's Actually Solid</h2>
+
+<div class="callout success">
+  <div class="callout-title">To be fair — these things ARE correct</div>
+  <ul>
+    <li><code>#![forbid(unsafe_code)]</code> and <code>#![deny(missing_docs)]</code> are consistently applied across all Rust crates.</li>
+    <li>The <code>domain_matches</code> suffix logic in egress-filter correctly rejects TLD-only patterns and <code>notpastebin.com</code>.</li>
+    <li>The Luhn implementation in exfil-guard is correct and tested.</li>
+    <li>The token-bucket math in inference-proxy is correct.</li>
+    <li>The delegation intersection logic in agent-identity (invariant I-02) is correctly implemented as subset checks.</li>
+    <li>The AAE validator's structural checks (expiry, side-effect-class, I-08 approval, delegation depth) are correct independent of the signature-binding problem in C6.</li>
+    <li>The TRT-LLM v0.16 sampler_type version-detection logic in bridge-rt is correct across 7 version cases.</li>
+    <li>The DPSGD clip-then-noise math and RDP accountant in dp-crate are correct.</li>
+  </ul>
+</div>
+
+<hr>
+
+<h2>Bottom Line</h2>
+
+<blockquote>
+  The 49 components are not "feature-complete at v1.0.0" with "security invariants shipping". The
+  cryptographic spine that is supposed to make them trustworthy has multiple independent breaks.
+  The repo is best understood as a <strong>comprehensive architectural specification with
+  reference-shape implementations</strong>, not as deployable v1.0 software.
+</blockquote>
+
+<p>Any one of C1–C6 is sufficient to block production deployment of the corresponding security claim. The conformance / "691 tests passing" framing masks the fact that almost every "implementation" is a documented stub. The critical path to production:</p>
+
+<ol>
+  <li><strong>Fix canonical encoding</strong> (C1) — switch to <code>ciborium</code> with explicit canonicalization. This unblocks every cross-language signing contract.</li>
+  <li><strong>Fix canonical_bytes in flight-recorder and provena-chain</strong> (C2) — length-prefix every field.</li>
+  <li><strong>Fix eval-guard attestation binding</strong> (C3) — include actual results + timestamp + host binding.</li>
+  <li><strong>Fix nonce verification</strong> (C4) — check <code>report.nonce == challenge</code> in all attestation paths.</li>
+  <li><strong>Fix audience check</strong> (C5) — add <code>aud</code> claim, bind at issue, reject at verify.</li>
+  <li><strong>Fix AAE validator</strong> (C6) — reconstruct canonical bytes from the envelope itself.</li>
+  <li><strong>Fix government API stub</strong> (C7) — return <code>confirmed: false</code> until the real call ships.</li>
+  <li><strong>Expand conformance</strong> (H3) — add canonical-CBOR vectors, protocol vectors, adversarial vectors.</li>
+</ol>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Protocols (P1–P12) — AumOS Documentation</title>
+  <meta name="description" content="The 12 spec-first, language-neutral open protocols of AumOS: AAE, AAR, CPE, AMIL, SSP, AATM, ABS, VEB, AIX, MADE, PRB, CAP. Schemas, signing, revocation, adversarial test vectors.">
+  <link rel="stylesheet" href="aumos-docs.css">
+</head>
+<body>
+
+<header class="doc-header">
+  <h1>Open Protocols (P1–P12)</h1>
+  <p class="subtitle">Spec-first, language-neutral contracts that bind every AumOS component across Rust, Go, Python, and TypeScript.</p>
+  <nav>
+    <a href="index.html">← Index</a>
+    <a href="#introduction">Introduction</a>
+    <a href="#governance">Governance</a>
+    <a href="#overview">Protocol Grid</a>
+    <a href="#p1">P1</a>
+    <a href="#p2">P2</a>
+    <a href="#p3">P3</a>
+    <a href="#p4">P4</a>
+    <a href="#p5">P5</a>
+    <a href="#p6">P6</a>
+    <a href="#p7">P7</a>
+    <a href="#p8">P8</a>
+    <a href="#p9">P9</a>
+    <a href="#p10">P10</a>
+    <a href="#p11">P11</a>
+    <a href="#p12">P12</a>
+  </nav>
+</header>
+
+<main class="container">
+
+  <!-- ====================== INTRODUCTION ====================== -->
+  <section id="introduction">
+    <h2><span class="section-number">1</span>Introduction</h2>
+
+    <p>AumOS is built on a single, load-bearing doctrine: <strong>the spec is the contract</strong>. No
+    language implementation — Rust, Go, Python, or TypeScript — owns the meaning of a delegation, a
+    receipt, a manifest, or an incident. That meaning lives in <strong>twelve open protocols
+    (P1–P12)</strong>, reconciled from the AumSecure V2 portfolio into spec-only canonical components,
+    and consumed identically by every runtime via the contract plane described in
+    <code>docs/cross-cutting/19-inter-component-protocol.md</code>.</p>
+
+    <p>An <em>open protocol</em> in AumOS is a normative, machine-checkable contract that defines a
+    signed data shape, a signing requirement, a revocation mechanism, and a mandatory set of
+    adversarial test vectors. It is intentionally <strong>not</strong> a library: there is no canonical
+    Go struct or Rust enum that other languages wrap. Instead, each protocol is authored once as CDDL
+    and/or protobuf and/or JSON-Schema / JSON-LD, and every language emits and validates the same wire
+    bytes. This is what makes the system polyglot-by-design rather than polyglot-by-fiat.</p>
+
+    <div class="callout danger">
+      <div class="callout-title">Why this matters — the AumSecure V3 pressure test</div>
+      <p>The AumSecure V3 pressure test (see <code>docs/00-reconciliation-matrix.md</code> §9) graded
+      the prior portfolio against an autonomous-agent threat model. It found that the failures were
+      almost never "the code was wrong" — they were "two components disagreed about what an
+      <em>authority</em> means," or "the receipt was optional," or "revocation was a TODO." The
+      spec-first doctrine exists to make those disagreements impossible: every consequential fact an
+      agent relies on is a signed protocol message with a versioned, stable field set, and any drift
+      is caught by the A6 cross-language conformance suite before it ships.</p>
+    </div>
+
+    <p>The protocols are grouped into three families by what they make verifiable:</p>
+    <ul>
+      <li><strong>Authority &amp; action</strong> (P1 AAE, P2 AAR, P7 ABS, P10 MADE, P12 CAP) — who may
+      act, what they did, what they may spend, how authority delegates, and what the runtime actually
+      permits.</li>
+      <li><strong>Provenance &amp; memory</strong> (P3 CPE, P4 AMIL, P5 SSP, P6 AATM) — where data,
+      skills, models, and artifacts came from and whether they may still be trusted.</li>
+      <li><strong>Evidence &amp; remediation</strong> (P8 VEB, P9 AIX, P11 PRB) — reproducible eval,
+      normalized incidents, and proof-carrying fixes.</li>
+    </ul>
+
+    <p>Every protocol shares the same signing story: the T1 trust-core signs the canonical-CBOR
+    encoding with Ed25519 (KMS/HSM-backed in production) and returns a Sigstore Rekor transparency-log
+    entry for non-repudiation. Every protocol shares the same revocation story: an explicit expiry, a
+    revocation handle published to <code>aumos.&lt;domain&gt;.revoked.v1</code> on Kafka, and fleet-wide
+    propagation inside the I-05 budget (identity &lt; 5s, credentials &lt; 1s). What differs protocol
+    to protocol is the <em>fields</em> — the specific claims each makes.</p>
+  </section>
+
+  <!-- ====================== GOVERNANCE ====================== -->
+  <section id="governance">
+    <h2><span class="section-number">2</span>Protocol Governance Rules</h2>
+
+    <p>The five governance rules below are reproduced from <code>specs/protocols/README.md</code> and
+    govern <em>every</em> P1–P12 artifact. They are the constitution under which the protocols evolve.</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-id">Rule 1</div>
+        <div class="card-title">Spec-first, standardize late</div>
+        <div class="card-desc">Protocols start as implementation notes plus JSON/CBOR schemas. They are promoted to formal standards only after real multi-vendor use proves the shape. This avoids premature ossification of authority semantics.</div>
+      </div>
+      <div class="card">
+        <div class="card-id">Rule 2</div>
+        <div class="card-title">No hidden reasoning</div>
+        <div class="card-desc">A protocol message never carries opaque "the model decided X" blobs. Every claim is an explicit, named, inspectable field. If reasoning matters, it is broken out into deterministic-check records that a verifier can replay.</div>
+      </div>
+      <div class="card">
+        <div class="card-id">Rule 3</div>
+        <div class="card-title">Separate identity, authority, reputation</div>
+        <div class="card-desc">Who an agent <em>is</em> (identity), what it <em>may do</em> (authority), and how <em>trustworthy</em> it has proven to be (reputation) are three distinct protocols. Conflating them is the root of confused-deputy and privilege-amplification failures.</div>
+      </div>
+      <div class="card">
+        <div class="card-id">Rule 4</div>
+        <div class="card-title">Revocation, expiry, rotation, federation, partial disclosure from v1</div>
+        <div class="card-desc">No protocol ships without an explicit expiry timestamp, a revocation handle, a rotation story, a federation story, and — where the use case needs it — a selective-disclosure / zero-knowledge path. "Add revocation later" is forbidden.</div>
+      </div>
+      <div class="card">
+        <div class="card-id">Rule 5</div>
+        <div class="card-title">Adversarial test vectors + conformance suite</div>
+        <div class="card-desc">Every protocol ships adversarial vectors under <code>testvectors/P&lt;n&gt;/</code> and is enforced by A6, the cross-language conformance suite, against each language implementation that consumes it. No vectors, no ship.</div>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <div class="callout-title">Field names are stable</div>
+      <p>Per the README, renaming a mandatory field is a <strong>breaking change</strong> that requires
+      a new protocol version. A Rust caller that writes <code>side_effect_class</code> and a Python
+      caller that reads <code>sideEffectClass</code> are not the same protocol. Canonical-CBOR plus
+      stable snake_case field names are the contract.</p>
+    </div>
+  </section>
+
+  <!-- ====================== OVERVIEW GRID ====================== -->
+  <section id="overview">
+    <h2><span class="section-number">3</span>The 12 Protocols at a Glance</h2>
+
+    <p>The card grid below is the quick-reference index. Each card links to the deep section that
+    follows. The grid mirrors the reconciliation table in
+    <code>specs/protocols/README.md</code>.</p>
+
+    <div class="card-grid">
+      <a href="#p1" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P1 · aae</div>
+        <div class="card-title">Agent Authority Envelope</div>
+        <div class="card-desc">Signed task-specific delegation: who may act, for whom, on what, with which resources, until when, with which approvals. Base: SPIFFE SVID + capability-token.</div>
+        <div class="card-meta"><span class="badge wave-1">consumed by I1, R3, R4, T1</span></div>
+      </a>
+      <a href="#p2" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P2 · aar</div>
+        <div class="card-title">Agent Action Receipt</div>
+        <div class="card-desc">Tamper-evident receipt per material action, signed BEFORE the effect is visible. Enforces invariant I-07: evidence precedes commitment.</div>
+        <div class="card-meta"><span class="badge wave-1">consumed by E1, X2, all auditing</span></div>
+      </a>
+      <a href="#p3" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P3 · cpe</div>
+        <div class="card-title">Context Provenance Envelope</div>
+        <div class="card-desc">Origin and trust through retrieval + transformation. Enforces invariant I-03: purpose-bound data use via source, consent, sensitivity, derived-from graph, taint.</div>
+        <div class="card-meta"><span class="badge wave-2">future context components</span></div>
+      </a>
+      <a href="#p4" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P4 · amil</div>
+        <div class="card-title">Agent Memory Integrity Ledger</div>
+        <div class="card-desc">Prevents silent memory poisoning. Signed records with ownership, confidence, contradiction links, quarantine, supersession, retention, consent revocation.</div>
+        <div class="card-meta"><span class="badge wave-2">future context/memory components</span></div>
+      </a>
+      <a href="#p5" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P5 · ssp</div>
+        <div class="card-title">Secure Skill Package</div>
+        <div class="card-desc">Distributes skills safely: instructions, code, tools, permissions, publisher identity, OMS signature, AI-SBOM, eval set, benchmark, limitations, revocation.</div>
+        <div class="card-meta"><span class="badge wave-2">consumed by S4, X8</span></div>
+      </a>
+      <a href="#p6" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P6 · aatm</div>
+        <div class="card-title">AI Artifact Trust Manifest</div>
+        <div class="card-desc">Binds model + dataset + tokenizer + prompt + adapter + container + policy + skill + eval into one signed graph. Base: OMS + SPDX/CycloneDX + deployment attestations.</div>
+        <div class="card-meta"><span class="badge wave-1">consumed by T1, S1, S4, S5</span></div>
+      </a>
+      <a href="#p7" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P7 · abs</div>
+        <div class="card-title">Autonomy Budget Specification</div>
+        <div class="card-desc">Machine-enforceable budgets: steps, wall-clock, tokens, money, external calls, data volume, privilege, irreversible actions, expected risk.</div>
+        <div class="card-meta"><span class="badge wave-1">consumed by I1, R3</span></div>
+      </a>
+      <a href="#p8" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P8 · veb</div>
+        <div class="card-title">Verifiable Evaluation Bundle</div>
+        <div class="card-desc">Reproducible eval evidence: corpus digest, environment, model/harness/policy versions, seeds, traces, judge version, deterministic assertions, signed result.</div>
+        <div class="card-meta"><span class="badge wave-2">consumed by A1, A5, A6</span></div>
+      </a>
+      <a href="#p9" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P9 · aix</div>
+        <div class="card-title">Agent Incident Exchange</div>
+        <div class="card-desc">Normalized incidents for goal hijack, memory poisoning, tool abuse, identity compromise, exfiltration, rogue delegation. Base: OCSF extension + MITRE ATLAS.</div>
+        <div class="card-meta"><span class="badge wave-2">consumed by X9, R3</span></div>
+      </a>
+      <a href="#p10" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P10 · made</div>
+        <div class="card-title">Multi-Agent Delegation Exchange</div>
+        <div class="card-desc">Signed, attenuated delegation + result exchange between agents. No privilege amplification; hop count; quorum; evidence requirements; trust-domain federation.</div>
+        <div class="card-meta"><span class="badge wave-3">consumed by I1 (multi-agent future)</span></div>
+      </a>
+      <a href="#p11" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P11 · prb</div>
+        <div class="card-title">Proof-Carrying Remediation Bundle</div>
+        <div class="card-desc">Vulnerability fix with reproducer, root cause, affected-version graph, patch, tests, regression evidence, build provenance, signed artifacts. Embargo-preserving.</div>
+        <div class="card-meta"><span class="badge wave-2">consumed by S9, X9</span></div>
+      </a>
+      <a href="#p12" class="card" style="text-decoration:none;color:inherit;border-bottom:none">
+        <div class="card-id">P12 · cap</div>
+        <div class="card-title">Capability Attestation Profile</div>
+        <div class="card-desc">Declare and verify what an agent can actually do in a specific runtime: tools, policy, credentials, network, memory, model, sandbox, attestation evidence.</div>
+        <div class="card-meta"><span class="badge wave-2">consumed by R1, R2, I1</span></div>
+      </a>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P1 AAE ====================== -->
+  <section id="p1">
+    <h2><span class="section-number">P1</span>AAE — Agent Authority Envelope</h2>
+
+    <p><strong>Spelled out:</strong> Agent Authority Envelope. <strong>Purpose:</strong> a signed,
+    task-specific delegation that answers, in one message, <em>who may act, for whom, on what, using
+    which resources, for which purpose, within what limits, until when, and with which approvals and
+    obligations.</em> AAE is the root capability token of the entire system: an agent without a valid
+    AAE has no authority to do anything observable, and every other protocol either references an AAE
+    (P2's <code>authority_hash</code>) or is constrained by one (P7's budgets). It is based on SPIFFE
+    SVID semantics fused with OAuth Rich-Authorization-Request / DPoP capability-token semantics, so a
+    delegation is simultaneously a workload identity and a least-privilege grant.</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>The normative schemas live at <code>proto/aumos/protocols/v1/aae.proto</code> (mirrored as
+    <code>AgentAuthorityEnvelope</code> in <code>proto/aumos/identity/v1/agent.proto</code>), the CDDL
+    at <code>specs/protocols/P1-aae.cddl</code>, and the JSON-Schema at
+    <code>specs/protocols/P1-aae.schema.json</code>. The mandatory fields are:</p>
+    <pre><code>issuer, subject, purpose, resources, tools, data_classes,
+side_effect_class, spend_budget, time_budget, token_budget,
+geography, delegation_depth, approvals, expiry, revocation_handle,
+signature</code></pre>
+
+    <p>Field semantics, drawn from the CDDL and proto comments:</p>
+    <ul>
+      <li><code>issuer</code> / <code>subject</code> — SPIFFE IDs of the delegator and the agent being
+      authorized (e.g. <code>spiffe://aumos.dev/agent-identity</code>).</li>
+      <li><code>purpose</code> — human-readable task purpose ( minLength 1 in JSON-Schema); used in
+      receipts and audits.</li>
+      <li><code>resources</code> / <code>tools</code> — URIs the agent may touch and SPIFFE IDs of tool
+      servers it may invoke.</li>
+      <li><code>data_classes</code> — enumeration <code>L0..L4</code> per
+      <code>docs/cross-cutting/17-data-classification-privacy.md</code>.</li>
+      <li><code>side_effect_class</code> — one of <code>read | write | financial | destructive |
+      physical</code>.</li>
+      <li><code>spend_budget</code> (minor currency units, minimum 0), <code>time_budget_seconds</code>,
+      <code>token_budget</code> — hard, machine-enforceable limits.</li>
+      <li><code>geography</code> — ISO-3166 alpha-2, empty string means unrestricted (regex
+      <code>^([A-Z]{2}|)$</code>).</li>
+      <li><code>delegation_depth</code> — uint, 0 means no further delegation; this is what enforces
+      invariant I-08 for consequential actions.</li>
+      <li><code>approvals</code> — required approver SPIFFE IDs (I-08).</li>
+      <li><code>expiry</code> — epoch seconds; rejected without further checks once passed.</li>
+      <li><code>revocation_handle</code> — opaque string published to revoke.</li>
+      <li><code>signature</code> — hex Ed25519 over canonical-CBOR of the envelope minus the signature
+      field itself. <code>additionalProperties: false</code> in JSON-Schema.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>Every AAE is signed by the issuer through T1. Default algorithm is Ed25519; production uses a
+    KMS or HSM backing the T1 trust-core (RFC T1). The signature covers the canonical-CBOR encoding of
+    the message, which is what makes a Rust issuer and a Python verifier agree byte-for-byte. T1 also
+    returns a Sigstore Rekor transparency-log entry so the existence and ordering of the delegation is
+    publicly provable — the foundation of non-repudiation across the fleet.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>Three independent layers. <strong>Expiry</strong> is unconditional: an expired AAE is rejected
+    with no further checks, so a leaked envelope self-destructs on a clock. <strong>Revocation</strong>
+    is opt-in: the issuer publishes the opaque <code>revocation_handle</code> to the
+    <code>aumos.&lt;domain&gt;.revoked.v1</code> CloudEvent topic on Kafka. <strong>Propagation</strong>
+    is budgeted by invariant I-05: identity revocation is fleet-wide in &lt; 5s and credential
+    revocation in &lt; 1s. Selective disclosure (zero-knowledge proofs over sensitive authority claims)
+    is reserved as future work but the field layout is designed to admit it.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Shipped under <code>testvectors/P1/</code> and enforced by A6:</p>
+    <ul>
+      <li><strong>Replay</strong> — expired or re-used envelopes are rejected.</li>
+      <li><strong>Tampering</strong> — any field modified post-signing fails verification.</li>
+      <li><strong>Confused deputy</strong> — an envelope presented to the wrong audience is rejected.</li>
+      <li><strong>Privilege amplification</strong> — a delegation chain whose intersection would expand
+      authority is rejected (invariant I-02).</li>
+      <li><strong>Downgrade</strong> — an envelope claiming an unsupported protocol version is
+      rejected.</li>
+      <li><strong>Replay across contexts</strong> — cross-task replay is detected by
+      <code>subject</code> + <code>jti</code> uniqueness.</li>
+    </ul>
+
+    <h3>Components that consume it</h3>
+    <p><strong>I1</strong> (agent-identity) issues identities under an AAE; <strong>R3</strong> and
+    <strong>R4</strong> (guardrails / runtime policy) enforce its limits; <strong>T1</strong> signs and
+    verifies it; and the entire trusted-core treats a valid AAE as the precondition for any
+    side-effecting call. <code>AgentIdentityService.IssueIdentity</code> in
+    <code>proto/aumos/identity/v1/agent.proto</code> takes the envelope as its first argument.</p>
+
+    <h3>Usage example (JSON)</h3>
+<pre><code>{
+  "issuer": "spiffe://aumos.dev/agent-identity",
+  "subject": "spiffe://aumos.dev/agent/coding-agent-7",
+  "purpose": "open a pull request against aumos/aumos",
+  "resources": ["github://aumos/aumos"],
+  "tools": ["spiffe://aumos.dev/tool/github-cli"],
+  "data_classes": ["L0", "L1"],
+  "side_effect_class": "write",
+  "spend_budget": 0,
+  "time_budget_seconds": 1800,
+  "token_budget": 250000,
+  "geography": "US",
+  "delegation_depth": 0,
+  "approvals": ["spiffe://aumos.dev/human/alice"],
+  "expiry": 1767811200,
+  "revocation_handle": "rh_01HZX...",
+  "signature": "9f3c...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>AAE enforces <strong>least privilege per task</strong>: an agent can do exactly what the
+    envelope says, for as long as it says, and not one byte more. It prevents the entire family of
+    confused-deputy and privilege-amplification attacks because authority is never ambient — it is
+    carried, signed, and checked on every consequential call. Combined with I-05 propagation and I-08
+    approval requirements, it converts "the agent went rogue" from an incident into a revocation event.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    <code>docs/02-architecture.md</code> (consuming planes) ·
+    <code>docs/rfcs/T1-trust-core.md</code> (signs/verifies) ·
+    <code>docs/rfcs/A6-conformance.md</code> ·
+    referenced by <a href="#p2">P2</a> (<code>authority_hash</code>), <a href="#p7">P7</a> (budgets).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P2 AAR ====================== -->
+  <section id="p2">
+    <h2><span class="section-number">P2</span>AAR — Agent Action Receipt</h2>
+
+    <p><strong>Spelled out:</strong> Agent Action Receipt. <strong>Purpose:</strong> a tamper-evident
+    receipt emitted for every <em>material</em> agent action. The defining property is ordering: the
+    receipt is signed <strong>before</strong> the action's effect is visible to the world, and the
+    action commits <strong>only once</strong> the receipt is durable. This is invariant I-07 —
+    <em>evidence precedes commitment</em> — and it is the difference between an auditable agent and a
+    black box that retroactively logs whatever it likes. AAR is produced by E1 (the flight recorder)
+    and consumed by every auditing component.</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>The normative schema is <code>proto/aumos/protocols/v1/aar.proto</code> (message
+    <code>AgentActionReceipt</code>) plus CDDL. Mandatory fields per the spec:</p>
+    <pre><code>actor, authority_hash, artifact_versions, context_commitment,
+policy_decision, tool_or_api_op, deterministic_checks,
+approver, outcome, rollback_pointer</code></pre>
+
+    <p>The proto expands these into a precise wire shape. Highlights:</p>
+    <ul>
+      <li><code>id</code> — UUID for the receipt.</li>
+      <li><code>actor</code> — the acting agent's SPIFFE SVID.</li>
+      <li><code>authority_hash</code> — SHA-256 of the AAE (P1) that authorized the action; this is
+      the structural link between authority and action.</li>
+      <li><code>artifact_versions</code> — <code>map&lt;string,string&gt;</code> of model digest, tool
+      versions, skill versions in play at decision time.</li>
+      <li><code>context_commitment</code> — SHA-256 commitment to the CPE (P3) at action time.</li>
+      <li><code>policy_decision</code> — a nested <code>PolicyDecision</code> message carrying the
+      engine (<code>opa | cedar | openshell</code>), the <code>allow | deny</code> decision, the policy
+      bundle hash, and the matched Rego/Cedar rule IDs.</li>
+      <li><code>tool_or_api_op</code> — the tool or API operation performed.</li>
+      <li><code>deterministic_checks</code> — repeated <code>DeterministicCheck{name, passed,
+      detail}</code> for constant-time-safe assertions.</li>
+      <li><code>approvers</code> — approver SPIFFE IDs (invariant I-08).</li>
+      <li><code>outcome</code> — enum <code>ACTION_OUTCOME_PENDING | COMMITTED | ROLLED_BACK |
+      FAILED</code>; <code>PENDING</code> is the pre-commit state that satisfies I-07.</li>
+      <li><code>rollback_pointer</code> — pointer to a rollback record if undone.</li>
+      <li><code>emitted_at</code> timestamp and <code>signature</code> over canonical-CBOR.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>E1 emits the receipt and T1 signs it (Ed25519 default, KMS/HSM in production) over the
+    canonical-CBOR encoding. The Rekor transparency-log entry is returned for non-repudiation. Because
+    the receipt exists in the log before the action commits, an attacker who later tampers with the
+    log produces a detectable divergence between the on-disk receipt and the transparency entry.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>A receipt is an immutable record, so "revocation" here means <em>outcome transition</em>: a
+    <code>PENDING</code> receipt moves to <code>COMMITTED</code>, or to <code>ROLLED_BACK</code> via
+    the <code>rollback_pointer</code>, or to <code>FAILED</code>. The envelope-style expiry and
+    revocation-handle machinery still applies to the receipt's authority (the AAE) and propagates per
+    I-05; the receipt itself is retained per the audit retention policy and is not silently deletable.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P2/</code>: replay (expired/re-used receipts rejected), tampering (any
+    field change fails verification), confused deputy (wrong audience rejected), privilege
+    amplification (chain intersection that would expand authority is rejected per I-02), downgrade
+    (unsupported version rejected), and replay-across-contexts (detected via <code>subject</code> +
+    <code>jti</code> uniqueness).</p>
+
+    <h3>Components that consume it</h3>
+    <p><strong>E1</strong> (flight recorder) emits it; <strong>X2</strong> (audit/observability) and
+    every auditing component read it. The <code>outcome = PENDING → COMMITTED</code> transition is the
+    commit gate for material actions, so the runtime itself blocks on the receipt's durability.</p>
+
+    <h3>Usage example (protobuf-style JSON)</h3>
+<pre><code>{
+  "id": "f4c2...-aar",
+  "actor": "spiffe://aumos.dev/agent/coding-agent-7",
+  "authority_hash": "sha256:8a1f...(of the AAE)",
+  "artifact_versions": {
+    "model": "claude-opus-4.5@sha256:...",
+    "tool/github-cli": "1.2.3"
+  },
+  "context_commitment": "sha256:cc71...(of the CPE)",
+  "policy_decision": {
+    "engine": "cedar",
+    "decision": "allow",
+    "policy_hash": "sha256:...",
+    "matched_rules": ["rule.pr.open"]
+  },
+  "tool_or_api_op": "github.createPullRequest",
+  "deterministic_checks": [
+    {"name": "diff_within_budget", "passed": true}
+  ],
+  "approvers": ["spiffe://aumos.dev/human/alice"],
+  "outcome": "ACTION_OUTCOME_PENDING",
+  "emitted_at": "2026-08-06T12:00:00Z",
+  "signature": "12ab...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>AAR enforces invariant <strong>I-07 (evidence precedes commitment)</strong>. It prevents
+    retroactive log tampering, "the agent did something it cannot explain" gaps, and the entire class
+    of post-hoc rationalization attacks where a model rewrites its own story after a bad outcome. Every
+    material action is, by construction, accountable before it is real.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    <code>proto/aumos/protocols/v1/aar.proto</code> ·
+    <code>docs/rfcs/T1-trust-core.md</code> ·
+    <code>docs/rfcs/A6-conformance.md</code> ·
+    references <a href="#p1">P1</a> (authority_hash), <a href="#p3">P3</a> (context_commitment).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P3 CPE ====================== -->
+  <section id="p3">
+    <h2><span class="section-number">P3</span>CPE — Context Provenance Envelope</h2>
+
+    <p><strong>Spelled out:</strong> Context Provenance Envelope. <strong>Purpose:</strong> carry
+    origin and trust metadata through every retrieval and transformation step of an agent's context
+    window. A CPE records where a piece of context came from, when it was acquired, under what consent,
+    at what sensitivity, with what integrity and confidence, what transformations have been applied to
+    it, what it was derived from, whether it is tainted, when it expires, and what uses are allowed.
+    This is the protocol that makes invariant <strong>I-03 — purpose-bound data use</strong>
+    enforceable: a verifier can walk the CPE chain and prove that no L4 datum leaked into an L1-bound
+    action.</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>Normative schema is CDDL. Mandatory fields:</p>
+    <pre><code>source_identity, acquisition_time, consent, sensitivity,
+integrity, confidence, transformations, derived_from, taint,
+expiry, allowed_use</code></pre>
+
+    <ul>
+      <li><code>source_identity</code> — SPIFFE ID or equivalent of the data source (a tool, a human,
+      an upstream agent, a dataset).</li>
+      <li><code>acquisition_time</code> — when the context was retrieved (epoch).</li>
+      <li><code>consent</code> — the consent basis under which the data was obtained; without it, the
+      datum is unusable for anything but the most restricted classes.</li>
+      <li><code>sensitivity</code> — maps to the L0..L4 data-classification scale.</li>
+      <li><code>integrity</code> — content hash guaranteeing the bytes have not changed since
+      acquisition.</li>
+      <li><code>confidence</code> — source-trust score feeding into downstream policy.</li>
+      <li><code>transformations</code> — ordered list of transformations applied (redaction,
+      summarization, translation, embedding) so the chain is replayable.</li>
+      <li><code>derived_from</code> — pointers to parent CPEs forming a DAG; this is the
+      derived-from graph.</li>
+      <li><code>taint</code> — a taint label propagated through transformations; tainted context may
+      not flow into privileged outputs.</li>
+      <li><code>expiry</code> and <code>allowed_use</code> — temporal and purpose bounds on use.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>Each CPE is signed at acquisition time by the issuer through T1 (Ed25519 default, KMS/HSM in
+    production) over canonical-CBOR, and a Rekor entry is returned. Crucially, every transformation
+    produces a <em>new</em> signed CPE whose <code>derived_from</code> points at its parent, so the
+    provenance graph is a chain of individually-verifiable envelopes rather than a single mutable
+    blob.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>Expiry is the primary control: a CPE past <code>expiry</code> is rejected without further
+    checks, so stale context self-ages-out of the window. The <code>revocation_handle</code> /
+    CloudEvent mechanism applies as well — for example, when consent is withdrawn mid-session — and
+    propagates fleet-wide within the I-05 budget. Selective disclosure is particularly relevant here
+    (redacting a subject's identity while preserving the integrity of the rest) and is the active
+    zero-knowledge-proof target.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P3/</code>: replay (expired/re-used envelopes rejected), tampering
+    (post-signing field changes fail verification), confused deputy (wrong-audience envelopes
+    rejected), privilege amplification (delegation-chain intersection that would expand authority
+    rejected per I-02), downgrade (unsupported version rejected), and replay-across-contexts (detected
+    via <code>subject</code> + <code>jti</code> uniqueness).</p>
+
+    <h3>Components that consume it</h3>
+    <p>Future context components — the context/memory plane that assembles agent context windows.
+    P2's <code>context_commitment</code> field is a SHA-256 over a CPE, so the action receipt already
+    binds to provenance even before a dedicated context component exists.</p>
+
+    <h3>Usage example (JSON)</h3>
+<pre><code>{
+  "source_identity": "spiffe://aumos.dev/tool/web-fetch",
+  "acquisition_time": 1767811200,
+  "consent": "user_opt_in_v2",
+  "sensitivity": "L2",
+  "integrity": "sha256:b3f1...",
+  "confidence": 0.87,
+  "transformations": ["redact_pii", "summarize"],
+  "derived_from": ["cpe_01HZX..."],
+  "taint": "none",
+  "expiry": 1767897600,
+  "allowed_use": "summarization_only",
+  "revocation_handle": "rh_cpe_01HZX...",
+  "signature": "7c2a...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>CPE enforces <strong>I-03 (purpose-bound data use)</strong>. It prevents indirect prompt-injection
+    exfiltration (tainted context cannot reach privileged outputs), consent drift (a datum used outside
+    its <code>allowed_use</code> is a detectable violation), and provenance laundering (a transformation
+    cannot silently shed its <code>derived_from</code> links without producing a verifiably-broken
+    chain).</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    <code>docs/cross-cutting/17-data-classification-privacy.md</code> (L0..L4) ·
+    referenced by <a href="#p2">P2</a> (<code>context_commitment</code>).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P4 AMIL ====================== -->
+  <section id="p4">
+    <h2><span class="section-number">P4</span>AMIL — Agent Memory Integrity Ledger</h2>
+
+    <p><strong>Spelled out:</strong> Agent Memory Integrity Ledger. <strong>Purpose:</strong> prevent
+    <em>silent</em> memory poisoning. Long-lived agents accumulate beliefs, facts, and preferences in
+    memory; an adversary who can quietly edit that memory has a persistent, hard-to-detect backdoor
+    into the agent's behavior. AMIL makes every memory record a signed, owned, traceable entry with
+    explicit confidence, explicit contradictions, explicit quarantine, explicit supersession, explicit
+    retention, and explicit consent-revocation handling. There is no "edit memory" operation — there is
+    only "append a new signed record that supersedes an old one."</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>Normative schema is CDDL. Mandatory fields:</p>
+    <pre><code>record_id, owner, confidence, contradiction_links, provenance,
+quarantine_state, supersession, retention, consent_revocation</code></pre>
+
+    <ul>
+      <li><code>record_id</code> — stable identifier for the memory record.</li>
+      <li><code>owner</code> — the agent or principal that authored the record and is accountable for
+      it.</li>
+      <li><code>confidence</code> — numeric confidence in the record, feeding policy and recall
+      ranking.</li>
+      <li><code>contradiction_links</code> — pointers to other records that conflict with this one, so
+      contradictions are first-class rather than silent.</li>
+      <li><code>provenance</code> — link to the CPE (P3) or receipt (P2) that produced this memory, so
+      every belief traces back to an action or a source.</li>
+      <li><code>quarantine_state</code> — whether the record is live, quarantined (suspected poison),
+      or purged; quarantined records are retained for forensics but excluded from recall.</li>
+      <li><code>supersession</code> — pointer to the record that supersedes this one, if any.</li>
+      <li><code>retention</code> — retention class controlling how long the record lives.</li>
+      <li><code>consent_revocation</code> — handles the case where the consent underpinning a memory is
+      later withdrawn.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>Each AMIL record is signed by its <code>owner</code> via T1 over canonical-CBOR, with a Rekor
+    transparency entry returned. Appending a supersession or marking quarantine is itself a signed
+    operation; the ledger is append-only-by-construction, and a verifier can replay the full history of
+    any <code>record_id</code>.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>Revocation takes three forms, all signed. <strong>Supersession</strong> logically replaces a
+    record by pointing a newer record at it. <strong>Quarantine</strong> removes a record from recall
+    without deleting it (preserving forensic value). <strong>Consent revocation</strong> triggers
+    purging of records whose consent basis has been withdrawn. All three propagate within the I-05
+    budget, and the ledger's append-only nature means none of them can be silent.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P4/</code>: replay (expired/re-used records rejected), tampering (any
+    field change fails verification), confused deputy (wrong audience rejected), privilege
+    amplification (chain intersection that expands authority rejected per I-02), downgrade
+    (unsupported version rejected), replay-across-contexts (detected via <code>subject</code> +
+    <code>jti</code> uniqueness). AMIL additionally demands a <em>poisoning-detection</em> vector: a
+    record injected without proper provenance is rejected at recall.</p>
+
+    <h3>Components that consume it</h3>
+    <p>Future context/memory components — the memory plane that backs long-lived agent recall.
+    <strong>R3</strong> (guardrails) consults quarantine and consent-revocation state before allowing a
+    memory into the context window.</p>
+
+    <h3>Usage example (JSON)</h3>
+<pre><code>{
+  "record_id": "mem_01HZX...",
+  "owner": "spiffe://aumos.dev/agent/coding-agent-7",
+  "confidence": 0.92,
+  "contradiction_links": [],
+  "provenance": "aar:f4c2...-aar",
+  "quarantine_state": "live",
+  "supersession": null,
+  "retention": "task+30d",
+  "consent_revocation": null,
+  "revocation_handle": "rh_mem_01HZX...",
+  "signature": "4e9b...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>AMIL prevents <strong>silent memory poisoning</strong> — the persistent-backdoor class of attack
+    where an adversary edits an agent's long-term memory and the agent dutifully acts on the corrupted
+    belief forever. By making memory append-only, signed, and supersession-explicit, it converts
+    invisible tampering into a detectable, attributable, revocable event.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    references <a href="#p2">P2</a> (<code>provenance</code>), <a href="#p3">P3</a> (provenance graph),
+    <a href="#p9">P9</a> (memory-poisoning incident class).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P5 SSP ====================== -->
+  <section id="p5">
+    <h2><span class="section-number">P5</span>SSP — Secure Skill Package</h2>
+
+    <p><strong>Spelled out:</strong> Secure Skill Package. <strong>Purpose:</strong> distribute agent
+    skills safely. A "skill" bundles instructions, code, the tools it may call, the permissions it
+    requires, the publisher's identity, an OMS (Open Model Specs) signature, an AI-SBOM, an evaluation
+    set, a benchmark, a statement of limitations, and a revocation handle — all in one signed package.
+    SSP is what makes the skill marketplace trustable: a consumer can verify who published a skill, what
+    it actually contains, how it behaved on a known eval set, and what its known limits are, before
+    loading a single instruction into an agent's context.</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>Normative schemas are CDDL and JSON-LD. Mandatory fields:</p>
+    <pre><code>instructions, code, tools, permissions, publisher_identity,
+oms_signature, ai_sbom, eval_set, benchmark, limitations,
+revocation</code></pre>
+
+    <ul>
+      <li><code>instructions</code> — the natural-language prompt/instructions the skill injects.</li>
+      <li><code>code</code> — any executable code the skill carries (scripts, tool adapters).</li>
+      <li><code>tools</code> — tool SPIFFE IDs the skill expects to invoke.</li>
+      <li><code>permissions</code> — a declared permission set the consumer must grant for the skill to
+      function (checked against the consuming agent's AAE).</li>
+      <li><code>publisher_identity</code> — verifiable identity of the publisher.</li>
+      <li><code>oms_signature</code> — signature under the Open Model Specs signing scheme.</li>
+      <li><code>ai_sbom</code> — AI Software Bill of Materials enumerating models, datasets, and
+      dependencies the skill brings.</li>
+      <li><code>eval_set</code> — the evaluation corpus the publisher ran (digests, not contents).</li>
+      <li><code>benchmark</code> — benchmark results the publisher claims.</li>
+      <li><code>limitations</code> — explicit, signed statement of what the skill does <em>not</em> do
+      well.</li>
+      <li><code>revocation</code> — handle and expiry for pulling a poisoned or vulnerable skill.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>The publisher signs via T1 (Ed25519 default, KMS/HSM in production) over the canonical-CBOR of
+    the package, and the <code>oms_signature</code> layer provides the OMS-conformant signature that
+    OMS-aware consumers verify independently. A Rekor transparency entry is returned so the package's
+    publication is publicly auditable and a later "we never shipped that" claim is falsifiable.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>A skill past its <code>expiry</code> is rejected outright. The publisher may revoke by publishing
+    the <code>revocation</code> handle to <code>aumos.&lt;domain&gt;.revoked.v1</code>; this is the
+    primary mechanism for responding to a discovered prompt-injection or vulnerability in a shipped
+    skill, and it propagates fleet-wide within I-05.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P5/</code>: replay, tampering, confused deputy, privilege amplification
+    (I-02), downgrade, and replay-across-contexts. SSP additionally requires a <em>supply-chain</em>
+    vector: a skill whose <code>permissions</code> exceed what its declared <code>tools</code> justify,
+    or whose <code>ai_sbom</code> omits a dependency actually present in <code>code</code>, is
+    rejected.</p>
+
+    <h3>Components that consume it</h3>
+    <p><strong>S4</strong> (skill registry / loader) verifies and loads SSPs; <strong>X8</strong>
+    (marketplace / distribution) serves them. The consuming agent's <strong>R3</strong> guardrails
+    cross-check the skill's declared <code>permissions</code> against the agent's AAE before activation.</p>
+
+    <h3>Usage example (JSON)</h3>
+<pre><code>{
+  "instructions": "When asked to summarize, fetch the URL and ...",
+  "code": "sha256:9d2c...(adapter bundle)",
+  "tools": ["spiffe://aumos.dev/tool/web-fetch"],
+  "permissions": ["web.fetch", "context.write:L1"],
+  "publisher_identity": "spiffe://aumos.dev/publisher/acme",
+  "oms_signature": "oms:sig:3f8a...",
+  "ai_sbom": { "models": [], "datasets": [], "deps": ["web-fetch@1.2"] },
+  "eval_set": "sha256:eval_corpus_7",
+  "benchmark": { "rouge_l": 0.41, "latency_p95_ms": 320 },
+  "limitations": "not reliable on tables > 200 rows",
+  "revocation": { "handle": "rh_ssp_01HZX...", "expiry": 1770000000 },
+  "signature": "b51f...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>SSP prevents <strong>malicious-skill and supply-chain attacks</strong>. A skill cannot silently
+    escalate permissions (declared permissions are checked against the AAE), cannot hide its
+    dependencies (the AI-SBOM is signed and checked against <code>code</code>), and cannot escape
+    accountability for its behavior (the eval set and benchmark are part of the signed package). A
+    poisoned skill is one revocation event away from fleet-wide removal.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    references <a href="#p1">P1</a> (permission check), <a href="#p6">P6</a> (artifact graph),
+    <a href="#p8">P8</a> (eval evidence).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P6 AATM ====================== -->
+  <section id="p6">
+    <h2><span class="section-number">P6</span>AATM — AI Artifact Trust Manifest</h2>
+
+    <p><strong>Spelled out:</strong> AI Artifact Trust Manifest. <strong>Purpose:</strong> bind an
+    entire AI deployment — model, dataset, tokenizer, prompt, adapter, container, policy, skill, and
+    evaluation — into a single signed graph. Where a traditional SBOM lists what is in a container, an
+    AATM lists what is in an <em>agent</em>: every artifact that contributes to a decision, hashed and
+    cross-referenced. It builds on OMS plus SPDX/CycloneDX plus deployment attestations, and it is the
+    protocol that lets a verifier answer "exactly which stack produced this output?" in one round
+    trip.</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>Normative schema is JSON-LD (a graph, not a flat record). Mandatory fields:</p>
+    <pre><code>model, dataset, tokenizer, prompt, adapter, container, policy,
+skill, eval, deployment_attestations</code></pre>
+
+    <ul>
+      <li><code>model</code> — model digest, registry reference, and version.</li>
+      <li><code>dataset</code> — dataset digests and provenance for training and eval data.</li>
+      <li><code>tokenizer</code> — tokenizer version (a tokenizer change is a behavior change).</li>
+      <li><code>prompt</code> — system prompt / instruction template hash.</li>
+      <li><code>adapter</code> — LoRA/adapter weights and their digests, if any.</li>
+      <li><code>container</code> — the container image digest (classic SBOM territory).</li>
+      <li><code>policy</code> — the guardrail policy bundle hash in force.</li>
+      <li><code>skill</code> — the skill package(s) loaded (linking to P5 SSP).</li>
+      <li><code>eval</code> — the evaluation bundle (linking to P8 VEB) attesting behavior.</li>
+      <li><code>deployment_attestations</code> — hardware/runtime attestations (TEE quotes, snpTPM,
+      etc.) proving the deployment actually ran the claimed stack.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>The manifest publisher signs through T1 (Ed25519 default, KMS/HSM in production) over the
+    canonical-CBOR of the JSON-LD graph, and a Rekor transparency entry is returned. Because the graph
+    is a graph, individual nodes (model, dataset, …) may carry their <em>own</em> signatures from their
+    respective publishers; the AATM signature attests the binding, not the contents.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>Expiry applies to the manifest as a whole. The <code>revocation_handle</code> /
+    CloudEvent mechanism withdraws trust in the manifest; downstream consumers re-check on every
+    <code>policy</code> or <code>eval</code> change and propagate revocation within I-05. A revoked
+    model digest in a dataset registry transitively invalidates any AATM that references it.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P6/</code>: replay, tampering, confused deputy, privilege amplification
+    (I-02), downgrade, and replay-across-contexts. AATM additionally requires a <em>graph-tampering</em>
+    vector: swapping a node's digest while leaving the manifest signature intact fails verification,
+    and a manifest that references a non-existent deployment attestation is rejected.</p>
+
+    <h3>Components that consume it</h3>
+    <p><strong>T1</strong> signs/verifies it; <strong>S1</strong> (model/dataset registry) produces
+    the per-artifact nodes; <strong>S4</strong> (skill registry) contributes the skill node; S5
+    (policy) contributes the policy node. The manifest is the single artifact a verifier fetches to
+    reconstruct the full deployment stack.</p>
+
+    <h3>Usage example (JSON-LD sketch)</h3>
+<pre><code>{
+  "@context": "https://aumos.dev/ns/aatm/v1",
+  "model":      { "digest": "sha256:m1...", "ref": "registry/aumos/coding-llm:4.5" },
+  "dataset":    [ { "digest": "sha256:d1...", "role": "eval" } ],
+  "tokenizer":  { "version": "tiktoken@2026-08" },
+  "prompt":     { "digest": "sha256:p1..." },
+  "adapter":    null,
+  "container":  { "digest": "sha256:c1..." },
+  "policy":     { "bundle_hash": "sha256:pol1..." },
+  "skill":      [ "ssp:01HZX..." ],
+  "eval":       "veb:01HZX...",
+  "deployment_attestations": [ "quote:sev-snp:..." ],
+  "revocation_handle": "rh_aatm_01HZX...",
+  "signature": "88c4...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>AATM prevents <strong>"which stack did this?" ambiguity</strong> and the model-swap / silent-
+    fine-tune class of attacks. If a model digest in the wild does not match the digest in the
+    manifest, the deployment is provably not the one that was attested. Combined with deployment
+    attestations, it gives hardware-rooted assurance that the claimed stack actually executed.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    references <a href="#p5">P5</a> (skill node), <a href="#p8">P8</a> (eval node),
+    <a href="#p12">P12</a> (runtime attestation).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P7 ABS ====================== -->
+  <section id="p7">
+    <h2><span class="section-number">P7</span>ABS — Autonomy Budget Specification</h2>
+
+    <p><strong>Spelled out:</strong> Autonomy Budget Specification. <strong>Purpose:</strong> a
+    machine-enforceable budget that caps how much autonomy an agent may exercise. Autonomy is
+    multidimensional — steps, wall-clock time, tokens, money, external calls, data volume, privilege
+    level, irreversible actions, and expected risk — and ABS captures all of them as hard ceilings that
+    the runtime (R3) checks on every consequential operation. Where AAE (P1) says <em>what</em> an agent
+    may do, ABS says <em>how much</em>, in every dimension that can run away.</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>Normative schema is CDDL. Mandatory fields:</p>
+    <pre><code>steps, wall_clock, tokens, money, external_calls, data_volume,
+privilege, irreversible_actions, expected_risk</code></pre>
+
+    <ul>
+      <li><code>steps</code> — maximum number of agent steps (reasoning/tool-call iterations).</li>
+      <li><code>wall_clock</code> — maximum elapsed wall-clock seconds.</li>
+      <li><code>tokens</code> — maximum inference tokens consumed.</li>
+      <li><code>money</code> — maximum spend in minor currency units (mirrors AAE's
+      <code>spend_budget</code> but as a runtime-enforced aggregate).</li>
+      <li><code>external_calls</code> — maximum number of external (out-of-process) calls.</li>
+      <li><code>data_volume</code> — maximum bytes transferred in or out.</li>
+      <li><code>privilege</code> — maximum privilege class the agent may exercise.</li>
+      <li><code>irreversible_actions</code> — cap on actions whose <code>side_effect_class</code> is
+      destructive/physical/financial.</li>
+      <li><code>expected_risk</code> — an aggregate expected-risk ceiling the agent may not exceed;
+      exceeded risk forces a human checkpoint.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>The delegating authority signs the ABS through T1 (Ed25519 default, KMS/HSM in production) over
+    canonical-CBOR, with a Rekor entry returned. The budget is bound to the AAE: an agent's runtime
+    presents its AAE plus the ABS, and R3 enforces both. Because the ABS is signed, an agent cannot
+    quietly raise its own ceilings.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>The budget itself does not "revoke," but it <em>expires</em>: past <code>expiry</code> the agent
+    loses all autonomy. The issuer may also revoke the budget early via the
+    <code>revocation_handle</code> / CloudEvent mechanism (for example, when a runaway is detected),
+    with fleet-wide propagation inside I-05. A budget that has been exhausted in any dimension is
+    treated as expired for that dimension.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P7/</code>: replay, tampering, confused deputy, privilege amplification
+    (I-02), downgrade, replay-across-contexts. ABS additionally requires a <em>budget-evasion</em>
+    vector: an agent that splits work across sub-tasks to dodge a per-step ceiling, or that attempts to
+    reset a counter by re-issuing its own budget, is detected and rejected.</p>
+
+    <h3>Components that consume it</h3>
+    <p><strong>I1</strong> (agent-identity) binds the ABS to the AAE at issuance; <strong>R3</strong>
+    (guardrails / runtime policy) enforces every ceiling on every consequential operation. The runtime
+    blocks the operation — or forces a human checkpoint — when any dimension is exhausted.</p>
+
+    <h3>Usage example (JSON)</h3>
+<pre><code>{
+  "steps": 50,
+  "wall_clock": 1800,
+  "tokens": 250000,
+  "money": 500,
+  "external_calls": 20,
+  "data_volume": 10485760,
+  "privilege": "write",
+  "irreversible_actions": 0,
+  "expected_risk": 0.15,
+  "expiry": 1767897600,
+  "revocation_handle": "rh_abs_01HZX...",
+  "signature": "02ae...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>ABS prevents <strong>runaway-agent and resource-exhaustion attacks</strong> — the agent that
+    burns a thousand dollars of compute, the agent that makes a million external calls, the agent that
+    escalates privilege step by step. By capping every dimension and binding the cap to the signed AAE,
+    it makes "the agent went off" bounded and billable rather than open-ended.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    references <a href="#p1">P1</a> (<code>spend_budget</code>, <code>time_budget</code>,
+    <code>token_budget</code>), enforced by R3.</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P8 VEB ====================== -->
+  <section id="p8">
+    <h2><span class="section-number">P8</span>VEB — Verifiable Evaluation Bundle</h2>
+
+    <p><strong>Spelled out:</strong> Verifiable Evaluation Bundle. <strong>Purpose:</strong> make agent
+    evaluation reproducible and trustworthy. A VEB captures everything needed to re-run an evaluation
+    and confirm the claimed result: the test-corpus digest, the environment, the exact model, harness,
+    and policy versions, the random seeds, the execution traces, the judge-model version, the
+    deterministic assertions that must hold, and the signed result. It is the protocol that turns "we
+    evaluated it and it scored X" from a marketing claim into a checkable fact.</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>Normative schema is CDDL. Mandatory fields:</p>
+    <pre><code>corpus_digest, environment, model_version, harness_version,
+policy_version, seeds, traces, judge_version,
+deterministic_assertions, signed_result</code></pre>
+
+    <ul>
+      <li><code>corpus_digest</code> — SHA-256 of the test corpus; pinning the inputs.</li>
+      <li><code>environment</code> — the runtime environment (container, hardware, region) so a
+      verifier can reproduce conditions.</li>
+      <li><code>model_version</code> — exact model digest under evaluation.</li>
+      <li><code>harness_version</code> — the eval-harness version, since harness bugs skew results.</li>
+      <li><code>policy_version</code> — the guardrail policy bundle in force during eval.</li>
+      <li><code>seeds</code> — random seeds used, making stochastic runs reproducible.</li>
+      <li><code>traces</code> — execution traces (or commitments to them) enabling replay and audit.</li>
+      <li><code>judge_version</code> — for LLM-as-judge evals, the exact judge model and version;
+      without this, judge drift invalidates comparisons.</li>
+      <li><code>deterministic_assertions</code> — assertions that must hold deterministically (echoing
+      P2's deterministic-check semantics) so non-determinism is bounded.</li>
+      <li><code>signed_result</code> — the claimed result, signed.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>The evaluator signs the bundle via T1 (Ed25519 default, KMS/HSM in production) over
+    canonical-CBOR; the <code>signed_result</code> field is itself signed. A Rekor entry is returned so
+    that the existence of an evaluation — and its ordering relative to model releases — is publicly
+    auditable. This forecloses "we ran the eval later" revisionism.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>A VEB does not revoke; it is evidence. However, the underlying model/policy referenced may be
+    revoked via its own protocol (AATM, P6), at which point the VEB remains valid as a historical
+    record but no longer authorizes deployment. The <code>expiry</code> and
+    <code>revocation_handle</code> machinery applies to the bundle's authority chain and propagates per
+    I-05.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P8/</code>: replay, tampering, confused deputy, privilege amplification
+    (I-02), downgrade, replay-across-contexts. VEB additionally requires a <em>reproducibility</em>
+    vector: re-running the bundle with the captured corpus, seeds, and versions reproduces the signed
+    result within the deterministic-assertion tolerances, and a bundle whose <code>corpus_digest</code>
+    does not match the supplied corpus is rejected.</p>
+
+    <h3>Components that consume it</h3>
+    <p><strong>A1</strong> (eval harness) produces VEBs; <strong>A5</strong> (continuous evaluation)
+    consumes them to gate releases; <strong>A6</strong> (conformance suite) uses VEBs as the evidence
+    format for cross-language conformance. A VEB is also the <code>eval</code> node of an AATM (P6).</p>
+
+    <h3>Usage example (JSON)</h3>
+<pre><code>{
+  "corpus_digest": "sha256:eval_corpus_7",
+  "environment": { "container": "sha256:c1...", "hw": "gpu.a100" },
+  "model_version": "claude-opus-4.5@sha256:m1...",
+  "harness_version": "aumos-eval@1.4.0",
+  "policy_version": "sha256:pol1...",
+  "seeds": [42, 1729],
+  "traces": "sha256:trace_bundle_01HZX...",
+  "judge_version": "claude-opus-4.5@sha256:m1...",
+  "deterministic_assertions": [
+    {"name": "no_secret_in_output", "tolerance": 0}
+  ],
+  "signed_result": { "score": 0.87, "sig": "5c1d..." },
+  "revocation_handle": "rh_veb_01HZX...",
+  "signature": "33fa...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>VEB prevents <strong>eval-washing and benchmark-gaming</strong>. A model cannot quietly swap
+    between "we tested it" and "we shipped it"; the corpus, seeds, versions, and judge are pinned. A
+    verifier can reproduce the result and detect any drift in model, harness, policy, or judge that
+    would otherwise inflate a score.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    <code>docs/rfcs/A6-conformance.md</code> ·
+    referenced by <a href="#p5">P5</a> (eval_set), <a href="#p6">P6</a> (eval node).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P9 AIX ====================== -->
+  <section id="p9">
+    <h2><span class="section-number">P9</span>AIX — Agent Incident Exchange</h2>
+
+    <p><strong>Spelled out:</strong> Agent Incident Exchange. <strong>Purpose:</strong> a normalized
+    format for reporting and exchanging agent-security incidents. AIX covers the canonical incident
+    classes for autonomous agents — goal hijack, memory poisoning, tool abuse, identity compromise,
+    data exfiltration, and rogue delegation — and maps each to MITRE ATLAS tactics/techniques and OCSF
+    event classes. Where a SIEM ingests firewall logs, AIX is what a SIEM ingests for agents: one
+    schema, one taxonomy, one exchange contract.</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>Normative schema is an OCSF extension expressed in JSON. Mandatory fields:</p>
+    <pre><code>incident_id, type, severity, agent, authority, evidence_refs,
+mitre_atlas_id, ocsf_class, detected_at, contained_at</code></pre>
+
+    <ul>
+      <li><code>incident_id</code> — unique identifier for the incident.</li>
+      <li><code>type</code> — the incident class (<em>goal_hijack | memory_poisoning | tool_abuse |
+      identity_compromise | exfiltration | rogue_delegation</em>).</li>
+      <li><code>severity</code> — normalized severity for routing and paging.</li>
+      <li><code>agent</code> — the SPIFFE ID of the affected or implicated agent.</li>
+      <li><code>authority</code> — the AAE (P1) hash in force when the incident occurred.</li>
+      <li><code>evidence_refs</code> — pointers to the receipts (P2), provenance (P3), and memory
+      records (P4) that constitute the evidence chain.</li>
+      <li><code>mitre_atlas_id</code> — the mapped MITRE ATLAS tactic/technique ID.</li>
+      <li><code>ocsf_class</code> — the mapped OCSF event class UID for SIEM ingestion.</li>
+      <li><code>detected_at</code> / <code>contained_at</code> — timestamps bounding detection and
+      containment (the gap between them is a key MTTC metric).</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>The detecting component signs the incident via T1 (Ed25519 default, KMS/HSM in production) over
+    canonical-CBOR, with a Rekor entry returned. Signing incidents matters because an unsigned incident
+    report could itself be the injection — a forged "your agent is compromised" message designed to
+    trigger a destructive response. The signature lets the recipient prove the report came from a
+    trusted detector.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>An incident is not revoked; it transitions state (detected → contained → resolved). However, an
+    incident frequently <em>triggers</em> revocation: an <code>identity_compromise</code> incident
+    publishes the AAE <code>revocation_handle</code>, propagating within I-05. The
+    <code>revocation_handle</code> / CloudEvent machinery applies to the incident's authority chain.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P9/</code>: replay, tampering, confused deputy, privilege amplification
+    (I-02), downgrade, replay-across-contexts. AIX additionally requires a <em>taxonomy-mapping</em>
+    vector: an incident whose <code>mitre_atlas_id</code> or <code>ocsf_class</code> is inconsistent
+    with its <code>type</code> is rejected, and a forged (unsigned) incident is rejected by downstream
+    responders.</p>
+
+    <h3>Components that consume it</h3>
+    <p><strong>X9</strong> (incident response) produces and consumes AIX; <strong>R3</strong>
+    (guardrails) subscribes to the incident stream to trigger automatic containment (e.g., revoking an
+    implicated AAE or quarantining implicated memory).</p>
+
+    <h3>Usage example (JSON)</h3>
+<pre><code>{
+  "incident_id": "inc_01HZX...",
+  "type": "memory_poisoning",
+  "severity": "high",
+  "agent": "spiffe://aumos.dev/agent/coding-agent-7",
+  "authority": "sha256:8a1f...(AAE)",
+  "evidence_refs": ["aar:f4c2...", "amil:mem_01HZX..."],
+  "mitre_atlas_id": "AML.T.0048",
+  "ocsf_class": "6003",
+  "detected_at": 1767811300,
+  "contained_at": 1767811310,
+  "revocation_handle": "rh_inc_01HZX...",
+  "signature": "77b1...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>AIX prevents <strong>incident fragmentation and response fragmentation</strong>. Without a
+    common schema, each vendor invents its own incident format and the SOC cannot correlate. By
+    normalizing to OCSF + MITRE ATLAS, AIX makes agent incidents first-class in existing security
+    operations, enables cross-organization threat intel, and — because reports are signed — defeats the
+    "fake incident as a vector" attack.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    references <a href="#p1">P1</a> (authority), <a href="#p2">P2</a>, <a href="#p3">P3</a>,
+    <a href="#p4">P4</a> (evidence), <a href="#p11">P11</a> (remediation).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P10 MADE ====================== -->
+  <section id="p10">
+    <h2><span class="section-number">P10</span>MADE — Multi-Agent Delegation Exchange</h2>
+
+    <p><strong>Spelled out:</strong> Multi-Agent Delegation Exchange. <strong>Purpose:</strong> govern
+    how agents delegate work — and exchange results — with other agents. MADE enforces four
+    invariants: delegation is always <em>attenuated</em> (the delegatee gets a strict subset of the
+    delegator's authority, never a superset — no privilege amplification), the chain carries an explicit
+    <em>hop count</em>, sensitive actions require an explicit <em>quorum</em>, and every delegation
+    carries <em>evidence requirements</em> the delegatee must satisfy. It is the protocol that lets
+    multi-agent systems federate across trust domains without becoming a free-for-all.</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>Normative schema is CDDL. Mandatory fields:</p>
+    <pre><code>delegation_chain, hop_count, quorum, evidence_requirements,
+trust_domain, result, signature</code></pre>
+
+    <ul>
+      <li><code>delegation_chain</code> — the ordered chain of AAEs (P1) from originator to current
+      delegatee; each link must be a strict attenuation of the prior.</li>
+      <li><code>hop_count</code> — number of delegation hops consumed; exceeding the originator's
+      <code>delegation_depth</code> rejects the chain.</li>
+      <li><code>quorum</code> — the set of approvers required for the delegated action (links to AAE's
+      <code>approvals</code>, invariant I-08).</li>
+      <li><code>evidence_requirements</code> — the receipts (P2), provenance (P3), or attestations
+      (P12) the delegatee must produce with its result.</li>
+      <li><code>trust_domain</code> — the trust domain boundary; cross-domain delegation requires
+      explicit federation consent.</li>
+      <li><code>result</code> — the result payload returned up the chain.</li>
+      <li><code>signature</code> — the delegatee's signature over the canonical-CBOR of the exchange,
+      binding the result to the chain.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>Each agent in the chain signs its hop via T1 (Ed25519 default, KMS/HSM in production) over
+    canonical-CBOR, and a Rekor entry is returned. Because the chain is a chain of signatures, a
+    verifier can independently validate every link; a single missing or invalid signature breaks the
+    chain and rejects the result.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>Revoking any AAE in the <code>delegation_chain</code> retroactively invalidates every downstream
+    hop. The <code>revocation_handle</code> / CloudEvent mechanism propagates this within I-05, so a
+    compromised mid-chain agent cannot continue to exercise authority granted by a now-revoked parent.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P10/</code>: replay, tampering, confused deputy, privilege amplification
+    (I-02 — the headline invariant for MADE; a chain that would expand authority is rejected),
+    downgrade, replay-across-contexts. MADE additionally requires a <em>hop-exhaustion</em> vector: a
+    chain that exceeds the originator's <code>delegation_depth</code> is rejected, and a cross-domain
+    delegation without federation consent is rejected.</p>
+
+    <h3>Components that consume it</h3>
+    <p><strong>I1</strong> (agent-identity) in the multi-agent future. MADE is the protocol that lets
+    R3/R4 guardrails reason about delegated authority: rather than trust the immediate caller blindly,
+    the runtime validates the full chain and enforces attenuation at every hop.</p>
+
+    <h3>Usage example (JSON)</h3>
+<pre><code>{
+  "delegation_chain": [
+    "aae:01HZX...(originator)",
+    "aae:01HZY...(attenuated to sub-agent)"
+  ],
+  "hop_count": 2,
+  "quorum": ["spiffe://aumos.dev/human/alice"],
+  "evidence_requirements": ["aar:required", "cap:required"],
+  "trust_domain": "aumos.dev",
+  "result": { "status": "ok", "diff": "sha256:..." },
+  "revocation_handle": "rh_made_01HZX...",
+  "signature": "99e2...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>MADE enforces invariant <strong>I-02 (no privilege amplification)</strong> in the multi-agent
+    setting. It prevents the rogue-sub-agent attack, the delegation-depth-exhaustion attack, and the
+    unauthorized cross-trust-domain hop. By making attenuation signed and verifiable at every link, it
+    makes a federation of agents behave like a single least-privileged system.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    references <a href="#p1">P1</a> (delegation chain), <a href="#p2">P2</a>, <a href="#p3">P3</a>,
+    <a href="#p12">P12</a> (evidence).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P11 PRB ====================== -->
+  <section id="p11">
+    <h2><span class="section-number">P11</span>PRB — Proof-Carrying Remediation Bundle</h2>
+
+    <p><strong>Spelled out:</strong> Proof-Carrying Remediation Bundle. <strong>Purpose:</strong> ship
+    a vulnerability fix that <em>carries its own proof of correctness</em>. A PRB bundles a reproducer,
+    a root cause, an affected-version graph, the patch, tests, regression evidence, build provenance,
+    signed artifacts, and — critically — an embargo marker. Where a normal patch says "install this,"
+    a PRB says "here is how to reproduce the bug, here is why this patch fixes it, here is the proof
+    that the patch does not regress, and here is when you are allowed to talk about it."</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>Normative schemas are CDDL and JSON-LD. Mandatory fields:</p>
+    <pre><code>reproducer, root_cause, affected_versions, patch, tests,
+regression_evidence, build_provenance, signed_artifacts, embargo</code></pre>
+
+    <ul>
+      <li><code>reproducer</code> — a signed, runnable reproducer for the vulnerability; without it,
+      the fix is unverifiable.</li>
+      <li><code>root_cause</code> — a structured root-cause analysis (not free text) tying the fix to
+      the cause.</li>
+      <li><code>affected_versions</code> — a graph of which versions are affected, fixed, and not-
+      affected, so consumers can route the patch correctly.</li>
+      <li><code>patch</code> — the patch itself, digest-pinned.</li>
+      <li><code>tests</code> — the tests that demonstrate the fix.</li>
+      <li><code>regression_evidence</code> — evidence (often a VEB, P8) that the patch does not regress
+      existing behavior.</li>
+      <li><code>build_provenance</code> — provenance of the built artifacts (SLSA-style), tying back to
+      AATM (P6).</li>
+      <li><code>signed_artifacts</code> — the signed, ready-to-deploy binaries or images.</li>
+      <li><code>embargo</code> — embargo window and disclosure recipients; an embargo-preserving PRB
+      redacts exploit detail until the window closes.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>The remediator signs the bundle via T1 (Ed25519 default, KMS/HSM in production) over
+    canonical-CBOR, and each <code>signed_artifact</code> carries its own signature. A Rekor entry is
+    returned so the bundle's publication is auditable — important for disclosure-timing disputes.
+    Embargo handling means the public Rekor entry may carry a redacted bundle, with the full bundle
+    available only to disclosed recipients under a separate signed envelope.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>A PRB is itself a remediation for a revocation: it is the artifact that retires a vulnerable
+    version. The <code>revocation_handle</code> / CloudEvent mechanism applies to the bundle's
+    authority (the fix is withdrawn if a follow-up bug is found), and propagation follows I-05. The
+    <code>affected_versions</code> graph drives automatic fleet-wide supersession once the fix is
+    verified.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P11/</code>: replay, tampering, confused deputy, privilege amplification
+    (I-02), downgrade, replay-across-contexts. PRB additionally requires a <em>proof-carrying</em>
+    vector: a bundle whose <code>regression_evidence</code> does not actually exercise the
+    <code>patch</code>, or whose <code>reproducer</code> fails to reproduce, is rejected, and an
+    embargo violation (disclosure before window close) is detectable.</p>
+
+    <h3>Components that consume it</h3>
+    <p><strong>S9</strong> (vulnerability response / remediation) produces and consumes PRBs;
+    <strong>X9</strong> (incident response) routes PRBs as the remediation arm of an AIX (P9)
+    incident. Automated update systems verify the bundle's proof before applying the patch.</p>
+
+    <h3>Usage example (JSON)</h3>
+<pre><code>{
+  "reproducer": "sha256:repro_01HZX...",
+  "root_cause": { "class": "prompt_injection", "path": "tool/web-fetch" },
+  "affected_versions": { "affected": ["ssp@<1.3"], "fixed": ["ssp@1.3"] },
+  "patch": "sha256:patch_01HZX...",
+  "tests": ["sha256:test_injection_1", "sha256:test_injection_2"],
+  "regression_evidence": "veb:01HZX...",
+  "build_provenance": { "slsa_level": "L3", "aatm": "aatm:01HZX..." },
+  "signed_artifacts": [ { "ref": "ssp@1.3", "sig": "1f8c..." } ],
+  "embargo": { "until": 1767984000, "recipients": ["sec@aumos.dev"] },
+  "revocation_handle": "rh_prb_01HZX...",
+  "signature": "44bd...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>PRB prevents <strong>malicious-patch and regression-slip attacks</strong>. A patch cannot ship
+    without a reproducer and regression evidence, so "trust this fix" becomes "verify this fix."
+    Embargo preservation means coordinated disclosure survives automation, and signed build provenance
+    prevents a supply-chain attacker from substituting a patched-looking but malicious artifact.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    references <a href="#p6">P6</a> (build provenance), <a href="#p8">P8</a> (regression evidence),
+    <a href="#p9">P9</a> (incident remediation).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== P12 CAP ====================== -->
+  <section id="p12">
+    <h2><span class="section-number">P12</span>CAP — Capability Attestation Profile</h2>
+
+    <p><strong>Spelled out:</strong> Capability Attestation Profile. <strong>Purpose:</strong> declare
+    and verify what an agent can <em>actually do</em> in a specific runtime — not what it is
+    <em>authorized</em> to do (that is P1 AAE), but what the concrete runtime permits it to do. A CAP
+    enumerates the available tools, the enforced policy, the credentials present, the network
+    reachability, the memory configuration, the model, the sandbox, and the hardware attestation
+    evidence proving the claim. It is the protocol that lets a verifier confirm "this agent really is
+    confined the way you say it is," closing the gap between policy-on-paper and policy-in-fact.</p>
+
+    <h3>Schema sketch (mandatory fields)</h3>
+    <p>Normative schema is CDDL. Mandatory fields:</p>
+    <pre><code>runtime, tools, policy, credentials, network, memory, model,
+sandbox, attestation_evidence</code></pre>
+
+    <ul>
+      <li><code>runtime</code> — the concrete runtime (process, container, TEE) hosting the agent.</li>
+      <li><code>tools</code> — the tools actually available in this runtime (distinct from the tools the
+      AAE <em>permits</em> — the intersection is what the agent may invoke).</li>
+      <li><code>policy</code> — the policy bundle actually enforced by the guardrails (R3), hashed.</li>
+      <li><code>credentials</code> — the credentials present in the runtime (and, by selective
+      disclosure, not their secrets).</li>
+      <li><code>network</code> — the network egress actually possible from the sandbox.</li>
+      <li><code>memory</code> — the memory configuration and any AMIL (P4) bindings.</li>
+      <li><code>model</code> — the model actually serving inference (linking to AATM, P6).</li>
+      <li><code>sandbox</code> — the sandbox type and version confining the runtime.</li>
+      <li><code>attestation_evidence</code> — hardware attestation evidence (SEV-SNP quote, TPM quote,
+      etc.) cryptographically rooting the claim.</li>
+    </ul>
+
+    <h3>Signing requirements (T1 trust-core)</h3>
+    <p>The runtime (or its attesting host) signs the CAP via T1 (Ed25519 default, KMS/HSM in
+    production) over canonical-CBOR, and a Rekor entry is returned. The <code>attestation_evidence</code>
+    field carries a hardware signature (e.g., a SEV-SNP attestation report) that the verifier checks
+    <em>in addition to</em> the T1 signature, so a compromised host cannot lie about its own
+    confinement. This dual-rooting is what makes a CAP a real attestation rather than a self-assertion.</p>
+
+    <h3>Revocation semantics</h3>
+    <p>A CAP is short-lived (its <code>expiry</code> is tight, typically matching the AAE's capability-
+    token TTL). The <code>revocation_handle</code> / CloudEvent mechanism withdraws a CAP when the
+    runtime is found to be misconfigured or compromised, and propagation follows I-05 — credentials in
+    particular propagate within the &lt; 1s credential budget. A CAP whose hardware attestation fails
+    replay-protection checks is rejected immediately.</p>
+
+    <h3>Adversarial test vectors required for conformance</h3>
+    <p>Under <code>testvectors/P12/</code>: replay, tampering, confused deputy, privilege amplification
+    (I-02), downgrade, replay-across-contexts. CAP additionally requires an <em>attestation-forgery</em>
+    vector: a CAP whose claimed <code>sandbox</code> or <code>network</code> does not match the
+    <code>attestation_evidence</code> is rejected, and a CAP with stale (replayed) attestation evidence
+    is rejected by freshness checks.</p>
+
+    <h3>Components that consume it</h3>
+    <p><strong>R1</strong> and <strong>R2</strong> (runtime / sandbox) produce CAPs as a condition of
+    agent startup; <strong>I1</strong> (agent-identity) consumes the CAP to bind the issued SVID to a
+    verified runtime. A delegating agent may demand a counterparty's CAP before accepting a MADE (P10)
+    delegation, ensuring the delegatee actually runs in a confining sandbox.</p>
+
+    <h3>Usage example (JSON)</h3>
+<pre><code>{
+  "runtime": "container@sha256:r1...",
+  "tools": ["spiffe://aumos.dev/tool/github-cli"],
+  "policy": "sha256:pol1...",
+  "credentials": ["spiffe-svid", "gh-token(readonly)"],
+  "network": "egress:github.com:443",
+  "memory": { "amil": "amil:ledger_01HZX...", "mode": "sandboxed" },
+  "model": "claude-opus-4.5@sha256:m1...",
+  "sandbox": "firecracker@1.7",
+  "attestation_evidence": "sev-snp:quote:01HZX...",
+  "expiry": 1767811500,
+  "revocation_handle": "rh_cap_01HZX...",
+  "signature": "66ad...ed25519hex"
+}</code></pre>
+
+    <h3>Benefits — invariant enforced, attack prevented</h3>
+    <p>CAP prevents <strong>policy-vs-runtime drift</strong> and the "agent that runs unconfined while
+    claiming to be confined" attack. By cryptographically rooting the capability claim in hardware
+    attestation, it converts sandboxing and network policy from assertions a host can lie about into
+    facts a verifier can check. It is the protocol that makes the difference between an agent that is
+    <em>supposed</em> to be sandboxed and an agent that <em>is</em> sandboxed.</p>
+
+    <h3>Cross-references</h3>
+    <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
+    references <a href="#p1">P1</a> (capability token TTL), <a href="#p4">P4</a> (memory),
+    <a href="#p6">P6</a> (model), <a href="#p10">P10</a> (delegation precondition).</p>
+  </section>
+
+  <hr>
+
+  <!-- ====================== CROSS-CUTTING SUMMARY ====================== -->
+  <section id="summary">
+    <h2><span class="section-number">16</span>Cross-Cutting Summary</h2>
+
+    <p>The twelve protocols form a single mesh rather than twelve islands. The table below captures the
+    primary structural links between them; in practice the graph is denser because every protocol
+    carries a <code>revocation_handle</code> that any other protocol's revocation stream can void.</p>
+
+    <table>
+      <thead>
+        <tr><th>Protocol</th><th>Enforces invariant</th><th>Prevents attack</th><th>Key cross-refs</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>P1 AAE</strong></td><td>Least privilege per task (I-08)</td><td>Confused deputy, privilege amplification (I-02)</td><td>→ P2, P7, P10, P12</td></tr>
+        <tr><td><strong>P2 AAR</strong></td><td>Evidence precedes commitment (I-07)</td><td>Retroactive log tampering</td><td>→ P1, P3</td></tr>
+        <tr><td><strong>P3 CPE</strong></td><td>Purpose-bound data use (I-03)</td><td>Indirect prompt-injection exfiltration</td><td>→ P2, P4</td></tr>
+        <tr><td><strong>P4 AMIL</strong></td><td>No silent memory poisoning</td><td>Persistent memory backdoor</td><td>→ P2, P3, P9</td></tr>
+        <tr><td><strong>P5 SSP</strong></td><td>Declared permissions checked</td><td>Malicious-skill, supply-chain</td><td>→ P1, P6, P8</td></tr>
+        <tr><td><strong>P6 AATM</strong></td><td>Full-stack binding</td><td>Silent model swap / fine-tune</td><td>→ P5, P8, P12</td></tr>
+        <tr><td><strong>P7 ABS</strong></td><td>Multi-dim budget caps</td><td>Runaway / resource exhaustion</td><td>→ P1</td></tr>
+        <tr><td><strong>P8 VEB</strong></td><td>Reproducible eval</td><td>Eval-washing, benchmark gaming</td><td>→ P5, P6, A6</td></tr>
+        <tr><td><strong>P9 AIX</strong></td><td>Signed incident reports</td><td>Fake-incident-as-vector, fragmentation</td><td>→ P1, P2, P3, P4, P11</td></tr>
+        <tr><td><strong>P10 MADE</strong></td><td>No privilege amplification (I-02)</td><td>Rogue sub-agent, depth exhaustion</td><td>→ P1, P2, P3, P12</td></tr>
+        <tr><td><strong>P11 PRB</strong></td><td>Proof-carrying fix</td><td>Malicious patch, regression slip</td><td>→ P6, P8, P9</td></tr>
+        <tr><td><strong>P12 CAP</strong></td><td>Runtime matches policy</td><td>Unconfined-agent-claiming-confinement</td><td>→ P1, P4, P6, P10</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout info">
+      <div class="callout-title">Shared mechanism across all twelve</div>
+      <p>Every protocol is (a) signed by T1 trust-core over canonical-CBOR, (b) issued with an explicit
+      <code>expiry</code>, (c) revocable via the <code>aumos.&lt;domain&gt;.revoked.v1</code> CloudEvent
+      on Kafka with I-05 propagation budgets, (d) shipped with the same six adversarial test-vector
+      classes under <code>testvectors/P&lt;n&gt;/</code>, and (e) enforced cross-language by A6. The
+      diversity is in the <em>fields</em>; the engineering discipline is uniform.</p>
+    </div>
+
+    <div class="callout">
+      <div class="callout-title">Source of truth</div>
+      <p>The normative sources for this page are <code>specs/protocols/README.md</code>,
+      <code>specs/protocols/P1-aae.md</code> … <code>specs/protocols/P12-cap.md</code>,
+      <code>specs/protocols/P1-aae.cddl</code>, <code>specs/protocols/P1-aae.schema.json</code>,
+      <code>proto/aumos/identity/v1/agent.proto</code> (AAE message), and
+      <code>proto/aumos/protocols/v1/aar.proto</code> (AAR message). When this page and the specs
+      disagree, the specs win.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="doc-header" style="margin-top:var(--space-2xl);text-align:center">
+  <p class="subtitle">AumOS Open Protocols · spec-first, language-neutral, adversarially tested ·
+  <a href="index.html">Back to index</a></p>
+</footer>
+
+</body>
+</html>
