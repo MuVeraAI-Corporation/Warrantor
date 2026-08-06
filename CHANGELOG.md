@@ -9,7 +9,26 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
-### Added — Wave 3 (supply chain + eval)
+### Added — Wave 4 (inference stack)
+
+- **N1 open-serve-kit** v1.0 (Go, 7 tests): OpenAI-compatible /v1/chat/completions proxy with
+  per-model router; pluggable backends (vLLM/Triton/TensorRT-LLM/Ollama/Mock); optional
+  attestation envelope per response; healthz/versionz.
+- **N2 bridge-rt** v1.0 (Python, 17 tests): unified generate() API auto-selecting
+  TRT-LLM > vLLM > Ollama > Mock; **TRT-LLM v0.16 sampler_type detection and adaptation**;
+  CLI probe + generate.
+- **N3 inference-proxy** v1.0 (Rust, 10 tests): middleware chain — allow-list/open auth,
+  per-identity token-bucket rate limit, prompt-injection/PII/content-policy filter, exact-match
+  cache. Cache hit verified end-to-end.
+- **N4 tenant-guard** v1.0 (Go, 9 tests): multi-tenant GPU scheduler; MIG (hw) + MPS (sw)
+  + none isolation; per-tenant quota; per-tenant AAE attestation enforcement; MIG-limit cap.
+- **Wave-4 integration guide + verification report**.
+
+### Verified at the Wave-4 exit gate
+- 224 tests passing total (93 Rust + 107 Python + 24 Go).
+- 24 components at v1.0.0 shipped across Waves 1–4.
+
+## [1.0.0] — Wave 3 (supply chain + eval)
 
 - **S2 provena-chain** v1.0 (Rust, 11 tests): Merkle provenance ledger; entry append with
   deterministic leaf hashes; checkpoint sign/verify (Ed25519) anchored to a transparency log;
