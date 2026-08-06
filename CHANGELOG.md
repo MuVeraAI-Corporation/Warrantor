@@ -9,7 +9,38 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
-### Added — Wave 1.5 (CI hardening)
+### Added — Wave 2 (keystone + foundations)
+
+- **T2 authority-spec** v1.0 (Rust, 9 tests): normative Agent Authority Envelope (P1 AAE) CDDL +
+  JSON-Schema schemas (`specs/protocols/P1-aae.{cddl,schema.json}`) + Rust reference validator
+  enforcing signature, expiry, side-effect class, I-08 approval, delegation depth.
+- **I1 agent-identity** v1.0 (Go, 8 tests): real SPIFFE-style SVID issuance + JWT capability
+  tokens + delegation chain with intersection semantics (invariant I-02) + in-memory revocation
+  meeting the 5s budget (I-05). HTTP/JSON gateway at `/v1/agent-identity:{issue,verify,revoke}`.
+  Go activation gate cleared (trigger #3).
+- **E1 flight-recorder** v1.0 (Rust, 8 tests): signed Agent Action Receipts (P2 AAR) emitted
+  pre-commit (invariant I-07), tamper detection, OCSF + OTel JSON export.
+- **S1 safe-tensors-pp** v1.0 (Rust, 7 tests): `__provenance__` block in the safetensors header,
+  Ed25519 sign/verify, tamper detection, write/read round-trip, backward-compatible with unsigned
+  files.
+- **S4 model-sbom** v1.0 (Python, 8 tests): CycloneDX 1.5 + SPDX 3.0 SBOM generator with the
+  AI extensions (model.architecture, .parameters, .training_data, .base_model, .evaluations,
+  .license). CLI.
+- **A6 conformance** v1.0 (Rust + Python + Go, 1 vector × 3 langs): cross-language conformance
+  runner proving the same Ed25519 signature verifies identically in all three languages.
+- **A5 agentsec-lab** v1.0 (Python, 9 tests): adversarial benchmark framework with rotating
+  holdouts, maintainer-first disclosure gating; built-in prompt-injection scenario + refusing and
+  compliant baselines.
+- **Wire-off-mock documentation**: `docs/wave-2-integration-guide.md` documenting how Wave-1
+  components (R2, R3, R4) consume the real Go I1 instead of the proto mock.
+- **Wave-2 verification report**: `docs/wave-2-verification-report.md`.
+
+### Verified at the Wave-2 exit gate
+- 106 tests passing total (72 Rust + 26 Python + 8 Go).
+- clippy clean with `-D warnings`; buf lint clean.
+- Cross-language Ed25519 verification confirmed in Rust + Python + Go.
+
+## [1.0.0] — Wave 1.5 (CI hardening)
 
 - **CI**: main workflow (`.github/workflows/ci.yml`) — buf lint + breaking, Rust test/clippy/fmt,
   Python test/ruff, conformance + docs gate scripts. Runs on every push and pull request.

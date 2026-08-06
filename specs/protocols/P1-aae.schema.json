@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aumos.dev/schemas/protocols/v1/aae.schema.json",
+  "title": "Agent Authority Envelope (P1 AAE)",
+  "description": "Signed task-specific delegation: who may act, for whom, on what, using which resources, for which purpose, within what limits, until when, with which approvals and obligations. See specs/protocols/P1-aae.md.",
+  "type": "object",
+  "required": [
+    "issuer", "subject", "purpose", "resources", "tools", "data_classes",
+    "side_effect_class", "spend_budget", "time_budget_seconds", "token_budget",
+    "geography", "delegation_depth", "approvals", "expiry", "revocation_handle", "signature"
+  ],
+  "properties": {
+    "issuer": { "type": "string", "description": "SPIFFE ID of the issuer (e.g. spiffe://aumos.dev/agent-identity)" },
+    "subject": { "type": "string", "description": "SPIFFE ID of the subject agent" },
+    "purpose": { "type": "string", "minLength": 1 },
+    "resources": { "type": "array", "items": { "type": "string" } },
+    "tools": { "type": "array", "items": { "type": "string" } },
+    "data_classes": {
+      "type": "array",
+      "items": { "enum": ["L0", "L1", "L2", "L3", "L4"] },
+      "description": "Classification levels per docs/cross-cutting/17-data-classification-privacy.md"
+    },
+    "side_effect_class": { "enum": ["read", "write", "financial", "destructive", "physical"] },
+    "spend_budget": { "type": "integer", "minimum": 0, "description": "Minor currency units (e.g. cents)" },
+    "time_budget_seconds": { "type": "integer", "minimum": 0 },
+    "token_budget": { "type": "integer", "minimum": 0 },
+    "geography": { "type": "string", "pattern": "^([A-Z]{2}|)$", "description": "ISO-3166 alpha-2; empty = unrestricted" },
+    "delegation_depth": { "type": "integer", "minimum": 0, "description": "0 = no further delegation (invariant I-08 for consequential actions)" },
+    "approvals": { "type": "array", "items": { "type": "string" }, "description": "Required approver SPIFFE IDs (invariant I-08)" },
+    "expiry": { "type": "integer", "minimum": 0, "description": "Epoch seconds" },
+    "revocation_handle": { "type": "string", "minLength": 1 },
+    "signature": { "type": "string", "description": "Hex-encoded Ed25519 signature over canonical-CBOR of the envelope (without the signature field itself)" }
+  },
+  "additionalProperties": false
+}

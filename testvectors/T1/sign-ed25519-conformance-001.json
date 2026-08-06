@@ -1,0 +1,9 @@
+{
+  "id": "T1-sign-ed25519-conformance-001",
+  "description": "Freshly generated Ed25519 sign/verify golden vector for cross-language conformance (A6). Verifies identically in Rust, Python, and Go.",
+  "payload_utf8": "hello aumos conformance",
+  "payload_hex": "68656c6c6f2061756d6f7320636f6e666f726d616e6365",
+  "verifying_key_hex": "7cbac338e3085b21a6a8efb11a133fc5113139790cd575b6446257e6662a17e5",
+  "signature_hex": "ea8dcd4439664ace8d409d8932947dffd1a987fee6977d6c21064db095c021d832b21368b5b4f2e32a6575d74e5c15d95ca91a0277895a72e09fbac8bebac003",
+  "expected": "valid"
+}

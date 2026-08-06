@@ -2,12 +2,15 @@
 resolver = "2"
 members = [
     "aumos-api",
+    "authority-spec",
     "trust-core",
     "defstack-cli",
     "nvtrust-bridge",
     "eval-guard",
     "kill-switch",
     "credential-vault",
+    "flight-recorder",
+    "safe-tensors-pp",
 ]
 exclude = [
     "trust-core/fuzz",  # nested cargo-fuzz workspace (own [workspace] table)

@@ -1,0 +1,25 @@
+[package]
+name = "aumos-flight-recorder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "E1 — verifiable agent flight recorder; emits signed Agent Action Receipts (P2 AAR) pre-commit"
+
+[lib]
+name = "aumos_flight_recorder"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+hex = "0.4"
+uuid = { version = "1", features = ["v4"] }
+prost-types = "0.13"
+aumos-api = { path = "../aumos-api" }
+
+[dev-dependencies]
+proptest = "1"
