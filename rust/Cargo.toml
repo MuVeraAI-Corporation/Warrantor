@@ -13,6 +13,7 @@ members = [
     "safe-tensors-pp",
     "provena-chain",
     "inference-proxy",
+    "confidential-fabric",
 ]
 exclude = [
     "trust-core/fuzz",  # nested cargo-fuzz workspace (own [workspace] table)

@@ -9,7 +9,34 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
-### Added — Wave 4 (inference stack)
+### Added — Wave 5 (confidential compute + federated/edge)
+
+- **C1-3 attesta-flow** v1.0 (Python, 5 tests + Terraform): E2E attested inference pipeline
+  orchestrator running inside a TEE; emits signed PipelineAttestation per batch; Azure
+  DC-series Terraform provisioning.
+- **C1-4 tee-serve** v1.0 (Go, 21 tests): TEE-backed model serving sidecar; TLS terminates in
+  TEE; forwards via Unix Domain Socket; wraps responses in Ed25519-signed AttestationEnvelope;
+  <2ms overhead target; healthz/readyz/versionz/pubkey routes.
+- **C1-5 confidential-fabric** v1.0 (Rust, 23 tests): composite attestation (GPU + runtime +
+  agent identity → CompositeAttestation with canonical digest); KeyReleasePolicy (freshness /
+  GPU / TEE / runtime-digest / SVID / publisher clauses); ConfidentialContainer with KDF;
+  FleetView aggregation.
+- **F1 fed-core** v1.0 (Python, 34 tests): attested federated training orchestration;
+  Aggregator/Trainer/Verifier roles; admit gate (attestation required); FedAvg aggregator;
+  DefaultVerifier (NaN/Inf/norm/free-rider/image-digest); DP delegated to F2 via callback.
+- **F2 dp-crate** v1.0 (Python, 41 tests): production-grade differential privacy;
+  DPSGDOptimizer (clip-then-noise); PrivacyAccountant (RDP-based moments accountant with
+  composition); DPDashboard; pure-Python (TEE-safe).
+- **F3 edge-sentinel** v1.0 (Go, 26 tests): edge inference attestation agent (<5MB binary);
+  periodic attestation loop; TamperDetector; idempotent kill switch; alerter; systemd shape.
+- **F4 fleet-marshal** v1.0 (Go, 25 tests): Kubernetes operator; ModelFleet CRD; canary /
+  blue-green / all-at-once rollout strategies; FailureThreshold auto-rollback; RolloutExecutor.
+
+### Verified at the Wave-5 exit gate
+- 399 tests passing total (116 Rust + 96 Go + 187 Python).
+- 31 components at v1.0.0 shipped across Waves 1–5.
+
+## [1.0.0] — Wave 4 (inference stack)
 
 - **N1 open-serve-kit** v1.0 (Go, 7 tests): OpenAI-compatible /v1/chat/completions proxy with
   per-model router; pluggable backends (vLLM/Triton/TensorRT-LLM/Ollama/Mock); optional
