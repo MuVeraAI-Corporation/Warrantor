@@ -1,0 +1,66 @@
+# Fuzz — nightly cargo-fuzz run on trust-core's parsers and crypto paths.
+# Cross-reference: docs/cross-cutting/ (fuzzing strategy) + RFC T-CORE-1 task 06.
+# Findings are filed per docs/cross-cutting/14-security-disclosure-policy.md.
+name: Fuzz (nightly)
+
+on:
+  schedule:
+    - cron: "0 4 * * *"  # 04:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz-trust-core:
+    name: cargo-fuzz (trust-core)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aumos/rust/trust-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: aumos/rust
+      - name: Install cargo-fuzz
+        run: cargo +nightly install cargo-fuzz --locked || echo "cargo-fuzz cached"
+      - name: Initialize fuzz targets (idempotent)
+        # cargo-fuzz init requires the crate to be a non-workspace root; we put fuzz targets
+        # in a `fuzz/` subcrate. The init step is idempotent — skipped if fuzz/Cargo.toml exists.
+        run: |
+          if [ ! -d fuzz ]; then
+            cargo +nightly fuzz init
+          fi
+      - name: Ensure targets exist
+        run: |
+          # The fuzz/canonical_cbor target is committed to the repo. This step guarantees it
+          # is present even on a fresh checkout (idempotent).
+          mkdir -p fuzz/fuzz_targets
+          [ -f fuzz/fuzz_targets/canonical_cbor.rs ] || cat > fuzz/fuzz_targets/canonical_cbor.rs <<'EOF'
+          #![no_main]
+          use libfuzzer_sys::fuzz_target;
+          use aumos_trust_core::canonical::canonical_cbor;
+
+          fuzz_target!(|data: &[u8]| {
+              // Try to interpret the fuzz input as a CBOR value; canonical_cbor must not panic
+              // on arbitrary input (it may return an error, which we accept).
+              if let Ok(value) = serde_cbor::from_slice::<serde_cbor::Value>(data) {
+                  let _ = canonical_cbor(&value);
+              }
+          });
+          EOF
+      - name: Run fuzz target (60 seconds — full 1M iterations in a self-hosted runner later)
+        run: cargo +nightly fuzz run canonical_cbor -- -max_total_time=60
+        continue-on-error: true  # findings filed, not pipeline-failing
+      - name: Upload regression corpus
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-corpus
+          path: aumos/rust/trust-core/fuzz/artifacts/
+          if-no-files-found: ignore

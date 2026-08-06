@@ -1,0 +1,65 @@
+# Coverage — runs on push to main. Produces lcov/cobertura reports and uploads them.
+# Uses cargo-llvm-cov (the modern Rust coverage tool; supersedes tarpaulin for stable Rust).
+# Coverage is informational in Wave-1.5; the ≥85% gate becomes a hard failure in Wave-2
+# (see docs/cross-cutting/18-developer-experience.md).
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-coverage:
+    name: Rust coverage (cargo-llvm-cov)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aumos/rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: aumos/rust
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked || echo "cargo-llvm-cov already cached"
+      - name: Run coverage
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      - name: Summary
+        run: cargo llvm-cov --workspace --summary || true
+      - name: Upload lcov
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-lcov
+          path: aumos/rust/lcov.info
+      # The ≥85% gate is informational in Wave-1.5; we report but do not fail.
+      # Wave-2 will replace the `|| true` with a hard `cargo llvm-cov --failunder-lines 85`.
+
+  python-coverage:
+    name: Python coverage (pytest-cov)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aumos/python/cuda_gram
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: pytest with coverage
+        run: pytest -q --cov=cuda_gram --cov-report=term-missing --cov-report=xml:coverage.xml
+      - name: Upload coverage.xml
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage-xml
+          path: aumos/python/cuda_gram/coverage.xml

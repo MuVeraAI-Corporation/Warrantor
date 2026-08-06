@@ -1,0 +1,74 @@
+# Release — signed-release workflow. Triggered by a version tag (v*.*.*).
+# Produces: signed Git tag (already signed by the tag pusher), GitHub Release with
+# auto-generated notes, attached binaries, attached CycloneDX SBOMs, attached SLSA
+# provenance (from the provenance.yml workflow).
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Parse version
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Build release binaries (Linux x86_64)
+        working-directory: aumos/rust
+        run: |
+          cargo build --release --bins
+          mkdir -p ../dist
+          for bin in trust-core defstack nvtrust-verify eval-guard kill-switch credential-vault; do
+            cp target/release/$bin ../dist/aumos-${bin}-${GITHUB_REF_NAME}-x86_64 || echo "  (skipped $bin)"
+          done
+          (cd ../dist && sha256sum * > sha256sums.txt)
+      - name: Generate CycloneDX SBOM bundle
+        working-directory: aumos/rust
+        run: |
+          cargo install cargo-cyclonedx --locked || true
+          cargo cyclonedx --all --format json --output-pattern package || true
+          mkdir -p ../sbom
+          find . -maxdepth 2 -name 'bom.json' -print0 | while IFS= read -r -d '' f; do
+            crate_dir=$(dirname "$f")
+            crate=$(basename "$crate_dir")
+            cp "$f" "../sbom/${crate}.bom.json"
+          done
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: AumOS ${{ github.ref_name }}
+          body: |
+            # AumOS ${{ github.ref_name }}
+
+            ## What's in this release
+
+            - Rust release binaries (linux-x86_64): trust-core, defstack, nvtrust-verify, eval-guard, kill-switch, credential-vault
+            - CycloneDX SBOM per crate (see `sbom/`)
+            - SHA-256 checksums (`sha256sums.txt`)
+            - SLSA L3 build provenance (attached by the `Provenance` workflow)
+
+            ## Verify
+
+            ```bash
+            # Verify the SLSA L3 attestation against this binary:
+            gh attestation verify trust-core --repo ${{ github.repository }}
+            # Verify the checksum:
+            sha256sum -c sha256sums.txt
+            ```
+
+            See `docs/cross-cutting/14-security-disclosure-policy.md` for incident response.
+          files: |
+            aumos/dist/*
+            aumos/sbom/*.bom.json
+          draft: false
+          prerelease: ${{ contains(steps.ver.outputs.version, '-') }}

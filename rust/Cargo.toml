@@ -9,6 +9,9 @@ members = [
     "kill-switch",
     "credential-vault",
 ]
+exclude = [
+    "trust-core/fuzz",  # nested cargo-fuzz workspace (own [workspace] table)
+]
 
 [workspace.package]
 version = "1.0.0"

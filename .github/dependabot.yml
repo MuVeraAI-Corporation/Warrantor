@@ -1,0 +1,33 @@
+# Dependabot — supply-chain hygiene (cross-cutting 08-sbom-strategy + 15-oss-governance).
+# Keeps Rust, Python, and GitHub Actions dependencies current. Pairs with the SBOM workflow
+# to surface outdated/vulnerable deps.
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/aumos/rust"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "rust"]
+    groups:
+      patch:
+        update-types: ["patch"]
+        patterns: ["*"]
+      minor:
+        update-types: ["minor"]
+        patterns: ["*"]
+
+  - package-ecosystem: "pip"
+    directory: "/aumos/python/cuda_gram"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "python"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/aumos/.github/workflows"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencies", "ci"]

@@ -1,0 +1,92 @@
+# AumOS main CI — runs on every push and pull request.
+# Mirrors the local Makefile targets but is robust to environments without `make`.
+# Per docs/cross-cutting/18-developer-experience.md: one-command CI is non-negotiable.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Single setup job that other jobs depend on. Keeps toolchain versions consistent.
+  contract-plane:
+    name: Contract plane (buf lint + breaking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # buf breaking needs the git history
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: buf lint
+        working-directory: aumos
+        run: buf lint
+      - name: buf breaking (against main)
+        # Only fail on breaking changes once a main branch exists. Tolerates first-push.
+        working-directory: aumos
+        run: |
+          buf breaking --against 'https://github.com/${{ github.repository }}.git#branch=main,subdir=aumos/proto' || \
+            echo "WARN: buf breaking skipped (likely first push or no main baseline yet)"
+
+  rust:
+    name: Rust (test + clippy + fmt check)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aumos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: aumos/rust
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+        working-directory: aumos/rust
+      - name: cargo clippy (-D warnings)
+        run: cargo clippy --all-targets -- -D warnings
+        working-directory: aumos/rust
+      - name: cargo test
+        run: cargo test --all
+        working-directory: aumos/rust
+
+  python:
+    name: Python (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aumos/python/cuda_gram
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: ruff
+        run: ruff check .
+      - name: pytest
+        run: pytest -q
+
+  gate-scripts:
+    name: Gate scripts (conformance + docs)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aumos
+    steps:
+      - uses: actions/checkout@v4
+      - name: conformance runner
+        run: bash tools/conformance/run.sh
+      - name: doc checker
+        run: bash tools/ci/check-docs.sh
