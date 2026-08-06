@@ -9,7 +9,36 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
-### Added — Wave 2 (keystone + foundations)
+### Added — Wave 3 (supply chain + eval)
+
+- **S2 provena-chain** v1.0 (Rust, 11 tests): Merkle provenance ledger; entry append with
+  deterministic leaf hashes; checkpoint sign/verify (Ed25519) anchored to a transparency log;
+  JSON-LD export.
+- **S5 data-provenance-kit** v1.0 (Python, 11 tests): dataset lineage tracker recording 7
+  transformation types (filter/map/dedup/concat/pii_redact/custom); order-independent snapshot
+  digests; signed JSON-LD export; CLI.
+- **S7 tamper-scan** v1.0 (Python, 13 tests): 4 analyzers (weight-distribution / backdoor /
+  neuron-pruning / fine-tune); numpy acceleration with pure-Python fallback; CLI exits non-zero
+  on HIGH/CRITICAL.
+- **S8 train-guard** v1.0 (Python, 15 tests): framework-agnostic training monitor; gradient
+  NaN/explosion/vanishing; loss divergence; dependency-hash integrity; weight-init sanity;
+  signed TrainingAttestation.
+- **A1 safe-eval** v1.0 (Python, 10 tests): YAML pipeline framework; 5 stage adapters
+  (benchmarks/adversarial/safety/bias/red_team); pipeline error isolation; VEB (P8) emission;
+  CLI.
+- **A2 adversaria** v1.0 (Python, 15 tests): unified adversarial framework with 5 built-in
+  attack generators (prompt-injection / jailbreak / encoding / multi-turn / training-data-
+  extraction); per-type detectors; passthrough + (future) garak/PyRIT backends; CLI.
+- **Wave-3 integration guide**: `docs/wave-3-integration-guide.md` documenting the supply-chain
+  pipeline + EU AI Act Art. 55 §1/§2/§3/§7 coverage.
+- **Wave-3 verification report**: `docs/wave-3-verification-report.md`.
+
+### Verified at the Wave-3 exit gate
+- 181 tests passing total (83 Rust + 90 Python + 8 Go).
+- clippy clean with `-D warnings`; buf lint clean.
+- 20 components at v1.0.0 shipped across Waves 1–3.
+
+## [1.0.0] — Wave 2 (keystone + foundations)
 
 - **T2 authority-spec** v1.0 (Rust, 9 tests): normative Agent Authority Envelope (P1 AAE) CDDL +
   JSON-Schema schemas (`specs/protocols/P1-aae.{cddl,schema.json}`) + Rust reference validator

@@ -11,6 +11,7 @@ members = [
     "credential-vault",
     "flight-recorder",
     "safe-tensors-pp",
+    "provena-chain",
 ]
 exclude = [
     "trust-core/fuzz",  # nested cargo-fuzz workspace (own [workspace] table)

@@ -1,0 +1,24 @@
+[package]
+name = "aumos-provena-chain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "S2 — tamper-evident model provenance ledger (Merkle root anchored to Rekor)"
+
+[lib]
+name = "aumos_provena_chain"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+sha2 = "0.10"
+hex = "0.4"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+proptest = "1"
