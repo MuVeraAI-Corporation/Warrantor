@@ -9,7 +9,27 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
-### Added — Wave 6 (cross-cutting aggregation)
+### Added — Wave 7 (console + commercial surface)
+
+5 components at v1.0.0:
+- **X7 console** (TypeScript, 12 tests): enterprise policy/evidence console; reducers +
+  selectors for evidence/approvals/fleet/compliance/policies views; API client for E1/I1.
+- **X8 mcp-gateway** (TypeScript, 22 tests): authority-aware MCP middleware; confused-deputy
+  defense; audience check; side-effect-class escalation; invariant I-08 approval enforcement.
+- **A8 arena** (TypeScript, 32 tests): Elo-ranking A/B leaderboard; expected-score + zero-sum
+  update; win/loss/draw handling; leaderboard sorting.
+- **X10 sovereign-stack** (Go, 16 tests): air-gapped deployment bundle manager; export/import
+  with SHA-256 checksums; mode-based component requirements (safe_local/team/production).
+- **X11 defstack-cloud** (Go, 17 tests): managed SaaS control plane; tenant provisioning;
+  per-plan GPU quotas (free/team/enterprise/mission_critical); allocation tracking.
+
+### Verified at the Wave-7 exit gate (FINAL)
+- **691 tests passing total** (148 Rust + 146 Go + 331 Python + 66 TypeScript).
+- **49 components at v1.0.0** shipped across all 7 waves.
+- clippy clean; buf lint clean; cross-language conformance verified; docs sound.
+- 17 Rust crates, 9 Go modules, 22 Python packages, 3 TypeScript packages.
+
+## [1.0.0] — Wave 6 (cross-cutting aggregation)
 
 13 components at v1.0.0:
 - **X2 nooa-ext** (Python, 14 tests): PolicyEnforcer (OPA/Rego), AuditStreamer, IdentityBinder, AttestationHook.

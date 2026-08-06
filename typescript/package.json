@@ -1,0 +1,23 @@
+{
+  "name": "aumos-typescript",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AumOS TypeScript workspace — console, MCP gateway, arena",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "console",
+    "mcp-gateway",
+    "arena"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "lint": "eslint . --ext .ts",
+    "clean": "rm -rf */dist */node_modules"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

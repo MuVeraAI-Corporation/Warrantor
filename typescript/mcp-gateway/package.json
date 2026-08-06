@@ -1,0 +1,19 @@
+{
+  "name": "@aumos/mcp-gateway",
+  "version": "1.0.0",
+  "description": "X8 — authority-aware Model Context Protocol (MCP) middleware gateway",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
