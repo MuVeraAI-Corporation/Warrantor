@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -21,6 +20,7 @@ type IssueRequest struct {
 	Subject    string            `json:"subject"`
 	Attributes AgentAttributes   `json:"attributes"`
 	Claims     CapabilityClaims  `json:"claims"`
+	Audience   string            `json:"audience,omitempty"` // C5: intended audience bound into the `aud` claim
 	ParentSVID string            `json:"parent_svid,omitempty"`
 	RequestID  string            `json:"request_id,omitempty"`
 }
@@ -96,7 +96,7 @@ func (g *HTTPGateway) handleIssue(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
-	svid, err := g.svc.Issue(req.Subject, req.Attributes, req.Claims, req.ParentSVID)
+	svid, err := g.svc.Issue(req.Subject, req.Attributes, req.Claims, req.Audience, req.ParentSVID)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -119,15 +119,9 @@ func (g *HTTPGateway) handleVerify(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
-	claims, err := g.svc.Verify(req.SVID)
+	claims, err := g.svc.VerifyWithAudience(req.SVID, req.Audience)
 	if err != nil {
 		writeJSON(w, http.StatusOK, VerifyResponse{Valid: false, Reason: err.Error()})
-		return
-	}
-	// Confused-deputy defense: if an audience was supplied, ensure the token's issuer matches
-	// the expected trust domain.
-	if req.Audience != "" && !strings.HasPrefix(claims.Issuer, "spiffe://"+g.svc.trustDomain) {
-		writeJSON(w, http.StatusOK, VerifyResponse{Valid: false, Reason: "audience mismatch"})
 		return
 	}
 	writeJSON(w, http.StatusOK, VerifyResponse{Valid: true, Subject: claims.Subject})

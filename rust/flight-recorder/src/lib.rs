@@ -158,33 +158,47 @@ impl Receipt {
     /// itself, in a stable order).
     #[must_use]
     pub fn canonical_bytes(&self) -> Vec<u8> {
-        // Deterministic concatenation of the load-bearing fields. (Real T1 trust-core uses
-        // canonical CBOR; this Wave-2 v1.0 uses a stable byte concatenation that is just as
-        // verifiable cross-language. CBOR alignment is task 03.)
+        // Deterministic, length-prefixed concatenation of the load-bearing fields. Every field
+        // is preceded by its length as a little-endian u64, which makes the encoding unambiguous
+        // and prevents signature forgery via field re-splitting (C2: previously fields were
+        // concatenated with no delimiter, so "ab"+"c" and "a"+"bc" produced the same bytes).
+        // (Real T1 trust-core uses canonical CBOR; this Wave-2 v1.0 uses a stable length-prefixed
+        // byte concatenation that is just as verifiable cross-language. CBOR alignment is task 03.)
         let mut out = Vec::new();
-        out.extend_from_slice(self.id.as_bytes());
-        out.extend_from_slice(self.actor.as_bytes());
-        out.extend_from_slice(self.authority_hash_hex.as_bytes());
+        write_len_prefixed(&mut out, self.id.as_bytes());
+        write_len_prefixed(&mut out, self.actor.as_bytes());
+        write_len_prefixed(&mut out, self.authority_hash_hex.as_bytes());
+        // Length-prefix the map so its cardinality is unambiguous.
+        write_len_prefixed(&mut out, &self.artifact_versions.len().to_le_bytes());
         for (k, v) in &self.artifact_versions {
-            out.extend_from_slice(k.as_bytes());
-            out.extend_from_slice(v.as_bytes());
+            write_len_prefixed(&mut out, k.as_bytes());
+            write_len_prefixed(&mut out, v.as_bytes());
         }
-        out.extend_from_slice(self.context_commitment_hex.as_bytes());
-        out.extend_from_slice(self.policy_decision.engine.as_bytes());
-        out.extend_from_slice(self.policy_decision.decision.as_bytes());
-        out.extend_from_slice(self.policy_decision.policy_hash_hex.as_bytes());
+        write_len_prefixed(&mut out, self.context_commitment_hex.as_bytes());
+        write_len_prefixed(&mut out, self.policy_decision.engine.as_bytes());
+        write_len_prefixed(&mut out, self.policy_decision.decision.as_bytes());
+        write_len_prefixed(&mut out, self.policy_decision.policy_hash_hex.as_bytes());
+        write_len_prefixed(&mut out, &self.policy_decision.matched_rules.len().to_le_bytes());
         for r in &self.policy_decision.matched_rules {
-            out.extend_from_slice(r.as_bytes());
+            write_len_prefixed(&mut out, r.as_bytes());
         }
-        out.extend_from_slice(self.tool_or_api_op.as_bytes());
+        write_len_prefixed(&mut out, self.tool_or_api_op.as_bytes());
+        write_len_prefixed(&mut out, &self.approvers.len().to_le_bytes());
         for a in &self.approvers {
-            out.extend_from_slice(a.as_bytes());
+            write_len_prefixed(&mut out, a.as_bytes());
         }
         out.extend_from_slice(&self.outcome.to_proto().to_le_bytes());
         out.extend_from_slice(&self.emitted_at.to_le_bytes());
-        out.extend_from_slice(self.verifying_key_hex.as_bytes());
+        write_len_prefixed(&mut out, self.verifying_key_hex.as_bytes());
         out
     }
+}
+
+/// Write `field` to `out` prefixed by its length as a little-endian u64. This makes the
+/// canonical encoding unambiguous (length-prefixed framing prevents field-re-splitting forgery).
+fn write_len_prefixed(out: &mut Vec<u8>, field: &[u8]) {
+    out.extend_from_slice(&(field.len() as u64).to_le_bytes());
+    out.extend_from_slice(field);
 }
 
 /// The flight recorder. Owns a signing key and tracks emitted receipts (so duplicate IDs and
@@ -447,5 +461,40 @@ mod tests {
     fn verifying_key_hex_is_64_chars() {
         let r = FlightRecorder::new();
         assert_eq!(r.verifying_key_hex().len(), 64);
+    }
+
+    #[test]
+    fn canonical_bytes_disambiguate_field_splittings_c2() {
+        // C2: length-prefixing must prevent signature forgery via field re-splitting.
+        // Two receipts that differ ONLY in how their concatenated fields could be re-split
+        // must produce different canonical bytes (and therefore different signatures).
+        let mut r = FlightRecorder::new();
+        let receipt_a = r.emit_pending(ReceiptInput {
+            actor: "ab".into(),
+            authority_hash_hex: "c".repeat(8),
+            tool_or_api_op: "github.create_pr".into(),
+            context_commitment_hex: "def456".repeat(8),
+        })
+        .expect("emit a");
+        let receipt_b = r.emit_pending(ReceiptInput {
+            actor: "a".into(), // "ab" vs "a" + "b" re-split — same concatenated bytes only
+            authority_hash_hex: "bc".repeat(4), // if not length-prefixed: "c"*8 == "bc"*4
+            tool_or_api_op: "github.create_pr".into(),
+            context_commitment_hex: "def456".repeat(8),
+        })
+        .expect("emit b");
+        let canon_a = receipt_a.canonical_bytes();
+        let canon_b = receipt_b.canonical_bytes();
+        assert_ne!(
+            canon_a, canon_b,
+            "length-prefixed canonical bytes must distinguish different field splittings"
+        );
+        assert_ne!(
+            receipt_a.signature_hex, receipt_b.signature_hex,
+            "signatures over different canonical bytes must differ"
+        );
+        // Both must still verify individually.
+        FlightRecorder::verify(&receipt_a).expect("a verifies");
+        FlightRecorder::verify(&receipt_b).expect("b verifies");
     }
 }

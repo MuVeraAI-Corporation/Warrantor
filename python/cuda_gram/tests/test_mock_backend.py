@@ -101,3 +101,51 @@ def test_interop_with_rust_cli_json_shape() -> None:
 def test_attest_rejects_wrong_nonce_length() -> None:
     with pytest.raises(ValueError, match="nonce must be 16 bytes"):
         MockBackend().attest(b"too short")
+
+
+def test_verify_with_challenge_accepts_matching_nonce_c4() -> None:
+    # C4: a report verified against the same challenge nonce it was issued with must verify.
+    backend = MockBackend()
+    challenge = b"\x0A" * 16
+    report = backend.attest(challenge)
+    backend.verify_with_challenge(report, challenge)  # no raise
+
+
+def test_verify_with_challenge_rejects_nonce_mismatch_c4() -> None:
+    # C4: a report captured from a previous session (different nonce) must be rejected as a
+    # replay even though its attestation_bytes are correct.
+    backend = MockBackend()
+    report = backend.attest(b"\x01" * 16)
+    wrong_challenge = b"\x99" * 16
+    with pytest.raises(ValueError, match="nonce mismatch"):
+        backend.verify_with_challenge(report, wrong_challenge)
+
+
+def test_verify_with_challenge_rejects_wrong_challenge_length_c4() -> None:
+    backend = MockBackend()
+    report = backend.attest(b"\x01" * 16)
+    with pytest.raises(ValueError, match="challenge_nonce must be 16 bytes"):
+        backend.verify_with_challenge(report, b"too short")
+
+
+def test_verify_convenience_delegates_to_report_nonce_c4() -> None:
+    # The backward-compatible verify() uses the report's own nonce — round-trips.
+    backend = MockBackend()
+    report = backend.attest(b"\x07" * 16)
+    backend.verify(report)  # no raise
+
+
+def test_interop_rust_json_report_rejects_mismatched_challenge_c4() -> None:
+    # A report parsed from the Rust CLI JSON shape must also honor the challenge nonce.
+    rust_json = json.dumps(
+        {
+            "gpu_model": "mock-H100",
+            "attestation_bytes": list(b"aumos-mock-attestation"),
+            "nonce": list(bytes(range(16))),
+        }
+    )
+    report = AttestationReport.from_dict(json.loads(rust_json))
+    backend = MockBackend()
+    backend.verify_with_challenge(report, bytes(range(16)))  # matches → ok
+    with pytest.raises(ValueError, match="nonce mismatch"):
+        backend.verify_with_challenge(report, b"\xFF" * 16)

@@ -64,7 +64,16 @@ pub struct SandboxAttestation {
     pub nonce: Vec<u8>,
     /// The 32-byte verifying key that signed this attestation.
     pub verifying_key: Vec<u8>,
-    /// The 64-byte Ed25519 signature over the canonical encoding of (passed_checks, nonce).
+    /// The actual per-check results that were observed at pre-flight, in [`BoundaryCheck::ALL`]
+    /// order (C3: binds the signature to what was actually measured, not just the constant
+    /// `BoundaryCheck::ALL` — a single attestation can no longer serve as a permanent skeleton
+    /// key).
+    pub results: [bool; 4],
+    /// When the attestation was produced (epoch seconds). Binds the signature to a point in time
+    /// so a captured attestation cannot be replayed indefinitely (C3).
+    pub timestamp: u64,
+    /// The 64-byte Ed25519 signature over the canonical encoding of
+    /// (passed_checks, nonce, results, timestamp).
     pub signature: Vec<u8>,
 }
 
@@ -130,6 +139,26 @@ impl CheckResults {
     }
 }
 
+/// Build the canonical signing bytes for a sandbox attestation. This binds the signature to:
+///   - the constant `BoundaryCheck::ALL` (the checks that were run),
+///   - the nonce (freshness),
+///   - the **actual** observed `results` (C3: not just the constant ALL — prevents a single
+///     attestation acting as a permanent skeleton key for different outcomes),
+///   - the **timestamp** (epoch seconds — C3: binds the signature to a point in time).
+fn canonical_signing_bytes(nonce: &[u8], results: &[bool; 4], timestamp: u64) -> Vec<u8> {
+    let mut canon = Vec::new();
+    for c in &BoundaryCheck::ALL {
+        canon.extend_from_slice(&c.to_proto().to_le_bytes());
+    }
+    canon.extend_from_slice(nonce);
+    // Bind the actual results (one byte each, 0 or 1).
+    for &r in results {
+        canon.push(if r { 1u8 } else { 0u8 });
+    }
+    canon.extend_from_slice(&timestamp.to_le_bytes());
+    canon
+}
+
 /// Run all four pre-flight checks and emit a signed attestation on success.
 ///
 /// # Errors
@@ -145,17 +174,20 @@ pub fn run_preflight(
     }
     let mut nonce = [0u8; 16];
     OsRng.fill_bytes(&mut nonce);
-    // Canonical message: passed_checks (as proto ints) || nonce.
-    let mut canon = Vec::new();
-    for c in &BoundaryCheck::ALL {
-        canon.extend_from_slice(&c.to_proto().to_le_bytes());
-    }
-    canon.extend_from_slice(&nonce);
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // C3: sign over the ACTUAL results and the timestamp, not just the constant
+    // BoundaryCheck::ALL. A single attestation is therefore no longer a permanent skeleton key.
+    let canon = canonical_signing_bytes(&nonce, &results.as_array(), timestamp);
     let sig = signing_key.sign(&canon);
     Ok(SandboxAttestation {
         passed_checks: BoundaryCheck::ALL.to_vec(),
         nonce: nonce.to_vec(),
         verifying_key: signing_key.verifying_key().to_bytes().to_vec(),
+        results: results.as_array(),
+        timestamp,
         signature: sig.to_bytes().to_vec(),
     })
 }
@@ -183,11 +215,9 @@ pub fn verify_attestation(attestation: &SandboxAttestation) -> Result<(), EvalGu
         .try_into()
         .map_err(|_| EvalGuardError::SignatureInvalid)?;
     let vk = VerifyingKey::from_bytes(&vk_bytes).map_err(|_| EvalGuardError::SignatureInvalid)?;
-    let mut canon = Vec::new();
-    for c in &BoundaryCheck::ALL {
-        canon.extend_from_slice(&c.to_proto().to_le_bytes());
-    }
-    canon.extend_from_slice(&nonce_bytes);
+    // C3: reconstruct the canonical bytes using the actual results and timestamp embedded in
+    // the attestation (not the constant ALL). A mismatch on either makes the signature invalid.
+    let canon = canonical_signing_bytes(&nonce_bytes, &attestation.results, attestation.timestamp);
     let sig = Signature::from_bytes(&sig_bytes);
     vk.verify(&canon, &sig)
         .map_err(|_| EvalGuardError::SignatureInvalid)
@@ -247,5 +277,62 @@ mod tests {
         assert_eq!(proto.passed_checks, vec![1, 2, 3, 4]);
         assert_eq!(proto.nonce, attestation.nonce);
         assert_eq!(proto.signature, attestation.signature);
+    }
+
+    #[test]
+    fn attestation_binds_actual_results_c3() {
+        // C3: the signature must bind the ACTUAL check results, not the constant
+        // BoundaryCheck::ALL. A single attestation must not be a permanent skeleton key.
+        //
+        // We forge an attestation that claims results == [true; 4] but is signed over a
+        // DIFFERENT results array. Under the old (vulnerable) code this would verify because the
+        // signature only covered the constant ALL; now it must fail because the embedded results
+        // participate in the signed bytes.
+        let key = test_key();
+        let real = run_preflight(&CheckResults::all_pass(), &key).expect("all pass");
+        // Tamper: flip one result bit (network_isolation now false). The signature was computed
+        // over the original all-true results, so verification must now fail.
+        let mut forged = real.clone();
+        forged.results[0] = !forged.results[0];
+        assert!(matches!(
+            verify_attestation(&forged),
+            Err(EvalGuardError::SignatureInvalid)
+        ));
+    }
+
+    #[test]
+    fn different_results_produce_different_signatures_c3() {
+        // C3: two attestations that differ ONLY in their (equally all-passing) signing inputs are
+        // indistinguishable here, but we confirm that flipping a single result bit in the signed
+        // canonical bytes changes the resulting signature.
+        let key = test_key();
+        let nonce = [0u8; 16];
+        let ts = 1_700_000_000u64;
+        let sig_all_pass = key.sign(&canonical_signing_bytes(
+            &nonce,
+            &[true, true, true, true],
+            ts,
+        ));
+        let sig_one_fail = key.sign(&canonical_signing_bytes(
+            &nonce,
+            &[false, true, true, true],
+            ts,
+        ));
+        assert_ne!(
+            sig_all_pass.to_bytes(),
+            sig_one_fail.to_bytes(),
+            "different results must produce different signatures"
+        );
+        // And a different timestamp must also change the signature.
+        let sig_later = key.sign(&canonical_signing_bytes(
+            &nonce,
+            &[true, true, true, true],
+            ts + 1,
+        ));
+        assert_ne!(
+            sig_all_pass.to_bytes(),
+            sig_later.to_bytes(),
+            "different timestamps must produce different signatures"
+        );
     }
 }

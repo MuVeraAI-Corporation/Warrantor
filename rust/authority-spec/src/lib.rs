@@ -167,21 +167,68 @@ fn now_epoch() -> u64 {
         .unwrap_or(0)
 }
 
+/// Reconstruct the canonical-CBOR bytes of the envelope's **unsigned** fields (everything except
+/// `signature`), in a deterministic order. This is what the issuer's signature is computed over
+/// and what the validator verifies against.
+///
+/// C6: the validator MUST reconstruct these bytes itself from the envelope rather than trusting
+/// bytes supplied by the caller. Previously the caller handed in `unsigned_canonical_cbor`
+/// directly, which made the signature meaningless — a caller could present any bytes they liked
+/// and a signature over a different (attacker-chosen) message, and the validator would happily
+/// verify it. Now the validator derives the to-be-signed bytes from the envelope's own fields,
+/// so the signature cryptographically binds the envelope's contents.
+fn canonical_unsigned_bytes(
+    envelope: &aumos_api::identity::v1::AgentAuthorityEnvelope,
+) -> Result<Vec<u8>, AaeError> {
+    // Deterministic, sorted-key map serialized as canonical CBOR. We include every field the
+    // issuer could have intended to sign (the unsigned envelope fields), omitting only
+    // `signature`. Expiry is included as its seconds value so the encoding is stable across
+    // protobuf Timestamp wire encodings.
+    let expiry_seconds = envelope
+        .expiry
+        .as_ref()
+        .map(|t| t.seconds)
+        .unwrap_or(0);
+    let unsigned = serde_json::json!({
+        "issuer": envelope.issuer,
+        "subject": envelope.subject,
+        "purpose": envelope.purpose,
+        "resources": envelope.resources,
+        "tools": envelope.tools,
+        "data_classes": envelope.data_classes,
+        "side_effect_class": envelope.side_effect_class,
+        "spend_budget": envelope.spend_budget,
+        "time_budget_seconds": envelope.time_budget_seconds,
+        "token_budget": envelope.token_budget,
+        "geography": envelope.geography,
+        "delegation_depth": envelope.delegation_depth,
+        "approvals": envelope.approvals,
+        "expiry_seconds": expiry_seconds,
+        "revocation_handle": envelope.revocation_handle,
+    });
+    serde_cbor::to_vec(&unsigned).map_err(|_| {
+        // Serialization of a serde_json::Value to CBOR cannot fail for finite inputs; this is
+        // purely defensive.
+        AaeError::InvalidLength("envelope failed canonical serialization".into())
+    })
+}
+
 /// Validate an AAE wire message against the supplied options.
 ///
-/// `envelope` is the proto wire type. `unsigned_canonical_cbor` is the canonical-CBOR encoding
-/// of the envelope's unsigned fields (everything except `signature`) — produced by T1
-/// trust-core. The signature hex-decodes from `envelope.signature` and verifies against
-/// `options.issuer_verifying_key`.
+/// `envelope` is the proto wire type. The canonical-CBOR bytes the signature covers are
+/// **reconstructed from the envelope's unsigned fields by this function** (C6: the validator no
+/// longer trusts caller-supplied bytes). The signature hex-decodes from `envelope.signature`
+/// and verifies against `options.issuer_verifying_key` over those reconstructed bytes.
 ///
 /// # Errors
 /// Returns [`AaeError`] on any validation failure. Fail-closed (no partial validation).
 pub fn validate(
     envelope: &aumos_api::identity::v1::AgentAuthorityEnvelope,
-    unsigned_canonical_cbor: &[u8],
     options: &ValidateOptions<'_>,
 ) -> Result<(), AaeError> {
-    // 1. Signature. The proto field is `bytes`; the JSON-Schema variant hex-encodes it.
+    // 1. Signature. C6: reconstruct the to-be-signed bytes from the envelope's own fields rather
+    //    than trusting caller-supplied bytes, so the signature actually binds the envelope.
+    let unsigned_canonical_cbor = canonical_unsigned_bytes(envelope)?;
     let sig_bytes = &envelope.signature;
     let sig_arr: [u8; 64] = sig_bytes
         .as_slice()
@@ -190,7 +237,7 @@ pub fn validate(
     let sig = Signature::from_bytes(&sig_arr);
     if options
         .issuer_verifying_key
-        .verify(unsigned_canonical_cbor, &sig)
+        .verify(&unsigned_canonical_cbor, &sig)
         .is_err()
     {
         return Err(AaeError::SignatureInvalid);
@@ -236,73 +283,135 @@ mod tests {
     use ed25519_dalek::{Signer, SigningKey};
     use rand::rngs::OsRng;
 
+    /// Build an unsigned envelope body (the JSON map the signature covers) for the given fields.
+    /// Must stay in sync with [`canonical_unsigned_bytes`].
+    fn unsigned_body(
+        issuer: &str,
+        subject: &str,
+        class: &str,
+        approvals: &[&str],
+        delegation_depth: u32,
+        expiry_seconds: i64,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "issuer": issuer,
+            "subject": subject,
+            "purpose": "open a pull request",
+            "resources": Vec::<String>::new(),
+            "tools": Vec::<String>::new(),
+            "data_classes": Vec::<String>::new(),
+            "side_effect_class": class,
+            "spend_budget": 0i64,
+            "time_budget_seconds": 0i64,
+            "token_budget": 0i64,
+            "geography": "",
+            "delegation_depth": delegation_depth,
+            "approvals": approvals.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            "expiry_seconds": expiry_seconds,
+            "revocation_handle": "",
+        })
+    }
+
     fn make_signed_envelope(
         class: &str,
         approvals: Vec<&str>,
         delegation_depth: u32,
-    ) -> (AgentAuthorityEnvelope, SigningKey, Vec<u8>) {
+    ) -> (AgentAuthorityEnvelope, SigningKey) {
         let mut rng = OsRng;
         let sk = SigningKey::generate(&mut rng);
-        // Canonical-CBOR of the unsigned fields. We use a deterministic serialization for the
-        // test (sorted map). Real callers use T1 trust-core::canonical::canonical_cbor.
-        let canon = serde_cbor::to_vec(&serde_json::json!({
-            "issuer": "spiffe://aumos.dev/agent-identity",
-            "subject": "spiffe://aumos.dev/agent/coding-1",
-            "purpose": "open a pull request",
-            "side_effect_class": class,
-            "delegation_depth": delegation_depth,
-        }))
-        .expect("canonical");
-        let sig = sk.sign(&canem(&canon).unwrap_or_else(|_| canon.clone()));
+        let issuer = "spiffe://aumos.dev/agent-identity";
+        let subject = "spiffe://aumos.dev/agent/coding-1";
+        let expiry_seconds = (now_epoch() + 3600) as i64;
+        // C6: sign over the SAME canonical-CBOR bytes the validator will reconstruct from the
+        // envelope's unsigned fields. We build the body, serialize it to canonical CBOR, and
+        // sign that. The envelope is then assembled from the same fields.
+        let body = unsigned_body(issuer, subject, class, &approvals, delegation_depth, expiry_seconds);
+        let canon = serde_cbor::to_vec(&body).expect("canonical");
+        let sig = sk.sign(&canon);
         let envelope = AgentAuthorityEnvelope {
-            issuer: "spiffe://aumos.dev/agent-identity".into(),
-            subject: "spiffe://aumos.dev/agent/coding-1".into(),
+            issuer: issuer.into(),
+            subject: subject.into(),
             purpose: "open a pull request".into(),
             side_effect_class: class.into(),
             approvals: approvals.into_iter().map(String::from).collect(),
             delegation_depth,
             signature: sig.to_bytes().to_vec(),
             expiry: Some(prost_types::Timestamp {
-                seconds: (now_epoch() + 3600) as i64,
+                seconds: expiry_seconds,
                 nanos: 0,
             }),
             ..Default::default()
         };
-        (envelope, sk, canon)
-    }
-
-    // helper: identity for tests (the `serde_cbor::to_vec` path can vary; we accept either).
-    fn canem(b: &[u8]) -> Result<Vec<u8>, ()> {
-        Ok(b.to_vec())
+        (envelope, sk)
     }
 
     #[test]
     fn valid_read_envelope_validates() {
-        let (envelope, sk, canon) = make_signed_envelope("read", vec![], 0);
+        let (envelope, sk) = make_signed_envelope("read", vec![], 0);
         let vk = sk.verifying_key();
         let opts = ValidateOptions::coding_agent(&vk);
-        validate(&envelope, &canon, &opts).expect("valid read envelope");
+        validate(&envelope, &opts).expect("valid read envelope");
     }
 
     #[test]
     fn tampered_signature_fails() {
-        let (mut envelope, sk, canon) = make_signed_envelope("read", vec![], 0);
+        let (mut envelope, sk) = make_signed_envelope("read", vec![], 0);
         let vk = sk.verifying_key();
         // Flip a bit in the signature.
         envelope.signature[0] ^= 0xff;
         let opts = ValidateOptions::coding_agent(&vk);
         assert!(matches!(
-            validate(&envelope, &canon, &opts),
+            validate(&envelope, &opts),
+            Err(AaeError::SignatureInvalid)
+        ));
+    }
+
+    #[test]
+    fn tampered_envelope_field_fails_c6() {
+        // C6: the validator reconstructs the to-be-signed bytes from the envelope's own fields,
+        // so mutating ANY signed field must invalidate the signature (previously the caller could
+        // supply arbitrary bytes and a matching signature over those bytes, so a field mutation
+        // would NOT be detected unless the caller also updated the supplied bytes).
+        let (mut envelope, sk) = make_signed_envelope("read", vec![], 0);
+        let vk = sk.verifying_key();
+        envelope.subject = "spiffe://aumos.dev/agent/impostor".into();
+        let opts = ValidateOptions::coding_agent(&vk);
+        assert!(matches!(
+            validate(&envelope, &opts),
+            Err(AaeError::SignatureInvalid)
+        ));
+    }
+
+    #[test]
+    fn caller_supplied_bytes_are_ignored_c6() {
+        // C6: even if a malicious caller mutates the envelope's fields AND supplies the original
+        // canonical bytes, the validator must reject it (it no longer accepts caller-supplied
+        // bytes at all — the signature has no `unsigned_canonical_cbor` parameter to abuse).
+        let (mut envelope, sk) = make_signed_envelope("read", vec![], 0);
+        let vk = sk.verifying_key();
+        // The signature still verifies over the ORIGINAL fields; mutate a field.
+        envelope.purpose = "exfiltrate secrets".into();
+        let opts = ValidateOptions::coding_agent(&vk);
+        assert!(matches!(
+            validate(&envelope, &opts),
             Err(AaeError::SignatureInvalid)
         ));
     }
 
     #[test]
     fn expired_envelope_fails() {
-        let (mut envelope, sk, canon) = make_signed_envelope("read", vec![], 0);
+        let (mut envelope, sk) = make_signed_envelope("read", vec![], 0);
         let vk = sk.verifying_key();
-        // Set expiry in the past.
-        envelope.expiry = Some(prost_types::Timestamp { seconds: 1, nanos: 0 });
+        // Re-sign with an expiry in the past so the signature is still valid over the mutated
+        // expiry field (otherwise this would trip SignatureInvalid, not Expired).
+        let issuer = "spiffe://aumos.dev/agent-identity";
+        let subject = "spiffe://aumos.dev/agent/coding-1";
+        let past_seconds: i64 = 1;
+        let body = unsigned_body(issuer, subject, "read", &[], 0, past_seconds);
+        let canon = serde_cbor::to_vec(&body).expect("canonical");
+        let sig = sk.sign(&canon);
+        envelope.expiry = Some(prost_types::Timestamp { seconds: past_seconds, nanos: 0 });
+        envelope.signature = sig.to_bytes().to_vec();
         let opts = ValidateOptions {
             issuer_verifying_key: &vk,
             now: Some(now_epoch()),
@@ -310,25 +419,26 @@ mod tests {
             max_delegation_depth: 2,
         };
         assert!(matches!(
-            validate(&envelope, &canon, &opts),
+            validate(&envelope, &opts),
             Err(AaeError::Expired { .. })
         ));
     }
 
     #[test]
     fn financial_class_rejected_by_coding_agent() {
-        let (envelope, sk, canon) = make_signed_envelope("financial", vec![], 0);
+        let (envelope, sk) = make_signed_envelope("financial", vec![], 0);
         let vk = sk.verifying_key();
         let opts = ValidateOptions::coding_agent(&vk); // allows read+write only
         assert!(matches!(
-            validate(&envelope, &canon, &opts),
+            validate(&envelope, &opts),
             Err(AaeError::SideEffectClassNotAllowed(_))
         ));
     }
 
     #[test]
     fn financial_class_with_approval_validates_when_allowed() {
-        let (envelope, sk, canon) = make_signed_envelope("financial", vec!["spiffe://aumos.dev/human/alice"], 0);
+        let (envelope, sk) =
+            make_signed_envelope("financial", vec!["spiffe://aumos.dev/human/alice"], 0);
         let vk = sk.verifying_key();
         let opts = ValidateOptions {
             issuer_verifying_key: &vk,
@@ -336,12 +446,12 @@ mod tests {
             allowed_side_effect_classes: &[SideEffectClass::Financial],
             max_delegation_depth: 0,
         };
-        validate(&envelope, &canon, &opts).expect("financial with approval validates");
+        validate(&envelope, &opts).expect("financial with approval validates");
     }
 
     #[test]
     fn financial_class_without_approval_fails_invariant_i08() {
-        let (envelope, sk, canon) = make_signed_envelope("financial", vec![], 0);
+        let (envelope, sk) = make_signed_envelope("financial", vec![], 0);
         let vk = sk.verifying_key();
         let opts = ValidateOptions {
             issuer_verifying_key: &vk,
@@ -350,14 +460,14 @@ mod tests {
             max_delegation_depth: 0,
         };
         assert!(matches!(
-            validate(&envelope, &canon, &opts),
+            validate(&envelope, &opts),
             Err(AaeError::MissingApproval(_))
         ));
     }
 
     #[test]
     fn delegation_depth_exceeded_fails() {
-        let (envelope, sk, canon) = make_signed_envelope("read", vec![], 5);
+        let (envelope, sk) = make_signed_envelope("read", vec![], 5);
         let vk = sk.verifying_key();
         let opts = ValidateOptions {
             issuer_verifying_key: &vk,
@@ -366,7 +476,7 @@ mod tests {
             max_delegation_depth: 2,
         };
         assert!(matches!(
-            validate(&envelope, &canon, &opts),
+            validate(&envelope, &opts),
             Err(AaeError::DelegationDepthExceeded { depth: 5, max: 2 })
         ));
     }

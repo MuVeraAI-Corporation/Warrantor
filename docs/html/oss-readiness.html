@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open-Source Readiness Strategy — AumOS</title>
+  <meta name="description" content="The comprehensive open-source readiness strategy for AumOS: hybrid GitHub organization, pure Apache 2.0, OSAF protocol submission, governance, CI, security, and the launch checklist.">
+  <style>
+/* AumOS Documentation — Anthropic-inspired Style System */
+/* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
+   serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
+
+:root {
+  /* Color palette — warm neutrals + clay/coral accent */
+  --bg-primary: #faf9f7;
+  --bg-secondary: #f5f3ef;
+  --bg-card: #ffffff;
+  --bg-code: #1e1e2e;
+  --bg-callout: #fdf6f0;
+  --bg-warning: #fef9f0;
+  --bg-danger: #fdf2f0;
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
+  --text-code: #c4c4d4;
+  --text-on-dark: #e8e8e8;
+
+  --accent: #d97757;        /* Claude clay/coral */
+  --accent-hover: #c4623d;
+  --accent-light: #f4e6df;
+  --accent-subtle: #faf0eb;
+
+  --border: #e5e2dc;
+  --border-strong: #d1ccc3;
+  --border-accent: #d97757;
+
+  --green: #5a8055;
+  --green-light: #edf5ed;
+  --amber: #b8860b;
+  --amber-light: #fef9ef;
+  --red: #b94a48;
+  --red-light: #fdf2f0;
+  --blue: #4a6fa5;
+  --blue-light: #eef3fa;
+
+  /* Typography */
+  --font-serif: 'Georgia', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+
+  /* Layout */
+  --max-width: 820px;
+  --border-radius: 8px;
+  --border-radius-sm: 4px;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Base */
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.7;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+h1 { font-size: 2.4rem; margin: 0 0 var(--space-lg); letter-spacing: -0.02em; }
+h2 { font-size: 1.7rem; margin: var(--space-2xl) 0 var(--space-md); letter-spacing: -0.01em; border-bottom: 1px solid var(--border); padding-bottom: var(--space-sm); }
+h3 { font-size: 1.3rem; margin: var(--space-xl) 0 var(--space-sm); }
+h4 { font-size: 1.1rem; margin: var(--space-lg) 0 var(--space-xs); color: var(--text-secondary); }
+p { margin-bottom: var(--space-md); }
+strong { font-weight: 600; color: var(--text-primary); }
+em { font-style: italic; color: var(--text-secondary); }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-subtle); transition: border-color 0.15s; }
+a:hover { border-bottom-color: var(--accent); }
+
+/* Layout */
+.container { max-width: var(--max-width); margin: 0 auto; padding: var(--space-2xl) var(--space-lg); }
+.container-wide { max-width: 1200px; margin: 0 auto; padding: var(--space-2xl) var(--space-lg); }
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--bg-card);
+}
+.doc-header h1 { margin: 0; font-size: 1.6rem; }
+.doc-header .subtitle { color: var(--text-tertiary); font-size: 0.95rem; margin-top: var(--space-xs); }
+.doc-header nav { margin-top: var(--space-md); display: flex; gap: var(--space-md); flex-wrap: wrap; }
+.doc-header nav a { font-size: 0.9rem; border-bottom: none; padding: var(--space-xs) var(--space-md); border-radius: var(--border-radius-sm); transition: background 0.15s; }
+.doc-header nav a:hover { background: var(--accent-subtle); }
+
+/* Code */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-secondary);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+pre {
+  font-family: var(--font-mono);
+  background: var(--bg-code);
+  color: var(--text-on-dark);
+  padding: var(--space-lg);
+  border-radius: var(--border-radius);
+  overflow-x: auto;
+  margin: var(--space-lg) 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-lg) 0; font-size: 0.92rem; }
+th { text-align: left; font-weight: 600; padding: var(--space-sm) var(--space-md); border-bottom: 2px solid var(--border-strong); color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:hover { background: var(--bg-secondary); }
+
+/* Callouts */
+.callout {
+  background: var(--bg-callout);
+  border-left: 3px solid var(--accent);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+  margin: var(--space-lg) 0;
+}
+.callout-title { font-weight: 600; margin-bottom: var(--space-xs); color: var(--accent-hover); }
+.callout.warning { background: var(--bg-warning); border-left-color: var(--amber); }
+.callout.warning .callout-title { color: var(--amber); }
+.callout.danger { background: var(--bg-danger); border-left-color: var(--red); }
+.callout.danger .callout-title { color: var(--red); }
+.callout.info { background: var(--blue-light); border-left-color: var(--blue); }
+.callout.info .callout-title { color: var(--blue); }
+.callout.success { background: var(--green-light); border-left-color: var(--green); }
+.callout.success .callout-title { color: var(--green); }
+
+/* Cards (component grid) */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--space-lg); margin: var(--space-xl) 0; }
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-lg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card:hover { border-color: var(--border-accent); box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+.card-id { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-bottom: var(--space-xs); }
+.card-title { font-family: var(--font-serif); font-size: 1.2rem; font-weight: 600; margin-bottom: var(--space-sm); }
+.card-desc { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+.card-meta { margin-top: var(--space-md); display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 100px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+.badge.rust { background: #fce8d4; color: #974711; }
+.badge.go { background: #dbe8fd; color: #1c4d8c; }
+.badge.python { background: #e0e8f4; color: #2d4a7c; }
+.badge.typescript { background: #e4ecf7; color: #3a5a8a; }
+.badge.wave-1 { background: var(--green-light); color: var(--green); }
+.badge.wave-2 { background: var(--blue-light); color: var(--blue); }
+.badge.wave-3 { background: var(--accent-subtle); color: var(--accent); }
+.badge.wave-4 { background: var(--amber-light); color: var(--amber); }
+.badge.wave-5 { background: #f0eef8; color: #555188; }
+.badge.wave-6 { background: #eef8f0; color: #3a6644; }
+.badge.wave-7 { background: #fce8e8; color: #8c3434; }
+
+/* Lists */
+ul, ol { margin: var(--space-md) 0 var(--space-md) var(--space-xl); }
+li { margin-bottom: var(--space-xs); }
+li::marker { color: var(--accent); }
+
+/* Checklist */
+ul.checklist { list-style: none; margin-left: 0; }
+ul.checklist li { position: relative; padding-left: 1.75em; margin-bottom: var(--space-sm); }
+ul.checklist li::before { content: "\2610"; position: absolute; left: 0; color: var(--accent); font-size: 1.15em; line-height: 1; top: 0.05em; }
+
+/* HR */
+hr { border: none; border-top: 1px solid var(--border); margin: var(--space-2xl) 0; }
+
+/* Blockquote */
+blockquote { border-left: 3px solid var(--accent); padding: var(--space-sm) var(--space-lg); margin: var(--space-lg) 0; color: var(--text-secondary); font-style: italic; background: var(--bg-callout); border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0; }
+
+/* Component page */
+.component-header {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+}
+.component-header .id-row { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; margin-bottom: var(--space-md); }
+.component-header h1 { margin: 0; }
+.meta-table { width: 100%; margin: var(--space-md) 0; font-size: 0.9rem; }
+.meta-table td { border-bottom: 1px solid var(--border); }
+.meta-table td:first-child { font-weight: 600; color: var(--text-secondary); width: 180px; }
+
+/* TOC */
+.toc { background: var(--bg-secondary); border-radius: var(--border-radius); padding: var(--space-lg); margin: var(--space-lg) 0; }
+.toc-title { font-weight: 600; margin-bottom: var(--space-sm); color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.toc ol { margin: 0; padding-left: var(--space-lg); }
+.toc a { border-bottom: none; }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-md); margin: var(--space-xl) 0; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--border-radius); padding: var(--space-lg); text-align: center; }
+.stat-value { font-family: var(--font-serif); font-size: 2.5rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.85rem; color: var(--text-tertiary); margin-top: var(--space-xs); }
+
+/* Anchor links */
+.anchor { color: var(--text-tertiary); text-decoration: none; border-bottom: none; font-size: 0.8em; margin-left: var(--space-xs); opacity: 0; transition: opacity 0.15s; }
+h2:hover .anchor, h3:hover .anchor { opacity: 1; }
+
+/* Language indicator */
+.lang-pill { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 0.75rem; font-weight: 600; }
+
+/* Section numbers */
+.section-number { color: var(--accent); margin-right: var(--space-sm); }
+
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <h1>Open-Source Readiness Strategy</h1>
+  <div class="subtitle">The concrete plan to take AumOS from internal repo to public, Apache 2.0, OSAF-submitted open source — hybrid GitHub organization, governance, CI, security, and the launch checklist.</div>
+  <nav>
+    <a href="index.html">&larr; Portal</a>
+    <a href="components.html">Components</a>
+    <a href="protocols.html">Protocols</a>
+    <a href="critical-analysis.html">Critical Analysis</a>
+    <a href="pending-tasks.html">Pending Tasks</a>
+  </nav>
+</div>
+
+<div class="container">
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#executive-summary">Executive Summary</a></li>
+    <li><a href="#org-structure">GitHub Organization Structure</a></li>
+    <li><a href="#licensing">Licensing</a></li>
+    <li><a href="#governance">Governance</a></li>
+    <li><a href="#contribution-workflow">Contribution Workflow</a></li>
+    <li><a href="#ci-strategy">CI Strategy</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#community">Community</a></li>
+    <li><a href="#launch-checklist">Launch Checklist</a></li>
+    <li><a href="#discovery-seo">Discovery &amp; SEO</a></li>
+    <li><a href="#metrics">Metrics for Success</a></li>
+  </ol>
+</div>
+
+<!-- ===================== 1. EXECUTIVE SUMMARY ===================== -->
+<h2 id="executive-summary"><span class="section-number">1.</span>Executive Summary</h2>
+
+<p>AumOS reconciles four source portfolios (DefStack 36-component, AumSecure 20+ protocols, AumSecure-V3 6-repo, PROJECT SENTINEL 10-framework) into one unified catalog of <strong>49 implementable components</strong> across four languages and <strong>12 spec-only protocols</strong>. The strategic question is no longer <em>whether</em> to open-source it — the OSAF (Open Secure AI Alliance) mandate requires verifiable, multi-vendor agent authority and evidence — but <em>how</em> and <em>when</em>.</p>
+
+<p><strong>Why now.</strong> The agent-security space is a land grab. EU AI Act Article 55 obligations land on GPAI providers in 2026-2027; vendors are racing to ship proprietary attestation layers; and the window to set the <em>open</em> standard for agent authority (the AAE), agent evidence (the AAR), and capability attestation (the CAP) is open for roughly 12-18 months before a closed incumbent locks it down. AumOS already has the most complete reference implementation. Open-sourcing it converts that lead into a defensible standard.</p>
+
+<div class="callout">
+  <div class="callout-title">The Strategy in One Sentence</div>
+  <p>Publish AumOS as a <strong>hybrid GitHub organization</strong> under a single <strong>pure Apache 2.0</strong> license, governed BDFL &rarr; Steering Committee &rarr; Foundation, with the 12 protocols submitted to OSAF as the standard-bearing wedge and the cryptographic spine fixed before a single repo goes public.</p>
+</div>
+
+<p><strong>The strategy has three pillars:</strong></p>
+
+<ul>
+  <li><strong>Hybrid repo model.</strong> One core monorepo (the contract plane + Rust trusted core + cross-cutting docs), one repo per independently-adoptable service/package, one repo per OSAF protocol. Maximizes both coherence (the contract plane is enforced centrally) and adoption (a Go shop can <code>go get</code> one service without cloning 49 components).</li>
+  <li><strong>Pure Apache 2.0.</strong> No BSL, no "source-available" tiers, no 4-year change-date gymnastics. Apache 2.0 is the license OSAF member orgs can adopt without a legal review. The commercial moat is the managed cloud (<code>X11 defstack-cloud</code>) and enterprise support, not license lock-in.</li>
+  <li><strong>OSAF protocol submission.</strong> The 12 protocols (AAE, AAR, CPE, AMIL, SSP, AATM, ABS, VEB, AIX, MADE, PRB, CAP) are submitted to OSAF working groups as candidate standards. Each ships with normative CDDL + JSON-Schema, a conformance test suite, and 2+ reference implementations. Winning the standard is worth more than winning the implementation.</li>
+</ul>
+
+<div class="callout danger">
+  <div class="callout-title">Prerequisite — No Public Repo Until C1-C7 Are Fixed</div>
+  <p>The <a href="critical-analysis.html">critical analysis</a> found <strong>7 critical findings</strong> (C1-C7) in the cryptographic spine: non-deterministic canonical CBOR, signature-collision canonicalization in flight-recorder/provena-chain, eval-guard attestation not binding results, GPU attestation nonce replay, agent-identity audience no-op, AAE validator trusting caller-supplied bytes, and the kill-switch government API faking <code>confirmed: true</code>. Shipping these publicly under the AumOS banner would destroy credibility on day one. <strong>Fixing C1-C7 is a hard gate on launch.</strong></p>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">~43</div>
+    <div class="stat-label">Public Repos at Launch</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">12</div>
+    <div class="stat-label">OSAF Protocol Submissions</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">4</div>
+    <div class="stat-label">Languages (Rust/Go/Py/TS)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">7</div>
+    <div class="stat-label">Critical Fixes Gating Launch</div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ===================== 2. GITHUB ORGANIZATION ===================== -->
+<h2 id="org-structure"><span class="section-number">2.</span>GitHub Organization Structure</h2>
+
+<p>The organization lives at <strong><a href="https://github.com/MuVeraAI">github.com/MuVeraAI</a></strong>. It uses a <strong>hybrid model</strong>: one core monorepo that enforces cross-language coherence, a fan-out of independently versionable service repos, and a parallel set of protocol repos that are the OSAF-standard wedge. This is the same shape as the OpenTelemetry project (a core repo + per-language SDKs + a specification repo) — proven to scale to hundreds of contributors.</p>
+
+<h3 id="org-core">2.1 Core Monorepo — <code>github.com/MuVeraAI/aumos</code></h3>
+
+<p>The monorepo is the spine. It contains everything that must stay <em>coherent across all four languages</em>. Splitting it would let drift creep in; keeping it lets the Buf breaking-change gate, the conformance suite, and the cross-language test vectors all run in one place.</p>
+
+<table>
+  <thead>
+    <tr><th>Path</th><th>Contents</th><th>Why it lives here</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>rust/</code></td><td>The 15 Rust trusted-core crates (T1 trust-core, T2 authority-spec, R1-R8 runtime/enforcement, S2/S3/S6 supply chain, N3 inference-proxy, E1 flight-recorder, X1 defstack-cli, X4 crypto-audit-ai, A6 conformance)</td><td>"No security invariant may have two authoritative implementations." The trusted core is Rust and must be built/tested/conformance-checked as one unit.</td></tr>
+    <tr><td><code>proto/</code> + <code>buf.yaml</code></td><td>All gRPC/Protobuf contracts, gated by <code>buf breaking</code></td><td>The wire contract. A breaking change here breaks every language at once — it must be caught centrally.</td></tr>
+    <tr><td><code>specs/</code></td><td>CDDL + JSON-Schema for all 12 protocols; normative Markdown specs</td><td>The human- and machine-readable standard. The source of truth every implementation is checked against.</td></tr>
+    <tr><td><code>testvectors/</code></td><td>Golden canonical-CBOR vectors, signature vectors, adversarial vectors (per protocol)</td><td>Shared across all implementations — the conformance suite consumes these directly.</td></tr>
+    <tr><td><code>policies/</code></td><td>OPA Rego, Cedar, and policy-compiler reference policies</td><td>Decision-equivalence tests run against all three engines in CI.</td></tr>
+    <tr><td><code>tools/conformance/</code></td><td>The cross-language conformance runner (<code>tools/conformance/run.sh</code>)</td><td>Runs every implementation's tests against the shared vectors. This is the contract-plane enforcement.</td></tr>
+    <tr><td><code>Makefile</code></td><td><code>make setup / lint / test / conformance / check-proto / docs</code></td><td>The one-command promise. Detects and skips missing toolchains so a Rust-only contributor isn't forced to install Python.</td></tr>
+    <tr><td><code>.github/workflows/</code></td><td>CI: lint + test + conformance + SBOM (CycloneDX) + SLSA L3 provenance</td><td>Enforced on every PR to the contract plane.</td></tr>
+    <tr><td><code>docs/</code></td><td>The reconciliation matrix, cross-cutting standards (13-19), all 53 component RFCs, ADRs, this strategy</td><td>Specification docs must travel with the contract they describe.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="org-services">2.2 Service Repos — one per Go service, Python package, TypeScript package</h3>
+
+<p>Each independently-adoptable component gets its own repo so it can be <strong>versioned, installed, and adopted on its own release cadence</strong>. A Go team does not clone 49 components to use <code>open-serve-kit</code>. This is the OpenTelemetry per-language-sdk pattern. There are roughly 30 service repos at launch.</p>
+
+<table>
+  <thead>
+    <tr><th>Repo</th><th>Component(s)</th><th>Lang</th><th>Install</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>agent-identity</code></td><td>I1 (the keystone — 12 components depend on it)</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/agent-identity</code></td></tr>
+    <tr><td><code>open-serve-kit</code></td><td>N1 OpenAI-compatible proxy</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/open-serve-kit</code></td></tr>
+    <tr><td><code>tenant-guard</code></td><td>N4 K8s MIG/MPS multi-tenant operator</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/tenant-guard</code></td></tr>
+    <tr><td><code>fleet-marshal</code></td><td>F4 ModelFleet CRD operator</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/fleet-marshal</code></td></tr>
+    <tr><td><code>edge-sentinel</code></td><td>F3 edge attestation agent (&lt;5MB binary)</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/edge-sentinel</code></td></tr>
+    <tr><td><code>tee-serve</code></td><td>C1-4 TEE-backed model serving</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/tee-serve</code></td></tr>
+    <tr><td><code>bridge-rt</code></td><td>N2 unified backend abstraction</td><td><span class="badge python">Py</span> + Go</td><td><code>pip install aumos-bridge-rt</code></td></tr>
+    <tr><td><code>cuda-gram</code></td><td>C1-2 high-level GPU attestation SDK</td><td><span class="badge python">Py</span></td><td><code>pip install cuda-gram</code></td></tr>
+    <tr><td><code>attesta-flow</code></td><td>C1-3 E2E attested inference pipeline</td><td><span class="badge python">Py</span></td><td><code>pip install attesta-flow</code></td></tr>
+    <tr><td><code>safe-tensors-pp</code></td><td>S1 Safetensors extension w/ provenance</td><td><span class="badge python">Py</span></td><td><code>pip install safe-tensors-pp</code></td></tr>
+    <tr><td><code>model-sbom</code></td><td>S4 CycloneDX/SPDX AI SBOM CLI</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-model-sbom</code></td></tr>
+    <tr><td><code>data-provenance-kit</code></td><td>S5 dataset lineage, signed JSON-LD</td><td><span class="badge python">Py</span></td><td><code>pip install data-provenance-kit</code></td></tr>
+    <tr><td><code>tamper-scan</code></td><td>S7 backdoor/weight-distribution detection</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-tamper-scan</code></td></tr>
+    <tr><td><code>train-guard</code></td><td>S8 training-loop integrity hooks</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-train-guard</code></td></tr>
+    <tr><td><code>safe-eval</code></td><td>A1 YAML eval pipeline (HELM/garak/PyRIT)</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-safe-eval</code></td></tr>
+    <tr><td><code>adversaria</code></td><td>A2 unified adversarial test framework</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-adversaria</code></td></tr>
+    <tr><td><code>bias-sentinel</code></td><td>A3 bias + copyright auditing</td><td><span class="badge python">Py</span> + TS</td><td><code>pip install aumos-bias-sentinel</code></td></tr>
+    <tr><td><code>comply-gate</code></td><td>A4 CI/CD compliance gates</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-comply-gate</code></td></tr>
+    <tr><td><code>agentsec-lab</code></td><td>A5 adversarial benchmark w/ holdouts</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-agentsec-lab</code></td></tr>
+    <tr><td><code>red-team-cloud</code></td><td>A7 continuous adversarial simulation</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-red-team-cloud</code></td></tr>
+    <tr><td><code>fed-core</code></td><td>F1 attested federated training</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-fed-core</code></td></tr>
+    <tr><td><code>dp-crate</code></td><td>F2 differential privacy toolkit</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-dp-crate</code></td></tr>
+    <tr><td><code>nooa-ext</code></td><td>X2 NVIDIA NOOA production extensions</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-nooa-ext</code></td></tr>
+    <tr><td><code>retro-spec-kit</code></td><td>X5 retrospective transcript review</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-retro-spec-kit</code></td></tr>
+    <tr><td><code>metr-bridge</code></td><td>X6 METR independent-evaluator integration</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-metr-bridge</code></td></tr>
+    <tr><td><code>incident-exchange</code></td><td>X9 normalized agent incident format</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-incident-exchange</code></td></tr>
+    <tr><td><code>console</code></td><td>X7 enterprise policy/evidence web UI</td><td><span class="badge typescript">TS</span></td><td><code>npm install @muveraai/console</code></td></tr>
+    <tr><td><code>mcp-gateway</code></td><td>X8 authority-aware MCP middleware</td><td><span class="badge typescript">TS</span></td><td><code>npm install @muveraai/mcp-gateway</code></td></tr>
+    <tr><td><code>arena</code></td><td>A8 A/B Elo ranking leaderboard</td><td><span class="badge typescript">TS</span></td><td><code>npm install @muveraai/arena</code></td></tr>
+    <tr><td><code>kill-switch-policy</code></td><td>R3 OPA Rego policy bindings (Python host)</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-kill-switch-policy</code></td></tr>
+  </tbody>
+</table>
+
+<p class="card-desc"><em>Rust crates (T1, T2, R1-R8, S2/S3/S6, N3, E1, X1, X4, A6) stay in the core monorepo and publish to crates.io as <code>aumos-trust-core</code>, <code>aumos-defstack-cli</code>, etc. They are too tightly coupled to the contract plane to split.</em></p>
+
+<h3 id="org-protocols">2.3 Protocol Repos — one per OSAF submission (12)</h3>
+
+<p>These are the standard-bearing repos. Each is donated to the OSAF standardization process and carries: (1) the normative CDDL + JSON-Schema, (2) a conformance test suite, and (3) two or more reference implementations (at minimum the Rust reference from the monorepo and one second-language reference). Winning adoption of the <em>protocol</em> is more valuable than adoption of any single implementation.</p>
+
+<table>
+  <thead>
+    <tr><th>Repo</th><th>Protocol</th><th>Spelled out</th><th>Consumed by</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>aae-spec</code></td><td>P1 AAE</td><td>Agent Authority Envelope</td><td>I1, R3, R4, all trusted-core</td></tr>
+    <tr><td><code>aar-spec</code></td><td>P2 AAR</td><td>Agent Action Receipt</td><td>E1, X2, all auditing</td></tr>
+    <tr><td><code>cpe-spec</code></td><td>P3 CPE</td><td>Context Provenance Envelope</td><td>Context components</td></tr>
+    <tr><td><code>amil-spec</code></td><td>P4 AMIL</td><td>Agent Memory Integrity Ledger</td><td>Memory components</td></tr>
+    <tr><td><code>ssp-spec</code></td><td>P5 SSP</td><td>Secure Skill Package</td><td>S4, X8</td></tr>
+    <tr><td><code>aatm-spec</code></td><td>P6 AATM</td><td>AI Artifact Trust Manifest</td><td>T1, S1, S4, S5</td></tr>
+    <tr><td><code>abs-spec</code></td><td>P7 ABS</td><td>Autonomy Budget Specification</td><td>I1, R3</td></tr>
+    <tr><td><code>veb-spec</code></td><td>P8 VEB</td><td>Verifiable Evaluation Bundle</td><td>A1, A5, A6</td></tr>
+    <tr><td><code>aix-spec</code></td><td>P9 AIX</td><td>Agent Incident Exchange</td><td>X9, R3</td></tr>
+    <tr><td><code>made-spec</code></td><td>P10 MADE</td><td>Multi-Agent Delegation Exchange</td><td>I1 (multi-agent)</td></tr>
+    <tr><td><code>prb-spec</code></td><td>P11 PRB</td><td>Proof-Carrying Remediation Bundle</td><td>S9, X9</td></tr>
+    <tr><td><code>cap-spec</code></td><td>P12 CAP</td><td>Capability Attestation Profile</td><td>R1, R2, I1</td></tr>
+  </tbody>
+</table>
+
+<div class="callout warning">
+  <div class="callout-title">Critical-analysis finding H4 — only P1 has CDDL today</div>
+  <p>The audit found that only <code>P1-aae</code> actually ships CDDL + JSON-Schema; P2-P12 are markdown sketches. This is itself a launch blocker for the protocol repos — a protocol repo with no normative schema is not a credible OSAF submission. Authoring the 11 missing schemas is a Wave-1 launch task.</p>
+</div>
+
+<hr>
+
+<!-- ===================== 3. LICENSING ===================== -->
+<h2 id="licensing"><span class="section-number">3.</span>Licensing — Pure Apache 2.0</h2>
+
+<p>Every repo in the <code>MuVeraAI</code> org is <strong>Apache License 2.0</strong>. No exceptions, no BSL, no "change date" tiers. This is a deliberate departure from the earlier governance draft (which proposed BSL 1.1 for enterprise features). The rationale:</p>
+
+<table>
+  <thead>
+    <tr><th>Option considered</th><th>Verdict</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Apache 2.0 (chosen)</strong></td><td><span class="badge" style="background:var(--green-light);color:var(--green)">Adopted</span></td><td>Maximum adoption. OSAF member orgs (and their legal teams) accept Apache 2.0 without review. Permits the patent grant that security infrastructure needs. Compatible with the Rust/Go/Python/npm ecosystems. This is what a standard is licensed under.</td></tr>
+    <tr><td>BSL 1.1 for enterprise</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Rejected</span></td><td>The HashiCorp/MongoDB playbook protects early commercial value but creates permanent friction for every adopter. For a <em>standard</em>, adoption is the asset. Cloud competition is defended by the managed cloud and trademark, not the license.</td></tr>
+    <tr><td>GPL / AGPL</td><td><span class="badge" style="background:var(--red-light);color:var(--red)">Rejected</span></td><td>Copyleft would block adoption by the closed-source incumbents whose compliance we want to enable. Wrong tool for infrastructure that must be embedded.</td></tr>
+    <tr><td>MPL 2.0 (file-level copyleft)</td><td><span class="badge" style="background:var(--amber-light);color:var(--amber)">Rejected</span></td><td>A reasonable middle ground, but adds just enough friction that Apache 2.0 is strictly better for a standard.</td></tr>
+  </tbody>
+</table>
+
+<h4>SPDX &amp; file headers</h4>
+
+<ul>
+  <li>Every repo root carries <code>LICENSE</code> (Apache-2.0 full text) and <code>LICENSE-APACHE</code>.</li>
+  <li>SPDX identifier <code>SPDX-License-Identifier: Apache-2.0</code> appears at the top of every source file (Rust <code>//!</code>, Go <code>//</code>, Python module docstring, TS header comment).</li>
+  <li><code>Cargo.toml</code> / <code>pyproject.toml</code> / <code>package.json</code> / <code>go.mod</code> all declare <code>license = "Apache-2.0"</code>.</li>
+  <li>Protocol specs (CDDL/JSON-Schema) and documentation are dual-licensed <strong>Apache-2.0</strong> (for code) and <strong>CC-BY-4.0</strong> (for the prose spec), so OSAF can adopt them as standards with no encumbrance.</li>
+</ul>
+
+<h4>DCO, not CLA — for individuals</h4>
+
+<p>Individual contributors sign the <strong>Developer Certificate of Origin</strong> only. Every commit carries <code>Signed-off-by: Jane Doe &lt;jane@example.com&gt;</code> via <code>git commit -s</code>. A CI bot (<code>probot/dco</code>) rejects unsigned commits. The DCO asserts the contributor has the right to contribute the code — it is <em>not</em> a copyright assignment. Contributors keep their copyright.</p>
+
+<h4>CLA bot — for corporate contributors</h4>
+
+<p>Corporate contributors (employees contributing on behalf of an employer) complete a lightweight Corporate CLA via the <code>cla-assistant</code> GitHub App. The CCLA is a one-time org-level grant, not per-employee. This protects the foundation's ability to relicense (e.g., on donation to Linux Foundation) without chasing down every contributor.</p>
+
+<div class="callout info">
+  <div class="callout-title">Trademark</div>
+  <p>"AumOS", "DefStack", and the OSAF protocol names (AAE, AAR, CAP, etc.) are trademarks of the founding company, licensed freely to OSS projects that comply with the usage guidelines. Commercial products and derivative forks must use a distinct name (e.g., "Acme AumOS Fork"). Trademark policy lives at <code>github.com/MuVeraAI/.github</code>.</p>
+</div>
+
+<hr>
+
+<!-- ===================== 4. GOVERNANCE ===================== -->
+<h2 id="governance"><span class="section-number">4.</span>Governance</h2>
+
+<p>Governance is <strong>phased</strong>, matching the project's maturity. Each phase lasts roughly a horizon.</p>
+
+<table class="meta-table">
+  <tr><td>Phase 1 (M0-M12)</td><td><strong>BDFL</strong> — CEO/CTO decides, with maintainer input. Rationale: speed during the OSS land grab. The BDFL is the final reviewer on every protocol RFC.</td></tr>
+  <tr><td>Phase 2 (M12-M24)</td><td><strong>Steering Committee</strong> — 5-7 members: founding team + key external contributors + 1 OSAF representative. Consensus where possible, 2/3 majority vote otherwise. Incorporates community input as adoption grows.</td></tr>
+  <tr><td>Phase 3 (M24+)</td><td><strong>Foundation Donation</strong> — Option A: Linux Foundation; Option B: a dedicated AumOS Foundation under OSAF; Option C: PyTorch-style governance. Maximizes neutrality for long-term adoption.</td></tr>
+</table>
+
+<h3>Roles &amp; Promotion</h3>
+
+<table>
+  <thead>
+    <tr><th>Role</th><th>Permissions</th><th>How to get it</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Contributor</strong></td><td>Open PRs, comment on issues, participate in RFC discussions</td><td>Sign DCO, submit one merged PR</td></tr>
+    <tr><td><strong>Reviewer</strong></td><td>Review and approve PRs in their component area (codeowner on <code>docs/rfcs/&lt;id&gt;/CLAUDE.md</code> OWNERS)</td><td>Consistent high-quality contributions over 3+ months; nominated by a Maintainer</td></tr>
+    <tr><td><strong>Maintainer</strong></td><td>Merge PRs, cut releases, shepherd RFCs, triage security reports</td><td>Steering Committee appointment; demonstrated sustained ownership of a component or protocol</td></tr>
+    <tr><td><strong>Steering Committee</strong></td><td>Set technical direction, approve RFCs to "Accepted", ratify releases, adjudicate conflicts</td><td>Election (Phase 2+) — 2-year staggered terms</td></tr>
+  </tbody>
+</table>
+
+<h3>RFC Process</h3>
+
+<ol>
+  <li><strong>Idea</strong> &rarr; open a GitHub Discussion in <code>github.com/MuVeraAI/aumos</code>.</li>
+  <li><strong>Draft RFC</strong> &rarr; PR against <code>docs/rfcs/</code> using the 10-section template. Two-week comment window minimum.</li>
+  <li><strong>Accepted / Rejected / Deferred</strong> &rarr; Steering Committee decision (Phase 1: BDFL). Accepted RFCs get a tracking issue and a component/protocol repo if applicable.</li>
+  <li><strong>Implementation</strong> &rarr; the RFC's <code>tasks/01-setup.md ... 08-release.md</code> drive the work. A typical component takes one coding-agent session (~8 focused hours).</li>
+</ol>
+
+<h3>Conflict Resolution</h3>
+
+<ul>
+  <li><strong>Technical disputes</strong> &rarr; RFC discussion &rarr; Reviewer consensus &rarr; Steering Committee vote (2/3 majority).</li>
+  <li><strong>Behavioral disputes</strong> &rarr; Code of Conduct enforcement by the CoC team (3 volunteers, rotating annually).</li>
+  <li><strong>License/IP disputes</strong> &rarr; Legal counsel + Steering Committee; the offending contribution is reverted pending resolution.</li>
+</ul>
+
+<h3>Code of Conduct</h3>
+
+<p>AumOS adopts the <strong>Contributor Covenant 2.1</strong>, enforced by a rotating 3-person CoC team. Reports go to <code>conduct@MuVeraAI.org</code> (confidential, reviewed within 72 hours). The full text lives at <code>github.com/MuVeraAI/.github/CODE_OF_CONDUCT.md</code> and is mirrored into every repo.</p>
+
+<hr>
+
+<!-- ===================== 5. CONTRIBUTION WORKFLOW ===================== -->
+<h2 id="contribution-workflow"><span class="section-number">5.</span>Contribution Workflow</h2>
+
+<p>The contribution workflow is identical across every repo in the org — defined once in the cross-cutting developer-experience standard and enforced by per-repo templates.</p>
+
+<h3>The loop</h3>
+
+<pre><code>1. Fork the repo (github.com/MuVeraAI/&lt;repo&gt;) or branch if internal
+2. git checkout -b feat/&lt;canonical-id&gt;-&lt;short-description&gt;
+3. Make changes; commit with `git commit -s`   (DCO sign-off — REQUIRED)
+4. make lint test conformance                    (all must pass locally)
+5. Open PR; fill the template (which RFC, which task ticket, coverage delta)
+6. Two reviewer approvals required:
+     - 1 from the component owner (codeowner per OWNERS)
+     - 1 from any other maintainer
+7. CI runs: lint + test + conformance + SBOM (CycloneDX) + SLSA L3 provenance
+8. Squash-merge to main; maintainer cuts a signed release tag</code></pre>
+
+<p><strong>Commit message format:</strong> <code>feat(&lt;scope&gt;): &lt;subject&gt;</code> / <code>fix</code> / <code>docs</code> / <code>refactor</code> / <code>test</code> / <code>chore</code> / <code>ci</code> / <code>build</code>. Scope = canonical ID (e.g. <code>feat(T1): switch to ciborium canonical CBOR</code>).</p>
+
+<h3>The 5-Minute Quickstart</h3>
+
+<p>A new contributor's first task must be runnable in 5 minutes on a fresh machine. If it takes longer, that is a bug against the developer-experience standard.</p>
+
+<pre><code>git clone https://github.com/MuVeraAI/aumos.git
+cd aumos
+make setup      # detects toolchains, reports what's missing (does NOT fail)
+make test       # tests every present language; skips missing ones
+make conformance
+cd rust/trust-core
+cargo test      # green — you're ready to contribute</code></pre>
+
+<h3>Makefile targets</h3>
+
+<table>
+  <thead><tr><th>Target</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>make help</code></td><td>List all targets</td></tr>
+    <tr><td><code>make setup</code></td><td>Detect toolchains; report status (never installs without confirmation)</td></tr>
+    <tr><td><code>make lint</code> / <code>make test</code> / <code>make fmt</code></td><td>Lint / test / format every present language; per-language variants exist (<code>make lint-rust</code>, <code>make test-python</code>)</td></tr>
+    <tr><td><code>make conformance</code></td><td>Run the cross-language conformance suite against shared test vectors</td></tr>
+    <tr><td><code>make check-proto</code></td><td>Buf lint + breaking-change gate on <code>proto/</code></td></tr>
+    <tr><td><code>make docs</code></td><td>Check docs (RFC template, link integrity, prose linter)</td></tr>
+    <tr><td><code>make clean</code></td><td>Remove build artifacts</td></tr>
+  </tbody>
+</table>
+
+<h3>How to add a new component</h3>
+
+<ol>
+  <li>Write an RFC in <code>docs/rfcs/&lt;id&gt;-&lt;name&gt;.md</code> (10-section template). Get it to "Accepted".</li>
+  <li>Scaffold the RFC's companion files: <code>CLAUDE.md</code> (build instructions), <code>AGENTS.md</code> (agent anti-patterns), <code>PROMPT.md</code> (master agent prompt), <code>tasks/01-setup.md ... 08-release.md</code>.</li>
+  <li>Decide the language via the polyglot stack-test doctrine (default Rust; Go only if it clears the Go activation gate — 3 of 7 conditions).</li>
+  <li>If it's a standalone service/package, create its repo under <code>github.com/MuVeraAI/&lt;name&gt;</code> from the <code>repo-template</code>; otherwise add it to the monorepo.</li>
+  <li>Register it in <code>docs/00-reconciliation-matrix.md</code> and the conformance suite.</li>
+</ol>
+
+<hr>
+
+<!-- ===================== 6. CI STRATEGY ===================== -->
+<h2 id="ci-strategy"><span class="section-number">6.</span>CI Strategy</h2>
+
+<p>CI runs at two levels: <strong>per-repo CI</strong> (every repo is independently buildable and testable) and <strong>cross-repo conformance</strong> (the core monorepo runs the conformance suite against every implementation).</p>
+
+<h3>Per-repo CI (GitHub Actions)</h3>
+
+<p>Every repo has the same workflow shape, templated from <code>github.com/MuVeraAI/.github/workflow-templates</code>:</p>
+
+<table>
+  <thead><tr><th>Job</th><th>What it enforces</th></tr></thead>
+  <tbody>
+    <tr><td><strong>lint</strong></td><td><code>clippy::pedantic</code> (Rust), <code>golangci-lint</code> (Go), <code>ruff + mypy</code> (Python), <code>eslint + prettier</code> (TS)</td></tr>
+    <tr><td><strong>test</strong></td><td>Full unit + integration test suite. Matrix over supported OS / language-version.</td></tr>
+    <tr><td><strong>conformance</strong></td><td>Run the shared <code>testvectors/</code> against this implementation. Fails on any vector mismatch.</td></tr>
+    <tr><td><strong>coverage</strong></td><td><code>cargo-tarpaulin</code> / <code>go test -cover</code> / <code>coverage.py</code> / <code>c8</code>. PRs that drop coverage below threshold are blocked.</td></tr>
+    <tr><td><strong>SBOM</strong></td><td>Generate CycloneDX SBOM on every build; attach to release.</td></tr>
+    <tr><td><strong>SLSA L3</strong></td><td>Provenance attestations via <code>slsa-github-generator</code>. Every release artifact is verifiable back to source.</td></tr>
+    <tr><td><strong>DCO</strong></td><td><code>probot/dco</code> rejects unsigned commits.</td></tr>
+    <tr><td><strong>secret-scan</strong></td><td><code>gitleaks</code> on every push.</td></tr>
+  </tbody>
+</table>
+
+<h3>Cross-repo conformance (the contract plane)</h3>
+
+<p>The core monorepo's <code>tools/conformance/run.sh</code> is the heartbeat of the whole org. On every change to <code>proto/</code>, <code>specs/</code>, or <code>testvectors/</code>, it checks out every implementation (the Rust crates in-tree, plus the latest tag of each service repo) and runs the conformance suite against all of them. A drift in one language fails the build for everyone — exactly the property the contract plane is supposed to provide.</p>
+
+<div class="callout warning">
+  <div class="callout-title">Critical-analysis finding H3 — conformance is one vector today</div>
+  <p>Currently the "cross-language conformance lane" is a single Ed25519 signature over the bytes <code>"hello aumos conformance"</code> — verified raw, not over canonical-CBOR. The <code>testvectors/README.md</code> promises vectors for C1-1/C1-2/R2/R3/R4/I1/P1/P2 — none exist. Expanding this to canonical-CBOR vectors, protocol vectors, and adversarial vectors (H3 fix) is itself a launch task, because without it the conformance gate is theatrical.</p>
+</div>
+
+<h3>Release process</h3>
+
+<ol>
+  <li>Maintainer opens a release PR with an updated <code>CHANGELOG.md</code> (Keep a Changelog format).</li>
+  <li>CI runs the full test suite + security scans.</li>
+  <li>Reviewer approves.</li>
+  <li>Maintainer cuts a <strong>signed tag</strong> (<code>git tag -s</code>, GPG / Sigstore).</li>
+  <li>CI publishes to the package registry (crates.io / PyPI / npm / pkg.go.dev).</li>
+  <li>A GitHub Release is created with release notes + SBOM attached.</li>
+  <li>Announcement: Discord, the blog, the <code>@MuVeraAI</code> account.</li>
+</ol>
+
+<p>Releases are <strong>signed and reproducible</strong>. Every release artifact carries an SLSA L3 provenance attestation that can be verified with <code>cosign verify-attestation</code>.</p>
+
+<hr>
+
+<!-- ===================== 7. SECURITY ===================== -->
+<h2 id="security"><span class="section-number">7.</span>Security</h2>
+
+<p>For a project whose entire value proposition is "verifiable agent authority and evidence," the security posture <em>is</em> the product. The disclosure policy is modeled on Google Project Zero and is documented in full in the cross-cutting security-disclosure standard.</p>
+
+<h3>SECURITY.md — private disclosure</h3>
+
+<ul>
+  <li><strong>Do NOT open a public GitHub issue</strong> for security vulnerabilities.</li>
+  <li>Email <strong><code>security@MuVeraAI.org</code></strong> (PGP key published at <code>MuVeraAI.org/security/pgp-key.asc</code>), or use the GitHub "Security" tab &rarr; "Report a vulnerability" (creates a private advisory).</li>
+  <li>Reports should include: component name and version, description, reproduction steps, impact assessment, suggested fix (optional), and credit handle (optional).</li>
+  <li><strong>We promise:</strong> acknowledge every report within the SLA, credit reporters, take no legal action against good-faith reporters, work with reporters on coordinated disclosure, and be transparent about timelines.</li>
+</ul>
+
+<h3>90-day coordinated disclosure</h3>
+
+<p>We follow the Google Project Zero standard: reporter reports &rarr; we acknowledge within SLA &rarr; we develop the fix &rarr; fix released &rarr; public disclosure after the fix is widely deployed, or 90 days, whichever is sooner. Extensions are granted for good cause (e.g., a complex fix requiring a major version bump).</p>
+
+<h3>Response SLAs</h3>
+
+<table>
+  <thead>
+    <tr><th>Severity</th><th>Ack</th><th>Initial Assessment</th><th>Fix / Mitigation</th><th>Public Disclosure</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Critical</strong> (RCE, auth bypass, sig forgery, data exposure)</td><td>4 hours</td><td>24 hours</td><td>7 days</td><td>30 days</td></tr>
+    <tr><td><strong>High</strong> (privilege escalation, DoS)</td><td>8 hours</td><td>72 hours</td><td>30 days</td><td>60 days</td></tr>
+    <tr><td><strong>Medium</strong> (info disclosure, bypass)</td><td>24 hours</td><td>7 days</td><td>90 days</td><td>120 days</td></tr>
+    <tr><td><strong>Low</strong> (hardening, best practice)</td><td>72 hours</td><td>14 days</td><td>Next release</td><td>180 days</td></tr>
+  </tbody>
+</table>
+
+<p>For critical vulnerabilities under active exploitation: war room within 4 hours, patch within 24 hours, out-of-band release (do not wait for the scheduled release), customer notification, public advisory within 24 hours of the fix, and a public post-mortem within 7 days.</p>
+
+<h3>CVE Numbering Authority &amp; bug bounty</h3>
+
+<ul>
+  <li><strong>CNA candidate.</strong> AumOS applies to become a CVE Numbering Authority by M9. Until then, CVEs are requested through MITRE (<code>cveform.mitre.org</code>); critical issues get expedited assignment.</li>
+  <li><strong>Bug bounty (Q2 2027).</strong> A HackerOne program launches post-Series A. Until then, reporters are credited in release notes and receive AumOS swag.</li>
+  <li><strong>Backporting.</strong> Current major (v1.x): all fixes. Previous major (v0.x): Critical/High only. Older: end of life, upgrade required.</li>
+</ul>
+
+<h3>The 7 critical findings being fixed before launch</h3>
+
+<p>These are reproduced from the <a href="critical-analysis.html">critical analysis</a>. Each is a cryptographic-level break where the advertised security claim is actively false. <strong>None ships publicly until fixed.</strong></p>
+
+<table>
+  <thead><tr><th>ID</th><th>Finding</th><th>Component</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td><strong>C1</strong></td><td>Canonical CBOR is NOT deterministic — cross-language signing contract broken (serde_cbor without <code>deterministic</code> feature)</td><td>T1 trust-core</td><td>Switch to <code>ciborium</code> with explicit canonicalization; golden vector w/ unordered map</td></tr>
+    <tr><td><strong>C2</strong></td><td>flight-recorder canonical_bytes is unambiguous-concatenation — signature-collision forgery</td><td>E1, S2</td><td>Length-prefix every field (TLV) or use real canonical CBOR</td></tr>
+    <tr><td><strong>C3</strong></td><td>eval-guard signature does NOT cover actual check results — fail-closed bypass (one attestation = permanent skeleton key)</td><td>R2</td><td>Sign actual per-check results + fresh timestamp + host binding</td></tr>
+    <tr><td><strong>C4</strong></td><td>GPU attestation nonce never verified — replay attack (mock backend ignores nonce entirely)</td><td>C1-1, C1-2</td><td><code>verify</code> must take challenge nonce; reject <code>report.nonce != challenge</code></td></tr>
+    <tr><td><strong>C5</strong></td><td>agent-identity audience check is a no-op — confused-deputy defense is fictional (condition always false)</td><td>I1</td><td>Add <code>aud</code> claim, bind at issue, reject at verify</td></tr>
+    <tr><td><strong>C6</strong></td><td>authority-spec AAE validator takes canonical bytes from the caller — signature meaningless</td><td>T2</td><td>Reconstruct canonical bytes from the envelope itself; never trust caller-supplied bytes</td></tr>
+    <tr><td><strong>C7</strong></td><td>kill-switch Government Compliance API silently fakes <code>confirmed: true</code></td><td>R3</td><td>Return <code>confirmed: false</code> until the real call ships; never lie about compliance state</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ===================== 8. COMMUNITY ===================== -->
+<h2 id="community"><span class="section-number">8.</span>Community</h2>
+
+<p>The community strategy targets four audiences in priority order: (1) agent-framework authors (LangChain, LlamaIndex, AutoGen, CrewAI), (2) platform/SRE teams running agent workloads at scale, (3) AI-safety researchers and red-teamers, and (4) regulators and standards bodies (OSAF, NIST, EU AI Office).</p>
+
+<h3>Channels</h3>
+
+<ul>
+  <li><strong>Discord</strong> (<code>discord.gg/MuVeraAI</code>) — primary real-time community. Channels per protocol, per language, plus <code>#help</code>, <code>#show-and-tell</code>, <code>#rfc-discussion</code>. Seeded by the DevRel team; staffed daily.</li>
+  <li><strong>GitHub Discussions</strong> — Q&amp;A and long-form design threads, one Discussions board per repo, federated into the core monorepo's.</li>
+  <li><strong>Weekly office hours</strong> — Friday Zoom, recorded and posted to YouTube + the blog. Bring your integration problem; a maintainer pair-solves it live.</li>
+  <li><strong>Blog</strong> (<code>MuVeraAI.org/blog</code>) — deep-dives on protocol design, post-mortems, and adoption stories. One substantive post per week during Wave 1.</li>
+  <li><strong>Conference talks</strong> — GTC (NVIDIA GPU attestation), KubeCon (operator-driven multi-tenancy), RSA (security disclosure + the AAE standard), DEF CON (the adversarial benchmarks).</li>
+</ul>
+
+<h3>Programs</h3>
+
+<ul>
+  <li><strong>Hacktoberfest</strong> — curated <code>good first issue</code> and <code>help wanted</code> labels across all repos; maintainer office hours all October.</li>
+  <li><strong>Google Summer of Code</strong> — 2-4 mentee slots per summer, paired with a maintainer; projects drawn from the roadmap.</li>
+  <li><strong>MLH Fellowship</strong> — host a pod of 3-5 fellows per cohort on a multi-week project (e.g., "build the second reference implementation of P9 AIX").</li>
+  <li><strong>Design-partner program</strong> — 1 to 15 production design partners over 12 months; each gets a named maintainer liaison and a weekly sync.</li>
+</ul>
+
+<h3>DevRel cadence</h3>
+
+<p>One DevRel engineer files a <strong>contributor-friction report</strong> after every onboarding session during Wave 1. Friction that breaks the 5-minute quickstart is a P1 bug. The DevRel team is responsible for the Awesome list submissions, the social preview images, and the launch-blog cadence (below).</p>
+
+<hr>
+
+<!-- ===================== 9. LAUNCH CHECKLIST ===================== -->
+<h2 id="launch-checklist"><span class="section-number">9.</span>Launch Checklist</h2>
+
+<p>This is the concrete, ordered set of steps to go from the current internal state to "public open-source v1.0.0." No item is skippable. The first two blocks are hard gates; the rest is the launch day runbook.</p>
+
+<h4>Block A — Security &amp; correctness gates (hard blockers)</h4>
+
+<ul class="checklist">
+  <li>Fix C1 (deterministic canonical CBOR via ciborium) and add an unordered-map golden vector</li>
+  <li>Fix C2 (length-prefix every field in flight-recorder &amp; provena-chain canonical_bytes)</li>
+  <li>Fix C3 (eval-guard attestation binds actual results + timestamp + host)</li>
+  <li>Fix C4 (verify GPU attestation <code>report.nonce == challenge</code> in all paths)</li>
+  <li>Fix C5 (agent-identity: real <code>aud</code> claim, bound at issue, rejected at verify)</li>
+  <li>Fix C6 (AAE validator reconstructs canonical bytes from the envelope itself)</li>
+  <li>Fix C7 (kill-switch returns <code>confirmed: false</code> until the real government call ships)</li>
+  <li>Run <code>cargo test &amp;&amp; go test ./... &amp;&amp; pytest &amp;&amp; vitest</code> across all repos &mdash; 0 failures</li>
+  <li>Author the 11 missing protocol schemas (H4) so every <code>&lt;proto&gt;-spec</code> repo has CDDL + JSON-Schema</li>
+  <li>Expand the conformance suite (H3) beyond the single Ed25519 vector: canonical-CBOR, protocol, adversarial vectors</li>
+</ul>
+
+<h4>Block B — Per-repo hygiene (every repo, templated)</h4>
+
+<ul class="checklist">
+  <li>Add <code>LICENSE</code> (Apache 2.0 full text) + <code>LICENSE-APACHE</code></li>
+  <li>Add SPDX <code>Apache-2.0</code> identifier to every source file</li>
+  <li>Add <code>CODE_OF_CONDUCT.md</code> (Contributor Covenant 2.1, mirroring <code>.github</code>)</li>
+  <li>Add <code>SECURITY.md</code> (private disclosure, PGP key pointer, SLA table)</li>
+  <li>Add <code>CONTRIBUTING.md</code> (the fork &rarr; DCO &rarr; PR &rarr; 2-approval loop; link to the Makefile targets)</li>
+  <li>Add <code>README.md</code> with badges (CI, coverage, license, crates.io/PyPI/npm/go.dev), a one-paragraph "what it does", install command, and quickstart</li>
+  <li>Add <code>.github/ISSUE_TEMPLATE/</code> (bug, feature, security-pointer) and <code>.github/PULL_REQUEST_TEMPLATE.md</code></li>
+  <li>Add <code>.github/workflows/ci.yml</code> from the org template (lint + test + conformance + SBOM + SLSA + DCO)</li>
+  <li>Set GitHub repo topics, description, and the org social-preview image</li>
+</ul>
+
+<h4>Block C — Org-level setup</h4>
+
+<ul class="checklist">
+  <li>Create the <code>MuVeraAI</code> GitHub org; configure <code>.github</code> profile repo (CoC, SECURITY, default templates, fundings)</li>
+  <li>Create a GitHub Projects board for the public roadmap (Now / Next / Later columns)</li>
+  <li>Enable GitHub Security Advisories + Dependabot + code scanning (CodeQL) org-wide</li>
+  <li>Register the <code>probot/dco</code>, <code>cla-assistant</code>, and <code>semantic-pull-requests</code> apps</li>
+  <li>Stand up the Discord server and link it from every README</li>
+</ul>
+
+<h4>Block D — Publishing</h4>
+
+<ul class="checklist">
+  <li>Publish Rust crates to <strong>crates.io</strong> (claim the <code>aumos-*</code> namespace)</li>
+  <li>Publish Python packages to <strong>PyPI</strong> (claim <code>aumos-*</code>; enable 2FA + trusted publishing)</li>
+  <li>Publish TS packages to <strong>npm</strong> (claim the <code>@muveraai</code> scope)</li>
+  <li>Publish Go modules to <strong>pkg.go.dev</strong> (release tags trigger indexing)</li>
+  <li>Tag <code>v1.0.0</code> on every repo, signed (<code>git tag -s</code>); create GitHub Releases with SBOM attached</li>
+</ul>
+
+<h4>Block E — Launch day</h4>
+
+<ul class="checklist">
+  <li>Publish the launch blog post (the "why open-source AumOS now" + the hybrid-repo tour)</li>
+  <li>Submit the 12 protocols to the OSAF working groups (AAE, AAR, CAP first)</li>
+  <li>Submit to Awesome lists (awesome-rust, awesome-go, awesome-python, awesome-ai-agents, awesome-security)</li>
+  <li>Announce on Hacker News, Reddit (r/rust, r/golang, r/MachineLearning, r/netsec), LinkedIn, X</li>
+  <li>Schedule the conference-talk CFPs (GTC, KubeCon, RSA)</li>
+</ul>
+
+<hr>
+
+<!-- ===================== 10. DISCOVERY & SEO ===================== -->
+<h2 id="discovery-seo"><span class="section-number">10.</span>Discovery &amp; SEO</h2>
+
+<p>Being open-source is necessary but not sufficient — the project must be <em>findable</em>. Discovery work is owned by DevRel and reviewed monthly.</p>
+
+<ul>
+  <li><strong>GitHub topics</strong> on every repo: <code>ai-agents</code>, <code>ai-safety</code>, <code>attestation</code>, <code>confidential-computing</code>, <code>gpu</code>, <code>rust</code>/<code>go</code>/<code>python</code>/<code>typescript</code>, <code>protocol</code>, <code>kubernetes-operator</code>, <code>eu-ai-act</code>, <code>osaf</code>, <code>sigstore</code>, <code>spiffe</code>, <code>ed25519</code>.</li>
+  <li><strong>Description</strong> &mdash; one-sentence, keyword-rich, consistent across repos ("The Agent Authority Envelope — normative spec + conformance suite for verifiable agent identity").</li>
+  <li><strong>Social preview image</strong> &mdash; a branded 1280x640 PNG per repo (generated from a template); the protocol repos share a consistent OSAF-marked style.</li>
+  <li><strong>Domain</strong> &mdash; <code>aumos.dev</code> (primary) and <code>docs.aumos.dev</code> (this documentation portal), with <code>MuVeraAI.org</code> redirecting to the org. DNSSEC + HSTS enabled.</li>
+  <li><strong>Google indexing</strong> &mdash; submit the docs sitemap to Google Search Console; per-page <code>&lt;meta name="description"&gt;</code> (this file carries one); structured data for the protocol specs.</li>
+  <li><strong>Awesome lists</strong> &mdash; curated PRs to <code>awesome-rust</code>, <code>awesome-go</code>, <code>awesome-python</code>, <code>awesome-typescript</code>, <code>awesome-ai-agents</code>, <code>awesome-security</code>, <code>awesome-confidential-computing</code>.</li>
+  <li><strong>Package-registry discoverability</strong> &mdash; complete PyPI/crates.io/npm descriptions, keywords, and project links (repo, docs, security policy); verified publisher badges where available.</li>
+</ul>
+
+<hr>
+
+<!-- ===================== 11. METRICS ===================== -->
+<h2 id="metrics"><span class="section-number">11.</span>Metrics for Success</h2>
+
+<p>Adoption is the asset, so adoption is what we measure. The targets are ambitious but match the land-grab thesis: if we are not on these trajectories by M6, the strategy is failing and we pivot.</p>
+
+<table>
+  <thead>
+    <tr><th>Metric</th><th>M3</th><th>M6</th><th>M12</th><th>M21</th><th>M24+</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GitHub stars (org total)</td><td>2,000</td><td>10,000</td><td>25,000</td><td>100,000</td><td>Foundation-grade</td></tr>
+    <tr><td>Discord members</td><td>1,000</td><td>2,500</td><td>5,000</td><td>15,000</td><td>Self-sustaining</td></tr>
+    <tr><td>External contributors (merged PRs)</td><td>20</td><td>75</td><td>250</td><td>750</td><td>Reviewer pipeline healthy</td></tr>
+    <tr><td>Design partners</td><td>1</td><td>3</td><td>8</td><td>15</td><td>15+ (steady)</td></tr>
+    <tr><td>Enterprise customers</td><td>0</td><td>0</td><td>1</td><td>3</td><td>5+ (managed cloud)</td></tr>
+    <tr><td>OSAF specs co-authored / adopted</td><td>0</td><td>1</td><td>2</td><td>4</td><td>AAE ratified as standard</td></tr>
+    <tr><td>Reference implementations per protocol</td><td>1</td><td>1</td><td>2 (Rust + 1)</td><td>2+</td><td>3+ (multi-vendor)</td></tr>
+    <tr><td>Package downloads (monthly, org total)</td><td>5k</td><td>50k</td><td>250k</td><td>1M</td><td>&mdash;</td></tr>
+  </tbody>
+</table>
+
+<div class="callout success">
+  <div class="callout-title">The single most important metric</div>
+  <p><strong>OSAF specs adopted.</strong> Stars measure attention; protocol adoption measures leverage. If 4 of the 12 protocols (AAE, AAR, CAP, AIX) are ratified as OSAF standards by M21, the project has won the standard and the implementations become the reference everyone builds against — regardless of the star count.</p>
+</div>
+
+<h3>Leading indicators (reviewed weekly during Wave 1)</h3>
+
+<ul>
+  <li><strong>5-minute quickstart success rate</strong> &mdash; measured by the DevRel onboarding sessions; target 90% of fresh-machine attempts succeed in &le;5 minutes.</li>
+  <li><strong>Time-to-first-merged-PR</strong> for a new external contributor; target &lt;7 days from clone to merge.</li>
+  <li><strong>Conformance suite green rate</strong> &mdash; the cross-repo conformance run must be green on <code>main</code> 100% of the time after launch.</li>
+  <li><strong>Security-report SLA adherence</strong> &mdash; 100% of reports acknowledged within SLA; 0 disclosures outside the coordinated window.</li>
+</ul>
+
+<hr>
+
+<div class="callout">
+  <div class="callout-title">Bottom line</div>
+  <p>AumOS has the most complete reference implementation of verifiable agent authority and evidence in the ecosystem. The open-source strategy converts that lead into a defensible standard: a hybrid GitHub org under pure Apache 2.0, the 12 protocols submitted to OSAF, governance phasing from BDFL to a foundation, and a launch gated on fixing the 7 critical cryptographic findings. Execute the checklist and the window stays open.</p>
+</div>
+
+</div>
+
+</body>
+</html>

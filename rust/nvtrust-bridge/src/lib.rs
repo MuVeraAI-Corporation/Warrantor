@@ -81,11 +81,35 @@ pub trait NvTrustBackend {
     /// Returns [`AttestationError::BackendUnavailable`] if the GPU is not present.
     fn attest(&self, nonce: [u8; 16]) -> Result<AttestationReport, AttestationError>;
 
-    /// Verify an attestation report.
+    /// Verify an attestation report against a caller-supplied challenge nonce.
+    ///
+    /// C4: the challenge nonce is the anti-replay control. The verifier sent `challenge_nonce`
+    /// to the GPU when requesting the report; the report must echo it back in `report.nonce`.
+    /// A report captured from a previous session (with a different nonce) MUST be rejected here.
+    /// This is the method real callers should use.
+    ///
+    /// # Errors
+    /// Returns [`AttestationError::VerifyFailed`] if the report is invalid OR if
+    /// `report.nonce != challenge_nonce` (replay attack).
+    fn verify_with_challenge(
+        &self,
+        report: &AttestationReport,
+        challenge_nonce: [u8; 16],
+    ) -> Result<(), AttestationError>;
+
+    /// Verify an attestation report using the report's own embedded nonce.
+    ///
+    /// This is a backward-compatible convenience that delegates to [`Self::verify_with_challenge`]
+    /// with `challenge_nonce = report.nonce`. It does NOT provide replay protection on its own —
+    /// it only confirms the report is well-formed. Callers that need anti-replay guarantees
+    /// (i.e. all production callers) MUST use [`Self::verify_with_challenge`] with a nonce they
+    /// generated for this verification.
     ///
     /// # Errors
     /// Returns [`AttestationError::VerifyFailed`] if the report is invalid.
-    fn verify(&self, report: &AttestationReport) -> Result<(), AttestationError>;
+    fn verify(&self, report: &AttestationReport) -> Result<(), AttestationError> {
+        self.verify_with_challenge(report, report.nonce)
+    }
 }
 
 /// A mock backend for CI / offline / development use. Always verifies successfully
@@ -113,7 +137,16 @@ impl NvTrustBackend for MockBackend {
         })
     }
 
-    fn verify(&self, report: &AttestationReport) -> Result<(), AttestationError> {
+    fn verify_with_challenge(
+        &self,
+        report: &AttestationReport,
+        challenge_nonce: [u8; 16],
+    ) -> Result<(), AttestationError> {
+        // C4: enforce the challenge nonce — a report whose nonce does not match the challenge
+        // the verifier issued is a replay and must be rejected.
+        if report.nonce != challenge_nonce {
+            return Err(AttestationError::VerifyFailed);
+        }
         if report.attestation_bytes == b"aumos-mock-attestation" {
             Ok(())
         } else {
@@ -183,5 +216,35 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(r.gpu_model, "mock-H100");
+    }
+
+    #[test]
+    fn verify_with_challenge_rejects_nonce_mismatch_c4() {
+        // C4: a report captured from a previous session (different nonce) must be rejected as a
+        // replay. The verifier issued `challenge`, the report carries `report.nonce`; if they
+        // differ, verification must fail.
+        let backend = MockBackend::default();
+        let challenge = [10u8; 16];
+        let report = backend.attest(challenge).expect("attest");
+        // Correct challenge verifies.
+        backend
+            .verify_with_challenge(&report, challenge)
+            .expect("matching challenge verifies");
+        // Wrong challenge (a replayed report from a different session) must fail.
+        let wrong_challenge = [99u8; 16];
+        assert!(matches!(
+            backend.verify_with_challenge(&report, wrong_challenge),
+            Err(AttestationError::VerifyFailed)
+        ));
+    }
+
+    #[test]
+    fn verify_convenience_uses_report_own_nonce_c4() {
+        // The backward-compatible verify() delegates to verify_with_challenge with the report's
+        // own nonce, so existing callers keep working (round-trips).
+        let backend = MockBackend::default();
+        let nonce = [3u8; 16];
+        let report = backend.attest(nonce).expect("attest");
+        backend.verify(&report).expect("verify convenience works");
     }
 }

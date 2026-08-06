@@ -63,22 +63,30 @@ pub enum EventType {
 }
 
 impl Entry {
-    /// Canonical bytes for Merkle hashing: deterministic concatenation of the load-bearing
-    /// fields (everything except the ledger-assigned `id` and `recorded_at`, which are
-    /// intrinsic to the event, plus the signature which is added later).
+    /// Canonical bytes for Merkle hashing: deterministic, length-prefixed concatenation of the
+    /// load-bearing fields (everything except the ledger-assigned `id` and `recorded_at`, which
+    /// are intrinsic to the event, plus the signature which is added later).
+    ///
+    /// Every field is preceded by its length as a little-endian u64, which makes the encoding
+    /// unambiguous and prevents signature/leaf-hash forgery via field re-splitting (C2:
+    /// previously fields were concatenated with no delimiter, so "ab"+"c" and "a"+"bc" produced
+    /// the same canonical bytes).
     #[must_use]
     pub fn canonical_bytes(&self) -> Vec<u8> {
         let mut out = Vec::new();
-        out.extend_from_slice(self.artifact_uri.as_bytes());
-        out.extend_from_slice(self.artifact_digest.as_bytes());
-        out.extend_from_slice(format!("{:?}", self.event_type).as_bytes());
+        write_len_prefixed(&mut out, self.artifact_uri.as_bytes());
+        write_len_prefixed(&mut out, self.artifact_digest.as_bytes());
+        write_len_prefixed(&mut out, format!("{:?}", self.event_type).as_bytes());
+        // Length-prefix the vec so its cardinality is unambiguous.
+        write_len_prefixed(&mut out, &self.parents.len().to_le_bytes());
         for p in &self.parents {
-            out.extend_from_slice(p.as_bytes());
+            write_len_prefixed(&mut out, p.as_bytes());
         }
         // BTreeMap iterates in sorted-key order → deterministic.
+        write_len_prefixed(&mut out, &self.metadata.len().to_le_bytes());
         for (k, v) in &self.metadata {
-            out.extend_from_slice(k.as_bytes());
-            out.extend_from_slice(v.as_bytes());
+            write_len_prefixed(&mut out, k.as_bytes());
+            write_len_prefixed(&mut out, v.as_bytes());
         }
         out
     }
@@ -93,6 +101,13 @@ impl Entry {
         out.copy_from_slice(&h.finalize());
         out
     }
+}
+
+/// Write `field` to `out` prefixed by its length as a little-endian u64. This makes the
+/// canonical encoding unambiguous (length-prefixed framing prevents field-re-splitting forgery).
+fn write_len_prefixed(out: &mut Vec<u8>, field: &[u8]) {
+    out.extend_from_slice(&(field.len() as u64).to_le_bytes());
+    out.extend_from_slice(field);
 }
 
 /// A checkpoint — the Merkle root over a range of entries, anchored to a transparency log.
@@ -477,5 +492,44 @@ mod tests {
         let stored = l.get(&l.entries[0].id.clone()).unwrap();
         assert_eq!(stored.parents, vec!["model://base".to_string()]);
         assert_eq!(stored.event_type, EventType::FineTuned);
+    }
+
+    #[test]
+    fn canonical_bytes_disambiguate_field_splittings_c2() {
+        // C2: length-prefixing must prevent forgery via field re-splitting.
+        // entry_a: artifact_uri "ab", digest "c"
+        // entry_b: artifact_uri "a", digest "bc"
+        // Without length prefixes these concatenate to the same bytes ("abc"); with prefixes
+        // they must differ.
+        let entry_a = Entry {
+            id: String::new(),
+            artifact_uri: "ab".into(),
+            artifact_digest: "c".into(),
+            event_type: EventType::Trained,
+            parents: vec![],
+            metadata: BTreeMap::new(),
+            recorded_at: 0,
+            signer: "did:web:aumos.dev".into(),
+        };
+        let entry_b = Entry {
+            id: String::new(),
+            artifact_uri: "a".into(),
+            artifact_digest: "bc".into(),
+            event_type: EventType::Trained,
+            parents: vec![],
+            metadata: BTreeMap::new(),
+            recorded_at: 0,
+            signer: "did:web:aumos.dev".into(),
+        };
+        assert_ne!(
+            entry_a.canonical_bytes(),
+            entry_b.canonical_bytes(),
+            "length-prefixed canonical bytes must distinguish different field splittings"
+        );
+        assert_ne!(
+            entry_a.leaf_hash(),
+            entry_b.leaf_hash(),
+            "leaf hashes over different canonical bytes must differ"
+        );
     }
 }

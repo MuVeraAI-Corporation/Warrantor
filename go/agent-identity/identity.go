@@ -37,6 +37,9 @@ var (
 	ErrExpired = errors.New("identity: token expired")
 	// ErrRevoked is returned when a token or its issuer has been revoked.
 	ErrRevoked = errors.New("identity: token revoked")
+	// ErrAudienceMismatch is returned when the token's audience claim does not match the
+	// audience the verifier requested (C5 confused-deputy defense).
+	ErrAudienceMismatch = errors.New("identity: audience mismatch")
 	// ErrAuthorityExpanded is returned when a delegation chain would expand authority (invariant I-02).
 	ErrAuthorityExpanded = errors.New("identity: delegation would expand authority (invariant I-02)")
 	// ErrDelegationDepth is returned when a delegation chain exceeds the configured maximum.
@@ -77,6 +80,7 @@ type CapabilityClaims struct {
 type svidClaims struct {
 	Issuer     string          `json:"iss"`
 	Subject    string          `json:"sub"`
+	Audience   string          `json:"aud,omitempty"` // C5: real audience claim (confused-deputy defense)
 	Attributes AgentAttributes `json:"attributes"`
 	IssuedAt   int64           `json:"iat"`
 	ExpiresAt  int64           `json:"exp"`
@@ -132,9 +136,13 @@ func (s *Service) VerifyingKeyHex() string {
 
 // Issue issues an SVID + capability token for a subject.
 //
+// `audience` is the intended audience for the SVID (the confused-deputy defense, C5). It is
+// bound into the token's `aud` claim; Verify checks it when a non-empty audience is supplied.
+// Pass "" if no specific audience is required.
+//
 // If parentSVID is non-empty, the subject is recorded as a child of the parent in the delegation
 // graph; the parent's authority is intersected with the requested claims (invariant I-02).
-func (s *Service) Issue(subject string, attrs AgentAttributes, claims CapabilityClaims, parentSVID string) (*SVID, error) {
+func (s *Service) Issue(subject string, attrs AgentAttributes, claims CapabilityClaims, audience string, parentSVID string) (*SVID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -172,6 +180,7 @@ func (s *Service) Issue(subject string, attrs AgentAttributes, claims Capability
 	payload := svidClaims{
 		Issuer:     fmt.Sprintf("spiffe://%s/agent-identity", s.trustDomain),
 		Subject:    subject,
+		Audience:   audience,
 		Attributes: attrs,
 		IssuedAt:   now.Unix(),
 		ExpiresAt:  now.Add(DefaultSVIDTTL).Unix(),
@@ -197,10 +206,33 @@ func (s *Service) Issue(subject string, attrs AgentAttributes, claims Capability
 }
 
 // Verify verifies an SVID token. Returns the parsed claims on success.
+//
+// C5: when `audience` is non-empty, the token's `aud` claim MUST equal it. This is the real
+// confused-deputy defense (the previous implementation compared the issuer prefix, which always
+// matched and provided no protection). The audience-aware entrypoint is VerifyWithAudience;
+// this method preserves the legacy signature by calling VerifyWithAudience with an empty
+// audience (which skips the check for backward compatibility).
 func (s *Service) Verify(token string) (*svidClaims, error) {
+	return s.VerifyWithAudience(token, "")
+}
+
+// VerifyWithAudience verifies an SVID token and, when `audience` is non-empty, additionally
+// requires the token's embedded `aud` claim to match `audience` exactly. Returns the parsed
+// claims on success.
+//
+// # Errors
+// Returns [ErrInvalidToken] if the signature is invalid, [ErrAudienceMismatch] if the audience
+// does not match, [ErrRevoked] if the token's JTI is revoked, or [ErrExpired] if expired.
+func (s *Service) VerifyWithAudience(token string, audience string) (*svidClaims, error) {
 	claims, err := s.parseAndVerify(token)
 	if err != nil {
 		return nil, err
+	}
+	// C5: confused-deputy defense — when the caller specifies an audience, the token must carry
+	// exactly that audience. (An empty requested audience skips the check, preserving backward
+	// compatibility for callers that don't care.)
+	if audience != "" && claims.Audience != audience {
+		return nil, ErrAudienceMismatch
 	}
 	s.mu.RLock()
 	_, revoked := s.revoked[claims.JTI]

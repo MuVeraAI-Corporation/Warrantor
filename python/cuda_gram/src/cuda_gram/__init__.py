@@ -33,8 +33,25 @@ class AttestationBackend(Protocol):
         """Request an attestation report from the local GPU."""
         ...
 
+    def verify_with_challenge(
+        self, report: "AttestationReport", challenge_nonce: bytes
+    ) -> None:
+        """Verify a report against a caller-supplied challenge nonce.
+
+        C4: the challenge nonce is the anti-replay control. The verifier sent
+        ``challenge_nonce`` to the GPU when requesting the report; the report must echo
+        it back in ``report.nonce``. A report captured from a previous session (with a
+        different nonce) MUST be rejected here. This is the method production callers
+        should use. Raises if verification fails or the nonce does not match.
+        """
+        ...
+
     def verify(self, report: "AttestationReport") -> None:
-        """Verify an attestation report. Raises if verification fails."""
+        """Verify a report using the report's own embedded nonce.
+
+        Backward-compatible convenience only — does NOT provide replay protection on its
+        own. Production callers must use :meth:`verify_with_challenge`. Raises on failure.
+        """
         ...
 
 
@@ -128,9 +145,24 @@ class MockBackend:
             nonce=nonce,
         )
 
-    def verify(self, report: AttestationReport) -> None:
+    def verify_with_challenge(
+        self, report: AttestationReport, challenge_nonce: bytes
+    ) -> None:
+        # C4: enforce the challenge nonce — a report whose nonce does not match the challenge
+        # the verifier issued is a replay and must be rejected.
+        if len(challenge_nonce) != 16:
+            raise ValueError(
+                f"challenge_nonce must be 16 bytes, got {len(challenge_nonce)}"
+            )
+        if report.nonce != challenge_nonce:
+            raise ValueError("attestation verification failed: nonce mismatch (replay)")
         if report.attestation_bytes != self.MOCK_ATTESTATION_BYTES:
             raise ValueError("attestation verification failed")
+
+    def verify(self, report: AttestationReport) -> None:
+        # Backward-compatible convenience: delegate to verify_with_challenge using the report's
+        # own nonce. Does not provide replay protection on its own.
+        self.verify_with_challenge(report, report.nonce)
 
 
 def establish_session(backend: AttestationBackend, nonce: bytes | None = None) -> CCSession:

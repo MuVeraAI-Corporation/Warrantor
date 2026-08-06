@@ -15,6 +15,7 @@ func TestIssueAndVerifyRoundTrip(t *testing.T) {
 		"spiffe://aumos.dev/agent/coding-1",
 		AgentAttributes{Publisher: "aumos.dev/coding-agent", Model: "claude-opus-4.5"},
 		CapabilityClaims{Tools: []string{"github"}, SideEffectClass: "write", DelegationDepth: 2},
+		"", // audience
 		"",
 	)
 	if err != nil {
@@ -34,7 +35,7 @@ func TestIssueAndVerifyRoundTrip(t *testing.T) {
 
 func TestTamperedTokenFails(t *testing.T) {
 	svc, _ := NewService("aumos.dev")
-	svid, _ := svc.Issue("spiffe://aumos.dev/agent/x", AgentAttributes{}, CapabilityClaims{}, "")
+	svid, _ := svc.Issue("spiffe://aumos.dev/agent/x", AgentAttributes{}, CapabilityClaims{}, "", "")
 	// Flip one byte in the signature half.
 	parts := strings.SplitN(svid.Token, ".", 2)
 	tampered := parts[0] + "." + flipHex(parts[1])
@@ -43,9 +44,42 @@ func TestTamperedTokenFails(t *testing.T) {
 	}
 }
 
+func TestAudienceMismatchRejectedC5(t *testing.T) {
+	// C5: the confused-deputy defense must check the real `aud` claim. A token issued for
+	// audience "service-a" must NOT verify when the caller requests audience "service-b".
+	svc, _ := NewService("aumos.dev")
+	svid, err := svc.Issue(
+		"spiffe://aumos.dev/agent/x",
+		AgentAttributes{},
+		CapabilityClaims{},
+		"service-a", // intended audience
+		"",
+	)
+	if err != nil {
+		t.Fatalf("Issue: %v", err)
+	}
+	// Matching audience verifies.
+	if _, err := svc.VerifyWithAudience(svid.Token, "service-a"); err != nil {
+		t.Errorf("matching audience should verify, got: %v", err)
+	}
+	// Mismatched audience must be rejected with ErrAudienceMismatch (not the old always-pass issuer-prefix check).
+	if _, err := svc.VerifyWithAudience(svid.Token, "service-b"); err != ErrAudienceMismatch {
+		t.Errorf("expected ErrAudienceMismatch for wrong audience, got %v", err)
+	}
+	// A token issued with no audience must NOT satisfy a non-empty audience request.
+	noAud, _ := svc.Issue("spiffe://aumos.dev/agent/y", AgentAttributes{}, CapabilityClaims{}, "", "")
+	if _, err := svc.VerifyWithAudience(noAud.Token, "service-a"); err != ErrAudienceMismatch {
+		t.Errorf("expected ErrAudienceMismatch when token has no aud but a non-empty audience is requested, got %v", err)
+	}
+	// Empty requested audience skips the check (backward compat).
+	if _, err := svc.VerifyWithAudience(svid.Token, ""); err != nil {
+		t.Errorf("empty requested audience should skip the check, got: %v", err)
+	}
+}
+
 func TestRevokedTokenRejected(t *testing.T) {
 	svc, _ := NewService("aumos.dev")
-	svid, _ := svc.Issue("spiffe://aumos.dev/agent/x", AgentAttributes{}, CapabilityClaims{}, "")
+	svid, _ := svc.Issue("spiffe://aumos.dev/agent/x", AgentAttributes{}, CapabilityClaims{}, "", "")
 	claims, _ := svc.Verify(svid.Token)
 	if _, err := svc.Revoke(claims.JTI); err != nil {
 		t.Fatalf("Revoke: %v", err)
@@ -76,6 +110,7 @@ func TestDelegationIntersection_I02(t *testing.T) {
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github", "slack"}, DataClasses: []string{"L0", "L1"}, SideEffectClass: "write", DelegationDepth: 2},
 		"",
+		"",
 	)
 	if err != nil {
 		t.Fatalf("parent Issue: %v", err)
@@ -86,6 +121,7 @@ func TestDelegationIntersection_I02(t *testing.T) {
 		"spiffe://aumos.dev/agent/childA",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github"}, DataClasses: []string{"L0"}, SideEffectClass: "write", DelegationDepth: 1},
+		"",
 		parent.Token,
 	)
 	if err != nil {
@@ -97,6 +133,7 @@ func TestDelegationIntersection_I02(t *testing.T) {
 		"spiffe://aumos.dev/agent/childB",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"aws"}, SideEffectClass: "write", DelegationDepth: 1},
+		"",
 		parent.Token,
 	)
 	if err == nil || !strings.Contains(err.Error(), "expand authority") {
@@ -108,6 +145,7 @@ func TestDelegationIntersection_I02(t *testing.T) {
 		"spiffe://aumos.dev/agent/childC",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github"}, SideEffectClass: "financial", DelegationDepth: 1},
+		"",
 		parent.Token,
 	)
 	if err == nil || !strings.Contains(err.Error(), "expand authority") {
@@ -122,6 +160,7 @@ func TestDelegationDepthExhausted(t *testing.T) {
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github"}, DelegationDepth: 0}, // no further delegation
 		"",
+		"",
 	)
 	if err != nil {
 		t.Fatalf("leaf Issue: %v", err)
@@ -130,6 +169,7 @@ func TestDelegationDepthExhausted(t *testing.T) {
 		"spiffe://aumos.dev/agent/grandchild",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github"}, DelegationDepth: 1},
+		"",
 		leaf.Token,
 	)
 	if err == nil {

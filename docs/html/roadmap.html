@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Per-Component Roadmap — AumOS</title>
+  <style>
+/* AumOS Documentation — Anthropic-inspired Style System */
+/* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
+   serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
+
+:root {
+  /* Color palette — warm neutrals + clay/coral accent */
+  --bg-primary: #faf9f7;
+  --bg-secondary: #f5f3ef;
+  --bg-card: #ffffff;
+  --bg-code: #1e1e2e;
+  --bg-callout: #fdf6f0;
+  --bg-warning: #fef9f0;
+  --bg-danger: #fdf2f0;
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
+  --text-code: #c4c4d4;
+  --text-on-dark: #e8e8e8;
+
+  --accent: #d97757;        /* Claude clay/coral */
+  --accent-hover: #c4623d;
+  --accent-light: #f4e6df;
+  --accent-subtle: #faf0eb;
+
+  --border: #e5e2dc;
+  --border-strong: #d1ccc3;
+  --border-accent: #d97757;
+
+  --green: #5a8055;
+  --green-light: #edf5ed;
+  --amber: #b8860b;
+  --amber-light: #fef9ef;
+  --red: #b94a48;
+  --red-light: #fdf2f0;
+  --blue: #4a6fa5;
+  --blue-light: #eef3fa;
+  --purple: #555188;
+
+  /* Typography */
+  --font-serif: 'Georgia', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+
+  /* Layout */
+  --max-width: 820px;
+  --border-radius: 8px;
+  --border-radius-sm: 4px;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Base */
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.7;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+h1 { font-size: 2.4rem; margin: 0 0 var(--space-lg); letter-spacing: -0.02em; }
+h2 { font-size: 1.7rem; margin: var(--space-2xl) 0 var(--space-md); letter-spacing: -0.01em; border-bottom: 1px solid var(--border); padding-bottom: var(--space-sm); }
+h3 { font-size: 1.3rem; margin: var(--space-xl) 0 var(--space-sm); }
+h4 { font-size: 1.05rem; margin: var(--space-lg) 0 var(--space-xs); color: var(--text-secondary); }
+p { margin-bottom: var(--space-md); }
+strong { font-weight: 600; color: var(--text-primary); }
+em { font-style: italic; color: var(--text-secondary); }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-subtle); transition: border-color 0.15s; }
+a:hover { border-bottom-color: var(--accent); }
+
+/* Layout */
+.container { max-width: var(--max-width); margin: 0 auto; padding: var(--space-2xl) var(--space-lg); }
+.container-wide { max-width: 1200px; margin: 0 auto; padding: var(--space-2xl) var(--space-lg); }
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--bg-card);
+}
+.doc-header h1 { margin: 0; font-size: 1.6rem; }
+.doc-header .subtitle { color: var(--text-tertiary); font-size: 0.95rem; margin-top: var(--space-xs); }
+.doc-header nav { margin-top: var(--space-md); display: flex; gap: var(--space-md); flex-wrap: wrap; }
+.doc-header nav a { font-size: 0.9rem; border-bottom: none; padding: var(--space-xs) var(--space-md); border-radius: var(--border-radius-sm); transition: background 0.15s; }
+.doc-header nav a:hover { background: var(--accent-subtle); }
+.doc-header nav a.current { background: var(--accent-subtle); color: var(--accent-hover); }
+
+/* Code */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-secondary);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+pre {
+  font-family: var(--font-mono);
+  background: var(--bg-code);
+  color: var(--text-on-dark);
+  padding: var(--space-lg);
+  border-radius: var(--border-radius);
+  overflow-x: auto;
+  margin: var(--space-lg) 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-lg) 0; font-size: 0.92rem; }
+th { text-align: left; font-weight: 600; padding: var(--space-sm) var(--space-md); border-bottom: 2px solid var(--border-strong); color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:hover { background: var(--bg-secondary); }
+
+/* Callouts */
+.callout {
+  background: var(--bg-callout);
+  border-left: 3px solid var(--accent);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+  margin: var(--space-lg) 0;
+}
+.callout-title { font-weight: 600; margin-bottom: var(--space-xs); color: var(--accent-hover); }
+.callout.warning { background: var(--bg-warning); border-left-color: var(--amber); }
+.callout.warning .callout-title { color: var(--amber); }
+.callout.danger { background: var(--bg-danger); border-left-color: var(--red); }
+.callout.danger .callout-title { color: var(--red); }
+.callout.info { background: var(--blue-light); border-left-color: var(--blue); }
+.callout.info .callout-title { color: var(--blue); }
+.callout.success { background: var(--green-light); border-left-color: var(--green); }
+.callout.success .callout-title { color: var(--green); }
+
+/* Cards */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--space-lg); margin: var(--space-xl) 0; }
+
+/* Badges */
+.badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 100px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+.badge.rust { background: #fce8d4; color: #974711; }
+.badge.go { background: #dbe8fd; color: #1c4d8c; }
+.badge.python { background: #e0e8f4; color: #2d4a7c; }
+.badge.typescript { background: #e4ecf7; color: #3a5a8a; }
+.badge.spec { background: #f0eef8; color: var(--purple); }
+
+/* Lists */
+ul, ol { margin: var(--space-md) 0 var(--space-md) var(--space-xl); }
+li { margin-bottom: var(--space-xs); }
+li::marker { color: var(--accent); }
+
+/* HR */
+hr { border: none; border-top: 1px solid var(--border); margin: var(--space-2xl) 0; }
+
+/* Blockquote */
+blockquote { border-left: 3px solid var(--accent); padding: var(--space-sm) var(--space-lg); margin: var(--space-lg) 0; color: var(--text-secondary); font-style: italic; background: var(--bg-callout); border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0; }
+
+/* Anchor links */
+.anchor { color: var(--text-tertiary); text-decoration: none; border-bottom: none; font-size: 0.8em; margin-left: var(--space-xs); opacity: 0; transition: opacity 0.15s; }
+h2:hover .anchor, h3:hover .anchor { opacity: 1; }
+
+/* Section numbers */
+.section-number { color: var(--accent); margin-right: var(--space-sm); }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-md); margin: var(--space-xl) 0; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--border-radius); padding: var(--space-lg); text-align: center; }
+.stat-value { font-family: var(--font-serif); font-size: 2.5rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.85rem; color: var(--text-tertiary); margin-top: var(--space-xs); }
+
+/* ============================================================
+   ROADMAP-SPECIFIC STYLES (added for this artifact)
+   ============================================================ */
+
+/* Component roadmap card — wraps one component's full roadmap */
+.roadmap-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-xl) var(--space-lg);
+  margin: var(--space-xl) 0;
+}
+.roadmap-card .rm-head { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-xs); }
+.roadmap-card .rm-id { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); font-weight: 700; }
+.roadmap-card .rm-title { font-family: var(--font-serif); font-size: 1.45rem; font-weight: 600; margin: var(--space-xs) 0; }
+.roadmap-card .rm-path { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-tertiary); }
+
+/* Status pill row */
+.rm-status { display: flex; gap: var(--space-xs); flex-wrap: wrap; margin: var(--space-sm) 0 var(--space-md); }
+.pill { font-size: 0.72rem; padding: 3px 9px; border-radius: 100px; font-weight: 600; letter-spacing: 0.02em; }
+.pill.v1 { background: var(--green-light); color: var(--green); }
+.pill.critfix { background: var(--red-light); color: var(--red); }
+.pill.mock { background: var(--amber-light); color: var(--amber); }
+.pill.real { background: var(--blue-light); color: var(--blue); }
+.pill.spec { background: #f0eef8; color: var(--purple); }
+.pill.maintained { background: var(--green-light); color: var(--green); }
+
+/* Milestone grid — the 5-bucket per-component table */
+.rm-milestones { display: grid; grid-template-columns: 110px 1fr; gap: var(--space-xs) var(--space-md); margin: var(--space-md) 0; }
+.rm-q { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700; color: var(--accent); padding-top: 2px; }
+.rm-body { font-size: 0.93rem; line-height: 1.6; color: var(--text-primary); }
+.rm-body .crit { color: var(--red); font-weight: 600; }
+
+/* Gantt table */
+table.gantt { font-size: 0.82rem; }
+table.gantt th, table.gantt td { padding: 5px 7px; text-align: center; }
+table.gantt td.comp { text-align: left; font-weight: 600; white-space: nowrap; }
+table.gantt td.q { color: var(--text-tertiary); }
+.g-done  { background: var(--green-light); color: var(--green); font-weight: 600; }
+.g-v11   { background: var(--red-light); color: var(--red); font-weight: 600; }
+.g-q1    { background: var(--blue-light); color: var(--blue); }
+.g-q2    { background: var(--accent-subtle); color: var(--accent-hover); }
+.g-v20   { background: #f0eef8; color: var(--purple); font-weight: 600; }
+.gantt-legend { display: flex; gap: var(--space-md); flex-wrap: wrap; margin: var(--space-md) 0; font-size: 0.8rem; }
+.gantt-legend span { display: inline-flex; align-items: center; gap: var(--space-xs); }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+
+/* Critical-fix callout inside a component card */
+.critfix-list { margin: var(--space-sm) 0; padding-left: var(--space-lg); }
+.critfix-list li { font-size: 0.9rem; }
+.critfix-list li::marker { color: var(--red); }
+
+/* Dependency critical path diagram */
+.dep-diagram { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--border-radius); padding: var(--space-lg); margin: var(--space-lg) 0; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.5; overflow-x: auto; white-space: pre; color: var(--text-secondary); }
+.dep-tier-label { color: var(--accent); font-weight: 700; }
+.dep-node { color: var(--text-primary); font-weight: 600; }
+.dep-arrow { color: var(--text-tertiary); }
+.dep-blocked { color: var(--red); }
+
+/* Community contribution table tweaks */
+table.contrib td:first-child { font-weight: 600; }
+table.contrib .effort-low { color: var(--green); font-weight: 600; }
+table.contrib .effort-med { color: var(--amber); font-weight: 600; }
+table.contrib .effort-high { color: var(--red); font-weight: 600; }
+
+/* Protocol roadmap mini-cards */
+.proto-rm { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--border-radius); padding: var(--space-lg); margin: var(--space-lg) 0; }
+.proto-rm .pid { font-family: var(--font-mono); color: var(--accent); font-weight: 700; font-size: 0.82rem; }
+.proto-rm .pname { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 600; margin: 2px 0 var(--space-xs); }
+
+/* TOC */
+.toc { background: var(--bg-secondary); border-radius: var(--border-radius); padding: var(--space-lg); margin: var(--space-lg) 0; }
+.toc-title { font-weight: 600; margin-bottom: var(--space-sm); color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.toc ul { margin: 0; padding-left: var(--space-lg); }
+.toc a { border-bottom: none; }
+
+@media (max-width: 600px) {
+  .rm-milestones { grid-template-columns: 1fr; }
+  .rm-q { padding-top: var(--space-sm); }
+  table.gantt { font-size: 0.72rem; }
+}
+  </style>
+</head>
+<body>
+
+<div class="doc-header">
+  <h1>Per-Component Roadmap — AumOS</h1>
+  <div class="subtitle">The honest, code-anchored path from 49 reference-shape components at v1.0 to a hardened, standardized, ecosystem-integrated platform through Q4 2027.</div>
+  <nav>
+    <a href="index.html">&larr; Portal</a>
+    <a href="components.html">Components</a>
+    <a href="protocols.html">Protocols</a>
+    <a href="critical-analysis.html">Critical Analysis</a>
+    <a href="pending-tasks.html">Pending Tasks</a>
+    <a href="roadmap.html" class="current">Roadmap</a>
+  </nav>
+</div>
+
+<div class="container">
+
+<!-- =================================================================== -->
+<!-- 1. INTRODUCTION                                                       -->
+<!-- =================================================================== -->
+<h2 id="intro"><span class="section-number">1</span>Introduction &amp; How to Read This Roadmap <a href="#intro" class="anchor">&para;</a></h2>
+
+<p>This document is the per-component roadmap for the AumOS project (<a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>). It covers all <strong>49 implementable components</strong> across the seven domain groups and the <strong>12 open protocols (P1&ndash;P12)</strong>. It is the successor artifact to <a href="critical-analysis.html">the stress-test audit</a>: where that document diagnosed what is broken, this one schedules the fix, the hardening, and the long-arc feature work.</p>
+
+<div class="callout danger">
+  <div class="callout-title">Read this first &mdash; the honest starting point</div>
+  <p>The repo advertises itself as "feature-complete at v1.0.0" with "691 tests passing." The stress test proved that framing is false: 7 Critical, 11 High, and 10 Medium findings sit on the cryptographic spine that is supposed to make the security invariants trustworthy. Every component below is therefore listed as <span class="pill v1">v1.0 shipped</span> but with <span class="pill critfix">critical fixes pending</span>. Treat v1.0 as "reference-shape implementation with known breaks," not "deployable."</p>
+</div>
+
+<h3>How to read each component entry</h3>
+<p>Every component gets a roadmap card with five time-boxed milestones:</p>
+<ul>
+  <li><strong>Q3 2026 (now)</strong> &mdash; what actually exists in the tree today, including the specific finding IDs from the stress test that block it.</li>
+  <li><strong>Q4 2026 &mdash; v1.1 (critical fixes + mock&rarr;real)</strong> &mdash; the cryptographic repair work and the swap of every mock backend for a real one. This is the gate that makes the security claims honest.</li>
+  <li><strong>Q1 2027 &mdash; production hardening</strong> &mdash; observability (OpenTelemetry, <code>/metrics</code>), persistence (durable ledgers, HA), and the operational surfaces a v1.1 service needs.</li>
+  <li><strong>Q2 2027 &mdash; ecosystem integration</strong> &mdash; OSAF working-group participation and the first wave of co-development partners building against each component.</li>
+  <li><strong>Q3&ndash;Q4 2027 &mdash; v2.0 features</strong> &mdash; the items each component's RFC lists under "Non-Goals" that become goals once the v1.x spine is trustworthy.</li>
+</ul>
+
+<h3>Timeline philosophy &mdash; quarterly milestones, not dates</h3>
+<p>AumOS plans in <strong>quarters</strong>, not calendar dates. Software-security work has irreducible uncertainty (a cryptographic repair can unlock three dependents or expose two more breaks), so we commit to milestone <em>order</em> and milestone <em>scope</em>, not to specific days. The rule is strict sequencing: <strong>v1.1 before v2.0, fixes before features, the cryptographic spine before everything that depends on it.</strong> A component may not start v2.0 feature work until its v1.1 critical fixes land and pass the expanded conformance suite. The Gantt in &sect;2 makes the dependency order explicit.</p>
+
+<div class="callout info">
+  <div class="callout-title">Versioning contract</div>
+  <p><strong>v1.0</strong> = today's reference shape (shipped, with known breaks). <strong>v1.1</strong> = critical fixes + real backends + expanded conformance; this is the first version whose security claims are auditable. <strong>v1.2&ndash;1.x</strong> = rolling production-hardening and ecosystem work. <strong>v2.0</strong> = the RFC "Non-Goals" become goals. No component ships a 2.0 until its 1.1 critical fixes are merged.</p>
+</div>
+
+<hr>
+
+<!-- =================================================================== -->
+<!-- 2. TIMELINE OVERVIEW (GANTT)                                          -->
+<!-- =================================================================== -->
+<h2 id="gantt"><span class="section-number">2</span>Timeline Overview &mdash; Q3 2026 through Q4 2027 <a href="#gantt" class="anchor">&para;</a></h2>
+
+<p>The Gantt below maps every component and protocol onto the six quarters of this roadmap. The reading is simple: a cell marked <strong>v1.1</strong> means that component's critical fixes and mock&rarr;real swap land in that quarter; <strong>Harden</strong> means production hardening; <strong>Eco</strong> means ecosystem integration; <strong>v2.0</strong> means feature-complete. The dependencies in &sect;6 determine why a given component is sequenced where it is &mdash; nothing downstream of the cryptographic spine ships before that spine is fixed.</p>
+
+<div class="gantt-legend">
+  <span><span class="swatch g-done"></span> v1.0 shipped (today)</span>
+  <span><span class="swatch g-v11"></span> v1.1 critical fixes</span>
+  <span><span class="swatch g-q1"></span> v1.2 harden</span>
+  <span><span class="swatch g-q2"></span> v1.x ecosystem</span>
+  <span><span class="swatch g-v20"></span> v2.0 features</span>
+</div>
+
+<table class="gantt">
+<thead>
+<tr>
+  <th>Component</th>
+  <th>Q3&rsquo;26</th>
+  <th>Q4&rsquo;26</th>
+  <th>Q1&rsquo;27</th>
+  <th>Q2&rsquo;27</th>
+  <th>Q3&rsquo;27</th>
+  <th>Q4&rsquo;27</th>
+</tr>
+</thead>
+<tbody>
+<!-- Group 1: Trust core -->
+<tr><td class="comp">T1 trust-core</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">T2 authority-spec</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">I1 agent-identity</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">R2 eval-guard</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">R3 kill-switch</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">R4 credential-vault</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">R5 policy-compiler</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">R7 egress-filter</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">E1 flight-recorder</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<!-- Group 2: Confidential compute -->
+<tr><td class="comp">C1-1 nvtrust-bridge</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">C1-2 cuda-gram</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">C1-3 attesta-flow</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">C1-4 tee-serve</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">C1-5 confidential-fabric</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<!-- Group 3: Supply chain -->
+<tr><td class="comp">S1 safe-tensors-pp</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">S2 provena-chain</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">S4 model-sbom</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">S5 data-provenance-kit</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">S6 exfil-guard</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">S7 tamper-scan</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">S8 train-guard</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">S9 lightwell-bridge</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<!-- Group 4: Evaluation -->
+<tr><td class="comp">A1 safe-eval</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">A2 adversaria</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">A3 bias-sentinel</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">A4 comply-gate</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">A5 agentsec-lab</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">A6 conformance</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">A7 red-team-cloud</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">A8 arena</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<!-- Group 5: Inference -->
+<tr><td class="comp">N1 open-serve-kit</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">N2 bridge-rt</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">N3 inference-proxy</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">N4 tenant-guard</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<!-- Group 6: Federated -->
+<tr><td class="comp">F1 fed-core</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">F2 dp-crate</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">F3 edge-sentinel</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">F4 fleet-marshal</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<!-- Group 7: Cross-cutting -->
+<tr><td class="comp">X1 defstack-cli</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">X2 nooa-ext</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">X3 open-harness-spec</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">X4 crypto-audit-ai</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">X5 retro-spec-kit</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">X6 metr-bridge</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">X7 console</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">X8 mcp-gateway</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">X9 incident-exchange</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">X10 sovereign-stack</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<tr><td class="comp">X11 defstack-cloud</td><td class="g-done">v1.0</td><td class="g-v11">v1.1</td><td class="g-q1">Harden</td><td class="g-q2">Eco</td><td class="q">&middot;</td><td class="g-v20">v2.0</td></tr>
+<!-- Protocols -->
+<tr><td class="comp">P1&ndash;P12 protocols</td><td class="g-done">spec-only</td><td class="g-v11">schemas</td><td class="g-q1">conformance</td><td class="g-q2">OSAF WG</td><td class="g-v20">ratify</td><td class="g-v20">IETF RFC</td></tr>
+</tbody>
+</table>
+
+<div class="callout warning">
+  <div class="callout-title">Why every v1.1 lands in the same quarter (Q4 2026)</div>
+  <p>The critical fixes are not independent. C1 (canonical CBOR) is a prerequisite for every other cryptographic fix because every signature is computed over canonical bytes. Fixing T1 first and then waiting a quarter to fix T2 would ship a halfway state. So the v1.1 wave is one coordinated release: every spine component fixes its break in the same window, against the same repaired T1, and ships together through the expanded conformance gate.</p>
+</div>
+
+<hr>
+
+<!-- =================================================================== -->
+<!-- 3. PER-COMPONENT ROADMAPS                                            -->
+<!-- =================================================================== -->
+<h2 id="components"><span class="section-number">3</span>Per-Component Roadmaps <a href="#components" class="anchor">&para;</a></h2>
+
+<p>The 49 components are grouped by the same seven domains used in <a href="components.html">the component reference</a>. Within each domain, the most-depended-on component comes first, because its v1.1 unblocks the rest.</p>
+
+<!-- ====================== GROUP 1: TRUST CORE ====================== -->
+<h3 id="group-trust"><span class="section-number">&sect;3.1</span>Trust Core / Identity / Authority</h3>
+
+<!-- ----- T1 ----- -->
+<div class="roadmap-card" id="rm-t1">
+  <div class="rm-head"><span class="rm-id">T1</span> <span class="badge rust">rust</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">trusted core</span></div>
+  <div class="rm-title">trust-core</div>
+  <div class="rm-path">rust/trust-core/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">critical fixes pending (C1, M6, M10)</span></div>
+  <p>The single authoritative implementation of every security invariant in AumOS. Owns canonical CBOR, SHA-256 binary Merkle trees, Ed25519 signing/verification, and the cross-language golden vectors. Every other language consumes it via PyO3, napi-rs, and FFI. It is the keystone of the keystone &mdash; 14 dependents wait on its correctness.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 14 tests. <span class="crit">Critical break C1:</span> <code>canonical.rs</code> uses <code>serde_cbor</code> with no <code>deterministic</code> feature, so map keys are not sorted &mdash; two signatures can be produced for one payload. <span class="crit">M6:</span> signing key not zeroized on drop (missing <code>zeroize</code> feature). <span class="crit">M10:</span> Merkle orphan promotion is not second-preimage resistant (RFC 6962 requires re-hashing the lone node).</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Migrate from deprecated <code>serde_cbor</code> to <code>ciborium</code> with explicit RFC 8949 &sect;4.2.2 canonicalization (length-first then bytewise). Add a golden vector built from an <em>unordered</em> <code>IndexMap</code> so the determinism cannot regress. Enable <code>ed25519-dalek/zeroize</code> and a real <code>Zeroize</code> impl in <code>SigningKeyWrapper::Drop</code>. Re-hash the lone node in orphan promotion. This is the highest-priority fix in the entire project &mdash; it unblocks C2, C3, C6 and every downstream verifier.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Land KMS/HSM backing (AWS KMS, GCP KMS, Azure Key Vault, YubiKey/PKCS#11) behind a <code>KeyBacking</code> trait so production keys never live in-process. Add <code>clippy::pedantic</code> + <code>publish = false</code> to the workspace. Add a <code>/metrics</code> surface and OTel span export for every sign/verify call. Add Sigstore Rekor transparency-log entry emission on every signature.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> OSAF working-group submission of the canonical-CBOR + Ed25519 profile as the reference signing profile. First co-development partner: a cloud provider that adopts T1 as the signing root for its internal agent platform. Publish the golden-vector harness as a standalone repo so any language can self-certify.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Post-quantum signature hybrid (Dilithium3 + Ed25519, double-sign). BLS aggregate signatures for multi-approver AAEs (I-08). Verifiable random function for nonce-derivation in AAE/ABS. Threshold-signing mode for the credential-vault revoke path. These were RFC Non-Goals and become goals once the v1.1 spine is auditable.</div>
+  </div>
+</div>
+
+<!-- ----- T2 ----- -->
+<div class="roadmap-card" id="rm-t2">
+  <div class="rm-head"><span class="rm-id">T2</span> <span class="badge rust">rust</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">protocol P1</span></div>
+  <div class="rm-title">authority-spec</div>
+  <div class="rm-path">rust/authority-spec/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">critical fix pending (C6)</span></div>
+  <p>The normative reference validator for the Agent Authority Envelope (P1). Validates signature, expiry, side-effect class, consequential-action approval (I-08), and delegation depth. The structural checks are correct today; the signature-binding check is broken.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 9 tests. <span class="crit">Critical break C6:</span> <code>validate(envelope, unsigned_canonical_cbor, options)</code> verifies the signature over a byte buffer the <em>caller supplies separately</em> from the envelope. The validator never recomputes canonical bytes from the envelope's own fields, so the signature does not bind to the envelope contents. An attacker can pair any envelope with bytes that match a known signature.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Remove the <code>unsigned_canonical_cbor</code> parameter entirely. The validator reconstructs canonical bytes from the envelope itself (via the repaired T1 <code>canonical_cbor</code>) before verifying. Add a property test that signs an envelope, mutates one field, and asserts the mutated envelope fails validation. Depends on T1 v1.1 landing first.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Add revocation-status checking (query the <code>aumos.&lt;domain&gt;.revoked.v1</code> topic) as a first-class validation step. Add a policy hook so deployments can layer custom structural rules. OTel span per validation decision; metrics on accept/reject/expired/revoked.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Submit the P1 CDDL + JSON-Schema (completed in the protocol track) plus the repaired validator as the OSAF reference AAE validator. Co-development: a policy engine vendor embeds T2 as its AAE admission gate.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Delegated-attestation chains with proof-carrying delegation (&gt;2 hops). Conditional-approval workflows (approve-then-act receipts). On-chain/ledger anchoring of the AAE root for regulated deployments. Selective-disclosure AAEs (zero-knowledge proofs over <code>resources</code>).</div>
+  </div>
+</div>
+
+<!-- ----- I1 ----- -->
+<div class="roadmap-card" id="rm-i1">
+  <div class="rm-head"><span class="rm-id">I1</span> <span class="badge go">go</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">keystone (12 dependents)</span></div>
+  <div class="rm-title">agent-identity</div>
+  <div class="rm-path">go/agent-identity/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">critical fix pending (C5)</span><span class="pill critfix">high fixes pending (H2, H6)</span></div>
+  <p>The identity and authority keystone. Issues SPIFFE-style SVIDs and short-lived capability tokens, maintains the delegation graph with intersection semantics (I-02), and is supposed to revoke in under 5 seconds (I-05). Twelve components depend on it &mdash; its correctness is non-negotiable.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 8 tests. <span class="crit">Critical break C5:</span> the confused-deputy "audience" check compares <code>claims.Issuer</code> (always <code>spiffe://&lt;td&gt;/agent-identity</code>) to <code>"spiffe://"+trustDomain</code> &mdash; a condition that can never be true for tokens this service issued, and the SVID has no <code>aud</code> field at all. <span class="crit">H2:</span> Go JSON wire shape does not match the proto (<code>capability_jti</code> vs <code>capability_token</code>, extra <code>verifying_key</code>, missing timestamp wrapper). <span class="crit">H6:</span> plain HTTP, no TLS/mTLS/auth &mdash; anyone on the network can issue SVIDs.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Add <code>aud</code> claim to the SVID, bind it at issue time, and reject at verify when <code>aud != requested</code>. Rewrite the audience check to compare against the real audience, not the issuer prefix. Regenerate the Go wire types from <code>proto/</code> via <code>buf generate</code> and delete the hand-written struct. Add mTLS with SPIFFE bundle rotation. Depends on T1 v1.1 for signing.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Real SPIRE/SPIFFE federation (I2 bindings land here too). HA deployment with a quorum-based revoke journal so the &lt;5s revocation SLA holds across a partition. OTel traces on issue/revoke/verify. Backup/restore of the delegation graph.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> SPIFFE conformance certification. Co-development: a multi-cloud platform runs I1 as its agent-identity plane. OSAF submission of the SVID+AAE capability-token profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Multi-agent delegation exchange (P10) native support. Cross-trust-domain federation with proof-carrying delegation. Hardware-backed SVID issuance (TPM-attested workload onboarding). Revocation by capability-graph traversal (cascade revoke).</div>
+  </div>
+</div>
+
+<!-- ----- R2 ----- -->
+<div class="roadmap-card" id="rm-r2">
+  <div class="rm-head"><span class="rm-id">R2</span> <span class="badge rust">rust</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">fail-closed (I-09)</span></div>
+  <div class="rm-title">eval-guard</div>
+  <div class="rm-path">rust/eval-guard/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">critical fix pending (C3)</span><span class="pill mock">mock backends (M2)</span></div>
+  <p>Cryptographic sandbox boundary attestation. Four pre-flight checks (network isolation, filesystem boundary, process isolation, egress attestation) emit a signed <code>SandboxAttestation</code> or refuse to start the agent (I-09). Today the attestation is a skeleton key and the eBPF is absent.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 4 tests. <span class="crit">Critical break C3:</span> the signature covers only <code>passed_checks (always BoundaryCheck::ALL) || nonce</code> &mdash; the real <code>CheckResults</code>, the host, and the timestamp are never bound in. One signed attestation is a permanent skeleton key for any future sandbox. <span class="crit">M2:</span> no actual eBPF; the containment plane is decision functions that nothing enforces.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> The signed message must include (a) the actual per-check results, (b) a fresh timestamp within a tight freshness window, (c) a binding to the target host/agent SVID. Add a replay test: an attestation older than the window or bound to a different host must fail verify. Begin the <code>aya</code>-based eBPF programs that actually enforce each check. Depends on T1 v1.1.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Complete the eBPF enforcement so <code>decide()</code> outputs are acted on by kernel programs, not just logged. Add continuous attestation (re-check on policy change). OTel export of every boundary decision. HA: stateless verifier that any node can run.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a confidential-compute vendor (the eBPF programs integrate with their TEE boundaries). OSAF submission of the sandbox-attestation profile (P12 CAP feeds this).</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Remote attestation of the verifier itself (the attestation is only trustworthy if the attester is attested). Hardware-bound attestation via TPM/NVIDIA attestation report fusion. Continuous-policy sandboxing (live policy hot-reload without agent restart). GPU-isolation attestation (MIG partition proof).</div>
+  </div>
+</div>
+
+<!-- ----- R3 ----- -->
+<div class="roadmap-card" id="rm-r3">
+  <div class="rm-head"><span class="rm-id">R3</span> <span class="badge rust">rust</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">5s budget</span></div>
+  <div class="rm-title">kill-switch</div>
+  <div class="rm-path">rust/kill-switch/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">compliance fix pending (C7)</span><span class="pill critfix">high fix pending (H8)</span></div>
+  <p>Three-layer (policy / decision / execution) agent termination pipeline that completes in under 5 seconds. Includes the Government Compliance API surface for the AI Kill Switch Act (H.R. 2026).</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 9 tests. <span class="crit">Compliance break C7:</span> <code>notify_government_api</code> returns <code>confirmed: true</code> without making any HTTP call &mdash; the worst possible stub, because it reports compliance that did not happen. <span class="crit">H8:</span> the &lt;5s budget is enforced <em>after</em> work completes, not as a deadline &mdash; a runaway handler can overrun.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Return <code>confirmed: false</code> (or a <code>NotImplemented</code> error) until the real government endpoint exists. Convert the budget into a hard <code>tokio::time::deadline</code> that cancels downstream work at 5s. Add a chaos test that injects a 10s handler and asserts the switch still completes in &lt;5s.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Real OPA/Cedar decision path (not just the Python policy stub). Distributed kill: a kill issued at one node propagates to every node holding a live SVID within the 5s budget. OTel trace per kill. Idempotent kill by <code>order_id</code>.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Reference implementation submitted to the OSAF incident-response working group. Co-development with an incident-response vendor that adopts the AIX (P9) + R3 pairing. Regulatory liaison for the real Kill Switch Act endpoint.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Graduated termination (throttle &rarr; quarantine &rarr; kill). Predictive kill (kill before a budget breach based on rate extrapolation). Cross-jurisdiction kill orchestration (different regulators, different evidence bundles). Proof-carrying remediation (P11) emission on every kill.</div>
+  </div>
+</div>
+
+<!-- ----- R4 ----- -->
+<div class="roadmap-card" id="rm-r4">
+  <div class="rm-head"><span class="rm-id">R4</span> <span class="badge rust">rust</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">1s revoke (I-05)</span></div>
+  <div class="rm-title">credential-vault</div>
+  <div class="rm-path">rust/credential-vault/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">high fix pending (H11)</span><span class="pill mock">mock backends</span></div>
+  <p>Agent-scoped credential brokering. Issues 15-minute scoped tokens bound to a SPIFFE identity + task + IP, integrates HashiCorp Vault / AWS Secrets Manager / K8s Secrets, and is supposed to revoke in under 1 second (I-05).</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 10 tests. <span class="crit">High break H11:</span> <code>revoke_all()</code> is a no-op &mdash; all previously-issued 15-minute credentials remain valid until natural expiry, violating the 1s revoke SLA. The Vault/ASM/K8s backends are interface-only; nothing calls a real secret store.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Implement real revocation: on <code>revoke_all</code>, iterate live credentials and call each backend's revoke (Vault lease revoke, ASM invalidation, K8s secret delete). Add a chaos test: revoke, then assert a subsequent use of the revoked token fails within 1s. Wire real HashiCorp Vault as the first production backend.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> AWS Secrets Manager and K8s Secrets backends. HA: revocation replicated across vault instances. OTel spans on issue/revoke/use. Audit log of every credential lifecycle event emitted as an AAR (P2).</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a secrets-manager vendor (one of Vault/ASM/1Password/Gopass) as the reference integration. OSAF submission of the credential-brokering profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Just-in-time credential issuance (no standing secrets). Workload-identity-bound credentials (token only valid inside the attested sandbox). Hardware-backed credentials (TPM-sealed). Credential-rotation policies per data-class (L0&ndash;L4).</div>
+  </div>
+</div>
+
+<!-- ----- R5 ----- -->
+<div class="roadmap-card" id="rm-r5">
+  <div class="rm-head"><span class="rm-id">R5</span> <span class="badge python">python</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">Rego+Cedar+OpenShell</span></div>
+  <div class="rm-title">policy-compiler</div>
+  <div class="rm-path">python/policy-compiler/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">decision-equivalence TODO</span></div>
+  <p>Compiles a declarative rule DSL plus natural-language intent into three artifacts: an OPA Rego module, a Cedar policy, and an OpenShell YAML policy. The canonical policy authoring entry point.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 17 tests. The three-engine compilation works for the documented DSL subset, but the decision-equivalence guarantee (the same input yields allow/deny in all three engines) is asserted, not tested across the adversarial input space.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Add a differential-testing harness: generate thousands of (policy, input) pairs and assert Rego, Cedar, and OpenShell agree on every decision. Fix the divergences the harness finds. Tighten the NL-intent parser to refuse ambiguous inputs rather than guess.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Hot-reload: compiled policies update without restart. Versioned policies with rollback. OTel spans on compile and on decision. A policy registry backed by git (PR-reviewed policy changes).</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the OPA and Cedar maintainers on the equivalence profile. OSAF submission of the rule DSL as a portable policy-authoring format.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> LLM-assisted policy authoring with verification (the LLM proposes, R5 verifies equivalence and refusal of out-of-scope requests). Regulatory-text-to-policy (EU AI Act article &rarr; Cedar rule). Explainable decisions (which rule fired, in natural language).</div>
+  </div>
+</div>
+
+<!-- ----- R7 ----- -->
+<div class="roadmap-card" id="rm-r7">
+  <div class="rm-head"><span class="rm-id">R7</span> <span class="badge rust">rust</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">eBPF core</span></div>
+  <div class="rm-title">egress-filter</div>
+  <div class="rm-path">rust/egress-filter/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">no eBPF (M2, M4)</span></div>
+  <p>eBPF egress enforcement core. Deterministic <code>decide</code> over domain blocklists, canary IP detection, and RFC-1918 denial. Default-deny; allowlist overrides for break-glass. The Rust core the eBPF programs consult per packet.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 12 tests. The <code>decide</code> logic and the suffix-matching are correct. <span class="crit">M2:</span> no actual eBPF &mdash; the decisions go nowhere. <span class="crit">M4:</span> the allowlist override of the blocklist has no auth, no audit, no break-glass log, so a privileged allow entry silently defeats every block.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Ship the <code>aya</code> eBPF programs that call <code>decide</code> per packet and actually drop denied traffic. Require a signed break-glass token for any allowlist override; emit an AAR (P2) for every override. Integration test in a real VM with egress attempted to a blocklisted host.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Hot-reloadable blocklists (no socket reconnect). Per-namespace policy. Metrics on allow/deny/override. HA: a control plane that pushes policy to every node.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a CNI/vendor to ship R7 as the default egress policy for agent workloads. OSAF submission of the break-glass profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> DNS-aware filtering (resolve, then decide on the resolved IP). Encrypted-traffic fingerprinting (TLS JA3/JA4 matching without decryption). Geo-intelligent denial (P7 geography field enforced at the packet layer). Real-time threat-feed ingestion.</div>
+  </div>
+</div>
+
+<!-- ----- E1 ----- -->
+<div class="roadmap-card" id="rm-e1">
+  <div class="rm-head"><span class="rm-id">E1</span> <span class="badge rust">rust</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">protocol P2 (I-07)</span></div>
+  <div class="rm-title">flight-recorder</div>
+  <div class="rm-path">rust/flight-recorder/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">critical fix pending (C2)</span><span class="pill critfix">high fix pending (H1)</span></div>
+  <p>The verifiable agent flight recorder. Emits signed Agent Action Receipts (AAR, P2) for every material action. Enforces invariant I-07: the receipt is signed and durable <em>before</em> the action commits. Exports to OCSF and OpenTelemetry.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 8 tests. <span class="crit">Critical break C2:</span> the AAR canonical encoding is unambiguous-concatenation with no length prefixes &mdash; an attacker controlling two adjacent variable-length fields can forge a second receipt that verifies against the original signature. <span class="crit">H1:</span> <code>hex::decode().unwrap_or_default()</code> silently swallows malformed hex into empty bytes, so the proto contract is not what is signed. <span class="crit">M1:</span> no GDPR right-to-erasure.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Length-prefix every field (TLV) or move to canonical CBOR for the AAR. Replace <code>unwrap_or_default</code> with explicit error propagation. Add a forgery test that attempts the C2 attack and asserts failure. Define a redaction format that preserves signature verifiability while erasing PII (cryptographic blinding of redacted fields). Depends on T1 v1.1.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Durable receipt store (append-only, replicated) so I-07 holds across restarts &mdash; today durability is in-memory. OTel-native export. HA receipt emission (no action blocks on a recorder outage; local buffer + flush). Retention policies per data-class.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> OSAF submission of P2 as the reference agent-action receipt. Co-development with an SIEM vendor that ingests E1 receipts natively. OCSF mapping certified.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Streaming receipts (every tool call, not every "material action" &mdash; configurable granularity). Cross-agent receipt correlation (distributed-trace-style spanning). Zero-knowledge receipts (prove an action was authorized without revealing which). Receipt aggregation into Merkle blocks anchored to a public ledger.</div>
+  </div>
+</div>
+
+<!-- ====================== GROUP 2: CONFIDENTIAL COMPUTE ====================== -->
+<h3 id="group-confidential"><span class="section-number">&sect;3.2</span>Confidential Compute &amp; GPU Attestation</h3>
+
+<!-- ----- C1-1 ----- -->
+<div class="roadmap-card" id="rm-c1-1">
+  <div class="rm-head"><span class="rm-id">C1-1</span> <span class="badge rust">rust</span> <span class="badge python">python</span> <span class="badge go">go</span></div>
+  <div class="rm-title">nvtrust-bridge</div>
+  <div class="rm-path">rust/nvtrust-bridge/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">critical fix pending (C4)</span><span class="pill mock">mock backend (M7)</span></div>
+  <p>NVTrust FFI bindings plus the <code>nvtrust-verify</code> CLI. Offline/mock mode for CI. The hardware root that every confidential-compute component builds on.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with bindings. <span class="crit">Critical break C4:</span> the nonce is never verified &mdash; the MockBackend returns <code>Ok(())</code> iff <code>attestation_bytes == b"aumos-mock-attestation"</code> and ignores the challenge nonce entirely. This is the textbook replay attack against challenge-response attestation. <span class="crit">M7:</span> the fixed mock string makes "cross-language interop" tautological.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> <code>verify</code> takes the challenge nonce as an argument and rejects any report whose <code>report.nonce != challenge</code>. <code>establish_session</code> requires a caller-supplied nonce from <code>OsRng</code>. The MockBackend returns a report whose nonce equals the challenge. Wire the real NVTrust library behind the FFI (mock stays for CI, real for production).</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Driver/GPU version matrix CI (every supported CUDA version). Caching of verified nonces within their freshness window. OTel export of attestation decisions. A GPU-farm smoke test in CI on real hardware.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with NVIDIA on the NVTrust integration (the reference Rust bindings). OSAF submission of the GPU-attestation profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Confidential-computing attestation fusion (NVIDIA + AMD SEV-SNP + Intel TDX in one verifier). Confidential-cluster attestation (whole-rack proof). Driver/TEE mutual attestation. Attested-key release bound to a remote policy (C1-5 depends on this).</div>
+  </div>
+</div>
+
+<!-- ----- C1-2 ----- -->
+<div class="roadmap-card" id="rm-c1-2">
+  <div class="rm-head"><span class="rm-id">C1-2</span> <span class="badge python">python</span></div>
+  <div class="rm-title">cuda-gram</div>
+  <div class="rm-path">python/cuda_gram/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">critical fix pending (C4)</span><span class="pill critfix">medium fix pending (M9)</span></div>
+  <p>High-level GPU attestation SDK. PyO3 over C1-1. The Python surface most agent code touches to verify a GPU.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. Inherits C4 from C1-1 (no nonce check). <span class="crit">M9:</span> <code>from_dict</code> does not validate <code>gpu_model</code> or <code>attestation_bytes</code>, widening the attack surface &mdash; combined with C4, an attacker can craft a dict that the SDK accepts as a valid attestation.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Add strict <code>from_dict</code> validation (allowlisted <code>gpu_model</code>, non-empty <code>attestation_bytes</code>, well-formed nonce). Inherit the fixed nonce verification from C1-1 v1.1. Add a property test that fuzzes the dict and asserts malformed inputs raise. Move fully off ctypes to the safe PyO3 binding.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Async API (no blocking the agent loop on attestation). Per-GPU model policy. Cached verification with freshness. OTel spans.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development: an inference-serving vendor adopts C1-2 as the GPU-trust gate before model load. OSAF Python reference implementation.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Streaming attestation for long-running inference (re-attest mid-session). Multi-GPU topologies (NVLink groups as one attested unit). Confidential-Hopper-specific features (confidential computing on H100/H200). GPU-side policy enforcement.</div>
+  </div>
+</div>
+
+<!-- ----- C1-3 ----- -->
+<div class="roadmap-card" id="rm-c1-3">
+  <div class="rm-head"><span class="rm-id">C1-3</span> <span class="badge python">python</span> <span class="badge" style="background:#fce8d4;color:#974711">terraform</span></div>
+  <div class="rm-title">attesta-flow</div>
+  <div class="rm-path">python/attesta_flow/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">single-cloud stub</span></div>
+  <p>End-to-end attested inference pipeline across Azure DC, AWS Nitro, and GCP confidential VMs plus NVIDIA. Terraform-driven provisioning.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the pipeline scaffolding. Only one cloud's provisioning path is exercised end-to-end; the other two are stubbed. The attestation chain is built but not verified end-to-end across the three TEEs.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Complete the AWS Nitro and GCP CC VM provisioning paths. Wire the cross-TEE attestation chain so a request is provably attested from ingress (Nitro) through serving (CC VM) through GPU (NVIDIA via C1-1). Inherit the C4 nonce fix.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Idempotent Terraform. Drift detection. Multi-region. OTel tracing across the whole pipeline. Failure-injection tests (kill a TEE mid-request; assert the chain breaks loudly).</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with each of the three cloud vendors on their TEE integration. OSAF submission of the cross-cloud attested-pipeline reference.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Policy-bound key release (the model weight key only releases inside a proven TEE). Confidential model serving (the provider cannot see the weights). Attested fine-tuning (the fine-tune is provably inside the TEE). Multi-tenant TEE scheduling.</div>
+  </div>
+</div>
+
+<!-- ----- C1-4 ----- -->
+<div class="roadmap-card" id="rm-c1-4">
+  <div class="rm-head"><span class="rm-id">C1-4</span> <span class="badge go">go</span></div>
+  <div class="rm-title">tee-serve</div>
+  <div class="rm-path">go/tee-serve/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">Triton bridge stub</span></div>
+  <p>TEE-backed model serving with a Triton bridge, targeting &lt;2ms overhead. Go cleared the activation gate because this is a real sidecar service.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the sidecar shape. The Triton bridge is a stub; the &lt;2ms overhead target is not yet measured. No real TEE enrollment.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Real Triton bridge (gRPC to Triton, with attested model load). Real TEE enrollment (the sidecar proves its TEE to a remote verifier before serving). Benchmark the overhead and add a regression gate so a 2ms breach fails CI.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA: multiple sidecars behind one VIP. Hot model swap inside the TEE. OTel spans. Metrics on TEE-entry/exit latency. Graceful TEE-reattestation on key rotation.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with NVIDIA on the Triton integration. OSAF submission of the TEE-serving reference.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Confidential model marketplace (a provider serves a model it cannot read). Attested batching (one TEE, many tenants, proven isolation). GPU-inside-TEE (Hopper CC). Remote key escrow.</div>
+  </div>
+</div>
+
+<!-- ----- C1-5 ----- -->
+<div class="roadmap-card" id="rm-c1-5">
+  <div class="rm-head"><span class="rm-id">C1-5</span> <span class="badge rust">rust</span> <span class="badge go">go</span></div>
+  <div class="rm-title">confidential-fabric</div>
+  <div class="rm-path">rust/confidential-fabric/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">policy-bound release stub</span></div>
+  <p>GPU/node attestation plus confidential containers plus policy-bound key release. The control fabric that ties C1-1 through C1-4 together.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the fabric shape. Policy-bound key release is a stub &mdash; the policy is consulted but the key is returned regardless of the decision. The confidential-container integration is not wired to a real runtime (kata/confidential-containers).</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Make key release fail-closed on policy denial. Integrate the real confidential-containers runtime. Inherit C1-1's nonce fix on the node-attestation path. Add a test that denies a key and asserts the model cannot be loaded.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Multi-node attestation (the fabric proves a whole cluster). HA key-release service. OTel. Policy hot-reload.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the confidential-containers community. OSAF submission of the fabric policy model.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Federated key release (keys released only when a quorum of TEEs attests). Confidential orchestration (k8s scheduler that only places workloads on attested nodes). Cross-cloud key portability.</div>
+  </div>
+</div>
+
+<!-- ====================== GROUP 3: SUPPLY CHAIN ====================== -->
+<h3 id="group-supply"><span class="section-number">&sect;3.3</span>Supply Chain &amp; Safe Model Formats</h3>
+
+<!-- ----- S1 ----- -->
+<div class="roadmap-card" id="rm-s1">
+  <div class="rm-head"><span class="rm-id">S1</span> <span class="badge rust">rust</span> <span class="badge python">python</span></div>
+  <div class="rm-title">safe-tensors-pp</div>
+  <div class="rm-path">rust/safe-tensors-pp/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">drop-in ext</span></div>
+  <p>Drop-in Safetensors extension with a <code>__provenance__</code> block. The same idea as Sentinel's ATLAS sidecar <code>.atlas</code>, merged into one component.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The <code>__provenance__</code> block round-trips and the extension loads in the reference Safetensors loader. The provenance is signed but the verifier does not yet bind the signature to the tensor bytes (inherits the T1 C1 weakness transitively).</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Re-sign provenance over canonical bytes from the repaired T1. Add a tamper test: flip one tensor byte and assert provenance verification fails. Verify against the AATM (P6) graph, not just the file.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Streaming load for very large models (no full-file buffer). Multi-shard provenance. OTel. A registry of known-provenance models.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with Hugging Face on the <code>__provenance__</code> extension (Safetensors upstream). OSAF submission of the format extension.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Provenance-weighted loading (refuse a model whose provenance chain is broken). Delta-provenance (fine-tune deltas carry their own provenance). Encrypted-tensor provenance (decrypt-then-verify).</div>
+  </div>
+</div>
+
+<!-- ----- S2 ----- -->
+<div class="roadmap-card" id="rm-s2">
+  <div class="rm-head"><span class="rm-id">S2</span> <span class="badge rust">rust</span> <span class="badge python">python</span></div>
+  <div class="rm-title">provena-chain</div>
+  <div class="rm-path">rust/provena-chain/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">critical fix pending (C2)</span><span class="pill critfix">high fix pending (H10)</span><span class="pill critfix">medium fix pending (M10)</span></div>
+  <p>Tamper-evident provenance ledger; Merkle root anchored to Sigstore Rekor. The supply-chain spine for every artifact.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. <span class="crit">Critical break C2:</span> <code>Entry::canonical_bytes</code> and the checkpoint canon use the same unambiguous-concatenation as E1 &mdash; forgery-able. <span class="crit">H10:</span> the ledger is in-memory only &mdash; a tamper-evident ledger in RAM is not tamper-evident across restarts. <span class="crit">M10:</span> orphan promotion promotes the lone leaf unchanged, breaking second-preimage resistance.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Length-prefix (TLV) every field in both canonical encodings. Re-hash the lone node on orphan promotion. Add a persistence backend (append-only file + Rekor anchoring) and a restart test that proves the ledger survives. Depends on T1 v1.1.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Replicated ledger (Raft) so the tamper-evidence holds across node loss. Compaction (the Merkle root is the durable truth; old leaves can prune). OTel. Backup/restore.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the Sigstore/Rekor community. OSAF submission of the provenance-ledger profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Cross-organization federation (one model's provenance chains across vendor boundaries). Verifiable ledger pruning (prove the pruned ledger is consistent with the anchored root). Zero-knowledge provenance queries.</div>
+  </div>
+</div>
+
+<!-- ----- S4 ----- -->
+<div class="roadmap-card" id="rm-s4">
+  <div class="rm-head"><span class="rm-id">S4</span> <span class="badge python">python</span></div>
+  <div class="rm-title">model-sbom</div>
+  <div class="rm-path">python/model_sbom/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">CycloneDX+SPDX</span></div>
+  <p>CycloneDX/SPDX with AI extensions. Merged with AATM/agent-BOM. The SBOM every other supply-chain artifact references.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with both CycloneDX and SPDX output. The AI extensions (training-data, eval-set, model-card fields) are present but not yet validated against the AATM (P6) graph.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Cross-validate every AI-SBOM field against the corresponding AATM node; fail generation if they disagree. Sign the SBOM via T1. Add a diff tool that surfaces what changed between two model SBOMs.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> SBOM registry (git-backed). Dependency-graph reachability queries ("is any vulnerable component in my model?"). OTel. VEX (vulnerability exploitability exchange) emission.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the CycloneDX and SPDX working groups on the AI extension. OSAF submission.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Live SBOM (updates as the model is fine-tuned in place). Attested SBOM (every field is backed by a TEE attestation). SBOM-driven policy (refuse deployment if the SBOM is incomplete).</div>
+  </div>
+</div>
+
+<!-- ----- S5 ----- -->
+<div class="roadmap-card" id="rm-s5">
+  <div class="rm-head"><span class="rm-id">S5</span> <span class="badge python">python</span></div>
+  <div class="rm-title">data-provenance-kit</div>
+  <div class="rm-path">python/data_provenance_kit/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">JSON-LD export</span></div>
+  <p>Dataset lineage with signed JSON-LD export. Overlaps with Sentinel's AGORA Catalog; S5 is the core.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. Lineage tracking and JSON-LD export work for the documented cases. The signature over the JSON-LD is not bound to canonical bytes (transitive C1 weakness).</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Sign via the repaired T1 over canonical-CBOR of the lineage graph. Verify on load. Add a tamper test.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Large-dataset streaming. Diff/merge of lineage graphs. OTel. Retention/redaction per data-class.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a data-catalog vendor. OSAF submission of the lineage profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Consent-aware lineage (a downstream consumer provably respects the upstream consent). Synthetic-data provenance (mark and trace). Cross-org lineage federation.</div>
+  </div>
+</div>
+
+<!-- ----- S6 ----- -->
+<div class="roadmap-card" id="rm-s6">
+  <div class="rm-head"><span class="rm-id">S6</span> <span class="badge rust">rust</span> <span class="badge" style="background:#fce8d4;color:#974711">eBPF</span></div>
+  <div class="rm-title">exfil-guard</div>
+  <div class="rm-path">rust/exfil-guard/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">no eBPF (M2, M3, M4)</span></div>
+  <p>eBPF exfiltration prevention. The enforcement arm to R7's decision. Overlaps with R7 by design: R7 decides, S6 enforces.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The Luhn credit-card detector and the entropy detector are correct in isolation. <span class="crit">M2:</span> no eBPF. <span class="crit">M3:</span> the entropy detector only checks fixed 32-byte windows &mdash; trivially evaded by splitting a secret across boundaries. <span class="crit">M4:</span> allowlist override has no auth/audit.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Ship the <code>aya</code> eBPF programs that actually inspect traffic. Sliding-window entropy (not fixed 32-byte). Signed break-glass for allowlist overrides, with an AAR per override. Integration test that exfils a secret across a boundary and asserts it is blocked.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Pluggable secret detectors (API keys, PII patterns). Per-namespace policy. Metrics. HA control plane.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a DLP vendor. OSAF submission of the exfil-prevention profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> ML-based anomaly exfil detection (without DPI on encrypted traffic). Encrypted-traffic metadata exfil detection (SNI, cert fingerprint). Real-time secret-rotation awareness (a rotated key is exfil even if the old one is not).</div>
+  </div>
+</div>
+
+<!-- ----- S7 ----- -->
+<div class="roadmap-card" id="rm-s7">
+  <div class="rm-head"><span class="rm-id">S7</span> <span class="badge python">python</span></div>
+  <div class="rm-title">tamper-scan</div>
+  <div class="rm-path">python/tamper_scan/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">4 detectors</span></div>
+  <p>Weight distribution / backdoor / pruning / fine-tune detection. The static analysis that flags a tampered model before it loads.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with all four detectors. The detectors run but their false-positive rates are unmeasured on a real model zoo, and the backdoor detector only covers trigger-pattern backdoors, not weight-perturbation backdoors.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Calibrate the detectors against a labeled model zoo (clean + trojaned). Add the weight-perturbation backdoor detector. Emit a signed verdict (T1) consumable by S4.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Streaming scan for very large models. Per-layer attribution. OTel. A verdict registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a model-zoo vendor (trojaned-model feed). OSAF submission of the tamper-verdict profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Runtime tamper detection (re-scan on hot-swap). Adaptive attackers (scan models designed to evade S7). Federated tamper intelligence (share verdicts across orgs).</div>
+  </div>
+</div>
+
+<!-- ----- S8 ----- -->
+<div class="roadmap-card" id="rm-s8">
+  <div class="rm-head"><span class="rm-id">S8</span> <span class="badge python">python</span></div>
+  <div class="rm-title">train-guard</div>
+  <div class="rm-path">python/train_guard/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">training-loop hooks stub</span></div>
+  <p>Training-loop integrity hooks; signed training attestation. Proves a model was trained the way its card claims.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The hooks fire on the documented training events but only for PyTorch; the signed attestation does not bind to the actual training artifacts (data hash, code hash, hyperparams).</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Bind the attestation to (data hash, code/git hash, hyperparams, final weights hash) signed via T1. Add NeMo support alongside PyTorch. Verify on load.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Streaming attestation for long training runs. Resumable training attestation. OTel. A registry of training attestations.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a training-platform vendor. OSAF submission of the training-attestation profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> TEE-attested training (the attestation is backed by a TEE proof). Federated training attestation (F1 integration). Adversarial-training provenance (mark which examples were adversarial).</div>
+  </div>
+</div>
+
+<!-- ----- S9 ----- -->
+<div class="roadmap-card" id="rm-s9">
+  <div class="rm-head"><span class="rm-id">S9</span> <span class="badge go">go</span> <span class="badge rust">rust</span></div>
+  <div class="rm-title">lightwell-bridge</div>
+  <div class="rm-path">go/lightwell_bridge/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">patch distribution stub</span></div>
+  <p>AI-artifact patch distribution extending IBM/Red Hat Lightwell. Delta-patch for models, not just RPMs.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The delta-patch format is defined but the distribution path is a stub; no real CDN/Lightwell integration. Patch verification is unsigned.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Sign every patch via T1; verify on apply. Wire the real Lightwell distribution. Add a rollback test (apply, verify, rollback, verify).</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Multi-region CDN. Bandwidth-aware patching. OTel. A patch registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with IBM/Red Hat on the Lightwell extension. OSAF submission of the AI-patch profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Canary patching (roll a patch to 1% then 10% then 100% with automatic rollback on tamper-scan regression). Proof-carrying remediation bundles (P11) as the patch unit. Air-gapped patch distribution.</div>
+  </div>
+</div>
+
+<!-- ====================== GROUP 4: EVALUATION ====================== -->
+<h3 id="group-eval"><span class="section-number">&sect;3.4</span>Evaluation &amp; Red-Teaming</h3>
+
+<!-- ----- A1 ----- -->
+<div class="roadmap-card" id="rm-a1">
+  <div class="rm-head"><span class="rm-id">A1</span> <span class="badge python">python</span></div>
+  <div class="rm-title">safe-eval</div>
+  <div class="rm-path">python/safe_eval/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">HELM/garak/PyRIT/MDASH</span></div>
+  <p>YAML pipeline orchestrating HELM, garak, PyRIT, MDASH. The harness every eval run flows through.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the four integrations. The pipeline runs but the VEB (P8) output is not reproducible across harness versions, and the seed handling is not fully deterministic.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Pin every harness version into the VEB. Make seeds deterministic (env-fixed). Add a reproducibility test: same VEB &rarr; same result on a fresh machine. Sign the VEB via T1.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Distributed eval (one VEB across many workers). Caching of intermediate results. OTel. A VEB registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the HELM/garak/PyRIT maintainers. OSAF submission of the VEB.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Continuous eval (re-run on every model change). Adversarial eval synthesis (generate new probes from past failures). Cross-model eval (rank on a shared VEB set via A8).</div>
+  </div>
+</div>
+
+<!-- ----- A2 ----- -->
+<div class="roadmap-card" id="rm-a2">
+  <div class="rm-head"><span class="rm-id">A2</span> <span class="badge python">python</span> <span class="badge rust">rust</span></div>
+  <div class="rm-title">adversaria</div>
+  <div class="rm-path">python/adversaria/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">unified framework</span></div>
+  <p>Unified adversarial test framework. Sentinel's HYDRA multi-model debate is a superset; A2 is the core.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The framework unifies probe types but the multi-model debate (HYDRA) is not yet wired; the adversarial coverage is single-model only.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Wire HYDRA-style multi-model debate. Emit a signed VEB per debate. Add a coverage map (which probe classes are exercised).</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Distributed debate. Reproducibility. OTel. A debate registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a red-team-tooling vendor. OSAF submission of the debate profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Adaptive adversaries (learn from defenses). Self-improving probe generation. Cross-modal adversarial (text &harr; image).</div>
+  </div>
+</div>
+
+<!-- ----- A3 ----- -->
+<div class="roadmap-card" id="rm-a3">
+  <div class="rm-head"><span class="rm-id">A3</span> <span class="badge python">python</span> <span class="badge typescript">typescript</span></div>
+  <div class="rm-title">bias-sentinel</div>
+  <div class="rm-path">python/bias_sentinel/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">EU AI Act</span></div>
+  <p>Bias and copyright auditing for the EU AI Act. The compliance surface for Article 10 (data governance) and Article 13 (transparency).</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the dashboard. The bias metrics are computed but the mapping to specific EU AI Act articles is informal, and the copyright check is a substring match.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Map every metric to a specific article/recital. Replace substring copyright with a real similarity search (embedding-based). Sign the audit report via T1.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Streaming audit. Diff/merge of audit reports. OTel. A report registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with an AI-governance vendor. OSAF submission of the bias-audit profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Continuous bias monitoring (drift detection). Multi-jurisdiction (EU + US + others in one report). Copyright with provenance (which source was copied).</div>
+  </div>
+</div>
+
+<!-- ----- A4 ----- -->
+<div class="roadmap-card" id="rm-a4">
+  <div class="rm-head"><span class="rm-id">A4</span> <span class="badge python">python</span></div>
+  <div class="rm-title">comply-gate</div>
+  <div class="rm-path">python/comply_gate/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">GitHub + GitLab</span></div>
+  <p>CI/CD compliance gates as a GitHub Action and GitLab CI component. Blocks a deploy unless the policy passes.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with both CI integrations. The gate runs but its policy is a static checklist; it does not consume AATM/VEB/AAR verdicts dynamically.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Consume AATM (P6) and VEB (P8) verdicts as gate inputs. Make the gate fail-closed if a required verdict is missing. Sign the gate decision.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Cache verdicts. Parallel gates. OTel. A decision registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with CI vendors. OSAF submission of the gate profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Policy-as-code for the gate (R5 compiles the gate's policy). Multi-environment gates (dev/staging/prod with different strictness). Break-glass with audit.</div>
+  </div>
+</div>
+
+<!-- ----- A5 ----- -->
+<div class="roadmap-card" id="rm-a5">
+  <div class="rm-head"><span class="rm-id">A5</span> <span class="badge python">python</span> <span class="badge rust">rust</span></div>
+  <div class="rm-title">agentsec-lab</div>
+  <div class="rm-path">python/agentsec_lab/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">rotating holdouts</span></div>
+  <p>Adversarial benchmark with rotating holdouts and maintainer-first disclosure. Folds in COLOSSEUM attack and HYDRA bench.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The benchmark runs but the rotating-holdout mechanism and the disclosure workflow are scaffolded, not enforced.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Enforce the rotating holdout (a probe set retires on a schedule). Enforce the disclosure workflow (embargo, then public). Sign every result.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Distributed benchmark. Reproducibility. OTel. A leaderboard (feeds A8).</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the AI-security research community. OSAF submission of the benchmark profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Adaptive benchmarks (the holdout evolves to chase defenses). Cross-agent benchmarks (attack one agent in a multi-agent system). Bug-bounty integration.</div>
+  </div>
+</div>
+
+<!-- ----- A6 ----- -->
+<div class="roadmap-card" id="rm-a6">
+  <div class="rm-head"><span class="rm-id">A6</span> <span class="badge rust">rust</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">cross-language</span></div>
+  <div class="rm-title">conformance</div>
+  <div class="rm-path">tools/conformance/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">high fix pending (H3)</span></div>
+  <p>Cross-language conformance suite. The gate that proves Rust, Python, TypeScript, and Go agree byte-for-byte on every wire contract. Actively developed in this repo's <code>tools/conformance/</code>.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 but <span class="crit">High break H3:</span> the entire "cross-language conformance lane" is <em>one</em> Ed25519 signature over the literal bytes "hello aumos conformance", verified raw &mdash; NOT on canonical-CBOR(payload). The <code>testvectors/README.md</code> promises vectors for C1-1, C1-2, R2, R3, R4, I1, P1, P2; none exist.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> This is the most load-bearing fix in the eval domain. Generate canonical-CBOR golden vectors for T1, C1-1, C1-2, R2, R3, R4, I1, P1, P2 and run them in every language. Add adversarial vectors (mutation, truncation, nonce replay, audience mismatch). CI fails if any language diverges.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Conformance as a GitHub Action any consumer can run. Versioned vector sets. OTel. A public dashboard of who passes.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> OSAF adoption of the conformance suite as the official AAE/AAR/AATM interop gate. Co-development: every protocol consumer self-certifies.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Property-based conformance (generate infinite vectors). Differential conformance (catch divergence between two "correct" implementations). Formal-methods-backed vectors for the cryptographic spine.</div>
+  </div>
+</div>
+
+<!-- ----- A7 ----- -->
+<div class="roadmap-card" id="rm-a7">
+  <div class="rm-head"><span class="rm-id">A7</span> <span class="badge python">python</span></div>
+  <div class="rm-title">red-team-cloud</div>
+  <div class="rm-path">python/red_team_cloud/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">simulation service stub</span></div>
+  <p>Continuous adversarial simulation as a service. Folds in AEGIS-Red and HYDRA.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The simulation runner exists but the scheduling and the result-rollup are stubs; no real continuous mode.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Real continuous mode (schedule, run, alert). Emit AIX (P9) incidents on hits. Sign every result.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Multi-tenant. Quotas. OTel. An incident registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a managed-security vendor. OSAF submission of the simulation profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Adaptive adversaries (learn the target's defenses). Autonomous red team (the simulator chooses its next attack). Cross-target intelligence (what worked on A works on B).</div>
+  </div>
+</div>
+
+<!-- ----- A8 ----- -->
+<div class="roadmap-card" id="rm-a8">
+  <div class="rm-head"><span class="rm-id">A8</span> <span class="badge typescript">typescript</span> <span class="badge go">go</span></div>
+  <div class="rm-title">arena</div>
+  <div class="rm-path">typescript/arena/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">leaderboard stub</span></div>
+  <p>A/B Elo ranking leaderboard service. Folds in COLOSSEUM arena and leaderboards.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The Elo math is correct but the leaderboard is in-memory and the match scheduler is a round-robin stub.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Persistent leaderboard. Real match scheduler (bandit-based, not round-robin). Sign every match result via T1.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA. Public API. OTel. Anti-collusion detection.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the arena-research community. OSAF submission of the ranking profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Human-vs-agent arena. Cross-modal arena. Adversarial-robustness-weighted Elo (rank by defense, not just offense).</div>
+  </div>
+</div>
+
+<!-- ====================== GROUP 5: INFERENCE ====================== -->
+<h3 id="group-inference"><span class="section-number">&sect;3.5</span>Inference Stack</h3>
+
+<!-- ----- N1 ----- -->
+<div class="roadmap-card" id="rm-n1">
+  <div class="rm-head"><span class="rm-id">N1</span> <span class="badge go">go</span></div>
+  <div class="rm-title">open-serve-kit</div>
+  <div class="rm-path">go/open_serve_kit/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">single backend</span></div>
+  <p>OpenAI-compatible proxy; backend-agnostic. Go cleared the activation gate because this is a real serving service.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the OpenAI-compatible API. Only one backend is wired end-to-end; the abstraction leaks (streaming semantics differ across backends and are not normalized).</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Normalize streaming across at least three backends (vLLM, TGI, Triton). Add a contract test that the same prompt yields equivalent streams. Sign every response with the serving attestation.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA. Load balancing. OTel. A backend-health registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with serving-engine vendors. OSAF submission of the proxy profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Multi-model routing (pick the best backend per prompt). Speculative decoding across backends. Confidential serving (TeeServe integration).</div>
+  </div>
+</div>
+
+<!-- ----- N2 ----- -->
+<div class="roadmap-card" id="rm-n2">
+  <div class="rm-head"><span class="rm-id">N2</span> <span class="badge python">python</span> <span class="badge go">go</span></div>
+  <div class="rm-title">bridge-rt</div>
+  <div class="rm-path">python/bridge_rt/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">TRT-LLM v0.16</span></div>
+  <p>Unified backend abstraction; handles the TRT-LLM v0.16 <code>sampler_type</code> change. The version-detection logic is one of the parts of the codebase that is genuinely solid.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The 7-version <code>sampler_type</code> detection is correct and tested. But the abstraction only covers TRT-LLM; the other backends are interface-only.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Implement vLLM and TGI adapters to the same abstraction. Add a version-detection test for each. Normalize the sampler-type problem across all three.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Hot backend swap. OTel. A backend-capability registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with each backend vendor. OSAF submission of the abstraction profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Auto-tuning (pick the backend+config that minimizes latency for a given SLA). Multi-GPU topologies. Confidential-backend abstraction.</div>
+  </div>
+</div>
+
+<!-- ----- N3 ----- -->
+<div class="roadmap-card" id="rm-n3">
+  <div class="rm-head"><span class="rm-id">N3</span> <span class="badge rust">rust</span> <span class="badge go">go</span></div>
+  <div class="rm-title">inference-proxy</div>
+  <div class="rm-path">rust/inference-proxy/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">high fix pending (H7)</span><span class="pill critfix">medium fix pending (M8)</span></div>
+  <p>Auth, rate-limit, prompt-filter, semantic-cache gateway. The token-bucket math is solid; the concurrency and the default-open auth are not.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. <span class="crit">High break H7:</span> <code>Mutex::lock().expect()</code> in the hot path &mdash; a poisoned mutex crashes the proxy (release is <code>panic=abort</code>). <span class="crit">M8:</span> <code>OpenAuth</code> is the default, so <code>ProxyBuilder::new().build()</code> admits any identity &mdash; should default fail-closed.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Replace <code>expect</code> with handled errors (poisoned mutex &rarr; graceful degradation, not abort). Make the default auth fail-closed; require an explicit <code>.open_auth()</code> opt-in for tests. Add a chaos test that poisons the mutex and asserts the proxy stays up.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA. Distributed rate-limit state. OTel. A semantic-cache invalidation policy.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with an API-gateway vendor. OSAF submission of the gateway profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Prompt-injection filter (real-time). Per-tenant semantic cache. Attested-routing (only route to attested backends). Streaming-aware rate-limit.</div>
+  </div>
+</div>
+
+<!-- ----- N4 ----- -->
+<div class="roadmap-card" id="rm-n4">
+  <div class="rm-head"><span class="rm-id">N4</span> <span class="badge go">go</span></div>
+  <div class="rm-title">tenant-guard</div>
+  <div class="rm-path">go/tenant_guard/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">MIG/MPS stub</span></div>
+  <p>K8s operator; MIG/MPS multi-tenant GPU. Go activation trigger #1 &mdash; this is why Go was unblocked for the inference wave.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the <code>ModelFleet</code>-equivalent CRD. The MIG/MPS partitioning is interface-only; no real GPU partition is created.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Real MIG partitioning (create/destroy via the NVIDIA operator). Real MPS. Bind each tenant to an attested partition (C1-1). Add a test that two tenants on one GPU provably cannot see each other.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA control plane. Quota. OTel. A partition registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with NVIDIA on the GPU-operator integration. OSAF submission of the multi-tenant profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Elastic partitioning (grow/shrink per load). Confidential multi-tenancy (one TEE per tenant). Cross-cluster tenancy. Cost-aware scheduling.</div>
+  </div>
+</div>
+
+<!-- ====================== GROUP 6: FEDERATED ====================== -->
+<h3 id="group-federated"><span class="section-number">&sect;3.6</span>Federated &amp; Edge</h3>
+
+<!-- ----- F1 ----- -->
+<div class="roadmap-card" id="rm-f1">
+  <div class="rm-head"><span class="rm-id">F1</span> <span class="badge python">python</span></div>
+  <div class="rm-title">fed-core</div>
+  <div class="rm-path">python/fed_core/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">attested training stub</span></div>
+  <p>Attested federated training (PyTorch + NeMo + DP via F2). The most complex component in the portfolio.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The federation loop runs but attestation of each round is a stub (a round completes without proving any client was attested). The DP integration with F2 is wired but not enforced.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Require each client to present a fresh GPU attestation (C1-1) before its update is aggregated. Enforce that DP (F2) is on; refuse to start a round with epsilon = 0. Sign every round via T1.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA aggregator. Client churn tolerance. OTel. A round registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a federated-learning vendor. OSAF submission of the attested-training profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Cross-silo federation with proof-carrying aggregation. Heterogeneous-client federation. Confidential aggregation (TEE-backed secure aggregation). Adaptive DP (per-round epsilon).</div>
+  </div>
+</div>
+
+<!-- ----- F2 ----- -->
+<div class="roadmap-card" id="rm-f2">
+  <div class="rm-head"><span class="rm-id">F2</span> <span class="badge python">python</span></div>
+  <div class="rm-title">dp-crate</div>
+  <div class="rm-path">python/dp_crate/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">DPSGD math correct</span></div>
+  <p>Differential privacy toolkit plus dashboard. The DPSGD clip-then-noise math and the RDP accountant are correct &mdash; one of the genuinely solid parts of the codebase.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The DP math is correct. The dashboard renders but the accountant is not versioned, so two runs with "the same epsilon" may use different accountants.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Version the accountant into the signed training attestation (S8). Add a composition test that proves the epsilon is respected across rounds. Pin the accountant version in CI.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Streaming DP. Per-client DP. OTel. An accountant registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the DP-research community. OSAF submission of the DP profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Adaptive clipping. Client-level vs sample-level DP toggle. DP under streaming data. Verifiable DP (the accountant's proof is checkable by a third party).</div>
+  </div>
+</div>
+
+<!-- ----- F3 ----- -->
+<div class="roadmap-card" id="rm-f3">
+  <div class="rm-head"><span class="rm-id">F3</span> <span class="badge go">go</span></div>
+  <div class="rm-title">edge-sentinel</div>
+  <div class="rm-path">go/edge_sentinel/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">Jetson/EGX stub</span></div>
+  <p>Edge inference attestation agent for Jetson/EGX. Targets a &lt;5MB binary.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the agent shape. The Jetson/EGX attestation is a stub; the binary is well under 5MB but does not actually attest an edge device.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Real Jetson attestation via C1-1 (the edge GPU variant). Real EGX. Inherit the C4 nonce fix. Add an on-device test.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> OTA-safe attestation. Low-bandwidth operation. OTel (lightweight). A device registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with NVIDIA on the Jetson integration. OSAF submission of the edge profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Fleet attestation (every device, every boot). Confidential edge (TEE on Jetson). Offline-tolerant attestation. Self-healing attestation.</div>
+  </div>
+</div>
+
+<!-- ----- F4 ----- -->
+<div class="roadmap-card" id="rm-f4">
+  <div class="rm-head"><span class="rm-id">F4</span> <span class="badge go">go</span></div>
+  <div class="rm-title">fleet-marshal</div>
+  <div class="rm-path">go/fleet_marshal/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">rollback stub</span></div>
+  <p>K8s operator with a fleet CRD; canary/blue-green rollback. Go activation trigger #2.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the CRD. The canary/blue-green deployment works but the rollback trigger is manual; no automatic rollback on tamper-scan (S7) or eval (A1) regression.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Automatic rollback on S7 tamper verdict or A1 eval regression. Sign every rollout decision. Add a test that a regression triggers rollback.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA. Multi-cluster. OTel. A rollout registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a k8s-platform vendor. OSAF submission of the rollout profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Progressive delivery tied to live incident signals (AIX). Confidential rollout (attested nodes only). Multi-region canary. Cost-aware rollback.</div>
+  </div>
+</div>
+
+<!-- ====================== GROUP 7: CROSS-CUTTING ====================== -->
+<h3 id="group-cross"><span class="section-number">&sect;3.7</span>Cross-Cutting / Aggregation</h3>
+
+<!-- ----- X1 ----- -->
+<div class="roadmap-card" id="rm-x1">
+  <div class="rm-head"><span class="rm-id">X1</span> <span class="badge rust">rust</span> <span class="badge" style="background:var(--accent-subtle);color:var(--accent-hover)">clap CLI</span></div>
+  <div class="rm-title">defstack-cli</div>
+  <div class="rm-path">rust/defstack-cli/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">install/verify/upgrade/report</span></div>
+  <p>The AumOS CLI, in Rust/clap (consolidated from DefStack's Go/Cobra and Sentinel's sentinelos-cli). Subcommands: install, verify, upgrade, compliance-report.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the four subcommands. The CLI runs but <code>compliance-report</code> reports the v1.0 "feature-complete" framing that the stress test contradicted &mdash; the report overstates maturity.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Make <code>compliance-report</code> honestly reflect the v1.1 fix state (which critical fixes are merged, which conformance vectors pass). Add a <code>doctor</code> subcommand that checks the local install against the conformance suite.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Plugin system (load per-component subcommands). Auto-update. OTel. A plugin registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with distribution channels (brew, apt, winget, scoop). OSAF submission of the CLI profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Interactive policy authoring (R5 in the terminal). Live cluster inspection. A TUI for the evidence plane (E1).</div>
+  </div>
+</div>
+
+<!-- ----- X2 ----- -->
+<div class="roadmap-card" id="rm-x2">
+  <div class="rm-head"><span class="rm-id">X2</span> <span class="badge python">python</span></div>
+  <div class="rm-title">nooa-ext</div>
+  <div class="rm-path">python/nooa_ext/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">NVIDIA NOOA stub</span></div>
+  <p>Production extensions to NVIDIA NOOA: PolicyEnforcer, AuditStreamer, IdentityBinder, AttestationHook. The SentinelTrace behavioral-divergence monitor depends on this.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The four extensions are scaffolded but the AuditStreamer does not actually stream to a real sink, and the AttestationHook does not call C1-1.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Wire AuditStreamer to a real OCSF/OTel sink. Wire AttestationHook to C1-1 (with the nonce fix). Sign every audit event. This unblocks the deferred SentinelTrace component.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA. Backpressure handling. OTel. A NOOA-extension registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with NVIDIA on NOOA. OSAF submission of the extension profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Behavioral-divergence detection (SentinelTrace finally ships). Policy enforcement at the NOOA layer. Cross-agent audit correlation.</div>
+  </div>
+</div>
+
+<!-- ----- X3 ----- -->
+<div class="roadmap-card" id="rm-x3">
+  <div class="rm-head"><span class="rm-id">X3</span> <span class="badge python">python</span> <span class="badge spec">spec</span></div>
+  <div class="rm-title">open-harness-spec</div>
+  <div class="rm-path">specs/open-harness-spec/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill spec">markdown spec</span></div>
+  <p>Vendor-neutral agent harness spec, targeted as an OSAF standard. Markdown spec plus a Python conformance checker.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 as a markdown spec. The conformance checker exists but covers only the structural subset of the spec, not the behavioral invariants.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> CDDL + JSON-Schema for the harness wire types. Extend the conformance checker to the behavioral invariants. Sign every harness verdict.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Multi-harness conformance. OTel. A harness registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> OSAF working-group submission. Co-development with harness vendors.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Harness interoperability (an agent certified for harness A runs on harness B). Harness-level capability attestation (P12).</div>
+  </div>
+</div>
+
+<!-- ----- X4 ----- -->
+<div class="roadmap-card" id="rm-x4">
+  <div class="rm-head"><span class="rm-id">X4</span> <span class="badge rust">rust</span> <span class="badge python">python</span> <span class="badge" style="background:#fce8d4;color:#974711">eBPF</span></div>
+  <div class="rm-title">crypto-audit-ai</div>
+  <div class="rm-path">rust/crypto_audit_ai/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">CryptanalysisBench stub</span></div>
+  <p>AI-assisted cryptanalysis, productizing Anthropic's CryptanalysisBench. Rust eBPF core plus Python drivers.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The productization scaffolding exists but does not reproduce a CryptanalysisBench result end-to-end; the eBPF tracer is not attached.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Reproduce at least one published CryptanalysisBench result as a regression test. Attach the eBPF tracer. Sign every finding.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Continuous scanning. OTel. A finding registry (feeds X9).</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the applied-cryptography community. OSAF submission of the audit profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Adaptive cryptanalysis (learn the target). Post-quantum cryptanalysis. Zero-knowledge proof auditing.</div>
+  </div>
+</div>
+
+<!-- ----- X5 ----- -->
+<div class="roadmap-card" id="rm-x5">
+  <div class="rm-head"><span class="rm-id">X5</span> <span class="badge python">python</span></div>
+  <div class="rm-title">retro-spec-kit</div>
+  <div class="rm-path">python/retro_spec_kit/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">single-transcript stub</span></div>
+  <p>Retrospective transcript review. Anthropic reviewed 141,006 runs manually; this productizes that work.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The reviewer works on a single transcript; batch mode and the cross-transcript pattern-mining are stubs.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Batch mode. Cross-transcript pattern mining. Sign every retrospective verdict. Anonymization pipeline (feeds M1/GDPR).</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Streaming review. OTel. A verdict registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with an LLM-observability vendor. OSAF submission of the retrospective profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Causal retrospection (why did the agent do X). Counterfactual retrospection (what if Y). Automated policy patches from retrospectives (feeds R5).</div>
+  </div>
+</div>
+
+<!-- ----- X6 ----- -->
+<div class="roadmap-card" id="rm-x6">
+  <div class="rm-head"><span class="rm-id">X6</span> <span class="badge python">python</span></div>
+  <div class="rm-title">metr-bridge</div>
+  <div class="rm-path">python/metr_bridge/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">evaluator adapter stub</span></div>
+  <p>METR independent-evaluator integration. Lets a third-party evaluator measure an AumOS-governed agent.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The adapter shape exists but does not run a real METR task end-to-end.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Run a real METR task suite. Emit a signed VEB (P8) per task. Reproducibility harness.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Batch. OTel. A task registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with METR. OSAF submission of the evaluator profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Multi-evaluator federation. Live evaluation during deployment. Adversarial-evaluator mode.</div>
+  </div>
+</div>
+
+<!-- ----- X7 ----- -->
+<div class="roadmap-card" id="rm-x7">
+  <div class="rm-head"><span class="rm-id">X7</span> <span class="badge typescript">typescript</span></div>
+  <div class="rm-title">console</div>
+  <div class="rm-path">typescript/console/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">policy/evidence UI stub</span></div>
+  <p>Next.js web UI for policy, evidence, and approvals. The Sentinel console and the enterprise policy/evidence console merged.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the Next.js shell. The policy and evidence views render mock data; the approvals workflow does not call I1/R3 for real.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Wire to real I1 (SVID/AAE), real R3 (kill), real E1 (receipts). Real-time receipt stream. Signed-console-assertion for every admin action.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> RBAC. HA. OTel frontend. A role registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with an enterprise-console vendor. OSAF submission of the console profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Policy authoring UI (R5 visual). Evidence forensics UI (replay any AAR). Approval-workflow engine. Multi-tenant.</div>
+  </div>
+</div>
+
+<!-- ----- X8 ----- -->
+<div class="roadmap-card" id="rm-x8">
+  <div class="rm-head"><span class="rm-id">X8</span> <span class="badge typescript">typescript</span> <span class="badge rust">rust</span></div>
+  <div class="rm-title">mcp-gateway</div>
+  <div class="rm-path">typescript/mcp_gateway/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">admission stub</span></div>
+  <p>MCP middleware with authority-aware admission. TypeScript gateway plus a Rust verify core. The bridge between the MCP tool ecosystem and the AAE authority model.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The gateway proxies MCP calls but the authority-aware admission is a stub; a call without a valid AAE is admitted in dev mode.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Fail-closed admission: no AAE, no call. Verify the AAE via the repaired T2. Emit an AAR (P2) per tool call. Consume the SSP (P5) for skill-level scoping.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA. Rate-limit. OTel. A tool registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the MCP community. OSAF submission of the gateway profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Cross-MCP-server federation. Per-skill policy (R5 compiled). Confidential tool calls (TEE-backed tools). Live policy hot-reload.</div>
+  </div>
+</div>
+
+<!-- ----- X9 ----- -->
+<div class="roadmap-card" id="rm-x9">
+  <div class="rm-head"><span class="rm-id">X9</span> <span class="badge python">python</span> <span class="badge spec">spec</span></div>
+  <div class="rm-title">incident-exchange</div>
+  <div class="rm-path">python/incident_exchange/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">OCSF/ATLAS stub</span></div>
+  <p>Normalized agent incident format: OCSF extension plus MITRE ATLAS mapping. Folds in AEGIS SOC and delta-notify.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 as spec plus library. The OCSF extension and ATLAS mapping are defined but the incident router does not dedupe or correlate; a single attack produces N incidents.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Incident dedup and correlation. Sign every incident. Real-time emission to a SIEM. CDDL + JSON-Schema for the AIX (P9) wire types.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA. Backpressure. OTel. An incident registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with the OCSF and ATLAS communities. OSAF submission of the incident profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Predictive incident detection (signal before the breach). Cross-org intelligence sharing (anonymized). Automated playbook execution on incident classes.</div>
+  </div>
+</div>
+
+<!-- ----- X10 ----- -->
+<div class="roadmap-card" id="rm-x10">
+  <div class="rm-head"><span class="rm-id">X10</span> <span class="badge go">go</span> <span class="badge" style="background:#fce8d4;color:#974711">bash/ansible/helm</span></div>
+  <div class="rm-title">sovereign-stack</div>
+  <div class="rm-path">go/sovereign_stack/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">single-node bundle stub</span></div>
+  <p>Air-gapped single-node sovereign bundle. Bash + Ansible + Helm. The SENTINEL-OS sovereign-agent-stack merged.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the bundle scripts. The bundle installs but does not verify that every component is at its v1.1 fixed state; an air-gapped deploy can ship with known breaks.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Bundle only v1.1-fixed components; refuse to install if any critical fix is missing. Offline conformance check on first boot. Sign the bundle manifest.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> Multi-node sovereign. Offline upgrade path. OTel (local). A bundle registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a sovereign-deployment partner (government/defense). OSAF submission of the sovereign profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Sovereign federation (multiple air-gapped stacks sync via sneakernet). Sovereign key escrow. Sovereign threat-intel feed.</div>
+  </div>
+</div>
+
+<!-- ----- X11 ----- -->
+<div class="roadmap-card" id="rm-x11">
+  <div class="rm-head"><span class="rm-id">X11</span> <span class="badge go">go</span> <span class="badge typescript">typescript</span></div>
+  <div class="rm-title">defstack-cloud</div>
+  <div class="rm-path">go/defstack_cloud/</div>
+  <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">SaaS surface stub</span></div>
+  <p>Managed SaaS surface (BSL/source-available). The cloud control plane that wraps the sovereign stack for customers who do not want to self-host.</p>
+  <div class="rm-milestones">
+    <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the control-plane shape. Multi-tenancy, billing, and the customer-isolation boundaries are stubs.</div>
+    <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Real multi-tenancy (one customer cannot see another's evidence). Real billing meter (per AAR, per eval). Signed-customer-isolation proof.</div>
+    <div class="rm-q">Q1 2027</div><div class="rm-body"><strong>v1.2 harden.</strong> HA. Quotas. OTel. A customer registry.</div>
+    <div class="rm-q">Q2 2027</div><div class="rm-body"><strong>Ecosystem.</strong> Co-development with a managed-platform partner. OSAF submission of the multi-tenant profile.</div>
+    <div class="rm-q">Q3&ndash;Q4 2027</div><div class="rm-body"><strong>v2.0.</strong> Multi-region. Customer-managed keys. Confidential SaaS (the provider cannot see customer evidence). Marketplace integration.</div>
+  </div>
+</div>
+
+<hr>
+
+<!-- =================================================================== -->
+<!-- 4. PROTOCOL ROADMAP                                                  -->
+<!-- =================================================================== -->
+<h2 id="protocols"><span class="section-number">4</span>Protocol Roadmap (P1&ndash;P12) <a href="#protocols" class="anchor">&para;</a></h2>
+
+<p>The 12 open protocols are spec-only canonicals. They have no single language implementation; every relevant component consumes them. Their roadmap is a standards track, not a shipping track: <strong>spec &rarr; machine-checkable schema &rarr; conformance suite &rarr; OSAF working group &rarr; OSAF ratification &rarr; IETF RFC</strong> (for the three most load-bearing). Today only P1 has a CDDL + JSON-Schema; the rest are markdown sketches.</p>
+
+<div class="callout warning">
+  <div class="callout-title">High-severity finding H4 governs this whole section</div>
+  <p>The stress test's H4: "No CDDL/JSON-Schema for 11 of the 12 protocols." Each P2&ndash;P12 spec file claims "normative schema lives at ... CDDL" but only P1 (<code>specs/protocols/P1-aae.cddl</code> and <code>P1-aae.schema.json</code>) actually exists. The Q4 2026 milestone for every protocol is therefore the same: produce the missing machine-checkable schema.</p>
+</div>
+
+<table>
+<thead>
+<tr><th>Quarter</th><th>Milestone</th><th>Applies to</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Q3 2026 (now)</strong></td><td>Spec-only. P1 has CDDL + JSON-Schema; P2&ndash;P12 have markdown sketches only.</td><td>All 12</td></tr>
+<tr><td><strong>Q4 2026</strong></td><td>Machine-checkable schemas (CDDL + JSON-Schema) for all 12 protocols. Adversarial test vectors per protocol.</td><td>All 12</td></tr>
+<tr><td><strong>Q1 2027</strong></td><td>Conformance test suite per protocol, runnable in every language via A6.</td><td>All 12</td></tr>
+<tr><td><strong>Q2 2027</strong></td><td>OSAF working-group submission.</td><td>All 12</td></tr>
+<tr><td><strong>Q3 2027</strong></td><td>OSAF standard ratification.</td><td>All 12</td></tr>
+<tr><td><strong>Q4 2027</strong></td><td>IETF RFC submission (individual draft) for the three most load-bearing.</td><td>P1 AAE, P2 AAR, P6 AATM</td></tr>
+</tbody>
+</table>
+
+<h3>Per-protocol notes</h3>
+
+<div class="proto-rm">
+  <div class="pid">P1</div><div class="pname">AAE &mdash; Agent Authority Envelope</div>
+  <div class="rm-status"><span class="pill spec">CDDL + JSON-Schema exist</span><span class="pill v1">consumed by I1, R3, R4, T1</span></div>
+  <p>The root capability token. The only protocol with a complete schema today. Q4 2026: tighten the CDDL to forbid optional-but-critical fields (e.g. <code>revocation_handle</code> must be present). Q1 2027: conformance vectors for the C5 audience attack and the C6 validator-binding attack. Q4 2027: <strong>IETF RFC draft</strong> &mdash; this is the most load-bearing protocol in the entire portfolio.</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P2</div><div class="pname">AAR &mdash; Agent Action Receipt</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill v1">consumed by E1, X2, all auditing</span></div>
+  <p>The tamper-evident receipt per material action; enforces I-07. Q4 2026: CDDL + JSON-Schema must encode the length-prefixed canonical form (the C2 fix). Q1 2027: conformance vectors for the C2 forgery attack and the H1 hex-swallow attack. Q4 2027: <strong>IETF RFC draft</strong> &mdash; the second most load-bearing.</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P3</div><div class="pname">CPE &mdash; Context Provenance Envelope</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill spec">future context components</span></div>
+  <p>Origin and trust through retrieval and transformation; enforces I-03. Q4 2026: CDDL + JSON-Schema. Q1 2027: conformance vectors for the taint-graph traversal. Q2&ndash;Q3 2027: OSAF WG and ratification. Not an IETF priority (no shipped consumer yet).</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P4</div><div class="pname">AMIL &mdash; Agent Memory Integrity Ledger</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill spec">future context/memory components</span></div>
+  <p>Prevents silent memory poisoning. Q4 2026: CDDL + JSON-Schema. Q1 2027: conformance vectors for supersession and contradiction-link semantics. Q2&ndash;Q3 2027: OSAF track. Not an IETF priority.</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P5</div><div class="pname">SSP &mdash; Secure Skill Package</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill v1">consumed by S4, X8</span></div>
+  <p>Distributes skills safely with publisher identity, signature, AI-SBOM, and eval set. Q4 2026: CDDL + JSON-Schema; align with the AATM (P6) graph. Q1 2027: conformance vectors for signature and revocation. Q2&ndash;Q3 2027: OSAF track.</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P6</div><div class="pname">AATM &mdash; AI Artifact Trust Manifest</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill v1">consumed by T1, S1, S4, S5</span></div>
+  <p>Binds model + dataset + tokenizer + prompt + adapter + container + policy + skill + eval into one signed graph. Q4 2026: CDDL + JSON-Schema; this is the schema every supply-chain component cross-validates against. Q1 2027: conformance vectors for graph completeness and signature binding. Q4 2027: <strong>IETF RFC draft</strong> &mdash; the third most load-bearing.</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P7</div><div class="pname">ABS &mdash; Autonomy Budget Specification</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill v1">consumed by I1, R3</span></div>
+  <p>Machine-enforceable budgets: steps, wall-clock, tokens, money, external calls, data volume, privilege, irreversible actions, expected risk. Q4 2026: CDDL + JSON-Schema. Q1 2027: conformance vectors for budget enforcement and overrun. Q2&ndash;Q3 2027: OSAF track.</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P8</div><div class="pname">VEB &mdash; Verifiable Evaluation Bundle</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill v1">consumed by A1, A5, A6</span></div>
+  <p>Reproducible eval evidence. Q4 2026: CDDL + JSON-Schema; encode the harness-version pinning (the A1 v1.1 fix). Q1 2027: conformance vectors for reproducibility. Q2&ndash;Q3 2027: OSAF track.</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P9</div><div class="pname">AIX &mdash; Agent Incident Exchange</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill v1">consumed by X9, R3</span></div>
+  <p>Normalized incidents: OCSF extension + MITRE ATLAS. Q4 2026: CDDL + JSON-Schema; align with OCSF and ATLAS upstream. Q1 2027: conformance vectors for dedup and correlation. Q2&ndash;Q3 2027: OSAF track.</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P10</div><div class="pname">MADE &mdash; Multi-Agent Delegation Exchange</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill spec">consumed by I1 (multi-agent future)</span></div>
+  <p>Signed, attenuated delegation + result exchange between agents; no privilege amplification. Q4 2026: CDDL + JSON-Schema. Q1 2027: conformance vectors for hop-count and quorum. Q2&ndash;Q3 2027: OSAF track.</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P11</div><div class="pname">PRB &mdash; Proof-Carrying Remediation Bundle</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill spec">consumed by S9, X9</span></div>
+  <p>Vulnerability fix with reproducer, root cause, patch, regression evidence, build provenance; embargo-preserving. Q4 2026: CDDL + JSON-Schema; align with the S9 patch unit. Q1 2027: conformance vectors for embargo preservation. Q2&ndash;Q3 2027: OSAF track.</p>
+</div>
+
+<div class="proto-rm">
+  <div class="pid">P12</div><div class="pname">CAP &mdash; Capability Attestation Profile</div>
+  <div class="rm-status"><span class="pill spec">markdown only</span><span class="pill v1">consumed by R1, R2, I1</span></div>
+  <p>Declares and verifies what an agent can actually do in a specific runtime. Q4 2026: CDDL + JSON-Schema; encode the R2 attestation-binding fix (C3). Q1 2027: conformance vectors for the skeleton-key attack. Q2&ndash;Q3 2027: OSAF track.</p>
+</div>
+
+<hr>
+
+<!-- =================================================================== -->
+<!-- 5. DEPENDENCY CRITICAL PATH                                          -->
+<!-- =================================================================== -->
+<h2 id="critical-path"><span class="section-number">5</span>Dependency Critical Path <a href="#critical-path" class="anchor">&para;</a></h2>
+
+<p>The order in which components must ship is not arbitrary. The cryptographic spine must be fixed first because every downstream verifier transitively inherits its breaks. The diagram below shows the four tiers: anything in a lower tier cannot be trusted until everything above it is at v1.1.</p>
+
+<div class="dep-diagram"><span class="dep-tier-label">TIER 0 — THE CRYPTOGRAPHIC SPINE (must ship first; everything inherits these fixes)</span>
+  <span class="dep-node">T1 trust-core</span>  <span class="dep-arrow">── C1 canonical CBOR fix ──▶</span>  unblocks every signer/verifier
+  <span class="dep-node">T2 authority-spec</span>  <span class="dep-arrow">── C6 envelope-binding fix ──▶</span>  unblocks every AAE consumer
+  <span class="dep-node">E1 flight-recorder</span> <span class="dep-arrow">── C2 length-prefix fix ──▶</span>  unblocks every AAR consumer
+  <span class="dep-node">S2 provena-chain</span>   <span class="dep-arrow">── C2 + M10 + H10 ──▶</span>      unblocks every provenance consumer
+
+<span class="dep-tier-label">TIER 1 — THE IDENTITY &amp; RUNTIME KEYSTONE (depends on Tier 0)</span>
+  <span class="dep-node">I1 agent-identity</span>  <span class="dep-arrow">── C5 audience fix ──▶</span>  unblocks R3, R4, N3, X7, X8, X10 (12 dependents)
+  <span class="dep-node">C1-1 nvtrust-bridge</span><span class="dep-arrow">── C4 nonce fix ──▶</span>    unblocks C1-2, C1-3, C1-5, F1, F3
+  <span class="dep-node">A6 conformance</span>     <span class="dep-arrow">── H3 vector expansion ──▶</span> unblocks the v1.1 release gate itself
+
+<span class="dep-tier-label">TIER 2 — THE ENFORCEMENT &amp; EVIDENCE LAYER (depends on Tier 1)</span>
+  <span class="dep-node">R2 eval-guard</span>      <span class="dep-arrow">── C3 attestation binding ──▶</span> unblocks R1/R8 sandbox, P12 CAP
+  <span class="dep-node">R3 kill-switch</span>     <span class="dep-arrow">── C7 gov-API + H8 deadline ──▶</span> unblocks X9 incident, P9 AIX
+  <span class="dep-node">R4 credential-vault</span><span class="dep-arrow">── H11 real revoke ──▶</span>  unblocks N3, X8
+  <span class="dep-node">N3 inference-proxy</span> <span class="dep-arrow">── H7 mutex + M8 fail-closed ──▶</span> unblocks N1 serving
+
+<span class="dep-tier-label">TIER 3 — THE DOMAIN LAYER (depends on Tier 2; can develop in parallel)</span>
+  S1 S4 S5 S7 S8 S9  ·  A1 A2 A3 A4 A5 A7 A8  ·  N1 N2 N4  ·  F1 F2 F3 F4
+  X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11
+
+<span class="dep-blocked">BLOCKED UNTIL TIER 0 LANDS:</span>  any v2.0 feature work, any OSAF submission,
+  any "feature-complete" claim, any production deploy.</div>
+
+<div class="callout info">
+  <div class="callout-title">Why the spine comes first &mdash; a concrete example</div>
+  <p>If R4 credential-vault shipped its real-revoke fix (H11) before T1 fixed canonical CBOR (C1), then every credential it issued would still be signed over a non-deterministic encoding &mdash; the revocation would work, but the credential's signature would still be forgeable. The fix would be real; the security it provides would not be. This is why the tiers are strict.</p>
+</div>
+
+<hr>
+
+<!-- =================================================================== -->
+<!-- 6. COMMUNITY CONTRIBUTION OPPORTUNITIES                              -->
+<!-- =================================================================== -->
+<h2 id="community"><span class="section-number">6</span>Community Contribution Opportunities <a href="#community" class="anchor">&para;</a></h2>
+
+<p>AumOS is an open project at <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>. Not every area is equally suited to external contribution: the cryptographic spine (Tier 0) needs careful internal review, while the eval tooling, the conformance vectors, the protocol schemas, and the cloud/edge integrations are wide-open for community help. The table below ranks each area by how welcome external contributors are and how much existing context is required to be productive.</p>
+
+<table class="contrib">
+<thead>
+<tr><th>Area</th><th>Effort to onboard</th><th>Why it's a great first contribution</th><th>Concrete good-first-issues</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td>A6 conformance &mdash; golden vectors</td>
+  <td><span class="effort-low">Low</span></td>
+  <td>Each vector is a small, self-contained JSON/CBOR file. The H3 fix needs vectors for every component; this is pure breadth work that scales with contributor count.</td>
+  <td>Write the C1-1/C1-2/R2/R3/R4/I1 canonical-CBOR vectors promised in <code>testvectors/README.md</code>.</td>
+</tr>
+<tr>
+  <td>Protocol schemas (P2&ndash;P12 CDDL + JSON-Schema)</td>
+  <td><span class="effort-low">Low</span></td>
+  <td>Each protocol's markdown sketch already defines the fields; the work is mechanical translation to CDDL + JSON-Schema. H4 is an explicit gap with 11 open slots.</td>
+  <td>Pick any of P2&ndash;P12 and produce its CDDL + JSON-Schema from the markdown spec.</td>
+</tr>
+<tr>
+  <td>A1 safe-eval &mdash; harness adapters</td>
+  <td><span class="effort-low">Low</span></td>
+  <td>Each harness (HELM, garak, PyRIT, MDASH, plus new ones) is an isolated adapter. A contributor who knows one harness can add it without learning the rest of AumOS.</td>
+  <td>Add a new harness adapter; pin its version into the VEB (P8).</td>
+</tr>
+<tr>
+  <td>X3 open-harness-spec &mdash; harness conformance</td>
+  <td><span class="effort-med">Medium</span></td>
+  <td>The spec is vendor-neutral; harness vendors have direct incentive to contribute their own conformance checks.</td>
+  <td>Add a behavioral-invariant check for a specific harness.</td>
+</tr>
+<tr>
+  <td>F3 edge-sentinel / F4 fleet-marshal &mdash; device &amp; cluster integrations</td>
+  <td><span class="effort-med">Medium</span></td>
+  <td>Each edge device (Jetson variants, EGX, other accelerators) and each k8s distribution is an isolated integration. Hardware owners are the natural contributors.</td>
+  <td>Add a Jetson device-family attestation path; add a managed-k8s distribution to F4.</td>
+</tr>
+<tr>
+  <td>X9 incident-exchange &mdash; SIEM/ATLAS mappings</td>
+  <td><span class="effort-med">Medium</span></td>
+  <td>Each SIEM (Splunk, Elastic, Sentinel, etc.) and each ATLAS technique is an isolated mapping. Security engineers are the natural contributors.</td>
+  <td>Add an OCSF mapping for a specific SIEM; map an ATLAS technique to AIX.</td>
+</tr>
+<tr>
+  <td>R5 policy-compiler &mdash; differential testing</td>
+  <td><span class="effort-med">Medium</span></td>
+  <td>The differential-testing harness (Rego vs Cedar vs OpenShell) is a self-contained test-infrastructure project with clear correctness criteria.</td>
+  <td>Build the differential harness; file divergences as issues.</td>
+</tr>
+<tr>
+  <td>S6 exfil-guard / R7 egress-filter &mdash; secret detectors</td>
+  <td><span class="effort-med">Medium</span></td>
+  <td>Each secret detector (API-key formats, PII patterns) is an isolated rule. Security analysts are the natural contributors.</td>
+  <td>Add a detector for a specific secret format; add a sliding-window entropy variant.</td>
+</tr>
+<tr>
+  <td>X7 console &mdash; UI views</td>
+  <td><span class="effort-med">Medium</span></td>
+  <td>Each view (receipt stream, approval workflow, policy diff) is an isolated Next.js route. Frontend contributors are the natural contributors.</td>
+  <td>Build the real-time receipt-stream view against E1.</td>
+</tr>
+<tr>
+  <td>Tier 0 cryptographic spine (T1, T2, E1, S2)</td>
+  <td><span class="effort-high">High</span></td>
+  <td>Welcomed but heavily reviewed. These fixes touch the cross-language signing contract; every PR needs a golden-vector update and a security review. Not recommended as a first contribution.</td>
+  <td>Review and reproduce existing fixes; write adversarial vectors against merged fixes.</td>
+</tr>
+<tr>
+  <td>v2.0 feature work (any component)</td>
+  <td><span class="effort-high">High</span></td>
+  <td>Blocked until the owning component's v1.1 lands. Contributions welcome as RFCs and prototypes, not as merges.</td>
+  <td>Write an RFC for a v2.0 feature; prototype behind a feature flag.</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout success">
+  <div class="callout-title">Where to start</div>
+  <p>If you are a new contributor, the highest-leverage first PR is a conformance vector (A6) or a protocol schema (P2&ndash;P12). Both are small, self-contained, unblock named findings (H3 and H4 respectively), and need no deep AumOS context. See the issues labeled <code>good-first-issue</code> at <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>.</p>
+</div>
+
+<hr>
+
+<!-- =================================================================== -->
+<!-- 7. SUMMARY                                                           -->
+<!-- =================================================================== -->
+<h2 id="summary"><span class="section-number">7</span>Summary <a href="#summary" class="anchor">&para;</a></h2>
+
+<p>This roadmap turns the stress test's 28 findings into a sequenced, six-quarter plan. The shape is simple: <strong>Q4 2026 fixes the cryptographic spine and swaps every mock for a real backend (v1.1); Q1 2027 hardens the result for production; Q2 2027 integrates it into the OSAF ecosystem; Q3&ndash;Q4 2027 builds the v2.0 features that were RFC Non-Goals.</strong> The 12 protocols move on a parallel standards track, with the three load-bearing ones (P1 AAE, P2 AAR, P6 AATM) targeting IETF RFC submission by the end of 2027.</p>
+
+<p>Nothing in this document is conditional on optimism. The v1.1 fixes are scoped, the dependencies are explicit, and the critical path is one linear chain: fix T1, then everything that signs; fix T1's consumers, then everything that verifies; expand conformance, then declare v1.1. Only after that does the feature work begin. That discipline is the difference between a roadmap that ships and one that slides.</p>
+
+<div class="callout">
+  <div class="callout-title">The one-sentence version</div>
+  <p>AumOS today is 49 reference-shape components at v1.0 with a broken cryptographic spine; by Q4 2027 it is a hardened, standardized, ecosystem-integrated platform whose three core protocols are on the IETF track &mdash; provided the v1.1 critical-fix wave lands first, in order, with no exceptions.</p>
+</div>
+
+</div>
+
+</body>
+</html>

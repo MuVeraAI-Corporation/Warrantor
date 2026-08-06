@@ -176,11 +176,14 @@ pub fn execute_kill_with(
 /// # Errors
 /// Returns [`KillError::GovernmentApiFailed`] only if the stub itself is broken (it isn't).
 fn notify_government_api(order_id: &str) -> Result<GovernmentAck, KillError> {
-    // Wave-1 stub: synthesize an acknowledgement. The real implementation (task 03) makes an
-    // HTTPS POST to GOVERNMENT_API_URL with the order_id and waits for a 2xx.
+    // C7: Wave-1 must NOT claim the government acknowledged the kill — that would be a
+    // fabrication (no HTTP call is made). Return an UNconfirmed acknowledgement with a pending
+    // ack id so downstream consumers correctly treat the notification as not-yet-confirmed.
+    // The real implementation (task 03) makes an HTTPS POST to GOVERNMENT_API_URL with the
+    // order_id and waits for a 2xx, at which point `confirmed` flips to true.
     Ok(GovernmentAck {
-        ack_id: format!("ack-{order_id}"),
-        confirmed: true,
+        ack_id: format!("pending-{order_id}"),
+        confirmed: false,
     })
 }
 
@@ -237,7 +240,14 @@ mod tests {
         assert!(outcome.elapsed <= KILL_BUDGET);
         assert_eq!(outcome.actions_taken.len(), 6); // 5 canonical + 1 government notify
         assert!(outcome.government_ack.is_some());
-        assert!(outcome.government_ack.as_ref().unwrap().confirmed);
+        // C7: the stub must NOT claim the government confirmed — no HTTP call is made.
+        let ack = outcome.government_ack.as_ref().unwrap();
+        assert!(!ack.confirmed, "Wave-1 stub must report confirmed=false");
+        assert!(
+            ack.ack_id.starts_with("pending-"),
+            "ack_id must be the pending placeholder, got {}",
+            ack.ack_id
+        );
     }
 
     #[test]
