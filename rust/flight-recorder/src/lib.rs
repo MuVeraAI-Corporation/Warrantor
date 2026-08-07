@@ -65,6 +65,16 @@ pub enum RecorderError {
     /// A field had the wrong length.
     #[error("invalid field length: {0}")]
     InvalidLength(String),
+    /// A hex field failed to decode (H1: previously swallowed by `unwrap_or_default()`,
+    /// silently dropping a malformed signature/authority_hash into the proto wire type).
+    #[error("malformed hex in field {field:?}: {source}")]
+    MalformedHex {
+        /// The load-bearing field name whose hex failed to decode.
+        field: &'static str,
+        /// The underlying hex decode error.
+        #[source]
+        source: hex::FromHexError,
+    },
 }
 
 /// Inputs to a new receipt (everything the caller supplies before signature).
@@ -127,18 +137,35 @@ pub struct PolicyDecision {
 
 impl Receipt {
     /// Convert to the proto wire type.
+    ///
+    /// **H1**: previously this method called `hex::decode(&x).unwrap_or_default()` for every
+    /// load-bearing hex field, silently turning a malformed `signature_hex`,
+    /// `authority_hash_hex`, `context_commitment_hex`, or `policy_hash_hex` into an empty byte
+    /// vector on the wire. That swallowed corruption — a receipt with a broken signature would
+    /// round-trip through the proto as if it were unsigned, instead of surfacing the malformation.
+    ///
+    /// This method now logs a warning to stderr for each malformed field (so corruption is
+    /// observable) and still leaves the field empty (the proto API returns the value, not a
+    /// `Result`, so we cannot fail here). Callers that need to detect malformed hex should use
+    /// [`Receipt::to_proto_checked`], which returns `Result` and surfaces the first failure.
     #[must_use]
     pub fn to_proto(&self) -> AgentActionReceipt {
         AgentActionReceipt {
             id: self.id.clone(),
             actor: self.actor.clone(),
-            authority_hash: hex::decode(&self.authority_hash_hex).unwrap_or_default(),
+            authority_hash: decode_hex_or_warn(&self.authority_hash_hex, "authority_hash_hex"),
             artifact_versions: self.artifact_versions.clone().into_iter().collect(),
-            context_commitment: hex::decode(&self.context_commitment_hex).unwrap_or_default(),
+            context_commitment: decode_hex_or_warn(
+                &self.context_commitment_hex,
+                "context_commitment_hex",
+            ),
             policy_decision: Some(aumos_api::protocols::v1::PolicyDecision {
                 engine: self.policy_decision.engine.clone(),
                 decision: self.policy_decision.decision.clone(),
-                policy_hash: hex::decode(&self.policy_decision.policy_hash_hex).unwrap_or_default(),
+                policy_hash: decode_hex_or_warn(
+                    &self.policy_decision.policy_hash_hex,
+                    "policy_hash_hex",
+                ),
                 matched_rules: self.policy_decision.matched_rules.clone(),
             }),
             tool_or_api_op: self.tool_or_api_op.clone(),
@@ -150,8 +177,50 @@ impl Receipt {
                 seconds: self.emitted_at as i64,
                 nanos: 0,
             }),
-            signature: hex::decode(&self.signature_hex).unwrap_or_default(),
+            signature: decode_hex_or_warn(&self.signature_hex, "signature_hex"),
         }
+    }
+
+    /// Convert to the proto wire type, returning [`RecorderError::MalformedHex`] on the first
+    /// hex field that fails to decode. This is the checked variant of [`Receipt::to_proto`];
+    /// callers that need to detect wire-shape corruption (rather than just log it) should use
+    /// this entrypoint.
+    ///
+    /// # Errors
+    /// Returns [`RecorderError::MalformedHex`] if any load-bearing hex field is malformed.
+    pub fn to_proto_checked(&self) -> Result<AgentActionReceipt, RecorderError> {
+        Ok(AgentActionReceipt {
+            id: self.id.clone(),
+            actor: self.actor.clone(),
+            authority_hash: decode_hex_checked(
+                &self.authority_hash_hex,
+                "authority_hash_hex",
+            )?,
+            artifact_versions: self.artifact_versions.clone().into_iter().collect(),
+            context_commitment: decode_hex_checked(
+                &self.context_commitment_hex,
+                "context_commitment_hex",
+            )?,
+            policy_decision: Some(aumos_api::protocols::v1::PolicyDecision {
+                engine: self.policy_decision.engine.clone(),
+                decision: self.policy_decision.decision.clone(),
+                policy_hash: decode_hex_checked(
+                    &self.policy_decision.policy_hash_hex,
+                    "policy_hash_hex",
+                )?,
+                matched_rules: self.policy_decision.matched_rules.clone(),
+            }),
+            tool_or_api_op: self.tool_or_api_op.clone(),
+            deterministic_checks: vec![],
+            approvers: self.approvers.clone(),
+            outcome: self.outcome.to_proto(),
+            rollback_pointer: self.rollback_pointer.clone().unwrap_or_default(),
+            emitted_at: Some(prost_types::Timestamp {
+                seconds: self.emitted_at as i64,
+                nanos: 0,
+            }),
+            signature: decode_hex_checked(&self.signature_hex, "signature_hex")?,
+        })
     }
 
     /// The canonical bytes over which the signature is computed (everything except the signature
@@ -199,6 +268,37 @@ impl Receipt {
 fn write_len_prefixed(out: &mut Vec<u8>, field: &[u8]) {
     out.extend_from_slice(&(field.len() as u64).to_le_bytes());
     out.extend_from_slice(field);
+}
+
+/// Decode a hex string into bytes. **H1**: previously callers used
+/// `hex::decode(&x).unwrap_or_default()`, which silently turned a malformed hex string into an
+/// empty `Vec<u8>`. This helper keeps the same "best-effort decode" behavior (the proto API
+/// returns a value, not a `Result`) but emits a `tracing`-style warning to stderr so a malformed
+/// `signature_hex` or `authority_hash_hex` is observable in logs instead of silently dropped.
+fn decode_hex_or_warn(hex_str: &str, field: &'static str) -> Vec<u8> {
+    match hex::decode(hex_str) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            // Surface the malformation — a malformed signature/authority_hash on the wire is a
+            // real integrity signal, not a recoverable default.
+            eprintln!(
+                "aumos-flight-recorder: WARNING malformed hex in field {field:?} \
+                 (len={}, err={e}); emitting empty bytes on the wire",
+                hex_str.len()
+            );
+            Vec::new()
+        }
+    }
+}
+
+/// Decode a hex string into bytes, returning [`RecorderError::MalformedHex`] on failure. Use this
+/// in the checked proto conversion path so callers that care about wire integrity can detect a
+/// corrupted signature/authority_hash rather than treat it as an empty field.
+fn decode_hex_checked(
+    hex_str: &str,
+    field: &'static str,
+) -> Result<Vec<u8>, RecorderError> {
+    hex::decode(hex_str).map_err(|source| RecorderError::MalformedHex { field, source })
 }
 
 /// The flight recorder. Owns a signing key and tracks emitted receipts (so duplicate IDs and
@@ -496,5 +596,48 @@ mod tests {
         // Both must still verify individually.
         FlightRecorder::verify(&receipt_a).expect("a verifies");
         FlightRecorder::verify(&receipt_b).expect("b verifies");
+    }
+
+    #[test]
+    fn to_proto_checked_surfaces_malformed_signature_hex_h1() {
+        // H1: a malformed signature_hex must NOT be silently dropped into an empty proto field.
+        // Previously to_proto used unwrap_or_default() and swallowed the error.
+        let mut r = FlightRecorder::new();
+        let mut receipt = r.emit_pending(sample_input()).expect("emit");
+        // Corrupt the signature hex with a non-hex character.
+        receipt.signature_hex = "zz".to_string();
+        let err = receipt
+            .to_proto_checked()
+            .expect_err("malformed signature must error");
+        assert!(
+            matches!(err, RecorderError::MalformedHex { field: "signature_hex", .. }),
+            "expected MalformedHex on signature_hex, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn to_proto_checked_surfaces_malformed_authority_hash_hex_h1() {
+        // H1: same surface for a malformed authority_hash_hex.
+        let mut r = FlightRecorder::new();
+        let mut receipt = r.emit_pending(sample_input()).expect("emit");
+        receipt.authority_hash_hex = "xyz".into(); // odd length + non-hex chars
+        let err = receipt
+            .to_proto_checked()
+            .expect_err("malformed authority_hash must error");
+        assert!(
+            matches!(err, RecorderError::MalformedHex { field: "authority_hash_hex", .. }),
+            "expected MalformedHex on authority_hash_hex, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn to_proto_checked_round_trips_clean_receipt_h1() {
+        // H1: a clean receipt must round-trip through the checked path with no error.
+        let mut r = FlightRecorder::new();
+        let receipt = r.emit_pending(sample_input()).expect("emit");
+        let proto = receipt.to_proto_checked().expect("clean receipt decodes");
+        assert_eq!(proto.actor, receipt.actor);
+        assert!(!proto.signature.is_empty());
+        assert!(!proto.authority_hash.is_empty());
     }
 }

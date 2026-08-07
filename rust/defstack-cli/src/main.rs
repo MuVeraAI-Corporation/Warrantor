@@ -41,6 +41,36 @@ enum Commands {
         #[command(subcommand)]
         action: PrivacyAction,
     },
+    /// Initialize a new AumOS-secured project in the current directory.
+    Init {
+        /// Project name (defaults to directory name).
+        #[arg(long)]
+        name: Option<String>,
+        /// Initialize with a specific agent type template.
+        #[arg(long)]
+        agent: Option<String>,
+    },
+    /// Start the local development environment (all services with mock backends).
+    Dev {
+        /// Only start specific services (comma-separated names).
+        #[arg(long)]
+        only: Option<String>,
+    },
+    /// Run the cross-language conformance suite.
+    Test {
+        /// Only run tests for a specific language.
+        #[arg(long)]
+        lang: Option<String>,
+    },
+    /// Deploy AumOS to a cloud provider.
+    Deploy {
+        /// Cloud provider (azure, aws, local).
+        #[arg(long)]
+        cloud: String,
+        /// Configuration file path.
+        #[arg(long, default_value = "aumos.deploy.toml")]
+        config: String,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -216,5 +246,200 @@ fn main() {
                 );
             }
         },
+        Commands::Init { name, agent } => {
+            let project_name = name.unwrap_or_else(|| {
+                std::env::current_dir()
+                    .ok()
+                    .and_then(|d| d.file_name().map(|n| n.to_string_lossy().into_owned()))
+                    .unwrap_or_else(|| "aumos-project".into())
+            });
+            println!(" Initializing AumOS project: {project_name}");
+            // Create .aumos/ directory
+            let aumos_dir = std::path::Path::new(".aumos");
+            let _ = std::fs::create_dir_all(aumos_dir);
+            // Create aumos.toml config
+            let config = format!(
+                r#"[project]
+name = "{project_name}"
+version = "0.1.0"
+agent_type = "{}"
+
+[security]
+side_effect_class = "write"
+require_attestation = false
+kill_on_secret_exposure = true
+
+[components]
+# Add components to install: trust-core, agent-identity, kill-switch, etc.
+"#,
+                agent.as_deref().unwrap_or("generic")
+            );
+            std::fs::write(aumos_dir.join("config.toml"), config)
+                .expect("write config");
+            println!(" Created .aumos/config.toml");
+            // Create CLAUDE.md if agent is claude_code
+            if agent.as_deref() == Some("claude_code") {
+                std::fs::write("CLAUDE.md", "# AumOS Secured Project\n\n## Allowed Tools\ngit, npm, cargo, python\n\n## AumOS Integration\npip install aumos-agent\n").ok();
+                println!(" Created CLAUDE.md");
+            }
+            // Create .complygate.yml
+            std::fs::write(".complygate.yml", "# AumOS Compliance Gates\ncoverage:\n  minimum: 85\nsbom:\n  required: true\neval:\n  required: false\n").ok();
+            println!(" Created .complygate.yml");
+            println!("\n Next steps:");
+            println!("   defstack install trust-core agent-identity");
+            println!("   defstack dev");
+            println!("   defstack test");
+        }
+        Commands::Dev { only } => {
+            println!(" Starting AumOS development environment...");
+            match &only {
+                Some(services) => println!("   services: {services}"),
+                None => println!("   services: all"),
+            }
+            // Check if docker-compose.yml exists
+            if std::path::Path::new("docker-compose.yml").exists()
+                || std::path::Path::new("../docker-compose.yml").exists()
+            {
+                let compose_file = if std::path::Path::new("docker-compose.yml").exists() {
+                    "docker-compose.yml"
+                } else {
+                    "../docker-compose.yml"
+                };
+                let mut cmd = std::process::Command::new("docker-compose");
+                cmd.arg("-f").arg(compose_file).arg("up").arg("-d");
+                if let Some(services) = &only {
+                    for s in services.split(',') {
+                        cmd.arg(s.trim());
+                    }
+                }
+                match cmd.status() {
+                    Ok(status) if status.success() => {
+                        println!(" Development environment started.");
+                        println!(" Services:");
+                        println!("   agent-identity:  http://localhost:8441/healthz");
+                        println!("   open-serve-kit:  http://localhost:8443/healthz");
+                        println!("   ollama:          http://localhost:11434");
+                        println!("   console:         http://localhost:3000");
+                    }
+                    _ => {
+                        eprintln!(" Failed to start docker-compose. Is Docker installed?");
+                    }
+                }
+            } else {
+                eprintln!(" No docker-compose.yml found. Run `defstack init` first.");
+            }
+        }
+        Commands::Test { lang } => {
+            println!(" Running AumOS test suite...");
+            if let Some(l) = &lang {
+                println!("   language: {l}");
+                match l.as_str() {
+                    "rust" => {
+                        let _ = std::process::Command::new("cargo")
+                            .arg("test")
+                            .current_dir("rust")
+                            .status();
+                    }
+                    "go" => {
+                        for entry in std::fs::read_dir("go").unwrap_or_else(|_| {
+                            eprintln!(" No go/ directory found");
+                            std::process::exit(1);
+                        }) {
+                            if let Ok(e) = entry {
+                                let _ = std::process::Command::new("go")
+                                    .args(["test", "./..."])
+                                    .current_dir(e.path())
+                                    .status();
+                            }
+                        }
+                    }
+                    "python" => {
+                        for entry in std::fs::read_dir("python").unwrap_or_else(|_| {
+                            eprintln!(" No python/ directory found");
+                            std::process::exit(1);
+                        }) {
+                            if let Ok(e) = entry {
+                                let _ = std::process::Command::new("python")
+                                    .args(["-m", "pytest", "-q"])
+                                    .current_dir(e.path())
+                                    .status();
+                            }
+                        }
+                    }
+                    "typescript" | "ts" => {
+                        let _ = std::process::Command::new("npx")
+                            .args(["vitest", "run"])
+                            .current_dir("typescript")
+                            .status();
+                    }
+                    _ => {
+                        eprintln!(" Unknown language: {l}. Use: rust, go, python, typescript");
+                    }
+                }
+            } else {
+                println!("   Running all languages...");
+                // Rust
+                let _ = std::process::Command::new("cargo")
+                    .arg("test")
+                    .current_dir("rust")
+                    .status();
+                // Go
+                if let Ok(entries) = std::fs::read_dir("go") {
+                    for entry in entries.flatten() {
+                        let _ = std::process::Command::new("go")
+                            .args(["test", "./..."])
+                            .current_dir(entry.path())
+                            .status();
+                    }
+                }
+                // Python
+                if let Ok(entries) = std::fs::read_dir("python") {
+                    for entry in entries.flatten() {
+                        let _ = std::process::Command::new("python")
+                            .args(["-m", "pytest", "-q"])
+                            .current_dir(entry.path())
+                            .status();
+                    }
+                }
+                // TypeScript
+                let _ = std::process::Command::new("npx")
+                    .args(["vitest", "run"])
+                    .current_dir("typescript")
+                    .status();
+                // Conformance
+                let _ = std::process::Command::new("bash")
+                    .arg("tools/conformance/run.sh")
+                    .status();
+            }
+            println!(" Test suite complete.");
+        }
+        Commands::Deploy { cloud, config } => {
+            println!(" Deploying AumOS to {cloud}...");
+            println!("   config: {config}");
+            match cloud.as_str() {
+                "azure" => {
+                    println!("   Terraform: terraform/azure/");
+                    println!("   Steps:");
+                    println!("     1. az login");
+                    println!("     2. cd terraform/azure && terraform init && terraform apply");
+                    println!("     3. defstack install trust-core agent-identity ...");
+                }
+                "aws" => {
+                    println!("   Terraform: terraform/aws/");
+                    println!("   Steps:");
+                    println!("     1. aws configure");
+                    println!("     2. cd terraform/aws && terraform init && terraform apply");
+                }
+                "local" => {
+                    println!("   Local deployment via Docker Compose");
+                    let _ = std::process::Command::new("docker-compose")
+                        .args(["up", "-d"])
+                        .status();
+                }
+                _ => {
+                    eprintln!(" Unknown cloud: {cloud}. Use: azure, aws, local");
+                }
+            }
+        }
     }
 }

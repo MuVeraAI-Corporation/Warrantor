@@ -88,13 +88,36 @@ type svidClaims struct {
 	ParentSVID string          `json:"parent_svid,omitempty"`
 }
 
+// capabilityTokenClaims is the JWT-like payload of the short-lived capability token bound to an
+// SVID. It mirrors a subset of the AAE (P1) — the per-action capability envelope. The token is
+// signed with the same Ed25519 key as the SVID so a single verifying key suffices.
+type capabilityTokenClaims struct {
+	Issuer          string            `json:"iss"`           // spiffe://<td>/agent-identity
+	Subject         string            `json:"sub"`           // the SVID subject this token is bound to
+	Tools           []string          `json:"tools"`
+	DataClasses     []string          `json:"data_classes"`
+	SideEffectClass string            `json:"side_effect_class"`
+	Geography       string            `json:"geography"`
+	DelegationDepth int               `json:"delegation_depth"`
+	IssuedAt        int64             `json:"iat"`
+	ExpiresAt       int64             `json:"exp"` // short TTL (DefaultCapabilityTokenTTL)
+	JTI             string            `json:"jti"` // capability-token JTI (for revocation)
+}
+
 // An SVID as issued by the service.
+//
+// H2: the field previously named `CapabilityJTI` (carrying only the capability token's id) is
+// retained for internal revocation bookkeeping, and a new `CapabilityToken` field carries the
+// actual signed capability token. The JSON wire shape (IssueResponse) now exposes
+// `capability_token` (the token) rather than `capability_jti` (just its id), matching
+// `IssueIdentityResponse.capability_token` in proto/aumos/identity/v1/agent.proto.
 type SVID struct {
-	Token         string `json:"token"`          // the signed JWT-like string
-	VerifyingKey  string `json:"verifying_key"`  // hex-encoded issuer verifying key
-	Subject       string `json:"subject"`        // SPIFFE ID of the subject
-	ExpiresAt     int64  `json:"expires_at"`     // epoch seconds
-	CapabilityJTI string `json:"capability_jti"` // the issued capability token's JTI
+	Token           string `json:"token"`            // the signed SVID (JWT-like string)
+	VerifyingKey    string `json:"verifying_key"`    // hex-encoded issuer verifying key
+	Subject         string `json:"subject"`          // SPIFFE ID of the subject
+	ExpiresAt       int64  `json:"expires_at"`       // epoch seconds
+	CapabilityToken string `json:"capability_token"` // the signed short-lived capability token
+	CapabilityJTI   string `json:"capability_jti"`   // capability token's JTI (for revocation; NOT the wire shape)
 }
 
 // Service is the in-process agent-identity service.

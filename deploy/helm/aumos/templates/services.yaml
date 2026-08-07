@@ -1,0 +1,25 @@
+{{- range $name, $svc := list
+  "agent-identity" .Values.agentIdentity
+  "open-serve-kit" .Values.openServeKit
+  "inference-proxy" .Values.inferenceProxy
+  "console" .Values.console
+--}}
+{{- if and $svc.enabled $svc.service }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/part-of: aumos
+spec:
+  type: {{ $svc.service.type | default "ClusterIP" }}
+  ports:
+    - port: {{ $svc.service.port }}
+      targetPort: {{ $svc.service.port }}
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+{{- end }}
+{{- end }}

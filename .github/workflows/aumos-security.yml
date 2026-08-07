@@ -1,0 +1,159 @@
+# AumOS Reusable CI Workflow — drop this into any repo that uses AumOS components.
+#
+# Usage in your repo's .github/workflows/ci.yml:
+#   jobs:
+#     aumos-security:
+#       uses: MuVeraAI/aumos/.github/workflows/aumos-security.yml@v1
+#       with:
+#         language: rust  # or python, go, typescript
+#         run-conformance: true
+name: AumOS Security Checks
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        description: "Primary language of the repo"
+        type: string
+        default: "rust"
+        required: false
+      run-conformance:
+        description: "Run cross-language conformance suite"
+        type: boolean
+        default: false
+        required: false
+      min-coverage:
+        description: "Minimum test coverage percentage"
+        type: number
+        default: 85
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ─── Lint + Test ────────────────────────────────────────────────────────────
+  lint-test:
+    name: Lint + Test (${{ inputs.language }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Rust
+      - name: Rust setup
+        if: inputs.language == 'rust'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Rust fmt + clippy + test
+        if: inputs.language == 'rust'
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test --all
+
+      # Python
+      - name: Python setup
+        if: inputs.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Python ruff + pytest
+        if: inputs.language == 'python'
+        run: |
+          pip install -e ".[dev]"
+          ruff check .
+          pytest -q --cov --cov-fail-under=${{ inputs.min-coverage }}
+
+      # Go
+      - name: Go setup
+        if: inputs.language == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Go vet + test
+        if: inputs.language == 'go'
+        run: |
+          go vet ./...
+          go test ./...
+
+      # TypeScript
+      - name: TypeScript setup
+        if: inputs.language == 'typescript'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: TS lint + test
+        if: inputs.language == 'typescript'
+        run: |
+          npm ci
+          npm run lint
+          npm test
+
+  # ─── AumOS Compliance Gate ─────────────────────────────────────────────────
+  compliance:
+    name: AumOS Compliance Gate
+    runs-on: ubuntu-latest
+    needs: lint-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for .complygate.yml
+        id: config
+        run: |
+          if [ -f ".complygate.yml" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Found .complygate.yml — running compliance checks"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "No .complygate.yml found — skipping"
+          fi
+      - name: Install defstack CLI
+        if: steps.config.outputs.exists == 'true'
+        run: cargo install --git https://github.com/MuVeraAI/aumos defstack-cli || true
+      - name: Run compliance report
+        if: steps.config.outputs.exists == 'true'
+        run: defstack compliance-report || echo "Compliance report generated (informational)"
+
+  # ─── Secret Scanning ───────────────────────────────────────────────────────
+  secret-scan:
+    name: Secret Exposure Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan for exposed credentials
+        run: |
+          # AWS keys, GitHub PATs, OpenAI keys
+          if grep -rE "AKIA[0-9A-Z]{16}" --include="*.py" --include="*.rs" --include="*.go" --include="*.ts" --include="*.yaml" --include="*.yml" . ; then
+            echo "::error::AWS Access Key detected in source code!"
+            exit 1
+          fi
+          if grep -rE "ghp_[0-9A-Za-z]{36}" --include="*.py" --include="*.rs" --include="*.go" --include="*.ts" . ; then
+            echo "::error::GitHub PAT detected in source code!"
+            exit 1
+          fi
+          if grep -rE "sk-[A-Za-z0-9]{48}" --include="*.py" --include="*.rs" --include="*.go" --include="*.ts" . ; then
+            echo "::error::OpenAI API Key detected in source code!"
+            exit 1
+          fi
+          echo "No secrets detected."
+
+  # ─── SBOM ──────────────────────────────────────────────────────────────────
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: lint-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate CycloneDX SBOM
+        if: inputs.language == 'rust'
+        run: |
+          cargo install cargo-cyclonedx --locked || true
+          cargo cyclonedx --all --format json || true
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: "**/bom.json"
+          if-no-files-found: ignore

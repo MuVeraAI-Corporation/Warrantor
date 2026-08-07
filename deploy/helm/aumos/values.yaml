@@ -1,0 +1,120 @@
+# AumOS Helm Chart — Default values
+# Override per-deployment via values.yaml or --set
+
+# ─── Global ──────────────────────────────────────────────────────────────────
+global:
+  trustDomain: aumos.dev
+  imageRegistry: ""  # Set to your registry (e.g. ghcr.io/muverai)
+  imagePullPolicy: IfNotPresent
+  logLevel: info
+  # mTLS via SPIFFE — set to true in production
+  mtls:
+    enabled: false
+    spireServer: spire-server.spire.svc.cluster.local
+
+# ─── Trust Core (Rust) ──────────────────────────────────────────────────────
+trustCore:
+  enabled: true
+  image: aumos-trust-core:1.0.0
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+# ─── Agent Identity (Go) ────────────────────────────────────────────────────
+agentIdentity:
+  enabled: true
+  image: aumos-agent-identity:1.0.0
+  replicas: 3
+  service:
+    port: 8441
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 300m, memory: 256Mi }
+
+# ─── Open Serve Kit (Go) ────────────────────────────────────────────────────
+openServeKit:
+  enabled: true
+  image: aumos-open-serve-kit:1.0.0
+  replicas: 2
+  service:
+    port: 8443
+  backend: mock  # or vllm, triton, ollama
+  backendUrl: ""
+
+# ─── Inference Proxy (Rust) ─────────────────────────────────────────────────
+inferenceProxy:
+  enabled: true
+  image: aumos-inference-proxy:1.0.0
+  replicas: 2
+  service:
+    port: 8444
+
+# ─── Flight Recorder (Rust) ─────────────────────────────────────────────────
+flightRecorder:
+  enabled: true
+  image: aumos-flight-recorder:1.0.0
+  replicas: 1
+
+# ─── Kill Switch (Rust) ─────────────────────────────────────────────────────
+killSwitch:
+  enabled: true
+  image: aumos-kill-switch:1.0.0
+  replicas: 2
+
+# ─── Credential Vault (Rust) ────────────────────────────────────────────────
+credentialVault:
+  enabled: true
+  image: aumos-credential-vault:1.0.0
+  replicas: 2
+
+# ─── Tee Serve (Go) ─────────────────────────────────────────────────────────
+teeServe:
+  enabled: false  # Enable when confidential computing is available
+  image: aumos-tee-serve:1.0.0
+
+# ─── Tenant Guard (Go) ──────────────────────────────────────────────────────
+tenantGuard:
+  enabled: true
+  image: aumos-tenant-guard:1.0.0
+
+# ─── Fleet Marshal (Go) ─────────────────────────────────────────────────────
+fleetMarshal:
+  enabled: true
+  image: aumos-fleet-marshal:1.0.0
+
+# ─── Edge Sentinel (Go) ─────────────────────────────────────────────────────
+edgeSentinel:
+  enabled: false  # Deploy on edge nodes, not in cluster
+  image: aumos-edge-sentinel:1.0.0
+
+# ─── Console (TypeScript) ───────────────────────────────────────────────────
+console:
+  enabled: true
+  image: aumos-console:1.0.0
+  replicas: 2
+  service:
+    port: 3000
+    type: ClusterIP  # Use LoadBalancer for external access
+
+# ─── Persistence ────────────────────────────────────────────────────────────
+persistence:
+  enabled: false  # Enable for production
+  storageClass: ""
+  size: 10Gi
+
+# ─── Pod Disruption Budget ──────────────────────────────────────────────────
+pdb:
+  minAvailable: 2
+
+# ─── Horizontal Pod Autoscaler ──────────────────────────────────────────────
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# ─── Topology Spread ────────────────────────────────────────────────────────
+topologySpread:
+  maxSkew: 1
+  topologyKey: topology.kubernetes.io/zone

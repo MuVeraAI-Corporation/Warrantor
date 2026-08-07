@@ -1,0 +1,18 @@
+apiVersion: v2
+name: aumos
+description: AumOS — Open Authority and Evidence Layer for Autonomous Systems. Full-stack deployment of all deployable AumOS components.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://github.com/MuVeraAI/aumos
+sources:
+  - https://github.com/MuVeraAI/aumos
+maintainers:
+  - name: MuVera AI
+    url: https://muveraai.com
+keywords:
+  - ai-security
+  - agent-security
+  - confidential-computing
+  - eu-ai-act
+  - osaf

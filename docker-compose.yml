@@ -1,0 +1,236 @@
+# AumOS Docker Compose — full local development environment.
+#
+# Brings up all deployable AumOS services with mock backends for local development
+# and testing. Each service runs in its own container with health checks.
+#
+# Usage:
+#   docker-compose up              # Start all services
+#   docker-compose up trust-core   # Start just trust-core
+#   docker-compose down            # Stop everything
+#
+# Services are accessible at localhost:<port>. See comments for each service.
+
+version: "3.9"
+
+services:
+  # ─── Trusted Core (Rust) ───────────────────────────────────────────────────
+  # The cryptographic signing/verification service. Library-only in v1.0;
+  # this container provides the CLI binary for `trust-core sign/verify`.
+  trust-core:
+    build:
+      context: ./rust
+      dockerfile: Dockerfile.trust-core
+    ports:
+      - "8440:8440"
+    healthcheck:
+      test: ["CMD", "trust-core", "key-gen"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    environment:
+      RUST_LOG: info
+
+  # ─── Agent Identity (Go) ──────────────────────────────────────────────────
+  # The identity and authority service. Issues SVIDs, capability tokens,
+  # manages revocation. HTTP/JSON gateway at /v1/agent-identity:*.
+  agent-identity:
+    build:
+      context: ./go/agent-identity
+      dockerfile: Dockerfile
+    ports:
+      - "8441:8441"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8441/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    environment:
+      AUMOS_TRUST_DOMAIN: aumos.dev
+      AUMOS_LOG_LEVEL: info
+
+  # ─── Open Serve Kit (Go) ──────────────────────────────────────────────────
+  # The OpenAI-compatible inference proxy. Routes to Mock backend by default.
+  # Set BACKEND=vllm and BACKEND_URL to connect to a real model server.
+  open-serve-kit:
+    build:
+      context: ./go/open-serve-kit
+      dockerfile: Dockerfile
+    ports:
+      - "8443:8443"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8443/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    environment:
+      BACKEND: mock
+    depends_on:
+      agent-identity:
+        condition: service_healthy
+
+  # ─── Ollama (Local LLM) ───────────────────────────────────────────────────
+  # Local LLM server for development. Provides OpenAI-compatible API
+  # at http://localhost:11434/v1/. Used by open-serve-kit and bridge-rt.
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    # Uncomment for GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ─── Inference Proxy (Rust) ───────────────────────────────────────────────
+  # The gateway in front of open-serve-kit. Auth, rate-limit, prompt-filter, cache.
+  inference-proxy:
+    build:
+      context: ./rust
+      dockerfile: Dockerfile.inference-proxy
+    ports:
+      - "8444:8444"
+    depends_on:
+      open-serve-kit:
+        condition: service_healthy
+
+  # ─── Flight Recorder (Rust) ───────────────────────────────────────────────
+  # Evidence plane. Emits signed AARs. Library-only in v1.0.
+  flight-recorder:
+    build:
+      context: ./rust
+      dockerfile: Dockerfile.flight-recorder
+    ports:
+      - "8445:8445"
+    environment:
+      RUST_LOG: info
+
+  # ─── Kill Switch (Rust) ───────────────────────────────────────────────────
+  # Emergency containment. <5s end-to-end. Library + CLI.
+  kill-switch:
+    build:
+      context: ./rust
+      dockerfile: Dockerfile.kill-switch
+    ports:
+      - "8446:8446"
+    environment:
+      RUST_LOG: info
+      KILL_BUDGET_SECONDS: "5"
+
+  # ─── Credential Vault (Rust) ──────────────────────────────────────────────
+  # Agent-scoped credential brokering with secret scanning.
+  credential-vault:
+    build:
+      context: ./rust
+      dockerfile: Dockerfile.credential-vault
+    ports:
+      - "8447:8447"
+    environment:
+      RUST_LOG: info
+
+  # ─── Tee Serve (Go) ───────────────────────────────────────────────────────
+  # TEE-backed model serving sidecar (mock TEE in dev mode).
+  tee-serve:
+    build:
+      context: ./go/tee-serve
+      dockerfile: Dockerfile
+    ports:
+      - "8448:8448"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8448/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ─── Tenant Guard (Go) ────────────────────────────────────────────────────
+  # Multi-tenant GPU scheduling (MIG/MPS). Operator logic in v1.0.
+  tenant-guard:
+    build:
+      context: ./go/tenant-guard
+      dockerfile: Dockerfile
+    ports:
+      - "8449:8449"
+
+  # ─── Fleet Marshal (Go) ───────────────────────────────────────────────────
+  # OTA model fleet management with canary/blue-green rollout.
+  fleet-marshal:
+    build:
+      context: ./go/fleet-marshal
+      dockerfile: Dockerfile
+    ports:
+      - "8450:8450"
+
+  # ─── Edge Sentinel (Go) ───────────────────────────────────────────────────
+  # Edge inference attestation agent (<5MB).
+  edge-sentinel:
+    build:
+      context: ./go/edge-sentinel
+      dockerfile: Dockerfile
+    ports:
+      - "8451:8451"
+
+  # ─── Lightwell Bridge (Go) ────────────────────────────────────────────────
+  # AI-artifact patch distribution.
+  lightwell-bridge:
+    build:
+      context: ./go/lightwell-bridge
+      dockerfile: Dockerfile
+    ports:
+      - "8452:8452"
+
+  # ─── DefStack Cloud (Go) ──────────────────────────────────────────────────
+  # Managed SaaS control plane for tenant management.
+  defstack-cloud:
+    build:
+      context: ./go/defstack-cloud
+      dockerfile: Dockerfile
+    ports:
+      - "8453:8453"
+
+  # ─── Sovereign Stack (Go) ─────────────────────────────────────────────────
+  # Air-gapped deployment bundle manager.
+  sovereign-stack:
+    build:
+      context: ./go/sovereign-stack
+      dockerfile: Dockerfile
+    ports:
+      - "8454:8454"
+
+  # ─── MCP Server (TypeScript) ──────────────────────────────────────────────
+  # Exposes 15 AumOS tools to any MCP-compatible coding agent via stdio.
+  # Not a network service — run interactively: docker-compose run mcp-server
+  aumos-mcp:
+    build:
+      context: ./typescript/aumos-mcp-server
+      dockerfile: Dockerfile
+    stdin_open: true
+    environment:
+      AUMOS_MODE: standalone
+
+  # ─── AumOS Console (TypeScript) ───────────────────────────────────────────
+  # The web dashboard for evidence, approvals, fleet, compliance, policies.
+  # Development server on port 3000.
+  console:
+    build:
+      context: ./typescript/console
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8441
+    depends_on:
+      agent-identity:
+        condition: service_healthy
+
+volumes:
+  ollama-models:
+    driver: local
