@@ -1,0 +1,23 @@
+{
+  "name": "@muveraai/aumos-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server exposing the 49 AumOS components as tools any MCP-compatible coding agent can call",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "aumos-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

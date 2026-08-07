@@ -2,12 +2,13 @@
   "name": "aumos-typescript",
   "private": true,
   "version": "1.0.0",
-  "description": "AumOS TypeScript workspace — console, MCP gateway, arena",
+  "description": "AumOS TypeScript workspace — console, MCP gateway, arena, AumOS MCP server",
   "license": "Apache-2.0",
   "workspaces": [
     "console",
     "mcp-gateway",
-    "arena"
+    "arena",
+    "aumos-mcp-server"
   ],
   "scripts": {
     "build": "tsc -b",

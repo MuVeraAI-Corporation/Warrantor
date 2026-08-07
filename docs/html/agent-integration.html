@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Integration Guide — AumOS</title>
+  <meta name="description" content="The definitive guide for making coding agents (Claude Code, OpenAI Codex, Cursor, any MCP agent) work with AumOS. MCP server, Agent SDK, and Harness wrappers.">
+<style>
+/* AumOS Documentation — Anthropic-inspired Style System */
+/* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
+   serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
+
+:root {
+  /* Color palette — warm neutrals + clay/coral accent */
+  --bg-primary: #faf9f7;
+  --bg-secondary: #f5f3ef;
+  --bg-card: #ffffff;
+  --bg-code: #1e1e2e;
+  --bg-callout: #fdf6f0;
+  --bg-warning: #fef9f0;
+  --bg-danger: #fdf2f0;
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
+  --text-code: #c4c4d4;
+  --text-on-dark: #e8e8e8;
+
+  --accent: #d97757;        /* Claude clay/coral */
+  --accent-hover: #c4623d;
+  --accent-light: #f4e6df;
+  --accent-subtle: #faf0eb;
+
+  --border: #e5e2dc;
+  --border-strong: #d1ccc3;
+  --border-accent: #d97757;
+
+  --green: #5a8055;
+  --green-light: #edf5ed;
+  --amber: #b8860b;
+  --amber-light: #fef9ef;
+  --red: #b94a48;
+  --red-light: #fdf2f0;
+  --blue: #4a6fa5;
+  --blue-light: #eef3fa;
+
+  /* Typography */
+  --font-serif: 'Georgia', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+
+  /* Layout */
+  --max-width: 820px;
+  --border-radius: 8px;
+  --border-radius-sm: 4px;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Base */
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.7;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+h1 { font-size: 2.4rem; margin: 0 0 var(--space-lg); letter-spacing: -0.02em; }
+h2 { font-size: 1.7rem; margin: var(--space-2xl) 0 var(--space-md); letter-spacing: -0.01em; border-bottom: 1px solid var(--border); padding-bottom: var(--space-sm); }
+h3 { font-size: 1.3rem; margin: var(--space-xl) 0 var(--space-sm); }
+h4 { font-size: 1.1rem; margin: var(--space-lg) 0 var(--space-xs); color: var(--text-secondary); }
+p { margin-bottom: var(--space-md); }
+strong { font-weight: 600; color: var(--text-primary); }
+em { font-style: italic; color: var(--text-secondary); }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-subtle); transition: border-color 0.15s; }
+a:hover { border-bottom-color: var(--accent); }
+
+/* Layout */
+.container { max-width: var(--max-width); margin: 0 auto; padding: var(--space-2xl) var(--space-lg); }
+.container-wide { max-width: 1200px; margin: 0 auto; padding: var(--space-2xl) var(--space-lg); }
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--bg-card);
+}
+.doc-header h1 { margin: 0; font-size: 1.6rem; }
+.doc-header .subtitle { color: var(--text-tertiary); font-size: 0.95rem; margin-top: var(--space-xs); }
+.doc-header nav { margin-top: var(--space-md); display: flex; gap: var(--space-md); flex-wrap: wrap; }
+.doc-header nav a { font-size: 0.9rem; border-bottom: none; padding: var(--space-xs) var(--space-md); border-radius: var(--border-radius-sm); transition: background 0.15s; }
+.doc-header nav a:hover { background: var(--accent-subtle); }
+
+/* Code */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-secondary);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+pre {
+  font-family: var(--font-mono);
+  background: var(--bg-code);
+  color: var(--text-on-dark);
+  padding: var(--space-lg);
+  border-radius: var(--border-radius);
+  overflow-x: auto;
+  margin: var(--space-lg) 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-lg) 0; font-size: 0.92rem; }
+th { text-align: left; font-weight: 600; padding: var(--space-sm) var(--space-md); border-bottom: 2px solid var(--border-strong); color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:hover { background: var(--bg-secondary); }
+
+/* Callouts */
+.callout {
+  background: var(--bg-callout);
+  border-left: 3px solid var(--accent);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+  margin: var(--space-lg) 0;
+}
+.callout-title { font-weight: 600; margin-bottom: var(--space-xs); color: var(--accent-hover); }
+.callout.warning { background: var(--bg-warning); border-left-color: var(--amber); }
+.callout.warning .callout-title { color: var(--amber); }
+.callout.danger { background: var(--bg-danger); border-left-color: var(--red); }
+.callout.danger .callout-title { color: var(--red); }
+.callout.info { background: var(--blue-light); border-left-color: var(--blue); }
+.callout.info .callout-title { color: var(--blue); }
+.callout.success { background: var(--green-light); border-left-color: var(--green); }
+.callout.success .callout-title { color: var(--green); }
+
+/* Cards (component grid) */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--space-lg); margin: var(--space-xl) 0; }
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-lg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card:hover { border-color: var(--border-accent); box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+.card-id { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-bottom: var(--space-xs); }
+.card-title { font-family: var(--font-serif); font-size: 1.2rem; font-weight: 600; margin-bottom: var(--space-sm); }
+.card-desc { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+.card-meta { margin-top: var(--space-md); display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 100px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+.badge.rust { background: #fce8d4; color: #974711; }
+.badge.go { background: #dbe8fd; color: #1c4d8c; }
+.badge.python { background: #e0e8f4; color: #2d4a7c; }
+.badge.typescript { background: #e4ecf7; color: #3a5a8a; }
+.badge.wave-1 { background: var(--green-light); color: var(--green); }
+.badge.wave-2 { background: var(--blue-light); color: var(--blue); }
+.badge.wave-3 { background: var(--accent-subtle); color: var(--accent); }
+.badge.wave-4 { background: var(--amber-light); color: var(--amber); }
+.badge.wave-5 { background: #f0eef8; color: #555188; }
+.badge.wave-6 { background: #eef8f0; color: #3a6644; }
+.badge.wave-7 { background: #fce8e8; color: #8c3434; }
+
+/* Lists */
+ul, ol { margin: var(--space-md) 0 var(--space-md) var(--space-xl); }
+li { margin-bottom: var(--space-xs); }
+li::marker { color: var(--accent); }
+
+/* HR */
+hr { border: none; border-top: 1px solid var(--border); margin: var(--space-2xl) 0; }
+
+/* Blockquote */
+blockquote { border-left: 3px solid var(--accent); padding: var(--space-sm) var(--space-lg); margin: var(--space-lg) 0; color: var(--text-secondary); font-style: italic; background: var(--bg-callout); border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0; }
+
+/* Component page */
+.component-header {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+}
+.component-header .id-row { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; margin-bottom: var(--space-md); }
+.component-header h1 { margin: 0; }
+.meta-table { width: 100%; margin: var(--space-md) 0; font-size: 0.9rem; }
+.meta-table td { border-bottom: 1px solid var(--border); }
+.meta-table td:first-child { font-weight: 600; color: var(--text-secondary); width: 180px; }
+
+/* TOC */
+.toc { background: var(--bg-secondary); border-radius: var(--border-radius); padding: var(--space-lg); margin: var(--space-lg) 0; }
+.toc-title { font-weight: 600; margin-bottom: var(--space-sm); color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.toc ol { margin: 0; padding-left: var(--space-lg); }
+.toc a { border-bottom: none; }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-md); margin: var(--space-xl) 0; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--border-radius); padding: var(--space-lg); text-align: center; }
+.stat-value { font-family: var(--font-serif); font-size: 2.5rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.85rem; color: var(--text-tertiary); margin-top: var(--space-xs); }
+
+/* Anchor links */
+.anchor { color: var(--text-tertiary); text-decoration: none; border-bottom: none; font-size: 0.8em; margin-left: var(--space-xs); opacity: 0; transition: opacity 0.15s; }
+h2:hover .anchor, h3:hover .anchor { opacity: 1; }
+
+/* Language indicator */
+.lang-pill { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 0.75rem; font-weight: 600; }
+
+/* Section numbers */
+.section-number { color: var(--accent); margin-right: var(--space-sm); }
+
+/* =========================================================================
+   MuVera AI — Dark Enterprise Aesthetic Override
+   The structural CSS above is preserved verbatim; this block re-themes the
+   design tokens for AumOS's dark enterprise look: near-black #0a0a0f canvas,
+   electric-blue #6366f1 accent, bold sans-serif, system fonts, zero external deps.
+   ========================================================================= */
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #111119;
+  --bg-card: #14141d;
+  --bg-code: #050509;
+  --bg-callout: #141426;
+  --bg-warning: #1a1606;
+  --bg-danger: #1c0c10;
+
+  --text-primary: #f5f5fa;
+  --text-secondary: #a8a8bd;
+  --text-tertiary: #6e6e85;
+  --text-code: #c4c4d4;
+  --text-on-dark: #e8e8f0;
+
+  --accent: #6366f1;          /* electric blue */
+  --accent-hover: #818cf8;
+  --accent-light: #1e1e3a;
+  --accent-subtle: #1a1a2e;
+
+  --border: #232333;
+  --border-strong: #2e2e44;
+  --border-accent: #6366f1;
+
+  --green: #34d399;
+  --green-light: #0d1f1a;
+  --amber: #fbbf24;
+  --amber-light: #1f1a0a;
+  --red: #f87171;
+  --red-light: #1f0d10;
+  --blue: #60a5fa;
+  --blue-light: #0d1424;
+
+  /* Bold sans-serif throughout — system fonts only, zero external deps */
+  --font-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-weight: 400;
+}
+
+/* Stronger, tighter headings for the enterprise feel */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+}
+h1 { font-size: 2.8rem; font-weight: 900; letter-spacing: -0.035em; }
+h2 {
+  font-size: 1.9rem; font-weight: 800;
+  border-bottom: 1px solid var(--border);
+}
+h3 { font-size: 1.35rem; font-weight: 700; }
+h4 { font-size: 1.05rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+
+strong { font-weight: 700; color: #ffffff; }
+em { color: var(--text-secondary); }
+a { color: var(--accent-hover); border-bottom-color: var(--accent-subtle); }
+a:hover { border-bottom-color: var(--accent); }
+li::marker { color: var(--accent); }
+
+/* Inline code: subtle accent-tinted chip */
+code {
+  background: var(--accent-subtle);
+  color: var(--accent-hover);
+  border: 1px solid var(--border);
+  padding: 0.12em 0.4em;
+}
+
+/* Code blocks: deeper black with accent gutter */
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset;
+}
+
+/* Header band: darker, with accent rule */
+.doc-header {
+  background: linear-gradient(180deg, #0d0d16 0%, #0a0a0f 100%);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.doc-header::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent) 40%, var(--accent) 60%, transparent);
+  opacity: 0.5;
+}
+.doc-header .subtitle { color: var(--text-secondary); }
+.doc-header h1 {
+  background: linear-gradient(90deg, #ffffff 0%, var(--accent-hover) 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.doc-header nav a {
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.doc-header nav a:hover {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+/* Tables: dark with accent header underline */
+th { color: var(--accent-hover); border-bottom-color: var(--accent); font-weight: 700; letter-spacing: 0.05em; }
+td { border-bottom-color: var(--border); }
+tbody tr:hover { background: var(--accent-subtle); }
+
+/* Cards: elevated dark surfaces */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  opacity: 0.7;
+}
+.card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 24px rgba(99, 102, 241, 0.18);
+  transform: translateY(-2px);
+}
+.card-id { color: var(--accent-hover); font-weight: 700; }
+.card-title { color: var(--text-primary); }
+.card-desc { color: var(--text-secondary); }
+
+/* Badges re-tinted for dark bg */
+.badge.rust { background: #2a1606; color: #fb923c; }
+.badge.go { background: #0d1f3a; color: #60a5fa; }
+.badge.python { background: #142038; color: #93c5fd; }
+.badge.typescript { background: #161e34; color: #93b4f7; }
+.badge.wave-1 { background: var(--green-light); color: var(--green); }
+.badge.wave-2 { background: var(--blue-light); color: var(--blue); }
+.badge.wave-3 { background: var(--accent-subtle); color: var(--accent-hover); }
+.badge.wave-4 { background: var(--amber-light); color: var(--amber); }
+.badge.wave-5 { background: #181427; color: #a78bfa; }
+.badge.wave-6 { background: #081a10; color: var(--green); }
+.badge.wave-7 { background: #220a0c; color: var(--red); }
+
+/* Callouts re-tinted */
+.callout { background: var(--bg-callout); border-left-color: var(--accent); }
+.callout-title { color: var(--accent-hover); }
+.callout.warning { background: var(--bg-warning); border-left-color: var(--amber); }
+.callout.warning .callout-title { color: var(--amber); }
+.callout.danger { background: var(--bg-danger); border-left-color: var(--red); }
+.callout.danger .callout-title { color: var(--red); }
+.callout.info { background: var(--blue-light); border-left-color: var(--blue); }
+.callout.info .callout-title { color: var(--blue); }
+.callout.success { background: var(--green-light); border-left-color: var(--green); }
+.callout.success .callout-title { color: var(--green); }
+
+blockquote { background: var(--bg-callout); color: var(--text-secondary); border-left-color: var(--accent); }
+hr { border-top-color: var(--border); }
+.toc { background: var(--bg-secondary); border: 1px solid var(--border); }
+.toc a { color: var(--text-secondary); }
+.toc a:hover { color: var(--accent-hover); }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); }
+.stat-value { color: var(--accent-hover); }
+.anchor { color: var(--text-tertiary); }
+.section-number { color: var(--accent-hover); }
+
+/* =========================================================================
+   Page-specific components for the Agent Integration Guide
+   ========================================================================= */
+
+/* Full-width hero on this page */
+.hero {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-lg) var(--space-xl);
+}
+.hero h1 { font-size: 3.2rem; font-weight: 900; margin-bottom: var(--space-md); }
+.hero .lede { font-size: 1.15rem; color: var(--text-secondary); max-width: 760px; }
+
+/* Pillar chips under the hero */
+.pillars { display: flex; gap: var(--space-sm); flex-wrap: wrap; margin-top: var(--space-lg); }
+.pillar {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--accent-hover);
+}
+
+/* Bidirectional flow diagram */
+.flow-diagram {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-xl) var(--space-lg);
+  margin: var(--space-xl) 0;
+  overflow-x: auto;
+}
+.flow-diagram svg { display: block; max-width: 100%; height: auto; }
+
+/* Three-path cards: accent the headline path number */
+.path-card .path-num {
+  font-family: var(--font-mono);
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: var(--space-sm);
+}
+.path-card .card-title { font-size: 1.3rem; }
+
+/* Agent config columns */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-lg);
+  margin: var(--space-xl) 0;
+}
+.agent-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-lg);
+  border-top: 3px solid var(--accent);
+}
+.agent-card h4 { margin-top: 0; }
+
+/* Tool reference table: monospace tool names, tight rows */
+.tools-table td:first-child { font-family: var(--font-mono); color: var(--accent-hover); white-space: nowrap; }
+.tools-table td:nth-child(2) { color: var(--text-secondary); }
+
+/* What-happens-automatically numbered steps */
+.auto-steps { list-style: none; margin-left: 0; counter-reset: step; padding-left: 0; }
+.auto-steps li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 3rem;
+  margin-bottom: var(--space-md);
+  min-height: 2rem;
+}
+.auto-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0; top: 0;
+  width: 2rem; height: 2rem;
+  border-radius: 50%;
+  background: var(--accent-subtle);
+  color: var(--accent-hover);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-accent);
+}
+.auto-steps li::marker { content: ""; }
+
+/* Quick-start command cards */
+.cmd-grid { display: grid; gap: var(--space-md); margin: var(--space-lg) 0; }
+.cmd-card {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--border-radius);
+  padding: var(--space-md) var(--space-lg);
+}
+.cmd-card .cmd-label { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.cmd-card pre { margin: 0; background: none; border: none; padding: 0; }
+
+/* Benefit matrix: tick/cross cells */
+.matrix td.yes { color: var(--green); font-weight: 700; }
+.matrix td.no { color: var(--text-tertiary); }
+.matrix th, .matrix td { text-align: center; }
+.matrix td:first-child, .matrix th:first-child { text-align: left; }
+
+/* Architecture diagram block */
+.arch-diagram {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-xl);
+  margin: var(--space-xl) 0;
+  overflow-x: auto;
+}
+
+/* Section eyebrow label */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-hover);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  margin-bottom: var(--space-sm);
+  display: block;
+}
+
+/* Inline config template (a fenced-style block in a callout) */
+.config-template {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-lg);
+  margin: var(--space-lg) 0;
+}
+.config-template pre { margin: 0; }
+.config-template h5 {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-hover);
+  margin-bottom: var(--space-sm);
+}
+</style>
+</head>
+<body>
+
+<header class="doc-header">
+  <div style="max-width: 1200px; margin: 0 auto;">
+    <span class="eyebrow">AumOS · For Agent Developers</span>
+    <h1>Agent Integration Guide</h1>
+    <p class="subtitle">Make Claude Code, OpenAI Codex, Cursor, and any MCP-compatible agent work with AumOS — three integration paths, one security envelope.</p>
+    <nav>
+      <a href="index.html">&larr; Back to Index</a>
+      <a href="#overview">Overview</a>
+      <a href="#paths">Three Paths</a>
+      <a href="#mcp-setup">MCP Server</a>
+      <a href="#sdk">Agent SDK</a>
+      <a href="#harness">Harness</a>
+      <a href="#matrix">Security Matrix</a>
+      <a href="#quick-start">Quick Start</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero">
+  <p class="lede">AumOS is the open authority and evidence layer for autonomous systems. For coding agents this means two things: your agent can <strong>call</strong> AumOS security primitives (identity, receipts, attestation), and AumOS can <strong>secure</strong> the agent itself (sandbox boundary, kill-switch, file tracking). This guide is the definitive reference for both directions.</p>
+  <div class="pillars">
+    <span class="pillar">MCP Server · 15 tools</span>
+    <span class="pillar">Agent SDK · @agent.action</span>
+    <span class="pillar">Harness · secure_session()</span>
+    <span class="pillar">49 components</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- =================== 2. OVERVIEW =================== -->
+<section id="overview">
+  <span class="eyebrow">02 · Overview</span>
+  <h2>Bidirectional: Agents Call In, We Lock Down</h2>
+  <p>Most agent integrations are one-way. AumOS is bidirectional. An agent reaches <em>into</em> AumOS to sign data, issue identity, emit receipts, and check attestation. Simultaneously, AumOS wraps <em>around</em> the agent to enforce a sandbox boundary, scan its output for leaked credentials, and kill it on misbehavior. The two directions compose: an agent wrapped by the harness can still call the MCP server, and every call produces a verifiable receipt.</p>
+
+  <div class="flow-diagram">
+<svg viewBox="0 0 920 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bidirectional integration: agents call AumOS tools, AumOS secures the agents">
+  <defs>
+    <marker id="arr-accent" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#6366f1"/>
+    </marker>
+    <marker id="arr-red" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#f87171"/>
+    </marker>
+    <linearGradient id="grad-agent" x1="0" x2="1">
+      <stop offset="0" stop-color="#14141d"/><stop offset="1" stop-color="#1e1e3a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left: coding agents -->
+  <text x="160" y="28" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="12" text-anchor="middle">CODING AGENTS</text>
+  <g font-family="-apple-system,sans-serif" font-size="13" fill="#f5f5fa">
+    <rect x="40"  y="48" width="120" height="44" rx="8" fill="url(#grad-agent)" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="100" y="74" text-anchor="middle">Claude Code</text>
+    <rect x="40"  y="108" width="120" height="44" rx="8" fill="url(#grad-agent)" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="100" y="134" text-anchor="middle">OpenAI Codex</text>
+    <rect x="40"  y="168" width="120" height="44" rx="8" fill="url(#grad-agent)" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="100" y="194" text-anchor="middle">Cursor</text>
+    <rect x="40"  y="228" width="120" height="44" rx="8" fill="url(#grad-agent)" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="100" y="254" text-anchor="middle">Any MCP agent</text>
+  </g>
+
+  <!-- Center: AumOS integration surface -->
+  <rect x="340" y="48" width="240" height="224" rx="12" fill="#0d0d16" stroke="#6366f1" stroke-width="2"/>
+  <text x="460" y="76" fill="#818cf8" font-family="-apple-system,sans-serif" font-size="15" font-weight="800" text-anchor="middle">AumOS</text>
+  <text x="460" y="96" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">integration surface</text>
+  <g font-family="ui-monospace,monospace" font-size="12" fill="#c4c4d4">
+    <rect x="356" y="112" width="208" height="28" rx="6" fill="#14141d" stroke="#232333"/>
+    <text x="460" y="130" text-anchor="middle">MCP Server (15 tools)</text>
+    <rect x="356" y="148" width="208" height="28" rx="6" fill="#14141d" stroke="#232333"/>
+    <text x="460" y="166" text-anchor="middle">Agent SDK (@agent.action)</text>
+    <rect x="356" y="184" width="208" height="28" rx="6" fill="#14141d" stroke="#232333"/>
+    <text x="460" y="202" text-anchor="middle">Harness (secure_session)</text>
+    <rect x="356" y="220" width="208" height="28" rx="6" fill="#14141d" stroke="#232333"/>
+    <text x="460" y="238" text-anchor="middle">49 components below</text>
+  </g>
+
+  <!-- Right: outcomes -->
+  <text x="800" y="28" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="12" text-anchor="middle">SECURITY OUTCOMES</text>
+  <g font-family="-apple-system,sans-serif" font-size="13" fill="#f5f5fa">
+    <rect x="720" y="48"  width="160" height="44" rx="8" fill="url(#grad-agent)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="800" y="74"  text-anchor="middle">Verifiable receipts</text>
+    <rect x="720" y="108" width="160" height="44" rx="8" fill="url(#grad-agent)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="800" y="134" text-anchor="middle">Signed identity</text>
+    <rect x="720" y="168" width="160" height="44" rx="8" fill="url(#grad-agent)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="800" y="194" text-anchor="middle">Sandbox boundary</text>
+    <rect x="720" y="228" width="160" height="44" rx="8" fill="url(#grad-agent)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="800" y="254" text-anchor="middle">Kill-switch</text>
+  </g>
+
+  <!-- Direction 1: agents CALL IN (top arrow, accent) -->
+  <path d="M 160 110 C 250 110, 250 110, 340 110" fill="none" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arr-accent)"/>
+  <text x="250" y="102" fill="#818cf8" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">1 · agent calls AumOS tools</text>
+
+  <!-- Direction 2: AumOS SECURES (bottom arrow, red) -->
+  <path d="M 340 210 C 250 210, 250 210, 160 210" fill="none" stroke="#f87171" stroke-width="2.5" marker-end="url(#arr-red)"/>
+  <text x="250" y="206" fill="#f87171" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">2 · AumOS wraps &amp; secures agent</text>
+
+  <!-- Center to outcomes -->
+  <path d="M 580 160 L 720 160" fill="none" stroke="#6366f1" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arr-accent)"/>
+
+  <!-- Legend -->
+  <g font-family="ui-monospace,monospace" font-size="11">
+    <rect x="40" y="296" width="840" height="48" rx="8" fill="#0d0d16" stroke="#232333"/>
+    <text x="60" y="316" fill="#818cf8">Direction 1 (blue): agent invokes AumOS tools → produces receipts, signatures, attestation.</text>
+    <text x="60" y="334" fill="#f87171">Direction 2 (red): AumOS harness wraps the agent → enforces allowlist, scans output, kills on anomaly.</text>
+  </g>
+</svg>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-title">Why bidirectional matters</div>
+    <p>Direction 1 makes the agent <em>trustworthy</em> — every action it takes is signed and receipted. Direction 2 makes the agent <em>safe</em> — it cannot escape its sandbox, leak secrets, or run unbounded. An agent that only does direction 1 can still go rogue; an agent that only does direction 2 produces no verifiable evidence. You want both.</p>
+  </div>
+</section>
+
+<!-- =================== 3. THREE PATHS =================== -->
+<section id="paths">
+  <span class="eyebrow">03 · The Three Integration Paths</span>
+  <h2>Three Ways In, One Security Envelope</h2>
+  <p>Pick the path that matches your integration surface. All three produce the same verifiable artifacts (SVIDs, AAR receipts) and talk to the same 49 AumOS components. They differ in how much of the agent you control.</p>
+
+  <div class="card-grid">
+    <div class="card path-card">
+      <div class="path-num">01</div>
+      <div class="card-title">MCP Server</div>
+      <p class="card-desc">Any MCP-compatible agent (Claude Code, Cursor, Zed, Codex) discovers and invokes AumOS tools over stdio JSON-RPC. Zero code on the agent side — just a config entry. Best when you control the agent's MCP client but not its internals.</p>
+      <div class="card-meta">
+        <span class="badge typescript">TypeScript</span>
+        <span class="badge wave-3">stdio transport</span>
+        <span class="badge wave-2">15 tools</span>
+      </div>
+    </div>
+
+    <div class="card path-card">
+      <div class="path-num">02</div>
+      <div class="card-title">Agent SDK</div>
+      <p class="card-desc">A Python <code>@agent.action</code> decorator wraps any function with the full AumOS envelope — identity, preflight, credentials, receipt, evidence, kill-switch. Best when you write the tool code the agent calls, or you ship a custom agent.</p>
+      <div class="card-meta">
+        <span class="badge python">Python</span>
+        <span class="badge wave-3">@agent.action</span>
+        <span class="badge wave-2">standalone / connected</span>
+      </div>
+    </div>
+
+    <div class="card path-card">
+      <div class="path-num">03</div>
+      <div class="card-title">Harness Wrappers</div>
+      <p class="card-desc"><code>secure_session()</code> wraps an entire agent execution — every command it runs, every file it touches, every byte of output it emits. Best when you run an unmodified third-party agent (e.g. <code>claude</code>, <code>codex</code>) and want a perimeter.</p>
+      <div class="card-meta">
+        <span class="badge python">Python</span>
+        <span class="badge wave-3">secure_session()</span>
+        <span class="badge wave-7">sandbox perimeter</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">They stack</div>
+    <p>The strongest setup uses all three: the <strong>harness</strong> wraps the agent process; the agent's custom tools use the <strong>SDK</strong> decorator; and the agent also has the <strong>MCP server</strong> configured for ad-hoc tool calls. Each layer is independently useful.</p>
+  </div>
+</section>
+
+<!-- =================== 4. MCP SERVER SETUP =================== -->
+<section id="mcp-setup">
+  <span class="eyebrow">04 · MCP Server Setup</span>
+  <h2>Configuring Your Agent for the MCP Server</h2>
+  <p>The MCP server (<code>@muveraai/aumos-mcp-server</code>) speaks the Model Context Protocol over stdio JSON-RPC 2.0. It advertises 15 tools via <code>tools/list</code> and handles <code>tools/call</code>. It runs in <strong>standalone</strong> mode by default (deterministic mock responses, zero external deps — ideal for dev and dry-runs) and switches to <strong>connected</strong> mode when <code>AUMOS_MODE=connected</code> is set or <code>--connected</code> is passed, issuing real HTTP calls to the AumOS services.</p>
+
+  <div class="agent-grid">
+    <div class="agent-card">
+      <h4>Claude Code</h4>
+      <p>Add to <code>.claude/mcp_servers.json</code> in your project root:</p>
+      <div class="config-template">
+        <pre><code>{
+  "aumos": {
+    "command": "npx",
+    "args": ["@muveraai/aumos-mcp-server"]
+  }
+}</code></pre>
+      </div>
+      <p style="font-size:0.88rem;color:var(--text-secondary);">Restart Claude Code. Run <code>/mcp</code> to confirm the <code>aumos</code> server connects and lists its 15 tools.</p>
+    </div>
+
+    <div class="agent-card">
+      <h4>Cursor</h4>
+      <p>Open <strong>Cursor Settings &rarr; Features &rarr; MCP Servers &rarr; Add</strong>, or edit <code>~/.cursor/mcp.json</code>:</p>
+      <div class="config-template">
+        <pre><code>{
+  "mcpServers": {
+    "aumos": {
+      "command": "npx",
+      "args": ["@muveraai/aumos-mcp-server"]
+    }
+  }
+}</code></pre>
+      </div>
+      <p style="font-size:0.88rem;color:var(--text-secondary);">Cursor discovers the tools on next chat session. The AumOS tools appear alongside Cursor's built-in tools.</p>
+    </div>
+
+    <div class="agent-card">
+      <h4>Generic MCP</h4>
+      <p>Any MCP-compatible client. Stdio transport, JSON-RPC 2.0:</p>
+      <div class="config-template">
+        <pre><code># Spawn the server directly
+npx @muveraai/aumos-mcp-server
+
+# Connected mode (real services)
+AUMOS_MODE=connected npx @muveraai/aumos-mcp-server
+
+# Pin service URLs via env
+AUMOS_AGENT_IDENTITY_URL=http://localhost:8441 \
+AUMOS_FLIGHT_RECORDER_URL=http://localhost:8445 \
+npx @muveraai/aumos-mcp-server --connected</code></pre>
+      </div>
+      <p style="font-size:0.88rem;color:var(--text-secondary);">Protocol version <code>2024-11-05</code>. Logs go to stderr; stdout is reserved for protocol frames.</p>
+    </div>
+  </div>
+
+  <h3>The 15 AumOS Tools</h3>
+  <p>Each tool is backed by a real async implementation. In connected mode failures degrade gracefully to mock responses with a <code>degraded: true</code> flag — a tool never crashes the server (invariant I-09).</p>
+
+  <table class="tools-table">
+    <thead>
+      <tr><th>Tool</th><th>Description</th><th>Required Args</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>aumos_sign</td>
+        <td>Sign data with Ed25519 via T1 trust-core. Returns <code>{signature_hex, algorithm}</code>.</td>
+        <td><code>data</code> · <code>key_id?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_verify</td>
+        <td>Verify an Ed25519 signature. Returns <code>{valid, reason?}</code>.</td>
+        <td><code>data, signature, key</code></td>
+      </tr>
+      <tr>
+        <td>aumos_issue_identity</td>
+        <td>Issue a SPIFFE SVID + capability token via I1 agent-identity. <code>POST /v1/agent-identity:issue</code>.</td>
+        <td><code>subject</code> · <code>audience?, parent_svid?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_verify_identity</td>
+        <td>Verify an SVID via I1. <code>POST /v1/agent-identity:verify</code>.</td>
+        <td><code>svid</code> · <code>audience?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_revoke_identity</td>
+        <td>Revoke an identity. Propagation target: identity &lt;5s, credentials &lt;1s (I-05).</td>
+        <td><code>jti</code> · <code>reason?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_emit_receipt</td>
+        <td>Emit an Agent Action Receipt (P2 AAR) via E1 flight-recorder — <strong>before</strong> the action commits (I-07).</td>
+        <td><code>actor, tool, outcome</code> · <code>side_effect?, inputs_hash?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_verify_receipt</td>
+        <td>Verify a receipt signature. Returns <code>{valid, signer, receipt_id}</code>.</td>
+        <td><code>receipt_id</code> · <code>signature?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_check_attestation</td>
+        <td>Check a GPU attestation report via C1-1 nvtrust-bridge. Returns <code>{verified, hardware_tee}</code>.</td>
+        <td><code>nonce?, gpu_pci_id?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_run_preflight</td>
+        <td>Run sandbox pre-flight via R2 eval-guard. Action proceeds only if <code>allowed: true</code> (I-09).</td>
+        <td><code>tool</code> · <code>inputs?, side_effect?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_kill</td>
+        <td>Trigger the R3 kill-switch — halts/quarantines the agent. Returns <code>{triggered, reason, killed_at}</code>.</td>
+        <td><code>reason</code> · <code>agent?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_scan_secrets</td>
+        <td>Scan text for exposed credentials via R4 credential-vault. Detects AWS keys, GitHub PATs, Slack tokens, private keys, generic bearers.</td>
+        <td><code>text</code></td>
+      </tr>
+      <tr>
+        <td>aumos_compliance_report</td>
+        <td>Generate a compliance report via X1 defstack-cli. Returns <code>{report_json}</code>.</td>
+        <td><code>scope?, format?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_install</td>
+        <td>Install an AumOS component via <code>defstack install &lt;name&gt;</code>. Returns <code>{installed, version}</code>.</td>
+        <td><code>name</code> · <code>version?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_generate_sbom</td>
+        <td>Generate a Model SBOM (CycloneDX) via S4 model-sbom. Returns <code>{sbom, components}</code>.</td>
+        <td><code>model</code> · <code>format?</code></td>
+      </tr>
+      <tr>
+        <td>aumos_run_eval</td>
+        <td>Run an eval pipeline via A1 safe-eval (HELM/garak/PyRIT/MDASH). Returns results + a Verifiable Evaluation Bundle.</td>
+        <td><code>model</code> · <code>pipeline_yaml?</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <div class="callout-title">Tool result shape</div>
+    <p>Every tool returns structured JSON with <code>source</code> (<code>"mock"</code> | service name), <code>degraded</code> (true when a connected-mode call failed and fell back to mock), and the tool's domain fields. An <code>isError</code> flag marks tool-level errors — the server itself stays up.</p>
+  </div>
+
+  <h4>Side-effect ladder (invariant I-08)</h4>
+  <p>Several tools accept a <code>side_effect</code> parameter. The five ordered classes escalate by consequence: <code>read</code> &rarr; <code>write</code> &rarr; <code>financial</code> &rarr; <code>destructive</code> &rarr; <code>physical</code>. The three consequential classes (<code>financial</code>, <code>destructive</code>, <code>physical</code>) require explicit approval and are blocked by default in preflight.</p>
+</section>
+
+<!-- =================== 5. AGENT SDK =================== -->
+<section id="sdk">
+  <span class="eyebrow">05 · Agent SDK Quick Start</span>
+  <h2>The <code>@agent.action</code> Decorator</h2>
+  <p>The Python Agent SDK (<code>aumos-agent</code>) wraps any function with the full AumOS security envelope. The decorator is the headline: one line and your tool gets identity, preflight, credential brokering, a pre-commit receipt, evidence recording, and an automatic kill-switch on error.</p>
+
+  <pre><code>from aumos_agent import AumOS
+
+agent = AumOS(mode="standalone")   # or mode="connected" against running services
+
+@agent.action(tool="github.create_pr", side_effect="write")
+def create_pr(repo, title):
+    return {"url": f"github.com/{repo}/pull/1"}
+
+result = create_pr("MuVeraAI/aumos", "fix: off-by-one")
+# result is the function's return value; the security artifacts live on
+# create_pr.action_result  -> ActionResult(svid, preflight, receipt, ...)</code></pre>
+
+  <h3>What happens automatically, in order</h3>
+  <p>On every call to a decorated action, the SDK runs this exact sequence:</p>
+
+  <ol class="auto-steps">
+    <li><strong>Identity (I1).</strong> Issues / verifies an agent identity (SPIFFE SVID + capability token) for the actor. The SVID is cached on the agent instance and reused.</li>
+    <li><strong>Preflight (R2).</strong> Runs sandbox pre-flight checks. If <code>fail_closed</code> is set (default) and preflight returns <code>allowed: false</code>, the wrapped function is <em>never called</em> — an <code>ActionBlocked</code> exception is raised with a <code>denied</code> receipt (invariant I-09).</li>
+    <li><strong>Credential brokering (R4).</strong> Scans the JSON-serialized arguments for leaked secrets. Findings are attached to the preflight result (they don't block reads by default).</li>
+    <li><strong>Pre-commit receipt (E1, invariant I-07).</strong> Emits an Agent Action Receipt with outcome <code>pending</code> <em>before</em> the wrapped function runs. This proves the intent-to-act was recorded before any side effect occurred.</li>
+    <li><strong>Call the function.</strong> Your code runs.</li>
+    <li><strong>Success receipt + evidence (E1).</strong> On success, emits a <code>success</code> receipt and appends the <code>ActionResult</code> to <code>agent.evidence</code>.</li>
+    <li><strong>Kill-switch on error (R3).</strong> On any exception, emits a <code>failure</code> receipt, and if <code>auto_kill_on_error</code> is set (default), triggers the R3 kill-switch then raises <code>ContainmentTriggered</code>.</li>
+  </ol>
+
+  <div class="callout warning">
+    <div class="callout-title">The pre-commit receipt is load-bearing</div>
+    <p>Step 4 is not cosmetic. AumOS invariant I-07 requires that a receipt exists <em>before</em> the action commits. If you bypass the decorator and call services manually, you must emit the <code>pending</code> receipt yourself first — otherwise the action is not I-07-compliant.</p>
+  </div>
+
+  <h3>What a decorated call returns</h3>
+  <p>The wrapped function returns its normal value, but gains an <code>.action_result</code> attribute holding the full <code>ActionResult</code>:</p>
+
+  <pre><code>@dataclass
+class ActionResult:
+    ok: bool                  # True iff the function returned normally
+    value: Any                # the wrapped function's return value
+    svid: str | None          # the agent identity used
+    preflight: dict           # R2 result (+ secret_findings, pre_commit_receipt)
+    receipt: Receipt          # the final AAR (success | failure | denied)
+    outcome: str              # 'success' | 'failure' | 'denied'
+    duration_ms: float
+    error: str | None</code></pre>
+
+  <h3>Manual API methods</h3>
+  <p>You don't have to use the decorator. The <code>AumOS</code> class exposes every primitive as a plain method, returning plain dicts/dataclasses. Use these when you need finer control than the decorator's fixed sequence.</p>
+
+  <table class="tools-table">
+    <thead><tr><th>Method</th><th>Returns</th><th>Backs</th></tr></thead>
+    <tbody>
+      <tr><td><code>sign(data, key_id="default")</code></td><td><code>str</code> (hex sig)</td><td>T1 trust-core</td></tr>
+      <tr><td><code>verify(data, signature, key)</code></td><td><code>bool</code></td><td>T1 trust-core</td></tr>
+      <tr><td><code>issue_identity(subject, *, audience, parent_svid)</code></td><td><code>dict</code></td><td>I1 agent-identity</td></tr>
+      <tr><td><code>verify_identity(svid, *, audience)</code></td><td><code>dict</code></td><td>I1</td></tr>
+      <tr><td><code>revoke_identity(jti, *, reason)</code></td><td><code>dict</code></td><td>I1</td></tr>
+      <tr><td><code>emit_receipt(actor, tool, outcome, *, side_effect, inputs_hash)</code></td><td><code>Receipt</code></td><td>E1 flight-recorder</td></tr>
+      <tr><td><code>verify_receipt(receipt_id, signature)</code></td><td><code>dict</code></td><td>E1</td></tr>
+      <tr><td><code>check_attestation(*, nonce, gpu_pci_id)</code></td><td><code>dict</code></td><td>C1-1 nvtrust-bridge</td></tr>
+      <tr><td><code>run_preflight(tool, *, inputs, side_effect)</code></td><td><code>dict</code></td><td>R2 eval-guard</td></tr>
+      <tr><td><code>kill(*, reason, agent)</code></td><td><code>dict</code></td><td>R3 kill-switch</td></tr>
+      <tr><td><code>scan_secrets(text)</code></td><td><code>list[Finding]</code></td><td>R4 credential-vault</td></tr>
+      <tr><td><code>compliance_report(*, scope, model, format)</code></td><td><code>dict</code></td><td>X1 defstack</td></tr>
+      <tr><td><code>install(name, *, version)</code></td><td><code>dict</code></td><td>X1 defstack</td></tr>
+      <tr><td><code>generate_sbom(model, *, format)</code></td><td><code>dict</code></td><td>S4 model-sbom</td></tr>
+      <tr><td><code>run_eval(model, pipeline_yaml)</code></td><td><code>dict</code></td><td>A1 safe-eval</td></tr>
+    </tbody>
+  </table>
+
+  <div class="config-template">
+    <h5>Configuration</h5>
+    <pre><code>agent = AumOS(
+    mode="connected",                       # "standalone" | "connected"
+    agent_identity_url="http://...",        # I1
+    flight_recorder_url="http://...",       # E1
+    eval_guard_url="http://...",            # R2
+    kill_switch_url="http://...",           # R3
+    credential_vault_url="http://...",      # R4
+    fail_closed=True,                       # block on preflight denial (I-09)
+    auto_kill_on_error=True,                # trigger R3 on exception
+    agent_svid="spiffe://aumos.dev/agent/coding-1",
+)</code></pre>
+  </div>
+</section>
+
+<!-- =================== 6. HARNESS WRAPPERS =================== -->
+<section id="harness">
+  <span class="eyebrow">06 · Harness Wrappers</span>
+  <h2>Wrapping Agent Sessions with <code>secure_session()</code></h2>
+  <p>The harness (<code>aumos-harness</code>) is the perimeter layer. Where the SDK decorates individual functions, the harness wraps an <em>entire agent process</em>: every shell command it runs, every file it touches, every byte of stdout and stderr it emits. Use it when you launch a third-party agent binary (like <code>claude</code> or <code>codex</code>) and cannot modify its internals.</p>
+
+  <pre><code>from aumos_harness import secure_session, HarnessConfig, AgentType
+
+config = HarnessConfig(
+    agent_type=AgentType.CLAUDE_CODE,
+    working_dir=".",
+    allowed_tools=["git", "npm", "cargo", "python", "go", "make"],
+    side_effect_class="write",
+    kill_on_secret_exposure=True,
+    max_duration_seconds=3600,
+)
+
+with secure_session(config) as session:
+    result = session.run_agent("claude --print 'fix the bug in src/auth.py'")
+    print(result["exit_code"], result["receipt"]["id"])
+
+    # Every command is receipted; every output is scanned
+    for r in session.result.receipts:
+        print(r["tool"], r["outcome"], r["secret_findings"])
+
+summary = session.result   # SessionResult</code></pre>
+
+  <h3>The SessionResult</h3>
+  <p>When the <code>with</code> block exits (or the agent is killed), <code>session.result</code> is a <code>SessionResult</code> summarizing everything that happened:</p>
+
+  <pre><code>@dataclass
+class SessionResult:
+    session_id: str
+    agent_type: AgentType            # CLAUDE_CODE | CODEX | CURSOR | GENERIC
+    status: SessionStatus            # ACTIVE | COMPLETED | KILLED | ERROR
+    started_at: str
+    ended_at: str
+    action_count: int               # number of receipted commands
+    file_accesses: list[FileAccess] # every tracked read/write
+    actions: list[ActionRecord]     # one per run_agent() call
+    receipts: list[dict]            # the full AAR trail (P2)
+    secrets_found: int              # total secret-scan hits
+    kill_reason: str                # set if status == KILLED
+    duration_seconds: float</code></pre>
+
+  <h3>What the harness enforces</h3>
+  <ul>
+    <li><strong>Tool allowlist.</strong> <code>run_agent()</code> checks the command's base tool against <code>allowed_tools</code>. Disallowed tools are blocked with a <code>failed</code> receipt before execution.</li>
+    <li><strong>Output secret scanning.</strong> Every command's <code>stdout + stderr</code> is scanned for AWS keys, GitHub PATs, OpenAI keys, GitLab PATs, and Slack tokens. If <code>kill_on_secret_exposure</code> is set (default), a hit kills the session immediately.</li>
+    <li><strong>Receipt per action (E1, I-07).</strong> Every <code>run_agent()</code> call emits an AAR recording the tool, command, outcome, and any secret findings.</li>
+    <li><strong>Kill-switch (R3, I-09).</strong> <code>session.kill(reason)</code> quarantines the session; subsequent <code>run_agent()</code> calls return an error immediately.</li>
+    <li><strong>File tracking.</strong> <code>session.track_file_access(path, mode)</code> records every file the agent reads or writes.</li>
+    <li><strong>Duration cap.</strong> <code>max_duration_seconds</code> bounds each command via a subprocess timeout.</li>
+  </ul>
+
+  <div class="callout success">
+    <div class="callout-title">Config parsers for each agent</div>
+    <p>The harness ships with <code>parse_claude_code_config(working_dir)</code>, <code>parse_codex_config(working_dir)</code>, and <code>parse_cursor_config(working_dir)</code>. They read <code>CLAUDE.md</code>, <code>AGENTS.md</code>, and <code>.cursorrules</code> respectively and return a pre-populated <code>HarnessConfig</code> with the right <code>agent_type</code> and parsed <code>allowed_tools</code>. Cursor config also sets <code>require_attestation=True</code>.</p>
+  </div>
+</section>
+
+<!-- =================== 7. CLAUDE CODE =================== -->
+<section id="claude-code">
+  <span class="eyebrow">07 · Claude Code Integration</span>
+  <h2>Claude Code</h2>
+  <p>Claude Code is the tightest integration target because it supports both MCP servers (for Direction 1) and custom tools written in Python (for Direction 2 via the SDK), and you can wrap the whole <code>claude</code> invocation in the harness (Direction 3).</p>
+
+  <h3>1. CLAUDE.md template</h3>
+  <p>Drop this in your repo root. The harness's <code>parse_claude_code_config</code> reads the <code>allowed tools</code> line.</p>
+
+  <div class="config-template">
+    <h5>CLAUDE.md</h5>
+<pre><code># Project: AumOS-secured repo
+
+This repository is instrumented with AumOS. Every action you take
+may be receipted and signed. Prefer calling the `aumos_*` MCP tools
+for anything security-sensitive (signing, identity, attestation).
+
+## Allowed tools
+git, npm, cargo, python, go, make, npx
+
+## Rules
+- Never commit secrets. If `aumos_scan_secrets` returns findings, stop.
+- For destructive operations, run `aumos_run_preflight` first.
+- Emit a receipt with `aumos_emit_receipt` before any write that
+  modifies production state.
+- If a kill-switch fires (`aumos_kill`), do not retry — surface it.</code></pre>
+  </div>
+
+  <h3>2. MCP server config</h3>
+  <div class="config-template">
+    <h5>.claude/mcp_servers.json</h5>
+    <pre><code>{
+  "aumos": {
+    "command": "npx",
+    "args": ["@muveraai/aumos-mcp-server"]
+  }
+}</code></pre>
+  </div>
+
+  <h3>3. Using the SDK in custom tools</h3>
+  <p>If you ship a custom tool script that Claude Code invokes, decorate it with the SDK so it gets the full envelope for free:</p>
+
+  <div class="config-template">
+    <h5>tools/create_pr.py</h5>
+<pre><code>from aumos_agent import AumOS
+
+agent = AumOS(mode="connected")
+
+@agent.action(tool="github.create_pr", side_effect="write")
+def create_pr(repo: str, title: str, body: str = ""):
+    # ... your real PR-creation logic ...
+    return {"pr_number": 42, "url": f"https://github.com/{repo}/pull/42"}
+
+if __name__ == "__main__":
+    import sys, json
+    out = create_pr(*sys.argv[1:])
+    print(json.dumps({"value": out, "receipt": create_pr.action_result.receipt.receipt_id}))</code></pre>
+  </div>
+
+  <h3>4. What security you get</h3>
+  <ul>
+    <li>Every MCP tool call produces a structured result with a <code>source</code> and optional <code>degraded</code> flag.</li>
+    <li>Every custom-tool invocation is wrapped with identity + preflight + pre-commit receipt + kill-switch.</li>
+    <li>Wrap the <code>claude</code> binary in <code>secure_session(AgentType.CLAUDE_CODE)</code> and you also get tool allowlisting, output secret scanning, and file tracking.</li>
+  </ul>
+</section>
+
+<!-- =================== 8. OPENAI CODEX =================== -->
+<section id="codex">
+  <span class="eyebrow">08 · OpenAI Codex Integration</span>
+  <h2>OpenAI Codex</h2>
+  <p>Codex reads project-level instructions from <code>AGENTS.md</code>. The harness's <code>parse_codex_config</code> reads it for <code>allowed_tools</code>. Because Codex emits structured output, secret scanning on its stdout/stderr is especially effective.</p>
+
+  <h3>1. AGENTS.md template</h3>
+  <div class="config-template">
+    <h5>AGENTS.md</h5>
+<pre><code># Agent instructions
+
+This repo is secured by AumOS. AumOS MCP tools are available
+under the `aumos_*` namespace.
+
+## Tools
+git, npm, cargo, python, go, make
+
+## Security protocol
+1. Before any write, call `aumos_run_preflight` with the
+   intended tool and side_effect class.
+2. Before committing production changes, emit a receipt:
+   `aumos_emit_receipt` with outcome `pending`.
+3. After generating any code that may contain credentials,
+   call `aumos_scan_secrets` on the output.
+4. On unexpected errors, expect the kill-switch to fire.</code></pre>
+  </div>
+
+  <h3>2. Harness wrapping Codex commands</h3>
+  <pre><code>from aumos_harness import parse_codex_config, secure_session
+
+config = parse_codex_config(".")          # reads AGENTS.md
+config.kill_on_secret_exposure = True
+
+with secure_session(config) as session:
+    out = session.run_agent("codex 'refactor the auth module'")
+    if session.result.secrets_found > 0:
+        print(f"Blocked: {session.result.secrets_found} secrets in Codex output")
+        # session was already killed by kill_on_secret_exposure</code></pre>
+
+  <h3>3. Secret scanning on Codex output</h3>
+  <p>The harness scans every command's combined <code>stdout + stderr</code> for AWS access keys, GitHub PATs, OpenAI API keys (<code>sk-...</code>), GitLab PATs, and Slack tokens. With <code>kill_on_secret_exposure=True</code>, a single hit quarantines the session before the secret reaches a commit. Findings are recorded on the matching AAR under <code>secret_findings</code>.</p>
+
+  <div class="callout danger">
+    <div class="callout-title">Codex is a known secret-leak vector</div>
+    <p>Codex will readily inline real-looking API keys into generated config files. Always run Codex through a harness with <code>kill_on_secret_exposure=True</code> — it is the cheapest defense against an agent writing a live key into <code>.env</code>.</p>
+  </div>
+</section>
+
+<!-- =================== 9. CURSOR =================== -->
+<section id="cursor">
+  <span class="eyebrow">09 · Cursor Integration</span>
+  <h2>Cursor</h2>
+  <p>Cursor is the most autonomous of the three and benefits from the strictest perimeter. Cursor reads project rules from <code>.cursorrules</code> and supports MCP servers natively in its settings.</p>
+
+  <h3>1. .cursorrules template</h3>
+  <div class="config-template">
+    <h5>.cursorrules</h5>
+<pre><code>You are operating in an AumOS-secured repository.
+
+AumOS MCP tools (`aumos_*`) are available. Use them for any
+security-sensitive operation.
+
+Required:
+- Before destructive edits, call `aumos_run_preflight`.
+- Emit a receipt via `aumos_emit_receipt` before commits that
+  touch production paths.
+- Scan generated output with `aumos_scan_secrets` before
+  suggesting it to the user.
+- This session requires attestation: do not perform actions
+  you cannot receipt.</code></pre>
+  </div>
+
+  <h3>2. MCP server in Cursor settings</h3>
+  <div class="config-template">
+    <h5>Cursor Settings → Features → MCP Servers (or ~/.cursor/mcp.json)</h5>
+    <pre><code>{
+  "mcpServers": {
+    "aumos": {
+      "command": "npx",
+      "args": ["@muveraai/aumos-mcp-server"]
+    }
+  }
+}</code></pre>
+  </div>
+
+  <h3>3. Require attestation flag</h3>
+  <p>Cursor sessions tend to run with less supervision, so the harness treats the presence of a <code>.cursorrules</code> file as a signal to tighten policy. <code>parse_cursor_config()</code> sets <code>require_attestation=True</code>, which you can enforce in your session wrapper by rejecting any <code>run_agent()</code> receipt that lacks a valid signature:</p>
+
+  <pre><code>from aumos_harness import parse_cursor_config, secure_session
+
+config = parse_cursor_config(".")            # sets require_attestation=True
+config.allowed_tools = ["git", "npm", "python"]
+config.kill_on_secret_exposure = True
+
+with secure_session(config) as session:
+    session.run_agent("cursor composer 'add input validation to /api/login'")
+    assert config.require_attestation, "attestation required for Cursor"
+    summary = session.result.to_dict()</code></pre>
+</section>
+
+<!-- =================== 10. SECURITY MATRIX =================== -->
+<section id="matrix">
+  <span class="eyebrow">10 · Security Benefits Matrix</span>
+  <h2>What Each Path Gives You</h2>
+  <p>The three paths are not redundant — they protect different surfaces. Use this matrix to decide which combination meets your threat model. A check means the path provides that benefit by default.</p>
+
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>Benefit</th>
+        <th>MCP Server</th>
+        <th>Agent SDK</th>
+        <th>Harness</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Verifiable identity (SVID)</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td>Evidence receipts (AAR)</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td>Sandbox boundary (preflight)</td>
+        <td class="no">&mdash;</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td>Credential scanning</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td>Kill-switch (containment)</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td>File tracking</td>
+        <td class="no">&mdash;</td>
+        <td class="no">&mdash;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td>Tool allowlisting</td>
+        <td class="no">&mdash;</td>
+        <td class="no">&mdash;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td>Pre-commit receipt (I-07)</td>
+        <td class="no">&mdash;</td>
+        <td class="yes">&#10003;</td>
+        <td class="no">&mdash;</td>
+      </tr>
+      <tr>
+        <td>Zero-code on agent side</td>
+        <td class="yes">&#10003;</td>
+        <td class="no">&mdash;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td>Wraps unmodified agent binary</td>
+        <td class="no">&mdash;</td>
+        <td class="no">&mdash;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <div class="callout-title">Reading the matrix</div>
+    <p>The <strong>MCP server</strong> is the lightest touch — identity, receipts, scanning, kill — but it cannot see what the agent does <em>outside</em> a tool call. The <strong>SDK</strong> adds the pre-commit receipt (I-07) and preflight gate around your own functions. Only the <strong>harness</strong> sees the agent's filesystem footprint and command stream, which is why file tracking and tool allowlisting are harness-exclusive.</p>
+  </div>
+</section>
+
+<!-- =================== 11. QUICK START =================== -->
+<section id="quick-start">
+  <span class="eyebrow">11 · Quick Start</span>
+  <h2>Three Commands to Get Started</h2>
+  <p>All three packages are zero-config in standalone mode. Run any one of them and you have working AumOS security with deterministic mock responses — no services to stand up.</p>
+
+  <div class="cmd-grid">
+    <div class="cmd-card">
+      <div class="cmd-label">1 · Start the MCP server (any MCP agent)</div>
+      <pre><code>npx @muveraai/aumos-mcp-server</code></pre>
+    </div>
+    <div class="cmd-card">
+      <div class="cmd-label">2 · Install the Agent SDK (Python custom tools)</div>
+      <pre><code>pip install aumos-agent</code></pre>
+    </div>
+    <div class="cmd-card">
+      <div class="cmd-label">3 · Install the harness (wrap agent processes)</div>
+      <pre><code>pip install aumos-harness</code></pre>
+    </div>
+  </div>
+
+  <h3>Thirty seconds to a secured action</h3>
+  <pre><code>pip install aumos-agent
+
+python -c "
+from aumos_agent import AumOS
+agent = AumOS(mode='standalone')
+
+@agent.action(tool='demo.hello', side_effect='read')
+def hello(name):
+    return {'msg': f'hello {name}'}
+
+print(hello('world'))
+print('receipt:', hello.action_result.receipt.receipt_id)
+print('svid:   ', hello.action_result.svid)
+"</code></pre>
+
+  <div class="callout">
+    <div class="callout-title">From standalone to connected</div>
+    <p>Standalone mode uses deterministic local mocks so you can develop and dry-run without infrastructure. Switch to connected mode by setting <code>mode="connected"</code> (SDK), <code>AUMOS_MODE=connected</code> (MCP server), or pointing the harness at live services. Connected-mode failures degrade gracefully to mocks with a <code>degraded: true</code> flag rather than crashing.</p>
+  </div>
+</section>
+
+<!-- =================== 12. ARCHITECTURE =================== -->
+<section id="architecture">
+  <span class="eyebrow">12 · Architecture</span>
+  <h2>How the Three Paths Relate to the 49 Components</h2>
+  <p>All three integration paths are thin facades over the same 49 AumOS components. The MCP server and SDK translate tool calls into HTTP requests (I1, E1, C1-1, S4, A1, R2, R3, R4) and CLI invocations (T1 <code>trust-core</code>, X1 <code>defstack</code>). The harness adds a process perimeter that feeds the same receipt and kill-switch services.</p>
+
+  <div class="arch-diagram">
+<svg viewBox="0 0 920 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture: three integration paths over 49 AumOS components">
+  <defs>
+    <marker id="arr2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#6366f1"/>
+    </marker>
+    <linearGradient id="g2" x1="0" x2="1">
+      <stop offset="0" stop-color="#14141d"/><stop offset="1" stop-color="#1e1e3a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Tier 0: integration paths -->
+  <text x="460" y="24" fill="#818cf8" font-family="-apple-system,sans-serif" font-size="13" font-weight="800" text-anchor="middle">INTEGRATION PATHS (this guide)</text>
+  <g font-family="-apple-system,sans-serif" font-size="13" fill="#f5f5fa">
+    <rect x="60"  y="44" width="220" height="44" rx="8" fill="url(#g2)" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="170" y="70" text-anchor="middle">MCP Server (TypeScript)</text>
+    <rect x="350" y="44" width="220" height="44" rx="8" fill="url(#g2)" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="460" y="70" text-anchor="middle">Agent SDK (Python)</text>
+    <rect x="640" y="44" width="220" height="44" rx="8" fill="url(#g2)" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="750" y="70" text-anchor="middle">Harness (Python)</text>
+  </g>
+
+  <!-- arrows down to facade -->
+  <path d="M 170 88 L 170 120" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr2)"/>
+  <path d="M 460 88 L 460 120" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr2)"/>
+  <path d="M 750 88 L 750 120" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+  <!-- Tier 1: unified facade -->
+  <rect x="60" y="124" width="800" height="48" rx="8" fill="#0d0d16" stroke="#6366f1" stroke-width="2"/>
+  <text x="460" y="144" fill="#818cf8" font-family="-apple-system,sans-serif" font-size="14" font-weight="800" text-anchor="middle">AumOS Security Envelope</text>
+  <text x="460" y="162" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">identity · preflight · receipts · attestation · secrets · kill-switch</text>
+
+  <!-- arrow down -->
+  <path d="M 460 172 L 460 204" stroke="#6366f1" stroke-width="2" marker-end="url(#arr2)"/>
+
+  <!-- Tier 2: transports -->
+  <text x="460" y="200" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">transports</text>
+  <g font-family="ui-monospace,monospace" font-size="11" fill="#c4c4d4">
+    <rect x="120" y="212" width="200" height="36" rx="6" fill="#14141d" stroke="#232333"/>
+    <text x="220" y="234" text-anchor="middle">HTTP/JSON gateways</text>
+    <rect x="360" y="212" width="200" height="36" rx="6" fill="#14141d" stroke="#232333"/>
+    <text x="460" y="234" text-anchor="middle">CLI: trust-core, defstack</text>
+    <rect x="600" y="212" width="200" height="36" rx="6" fill="#14141d" stroke="#232333"/>
+    <text x="700" y="234" text-anchor="middle">subprocess (harness)</text>
+  </g>
+
+  <!-- arrows down -->
+  <path d="M 220 248 L 220 280" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr2)"/>
+  <path d="M 460 248 L 460 280" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr2)"/>
+  <path d="M 700 248 L 700 280" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+  <!-- Tier 3: the 49 components (representative groups) -->
+  <text x="460" y="276" fill="#818cf8" font-family="-apple-system,sans-serif" font-size="13" font-weight="800" text-anchor="middle">49 AUMOS COMPONENTS (representative)</text>
+  <g font-family="-apple-system,sans-serif" font-size="12">
+    <!-- Identity layer -->
+    <rect x="40"  y="296" width="150" height="56" rx="8" fill="#14141d" stroke="#34d399"/>
+    <text x="115" y="316" fill="#34d399" font-weight="700" text-anchor="middle">Identity</text>
+    <text x="115" y="336" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle">I1 agent-identity</text>
+    <text x="115" y="348" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle">T1 trust-core</text>
+
+    <!-- Evidence layer -->
+    <rect x="200" y="296" width="150" height="56" rx="8" fill="#14141d" stroke="#fbbf24"/>
+    <text x="275" y="316" fill="#fbbf24" font-weight="700" text-anchor="middle">Evidence</text>
+    <text x="275" y="336" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle">E1 flight-recorder</text>
+    <text x="275" y="348" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle">P2 AAR</text>
+
+    <!-- Runtime safety -->
+    <rect x="360" y="296" width="200" height="56" rx="8" fill="#14141d" stroke="#f87171"/>
+    <text x="460" y="316" fill="#f87171" font-weight="700" text-anchor="middle">Runtime Safety</text>
+    <text x="460" y="336" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle">R2 eval-guard · R3 kill-switch</text>
+    <text x="460" y="348" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle">R4 credential-vault</text>
+
+    <!-- Hardware trust -->
+    <rect x="570" y="296" width="150" height="56" rx="8" fill="#14141d" stroke="#60a5fa"/>
+    <text x="645" y="316" fill="#60a5fa" font-weight="700" text-anchor="middle">Hardware Trust</text>
+    <text x="645" y="336" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle">C1-1 nvtrust-bridge</text>
+    <text x="645" y="348" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle">GPU attestation</text>
+
+    <!-- Eval + compliance -->
+    <rect x="730" y="296" width="150" height="56" rx="8" fill="#14141d" stroke="#a78bfa"/>
+    <text x="805" y="316" fill="#a78bfa" font-weight="700" text-anchor="middle">Eval &amp; SBOM</text>
+    <text x="805" y="336" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle">A1 safe-eval · S4 model-sbom</text>
+    <text x="805" y="348" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle">X1 defstack</text>
+  </g>
+
+  <!-- callout: how each path maps -->
+  <g font-family="ui-monospace,monospace" font-size="11">
+    <rect x="40" y="380" width="840" height="160" rx="8" fill="#0d0d16" stroke="#232333"/>
+    <text x="60" y="404" fill="#818cf8" font-weight="700">MCP Server</text>
+    <text x="180" y="404" fill="#c4c4d4">maps 15 tools → HTTP gateways (I1,E1,C1-1,S4,A1,R2,R3,R4) + CLIs (T1,X1)</text>
+    <text x="60" y="428" fill="#818cf8" font-weight="700">Agent SDK</text>
+    <text x="180" y="428" fill="#c4c4d4">same 15 primitives as methods + the @agent.action envelope orchestration</text>
+    <text x="60" y="452" fill="#818cf8" font-weight="700">Harness</text>
+    <text x="180" y="452" fill="#c4c4d4">wraps subprocess → feeds E1 (receipts) + R3 (kill) + R4 (secrets) + allowlist</text>
+    <text x="60" y="484" fill="#a8a8bd" font-style="italic">All three produce the same verifiable artifacts: SPIFFE SVIDs and signed AAR receipts.</text>
+    <text x="60" y="508" fill="#a8a8bd" font-style="italic">All three honor the same invariants: I-05 (revocation), I-07 (pre-commit receipt), I-08 (side-effect ladder), I-09 (fail-closed).</text>
+    <text x="60" y="528" fill="#a78bfa">Source: github.com/MuVeraAI/aumos</text>
+  </g>
+</svg>
+  </div>
+
+  <div class="callout success">
+    <div class="callout-title">One envelope, three on-ramps</div>
+    <p>The architecture is deliberately layered so the integration path is a deployment choice, not an architectural one. An agent that calls the MCP server in standalone mode today can switch to the SDK decorator tomorrow and to a full harness the day after — the receipts, identities, and invariants are identical across all three.</p>
+  </div>
+</section>
+
+<hr>
+
+<section>
+  <h2>Reference</h2>
+  <ul>
+    <li>MCP server source: <code>typescript/aumos-mcp-server/src/index.ts</code> — 15 tools, JSON-RPC 2.0 over stdio.</li>
+    <li>Agent SDK source: <code>python/aumos_agent/src/aumos_agent/__init__.py</code> — <code>@agent.action</code> decorator and manual API.</li>
+    <li>Harness source: <code>python/aumos_harness/src/aumos_harness/__init__.py</code> — <code>secure_session()</code>, config parsers.</li>
+    <li>All packages: <code>github.com/MuVeraAI/aumos</code></li>
+    <li>MCP server npm: <code>@muveraai/aumos-mcp-server</code> &nbsp;·&nbsp; SDK pip: <code>aumos-agent</code> &nbsp;·&nbsp; Harness pip: <code>aumos-harness</code></li>
+  </ul>
+  <p style="color:var(--text-tertiary);font-size:0.88rem;margin-top:var(--space-lg);"><a href="index.html">&larr; Back to AumOS documentation index</a></p>
+</section>
+
+</div>
+
+</body>
+</html>
