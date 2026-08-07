@@ -1,0 +1,348 @@
+# SPIRE Server — Kubernetes manifests for the AumOS trust domain (aumos.dev).
+#
+# Deploys:
+#   - Namespace + service account
+#   - ConfigMap with spire-server.conf (HCL)
+#   - Deployment (1 replica — SPIRE server is active/passive; use the SPIRE
+#     Helm chart's HA mode for >1 replicas with a shared datastore)
+#   - Service exposing the agent (8081), bundle (8443/443), and health (8080) ports
+#   - Required RBAC (ClusterRole to read projected SA tokens + configmaps)
+#
+# Aligns with deploy/helm/aumos/values.yaml:
+#     global.trustDomain: aumos.dev
+#     global.mtls.spireServer: spire-server.spire.svc.cluster.local
+#
+# This is a real manifest following the official SPIRE Helm chart patterns
+# (https://github.com/spiffe/helm-charts-hardened). For production HA use the
+# Helm chart instead of applying this YAML directly.
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spire
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-server
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/part-of: aumos
+---
+# ClusterRole + binding: SPIRE server must (a) token-review projected service
+# account tokens presented by agents (NodeAttestor k8s_psat) and (b) write the
+# trust bundle to a ConfigMap that workloads + agents read.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-server-trust-domain
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/part-of: aumos
+rules:
+  # k8s_psat NodeAttestor + WorkloadAttestor (token review of projected SA tokens)
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["tokenreviews"]
+    verbs: ["create", "get"]
+  # k8sbundle Notifier — publish the bundle to a ConfigMap in spire namespace
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # k8s WorkloadAttestor — inspect pods/SA for SVID selector attributes
+  - apiGroups: [""]
+    resources: ["pods", "serviceaccounts", "nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-server-trust-domain
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/part-of: aumos
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-server-trust-domain
+subjects:
+  - kind: ServiceAccount
+    name: spire-server
+    namespace: spire
+---
+# spire-server.conf — loaded by the server container at /opt/spire/conf/server/server.conf.
+# Trust domain matches global.trustDomain in deploy/helm/aumos/values.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-server
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/part-of: aumos
+data:
+  server.conf: |
+    server {
+      # Bind for agent traffic. Service spire-server publishes this as 8081.
+      bind_address = "0.0.0.0"
+      bind_port    = "8081"
+      socket_path  = "/tmp/spire-server/private/api.sock"
+      trust_domain = "aumos.dev"
+      data_dir     = "/run/spire/data"
+      log_level    = "INFO"
+
+      # SVID lifetimes — AumOS workloads rotate via the SPIFFE CSI driver.
+      ca_ttl          = "24h"
+      default_svid_ttl = "1h"
+
+      # CA subject embedded in the leaf SVIDs (EU AI Act §68 chain-of-custody).
+      ca_subject = {
+        country      = ["US"]
+        organization = ["AumOS — Open Secure AI Alliance"]
+        common_name  = "aumos.dev SPIRE CA"
+      }
+
+      # Bundle endpoint — used for SPIFFE federation across clusters / regions.
+      # Published on port 8443 by the spire-server Service below.
+      bundle_endpoint {
+        address = "0.0.0.0"
+        port    = 8443
+      }
+    }
+
+    plugins {
+      # SQLite datastore. For HA, switch to Postgres (see SPIRE Helm chart).
+      DataStore "sql" {
+        plugin_data {
+          database_type     = "sqlite3"
+          connection_string = "/run/spire/data/datastore.sqlite3"
+        }
+      }
+
+      # Keys persisted on disk. For prod, use the AWS KMS / Vault KeyManager.
+      KeyManager "disk" {
+        plugin_data {
+          keys_path = "/run/spire/data/keys.json"
+        }
+      }
+
+      # Attest agents using Kubernetes Projected Service Account Tokens (PSAT).
+      # Only the spire-agent SA in the spire namespace may enroll.
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+          clusters = {
+            "aumos-cluster" = {
+              service_account_whitelist = ["spire:spire-agent"]
+            }
+          }
+        }
+      }
+
+      # Self-signed CA bootstrapped from disk. Replace with:
+      #   UpstreamAuthority "aws_private_ca" / "vault" / "cert-manager"
+      # for a publicly-rooted chain.
+      UpstreamAuthority "disk" {
+        plugin_data {
+          cert_file_path = "/run/spire/conf/root.crt"
+          key_file_path  = "/run/spire/conf/root.key"
+        }
+      }
+
+      # Continuously publish the trust bundle to the spire-bundle ConfigMap
+      # so that agents (and any non-SPIRE workload) can bootstrap trust.
+      Notifier "k8sbundle" {
+        plugin_data {
+          namespace = "spire"
+        }
+      }
+    }
+
+    health_checks {
+      listener_enabled = true
+      bind_address     = "0.0.0.0"
+      bind_port        = "8080"
+      live_path        = "/live"
+      ready_path       = "/ready"
+    }
+
+    telemetry {
+      Prometheus {
+        port = 9988
+      }
+    }
+---
+# Bootstrap secrets: the self-signed root CA used by UpstreamAuthority "disk".
+# In production these are created out-of-band (cert-manager / Vault / HSM).
+# Replace before applying. Keep out of git.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: spire-server-bootstrap
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/part-of: aumos
+type: Opaque
+# stringData left empty on purpose — operator must supply root.crt / root.key.
+# Example:
+#   stringData:
+#     root.crt: |
+#       -----BEGIN CERTIFICATE-----
+#       ...
+#       -----END CERTIFICATE-----
+#     root.key: |
+#       -----BEGIN PRIVATE KEY-----
+#       ...
+#       -----END PRIVATE KEY-----
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spire-server
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/part-of: aumos
+spec:
+  # SPIRE server is active/passive with a self-contained SQLite store, so run 1
+  # replica with this manifest. For HA, use the upstream Helm chart + Postgres.
+  replicas: 1
+  strategy:
+    type: Recreate   # avoid split-brain: do not RollingUpdate the server
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spire-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: spire-server
+        app.kubernetes.io/part-of: aumos
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9988"
+    spec:
+      serviceAccountName: spire-server
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: spire-server
+          image: ghcr.io/spiffe/spire-server:1.10.0
+          imagePullPolicy: IfNotPresent
+          args: ["-config", "/opt/spire/conf/server/server.conf"]
+          ports:
+            - name: grpc-agent
+              containerPort: 8081
+            - name: bundle
+              containerPort: 8443
+            - name: health
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9988
+          env:
+            # Consumed by AumOS workloads via the bundle endpoint discovery.
+            - name: AUMOS_TRUST_DOMAIN
+              value: "aumos.dev"
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: spire-config
+              mountPath: /opt/spire/conf/server
+              readOnly: true
+            - name: spire-data
+              mountPath: /run/spire/data
+            - name: spire-bootstrap
+              mountPath: /run/spire/conf
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: spire-config
+          configMap:
+            name: spire-server
+        - name: spire-data
+          persistentVolumeClaim:
+            claimName: spire-server-data
+        - name: spire-bootstrap
+          secret:
+            secretName: spire-server-bootstrap
+            items:
+              - key: root.crt
+                path: root.crt
+              - key: root.key
+                path: root.key
+---
+# SQLite + keys need persistence; recreate strategy keeps the PVC across restarts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spire-server-data
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/part-of: aumos
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Service:
+#   8081 → agent gRPC (used by every spire-agent in the cluster)
+#   8443 → bundle endpoint (SPIFFE federation)
+#   8080 → health probes
+#   9988 → Prometheus metrics
+apiVersion: v1
+kind: Service
+metadata:
+  name: spire-server
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-server
+    app.kubernetes.io/part-of: aumos
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: spire-server
+  ports:
+    - name: grpc-agent
+      port: 8081
+      targetPort: grpc-agent
+    - name: bundle
+      port: 8443
+      targetPort: bundle
+    - name: health
+      port: 8080
+      targetPort: health
+    - name: metrics
+      port: 9988
+      targetPort: metrics

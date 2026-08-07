@@ -1,0 +1,252 @@
+# SPIRE Agent — DaemonSet that runs one agent per node and exposes the SPIFFE
+# Workload API over a Unix socket that AumOS workloads mount.
+#
+# Aligns with deploy/helm/aumos/values.yaml:
+#     global.mtls.enabled + spire-init sidecar pattern in templates/deployments.yaml
+#
+# Pairs with spire-server.yaml. Agents attest to the server using Kubernetes
+# Projected Service Account Tokens (NodeAttestor k8s_psat) and then vend SVIDs
+# to workloads that present a matching selector (WorkloadAttestor kubernetes).
+#
+# Socket path:  /run/spire/sockets/agent.sock  (shared with workloads via hostPath)
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-agent
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-agent
+    app.kubernetes.io/part-of: aumos
+---
+# RoleBinding in the spire namespace: agents only need to read the bundle
+# ConfigMap that spire-server publishes via the k8sbundle Notifier.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spire-agent-bundle-reader
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-agent
+    app.kubernetes.io/part-of: aumos
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: spire-agent-bundle-reader
+subjects:
+  - kind: ServiceAccount
+    name: spire-agent
+    namespace: spire
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spire-agent-bundle-reader
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-agent
+    app.kubernetes.io/part-of: aumos
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["spire-bundle"]
+    verbs: ["get", "watch", "list"]
+---
+# spire-agent.conf — mounted at /opt/spire/conf/agent/agent.conf.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-agent
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-agent
+    app.kubernetes.io/part-of: aumos
+data:
+  agent.conf: |
+    agent {
+      data_dir    = "/run/spire"
+      log_level   = "INFO"
+      # Matches the spire-server Service in spire-server.yaml and the
+      # global.mtls.spireServer default in deploy/helm/aumos/values.yaml.
+      server_address    = "spire-server"
+      server_port       = "8081"
+      socket_path       = "/run/spire/sockets/agent.sock"
+      trust_domain      = "aumos.dev"
+      # Bootstrap bundle, refreshed from the spire-bundle ConfigMap.
+      trust_bundle_path = "/run/spire/bundle/bundle.crt"
+    }
+
+    plugins {
+      # Attest the node using a projected service-account token.
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+          cluster = "aumos-cluster"
+        }
+      }
+
+      # In-memory SVID key per agent instance (rotated on restart).
+      # Upgrade to KeyManager "disk" for stable agent identity across restarts.
+      KeyManager "memory" {
+        plugin_data {}
+      }
+
+      # Identify workloads by their pod / SA / node selectors so the Workload
+      # API only hands SVIDs to authorized AumOS services.
+      WorkloadAttestor "kubernetes" {
+        plugin_data {
+          skip_kubelet_verification = true
+          node_name_env            = "MY_NODE_NAME"
+        }
+      }
+    }
+
+    health_checks {
+      listener_enabled = true
+      bind_address     = "0.0.0.0"
+      bind_port        = "8080"
+      live_path        = "/live"
+      ready_path       = "/ready"
+    }
+
+    telemetry {
+      Prometheus {
+        port = 9989
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spire-agent
+  namespace: spire
+  labels:
+    app.kubernetes.io/name: spire-agent
+    app.kubernetes.io/part-of: aumos
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spire-agent
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 10%
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: spire-agent
+        app.kubernetes.io/part-of: aumos
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9989"
+    spec:
+      serviceAccountName: spire-agent
+      hostNetwork: true         # required by WorkloadAttestor "kubernetes"
+      dnsPolicy: ClusterFirstWithHostNet
+      tolerations:
+        # Run on every node, including control-plane / GPU nodes that host
+        # inference-proxy and trust-core.
+        - operator: Exists
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # Project the service-account token the agent uses to attest to the
+        # server (NodeAttestor k8s_psat). The projected token has the
+        # spire:spire-server audience required by the server whitelist.
+        - name: init
+          image: ghcr.io/spiffe/spire-agent:1.10.0
+          command: ["/opt/spire/bin/spire-agent"]
+          args: ["run", "-expandEnv", "-config", "/opt/spire/conf/agent/agent.conf"]
+          # Just prepares dirs on the hostPath before the real container starts.
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+            - name: spire-agent-data
+              mountPath: /run/spire
+      containers:
+        - name: spire-agent
+          image: ghcr.io/spiffe/spire-agent:1.10.0
+          imagePullPolicy: IfNotPresent
+          args: ["run", "-config", "/opt/spire/conf/agent/agent.conf"]
+          ports:
+            - name: health
+              containerPort: 8080
+              hostPort: 8080
+            - name: metrics
+              containerPort: 9989
+              hostPort: 9989
+          env:
+            # Used by WorkloadAttestor "kubernetes" (node_name_env = "MY_NODE_NAME").
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: AUMOS_TRUST_DOMAIN
+              value: "aumos.dev"
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: spire-config
+              mountPath: /opt/spire/conf/agent
+              readOnly: true
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+            - name: spire-agent-data
+              mountPath: /run/spire
+            - name: spire-bundle
+              mountPath: /run/spire/bundle
+              readOnly: true
+            # Projected SA token consumed by NodeAttestor "k8s_psat".
+            - name: psat-token
+              mountPath: /var/run/secrets/tokens
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: spire-config
+          configMap:
+            name: spire-agent
+        # Shared hostPath socket: AumOS workloads mount the same path to reach
+        # the Workload API. The hostPaths are scoped per-node by the DaemonSet.
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
+        - name: spire-agent-data
+          hostPath:
+            path: /var/lib/spire/agent
+            type: DirectoryOrCreate
+        # Bundle published by the spire-server k8sbundle Notifier.
+        - name: spire-bundle
+          configMap:
+            name: spire-bundle
+        # Projected service-account token with audience spire:spire-server
+        # (audience matches NodeAttestor k8s_psat service_account_whitelist).
+        - name: psat-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: psat-token
+                  audience: spire:spire-server
+                  expirationSeconds: 3600

@@ -134,6 +134,18 @@ impl Authenticator for OpenAuth {
     }
 }
 
+/// A fail-closed authenticator — rejects all identities by default (M8 fix).
+/// This is the ProxyBuilder default; production deployments replace it with AllowListAuth.
+pub struct DenyAllAuth;
+
+impl Authenticator for DenyAllAuth {
+    fn verify(&self, identity: &str) -> Result<(), ProxyError> {
+        Err(ProxyError::Unauthorized(format!(
+            "fail-closed default: no authenticator configured (identity {identity} rejected)"
+        )))
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Middleware 2: rate limit (token bucket per identity)
 // ---------------------------------------------------------------------------
@@ -327,11 +339,13 @@ pub struct ProxyBuilder {
 }
 
 impl ProxyBuilder {
-    /// Start with an open authenticator and 100 req/sec limit.
+    /// Start with a fail-closed authenticator (rejects all by default — M8 fix).
+    /// Call `.auth(Box::new(OpenAuth))` explicitly for testing or
+    /// `.auth(Box::new(AllowListAuth::new([...])))` for production.
     #[must_use]
     pub fn new() -> Self {
         Self {
-            auth: Box::new(OpenAuth),
+            auth: Box::new(DenyAllAuth),
             rate_limit_per_sec: 100,
             filter: PromptFilter::new(),
         }
@@ -460,7 +474,7 @@ mod tests {
 
     #[test]
     fn proxy_full_chain_caches_second_call() {
-        let proxy = ProxyBuilder::new().rate_limit(10).build();
+        let proxy = ProxyBuilder::new().auth(Box::new(OpenAuth)).rate_limit(10).build();
         let req = ProxyRequest {
             identity: "id".into(),
             model: "m".into(),
@@ -497,7 +511,7 @@ mod tests {
 
     #[test]
     fn proxy_rejects_injection_prompt() {
-        let proxy = ProxyBuilder::new().build();
+        let proxy = ProxyBuilder::new().auth(Box::new(OpenAuth)).build();
         let req = ProxyRequest {
             identity: "id".into(),
             model: "m".into(),
@@ -507,6 +521,24 @@ mod tests {
             proxy.handle(&req, |_| "x".to_string()),
             Err(ProxyError::PromptRejected(_))
         ));
+    }
+
+    #[test]
+    fn proxy_default_deny_all_rejects_m8() {
+        // M8: ProxyBuilder::new() must default to DenyAllAuth, not OpenAuth.
+        let proxy = ProxyBuilder::new().build();
+        let req = ProxyRequest {
+            identity: "anyone".into(),
+            model: "m".into(),
+            prompt: "hi".into(),
+        };
+        assert!(
+            matches!(
+                proxy.handle(&req, |_| "x".to_string()),
+                Err(ProxyError::Unauthorized(_))
+            ),
+            "default proxy must reject all identities (fail-closed)"
+        );
     }
 
     #[test]

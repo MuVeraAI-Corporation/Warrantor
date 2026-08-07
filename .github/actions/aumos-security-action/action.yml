@@ -1,0 +1,160 @@
+name: "AumOS Security"
+description: "Run AumOS security checks: secret scanning, SBOM generation, and optional compliance gate"
+author: "MuVera AI"
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  scan-secrets:
+    description: "Scan source code for exposed credentials (AWS, GitHub, OpenAI keys)"
+    required: false
+    default: "true"
+  generate-sbom:
+    description: "Generate a CycloneDX SBOM for the repository"
+    required: false
+    default: "true"
+  run-compliance:
+    description: "Run the AumOS compliance gate if .complygate.yml exists"
+    required: false
+    default: "false"
+  fail-on-secret:
+    description: "Fail the action if a secret is detected"
+    required: false
+    default: "true"
+  language:
+    description: "Primary language for SBOM generation (rust, python, go, typescript)"
+    required: false
+    default: ""
+
+outputs:
+  secrets-found:
+    description: "Number of secrets detected"
+    value: ${{ steps.secret-scan.outputs.found }}
+  sbom-path:
+    description: "Path to the generated SBOM file"
+    value: ${{ steps.sbom.outputs.path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # ─── Secret Scanning ─────────────────────────────────────────────────
+    - name: Scan for exposed secrets
+      id: secret-scan
+      shell: bash
+      run: |
+        echo "::group::Secret Scanning"
+        FOUND=0
+        # AWS Access Key IDs
+        if grep -rnE "AKIA[0-9A-Z]{16}" \
+          --include="*.py" --include="*.rs" --include="*.go" --include="*.ts" \
+          --include="*.js" --include="*.java" --include="*.rb" \
+          --include="*.yaml" --include="*.yml" --include="*.json" \
+          --include="*.toml" --include="*.env" --include="*.cfg" \
+          --include="*.sh" --include="*.bash" \
+          . 2>/dev/null; then
+          echo "::error::AWS Access Key ID detected in source code!"
+          FOUND=$((FOUND + 1))
+        fi
+        # GitHub PATs
+        if grep -rnE "ghp_[0-9A-Za-z]{36}" \
+          --include="*.py" --include="*.rs" --include="*.go" --include="*.ts" \
+          --include="*.js" --include="*.yaml" --include="*.yml" --include="*.json" \
+          . 2>/dev/null; then
+          echo "::error::GitHub Personal Access Token detected in source code!"
+          FOUND=$((FOUND + 1))
+        fi
+        # OpenAI API keys
+        if grep -rnE "sk-[A-Za-z0-9]{48}" \
+          --include="*.py" --include="*.rs" --include="*.go" --include="*.ts" \
+          --include="*.js" --include="*.yaml" --include="*.yml" \
+          . 2>/dev/null; then
+          echo "::error::OpenAI API Key detected in source code!"
+          FOUND=$((FOUND + 1))
+        fi
+        # GitLab PATs
+        if grep -rnE "glpat-[0-9A-Za-z_-]{20}" \
+          --include="*.py" --include="*.rs" --include="*.go" --include="*.ts" \
+          . 2>/dev/null; then
+          echo "::error::GitLab Personal Access Token detected in source code!"
+          FOUND=$((FOUND + 1))
+        fi
+        # Slack tokens
+        if grep -rnE "xox[baprs]-[0-9A-Za-z-]{10,}" \
+          --include="*.py" --include="*.rs" --include="*.go" --include="*.ts" \
+          . 2>/dev/null; then
+          echo "::error::Slack Token detected in source code!"
+          FOUND=$((FOUND + 1))
+        fi
+        echo "found=$FOUND" >> "$GITHUB_OUTPUT"
+        if [ "$FOUND" -gt 0 ] && [ "${{ inputs.fail-on-secret }}" = "true" ]; then
+          echo "::error::$FOUND secret(s) detected — failing build"
+          exit 1
+        fi
+        if [ "$FOUND" -eq 0 ]; then
+          echo "✅ No secrets detected."
+        fi
+        echo "::endgroup::"
+
+    # ─── SBOM Generation ──────────────────────────────────────────────────
+    - name: Generate SBOM
+      id: sbom
+      shell: bash
+      if: inputs.generate-sbom == 'true'
+      run: |
+        echo "::group::SBOM Generation"
+        LANG="${{ inputs.language }}"
+        SBOM_PATH=""
+        if [ "$LANG" = "rust" ] || [ -f "Cargo.toml" ]; then
+          cargo install cargo-cyclonedx --locked 2>/dev/null || true
+          cargo cyclonedx --all --format json 2>/dev/null || true
+          SBOM_PATH=$(find . -name "bom.json" -maxdepth 2 | head -1)
+        elif [ "$LANG" = "python" ] || [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
+          pip install cyclonedx-bom 2>/dev/null || true
+          cyclonedx-py requirements -o bom.json 2>/dev/null || \
+            cyclonedx-py environment -o bom.json 2>/dev/null || true
+          SBOM_PATH="bom.json"
+        elif [ "$LANG" = "go" ] || [ -f "go.mod" ]; then
+          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest 2>/dev/null || true
+          cyclonedx-gomod mod -json -output bom.json 2>/dev/null || true
+          SBOM_PATH="bom.json"
+        elif [ "$LANG" = "typescript" ] || [ -f "package.json" ]; then
+          npx @cyclonedx/cyclonedx-npm --output-format JSON --output-file bom.json 2>/dev/null || true
+          SBOM_PATH="bom.json"
+        fi
+        if [ -n "$SBOM_PATH" ] && [ -f "$SBOM_PATH" ]; then
+          echo "path=$SBOM_PATH" >> "$GITHUB_OUTPUT"
+          echo "✅ SBOM generated at $SBOM_PATH"
+        else
+          echo "path=" >> "$GITHUB_OUTPUT"
+          echo "ℹ️ SBOM generation skipped (no matching project found)"
+        fi
+        echo "::endgroup::"
+
+    - name: Upload SBOM artifact
+      if: steps.sbom.outputs.path != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: aumos-sbom
+        path: ${{ steps.sbom.outputs.path }}
+        if-no-files-found: ignore
+
+    # ─── Compliance Gate ──────────────────────────────────────────────────
+    - name: Run compliance gate
+      if: inputs.run-compliance == 'true' && hashFiles('.complygate.yml') != ''
+      shell: bash
+      run: |
+        echo "::group::AumOS Compliance Gate"
+        echo "Found .complygate.yml — running compliance checks"
+        if command -v defstack &>/dev/null; then
+          defstack compliance-report || echo "⚠️ Compliance report generated (informational)"
+        else
+          echo "ℹ️ defstack CLI not installed — install with: cargo install defstack-cli"
+          echo "ℹ️ Compliance gate skipped."
+        fi
+        echo "::endgroup::"

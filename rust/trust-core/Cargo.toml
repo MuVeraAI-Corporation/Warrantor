@@ -20,7 +20,7 @@ serde.workspace = true
 serde_cbor = "0.11"
 zeroize.workspace = true
 clap.workspace = true
-ed25519-dalek = { version = "2", features = ["rand_core"] }
+ed25519-dalek = { version = "2", features = ["rand_core", "zeroize"] }
 rand = "0.8"
 sha2 = "0.10"
 hex = "0.4"
