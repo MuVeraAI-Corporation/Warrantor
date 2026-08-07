@@ -26,11 +26,20 @@ type IssueRequest struct {
 }
 
 // IssueResponse mirrors proto/aumos/identity/v1/IssueIdentityResponse.
+//
+// H2 wire-shape alignment: the proto field is `capability_token` (the short-lived capability
+// token string), but the previous Go struct exposed it as `capability_jti` (carrying only the
+// token's id, not the token). This renamed field now carries the actual signed capability token
+// so the JSON wire shape matches the proto field-for-field. The `verifying_key` field is a v1.0
+// deviation: the proto carries it indirectly via the AAE signature; we expose it explicitly here
+// so callers can verify tokens cross-language via T1 trust-core without parsing the AAE first.
+// A future `buf generate` task (03) will replace this hand-mirrored struct with generated
+// connect-go stubs that match the proto exactly.
 type IssueResponse struct {
-	SVID           string `json:"svid"`
-	CapabilityJTI  string `json:"capability_jti"`
-	VerifyingKey   string `json:"verifying_key"`
-	ExpiresAt      int64  `json:"expires_at"`
+	SVID            string `json:"svid"`
+	CapabilityToken string `json:"capability_token"`
+	VerifyingKey    string `json:"verifying_key"`
+	ExpiresAt       int64  `json:"expires_at"`
 }
 
 // VerifyRequest mirrors proto/aumos/identity/v1/VerifyIdentityRequest.
@@ -102,10 +111,10 @@ func (g *HTTPGateway) handleIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, IssueResponse{
-		SVID:          svid.Token,
-		CapabilityJTI: svid.CapabilityJTI,
-		VerifyingKey:  svid.VerifyingKey,
-		ExpiresAt:     svid.ExpiresAt,
+		SVID:            svid.Token,
+		CapabilityToken: svid.CapabilityToken,
+		VerifyingKey:    svid.VerifyingKey,
+		ExpiresAt:       svid.ExpiresAt,
 	})
 }
 

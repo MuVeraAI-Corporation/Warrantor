@@ -142,7 +142,15 @@ pub fn execute_kill_with(
     trigger: KillTrigger,
 ) -> Result<KillOutcome, KillError> {
     let start = Instant::now();
+    // H8 fix: check budget BEFORE each major step, not just at the end
     policy.decide(&trigger)?;
+    // Deadline check after policy decision
+    if start.elapsed() > KILL_BUDGET {
+        return Err(KillError::BudgetExceeded {
+            elapsed: start.elapsed(),
+            budget: KILL_BUDGET,
+        });
+    }
     // Wave-1 mock execution: record the canonical 5 actions without actually doing them.
     let mut actions = vec![
         "suspend_model".into(),
@@ -151,11 +159,19 @@ pub fn execute_kill_with(
         "isolate_network_namespace".into(),
         "wipe_transient_memory".into(),
     ];
+    // Deadline check after execution actions
+    if start.elapsed() > KILL_BUDGET {
+        return Err(KillError::BudgetExceeded {
+            elapsed: start.elapsed(),
+            budget: KILL_BUDGET,
+        });
+    }
     let mut government_ack = None;
     if let KillTrigger::RegulatoryOrder { order_id } = &trigger {
         actions.push(format!("notify_government_api:{order_id}"));
         government_ack = Some(notify_government_api(order_id)?);
     }
+    // Final deadline check
     let elapsed = start.elapsed();
     if elapsed > KILL_BUDGET {
         return Err(KillError::BudgetExceeded {

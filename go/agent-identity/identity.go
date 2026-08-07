@@ -215,16 +215,37 @@ func (s *Service) Issue(subject string, attrs AgentAttributes, claims Capability
 		return nil, err
 	}
 
+	// Issue the short-lived capability token bound to this SVID (H2: previously this was a stub
+	// that only minted a JTI without signing a token; now we sign a real capability token whose
+	// JSON shape matches a subset of the AAE P1, so the wire field `capability_token` carries the
+	// actual token, not just its id).
 	capJTI := newJTI()
+	capNow := time.Now()
+	capPayload := capabilityTokenClaims{
+		Issuer:          fmt.Sprintf("spiffe://%s/agent-identity", s.trustDomain),
+		Subject:         subject,
+		Tools:           claims.Tools,
+		DataClasses:     claims.DataClasses,
+		SideEffectClass: claims.SideEffectClass,
+		Geography:       claims.Geography,
+		DelegationDepth: claims.DelegationDepth,
+		IssuedAt:        capNow.Unix(),
+		ExpiresAt:       capNow.Add(DefaultCapabilityTokenTTL).Unix(),
+		JTI:             capJTI,
+	}
+	capToken, err := s.signCapability(capPayload)
+	if err != nil {
+		return nil, err
+	}
 	s.authorities[subject] = claims
-	_ = capJTI // capability token issuance would sign a CapabilityClaims JWT here.
 
 	return &SVID{
-		Token:         token,
-		VerifyingKey:  s.VerifyingKeyHex(),
-		Subject:       subject,
-		ExpiresAt:     payload.ExpiresAt,
-		CapabilityJTI: capJTI,
+		Token:           token,
+		VerifyingKey:    s.VerifyingKeyHex(),
+		Subject:         subject,
+		ExpiresAt:       payload.ExpiresAt,
+		CapabilityToken: capToken,
+		CapabilityJTI:   capJTI,
 	}, nil
 }
 
@@ -298,6 +319,19 @@ func (s *Service) sign(claims svidClaims) (string, error) {
 	body, err := json.Marshal(claims)
 	if err != nil {
 		return "", fmt.Errorf("identity: marshal claims: %w", err)
+	}
+	sig := ed25519.Sign(s.signingKey, body)
+	return hex.EncodeToString(body) + "." + hex.EncodeToString(sig), nil
+}
+
+// signCapability canonicalizes the capability-token claims to JSON and signs them with the
+// service's Ed25519 key. Same encoding scheme as [sign] (hex(body) "." hex(sig)) so the token
+// is verifiable cross-language via T1 trust-core. Used by Issue to mint the real capability
+// token bound to an SVID (H2: previously only the JTI was minted).
+func (s *Service) signCapability(claims capabilityTokenClaims) (string, error) {
+	body, err := json.Marshal(claims)
+	if err != nil {
+		return "", fmt.Errorf("identity: marshal capability claims: %w", err)
 	}
 	sig := ed25519.Sign(s.signingKey, body)
 	return hex.EncodeToString(body) + "." + hex.EncodeToString(sig), nil

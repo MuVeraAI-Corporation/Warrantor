@@ -73,7 +73,7 @@ agent.sign(data)                        → str          # Ed25519 hex signature
 agent.verify(data, signature, key)      → bool         # (T1)
 agent.emit_receipt(actor, tool, outcome)→ Receipt      # (E1) — receipt_id + signature
 agent.verify_receipt(receipt_id)        → dict
-agent.issue_identity(subject)           → dict         # svid, capability_jti, verifying_key
+agent.issue_identity(subject)           → dict         # svid, capability_token, verifying_key
 agent.verify_identity(svid)             → dict         # {valid, subject, reason?}
 agent.revoke_identity(jti)              → dict
 agent.check_attestation(nonce=...)      → dict         # (C1-1)

@@ -1,10 +1,15 @@
 package identity
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
 )
+
+// hexDecode is a thin wrapper used by the H2 wire-shape tests.
+func hexDecode(s string) ([]byte, error) { return hex.DecodeString(s) }
 
 func TestIssueAndVerifyRoundTrip(t *testing.T) {
 	svc, err := NewService("aumos.dev")
@@ -204,6 +209,88 @@ func TestVerifyingKeyHexIsStable(t *testing.T) {
 	}
 	if len(k1) != 64 { // 32 bytes hex
 		t.Errorf("verifying key hex length = %d, want 64", len(k1))
+	}
+}
+
+// TestCapabilityTokenIssued_H2 covers the H2 wire-shape fix: Issue must populate a signed
+// capability token (not just the JTI), and the wire shape must expose `capability_token` so it
+// matches proto/aumos/identity/v1/IssueIdentityResponse.capability_token.
+func TestCapabilityTokenIssued_H2(t *testing.T) {
+	svc, _ := NewService("aumos.dev")
+	svid, err := svc.Issue(
+		"spiffe://aumos.dev/agent/cap",
+		AgentAttributes{Publisher: "aumos.dev/coding-agent"},
+		CapabilityClaims{
+			Tools:           []string{"github", "slack"},
+			DataClasses:     []string{"L0"},
+			SideEffectClass: "write",
+			Geography:       "US",
+			DelegationDepth: 2,
+		},
+		"",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("Issue: %v", err)
+	}
+
+	// The capability token must be a real signed token (not empty, not just the JTI).
+	if svid.CapabilityToken == "" {
+		t.Fatal("CapabilityToken must be populated (H2: previously only the JTI was minted)")
+	}
+	if svid.CapabilityToken == svid.CapabilityJTI {
+		t.Fatal("CapabilityToken must be the signed token, not equal to the JTI")
+	}
+	// The token must be of the form hex(body) "." hex(sig).
+	parts := strings.SplitN(svid.CapabilityToken, ".", 2)
+	if len(parts) != 2 {
+		t.Fatalf("capability token must be hex.hex, got %q", svid.CapabilityToken)
+	}
+	body, err := hexDecode(parts[0])
+	if err != nil {
+		t.Fatalf("capability token body hex decode: %v", err)
+	}
+	// The capability token body must be a capabilityTokenClaims JSON (contains a "jti" field).
+	if !strings.Contains(string(body), `"jti"`) {
+		t.Errorf("capability token body must contain a jti claim, got: %s", body)
+	}
+}
+
+// TestIssueResponseWireShape_H2 verifies the JSON wire shape emitted by the gateway carries the
+// proto field name `capability_token` (not the old `capability_jti`).
+func TestIssueResponseWireShape_H2(t *testing.T) {
+	svc, _ := NewService("aumos.dev")
+	svid, _ := svc.Issue(
+		"spiffe://aumos.dev/agent/wire",
+		AgentAttributes{},
+		CapabilityClaims{Tools: []string{"github"}},
+		"",
+		"",
+	)
+	resp := IssueResponse{
+		SVID:            svid.Token,
+		CapabilityToken: svid.CapabilityToken,
+		VerifyingKey:    svid.VerifyingKey,
+		ExpiresAt:       svid.ExpiresAt,
+	}
+	out, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	jsonStr := string(out)
+	if !strings.Contains(jsonStr, `"capability_token"`) {
+		t.Errorf("wire shape must carry capability_token, got: %s", jsonStr)
+	}
+	if strings.Contains(jsonStr, `"capability_jti"`) {
+		t.Errorf("wire shape must NOT carry capability_jti (renamed in H2), got: %s", jsonStr)
+	}
+	// Round-trip: the JSON must deserialize back into IssueResponse with the token populated.
+	var back IssueResponse
+	if err := json.Unmarshal(out, &back); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if back.CapabilityToken != svid.CapabilityToken {
+		t.Errorf("round-trip capability_token mismatch")
 	}
 }
 

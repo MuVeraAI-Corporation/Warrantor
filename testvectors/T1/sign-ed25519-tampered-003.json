@@ -1,0 +1,11 @@
+{
+  "id": "T1-sign-ed25519-tampered-003",
+  "description": "Tampered-signature golden vector for cross-language conformance (negative case). This is the same (payload, verifying_key) as sign-ed25519-conformance-001.json, but one byte of the signature has been flipped (the first hex char changed from 'e' to 'f', which flips bit 0 of the first signature byte). Every language verifier MUST reject this signature (expected=invalid). This locks the negative path of the conformance suite: a verifier that accepts a tampered signature is a critical security regression.",
+  "payload_utf8": "hello aumos conformance",
+  "payload_hex": "68656c6c6f2061756d6f7320636f6e666f726d616e6365",
+  "verifying_key_hex": "7cbac338e3085b21a6a8efb11a133fc5113139790cd575b6446257e6662a17e5",
+  "signature_hex": "fa8dcd4439664ace8d409d8932947dffd1a987fee6977d6c21064db095c021d832b21368b5b4f2e32a6575d74e5c15d95ca91a0277895a72e09fbac8bebac003",
+  "expected": "invalid",
+  "tamper": "first signature byte 0xea -> 0xfa (bit 0 of the high nibble flipped)",
+  "notes": "Derived from sign-ed25519-conformance-001.json. The conformance runner treats expected=invalid as a pass only when the verifier rejects the signature; a verifier that accepts it fails the suite."
+}

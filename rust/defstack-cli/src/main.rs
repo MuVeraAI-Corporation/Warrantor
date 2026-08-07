@@ -341,29 +341,27 @@ kill_on_secret_exposure = true
                             .status();
                     }
                     "go" => {
-                        for entry in std::fs::read_dir("go").unwrap_or_else(|_| {
-                            eprintln!(" No go/ directory found");
-                            std::process::exit(1);
-                        }) {
-                            if let Ok(e) = entry {
+                        if let Ok(entries) = std::fs::read_dir("go") {
+                            for entry in entries.flatten() {
                                 let _ = std::process::Command::new("go")
                                     .args(["test", "./..."])
-                                    .current_dir(e.path())
+                                    .current_dir(entry.path())
                                     .status();
                             }
+                        } else {
+                            eprintln!(" No go/ directory found");
                         }
                     }
                     "python" => {
-                        for entry in std::fs::read_dir("python").unwrap_or_else(|_| {
-                            eprintln!(" No python/ directory found");
-                            std::process::exit(1);
-                        }) {
-                            if let Ok(e) = entry {
+                        if let Ok(entries) = std::fs::read_dir("python") {
+                            for entry in entries.flatten() {
                                 let _ = std::process::Command::new("python")
                                     .args(["-m", "pytest", "-q"])
-                                    .current_dir(e.path())
+                                    .current_dir(entry.path())
                                     .status();
                             }
+                        } else {
+                            eprintln!(" No python/ directory found");
                         }
                     }
                     "typescript" | "ts" => {

@@ -13,7 +13,7 @@ HTTP/JSON at the endpoints defined in `go/agent-identity/service.go`:
 
 | RPC | Method + path | Request body | Response body |
 |---|---|---|---|
-| `Issue` | `POST /v1/agent-identity:issue` | `IssueRequest` (subject, attributes, claims, parent_svid) | `IssueResponse` (svid, capability_jti, verifying_key, expires_at) |
+| `Issue` | `POST /v1/agent-identity:issue` | `IssueRequest` (subject, attributes, claims, parent_svid) | `IssueResponse` (svid, capability_token, verifying_key, expires_at) |
 | `Verify` | `POST /v1/agent-identity:verify` | `VerifyRequest` (svid, audience) | `VerifyResponse` (valid, reason, subject) |
 | `Revoke` | `POST /v1/agent-identity:revoke` | `RevokeRequest` (jti, reason) | `RevokeResponse` (revoked, revoked_at) |
 | `Health` | `GET /healthz` | — | `{"status":"ok"}` |

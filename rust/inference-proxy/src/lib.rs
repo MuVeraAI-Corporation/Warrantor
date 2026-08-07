@@ -140,7 +140,8 @@ impl RateLimiter {
     /// # Errors
     /// Returns [`ProxyError::RateLimitExceeded`] if the bucket is empty.
     pub fn check(&self, identity: &str) -> Result<(), ProxyError> {
-        let mut state = self.state.lock().expect("rate limiter lock");
+        // H7 fix: recover from poisoned mutex instead of panicking (panic=abort in release)
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         let now = Instant::now();
         let bucket = state.entry(identity.to_string()).or_insert(Bucket {
             tokens: f64::from(self.limit_per_sec),
@@ -256,19 +257,19 @@ impl Cache {
 
     /// Look up a cached response.
     pub fn get(&self, model: &str, prompt: &str) -> Option<String> {
-        let store = self.store.lock().expect("cache lock");
+        let store = self.store.lock().unwrap_or_else(|e| e.into_inner());
         store.get(&Self::key(model, prompt)).cloned()
     }
 
     /// Store a response.
     pub fn put(&self, model: &str, prompt: &str, response: &str) {
-        let mut store = self.store.lock().expect("cache lock");
+        let mut store = self.store.lock().unwrap_or_else(|e| e.into_inner());
         store.insert(Self::key(model, prompt), response.to_string());
     }
 
     /// Number of cached entries.
     pub fn len(&self) -> usize {
-        self.store.lock().expect("cache lock").len()
+        self.store.lock().unwrap_or_else(|e| e.into_inner()).len()
     }
 
     /// Whether the cache is empty.
