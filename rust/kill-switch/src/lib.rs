@@ -141,16 +141,36 @@ pub fn execute_kill_with(
     policy: &dyn PolicyEngine,
     trigger: KillTrigger,
 ) -> Result<KillOutcome, KillError> {
+    execute_kill_with_budget(policy, trigger, KILL_BUDGET)
+}
+
+/// Execute a kill with a custom policy engine AND a custom end-to-end budget.
+///
+/// **H8**: previously the budget was only checked AFTER every step completed — a slow policy
+/// decision or a slow government notification would run to completion and only then report
+/// `BudgetExceeded`, by which point the damage (uncontained agent) was already done. This
+/// entrypoint checks the deadline BEFORE each major step (policy decision, execution,
+/// government notify) so we bail the moment we know we cannot finish in budget, rather than
+/// after the fact. The default [`execute_kill`] / [`execute_kill_with`] pass [`KILL_BUDGET`];
+/// tests pass a tiny budget plus a slow policy engine to exercise the early-bail path without
+/// sleeping for seconds.
+///
+/// # Errors
+/// Returns [`KillError::BudgetExceeded`] as soon as a pre-step deadline check fails (with the
+/// elapsed time at that point), [`KillError::PolicyDenied`] if the trigger does not satisfy the
+/// policy, or [`KillError::ExecutionFailed`] if the execution layer fails.
+pub fn execute_kill_with_budget(
+    policy: &dyn PolicyEngine,
+    trigger: KillTrigger,
+    budget: Duration,
+) -> Result<KillOutcome, KillError> {
     let start = Instant::now();
-    // H8 fix: check budget BEFORE each major step, not just at the end
+    // H8: deadline check BEFORE the policy decision. If we have already blown the budget before
+    // even deciding, bail immediately.
+    check_budget(start, budget)?;
     policy.decide(&trigger)?;
-    // Deadline check after policy decision
-    if start.elapsed() > KILL_BUDGET {
-        return Err(KillError::BudgetExceeded {
-            elapsed: start.elapsed(),
-            budget: KILL_BUDGET,
-        });
-    }
+    // H8: deadline check BEFORE the execution layer runs.
+    check_budget(start, budget)?;
     // Wave-1 mock execution: record the canonical 5 actions without actually doing them.
     let mut actions = vec![
         "suspend_model".into(),
@@ -159,25 +179,18 @@ pub fn execute_kill_with(
         "isolate_network_namespace".into(),
         "wipe_transient_memory".into(),
     ];
-    // Deadline check after execution actions
-    if start.elapsed() > KILL_BUDGET {
-        return Err(KillError::BudgetExceeded {
-            elapsed: start.elapsed(),
-            budget: KILL_BUDGET,
-        });
-    }
     let mut government_ack = None;
     if let KillTrigger::RegulatoryOrder { order_id } = &trigger {
+        // H8: deadline check BEFORE the government notification (the slowest external call).
+        check_budget(start, budget)?;
         actions.push(format!("notify_government_api:{order_id}"));
         government_ack = Some(notify_government_api(order_id)?);
     }
-    // Final deadline check
     let elapsed = start.elapsed();
-    if elapsed > KILL_BUDGET {
-        return Err(KillError::BudgetExceeded {
-            elapsed,
-            budget: KILL_BUDGET,
-        });
+    // Final guard: catches the case where the very last step itself pushed us over budget (the
+    // pre-step check before that step could not have known).
+    if elapsed > budget {
+        return Err(KillError::BudgetExceeded { elapsed, budget });
     }
     Ok(KillOutcome {
         trigger,
@@ -185,6 +198,18 @@ pub fn execute_kill_with(
         actions_taken: actions,
         government_ack,
     })
+}
+
+/// H8 helper: return `Err(BudgetExceeded)` if the elapsed time since `start` exceeds `budget`.
+/// Called before each major step in [`execute_kill_with_budget`] so we bail early rather than
+/// after a slow step completes.
+fn check_budget(start: Instant, budget: Duration) -> Result<(), KillError> {
+    let elapsed = start.elapsed();
+    if elapsed > budget {
+        Err(KillError::BudgetExceeded { elapsed, budget })
+    } else {
+        Ok(())
+    }
 }
 
 /// Notify the Government Compliance API (stubbed in Wave-1; real HTTPS call in task 03).
@@ -301,5 +326,89 @@ mod tests {
         assert!(json.contains(r#""type":"sandbox_escape""#), "got: {json}");
         let back: KillTrigger = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back, t);
+    }
+
+    #[test]
+    fn budget_exceeded_bails_before_policy_decision_h8() {
+        // H8: if the budget is already exhausted before we even decide policy, we must bail
+        // before invoking the policy engine (not run it and then bail). We assert this by
+        // using a policy engine that would record a call; with a zero budget the pre-decision
+        // check fires first and the engine is never consulted.
+        struct CountingPolicy {
+            calls: std::sync::Mutex<u32>,
+        }
+        impl PolicyEngine for CountingPolicy {
+            fn decide(&self, _: &KillTrigger) -> Result<(), KillError> {
+                let mut c = self.calls.lock().unwrap();
+                *c += 1;
+                Ok(())
+            }
+        }
+        let engine = CountingPolicy {
+            calls: std::sync::Mutex::new(0),
+        };
+        // budget of 0 means any elapsed time > 0 trips the check. A Duration(0) compare still
+        // passes on truly-instantaneous code, so use 1 nanosecond and rely on the policy-decide
+        // path having taken at least one ns. To make the test deterministic, use a SlowPolicy
+        // below for the positive over-budget test; this test asserts the never-called property
+        // with a budget so small the pre-check trips before decide().
+        let res = execute_kill_with_budget(
+            &engine,
+            KillTrigger::SandboxEscape { confidence: 0.9 },
+            Duration::from_nanos(0),
+        );
+        // Either it tripped at the first pre-check (BudgetExceeded) without calling decide, or
+        // (vanishingly unlikely) it slipped through. The load-bearing assertion: the counting
+        // engine was NOT consulted when we exceeded budget up front.
+        if let Err(KillError::BudgetExceeded { .. }) = res {
+            let calls = *engine.calls.lock().unwrap();
+            assert_eq!(
+                calls, 0,
+                "policy engine must not be consulted after the pre-decision budget check trips"
+            );
+        }
+    }
+
+    #[test]
+    fn slow_policy_decision_bails_before_execution_h8() {
+        // H8: a policy decision that itself consumes the budget must bail BEFORE the execution
+        // layer runs. We model this with a SlowPolicy that sleeps past the budget, then check
+        // that the outcome is BudgetExceeded (not a successful kill).
+        struct SlowPolicy;
+        impl PolicyEngine for SlowPolicy {
+            fn decide(&self, _: &KillTrigger) -> Result<(), KillError> {
+                std::thread::sleep(Duration::from_millis(40));
+                Ok(())
+            }
+        }
+        let res = execute_kill_with_budget(
+            &SlowPolicy,
+            KillTrigger::SandboxEscape { confidence: 0.9 },
+            Duration::from_millis(10),
+        );
+        match res {
+            Err(KillError::BudgetExceeded { budget, .. }) => {
+                assert_eq!(budget, Duration::from_millis(10));
+            }
+            other => panic!("expected BudgetExceeded after slow policy, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn deadline_check_helper_is_correct_h8() {
+        // H8: the check_budget helper is the load-bearing primitive. Direct unit test.
+        let start = Instant::now();
+        std::thread::sleep(Duration::from_millis(5));
+        // budget larger than elapsed -> Ok.
+        assert!(check_budget(start, Duration::from_secs(1)).is_ok());
+        // budget smaller than elapsed -> Err(BudgetExceeded).
+        let err = check_budget(start, Duration::from_nanos(0));
+        match err {
+            Err(KillError::BudgetExceeded { elapsed, budget }) => {
+                assert!(elapsed > Duration::from_nanos(0));
+                assert_eq!(budget, Duration::from_nanos(0));
+            }
+            other => panic!("expected BudgetExceeded, got {other:?}"),
+        }
     }
 }
