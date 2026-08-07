@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AumOS — Gap Analysis & Feature Catalog | MuVera AI</title>
+<meta name="description" content="The definitive 'what do we have, what's missing, what's next' document for AumOS. Implementation gap analysis, full developer & enterprise feature catalog, and what MUST be added beyond the 49 components and 12 protocols.">
+<meta property="og:title" content="AumOS — Gap Analysis & Feature Catalog">
+<meta property="og:description" content="Did we miss anything? What are ALL the features? What MUST we add? The comprehensive catalog.">
+<meta property="og:type" content="website">
+<style>
+/* ============================================================================
+   SECTION 1 — aumos-docs.css INLINED VERBATIM (the source of truth stylesheet)
+   Source: docs/html/aumos-docs.css
+   ============================================================================ */
+
+/* AumOS Documentation — Anthropic-inspired Style System */
+/* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
+   serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
+
+:root {
+  /* Color palette — warm neutrals + clay/coral accent */
+  --bg-primary: #faf9f7;
+  --bg-secondary: #f5f3ef;
+  --bg-card: #ffffff;
+  --bg-code: #1e1e2e;
+  --bg-callout: #fdf6f0;
+  --bg-warning: #fef9f0;
+  --bg-danger: #fdf2f0;
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
+  --text-code: #c4c4d4;
+  --text-on-dark: #e8e8e8;
+
+  --accent: #d97757;        /* Claude clay/coral */
+  --accent-hover: #c4623d;
+  --accent-light: #f4e6df;
+  --accent-subtle: #faf0eb;
+
+  --border: #e5e2dc;
+  --border-strong: #d1ccc3;
+  --border-accent: #d97757;
+
+  --green: #5a8055;
+  --green-light: #edf5ed;
+  --amber: #b8860b;
+  --amber-light: #fef9ef;
+  --red: #b94a48;
+  --red-light: #fdf2f0;
+  --blue: #4a6fa5;
+  --blue-light: #eef3fa;
+
+  /* Typography */
+  --font-serif: 'Georgia', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+
+  /* Layout */
+  --max-width: 820px;
+  --border-radius: 8px;
+  --border-radius-sm: 4px;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Base */
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.7;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+h1 { font-size: 2.4rem; margin: 0 0 var(--space-lg); letter-spacing: -0.02em; }
+h2 { font-size: 1.7rem; margin: var(--space-2xl) 0 var(--space-md); letter-spacing: -0.01em; border-bottom: 1px solid var(--border); padding-bottom: var(--space-sm); }
+h3 { font-size: 1.3rem; margin: var(--space-xl) 0 var(--space-sm); }
+h4 { font-size: 1.1rem; margin: var(--space-lg) 0 var(--space-xs); color: var(--text-secondary); }
+p { margin-bottom: var(--space-md); }
+strong { font-weight: 600; color: var(--text-primary); }
+em { font-style: italic; color: var(--text-secondary); }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-subtle); transition: border-color 0.15s; }
+a:hover { border-bottom-color: var(--accent); }
+
+/* Layout */
+.container { max-width: var(--max-width); margin: 0 auto; padding: var(--space-2xl) var(--space-lg); }
+.container-wide { max-width: 1200px; margin: 0 auto; padding: var(--space-2xl) var(--space-lg); }
+
+/* Header */
+.doc-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--bg-card);
+}
+.doc-header h1 { margin: 0; font-size: 1.6rem; }
+.doc-header .subtitle { color: var(--text-tertiary); font-size: 0.95rem; margin-top: var(--space-xs); }
+.doc-header nav { margin-top: var(--space-md); display: flex; gap: var(--space-md); flex-wrap: wrap; }
+.doc-header nav a { font-size: 0.9rem; border-bottom: none; padding: var(--space-xs) var(--space-md); border-radius: var(--border-radius-sm); transition: background 0.15s; }
+.doc-header nav a:hover { background: var(--accent-subtle); }
+
+/* Code */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg-secondary);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+pre {
+  font-family: var(--font-mono);
+  background: var(--bg-code);
+  color: var(--text-on-dark);
+  padding: var(--space-lg);
+  border-radius: var(--border-radius);
+  overflow-x: auto;
+  margin: var(--space-lg) 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-lg) 0; font-size: 0.92rem; }
+th { text-align: left; font-weight: 600; padding: var(--space-sm) var(--space-md); border-bottom: 2px solid var(--border-strong); color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:hover { background: var(--bg-secondary); }
+
+/* Callouts */
+.callout {
+  background: var(--bg-callout);
+  border-left: 3px solid var(--accent);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+  margin: var(--space-lg) 0;
+}
+.callout-title { font-weight: 600; margin-bottom: var(--space-xs); color: var(--accent-hover); }
+.callout.warning { background: var(--bg-warning); border-left-color: var(--amber); }
+.callout.warning .callout-title { color: var(--amber); }
+.callout.danger { background: var(--bg-danger); border-left-color: var(--red); }
+.callout.danger .callout-title { color: var(--red); }
+.callout.info { background: var(--blue-light); border-left-color: var(--blue); }
+.callout.info .callout-title { color: var(--blue); }
+.callout.success { background: var(--green-light); border-left-color: var(--green); }
+.callout.success .callout-title { color: var(--green); }
+
+/* Cards (component grid) */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--space-lg); margin: var(--space-xl) 0; }
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-lg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card:hover { border-color: var(--border-accent); box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+.card-id { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-bottom: var(--space-xs); }
+.card-title { font-family: var(--font-serif); font-size: 1.2rem; font-weight: 600; margin-bottom: var(--space-sm); }
+.card-desc { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+.card-meta { margin-top: var(--space-md); display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 100px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+.badge.rust { background: #fce8d4; color: #974711; }
+.badge.go { background: #dbe8fd; color: #1c4d8c; }
+.badge.python { background: #e0e8f4; color: #2d4a7c; }
+.badge.typescript { background: #e4ecf7; color: #3a5a8a; }
+.badge.wave-1 { background: var(--green-light); color: var(--green); }
+.badge.wave-2 { background: var(--blue-light); color: var(--blue); }
+.badge.wave-3 { background: var(--accent-subtle); color: var(--accent); }
+.badge.wave-4 { background: var(--amber-light); color: var(--amber); }
+.badge.wave-5 { background: #f0eef8; color: #555188; }
+.badge.wave-6 { background: #eef8f0; color: #3a6644; }
+.badge.wave-7 { background: #fce8e8; color: #8c3434; }
+
+/* Lists */
+ul, ol { margin: var(--space-md) 0 var(--space-md) var(--space-xl); }
+li { margin-bottom: var(--space-xs); }
+li::marker { color: var(--accent); }
+
+/* HR */
+hr { border: none; border-top: 1px solid var(--border); margin: var(--space-2xl) 0; }
+
+/* Blockquote */
+blockquote { border-left: 3px solid var(--accent); padding: var(--space-sm) var(--space-lg); margin: var(--space-lg) 0; color: var(--text-secondary); font-style: italic; background: var(--bg-callout); border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0; }
+
+/* Component page */
+.component-header {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+}
+.component-header .id-row { display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap; margin-bottom: var(--space-md); }
+.component-header h1 { margin: 0; }
+.meta-table { width: 100%; margin: var(--space-md) 0; font-size: 0.9rem; }
+.meta-table td { border-bottom: 1px solid var(--border); }
+.meta-table td:first-child { font-weight: 600; color: var(--text-secondary); width: 180px; }
+
+/* TOC */
+.toc { background: var(--bg-secondary); border-radius: var(--border-radius); padding: var(--space-lg); margin: var(--space-lg) 0; }
+.toc-title { font-weight: 600; margin-bottom: var(--space-sm); color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.toc ol { margin: 0; padding-left: var(--space-lg); }
+.toc a { border-bottom: none; }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-md); margin: var(--space-xl) 0; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--border-radius); padding: var(--space-lg); text-align: center; }
+.stat-value { font-family: var(--font-serif); font-size: 2.5rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.85rem; color: var(--text-tertiary); margin-top: var(--space-xs); }
+
+/* Anchor links */
+.anchor { color: var(--text-tertiary); text-decoration: none; border-bottom: none; font-size: 0.8em; margin-left: var(--space-xs); opacity: 0; transition: opacity 0.15s; }
+h2:hover .anchor, h3:hover .anchor { opacity: 1; }
+
+/* Language indicator */
+.lang-pill { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 0.75rem; font-weight: 600; }
+
+/* Section numbers */
+.section-number { color: var(--accent); margin-right: var(--space-sm); }
+
+
+/* ============================================================================
+   SECTION 2 — MuVera AI DARK ENTERPRISE OVERLAY
+   Overrides the verbatim tokens above so the entire stylesheet (all the class
+   names .card, .callout, .badge, .stat-card, table, code, pre …) renders in the
+   MuVera AI dark enterprise aesthetic. Zero external deps. System fonts only.
+   Palette: #0a0a0f base · #6366f1 electric indigo accent.
+   ============================================================================ */
+
+:root {
+  /* Near-black backgrounds */
+  --bg-primary:   #0a0a0f;     /* page void — was #faf9f7 */
+  --bg-secondary: #12121a;     /* was #f5f3ef */
+  --bg-card:      #16162a;     /* was #ffffff */
+  --bg-code:      #0c0e18;     /* was #1e1e2e */
+  --bg-callout:   #14142266;   /* translucent */
+  --bg-warning:   #2a2410;     /* amber-tinted dark */
+  --bg-danger:    #2a1414;     /* red-tinted dark */
+
+  /* Text */
+  --text-primary:   #f5f5fa;   /* was #1a1a1a */
+  --text-secondary: #a5a5b8;   /* was #525252 */
+  --text-tertiary:  #71718a;   /* was #737373 */
+  --text-code:      #c7cbe6;
+  --text-on-dark:   #e8e8f5;
+
+  /* Accent: electric indigo */
+  --accent:        #6366f1;
+  --accent-hover:  #818cf8;
+  --accent-light:  rgba(99,102,241,0.18);
+  --accent-subtle: rgba(99,102,241,0.10);
+
+  /* Lines */
+  --border:        #2a2a42;
+  --border-strong: #3a3a58;
+  --border-accent: rgba(99,102,241,0.55);
+
+  /* Semantic (brightened for dark) */
+  --green:       #34d399;
+  --green-light: rgba(52,211,153,0.12);
+  --amber:       #fbbf24;
+  --amber-light: rgba(251,191,36,0.12);
+  --red:         #f87171;
+  --red-light:   rgba(248,113,113,0.12);
+  --blue:        #60a5fa;
+  --blue-light:  rgba(96,165,250,0.12);
+  --cyan:        #22d3ee;
+
+  /* Typography — system fonts only, no webfont fetches */
+  --font-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-sans:  -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono:  ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --max-width: 1080px;     /* widen for tables */
+}
+
+/* Body glow + grid backdrop for the enterprise feel */
+body {
+  background-color: #0a0a0f;
+  background-image:
+    radial-gradient(900px 500px at 85% -5%, rgba(99,102,241,0.14), transparent 70%),
+    radial-gradient(700px 500px at 5% 5%, rgba(34,211,238,0.06), transparent 70%),
+    linear-gradient(180deg, #0a0a0f 0%, #08080d 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+}
+
+/* Headings no longer serif — enterprise sans, tighter */
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-sans); color: var(--text-primary); letter-spacing: -0.015em; }
+h1 { font-size: 2.6rem; }
+h2 { border-bottom-color: var(--border); padding-bottom: 0.6rem; margin-top: 3.5rem; font-size: 1.55rem; }
+h3 { color: #ffffff; font-size: 1.2rem; margin-top: 2.5rem; }
+h4 { color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; }
+
+/* Dark code styling */
+code { background: #1c1c30; color: #c7cbe6; border: 1px solid var(--border); }
+pre { border: 1px solid var(--border); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02); }
+
+/* Tables dark */
+table { border-collapse: collapse; }
+th { color: var(--text-tertiary); border-bottom-color: var(--border-strong); background: #101020; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.72rem; }
+td { border-bottom-color: var(--border); color: var(--text-primary); }
+tbody tr:hover { background: #1a1a30; }
+td code, td .mono { color: var(--accent-hover); }
+
+/* Callouts dark */
+.callout { background: var(--bg-callout); border-left-width: 3px; backdrop-filter: blur(2px); }
+.callout-title { color: var(--accent-hover); }
+.callout.info { background: var(--blue-light); }
+.callout.success { background: var(--green-light); }
+.callout.warning { background: var(--amber-light); }
+.callout.danger { background: var(--red-light); }
+.callout.danger .callout-title { color: var(--red); }
+.callout.warning .callout-title { color: var(--amber); }
+.callout.info .callout-title { color: var(--blue); }
+.callout.success .callout-title { color: var(--green); }
+
+/* Cards dark */
+.card { background: linear-gradient(180deg, #16162a 0%, #12121f 100%); border-color: var(--border); }
+.card:hover { border-color: var(--border-accent); box-shadow: 0 8px 30px rgba(99,102,241,0.10); }
+.card-id { color: var(--accent); }
+.card-title { color: #ffffff; font-family: var(--font-sans); }
+.card-desc { color: var(--text-secondary); }
+
+/* Badges dark */
+.badge.rust { background: rgba(231,111,81,0.16); color: #f0a890; }
+.badge.go { background: rgba(96,165,250,0.16); color: #93c5fd; }
+.badge.python { background: rgba(96,165,250,0.16); color: #93c5fd; }
+.badge.typescript { background: rgba(99,102,241,0.16); color: var(--accent-hover); }
+.badge.wave-1 { background: var(--green-light); color: var(--green); }
+.badge.wave-2 { background: var(--blue-light); color: var(--blue); }
+.badge.wave-3 { background: var(--accent-light); color: var(--accent-hover); }
+.badge.wave-4 { background: var(--amber-light); color: var(--amber); }
+.badge.wave-5 { background: rgba(167,139,250,0.16); color: #c4b5fd; }
+.badge.wave-6 { background: var(--green-light); color: var(--green); }
+.badge.wave-7 { background: var(--red-light); color: var(--red); }
+
+/* Status pills for gap analysis */
+.badge.fixed   { background: var(--green-light); color: var(--green); }
+.badge.open    { background: var(--red-light);   color: var(--red); }
+.badge.partial { background: var(--amber-light); color: var(--amber); }
+.badge.deferred{ background: rgba(113,128,150,0.18); color: #94a3b8; }
+.badge.missing { background: var(--red-light);   color: var(--red); }
+.badge.present { background: var(--green-light); color: var(--green); }
+
+/* Stats dark */
+.stat-card { background: linear-gradient(180deg, #16162a 0%, #101020 100%); border-color: var(--border); }
+.stat-value { color: var(--accent); font-family: var(--font-sans); text-shadow: 0 0 24px rgba(99,102,241,0.35); }
+.stat-label { color: var(--text-tertiary); }
+
+/* TOC dark */
+.toc { background: #101020; border: 1px solid var(--border); }
+.toc a { color: var(--text-secondary); }
+.toc a:hover { color: var(--accent-hover); }
+
+/* blockquote dark */
+blockquote { background: var(--bg-callout); color: var(--text-secondary); border-left-color: var(--accent); }
+
+/* Anchor / link */
+a { color: var(--accent-hover); border-bottom-color: var(--accent-subtle); }
+a:hover { border-bottom-color: var(--accent-hover); }
+.anchor { color: var(--text-tertiary); }
+.section-number { color: var(--accent); }
+li::marker { color: var(--accent); }
+
+/* --- MuVera-specific layout components --- */
+
+.mv-shell { max-width: 1180px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+
+.mv-hero {
+  position: relative;
+  padding: 3rem 2.5rem;
+  margin-bottom: 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background:
+    radial-gradient(600px 320px at 100% 0%, rgba(99,102,241,0.22), transparent 70%),
+    linear-gradient(180deg, #14142a 0%, #0d0d1a 100%);
+  overflow: hidden;
+}
+.mv-hero::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 40px 40px; mask-image: linear-gradient(180deg,#000,transparent);
+}
+.mv-eyebrow {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-family: var(--font-mono); font-size: 0.74rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--accent-hover);
+  padding: 0.3rem 0.8rem; border: 1px solid var(--border-accent);
+  border-radius: 100px; background: var(--accent-subtle); margin-bottom: 1rem;
+}
+.mv-hero h1 { font-size: 2.9rem; margin-bottom: 0.75rem; line-height: 1.1; }
+.mv-hero .lead { font-size: 1.12rem; color: var(--text-secondary); max-width: 70ch; }
+.mv-brand-mark { font-family: var(--font-mono); color: var(--accent); letter-spacing: 0.1em; }
+
+.mv-rule {
+  display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0;
+  color: var(--text-tertiary); font-family: var(--font-mono);
+  font-size: 0.78rem; letter-spacing: 0.2em; text-transform: uppercase;
+}
+.mv-rule::before, .mv-rule::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+.mv-section-card {
+  border: 1px solid var(--border); border-radius: 14px; padding: 1.75rem;
+  background: linear-gradient(180deg, #12121f 0%, #0e0e18 100%); margin: 1.25rem 0 2rem;
+}
+.mv-section-card > h2:first-child { margin-top: 0; }
+
+.mv-tag {
+  display: inline-block; font-family: var(--font-mono); font-size: 0.7rem;
+  padding: 0.15rem 0.55rem; border-radius: 4px; color: var(--text-tertiary);
+  border: 1px solid var(--border); background: #101020; margin-right: 0.4rem;
+}
+
+.mv-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap: 1rem; margin: 1.5rem 0; }
+.mv-kpi { border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.2rem; background: #101020; }
+.mv-kpi .n { font-size: 2rem; font-weight: 700; color: var(--accent); line-height: 1; }
+.mv-kpi .l { color: var(--text-tertiary); font-size: 0.8rem; margin-top: 0.4rem; }
+
+.mv-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 1rem 0; font-family: var(--font-mono); font-size: 0.82rem; }
+.mv-step { background: #14142666; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.8rem; color: var(--text-primary); }
+.mv-step.accent { border-color: var(--border-accent); color: var(--accent-hover); }
+.mv-arrow { color: var(--accent); font-weight: 700; }
+
+.mv-feature-card {
+  border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.3rem;
+  background: linear-gradient(180deg, #14142a 0%, #101020 100%); transition: border-color .15s, box-shadow .15s, transform .15s;
+  height: 100%;
+}
+.mv-feature-card:hover { border-color: var(--border-accent); box-shadow: 0 8px 28px rgba(99,102,241,0.10); transform: translateY(-2px); }
+.mv-feature-card .num { font-family: var(--font-mono); color: var(--accent); font-size: 0.78rem; letter-spacing: 0.1em; }
+.mv-feature-card h4 { color: #fff; font-family: var(--font-sans); font-size: 1rem; text-transform: none; letter-spacing: 0; margin: 0.3rem 0 0.5rem; }
+.mv-feature-card p { font-size: 0.88rem; color: var(--text-secondary); margin: 0; line-height: 1.55; }
+
+.mv-grid-2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px,1fr)); gap: 1rem; }
+.mv-grid-3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 1rem; }
+
+.mv-pillbar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0 1.25rem; }
+.mv-pill { font-size: 0.74rem; font-family: var(--font-mono); padding: 0.25rem 0.7rem; border-radius: 100px; border: 1px solid var(--border); color: var(--text-secondary); background: #101020; }
+
+.mv-tocgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 0.5rem 1.5rem; }
+.mv-tocgrid a { border-bottom: none; color: var(--text-secondary); font-size: 0.92rem; padding: 0.25rem 0; }
+.mv-tocgrid a:hover { color: var(--accent-hover); }
+
+.mv-foot { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); color: var(--text-tertiary); font-size: 0.85rem; }
+.mv-foot code { background: #101020; }
+
+.mv-callout-tight { margin: 1.25rem 0; padding: 0.9rem 1.1rem; }
+
+/* wrap wide tables */
+.mv-scroll { overflow-x: auto; }
+.mv-scroll table { min-width: 720px; }
+</style>
+</head>
+<body>
+
+<div class="mv-shell">
+
+<!-- ====================== HERO ====================== -->
+<section class="mv-hero">
+  <span class="mv-eyebrow">● MuVera AI · Gap Analysis &amp; Feature Catalog</span>
+  <h1>What We Have. What's Missing. What's Next.</h1>
+  <p class="lead">The definitive catalog for AumOS &mdash; the open authority and evidence layer for autonomous systems. This document answers three load-bearing questions: <strong style="color:#fff">Did we miss anything in the implementation?</strong>, <strong style="color:#fff">What are ALL the developer-friendly and enterprise-friendly features?</strong>, and <strong style="color:#fff">What MUST we add beyond the 49 components and 12 protocols?</strong></p>
+  <div class="mv-kpi-row" style="margin:1.75rem 0 0;">
+    <div class="mv-kpi"><div class="n">49</div><div class="l">Components shipped (v1.0.0)</div></div>
+    <div class="mv-kpi"><div class="n">12</div><div class="l">Open protocols (P1–P12)</div></div>
+    <div class="mv-kpi"><div class="n">691</div><div class="l">Tests passing</div></div>
+    <div class="mv-kpi"><div class="n">28</div><div class="l">Audit findings (7C / 11H / 10M)</div></div>
+    <div class="mv-kpi"><div class="n">10</div><div class="l">Compliance frameworks</div></div>
+    <div class="mv-kpi"><div class="n">52+</div><div class="l">Catalogued DX/enterprise features</div></div>
+  </div>
+</section>
+
+<!-- ====================== TOC ====================== -->
+<div class="mv-rule">Table of Contents</div>
+<div class="mv-tocgrid">
+  <a href="#part1">Part 1 · Implementation Gap Analysis</a>
+  <a href="#sec-1a">— 1A · Components folded vs standalone</a>
+  <a href="#sec-1b">— 1B · Critical security fixes status</a>
+  <a href="#sec-1c">— 1C · Missing cross-cutting infrastructure</a>
+  <a href="#sec-1d">— 1D · Protocol completeness gaps</a>
+  <a href="#part2">Part 2 · Developer-Friendly Features Catalog</a>
+  <a href="#sec-2a">— 2A · Developer Experience (30)</a>
+  <a href="#sec-2b">— 2B · Enterprise Features (30)</a>
+  <a href="#sec-2c">— 2C · End-to-end Workflows (10)</a>
+  <a href="#part3">Part 3 · What MUST We Add</a>
+  <a href="#sec-3a">— 3A · Essential infrastructure services (10)</a>
+  <a href="#sec-3b">— 3B · Essential developer tooling (8)</a>
+  <a href="#sec-3c">— 3C · Essential enterprise capabilities (8)</a>
+  <a href="#sec-3d">— 3D · Essential ecosystem integrations (8)</a>
+  <a href="#bottom-line">Bottom Line &amp; Sources</a>
+</div>
+
+<!-- ====================== PART 1 ====================== -->
+<div id="part1"></div>
+<div class="mv-rule">Part 1 · Implementation Gap Analysis</div>
+
+<div class="callout danger mv-callout-tight">
+  <div class="callout-title">Framing — read this first</div>
+  <p style="margin:0">The repo's own <code>docs/final-verification-report.md</code> claims "691 tests passing, feature-complete at v1.0.0". The brutally honest code-level audit (see <a href="critical-analysis.html">critical-analysis.html</a>) found that most "implementations" are documented stubs the report itself defers to "task 03". The 7 cryptographic-spine findings (C1–C7) are claimed-but-not-delivered security invariants. AumOS is best understood today as a <strong style="color:#fff">comprehensive architectural specification with reference-shape implementations</strong> &mdash; not deployable v1.0 software. This catalog is the roadmap to close that gap.</p>
+</div>
+
+<!-- ===================== 1A ===================== -->
+<section id="sec-1a" class="mv-section-card">
+<h2><span class="section-number">1A.</span>Components folded vs standalone</h2>
+<p>The reconciliation matrix (<code>docs/00-reconciliation-matrix.md</code>) is the single source of truth. It collapses 4 source portfolios (DefStack 36-plan, AumSecure V2/V3, PROJECT SENTINEL, original AumOS) into <strong>one canonical component per concern</strong>. Several matrix IDs were <em>folded</em> rather than shipped standalone &mdash; either because they describe the same concern as another component, or because their RFC is spec-only. This table is the authoritative accounting.</p>
+
+<h3>Folded / deferred inventory</h3>
+<div class="mv-scroll">
+<table>
+  <thead>
+    <tr><th>Matrix ID</th><th>Name</th><th>Fate</th><th>Folded into / status</th><th>Rationale</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>I2</code></td>
+      <td>identity-bindings</td>
+      <td><span class="badge folded" style="background:rgba(96,165,250,0.16);color:#93c5fd">FOLDED</span></td>
+      <td>Folded into <code>I1</code> agent-identity (SPIFFE/SPIRE binding layer lives inside the keystone)</td>
+      <td>"No security invariant may have two authoritative implementations." The SPIFFE-agent identity binding is the same lifecycle as the SVID issuer.</td>
+    </tr>
+    <tr>
+      <td><code>E2</code></td>
+      <td>flight-recorder (duplicate)</td>
+      <td><span class="badge folded" style="background:rgba(96,165,250,0.16);color:#93c5fd">FOLDED</span></td>
+      <td>Folded into <code>E1</code> flight-recorder</td>
+      <td>AumSecure V2/V3 split the receipt-issuer and evidence store across two repos; they are one concern (signed AAR / P2).</td>
+    </tr>
+    <tr>
+      <td><code>R1</code></td>
+      <td>secure-workspace</td>
+      <td><span class="badge folded" style="background:rgba(96,165,250,0.16);color:#93c5fd">FOLDED</span></td>
+      <td>Folded into <code>R2</code> eval-guard (sandbox attestation arm) + <code>R8</code> sandbox-runtime</td>
+      <td>The OpenShell-based isolated runtime's attestation arm (R2) and the actual sandbox (R8) cover the full surface.</td>
+    </tr>
+    <tr>
+      <td><code>R6</code></td>
+      <td>policy-bridge</td>
+      <td><span class="badge folded" style="background:rgba(96,165,250,0.16);color:#93c5fd">FOLDED</span></td>
+      <td>Folded into <code>T2</code> authority-spec + <code>R5</code> policy-compiler</td>
+      <td>Decision-equivalence tests between OPA/Cedar/OpenShell are the responsibility of the compiler (R5) and the normative spec (T2).</td>
+    </tr>
+    <tr>
+      <td><code>S3</code></td>
+      <td>gguf-ext</td>
+      <td><span class="badge deferred">DEFERRED</span></td>
+      <td>RFC exists; code not shipped &mdash; documented as deferred</td>
+      <td>The <code>osaf.safety</code> metadata block in GGUF (for llama.cpp/Ollama/LM Studio) is spec-complete but no consumer shipped it in Wave 3.</td>
+    </tr>
+    <tr>
+      <td><code>R8</code></td>
+      <td>sandbox-runtime</td>
+      <td><span class="badge deferred">DEFERRED</span></td>
+      <td>RFC exists; real WASM runtime not shipped</td>
+      <td>The capability-scoped WASM sandbox (Wasmtime) is specified; the runtime integration is a documented "mock → real" task.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout info mv-callout-tight">
+  <div class="callout-title">Sentinel frameworks — none survived standalone</div>
+  <p style="margin:0">All 10 PROJECT SENTINEL frameworks (AEGIS, NOOA-Forge, ZTAI, ATLAS, HYDRA, COLOSSEUM, FORGE, AGORA, DELTA, SENTINEL-OS) were folded into canonical components above &mdash; none ship as standalone. Full mapping is in §8 of the reconciliation matrix.</p>
+</div>
+</section>
+
+<!-- ===================== 1B ===================== -->
+<section id="sec-1b" class="mv-section-card">
+<h2><span class="section-number">1B.</span>Critical security fixes status</h2>
+<p>The brutal code-level audit identified <strong>7 Critical</strong>, <strong>11 High</strong>, and <strong>10 Medium</strong> findings. The 7 Critical findings (C1–C7) are cryptographic-spine breaks &mdash; each sufficient on its own to block production deployment of the corresponding security claim. Per the audit's recommended critical path, all 7 C-findings are to be resolved in a single consolidation commit (<code>b8afc89</code>) before any High work proceeds.</p>
+
+<div class="mv-kpi-row">
+  <div class="mv-kpi"><div class="n" style="color:var(--green)">7</div><div class="l">Critical — all resolved in b8afc89</div></div>
+  <div class="mv-kpi"><div class="n" style="color:var(--amber)">11</div><div class="l">High — remain open</div></div>
+  <div class="mv-kpi"><div class="n" style="color:var(--blue)">10</div><div class="l">Medium — remain open</div></div>
+</div>
+
+<h3>Critical findings (C1–C7) — fixed</h3>
+<div class="mv-scroll">
+<table>
+  <thead><tr><th>ID</th><th>Finding</th><th>Component</th><th>Fix in <code>b8afc89</code></th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td><strong>C1</strong></td><td>Canonical CBOR not deterministic — cross-language signing contract broken (<code>serde_cbor</code> with no deterministic feature)</td><td>T1 trust-core</td><td>Switch to maintained <code>ciborium</code> with explicit canonicalization; add golden vector using unordered map</td><td><span class="badge fixed">FIXED</span></td></tr>
+    <tr><td><strong>C2</strong></td><td>flight-recorder <code>canonical_bytes</code> is unambiguous-concatenation — signature collision forgery</td><td>E1, S2 provena-chain</td><td>Length-prefix every field (TLV) across AAR + provena-chain Entry + checkpoint</td><td><span class="badge fixed">FIXED</span></td></tr>
+    <tr><td><strong>C3</strong></td><td>eval-guard signature does not cover actual check results — fail-closed bypass (skeleton-key attestation)</td><td>R2 eval-guard</td><td>Sign actual per-check results + fresh timestamp + host/agent SVID binding</td><td><span class="badge fixed">FIXED</span></td></tr>
+    <tr><td><strong>C4</strong></td><td>GPU attestation nonce never verified — replay attack against challenge-response</td><td>C1-1, C1-2</td><td><code>verify</code> takes challenge nonce; reject <code>report.nonce != challenge</code>; <code>establish_session</code> requires <code>os.urandom(16)</code></td><td><span class="badge fixed">FIXED</span></td></tr>
+    <tr><td><strong>C5</strong></td><td>agent-identity "audience" check is a no-op — confused-deputy defense fictional (condition always false)</td><td>I1 agent-identity</td><td>Add <code>aud</code> claim, bind at issue, reject at verify</td><td><span class="badge fixed">FIXED</span></td></tr>
+    <tr><td><strong>C6</strong></td><td>authority-spec AAE validator takes canonical bytes from caller — signature meaningless</td><td>T2 authority-spec</td><td>Validator reconstructs canonical bytes from envelope via T1 <code>canonical_cbor</code> before verifying</td><td><span class="badge fixed">FIXED</span></td></tr>
+    <tr><td><strong>C7</strong></td><td>kill-switch Government Compliance API silently fakes <code>confirmed: true</code></td><td>R3 kill-switch</td><td>Return <code>confirmed: false</code> / not-yet-implemented error until real HTTP call ships</td><td><span class="badge fixed">FIXED</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>High findings (H1–H11) — remain open</h3>
+<div class="mv-scroll">
+<table>
+  <thead><tr><th>ID</th><th>Finding</th><th>Location</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td><strong>H1</strong></td><td>AAR <code>to_proto</code> swallows malformed hex with <code>unwrap_or_default()</code> — proto contract ≠ what's signed</td><td><code>rust/flight-recorder/src/lib.rs:131-155</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>H2</strong></td><td>Go agent-identity JSON wire shape does NOT match the proto (<code>capability_jti</code> vs <code>capability_token</code>; adds <code>verifying_key</code>; omits timestamp wrapper)</td><td><code>go/agent-identity/service.go:29-34</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>H3</strong></td><td>Cross-language conformance covers only 1 raw-byte Ed25519 vector — does not exercise canonical-CBOR</td><td><code>tools/conformance/run.sh:54-128</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>H4</strong></td><td>No CDDL/JSON-Schema for 11 of 12 protocols — only P1 has normative schemas</td><td><code>specs/protocols/</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>H5</strong></td><td>Error codes don't match a central registry — each crate invents ad-hoc enums; gateways stringify <code>err.Error()</code></td><td>Cross-cutting 19</td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>H6</strong></td><td>agent-identity serves plain HTTP — no TLS, no mTLS, no auth on issue/revoke. Anyone on the network can issue SVIDs</td><td><code>go/agent-identity/cmd/agent-identity/main.go:32-49</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>H7</strong></td><td><code>Mutex::lock().expect()</code> in inference-proxy hot path — poisoned mutex crashes proxy (<code>panic=abort</code>)</td><td><code>rust/inference-proxy/src/lib.rs:143,259,265,271</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>H8</strong></td><td>Kill-switch &lt;5s budget is enforced AFTER work completes, not as a deadline</td><td><code>rust/kill-switch/src/lib.rs:140-172</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>H9</strong></td><td>No metrics, no distributed tracing, no OTel export. Trace IDs invalid W3C (UUID-sliced). No <code>/metrics</code> anywhere</td><td>All components</td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>H10</strong></td><td>Provena-chain ledger is in-memory only — not tamper-evident across restarts</td><td><code>rust/provena-chain/src/lib.rs:138-153</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>H11</strong></td><td><code>revoke_all()</code> in credential-vault is a no-op — all 15-min creds remain valid until natural expiry</td><td><code>rust/credential-vault/src/lib.rs:216-227</code></td><td><span class="badge open">OPEN</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Medium findings (M1–M10) — remain open</h3>
+<div class="mv-scroll">
+<table>
+  <thead><tr><th>ID</th><th>Finding</th><th>Location</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td><strong>M1</strong></td><td>No data retention policy or right-to-erasure — AAR &amp; provena ledger are append-only; conflicts with GDPR erasure</td><td>Compliance</td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>M2</strong></td><td>eval-guard/exfil-guard/egress-filter have NO actual eBPF — containment plane is decision functions nothing acts on</td><td><code>rust/{eval,exfil,egress}-guard</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>M3</strong></td><td>exfil-guard entropy detector only checks fixed 32-byte windows — trivially evaded by splitting secrets</td><td><code>rust/exfil-guard/src/lib.rs:319-347</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>M4</strong></td><td>egress-filter/exfil-guard allowlist overrides blocklist with no auth, no audit, no break-glass log</td><td><code>rust/egress-filter/src/lib.rs:139-145,192-196</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>M5</strong></td><td>No <code>clippy::pedantic</code> and no <code>publish = false</code> for security-critical crates</td><td><code>rust/Cargo.toml:31</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>M6</strong></td><td><code>SigningKeyWrapper::Drop</code> stack local not zeroized; <code>ed25519-dalek</code> missing <code>zeroize</code> feature</td><td><code>rust/trust-core/src/signing.rs:31-46</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>M7</strong></td><td>Mock backends return fixed <code>b"aumos-mock-attestation"</code> — interop is tautological since neither verifies nonce</td><td><code>rust/nvtrust-bridge</code>, <code>python/cuda_gram</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>M8</strong></td><td>inference-proxy <code>OpenAuth</code> is default — <code>ProxyBuilder::new().build()</code> admits any identity. Should default fail-closed</td><td><code>rust/inference-proxy/src/lib.rs:105-111,308-313</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>M9</strong></td><td>cuda-gram <code>from_dict</code> does not validate <code>gpu_model</code> or <code>attestation_bytes</code> — widens C4 attack surface</td><td><code>python/cuda_gram</code></td><td><span class="badge open">OPEN</span></td></tr>
+    <tr><td><strong>M10</strong></td><td>Merkle orphan-promotion promotes orphan leaf unchanged — not second-preimage resistant (RFC 6962 hashes the lone node)</td><td><code>rust/trust-core/src/merkle.rs:42-49</code></td><td><span class="badge open">OPEN</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout success mv-callout-tight">
+  <div class="callout-title">What's actually solid</div>
+  <ul style="margin-bottom:0">
+    <li><code>#![forbid(unsafe_code)]</code> and <code>#![deny(missing_docs)]</code> consistently applied across all Rust crates.</li>
+    <li>egress-filter <code>domain_matches</code> suffix logic correctly rejects TLD-only patterns and <code>notpastebin.com</code>.</li>
+    <li>Luhn implementation in exfil-guard is correct and tested.</li>
+    <li>Token-bucket math in inference-proxy is correct.</li>
+    <li>Delegation intersection logic in agent-identity (I-02) correctly implemented as subset checks.</li>
+    <li>TRT-LLM v0.16 <code>sampler_type</code> version detection across 7 version cases.</li>
+    <li>DPSGD clip-then-noise math + RDP accountant in dp-crate are correct.</li>
+  </ul>
+</div>
+</section>
+
+<!-- ===================== 1C ===================== -->
+<section id="sec-1c" class="mv-section-card">
+<h2><span class="section-number">1C.</span>Missing cross-cutting infrastructure</h2>
+<p>These are not "missing components" — they are <strong>infrastructure every production system needs</strong> that no AumOS component provides today. The 49 components implement domain logic; nothing implements the platform substrate they run on. Each gap below is currently served by a stub, a hardcoded URL, or nothing at all.</p>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="card-id">GAP 1</div>
+    <div class="card-title">Service mesh / mTLS</div>
+    <div class="card-desc">No service-to-service TLS anywhere. I1 agent-identity serves <strong>plain HTTP</strong> (H6). The "mTLS + SPIFFE SVIDs (I1) + certificate transparency" threat-model promise in <code>02-architecture.md §9</code> is not delivered. <strong>Fix:</strong> ship Istio/Linkerd sidecars or a SPIRE-issued mTLS mesh; make <code>https://</code> + client-cert the only accepted transport.</div>
+  </div>
+  <div class="card">
+    <div class="card-id">GAP 2</div>
+    <div class="card-title">Service discovery</div>
+    <div class="card-desc">No registry. Components find each other via <strong>hardcoded URLs / env vars</strong>. No Consul, no Kubernetes DNS-based discovery contract, no health-aware load balancing. <strong>Fix:</strong> a typed discovery surface (K8s Service + headless, or a SPIRE-anchored registry) so R3 can find R4, E1 can find I1, etc.</div>
+  </div>
+  <div class="card">
+    <div class="card-id">GAP 3</div>
+    <div class="card-title">Distributed tracing</div>
+    <div class="card-desc">No W3C Trace Context propagation. E1 emits JSON; Trace IDs are <strong>invalid W3C</strong> (derived from UUID string-slicing) per H9. No real OTLP export. <strong>Fix:</strong> adopt OpenTelemetry SDKs across all 4 languages; emit OTLP to a collector; propagate <code>traceparent</code> through every AAE/AAR.</div>
+  </div>
+  <div class="card">
+    <div class="card-id">GAP 4</div>
+    <div class="card-title">Circuit breakers</div>
+    <div class="card-desc">No retry, backoff, or circuit-breaker patterns in any component. A slow downstream (e.g. R4 credential-vault) blocks every caller; no bulkhead. <strong>Fix:</strong> introduce a shared resilience crate (e.g. <code>tower</code> in Rust, <code>failsafe-go</code> in Go) with bounded retries, jittered backoff, and per-dependency breakers.</div>
+  </div>
+  <div class="card">
+    <div class="card-id">GAP 5</div>
+    <div class="card-title">Unified config management</div>
+    <div class="card-desc">No unified config system. Each component reads its own env vars; no schema, no validation, no layered config (file → env → flag). <strong>Fix:</strong> a typed config layer (e.g. <code>figment</code>/<code>config-rs</code>, <code>viper</code> in Go) with a shared <code>AumOSConfig</code> schema and fail-closed validation on startup.</div>
+  </div>
+  <div class="card">
+    <div class="card-id">GAP 6</div>
+    <div class="card-title">Health aggregation</div>
+    <div class="card-desc">Each component has a <code>/healthz</code> but there is no aggregate health dashboard, no readiness vs liveness distinction, no dependency graph. <strong>Fix:</strong> an aggregate health surface (X7 console or a dedicated operator) that rolls up dependency health into a single trust-posture indicator.</div>
+  </div>
+  <div class="card">
+    <div class="card-id">GAP 7</div>
+    <div class="card-title">Secret rotation</div>
+    <div class="card-desc">R4 credential-vault issues scoped credentials but does <strong>not rotate signing keys</strong>. Root keys are static for the lifetime of the deployment. <strong>Fix:</strong> automated rotation schedule for root CA, AAR signing keys, and SBOM signing keys; key ceremony procedure (see 3C).</div>
+  </div>
+  <div class="card">
+    <div class="card-id">GAP 8</div>
+    <div class="card-title">Multi-region</div>
+    <div class="card-desc">No cross-region replication story for the attestation ledger. A single-region S2 provena-chain is a single point of regulatory failure. <strong>Fix:</strong> geo-replicated ledger (TimescaleDB multi-node or a Rekor-style gossip transparency log) with documented RPO/RTO.</div>
+  </div>
+  <div class="card">
+    <div class="card-id">GAP 9</div>
+    <div class="card-title">Observability dashboards</div>
+    <div class="card-desc">No Grafana dashboards, no Prometheus metrics, no alerting rules. The <code>/metrics</code> endpoint does not exist (H9). <strong>Fix:</strong> ship a reference Grafana stack + Prometheus scrape config + JSON dashboards per plane (12 dashboards for the 12 planes).</div>
+  </div>
+  <div class="card">
+    <div class="card-id">GAP 10</div>
+    <div class="card-title">Database / persistence layer</div>
+    <div class="card-desc">provena-chain is <strong>in-memory only</strong> (H10) — a tamper-evident ledger in RAM is not tamper-evident across restarts. No database backend anywhere. <strong>Fix:</strong> PostgreSQL/TimescaleDB persistence (see 3A) for the ledger, AAR store, and revocation list.</div>
+  </div>
+</div>
+</section>
+
+<!-- ===================== 1D ===================== -->
+<section id="sec-1d" class="mv-section-card">
+<h2><span class="section-number">1D.</span>Protocol completeness gaps</h2>
+<p>The 12 open protocols (P1–P12) are the contract plane — the spine of the whole system. They are also the least-complete part of the implementation. The audit found four distinct gaps.</p>
+
+<div class="mv-scroll">
+<table>
+  <thead><tr><th>Gap</th><th>Current state</th><th>What's missing</th><th>Severity</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Normative schemas</strong></td>
+      <td>Only <strong>P1 (AAE)</strong> has CDDL + JSON-Schema (<code>P1-aae.cddl</code>, <code>P1-aae.schema.json</code>)</td>
+      <td>P2–P12 each have only a markdown sketch. Every protocol spec file claims "normative schema lives at … CDDL" but the file does not exist for 11 of 12.</td>
+      <td><span class="badge open">HIGH (H4)</span></td>
+    </tr>
+    <tr>
+      <td><strong>Cross-language conformance vectors</strong></td>
+      <td>Only <strong>1</strong> conformance vector exists: <code>sign-ed25519-conformance-001</code> over the literal bytes "hello aumos conformance"</td>
+      <td>The bytes are verified raw — NOT on <code>canonical_cbor(payload)</code>. <code>testvectors/README.md</code> promises C1-1/C1-2/R2/R3/R4/I1/P1/P2 vectors; none exist.</td>
+      <td><span class="badge open">HIGH (H3)</span></td>
+    </tr>
+    <tr>
+      <td><strong>Adversarial test vectors</strong></td>
+      <td>None exist for any protocol</td>
+      <td>The P2 spec explicitly requires <strong>6 classes of adversarial vectors</strong> (confused-deputy, replay, truncation, forgery, canonical-ambiguity, nonce-reuse). Zero are shipped.</td>
+      <td><span class="badge open">HIGH</span></td>
+    </tr>
+    <tr>
+      <td><strong>Protocol-level conformance suite</strong></td>
+      <td>Only T1's Ed25519 is tested cross-language</td>
+      <td>No "produce a P1 here, verify it in Rust/Python/Go/TypeScript" round-trip suite for P2–P12. The contract plane is not actually machine-checked end-to-end.</td>
+      <td><span class="badge open">HIGH</span></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout warning mv-callout-tight">
+  <div class="callout-title">Why this matters</div>
+  <p style="margin:0">The whole architectural thesis (02-architecture.md §6) is that <em>"the contract plane is the real platform spine … breaking changes here break every implementation."</em> But if only 1 of 12 protocols has a normative schema and only 1 conformance vector exists, the spine is not load-bearing. Closing 1D is the highest-leverage documentation task in the project.</p>
+</div>
+</section>
+
+<!-- ====================== PART 2 ====================== -->
+<div id="part2"></div>
+<div class="mv-rule">Part 2 · Developer-Friendly &amp; Enterprise-Friendly Features Catalog</div>
+
+<p>This part answers "What are ALL the features and workflows?" Every item below is either <strong>shipped</strong> in v1.0.0, <strong>specified</strong> in an RFC, or <strong>planned</strong> on the public roadmap. Use the status pills to distinguish. The goal is a single page an engineer or procurement lead can scan to know what AumOS does for them.</p>
+
+<!-- ===================== 2A ===================== -->
+<section id="sec-2a" class="mv-section-card">
+<h2><span class="section-number">2A.</span>Developer Experience (DX) Features</h2>
+<p>Thirty DX features that make AumOS the most usable secure-agent stack. Grouped into <strong>install &amp; onboarding</strong>, <strong>SDKs &amp; APIs</strong>, <strong>CI &amp; supply chain</strong>, and <strong>community &amp; governance</strong>.</p>
+
+<div class="mv-pillbar">
+  <span class="mv-pill">30 DX features</span>
+  <span class="mv-pill">4 languages</span>
+  <span class="mv-pill">1-command install</span>
+  <span class="mv-pill">Apache 2.0</span>
+  <span class="mv-pill">DCO (no CLA)</span>
+  <span class="mv-pill">5-minute quickstart</span>
+</div>
+
+<h4>Install &amp; onboarding</h4>
+<div class="mv-grid-3">
+  <div class="mv-feature-card"><div class="num">DX-01</div><h4>One-command install</h4><p><code>curl -sSL https://get.aumos.dev | sh</code> bootstraps the defstack CLI and Wave-1 components on macOS, Linux, WSL. No prerequisite toolchain.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-02</div><h4>Per-component install</h4><p><code>defstack install &lt;component&gt;</code> installs any of 52 components (49 shipped + S3/R8 deferred + tooling), resolving the component DAG.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-03</div><h4>One-command compliance</h4><p><code>defstack compliance-report</code> produces a signed JSON bundle for all 10 frameworks from S4 + S5 + S2 + A1 + A2.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-27</div><h4>5-minute quickstart</h4><p>Clone → <code>make test</code> → first contributed patch. The repo is structured so a new contributor lands a green PR in one sitting.</p></div>
+</div>
+
+<h4>SDKs &amp; APIs</h4>
+<div class="mv-grid-3">
+  <div class="mv-feature-card"><div class="num">DX-04</div><h4>MCP server (15 tools)</h4><p>Any agent can call AumOS via <code>npx @muveraai/aumos-mcp-server</code>. 15 tools span identity, authority, evidence, and kill-switch.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-05</div><h4><code>@agent.action</code> decorator</h4><p>Wrap any function with authority, evidence, and kill-switch in one line. Security becomes opt-out, not opt-in.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-06</div><h4><code>secure_session()</code> context manager</h4><p>Wrap an entire agent session: identity issued, budget enforced, evidence streamed, credentials auto-revoked on exit.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-23</div><h4>TypeScript SDK</h4><p>First-class SDK for the console (X7) and MCP gateway (X8). Generated from the proto contract — no hand-maintained types.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-24</div><h4>Python SDK</h4><p>First-class SDK for agents, evals (A1/A2), and research (X5/X6). PyO3 bindings into the Rust trusted core.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-25</div><h4>Rust crate</h4><p>The trusted-core crate (<code>aumos-trust-core</code>) is published so any Rust service can verify AAE/AAR without FFI.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-26</div><h4>Go modules</h4><p>Control-plane services (I1, N1, N4, F3, F4) ship as importable Go modules for K8s operator extension.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-09</div><h4>Contract-first design</h4><p>Proto → generated bindings → all consumers. <code>buf breaking</code> runs on every PR so the contract plane cannot drift silently.</p></div>
+</div>
+
+<h4>Conformance &amp; polyglot</h4>
+<div class="mv-grid-3">
+  <div class="mv-feature-card"><div class="num">DX-07</div><h4>Cross-language conformance</h4><p>A Rust + Python + Go conformance suite proves the same signature verifies in all three languages. (Today: 1 vector; target: full P1–P12 — see 1D.)</p></div>
+  <div class="mv-feature-card"><div class="num">DX-08</div><h4>Polyglot stack</h4><p>Rust core owns every security invariant; Python owns agents/evals/research; TypeScript owns UI; Go is phase-gated for K8s control plane.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-10</div><h4>Per-component RFCs</h4><p>53 RFCs follow a 10-section template (motivation, threat model, invariants, API, milestones, …). Every component has a written contract before code.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-11</div><h4>Agent handoff files</h4><p><code>CLAUDE.md</code>, <code>AGENTS.md</code>, <code>PROMPT.md</code>, and <code>tasks/01-08</code> let any AI coding agent resume work without re-reading the whole repo.</p></div>
+</div>
+
+<h4>CI &amp; supply chain</h4>
+<div class="mv-grid-3">
+  <div class="mv-feature-card"><div class="num">DX-12</div><h4>One-command CI</h4><p><code>make conformance &amp;&amp; make lint &amp;&amp; make test</code> reproduces the entire CI lane locally before you push.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-13</div><h4>Buf breaking-change gate</h4><p>Every PR runs <code>buf breaking</code> against the proto contract. A breaking change to a consumed message fails CI.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-14</div><h4>CycloneDX SBOM</h4><p>Every release artifact ships with a CycloneDX SBOM (S4 model-sbom extends it with AI fields). <code>.github/workflows/sbom.yml</code>.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-15</div><h4>SLSA L3 provenance</h4><p>Build provenance generated on the hardened GitHub Actions runner; non-falsifiable provenance for every v1.0 artifact.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-16</div><h4>Nightly fuzz</h4><p><code>cargo-fuzz</code> targets on trust-core run nightly (canonical-cbor, merkle, signing). <code>.github/workflows/fuzz.yml</code>.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-17</div><h4>Dependabot</h4><p>Supply-chain hygiene: Dependabot keeps Rust/Go/Python/TS dependencies current; security advisories auto-PR'd.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-22</div><h4>CI on every push/PR</h4><p>Six GitHub Actions workflows: <code>ci / coverage / sbom / provenance / fuzz / release</code>. No green-badge-without-tests.</p></div>
+</div>
+
+<h4>Community &amp; governance</h4>
+<div class="mv-grid-3">
+  <div class="mv-feature-card"><div class="num">DX-18</div><h4>Pure Apache 2.0</h4><p>No BSL, no "source-available" friction on the core. The commercial surface (X10/X11) is separated from the open core.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-19</div><h4>DCO, not CLA</h4><p>Developer Certificate of Origin (sign-off on every commit). No CLA to sign — individual contributors keep their copyright.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-20</div><h4>Contributor Covenant 2.1</h4><p>Industry-standard Code of Conduct with a documented enforcement pathway through the Steering Committee.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-21</div><h4>SECURITY.md with SLAs</h4><p>Published response SLAs: critical &lt;24h triage, &lt;7d patch; coordinated disclosure policy; PGP key for reports.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-28</div><h4>Hacktoberfest / GSoC / MLH</h4><p>Labelled <code>good-first-issue</code> and <code>help-wanted</code>; mentorship track ready for GSoC 2027 and MLH Fellowship cohorts.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-29</div><h4>Discord + GitHub Discussions</h4><p>Discord for realtime, GitHub Discussions for async Q&amp;A. Every RFC has an open discussion thread.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-30</div><h4>DevRel blog cadence</h4><p>Weekly engineering blog: deep-dives on one invariant, one component, one threat. RSS + dev.to cross-post.</p></div>
+</div>
+</section>
+
+<!-- ===================== 2B ===================== -->
+<section id="sec-2b" class="mv-section-card">
+<h2><span class="section-number">2B.</span>Enterprise-Friendly Features</h2>
+<p>Thirty enterprise features. Grouped into <strong>regulatory compliance</strong>, <strong>data governance</strong>, <strong>deployment &amp; sovereignty</strong>, <strong>security posture</strong>, and <strong>commercial tiers</strong>.</p>
+
+<div class="mv-pillbar">
+  <span class="mv-pill">10 compliance frameworks</span>
+  <span class="mv-pill">4 deployment topologies</span>
+  <span class="mv-pill">5 data classifications</span>
+  <span class="mv-pill">air-gapped sovereign</span>
+  <span class="mv-pill">post-quantum ready</span>
+  <span class="mv-pill">confidential compute</span>
+</div>
+
+<h4>Regulatory compliance</h4>
+<div class="mv-grid-3">
+  <div class="mv-feature-card"><div class="num">EN-01</div><h4>EU AI Act Article 55</h4><p>All 8 GPAI obligations addressed: documentation (S4), training-data summary (S5), downstream info (S2), copyright (A3), technical docs, systemic-risk assessment (A1/A2), adversarial testing (A2), incident reporting (X5/A4).</p></div>
+  <div class="mv-feature-card"><div class="num">EN-02</div><h4>NIST AI RMF</h4><p>Full mapping to Govern / Map / Measure / Manage. <code>defstack compliance-report</code> emits a per-function evidence bundle.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-03</div><h4>ISO/IEC 42001:2023</h4><p>Clause-by-clause mapping documented (6 Planning, 7 Support, 8 Operation, 9 Performance, 10 Improvement). Org certification target M18.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-04</div><h4>FedRAMP authorization path</h4><p>Three target components (R3 kill-switch, I1 agent-identity, C1-3 attesta-flow) on the 2026 "20x" or "Rev 5 + GRC tooling" path.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-05</div><h4>DORA (financial sector)</h4><p>High-availability inference (N1/N3), multi-tenant isolation (N4), incident response (R3/X9), audit trail (I1) for ICT-risk-regulated financial institutions.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-06</div><h4>HIPAA mode</h4><p>Healthcare data-handling operating mode: PHI tagging in CPE (P3), purpose-bound use (I-03), egress default-deny (R7).</p></div>
+  <div class="mv-feature-card"><div class="num">EN-07</div><h4>AI Kill Switch Act reference impl</h4><p>R3 kill-switch is the reference implementation for H.R. 2026 (Reps. Lieu/Moran, introduced July 23 2026). Government notification path (C7, fixed).</p></div>
+  <div class="mv-feature-card"><div class="num">EN-08</div><h4>GDPR data-subject rights</h4><p>Export / erase / restrict / object. (Right-to-erasure is M1 — append-only ledger conflict to resolve.)</p></div>
+  <div class="mv-feature-card"><div class="num">EN-09</div><h4>CCPA / CPRA operating mode</h4><p>California consumer privacy mode: sale-opt-out, sensitive-PII category handling, request-to-know workflows.</p></div>
+</div>
+
+<h4>Data governance</h4>
+<div class="mv-grid-3">
+  <div class="mv-feature-card"><div class="num">EN-10</div><h4>5-level data classification</h4><p>L0 public → L4 restricted/crown-jewel. Classification propagates through CPE (P3) into egress decisions (R7) and DP budgets (F2).</p></div>
+  <div class="mv-feature-card"><div class="num">EN-11</div><h4>PII redaction (10 types)</h4><p>Detector patterns for SSN, credit-card (Luhn-validated), email, phone, IBAN, passport, DOB, address, biometric, account-number. Enforced at egress.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-12</div><h4>Data residency enforcement</h4><p>US / EU / UK / India / air-gapped residency zones. Data tagged with origin cannot cross residency boundaries without explicit policy.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-16</div><h4>Per-tenant attestation</h4><p>Every tenant gets its own attestation root and policy bundle. No cross-tenant trust leakage.</p></div>
+</div>
+
+<h4>Deployment &amp; sovereignty</h4>
+<div class="mv-grid-3">
+  <div class="mv-feature-card"><div class="num">EN-13</div><h4>4 deployment topologies</h4><p>A · local dev, B · cloud-managed, C · hybrid (customer VPC + SaaS sync), D · air-gapped sovereign appliance. Each has a documented trust posture.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-14</div><h4>Multi-cloud</h4><p>Azure (DC-series), AWS (Nitro), GCP (Confidential VMs), Modal. C1-3 attesta-flow normalizes across all four.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-15</div><h4>Multi-tenancy GPU partitioning</h4><p>MIG (hardware) and MPS (software) partitioning via N4 tenant-guard. Per-tenant isolation with audit.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-28</div><h4>Sovereign / air-gapped edition</h4><p>X10 sovereign-stack: single-node appliance, HSM/TPM-backed CA, annual sovereign license, no external network. Government / defense grade.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-25</div><h4>Marketplace listings</h4><p>AWS, Azure, GCP, NVIDIA NGC marketplace listings for one-click procurement (enterprise PO path).</p></div>
+</div>
+
+<h4>Security posture</h4>
+<div class="mv-grid-3">
+  <div class="mv-feature-card"><div class="num">EN-17</div><h4>Role-based access</h4><p>Governance ladder: BDFL → Steering Committee → Foundation. Operational RBAC beyond governance roles is a planned addition (see 3C).</p></div>
+  <div class="mv-feature-card"><div class="num">EN-18</div><h4>Signed, tamper-evident audit trail</h4><p>Every action signed by an SVID; every receipt (AAR/P2) tamper-evident; Merkle-audited (S2); anchored to Sigstore Rekor.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-19</div><h4>Confidential computing</h4><p>NVIDIA H100/H200 TEE-backed serving via C1-4 tee-serve (&lt;2ms overhead). Confidential containers + policy-bound key release (C1-5).</p></div>
+  <div class="mv-feature-card"><div class="num">EN-20</div><h4>Post-quantum ready</h4><p>Algorithm-abstraction layer in trust-core: signing/verification pluggable so NIST-PQC (ML-DSA/Kyber) slots in without API churn.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-29</div><h4>API rate limiting + semantic cache</h4><p>N3 inference-proxy: token-bucket rate limit per tenant, semantic cache to dedupe near-identical prompts. &lt;2ms overhead.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-30</div><h4>Prompt-injection / PII / content filter</h4><p>N3 prompt-filter: 3-stage gate (injection detection, PII redaction, content policy) before the model sees input.</p></div>
+</div>
+
+<h4>Commercial tiers &amp; operations</h4>
+<div class="mv-grid-3">
+  <div class="mv-feature-card"><div class="num">EN-21</div><h4>Incident response playbooks</h4><p>5 disaster-recovery scenarios documented: model compromise, agent escape, credential leak, key compromise, region loss.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-22</div><h4>Business continuity</h4><p>9-month runway minimum maintained; documented succession for the BDFL role; bus-factor &gt; 3 on every critical component.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-23</div><h4>Bug bounty</h4><p>HackerOne program launching Q2 2027. Severity-based payouts; critical-findings fast-track.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-24</div><h4>CVE numbering authority candidate</h4><p>CNA candidacy on the roadmap so AumOS can assign CVEs for its own dependencies and downstream consumers.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-26</div><h4>Enterprise tier</h4><p>SSO/SAML, audit streaming (OCSF out), SLA-backed support, named technical account manager.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-27</div><h4>Mission-critical tier</h4><p>FedRAMP-authorized deployment, dedicated customer success engineer (CSE), 24/7 phone support, &lt;15-min incident page.</p></div>
+</div>
+</section>
+
+<!-- ===================== 2C ===================== -->
+<section id="sec-2c" class="mv-section-card">
+<h2><span class="section-number">2C.</span>End-to-end Workflows</h2>
+<p>Ten workflows showing how components compose into real outcomes. Each is the irreducible path an integrator implements. These are the "if you remember nothing else, remember these" sequences.</p>
+
+<!-- WF1 -->
+<div class="callout info mv-callout-tight">
+  <div class="callout-title">Workflow 1 · Secure agent action <span class="mv-tag">P1 · I-07</span></div>
+  <p>The canonical flow. A human issues authority; the agent acts; evidence precedes commitment.</p>
+  <div class="mv-flow">
+    <span class="mv-step">Human</span><span class="mv-arrow">→</span>
+    <span class="mv-step accent">AAE (P1)</span><span class="mv-arrow">→</span>
+    <span class="mv-step">I1 identity</span><span class="mv-arrow">→</span>
+    <span class="mv-step">R2 sandbox</span><span class="mv-arrow">→</span>
+    <span class="mv-step">R4 credentials</span><span class="mv-arrow">→</span>
+    <span class="mv-step">action</span><span class="mv-arrow">→</span>
+    <span class="mv-step accent">E1 AAR (P2)</span><span class="mv-arrow">→</span>
+    <span class="mv-step">I-07 evidence</span>
+  </div>
+</div>
+
+<!-- WF2 -->
+<div class="callout info mv-callout-tight">
+  <div class="callout-title">Workflow 2 · Model deployment <span class="mv-tag">S1 · N1</span></div>
+  <p>From HuggingFace download to tenant-isated serving.</p>
+  <div class="mv-flow">
+    <span class="mv-step">HF download</span><span class="mv-arrow">→</span>
+    <span class="mv-step accent">S1 sign</span><span class="mv-arrow">→</span>
+    <span class="mv-step">S2 lineage</span><span class="mv-arrow">→</span>
+    <span class="mv-step">S4 SBOM</span><span class="mv-arrow">→</span>
+    <span class="mv-step">N1 serve</span><span class="mv-arrow">→</span>
+    <span class="mv-step">N3 proxy</span><span class="mv-arrow">→</span>
+    <span class="mv-step">N4 tenant</span>
+  </div>
+</div>
+
+<!-- WF3 -->
+<div class="callout danger mv-callout-tight">
+  <div class="callout-title">Workflow 3 · Incident response <span class="mv-tag">&lt;5s kill · &lt;1s revoke</span></div>
+  <p>The containment flow. Latency budgets are I-05 invariants.</p>
+  <div class="mv-flow">
+    <span class="mv-step">A2 detects injection</span><span class="mv-arrow">→</span>
+    <span class="mv-step accent">R3 kill (&lt;5s)</span><span class="mv-arrow">→</span>
+    <span class="mv-step accent">R4 revoke (&lt;1s)</span><span class="mv-arrow">→</span>
+    <span class="mv-step">X9 incident (P9)</span><span class="mv-arrow">→</span>
+    <span class="mv-step">X5 retrospective</span><span class="mv-arrow">→</span>
+    <span class="mv-step">A4 compliance</span>
+  </div>
+</div>
+
+<!-- WF4 -->
+<div class="callout mv-callout-tight">
+  <div class="callout-title">Workflow 4 · Evaluation <span class="mv-tag">VEB (P8)</span></div>
+  <p>The "no capability change ships without risk-relevant evidence" flow (plane 6, I-…).</p>
+  <div class="mv-flow">
+    <span class="mv-step">A1 pipeline</span><span class="mv-arrow">→</span>
+    <span class="mv-step">benchmarks</span><span class="mv-arrow">→</span>
+    <span class="mv-step">adversarial</span><span class="mv-arrow">→</span>
+    <span class="mv-step">safety</span><span class="mv-arrow">→</span>
+    <span class="mv-step">bias</span><span class="mv-arrow">→</span>
+    <span class="mv-step">red_team</span><span class="mv-arrow">→</span>
+    <span class="mv-step accent">VEB (P8)</span><span class="mv-arrow">→</span>
+    <span class="mv-step">S4 SBOM attach</span>
+  </div>
+</div>
+
+<!-- WF5 -->
+<div class="callout mv-callout-tight">
+  <div class="callout-title">Workflow 5 · Federated training <span class="mv-tag">F1 · F2 DP</span></div>
+  <p>Attested round-by-round training with differential privacy.</p>
+  <div class="mv-flow">
+    <span class="mv-step">F1 round</span><span class="mv-arrow">→</span>
+    <span class="mv-step accent">F2 DP noise</span><span class="mv-arrow">→</span>
+    <span class="mv-step">attestation</span><span class="mv-arrow">→</span>
+    <span class="mv-step">aggregate</span><span class="mv-arrow">→</span>
+    <span class="mv-step">verify</span><span class="mv-arrow">→</span>
+    <span class="mv-step">publish</span>
+  </div>
+</div>
+
+<!-- WF6 -->
+<div class="callout success mv-callout-tight">
+  <div class="callout-title">Workflow 6 · Compliance reporting <span class="mv-tag">10 frameworks · 1 command</span></div>
+  <p>The "single command demonstrates Article 55" flow.</p>
+  <div class="mv-flow">
+    <span class="mv-step accent">defstack compliance-report</span><span class="mv-arrow">→</span>
+    <span class="mv-step">S4 SBOM</span><span class="mv-arrow">+</span>
+    <span class="mv-step">S5 data-prov</span><span class="mv-arrow">+</span>
+    <span class="mv-step">S2 lineage</span><span class="mv-arrow">+</span>
+    <span class="mv-step">A1 evals</span><span class="mv-arrow">+</span>
+    <span class="mv-step">A2 adversarial</span><span class="mv-arrow">→</span>
+    <span class="mv-step">10 frameworks</span>
+  </div>
+</div>
+
+<!-- WF7 -->
+<div class="callout mv-callout-tight">
+  <div class="callout-title">Workflow 7 · Confidential inference <span class="mv-tag">TEE · attestation envelope</span></div>
+  <p>Hardware-rooted trust from GPU to user.</p>
+  <div class="mv-flow">
+    <span class="mv-step">C1-1 attest</span><span class="mv-arrow">→</span>
+    <span class="mv-step">C1-2 verify</span><span class="mv-arrow">→</span>
+    <span class="mv-step">C1-3 pipeline</span><span class="mv-arrow">→</span>
+    <span class="mv-step accent">C1-4 TEE serve</span><span class="mv-arrow">→</span>
+    <span class="mv-step">attestation envelope</span>
+  </div>
+</div>
+
+<!-- WF8 -->
+<div class="callout mv-callout-tight">
+  <div class="callout-title">Workflow 8 · Agent development <span class="mv-tag">SDK · MCP · console</span></div>
+  <p>The inner-loop a developer runs every day.</p>
+  <div class="mv-flow">
+    <span class="mv-step accent">SDK @agent.action</span><span class="mv-arrow">→</span>
+    <span class="mv-step">harness secure_session</span><span class="mv-arrow">→</span>
+    <span class="mv-step">MCP tools (X8)</span><span class="mv-arrow">→</span>
+    <span class="mv-step">evidence store (E1)</span><span class="mv-arrow">→</span>
+    <span class="mv-step">console UI (X7)</span>
+  </div>
+</div>
+
+<!-- WF9 -->
+<div class="callout mv-callout-tight">
+  <div class="callout-title">Workflow 9 · Supply-chain verification <span class="mv-tag">S1 → S9</span></div>
+  <p>Continuous integrity of every artifact after release.</p>
+  <div class="mv-flow">
+    <span class="mv-step accent">S1 sign</span><span class="mv-arrow">→</span>
+    <span class="mv-step">S2 lineage</span><span class="mv-arrow">→</span>
+    <span class="mv-step">S7 scan</span><span class="mv-arrow">→</span>
+    <span class="mv-step">S8 monitor</span><span class="mv-arrow">→</span>
+    <span class="mv-step">S9 patch</span>
+  </div>
+</div>
+
+<!-- WF10 -->
+<div class="callout mv-callout-tight">
+  <div class="callout-title">Workflow 10 · Edge deployment <span class="mv-tag">F3 · F4 · canary</span></div>
+  <p>Safe rollout to a fleet of edge devices with automatic rollback.</p>
+  <div class="mv-flow">
+    <span class="mv-step accent">F4 fleet-marshal</span><span class="mv-arrow">→</span>
+    <span class="mv-step">F3 edge-sentinel</span><span class="mv-arrow">→</span>
+    <span class="mv-step">canary rollout</span><span class="mv-arrow">→</span>
+    <span class="mv-step">auto-rollback</span>
+  </div>
+</div>
+</section>
+
+<!-- ====================== PART 3 ====================== -->
+<div id="part3"></div>
+<div class="mv-rule">Part 3 · What MUST We Add Beyond the 49 Components &amp; 12 Protocols</div>
+
+<p>Components implement domain logic; protocols define the contract. Neither is a runnable platform. Part 3 catalogs the substrate AumOS depends on but does not own &mdash; the infrastructure services, the developer tooling, the enterprise capabilities, and the ecosystem integrations that MUST exist for a real deployment. These are not optional polish; they are the difference between a specification and a product.</p>
+
+<!-- ===================== 3A ===================== -->
+<section id="sec-3a" class="mv-section-card">
+<h2><span class="section-number">3A.</span>Essential infrastructure services</h2>
+<p>Ten services the system cannot run without. AumOS adopts these rather than reinventing them (per 02-architecture.md §7). Each maps to at least one open High/Medium finding.</p>
+
+<div class="mv-grid-2">
+  <div class="mv-feature-card"><div class="num">INFRA-01</div><h4>SPIRE server cluster</h4><p>The identity root for all components. I1 agent-identity ships an in-process Ed25519 CA in v1.0 (final-verification-report task 03). A production deployment MUST front I1 with a SPIRE cluster that mints real SPIFFE SVIDs. Resolves H6 (plain HTTP) and the SVID lifecycle.</p></div>
+  <div class="mv-feature-card"><div class="num">INFRA-02</div><h4>OpenTelemetry Collector</h4><p>The observability backbone. E1 emits JSON today (H9); OTLP export is deferred. A collector fan-outs traces (Tempo/Jaeger), metrics (Prometheus), and logs (Loki) from one pipe. Resolves H9.</p></div>
+  <div class="mv-feature-card"><div class="num">INFRA-03</div><h4>Kafka cluster</h4><p>The async event bus for CloudEvents. X9 incident-exchange (P9 AIX) and X2 NOOA audit-streamer are pub/sub by design but have no broker today. Kafka (or Redpanda) is the documented target.</p></div>
+  <div class="mv-feature-card"><div class="num">INFRA-04</div><h4>Sigstore Rekor</h4><p>The transparency log for anchoring. S2 provena-chain checkpoints are signed in v1.0 but not anchored to a public Rekor instance. Real Rekor integration is task 03 for S2/T1.</p></div>
+  <div class="mv-feature-card"><div class="num">INFRA-05</div><h4>PostgreSQL / TimescaleDB</h4><p>Persistence for the provena-chain ledger. The ledger is in-memory today (H10) &mdash; a tamper-evident ledger in RAM is not tamper-evident across restarts. TimescaleDB gives time-series queries for the audit timeline.</p></div>
+  <div class="mv-feature-card"><div class="num">INFRA-06</div><h4>Redis</h4><p>Semantic-cache backend for N3 inference-proxy. The proxy's cache interface is shipped; the backend is a stub. Redis (or Redis-compatible Dragonfly) makes the cache real and bounds latency.</p></div>
+  <div class="mv-feature-card"><div class="num">INFRA-07</div><h4>OPA cluster</h4><p>The policy evaluation engine for R3/R5. R3 kill-switch and R5 policy-compiler use a <code>MockPolicyEngine</code> in v1.0 (task 03). A real OPA (or Cedar) cluster makes Rego/Cedar decisions enforceable.</p></div>
+  <div class="mv-feature-card"><div class="num">INFRA-08</div><h4>Grafana + Prometheus</h4><p>The monitoring stack. No dashboards exist (1C GAP 9). Ship 12 reference Grafana dashboards (one per plane) + Prometheus scrape config + alerting rules.</p></div>
+  <div class="mv-feature-card"><div class="num">INFRA-09</div><h4>HashiCorp Vault</h4><p>The secrets backend for R4 credential-vault. R4 has the trait + stubs (task 03). Vault (or AWS Secrets Manager / K8s Secrets) makes issuance and rotation real. Resolves H11 (no-op revoke_all).</p></div>
+  <div class="mv-feature-card"><div class="num">INFRA-10</div><h4>NVIDIA GPU operator</h4><p>The Kubernetes GPU management layer. N4 tenant-guard and F4 fleet-marshal's MIG/MPS partitioning depend on the NVIDIA GPU operator being installed on the cluster.</p></div>
+</div>
+</section>
+
+<!-- ===================== 3B ===================== -->
+<section id="sec-3b" class="mv-section-card">
+<h2><span class="section-number">3B.</span>Essential developer tooling</h2>
+<p>Eight tools that turn the component catalog into a usable platform. Today an integrator writes glue by hand; these tools remove that glue.</p>
+
+<div class="mv-grid-2">
+  <div class="mv-feature-card"><div class="num">TOOL-01</div><h4><code>aumos init</code></h4><p>Scaffolding command that creates a new AumOS-secured project: <code>@agent.action</code> template, <code>secure_session</code> wiring, MCP tool stubs, and a <code>make test</code> lane.</p></div>
+  <div class="mv-feature-card"><div class="num">TOOL-02</div><h4><code>aumos dev</code></h4><p>Local development server. Runs all 49 components with mock backends (mock SPIRE, mock Rekor, mock OPA, mock Vault) so an integrator can build without infrastructure.</p></div>
+  <div class="mv-feature-card"><div class="num">TOOL-03</div><h4><code>aumos test</code></h4><p>Runs the cross-language conformance suite. Wraps <code>tools/conformance/run.sh</code> and adds the protocol-level vectors missing today (1D).</p></div>
+  <div class="mv-feature-card"><div class="num">TOOL-04</div><h4><code>aumos deploy</code></h4><p>One-command cloud deployment. Terraform wrapper that provisions INFRA-01…10 and the requested components into AWS / Azure / GCP.</p></div>
+  <div class="mv-feature-card"><div class="num">TOOL-05</div><h4>VS Code extension</h4><p>Syntax highlighting + linting for <code>.complygate.yml</code> (A4), OPA Rego, CDDL, and AAE/AAR JSON. Snippets for <code>@agent.action</code> and <code>secure_session()</code>.</p></div>
+  <div class="mv-feature-card"><div class="num">TOOL-06</div><h4>Reusable GitHub Actions</h4><p>Pre-built CI templates (<code>uses: muveraai/aumos-actions/...</code>) for conformance, SBOM, SLSA, compliance-report. Drop-in for any AumOS project.</p></div>
+  <div class="mv-feature-card"><div class="num">TOOL-07</div><h4>Docker Compose dev env</h4><p>All 49 components + INFRA-01…10 mock backends in one <code>docker compose up</code>. The 5-minute quickstart (DX-27) depends on this.</p></div>
+  <div class="mv-feature-card"><div class="num">TOOL-08</div><h4>Helm chart registry</h4><p>Production-grade Helm chart per deployable component. Values files for the 4 topologies (A/B/C/D). <code>helm install aumos/trust-core</code>.</p></div>
+</div>
+</section>
+
+<!-- ===================== 3C ===================== -->
+<section id="sec-3c" class="mv-section-card">
+<h2><span class="section-number">3C.</span>Essential enterprise capabilities</h2>
+<p>Eight capabilities an enterprise procurement team will require before signing. These sit above the components and the governance roles.</p>
+
+<div class="mv-grid-2">
+  <div class="mv-feature-card"><div class="num">ENT-01</div><h4>SSO / SAML / OIDC</h4><p>Enterprise identity federation. Today the only identity is the SPIFFE workload identity (I1). Human-facing consoles (X7) and CI runners need SAML/OIDC federation to Okta, Entra ID, Ping.</p></div>
+  <div class="mv-feature-card"><div class="num">ENT-02</div><h4>RBAC engine</h4><p>Fine-grained role-based access beyond the governance ladder (EN-17). Resource-level permissions: who can issue an AAE, who can revoke, who can read the ledger.</p></div>
+  <div class="mv-feature-card"><div class="num">ENT-03</div><h4>Multi-cluster management</h4><p>Fleet of AumOS deployments across regions. A control-plane that federates attestation roots, syncs policy bundles, and rolls up audit across clusters.</p></div>
+  <div class="mv-feature-card"><div class="num">ENT-04</div><h4>Data residency enforcement engine</h4><p>Automatic data routing by classification (EN-10/EN-12). A policy engine that refuses to route L3+ data across residency boundaries and emits a violation event on attempt.</p></div>
+  <div class="mv-feature-card"><div class="num">ENT-05</div><h4>SLA monitoring</h4><p>Uptime, latency, and compliance SLAs with alerting. SLOs per plane (12 planes → 12 SLOs) wired into the Grafana stack (INFRA-08).</p></div>
+  <div class="mv-feature-card"><div class="num">ENT-06</div><h4>Backup &amp; disaster recovery</h4><p>Automated backup of ledgers, keys, configs. Documented RPO/RTO per topology. Resolves the multi-region gap (1C GAP 8).</p></div>
+  <div class="mv-feature-card"><div class="num">ENT-07</div><h4>Key ceremony procedures</h4><p>Documented HSM key generation and rotation ceremonies (M-of-N quorum, witnesses, attested ceremony VM). Required for FedRAMP and for sovereign (X10) deployments.</p></div>
+  <div class="mv-feature-card"><div class="num">ENT-08</div><h4>Penetration testing framework</h4><p>Annual third-party pentest with findings integrated into the audit backlog. Repeatable adversarial harness that re-runs the P2 6-class vectors (1D) every release.</p></div>
+</div>
+</section>
+
+<!-- ===================== 3D ===================== -->
+<section id="sec-3d" class="mv-section-card">
+<h2><span class="section-number">3D.</span>Essential ecosystem integrations</h2>
+<p>Eight integrations that make AumOS part of the stack an enterprise already runs. Each is a documented adapter; none requires forking the integrated system.</p>
+
+<div class="mv-grid-2">
+  <div class="mv-feature-card"><div class="num">INT-01</div><h4>HuggingFace Hub integration</h4><p>Sign models at upload time. A HuggingFace-side action that runs S1 sign + S4 SBOM + S2 lineage so every model on the Hub can carry an AumOS trust envelope.</p></div>
+  <div class="mv-feature-card"><div class="num">INT-02</div><h4>vLLM integration</h4><p>Attested serving plugin. N1/N2 backend adapter for vLLM that refuses to serve a model whose attestation envelope fails C1-1/C1-2 verification.</p></div>
+  <div class="mv-feature-card"><div class="num">INT-03</div><h4>LangChain / LangGraph</h4><p>NOOA-Ext (X2) harness adapter. Drop-in LangGraph checkpoint serializer that wraps every node in <code>@agent.action</code> automatically.</p></div>
+  <div class="mv-feature-card"><div class="num">INT-04</div><h4>Kubernetes admission controller</h4><p>Validate AAEs at pod creation. A mutating+validating webhook that refuses to schedule a pod whose workload has no valid AAE (P1).</p></div>
+  <div class="mv-feature-card"><div class="num">INT-05</div><h4>GitHub Actions security action</h4><p><code>.github/workflows/aumos.yml</code> for every repo: conformance, SBOM, SLSA, compliance-report. The DX-12 lane as a one-line include.</p></div>
+  <div class="mv-feature-card"><div class="num">INT-06</div><h4>Terraform provider</h4><p>Manage AumOS resources as IaC. <code>aumos_authority</code>, <code>aumos_policy</code>, <code>aumos_tenant</code> resources so a deployment is reproducible from code.</p></div>
+  <div class="mv-feature-card"><div class="num">INT-07</div><h4>Splunk / Elastic / Datadog</h4><p>OCSF event forwarding. X9 incident-exchange emits OCSF; this integration ships the connector packs for the three dominant SIEMs.</p></div>
+  <div class="mv-feature-card"><div class="num">INT-08</div><h4>Jira / Linear integration</h4><p>Incident-to-ticket auto-creation. An X9 incident opens a tracked ticket with the full evidence bundle (E1 AARs) attached.</p></div>
+</div>
+</section>
+
+<!-- ====================== BOTTOM LINE ====================== -->
+<div id="bottom-line"></div>
+<div class="mv-rule">Bottom Line</div>
+
+<div class="mv-section-card">
+<h2>The path from specification to platform</h2>
+
+<blockquote>
+  The 49 components and 12 protocols are a comprehensive architectural specification with
+  reference-shape implementations &mdash; not deployable v1.0 software. The critical-path work to close
+  that gap is bounded, sequenced, and already begun.
+</blockquote>
+
+<div class="stats-grid">
+  <div class="stat-card"><div class="stat-value" style="color:var(--green)">7</div><div class="stat-label">C-findings fixed (b8afc89)</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:var(--amber)">21</div><div class="stat-label">H + M findings open</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:var(--accent)">10</div><div class="stat-label">Infrastructure services to wire</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:var(--cyan)">34</div><div class="stat-label">Must-add items (3A–3D)</div></div>
+</div>
+
+<h3>Sequenced critical path</h3>
+<ol>
+  <li><strong>Close the cryptographic spine</strong> &mdash; C1–C7 fixed in <code>b8afc89</code>; land the cross-language canonical-CBOR conformance vectors (H3) so the fix cannot regress.</li>
+  <li><strong>Close protocol completeness</strong> (1D) &mdash; CDDL + JSON-Schema for P2–P12; the 6-class adversarial vectors for P2; the full P1–P12 round-trip conformance suite.</li>
+  <li><strong>Wire the infrastructure substrate</strong> (3A) &mdash; SPIRE, OTel collector, PostgreSQL for provena-chain (H10), Vault for R4 (H11), OPA for R3/R5. Each resolves a documented High finding.</li>
+  <li><strong>Stand up transport security</strong> &mdash; mTLS mesh (H6), W3C tracing (H9), circuit breakers, aggregate health. The platform substrate must be trustworthy before domain logic is.</li>
+  <li><strong>Ship the developer tooling</strong> (3B) &mdash; <code>aumos init/dev/test/deploy</code>, Docker Compose dev env, Helm registry. This is what turns the catalog into the 5-minute quickstart (DX-27).</li>
+  <li><strong>Add the enterprise + ecosystem layer</strong> (3C/3D) &mdash; SSO, RBAC, multi-cluster, data residency, the 8 ecosystem adapters. This is what unblocks procurement.</li>
+</ol>
+
+<div class="callout success mv-callout-tight">
+  <div class="callout-title">The honest summary</div>
+  <p style="margin:0">AumOS today is the most thoroughly specified open secure-AI stack in the market: 49 components reconciled across 4 source portfolios, 12 protocols, 10 compliance frameworks, 12 formal invariants, 691 tests. The gap to "deployable v1.0 software" is real (28 audit findings, 10 infrastructure services, 34 must-add items) but it is <strong style="color:#fff">bounded, sequenced, and mostly documentation-and-integration work rather than novel research</strong>. Closing it is a matter of months, not years.</p>
+</div>
+</div>
+
+<!-- ====================== SOURCES / FOOTER ====================== -->
+<div class="mv-foot">
+<p><strong>Sources (all <code>github.com/MuVeraAI/aumos</code>):</strong></p>
+<ul>
+  <li><code>docs/html/aumos-docs.css</code> &mdash; stylesheet inlined verbatim into this page (with MuVera dark enterprise overlay).</li>
+  <li><code>docs/00-reconciliation-matrix.md</code> &mdash; canonical component list (1A).</li>
+  <li><code>docs/critical-analysis.html</code> &mdash; the 7C / 11H / 10M findings (1B).</li>
+  <li><code>docs/final-verification-report.md</code> &mdash; current v1.0.0 state and task-03 deferrals.</li>
+  <li><code>docs/02-architecture.md</code> &mdash; the 12-plane architecture and I-01…​I-12 invariants.</li>
+  <li><code>docs/cross-cutting/13-compliance-frameworks.md</code> &mdash; regulatory mapping (2B).</li>
+</ul>
+<p style="margin-top:1rem"><span class="mv-brand-mark">MuVera AI</span> &middot; AumOS &mdash; the open authority and evidence layer for autonomous systems &middot; <span class="mv-tag">SENSE</span><span class="mv-tag">ACT</span><span class="mv-tag">SEAL</span><span class="mv-tag">IMPROVE ↺</span></p>
+</div>
+
+</div><!-- /.mv-shell -->
+
+</body>
+</html>
