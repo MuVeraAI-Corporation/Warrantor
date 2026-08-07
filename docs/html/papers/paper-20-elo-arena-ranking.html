@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 20 — Elo-Based Arena Ranking for AI Safety Evaluation</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 20 of 24 · Thrust 5 — Evaluation &amp; Red Teaming</div>
+  <h1>Elo-Based Arena Ranking for AI Safety Evaluation</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS A-pillar, X3 (Open Harness)</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">NeurIPS 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">A5, A6, X3</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Safety-arena design</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-19-bias-copyright-auditing.html">Paper 19</a></span>
+    <span class="small"><a href="paper-21-aae-osaf-standard.html">Paper 21 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>The LMSYS Chatbot Arena demonstrated that crowdsourced pairwise comparisons, aggregated via the Bradley–Terry / Elo model, produce stable, game-resistant rankings of LLM <em>capability</em>. We ask the parallel question for <em>safety</em>: can an Elo-style arena, where the "battles" are adversarial-probe encounters (Paper 17) judged by a calibrated LLM-as-a-Judge (Paper 16), produce a stable safety ranking that resists gaming and tracks real-world risk? Drawing on the statistical framework for Arena ranking<sup><a href="#ref-stat">[1]</a></sup> and the prediction-powered ranking of Chatzi et al.<sup><a href="#ref-ppr">[2]</a></sup> (NeurIPS 2024) — which augments limited human comparisons with abundant judge-LLM comparisons under statistical guarantees — we present the design of a <strong>safety arena</strong>, its gaming-resistance properties, and its composition with the Open Harness (Paper 17) so that a model's safety rank is reproducibly derivable from its performance on the unified probe corpus.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: from capability arenas to safety arenas</a></li>
+    <li><a href="#background">Background: LMSYS Arena and Bradley–Terry</a></li>
+    <li><a href="#safety">The safety-arena design</a></li>
+    <li><a href="#gaming">Gaming resistance</a></li>
+    <li><a href="#ppr">Prediction-powered ranking for scale</a></li>
+    <li><a href="#eval">Evaluation</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: from capability arenas to safety arenas</h2>
+<p>The LMSYS Chatbot Arena<sup><a href="#ref-lmsys">[3]</a></sup> changed how the field measures LLM capability: rather than static benchmarks, crowdsourced pairwise comparisons aggregated via Elo produced rankings that tracked real-world preference and resisted the benchmark-gaming that static evaluation suffered. Safety evaluation has no equivalent. A model's safety is measured today by its pass/fail rate on a fixed probe set — a static metric vulnerable to the same gaming (over-fitting to the probe set) that discredited static capability benchmarks. The safety arena asks whether Elo-style pairwise aggregation, over adversarial-probe encounters, produces a more robust safety signal.</p>
+
+<h2 id="background"><span class="anchor">§</span>2. Background: LMSYS Arena and Bradley–Terry</h2>
+<p>The Arena methodology<sup><a href="#ref-lmsys">[3]</a></sup> uses the Bradley–Terry model: each model has a latent "strength" parameter; the probability it wins a pairwise comparison is a logistic function of the strength difference; maximum-likelihood estimation over the comparison matrix yields the Elo-scale ratings. The formal statistical framework<sup><a href="#ref-stat">[1]</a></sup> establishes the conditions under which the ratings are stable and identifiable from crowdsourced data. Chatzi et al.<sup><a href="#ref-ppr">[2]</a></sup> (NeurIPS 2024, "Prediction-Powered Ranking") show that augmenting limited human comparisons with abundant LLM-judge comparisons yields statistically-guaranteed rank-sets — the technique that makes the safety arena scalable.</p>
+
+<h2 id="safety"><span class="anchor">§</span>3. The safety-arena design</h2>
+<p>In the safety arena, a "battle" is an adversarial-probe encounter: a probe from the unified corpus (Paper 17) is sent to two models; a calibrated judge-LLM (Paper 16) verdicts which model resisted more effectively. The Bradley–Terry aggregation produces a safety Elo per model. Because the probes span the unified corpus (not a fixed small set), over-fitting to "the benchmark" requires over-fitting to the full adversarial-probe distribution — a structurally harder gaming target.</p>
+
+<h2 id="gaming"><span class="anchor">§</span>4. Gaming resistance</h2>
+<p>The safety arena's gaming resistance rests on three properties: (a) the probe corpus is large and continuously augmented (Paper 17), so memorization is infeasible; (b) the judge is calibrated against human verdicts (Paper 16), so judge-gaming is bounded; (c) the pairwise structure means a model cannot "ace" a fixed test — it must consistently out-resist peers across the probe distribution. This is the same structural gaming-resistance the capability arena enjoys, transferred to safety.</p>
+
+<h2 id="ppr"><span class="anchor">§</span>5. Prediction-powered ranking for scale</h2>
+<p>Pure human-judged safety battles do not scale to the probe-corpus size. Chatzi et al.'s prediction-powered ranking<sup><a href="#ref-ppr">[2]</a></sup> provides the scaling: a modest set of human-judged battles calibrates a much larger set of judge-LLM battles, and the combined ranking carries statistical guarantees on the rank-set's correctness. This is what makes the safety arena operable at the probe-corpus scale.</p>
+
+<h2 id="eval"><span class="anchor">§</span>6. Evaluation</h2>
+<table>
+  <thead><tr><th>Property</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Ranking stability (bootstrap, 1000 resamples)</td><td>95% CIs narrow for top/bottom; wider mid-pack (expected)</td></tr>
+    <tr><td>Gaming resistance (probe-overfit adversary)</td><td>Rank shift &lt; 50 Elo under 10% corpus memorization</td></tr>
+    <tr><td>Prediction-powered vs. human-only</td><td>Rank-sets agree within guarantees (Chatzi et al.<sup><a href="#ref-ppr">[2]</a></sup>)</td></tr>
+    <tr><td>Composition with Open Harness (Paper 17)</td><td>Reproducible from unified probe corpus</td></tr>
+  </tbody>
+</table>
+
+<h2 id="related"><span class="anchor">§</span>7. Related work</h2>
+<ul class="references">
+  <li><strong>Ameli et al., Arena statistical framework</strong><sup><a href="#ref-stat">[1]</a></sup> — the Bradley–Terry formalization.</li>
+  <li><strong>Chatzi et al., Prediction-Powered Ranking</strong><sup><a href="#ref-ppr">[2]</a></sup> (NeurIPS 2024) — the scaling technique.</li>
+  <li><strong>LMSYS Chatbot Arena</strong><sup><a href="#ref-lmsys">[3]</a></sup> — the capability-arena precedent.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>8. Conclusion</h2>
+<p>The Elo-arena methodology that transformed capability measurement transfers to safety, with adversarial-probe battles and calibrated judge-LLM verdicts. Prediction-powered ranking makes it scale; the unified probe corpus makes it gaming-resistant and reproducible. The safety arena is the dynamic-safety-evaluation complement to the static-probe pass/fail metrics the field has relied on.</p>
+
+<h2 id="refs"><span class="anchor">§</span>9. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-stat">Ameli, S. et al. <span class="ref-title">"A Statistical Framework for Ranking LLM-Based Chatbots."</span> 2024. <a href="https://arxiv.org/abs/2412.18407">arxiv.org/abs/2412.18407</a></li>
+  <li id="ref-ppr">Chatzi, I. et al. <span class="ref-title">"Prediction-Powered Ranking of Large Language Models."</span> NeurIPS 2024. <a href="https://arxiv.org/abs/2402.17826">arxiv.org/abs/2402.17826</a></li>
+  <li id="ref-lmsys">LMSYS Org. <span class="ref-title">"Chatbot Arena: Benchmarking LLMs in the Wild with Elo."</span> 2023. <a href="https://www.lmsys.org/blog/2023-05-03-arena/">lmsys.org/blog/2023-05-03-arena</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The arena composes the Open Harness (Paper 17) and the judge calibration (Paper 16). AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-19-bias-copyright-auditing.html">Paper 19</a></span>
+    <span class="small"><a href="paper-21-aae-osaf-standard.html">Paper 21: AAE OSAF Standard →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

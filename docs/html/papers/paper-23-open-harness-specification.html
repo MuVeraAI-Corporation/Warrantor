@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 23 — Open Harness Specification: A Vendor-Neutral Agent Testing Framework</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow spec">AumOS Research · Paper 23 of 24 (Specification) · Thrust 6 — Standards &amp; Protocol Contributions</div>
+  <h1>Open Harness Specification: A Vendor-Neutral Agent Testing Framework</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Proposed OSAF specification; builds on Paper 17</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">OSAF specification (charter Q1 2027)</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Draft specification</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-22-aar-osaf-standard.html">Paper 22</a></span>
+    <span class="small"><a href="paper-24-ai-artifact-trust-manifest.html">Paper 24 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract spec">
+  <span class="abstract-label">Specification Abstract</span>
+  <p>This document specifies the <strong>Open Harness Specification (OHS)</strong>, built on AumOS's <code>open-harness-spec</code> (X3), as a vendor-neutral specification for agent testing harnesses — defining the canonical test-case schema, the agent-interface adapter, the verdict-reporting format, and the reproducibility-packaging requirements (Paper 17). The OHS lets a test authored for one agent framework run unchanged against any other, addressing the reproducibility crisis in agent evaluation where results reported for one framework do not transfer to another. The specification aligns with the Model Context Protocol (MCP)<sup><a href="#ref-mcp">[1]</a></sup> as the agent-tool protocol its adapters target, and adopts OpenSSF Model Signing's reproducibility-pack conventions. Reference adapters cover the major frameworks (LangChain, AutoGen, OpenAI Agents, MCP); a seed test corpus is contributed by the OSAF community.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction and status</a></li>
+    <li><a href="#mcp">Alignment with the Model Context Protocol</a></li>
+    <li><a href="#schema">Normative: test-case schema</a></li>
+    <li><a href="#adapter">Normative: agent-interface adapter</a></li>
+    <li><a href="#verdict">Normative: verdict format</a></li>
+    <li><a href="#repro">Normative: reproducibility packaging</a></li>
+    <li><a href="#path">Path to standardization</a></li>
+    <li><a href="#refs">Normative references</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction and status</h2>
+<p>This OSAF specification generalizes the Open Harness of Paper 17 into a vendor-neutral testing-framework standard. It addresses the reproducibility crisis in agent evaluation: results reported for one framework do not transfer to another, because every framework has its own test schema, adapter, and verdict semantics. The OHS normalizes the three so a test authored once runs anywhere, and a defense evaluated under OHS is comparable to any other.</p>
+
+<h2 id="mcp"><span class="anchor">§</span>2. Alignment with the Model Context Protocol</h2>
+<p>The Model Context Protocol (MCP)<sup><a href="#ref-mcp">[1]</a></sup> — Anthropic's open, vendor-neutral JSON-RPC protocol for connecting LLM/agent applications to external data sources and tools, donated to the Agentic AI Foundation in 2026 — is the agent-tool protocol the OHS adapters target. Because MCP standardizes the agent↔tool interface, an OHS adapter that drives an MCP-conformant agent is portable across every MCP-conformant runtime. The agent-interoperability survey<sup><a href="#ref-survey">[2]</a></sup> characterizes MCP and its alternatives; the OHS chose MCP as the alignment target for its openness and adoption.</p>
+
+<h2 id="schema"><span class="anchor">§</span>3. Normative: test-case schema</h2>
+<p>The canonical test-case schema (behavior, prompt, expected-verdict-policy, metadata, probe-source) into which each tool's cases (HarmBench, JailbreakBench, garak, PyRIT — Paper 17) are translated. The schema is normative; translators are informative (tool-specific). A conformant harness MUST accept the canonical schema and MAY accept tool-native schemas via documented translators.</p>
+
+<h2 id="adapter"><span class="anchor">§</span>4. Normative: agent-interface adapter</h2>
+<p>The adapter interface: <code>send(prompt) → response</code>, abstracting the model/agent backend. Conformant adapters exist for the major frameworks; the MCP-aligned adapter is the reference. An adapter that distorts the agent's behavior (e.g., by preprocessing the prompt in a way that changes the attack surface) is non-conformant.</p>
+
+<h2 id="verdict"><span class="anchor">§</span>5. Normative: verdict format</h2>
+<p>The canonical verdict (attack-succeeded/failed/inconclusive + evidence + judge-metadata). Verdict-translators map tool-native verdicts to the canonical one; genuine scoring-philosophy differences are surfaced as configurable policy, not silenced.</p>
+
+<h2 id="repro"><span class="anchor">§</span>6. Normative: reproducibility packaging</h2>
+<p>A test run produces a reproducibility pack: the test case, the adapter version, the agent/model identifier and version, the verdict, and the full transcript — signed and archivable. The pack adopts OpenSSF Model Signing conventions so a published result is independently reproducible. This is what closes the reproducibility gap: a result claim is a pack, verifiable by re-running it.</p>
+
+<h2 id="path"><span class="anchor">§</span>7. Path to standardization</h2>
+<p>OSAF working-group charter Q1 2027; v1.0 specification Q1 2028, with reference adapters donated by the AumOS implementation and a community seed-corpus call for contributions. The standard ships with the cross-tool consistency harness (Paper 17, §6) as the conformance gate.</p>
+
+<h2 id="refs"><span class="anchor">§</span>8. Normative references</h2>
+<div class="references">
+<ol>
+  <li id="ref-mcp">Anthropic / Agentic AI Foundation. <span class="ref-title">Model Context Protocol (MCP) Specification.</span> <a href="https://modelcontextprotocol.io/specification/2026-07-28">modelcontextprotocol.io/specification/2026-07-28</a></li>
+  <li id="ref-survey"><span class="ref-title">"A Survey of Agent Interoperability Protocols."</span> 2025. <a href="https://arxiv.org/abs/2505.02279">arxiv.org/abs/2505.02279</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Specification derived from Paper 17. Reference implementation: AumOS X3. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-22-aar-osaf-standard.html">Paper 22</a></span>
+    <span class="small"><a href="paper-24-ai-artifact-trust-manifest.html">Paper 24: AI Artifact Trust Manifest →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

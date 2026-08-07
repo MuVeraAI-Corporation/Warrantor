@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 21 — The Agent Authority Envelope: An OSAF Standard for Verifiable Agent Delegation</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow spec">AumOS Research · Paper 21 of 24 (Specification) · Thrust 6 — Standards &amp; Protocol Contributions</div>
+  <h1>The Agent Authority Envelope: An OSAF Standard for Verifiable Agent Delegation</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Proposed OSAF / IETF standard; builds on Papers 1, 2, 4</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">OSAF specification (charter Q4 2026)</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Draft specification</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-20-elo-arena-ranking.html">Paper 20</a></span>
+    <span class="small"><a href="paper-22-aar-osaf-standard.html">Paper 22 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract spec">
+  <span class="abstract-label">Specification Abstract</span>
+  <p>This document specifies the <strong>Agent Authority Envelope (AAE)</strong> as a proposed OSAF standard for verifiable agent delegation, generalizing the research artifact of Paper 1 into an interoperable, multi-vendor specification. The AAE is a signed, audience-bound, time-scoped delegation token that binds a principal's authority to an agent's capabilities and an attested host, with a verification contract (the intersection of Paper 4). The specification is built on established IETF standards — COSE (RFC 9052<sup><a href="#ref-cose">[1]</a></sup>) over deterministic CBOR (RFC 8949), with selective-disclosure options modeled on SD-JWT (RFC 9901<sup><a href="#ref-sdjwt">[2]</a></sup>) and SD-JWT VC<sup><a href="#ref-sdjwtvc">[3]</a></sup> — and aligns with the W3C VC-JOSE-COSE securing model<sup><a href="#ref-w3c">[4]</a></sup>. The normative sections define the envelope structure, the verification contract, the conformance requirements (Paper 2's CSF-v1), and the registry/interop story. The reference implementation is AumOS T1/T2; the conformance vectors are V2/V3.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction and status</a></li>
+    <li><a href="#foundations">Foundational standards</a></li>
+    <li><a href="#envelope">Normative: envelope structure</a></li>
+    <li><a href="#contract">Normative: the verification contract</a></li>
+    <li><a href="#conformance">Normative: conformance</a></li>
+    <li><a href="#interop">Interop and the registry story</a></li>
+    <li><a href="#security">Security considerations</a></li>
+    <li><a href="#path">Path to standardization</a></li>
+    <li><a href="#refs">Normative references</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction and status</h2>
+<p>This document specifies the Agent Authority Envelope (AAE) for submission to the Open Secure AI Foundation (OSAF) and parallel consideration in the IETF. It generalizes the research contribution of Paper 1 (Verifiable Agent Authority) and the safety contract of Paper 4 (Delegation Intersection Semantics) into a normative, multi-vendor specification. The status is a first draft for working-group chartering; the reference implementation and conformance vectors exist today in AumOS, providing the basis for the standard's testability.</p>
+
+<h2 id="foundations"><span class="anchor">§</span>2. Foundational standards</h2>
+<p>The AAE is deliberately built on established IETF/W3C standards rather than inventing new infrastructure. <strong>COSE (RFC 9052)</strong><sup><a href="#ref-cose">[1]</a></sup> provides the signing structure; <strong>deterministic CBOR (RFC 8949)</strong> provides the canonical encoding; <strong>SD-JWT (RFC 9901)</strong><sup><a href="#ref-sdjwt">[2]</a></sup> inspires the selective-disclosure option (an agent may reveal only the capabilities a relying party needs to see); <strong>SD-JWT VC</strong><sup><a href="#ref-sdjwtvc">[3]</a></sup> and the <strong>W3C VC-JOSE-COSE</strong> securing model<sup><a href="#ref-w3c">[4]</a></sup> provide the verifiable-credential framing. AUCorrect: RFC 9901 is SD-JWT (selective disclosure), not RFC 9068 (which is the JWT Profile for OAuth 2.0 Access Tokens) — the specification uses the correct RFCs.</p>
+
+<h2 id="envelope"><span class="anchor">§</span>3. Normative: envelope structure</h2>
+<p>The normative envelope structure is that of Paper 1, §3.1, with the following mandatory fields (<code>typ</code>, <code>alg</code>, <code>kid</code>, <code>principal</code>, <code>agent</code>, <code>audience</code>, <code>capabilities</code>, <code>attestation</code>, <code>validity</code>, <code>freshness</code>, <code>signature</code>) and optional fields (<code>protocol</code>, <code>delegation_chain</code> for multi-hop). Field semantics, type tags, and the canonical-encoding rules (Paper 2's CSF-v1) are normative. The COSE-Sign1 structure is the wire format.</p>
+
+<h2 id="contract"><span class="anchor">§</span>4. Normative: the verification contract</h2>
+<p>The intersection verification contract of Paper 4 (§3) is normative: a conformant relying party MUST honor an action only if it is in the intersection G(e) ∩ H(e) ∩ D(e) <em>and</em> the freshness, audience, and signature predicates hold. A relying party that honors the grant G(e) alone is non-conformant. This is the security-critical normative requirement.</p>
+
+<h2 id="conformance"><span class="anchor">§</span>5. Normative: conformance</h2>
+<p>An implementation claims AAE conformance only after passing the V2/V3 conformance vector suite (Paper 18's service) in all declared runtimes, producing byte-identical canonical encodings and signatures. Conformance is the structural guarantee that makes "AAE-compatible" verifiable.</p>
+
+<h2 id="interop"><span class="anchor">§</span>6. Interop and the registry story</h2>
+<p>The specification defines a registry for algorithm identifiers, attestation formats identifiers, and capability vocabularies, so the standard can evolve without re-chartering. The registry is operated by OSAF (or a delegated standards body) under a documented policy. Interop with SPIFFE federation (WP3) and OAuth ecosystems is addressed in appendices.</p>
+
+<h2 id="security"><span class="anchor">§</span>7. Security considerations</h2>
+<p>The security considerations section restates the DY-CA soundness result (Paper 1, §4.2), the canonicalization-defect threat (Paper 2), and the multi-hop safety property (Paper 4). It documents the residual exposures (the un-anchored freshness window; the principal-intent problem; the non-confidential-host attestation degeneration) and the mitigations.</p>
+
+<h2 id="path"><span class="anchor">§</span>8. Path to standardization</h2>
+<p>Proposed path: OSAF working-group charter Q4 2026; draft specification with reference implementation and conformance vectors Q2 2027; v1.0 specification Q4 2027, with parallel IETF BoF exploration for the COSE/SD-JWT composition. The standard ships with the conformance program (Paper 18) from day one — the structural property that distinguishes it from single-vendor delegation schemes.</p>
+
+<h2 id="refs"><span class="anchor">§</span>9. Normative references</h2>
+<div class="references">
+<ol>
+  <li id="ref-cose">Schaad, J. <span class="ref-title">"CBOR Object Signing and Encryption (COSE)."</span> RFC 9052, IETF, 2019. <a href="https://www.rfc-editor.org/rfc/rfc9052">rfc-editor.org/rfc/rfc9052</a></li>
+  <li id="ref-sdjwt">Fett, D. &amp; Yasuda, K. <span class="ref-title">"Selective Disclosure for JWTs (SD-JWT)."</span> RFC 9901, IETF, 2025. <a href="https://www.rfc-editor.org/rfc/rfc9901">rfc-editor.org/rfc/rfc9901</a></li>
+  <li id="ref-sdjwtvc">IETF OAuth WG. <span class="ref-title">"SD-JWT-based Verifiable Credentials (SD-JWT VC)."</span> draft-ietf-oauth-sd-jwt-vc. <a href="https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/">datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc</a></li>
+  <li id="ref-w3c">W3C. <span class="ref-title">"Securing Verifiable Credentials using JOSE and COSE (vc-jose-cose)."</span> W3C Recommendation, 2024. <a href="https://www.w3.org/TR/vc-jose-cose/">w3.org/TR/vc-jose-cose</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Specification derived from Papers 1, 2, 4. Reference implementation: AumOS T1/T2. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-20-elo-arena-ranking.html">Paper 20</a></span>
+    <span class="small"><a href="paper-22-aar-osaf-standard.html">Paper 22: AAR OSAF Standard →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

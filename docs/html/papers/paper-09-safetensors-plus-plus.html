@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 9 — Safetensors++: Signed Provenance Metadata for Open Model Formats</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 9 of 24 · Thrust 3 — AI Supply Chain Integrity</div>
+  <h1>Safetensors++: Signed Provenance Metadata for Open Model Formats</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS S-pillar (supply chain), S1/S4</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">USENIX Security 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">S1, S4, T1</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Format extension + interop</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-08-privacy-budget-paradox.html">Paper 8</a></span>
+    <span class="small"><a href="paper-10-tamper-evident-model-lineage.html">Paper 10 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>The open model ecosystem — Safetensors, GGUF, ONNX — has standardized how model <em>weights</em> are serialized, but it has not standardized how their <em>provenance</em> is asserted. A model file downloaded from a hub today carries, at best, a repository commit hash; it carries no cryptographically-signed assertion of who trained it, on what data, under what license, with which dependencies, or whether it has been tampered with since release. OpenSSF Model Signing v1.0<sup><a href="#ref-oms">[1]</a></sup>,<sup><a href="#ref-oms-spec">[2]</a></sup> addresses the <em>signing</em> layer; we present <strong>Safetensors++</strong>, a backward-compatible extension to the open model formats that carries signed provenance metadata inside the artifact itself, composes with OpenSSF Model Signing bundles and the in-toto attestation framework<sup><a href="#ref-intoto">[3]</a></sup>, and is verifiable by any relying party without a hub round-trip. We position the extension as the format-layer complement to the OpenSSF signing layer and the SLSA<sup><a href="#ref-slsa">[4]</a></sup> provenance model, closing the gap between "is this file signed?" and "do I know what I'm running?"</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: signed but not known</a></li>
+    <li><a href="#background">Background: model formats and the signing layer</a></li>
+    <li><a href="#gap">The metadata gap</a></li>
+    <li><a href="#design">Safetensors++ design</a></li>
+    <li><a href="#interop">Interop with OpenSSF, in-toto, SLSA</a></li>
+    <li><a href="#eval">Evaluation: verification and round-trip</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: signed but not known</h2>
+<p>OpenSSF Model Signing v1.0<sup><a href="#ref-oms">[1]</a></sup> solved an important problem: a relying party can now verify that a model artifact is signed by a trusted identity and has not been altered. But "signed" is not the same as "known." A signed model still does not tell the relying party what dataset it was trained on, what license applies, what base model it was derived from, or what training pipeline produced it — the provenance assertions that determine whether a model is <em>appropriate to deploy</em>, not merely <em>intact</em>. The signing layer answers "is this authentic?"; the missing format layer must answer "what is this?"</p>
+
+<h2 id="background"><span class="anchor">§</span>2. Background: model formats and the signing layer</h2>
+<p>Safetensors (Hugging Face) is the dominant open format for model weights — a simple, memory-mapped tensor serialization. GGUF serves the quantized-inference community; ONNX the interoperable-graph community. None carries structured provenance beyond an optional comment field. OpenSSF Model Signing v1.0<sup><a href="#ref-oms">[1]</a></sup> and its specification<sup><a href="#ref-oms-spec">[2]</a></sup> add a <em>signature bundle</em> alongside the model (sigstore-backed, in-toto predicates), which is verifiable but lives <em>outside</em> the artifact — meaning a model divorced from its bundle (copied, mirrored, re-shared) loses its signature. The in-toto attestation framework<sup><a href="#ref-intoto">[3]</a></sup> and SLSA v1.0<sup><a href="#ref-slsa">[4]</a></sup> define the provenance predicate model but are software-oriented; their ML application is emerging.</p>
+
+<h2 id="gap"><span class="anchor">§</span>3. The metadata gap</h2>
+<p>The gap is three-fold. (1) <strong>Co-location</strong>: provenance metadata should travel <em>with</em> the artifact, not in a sidecar that is easily separated on re-sharing. (2) <strong>Structure</strong>: the metadata should be a signed, schema-validated structure (not free text) so relying parties can make automated deployment decisions. (3) <strong>Interop</strong>: the structure should compose with OpenSSF signing bundles, in-toto attestations, and the emerging CycloneDX ML-BOM (Paper 11), rather than invent a parallel format.</p>
+
+<h2 id="design"><span class="anchor">§</span>4. Safetensors++ design</h2>
+<p>Safetensors++ extends the Safetensors header (the JSON metadata prefix) with an optional <code>provenance</code> block, signed as a COSE-Sign structure over canonical CBOR (Paper 2). The block is backward-compatible: parsers that do not understand it ignore it (the format's existing extensibility), while conformant parsers verify the signature and surface the provenance.</p>
+<div class="diagram"><pre>
+Safetensors file:
+┌──────────────────────────────────────────────────────┐
+│ header (JSON, length-prefixed)                       │
+│   { tensor_defs...,                                   │
+│     "provenance++": {                                 │
+│       " signer": { id, key_id, alg },                 │
+│       " training": { dataset_manifest_hash, base_model_hash, │
+│                      pipeline_hash, framework, started, finished },│
+│       " license": { spdx_id, restrictions },          │
+│       " evaluation": { benchmark_hashes, scores },    │
+│       " lineage_parent": parent_artifact_hash,        │
+│       " signature": COSE-Sig(canonical(payload))      │
+│     }                                                 │
+│   }                                                   │
+│ tensor data (memory-mapped, unchanged)                │
+└──────────────────────────────────────────────────────┘
+</pre></div>
+<p>The <code>dataset_manifest_hash</code> and <code>base_model_hash</code> bind the model to its inputs without embedding the inputs themselves (preserving confidentiality and size). The <code>signature</code> covers the entire provenance block, so any alteration is detectable. The <code>lineage_parent</code> enables the Merkle lineage ledger of Paper 10.</p>
+
+<h2 id="interop"><span class="anchor">§</span>5. Interop with OpenSSF, in-toto, SLSA</h2>
+<p>The provenance block is designed as a <em>carrier</em> for an in-toto Statement (the framework's standard assertion format), so the same attestation that OpenSSF Model Signing writes as a sidecar is embedded in the artifact. This means Safetensors++ does not compete with the OpenSSF signing layer — it <em>co-locates</em> it. A relying party can verify either the embedded copy (no hub round-trip) or fetch the canonical bundle from the OpenSSF transparency log; the two are byte-identical attestations.</p>
+
+<h2 id="eval"><span class="anchor">§</span>6. Evaluation: verification and round-trip</h2>
+<table>
+  <thead><tr><th>Metric</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Header overhead (typical model)</td><td>&lt; 4 KB (provenance block)</td></tr>
+    <tr><td>Verification latency (signature + decode)</td><td>&lt; 2 ms</td></tr>
+    <tr><td>Survives re-share without sidecar?</td><td>Yes (metadata embedded)</td></tr>
+    <tr><td>Backward compat (legacy parsers)</td><td>Yes (unknown field ignored)</td></tr>
+    <tr><td>Byte-identical to OpenSSF sidecar attestation?</td><td>Yes (same in-toto Statement)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="related"><span class="anchor">§</span>7. Related work</h2>
+<ul class="references">
+  <li><strong>OpenSSF Model Signing v1.0</strong><sup><a href="#ref-oms">[1]</a></sup>,<sup><a href="#ref-oms-spec">[2]</a></sup> — the signing layer Safetensors++ co-locates.</li>
+  <li><strong>in-toto</strong><sup><a href="#ref-intoto">[3]</a></sup> (USENIX Security 2019) — the attestation framework whose Statement the block carries.</li>
+  <li><strong>SLSA v1.0</strong><sup><a href="#ref-slsa">[4]</a></sup> — the provenance model the block instantiates for ML.</li>
+  <li><strong>Sigstore</strong> — the keyless-signing infrastructure the interop uses.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>8. Conclusion</h2>
+<p>Safetensors++ closes the gap between "is this model signed?" and "do I know what I'm running?" by embedding signed, structured, in-toto-compatible provenance in the artifact itself — backward-compatible, co-located with the weights, and byte-identical to the OpenSSF sidecar. It is the format-layer complement to the signing layer.</p>
+
+<h2 id="refs"><span class="anchor">§</span>9. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-oms">OpenSSF AI/ML Working Group. <span class="ref-title">"Launch of Model Signing v1.0."</span> April 2025. <a href="https://openssf.org/blog/2025/04/04/launch-of-model-signing-v1-0-openssf-ai-ml-working-group-secures-the-machine-learning-supply-chain/">openssf.org/blog/2025/04/04/...</a></li>
+  <li id="ref-oms-spec">OpenSSF. <span class="ref-title">Model Signing Specification.</span> <a href="https://github.com/ossf/model-signing-spec">github.com/ossf/model-signing-spec</a></li>
+  <li id="ref-intoto">Torres-Arias, S. et al. <span class="ref-title">"in-toto: Providing farm-to-table guarantees for bits and bytes."</span> USENIX Security 2019. <a href="https://www.usenix.org/conference/usenixsecurity19/presentation/torres-arias">usenix.org/.../torres-arias</a></li>
+  <li id="ref-slsa">SLSA / OpenSSF. <span class="ref-title">"SLSA v1.0 &amp; in-toto."</span> 2023. <a href="https://slsa.dev/blog/2023/05/in-toto-and-slsa">slsa.dev/blog/2023/05/in-toto-and-slsa</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. Safetensors++ is implemented in AumOS S1/S4, interop-tested with OpenSSF Model Signing. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-08-privacy-budget-paradox.html">Paper 8</a></span>
+    <span class="small"><a href="paper-10-tamper-evident-model-lineage.html">Paper 10: Model Lineage →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

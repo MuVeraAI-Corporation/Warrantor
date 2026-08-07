@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 24 — AI Artifact Trust Manifest: Binding Models, Data, and Code</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow spec">AumOS Research · Paper 24 of 24 (Specification) · Thrust 6 — Standards &amp; Protocol Contributions</div>
+  <h1>AI Artifact Trust Manifest: Binding Models, Data, and Code</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Proposed OASIS-track specification; builds on Papers 9, 11</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">OASIS standard (CycloneDX extension)</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Draft specification</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-23-open-harness-specification.html">Paper 23</a></span>
+    <span class="small"><a href="../whitepapers/wp1-open-defense-stack.html">Whitepapers →</a></span>
+  </nav>
+</header>
+
+<div class="abstract spec">
+  <span class="abstract-label">Specification Abstract</span>
+  <p>A deployed AI system is not just a model: it is a model, a dataset (or dataset manifest), a codebase (inference server, agent runtime, tool definitions), and a configuration. Existing BOM formats — CycloneDX ML-BOM<sup><a href="#ref-cyclonedx">[1]</a></sup>, SPDX 3.0<sup><a href="#ref-spdx">[2]</a></sup>, the in-toto Attestation Framework<sup><a href="#ref-intoto">[3]</a></sup> — describe each artifact class separately but do not bind them into a single, signed, verifiable trust manifest that a relying party can check before invoking the system. We propose the <strong>AI Artifact Trust Manifest (AATM)</strong>, extending CycloneDX ML-BOM, as an OASIS-track specification that binds model, data, code, and configuration into one signed manifest with a single verification entry point. The AATM composes with the OpenSSF Model Signing lineage (Paper 9) and the in-toto Statement format<sup><a href="#ref-intoto">[3]</a></sup>, and is implemented in AumOS <code>model-sbom</code> (S4).</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: the four-artifact problem</a></li>
+    <li><a href="#gap">Why separate BOMs are insufficient</a></li>
+    <li><a href="#aatm">The AATM structure</a></li>
+    <li><a href="#binding">Normative: the binding</a></li>
+    <li><a href="#verify">Normative: single-entry-point verification</a></li>
+    <li><a href="#interop">Interop with CycloneDX, SPDX, in-toto</a></li>
+    <li><a href="#path">Path to standardization</a></li>
+    <li><a href="#refs">Normative references</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: the four-artifact problem</h2>
+<p>To trust a deployed AI system, a relying party must know four things, bound together: <em>which model</em> (weights + architecture), <em>which data</em> it was trained/evaluated on, <em>which code</em> (runtime, tools) executes it, and <em>which configuration</em> governs it. Today each lives in a separate document — an ML-BOM for the model/data, an SBOM for the code, a config file — and nothing binds them. A relying party who verifies the model signature still does not know whether the code invoking it is the audited code; a party who checks the code does not know the configuration. The four-artifact binding is the gap the AATM closes.</p>
+
+<h2 id="gap"><span class="anchor">§</span>2. Why separate BOMs are insufficient</h2>
+<p>CycloneDX ML-BOM<sup><a href="#ref-cyclonedx">[1]</a></sup> represents models, datasets, and dependencies well; SPDX 3.0<sup><a href="#ref-spdx">[2]</a></sup> adds the AI profile; the in-toto Attestation Framework<sup><a href="#ref-intoto">[3]</a></sup> provides the Statement+predicate format SLSA provenance builds on. Each is excellent for its artifact class. None binds all four into a single verifiable unit. The consequence: the relying party must manually cross-reference separate documents of separate integrity, a process so error-prone that in practice it is skipped — and the system is trusted on faith.</p>
+
+<h2 id="aatm"><span class="anchor">§</span>3. The AATM structure</h2>
+<div class="diagram"><pre>
+┌───────────────────────────────────────────────────────────┐
+│              AI Artifact Trust Manifest (AATM)             │
+├───────────────────────────────────────────────────────────┤
+│  version, system_id                                        │
+│  model:    { artifact_hash, arch, license, provenance_ref }│  ← Safetensors++ block (Paper 9)
+│  data:     { manifest_hash, license_set, provenance_refs } │
+│  code:     { inference_server_hash, agent_runtime_hash,    │
+│              tool_hashes, sbom_ref }                       │
+│  config:   { config_hash, policy_ref, capability_decl }    │
+│  bindings: cross-artifact signed bindings (model↔data↔code↔config)│
+│  signature: COSE-Sig(manonical(manifest))                  │
+└───────────────────────────────────────────────────────────┘
+   single verification entry point: verify signature ⟹ all four bound
+</pre></div>
+
+<h2 id="binding"><span class="anchor">§</span>4. Normative: the binding</h2>
+<p>The bindings are normative and cryptographic: each artifact's hash is signed as part of the manifest, and the manifest signature covers the binding. Substituting any artifact (a different model, a different code commit, a different config) breaks the signature. The binding is the property that makes the four artifacts a <em>system</em> rather than four separate files.</p>
+
+<h2 id="verify"><span class="anchor">§</span>5. Normative: single-entry-point verification</h2>
+<p>A conformant relying party verifies the AATM at one entry point: check the manifest signature, then check that each artifact's runtime hash matches the manifest's bound hash. If all match, the system is the audited system; if any differs, the system is not what the manifest claims, and invocation is refused. This single-entry-point design is what makes verification tractable — one check, not four cross-references.</p>
+
+<h2 id="interop"><span class="anchor">§</span>6. Interop with CycloneDX, SPDX, in-toto</h2>
+<p>The AATM is designed as a CycloneDX ML-BOM extension (the model/data/code fields reuse CycloneDX types) carrying an in-toto Statement (so it composes with SLSA/OpenSSF signing). SPDX 3.0 interop is provided via a translator, since SPDX 3.0's extensible model can represent the same bindings. The AATM does not compete with these standards; it <em>binds</em> them.</p>
+
+<h2 id="path"><span class="anchor">§</span>7. Path to standardization</h2>
+<p>CycloneDX working-group extension Q1 2027, with a parallel OASIS standard track; committee-spec Q4 2027, referencing the AumOS S4 implementation and the OpenSSF Model Signing interop (Paper 9). The G7 SBOM-for-AI minimum elements (Paper 11) are the floor the AATM exceeds.</p>
+
+<h2 id="refs"><span class="anchor">§</span>8. Normative references</h2>
+<div class="references">
+<ol>
+  <li id="ref-cyclonedx">OWASP / CycloneDX. <span class="ref-title">Machine Learning Bill of Materials (ML-BOM).</span> <a href="https://cyclonedx.org/capabilities/mlbom/">cyclonedx.org/capabilities/mlbom</a></li>
+  <li id="ref-spdx">SPDX / Linux Foundation. <span class="ref-title">SPDX Specification 3.0.</span> 2024. <a href="https://spdx.dev/specifications/">spdx.dev/specifications</a></li>
+  <li id="ref-intoto">in-toto / OpenSSF. <span class="ref-title">in-toto Attestation Framework.</span> <a href="https://github.com/in-toto/attestation">github.com/in-toto/attestation</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Specification derived from Papers 9, 11. Reference implementation: AumOS S4 (<code>model-sbom</code>). AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-23-open-harness-specification.html">Paper 23</a></span>
+    <span class="small"><a href="../whitepapers/wp1-open-defense-stack.html">Whitepaper WP1: Open Defense Stack →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

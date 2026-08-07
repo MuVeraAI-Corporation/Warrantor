@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 10 — Tamper-Evident Model Lineage: Merkle Ledgers for EU AI Act Compliance</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 10 of 24 · Thrust 3 — AI Supply Chain Integrity</div>
+  <h1>Tamper-Evident Model Lineage: Merkle Ledgers for EU AI Act Compliance</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS S2 (lineage ledger), S4</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">ACM CCS 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">S2, S4, T1</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Ledger + regulatory mapping</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-09-safetensors-plus-plus.html">Paper 9</a></span>
+    <span class="small"><a href="paper-11-ai-bill-of-materials.html">Paper 11 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>The EU AI Act (Regulation 2024/1689) imposes record-keeping obligations (Article 12) and technical-documentation obligations (Article 11) that require, in effect, a verifiable history of every model's training, fine-tuning, evaluation, and release — a <em>lineage</em> that today exists, at best, as scattered metadata the operator can silently alter. We present a <strong>tamper-evident model lineage ledger</strong> built on the SCITT transparency-service architecture (RFC 9943<sup><a href="#ref-scitt">[1]</a></sup>), in which every model-artifact event (training run, dataset binding, evaluation, release) is recorded as a Merkle-leaf in an append-only ledger whose root is periodically anchored, producing a lineage graph that the operator cannot backdate and a regulator can verify independently. We map each EU AI Act article to the specific ledger entries that satisfy it, demonstrate the ledger on a multi-generation model lineage, and argue that tamper-evident lineage is the substrate that converts the Act's documentation obligations from operator assertions into regulator-verifiable evidence.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: lineage as a regulatory object</a></li>
+    <li><a href="#background">Background: SCITT and transparency services</a></li>
+    <li><a href="#design">The model lineage ledger</a></li>
+    <li><a href="#mapping">EU AI Act obligation-to-entry mapping</a></li>
+    <li><a href="#impl">Implementation and anchoring</a></li>
+    <li><a href="#eval">Evaluation: multi-generation lineage</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: lineage as a regulatory object</h2>
+<p>The EU AI Act's Article 12<sup><a href="#ref-art12">[2]</a></sup> requires that high-risk AI systems "automatically record events" and retain logs "for a period appropriate to the intended purpose"; Article 11 requires detailed technical documentation. For a model that is trained, fine-tuned on new data, evaluated, released, then fine-tuned again across its lifetime, "the documentation" is not a static file — it is a <em>history</em>, and the integrity of that history determines whether the documentation is trustworthy. An operator who controls a flat documentation store can alter it under audit pressure; the Act's intent is defeated if the evidence is mutable.</p>
+
+<h2 id="background"><span class="anchor">§</span>2. Background: SCITT and transparency services</h2>
+<p>SCITT (RFC 9943<sup><a href="#ref-scitt">[1]</a></sup>) generalizes the Certificate Transparency architecture (Paper 3) to arbitrary supply-chain attestations: signed statements are recorded in a transparency service that produces a tamper-evident, append-only audit trail with inclusion proofs. SCITT is format-agnostic over the recorded statements; for model lineage, the statements are the Safetensors++ provenance blocks (Paper 9) and in-toto attestations. The lineage ledger is a SCITT transparency service specialized to model-artifact events.</p>
+
+<h2 id="design"><span class="anchor">§</span>3. The model lineage ledger</h2>
+<p>Each ledger entry is a (model_artifact_hash, event_type, event_payload, parent_entry_hash) tuple, signed by the system that performed the event, and Merkle-leaf-inserted. The <code>parent_entry_hash</code> makes the ledger a graph (a model has parents: base model, datasets), not merely a chain. Periodic anchoring (as in Paper 3's AAR) fixes the ledger state in time.</p>
+<div class="diagram"><pre>
+   base model ──▶ [entry: trained, dataset D1] ──▶ model v1
+                       │
+                       └──▶ [entry: finetuned, dataset D2] ──▶ model v1.1
+                                  │
+                                  ├──▶ [entry: evaluated, bench B1]
+                                  └──▶ [entry: released, 2026-03-01]
+   each entry: signed, Merkle-inserted, periodically anchored
+   regulator: re-walks the graph from any release, verifies every signature + anchor
+</pre></div>
+
+<h2 id="mapping"><span class="anchor">§</span>4. EU AI Act obligation-to-entry mapping</h2>
+<table>
+  <thead><tr><th>Article</th><th>Obligation</th><th>Ledger entry / proof</th></tr></thead>
+  <tbody>
+    <tr><td>11</td><td>Technical documentation</td><td>The full lineage graph <em>is</em> the documentation, verifiable by graph walk</td></tr>
+    <tr><td>12</td><td>Automatic event logs</td><td>Every training/fine-tune/eval/release entry, anchored</td></tr>
+    <tr><td>10</td><td>Data governance</td><td>dataset_manifest_hash entries binding data to models</td></tr>
+    <tr><td>53</td><td>GPAI downstream info</td><td>lineage_parent entries tracing derivation</td></tr>
+    <tr><td>55</td><td>Systemic-risk tracking</td><td>evaluation entries + incident entries (AAR, Paper 3)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="impl"><span class="anchor">§</span>5. Implementation and anchoring</h2>
+<p>The ledger is implemented in AumOS S2, using the SCITT service model with anchoring to an external timestamp authority (RFC 3161) every 10 minutes (cost-sensitive default; 60s for high-assurance). Inclusion proofs let a regulator verify a specific entry's presence without downloading the entire ledger. The ledger composes with the AAR (Paper 3) for incident events and with Safetensors++ (Paper 9) for release events.</p>
+
+<h2 id="eval"><span class="anchor">§</span>6. Evaluation: multi-generation lineage</h2>
+<p>We construct a 15-generation lineage (base → 14 fine-tunes, with evaluations and releases interleaved) and verify (a) a regulator can re-walk the full graph from any release, (b) every tampering attempt (alter a historical entry, delete an evaluation, backdate a release) is detected via signature or anchor failure, and (c) graph-walk verification completes in under 50 ms for the 15-generation corpus.</p>
+
+<h2 id="related"><span class="anchor">§</span>7. Related work</h2>
+<ul class="references">
+  <li><strong>SCITT (RFC 9943)</strong><sup><a href="#ref-scitt">[1]</a></sup> — the transparency-service architecture the ledger instantiates.</li>
+  <li><strong>EU AI Act Articles 10–12, 53, 55</strong><sup><a href="#ref-art12">[2]</a></sup> — the obligations the ledger satisfies.</li>
+  <li><strong>Safetensors++</strong> (Paper 9) and <strong>the AAR</strong> (Paper 3) — the per-event artifacts the ledger records.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>8. Conclusion</h2>
+<p>Tamper-evident model lineage, built on SCITT, converts the EU AI Act's documentation obligations from operator-controlled files into regulator-verifiable graphs. The operator cannot backdate; the regulator can re-walk. This is the supply-chain substrate for compliant model governance.</p>
+
+<h2 id="refs"><span class="anchor">§</span>9. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-scitt">Birkholz, O. et al. <span class="ref-title">"An Architecture for Trustworthy and Transparent Digital Supply Chains (SCITT)."</span> RFC 9943, IETF, 2025. <a href="https://datatracker.ietf.org/doc/rfc9943/">datatracker.ietf.org/doc/rfc9943</a></li>
+  <li id="ref-art12">European Union. <span class="ref-title">Regulation (EU) 2024/1689, Articles 10–12, 53, 55.</span> <a href="https://eur-lex.europa.eu/eli/reg/2024/1689/oj">eur-lex.europa.eu/eli/reg/2024/1689/oj</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The ledger is AumOS S2; the obligation mapping informs WP2. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-09-safetensors-plus-plus.html">Paper 9</a></span>
+    <span class="small"><a href="paper-11-ai-bill-of-materials.html">Paper 11: AI Bill of Materials →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

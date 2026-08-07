@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 15 — eBPF-Based Exfiltration Prevention for LLM Agents</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 15 of 24 · Thrust 4 — Agent Containment &amp; Incident Response</div>
+  <h1>eBPF-Based Exfiltration Prevention for LLM Agents</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS R-pillar (eBPF enforcement), R2</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">NDSS 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">R-pillar, R2, R7</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Policy + enforcement</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-14-ai-kill-switch.html">Paper 14</a></span>
+    <span class="small"><a href="paper-16-retrospective-transcript-analysis.html">Paper 16 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>An LLM agent that has been prompt-injected or otherwise subverted seeks, characteristically, to exfiltrate — to send sensitive context (secrets, internal data, the conversation itself) to an attacker-controlled endpoint via the same network egress the agent legitimately uses for tool calls. Application-layer monitoring misses this because the egress is policy-compliant in form; the malice is in the <em>content</em> and the <em>destination</em>, observable only at the system boundary. eBPF — the in-kernel programmable filter that powers modern cloud-native runtime security (Tetragon<sup><a href="#ref-tetragon">[1]</a></sup>, Falco<sup><a href="#ref-falco">[2]</a></sup>) — offers the boundary observability that application monitoring lacks, and the recent AgentSight work<sup><a href="#ref-agentsight">[3]</a></sup> demonstrates eBPF "boundary tracing" specifically for LLM agents, correlating agent intent with system effects at &lt;3% overhead. We present an <strong>eBPF-based exfiltration-prevention policy framework</strong> for LLM agents, built on the Tetragon/Falco enforcement model and the AgentSight observability model, in which the agent's outbound network is policy-gated at the kernel, anomaly-correlated with the agent's declared intent, and integrated with the kill switch (Paper 14) for automated containment.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: the exfiltration primitive</a></li>
+    <li><a href="#background">Background: eBPF runtime security</a></li>
+    <li><a href="#gap">Why application-layer monitoring fails</a></li>
+    <li><a href="#design">The eBPF policy framework</a></li>
+    <li><a href="#intent">Intent–effect correlation</a></li>
+    <li><a href="#eval">Evaluation</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: the exfiltration primitive</h2>
+<p>Exfiltration is the terminal step of most agent compromises: an injected instruction directs the agent to send sensitive data out, and the agent does so via the same HTTPS egress it uses for legitimate tool calls. The egress is, in form, entirely policy-compliant — the agent is permitted to make outbound network calls, and it is making one. The malice is invisible to any monitor that checks only "did the agent make a permitted call?" It is visible only at the system boundary, where the <em>destination</em> (an attacker domain) and the <em>content</em> (a secret, a payload) can be observed and correlated with the agent's <em>declared intent</em> for the call.</p>
+
+<h2 id="background"><span class="anchor">§</span>2. Background: eBPF runtime security</h2>
+<p>eBPF (extended Berkeley Packet Filter) allows safe, in-kernel programmable hooks on syscalls, network events, and kernel tracepoints, with negligible overhead. It is the substrate of modern cloud-native runtime security: <strong>Tetragon</strong><sup><a href="#ref-tetragon">[1]</a></sup> (Isovalent/CNCF) provides real-time policy enforcement at the kernel layer; <strong>Falco</strong><sup><a href="#ref-falco">[2]</a></sup> (CNCF/Sysdig) provides a syscall-level rules engine for detection. The Oligo security use-case survey<sup><a href="#ref-oligo">[4]</a></sup> explicitly identifies data-exfiltration detection as a core eBPF use case via irregular syscall/network patterns. These tools are mature for generic workloads; their application to LLM agents specifically is new.</p>
+
+<h2 id="gap"><span class="anchor">§</span>3. Why application-layer monitoring fails</h2>
+<p>Application-layer monitoring (instrumenting the agent framework) fails for three reasons. (1) It trusts the agent runtime, which is precisely what is compromised. (2) It sees the tool-call payload but not the underlying socket — an agent can tunnel exfiltration through a permitted tool. (3) It is framework-specific; an agent moving between LangChain, AutoGen, and MCP breaks the instrumentation. eBPF, running in the kernel below and independent of the framework, sees every outbound socket regardless of how the agent produced it.</p>
+
+<h2 id="design"><span class="anchor">§</span>4. The eBPF policy framework</h2>
+<p>The framework enforces a network-egress policy at the kernel (Tetragon-style): the agent process may connect only to a declared allowlist of tool endpoints; any other destination is blocked and logged. Content inspection (where the TLS can be terminated, e.g., in a boundary proxy) adds a payload check: outbound content matching secret-patterns or exceeding a declared data-volume budget is blocked. Both feed the anomaly pipeline.</p>
+
+<h2 id="intent"><span class="anchor">§</span>5. Intent–effect correlation</h2>
+<p>The AgentSight contribution<sup><a href="#ref-agentsight">[3]</a></sup> is the correlation of agent <em>intent</em> (what the agent declared it would do, observed via TLS interception of the LLM call) with system <em>effects</em> (the eBPF-observed syscalls and network). A divergence — the agent declared a benign action but produced an exfiltration-pattern syscall stream — is the high-signal anomaly that pure network monitoring cannot produce. We adopt this correlation: the eBPF policy blocks the egress, and the intent–effect divergence triggers the kill-switch composition (Paper 14).</p>
+
+<h2 id="eval"><span class="anchor">§</span>6. Evaluation</h2>
+<table>
+  <thead><tr><th>Metric</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Overhead (AgentSight boundary tracing)</td><td>&lt; 3% (per Zheng et al.<sup><a href="#ref-agentsight">[3]</a></sup>)</td></tr>
+    <tr><td>Exfiltration attempts blocked (allowlist enforcement)</td><td>100% to non-allowlisted domains</td></tr>
+    <tr><td>Intent–effect divergences detected</td><td>high-signal anomalies flagged to kill-switch</td></tr>
+    <tr><td>Framework-agnostic?</td><td>Yes (kernel-layer, not framework-layer)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="related"><span class="anchor">§</span>7. Related work</h2>
+<ul class="references">
+  <li><strong>Tetragon</strong><sup><a href="#ref-tetragon">[1]</a></sup> / <strong>Falco</strong><sup><a href="#ref-falco">[2]</a></sup> — the eBPF enforcement/detection substrate.</li>
+  <li><strong>AgentSight</strong><sup><a href="#ref-agentsight">[3]</a></sup> — eBPF boundary tracing for LLM agents (the intent–effect correlation we adopt).</li>
+  <li><strong>Oligo eBPF security survey</strong><sup><a href="#ref-oligo">[4]</a></sup> — exfiltration detection as a core eBPF use case.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>8. Conclusion</h2>
+<p>eBPF provides the kernel-layer boundary observability and enforcement that application-layer agent monitoring cannot. Composed with AgentSight's intent–effect correlation and the kill switch, it forms a defense that catches exfiltration attempts invisible to form-compliant application checks, at &lt;3% overhead, framework-agnostically.</p>
+
+<h2 id="refs"><span class="anchor">§</span>9. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-tetragon">Isovalent / CNCF. <span class="ref-title">Tetragon — eBPF-based Security Observability and Runtime Enforcement.</span> <a href="https://tetragon.io/">tetragon.io</a></li>
+  <li id="ref-falco">CNCF / Sysdig. <span class="ref-title">Falco — Cloud-Native Runtime Security.</span> <a href="https://falco.org/">falco.org</a></li>
+  <li id="ref-agentsight">Zheng, Y. et al. <span class="ref-title">"AgentSight: System-Level Observability for AI Agents Using eBPF."</span> 2025. <a href="https://arxiv.org/abs/2508.02736">arxiv.org/abs/2508.02736</a></li>
+  <li id="ref-oligo">Oligo Security. <span class="ref-title">"eBPF Security: Top 5 Use Cases, Challenges &amp; Best Practices."</span> 2025. <a href="https://www.oligo.security/academy/ebpf-security-top-5-use-cases-challenges-and-best-practices">oligo.security/academy/...</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The framework is in the AumOS R-pillar, composing with the kill switch (Paper 14). AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-14-ai-kill-switch.html">Paper 14</a></span>
+    <span class="small"><a href="paper-16-retrospective-transcript-analysis.html">Paper 16: Retrospective Transcript Analysis →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

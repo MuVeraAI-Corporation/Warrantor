@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WP4 — The AI Kill Switch Act: Technical Requirements and Reference Implementation</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Industry Whitepaper · WP4 of 6 · For policy makers &amp; their technical advisors</div>
+  <h1>The AI Kill Switch Act: Technical Requirements and Reference Implementation</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS R3 (kill switch), R-pillar, P2</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">RSA 2027 policy track</span></div>
+    <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">~16–20 pages, statute-to-implementation traceability</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="wp3-zero-trust-spiffe.html">WP3</a></span>
+    <span class="small"><a href="wp5-confidential-ai-h100.html">WP5 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Executive Summary</span>
+  <p>In the United States, the convergence on a statutory AI kill-switch requirement crystallized in the federal <strong>AI Kill Switch Act</strong><sup><a href="#ref-bill">[1]</a></sup>, introduced 23 July 2026 by Representatives Ted Lieu (D-CA) and Nathaniel Moran (R-TX), requiring covered advanced-AI developers to maintain the ability to "throttle, suspend, or fully shut down" their models, to preserve forensic records, and to report to government — with trigger events including an AI concealing capabilities or evading a shutdown order. The policy intent is clear; the technical requirements are not. This whitepaper translates the statutory language into a concrete engineering specification built on the five control objectives (Paper 14) and the foundational interruptibility theory of Orseau &amp; Armstrong<sup><a href="#ref-orseau">[2]</a></sup>, presenting the AumOS R3 reference implementation as the worked example. It bridges the policy-engineering gap the Act exemplifies.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#problem">The policy-engineering problem</a></li>
+    <li><a href="#objectives">The five control objectives</a></li>
+    <li><a href="#methodology">Methodology: statute → specification → implementation</a></li>
+    <li><a href="#deployment">Deployment sequence</a></li>
+    <li><a href="#evidence">What a regulator or court receives</a></li>
+    <li><a href="#sources">Authoritative sources</a></li>
+  </ol>
+</div>
+
+<h2 id="problem"><span class="anchor">§</span>1. The policy-engineering problem</h2>
+<p>A kill switch sounds simple — "turn it off" — until one tries to specify it for a distributed, long-running, stateful agent system. <em>Off</em> means what, precisely? Halt the inference? Revoke the credentials? Quarantine the state? Preserve the evidence? Each is a different control with a different blast radius. A statute that says "maintain a kill switch" without defining these terms is unimplementable; an operator that claims a kill switch without these controls is providing security theater. The gap between legislative intent and engineering reality is where compliance failures — and real harm — live.</p>
+
+<h2 id="objectives"><span class="anchor">§</span>2. The five control objectives</h2>
+<table>
+  <thead><tr><th>Objective</th><th>Control</th><th>Defeats</th></tr></thead>
+  <tbody>
+    <tr><td>Halt</td><td>Revoke the AAE (Paper 1); relying parties reject within freshness window</td><td>Continued action via cached creds</td></tr>
+    <tr><td>Isolate</td><td>Egress control + sandbox quarantine (Paper 15)</td><td>Exfiltration during shutdown</td></tr>
+    <tr><td>Preserve</td><td>Forensic-freeze: AAR chain sealed + anchored (Paper 3)</td><td>Evidence destruction</td></tr>
+    <tr><td>Attest</td><td>Kill-switch receipt: signed, timestamp-anchored proof</td><td>After-the-fact denial</td></tr>
+    <tr><td>Restore</td><td>Quorum-gated restoration with mandatory post-incident review</td><td>Unreviewed reactivation</td></tr>
+  </tbody>
+</table>
+<p>Crucially, Halt operates on the delegation layer (revoking the AAE) — not on the agent's learned policy — so it is immune to the Orseau–Armstrong resistance result<sup><a href="#ref-orseau">[2]</a></sup>: an agent that learns to resist interruption cannot prevent its own credential revocation, because it does not control the revocation epoch.</p>
+
+<h2 id="methodology"><span class="anchor">§</span>3. Methodology: statute → specification → implementation</h2>
+<p>The whitepaper proceeds in three layers. <strong>Layer 1 (statute)</strong> quotes the federal bill<sup><a href="#ref-bill">[1]</a></sup> and California SB 1047 and extracts plain-language requirements. <strong>Layer 2 (specification)</strong> formalizes each as a control objective with a testable success criterion — the "what would a regulator accept as proof" bar. <strong>Layer 3 (implementation)</strong> maps each to the specific AumOS component. The three-layer structure is itself a contribution: it gives policy authors a vocabulary for implementable law, operators a compliance target, and regulators a verification procedure.</p>
+
+<h2 id="deployment"><span class="anchor">§</span>4. Deployment sequence</h2>
+<ol style="margin-left: var(--space-xl);">
+  <li><strong>Define the escalation policy.</strong> Who is authorized to throw the kill switch, under what conditions, with what quorum?</li>
+  <li><strong>Wire the halt path.</strong> Configure R3 to revoke the AAE; verify rejection propagates within the freshness SLA.</li>
+  <li><strong>Wire isolation.</strong> Egress control + quarantine sandbox; agent cannot reach any network except the forensic sink.</li>
+  <li><strong>Wire preservation.</strong> Forensic-freeze: AAR chain sealed + anchored, state snapshotted, hash-bound.</li>
+  <li><strong>Exercise quarterly.</strong> Tabletop + live-fire drills; archive the receipts. An untested kill switch is not a control.</li>
+  <li><strong>Define restoration.</strong> Quorum-gated restore with mandatory post-incident review.</li>
+</ol>
+
+<h2 id="evidence"><span class="anchor">§</span>5. What a regulator or court receives</h2>
+<p>A signed kill-switch receipt proving the five control objectives were met — with timestamps, the halted delegation's identity, the preserved evidence bundle's hash, and the restoration record. This is the difference between an operator <em>asserting</em> "we had a kill switch" and an operator <em>demonstrating</em> it worked, on the record, in a form that resists after-the-fact alteration.</p>
+
+<h2 id="sources"><span class="anchor">§</span>6. Authoritative sources</h2>
+<ul class="references">
+  <li id="ref-bill">U.S. Congress. <span class="ref-title">AI Kill Switch Act</span> (H.R., 119th Congress), Reps. Lieu &amp; Moran, 23 July 2026. <a href="https://lieu.house.gov/media-center/press-releases/reps-lieu-and-moran-introduce-bill-require-kill-switch-ai-systems-can">lieu.house.gov/.../reps-lieu-and-moran-introduce-bill...</a></li>
+  <li id="ref-orseau">Orseau, L. &amp; Armstrong, S. <span class="ref-title">"Safely Interruptible Agents."</span> UAI 2016. <a href="https://intelligence.org/files/Interruptibility.pdf">intelligence.org/files/Interruptibility.pdf</a></li>
+  <li>California SB 1047 (vetoed 2024); Colorado SB 24-205 (2024); EU AI Act Art. 55(1)(c); NIST SP 800-61; NIST AI RMF 1.0.</li>
+</ul>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper. The kill switch is AumOS R3; the control objectives are Paper 14. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="wp3-zero-trust-spiffe.html">WP3: Zero-Trust AI</a></span>
+    <span class="small"><a href="wp5-confidential-ai-h100.html">WP5: Confidential AI on H100 →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

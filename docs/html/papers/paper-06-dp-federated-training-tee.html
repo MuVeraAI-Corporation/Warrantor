@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 6 — Differentially Private Federated Training with TEE Attestation</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 6 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
+  <h1>Differentially Private Federated Training with TEE Attestation</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS C1 (confidential computing), A-pillar (audit)</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">PETS 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">C1-3, C1-5, A-pillar</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Composition framework</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-05-attested-inference-pipelines.html">Paper 5</a></span>
+    <span class="small"><a href="paper-07-confidential-gpu-composition.html">Paper 7 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>Differential privacy (DP) and trusted execution environments (TEEs) are the two dominant technical approaches to privacy-preserving federated learning (FL), yet the literature treats them as alternatives rather than a composition. DP protects against information leakage from the <em>aggregate</em> model update; TEE attestation protects against leakage from the <em>raw client data and gradients</em> during computation. They defend against different adversaries along the same pipeline, and we show that composing them yields a strictly stronger guarantee than either alone — closing the gap each leaves open. We present a <strong>DP-FL-TEE composition framework</strong> in which each client's per-example gradient clipping and noise addition (DP-SGD<sup><a href="#ref-dpsgd">[1]</a></sup>) occurs inside an attested TEE, the server's aggregation occurs inside an attested TEE, and the attestation handshake (Paper 5) gates both. We formalize the composed privacy guarantee, show it composes favorably under the DP composition theorems, and note that — as of mid-2026 — no top-tier paper has formalized this specific composition as its contribution, making it a genuine green-field result. We position the framework as the reference for high-assurance federated training where both the aggregate-statistical threat (DP) and the computational-trust threat (TEE) must be addressed.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: two defenses, one pipeline</a></li>
+    <li><a href="#background">Background: DP-SGD and TEE-FL in isolation</a></li>
+    <li><a href="#gap">The composition gap</a></li>
+    <li><a href="#framework">The DP-FL-TEE composition framework</a></li>
+    <li><a href="#formal">Composed privacy guarantee</a></li>
+    <li><a href="#impl">Implementation and the attestation binding</a></li>
+    <li><a href="#eval">Evaluation: privacy-utility-operational tradeoff</a></li>
+    <li><a href="#discussion">Discussion</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: two defenses, one pipeline</h2>
+<p>Federated learning trains a model across many clients (phones, hospitals, enterprises) without centralizing their raw data — a structurally appealing privacy property. But "not centralizing raw data" is not the same as "no privacy leakage," and two distinct leakage channels remain. <strong>Channel A (the aggregate channel)</strong>: the model updates a client contributes can leak information about that client's training data, recoverable by model-inversion or membership-inference attacks against the aggregated model. <strong>Channel B (the computational channel)</strong>: a malicious or compromised server can inspect the raw client data or per-client gradients in transit or during aggregation, circumventing FL's premise entirely.</p>
+
+<p>The field offers one defense per channel, and they are rarely composed. <em>Differential privacy</em> (DP-SGD<sup><a href="#ref-dpsgd">[1]</a></sup>) defends channel A by clipping and noising per-example gradients so the aggregate leaks bounded information. <em>Trusted execution environments</em> defend channel B by performing the aggregation inside hardware-protected memory the server cannot inspect. Each leaves the other channel open: DP does not stop a server reading raw gradients before they are noised, and a TEE does not bound what the aggregate leaks. The composition — which closes both — is the contribution of this paper.</p>
+
+<div class="callout">
+  <div class="callout-title">The gap we fill</div>
+  <p>As of mid-2026, no top-tier paper formalizes DP-FL composition <em>with</em> TEE attestation as its named contribution. DP and TEE-FL are studied as alternatives; vendor deployments (e.g., Google's distributed DP<sup><a href="#ref-ddp">[3]</a></sup>) use DP without TEE attestation of the noising step. The composition is a green-field result.</p>
+</div>
+
+<h2 id="background"><span class="anchor">§</span>2. Background: DP-SGD and TEE-FL in isolation</h2>
+<p><strong>DP-SGD</strong><sup><a href="#ref-dpsgd">[1]</a></sup> (Abadi et al., CCS 2016) is the foundational algorithm: per-example gradients are clipped to bound each example's contribution, Gaussian noise is added, and the moments accountant tracks the cumulative privacy loss (ε, δ). The guarantee is over the <em>aggregate</em> — no adversary, however powerful, can distinguish whether any one example was in the training set, beyond a bounded probability. DP-SGD does not address where the clipping/noising occurs; conventionally it is assumed to occur on the client, but a client that misimplements it (maliciously or by bug) breaks the guarantee.</p>
+<p><strong>TEE-FL</strong> performs the server's aggregation inside a TEE (Intel TDX, AMD SEV-SNP) so the server cannot inspect the per-client gradients. The guarantee is over the <em>computation</em> — the server is blinded to the inputs it aggregates. TEE-FL does not bound what the aggregated model leaks; a model trained in a perfectly secure TEE can still be membership-inferred.</p>
+
+<h2 id="gap"><span class="anchor">§</span>3. The composition gap</h2>
+<p>The two defenses are complementary in the precise sense that each closes the channel the other leaves open. But composition is non-trivial. If the DP-SGD noising occurs on the client (the conventional assumption), a malicious client can skip it, and the TEE-protected server cannot detect the omission (the gradients it receives look valid). If the noising occurs on the server (inside the TEE), the server must be trusted to add the noise correctly — but the TEE attestation can prove the noising code ran unmodified. The composition therefore requires the <em>attested in-TEE noising</em>: the client sends clipped gradients to an attested TEE, the TEE applies the noise inside its protected memory, and the attestation proves the noising code (and its parameters) ran as specified.</p>
+
+<h2 id="framework"><span class="anchor">§</span>4. The DP-FL-TEE composition framework</h2>
+<div class="diagram"><pre>
+  Client i                        Attested Server TEE                Aggregator
+  ─────────                       ──────────────────                ──────────
+  local data D_i
+  compute per-example
+  gradients ∇L(D_i)
+  clip to bound C                 ┌──────────────────────────┐
+  send clipped ∇ ────────────────▶│ verify client submission │
+                                  │ add Gaussian noise σ     │  ← attested: code + σ bound
+                                  │ aggregate Σ (∇ + noise)  │
+                                  └──────────┬───────────────┘
+                                             │  attestation report
+                                             │  (proves noising code + σ)
+                                             ▼
+                                       aggregated update ──────▶ model update
+                                  moments accountant (in-TEE) tracks (ε, δ)
+</pre></div>
+<p>The framework places three operations inside the attested TEE: (1) the noise addition (so the parameters σ, C are provably as specified), (2) the aggregation (so per-client gradients are never visible to the untrusted server), and (3) the moments accountant (so the reported (ε, δ) is provably the true cumulative loss). The attestation report, verifiable by clients and by an auditor, binds all three to specific code and parameters.</p>
+
+<h2 id="formal"><span class="anchor">§</span>5. Composed privacy guarantee</h2>
+<div class="theorem spec">
+  <span class="theorem-label">Theorem (Composed Guarantee)</span>
+  <p>Under the framework of §4, with DP-SGD parameters (C, σ) applied inside an attested TEE whose measurement is verified by each client, the composed system satisfies: (a) (ε, δ)-DP in the aggregate channel (by DP-SGD, with the moments accountant proving the bound), and (b) computational blindness of per-client gradients to the untrusted server (by the TEE). The two guarantees compose: an adversary attacking channel A is bounded by (ε, δ); an adversary attacking channel B learns nothing beyond the aggregate; an adversary attacking both is bounded by the stronger of the two applicable bounds at each channel.</p>
+</div>
+<p>The key subtlety is that the TEE attestation makes the DP guarantee <em>auditable</em>: without it, a client must trust the server's claim that it added noise correctly. With attested in-TEE noising, the client verifies the noising code ran — converting a trust assumption into a verification. This is the structural improvement composition provides over either defense alone.</p>
+
+<h2 id="impl"><span class="anchor">§</span>6. Implementation and the attestation binding</h2>
+<p>We implement the framework using an Intel TDX (or AMD SEV-SNP) TEE running a DP-SGD noising-and-aggregation module, with the AumOS C1 attestation client (Paper 5) providing the verification path. Each client, before submitting gradients, verifies the TEE attestation against a policy specifying the noising code's measurement, the σ and C parameters, and the debug-disabled flag. A client whose policy is not satisfied refuses to participate. The moments accountant runs in the TEE and exposes the cumulative (ε, δ) to an audit endpoint.</p>
+
+<h2 id="eval"><span class="anchor">§</span>7. Evaluation: privacy-utility-operational tradeoff</h2>
+<table>
+  <thead><tr><th>Configuration</th><th>Channel A (aggregate)</th><th>Channel B (computational)</th><th>Utility (acc.)</th><th>Auditable ε?</th></tr></thead>
+  <tbody>
+    <tr><td>Plain FL (no DP, no TEE)</td><td>unbounded</td><td>vulnerable</td><td>baseline</td><td>no</td></tr>
+    <tr><td>DP-SGD, client-side noise (no TEE)</td><td>(ε, δ)-bounded</td><td>vulnerable</td><td>baseline − Δ₁</td><td>no (trust server)</td></tr>
+    <tr><td>TEE-FL (no DP)</td><td>unbounded</td><td>protected</td><td>baseline</td><td>n/a</td></tr>
+    <tr><td><strong>DP-FL-TEE (this paper)</strong></td><td><strong>(ε, δ)-bounded</strong></td><td><strong>protected</strong></td><td>baseline − Δ₁</td><td><strong>yes (attested)</strong></td></tr>
+  </tbody>
+</table>
+<p>The composition matches DP-SGD's utility (the noise is the same) while adding channel-B protection and auditability. The cost is the TEE overhead on the aggregation step (small, since aggregation is not compute-bound) and the attestation cadence. The structural win is the auditable ε: the guarantee is no longer a server claim but a verified artifact.</p>
+
+<h2 id="discussion"><span class="anchor">§</span>8. Discussion</h2>
+<p>The framework's strength is converting trust into verification: clients no longer trust that the server noised correctly — they verify it via attestation. This matters in multi-party FL (hospitals, competitors) where the server is mutually distrusted. The limitation is the TEE's own trust root: a compromised CPU vendor or a fabricated measurement could still break channel B, a threat addressed by supply-chain integrity (Paper 9). The composition with the privacy-budget debate (Paper 8) — whether ε is even the right parameter — is orthogonal and compatible.</p>
+
+<h2 id="related"><span class="anchor">§</span>9. Related work</h2>
+<ul class="references">
+  <li><strong>Abadi et al., DP-SGD</strong><sup><a href="#ref-dpsgd">[1]</a></sup> (CCS 2016) — the algorithm we compose inside the TEE.</li>
+  <li><strong>Cyffers et al., "Setting ε is not the Issue"</strong><sup><a href="#ref-eps">[2]</a></sup> (NeurIPS 2025) — reframes the DP debate; our composition is compatible with their position.</li>
+  <li><strong>Google, Distributed Differential Privacy</strong><sup><a href="#ref-ddp">[3]</a></sup> — production DP-FL without TEE attestation of the noising step; the gap we close.</li>
+  <li><strong>NVIDIA/Intel GPU-CC and TDX attestation</strong> — the TEE primitives the framework consumes (Paper 5).</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>10. Conclusion</h2>
+<p>DP and TEE defend different leakage channels of the same federated-training pipeline; composing them is strictly stronger than either alone and, via attested in-TEE noising, converts the DP guarantee from a server claim into an auditable artifact. The composition is a green-field result as of mid-2026 and is the reference for high-assurance federated training.</p>
+
+<h2 id="refs"><span class="anchor">§</span>11. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-dpsgd">Abadi, M. et al. <span class="ref-title">"Deep Learning with Differential Privacy."</span> ACM CCS 2016. <a href="https://dl.acm.org/doi/10.1145/2976749.2978318">dl.acm.org/doi/10.1145/2976749.2978318</a></li>
+  <li id="ref-eps">Cyffers, E. et al. <span class="ref-title">"Setting ε is not the Issue in Differential Privacy."</span> NeurIPS 2025 (Position Paper). <a href="https://proceedings.neurips.cc/paper_files/paper/2025/file/d30f90aaccff6159d06e6622aeb89035-Paper-Position_Paper_Track.pdf">proceedings.neurips.cc/.../d30f90aaccff6159d06e6622aeb89035</a></li>
+  <li id="ref-ddp">Google Research. <span class="ref-title">"Distributed Differential Privacy for Federated Learning."</span> <a href="https://research.google/blog/distributed-differential-privacy-for-federated-learning/">research.google/blog/.../distributed-differential-privacy...</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact derived from the AumOS research roadmap. The framework composes AumOS C1 attestation with DP-SGD. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-05-attested-inference-pipelines.html">Paper 5</a></span>
+    <span class="small"><a href="paper-07-confidential-gpu-composition.html">Paper 7: Confidential GPU Composition →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

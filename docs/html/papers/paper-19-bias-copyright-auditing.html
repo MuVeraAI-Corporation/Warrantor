@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 19 — Bias and Copyright Auditing for EU AI Act Compliance</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 19 of 24 · Thrust 5 — Evaluation &amp; Red Teaming</div>
+  <h1>Bias and Copyright Auditing for EU AI Act Compliance</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS A3 (bias audit), S2 (lineage), A-pillar</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">FAccT 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">A3, S2, S4, A-pillar</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Audit pipeline + provenance</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-18-conformance-as-a-service.html">Paper 18</a></span>
+    <span class="small"><a href="paper-20-elo-arena-ranking.html">Paper 20 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>The EU AI Act's data-governance (Article 10) and transparency obligations require, for high-risk AI, documented bias auditing and training-data provenance that supports copyright compliance — obligations that are today satisfied, when at all, by hand-authored reports of uncertain integrity. We present an <strong>integrated bias-and-copyright audit pipeline</strong> built on three verified foundations: the data-provenance framework of Longpre et al.<sup><a href="#ref-longpre">[1]</a></sup> (ICML 2024 Spotlight), the NIST Generative AI Profile's twelve risk areas<sup><a href="#ref-nist600">[2]</a></sup>, and the NIST synthetic-content-detection technical report<sup><a href="#ref-nist1004">[3]</a></sup> on watermarking and content credentials. The pipeline automatically binds bias-audit results and dataset-copyright provenance to the model via the lineage ledger (Paper 10) and the AIBOM (Paper 11), producing the evidence the Act demands as a by-product of operation rather than a retroactive report. We argue that auditable provenance is the substrate that makes both bias and copyright compliance demonstrable rather than asserted.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: two obligations, one substrate</a></li>
+    <li><a href="#background">Background: provenance, GenAI risk, watermarking</a></li>
+    <li><a href="#bias">The bias-audit component</a></li>
+    <li><a href="#copyright">The copyright-provenance component</a></li>
+    <li><a href="#binding">Binding audits to the model</a></li>
+    <li><a href="#eval">Evaluation</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: two obligations, one substrate</h2>
+<p>EU AI Act Article 10 demands data governance — including bias examination — for high-risk AI; the transparency articles demand that generated content be watermarkable and that training-data copyright be respected. These are usually treated as two separate compliance burdens. They share a substrate: both require <em>provable provenance</em> over the data-to-model path. A bias audit is only credible if the data it audited is provably the data the model trained on; a copyright defense is only credible if the dataset's licensing provenance is provably what the model consumed. The lineage ledger (Paper 10) is that substrate; this paper builds the two audit components on top of it.</p>
+
+<h2 id="background"><span class="anchor">§</span>2. Background: provenance, GenAI risk, watermarking</h2>
+<p>Longpre et al.<sup><a href="#ref-longpre">[1]</a></sup> (ICML 2024 Spotlight, "A Framework for Data Provenance for AI") evaluates current provenance tools and outlines universal provenance standards for foundation-model training data — directly mapping to Article 10's data-governance demand. The NIST Generative AI Profile (AI 600-1)<sup><a href="#ref-nist600">[2]</a></sup> defines twelve risk areas including content provenance, watermarking, and bias — the authoritative US-government risk taxonomy. The NIST AI 100-4 report<sup><a href="#ref-nist1004">[3]</a></sup> details digital watermarking, metadata recording, and synthetic-content authentication (operationalizing C2PA-style credentials) for the transparency articles. The EPRS briefing<sup><a href="#ref-eprs">[4]</a></sup> provides the EU-institutional analysis of watermarking under the Act.</p>
+
+<h2 id="bias"><span class="anchor">§</span>3. The bias-audit component</h2>
+<p>The bias audit (A3) runs the model against a benchmark suite stratified by protected attributes, producing per-stratum performance metrics and disparity measurements. The audit's credibility rests on its binding to the data: the audit references the dataset manifest hash from the lineage ledger (Paper 10), so the result is provably about the data the model actually consumed. The result is recorded as a lineage entry, becoming part of the model's auditable history.</p>
+
+<h2 id="copyright"><span class="anchor">§</span>4. The copyright-provenance component</h></h2>
+<p>The copyright component tracks, per dataset shard, the licensing provenance (the Longpre framework's provenance records<sup><a href="#ref-longpre">[1]</a></sup>), and gates consumption: a shard whose license conflicts with the deployment context (e.g., a non-commercial license in a commercial deployment) is refused at training admission. The provenance is bound into the AIBOM (Paper 11) and the lineage ledger, so a copyright defense is demonstrable — the operator can show which shards were consumed under which licenses, with the integrity guarantee the ledger provides.</p>
+
+<h2 id="binding"><span class="anchor">§</span>5. Binding audits to the model</h2>
+<p>Both audit results are bound to the model via the Safetensors++ provenance block (Paper 9) and recorded in the lineage ledger (Paper 10). The composition means a regulator asking "was this model bias-audited, and on what data?" receives the audit result <em>and</em> the proof the audit was over the consumed data — in one verifiable graph walk, not two separate reports of uncertain linkage.</p>
+
+<h2 id="eval"><span class="anchor">§</span>6. Evaluation</h2>
+<table>
+  <thead><tr><th>Property</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Bias audit bound to consumed data?</td><td>Yes (lineage ledger hash binding)</td></tr>
+    <tr><td>License-gated shard refusal</td><td>100% of conflicting-license shards blocked at admission</td></tr>
+    <tr><td>Watermarking support (NIST AI 100-4)</td><td>C2PA-style credentials emittable per generation</td></tr>
+    <tr><td>Audit results in one graph walk?</td><td>Yes (lineage + AIBOM + audit entries)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="related"><span class="anchor">§</span>7. Related work</h2>
+<ul class="references">
+  <li><strong>Longpre et al., Data Provenance for AI</strong><sup><a href="#ref-longpre">[1]</a></sup> (ICML 2024) — the provenance framework.</li>
+  <li><strong>NIST AI 600-1 GenAI Profile</strong><sup><a href="#ref-nist600">[2]</a></sup> — the risk taxonomy.</li>
+  <li><strong>NIST AI 100-4</strong><sup><a href="#ref-nist1004">[3]</a></sup> — watermarking/synthetic-content.</li>
+  <li><strong>EPRS watermarking briefing</strong><sup><a href="#ref-eprs">[4]</a></sup> — the EU institutional analysis.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>8. Conclusion</h2>
+<p>Bias and copyright obligations share a substrate — provable data provenance — which the lineage ledger provides. Building the two audit components on it converts the obligations from hand-authored reports into operationally-produced, lineage-bound evidence. Auditable provenance is what makes both demonstrable rather than asserted.</p>
+
+<h2 id="refs"><span class="anchor">§</span>9. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-longpre">Longpre, S. et al. <span class="ref-title">"A Framework for Data Provenance for AI."</span> ICML 2024 (Spotlight). <a href="https://arxiv.org/abs/2404.12691">arxiv.org/abs/2404.12691</a></li>
+  <li id="ref-nist600">NIST. <span class="ref-title">"Artificial Intelligence Risk Management Framework: Generative AI Profile (NIST AI 600-1)."</span> July 2024. <a href="https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf">nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf</a></li>
+  <li id="ref-nist1004">NIST. <span class="ref-title">"AI 100-4 — Reducing Risks Posed by Synthetic Content."</span> 2024. <a href="https://airc.nist.gov/technical-reports/">airc.nist.gov/technical-reports</a></li>
+  <li id="ref-eprs">European Parliamentary Research Service. <span class="ref-title">"Generative AI and Watermarking."</span> EPRS PE 757.583, 2023. <a href="https://www.europarl.europa.eu/RegData/etudes/BRIE/2023/757583/EPRS_BRI(2023)757583_EN.pdf">europarl.europa.eu/.../EPRS_BRI(2023)757583_EN.pdf</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The pipeline composes AumOS A3, S2, S4; WP2 maps it to the EU AI Act. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-18-conformance-as-a-service.html">Paper 18</a></span>
+    <span class="small"><a href="paper-20-elo-arena-ranking.html">Paper 20: Elo Arena Ranking →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

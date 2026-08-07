@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WP3 — Zero-Trust AI: From SPIFFE to Agent Identity</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Industry Whitepaper · WP3 of 6 · For platform engineers running SPIRE in production</div>
+  <h1>Zero-Trust AI: From SPIFFE to Agent Identity</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS I1 (agent-identity), I2 (federation), T1/T2</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">KubeCon / CloudNativeCon 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">~16–22 pages, SPIRE-to-agent migration guide</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="wp2-eu-ai-act-article-55.html">WP2</a></span>
+    <span class="small"><a href="wp4-ai-kill-switch-act.html">WP4 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Executive Summary</span>
+  <p>Workload identity solved the service-to-service authentication problem; agent identity is the same problem one layer up, materially harder, and currently unsolved by any standardized mechanism. This whitepaper, for platform engineers already operating SPIFFE/SPIRE<sup><a href="#ref-spiffe">[1]</a></sup>, traces the precise evolution from workload identity to autonomous-agent identity: what carries over unchanged, what must be generalized, and how AumOS I1 reuses SPIRE's trust-domain and SVID concepts while extending them to bind a delegation, a host attestation, and a capability scope into a single verifiable agent identity. We present the federation model for cross-organization agent identity and an operational deployment guide for the agent-identity control plane, grounded in NIST SP 800-207 Zero Trust Architecture<sup><a href="#ref-zta">[2]</a></sup>.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#problem">The practitioner problem</a></li>
+    <li><a href="#carries">What carries over from SPIFFE</a></li>
+    <li><a href="#generalizes">What must be generalized</a></li>
+    <li><a href="#federation">Federation across organizations</a></li>
+    <li><a href="#deployment">Deployment sequence</a></li>
+    <li><a href="#evidence">The migration proof</a></li>
+    <li><a href="#sources">Authoritative sources</a></li>
+  </ol>
+</div>
+
+<h2 id="problem"><span class="anchor">§</span>1. The practitioner problem</h2>
+<p>A platform team that has standardized on SPIRE issues X.509-SVIDs to every workload and has clean, mTLS-everywhere, zero-trust service mesh. Then an LLM agent arrives. The agent is not a workload in the SPIRE sense — it has no fixed pod, it acts on behalf of a human principal, its permissions vary per delegation, and it calls APIs in other trust domains. Issuing it a workload SVID conflates the agent's identity with the principal's authority and breaks the zero-trust model the team spent years building. The team needs an identity primitive that is to agents what SVIDs are to workloads: standardized, federation-ready, and bound to the authority it acts under.</p>
+
+<h2 id="carries"><span class="anchor">§</span>2. What carries over from SPIFFE</h2>
+<p>The SPIFFE specification (SPIFFE IDs, trust domains, SVIDs, the workload API, federation) is the right foundation, and AumOS I1 inherits it deliberately. The <strong>trust domain</strong> remains the unit of administrative authority; the <strong>SVID</strong> remains the carrier of identity; the <strong>workload API</strong> pattern remains the secret-distribution mechanism. A team that understands SPIRE understands 80% of AumOS I1. The remaining 20% is the generalization.</p>
+
+<h2 id="generalizes"><span class="anchor">§</span>3. What must be generalized</h2>
+<p>Three properties distinguish an agent identity from a workload identity, and each requires an extension. (1) <strong>Delegation binding</strong>: an agent's authority is dynamic (delegated per-task by a human principal), so the SVID must carry the AAE (Paper 1) that authorized it. (2) <strong>Host-attestation binding</strong>: the SVID must bind an attestation document (C1) so a relying party can require a confidential host. (3) <strong>Capability scope</strong>: a first-class field of the identity document, verified by the intersection contract (Paper 4).</p>
+
+<h2 id="federation"><span class="anchor">§</span>4. Federation across organizations</h2>
+<p>Workload federation (SPIFFE Federation) lets trust domain A verify workloads from B by trusting B's bundle. Agent federation adds the wrinkle: A must verify not only the agent's identity but the principal who delegated, and that the delegation is still valid. AumOS P7 extends SPIFFE federation with a delegation-bundle and revocation-distribution mechanism, so a relying party in A verifies the full chain — agent identity, principal identity, delegation validity, host attestation — without out-of-band coordination.</p>
+
+<h2 id="deployment"><span class="anchor">§</span>5. Deployment sequence</h2>
+<ol style="margin-left: var(--space-xl);">
+  <li><strong>Extend the trust domain.</strong> Register AumOS I1's agent-identity CA as an issuer within the existing trust domain, or stand up a dedicated agent trust domain federated with the workload domain. Reuse existing SPIRE bundle distribution.</li>
+  <li><strong>Deploy the agent workload API.</strong> The agent-runtime retrieves its SVID+AAE via the same workload-API pattern SPIRE uses; the secret never touches disk in plaintext.</li>
+  <li><strong>Wire the delegation issuer.</strong> The principal's IdP issues AAEs that the agent-identity CA binds into the SVID — the human-in-the-loop step that authorizes the agent.</li>
+  <li><strong>Configure relying-party verification.</strong> API gateways and mesh sidecars verify the SVID (existing SPIRE logic) <em>and</em> the AAE extension (new logic) before honoring an agent request.</li>
+  <li><strong>Stand up revocation distribution.</strong> Deploy the revocation-bundle distribution so a revoked delegation propagates within the freshness window (target: seconds).</li>
+  <li><strong>Federate with partners.</strong> Exchange trust bundles per P7; agents acting cross-organization now verify end-to-end.</li>
+</ol>
+
+<h2 id="evidence"><span class="anchor">§</span>6. The migration proof</h2>
+<p>An existing SPIRE deployment can adopt AumOS I1 without forklifting the workload-identity layer. The agent SVID is a SPIFFE SVID with a well-defined extension; SPIRE-verified workloads continue to verify; only the agents and their relying parties adopt the new logic. This is the same incremental-adoption property that made SPIRE itself deployable.</p>
+
+<h2 id="sources"><span class="anchor">§</span>7. Authoritative sources</h2>
+<ul class="references">
+  <li id="ref-spiffe">CNCF SPIFFE Project. <span class="ref-title">SPIFFE specification &amp; SPIRE.</span> (Graduated, August 2022.) <a href="https://github.com/spiffe/spiffe">github.com/spiffe/spiffe</a></li>
+  <li id="ref-zta">NIST. <span class="ref-title">SP 800-207 — Zero Trust Architecture.</span> August 2020. <a href="https://csrc.nist.gov/pubs/sp/800/207/final">csrc.nist.gov/pubs/sp/800/207/final</a></li>
+</ul>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper. The agent-identity layer is AumOS I1; the AAE is Paper 1. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="wp2-eu-ai-act-article-55.html">WP2: EU AI Act</a></span>
+    <span class="small"><a href="wp4-ai-kill-switch-act.html">WP4: AI Kill Switch Act →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

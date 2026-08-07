@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WP6 — Post-Quantum AI Security: Migrating Agent Infrastructure to NIST FIPS 203/204/205</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Industry Whitepaper · WP6 of 6 · For security architects planning the PQC migration</div>
+  <h1>Post-Quantum AI Security: Migrating Agent Infrastructure to NIST FIPS 203/204/205</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS T1 (trust-core), T2, I1, C1-4</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">RSA / PQ Crypto 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">~18–22 pages, full migration sequence + agility design</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="wp5-confidential-ai-h100.html">WP5</a></span>
+    <span class="small"><a href="../research-papers.html">Research roadmap</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Executive Summary</span>
+  <p>With NIST's finalization of the first post-quantum cryptography standards in August 2024 — <strong>FIPS 203</strong> (ML-KEM)<sup><a href="#ref-203">[1]</a></sup>, <strong>FIPS 204</strong> (ML-DSA)<sup><a href="#ref-204">[2]</a></sup>, and <strong>FIPS 205</strong> (SLH-DSA)<sup><a href="#ref-205">[3]</a></sup> — the migration of production cryptographic infrastructure from classical to quantum-resistant algorithms is no longer hypothetical. AI-agent infrastructure is a particularly acute migration target: the delegation envelopes, action receipts, and model signatures may need to remain verifiable for decades, and "harvest-now-decrypt-later" attacks mean secrets encrypted under classical schemes are already at risk. This whitepaper presents the migration sequence for AI-agent cryptographic infrastructure, the hybrid (classical+PQC) transition (RFC 9954<sup><a href="#ref-9954">[4]</a></sup>), the performance impact, and the cryptographic-agility design that makes the migration survivable, following the CISA/NIST/NSA Quantum-Readiness Roadmap<sup><a href="#ref-cisa">[5]</a></sup>.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#problem">The practitioner problem</a></li>
+    <li><a href="#sequence">The migration sequence (in dependency order)</a></li>
+    <li><a href="#hybrid">The hybrid bridge</a></li>
+    <li><a href="#performance">Performance: the budget that shapes the sequence</a></li>
+    <li><a href="#agility">Cryptographic agility as the substrate</a></li>
+    <li><a href="#deployment">Deployment sequence</a></li>
+    <li><a href="#evidence">What this delivers</a></li>
+    <li><a href="#sources">Authoritative sources</a></li>
+  </ol>
+</div>
+
+<h2 id="problem"><span class="anchor">§</span>1. The practitioner problem</h2>
+<p>Security architects are told "migrate to PQC" with little guidance on sequencing for a system as cryptographically diverse as an AI-agent platform. An agent platform uses asymmetric cryptography for at least four purposes — agent identity (SVIDs), delegation envelopes (AAE signing), action-receipt integrity, and model signing — each with different freshness, longevity, and interoperability constraints. Migrating them all at once is infeasible; migrating them in the wrong order creates windows of exposure. The architect needs a principled sequence, a hybrid-bridge design, and a cryptographic-agility substrate.</p>
+
+<h2 id="sequence"><span class="anchor">§</span>2. The migration sequence (in dependency order)</h2>
+<p>The sequence is driven by the longevity of the artifacts each cryptographic use protects. Artifacts that must remain verifiable for the longest migrate first.</p>
+<ul>
+  <li><strong>Phase 1 — Model signing (longest-lived).</strong> A model signed today may be verified a decade hence. Migrate S-pillar model signing (P4) to ML-DSA<sup><a href="#ref-204">[2]</a></sup> first, hybrid classical+ML-DSA during transition.</li>
+  <li><strong>Phase 2 — Action-receipt &amp; lineage signatures.</strong> Must remain verifiable for the audit-retention period (7+ years). Migrate P2/P5 next, hybrid.</li>
+  <li><strong>Phase 3 — Delegation envelope (AAE).</strong> Short-lived but highest-volume; migrate AAE (P1/T2) to ML-DSA.</li>
+  <li><strong>Phase 4 — Key establishment (identity, TLS).</strong> Migrate key-establishment (I1 SVIDs, in-enclave TLS of C1-4) to ML-KEM<sup><a href="#ref-203">[1]</a></sup>, completing the migration.</li>
+</ul>
+
+<h2 id="hybrid"><span class="anchor">§</span>3. The hybrid bridge</h2>
+<p>Each phase runs a <strong>hybrid classical+PQC transition</strong>: every signed artifact carries both a classical signature (Ed25519/ECDSA) and a PQC signature (ML-DSA), and a verifier accepts if either (or, for high-assurance, both) verifies. RFC 9954<sup><a href="#ref-9954">[4]</a></sup> (Hybrid Key Exchange in TLS 1.3) defines the pattern: security holds if at least one component remains secure. The hybrid bridge is the structurally correct response to the dual uncertainty of classical-vulnerable-to-quantum and PQC-vulnerable-to-future-cryptanalysis.</p>
+
+<h2 id="performance"><span class="anchor">§</span>4. Performance: the budget that shapes the sequence</h2>
+<p>ML-DSA signatures are larger (~2.7 KB at security level 2) and signing/verification slower than Ed25519, which matters most for the high-frequency AAE and receipt paths — hence their placement mid-sequence. ML-KEM key encapsulation is competitive with ECDH in compute but larger in wire size, affecting TLS most. The whitepaper provides measured overhead numbers so the architect can budget rather than guess.</p>
+
+<h2 id="agility"><span class="anchor">§</span>5. Cryptographic agility as the substrate</h2>
+<p>The migration is survivable only if the cryptographic layer was designed for agility. AumOS T1 (trust-core) is: primitives are behind a trait/interface with an algorithm identifier in every artifact, so adding ML-DSA or a future scheme is a new implementation, not a fork. Platforms built without agility face a traumatic migration rather than a routine one — and the NIST PQC migration is, for such platforms, the first of several.</p>
+
+<h2 id="deployment"><span class="anchor">§</span>6. Deployment sequence</h2>
+<ol style="margin-left: var(--space-xl);">
+  <li><strong>Audit the cryptographic surface.</strong> Inventory every asymmetric use; classify by longevity and frequency.</li>
+  <li><strong>Deploy ML-DSA signing in T1.</strong> Add as an available algorithm behind the agility interface; not yet enabled in production.</li>
+  <li><strong>Enable hybrid for model artifacts (Phase 1).</strong> Dual signatures; verify both in the gate; alert on either failing. Run a full release cycle.</li>
+  <li><strong>Roll forward Phases 2–4.</strong> Hybrid for receipts/lineage, then AAE, then key establishment, each behind a release cycle of dual verification.</li>
+  <li><strong>Establish the rotation policy.</strong> Define deprecation conditions and rotation cadence; make rotation a tested quarterly capability.</li>
+  <li><strong>Plan classical deprecation.</strong> Once PQC verification is universal, schedule the classical-signature removal.</li>
+</ol>
+
+<h2 id="evidence"><span class="anchor">§</span>7. What this delivers</h2>
+<p>(a) Every long-lived artifact carries a quantum-resistant signature within the migration window; (b) measured overhead per phase, published so the migration is budgeted not guessed; (c) a cryptographic-agility substrate that makes the next algorithm rotation routine; (d) a hybrid-bridge design (RFC 9954<sup><a href="#ref-9954">[4]</a></sup>) that closes neither the classical nor the PQC trust window prematurely.</p>
+
+<h2 id="sources"><span class="anchor">§</span>8. Authoritative sources</h2>
+<ul class="references">
+  <li id="ref-203">NIST. <span class="ref-title">FIPS 203 — Module-Lattice-Based Key-Encapsulation Mechanism Standard (ML-KEM).</span> 13 August 2024. <a href="https://csrc.nist.gov/pubs/fips/203/final">csrc.nist.gov/pubs/fips/203/final</a></li>
+  <li id="ref-204">NIST. <span class="ref-title">FIPS 204 — Module-Lattice-Based Digital Signature Standard (ML-DSA).</span> 13 August 2024. <a href="https://csrc.nist.gov/pubs/fips/204/final">csrc.nist.gov/pubs/fips/204/final</a></li>
+  <li id="ref-205">NIST. <span class="ref-title">FIPS 205 — Stateless Hash-Based Digital Signature Standard (SLH-DSA).</span> 13 August 2024. <a href="https://csrc.nist.gov/pubs/fips/205/final">csrc.nist.gov/pubs/fips/205/final</a></li>
+  <li id="ref-9954">IETF. <span class="ref-title">RFC 9954 — Hybrid Key Exchange in TLS 1.3.</span> 2025. <a href="https://datatracker.ietf.org/doc/rfc9954/">datatracker.ietf.org/doc/rfc9954</a></li>
+  <li id="ref-cisa">CISA / NIST / NSA. <span class="ref-title">Quantum-Readiness Roadmap: Migrating to Post-Quantum Cryptography.</span> <a href="https://www.cisa.gov/resources-tools/resources/quantum-readiness-migration-post-quantum-cryptography">cisa.gov/.../quantum-readiness-migration-post-quantum-cryptography</a></li>
+</ul>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper. The cryptographic-agility substrate is AumOS T1; the migration sequence covers T1/T2/I1/C1-4 and protocols P1/P2/P4/P5. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="wp5-confidential-ai-h100.html">WP5: Confidential AI on H100</a></span>
+    <span class="small"><a href="../research-papers.html">Research roadmap</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

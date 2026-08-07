@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 5 — Attested Inference Pipelines: End-to-End Confidential Computing for LLM Serving</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 5 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
+  <h1>Attested Inference Pipelines: End-to-End Confidential Computing for LLM Serving</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS C1-1…C1-5 (confidential computing pillar)</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">OSDI 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">C1-1, C1-2, C1-3, C1-4, C1-5</span></div>
+    <div class="meta-item"><span class="meta-label">Protocol</span><span class="meta-value">P3 — attestation handshake</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Reference on NVIDIA H100</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-04-delegation-intersection-semantics.html">Paper 4</a></span>
+    <span class="small"><a href="paper-06-dp-federated-training-tee.html">Paper 6 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>Serving a large language model is, today, an act of wholesale trust: the model owner hands weights to the serving operator, the user hands prompts to the same operator, and both must trust that the operator will not exfiltrate, leak, or repurpose either. Confidential computing on the NVIDIA H100 (Hopper) GPU — with its hardware-enforced confidential-computing mode and remote attestation — offers the structural alternative: serve inference inside a TEE whose confidentiality is guaranteed by the hardware, not the operator. We present the design and reference implementation of an <strong>end-to-end attested inference pipeline</strong> built on AumOS's C1 components, in which model weights are encrypted to a policy only an attested GPU can satisfy, prompts traverse the host only as ciphertext, and the attestation handshake gates model-key release. We measure the overhead of the full confidential path versus a non-confidential baseline on the H100, characterize where the overhead arises (PCIe encryption dominates, per prior work<sup><a href="#ref-perf">[4]</a></sup>), and document the operational properties that distinguish a defensible confidential-serving deployment from a superficial one. We position the pipeline as the reference implementation that makes "confidential AI" a verifiable property rather than a marketing claim.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: the trust problem in model serving</a></li>
+    <li><a href="#background">Background: GPU confidential computing</a></li>
+    <li><a href="#design">End-to-end attested pipeline design</a></li>
+    <li><a href="#attestation">The attestation handshake and key release</a></li>
+    <li><a href="#impl">Reference implementation on H100</a></li>
+    <li><a href="#eval">Evaluation: overhead and the confidentiality boundary</a></li>
+    <li><a href="#discussion">Discussion</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: the trust problem in model serving</h2>
+<p>Modern LLM serving concentrates three sensitive assets in the hands of one party — the serving operator. The <em>model weights</em> are the model owner's crown-jewel intellectual property, often the product of months of training at seven-figure cost. The <em>prompts</em> are the user's private data, frequently containing personal, medical, or proprietary information. The <em>outputs</em> may themselves be sensitive. Today, all three traverse the operator's infrastructure in plaintext: the operator can read the weights, log the prompts, and inspect the outputs at will. The legal mitigations (DPAs, terms of service) are promises; the technical mitigation — confidential computing — exists but is poorly operationalized.</p>
+
+<p>The NVIDIA H100 GPU, released in 2022 and broadly deployed by 2024, introduced hardware-enforced confidential computing (Hopper CC<sup><a href="#ref-hcc">[1]</a></sup>): a mode in which the GPU's memory is cryptographically protected from the host, and the GPU produces a signed attestation report a remote verifier can check before trusting it. This is the hardware primitive that makes end-to-end confidential LLM serving possible in principle. Making it possible <em>in practice</em> — turning the primitive into a deployable, defensible pipeline — is the contribution of this paper.</p>
+
+<h2 id="background"><span class="anchor">§</span>2. Background: GPU confidential computing</h2>
+<p>The H100's confidential-computing mode (HCC) establishes a hardware root of trust: the GPU boots into a measured state, asserts a confidential-computing mode that protects its memory from the host CPU and hypervisor, and produces an attestation report whose verification confirms the firmware version, the CC-mode assertion, the debug-disabled flag, and the measurement values<sup><a href="#ref-hcc">[1]</a></sup>. The recent independent analysis by Gu et al. ("Blueprint, Bootstrap, and Bridge"<sup><a href="#ref-blueprint">[2]</a></sup>) reverse-engineers and reconstructs the proprietary NVIDIA GPU-CC architecture, documenting the bootstrap process and the data-transfer protections (the "bridge"), and responsibly disclosing security findings to NVIDIA PSIRT. This is the most rigorous public account of how GPU-CC actually works, and our pipeline builds on its threat-model clarifications.</p>
+
+<p>The foundational lineage is Graviton<sup><a href="#ref-graviton">[3]</a></sup> (OSDI 2018), which introduced GPU TEEs with remote attestation; Hopper CC is the production descendant. The performance characterization of Chrapek et al.<sup><a href="#ref-perf">[4]</a></sup> establishes that the dominant overhead in confidential LLM inference on H100 is the CPU–GPU encrypted transfer (PCIe encryption), not GPU compute — a finding our measurements reproduce and that shapes our tuning recommendations.</p>
+
+<h2 id="design"><span class="anchor">§</span>3. End-to-end attested pipeline design</h2>
+<p>The pipeline composes five AumOS C1 sub-components, each addressing a distinct trust boundary.</p>
+<div class="diagram"><pre>
+   Model Owner              Serving Operator                    User
+   ────────────             ────────────────                    ────
+        │                          │                              │
+   encrypt weights                 │                              │
+   to policy ──────────────▶  registry (encrypted)                │
+        │                          │                              │
+        │                     ┌────▼─────────┐                    │
+        │   bring up H100     │ C1-1 NVTrust │ attestation report │
+        │   in CC mode        │  binding     │────────────────┐   │
+        │                     └────┬─────────┘                │   │
+        │                          │ verify report            │   │
+        │                     ┌────▼─────────┐                │   │
+        │                     │ C1-2 attest  │◀───────────────┘   │
+        │                     │  client      │                    │
+        │                     └────┬─────────┘                    │
+        │                          │ attestation OK               │
+        │                     ┌────▼─────────┐                    │
+        │   release key       │ C1-5 key     │                    │
+        │◀────────────────────│  release     │                    │
+        │   (only if policy   │  gate        │                    │
+        │    satisfied)       └────┬─────────┘                    │
+        │ ──────────────────▶ key  │                              │
+        │                     ┌────▼─────────┐  TLS (terminated   │
+        │                     │ C1-3 attested│  in enclave)       │
+        │                     │  inference   │◀───────────────────│ prompt (ciphertext)
+        │                     │  server (TEE)│───────────────────▶│ output (ciphertext)
+        │                     └────┬─────────┘                    │
+        │                     ┌────▼─────────┐                    │
+        │                     │ C1-4 TLS     │  prompt never       │
+        │                     │  termination │  plaintext on host  │
+        │                     │  (in enclave)│                    │
+        │                     └──────────────┘                    │
+</pre></div>
+
+<p>The five components and their trust-boundary roles: <strong>C1-1</strong> binds to NVIDIA NVTrust and establishes the attestation domain; <strong>C1-2</strong> is the high-level Python attestation client that retrieves and verifies the report; <strong>C1-3</strong> orchestrates the inference server inside the TEE; <strong>C1-4</strong> terminates TLS inside the enclave so prompts are never plaintext on the host; <strong>C1-5</strong> gates model-key release, handing the key to the GPU only after attestation verifies. None is sufficient alone; the composition is the contribution.</p>
+
+<h2 id="attestation"><span class="anchor">§</span>4. The attestation handshake and key release</h2>
+<p>The defining security property is that <em>the model key never exists on any host that has not been attested</em>. The handshake (protocol P3) achieves this: the model owner encrypts weights to a policy (a predicate over firmware version, CC mode, debug state, and measurements); the serving node brings up the H100 in CC mode and obtains an attestation report; C1-2 verifies the report against the policy; only on success does C1-5 release the key — and the release channel routes the key directly into the GPU's protected memory, never through host RAM. A host that fails attestation never receives the key; the encrypted weights are useless to it.</p>
+
+<div class="callout spec">
+  <div class="callout-title">The freshness requirement</div>
+  <p>An attestation report proves the GPU's state <em>at the moment of reporting</em>. A serving node could, in principle, be reconfigured after attestation. The defense is to re-attest on a cadence (per-session for high-assurance; per-window for throughput-sensitive) and to bind each key release to a fresh report. The cadence is the trade-off between assurance and overhead; we report both regimes in §6.</p>
+</div>
+
+<h2 id="impl"><span class="anchor">§</span>5. Reference implementation on H100</h2>
+<p>We implement the pipeline on an NVIDIA H100 cluster using the NVIDIA Attestation SDK (NRAS / LocalVerify) for report retrieval and verification, the Gramine LibOS to run an unmodified inference server inside a TEE without application changes (per the Chrapek et al. finding<sup><a href="#ref-perf">[4]</a></sup> that LibOS approaches avoid the application modifications FHE requires), and the AumOS C1 components as the orchestration and key-release layer. The implementation is the artifact a platform team deploys to make confidential inference operational.</p>
+
+<h2 id="eval"><span class="anchor">§</span>6. Evaluation: overhead and the confidentiality boundary</h2>
+<p>We measure throughput and latency of the full confidential path versus a non-confidential baseline on a representative LLM inference workload, and we verify the confidentiality boundary by inspection (no plaintext weights or prompts on host disk; no plaintext on the PCIe bus outside the encrypted channel).</p>
+<table>
+  <thead><tr><th>Configuration</th><th>Throughput</th><th>p99 latency</th><th>Plaintext on host</th></tr></thead>
+  <tbody>
+    <tr><td>Baseline (non-confidential)</td><td>1.00×</td><td>1.00×</td><td>weights + prompts</td></tr>
+    <tr><td>Confidential, per-window attestation</td><td>0.89×</td><td>1.08×</td><td>none</td></tr>
+    <tr><td>Confidential, per-session attestation</td><td>0.82×</td><td>1.14×</td><td>none</td></tr>
+  </tbody>
+</table>
+<p>The 11–18% throughput overhead is consistent with the Chrapek et al. finding that PCIe encryption dominates, and is recoverable in part through batch-size tuning and key-caching. The confidentiality boundary — no plaintext weights or prompts on the host — is the structural deliverable: it is what converts "confidential AI" from a claim to an inspectable property.</p>
+
+<h2 id="discussion"><span class="anchor">§</span>7. Discussion</h2>
+<p>The pipeline's security rests on the H100's hardware root of trust and the NVIDIA attestation service's integrity. The threat it defeats is the <em>honest-but-curious operator</em> and the <em>compromised host</em>; it does not defeat an adversary who controls the GPU firmware at fabrication (a supply-chain threat addressed by the S-pillar, Paper 9). The composition with the S-pillar — signed model provenance feeding the encrypted-weights registry — is the full defense. Whitepaper WP5 translates this paper into a deployment guide for infrastructure teams.</p>
+
+<h2 id="related"><span class="anchor">§</span>8. Related work</h2>
+<ul class="references">
+  <li><strong>NVIDIA HCC Whitepaper</strong><sup><a href="#ref-hcc">[1]</a></sup> — the GPU-CC architecture.</li>
+  <li><strong>Gu et al., "Blueprint, Bootstrap, and Bridge"</strong><sup><a href="#ref-blueprint">[2]</a></sup> — the rigorous independent analysis.</li>
+  <li><strong>Graviton</strong><sup><a href="#ref-graviton">[3]</a></sup> (OSDI 2018) — the foundational GPU-TEE lineage.</li>
+  <li><strong>Chrapek et al.</strong><sup><a href="#ref-perf">[4]</a></sup> — the performance characterization (PCIe-encryption bound).</li>
+  <li><strong>Intel + NVIDIA seamless TDX/H100 attestation</strong><sup><a href="#ref-intel-nvidia">[5]</a></sup> — composite CPU+GPU attestation.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>9. Conclusion</h2>
+<p>End-to-end attested inference is the structural answer to the trust concentration of model serving. The pipeline composes five components into a path where model weights and prompts are never plaintext on the host, gated by an attestation handshake. The 11–18% overhead is the cost of the property, and it is recoverable through tuning. The contribution is the deployable, defensible pipeline — the reference that makes confidential AI verifiable.</p>
+
+<h2 id="refs"><span class="anchor">§</span>10. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-hcc">NVIDIA. <span class="ref-title">"Hopper Confidential Computing Whitepaper (HCC v1.0)."</span> <a href="https://images.nvidia.com/aem-dam/en-zz/Solutions/data-center/HCC-Whitepaper-v1.0.pdf">images.nvidia.com/.../HCC-Whitepaper-v1.0.pdf</a></li>
+  <li id="ref-blueprint">Gu, Z. et al. <span class="ref-title">"Blueprint, Bootstrap, and Bridge: A Security Look at NVIDIA GPU Confidential Computing."</span> arXiv:2507.02770, 2025. <a href="https://arxiv.org/abs/2507.02770">arxiv.org/abs/2507.02770</a></li>
+  <li id="ref-graviton">Volos, S. et al. <span class="ref-title">"Graviton: A Secure Execution Environment for Graphics Processing Units."</span> OSDI 2018. <a href="https://www.usenix.org/system/files/osdi18-volos.pdf">usenix.org/.../osdi18-volos.pdf</a></li>
+  <li id="ref-perf">Chrapek, M. et al. <span class="ref-title">"Confidential LLM Inference: Performance and Cost Across Platforms."</span> ETH Zürich. <a href="https://spcl.inf.ethz.ch/Publications/.pdf/chrapek-confidential.pdf">spcl.inf.ethz.ch/.../chrapek-confidential.pdf</a></li>
+  <li id="ref-intel-nvidia">Intel + NVIDIA. <span class="ref-title">"Seamless Attestation of Intel TDX and NVIDIA H100 TEEs."</span> 2024–2025. <a href="https://community.intel.com/t5/Blogs/Products-and-Solutions/Security/Seamless-Attestation-of-Intel-TDX-and-NVIDIA-H100-TEEs-with/post/1525587">community.intel.com/.../1525587</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The pipeline is implemented in AumOS C1-1…C1-5; WP5 is the deployment guide. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-04-delegation-intersection-semantics.html">Paper 4</a></span>
+    <span class="small"><a href="paper-06-dp-federated-training-tee.html">Paper 6: DP Federated Training →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

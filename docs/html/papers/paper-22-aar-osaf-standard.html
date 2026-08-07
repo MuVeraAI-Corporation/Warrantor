@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 22 — The Agent Action Receipt: Tamper-Evident Logging for AI Audit (OSAF Standard)</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow spec">AumOS Research · Paper 22 of 24 (Specification) · Thrust 6 — Standards &amp; Protocol Contributions</div>
+  <h1>The Agent Action Receipt: Tamper-Evident Logging for AI Audit</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Proposed OSAF specification; builds on Paper 3</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">OSAF specification (companion to AAE)</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Draft specification</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-21-aae-osaf-standard.html">Paper 21</a></span>
+    <span class="small"><a href="paper-23-open-harness-specification.html">Paper 23 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract spec">
+  <span class="abstract-label">Specification Abstract</span>
+  <p>This document specifies the <strong>Agent Action Receipt (AAR)</strong> as an OSAF standard for tamper-evident, hash-chained, timestamp-anchored logging of autonomous-agent actions, generalizing the research artifact of Paper 3 into an interoperable specification. The AAR is designed for cross-organizational verification — a regulator can verify an operator's receipts without trusting the operator — composes with the AAE (Paper 21) as the evidence artifact for each authorized action, and maps directly to EU AI Act audit obligations (Articles 12, 55). The architecture reuses the transparency-log model of Certificate Transparency (RFC 9162<sup><a href="#ref-ct2">[1]</a></sup>, RFC 6962<sup><a href="#ref-ct1">[2]</a></sup>) and its generalization SCITT (RFC 9943), with an AI-audit specialization. The reference implementation is AumOS <code>flight-recorder</code>; the tamper-detection property is proven in Paper 3.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction and status</a></li>
+    <li><a href="#foundations">Foundational transparency-log standards</a></li>
+    <li><a href="#receipt">Normative: receipt structure</a></li>
+    <li><a href="#chain">Normative: chaining and anchoring</a></li>
+    <li><a href="#verify">Normative: the verification procedure</a></li>
+    <li><a href="#composition">Composition with AAE and the kill switch</a></li>
+    <li><a href="#path">Path to standardization</a></li>
+    <li><a href="#refs">Normative references</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction and status</h2>
+<p>This OSAF specification generalizes the Agent Action Receipt of Paper 3 into a vendor-neutral, cross-organizationally-verifiable standard. It is a companion to the AAE specification (Paper 21), sharing the working-group charter. The defining property — tamper-evidence against an operator adversary (Paper 3, §4) — is the security objective the normative requirements enforce.</p>
+
+<h2 id="foundations"><span class="anchor">§</span>2. Foundational transparency-log standards</h2>
+<p>The AAR architecture is a specialization of the transparency-log model: <strong>Certificate Transparency v2 (RFC 9162)</strong><sup><a href="#ref-ct2">[1]</a></sup> and its predecessor <strong>RFC 6962</strong><sup><a href="#ref-ct1">[2]</a></sup> define the append-only Merkle-tree log with inclusion proofs verifiable by independent monitors; <strong>SCITT (RFC 9943)</strong> generalizes this to arbitrary supply-chain attestations. The AAR applies the SCITT transparency-service architecture to agent actions, with an AI-audit-specific statement format (the receipt payload of Paper 3, §3.1).</p>
+
+<h2 id="receipt"><span class="anchor">§</span>3. Normative: receipt structure</h2>
+<p>The normative receipt fields (Paper 3, §3.1): <code>seq</code>, <code>prev_hash</code>, <code>timestamp</code>, <code>action</code>, <code>aae_ref</code>, <code>principal</code>, <code>agent</code>, <code>relying_party</code>, <code>signature</code>. All fields are mandatory; the encoding is COSE-Sign over CSF-v1 canonical CBOR. The <code>aae_ref</code> binds the receipt to the AAE (Paper 21) that authorized the action, making "on what authority?" answerable from the receipt alone.</p>
+
+<h2 id="chain"><span class="anchor">§</span>4. Normative: chaining and anchoring</h2>
+<p>Normative requirements: (a) <code>prev_hash</code> MUST be the SHA-256 of the prior receipt's canonical encoding; (b) the chain MUST be periodically anchored (default 60s high-assurance, 600s cost-sensitive) to an external timestamp authority (RFC 3161) or transparency log, producing an inclusion proof; (c) anchors MUST be independently verifiable. These enforce the tamper-detection property of Paper 3, Theorem (Tamper-Detection).</p>
+
+<h2 id="verify"><span class="anchor">§</span>5. Normative: the verification procedure</h2>
+<p>A conformant verifier MUST: re-hash each receipt and check the <code>prev_hash</code> chain; verify each signature; check the inclusion proofs against the anchored roots; and report any break as a tamper event. The procedure is what makes the AAR verifiable by a regulator without trusting the operator.</p>
+
+<h2 id="composition"><span class="anchor">§</span>6. Composition with AAE and the kill switch</h2>
+<p>The AAR composes with the AAE (every honored action produces a receipt, by construction — Paper 3, §5) and with the kill switch (R3 triggers forensic-freeze, sealing and anchoring the chain — Paper 14). This composition is what makes the AAR the evidence substrate for incident response as well as audit.</p>
+
+<h2 id="path"><span class="anchor">§</span>7. Path to standardization</h2>
+<p>OSAF charter Q4 2026 (shared with AAE); v1.0 specification Q4 2027, coordinated with the IETF SCITT working group for the transparency-service interop. The standard ships with the tamper-detection test harness (Paper 3, §6) as the conformance gate.</p>
+
+<h2 id="refs"><span class="anchor">§</span>8. Normative references</h2>
+<div class="references">
+<ol>
+  <li id="ref-ct2">Laurie, B. et al. <span class="ref-title">"Certificate Transparency Version 2.0."</span> RFC 9162, IETF, 2021. <a href="https://www.rfc-editor.org/rfc/rfc9162">rfc-editor.org/rfc/rfc9162</a></li>
+  <li id="ref-ct1">Laurie, B. et al. <span class="ref-title">"Certificate Transparency."</span> RFC 6962, IETF, 2013. <a href="https://www.rfc-editor.org/rfc/rfc6962">rfc-editor.org/rfc/rfc6962</a></li>
+  <li>Birkholz, O. et al. <span class="ref-title">"SCITT."</span> RFC 9943, IETF, 2025. <a href="https://datatracker.ietf.org/doc/rfc9943/">datatracker.ietf.org/doc/rfc9943</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Specification derived from Paper 3. Reference implementation: AumOS <code>flight-recorder</code>. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-21-aae-osaf-standard.html">Paper 21</a></span>
+    <span class="small"><a href="paper-23-open-harness-specification.html">Paper 23: Open Harness Specification →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

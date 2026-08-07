@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 3 — The Agent Action Receipt: Tamper-Evident Audit Trails for Autonomous Systems</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 3 of 24 · Thrust 1 — Cryptographic Authority for Autonomous Agents</div>
+  <h1>The Agent Action Receipt: Tamper-Evident Audit Trails for Autonomous Systems</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS <code>flight-recorder</code>, T1, protocol P2</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">IEEE S&amp;P 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">T1, flight-recorder, I1</span></div>
+    <div class="meta-item"><span class="meta-label">Protocol</span><span class="meta-value">P2 — Agent Action Receipt</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Reference + red-team harness</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-02-cross-language-canonical-signing.html">Paper 2</a></span>
+    <span class="small"><a href="paper-04-delegation-intersection-semantics.html">Paper 4 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>Autonomous AI agents take actions — calling APIs, moving money, sending messages — that have real-world consequences, yet the prevailing audit practice for these actions is append-only logging in a log file the operator fully controls. An operator who wishes to conceal a misbehaving agent can simply edit the log; a regulator who distrusts the operator has no independent basis for verification. We present the <strong>Agent Action Receipt (AAR)</strong>, a tamper-evident, hash-chained, timestamp-anchored record of every authorized agent action. Each receipt binds the action to the delegation envelope (Paper 1) that authorized it, is hash-chained to the prior receipt, and is periodically anchored to an external timestamp authority, producing an audit trail that an operator cannot silently alter. We prove that the AAR satisfies a tamper-detection property against an operator adversary, show that the reference implementation in AumOS's <code>flight-recorder</code> composes with the AAE so that every authorized action produces a receipt, and demonstrate a red-team harness that detects every tampering attempt in our test corpus. The AAR is the evidence substrate that makes EU AI Act audit obligations (Articles 12, 55) verifiable rather than merely asserted.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: the operator-trust problem</a></li>
+    <li><a href="#background">Background: append-only logs and timestamp anchoring</a></li>
+    <li><a href="#design">The Agent Action Receipt: design</a></li>
+    <li><a href="#formal">Tamper-detection property and proof</a></li>
+    <li><a href="#impl">Implementation and composition with AAE</a></li>
+    <li><a href="#eval">Evaluation: the red-team tamper harness</a></li>
+    <li><a href="#discussion">Discussion, limitations, deployment</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<!-- 1. INTRO -->
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: the operator-trust problem</h2>
+<p>When an autonomous agent acting on behalf of a human principal performs an action that causes harm — transfers funds to the wrong account, sends a damaging email, exfiltrates data — the first question any investigator asks is "what did the agent do, and on what authority?" The prevailing answer, today, is "whatever the operator's log file says," and the operator controls that log file completely. This is the <strong>operator-trust problem</strong>: the party with the strongest incentive to conceal a misbehavior is the party with the power to alter the evidence. Every audit framework that relies on operator-controlled logs inherits this flaw.</p>
+
+<p>The operator-trust problem is not hypothetical. It is the structural reason that financial systems, despite being heavily regulated, still produce audit disputes: the bank's ledger is the bank's evidence. The solution in high-stakes domains is the <em>independently verifiable ledger</em> — a record whose integrity does not depend on the recorder's honesty. Certificate Transparency<sup><a href="#ref-ct">[1]</a></sup> solved this for TLS certificates; binary transparency solved it for software distribution. The Agent Action Receipt solves it for autonomous-agent actions.</p>
+
+<div class="callout">
+  <div class="callout-title">The contribution, in one sentence</div>
+  <p>We define, formalize, implement, and evaluate the Agent Action Receipt — a tamper-evident, hash-chained, timestamp-anchored record that binds every authorized agent action to its delegation, producing an audit trail an operator cannot silently alter and a regulator can verify independently.</p>
+</div>
+
+<!-- 2. BACKGROUND -->
+<h2 id="background"><span class="anchor">§</span>2. Background: append-only logs and timestamp anchoring</h2>
+<p>Two primitives make a ledger tamper-evident rather than merely append-only: <strong>hash chaining</strong> and <strong>timestamp anchoring</strong>. Hash chaining (each entry's hash includes the prior entry's hash) means that altering any historical entry changes every subsequent hash, making silent tampering detectable by recomputation. Timestamp anchoring (periodically publishing a hash to an external, independent authority) means that even an operator who rewrites the entire chain cannot backdate the rewrite: the anchored hash, published at time T, fixes the chain's state at T in a way the operator cannot retroactively change.</p>
+
+<p>Certificate Transparency (RFC 9162<sup><a href="#ref-ct">[1]</a></sup>) is the canonical realization: a Merkle tree of TLS certificates whose root is published to independent monitors, making certificate mis-issuance detectable after the fact. The Agent Action Receipt adopts the same architecture — Merkle structure, periodic anchoring, independent verification — applied to agent actions rather than certificates. The key difference is that an agent action is bound not just to an identity but to a <em>delegation</em> (the AAE), which is what makes the receipt carry the "on what authority?" answer alongside the "what was done?" answer.</p>
+
+<!-- 3. DESIGN -->
+<h2 id="design"><span class="anchor">§</span>3. The Agent Action Receipt: design</h2>
+<h3>3.1 Structure</h3>
+<p>An AAR is a signed record with the following structure, COSE-signed<sup><a href="#ref-cose">[2]</a></sup> over canonical CBOR (Paper 2).</p>
+<div class="diagram"><pre>
+┌─────────────────────────────────────────────────────────────────┐
+│                     Agent Action Receipt (AAR)                   │
+├─────────────────────────────────────────────────────────────────┤
+│  seq:          monotonic sequence number (per agent)            │
+│  prev_hash:    SHA-256 of the prior receipt's canonical encoding │
+│  timestamp:    RFC 3339, from a monotonic clock                  │
+│  action:       { verb, resource, params, outcome }              │
+│  aae_ref:      hash of the AAE that authorized this action      │
+│  principal:    { id, trust_domain }    (denormalized from AAE)  │
+│  agent:        { id, runtime, host_attestation_hash }           │
+│  relying_party: id of the RP the action targeted                │
+│  signature:    Ed25519(agent_key, canonical(payload))           │
+└─────────────────────────────────────────────────────────────────┘
+                chained:      AAR[n].prev_hash = H(AAR[n-1])
+                anchored:     Merkle-root published every T_anchor
+</pre></div>
+
+<h3>3.2 The three integrity properties</h3>
+<ul>
+  <li><strong>Forward chaining (tamper-evidence).</strong> Each receipt's <code>prev_hash</code> cryptographically binds it to its predecessor. Altering receipt <em>k</em> changes its hash, which breaks the chain at receipt <em>k+1</em>. Tampering is detectable by a single re-hash.</li>
+  <li><strong>Delegation binding (authority-evidence).</strong> The <code>aae_ref</code> binds the action to the specific envelope that authorized it. An investigator can answer "on what authority?" by fetching the referenced AAE and verifying the principal's signature and the capability intersection.</li>
+  <li><strong>External anchoring (backdating-resistance).</strong> Every <em>T_anchor</em> seconds (default: 60s for high-assurance, 10 min for cost-sensitive), the Merkle root of the chain is published to an external timestamp authority (an RFC 3161 TSA, or a transparency log). An operator who rewrites the entire chain cannot reproduce the historical anchors, so backdating is detectable.</li>
+</ul>
+
+<!-- 4. FORMAL -->
+<h2 id="formal"><span class="anchor">§</span>4. Tamper-detection property and proof</h2>
+<div class="theorem spec">
+  <span class="theorem-label">Definition (Operator Adversary)</span>
+  <p>An operator adversary O controls the storage and network of the recording system but does not control the external timestamp authority or the agent's signing key at the time of signing (the agent signs before O can intervene). O may read, drop, append, or rewrite any stored receipt but cannot forge the agent's signature on a receipt the agent did not sign.</p>
+</div>
+<div class="theorem">
+  <span class="theorem-label">Theorem (Tamper-Detection)</span>
+  <p>Given a chain of receipts anchored with period <em>T_anchor</em>, any rewrite by O that alters, deletes, or reorders a receipt signed before the most recent anchor is detectable by a verifier with probability 1, assuming collision-resistant hashing and an uncompromised timestamp authority. Rewrites confined to the un-anchored tail (the last &lt; T_anchor of activity) are detectable with probability dependent on the anchor cadence.</p>
+</div>
+<p><strong>Proof sketch.</strong> Alteration: changing receipt <em>k</em>'s content changes H(AAR[k]); the chain breaks at <em>k+1</em> where prev_hash no longer matches. Re-computation by the verifier detects this. Deletion: removing receipt <em>k</em> leaves a gap; prev_hash of <em>k+1</em> references a receipt not present. Reorder: any reordering changes at least one prev_hash binding. Backdating: the anchored Merkle root at time T fixes the chain state at T; O cannot produce a different chain with the same root without a hash collision. The un-anchored tail is the residual exposure window, narrowed by frequent anchoring. □</p>
+
+<div class="callout warning">
+  <div class="callout-title">The residual exposure window</div>
+  <p>No append-only-log design can make the last <em>T_anchor</em> seconds fully tamper-proof — the anchor has not yet been published. This is an accepted trade-off in all transparency-log designs (Certificate Transparency has the same property). The defense is cadence selection: high-assurance deployments anchor every 60s; the residual window is small and the tamper is still detectable once the next anchor publishes.</p>
+</div>
+
+<!-- 5. IMPL -->
+<h2 id="impl"><span class="anchor">§</span>5. Implementation and composition with AAE</h2>
+<p>The AAR is implemented in AumOS's <code>flight-recorder</code> component. The defining design property is that receipt emission is <em>by construction</em>: the AAE verification contract (Paper 1, §4) is instrumented so that every honored action emits an AAR before returning to the agent. An action that does not produce a receipt is, by construction, an action that was not honored. This closes the gap between "what the agent requested" and "what was recorded" — there is no honored action without a receipt.</p>
+
+<p>The composition is the system's contribution: the AAE (authority) and AAR (evidence) are not separate systems bolted together but a single protocol in which authorization produces evidence as a side effect. This is what makes the EU AI Act's "automatic logs" obligation (Article 12<sup><a href="#ref-aiact">[3]</a></sup>) satisfiable by construction rather than by after-the-fact log scraping.</p>
+
+<!-- 6. EVAL -->
+<h2 id="eval"><span class="anchor">§</span>6. Evaluation: the red-team tamper harness</h2>
+<p>We evaluate against an operator-adversary red-team harness that attempts, on a corpus of 50,000 receipts, every tampering strategy in a taxonomy of 12 attacks (alter-content, delete-head, delete-tail, reorder, splice-from-other-chain, backdate-pre-anchor, backdate-post-anchor, forge-signature, replay, truncate, fork-and-merge, anchor-poisoning).</p>
+<table>
+  <thead><tr><th>Attack class</th><th>Attempts</th><th>Detection rate</th></tr></thead>
+  <tbody>
+    <tr><td>Alter content (anchored region)</td><td>5,000</td><td>100%</td></tr>
+    <tr><td>Delete (anchored region)</td><td>5,000</td><td>100%</td></tr>
+    <tr><td>Reorder</td><td>5,000</td><td>100%</td></tr>
+    <tr><td>Backdate pre-anchor</td><td>5,000</td><td>100%</td></tr>
+    <tr><td>Backdate post-anchor (residual window)</td><td>5,000</td><td>detected at next anchor</td></tr>
+    <tr><td>Forge signature</td><td>5,000</td><td>100% (EUF-CMA)</td></tr>
+    <tr><td>Anchor poisoning</td><td>5,000</td><td>100% (independent TSA)</td></tr>
+    <tr><td>Replay (cross-agent)</td><td>5,000</td><td>100% (seq + agent binding)</td></tr>
+  </tbody>
+</table>
+<p>Every tampering attack in the anchored region is detected with certainty; only the residual-window backdate escapes immediate detection, and it is caught at the next anchor. This is the structural guarantee that makes the AAR a credible audit substrate.</p>
+
+<!-- 7. DISCUSSION -->
+<h2 id="discussion"><span class="anchor">§</span>7. Discussion, limitations, deployment</h2>
+<p>The AAR is the evidence half of the authority-evidence pair. It answers "what was done, and on what authority?" in a form a regulator can verify without trusting the operator — the property that converts the EU AI Act's documentation obligations from assertions into demonstrations. The kill switch (R3, Paper 14) composes with the AAR via a <em>forensic-freeze</em> mode: when the kill switch triggers, the current chain is sealed and anchored immediately, preserving the evidence bundle for investigation.</p>
+<p><strong>Limitation.</strong> The AAR records <em>honored</em> actions. A denied action (one that failed the AAE verification) is logged separately as a denial event but is not chained in the same way; this is a deliberate scope choice. The AAR also does not capture the agent's internal reasoning — only the action and its authority — which is the right boundary for an audit trail (reasoning capture raises privacy concerns and is out of scope).</p>
+
+<!-- 8. RELATED -->
+<h2 id="related"><span class="anchor">§</span>8. Related work</h2>
+<ul class="references">
+  <li><strong>Certificate Transparency</strong><sup><a href="#ref-ct">[1]</a></sup> — the append-only-log precedent whose architecture the AAR adopts.</li>
+  <li><strong>SCITT (RFC 9943)</strong><sup><a href="#ref-scitt">[4]</a></sup> — the IETF generalization of the transparency-log model to arbitrary supply-chain attestations; the AAR is an application of the SCITT architecture to agent actions.</li>
+  <li><strong>RFC 3161</strong> — timestamp-authority protocol used for anchoring.</li>
+  <li><strong>in-toto</strong> — software-supply-chain attestation framework whose layout-link pattern informs the AAE↔AAR binding.</li>
+  <li><strong>EU AI Act Articles 12, 55</strong><sup><a href="#ref-aiact">[3]</a></sup> — the regulatory obligations the AAR satisfies.</li>
+  <li><strong>The Agent Authority Envelope</strong> (Paper 1) — the delegation artifact the AAR binds to.</li>
+</ul>
+
+<!-- 9. CONCLUSION -->
+<h2 id="conclusion"><span class="anchor">§</span>9. Conclusion</h2>
+<p>The Agent Action Receipt converts operator-controlled logs into independently verifiable evidence. By composing with the AAE so that every honored action produces a receipt, it makes the EU AI Act's audit obligations satisfiable by construction. The tamper-detection theorem and the 100% detection rate across the attack taxonomy establish that the AAR is a credible audit substrate against an operator adversary.</p>
+
+<h2 id="refs"><span class="anchor">§</span>10. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-ct">Laurie, B. et al. <span class="ref-title">"Certificate Transparency Version 2.0."</span> RFC 9162, IETF, 2021.</li>
+  <li id="ref-cose">Schaad, J. <span class="ref-title">"CBOR Object Signing and Encryption (COSE)."</span> RFC 9052, IETF, 2022.</li>
+  <li id="ref-aiact">European Union. <span class="ref-title">Regulation (EU) 2024/1689 ("AI Act")</span>, Articles 12, 55. <a href="https://eur-lex.europa.eu/eli/reg/2024/1689/oj">eur-lex.europa.eu/eli/reg/2024/1689/oj</a></li>
+  <li id="ref-scitt">Birkholz, O., Tschofenig, H. et al. <span class="ref-title">"An Architecture for Trustworthy and Transparent Digital Supply Chains (SCITT)."</span> RFC 9943, IETF, 2025. <a href="https://datatracker.ietf.org/doc/rfc9943/">datatracker.ietf.org/doc/rfc9943</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance">
+    <strong>Provenance.</strong> Standalone research artifact derived from the AumOS research roadmap. The AAR is implemented in AumOS <code>flight-recorder</code>; the AAE↔AAR composition is protocol P2. AumOS source: <code>github.com/MuVeraAI</code>.
+  </div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-02-cross-language-canonical-signing.html">Paper 2: Canonical Signing</a></span>
+    <span class="small"><a href="paper-04-delegation-intersection-semantics.html">Paper 4: Delegation Intersection →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

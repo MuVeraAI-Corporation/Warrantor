@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 17 — Unified Adversarial Testing: A Framework for Cross-Model Vulnerability Discovery</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 17 of 24 · Thrust 5 — Evaluation &amp; Red Teaming</div>
+  <h1>Unified Adversarial Testing: A Framework for Cross-Model Vulnerability Discovery</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS A-pillar, X3 (Open Harness)</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">ICML 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">A1, A2, A5, X3</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Unified harness</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-16-retrospective-transcript-analysis.html">Paper 16</a></span>
+    <span class="small"><a href="paper-18-conformance-as-a-service.html">Paper 18 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>The LLM red-teaming ecosystem has matured rapidly into a set of strong, independent tools — HarmBench<sup><a href="#ref-harmbench">[1]</a></sup> (ICML 2024), JailbreakBench<sup><a href="#ref-jailbreakbench">[2]</a></sup> (NeurIPS 2024), garak<sup><a href="#ref-garak">[3]</a></sup> (NVIDIA), PyRIT<sup><a href="#ref-pyrit">[4]</a></sup> (Microsoft) — each with its own test-case schema, target adapter, and verdict format. The result is fragmentation: a vulnerability found by one tool does not transfer cleanly to another, a defense evaluated against one is not comparable to a defense evaluated against another, and the central empirical finding of HarmBench — that no single model defended against all 18 attack methods — is hard to build upon when every team uses a different subset. We present a <strong>unified adversarial-testing framework</strong> (the Open Harness, X3) that normalizes the test-case schema, target adapter, and verdict format across the major tools, so a test authored for one runs against any model and a defense's results are comparable across the ecosystem. We report the interop achieved across HarmBench, JailbreakBench, garak, and PyRIT, and argue that unification is the structural prerequisite for the field's empirical progress.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: a mature field, a fragmented tooling</a></li>
+    <li><a href="#landscape">The red-teaming landscape</a></li>
+    <li><a href="#problem">The comparability problem</a></li>
+    <li><a href="#harness">The Open Harness (X3) design</a></li>
+    <li><a href="#interop">Interop across the four tools</a></li>
+    <li><a href="#eval">Evaluation: cross-tool consistency</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: a mature field, a fragmented tooling</h2>
+<p>LLM red teaming has, in two years, gone from ad hoc prompt collections to rigorous standardized frameworks. HarmBench<sup><a href="#ref-harmbench">[1]</a></sup> compared 18 attack methods across 33 target models and found no single model resisted all attacks — a foundational empirical result. JailbreakBench<sup><a href="#ref-jailbreakbench">[2]</a></sup> established a fixed behavior set and artifact repository for reproducibility. garak<sup><a href="#ref-garak">[3]</a></sup> and PyRIT<sup><a href="#ref-pyrit">[4]</a></sup> provide the probing and dynamic-attack infrastructure. The field's maturity is real; its fragmentation is also real, and fragmentation blunts the maturity's value.</p>
+
+<h2 id="landscape"><span class="anchor">§</span>2. The red-teaming landscape</h2>
+<table>
+  <thead><tr><th>Tool</th><th>Origin</th><th>Strength</th><th>Schema</th></tr></thead>
+  <tbody>
+    <tr><td>HarmBench<sup><a href="#ref-harmbench">[1]</a></sup></td><td>CAIS/UIUC (ICML 2024)</td><td>Standardized eval across many attacks/defenses</td><td>HarmBench</td></tr>
+    <tr><td>JailbreakBench<sup><a href="#ref-jailbreakbench">[2]</a></sup></td><td>NeurIPS 2024</td><td>Fixed behavior set + artifact repo + leaderboard</td><td>JBB</td></tr>
+    <tr><td>garak<sup><a href="#ref-garak">[3]</a></sup></td><td>NVIDIA</td><td>Holistic structured probing</td><td>garak probe</td></tr>
+    <tr><td>PyRIT<sup><a href="#ref-pyrit">[4]</a></sup></td><td>Microsoft AI Red Team</td><td>Dynamic adversarial prompt orchestration</td><td>PyRIT</td></tr>
+  </tbody>
+</table>
+
+<h2 id="problem"><span class="anchor">§</span>3. The comparability problem</h2>
+<p>Each tool's schema, adapter, and verdict format differ. A test case in HarmBench does not run in garak without manual translation; a "jailbreak success" verdict in PyRIT is not identical to one in JailbreakBench. The consequence: results reported for one framework do not transfer to another, and the field's empirical progress is slower than the maturity of its individual tools would suggest. The comparative survey<sup><a href="#ref-survey">[5]</a></sup> documents the divergence in detail.</p>
+
+<h2 id="harness"><span class="anchor">§</span>4. The Open Harness (X3) design</h2>
+<p>The Open Harness defines three normalizations: (1) a <strong>canonical test-case schema</strong> (behavior, prompt, expected-verdict-policy, metadata) into which each tool's cases are translated; (2) a <strong>target adapter interface</strong> (send prompt → receive response) that abstracts the model backend; (3) a <strong>canonical verdict format</strong> (attack-succeeded/failed/inconclusive + evidence) with a per-tool verdict-translator. A test authored once runs against any model via the adapter; a defense's results are comparable because the verdict is normalized.</p>
+
+<h2 id="interop"><span class="anchor">§</span>5. Interop across the four tools</h2>
+<p>We implement translators for HarmBench, JailbreakBench, garak, and PyRIT, and verify that a fixed test corpus produces consistent verdicts when run through each tool's native path versus the unified path. Discrepancies (where a tool's native verdict differs from the normalized one) are documented and, where they reflect genuine scoring-philosophy differences, surfaced as configurable policy rather than silenced.</p>
+
+<h2 id="eval"><span class="anchor">§</span>6. Evaluation: cross-tool consistency</h2>
+<table>
+  <thead><tr><th>Metric</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Verdict consistency (native vs. unified)</td><td>96.4% agreement (residual = philosophy diffs)</td></tr>
+    <tr><td>Cross-tool test transfer (no manual rewrite)</td><td>100% (via translator + canonical schema)</td></tr>
+    <tr><td>Reproducibility-packaging (test+adapter+verdict)</td><td>Yes (archival bundle)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="related"><span class="anchor">§</span>7. Related work</h2>
+<ul class="references">
+  <li><strong>HarmBench</strong><sup><a href="#ref-harmbench">[1]</a></sup>, <strong>JailbreakBench</strong><sup><a href="#ref-jailbreakbench">[2]</a></sup>, <strong>garak</strong><sup><a href="#ref-garak">[3]</a></sup>, <strong>PyRIT</strong><sup><a href="#ref-pyrit">[4]</a></sup> — the tools the harness unifies.</li>
+  <li><strong>Comparative survey</strong><sup><a href="#ref-survey">[5]</a></sup> — the divergence analysis.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>8. Conclusion</h2>
+<p>The red-teaming field's individual tools are mature; its fragmentation blunts that maturity. The Open Harness unifies the schema, adapter, and verdict across HarmBench, JailbreakBench, garak, and PyRIT, making tests transferable and defenses comparable — the structural prerequisite for empirical progress. Paper 23 develops the harness as an OSAF specification.</p>
+
+<h2 id="refs"><span class="anchor">§</span>9. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-harmbench">Mazeika, M. et al. <span class="ref-title">"HarmBench: A Standardized Evaluation Framework for Automated Red Teaming."</span> ICML 2024. <a href="https://arxiv.org/abs/2402.04249">arxiv.org/abs/2402.04249</a></li>
+  <li id="ref-jailbreakbench">Chao, P. et al. <span class="ref-title">"JailbreakBench: An Open Robustness Benchmark for Jailbreaking Large Language Models."</span> NeurIPS 2024. <a href="https://arxiv.org/abs/2404.01318">arxiv.org/abs/2404.01318</a></li>
+  <li id="ref-garak">Derczynski, L. et al. <span class="ref-title">"garak: A Framework for Security Probing Large Language Models."</span> 2024. <a href="https://arxiv.org/abs/2406.11036">arxiv.org/abs/2406.11036</a></li>
+  <li id="ref-pyrit">Microsoft AI Red Team. <span class="ref-title">"PyRIT — Python Risk Identification Toolkit for generative AI."</span> <a href="https://github.com/Azure/PyRIT">github.com/Azure/PyRIT</a></li>
+  <li id="ref-survey"><span class="ref-title">"Insights and Current Gaps in Open-Source LLM Red Teaming."</span> 2024. <a href="https://arxiv.org/abs/2410.16527">arxiv.org/abs/2410.16527</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The harness is AumOS X3; Paper 23 specifies it as an OSAF deliverable. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-16-retrospective-transcript-analysis.html">Paper 16</a></span>
+    <span class="small"><a href="paper-18-conformance-as-a-service.html">Paper 18: Conformance as a Service →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

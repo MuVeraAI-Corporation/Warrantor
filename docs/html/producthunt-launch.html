@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AumOS — Product Hunt Launch Kit | MuVera AI</title>
+<meta name="description" content="Product Hunt launch kit for AumOS, the open authority and evidence layer for autonomous systems. Taglines, gallery specs, demo script, maker comment, upvote strategy, and social media kit.">
+<style>
+/* ============================================================
+   MuVera AI — Dark Enterprise Aesthetic
+   SENSE · ACT · SEAL · IMPROVE ↺
+   ============================================================ */
+
+:root {
+  /* Core dark surfaces */
+  --bg-void: #06070d;
+  --bg-base: #0a0b14;
+  --bg-elev-1: #10121f;
+  --bg-elev-2: #161a2b;
+  --bg-card: #121524;
+  --bg-code: #0c0e18;
+
+  /* Accent — electric indigo */
+  --accent: #6366f1;
+  --accent-bright: #818cf8;
+  --accent-deep: #4f46e5;
+  --accent-glow: rgba(99, 102, 241, 0.35);
+  --accent-soft: rgba(99, 102, 241, 0.12);
+
+  /* Signal palette */
+  --signal-cyan: #22d3ee;
+  --signal-emerald: #34d399;
+  --signal-amber: #fbbf24;
+  --signal-rose: #fb7185;
+
+  /* Text */
+  --text-primary: #f4f5fb;
+  --text-secondary: #b8bcd4;
+  --text-muted: #7a8099;
+  --text-faint: #4a5066;
+  --text-on-accent: #ffffff;
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-accent: rgba(99, 102, 241, 0.45);
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+
+  /* Radii */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 18px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.03) inset, 0 12px 40px rgba(0,0,0,0.5);
+  --shadow-glow: 0 0 60px var(--accent-glow);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-void);
+  color: var(--text-primary);
+  line-height: 1.65;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-image:
+    radial-gradient(ellipse 90% 50% at 50% -10%, rgba(99,102,241,0.18), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 20%, rgba(34,211,238,0.06), transparent 60%);
+  background-attachment: fixed;
+}
+
+::selection { background: var(--accent); color: var(--text-on-accent); }
+
+a { color: var(--accent-bright); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-bright); text-decoration: underline; }
+
+code, pre { font-family: var(--font-mono); }
+
+/* ---------- Layout ---------- */
+.page { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+/* ---------- Top brand bar ---------- */
+.brandbar {
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  background: rgba(6, 7, 13, 0.72);
+  border-bottom: 1px solid var(--border);
+}
+.brandbar-inner {
+  max-width: 1180px; margin: 0 auto;
+  padding: 14px 28px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+}
+.brand {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--text-primary); text-decoration: none;
+}
+.brand:hover { text-decoration: none; }
+.brand-mark {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep) 70%, #312e81);
+  display: grid; place-items: center;
+  font-size: 1.05rem; color: #fff; font-weight: 700;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 6px 18px rgba(99,102,241,0.4);
+}
+.brand-name { font-weight: 700; letter-spacing: -0.01em; font-size: 1.05rem; }
+.brand-sub { color: var(--text-muted); font-size: 0.78rem; letter-spacing: 0.02em; }
+.brandbar-nav { display: flex; gap: 22px; align-items: center; }
+.brandbar-nav a { color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; }
+.brandbar-nav a:hover { color: var(--text-primary); text-decoration: none; }
+.brandbar-cta {
+  background: var(--accent); color: #fff !important;
+  padding: 8px 16px; border-radius: 100px; font-size: 0.85rem; font-weight: 600;
+  text-decoration: none !important;
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+.brandbar-cta:hover { background: var(--accent-bright); }
+
+/* ---------- Hero ---------- */
+.hero {
+  padding: 88px 0 64px;
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 0.74rem; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--accent-bright);
+  padding: 6px 12px; border-radius: 100px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border-accent);
+  margin-bottom: 28px;
+}
+.hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--signal-emerald); box-shadow: 0 0 8px var(--signal-emerald); }
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 5.2vw, 3.9rem);
+  font-weight: 800; line-height: 1.05; letter-spacing: -0.025em;
+  margin-bottom: 22px;
+  max-width: 16ch;
+}
+.hero h1 .accent { color: var(--accent-bright); }
+.hero h1 .loop {
+  display: inline-block; color: var(--accent-bright);
+  transform: translateY(0);
+}
+.hero-lead {
+  font-size: 1.18rem; color: var(--text-secondary);
+  max-width: 62ch; margin-bottom: 36px;
+}
+.hero-loop {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600;
+  letter-spacing: 0.14em; color: var(--text-muted);
+  padding: 10px 18px; border-radius: 100px;
+  background: var(--bg-elev-1); border: 1px solid var(--border);
+}
+.hero-loop .step { color: var(--text-secondary); }
+.hero-loop .sep { color: var(--text-faint); }
+.hero-loop .loop-mark { color: var(--accent-bright); font-size: 1rem; }
+.hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 34px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 22px; border-radius: 10px;
+  font-weight: 600; font-size: 0.95rem;
+  text-decoration: none; border: none; cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.15s, background 0.15s;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-bright), var(--accent-deep));
+  color: #fff;
+  box-shadow: 0 8px 24px var(--accent-glow);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 32px var(--accent-glow); text-decoration: none; }
+.btn-ghost {
+  background: var(--bg-elev-1); color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+.btn-ghost:hover { background: var(--bg-elev-2); text-decoration: none; }
+
+/* ---------- Stat strip ---------- */
+.statstrip {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; background: var(--border);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  margin-top: 56px;
+}
+.stat { background: var(--bg-void); padding: 24px 20px; }
+.stat-num {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 2rem; color: var(--accent-bright); letter-spacing: -0.02em;
+}
+.stat-lbl { font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; }
+
+/* ---------- Section ---------- */
+section.block { padding: 84px 0; border-bottom: 1px solid var(--border); }
+.block-eyebrow {
+  font-family: var(--font-mono); font-size: 0.74rem; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent-bright);
+  margin-bottom: 14px;
+}
+.block-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 3.4vw, 2.5rem); font-weight: 700;
+  letter-spacing: -0.02em; margin-bottom: 16px;
+}
+.block-desc { color: var(--text-secondary); max-width: 70ch; font-size: 1.05rem; }
+
+/* ---------- Tagline options ---------- */
+.tagline-list { display: grid; gap: 14px; margin-top: 32px; }
+.tagline {
+  display: flex; align-items: center; gap: 18px;
+  padding: 20px 24px; border-radius: var(--r-lg);
+  background: var(--bg-card); border: 1px solid var(--border);
+  transition: border-color 0.15s, transform 0.12s;
+}
+.tagline:hover { border-color: var(--border-accent); transform: translateX(4px); }
+.tagline-rank {
+  flex: 0 0 auto;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-weight: 700; font-size: 0.85rem;
+  background: var(--accent-soft); color: var(--accent-bright);
+  border: 1px solid var(--border-accent);
+}
+.tagline-text {
+  font-family: var(--font-display); font-size: 1.2rem; font-weight: 600;
+  letter-spacing: -0.01em; flex: 1;
+}
+.tagline-len {
+  font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);
+  padding: 3px 8px; border-radius: 100px; background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+}
+.tagline-recd { color: var(--signal-emerald) !important; border-color: rgba(52,211,153,0.4) !important; background: rgba(52,211,153,0.08) !important; }
+
+/* ---------- Gallery ---------- */
+.gallery-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; margin-top: 36px;
+}
+@media (max-width: 820px) { .gallery-grid { grid-template-columns: 1fr; } }
+.gallery-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.gallery-card:hover { border-color: var(--border-accent); box-shadow: var(--shadow-card); }
+.gallery-preview {
+  height: 168px; position: relative; overflow: hidden;
+  background: var(--bg-code);
+  display: grid; place-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.gallery-num {
+  position: absolute; top: 12px; left: 14px;
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.14em; color: var(--accent-bright);
+  padding: 3px 9px; border-radius: 100px;
+  background: rgba(6,7,13,0.7); border: 1px solid var(--border-accent);
+  backdrop-filter: blur(6px);
+}
+.gallery-aspect {
+  position: absolute; top: 12px; right: 14px;
+  font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted);
+  padding: 3px 9px; border-radius: 100px;
+  background: rgba(6,7,13,0.7); border: 1px solid var(--border);
+}
+/* Mock preview canvases per card */
+.gv-1 {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(99,102,241,0.5), transparent 55%),
+    radial-gradient(circle at 70% 60%, rgba(34,211,238,0.25), transparent 55%),
+    #06070d;
+}
+.gv-1 .gv-logo {
+  font-family: var(--font-display); font-weight: 800; font-size: 1.5rem; color: #fff;
+  letter-spacing: -0.02em; text-align: center;
+}
+.gv-1 .gv-logo small { display:block; font-family: var(--font-mono); font-weight: 600; font-size: 0.62rem; letter-spacing: 0.22em; color: var(--accent-bright); margin-top: 8px; }
+.gv-2 {
+  background:
+    linear-gradient(180deg, rgba(99,102,241,0.10), transparent),
+    repeating-linear-gradient(90deg, transparent 0 38px, rgba(255,255,255,0.04) 38px 39px),
+    #0a0b14;
+}
+.gv-2 .gv-ui {
+  width: 78%; height: 76%; border-radius: var(--r-md);
+  background: var(--bg-elev-2); border: 1px solid var(--border);
+  display: grid; grid-template-rows: auto 1fr auto; gap: 6px; padding: 10px;
+}
+.gv-2 .gv-bar { height: 8px; border-radius: 3px; background: rgba(255,255,255,0.08); }
+.gv-2 .gv-bar.accent { background: var(--accent); width: 60%; }
+.gv-2 .gv-row { display: flex; gap: 6px; }
+.gv-2 .gv-row .gv-bar { flex: 1; }
+.gv-3 {
+  background:
+    radial-gradient(ellipse at center, rgba(99,102,241,0.18), transparent 60%),
+    #06070d;
+}
+.gv-3 .gv-arch {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.gv-3 .gv-arch span {
+  font-family: var(--font-mono); font-size: 0.6rem; font-weight: 600;
+  letter-spacing: 0.1em; color: var(--text-secondary);
+  padding: 4px 10px; border-radius: 4px; background: var(--bg-elev-1); border: 1px solid var(--border);
+}
+.gv-3 .gv-arch .gv-pipe { color: var(--accent-bright); }
+.gv-4 {
+  background:
+    linear-gradient(135deg, rgba(52,211,153,0.12), transparent 50%),
+    #0a0b14;
+}
+.gv-4 .gv-check {
+  font-family: var(--font-mono); font-size: 0.62rem; line-height: 1.9;
+  color: var(--signal-emerald); text-align: left; width: 80%;
+}
+.gv-4 .gv-check .x { color: var(--text-faint); }
+.gv-5 {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(99,102,241,0.25), transparent 55%),
+    #06070d;
+}
+.gv-5 .gv-loop {
+  font-family: var(--font-display); font-weight: 800; font-size: 1.1rem;
+  color: #fff; text-align: center; letter-spacing: -0.01em;
+}
+.gv-5 .gv-loop .mark { color: var(--accent-bright); font-size: 1.6rem; display:block; margin: 6px 0; }
+
+.gallery-body { padding: 18px 22px 22px; }
+.gallery-title { font-family: var(--font-display); font-size: 1.08rem; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.01em; }
+.gallery-spec { font-size: 0.86rem; color: var(--text-secondary); line-height: 1.55; }
+.gallery-spec strong { color: var(--text-primary); font-weight: 600; }
+.gallery-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.tag {
+  font-family: var(--font-mono); font-size: 0.68rem; font-weight: 600;
+  padding: 3px 9px; border-radius: 4px;
+  background: var(--bg-elev-1); color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+/* ---------- Demo script ---------- */
+.script-table { margin-top: 32px; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.script-row {
+  display: grid; grid-template-columns: 88px 70px 1fr; gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+.script-row:last-child { border-bottom: none; }
+.script-row.head {
+  background: var(--bg-elev-1);
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted);
+}
+.script-row.head > div { padding: 12px 18px; }
+.script-row > div { padding: 16px 18px; }
+.script-time { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-bright); font-weight: 600; }
+.script-shot { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-muted); }
+.script-action { color: var(--text-secondary); font-size: 0.94rem; }
+.script-action strong { color: var(--text-primary); }
+.script-action .vo { display: block; margin-top: 6px; font-style: italic; color: var(--text-muted); border-left: 2px solid var(--border-accent); padding-left: 10px; }
+
+/* ---------- Maker comment ---------- */
+.maker-card {
+  margin-top: 32px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); overflow: hidden;
+}
+.maker-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 24px; border-bottom: 1px solid var(--border);
+  background: var(--bg-elev-1);
+}
+.maker-avatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-bright), var(--accent-deep));
+  display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 1rem;
+  box-shadow: 0 0 0 2px var(--bg-elev-1), 0 0 0 3px var(--border-accent);
+}
+.maker-name { font-weight: 700; font-size: 0.98rem; }
+.maker-handle { color: var(--text-muted); font-size: 0.84rem; font-family: var(--font-mono); }
+.maker-pin {
+  margin-left: auto; font-family: var(--font-mono); font-size: 0.68rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--signal-amber);
+  padding: 4px 10px; border-radius: 100px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3);
+}
+.maker-body { padding: 24px; }
+.maker-body p { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.98rem; }
+.maker-body p strong { color: var(--text-primary); }
+.maker-body h4 { font-size: 0.86rem; font-weight: 700; color: var(--accent-bright); margin: 20px 0 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+.maker-body ul { margin: 0 0 12px 20px; }
+.maker-body li { margin-bottom: 6px; color: var(--text-secondary); font-size: 0.94rem; }
+.maker-body code { background: var(--bg-code); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: var(--accent-bright); border: 1px solid var(--border); }
+.maker-sign { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--border); color: var(--text-muted); font-size: 0.88rem; }
+
+/* ---------- Topics ---------- */
+.topic-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 32px; }
+@media (max-width: 820px) { .topic-grid { grid-template-columns: 1fr; } }
+.topic-card {
+  padding: 20px 22px; border-radius: var(--r-lg);
+  background: var(--bg-card); border: 1px solid var(--border);
+}
+.topic-card.primary { border-color: var(--border-accent); background: linear-gradient(180deg, var(--accent-soft), var(--bg-card)); }
+.topic-name { font-weight: 700; font-size: 1.02rem; margin-bottom: 4px; }
+.topic-why { font-size: 0.84rem; color: var(--text-muted); }
+.topic-pick {
+  display: inline-block; margin-top: 10px;
+  font-family: var(--font-mono); font-size: 0.68rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--signal-emerald);
+}
+
+/* ---------- Timeline ---------- */
+.timeline { margin-top: 36px; position: relative; padding-left: 30px; }
+.timeline::before {
+  content: ""; position: absolute; left: 11px; top: 6px; bottom: 6px;
+  width: 2px; background: linear-gradient(180deg, var(--accent), transparent);
+}
+.tl-item { position: relative; padding-bottom: 28px; }
+.tl-item:last-child { padding-bottom: 0; }
+.tl-dot {
+  position: absolute; left: -30px; top: 2px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--bg-base); border: 2px solid var(--accent);
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700; color: var(--accent-bright);
+}
+.tl-time { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700; color: var(--accent-bright); }
+.tl-title { font-weight: 700; font-size: 1.02rem; margin: 2px 0 4px; }
+.tl-desc { color: var(--text-secondary); font-size: 0.9rem; }
+
+/* ---------- Social kit ---------- */
+.social-tabs { display: flex; gap: 8px; margin-top: 32px; margin-bottom: 22px; flex-wrap: wrap; }
+.social-chip {
+  padding: 8px 16px; border-radius: 100px; font-weight: 600; font-size: 0.86rem;
+  background: var(--bg-elev-1); border: 1px solid var(--border); color: var(--text-secondary);
+}
+.social-chip.active { background: var(--accent-soft); border-color: var(--border-accent); color: var(--accent-bright); }
+.social-grid { display: grid; gap: 18px; }
+.tweet {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 20px 22px;
+}
+.tweet-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.tweet-av { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-bright), var(--accent-deep)); display:grid; place-items:center; color:#fff; font-weight:700; font-size: 0.9rem; }
+.tweet-meta-name { font-weight: 700; font-size: 0.92rem; }
+.tweet-meta-handle { color: var(--text-muted); font-size: 0.82rem; font-family: var(--font-mono); }
+.tweet-platform {
+  margin-left: auto; font-family: var(--font-mono); font-size: 0.66rem; font-weight: 700;
+  letter-spacing: 0.1em; padding: 3px 8px; border-radius: 4px;
+}
+.tweet-platform.x { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+.tweet-platform.li { background: rgba(34,106,191,0.18); color: #6cb6ff; }
+.tweet-platform.hn { background: rgba(251,102,51,0.16); color: var(--signal-amber); }
+.tweet-body { color: var(--text-primary); font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; }
+.tweet-body .h { color: var(--accent-bright); font-weight: 600; }
+.tweet-body code { background: var(--bg-code); padding: 1px 6px; border-radius: 3px; font-size: 0.85em; color: var(--accent-bright); }
+.tweet-foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; gap: 18px; color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono); }
+
+/* ---------- Press kit ---------- */
+.press-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 32px; }
+@media (max-width: 820px) { .press-grid { grid-template-columns: 1fr; } }
+.press-link {
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px 22px; border-radius: var(--r-lg);
+  background: var(--bg-card); border: 1px solid var(--border);
+  text-decoration: none; color: var(--text-primary);
+  transition: border-color 0.15s, transform 0.12s;
+}
+.press-link:hover { border-color: var(--border-accent); transform: translateY(-2px); text-decoration: none; }
+.press-icon {
+  width: 44px; height: 44px; border-radius: 10px;
+  background: var(--accent-soft); border: 1px solid var(--border-accent);
+  display: grid; place-items: center; color: var(--accent-bright); font-size: 1.2rem; flex: 0 0 auto;
+}
+.press-title { font-weight: 700; font-size: 0.98rem; }
+.press-url { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); }
+
+/* ---------- Footer ---------- */
+footer {
+  padding: 60px 0 80px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+footer .brand-mark { margin: 0 auto 18px; }
+footer p { color: var(--text-muted); font-size: 0.86rem; max-width: 50ch; margin: 0 auto; }
+footer .foot-loop { font-family: var(--font-mono); letter-spacing: 0.16em; font-size: 0.74rem; color: var(--accent-bright); margin-top: 14px; }
+
+/* ---------- Small responsive ---------- */
+@media (max-width: 640px) {
+  .statstrip { grid-template-columns: repeat(2, 1fr); }
+  .script-row { grid-template-columns: 70px 56px 1fr; }
+  .script-row > div { padding: 12px; }
+  .brandbar-nav { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== BRAND BAR ===================== -->
+<div class="brandbar">
+  <div class="brandbar-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark">↺</span>
+      <span>
+        <span class="brand-name">MuVera AI</span><br>
+        <span class="brand-sub">Open Source AI Security Infrastructure</span>
+      </span>
+    </a>
+    <nav class="brandbar-nav">
+      <a href="#taglines">Taglines</a>
+      <a href="#gallery">Gallery</a>
+      <a href="#demo">Demo</a>
+      <a href="#maker">Maker Comment</a>
+      <a href="#strategy">Strategy</a>
+      <a href="#social">Social Kit</a>
+      <a href="#press">Press Kit</a>
+    </nav>
+    <a class="brandbar-cta" href="#press">Get the kit</a>
+  </div>
+</div>
+
+<!-- ===================== HERO ===================== -->
+<header class="hero" id="top">
+  <div class="page">
+    <span class="hero-eyebrow"><span class="dot"></span> Product Hunt Launch Kit · Launching 12:01 AM Pacific</span>
+    <h1>The security layer<br>agents <span class="accent">cannot bypass</span>.</h1>
+    <p class="hero-lead">
+      AumOS is the open authority and evidence layer for autonomous systems — the specifications,
+      reference enforcement, and conformance tests that make every AI agent action verifiable,
+      revocable, and bounded. 49 components. 12 protocols. 691 tests. Apache 2.0.
+    </p>
+    <div class="hero-loop" aria-label="MuVera loop">
+      <span class="step">SENSE</span><span class="sep">·</span>
+      <span class="step">ACT</span><span class="sep">·</span>
+      <span class="step">SEAL</span><span class="sep">·</span>
+      <span class="step">IMPROVE</span>
+      <span class="loop-mark">↺</span>
+    </div>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#taglines">Explore the kit</a>
+      <a class="btn btn-ghost" href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI ↗</a>
+    </div>
+
+    <div class="statstrip">
+      <div class="stat"><div class="stat-num">49</div><div class="stat-lbl">Components at v1.0</div></div>
+      <div class="stat"><div class="stat-num">691</div><div class="stat-lbl">Tests passing</div></div>
+      <div class="stat"><div class="stat-num">12</div><div class="stat-lbl">Open protocols</div></div>
+      <div class="stat"><div class="stat-num">4</div><div class="stat-lbl">Languages · Apache 2.0</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== TAGLINES ===================== -->
+<section class="block" id="taglines">
+  <div class="page">
+    <div class="block-eyebrow">01 · Tagline options</div>
+    <h2 class="block-title">Five taglines, max 60 characters</h2>
+    <p class="block-desc">Pick one for the launch. All five are tuned to Product Hunt's audience (builders, founders, AI-native devs). Character count is shown for each so it clears the 60-char cap.</p>
+
+    <div class="tagline-list">
+      <div class="tagline">
+        <span class="tagline-rank">1</span>
+        <span class="tagline-text">The security layer AI agents cannot bypass</span>
+        <span class="tagline-len tagline-recd">43 chars · recommended</span>
+      </div>
+      <div class="tagline">
+        <span class="tagline-rank">2</span>
+        <span class="tagline-text">Open authority &amp; evidence for autonomous agents</span>
+        <span class="tagline-len">49 chars</span>
+      </div>
+      <div class="tagline">
+        <span class="tagline-rank">3</span>
+        <span class="tagline-text">An off switch for AI. Open source. Verifiable.</span>
+        <span class="tagline-len">46 chars</span>
+      </div>
+      <div class="tagline">
+        <span class="tagline-rank">4</span>
+        <span class="tagline-text">Make every agent action verifiable &amp; revocable</span>
+        <span class="tagline-len">47 chars</span>
+      </div>
+      <div class="tagline">
+        <span class="tagline-rank">5</span>
+        <span class="tagline-text">Trust infrastructure for the agent era</span>
+        <span class="tagline-len">39 chars</span>
+      </div>
+    </div>
+
+    <p style="margin-top:22px; color:var(--text-muted); font-size:0.9rem;">
+      <strong style="color:var(--text-secondary);">Editor's note:</strong> Option 1 wins on clarity and stakes ("cannot bypass" is the moat).
+      Option 3 is the punchiest for a click-through audience. Avoid Option 5 alone — too abstract; pair it with the gallery image.
+    </p>
+  </div>
+</section>
+
+<!-- ===================== GALLERY ===================== -->
+<section class="block" id="gallery">
+  <div class="page">
+    <div class="block-eyebrow">02 · Gallery image specs</div>
+    <h2 class="block-title">Five gallery images (Product Hunt &times; 1270&times;760)</h2>
+    <p class="block-desc">
+      Product Hunt accepts up to 6 gallery images (recommended 1270&times;760, 16:9-ish). These five cover the full narrative arc:
+      identity &rarr; product &rarr; architecture &rarr; proof &rarr; philosophy. Each card below is a designer-ready spec —
+      layout, copy, palette, and asset notes.
+    </p>
+
+    <div class="gallery-grid">
+
+      <!-- Gallery 1 -->
+      <article class="gallery-card">
+        <div class="gallery-preview gv-1">
+          <span class="gallery-num">GALLERY 01</span>
+          <span class="gallery-aspect">1270 &times; 760</span>
+          <div class="gv-logo">AumOS<small>SENSE · ACT · SEAL · IMPROVE ↺</small></div>
+        </div>
+        <div class="gallery-body">
+          <div class="gallery-title">Hero / Brand card</div>
+          <div class="gallery-spec">
+            <strong>Purpose:</strong> The thumbnail seen in feeds and the top of the launch page.<br>
+            <strong>Layout:</strong> Full-bleed dark background (#06070d). Centered wordmark "AumOS" in display weight, 220px tall.
+            Subline beneath in JetBrains Mono, tracked +0.22em: <em>"SENSE · ACT · SEAL · IMPROVE ↺"</em>.
+            The loop glyph ↺ rendered large (140px) in electric indigo (#6366f1) behind/beside the wordmark at 18% opacity.<br>
+            <strong>Text overlay:</strong> none beyond the wordmark + loop line.<br>
+            <strong>Palette:</strong> #06070d base, #818cf8 accent, #f4f5fb text.
+          </div>
+          <div class="gallery-tags">
+            <span class="tag">hero</span><span class="tag">wordmark</span><span class="tag">thumbnail</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Gallery 2 -->
+      <article class="gallery-card">
+        <div class="gallery-preview gv-2">
+          <span class="gallery-num">GALLERY 02</span>
+          <span class="gallery-aspect">1270 &times; 760</span>
+          <div class="gv-ui">
+            <div class="gv-bar accent"></div>
+            <div class="gv-row"><div class="gv-bar"></div><div class="gv-bar"></div><div class="gv-bar"></div></div>
+            <div class="gv-row"><div class="gv-bar"></div><div class="gv-bar"></div></div>
+          </div>
+        </div>
+        <div class="gallery-body">
+          <div class="gallery-title">Product console / Dashboard</div>
+          <div class="gallery-spec">
+            <strong>Purpose:</strong> Show the developer surface — the agent action stream, kill-switch panel, and evidence ledger.<br>
+            <strong>Layout:</strong> Left third: agent list with SVID identity chips. Center: live action stream (each row = one
+            AAE → AAR pair, with allow/deny pill). Right third: kill-switch control + "Last incident: revoked in 4.2s" callout.
+            Top bar: AumOS wordmark left, cluster selector right.<br>
+            <strong>Text overlay (top-left):</strong> "Every action. Signed. Verifiable. Revocable."<br>
+            <strong>Palette:</strong> #0a0b14 chrome, #6366f1 allow, #fb7185 deny, #34d399 signed-OK.
+          </div>
+          <div class="gallery-tags">
+            <span class="tag">product</span><span class="tag">console</span><span class="tag">evidence-ledger</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Gallery 3 -->
+      <article class="gallery-card">
+        <div class="gallery-preview gv-3">
+          <span class="gallery-num">GALLERY 03</span>
+          <span class="gallery-aspect">1270 &times; 760</span>
+          <div class="gv-arch">
+            <span class="gv-pipe">P1 AAE · P2 AAR</span>
+            <span>I1 agent-identity</span>
+            <span>R3 kill-switch</span>
+            <span>E1 flight-recorder</span>
+          </div>
+        </div>
+        <div class="gallery-body">
+          <div class="gallery-title">12-plane architecture</div>
+          <div class="gallery-spec">
+            <strong>Purpose:</strong> The "wow, this is real" technical credibility shot.<br>
+            <strong>Layout:</strong> 12 horizontal planes stacked, each a thin labeled bar (Identity, Authority, Evidence, Policy,
+            Runtime, Sandbox, Kill-Switch, Supply Chain, Eval, Inference, Confidential, Operator). A glowing vertical spine on the
+            left labeled "Rust trusted core." Connector lines show one agent action flowing top-to-bottom.<br>
+            <strong>Text overlay (bottom-right):</strong> "12 planes · 49 components · 1 trusted core."<br>
+            <strong>Palette:</strong> indigo spine, muted slate planes, cyan flow line.
+          </div>
+          <div class="gallery-tags">
+            <span class="tag">architecture</span><span class="tag">12-plane</span><span class="tag">technical</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Gallery 4 -->
+      <article class="gallery-card">
+        <div class="gallery-preview gv-4">
+          <span class="gallery-num">GALLERY 04</span>
+          <span class="gallery-aspect">1270 &times; 760</span>
+          <div class="gv-check">
+            <span class="x">$</span> cargo test --workspace<br>
+            <span style="color:var(--signal-emerald)">✓ 691 passed</span><br>
+            <span style="color:var(--signal-emerald)">✓ 0 failed</span><br>
+            <span class="x">$</span> make conformance<br>
+            <span style="color:var(--signal-emerald)">✓ cross-language green</span>
+          </div>
+        </div>
+        <div class="gallery-body">
+          <div class="gallery-title">Proof / Test wall</div>
+          <div class="gallery-spec">
+            <strong>Purpose:</strong> Kill the "is this a slide deck?" objection. Show real green tests.<br>
+            <strong>Layout:</strong> Dark terminal, JetBrains Mono. A short scroll of <code>cargo test</code> and <code>make conformance</code>
+            ending in <strong style="color:var(--signal-emerald)">✓ 691 passed · 0 failed</strong>. Beneath the terminal, four large numerals:
+            <strong>49 / 691 / 12 / 4</strong> with labels (components / tests / protocols / languages).<br>
+            <strong>Text overlay (bottom):</strong> "Real code. Real tests. Today."<br>
+            <strong>Palette:</strong> #0c0e18 terminal, #34d399 green, #fbbf24 numeric highlights.
+          </div>
+          <div class="gallery-tags">
+            <span class="tag">proof</span><span class="tag">tests</span><span class="tag">conformance</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Gallery 5 -->
+      <article class="gallery-card">
+        <div class="gallery-preview gv-5">
+          <span class="gallery-num">GALLERY 05</span>
+          <span class="gallery-aspect">1270 &times; 760</span>
+          <div class="gv-loop">
+            SENSE · ACT · SEAL · IMPROVE
+            <span class="mark">↺</span>
+            the field-deployment learning loop
+          </div>
+        </div>
+        <div class="gallery-body">
+          <div class="gallery-title">Philosophy / Closing card</div>
+          <div class="gallery-spec">
+            <strong>Purpose:</strong> The emotional close — what the loop means and why it matters.<br>
+            <strong>Layout:</strong> Massive loop glyph ↺ centered (300px), electric indigo with soft glow. Around the loop, four
+            quadrant labels: SENSE (telemetry), ACT (enforcement), SEAL (signed evidence), IMPROVE (eval feed). Caption beneath in
+            display weight: "The field-deployment learning loop."<br>
+            <strong>Text overlay (bottom):</strong> "Apache 2.0 · github.com/MuVeraAI".<br>
+            <strong>Palette:</strong> #06070d base, #6366f1 loop, #22d3ee / #34d399 / #fbbf24 / #fb7185 quadrant accents.
+          </div>
+          <div class="gallery-tags">
+            <span class="tag">philosophy</span><span class="tag">loop</span><span class="tag">closing</span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+
+    <p style="margin-top:24px; color:var(--text-muted); font-size:0.9rem;">
+      <strong style="color:var(--text-secondary);">Order in the carousel:</strong> G01 (hero) &rarr; G04 (proof, hooks engineers) &rarr;
+      G02 (product) &rarr; G03 (architecture) &rarr; G05 (philosophy). Lead with credibility, end with mission.
+    </p>
+  </div>
+</section>
+
+<!-- ===================== DEMO SCRIPT ===================== -->
+<section class="block" id="demo">
+  <div class="page">
+    <div class="block-eyebrow">03 · Demo video script</div>
+    <h2 class="block-title">60-second launch demo — shot by shot</h2>
+    <p class="block-desc">
+      Format: 16:9, 1920&times;1080, 60 fps. Voiceover is the founder, calm and direct. Total runtime 60s. Music: low, pulsing,
+      drops out at 0:48 for the "revoked in 4.2s" beat.
+    </p>
+
+    <div class="script-table">
+      <div class="script-row head">
+        <div>Time</div><div>Shot</div><div>Action &amp; voiceover</div>
+      </div>
+
+      <div class="script-row">
+        <div class="script-time">0:00–0:04</div>
+        <div class="script-shot">S1 · CU</div>
+        <div class="script-action">
+          <strong>Cold open.</strong> Black screen. The loop glyph ↺ draws itself in indigo, one stroke. Wordmark "AumOS" fades in.
+          <span class="vo">VO: "An AI agent just tried something it shouldn't have."</span>
+        </div>
+      </div>
+
+      <div class="script-row">
+        <div class="script-time">0:04–0:12</div>
+        <div class="script-shot">S2 · UI</div>
+        <div class="script-action">
+          <strong>The problem.</strong> Console screencast: an agent action streams in, goes red (deny), but a second unmanaged agent
+          keeps running. Red "NO KILL PATH" badge flashes.
+          <span class="vo">VO: "Today, there's no manual off-switch for distributed AI. When an agent goes wrong, you need to stop it now — not after a ticket reaches an engineer."</span>
+        </div>
+      </div>
+
+      <div class="script-row">
+        <div class="script-time">0:12–0:20</div>
+        <div class="script-shot">S3 · ARCH</div>
+        <div class="script-action">
+          <strong>What AumOS is.</strong> The 12-plane diagram builds plane by plane, left to right. The Rust spine glows.
+          <span class="vo">VO: "AumOS is the open authority and evidence layer for autonomous systems. Twelve planes. One trusted core. Every action signed, verifiable, revocable."</span>
+        </div>
+      </div>
+
+      <div class="script-row">
+        <div class="script-time">0:20–0:30</div>
+        <div class="script-shot">S4 · CODE</div>
+        <div class="script-action">
+          <strong>It's real.</strong> Cut to terminal: <code>cargo add aumos-trust-core</code>. Then <code>cargo test --workspace</code>
+          rolls to <strong style="color:var(--signal-emerald)">✓ 691 passed</strong>.
+          <span class="vo">VO: "It's not a slide deck. 49 components, 691 tests, shipping today. Apache 2.0."</span>
+        </div>
+      </div>
+
+      <div class="script-row">
+        <div class="script-time">0:30–0:42</div>
+        <div class="script-shot">S5 · DEMO</div>
+        <div class="script-action">
+          <strong>The kill-switch beat.</strong> Live demo: agent attempts an egress violation. Kill-switch fires. Console shows
+          "SLICE REVOKED" and a timer counting up: 4.2s. Music drops out.
+          <span class="vo">VO: "Watch this. The agent violates policy. Identity revoked in under five seconds — automatically, no human in the loop."</span>
+        </div>
+      </div>
+
+      <div class="script-row">
+        <div class="script-time">0:42–0:52</div>
+        <div class="script-shot">S6 · EVIDENCE</div>
+        <div class="script-action">
+          <strong>The evidence.</strong> The signed AAR (action-attribution record) appears, with a Sigstore badge and a Merkle proof.
+          <span class="vo">VO: "Every action leaves signed, non-repudiable evidence. Auditable by METR. By your SOC. By a court."</span>
+        </div>
+      </div>
+
+      <div class="script-row">
+        <div class="script-time">0:52–1:00</div>
+        <div class="script-shot">S7 · CTA</div>
+        <div class="script-action">
+          <strong>Call to action.</strong> The loop glyph ↺ completes its rotation. End card: wordmark, <code>github.com/MuVeraAI</code>,
+          "Star on Product Hunt."
+          <span class="vo">VO: "AumOS. The security layer agents cannot bypass. Star us today — and build with us."</span>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin-top:22px; color:var(--text-muted); font-size:0.9rem;">
+      <strong style="color:var(--text-secondary);">Caption (Product Hunt video field):</strong>
+      "AumOS — open authority &amp; evidence for autonomous agents. 60-second tour: the problem, the 12-plane architecture,
+      a live kill-switch in 4.2s, and the signed evidence trail. Apache 2.0."
+    </p>
+  </div>
+</section>
+
+<!-- ===================== MAKER COMMENT ===================== -->
+<section class="block" id="maker">
+  <div class="page">
+    <div class="block-eyebrow">04 · Maker comment</div>
+    <h2 class="block-title">The pinned first comment — founder's voice</h2>
+    <p class="block-desc">Post this as the first comment on the launch at 12:01 AM PT, immediately after the hunt goes live, then pin it. Tone: direct, technical, no hype words.</p>
+
+    <div class="maker-card">
+      <div class="maker-head">
+        <div class="maker-avatar">M</div>
+        <div>
+          <div class="maker-name">MuVera AI</div>
+          <div class="maker-handle">@MuVeraAI · Maker</div>
+        </div>
+        <span class="maker-pin">📌 Pinned</span>
+      </div>
+      <div class="maker-body">
+        <p>Hey Product Hunt 👋 — I'm the team behind <strong>AumOS</strong>, and I'm here all day to answer anything.</p>
+
+        <p><strong>What it is, in one line:</strong> AumOS is the open authority and evidence layer for autonomous systems — the specs,
+        reference enforcement, and conformance tests that make AI agent actions <em>verifiable, revocable, and bounded</em>. The security substrate agents cannot bypass.</p>
+
+        <p><strong>Why we built it:</strong> Every AI-security tool we saw was a dashboard bolted on <em>after</em> the agent. We wanted the
+        opposite — enforcement that lives in the agent's execution path, so "no" actually means no, and every "yes" leaves signed evidence.</p>
+
+        <h4>What's shipping today (not a roadmap, real code):</h4>
+        <ul>
+          <li><strong>49 components</strong> across 12 planes — trust-core, agent-identity, kill-switch, safe-eval, safe-tensors++, open-serve-kit, and 44 more.</li>
+          <li><strong>691 tests passing</strong> in Rust, Go, Python, and TypeScript — run <code>make conformance</code> yourself.</li>
+          <li><strong>12 open protocols</strong> (P1 AAE, P2 AAR, …) that any vendor can implement. Buf breaking-change gate on every PR.</li>
+          <li>Pure <strong>Apache 2.0</strong>. No BSL on the core. DCO sign-off, no CLA for individuals.</li>
+        </ul>
+
+        <h4>Try it in 30 seconds:</h4>
+        <p><code>curl -sSL https://get.aumos.dev | sh</code> &nbsp;or&nbsp; <code>cargo add aumos-trust-core</code></p>
+
+        <h4>The question I want you to ask:</h4>
+        <p>"Can an agent I run today prove — cryptographically — what it did, when, and under whose authority?"
+        If the answer is no, that's the gap AumOS closes.</p>
+
+        <p>Star the repo, file an issue, or jump into Discord and tell us what you'd want from an open agent-security layer.
+        We build in the open. <strong>The field-deployment learning loop — SENSE · ACT · SEAL · IMPROVE ↺ — only works if you're in it.</strong></p>
+
+        <p>Thank you for the upvote. 🙏</p>
+
+        <div class="maker-sign">— The MuVera AI team · <a href="https://github.com/MuVeraAI">github.com/MuVeraAI</a> · docs at <a href="https://aumos.dev">aumos.dev</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TOPICS ===================== -->
+<section class="block" id="topics">
+  <div class="page">
+    <div class="block-eyebrow">05 · Topics &amp; categories</div>
+    <h2 class="block-title">Where to submit on Product Hunt</h2>
+    <p class="block-desc">Product Hunt lets you pick a primary topic and several related ones. Lead with Developer Tools; the others maximize discovery surface.</p>
+
+    <div class="topic-grid">
+      <div class="topic-card primary">
+        <div class="topic-name">Developer Tools</div>
+        <div class="topic-why">Primary topic. This is where PH's most engaged upvoters live, and where an open-source infra project converts best.</div>
+        <span class="topic-pick">★ Primary</span>
+      </div>
+      <div class="topic-card">
+        <div class="topic-name">Artificial Intelligence</div>
+        <div class="topic-why">Mandatory second topic. Captures the AI-safety and agent-curious audience who browse by topic.</div>
+        <span class="topic-pick">★ Related</span>
+      </div>
+      <div class="topic-card">
+        <div class="topic-name">Open Source</div>
+        <div class="topic-why">Apache 2.0, DCO, no CLA — this is a flagship OSS launch. The OSS topic has a loyal following that upvotes on principle.</div>
+        <span class="topic-pick">★ Related</span>
+      </div>
+      <div class="topic-card">
+        <div class="topic-name">Cybersecurity</div>
+        <div class="topic-why">Authority, evidence, kill-switch, revocation — the security crowd will recognize this isn't "AI wrapper" security.</div>
+        <span class="topic-pick">Related</span>
+      </div>
+      <div class="topic-card">
+        <div class="topic-name">DevOps</div>
+        <div class="topic-why">Helm charts, K8s operators, Buf breaking gates, OTel — ops people are a core constituency for fleet enforcement.</div>
+        <span class="topic-pick">Related</span>
+      </div>
+      <div class="topic-card">
+        <div class="topic-name">Design + Tech</div>
+        <div class="topic-why">Optional. Use only if the gallery/branding is strong enough to carry the design-curious scroll.</div>
+        <span class="topic-pick">Optional</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== STRATEGY ===================== -->
+<section class="block" id="strategy">
+  <div class="page">
+    <div class="block-eyebrow">06 · Upvote &amp; engagement strategy</div>
+    <h2 class="block-title">Launch day timeline — midnight PT</h2>
+    <p class="block-desc">
+      Product Hunt ranks reset at 12:01 AM Pacific. The first four hours set the trajectory. This timeline assumes a US/EU-friendly
+      launch and pre-warmed communities. Rule one: <strong>never ask for an upvote — ask people to "check it out and leave a comment."</strong>
+    </p>
+
+    <div class="timeline">
+
+      <div class="tl-item">
+        <div class="tl-dot">T-7</div>
+        <div class="tl-time">T-minus 7 days</div>
+        <div class="tl-title">Pre-launch seeding</div>
+        <div class="tl-desc">
+          Soft-announce in 3 private communities (Discord, a Slack, a small Telegram). Line up 12–15 "launch ambassadors" who commit to
+          commenting in the first hour. Draft all social posts. Schedule the HN post (do <em>not</em> submit early). Confirm the gallery,
+          GIF, and 60s video are rendered and hosted.
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot">T-1</div>
+        <div class="tl-time">T-minus 1 day</div>
+        <div class="tl-title">Final dry run</div>
+        <div class="tl-desc">
+          Test <code>curl -sSL https://get.aumos.dev | sh</code> on a clean VM. Verify <code>make conformance</code> is green on main.
+          Stage the maker comment and the first 5 tweets in a doc, ready to paste. Brief the team on who replies to which comment types
+          (technical / business / "is this OSS?" / "how is this different from X?").
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot">00</div>
+        <div class="tl-time">12:01 AM PT — Launch</div>
+        <div class="tl-title">Hunt goes live</div>
+        <div class="tl-desc">
+          Submit (or confirm scheduled submit). Post the maker comment immediately and pin it. Send the first tweet. Do <strong>not</strong>
+          blast all channels at once — stagger so each post can get its own traction.
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot">01</div>
+        <div class="tl-time">12:01 – 1:00 AM PT — First-hour push</div>
+        <div class="tl-title">The hour that matters most</div>
+        <div class="tl-desc">
+          Activate launch ambassadors — they comment first (comments weigh more than upvotes for ranking). Reply to every comment within
+          5 minutes. Post the LinkedIn launch announcement. Share the Product Hunt link in 2 developer Discords. Goal: top 5 by 1:00 AM.
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot">06</div>
+        <div class="tl-time">6:00 AM PT — EU + US East wake-up</div>
+        <div class="tl-title">Second wave</div>
+        <div class="tl-desc">
+          Post the Hacker News submission now (US East coast is online; HN's morning crowd is fresh). Tweet #2 (the 60s demo GIF).
+          Send the launch newsletter. Refresh the maker comment with a "6 hours in — here's what people are building" edit.
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot">09</div>
+        <div class="tl-time">9:00 AM PT — US West / peak</div>
+        <div class="tl-title">Peak engagement window</div>
+        <div class="tl-desc">
+          Founder goes live in Discord for a 30-minute AMA. Tweet #3 (the kill-switch clip). Coordinate any OSAF alliance partners to
+          reshare. Monitor for the "Product of the Day" trajectory — if top 3, push harder; if top 10, hold steady.
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot">12</div>
+        <div class="tl-time">12:00 PM PT — Mid-day</div>
+        <div class="tl-title">Sustain &amp; thank</div>
+        <div class="tl-desc">
+          Post a "lessons from launch" thread on LinkedIn. Reply to every HN comment personally (no marketing voice). Pin the best
+          community comment. If ranking slipped, a single well-timed reshare from a respected account is worth more than ten generic ones.
+        </div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot">24</div>
+        <div class="tl-time">12:01 AM PT (next day) — Close</div>
+        <div class="tl-title">Launch closes</div>
+        <div class="tl-desc">
+          Final rank locks. Regardless of outcome: publish a transparent "launch recap" (numbers, what worked, what didn't) within 48 hours.
+          Convert every commenter into a Discord invite. The launch is a sprint; the community is the marathon.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SOCIAL KIT ===================== -->
+<section class="block" id="social">
+  <div class="page">
+    <div class="block-eyebrow">07 · Social media kit</div>
+    <h2 class="block-title">Ready-to-post templates</h2>
+    <p class="block-desc">Copy-paste ready. Replace <code>[LINK]</code> with the Product Hunt URL, <code>[GIF]</code> with the asset. Schedule in this order.</p>
+
+    <div class="social-tabs">
+      <span class="social-chip active">X / Twitter (5)</span>
+      <span class="social-chip">LinkedIn (3)</span>
+      <span class="social-chip">Hacker News (1)</span>
+    </div>
+
+    <div class="social-grid">
+
+      <!-- Tweet 1 -->
+      <div class="tweet">
+        <div class="tweet-head">
+          <div class="tweet-av">↺</div>
+          <div>
+            <div class="tweet-meta-name">MuVera AI</div>
+            <div class="tweet-meta-handle">@MuVeraAI · 12:01 AM PT</div>
+          </div>
+          <span class="tweet-platform x">𝕏 · TWEET 1 / 5</span>
+        </div>
+        <div class="tweet-body">We just launched AumOS on Product Hunt — the open authority &amp; evidence layer for AI agents.
+
+The security substrate agents <span class="h">cannot bypass</span>.
+
+49 components. 691 tests. 12 protocols. Apache 2.0.
+
+Star it here 👇
+[LINK]
+
+🧵 1/4</div>
+        <div class="tweet-foot"><span>💬 reply</span><span>🔁 repost</span><span>♥ like</span><span>📊 12.4K</span></div>
+      </div>
+
+      <!-- Tweet 2 -->
+      <div class="tweet">
+        <div class="tweet-head">
+          <div class="tweet-av">↺</div>
+          <div>
+            <div class="tweet-meta-name">MuVera AI</div>
+            <div class="tweet-meta-handle">@MuVeraAI · 6:00 AM PT</div>
+          </div>
+          <span class="tweet-platform x">𝕏 · TWEET 2 / 5</span>
+        </div>
+        <div class="tweet-body">An AI agent just tried something it shouldn't have.
+
+In &lt;5 seconds, AumOS:
+✓ detected the violation
+✓ revoked its identity (I-05)
+✓ killed the slice (R3)
+✓ signed the evidence (P2 AAR)
+
+No human in the loop. Bounded by design.
+
+[GIF]
+
+[LINK]</div>
+        <div class="tweet-foot"><span>💬 reply</span><span>🔁 repost</span><span>♥ like</span><span>📊 8.1K</span></div>
+      </div>
+
+      <!-- Tweet 3 -->
+      <div class="tweet">
+        <div class="tweet-head">
+          <div class="tweet-av">↺</div>
+          <div>
+            <div class="tweet-meta-name">MuVera AI</div>
+            <div class="tweet-meta-handle">@MuVeraAI · 9:00 AM PT</div>
+          </div>
+          <span class="tweet-platform x">𝕏 · TWEET 3 / 5</span>
+        </div>
+        <div class="tweet-body">Not a slide deck.
+
+$ cargo add aumos-trust-core
+$ make conformance
+✓ 691 passed · 0 failed
+
+12 planes. Rust trusted core. Buf breaking-change gate on every PR.
+
+This is shipping today. [LINK]</div>
+        <div class="tweet-foot"><span>💬 reply</span><span>🔁 repost</span><span>♥ like</span><span>📊 6.7K</span></div>
+      </div>
+
+      <!-- Tweet 4 -->
+      <div class="tweet">
+        <div class="tweet-head">
+          <div class="tweet-av">↺</div>
+          <div>
+            <div class="tweet-meta-name">MuVera AI</div>
+            <div class="tweet-meta-handle">@MuVeraAI · 12:00 PM PT</div>
+          </div>
+          <span class="tweet-platform x">𝕏 · TWEET 4 / 5</span>
+        </div>
+        <div class="tweet-body">Most "AI security" is a dashboard bolted on after the fact.
+
+AumOS is the opposite — enforcement lives in the agent's execution path. "No" actually means no. Every "yes" leaves signed, non-repudiable evidence.
+
+The difference is architectural.
+
+[LINK]</div>
+        <div class="tweet-foot"><span>💬 reply</span><span>🔁 repost</span><span>♥ like</span><span>📊 4.9K</span></div>
+      </div>
+
+      <!-- Tweet 5 -->
+      <div class="tweet">
+        <div class="tweet-head">
+          <div class="tweet-av">↺</div>
+          <div>
+            <div class="tweet-meta-name">MuVera AI</div>
+            <div class="tweet-meta-handle">@MuVeraAI · 8:00 PM PT</div>
+          </div>
+          <span class="tweet-platform x">𝕏 · TWEET 5 / 5</span>
+        </div>
+        <div class="tweet-body">Thank you. 🙏
+
+Whatever today's rank is, the real win is the community forming around open agent security.
+
+SENSE · ACT · SEAL · IMPROVE ↺
+
+Join us → discord, github.com/MuVeraAI, aumos.dev
+
+We build in the open. Come build with us.
+
+[LINK]</div>
+        <div class="tweet-foot"><span>💬 reply</span><span>🔁 repost</span><span>♥ like</span><span>📊 3.2K</span></div>
+      </div>
+
+      <!-- LinkedIn 1 -->
+      <div class="tweet">
+        <div class="tweet-head">
+          <div class="tweet-av">↺</div>
+          <div>
+            <div class="tweet-meta-name">MuVera AI</div>
+            <div class="tweet-meta-handle">in/MuVeraAI · 12:30 AM PT</div>
+          </div>
+          <span class="tweet-platform li">in · POST 1 / 3</span>
+        </div>
+        <div class="tweet-body">Today we're launching AumOS — and I want to explain why this matters for anyone building or buying autonomous AI.
+
+The honest truth about AI agents in production today: there is no off-switch. When an agent goes wrong — prompt injection, runaway loop, escape attempt — you file a ticket and wait. The blast radius is unbounded.
+
+AumOS flips that. It's the open authority and evidence layer for autonomous systems: enforcement that lives in the agent's execution path, not bolted on after. Every action carries a verifiable authority record. Every action leaves signed, non-repudiable evidence. And any action can be revoked — identity in under 5 seconds, credentials in under 1.
+
+What's shipping today is not a roadmap:
+→ 49 components across a 12-plane architecture
+→ 691 tests passing in Rust, Go, Python, and TypeScript
+→ 12 open protocols any vendor can implement
+→ Pure Apache 2.0, DCO, no CLA for individuals
+
+If you lead platform engineering, security, or AI governance, this is the substrate you've been asking for. If you're a developer, <code>curl -sSL https://get.aumos.dev | sh</code> and run it yourself.
+
+We're on Product Hunt today — I'd value your take in the comments.
+
+[LINK]
+
+#AISecurity #OpenSource #AutonomousAgents #AumOS #AIInfrastructure</div>
+        <div class="tweet-foot"><span>💬 84</span><span>🔁 412</span><span>♥ 1.9K</span></div>
+      </div>
+
+      <!-- LinkedIn 2 -->
+      <div class="tweet">
+        <div class="tweet-head">
+          <div class="tweet-av">↺</div>
+          <div>
+            <div class="tweet-meta-name">MuVera AI</div>
+            <div class="tweet-meta-handle">in/MuVeraAI · 9:00 AM PT</div>
+          </div>
+          <span class="tweet-platform li">in · POST 2 / 3</span>
+        </div>
+        <div class="tweet-body">For the CISOs and compliance officers following along:
+
+The EU AI Act (Article 55, high-risk obligations), NIST AI RMF, ISO 42001, and DORA all converge on the same requirement: <span class="h">you must be able to prove what your AI did, when, and under whose authority.</span>
+
+That is exactly what AumOS produces — by construction, not by audit-after-the-fact.
+
+The P2 AAR (Action-Attribution Record) is signed before the action's effect is visible. The action only commits once the evidence is durable. That ordering is the whole game.
+
+This is what "AI governance you can actually enforce" looks like.
+
+[LINK]
+
+#AIGovernance #EUAIACT #NISTAIRMF #ISO42001 #Compliance</div>
+        <div class="tweet-foot"><span>💬 61</span><span>🔁 288</span><span>♥ 1.2K</span></div>
+      </div>
+
+      <!-- LinkedIn 3 -->
+      <div class="tweet">
+        <div class="tweet-head">
+          <div class="tweet-av">↺</div>
+          <div>
+            <div class="tweet-meta-name">MuVera AI</div>
+            <div class="tweet-meta-handle">in/MuVeraAI · 6:00 PM PT</div>
+          </div>
+          <span class="tweet-platform li">in · POST 3 / 3</span>
+        </div>
+        <div class="tweet-body">Launch day recap.
+
+I'll be honest about what worked and what didn't — because that's the only way an open-source project earns trust.
+
+Numbers: [X] upvotes, [Y] GitHub stars, [Z] Discord members, top-[N] of the day.
+
+What worked: leading with the live kill-switch demo (4.2s to revoke). Engineers don't want slides. The 60-second video carried the conversion.
+
+What we'd do differently: more pre-briefing with the OSAF alliance partners. The technical audience converted fast; the enterprise audience needed more reference architecture material.
+
+The real outcome isn't today's rank. It's the community forming around a simple idea: <span class="h">the security layer for AI must be open, enforceable, and unbypassable.</span>
+
+If that's a future you want to build toward — we're hiring contributors, not customers. github.com/MuVeraAI.
+
+SENSE · ACT · SEAL · IMPROVE ↺
+
+#OpenSource #AI #Startup #LessonsLearned</div>
+        <div class="tweet-foot"><span>💬 47</span><span>🔁 196</span><span>♥ 880</span></div>
+      </div>
+
+      <!-- Hacker News -->
+      <div class="tweet">
+        <div class="tweet-head">
+          <div class="tweet-av">Y</div>
+          <div>
+            <div class="tweet-meta-name">MuVera AI</div>
+            <div class="tweet-meta-handle">news.ycombinator.com · 6:00 AM PT</div>
+          </div>
+          <span class="tweet-platform hn">HN · SHOW HN</span>
+        </div>
+        <div class="tweet-body"><strong style="color:var(--signal-amber)">Show HN:</strong> AumOS — open authority &amp; evidence layer for autonomous AI agents (Apache 2.0)
+
+Hi HN. We're open-sourcing AumOS today.
+
+It's the security substrate for AI agents: the specs, reference enforcement, and conformance tests that make agent actions verifiable, revocable, and bounded. The core idea is that "no" has to actually mean no — enforcement has to live in the agent's execution path, not in a dashboard bolted on after.
+
+Some details that matter to this audience:
+
+- The trusted core is Rust-only. No security invariant has two authoritative implementations. Python/TypeScript/Go call it via bindings; they never re-implement. (The kill criterion from our internal stack pressure test: "more than one language contains authoritative allow/deny logic" → stop and consolidate.)
+- 49 components, 12 planes (Identity, Authority, Evidence, Policy, Runtime, Sandbox, Kill-Switch, Supply Chain, Eval, Inference, Confidential, Operator).
+- 691 tests passing across Rust, Go, Python, TypeScript. <code>make conformance</code> runs the cross-language suite. Buf breaking-change gate on every PR.
+- 12 open protocols (P1 AAE = Agent Authority Envelope, P2 AAR = Action-Attribution Record, …). Normative specs are language-neutral Markdown + CDDL; wire contracts are protobuf.
+- Built on top of mature OSS we extend rather than fork: SPIFFE/SPIRE for workload identity, Sigstore/Rekor for transparency, OpenTelemetry, CycloneDX, Hugging Face Safetensors, NVIDIA OpenShell/NOOA.
+- Pure Apache 2.0 on the core. DCO sign-off, no CLA for individual contributors.
+
+Revocation latency targets are stated and testable: identity revocation propagates to all replicas in &lt;5s; credential revocation in &lt;1s. The kill-switch (R3) can stop a runaway agent in ~4s end-to-end, no human in the loop.
+
+We're most interested in feedback on the protocol design (P1/P2 especially), the Rust-trusted-core boundary, and where the conformance vectors are too weak. Fire away.
+
+[LINK to github.com/MuVeraAI]</div>
+        <div class="tweet-foot"><span>💬 312 comments</span><span>▲ 847 points</span><span>⬆ front page</span></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PRESS KIT ===================== -->
+<section class="block" id="press">
+  <div class="page">
+    <div class="block-eyebrow">08 · Press kit &amp; links</div>
+    <h2 class="block-title">Everything a journalist or partner needs</h2>
+    <p class="block-desc">Single source of truth. All assets are live at launch. Replace bracketed hostnames with the canonical production URLs before going live.</p>
+
+    <div class="press-grid">
+      <a class="press-link" href="https://aumos.dev" target="_blank" rel="noopener">
+        <div class="press-icon">📖</div>
+        <div>
+          <div class="press-title">Documentation Portal</div>
+          <div class="press-url">aumos.dev · 53 RFCs, components, protocols, roadmap</div>
+        </div>
+      </a>
+      <a class="press-link" href="https://github.com/MuVeraAI" target="_blank" rel="noopener">
+        <div class="press-icon">⌥</div>
+        <div>
+          <div class="press-title">GitHub Organization</div>
+          <div class="press-url">github.com/MuVeraAI · source, issues, discussions</div>
+        </div>
+      </a>
+      <a class="press-link" href="https://demo.aumos.dev" target="_blank" rel="noopener">
+        <div class="press-icon">▶</div>
+        <div>
+          <div class="press-title">Live Demo</div>
+          <div class="press-url">demo.aumos.dev · kill-switch in 4.2s, signed AAR</div>
+        </div>
+      </a>
+      <a class="press-link" href="https://get.aumos.dev" target="_blank" rel="noopener">
+        <div class="press-icon">⌘</div>
+        <div>
+          <div class="press-title">Install (one-liner)</div>
+          <div class="press-url">curl -sSL https://get.aumos.dev | sh</div>
+        </div>
+      </a>
+      <a class="press-link" href="https://discord.gg/MuVeraAI" target="_blank" rel="noopener">
+        <div class="press-icon">◈</div>
+        <div>
+          <div class="press-title">Community (Discord)</div>
+          <div class="press-url">discord.gg/MuVeraAI · builders, contributors, OSAF</div>
+        </div>
+      </a>
+      <a class="press-link" href="https://aumos.dev/brand" target="_blank" rel="noopener">
+        <div class="press-icon">◆</div>
+        <div>
+          <div class="press-title">Brand &amp; Logo Assets</div>
+          <div class="press-url">aumos.dev/brand · logo, wordmark, loop glyph, palette</div>
+        </div>
+      </a>
+    </div>
+
+    <div style="margin-top:30px; padding:22px 24px; border:1px solid var(--border-accent); border-radius:var(--r-lg); background:var(--accent-soft);">
+      <div style="font-family:var(--font-mono); font-size:0.72rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent-bright); margin-bottom:8px;">Boilerplate (for press)</div>
+      <p style="color:var(--text-secondary); font-size:0.94rem; margin:0;">
+        <strong style="color:var(--text-primary);">AumOS</strong> is the open authority and evidence layer for autonomous systems —
+        the specifications, reference enforcement, and conformance tests that make AI agent actions verifiable across models, harnesses,
+        tools, and infrastructure. Built by <strong style="color:var(--text-primary);">MuVera AI</strong> under the Open Secure AI Alliance
+        (OSAF), AumOS ships 49 components across a 12-plane architecture, 12 open protocols, and 691 tests in Rust, Go, Python, and
+        TypeScript, all under Apache 2.0. The trusted core is Rust-only; no security invariant has two authoritative implementations.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer>
+  <div class="page">
+    <div class="brand-mark">↺</div>
+    <p>
+      AumOS — the security layer agents cannot bypass.<br>
+      An open-source project of MuVera AI, under the Open Secure AI Alliance (OSAF). Apache 2.0.
+    </p>
+    <div class="foot-loop">SENSE · ACT · SEAL · IMPROVE ↺</div>
+  </div>
+</footer>
+
+</body>
+</html>

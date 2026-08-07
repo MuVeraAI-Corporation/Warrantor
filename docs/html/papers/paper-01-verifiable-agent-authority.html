@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 1 — Verifiable Agent Authority: A Cryptographic Framework for Delegated AI Agent Permissions</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<!-- ====================================================================== -->
+<!-- ARTICLE HEADER -->
+<!-- ====================================================================== -->
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 1 of 24 · Thrust 1 — Cryptographic Authority for Autonomous Agents</div>
+  <h1>Verifiable Agent Authority: A Cryptographic Framework for Delegated AI Agent Permissions</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS <code>trust-core</code> (T1) and <code>authority-spec</code> (T2)</div>
+
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">USENIX Security 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">T1, T2, I1, P1</span></div>
+    <div class="meta-item"><span class="meta-label">Protocol</span><span class="meta-value">P1 — Agent Authority Envelope</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Reference implementation</span></div>
+  </div>
+
+  <nav class="article-nav">
+    <span class="small">← <a href="../research-papers.html">Research roadmap</a></span>
+    <span class="small"><a href="paper-02-cross-language-canonical-signing.html">Paper 2 →</a></span>
+  </nav>
+</header>
+
+<!-- ====================================================================== -->
+<!-- ABSTRACT -->
+<!-- ====================================================================== -->
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>Autonomous AI agents increasingly act on behalf of human principals — reading mail, moving money, calling APIs — yet the relying parties that receive these agents' requests have no cryptographic mechanism to verify the scope, provenance, and freshness of the delegation that authorized the action. We present the <strong>Agent Authority Envelope (AAE)</strong>, a signed, audience-bound, time-scoped delegation token that binds a principal's identity to a constrained set of agent capabilities, attested host configurations, and revocation state. We formalize the AAE verification contract as an intersection of three permission sets — principal-granted, host-attested, and protocol-declared — and prove that the contract is sound under a Dolev–Yao attacker model extended with compromised-agent oracles. We show that the reference implementation in AumOS's <code>trust-core</code> and <code>authority-spec</code> components satisfies the contract across Rust, Go, Python, and TypeScript runtimes, producing byte-identical canonical encodings. We argue that AAE closes the gap identified by recent surveys — the <em>SoK on Agentic AI</em> (USENIX Security 2026) and the <em>Cryptographically Verifiable Authorization</em> preprint — which both note the absence of any deployed, standardized, cross-language delegation envelope for agents. We position AAE as the first contribution of a proposed OSAF working group on verifiable agent delegation.</p>
+</div>
+
+<!-- ====================================================================== -->
+<!-- TOC -->
+<!-- ====================================================================== -->
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: the missing layer of agent authority</a></li>
+    <li><a href="#background">Background and threat model</a></li>
+    <li><a href="#design">The Agent Authority Envelope: design</a></li>
+    <li><a href="#formal">Formal verification contract and soundness argument</a></li>
+    <li><a href="#impl">Reference implementation across four runtimes</a></li>
+    <li><a href="#eval">Evaluation: conformance, latency, attack resistance</a></li>
+    <li><a href="#discussion">Discussion, limitations, and deployment</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion and future work</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<!-- ====================================================================== -->
+<!-- 1. INTRODUCTION -->
+<!-- ====================================================================== -->
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: the missing layer of agent authority</h2>
+
+<p>Consider a concrete and increasingly common scenario. A knowledge worker instructs an AI agent to "read today's invoices, post the approved ones to the ledger, and email the disputed ones to accounts payable." The agent, running in a SaaS environment, must now (a) read documents from one service, (b) write to a financial ledger in a second service, and (c) send mail through a third. Each of these three relying parties must decide whether to honor the agent's request. Today, they make that decision on the basis of an opaque bearer token issued to the SaaS platform — a token that says nothing about <em>which human</em> authorized the action, <em>what scope</em> of action was authorized, <em>when</em> the authorization was granted, <em>whether it is still valid</em>, or <em>what kind of host</em> the agent is running on. The relying party is, in effect, asked to trust the platform entirely or refuse the agent entirely. There is no granularity, no freshness, no revocation, and no provenance.</p>
+
+<p>This is not an exotic scenario. It is the default operating mode of every deployed agent framework — Model Context Protocol (MCP) servers<sup><a href="#ref-mcp">[32]</a></sup>, OpenAI Assistants, LangChain tool-calling agents, AutoGen multi-agent systems — and it is the gap that every recent survey of agentic AI security identifies as the single largest unsolved problem in the field. The <em>SoK on Agentic AI</em><sup><a href="#ref-sok">[1]</a></sup> catalogs the absence of verifiable delegation as a first-class gap; the <em>AI Agents Under Threat</em> survey<sup><a href="#ref-threat">[2]</a></sup> establishes the threat taxonomy into which any defense must map; and the <em>Toward Cryptographically Verifiable Authorization for Autonomous AI Agents</em> preprint<sup><a href="#ref-verifiable">[7]</a></sup> explicitly calls for "a concrete envelope format and verification contract" of exactly the kind we provide.</p>
+
+<p>The structural reason no such envelope exists yet is that agent delegation is harder than the analogous problems whose solutions we already have. It is harder than <strong>workload identity</strong> (SPIFFE/SPIRE<sup><a href="#ref-spiffe">[37]</a></sup>), because a workload's authority is static while an agent's is delegated dynamically per-task by a human principal. It is harder than <strong>OAuth 2.0</strong>, because OAuth scopes are coarse-grained and OAuth tokens carry no host-attestation binding. And it is harder than <strong>X.509 attribute certificates</strong>, because an agent system spans multiple runtimes, multiple trust domains, and multiple principals in a single request path. The solution must combine properties of all three — identity, delegation, and attestation — in a single verifiable artifact.</p>
+
+<div class="callout">
+  <div class="callout-title">The contribution, in one sentence</div>
+  <p>We define, formalize, implement across four runtimes, and evaluate the <strong>Agent Authority Envelope (AAE)</strong> — the first standardized, cross-language, audience-bound, time-scoped delegation token that binds a principal's authority to an agent's capabilities and an attested host, with a verification contract proven sound against a compromised-agent adversary.</p>
+</div>
+
+<p>The remainder of this paper is organized as follows. Section 2 establishes the background and threat model. Section 3 presents the AAE design. Section 4 formalizes the verification contract and gives the soundness argument. Section 5 describes the four-runtime reference implementation. Section 6 reports the evaluation. Sections 7–9 discuss, relate, and conclude.</p>
+
+<!-- ====================================================================== -->
+<!-- 2. BACKGROUND AND THREAT MODEL -->
+<!-- ====================================================================== -->
+<h2 id="background"><span class="anchor">§</span>2. Background and threat model</h2>
+
+<h3>2.1 The delegation triangle</h3>
+<p>Every agent interaction we consider involves three parties and a fourth adversarial context:</p>
+<ul>
+  <li><strong>Principal (P)</strong> — the human (or organization) on whose behalf the agent acts. P holds an identity attested by some identity provider (IdP).</li>
+  <li><strong>Agent (A)</strong> — the autonomous system, running on some host <em>H</em>, that P has authorized to act. A holds an agent identity.</li>
+  <li><strong>Relying party (RP)</strong> — the service that receives A's request and must decide whether to honor it.</li>
+  <li><strong>Adversary</strong> — modeled as a Dolev–Yao network adversary with the additional power of a <em>compromised-agent oracle</em>: the adversary may, for some agents, learn the agent's entire internal state including any keys the agent holds, and may cause the agent to emit arbitrary messages. This models a prompt-injected or otherwise subverted agent.</li>
+</ul>
+
+<p>The fundamental property the RP needs is: <em>the authority to perform this specific action was genuinely delegated by this specific principal to this specific agent, is still valid, and the agent is running on a host of the expected class.</em> Absent that property, the RP has no defensible basis for honoring any agent request.</p>
+
+<h3>2.2 Why existing mechanisms do not suffice</h3>
+<p>We survey the closest existing mechanisms and show each leaves a gap that AAE must close.</p>
+
+<table>
+  <thead>
+    <tr><th>Mechanism</th><th>Provides</th><th>Lacks (the AAE gap)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>OAuth 2.0 access tokens<sup><a href="#ref-oauth">[51]</a></sup></td><td>Delegated authorization, scopes, refresh</td><td>No host-attestation binding; no per-action freshness; coarse scopes; bearer-token replay risk</td></tr>
+    <tr><td>SPIFFE X.509-SVID<sup><a href="#ref-spiffe">[37]</a></sup></td><td>Cryptographic workload identity, trust domains, federation</td><td>No principal-delegation binding; no capability scope; static workload authority</td></tr>
+    <tr><td>SD-JWT VC<sup><a href="#ref-sdjwt">[52]</a></sup></td><td>Selective-disclosure verifiable credentials, holder binding</td><td>No host attestation; no revocation-freshness composition with attestation; not agent-scoped</td></tr>
+    <tr><td>Token Binding / DPoP<sup><a href="#ref-dpop">[53]</a></sup></td><td>Proof-of-possession binding token to a key</td><td>Only binds token↔key; no capability/attestation intersection; no cross-language conformance</td></tr>
+    <tr><td>X.509 attribute certs (RFC 5755)</td><td>Signed attribute assertions bound to an identity</td><td>No audience binding; no attestation; static; not designed for sub-second freshness</td></tr>
+  </tbody>
+</table>
+
+<p>The gap is structural: no single existing artifact binds <em>all four</em> of principal, agent, capability-scope, and host-attestation into one verifiable, fresh, revocable unit. AAE is that artifact.</p>
+
+<h3>2.3 Threat model, formally</h3>
+<div class="theorem">
+  <span class="theorem-label">Adversary Model (DY-CA)</span>
+  <p>Let the network be controlled by a Dolev–Yao adversary <em>M</em>: M may intercept, drop, replay, and forge messages, but cannot break the underlying cryptographic primitives (signatures are EUF-CMA secure; hashes are collision-resistant; AEAD is IND-CPA+INT-CTXT). We extend M with a <em>compromised-agent oracle</em> O<sub>CA</sub>: for any agent A<sub>i</sub> in a designated compromised set C, M may query O<sub>CA</sub>(A<sub>i</sub>) to learn A<sub>i</sub>'s full state (including its signing key) and may cause A<sub>i</sub> to emit arbitrary protocol messages. The set C is fixed before the session and unknown to the honest parties. A defense is <em>sound</em> if, despite O<sub>CA</sub>, M cannot induce an honest RP to accept an action that was not genuinely authorized by an honest principal to an uncompromised agent.</p>
+</div>
+
+<p>The compromised-agent oracle is the defining addition over classical Dolev–Yao. It models the reality, established by the prompt-injection literature<sup><a href="#ref-injection">[6]</a></sup>, that an agent may be fully subverted at runtime while still holding legitimate keys. The defense must therefore not rely on the agent's honesty; it must rely on the <em>principal's</em> signature and the <em>host's</em> attestation, neither of which the subverted agent can forge.</p>
+
+<!-- ====================================================================== -->
+<!-- 3. THE AAE: DESIGN -->
+<!-- ====================================================================== -->
+<h2 id="design"><span class="anchor">§</span>3. The Agent Authority Envelope: design</h2>
+
+<h3>3.1 Overview</h3>
+<p>The AAE is a signed assertion with the following logical structure. It is carried as a COSE-signed<sup><a href="#ref-cose">[54]</a></sup> canonical-CBOR<sup><a href="#ref-cbor">[55]</a></sup> payload, producing a compact, binary, cross-platform artifact.</p>
+
+<div class="diagram"><pre>
+                ┌───────────────────────────────────────────────────────────┐
+                │                Agent Authority Envelope (AAE)              │
+                ├───────────────────────────────────────────────────────────┤
+                │  header:                                                   │
+                │    typ = "aae-v1"                                          │
+                │    alg = Ed25519 (or ML-DSA, post-quantum; see WP6)       │
+                │    kid = principal signing key id                          │
+                │  payload (canonical CBOR, length-prefixed, deterministic):│
+                │    principal:    { id, idp, trust_domain }                │
+                │    agent:        { id, runtime, version }                 │
+                │    audience:     [ relying_party_ids ]      ← audience-bound│
+                │    capabilities: { granted, constraints }   ← principal grant│
+                │    attestation:  { tee_meas, cc_mode, debug }← host-attested│
+                │    protocol:     { declared_perms }          ← protocol-decl│
+                │    validity:     { not_before, not_after, max_age }        │
+                │    freshness:   { revocation_epoch, nonce }                │
+                │    delegation_chain: [ parent_aae_id, ... ]  (multi-hop)  │
+                │  signature: Ed25519(principal_key, canonical(payload))     │
+                └───────────────────────────────────────────────────────────┘
+                                   verified by the intersection contract (§4)
+</pre></div>
+
+<h3>3.2 The four binding properties</h3>
+<p>The AAE binds four things that no prior single artifact binds together. Each is necessary; together they are sufficient.</p>
+
+<h4>(1) Principal binding</h4>
+<p>The envelope is signed by the principal's key (held by, or delegated through, the IdP). The signature proves <em>who</em> authorized the action. The principal identity is structured (id + IdP + trust domain) so that federation across organizations is first-class rather than an afterthought. This is the property OAuth scopes approximate and SPIFFE omits.</p>
+
+<h4>(2) Audience binding</h4>
+<p>The <code>audience</code> field enumerates the relying parties authorized to accept the envelope. An envelope presented to an RP not in the audience must be rejected. This defeats the cross-service replay attack in which an envelope captured at service X is replayed at service Y — the structural flaw of bearer OAuth tokens that DPoP<sup><a href="#ref-dpop">[53]</a></sup> partially addresses for the token↔key case but not for the capability case.</p>
+
+<h4>(3) Capability binding</h4>
+<p>The <code>capabilities</code> field declares what the agent may do, structured as a set of (verb, resource, constraints) tuples. This is the principal's <em>grant</em>. Crucially, this grant is <em>not</em> the final permission set: the RP computes the final permission as the intersection of the grant with the host attestation and the protocol declarations (Section 4). This is what prevents an over-granted envelope from becoming an over-permissioned action.</p>
+
+<h4>(4) Host-attestation binding</h4>
+<p>The <code>attestation</code> field binds the envelope to a class of host: the TEE measurements, the confidential-computing mode, the debug-disabled flag. An RP that requires the agent run in a confidential VM may reject any envelope whose attestation does not match. This composes the AAE with the confidential-computing pillar (C1)<sup><a href="#ref-gpucc">[8]</a></sup> — the envelope carries the attestation claim, and the RP may demand fresh attestation evidence before honoring it.</p>
+
+<h3>3.3 Freshness and revocation</h3>
+<p>An AAE is short-lived (target <code>max_age</code>: minutes, not hours) and carries a <code>revocation_epoch</code> and a <code>nonce</code>. The RP verifies freshness by checking (a) the envelope is within its validity window and (b) the revocation epoch is current against a revocation bundle distributed by the principal's IdP. This is the same revocation-distribution pattern SPIFFE federation<sup><a href="#ref-spiffe">[37]</a></sup> uses for trust bundles, extended to carry revocation state. The kill switch (R3) operates by advancing the revocation epoch, which invalidates every outstanding envelope within the distribution window — this is how an agent's authority can be revoked in seconds rather than hours.</p>
+
+<h3>3.4 Multi-hop delegation</h3>
+<p>An agent may delegate a sub-set of its authority to a sub-agent. The AAE supports this via a <code>delegation_chain</code>: a sub-agent's AAE references its parent AAE, and the RP verifies the full chain, applying the constraint that a delegation may only <em>narrow</em> the capability set (monotonic reduction). This prevents the privilege-escalation class Paper 4 treats in depth.</p>
+
+<!-- ====================================================================== -->
+<!-- 4. FORMAL VERIFICATION CONTRACT -->
+<!-- ====================================================================== -->
+<h2 id="formal"><span class="anchor">§</span>4. Formal verification contract and soundness argument</h2>
+
+<h3>4.1 The intersection contract</h3>
+<p>The defining contribution of the AAE is the <em>verification contract</em>: the RP's final permission decision is the intersection of three sets, not the union or the grant alone. This is what makes the envelope safe even when one of the three inputs is compromised.</p>
+
+<div class="theorem spec">
+  <span class="theorem-label">Definition 1 (AAE Verification Contract)</span>
+  <p>Given an AAE <em>e</em>, let:</p>
+  <ul style="margin: var(--space-sm) 0 var(--space-sm) var(--space-xl);">
+    <li><strong>G(e)</strong> = the set of capabilities the principal granted (from the signed payload);</li>
+    <li><strong>H(e)</strong> = the set of capabilities the host attestation permits (from the verified attestation);</li>
+    <li><strong>D(e)</strong> = the set of capabilities the protocol declaration allows (from the RP's known protocol spec).</li>
+  </ul>
+  <p>The RP honors an action <em>a</em> under envelope <em>e</em> if and only if:</p>
+  <div class="equation">Perm(e, a) &nbsp;⇔&nbsp; a &nbsp;∈&nbsp; ( G(e) &nbsp;∩&nbsp; H(e) &nbsp;∩&nbsp; D(e) ) &nbsp;∧&nbsp; Fresh(e) &nbsp;∧&nbsp; Audience(RP, e) &nbsp;∧&nbsp; SigOK(e)</div>
+  <p>where <em>Fresh</em>, <em>Audience</em>, and <em>SigOK</em> are the freshness, audience-binding, and signature-validity predicates.</p>
+</div>
+
+<h3>4.2 Soundness</h3>
+<div class="theorem">
+  <span class="theorem-label">Theorem 1 (Soundness under DY-CA)</span>
+  <p>Under the DY-CA adversary model of §2.3, assuming EUF-CMA-secure signatures, collision-resistant hashing, and a revocation-distribution window of <em>w</em> seconds, no probabilistic polynomial-time adversary M controlling a compromised-agent set C can, with non-negligible probability, induce an honest RP to accept an action <em>a</em> for an honest principal P and an uncompromised agent A∉C unless P genuinely granted <em>a</em> to A and the host of A satisfies the attestation required by the RP.</p>
+</div>
+
+<p><strong>Proof sketch.</strong> By contradiction. Suppose M induces acceptance of an unauthorized <em>a</em>. For the RP to accept, Perm(e,a) must hold, requiring a ∈ G(e) ∩ H(e) ∩ D(e) and SigOK(e). SigOK(e) requires a valid signature under P's key. Since P is honest and did not grant <em>a</em>, either (i) M forged P's signature — impossible by EUF-CMA — or (ii) M reused an envelope e' P signed for a different action. Case (ii): for a ∈ G(e') while P did not grant <em>a</em>, e' must carry a superset grant; but audience binding and freshness require e' was issued for this RP within the window <em>w</em>; if P issued no such envelope, the revocation epoch check fails (Fresh is false). The attestation requirement a ∈ H(e) is independently enforced by the verified attestation, which the compromised agent cannot forge (the TEE measurement is produced by the hardware, not the agent). The intersection ∩ ensures that even if one of G, H, D is over-permissive, the action is permitted only if <em>all three</em> permit it — a defense-in-depth property absent from grant-only designs. □</p>
+
+<div class="callout spec">
+  <div class="callout-title">Why the intersection, not the grant alone</div>
+  <p>If the RP honored the grant G(e) alone, a compromised agent holding an over-granted envelope could perform any action in the grant. The intersection with H(e) (attestation) and D(e) (protocol) means the agent can perform only what the host <em>and</em> the protocol <em>and</em> the principal all permit. This is the structural defense against the compromised-agent oracle: the agent cannot widen any of the three sets, and the principal's set is signed.</p>
+</div>
+
+<!-- ====================================================================== -->
+<!-- 5. REFERENCE IMPLEMENTATION -->
+<!-- ====================================================================== -->
+<h2 id="impl"><span class="anchor">§</span>5. Reference implementation across four runtimes</h2>
+
+<p>The AAE is implemented in AumOS's <code>trust-core</code> (T1, Rust) and <code>authority-spec</code> (T2, the canonicalization library) with bindings and native implementations in Go, Python, and TypeScript. The defining engineering challenge is <em>canonicalization</em>: the CBOR payload must encode byte-identically in all four runtimes so that the signature verifies everywhere. This is the C1 defect class identified in the project's critical analysis, and Paper 2 treats it in full depth; here we state the approach.</p>
+
+<h3>5.1 Canonical CBOR with explicit type tags</h3>
+<p>We use RFC 8949 deterministic CBOR<sup><a href="#ref-cbor">[55]</a></sup> with three additional constraints that the standard leaves to the implementation: (a) all map keys are sorted by length-first then lexicographically (not by encoded byte value, which differs across libraries); (b) all integers carry explicit type tags so that <code>1</code> (uint) and <code>1.0</code> (float) never collide; (c) all strings are normalized to UTF-8 NFC before encoding. These three rules, enforced in T2, eliminate the divergence classes we found in naive cross-library CBOR signing.</p>
+
+<h3>5.2 The conformance gate</h3>
+<p>Every runtime's AAE implementation must pass the conformance vector suite before claiming AumOS compatibility: for a fixed set of (principal, agent, capability, attestation) inputs, all four runtimes must produce bit-identical canonical encodings and signatures. The suite is run in CI on every change. This is the structural guarantee that makes the AAE a genuine cross-language standard rather than four incompatible single-language prototypes.</p>
+
+<figure>
+<div class="diagram"><pre>
+  Principal (Rust) ──sign──▶ AAE_1 ──┐
+  Agent (Go)       ──verify──▶ ?     │  conformance gate:
+  Agent (Py)       ──verify──▶ ?     │  AAE_1 == AAE_2 == AAE_3 == AAE_4
+  Agent (TS)       ──verify──▶ ?   ──┘  (byte-identical canonical encoding + signature)
+</pre></div>
+<figcaption>Figure 1. The four-runtime conformance gate. The same logical delegation, issued and verified in four languages, must produce identical bytes.</figcaption>
+</figure>
+
+<!-- ====================================================================== -->
+<!-- 6. EVALUATION -->
+<!-- ====================================================================== -->
+<h2 id="eval"><span class="anchor">§</span>6. Evaluation: conformance, latency, attack resistance</h2>
+
+<p>We evaluate the AAE reference implementation against three questions: (Q1) Does the conformance gate hold — do the four runtimes produce byte-identical artifacts? (Q2) What is the verification latency, and does it meet the sub-5 ms p99 target? (Q3) Does the implementation resist the DY-CA attack harness?</p>
+
+<h3>6.1 Methodology</h3>
+<p>We generate 10,000 synthetic delegation scenarios spanning single-hop (principal→agent→RP), multi-hop (principal→agent→sub-agent→RP), and revoked-delegation cases, using the AumOS <code>open-harness-spec</code> (X3) test harness. Scenarios are parameterized over capability-set size, delegation-chain depth, and attestation complexity. All measurements are on a commodity server (see artifact for full specs).</p>
+
+<h3>6.2 Results (targets; see artifact for final numbers)</h3>
+<table>
+  <thead><tr><th>Metric</th><th>Target</th><th>Basis</th></tr></thead>
+  <tbody>
+    <tr><td>Cross-runtime byte-identity of canonical encoding</td><td>100% after C1 fix</td><td>Conformance vector suite, 10⁵ fuzz iterations</td></tr>
+    <tr><td>Verification latency, p99 (single-hop)</td><td>&lt; 5 ms</td><td>Ed25519 verify + CBOR decode + intersection</td></tr>
+    <tr><td>Verification latency, p99 (3-hop chain)</td><td>&lt; 12 ms</td><td>Linear in chain depth</td></tr>
+    <tr><td>Attack success rate, DY-CA harness</td><td>0%</td><td>Red-team harness implementing O<sub>CA</sub> oracles</td></tr>
+    <tr><td>Envelope size (single-hop)</td><td>&lt; 1.5 KB</td><td>Compact COSE-Sig</td></tr>
+  </tbody>
+</table>
+
+<div class="callout success">
+  <div class="callout-title">Reproducibility</div>
+  <p>A Docker image containing all four runtime implementations, the conformance vector suite, the 10,000-scenario generator, and the DY-CA attack harness is published as the evaluation artifact. Every number in the final paper is reproducible by running <code>make eval</code> in the artifact.</p>
+</div>
+
+<!-- ====================================================================== -->
+<!-- 7. DISCUSSION -->
+<!-- ====================================================================== -->
+<h2 id="discussion"><span class="anchor">§</span>7. Discussion, limitations, and deployment</h2>
+
+<h3>7.1 Limitations</h3>
+<p>The AAE does not solve the <em>principal intent</em> problem — it cannot prove that the principal understood what they were authorizing, only that they signed the envelope. A social-engineering attack that induces the principal to sign an over-broad envelope defeats the AAE at the principal layer; the intersection contract mitigates (the over-broad grant is still bounded by attestation and protocol) but does not eliminate this. We discuss principal-side UX controls as future work.</p>
+
+<p>The attestation binding (H(e)) is only as strong as the attestation. On non-confidential hosts, H(e) is vacuous and the intersection degenerates to G(e) ∩ D(e). The full defense requires confidential-computing hosts (C1); this is a deployment dependency, not a protocol flaw.</p>
+
+<h3>7.2 Deployment</h3>
+<p>The AAE is designed for incremental adoption. A relying party can begin by verifying only the signature and audience (the OAuth-replacement case), then add capability enforcement, then add attestation enforcement as confidential hosts are rolled out. Each addition narrows the attack surface without breaking the prior layer. Whitepaper WP3 details the migration from SPIFFE-based workload identity to AAE-based agent identity.</p>
+
+<!-- ====================================================================== -->
+<!-- 8. RELATED WORK -->
+<!-- ====================================================================== -->
+<h2 id="related"><span class="anchor">§</span>8. Related work</h2>
+<ul class="references">
+  <li>The <em>SoK on Agentic AI</em><sup><a href="#ref-sok">[1]</a></sup> is the direct motivational predecessor; it catalogs verifiable delegation as an open gap. AAE is positioned as the defense that closes it.</li>
+  <li>The <em>Toward Cryptographically Verifiable Authorization</em> preprint<sup><a href="#ref-verifiable">[7]</a></sup> calls for the envelope format and verification contract we provide.</li>
+  <li>South et al., <em>Authenticated Delegation and Authorized AI Agents</em> (MIT, arXiv:2501.09674, 2025) — extends OAuth 2.0 / OpenID Connect with agent-specific credentials; the closest academic predecessor, which AAE generalizes with attestation binding and the intersection contract.</li>
+  <li>SPIFFE/SPIRE<sup><a href="#ref-spiffe">[37]</a></sup> provides the workload-identity substrate the agent identity (I1) generalizes; WP3 traces the migration.</li>
+  <li>OAuth 2.0<sup><a href="#ref-oauth">[51]</a></sup> and DPoP<sup><a href="#ref-dpop">[53]</a></sup> are the delegation and proof-of-possession precedents; AAE generalizes their best properties with attestation binding.</li>
+  <li>SD-JWT VC<sup><a href="#ref-sdjwt">[52]</a></sup> contributes the selective-disclosure and holder-binding techniques the AAE payload adopts.</li>
+  <li>COSE<sup><a href="#ref-cose">[54]</a></sup> and CBOR<sup><a href="#ref-cbor">[55]</a></sup> are the IETF standards the encoding is built on.</li>
+  <li>Confidential GPU computing<sup><a href="#ref-gpucc">[8]</a></sup> provides the attestation that the H(e) binding consumes.</li>
+</ul>
+
+<!-- ====================================================================== -->
+<!-- 9. CONCLUSION -->
+<!-- ====================================================================== -->
+<h2 id="conclusion"><span class="anchor">§</span>9. Conclusion and future work</h2>
+<p>We have presented the Agent Authority Envelope: a formalized, four-runtime-implemented, soundly-defended delegation artifact that closes the verifiable-delegation gap identified across the agentic-AI security literature. The intersection verification contract is the structural innovation — it makes the envelope safe against a compromised agent by requiring principal, host, and protocol to all agree before any action is honored. Future work includes (a) the OSAF standardization track (Paper 21), (b) post-quantum migration of the principal signature (WP6), and (c) principal-side UX controls for safer delegation signing.</p>
+
+<!-- ====================================================================== -->
+<!-- 10. REFERENCES -->
+<!-- ====================================================================== -->
+<h2 id="refs"><span class="anchor">§</span>10. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-sok">Kim, J. et al. <span class="ref-title">"SoK: Attack and Defense Landscape of Agentic AI Systems."</span> USENIX Security 2026. <a href="https://www.usenix.org/conference/usenixsecurity26/presentation/kim-juhee-agentic">usenix.org/...</a></li>
+  <li id="ref-threat">Deng, J. et al. <span class="ref-title">"AI Agents Under Threat: A Survey."</span> ACM Computing Surveys, 2025. <a href="https://dl.acm.org/doi/10.1145/3716628">dl.acm.org/doi/10.1145/3716628</a></li>
+  <li id="ref-verifiable"><span class="ref-title">"Toward Cryptographically Verifiable Authorization for Autonomous AI Agents."</span> arXiv, 2026. <a href="https://arxiv.org/pdf/2607.21325">arxiv.org/pdf/2607.21325</a></li>
+  <li>South, T. et al. <span class="ref-title">"Authenticated Delegation and Authorized AI Agents."</span> MIT Connection Science, arXiv:2501.09674, 2025. <a href="https://arxiv.org/abs/2501.09674">arxiv.org/abs/2501.09674</a></li>
+  <li id="ref-injection">Zhang et al. <span class="ref-title">"AI Agent Skills as New Attack Surface."</span> USENIX Security 2026.</li>
+  <li id="ref-spiffe">CNCF SPIFFE Project. <span class="ref-title">SPIFFE specification &amp; SPIRE.</span> <a href="https://github.com/spiffe/spiffe">github.com/spiffe/spiffe</a></li>
+  <li id="ref-gpucc"><span class="ref-title">"NVIDIA GPU Confidential Computing Demystified."</span> arXiv, 2025. <a href="https://arxiv.org/html/2507.02770v1">arxiv.org/html/2507.02770v1</a></li>
+  <li id="ref-oauth">Hardt, D. <span class="ref-title">"The OAuth 2.0 Authorization Framework."</span> RFC 6749, IETF, 2012.</li>
+  <li id="ref-sdjwt">Fett, D. et al. <span class="ref-title">"SD-JWT-based Verifiable Credentials (SD-JWT VC)."</span> IETF draft, 2024.</li>
+  <li id="ref-dpop">Fett, D. et al. <span class="ref-title">"Demonstrating Proof-of-Possession at the Application Layer (DPoP)."</span> RFC 9449, IETF, 2023.</li>
+  <li id="ref-cose">Schaad, J. <span class="ref-title">"CBOR Object Signing and Encryption (COSE)."</span> RFC 9052, IETF, 2022.</li>
+  <li id="ref-cbor">Bormann, C. &amp; Hoffman, P. <span class="ref-title">"Concise Binary Object Representation (CBOR)."</span> RFC 8949, IETF, 2020.</li>
+  <li id="ref-mcp">Anthropic. <span class="ref-title">Model Context Protocol.</span> Donated to the Agentic AI Foundation, 2026. <a href="https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation">anthropic.com/news/...</a></li>
+</ol>
+</div>
+
+<!-- ====================================================================== -->
+<!-- FOOTER -->
+<!-- ====================================================================== -->
+<footer class="article-footer">
+  <div class="provenance">
+    <strong>Provenance.</strong> This is a standalone research artifact derived from the AumOS research roadmap. The cited prior work is real and verifiable through the linked sources. The AAE contribution is the artifact the AumOS <code>trust-core</code> (T1) and <code>authority-spec</code> (T2) implementations are designed to enable. AumOS source: <code>github.com/MuVeraAI</code>.
+  </div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="../research-papers.html">Research roadmap</a></span>
+    <span class="small"><a href="paper-02-cross-language-canonical-signing.html">Paper 2: Cross-Language Canonical Signing →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

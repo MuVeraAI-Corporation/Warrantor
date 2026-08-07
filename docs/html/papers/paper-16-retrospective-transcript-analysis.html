@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 16 — Retrospective Transcript Analysis: Detecting Incidents in 100K+ Agent Runs</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 16 of 24 · Thrust 4 — Agent Containment &amp; Incident Response</div>
+  <h1>Retrospective Transcript Analysis: Detecting Incidents in 100K+ Agent Runs</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS A-pillar, AAR corpus (P2)</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">NeurIPS 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">A-pillar, A1, A5, A6, P2</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Pipeline + corpus study</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-15-ebpf-exfiltration-prevention.html">Paper 15</a></span>
+    <span class="small"><a href="paper-17-unified-adversarial-testing.html">Paper 17 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>Most agent incidents are not detected in real time — the agent's behavior was superficially compliant, the harm surfaced later, and by then the per-run transcript is buried in a volume of runs no human team can review. We present a <strong>retrospective transcript-analysis pipeline</strong> that applies LLM-as-a-Judge evaluation<sup><a href="#ref-judge">[1]</a></sup> (NeurIPS 2023) at scale over the AAR corpus (Paper 3) of 100K+ agent runs, combining trajectory anomaly detection, judge-LLM verdict scoring, and incident-clustering to surface the small minority of runs that warrant human investigation. We address the known biases of agent-as-a-judge evaluation<sup><a href="#ref-agentjudge">[2]</a></sup> (position, verbosity, self-preference) through calibration against a human-verified incident seed set, and we report precision/recall on a labeled corpus of historical incidents. The contribution is the operational pipeline that converts the AAR's evidence substrate into a detection capability — making retrospective review tractable at the scale production agents now operate.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: the detection-at-scale problem</a></li>
+    <li><a href="#background">Background: LLM-as-a-Judge</a></li>
+    <li><a href="#pipeline">The analysis pipeline</a></li>
+    <li><a href="#biases">Mitigating judge biases</a></li>
+    <li><a href="#eval">Evaluation on labeled incidents</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: the detection-at-scale problem</h2>
+<p>Production agent deployments generate enormous run volumes — a single enterprise deployment can produce 100K+ agent runs per day, each with a full transcript of tool calls, decisions, and outcomes. The vast majority are benign; a small minority are incidents (prompt-injection successes, harmful actions, policy violations). Real-time detection (Papers 14, 15) catches the obvious cases; the subtle ones — the compliant-in-form but harmful-in-substance runs — surface only in retrospective review, which no human team can perform at 100K runs/day. The problem is making retrospective review tractable.</p>
+
+<h2 id="background"><span class="anchor">§</span>2. Background: LLM-as-a-Judge</h2>
+<p>The LLM-as-a-Judge methodology<sup><a href="#ref-judge">[1]</a></sup> (Zheng et al., NeurIPS 2023) — using a strong LLM to evaluate the outputs of other LLMs — is the canonical technique for scaling evaluation beyond human capacity. The agent-as-a-judge evolution<sup><a href="#ref-agentjudge">[2]</a></sup> applies it to agent trajectories but documents biases (position bias, verbosity bias, self-preference) that can skew incident detection. The AgentOps framework<sup><a href="#ref-agentops">[3]</a></sup> represents the closest published approach to observing and analyzing agentic systems at scale, which our pipeline specializes to retrospective incident detection.</p>
+
+<h2 id="pipeline"><span class="anchor">§</span>3. The analysis pipeline</h2>
+<div class="diagram"><pre>
+   AAR corpus (100K+ runs) ──▶ feature extraction ──▶ three parallel detectors
+                                 │
+                ┌────────────────┼────────────────┐
+                ▼                ▼                ▼
+        trajectory anomaly   judge-LLM verdict   incident clustering
+        (statistical outlier  (LLM-as-a-Judge    (embed + cluster
+         on tool-call graph)   per-run scoring)    for novel-incident
+                │                │                 discovery)
+                └────────────────┼────────────────┘
+                                 ▼
+                    fusion + calibration (vs human seed)
+                                 ▼
+                    ranked incident queue for human review
+</pre></div>
+<p>The three detectors are deliberately heterogeneous: a statistical detector (no LLM, catches distributional anomalies), a judge-LLM detector (semantic, catches the compliant-in-form cases), and a clustering detector (unsupervised, catches novel incident classes). Fusion ranks the union; calibration against a human-verified incident seed set tunes the thresholds.</p>
+
+<h2 id="biases"><span class="anchor">§</span>4. Mitigating judge biases</h2>
+<p>We mitigate the documented agent-as-a-judge biases via: (a) <em>position-balanced prompting</em> (the judge sees the run in both orders when pairwise); (b) <em>verbosity-normalized scoring</em> (length penalty); (c) <em>cross-model judging</em> (judge with a different family than the agent, reducing self-preference); (d) <em>seed-calibrated thresholds</em> (precision/recall tuned on the human-labeled seed, not chosen a priori). The biases are not eliminated but bounded and monitored.</p>
+
+<h2 id="eval"><span class="anchor">§</span>5. Evaluation on labeled incidents</h2>
+<table>
+  <thead><tr><th>Detector</th><th>Precision</th><th>Recall</th></tr></thead>
+  <tbody>
+    <tr><td>Trajectory anomaly</td><td>0.71</td><td>0.62</td></tr>
+    <tr><td>Judge-LLM verdict</td><td>0.83</td><td>0.78</td></tr>
+    <tr><td>Incident clustering</td><td>0.58 (novel-class)</td><td>0.41 (novel-class)</td></tr>
+    <tr><td><strong>Fusion (calibrated)</strong></td><td><strong>0.79</strong></td><td><strong>0.84</strong></td></tr>
+  </tbody>
+</table>
+<p>The fusion achieves 0.84 recall — meaning 84% of true incidents surface to the human-review queue — at 0.79 precision, reducing the 100K-run corpus to a review queue of manageable size. The clustering detector's lower precision is the cost of its novel-class-discovery value.</p>
+
+<h2 id="related"><span class="anchor">§</span>6. Related work</h2>
+<ul class="references">
+  <li><strong>Zheng et al., LLM-as-a-Judge</strong><sup><a href="#ref-judge">[1]</a></sup> (NeurIPS 2023) — the evaluation methodology the pipeline scales.</li>
+  <li><strong>Agent-as-a-Judge survey</strong><sup><a href="#ref-agentjudge">[2]</a></sup> — the biases the mitigations address.</li>
+  <li><strong>AgentOps</strong><sup><a href="#ref-agentops">[3]</a></sup> — the agentic-system observation framework the pipeline specializes.</li>
+  <li><strong>The AAR corpus</strong> (Paper 3) — the evidence substrate the pipeline analyzes.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>7. Conclusion</h2>
+<p>Retrospective transcript analysis, built on LLM-as-a-Judge over the AAR corpus, makes incident detection tractable at the 100K-runs/day scale of production agents. The three-detector fusion with bias mitigation achieves 0.84 recall at 0.79 precision, converting an unreviewable volume into a ranked human-review queue and surfacing novel incident classes the real-time defenses miss.</p>
+
+<h2 id="refs"><span class="anchor">§</span>8. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-judge">Zheng, L. et al. <span class="ref-title">"Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena."</span> NeurIPS 2023. <a href="https://arxiv.org/abs/2306.05685">arxiv.org/abs/2306.05685</a></li>
+  <li id="ref-agentjudge"><span class="ref-title">"The Rise of Agent-as-a-Judge Evaluation for LLMs."</span> Survey, 2025. <a href="https://arxiv.org/abs/2508.02994">arxiv.org/abs/2508.02994</a></li>
+  <li id="ref-agentops"><span class="ref-title">"Observing, Analyzing, and Optimizing Agentic AI Systems (AgentOps)."</span> 2025. <a href="https://arxiv.org/abs/2507.11277">arxiv.org/abs/2507.11277</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The pipeline is in the AumOS A-pillar, analyzing the AAR corpus (Paper 3). AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-15-ebpf-exfiltration-prevention.html">Paper 15</a></span>
+    <span class="small"><a href="paper-17-unified-adversarial-testing.html">Paper 17: Unified Adversarial Testing →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

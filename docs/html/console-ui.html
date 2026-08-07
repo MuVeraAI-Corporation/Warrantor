@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AumOS Console — X7 Security Operations Center</title>
+<style>
+/* ============================================================
+   AumOS X7 Console — MuVera AI dark enterprise theme
+   Self-contained. No external dependencies.
+   Palette: #0a0a0f base · #12121a panel · #1a1a2e raised
+            accent #6366f1 · success #10b981 · warning #f59e0b · danger #ef4444
+   ============================================================ */
+:root{
+  --bg:#0a0a0f;
+  --bg-panel:#12121a;
+  --bg-raised:#1a1a2e;
+  --bg-hover:#20203a;
+  --bg-input:#0f0f17;
+  --border:#2a2a3e;
+  --border-strong:#3a3a52;
+  --text:#e0e0e8;
+  --text-muted:#8888a0;
+  --text-dim:#5a5a72;
+  --accent:#6366f1;
+  --accent-hover:#7c7ff5;
+  --accent-dim:#3a3c8c;
+  --accent-glow:rgba(99,102,241,.35);
+  --success:#10b981;
+  --success-bg:rgba(16,185,129,.12);
+  --warning:#f59e0b;
+  --warning-bg:rgba(245,158,11,.12);
+  --danger:#ef4444;
+  --danger-bg:rgba(239,68,68,.12);
+  --info:#38bdf8;
+  --info-bg:rgba(56,189,248,.12);
+  --purple:#a78bfa;
+  --purple-bg:rgba(167,139,250,.12);
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --mono:'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+  --radius:10px;
+  --radius-sm:6px;
+  --shadow:0 4px 24px rgba(0,0,0,.4);
+  --shadow-hover:0 8px 32px rgba(99,102,241,.15);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:5px}
+::-webkit-scrollbar-thumb:hover{background:#4a4a64}
+
+/* ---------- App shell ---------- */
+.app{
+  display:grid;
+  grid-template-columns:240px 1fr;
+  min-height:100vh;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:240px;
+  background:linear-gradient(180deg,#0d0d15 0%,#0a0a0f 100%);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  z-index:50;
+}
+.logo{
+  display:flex;align-items:center;gap:10px;
+  padding:18px 18px;
+  border-bottom:1px solid var(--border);
+}
+.logo-mark{
+  width:32px;height:32px;border-radius:8px;
+  background:linear-gradient(135deg,var(--accent) 0%,#8b5cf6 100%);
+  display:grid;place-items:center;
+  box-shadow:0 0 18px var(--accent-glow);
+  flex-shrink:0;
+}
+.logo-mark svg{width:18px;height:18px}
+.logo-text{display:flex;flex-direction:column;line-height:1.1}
+.logo-text .name{font-weight:700;font-size:15px;letter-spacing:-.01em}
+.logo-text .name span{color:var(--accent)}
+.logo-text .tag{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.12em;margin-top:1px}
+
+.nav-section{padding:14px 10px 6px}
+.nav-label{
+  font-size:10px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--text-dim);font-weight:600;
+  padding:0 10px 8px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:11px;
+  padding:9px 10px;border-radius:var(--radius-sm);
+  color:var(--text-muted);font-size:13.5px;font-weight:500;
+  text-decoration:none;cursor:pointer;
+  transition:background .12s,color .12s;
+  position:relative;
+}
+.nav-item:hover{background:var(--bg-raised);color:var(--text)}
+.nav-item.active{background:var(--accent-dim);color:#fff}
+.nav-item.active::before{
+  content:'';position:absolute;left:-10px;top:6px;bottom:6px;width:3px;
+  background:var(--accent);border-radius:0 3px 3px 0;
+}
+.nav-item svg{width:17px;height:17px;flex-shrink:0;opacity:.85}
+.nav-item .count{
+  margin-left:auto;font-size:11px;font-weight:600;
+  background:var(--danger);color:#fff;
+  padding:1px 7px;border-radius:10px;min-width:20px;text-align:center;
+}
+.nav-item .count.muted{background:var(--bg-raised);color:var(--text-muted)}
+
+.sidebar-footer{
+  margin-top:auto;padding:12px;
+  border-top:1px solid var(--border);
+}
+.user-card{
+  display:flex;align-items:center;gap:10px;
+  padding:8px;border-radius:var(--radius-sm);cursor:pointer;
+  transition:background .12s;
+}
+.user-card:hover{background:var(--bg-raised)}
+.avatar{
+  width:32px;height:32px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#f59e0b,#ef4444);
+  display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;
+}
+.user-info{line-height:1.2;min-width:0;flex:1}
+.user-info .uname{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-info .urole{font-size:11px;color:var(--text-dim)}
+.sidebar-footer .env-pill{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  margin:8px 4px 0;padding:5px;border-radius:var(--radius-sm);
+  background:var(--danger-bg);border:1px solid rgba(239,68,68,.3);
+  font-size:10.5px;font-weight:600;color:var(--danger);
+  text-transform:uppercase;letter-spacing:.08em;
+}
+.env-dot{width:6px;height:6px;border-radius:50%;background:var(--danger);box-shadow:0 0 6px var(--danger)}
+
+/* ---------- Main column ---------- */
+.main{margin-left:240px;display:flex;flex-direction:column;min-width:0}
+
+/* ---------- Top bar ---------- */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;gap:16px;
+  padding:0 24px;height:60px;
+  background:rgba(10,10,15,.85);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+.topbar-title{display:flex;align-items:center;gap:10px;min-width:200px}
+.topbar-title h1{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.crumbs{font-size:12px;color:var(--text-dim);font-weight:500}
+.crumbs span{color:var(--text-muted)}
+
+.search{
+  flex:1;max-width:440px;position:relative;
+}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-dim)}
+.search input{
+  width:100%;height:36px;
+  background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:0 12px 0 36px;color:var(--text);font-size:13px;
+  font-family:var(--font);
+  transition:border-color .12s;
+}
+.search input::placeholder{color:var(--text-dim)}
+.search input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.search .kbd{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:10.5px;color:var(--text-dim);
+  background:var(--bg-raised);border:1px solid var(--border);
+  padding:2px 6px;border-radius:4px;
+}
+
+.topbar-actions{display:flex;align-items:center;gap:10px;margin-left:auto}
+.icon-btn{
+  position:relative;width:36px;height:36px;border-radius:var(--radius-sm);
+  background:var(--bg-input);border:1px solid var(--border);
+  display:grid;place-items:center;cursor:pointer;color:var(--text-muted);
+  transition:background .12s,color .12s,border-color .12s;
+}
+.icon-btn:hover{background:var(--bg-raised);color:var(--text);border-color:var(--border-strong)}
+.icon-btn svg{width:17px;height:17px}
+.icon-btn .dot{
+  position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;
+  background:var(--warning);border:2px solid var(--bg-input);
+}
+.kill-switch{
+  display:flex;align-items:center;gap:8px;
+  height:36px;padding:0 14px;border-radius:var(--radius-sm);
+  background:linear-gradient(135deg,#dc2626,#991b1b);
+  border:1px solid #ef4444;color:#fff;font-size:12.5px;font-weight:600;
+  cursor:pointer;letter-spacing:.01em;
+  box-shadow:0 0 0 0 rgba(239,68,68,.5);
+  animation:pulseKill 2.4s ease-in-out infinite;
+  transition:transform .1s;
+}
+.kill-switch:hover{transform:translateY(-1px);background:linear-gradient(135deg,#ef4444,#b91c1c)}
+.kill-switch svg{width:15px;height:15px}
+@keyframes pulseKill{
+  0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}
+  50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}
+}
+
+/* ---------- View screen scaffolding ---------- */
+.view{
+  display:none;padding:24px;animation:fade .25s ease;
+}
+.view:target{display:block}
+#evidence{display:block} /* default view when no hash */
+.view.no-target-default{display:block}
+body:has(.view:target) .view.no-target-default{display:none}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.view-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.view-header h2{font-size:22px;font-weight:700;letter-spacing:-.015em}
+.view-header .sub{font-size:13px;color:var(--text-muted);margin-top:3px}
+.view-header .actions{display:flex;gap:10px;align-items:center}
+
+/* ---------- Buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;
+  height:34px;padding:0 14px;border-radius:var(--radius-sm);
+  font-size:13px;font-weight:600;font-family:var(--font);
+  cursor:pointer;border:1px solid transparent;
+  transition:background .12s,border-color .12s,color .12s,transform .08s;
+  white-space:nowrap;text-decoration:none;
+}
+.btn svg{width:15px;height:15px}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:var(--bg-input);border-color:var(--border);color:var(--text)}
+.btn-secondary:hover{border-color:var(--border-strong);background:var(--bg-raised)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#dc2626}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover{background:#0ea472}
+.btn-ghost-danger{background:transparent;border-color:var(--danger);color:var(--danger)}
+.btn-ghost-danger:hover{background:var(--danger-bg)}
+.btn-ghost-success{background:transparent;border-color:var(--success);color:var(--success)}
+.btn-ghost-success:hover{background:var(--success-bg)}
+.btn-sm{height:28px;padding:0 11px;font-size:12px}
+.btn-icon{padding:0;width:34px;justify-content:center}
+
+/* ---------- Badges & pills ---------- */
+.badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11px;font-weight:600;
+  padding:2px 8px;border-radius:20px;
+  letter-spacing:.01em;white-space:nowrap;
+  text-transform:capitalize;
+}
+.badge svg{width:11px;height:11px}
+.badge.green{background:var(--success-bg);color:#34d399}
+.badge.amber{background:var(--warning-bg);color:#fbbf24}
+.badge.red{background:var(--danger-bg);color:#f87171}
+.badge.blue{background:var(--info-bg);color:#7dd3fc}
+.badge.purple{background:var(--purple-bg);color:#c4b5fd}
+.badge.gray{background:var(--bg-raised);color:var(--text-muted)}
+.badge.outline{background:transparent;border:1px solid var(--border-strong);color:var(--text-muted)}
+.dot-led{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-led.g{background:var(--success);box-shadow:0 0 6px var(--success)}
+.dot-led.a{background:var(--warning);box-shadow:0 0 6px var(--warning)}
+.dot-led.r{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+
+/* ---------- Cards / panels ---------- */
+.panel{
+  background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:var(--radius);
+}
+.panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px;border-bottom:1px solid var(--border);
+}
+.panel-head h3{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.panel-head h3 svg{width:15px;height:15px;color:var(--text-muted)}
+.panel-head .tools{display:flex;gap:8px;align-items:center}
+.panel-body{padding:18px}
+
+/* ---------- Filter bar ---------- */
+.filterbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:14px 18px;border-bottom:1px solid var(--border);
+  background:rgba(255,255,255,.01);
+}
+.select{
+  position:relative;
+}
+.select select{
+  appearance:none;-webkit-appearance:none;
+  height:32px;padding:0 30px 0 11px;
+  background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);font-size:12.5px;font-family:var(--font);cursor:pointer;
+}
+.select::after{
+  content:'';position:absolute;right:12px;top:50%;transform:translateY(-50%) rotate(45deg);
+  width:6px;height:6px;border-right:2px solid var(--text-muted);border-bottom:2px solid var(--text-muted);
+  pointer-events:none;margin-top:-2px;
+}
+.select select:focus{outline:none;border-color:var(--accent)}
+.daterange{
+  display:flex;align-items:center;gap:6px;
+  background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:0 8px;height:32px;font-size:12.5px;color:var(--text-muted);
+}
+.daterange input{
+  background:none;border:none;color:var(--text);font-family:var(--mono);font-size:11.5px;width:118px;
+}
+.daterange input:focus{outline:none}
+.daterange svg{width:13px;height:13px}
+
+/* ---------- Data table ---------- */
+.table-wrap{overflow:auto;max-height:none}
+table.data{width:100%;border-collapse:collapse;font-size:13px}
+table.data thead th{
+  position:sticky;top:0;z-index:2;
+  text-align:left;font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);
+  padding:11px 14px;background:var(--bg-raised);
+  border-bottom:1px solid var(--border);white-space:nowrap;
+  cursor:pointer;user-select:none;
+}
+table.data thead th:first-child{padding-left:18px}
+table.data thead th:last-child{padding-right:18px}
+table.data thead th .sort{opacity:.4;margin-left:4px}
+table.data thead th:hover{color:var(--text)}
+table.data tbody td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+table.data tbody td:first-child{padding-left:18px}
+table.data tbody td:last-child{padding-right:18px}
+table.data tbody tr{cursor:pointer;transition:background .1s}
+table.data tbody tr:hover{background:rgba(99,102,241,.06)}
+table.data tbody tr.selected{background:rgba(99,102,241,.12);box-shadow:inset 3px 0 0 var(--accent)}
+.mono{font-family:var(--mono);font-size:12px}
+.hash{font-family:var(--mono);font-size:11.5px;color:var(--text-muted)}
+.hash .pre{color:var(--accent)}
+.agentid{font-family:var(--mono);font-size:12px;color:var(--text)}
+.agentid .who{display:block;font-family:var(--font);font-size:11px;color:var(--text-dim);margin-top:1px}
+
+/* ============================================================
+   VIEW 1 — Evidence Viewer
+   ============================================================ */
+.evidence-layout{display:grid;grid-template-columns:1fr 420px;gap:18px;align-items:start}
+.evidence-layout .left{min-width:0}
+.detail-panel{
+  position:sticky;top:84px;
+}
+.detail-empty{
+  padding:48px 24px;text-align:center;color:var(--text-dim);
+}
+.detail-empty svg{width:40px;height:40px;opacity:.4;margin:0 auto 12px}
+.detail-empty p{font-size:13px}
+.detail-empty .hint{font-size:11.5px;color:var(--text-dim);margin-top:6px}
+
+.receipt-meta{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border)}
+.receipt-meta .cell{padding:12px 18px;border-right:1px solid var(--border)}
+.receipt-meta .cell:nth-child(even){border-right:none}
+.receipt-meta .cell:nth-child(1),.receipt-meta .cell:nth-child(2){border-bottom:1px solid var(--border)}
+.receipt-meta .cell:nth-child(3),.receipt-meta .cell:nth-child(4){border-bottom:1px solid var(--border)}
+.receipt-meta .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:600;margin-bottom:3px}
+.receipt-meta .v{font-size:13px;font-weight:600}
+.receipt-meta .v.mono{font-family:var(--mono);font-size:12px;font-weight:500}
+
+.detail-section{padding:16px 18px;border-bottom:1px solid var(--border)}
+.detail-section:last-child{border-bottom:none}
+.detail-section h4{
+  font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--text-muted);font-weight:600;margin-bottom:10px;
+  display:flex;align-items:center;gap:6px;
+}
+.detail-section h4 svg{width:13px;height:13px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:12.5px}
+.kv .k{color:var(--text-muted)}
+.kv .v{font-family:var(--mono);font-size:12px;color:var(--text);text-align:right;word-break:break-all}
+.kv .v.long{font-family:var(--font);font-weight:500}
+.policy-decision{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:var(--radius-sm);
+  background:var(--success-bg);border:1px solid rgba(16,185,129,.25);
+}
+.policy-decision.deny{background:var(--danger-bg);border-color:rgba(239,68,68,.25)}
+.policy-decision .verdict{font-weight:700;font-size:13px;color:#34d399}
+.policy-decision.deny .verdict{color:#f87171}
+.policy-decision .rule{font-family:var(--mono);font-size:11.5px;color:var(--text-muted);margin-left:auto}
+
+.approvers{display:flex;flex-direction:column;gap:8px}
+.approver{display:flex;align-items:center;gap:9px;font-size:12.5px}
+.approver .av{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.approver .nm{font-weight:600}
+.approver .tm{color:var(--text-dim);font-size:11px;margin-left:auto}
+.sig-block{
+  font-family:var(--mono);font-size:11px;line-height:1.6;
+  background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px 12px;color:var(--text-muted);word-break:break-all;white-space:pre-wrap;
+}
+.sig-block .ok{color:var(--success)}
+.detail-actions{display:flex;gap:8px;padding:16px 18px}
+
+/* ============================================================
+   VIEW 2 — Approvals Queue
+   ============================================================ */
+.queue-banner{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 18px;margin-bottom:18px;border-radius:var(--radius);
+  background:linear-gradient(90deg,var(--danger-bg) 0%,rgba(99,102,241,.08) 100%);
+  border:1px solid rgba(239,68,68,.25);
+}
+.queue-banner .stat{display:flex;flex-direction:column;line-height:1.2}
+.queue-banner .stat .n{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.queue-banner .stat .n .crit{color:var(--danger)}
+.queue-banner .stat .l{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+.queue-banner .sep{width:1px;height:32px;background:var(--border-strong)}
+.queue-banner .inv{
+  margin-left:auto;display:flex;align-items:center;gap:7px;
+  font-size:11.5px;color:var(--text-muted);font-family:var(--mono);
+  background:var(--bg-input);border:1px solid var(--border);
+  padding:5px 10px;border-radius:var(--radius-sm);
+}
+.queue-banner .inv b{color:var(--warning)}
+
+.section-title{
+  display:flex;align-items:center;gap:9px;
+  font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--text-muted);margin:0 0 12px;
+}
+.section-title .pill{font-size:10.5px;background:var(--danger);color:#fff;padding:1px 8px;border-radius:10px;font-weight:700;text-transform:none;letter-spacing:0}
+.section-title .line{flex:1;height:1px;background:var(--border)}
+
+.approval-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px}
+.acard{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;display:flex;flex-direction:column;gap:12px;
+  transition:border-color .12s,box-shadow .12s,transform .1s;
+}
+.acard:hover{border-color:var(--border-strong);box-shadow:var(--shadow-hover)}
+.acard.critical{border-color:rgba(239,68,68,.4)}
+.acard.critical::before{
+  content:'CRITICAL · I-08';position:absolute;
+}
+.acard{position:relative}
+.critical-tag{
+  position:absolute;top:-1px;right:14px;
+  font-size:9.5px;font-weight:700;letter-spacing:.08em;
+  background:var(--danger);color:#fff;padding:3px 9px;border-radius:0 0 6px 6px;
+}
+.acard-head{display:flex;align-items:flex-start;gap:11px}
+.acard-head .av{
+  width:38px;height:38px;border-radius:9px;flex-shrink:0;
+  display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;
+}
+.av.a1{background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+.av.a2{background:linear-gradient(135deg,#10b981,#059669)}
+.av.a3{background:linear-gradient(135deg,#f59e0b,#d97706)}
+.av.a4{background:linear-gradient(135deg,#ef4444,#dc2626)}
+.av.a5{background:linear-gradient(135deg,#38bdf8,#0284c7)}
+.av.a6{background:linear-gradient(135deg,#a78bfa,#7c3aed)}
+.acard-head .meta{flex:1;min-width:0}
+.acard-head .meta .agent{font-size:14px;font-weight:600}
+.acard-head .meta .who{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:1px}
+.acard-head .time{font-size:11px;color:var(--text-dim);white-space:nowrap;font-family:var(--mono)}
+.acard-action{font-size:13px;color:var(--text);line-height:1.45}
+.acard-action code{font-family:var(--mono);font-size:12px;background:var(--bg-input);padding:1px 5px;border-radius:4px;color:var(--accent)}
+.acard-foot{display:flex;align-items:center;gap:8px;margin-top:2px}
+.acard-foot .btn{flex:1;justify-content:center}
+.acard .why{
+  font-size:11.5px;color:var(--text-muted);background:var(--bg-input);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:8px 10px;line-height:1.45;
+}
+.acard .why b{color:var(--text)}
+
+/* ============================================================
+   VIEW 3 — Fleet Management
+   ============================================================ */
+.fleet-summary{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin-bottom:18px}
+.fmetric{
+  display:flex;align-items:center;gap:8px;padding:4px 18px;
+  border-right:1px solid var(--border);font-size:13px;
+}
+.fmetric:last-child{border-right:none}
+.fmetric .v{font-weight:700;font-size:16px;letter-spacing:-.01em}
+.fmetric .v.ok{color:var(--success)}
+.fmetric .l{color:var(--text-muted)}
+.fmetric svg{width:15px;height:15px;color:var(--text-muted)}
+
+.gpu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.gpu-card{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;transition:border-color .12s,box-shadow .12s;
+}
+.gpu-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow-hover)}
+.gpu-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.gpu-id{display:flex;align-items:center;gap:8px}
+.gpu-id .chip{font-family:var(--mono);font-size:13px;font-weight:600}
+.gpu-id .dot-led{width:8px;height:8px}
+.gpu-model{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+.gpu-mode{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.gpu-mode.mig{background:var(--info-bg);color:#7dd3fc}
+.gpu-mode.mps{background:var(--purple-bg);color:#c4b5fd}
+.gpu-mode.none{background:var(--bg-raised);color:var(--text-dim)}
+.gpu-tenant{font-size:12px;color:var(--text-muted);margin-bottom:10px;display:flex;justify-content:space-between}
+.gpu-tenant .t{font-family:var(--mono);color:var(--text)}
+.gpu-tenant .verify{display:inline-flex;align-items:center;gap:4px;color:var(--success);font-size:11px;font-weight:600}
+.gpu-tenant .verify svg{width:12px;height:12px}
+.util{margin-top:4px}
+.util-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:5px}
+.util-bar{height:7px;background:var(--bg-input);border-radius:4px;overflow:hidden;position:relative}
+.util-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--success));transition:width .3s}
+.util-fill.high{background:linear-gradient(90deg,var(--warning),var(--danger))}
+.util-fill.med{background:linear-gradient(90deg,var(--accent),var(--warning))}
+.gpu-foot{display:flex;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:11px;color:var(--text-dim)}
+.gpu-foot .mem{font-family:var(--mono)}
+
+/* ============================================================
+   VIEW 4 — Compliance Dashboard
+   ============================================================ */
+.compliance-banner{
+  display:flex;align-items:center;gap:20px;
+  padding:18px 22px;margin-bottom:20px;border-radius:var(--radius);
+  background:linear-gradient(120deg,rgba(99,102,241,.12) 0%,rgba(16,185,129,.1) 100%);
+  border:1px solid var(--border);
+}
+.compliance-banner .ring{flex-shrink:0;position:relative;width:84px;height:84px}
+.compliance-banner .ring-info{flex:1}
+.compliance-banner .ring-info .big{font-size:13px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.compliance-banner .ring-info .pct{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
+.compliance-banner .ring-info .pct span{color:var(--text-muted);font-size:16px;font-weight:500}
+.compliance-banner .ring-info .verdict{font-size:12.5px;color:var(--text-muted);margin-top:2px}
+.compliance-banner .ring-info .verdict b{color:var(--success)}
+.compliance-banner .verdict-pill{
+  font-size:11.5px;font-weight:600;background:var(--success-bg);color:#34d399;
+  padding:4px 10px;border-radius:20px;border:1px solid rgba(16,185,129,.3);
+}
+
+.framework-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.fw-card{
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px;transition:border-color .12s,box-shadow .12s;
+}
+.fw-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow-hover)}
+.fw-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px}
+.fw-name{display:flex;align-items:center;gap:10px}
+.fw-glyph{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0}
+.fw-glyph.eu{background:linear-gradient(135deg,#0033a0,#0066cc)}
+.fw-glyph.nist{background:linear-gradient(135deg,#4a4a6a,#6366f1)}
+.fw-glyph.iso{background:linear-gradient(135deg,#0ea5e9,#0369a1)}
+.fw-glyph.fedramp{background:linear-gradient(135deg,#059669,#047857)}
+.fw-glyph.dora{background:linear-gradient(135deg,#7c3aed,#5b21b6)}
+.fw-glyph.hipaa{background:linear-gradient(135deg,#dc2626,#991b1b)}
+.fw-glyph.kill{background:linear-gradient(135deg,#ef4444,#7f1d1d)}
+.fw-name .n{font-size:14px;font-weight:600;line-height:1.2}
+.fw-name .n .sub{display:block;font-size:11px;color:var(--text-dim);font-weight:500;margin-top:1px}
+.fw-pct{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.fw-pct.good{color:var(--success)}
+.fw-pct.mid{color:var(--warning)}
+.fw-pct.low{color:var(--danger)}
+.fw-progress{height:8px;background:var(--bg-input);border-radius:4px;overflow:hidden;margin-bottom:6px}
+.fw-progress .fill{height:100%;border-radius:4px;transition:width .4s}
+.fw-progress .fill.good{background:linear-gradient(90deg,#059669,var(--success))}
+.fw-progress .fill.mid{background:linear-gradient(90deg,#d97706,var(--warning))}
+.fw-progress .fill.low{background:linear-gradient(90deg,#dc2626,var(--danger))}
+.fw-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;font-size:11.5px;color:var(--text-muted)}
+.fw-foot .assess{font-family:var(--mono);font-size:11px}
+
+/* ============================================================
+   VIEW 5 — Policy Editor
+   ============================================================ */
+.policy-layout{display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:start}
+.policy-sidebar{position:sticky;top:84px}
+.policy-rules{display:flex;flex-direction:column;gap:4px}
+.prule{
+  display:flex;align-items:center;gap:9px;padding:9px 11px;
+  border-radius:var(--radius-sm);cursor:pointer;font-size:12.5px;
+  border:1px solid transparent;transition:background .12s,border-color .12s;
+}
+.prule:hover{background:var(--bg-raised)}
+.prule.active{background:var(--bg-input);border-color:var(--border)}
+.prule .led{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.prule .led.allow{background:var(--success)}
+.prule .led.deny{background:var(--danger)}
+.prule .led.req{background:var(--warning)}
+.prule .nm{font-family:var(--mono);font-size:11.5px;font-weight:600;flex:1}
+.prule .nm .verb{font-family:var(--font);font-size:10px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:.04em;display:block}
+.prule .ver{font-size:10px;color:var(--text-dim);font-family:var(--mono)}
+
+.code-editor{
+  background:#0c0c14;border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;
+}
+.editor-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg-panel);
+}
+.editor-bar .tabs{display:flex;gap:2px}
+.etab{font-size:12px;padding:6px 12px;border-radius:6px 6px 0 0;color:var(--text-muted);cursor:pointer;font-family:var(--mono)}
+.etab.active{background:var(--bg-input);color:var(--text)}
+.editor-bar .path{font-family:var(--mono);font-size:11px;color:var(--text-dim)}
+.editor-bar .path b{color:var(--accent);font-weight:600}
+pre.assoc{
+  font-size:18px;line-height:1.7;padding:18px 20px 18px 0;
+  font-family:var(--mono);color:#c9d1d9;
+  display:grid;grid-template-columns:auto 1fr;gap:0;counter-reset:ln;
+}
+pre.assoc .ln{
+  counter-increment:ln;text-align:right;padding-right:16px;color:var(--text-dim);
+  user-select:none;font-size:12.5px;border-right:1px solid var(--border);
+}
+pre.assoc .code{padding-left:16px;white-space:pre;overflow-x:auto;font-size:13px;line-height:1.7}
+.kw{color:#ff7b72}      /* keyword */
+.fn{color:#d2a8ff}      /* function */
+.str{color:#a5d6ff}     /* string */
+.com{color:#6e7681;font-style:italic} /* comment */
+.num{color:#79c0ff}     /* number/var */
+.ty{color:#ffa657}      /* type */
+.op{color:#ff7b72}
+.id{color:#c9d1d9}
+
+.policy-results{
+  display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px;align-items:start;
+}
+.results-panel .ok-banner{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;
+  background:var(--success-bg);border:1px solid rgba(16,185,129,.25);
+  border-radius:var(--radius-sm);margin-bottom:14px;
+}
+.results-panel .ok-banner .check{
+  width:26px;height:26px;border-radius:50%;background:var(--success);
+  display:grid;place-items:center;flex-shrink:0;
+}
+.results-panel .ok-banner .check svg{width:15px;height:15px;color:#fff}
+.results-panel .ok-banner .txt{font-size:13px;font-weight:600;color:#34d399}
+.results-panel .ok-banner .txt span{color:var(--text-muted);font-weight:500}
+
+.test-row{
+  display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--border);font-size:12.5px;
+}
+.test-row:last-child{border-bottom:none}
+.test-row .res{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:var(--success-bg)}
+.test-row .res svg{width:11px;height:11px;color:var(--success)}
+.test-row.fail .res{background:var(--danger-bg)}
+.test-row.fail .res svg{color:var(--danger)}
+.test-row .nm{font-family:var(--mono);font-size:11.5px;flex:1}
+.test-row .exp{font-size:11px;color:var(--text-dim);font-family:var(--mono)}
+
+.version-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.version-table th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:600;padding:8px 0;border-bottom:1px solid var(--border)}
+.version-table td{padding:9px 0;border-bottom:1px solid var(--border)}
+.version-table td.mono{font-family:var(--mono);font-size:11.5px}
+.version-table tr:hover td{background:rgba(99,102,241,.04)}
+.v-tag{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--accent)}
+
+/* ---------- Status bar ---------- */
+.statusbar{
+  display:flex;align-items:center;gap:18px;
+  padding:7px 24px;border-top:1px solid var(--border);
+  background:var(--bg-panel);font-size:11.5px;color:var(--text-muted);
+  margin-top:auto;
+}
+.statusbar .sb-item{display:flex;align-items:center;gap:6px}
+.statusbar .sb-item svg{width:13px;height:13px}
+.statusbar .sb-item.ok{color:var(--success)}
+.statusbar .sep{width:1px;height:14px;background:var(--border)}
+.statusbar .right{margin-left:auto;display:flex;align-items:center;gap:18px}
+.statusbar code{font-family:var(--mono);color:var(--text)}
+
+/* ---------- responsive guard ---------- */
+@media (max-width:1100px){
+  .evidence-layout{grid-template-columns:1fr}
+  .policy-layout{grid-template-columns:1fr}
+  .policy-results{grid-template-columns:1fr}
+  .detail-panel{position:static}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============================ SIDEBAR ============================ -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M12 7v10M7.5 9.5L12 12l4.5-2.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="logo-text">
+        <div class="name">MuVera<span>AI</span></div>
+        <div class="tag">AumOS · X7 Console</div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Operations</div>
+      <a class="nav-item active" href="#evidence">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 4h14v16H5z" stroke-linecap="round"/></svg>
+        Evidence
+        <span class="count muted">2.4k</span>
+      </a>
+      <a class="nav-item" href="#approvals">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Approvals
+        <span class="count">3</span>
+      </a>
+      <a class="nav-item" href="#fleet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Fleet
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Governance</div>
+      <a class="nav-item" href="#compliance">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4z" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Compliance
+      </a>
+      <a class="nav-item" href="#policies">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h10l6 6v10a0 0 0 01-0 0H4z" stroke-linejoin="round"/><path d="M14 4v6h6M8 14h8M8 18h5" stroke-linecap="round"/></svg>
+        Policies
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="env-pill"><span class="env-dot"></span>Production · eu-west-2</div>
+      <div class="user-card">
+        <div class="avatar">DR</div>
+        <div class="user-info">
+          <div class="uname">Dana Rao</div>
+          <div class="urole">Security Operator</div>
+        </div>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-dim)"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============================ MAIN ============================ -->
+  <div class="main">
+
+    <!-- ---------------- TOP BAR ---------------- -->
+    <header class="topbar">
+      <div class="topbar-title">
+        <div>
+          <div class="crumbs">AumOS / <span data-viewcrumb>Evidence</span></div>
+          <h1 data-viewtitle>Evidence Viewer</h1>
+        </div>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+        <input type="text" placeholder="Search receipts, agents, authority hashes, SVIDs…" />
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" title="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 01-3.4 0" stroke-linecap="round"/></svg>
+          <span class="dot"></span>
+        </button>
+        <button class="icon-btn" title="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="kill-switch" title="Halt all autonomous agents fleet-wide (I-09)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4" stroke-linecap="round"/></svg>
+          Kill Switch
+        </button>
+      </div>
+    </header>
+
+    <!-- ============================================================
+         VIEW 1 — EVIDENCE VIEWER (default)
+         ============================================================ -->
+    <section class="view no-target-default" id="evidence" data-title="Evidence Viewer" data-crumb="Evidence">
+      <div class="view-header">
+        <div>
+          <h2>Agent Action Receipts</h2>
+          <div class="sub">Tamper-evident ledger · P2-AAR · committed before effect is visible (I-07)</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Export
+          </button>
+          <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM4 9h16M9 4v16" stroke-linecap="round"/></svg>
+            Reconciliation
+          </button>
+        </div>
+      </div>
+
+      <div class="evidence-layout">
+        <div class="left">
+          <div class="panel">
+            <div class="filterbar">
+              <div class="select"><select><option>All Agents</option><option>arbitrage-eu-01</option><option>support-triage-07</option><option>billing-recon-03</option><option>infra-cleanup-12</option><option>checkout-router-04</option></select></div>
+              <div class="select"><select><option>All Outcomes</option><option>Committed</option><option>Pending</option><option>Rolled back</option><option>Failed</option></select></div>
+              <div class="select"><select><option>All Tools / APIs</option><option>payments.payout.create</option><option>k8s.delete_pod</option><option>db.execute</option><option>vector.upsert</option></select></div>
+              <div class="select"><select><option>All Side-effects</option><option>read</option><option>write</option><option>financial</option><option>destructive</option><option>physical</option></select></div>
+              <div class="daterange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 9h18M8 2v4M16 2v4" stroke-linecap="round"/></svg>
+                <input value="2026-07-30" /> → <input value="2026-08-06" />
+              </div>
+              <button class="btn btn-secondary btn-sm" style="margin-left:auto">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4" stroke-linecap="round"/></svg>
+                Columns
+              </button>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Time (UTC) <span class="sort">▾</span></th>
+                    <th>Agent</th>
+                    <th>Tool / API</th>
+                    <th>Side-effect</th>
+                    <th>Outcome <span class="sort">↕</span></th>
+                    <th>Authority Hash</th>
+                    <th>Attestation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="selected">
+                    <td class="mono">08:42:17.391</td>
+                    <td><div class="agentid">arbitrage-eu-01<span class="who">spiffe://aumos/fin/arbitrage</span></div></td>
+                    <td><span class="mono">payments.payout.create</span></td>
+                    <td><span class="badge red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6" stroke-linecap="round"/></svg>financial</span></td>
+                    <td><span class="badge green"><span class="dot-led g"></span>committed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>9f3a…c701</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:41:55.022</td>
+                    <td><div class="agentid">infra-cleanup-12<span class="who">spiffe://aumos/ops/cleanup</span></div></td>
+                    <td><span class="mono">k8s.delete_pod</span></td>
+                    <td><span class="badge red">destructive</span></td>
+                    <td><span class="badge amber"><span class="dot-led a"></span>pending</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>4c81…e9d2</td>
+                    <td><span class="badge amber"><span class="dot-led a"></span>verifying</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:41:02.884</td>
+                    <td><div class="agentid">support-triage-07<span class="who">spiffe://aumos/cs/triage</span></div></td>
+                    <td><span class="mono">db.execute (read)</span></td>
+                    <td><span class="badge green">read</span></td>
+                    <td><span class="badge green"><span class="dot-led g"></span>committed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>1b7e…44af</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:39:41.113</td>
+                    <td><div class="agentid">billing-recon-03<span class="who">spiffe://aumos/fin/recon</span></div></td>
+                    <td><span class="mono">ledger.post_adjustment</span></td>
+                    <td><span class="badge amber">write</span></td>
+                    <td><span class="badge red"><span class="dot-led r"></span>rolled_back</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>7d2c…0a55</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:38:09.501</td>
+                    <td><div class="agentid">checkout-router-04<span class="who">spiffe://aumos/commerce/router</span></div></td>
+                    <td><span class="mono">vector.upsert</span></td>
+                    <td><span class="badge amber">write</span></td>
+                    <td><span class="badge green"><span class="dot-led g"></span>committed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>aef1…93b8</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:37:22.640</td>
+                    <td><div class="agentid">arbitrage-eu-01<span class="who">spiffe://aumos/fin/arbitrage</span></div></td>
+                    <td><span class="mono">fx.rate.lock</span></td>
+                    <td><span class="badge green">read</span></td>
+                    <td><span class="badge green"><span class="dot-led g"></span>committed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>5c90…fe17</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:36:18.225</td>
+                    <td><div class="agentid">infra-cleanup-12<span class="who">spiffe://aumos/ops/cleanup</span></div></td>
+                    <td><span class="mono">s3.delete_object</span></td>
+                    <td><span class="badge red">destructive</span></td>
+                    <td><span class="badge red"><span class="dot-led r"></span>failed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>2ea4…77c3</td>
+                    <td><span class="badge red"><span class="dot-led r"></span>failed</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:35:50.917</td>
+                    <td><div class="agentid">support-triage-07<span class="who">spiffe://aumos/cs/triage</span></div></td>
+                    <td><span class="mono">ticket.update_status</span></td>
+                    <td><span class="badge amber">write</span></td>
+                    <td><span class="badge green"><span class="dot-led g"></span>committed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>8b33…019f</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:34:12.388</td>
+                    <td><div class="agentid">billing-recon-03<span class="who">spiffe://aumos/fin/recon</span></div></td>
+                    <td><span class="mono">payments.payout.create</span></td>
+                    <td><span class="badge red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6" stroke-linecap="round"/></svg>financial</span></td>
+                    <td><span class="badge amber"><span class="dot-led a"></span>pending</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>f6a0…2bd9</td>
+                    <td><span class="badge amber"><span class="dot-led a"></span>verifying</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:33:01.744</td>
+                    <td><div class="agentid">checkout-router-04<span class="who">spiffe://aumos/commerce/router</span></div></td>
+                    <td><span class="mono">cache.invalidate</span></td>
+                    <td><span class="badge amber">write</span></td>
+                    <td><span class="badge green"><span class="dot-led g"></span>committed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>c128…4e60</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:31:44.209</td>
+                    <td><div class="agentid">arbitrage-eu-01<span class="who">spiffe://aumos/fin/arbitrage</span></div></td>
+                    <td><span class="mono">db.execute (read)</span></td>
+                    <td><span class="badge green">read</span></td>
+                    <td><span class="badge green"><span class="dot-led g"></span>committed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>30c2…aa81</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:30:09.553</td>
+                    <td><div class="agentid">infra-cleanup-12<span class="who">spiffe://aumos/ops/cleanup</span></div></td>
+                    <td><span class="mono">ec2.stop_instance</span></td>
+                    <td><span class="badge red">destructive</span></td>
+                    <td><span class="badge red"><span class="dot-led r"></span>rolled_back</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>9d77…1e4b</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:28:33.881</td>
+                    <td><div class="agentid">support-triage-07<span class="who">spiffe://aumos/cs/triage</span></div></td>
+                    <td><span class="mono">vector.upsert</span></td>
+                    <td><span class="badge amber">write</span></td>
+                    <td><span class="badge green"><span class="dot-led g"></span>committed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>4ef2…b8c0</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:27:11.047</td>
+                    <td><div class="agentid">billing-recon-03<span class="who">spiffe://aumos/fin/recon</span></div></td>
+                    <td><span class="mono">ledger.post_adjustment</span></td>
+                    <td><span class="badge amber">write</span></td>
+                    <td><span class="badge green"><span class="dot-led g"></span>committed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>71a9…3d51</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:25:49.612</td>
+                    <td><div class="agentid">checkout-router-04<span class="who">spiffe://aumos/commerce/router</span></div></td>
+                    <td><span class="mono">payments.payout.create</span></td>
+                    <td><span class="badge red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6" stroke-linecap="round"/></svg>financial</span></td>
+                    <td><span class="badge red"><span class="dot-led r"></span>failed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>b3df…9a72</td>
+                    <td><span class="badge red"><span class="dot-led r"></span>failed</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">08:24:07.295</td>
+                    <td><div class="agentid">arbitrage-eu-01<span class="who">spiffe://aumos/fin/arbitrage</span></div></td>
+                    <td><span class="mono">fx.rate.lock</span></td>
+                    <td><span class="badge green">read</span></td>
+                    <td><span class="badge green"><span class="dot-led g"></span>committed</span></td>
+                    <td class="hash"><span class="pre">sha256:</span>6c18…f0e3</td>
+                    <td><span class="badge green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>verified</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detail panel -->
+        <aside class="panel detail-panel">
+          <div class="panel-head">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-linejoin="round"/><path d="M14 2v6h6" stroke-linejoin="round"/></svg>
+              Action Receipt
+            </h3>
+            <div class="tools">
+              <span class="badge green">P2-AAR</span>
+              <button class="icon-btn" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+            </div>
+          </div>
+
+          <div class="receipt-meta">
+            <div class="cell"><div class="k">Receipt ID</div><div class="v mono">aar_01HZX…K9F2</div></div>
+            <div class="cell"><div class="k">Committed</div><div class="v">2026-08-06 08:42:17</div></div>
+            <div class="cell"><div class="k">Outcome</div><div class="v"><span class="badge green"><span class="dot-led g"></span>committed</span></div></div>
+            <div class="cell"><div class="k">Side-effect</div><div class="v"><span class="badge red">financial</span></div></div>
+          </div>
+
+          <div class="detail-section">
+            <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1" stroke-linecap="round"/></svg>Actor · SVID</h4>
+            <div class="kv"><span class="k">Agent</span><span class="v long">arbitrage-eu-01</span></div>
+            <div class="kv"><span class="k">SPIFFE ID</span><span class="v">spiffe://aumos/fin/arbitrage</span></div>
+            <div class="kv"><span class="k">SVID serial</span><span class="v">9f3a7c…01d4</span></div>
+            <div class="kv"><span class="k">Workload attestation</span><span class="v" style="color:var(--success)">TPM-bound · verified</span></div>
+          </div>
+
+          <div class="detail-section">
+            <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.6 7.6a5.5 5.5 0 11-7.78 7.78 5.5 5.5 0 017.78-7.78zm0 0L17 8m0 0l3-3m-3 3l-3-3" stroke-linecap="round" stroke-linejoin="round"/></svg>Authority & Artifacts</h4>
+            <div class="kv"><span class="k">Authority hash</span><span class="v">sha256:9f3a7c2b…c701</span></div>
+            <div class="kv"><span class="k">Delegation depth</span><span class="v">2 / 3</span></div>
+            <div class="kv"><span class="k">Policy bundle</span><span class="v">aumos.fin@sha256:4c81</span></div>
+            <div class="kv"><span class="k">Tool image (SBOM)</span><span class="v">payout-svc@v2.14.3</span></div>
+            <div class="kv"><span class="k">Context commitment</span><span class="v">sha256:1b7e…44af</span></div>
+          </div>
+
+          <div class="detail-section">
+            <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" stroke-linecap="round" stroke-linejoin="round"/></svg>Policy Decision</h4>
+            <div class="policy-decision">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#34d399" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span class="verdict">PERMIT</span>
+              <span class="rule">rule: allow_financial_with_approval</span>
+            </div>
+            <div class="kv" style="margin-top:8px"><span class="k">Deterministic checks</span><span class="v">7 / 7 passed</span></div>
+          </div>
+
+          <div class="detail-section">
+            <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="7" r="4"/></svg>Approvers (I-08)</h4>
+            <div class="approvers">
+              <div class="approver"><span class="av" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">MR</span><span class="nm">Maya Renner</span><span class="tm">08:42:14</span></div>
+              <div class="approver"><span class="av" style="background:linear-gradient(135deg,#10b981,#059669)">JT</span><span class="nm">Jonas Tan</span><span class="tm">08:42:16</span></div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round"/></svg>Signature (Ed25519)</h4>
+            <div class="sig-block"><span class="ok">✓ verified</span> · issuer: aumos.t1.trust-core
+ed25519: 7d2c0a5541bf9e3a8c…d7019f2
+<span style="color:var(--text-dim)">rekor:</span> 2c8f1a…re0 (transparency log)</div>
+          </div>
+
+          <div class="detail-actions">
+            <button class="btn btn-secondary" style="flex:1">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-linejoin="round"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Export OCSF
+            </button>
+            <button class="btn btn-secondary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Trace
+            </button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW 2 — APPROVALS QUEUE
+         ============================================================ -->
+    <section class="view" id="approvals" data-title="Approvals Queue" data-crumb="Approvals">
+      <div class="view-header">
+        <div>
+          <h2>Approval Queue</h2>
+          <div class="sub">Non-delegable human authority for critical side-effects</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4" stroke-linecap="round"/></svg>
+            Filter
+          </button>
+          <button class="btn btn-secondary">Auto-approve: off</button>
+        </div>
+      </div>
+
+      <div class="queue-banner">
+        <div class="stat"><span class="n">3 <span class="crit">· 2 critical</span></span><span class="l">pending approval</span></div>
+        <div class="sep"></div>
+        <div class="stat"><span class="n">12</span><span class="l">resolved today</span></div>
+        <div class="sep"></div>
+        <div class="stat"><span class="n">4m 11s</span><span class="l">median time-to-decide</span></div>
+        <div class="inv">invariant <b>I-08</b> · critical class enforced</div>
+      </div>
+
+      <div class="section-title">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Critical — requires human authority
+        <span class="pill">2</span>
+        <span class="line"></span>
+      </div>
+
+      <div class="approval-grid">
+        <div class="acard critical">
+          <span class="critical-tag">CRITICAL · I-08</span>
+          <div class="acard-head">
+            <div class="av a4">$</div>
+            <div class="meta">
+              <div class="agent">arbitrage-eu-01</div>
+              <div class="who">spiffe://aumos/fin/arbitrage · depth 2</div>
+            </div>
+            <div class="time">38s ago</div>
+          </div>
+          <div class="acard-action">Execute <code>payments.payout.create</code> for €<b>84,200.00</b> to beneficiary <code>DE89 …3701</code> (settlement batch EU-2).</div>
+          <div class="acard-foot">
+            <span class="badge red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6" stroke-linecap="round"/></svg>financial</span>
+            <span class="badge outline">within spend_budget</span>
+          </div>
+          <div class="why">Policy <code>require_financial_approval</code> mandates non-delegable human sign-off. Authority hash <code>9f3a…c701</code>.</div>
+          <div class="acard-foot">
+            <button class="btn btn-ghost-success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="10"/></svg>Approve</button>
+            <button class="btn btn-ghost-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>Deny</button>
+          </div>
+        </div>
+
+        <div class="acard critical">
+          <span class="critical-tag">CRITICAL · I-08</span>
+          <div class="acard-head">
+            <div class="av a3">⚙</div>
+            <div class="meta">
+              <div class="agent">infra-cleanup-12</div>
+              <div class="who">spiffe://aumos/ops/cleanup · depth 1</div>
+            </div>
+            <div class="time">2m ago</div>
+          </div>
+          <div class="acard-action">Purge <code>k8s.delete_pod</code> on namespace <code>prod-checkout</code> — 3 pods (checkout-router, cart, payments-gw) flagged as idle &gt; 30m.</div>
+          <div class="acard-foot">
+            <span class="badge red">destructive</span>
+            <span class="badge amber">prod namespace</span>
+          </div>
+          <div class="why">Destructive operation in a production namespace; <code>deny_destructive_without_approval</code> blocks auto-execution.</div>
+          <div class="acard-foot">
+            <button class="btn btn-ghost-success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="10"/></svg>Approve</button>
+            <button class="btn btn-ghost-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>Deny</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top:26px">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg>
+        Standard — delegated authority available
+        <span class="pill" style="background:var(--border-strong);color:var(--text-muted)">1</span>
+        <span class="line"></span>
+      </div>
+
+      <div class="approval-grid">
+        <div class="acard">
+          <div class="acard-head">
+            <div class="av a2">T</div>
+            <div class="meta">
+              <div class="agent">support-triage-07</div>
+              <div class="who">spiffe://aumos/cs/triage · depth 2</div>
+            </div>
+            <div class="time">6m ago</div>
+          </div>
+          <div class="acard-action">Write <code>ticket.merge</code> merging 4 duplicate incidents into <code>INC-48201</code> in the EU region queue.</div>
+          <div class="acard-foot">
+            <span class="badge amber">write</span>
+            <span class="badge outline">low blast-radius</span>
+          </div>
+          <div class="why">Standard write within delegated budget. Approver override optional per <code>allow_safe_write</code>.</div>
+          <div class="acard-foot">
+            <button class="btn btn-ghost-success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="10"/></svg>Approve</button>
+            <button class="btn btn-ghost-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>Deny</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW 3 — FLEET MANAGEMENT
+         ============================================================ -->
+    <section class="view" id="fleet" data-title="Fleet Management" data-crumb="Fleet">
+      <div class="view-header">
+        <div>
+          <h2>GPU Fleet</h2>
+          <div class="sub">Confidential compute · attested workloads · multi-tenant isolation</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56" stroke-linecap="round"/></svg>
+            Refresh
+          </button>
+          <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+            Allocate GPU
+          </button>
+        </div>
+      </div>
+
+      <div class="fleet-summary panel" style="padding:10px 0">
+        <div class="fmetric"><span class="v ok">12</span><span class="l">GPUs online</span></div>
+        <div class="fmetric"><span class="v">4</span><span class="l">tenants</span></div>
+        <div class="fmetric"><span class="v">8</span><span class="l">MIG slices</span></div>
+        <div class="fmetric"><span class="v">4</span><span class="l">MPS clients</span></div>
+        <div class="fmetric"><span class="v">2</span><span class="l">idle</span></div>
+        <div class="fmetric" style="margin-left:auto;border-right:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="10"/></svg><span style="color:var(--success);font-weight:600">All attested</span></div>
+      </div>
+
+      <div class="gpu-grid">
+        <!-- GPU 1 -->
+        <div class="gpu-card">
+          <div class="gpu-card-head">
+            <div class="gpu-id"><span class="dot-led g"></span><span class="chip">gpu-h100-01</span></div>
+            <span class="gpu-model">H100 80GB</span>
+          </div>
+          <div class="gpu-mode mig">MIG · 3 slices</div>
+          <div class="gpu-tenant"><span>Tenant: <span class="t">tn-fin-arbitrage</span></span><span class="verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>attested</span></div>
+          <div class="util">
+            <div class="util-row"><span>SM utilization</span><span>87%</span></div>
+            <div class="util-bar"><div class="util-fill high" style="width:87%"></div></div>
+          </div>
+          <div class="gpu-foot"><span class="mem">71.2 / 80.0 GB</span><span>2.1 GHz · 41°C</span></div>
+        </div>
+
+        <!-- GPU 2 -->
+        <div class="gpu-card">
+          <div class="gpu-card-head">
+            <div class="gpu-id"><span class="dot-led g"></span><span class="chip">gpu-h100-02</span></div>
+            <span class="gpu-model">H100 80GB</span>
+          </div>
+          <div class="gpu-mode mps">MPS · 4 clients</div>
+          <div class="gpu-tenant"><span>Tenant: <span class="t">tn-cs-triage</span></span><span class="verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>attested</span></div>
+          <div class="util">
+            <div class="util-row"><span>SM utilization</span><span>64%</span></div>
+            <div class="util-bar"><div class="util-fill med" style="width:64%"></div></div>
+          </div>
+          <div class="gpu-foot"><span class="mem">52.8 / 80.0 GB</span><span>1.9 GHz · 38°C</span></div>
+        </div>
+
+        <!-- GPU 3 -->
+        <div class="gpu-card">
+          <div class="gpu-card-head">
+            <div class="gpu-id"><span class="dot-led g"></span><span class="chip">gpu-h100-03</span></div>
+            <span class="gpu-model">H100 80GB</span>
+          </div>
+          <div class="gpu-mode mig">MIG · 2 slices</div>
+          <div class="gpu-tenant"><span>Tenant: <span class="t">tn-infra-cleanup</span></span><span class="verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>attested</span></div>
+          <div class="util">
+            <div class="util-row"><span>SM utilization</span><span>42%</span></div>
+            <div class="util-bar"><div class="util-fill" style="width:42%"></div></div>
+          </div>
+          <div class="gpu-foot"><span class="mem">33.1 / 80.0 GB</span><span>1.8 GHz · 35°C</span></div>
+        </div>
+
+        <!-- GPU 4 -->
+        <div class="gpu-card">
+          <div class="gpu-card-head">
+            <div class="gpu-id"><span class="dot-led g"></span><span class="chip">gpu-a100-01</span></div>
+            <span class="gpu-model">A100 40GB</span>
+          </div>
+          <div class="gpu-mode mig">MIG · 1 slice</div>
+          <div class="gpu-tenant"><span>Tenant: <span class="t">tn-commerce-router</span></span><span class="verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>attested</span></div>
+          <div class="util">
+            <div class="util-row"><span>SM utilization</span><span>71%</span></div>
+            <div class="util-bar"><div class="util-fill med" style="width:71%"></div></div>
+          </div>
+          <div class="gpu-foot"><span class="mem">28.4 / 40.0 GB</span><span>1.4 GHz · 47°C</span></div>
+        </div>
+
+        <!-- GPU 5 -->
+        <div class="gpu-card">
+          <div class="gpu-card-head">
+            <div class="gpu-id"><span class="dot-led a"></span><span class="chip">gpu-a100-02</span></div>
+            <span class="gpu-model">A100 40GB</span>
+          </div>
+          <div class="gpu-mode mps">MPS · 3 clients</div>
+          <div class="gpu-tenant"><span>Tenant: <span class="t">tn-fin-recon</span></span><span class="verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>attested</span></div>
+          <div class="util">
+            <div class="util-row"><span>SM utilization</span><span>93%</span></div>
+            <div class="util-bar"><div class="util-fill high" style="width:93%"></div></div>
+          </div>
+          <div class="gpu-foot"><span class="mem">37.2 / 40.0 GB</span><span>1.4 GHz · 52°C</span></div>
+        </div>
+
+        <!-- GPU 6 -->
+        <div class="gpu-card">
+          <div class="gpu-card-head">
+            <div class="gpu-id"><span class="dot-led a"></span><span class="chip">gpu-h100-04</span></div>
+            <span class="gpu-model">H100 80GB</span>
+          </div>
+          <div class="gpu-mode none">No partition</div>
+          <div class="gpu-tenant"><span>Tenant: <span class="t">— idle —</span></span><span class="verify" style="color:var(--text-dim)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>attested</span></div>
+          <div class="util">
+            <div class="util-row"><span>SM utilization</span><span>0%</span></div>
+            <div class="util-bar"><div class="util-fill" style="width:0%"></div></div>
+          </div>
+          <div class="gpu-foot"><span class="mem">0.4 / 80.0 GB</span><span>— · 31°C</span></div>
+        </div>
+
+        <!-- GPU 7 -->
+        <div class="gpu-card">
+          <div class="gpu-card-head">
+            <div class="gpu-id"><span class="dot-led g"></span><span class="chip">gpu-h100-05</span></div>
+            <span class="gpu-model">H100 80GB</span>
+          </div>
+          <div class="gpu-mode mig">MIG · 2 slices</div>
+          <div class="gpu-tenant"><span>Tenant: <span class="t">tn-cs-triage</span></span><span class="verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>attested</span></div>
+          <div class="util">
+            <div class="util-row"><span>SM utilization</span><span>58%</span></div>
+            <div class="util-bar"><div class="util-fill" style="width:58%"></div></div>
+          </div>
+          <div class="gpu-foot"><span class="mem">44.7 / 80.0 GB</span><span>2.0 GHz · 40°C</span></div>
+        </div>
+
+        <!-- GPU 8 -->
+        <div class="gpu-card">
+          <div class="gpu-card-head">
+            <div class="gpu-id"><span class="dot-led g"></span><span class="chip">gpu-a100-03</span></div>
+            <span class="gpu-model">A100 40GB</span>
+          </div>
+          <div class="gpu-mode none">No partition</div>
+          <div class="gpu-tenant"><span>Tenant: <span class="t">tn-infra-cleanup</span></span><span class="verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>attested</span></div>
+          <div class="util">
+            <div class="util-row"><span>SM utilization</span><span>36%</span></div>
+            <div class="util-bar"><div class="util-fill" style="width:36%"></div></div>
+          </div>
+          <div class="gpu-foot"><span class="mem">19.9 / 40.0 GB</span><span>1.3 GHz · 44°C</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW 4 — COMPLIANCE DASHBOARD
+         ============================================================ -->
+    <section class="view" id="compliance" data-title="Compliance Dashboard" data-crumb="Compliance">
+      <div class="view-header">
+        <div>
+          <h2>Compliance Posture</h2>
+          <div class="sub">Live mapping of evidence to regulatory frameworks · <code style="font-family:var(--mono);font-size:12px;color:var(--accent)">defstack compliance-report</code></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Download last
+          </button>
+          <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-linejoin="round"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Generate Report
+          </button>
+        </div>
+      </div>
+
+      <div class="compliance-banner">
+        <div class="ring">
+          <svg viewBox="0 0 100 100" width="84" height="84">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg-input)" stroke-width="9"/>
+            <circle cx="50" cy="50" r="42" fill="none" stroke="url(#g)" stroke-width="9" stroke-linecap="round"
+              stroke-dasharray="263.9" stroke-dashoffset="58" transform="rotate(-90 50 50)"/>
+            <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#10b981"/></linearGradient></defs>
+          </svg>
+        </div>
+        <div class="ring-info">
+          <div class="big">Overall Compliance</div>
+          <div class="pct">78<span>%</span></div>
+          <div class="verdict"><b>EU AI Act Article 55: Ready</b> · last full assessment 2026-08-04</div>
+        </div>
+        <span class="verdict-pill" style="margin-left:auto;align-self:center">On track for Q3 audit</span>
+      </div>
+
+      <div class="framework-grid">
+        <div class="fw-card">
+          <div class="fw-head">
+            <div class="fw-name"><div class="fw-glyph eu">EU</div><div class="n">EU AI Act<span class="sub">High-risk · Art. 55</span></div></div>
+            <div class="fw-pct good">92%</div>
+          </div>
+          <div class="fw-progress"><div class="fill good" style="width:92%"></div></div>
+          <div class="fw-foot"><span class="badge green"><span class="dot-led g"></span>Compliant</span><span class="assess">assessed 2026-08-04</span></div>
+        </div>
+
+        <div class="fw-card">
+          <div class="fw-head">
+            <div class="fw-name"><div class="fw-glyph nist">N</div><div class="n">NIST AI RMF<span class="sub">1.0 · Govern/Map/Measure/Manage</span></div></div>
+            <div class="fw-pct good">88%</div>
+          </div>
+          <div class="fw-progress"><div class="fill good" style="width:88%"></div></div>
+          <div class="fw-foot"><span class="badge green"><span class="dot-led g"></span>Compliant</span><span class="assess">assessed 2026-07-29</span></div>
+        </div>
+
+        <div class="fw-card">
+          <div class="fw-head">
+            <div class="fw-name"><div class="fw-glyph iso">ISO</div><div class="n">ISO/IEC 42001<span class="sub">AI Management System</span></div></div>
+            <div class="fw-pct mid">81%</div>
+          </div>
+          <div class="fw-progress"><div class="fill mid" style="width:81%"></div></div>
+          <div class="fw-foot"><span class="badge amber"><span class="dot-led a"></span>In Progress</span><span class="assess">assessed 2026-07-22</span></div>
+        </div>
+
+        <div class="fw-card">
+          <div class="fw-head">
+            <div class="fw-name"><div class="fw-glyph fedramp">FR</div><div class="n">FedRAMP<span class="sub">Moderate · in authorization</span></div></div>
+            <div class="fw-pct mid">67%</div>
+          </div>
+          <div class="fw-progress"><div class="fill mid" style="width:67%"></div></div>
+          <div class="fw-foot"><span class="badge amber"><span class="dot-led a"></span>In Progress</span><span class="assess">assessed 2026-07-15</span></div>
+        </div>
+
+        <div class="fw-card">
+          <div class="fw-head">
+            <div class="fw-name"><div class="fw-glyph dora">D</div><div class="n">EU DORA<span class="sub">ICT third-party · operational resilience</span></div></div>
+            <div class="fw-pct good">85%</div>
+          </div>
+          <div class="fw-progress"><div class="fill good" style="width:85%"></div></div>
+          <div class="fw-foot"><span class="badge green"><span class="dot-led g"></span>Compliant</span><span class="assess">assessed 2026-07-30</span></div>
+        </div>
+
+        <div class="fw-card">
+          <div class="fw-head">
+            <div class="fw-name"><div class="fw-glyph hipaa">H</div><div class="n">HIPAA<span class="sub">Security Rule · PHI handling</span></div></div>
+            <div class="fw-pct mid">74%</div>
+          </div>
+          <div class="fw-progress"><div class="fill mid" style="width:74%"></div></div>
+          <div class="fw-foot"><span class="badge amber"><span class="dot-led a"></span>In Progress</span><span class="assess">assessed 2026-07-18</span></div>
+        </div>
+
+        <div class="fw-card">
+          <div class="fw-head">
+            <div class="fw-name"><div class="fw-glyph kill">⏻</div><div class="n">AI Kill Switch Act<span class="sub">SB-53 · covered-model halt</span></div></div>
+            <div class="fw-pct good">100%</div>
+          </div>
+          <div class="fw-progress"><div class="fill good" style="width:100%"></div></div>
+          <div class="fw-foot"><span class="badge green"><span class="dot-led g"></span>Compliant</span><span class="assess">assessed 2026-08-05</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         VIEW 5 — POLICY EDITOR
+         ============================================================ -->
+    <section class="view" id="policies" data-title="Policy Editor" data-crumb="Policies">
+      <div class="view-header">
+        <div>
+          <h2>Policy Editor</h2>
+          <div class="sub">Rego policies · enforced by T1 trust-core at the policy decision point</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Diff
+          </button>
+          <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Publish v1.4.0
+          </button>
+        </div>
+      </div>
+
+      <div class="policy-layout">
+        <aside class="policy-sidebar panel">
+          <div class="panel-head"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-linejoin="round"/><path d="M14 2v6h6" stroke-linejoin="round"/></svg>Rules</h3><span class="badge outline">aumos.fin@v1.3.2</span></div>
+          <div class="panel-body" style="padding:10px">
+            <div class="policy-rules">
+              <div class="prule active"><span class="led allow"></span><div class="nm">allow_safe_tool<span class="verb">permit</span></div><span class="ver">v1.3.0</span></div>
+              <div class="prule"><span class="led deny"></span><div class="nm">deny_financial_without_approval<span class="verb">deny</span></div><span class="ver">v1.3.2</span></div>
+              <div class="prule"><span class="led req"></span><div class="nm">require_attestation_for_cc<span class="verb">require</span></div><span class="ver">v1.2.0</span></div>
+              <div class="prule"><span class="led deny"></span><div class="nm">deny_destructive_in_prod<span class="verb">deny</span></div><span class="ver">v1.3.1</span></div>
+              <div class="prule"><span class="led allow"></span><div class="nm">allow_financial_with_approval<span class="verb">permit</span></div><span class="ver">v1.3.2</span></div>
+              <div class="prule"><span class="led req"></span><div class="nm">enforce_spend_budget<span class="verb">require</span></div><span class="ver">v1.1.0</span></div>
+            </div>
+          </div>
+        </aside>
+
+        <div>
+          <div class="code-editor">
+            <div class="editor-bar">
+              <div class="tabs"><span class="etab active">allow_safe_tool.rego</span><span class="etab">data.json</span></div>
+              <div class="path"><b>policies/aumos.fin/</b>allow_safe_tool.rego</div>
+            </div>
+            <pre class="assoc"><span class="ln"></span><span class="code"><span class="com"># allow_safe_tool — permits read-only and safe-write tools whose</span>
+<span class="ln"></span><span class="code"><span class="com"># side-effect class is within the agent's delegated authority.</span>
+<span class="ln"></span><span class="code"><span class="kw">package</span> <span class="id">aumos.fin</span>
+<span class="ln"></span><span class="code">
+<span class="ln"></span><span class="code"><span class="kw">import</span> <span class="kw">future</span>.<span class="fn">keywords</span>.<span class="kw">if</span>
+<span class="ln"></span><span class="code">
+<span class="ln"></span><span class="code"><span class="kw">default</span> <span class="fn">allow</span> = <span class="kw">false</span>
+<span class="ln"></span><span class="code">
+<span class="ln"></span><span class="code"><span class="fn">allow</span> <span class="kw">if</span> {
+<span class="ln"></span><span class="code">    <span class="fn">safe_side_effect</span>(<span class="id">input</span>.authority.side_effect_class)
+<span class="ln"></span><span class="code">    <span class="fn">within_spend_budget</span>(<span class="id">input</span>.authority)
+<span class="ln"></span><span class="code">    <span class="id">input</span>.attestation.verified == <span class="kw">true</span>
+<span class="ln"></span><span class="code">    <span class="id">input</span>.authority.expiry &gt; <span class="kw">time</span>.<span class="fn">now_ns</span>()
+<span class="ln"></span><span class="code">}</span>
+<span class="ln"></span><span class="code">
+<span class="ln"></span><span class="code"><span class="fn">safe_side_effect</span>(cls) <span class="kw">if</span> {
+<span class="ln"></span><span class="code">    cls == <span class="str">"read"</span>
+<span class="ln"></span><span class="code">}</span>
+<span class="ln"></span><span class="code">
+<span class="ln"></span><span class="code"><span class="fn">safe_side_effect</span>(cls) <span class="kw">if</span> {
+<span class="ln"></span><span class="code">    cls == <span class="str">"write"</span>
+<span class="ln"></span><span class="code">    <span class="id">input</span>.tool.blast_radius == <span class="str">"low"</span>
+<span class="ln"></span><span class="code">}</span>
+<span class="ln"></span><span class="code">
+<span class="ln"></span><span class="code"><span class="fn">within_spend_budget</span>(auth) <span class="kw">if</span> {
+<span class="ln"></span><span class="code">    <span class="id">input</span>.action.amount &lt;= auth.spend_budget
+<span class="ln"></span><span class="code">}</span></span></pre>
+          </div>
+
+          <div class="policy-results">
+            <div class="panel results-panel">
+              <div class="panel-head"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="10"/></svg>Test Results</h3><button class="btn btn-primary btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l1.5 4.5L19 9l-4.5 1.5L13 15l-1.5-4.5L7 9l4.5-1.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>Test Policy</button></div>
+              <div class="panel-body">
+                <div class="ok-banner">
+                  <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                  <span class="txt">3 / 3 tests passed <span>· 41ms</span></span>
+                </div>
+                <div class="test-row"><span class="res"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="nm">test_read_allows</span><span class="exp">expect: allow</span></div>
+                <div class="test-row"><span class="res"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="nm">test_financial_denies</span><span class="exp">expect: deny</span></div>
+                <div class="test-row"><span class="res"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="nm">test_over_budget_denies</span><span class="exp">expect: deny</span></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>Version History</h3></div>
+              <div class="panel-body" style="padding:8px 18px">
+                <table class="version-table">
+                  <thead><tr><th>Version</th><th>Author</th><th>Change</th><th>Published</th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="v-tag">v1.3.2</span></td><td>m.renner</td><td>+ require approval for financial</td><td class="mono">08-05 14:22</td></tr>
+                    <tr><td><span class="v-tag">v1.3.1</span></td><td>j.tan</td><td>deny destructive in prod ns</td><td class="mono">08-03 09:51</td></tr>
+                    <tr><td><span class="v-tag">v1.3.0</span></td><td>m.renner</td><td>add spend_budget enforcement</td><td class="mono">07-29 18:07</td></tr>
+                    <tr><td><span class="v-tag">v1.2.0</span></td><td>k.patel</td><td>attestation gate for CC</td><td class="mono">07-21 11:33</td></tr>
+                    <tr><td><span class="v-tag">v1.1.0</span></td><td>k.patel</td><td>initial safe-tool allowlist</td><td class="mono">07-12 16:40</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- STATUS BAR ---------------- -->
+    <footer class="statusbar">
+      <span class="sb-item ok"><span class="dot-led g"></span>System nominal</span>
+      <span class="sep"></span>
+      <span class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linejoin="round"/></svg>T1 trust-core · <code>online</code></span>
+      <span class="sep"></span>
+      <span class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4" stroke-linecap="round" stroke-linejoin="round"/></svg>Evidence lag · <code>0.4s</code></span>
+      <div class="right">
+        <span class="sb-item">eu-west-2 · prod</span>
+        <span class="sep"></span>
+        <span class="sb-item"><code>v1.0.0-rc.3</code></span>
+        <span class="sep"></span>
+        <span class="sb-item">UTC 08:42</span>
+      </div>
+    </footer>
+  </div>
+</div>
+
+</body>
+</html>

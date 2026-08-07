@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 11 — AI Bill of Materials: From Specification to Production</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 11 of 24 · Thrust 3 — AI Supply Chain Integrity</div>
+  <h1>AI Bill of Materials: From Specification to Production</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS S4 (model-sbom), P10 (BOM protocol)</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">IEEE S&amp;P 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">S4, S5, P10, P11</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Generator + adoption study</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-10-tamper-evident-model-lineage.html">Paper 10</a></span>
+    <span class="small"><a href="paper-12-training-time-integrity.html">Paper 12 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>The Software Bill of Materials (SBOM) is a mature, mandated practice for software supply chains; the AI Bill of Materials (AIBOM) — covering models, datasets, training pipelines, and evaluation results — exists only as specification drafts that few producers generate and fewer consumers verify. Two standards now compete to define the format: CycloneDX ML-BOM<sup><a href="#ref-cyclonedx">[1]</a></sup> (v1.5+) and SPDX 3.0 with its AI profile<sup><a href="#ref-spdx">[2]</a></sup>. We present the first end-to-end study of AIBOM <em>from specification to production</em>: a generator (AumOS S4) that emits a CycloneDX ML-BOM automatically from the training pipeline and the Safetensors++ provenance block (Paper 9), a verification path that makes the BOM a deployment gate rather than a document, and an adoption analysis against the G7 SBOM-for-AI minimum elements<sup><a href="#ref-g7">[3]</a></sup> and the multivocal AIBOM literature review<sup><a href="#ref-multivocal">[4]</a></sup>. We argue that the value of an AIBOM is realized only when it is machine-generated, signed, and verified at admission — not when it is hand-authored as documentation.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: SBOM maturity, AIBOM infancy</a></li>
+    <li><a href="#standards">The two standards and their gap</a></li>
+    <li><a href="#generator">Automatic generation from the pipeline</a></li>
+    <li><a href="#gate">The BOM as a deployment gate</a></li>
+    <li><a href="#eval">Evaluation: coverage and the G7 minimum</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: SBOM maturity, AIBOM infancy</h2>
+<p>Software SBOMs are mandated by U.S. executive order and supported by mature tooling (Syft, Trivy, SBOM generators in every build system). AI Bill of Materials — the analogous inventory for models, datasets, and pipelines — is at the stage SBOMs were five years ago: formats exist, but generation is manual, verification is rare, and the document is treated as paperwork rather than policy. The multivocal literature review<sup><a href="#ref-multivocal">[4]</a></sup> catalogs the field's fragmentation; the G7 minimum elements<sup><a href="#ref-g7">[3]</a></sup> attempt to set a floor. The gap this paper addresses is the path from "a spec exists" to "a BOM is generated, verified, and enforced in production."</p>
+
+<h2 id="standards"><span class="anchor">§</span>2. The two standards and their gap</h2>
+<p><strong>CycloneDX ML-BOM</strong><sup><a href="#ref-cyclonedx">[1]</a></sup> extends the OWASP CycloneDX BOM standard with model, dataset, and dependency types; <strong>SPDX 3.0</strong><sup><a href="#ref-spdx">[2]</a></sup> rebuilt the SPDX foundation with an extensible model supporting an AI profile. Both can represent the needed artifacts; neither specifies <em>how</em> a producer generates the BOM from an actual training pipeline, nor <em>how</em> a consumer verifies it. The format-specification gap is real but secondary; the generation-and-verification gap is the binding constraint on adoption.</p>
+
+<h2 id="generator"><span class="anchor">§</span>3. Automatic generation from the pipeline</h2>
+<p>AumOS S4 generates a CycloneDX ML-BOM automatically by instrumenting the training pipeline: the dataset manifest (from Safetensors++, Paper 9), the base-model hash, the training-code commit, the framework versions, the evaluation results, and the license are collected at training time and emitted as a signed BOM concomitant with the model artifact. No manual authoring; the BOM is a by-product of training, like the lineage ledger entries of Paper 10. This is the property that makes the BOM trustworthy: it cannot drift from what was actually trained, because it is produced by the training itself.</p>
+
+<h2 id="gate"><span class="anchor">§</span>4. The BOM as a deployment gate</h2>
+<p>A generated BOM is only valuable if it is enforced. We wire the BOM into the model-admission gate: a model without a signed BOM whose minimum elements (per G7<sup><a href="#ref-g7">[3]</a></sup>) are complete is refused admission to the serving registry. The gate also checks BOM policies — e.g., "no model trained on a dataset whose license conflicts with the deployment context may be admitted." This converts the BOM from a document into a policy object, which is the only role in which it changes behavior.</p>
+
+<h2 id="eval"><span class="anchor">§</span>5. Evaluation: coverage and the G7 minimum</h2>
+<table>
+  <thead><tr><th>G7 minimum element</th><th>Auto-generated by S4?</th><th>Gate-enforced?</th></tr></thead>
+  <tbody>
+    <tr><td>Supplier / author identity</td><td>Yes (signed)</td><td>Yes</td></tr>
+    <tr><td>Model identity &amp; hash</td><td>Yes (Safetensors++)</td><td>Yes</td></tr>
+    <tr><td>Dataset references</td><td>Yes (manifest hash)</td><td>Yes</td></tr>
+    <tr><td>License</td><td>Yes (SPDX id)</td><td>Yes (policy)</td></tr>
+    <tr><td>Training dependencies</td><td>Yes (pipeline)</td><td>Yes</td></tr>
+    <tr><td>Evaluation results</td><td>Yes (bench hashes)</td><td>Optional</td></tr>
+  </tbody>
+</table>
+
+<h2 id="related"><span class="anchor">§</span>6. Related work</h2>
+<ul class="references">
+  <li><strong>CycloneDX ML-BOM</strong><sup><a href="#ref-cyclonedx">[1]</a></sup> — the format S4 emits.</li>
+  <li><strong>SPDX 3.0 AI profile</strong><sup><a href="#ref-spdx">[2]</a></sup> — the competing standard; S4's format-agnostic generator could target either.</li>
+  <li><strong>G7 SBOM-for-AI minimum elements</strong><sup><a href="#ref-g7">[3]</a></sup> — the floor the gate enforces.</li>
+  <li><strong>Multivocal AIBOM review</strong><sup><a href="#ref-multivocal">[4]</a></sup> — the literature baseline.</li>
+  <li><strong>CoSAI, Building Trust in AI Supply Chains</strong><sup><a href="#ref-cosai">[5]</a></sup> — the vendor-neutral venue.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>7. Conclusion</h2>
+<p>The AIBOM's value is realized only when it is machine-generated, signed, and verified at admission. AumOS S4 generates it automatically from the training pipeline and the gate enforces it, converting the BOM from paperwork into policy. This is the path from specification to production.</p>
+
+<h2 id="refs"><span class="anchor">§</span>8. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-cyclonedx">OWASP / CycloneDX. <span class="ref-title">Machine Learning Bill of Materials (ML-BOM).</span> <a href="https://cyclonedx.org/capabilities/mlbom/">cyclonedx.org/capabilities/mlbom</a></li>
+  <li id="ref-spdx">SPDX / Linux Foundation. <span class="ref-title">SPDX Specification 3.0 (AI profile).</span> 2024. <a href="https://spdx.dev/specifications/">spdx.dev/specifications</a></li>
+  <li id="ref-g7">G7. <span class="ref-title">"SBOM for AI Minimum Elements."</span> 12 May 2026. <a href="https://www.acn.gov.it/portale/documents/d/guest/g7-sbom-for-ai-miminum-elements_12-may-2026">acn.gov.it/.../g7-sbom-for-ai-miminum-elements...</a></li>
+  <li id="ref-multivocal"><span class="ref-title">"What We Know about AIBOMs: A Multivocal Literature Review."</span> ACM, 2025. <a href="https://dl.acm.org/doi/abs/10.1145/3786773">dl.acm.org/doi/abs/10.1145/3786773</a></li>
+  <li id="ref-cosai">CoSAI. <span class="ref-title">"Building Trust in AI Supply Chains."</span> 2025. <a href="https://www.coalitionforsecureai.org/building-trust-in-ai-supply-chains-why-model-signing-is-critical-for-enterprise-security/">coalitionforsecureai.org/...</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The generator is AumOS S4; the AATM (Paper 24) extends the BOM into a bound trust manifest. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-10-tamper-evident-model-lineage.html">Paper 10</a></span>
+    <span class="small"><a href="paper-12-training-time-integrity.html">Paper 12: Training-Time Integrity →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

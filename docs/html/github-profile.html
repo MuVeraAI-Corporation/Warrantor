@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuVeraAI · GitHub — AumOS Open Source AI Security Infrastructure</title>
+<meta name="description" content="Rendered mockup of the github.com/MuVeraAI org profile README. AumOS: open authority and evidence layer for autonomous systems. 49 repos, 691 tests, Apache 2.0.">
+<style>
+/* ============================================================
+   GitHub profile mockup + MuVera AI dark enterprise README
+   SENSE · ACT · SEAL · IMPROVE ↺
+   ============================================================ */
+
+:root {
+  /* GitHub chrome (dark) */
+  --gh-canvas: #0d1117;
+  --gh-canvas-subtle: #010409;
+  --gh-overlay: #161b22;
+  --gh-inset: #010409;
+  --gh-border-default: #30363d;
+  --gh-border-muted: #21262d;
+  --gh-fg-default: #e6edf3;
+  --gh-fg-muted: #7d8590;
+  --gh-fg-subtle: #6e7681;
+  --gh-accent-fg: #2f81f7;
+  --gh-accent-emphasis: #1f6feb;
+  --gh-success-fg: #3fb950;
+  --gh-attention-fg: #d29922;
+  --gh-done-fg: #a371f7;
+  --gh-btn-bg: #21262d;
+  --gh-btn-hover: #30363d;
+
+  /* MuVera brand accent — electric indigo */
+  --mv-accent: #6366f1;
+  --mv-accent-bright: #818cf8;
+  --mv-accent-deep: #4f46e5;
+  --mv-accent-glow: rgba(99, 102, 241, 0.35);
+  --mv-accent-soft: rgba(99, 102, 241, 0.14);
+  --mv-cyan: #22d3ee;
+  --mv-emerald: #34d399;
+  --mv-amber: #fbbf24;
+  --mv-rose: #fb7185;
+
+  /* README hero (darker than GH chrome) */
+  --mv-bg-void: #06070d;
+  --mv-bg-base: #0a0b14;
+  --mv-bg-elev: #121524;
+  --mv-bg-code: #0c0e18;
+
+  --mv-text: #f4f5fb;
+  --mv-text-muted: #b8bcd4;
+  --mv-text-faint: #7a8099;
+
+  --mv-border: rgba(255, 255, 255, 0.08);
+  --mv-border-strong: rgba(255, 255, 255, 0.16);
+  --mv-border-accent: rgba(99, 102, 241, 0.5);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--gh-canvas-subtle);
+  color: var(--gh-fg-default);
+  line-height: 1.5;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a { color: var(--gh-accent-fg); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code, pre, kbd { font-family: var(--font-mono); }
+
+/* ============================================================
+   GitHub top bar
+   ============================================================ */
+.gh-topbar {
+  background: var(--gh-canvas);
+  border-bottom: 1px solid var(--gh-border-default);
+  padding: 12px 24px;
+  display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 60;
+}
+.gh-logo { color: var(--gh-fg-default); display: flex; align-items: center; }
+.gh-logo svg { fill: currentColor; }
+.gh-search {
+  flex: 0 1 320px; position: relative;
+}
+.gh-search input {
+  width: 100%; background: var(--gh-canvas-subtle);
+  border: 1px solid var(--gh-border-default); border-radius: 6px;
+  padding: 6px 12px 6px 32px; color: var(--gh-fg-default); font-size: 13px;
+  font-family: var(--font-sans);
+}
+.gh-search input::placeholder { color: var(--gh-fg-subtle); }
+.gh-search .icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--gh-fg-subtle); }
+.gh-search .slash {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-family: var(--font-mono); font-size: 11px; color: var(--gh-fg-subtle);
+  border: 1px solid var(--gh-border-default); border-radius: 4px; padding: 0 5px;
+}
+.gh-nav { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+.gh-nav a { color: var(--gh-fg-default); font-size: 13px; }
+.gh-nav a:hover { color: var(--gh-accent-fg); text-decoration: none; }
+.gh-icon-btn { color: var(--gh-fg-muted); display: flex; }
+.gh-icon-btn:hover { color: var(--gh-fg-default); text-decoration: none; }
+.gh-avatar-sm {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--mv-accent-bright), var(--mv-accent-deep));
+}
+
+/* ============================================================
+   Sub-nav (Org header)
+   ============================================================ */
+.gh-subnav {
+  background: var(--gh-canvas);
+  border-bottom: 1px solid var(--gh-border-default);
+  max-width: 1280px; margin: 0 auto;
+  padding: 0 24px;
+  display: flex; align-items: flex-end; gap: 0;
+}
+.org-icon-wrap {
+  display: flex; align-items: center; padding: 16px 8px 16px 0;
+}
+.org-icon-wrap .org-img {
+  width: 32px; height: 32px; border-radius: 6px;
+  background: linear-gradient(135deg, var(--mv-accent-bright), var(--mv-accent-deep) 70%, #312e81);
+  display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 1.1rem;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 0 14px var(--mv-accent-glow);
+}
+.org-name { display: flex; align-items: center; gap: 6px; padding: 16px 8px; font-size: 20px; color: var(--gh-fg-default); }
+.org-badge {
+  font-size: 12px; padding: 0 7px; height: 18px; line-height: 18px;
+  border-radius: 2em; border: 1px solid var(--gh-border-default); color: var(--gh-fg-muted);
+  align-self: center;
+}
+.gh-tabs { display: flex; }
+.gh-tab {
+  padding: 12px 14px; font-size: 14px; color: var(--gh-fg-default);
+  border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0;
+  display: flex; align-items: center; gap: 6px;
+}
+.gh-tab:hover { background: var(--gh-overlay); text-decoration: none; border-bottom-color: var(--gh-border-default); }
+.gh-tab.selected { border-bottom-color: #f78166; font-weight: 600; }
+.gh-tab .count {
+  font-size: 12px; color: var(--gh-fg-default);
+  background: var(--gh-overlay); border: 1px solid var(--gh-border-muted);
+  padding: 0 6px; border-radius: 2em; line-height: 18px;
+}
+.gh-tab-right { margin-left: auto; padding: 8px 0; display: flex; gap: 8px; }
+.gh-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--gh-btn-bg); color: var(--gh-fg-default);
+  border: 1px solid var(--gh-border-default); border-radius: 6px;
+  padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+  text-decoration: none;
+}
+.gh-btn:hover { background: var(--gh-btn-hover); border-color: var(--gh-border-default); text-decoration: none; }
+.gh-btn-primary { background: var(--gh-success-fg); color: #0d1117; border-color: rgba(240,246,252,0.1); }
+.gh-btn-primary:hover { background: #46c266; }
+
+/* ============================================================
+   Page layout
+   ============================================================ */
+.gh-page { max-width: 1280px; margin: 0 auto; padding: 32px 24px; display: grid; grid-template-columns: 296px 1fr; gap: 24px; }
+@media (max-width: 1011px) { .gh-page { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   Left rail — org card
+   ============================================================ */
+.org-card { font-size: 14px; }
+.org-card .org-img-lg {
+  width: 100%; aspect-ratio: 1; border-radius: 12px;
+  background: linear-gradient(135deg, var(--mv-accent-bright), var(--mv-accent-deep) 60%, #312e81);
+  display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 4rem;
+  box-shadow: 0 0 0 1px var(--gh-border-default), 0 0 28px var(--mv-accent-glow);
+  margin-bottom: 12px;
+}
+.org-card h1 { font-size: 24px; font-weight: 600; line-height: 1.25; margin: 0 0 4px; }
+.org-card h1 .verified { color: var(--gh-accent-fg); font-size: 16px; vertical-align: middle; margin-left: 2px; }
+.org-card .org-handle { color: var(--gh-fg-muted); font-size: 20px; font-weight: 300; margin-bottom: 12px; }
+.org-card .org-desc { font-size: 14px; margin-bottom: 16px; }
+.org-card .org-desc strong { color: var(--gh-fg-default); }
+.org-actions { display: flex; gap: 8px; margin-bottom: 16px; }
+.org-actions .gh-btn { flex: 1; justify-content: center; padding: 6px 12px; }
+.org-meta { border-top: 1px solid var(--gh-border-muted); padding-top: 12px; }
+.org-meta li { list-style: none; display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; color: var(--gh-fg-muted); font-size: 14px; }
+.org-meta li svg { flex: 0 0 auto; margin-top: 3px; fill: currentColor; }
+.org-meta li a { color: var(--gh-fg-muted); }
+.org-meta li a:hover { color: var(--gh-accent-fg); text-decoration: none; }
+.org-meta li strong { color: var(--gh-fg-default); font-weight: 600; }
+.org-followedby { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--gh-border-muted); font-size: 12px; color: var(--gh-fg-muted); }
+.org-followedby .avs { display: inline-flex; margin-left: 6px; vertical-align: middle; }
+.org-followedby .av { width: 24px; height: 24px; border-radius: 50%; margin-left: -6px; border: 2px solid var(--gh-canvas-subtle); background: var(--gh-overlay); }
+
+/* ============================================================
+   Right column — README + repos
+   ============================================================ */
+.gh-main { min-width: 0; }
+
+/* Pinned section header */
+.pinned-header {
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--gh-border-default); padding-bottom: 8px; margin-bottom: 16px;
+}
+.pinned-header h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.pinned-header .customize { font-size: 12px; color: var(--gh-fg-muted); }
+.pinned-header .customize:hover { color: var(--gh-accent-fg); }
+
+/* README card wrapper */
+.readme-card {
+  background: var(--gh-canvas);
+  border: 1px solid var(--gh-border-default);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+.readme-head {
+  padding: 12px 16px; background: var(--gh-canvas);
+  border-bottom: 1px solid var(--gh-border-default);
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 600; color: var(--gh-fg-default);
+}
+.readme-head svg { fill: currentColor; }
+.readme-head .crumbs { color: var(--gh-fg-muted); font-weight: 400; }
+.readme-head .pin-ico { margin-left: auto; color: var(--gh-fg-subtle); }
+
+/* ============================================================
+   README BODY — MuVera dark brand rendered inside GH
+   ============================================================ */
+.readme-body {
+  padding: 0; background: var(--gh-canvas);
+  font-size: 16px; line-height: 1.6; color: var(--gh-fg-default);
+}
+
+/* HERO banner inside readme (the showpiece) */
+.rd-hero {
+  position: relative;
+  padding: 48px 40px;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,0.35), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 30%, rgba(34,211,238,0.10), transparent 60%),
+    var(--mv-bg-void);
+  border-bottom: 1px solid var(--mv-border);
+  text-align: center;
+  overflow: hidden;
+}
+.rd-hero::after {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+.rd-hero-mark {
+  font-size: 4rem; line-height: 1; font-weight: 800; color: var(--mv-accent-bright);
+  text-shadow: 0 0 40px var(--mv-accent-glow); margin-bottom: 16px;
+  position: relative; z-index: 1;
+}
+.rd-hero-title {
+  font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; color: var(--mv-text);
+  margin-bottom: 10px; position: relative; z-index: 1;
+}
+.rd-hero-tag {
+  font-size: 1.1rem; color: var(--mv-text-muted); margin-bottom: 6px; position: relative; z-index: 1;
+}
+.rd-hero-sub {
+  font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--mv-accent-bright);
+  margin-bottom: 22px; position: relative; z-index: 1;
+}
+.rd-hero-loop {
+  display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
+  font-family: var(--font-mono); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.12em;
+  color: var(--mv-text-muted);
+  padding: 10px 20px; border-radius: 100px;
+  background: rgba(18,21,36,0.7); border: 1px solid var(--mv-border-strong);
+  backdrop-filter: blur(6px);
+  position: relative; z-index: 1;
+}
+.rd-hero-loop .sep { color: var(--mv-text-faint); }
+.rd-hero-loop .mark { color: var(--mv-accent-bright); font-size: 1.1rem; }
+
+/* README content padding (below hero) */
+.rd-content {
+  padding: 32px 40px;
+  color: var(--gh-fg-default);
+  background: var(--gh-canvas);
+}
+@media (max-width: 540px) { .rd-hero, .rd-content { padding-left: 20px; padding-right: 20px; } .rd-hero-title { font-size: 1.8rem; } }
+
+/* Markdown rendering styles */
+.rd-content h1, .rd-content h2, .rd-content h3, .rd-content h4 {
+  font-weight: 600; line-height: 1.25; color: var(--gh-fg-default);
+  margin-top: 24px; margin-bottom: 16px;
+}
+.rd-content h2 {
+  font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--gh-border-muted);
+  margin-top: 36px;
+}
+.rd-content h3 { font-size: 1.25em; }
+.rd-content h4 { font-size: 1em; color: var(--gh-fg-muted); }
+.rd-content p { margin: 0 0 16px; }
+.rd-content strong { font-weight: 600; color: var(--gh-fg-default); }
+.rd-content em { font-style: italic; }
+.rd-content ul, .rd-content ol { margin: 0 0 16px; padding-left: 2em; }
+.rd-content li { margin-bottom: 4px; }
+.rd-content li::marker { color: var(--gh-fg-muted); }
+.rd-content hr { border: 0; border-top: 1px solid var(--gh-border-muted); margin: 24px 0; height: 0; }
+.rd-content blockquote {
+  margin: 0 0 16px; padding: 0 1em; color: var(--gh-fg-muted);
+  border-left: 0.25em solid var(--gh-border-default);
+}
+.rd-content code {
+  font-family: var(--font-mono); font-size: 85%;
+  background: rgba(110,118,129,0.2); padding: 0.2em 0.4em; border-radius: 6px;
+  color: var(--gh-fg-default);
+}
+.rd-content pre {
+  font-family: var(--font-mono); font-size: 85%; line-height: 1.45;
+  background: var(--gh-canvas-subtle); padding: 16px; border-radius: 8px;
+  overflow-x: auto; margin: 0 0 16px; border: 1px solid var(--gh-border-muted);
+}
+.rd-content pre code { background: none; padding: 0; font-size: 100%; }
+.rd-content table { border-collapse: collapse; margin: 0 0 16px; display: block; width: max-content; max-width: 100%; overflow-x: auto; }
+.rd-content th, .rd-content td { padding: 6px 13px; border: 1px solid var(--gh-border-default); }
+.rd-content th { font-weight: 600; background: var(--gh-overlay); }
+.rd-content a { color: var(--gh-accent-fg); }
+.rd-content img { max-width: 100%; }
+
+/* README badges */
+.rd-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 20px; }
+.rd-badge {
+  display: inline-flex; align-items: stretch; font-family: var(--font-sans); font-size: 11px;
+  border-radius: 4px; overflow: hidden; line-height: 1; border: 1px solid var(--gh-border-default);
+}
+.rd-badge .lbl { background: #555a6b; color: #fff; padding: 4px 6px; }
+.rd-badge .val { background: var(--mv-accent-deep); color: #fff; padding: 4px 6px; font-weight: 600; }
+.rd-badge.g .val { background: #4c1; }
+.rd-badge.b .val { background: #1f6feb; }
+.rd-badge.a .val { background: #d29922; }
+.rd-badge.p .val { background: #8957e5; }
+
+/* Org stats card */
+.org-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  margin: 0 0 24px;
+}
+.org-stat {
+  background: var(--gh-overlay); border: 1px solid var(--gh-border-default); border-radius: 8px;
+  padding: 16px; text-align: center;
+}
+.org-stat .num {
+  font-size: 1.8rem; font-weight: 800; color: var(--mv-accent-bright);
+  letter-spacing: -0.02em; line-height: 1.1;
+}
+.org-stat .lbl { font-size: 12px; color: var(--gh-fg-muted); margin-top: 4px; }
+@media (max-width: 540px) { .org-stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* Quick start install card */
+.rd-install {
+  background: var(--gh-canvas-subtle); border: 1px solid var(--gh-border-default); border-radius: 8px;
+  margin: 0 0 24px; overflow: hidden;
+}
+.rd-install-head {
+  padding: 10px 16px; border-bottom: 1px solid var(--gh-border-muted);
+  font-size: 13px; color: var(--gh-fg-muted); display: flex; align-items: center; gap: 8px;
+}
+.rd-install-head .shell-dot { display: inline-flex; gap: 5px; }
+.rd-install-head .shell-dot span { width: 11px; height: 11px; border-radius: 50%; background: #4a4f5a; }
+.rd-install-head .shell-dot span:nth-child(1) { background: #ff5f56; }
+.rd-install-head .shell-dot span:nth-child(2) { background: #ffbd2e; }
+.rd-install-head .shell-dot span:nth-child(3) { background: #27c93f; }
+.rd-install-head .title { margin-left: 8px; font-weight: 600; color: var(--gh-fg-default); }
+.rd-install-body { padding: 14px 16px; }
+.rd-install-body .line { font-family: var(--font-mono); font-size: 13px; color: var(--gh-fg-default); }
+.rd-install-body .line .prompt { color: var(--gh-success-fg); margin-right: 8px; user-select: none; }
+.rd-install-body .line .cmt { color: var(--gh-fg-subtle); }
+.rd-install-body .line .out { color: var(--gh-fg-muted); }
+.rd-install-body .line + .line { margin-top: 6px; }
+
+/* Architecture diagram */
+.rd-arch {
+  background: var(--mv-bg-void); border: 1px solid var(--mv-border); border-radius: 8px;
+  padding: 24px 20px; margin: 0 0 16px;
+  background-image: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(99,102,241,0.18), transparent 60%);
+}
+.rd-arch-cap { text-align: center; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mv-text-faint); margin-bottom: 14px; }
+.arch-stack { display: flex; flex-direction: column; gap: 6px; }
+.arch-plane {
+  display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 12px;
+  padding: 8px 14px; border-radius: 6px;
+  background: var(--mv-bg-elev); border: 1px solid var(--mv-border);
+  font-family: var(--font-mono); font-size: 12px;
+}
+.arch-plane .pn { color: var(--mv-accent-bright); font-weight: 700; }
+.arch-plane .pname { color: var(--mv-text); font-weight: 600; }
+.arch-plane .pcomp { color: var(--mv-text-muted); font-size: 11px; }
+.arch-spine {
+  display: grid; place-items: center;
+  margin: 4px 0; padding: 6px 14px; border-radius: 6px;
+  background: linear-gradient(90deg, transparent, var(--mv-accent-soft), transparent);
+  border-top: 1px solid var(--mv-border-accent); border-bottom: 1px solid var(--mv-border-accent);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--mv-accent-bright); text-transform: uppercase;
+}
+.arch-flow {
+  text-align: center; margin-top: 12px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--mv-text-muted);
+}
+.arch-flow .arr { color: var(--mv-accent-bright); }
+
+/* Community links */
+.rd-community { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 0 0 16px; }
+@media (max-width: 540px) { .rd-community { grid-template-columns: 1fr; } }
+.rd-comm-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: 8px;
+  background: var(--gh-overlay); border: 1px solid var(--gh-border-default);
+  text-decoration: none; color: var(--gh-fg-default);
+  transition: border-color 0.12s, transform 0.1s;
+}
+.rd-comm-card:hover { border-color: var(--mv-border-accent); transform: translateY(-1px); text-decoration: none; }
+.rd-comm-ico {
+  width: 36px; height: 36px; border-radius: 8px; flex: 0 0 auto;
+  display: grid; place-items: center; font-size: 1.1rem; font-weight: 700;
+  background: var(--mv-accent-soft); color: var(--mv-accent-bright); border: 1px solid var(--mv-border-accent);
+}
+.rd-comm-card .ct { font-weight: 600; font-size: 14px; }
+.rd-comm-card .cu { font-family: var(--font-mono); font-size: 12px; color: var(--gh-fg-muted); }
+
+/* Contributing callout */
+.rd-callout {
+  display: flex; gap: 14px; padding: 16px 20px; border-radius: 8px;
+  background: linear-gradient(90deg, rgba(52,211,153,0.08), rgba(99,102,241,0.05));
+  border: 1px solid rgba(52,211,153,0.3);
+  margin: 0 0 16px;
+}
+.rd-callout .ico { font-size: 1.4rem; flex: 0 0 auto; }
+.rd-callout .body { font-size: 14px; }
+.rd-callout .body strong { color: var(--mv-emerald); }
+
+/* Sponsor row */
+.rd-sponsor {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 16px 20px; border-radius: 8px;
+  background: var(--gh-overlay); border: 1px solid var(--gh-border-default);
+  margin: 0 0 16px;
+}
+.rd-sponsor .heart { font-size: 1.4rem; color: var(--mv-rose); }
+.rd-sponsor .txt { flex: 1; min-width: 200px; }
+.rd-sponsor .txt strong { color: var(--gh-fg-default); }
+.rd-sponsor-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.rd-sponsor-btns .gh-btn { background: var(--mv-accent-deep); color: #fff; border-color: rgba(255,255,255,0.1); }
+.rd-sponsor-btns .gh-btn:hover { background: var(--mv-accent-bright); }
+.rd-sponsor-btns .gh-btn.ghost { background: var(--gh-btn-bg); color: var(--gh-fg-default); }
+
+/* License row */
+.rd-license {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 20px; border-radius: 8px;
+  background: var(--gh-overlay); border: 1px solid var(--gh-border-default);
+  font-size: 13px; color: var(--gh-fg-muted); margin-top: 8px;
+}
+.rd-license .lic-badge {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 3px 10px; border-radius: 4px; background: #4c1; color: #fff;
+}
+
+/* Social preview spec */
+.rd-preview-spec {
+  background: var(--mv-bg-void); border: 1px solid var(--mv-border); border-radius: 8px;
+  padding: 20px; margin: 0 0 8px;
+}
+.rd-preview-mock {
+  width: 100%; max-width: 640px; aspect-ratio: 1280 / 640; margin: 0 auto 16px;
+  border-radius: 10px; overflow: hidden; position: relative;
+  background:
+    radial-gradient(ellipse 70% 60% at 30% 30%, rgba(99,102,241,0.45), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 80%, rgba(34,211,238,0.18), transparent 60%),
+    var(--mv-bg-void);
+  border: 1px solid var(--mv-border-strong);
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 5% 6%;
+}
+.rd-preview-mock .top {
+  display: flex; align-items: center; gap: 2.5%;
+}
+.rd-preview-mock .top .mark {
+  font-size: clamp(28px, 7vw, 56px); color: var(--mv-accent-bright); font-weight: 800;
+  text-shadow: 0 0 24px var(--mv-accent-glow);
+}
+.rd-preview-mock .top .wordmark { font-size: clamp(20px, 5vw, 40px); font-weight: 800; letter-spacing: -0.02em; color: var(--mv-text); }
+.rd-preview-mock .top .wordmark small { display: block; font-family: var(--font-mono); font-size: clamp(7px, 1.6vw, 12px); font-weight: 600; letter-spacing: 0.18em; color: var(--mv-accent-bright); margin-top: 4px; }
+.rd-preview-mock .bottom {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 4%;
+}
+.rd-preview-mock .stats { display: flex; gap: 5%; flex-wrap: wrap; }
+.rd-preview-mock .stats .s .n { font-size: clamp(16px, 4vw, 30px); font-weight: 800; color: var(--mv-accent-bright); line-height: 1; }
+.rd-preview-mock .stats .s .l { font-family: var(--font-mono); font-size: clamp(6px, 1.4vw, 10px); letter-spacing: 0.1em; text-transform: uppercase; color: var(--mv-text-muted); margin-top: 3px; }
+.rd-preview-mock .loop-tag {
+  font-family: var(--font-mono); font-size: clamp(7px, 1.5vw, 11px); font-weight: 600; letter-spacing: 0.1em;
+  color: var(--mv-text-muted); text-align: right;
+}
+.rd-preview-mock .loop-tag .m { color: var(--mv-accent-bright); font-size: 1.3em; }
+.rd-preview-spec ul { margin: 6px 0 0; padding-left: 1.4em; color: var(--mv-text-muted); font-size: 13px; }
+.rd-preview-spec ul li { margin-bottom: 4px; }
+.rd-preview-spec ul li strong { color: var(--mv-text); }
+.rd-preview-spec ul li code { background: var(--mv-bg-code); padding: 1px 6px; border-radius: 3px; color: var(--mv-accent-bright); font-size: 12px; }
+
+/* ============================================================
+   Pinned repos grid (the 6 featured)
+   ============================================================ */
+.pinned-repos {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+}
+@media (max-width: 767px) { .pinned-repos { grid-template-columns: 1fr; } }
+.repo-card {
+  background: var(--gh-canvas); border: 1px solid var(--gh-border-default); border-radius: 12px;
+  padding: 16px; display: flex; flex-direction: column;
+}
+.repo-card:hover { border-color: var(--mv-border-accent); }
+.repo-card .rh { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.repo-card .rh svg { fill: var(--gh-fg-muted); }
+.repo-card .rh .rname { font-weight: 600; font-size: 14px; color: var(--gh-accent-fg); }
+.repo-card .rh .rname:hover { text-decoration: underline; }
+.repo-card .rdesc { color: var(--gh-fg-muted); font-size: 12px; flex: 1; margin-bottom: 12px; min-height: 32px; }
+.repo-card .rfoot { display: flex; align-items: center; gap: 16px; font-size: 12px; color: var(--gh-fg-muted); }
+.repo-card .rfoot .lang { display: flex; align-items: center; gap: 6px; }
+.repo-card .rfoot .lang .dot { width: 12px; height: 12px; border-radius: 50%; }
+.repo-card .rfoot .stars, .repo-card .rfoot .forks { display: flex; align-items: center; gap: 4px; }
+.repo-card .rfoot .stars svg, .repo-card .rfoot .forks svg { fill: currentColor; }
+.repo-card .rtopics { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+.repo-card .rtopic {
+  font-size: 12px; padding: 0 8px; line-height: 20px; border-radius: 2em;
+  background: var(--mv-accent-soft); color: var(--mv-accent-bright);
+  border: 1px solid rgba(99,102,241,0.2);
+}
+.repo-card .rtopic:hover { background: rgba(99,102,241,0.22); text-decoration: none; }
+.lang-rust { background: #dea584 !important; }
+.lang-go { background: #00ADD8 !important; }
+.lang-python { background: #3572A5 !important; }
+.lang-typescript { background: #3178c6 !important; }
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.gh-footer {
+  border-top: 1px solid var(--gh-border-default);
+  margin-top: 64px; padding: 32px 24px;
+  max-width: 1280px; margin-left: auto; margin-right: auto;
+  display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center;
+  font-size: 12px; color: var(--gh-fg-muted);
+}
+.gh-footer .gh-logo { color: var(--gh-fg-muted); }
+.gh-footer ul { display: flex; flex-wrap: wrap; gap: 16px; list-style: none; }
+.gh-footer ul li a { color: var(--gh-fg-muted); }
+.gh-footer ul li a:hover { color: var(--gh-accent-fg); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- ===================== GH TOP BAR ===================== -->
+<div class="gh-topbar">
+  <a class="gh-logo" href="#" aria-label="GitHub">
+    <svg height="24" width="24" viewBox="0 0 16 16" version="1.1" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+  </a>
+  <div class="gh-search">
+    <span class="icon">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M10.5 3.75a6.5 6.5 0 1 1-1.2 4.27.75.75 0 0 0-1.47.31 8 8 0 1 0 1.86-3.55L11.5 5.5h-3A.75.75 0 0 1 7.75 4.75v-3a.75.75 0 0 1 1.5 0v1.27l1.45-1.45a.75.75 0 1 1 1.06 1.06l-1.46 1.46z"></path></svg>
+    </span>
+    <input type="text" placeholder="Type / to search" />
+    <span class="slash">/</span>
+  </div>
+  <nav class="gh-nav">
+    <a href="#">Pull requests</a>
+    <a href="#">Issues</a>
+    <a href="#">Marketplace</a>
+    <a href="#">Explore</a>
+    <a class="gh-icon-btn" href="#" aria-label="Notifications">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 16a2 2 0 0 0 1.985-1.75c.017-.137-.097-.25-.235-.25h-3.5c-.138 0-.252.113-.235.25A2 2 0 0 0 8 16zM3 5a5 5 0 0 1 10 0v2.947c0 .05.015.098.042.139l1.703 2.555A1.519 1.519 0 0 1 13.482 13H2.518a1.516 1.516 0 0 1-1.263-2.36l1.703-2.554A.255.255 0 0 0 3 7.947V5z"></path></svg>
+    </a>
+    <a class="gh-icon-btn" href="#" aria-label="New">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 1 1 0 1.5H8.5v4.25a.75.75 0 1 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2z"></path></svg>
+    </a>
+    <span class="gh-avatar-sm"></span>
+  </nav>
+</div>
+
+<!-- ===================== ORG SUBNAV ===================== -->
+<div class="gh-subnav">
+  <span class="org-icon-wrap"><span class="org-img">↺</span></span>
+  <span class="org-name">MuVeraAI <span class="org-badge">Public org</span></span>
+  <div class="gh-tabs">
+    <a class="gh-tab selected" href="#">ecem Overview</a>
+    <a class="gh-tab" href="#">Repositories <span class="count">49</span></a>
+    <a class="gh-tab" href="#">Projects</a>
+    <a class="gh-tab" href="#">Packages</a>
+    <a class="gh-tab" href="#">Stars</a>
+  </div>
+  <div class="gh-tab-right">
+    <a class="gh-btn" href="#"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2c1.981 0 3.671.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.45.678-1.367 1.932-2.637 3.023C11.67 13.008 9.981 14 8 14c-1.981 0-3.671-.992-4.933-2.078C1.797 10.83.88 9.576.43 8.898a1.62 1.62 0 0 1 0-1.798c.45-.677 1.367-1.931 2.637-3.022C4.33 2.992 6.019 2 8 2zM1.679 7.932a.12.12 0 0 0 0 .136c.411.622 1.241 1.75 2.366 2.717C5.176 11.758 6.527 12.5 8 12.5c1.473 0 2.825-.742 3.955-1.715 1.124-.967 1.954-2.096 2.366-2.717a.12.12 0 0 0 0-.136c-.412-.621-1.242-1.75-2.366-2.717C10.824 4.242 9.473 3.5 8 3.5c-1.473 0-2.825.742-3.955 1.715-1.124.967-1.954 2.096-2.366 2.717zM8 10a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"></path></svg> Watch <span class="count">142</span></a>
+    <a class="gh-btn" href="#"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2z"></path></svg> Fork</a>
+    <a class="gh-btn gh-btn-primary" href="#"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"></path></svg> Sponsor</a>
+  </div>
+</div>
+
+<!-- ===================== PAGE ===================== -->
+<div class="gh-page">
+
+  <!-- ============ LEFT RAIL: ORG CARD ============ -->
+  <aside class="org-card">
+    <div class="org-img-lg">↺</div>
+    <h1>MuVera AI <span class="verified" title="Verified organization">✓</span></h1>
+    <div class="org-handle">@MuVeraAI</div>
+    <div class="org-desc">
+      <strong>Open Source AI Security Infrastructure.</strong><br>
+      AumOS — the open authority and evidence layer for autonomous systems. The security substrate agents cannot bypass.
+    </div>
+    <div class="org-actions">
+      <a class="gh-btn" href="#"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2c1.981 0 3.67.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.45.678-1.367 1.932-2.637 3.023C11.67 13.008 9.981 14 8 14c-1.981 0-3.671-.992-4.933-2.078C1.797 10.83.88 9.576.43 8.898a1.62 1.62 0 0 1 0-1.798c.45-.677 1.367-1.931 2.637-3.022C4.33 2.992 6.019 2 8 2z"></path></svg> Follow</a>
+      <a class="gh-btn" href="#"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7.467 2.06a.75.75 0 0 1 .531.06l6 3.5a.75.75 0 0 1 0 1.28l-6 3.5a.75.75 0 0 1-.996-.224L4.5 6.79v3.96a.75.75 0 0 1-1.5 0V3.25a.75.75 0 0 1 1.5 0v.04l2.467-1.23z"></path></svg> Sponsor</a>
+    </div>
+    <ul class="org-meta">
+      <li>
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+        <span><a href="https://aumos.dev">aumos.dev</a></span>
+      </li>
+      <li>
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Z"></path></svg>
+        <span><a href="https://get.aumos.dev">get.aumos.dev</a></span>
+      </li>
+      <li>
+        <svg width="16" height="16" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.679 7.932c.412.621 1.242 1.75 2.366 2.717C5.176 11.758 6.527 12.5 8 12.5c1.473 0 2.825-.742 3.955-1.715 1.124-.967 1.954-2.096 2.366-2.717a.12.12 0 0 0 0-.136c-.412-.621-1.242-1.75-2.366-2.717C10.824 4.242 9.473 3.5 8 3.5c-1.473 0-2.825.742-3.955 1.715-1.124.967-1.954 2.096-2.366 2.717a.12.12 0 0 0 0 .136z"></path></svg>
+        <span><strong>49</strong> public repositories</span>
+      </li>
+      <li>
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="m11.28 3.22 4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L13.94 8l-3.72-3.72a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215Z"></path></svg>
+        <span><strong>Apache-2.0</strong> license</span>
+      </li>
+      <li>
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"></path></svg>
+        <span>OSAF · Open Secure AI Alliance</span>
+      </li>
+      <li>
+        <svg width="16" height="16" viewBox="0 0 16 16"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Z"></path></svg>
+        <span><a href="https://discord.gg/MuVeraAI">discord.gg/MuVeraAI</a></span>
+      </li>
+    </ul>
+    <div class="org-followedby">
+      <strong>3,418</strong> followers &middot; <strong>12</strong> following
+      <div class="avs">
+        <span class="av" style="background:linear-gradient(135deg,#6366f1,#4f46e5)"></span>
+        <span class="av" style="background:linear-gradient(135deg,#22d3ee,#0891b2)"></span>
+        <span class="av" style="background:linear-gradient(135deg,#34d399,#059669)"></span>
+        <span class="av" style="background:linear-gradient(135deg,#fbbf24,#d97706)"></span>
+        <span class="av" style="background:linear-gradient(135deg,#fb7185,#be123c)"></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN: README + PINNED REPOS ============ -->
+  <main class="gh-main">
+
+    <!-- Pinned repos header -->
+    <div class="pinned-header">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11.079.997a1.5 1.5 0 0 1 2.087 2.086L9.93 5.314l2.514 2.514a1.5 1.5 0 0 1-2.121 2.121L7.808 7.436 4.388 10.856a3 3 0 0 1-4.243 0L.172 10.883a3 3 0 0 1 0-4.243L3.59 3.222 2.079 1.71A1.5 1.5 0 0 1 4.165 -.375L5.676 1.137 8.79 -1.987l2.289 2.984Z"></path></svg>
+        Pinned
+      </h2>
+      <a class="customize" href="#">Customize your pins</a>
+    </div>
+
+    <!-- 6 pinned repos -->
+    <div class="pinned-repos" style="margin-bottom:32px;">
+      <!-- 1 trust-core -->
+      <a class="repo-card" href="https://github.com/MuVeraAI/trust-core" style="text-decoration:none;color:inherit;">
+        <div class="rh">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"></path></svg>
+          <a class="rname" href="#">MuVeraAI/trust-core</a>
+          <span class="org-badge" style="margin-left:auto;">Public</span>
+        </div>
+        <div class="rdesc">Trusted core (Rust). Authority validation, evidence signing, attestation verification, revocation, kill-switch. The allow/deny boundary no other language re-implements.</div>
+        <div class="rtopics">
+          <span class="rtopic">rust</span><span class="rtopic">ai-security</span><span class="rtopic">attestation</span><span class="rtopic">cryptography</span><span class="rtopic">spiffe</span>
+        </div>
+        <div class="rfoot">
+          <span class="lang"><span class="dot lang-rust"></span> Rust</span>
+          <span class="stars"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"></path></svg> 1.8k</span>
+          <span class="forks"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0Z"></path></svg> 184</span>
+        </div>
+      </a>
+
+      <!-- 2 agent-identity -->
+      <a class="repo-card" href="https://github.com/MuVeraAI/agent-identity" style="text-decoration:none;color:inherit;">
+        <div class="rh">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Z"></path></svg>
+          <a class="rname" href="#">MuVeraAI/agent-identity</a>
+          <span class="org-badge" style="margin-left:auto;">Public</span>
+        </div>
+        <div class="rdesc">SPIFFE/SPIRE-backed workload identity for AI agents. AAE (Agent Authority Envelope), delegated authority, revocation in &lt;5s across all replicas.</div>
+        <div class="rtopics">
+          <span class="rtopic">rust</span><span class="rtopic">spiffe</span><span class="rtopic">identity</span><span class="rtopic">agents</span><span class="rtopic">zero-trust</span>
+        </div>
+        <div class="rfoot">
+          <span class="lang"><span class="dot lang-rust"></span> Rust</span>
+          <span class="stars"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"></path></svg> 942</span>
+          <span class="forks"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0Z"></path></svg> 97</span>
+        </div>
+      </a>
+
+      <!-- 3 safe-eval -->
+      <a class="repo-card" href="https://github.com/MuVeraAI/safe-eval" style="text-decoration:none;color:inherit;">
+        <div class="rh">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Z"></path></svg>
+          <a class="rname" href="#">MuVeraAI/safe-eval</a>
+          <span class="org-badge" style="margin-left:auto;">Public</span>
+        </div>
+        <div class="rdesc">Policy-driven evaluation harness. Re-checks policy at commit time, watches the action stream, integrates HELM/garak/PyRIT. No consequential action without current policy.</div>
+        <div class="rtopics">
+          <span class="rtopic">python</span><span class="rtopic">evaluation</span><span class="rtopic">llm-eval</span><span class="rtopic">policy</span><span class="rtopic">red-team</span>
+        </div>
+        <div class="rfoot">
+          <span class="lang"><span class="dot lang-python"></span> Python</span>
+          <span class="stars"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"></path></svg> 711</span>
+          <span class="forks"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0Z"></path></svg> 63</span>
+        </div>
+      </a>
+
+      <!-- 4 open-serve-kit -->
+      <a class="repo-card" href="https://github.com/MuVeraAI/open-serve-kit" style="text-decoration:none;color:inherit;">
+        <div class="rh">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Z"></path></svg>
+          <a class="rname" href="#">MuVeraAI/open-serve-kit</a>
+          <span class="org-badge" style="margin-left:auto;">Public</span>
+        </div>
+        <div class="rdesc">Open inference server kit. Attested model serving, tenant isolation, BridgeRT for real-time. Deploys as Helm chart; runs behind the AumOS trust boundary.</div>
+        <div class="rtopics">
+          <span class="rtopic">go</span><span class="rtopic">inference</span><span class="rtopic">kubernetes</span><span class="rtopic">helm</span><span class="rtopic">mlops</span>
+        </div>
+        <div class="rfoot">
+          <span class="lang"><span class="dot lang-go"></span> Go</span>
+          <span class="stars"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"></path></svg> 538</span>
+          <span class="forks"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0Z"></path></svg> 51</span>
+        </div>
+      </a>
+
+      <!-- 5 kill-switch -->
+      <a class="repo-card" href="https://github.com/MuVeraAI/kill-switch" style="text-decoration:none;color:inherit;">
+        <div class="rh">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Z"></path></svg>
+          <a class="rname" href="#">MuVeraAI/kill-switch</a>
+          <span class="org-badge" style="margin-left:auto;">Public</span>
+        </div>
+        <div class="rdesc">The off switch for AI. Stops a runaway agent in ~4s end-to-end, no human in the loop. Bounded revocation: identity &lt;5s, credentials &lt;1s. The I-12 invariant.</div>
+        <div class="rtopics">
+          <span class="rtopic">rust</span><span class="rtopic">safety</span><span class="rtopic">runtime</span><span class="rtopic">fail-safe</span><span class="rtopic">agents</span>
+        </div>
+        <div class="rfoot">
+          <span class="lang"><span class="dot lang-rust"></span> Rust</span>
+          <span class="stars"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"></path></svg> 2.4k</span>
+          <span class="forks"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0Z"></path></svg> 312</span>
+        </div>
+      </a>
+
+      <!-- 6 safe-tensors-pp -->
+      <a class="repo-card" href="https://github.com/MuVeraAI/safe-tensors-pp" style="text-decoration:none;color:inherit;">
+        <div class="rh">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Z"></path></svg>
+          <a class="rname" href="#">MuVeraAI/safe-tensors-pp</a>
+          <span class="org-badge" style="margin-left:auto;">Public</span>
+        </div>
+        <div class="rdesc">Safetensors++ — Hugging Face Safetensors extended with provenance + safety metadata. Content-digest identity: a model is its hash, not its name.</div>
+        <div class="rtopics">
+          <span class="rtopic">python</span><span class="rtopic">safetensors</span><span class="rtopic">supply-chain</span><span class="rtopic">provenance</span><span class="rtopic">models</span>
+        </div>
+        <div class="rfoot">
+          <span class="lang"><span class="dot lang-python"></span> Python</span>
+          <span class="stars"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"></path></svg> 624</span>
+          <span class="forks"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0Z"></path></svg> 78</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- README card -->
+    <div class="readme-card">
+      <div class="readme-head">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.75 3.75 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"></path></svg>
+        <span>README</span>
+        <span class="crumbs">· MuVeraAI/README.md</span>
+        <span class="pin-ico">📌 pinned</span>
+      </div>
+
+      <div class="readme-body">
+
+        <!-- ========== HERO BANNER ========== -->
+        <div class="rd-hero">
+          <div class="rd-hero-mark">↺</div>
+          <h1 class="rd-hero-title">MuVera AI</h1>
+          <div class="rd-hero-tag">Open Source AI Security Infrastructure</div>
+          <div class="rd-hero-sub">The security layer agents cannot bypass</div>
+          <div class="rd-hero-loop">
+            <span>SENSE</span><span class="sep">·</span>
+            <span>ACT</span><span class="sep">·</span>
+            <span>SEAL</span><span class="sep">·</span>
+            <span>IMPROVE</span>
+            <span class="mark">↺</span>
+          </div>
+        </div>
+
+        <!-- ========== CONTENT ========== -->
+        <div class="rd-content">
+
+          <p align="center">
+            <em>The open authority and evidence layer for autonomous systems — the specifications,
+            reference enforcement, and conformance tests that make every AI agent action verifiable,
+            revocable, and bounded.</em>
+          </p>
+
+          <div class="rd-badges">
+            <span class="rd-badge g"><span class="lbl">build</span><span class="val">passing</span></span>
+            <span class="rd-badge b"><span class="lbl">tests</span><span class="val">691</span></span>
+            <span class="rd-badge a"><span class="lbl">license</span><span class="val">Apache-2.0</span></span>
+            <span class="rd-badge p"><span class="lbl">languages</span><span class="val">4</span></span>
+            <span class="rd-badge"><span class="lbl"> Discord </span><span class="val">join us</span></span>
+            <span class="rd-badge"><span class="lbl">docs</span><span class="val">aumos.dev</span></span>
+          </div>
+
+          <!-- Org stats card -->
+          <h2>📊 Org stats</h2>
+          <div class="org-stats">
+            <div class="org-stat"><div class="num">49</div><div class="lbl">Public repos</div></div>
+            <div class="org-stat"><div class="num">691</div><div class="lbl">Tests passing</div></div>
+            <div class="org-stat"><div class="num">4</div><div class="lbl">Languages (Rust · Go · Python · TS)</div></div>
+            <div class="org-stat"><div class="num">Apache-2.0</div><div class="lbl">License (core, no BSL)</div></div>
+          </div>
+
+          <!-- Quick start -->
+          <h2>🚀 Quick start</h2>
+          <p>Install the <code>defstack</code> CLI and bring up the trust core in under a minute:</p>
+          <div class="rd-install">
+            <div class="rd-install-head">
+              <span class="shell-dot"><span></span><span></span><span></span></span>
+              <span class="title">bash — one-liner install</span>
+            </div>
+            <div class="rd-install-body">
+              <div class="line"><span class="cmt"># Option A — install script (macOS / Linux / WSL)</span></div>
+              <div class="line"><span class="prompt">$</span>curl -sSL https://get.aumos.dev | sh</div>
+              <div class="line"><span class="cmt"># Option B — Rust workspace (trusted core)</span></div>
+              <div class="line"><span class="prompt">$</span>cargo add aumos-trust-core</div>
+              <div class="line"><span class="cmt"># Bring it up and run the cross-language conformance suite</span></div>
+              <div class="line"><span class="prompt">$</span>make conformance</div>
+              <div class="line"><span class="out">✓ 691 passed · 0 failed</span></div>
+            </div>
+          </div>
+
+          <!-- Architecture diagram -->
+          <h2>🧭 The 12-plane architecture</h2>
+          <p>One trusted Rust core. Twelve planes. Every action flows top-to-bottom through identity, authority,
+          evidence, enforcement, and audit. <strong>No security invariant has two authoritative implementations.</strong></p>
+
+          <div class="rd-arch">
+            <div class="rd-arch-cap">AumOS · 12 planes · 1 trusted core</div>
+            <div class="arch-stack">
+              <div class="arch-plane"><span class="pn">P1</span><span class="pname">Identity</span><span class="pcomp">agent-identity · SPIFFE SVID</span></div>
+              <div class="arch-plane"><span class="pn">P2</span><span class="pname">Authority</span><span class="pcomp">AAE envelope · delegated authority</span></div>
+              <div class="arch-plane"><span class="pn">P3</span><span class="pname">Evidence</span><span class="pcomp">flight-recorder · signed AAR · Sigstore</span></div>
+              <div class="arch-plane"><span class="pn">P4</span><span class="pname">Policy</span><span class="pcomp">Rego + Cedar + OpenShell profiles</span></div>
+              <div class="arch-plane"><span class="pn">P5</span><span class="pname">Runtime</span><span class="pcomp">secure-workspace · eval-guard</span></div>
+              <div class="arch-plane"><span class="pn">P6</span><span class="pname">Sandbox</span><span class="pcomp">credential-vault · egress-filter</span></div>
+              <div class="arch-spine">↺ Rust trusted core — allow / deny / sign / verify</div>
+              <div class="arch-plane"><span class="pn">P7</span><span class="pname">Kill-Switch</span><span class="pcomp">R3 · revoke &lt;5s · creds &lt;1s</span></div>
+              <div class="arch-plane"><span class="pn">P8</span><span class="pname">Supply Chain</span><span class="pcomp">provena-chain · safe-tensors-pp · model-sbom</span></div>
+              <div class="arch-plane"><span class="pn">P9</span><span class="pname">Evaluation</span><span class="pcomp">safe-eval · HELM · garak · PyRIT</span></div>
+              <div class="arch-plane"><span class="pn">P10</span><span class="pname">Inference</span><span class="pcomp">open-serve-kit · bridge-rt · inference-proxy</span></div>
+              <div class="arch-plane"><span class="pn">P11</span><span class="pname">Confidential</span><span class="pcomp">attesta-flow · tee-serve · fed-core · dp-crate</span></div>
+              <div class="arch-plane"><span class="pn">P12</span><span class="pname">Operator</span><span class="pcomp">K8s controllers · metr-bridge · console</span></div>
+            </div>
+            <div class="arch-flow">
+              SENSE <span class="arr">→</span> ACT <span class="arr">→</span> SEAL <span class="arr">→</span> IMPROVE <span class="arr">↺</span>
+            </div>
+          </div>
+
+          <!-- Featured repos -->
+          <h2>★ Featured repositories</h2>
+          <table>
+            <thead><tr><th>Repo</th><th>What it does</th><th>Lang</th></tr></thead>
+            <tbody>
+              <tr><td><a href="#">trust-core</a></td><td>The Rust allow/deny boundary. Authority, evidence, attestation, revocation, kill-switch.</td><td>Rust</td></tr>
+              <tr><td><a href="#">agent-identity</a></td><td>SPIFFE-backed workload identity for agents. AAE + delegated authority + revocation.</td><td>Rust</td></tr>
+              <tr><td><a href="#">safe-eval</a></td><td>Policy-driven eval harness. Re-checks policy at commit time.</td><td>Python</td></tr>
+              <tr><td><a href="#">open-serve-kit</a></td><td>Open inference server. Attested serving, tenant isolation, BridgeRT.</td><td>Go</td></tr>
+              <tr><td><a href="#">kill-switch</a></td><td>The off switch. Stops a runaway agent in ~4s, no human in the loop.</td><td>Rust</td></tr>
+              <tr><td><a href="#">safe-tensors-pp</a></td><td>Safetensors + provenance. A model is its content digest, not its name.</td><td>Python</td></tr>
+            </tbody>
+          </table>
+
+          <!-- Community links -->
+          <h2>💬 Community</h2>
+          <div class="rd-community">
+            <a class="rd-comm-card" href="https://discord.gg/MuVeraAI">
+              <div class="rd-comm-ico">◈</div>
+              <div><div class="ct">Discord</div><div class="cu">discord.gg/MuVeraAI</div></div>
+            </a>
+            <a class="rd-comm-card" href="#">
+              <div class="rd-comm-ico">💬</div>
+              <div><div class="ct">GitHub Discussions</div><div class="cu">github.com/orgs/MuVeraAI/discussions</div></div>
+            </a>
+            <a class="rd-comm-card" href="https://aumos.dev">
+              <div class="rd-comm-ico">📖</div>
+              <div><div class="ct">Documentation</div><div class="cu">aumos.dev · 53 RFCs · roadmap</div></div>
+            </a>
+            <a class="rd-comm-card" href="#">
+              <div class="rd-comm-ico">🛡</div>
+              <div><div class="ct">OSAF Alliance</div><div class="cu">Open Secure AI Alliance</div></div>
+            </a>
+          </div>
+
+          <!-- Contributing callout -->
+          <div class="rd-callout">
+            <div class="ico">🙌</div>
+            <div class="body">
+              <strong>We welcome contributors!</strong> AumOS is built in the open under Apache 2.0 with DCO sign-off
+              (no CLA for individuals). Good first issues are labeled <code>good first issue</code>; architecture questions
+              live in <a href="#">Discussions</a>. See <a href="#"><code>CONTRIBUTING.md</code></a> to get started, and
+              <a href="#"><code>SECURITY.md</code></a> before reporting a vulnerability.
+            </div>
+          </div>
+
+          <!-- Sponsor -->
+          <h2>❤ Sponsor</h2>
+          <p>If AumOS makes your agents safer, sponsor the maintainers and the OSAF foundation work.</p>
+          <div class="rd-sponsor">
+            <span class="heart">❤</span>
+            <div class="txt">
+              <strong>Sponsor this project</strong><br>
+              <span style="color:var(--gh-fg-muted);font-size:13px;">Fund the open authority layer. Funds go to maintainers + foundation operations.</span>
+            </div>
+            <div class="rd-sponsor-btns">
+              <a class="gh-btn" href="#"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"></path></svg> GitHub Sponsors</a>
+              <a class="gh-btn ghost" href="#">Open Collective</a>
+            </div>
+          </div>
+
+          <!-- License -->
+          <div class="rd-license">
+            <span class="lic-badge">Apache-2.0</span>
+            <span>Core libraries, CLI, specs, and protocols are <strong>Apache 2.0</strong>. No BSL on the trusted core. DCO required (<code>git commit -s</code>). Specs/governance docs are CC-BY-4.0; datasets CDLA-Permissive-2.0.</span>
+          </div>
+
+          <hr>
+
+          <!-- Social preview spec -->
+          <h2>🖼 Social preview spec (1280 × 640)</h2>
+          <p>The GitHub org social preview image — used in link unfurls, the OG card, and GitHub's own share previews.
+          Spec below + a live mock of what it should contain.</p>
+
+          <div class="rd-preview-spec">
+            <div class="rd-preview-mock" aria-label="Social preview mockup">
+              <div class="top">
+                <span class="mark">↺</span>
+                <span class="wordmark">MuVera AI<small>OPEN SOURCE AI SECURITY INFRASTRUCTURE</small></span>
+              </div>
+              <div class="bottom">
+                <div class="stats">
+                  <div class="s"><div class="n">49</div><div class="l">repos</div></div>
+                  <div class="s"><div class="n">691</div><div class="l">tests</div></div>
+                  <div class="s"><div class="n">12</div><div class="l">protocols</div></div>
+                  <div class="s"><div class="n">A2</div><div class="l">license</div></div>
+                </div>
+                <div class="loop-tag">SENSE · ACT · SEAL · IMPROVE <span class="m">↺</span></div>
+              </div>
+            </div>
+            <ul>
+              <li><strong>Dimensions:</strong> <code>1280 × 640 px</code>, PNG or JPG, &lt; 1 MB.</li>
+              <li><strong>Background:</strong> near-black <code>#06070d</code> with an indigo radial glow <code>#6366f1</code> at 30% opacity, top-left. Faint 40px grid overlay at 2% white.</li>
+              <li><strong>Top-left:</strong> the loop glyph <code>↺</code> in <code>#818cf8</code> with a glow, beside the "MuVera AI" wordmark (Inter, 800 weight). Subline beneath in JetBrains Mono, tracked +0.18em: <em>"OPEN SOURCE AI SECURITY INFRASTRUCTURE"</em>.</li>
+              <li><strong>Bottom-left:</strong> four stats — <code>49 repos · 691 tests · 12 protocols · Apache-2.0</code> — numerals in indigo, labels in mono caps.</li>
+              <li><strong>Bottom-right:</strong> the loop line <em>"SENSE · ACT · SEAL · IMPROVE ↺"</em> in mono, muted, with the <code>↺</code> in indigo.</li>
+              <li><strong>Do not include:</strong> screenshots, stock photography, or third-party logos. The preview is the brand, not a product shot.</li>
+            </ul>
+          </div>
+
+          <hr>
+
+          <p align="center">
+            <em>Built by MuVera AI under the Open Secure AI Alliance (OSAF). We build in the open — come build with us.</em><br>
+            <strong>SENSE · ACT · SEAL · IMPROVE ↺</strong>
+          </p>
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="gh-footer">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <a class="gh-logo" href="#"><svg height="20" width="20" viewBox="0 0 16 16" version="1.1"><path fill="currentColor" fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg></a>
+    <span>© GitHub · Mockup</span>
+  </div>
+  <ul>
+    <li><a href="#">Terms</a></li>
+    <li><a href="#">Privacy</a></li>
+    <li><a href="#">Security</a></li>
+    <li><a href="#">Status</a></li>
+    <li><a href="#">Docs</a></li>
+    <li><a href="#">Contact</a></li>
+    <li><a href="#">Manage cookies</a></li>
+  </ul>
+</footer>
+
+</body>
+</html>

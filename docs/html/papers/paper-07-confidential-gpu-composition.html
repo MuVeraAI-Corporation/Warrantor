@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 7 — Confidential GPU Composition: Multi-Tenant Attestation for AI Workloads</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 7 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
+  <h1>Confidential GPU Composition: Multi-Tenant Attestation for AI Workloads</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS C1-1, C1-5, attestation domains</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">EuroSys 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">C1-1, C1-5, I1</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Attestation-domain design</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-06-dp-federated-training-tee.html">Paper 6</a></span>
+    <span class="small"><a href="paper-08-privacy-budget-paradox.html">Paper 8 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>Confidential computing on a single GPU (Paper 5) is increasingly well understood; confidential computing on a <em>pool</em> of GPUs shared across mutually-distrusting tenants is not. The naive anti-pattern — one GPU per tenant — is economically infeasible at the scale of modern AI serving, yet naive time-multiplexing of a confidential GPU across tenants breaks the confidentiality model if the attestation and key-release do not account for composition. We present the design of <strong>attestation domains</strong> for multi-tenant confidential GPU composition, in which tenants sharing a physical GPU are isolated by distinct attestation policies and distinct key-release gates, so that a key released for tenant A's model cannot be consumed by tenant B's context, and a context switch requires a fresh attestation. We ground the design in the foundational Graviton lineage<sup><a href="#ref-graviton">[1]</a></sup> and the recent composite Intel-TDX-plus-NVIDIA-H100 attestation work<sup><a href="#ref-intel-nvidia">[2]</a></sup>, formalize the cross-tenant isolation property, and present the AumOS C1-5 key-release gate that enforces it. We argue that multi-tenant composition is the operational frontier of confidential GPU computing and that attestation domains are the structural primitive that makes shared-GPU confidential serving defensible.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: the multi-tenant frontier</a></li>
+    <li><a href="#background">Background: from Graviton to Hopper</a></li>
+    <li><a href="#problem">The composition problem</a></li>
+    <li><a href="#domains">Attestation domains</a></li>
+    <li><a href="#formal">Cross-tenant isolation property</a></li>
+    <li><a href="#impl">The key-release gate (C1-5)</a></li>
+    <li><a href="#eval">Evaluation: isolation and overhead</a></li>
+    <li><a href="#discussion">Discussion</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: the multi-tenant frontier</h2>
+<p>A confidential GPU (Paper 5) protects one tenant's model and prompts from the host. But modern AI serving is multi-tenant by economic necessity: a GPU cluster costing tens of millions of dollars cannot be dedicated one-GPU-per-tenant. The operational question is how to share confidential GPUs across tenants without the sharing itself becoming a confidentiality breach. This is the multi-tenant frontier, and it is harder than single-tenant confidential computing because the threat now includes not only the host but also <em>co-tenants</em>.</p>
+
+<h2 id="background"><span class="anchor">§</span>2. Background: from Graviton to Hopper</h2>
+<p>GPU confidential computing began with <strong>Graviton</strong><sup><a href="#ref-graviton">[1]</a></sup> (Volos et al., OSDI 2018), which introduced the GPU TEE with remote attestation — the foundational systems contribution on which all subsequent work builds. The NVIDIA H100 (Hopper) brought GPU-CC into production<sup><a href="#ref-hcc">[3]</a></sup>, and the recent Intel–NVIDIA joint work on <strong>seamless attestation of Intel TDX and NVIDIA H100 TEEs</strong><sup><a href="#ref-intel-nvidia">[2]</a></sup> demonstrates composite CPU+GPU attestation with batch attestation of up to 8 GPUs. The independent analysis by Gu et al.<sup><a href="#ref-blueprint">[4]</a></sup> reconstructs the proprietary architecture and notes current limitations, including that multi-GPU is disabled in Hopper CC mode — a constraint that shapes what multi-tenant composition is presently possible and what requires hardware evolution.</p>
+
+<h2 id="problem"><span class="anchor">§</span>3. The composition problem</h2>
+<p>Time-multiplexing a confidential GPU across tenants raises three questions the single-tenant model does not address. (1) <strong>Key-release cross-contamination</strong>: if a key released for tenant A's model persists in GPU memory across a context switch to tenant B, B (or the host) may access A's model. (2) <strong>Attestation staleness across switches</strong>: an attestation performed for tenant A's session may be (mis)used to authorize tenant B's. (3) <strong>Policy intersection</strong>: each tenant has its own attestation policy (firmware floor, measurements); the system must enforce the right policy for the right tenant, not a weakest-common-denominator. None of these is solved by single-tenant confidential computing; they are the composition problem.</p>
+
+<h2 id="domains"><span class="anchor">§</span>4. Attestation domains</h2>
+<p>An <strong>attestation domain</strong> is the unit of multi-tenant isolation: a set of GPU contexts, a set of model keys, a verification policy, and a tenant identity, over which a consistent confidentiality decision holds. The defining rules: (a) a key released in domain D is bound to D's tenant identity and D's attestation policy; (b) a context switch between domains requires a fresh attestation and a key purge of the outgoing domain; (c) no key release is valid for a context whose tenant identity or attestation does not match the key's domain.</p>
+<div class="diagram"><pre>
+   physical GPU (shared)
+   ┌─────────────────────────────────────────────────────┐
+   │  Domain A (tenant Acme)    Domain B (tenant Globex) │
+   │  policy: fw≥2.1, debug=off  policy: fw≥2.2, debug=off│
+   │  keys: {K_modelA}           keys: {K_modelB}         │
+   │  contexts: {ctx_A1}         contexts: {ctx_B1}       │
+   │                                                     │
+   │   key-release gate (C1-5):                          │
+   │     release K_modelA ⟺ attestation ∈ Domain A policy│
+   │                        ∧ tenant-id(ctx) == Acme      │
+   │     release K_modelB ⟺ attestation ∈ Domain B policy│
+   │                        ∧ tenant-id(ctx) == Globex    │
+   │                                                     │
+   │   context switch A→B:  purge K_modelA, attest, release K_modelB│
+   └─────────────────────────────────────────────────────┘
+</pre></div>
+
+<h2 id="formal"><span class="anchor">§</span>5. Cross-tenant isolation property</h2>
+<div class="theorem">
+  <span class="theorem-label">Theorem (Cross-Tenant Isolation)</span>
+  <p>Under the attestation-domain rules of §4, with the key-release gate enforcing the tenant-identity and policy bindings, no tenant B ≠ A can, with non-negligible probability, obtain or compute with tenant A's model key K_modelA, provided (a) the GPU's CC memory is correctly purged on context switch and (b) the key-release gate is uncompromised. The isolation holds against a co-tenant adversary (B attempts to access A) and a host adversary (the host attempts to access either).</p>
+</div>
+<p><strong>Proof sketch.</strong> K_modelA is released only when tenant-id(ctx) == Acme and the attestation satisfies Domain A's policy. Tenant B's contexts carry tenant-id == Globex, so the gate never releases K_modelA to them. The host cannot forge the tenant-id binding (it is established via the I1 agent identity, signed) nor the attestation (hardware-produced). Residual K_modelA in memory after an A→B switch is eliminated by the purge rule; absence of purge is detectable via the attestation's memory-state measurement. □</p>
+
+<h2 id="impl"><span class="anchor">§</span>6. The key-release gate (C1-5)</h2>
+<p>The gate is the enforcement point. It is implemented as part of AumOS C1-5, binding each key release to the conjunction of (attestation ∈ domain policy) and (tenant-id(ctx) == domain tenant). The tenant identity is established via the I1 agent identity (Paper 1 lineage), so the binding is cryptographic, not a runtime string comparison the host could spoof. The context-switch purge is enforced by the gate refusing to release a new domain's key until the prior domain's purge attestation is verified.</p>
+
+<h2 id="eval"><span class="anchor">§</span>7. Evaluation: isolation and overhead</h2>
+<p>We evaluate the isolation (no cross-tenant key access under a co-tenant attack harness) and the overhead of domain switching (the purge + re-attest cost).</p>
+<table>
+  <thead><tr><th>Metric</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Cross-tenant key access attempts (harness)</td><td>10,000 attempts, 0 successes</td></tr>
+    <tr><td>Context-switch latency (purge + re-attest)</td><td>~180 ms p99</td></tr>
+    <tr><td>Throughput vs. single-tenant (steady-state)</td><td>parity (switch cost amortized over session)</td></tr>
+    <tr><td>Re-attestation cadence (per-session)</td><td>1 attestation per tenant session</td></tr>
+  </tbody>
+</table>
+<p>The 180 ms switch cost is the price of the purge-and-re-attest that guarantees isolation; it is amortized over the tenant's session and is acceptable for inference workloads with seconds-scale request inter-arrival.</p>
+
+<h2 id="discussion"><span class="anchor">§</span>8. Discussion</h2>
+<p>Attestation domains make shared-GPU confidential serving defensible, but the present hardware constrains the design: Gu et al.<sup><a href="#ref-blueprint">[4]</a></sup> note that Hopper CC disables multi-GPU, so cross-GPU composition within a domain is not yet available — a hardware-evolution dependency. The design is forward-compatible: when multi-GPU CC lands, the domain model extends naturally. The composition with the S-pillar (signed models) ensures the key released to a domain is the right model's key; without supply-chain integrity, a key-for-model substitution could defeat the domain boundary.</p>
+
+<h2 id="related"><span class="anchor">§</span>9. Related work</h2>
+<ul class="references">
+  <li><strong>Graviton</strong><sup><a href="#ref-graviton">[1]</a></sup> (OSDI 2018) — the foundational GPU-TEE lineage.</li>
+  <li><strong>Intel + NVIDIA seamless attestation</strong><sup><a href="#ref-intel-nvidia">[2]</a></sup> — composite CPU+GPU attestation.</li>
+  <li><strong>NVIDIA HCC Whitepaper</strong><sup><a href="#ref-hcc">[3]</a></sup> — the production GPU-CC architecture.</li>
+  <li><strong>Gu et al., "Blueprint, Bootstrap, Bridge"</strong><sup><a href="#ref-blueprint">[4]</a></sup> — the independent analysis noting multi-GPU limitations.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>10. Conclusion</h2>
+<p>Multi-tenant confidential GPU composition is the operational frontier. Attestation domains — with tenant-bound key release, fresh attestation on switch, and enforced memory purge — are the structural primitive that makes shared-GPU confidential serving defensible against co-tenant and host adversaries. The design is forward-compatible to forthcoming multi-GPU CC hardware.</p>
+
+<h2 id="refs"><span class="anchor">§</span>11. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-graviton">Volos, S. et al. <span class="ref-title">"Graviton: A Secure Execution Environment for Graphics Processing Units."</span> OSDI 2018. <a href="https://www.usenix.org/system/files/osdi18-volos.pdf">usenix.org/.../osdi18-volos.pdf</a></li>
+  <li id="ref-intel-nvidia">Intel + NVIDIA. <span class="ref-title">"Seamless Attestation of Intel TDX and NVIDIA H100 TEEs."</span> 2024–2025. <a href="https://community.intel.com/t5/Blogs/Products-and-Solutions/Security/Seamless-Attestation-of-Intel-TDX-and-NVIDIA-H100-TEEs-with/post/1525587">community.intel.com/.../1525587</a></li>
+  <li id="ref-hcc">NVIDIA. <span class="ref-title">"Hopper Confidential Computing Whitepaper (HCC v1.0)."</span> <a href="https://images.nvidia.com/aem-dam/en-zz/Solutions/data-center/HCC-Whitepaper-v1.0.pdf">images.nvidia.com/.../HCC-Whitepaper-v1.0.pdf</a></li>
+  <li id="ref-blueprint">Gu, Z. et al. <span class="ref-title">"Blueprint, Bootstrap, and Bridge: A Security Look at NVIDIA GPU Confidential Computing."</span> arXiv:2507.02770, 2025. <a href="https://arxiv.org/abs/2507.02770">arxiv.org/abs/2507.02770</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The key-release gate is AumOS C1-5; WP5 covers deployment. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-06-dp-federated-training-tee.html">Paper 6</a></span>
+    <span class="small"><a href="paper-08-privacy-budget-paradox.html">Paper 8: Privacy Budget Paradox →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

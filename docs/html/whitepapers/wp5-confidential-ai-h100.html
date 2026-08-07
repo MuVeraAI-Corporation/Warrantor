@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WP5 — Confidential AI on NVIDIA H100: A Deployment Guide</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Industry Whitepaper · WP5 of 6 · For infrastructure / MLOps teams</div>
+  <h1>Confidential AI on NVIDIA H100: A Deployment Guide</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS C1-1…C1-5 (confidential computing pillar)</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">GPU Technology Conference 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">~18–24 pages, full deployment + day-2 runbook</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="wp4-ai-kill-switch-act.html">WP4</a></span>
+    <span class="small"><a href="wp6-post-quantum-ai-security.html">WP6 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Executive Summary</span>
+  <p>The NVIDIA H100 (Hopper)<sup><a href="#ref-hcc">[1]</a></sup> and the forthcoming N1 are the first broadly available GPUs with hardware-enforced confidential computing, enabling inference and training workloads where the model weights, the prompts, and the outputs are cryptographically protected from the host, the hypervisor, and the cloud operator. This is a structural change in the trust model of AI infrastructure — but the operational reality is poorly documented, and most teams that attempt confidential inference stall on attestation-domain setup, multi-tenant composition, or key-release orchestration. This whitepaper is the deployment guide built on the AumOS C1 components (Paper 5, Paper 7), the NVIDIA Attestation SDK, and the Intel+NVIDIA seamless composite-attestation work<sup><a href="#ref-intel-nvidia">[2]</a></sup>.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#problem">The practitioner problem</a></li>
+    <li><a href="#architecture">Architecture: the attestation domain</a></li>
+    <li><a href="#handshake">The attestation handshake</a></li>
+    <li><a href="#multitenant">Multi-tenant composition</a></li>
+    <li><a href="#deployment">Deployment sequence</a></li>
+    <li><a href="#evidence">What this delivers, measurably</a></li>
+    <li><a href="#sources">Authoritative sources</a></li>
+  </ol>
+</div>
+
+<h2 id="problem"><span class="anchor">§</span>1. The practitioner problem</h2>
+<p>Confidential computing on a CPU TEE (Intel TDX, AMD SEV-SNP) is a solved operational problem. Confidential computing on an H100 is not, for three reasons: (1) the attestation model is NVIDIA-specific and runs through NVIDIA's root of trust; (2) multi-tenant composition without cross-tenant leakage requires careful attestation-domain design (Paper 7); (3) the performance overhead is real and must be tuned — Chrapek et al.<sup><a href="#ref-perf">[3]</a></sup> pinpoint PCIe encryption as the dominant bottleneck. Teams need a documented path through all three.</p>
+
+<h2 id="architecture"><span class="anchor">§</span>2. Architecture: the attestation domain</h2>
+<p>The foundational concept is the attestation domain (Paper 7): a set of GPUs, model keys, and a verification policy over which a consistent trust decision is made. AumOS C1-1 binds to NVIDIA NVTrust; C1-2 retrieves/verifies attestation reports; C1-3 orchestrates the attested pipeline in-TEE; C1-4 terminates TLS in the enclave; C1-5 composes the streams and gates model-key release. The five compose; none is sufficient alone.</p>
+
+<h2 id="handshake"><span class="anchor">§</span>3. The attestation handshake</h2>
+<ul>
+  <li><strong>Provisioning.</strong> Model owner encrypts weights to a policy only a compliant GPU satisfies.</li>
+  <li><strong>Request.</strong> Tenant requests inference; serving node brings up the H100 in CC mode and obtains an attestation report.</li>
+  <li><strong>Verification.</strong> C1-2 verifies the report against the policy (firmware floor, CC mode, debug off, measurements).</li>
+  <li><strong>Key release.</strong> On success, C1-5 releases the key to the GPU's protected memory; never through host RAM.</li>
+  <li><strong>Inference.</strong> C1-4 terminates TLS in the enclave; prompt traverses host only as ciphertext.</li>
+  <li><strong>Teardown.</strong> Confidential memory scrubbed; keys never persisted to host disk.</li>
+</ul>
+
+<h2 id="multitenant"><span class="anchor">§</span>4. Multi-tenant composition</h2>
+<p>The naive anti-pattern — one GPU per tenant — is economically fatal. The AumOS pattern is attestation-domain partitioning (Paper 7): tenants sharing a physical GPU are isolated by distinct policies and distinct key-release gates, so a key released for tenant A's model cannot be consumed by tenant B's context, and a context switch requires a fresh attestation. C1-5 enforces this by binding each key release to both the attestation and the tenant's identity (I1).</p>
+
+<h2 id="deployment"><span class="anchor">§</span>5. Deployment sequence</h2>
+<ol style="margin-left: var(--space-xl);">
+  <li><strong>Establish the attestation service.</strong> Deploy NVIDIA attestation + C1-1; register the fleet; verify one GPU end-to-end.</li>
+  <li><strong>Encrypt &amp; register the first model.</strong> Encrypt weights to a policy; verify the key-release path.</li>
+  <li><strong>Deploy the in-enclave serving path.</strong> C1-3/C1-4 + TLS-terminating inference server; verify prompt ciphertext-only on host.</li>
+  <li><strong>Define attestation domains.</strong> Partition the fleet by tenant/sensitivity; configure C1-5 per domain.</li>
+  <li><strong>Tune for throughput.</strong> Profile confidential vs. baseline; tune batch size, key-caching, attestation cadence.</li>
+  <li><strong>Operationalize.</strong> Wire attestation failures to alerting; define the runbook for failed-attestation events.</li>
+</ol>
+
+<h2 id="evidence"><span class="anchor">§</span>6. What this delivers, measurably</h2>
+<p>(a) A verified attestation report for every confidential inference, loggable for audit; (b) zero host-disk plaintext for weights or prompts, verifiable by inspection; (c) a documented and tuned throughput overhead (target ≤10–15% vs. non-confidential baseline<sup><a href="#ref-perf">[3]</a></sup>); (d) multi-tenant isolation that is policy-enforced, not merely topology-assumed.</p>
+
+<h2 id="sources"><span class="anchor">§</span>7. Authoritative sources</h2>
+<ul class="references">
+  <li id="ref-hcc">NVIDIA. <span class="ref-title">Hopper Confidential Computing Whitepaper (HCC v1.0) &amp; Attestation SDK.</span> <a href="https://docs.nvidia.com/confidential-computing/">docs.nvidia.com/confidential-computing</a></li>
+  <li id="ref-intel-nvidia">Intel + NVIDIA. <span class="ref-title">"Seamless Attestation of Intel TDX and NVIDIA H100 TEEs."</span> 2024–2025. <a href="https://community.intel.com/t5/Blogs/Products-and-Solutions/Security/Seamless-Attestation-of-Intel-TDX-and-NVIDIA-H100-TEEs-with/post/1525587">community.intel.com/.../1525587</a></li>
+  <li id="ref-perf">Chrapek, M. et al. <span class="ref-title">"Confidential LLM Inference: Performance and Cost Across Platforms."</span> ETH Zürich. <a href="https://spcl.inf.ethz.ch/Publications/.pdf/chrapek-confidential.pdf">spcl.inf.ethz.ch/.../chrapek-confidential.pdf</a></li>
+  <li>Gu, Z. et al. <span class="ref-title">"Blueprint, Bootstrap, and Bridge."</span> arXiv:2507.02770, 2025. <a href="https://arxiv.org/abs/2507.02770">arxiv.org/abs/2507.02770</a></li>
+</ul>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper. The pipeline is AumOS C1-1…C1-5; the academic basis is Papers 5, 7. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="wp4-ai-kill-switch-act.html">WP4: AI Kill Switch Act</a></span>
+    <span class="small"><a href="wp6-post-quantum-ai-security.html">WP6: Post-Quantum AI Security →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

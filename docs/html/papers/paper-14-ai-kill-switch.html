@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper 14 — The AI Kill Switch: Emergency Containment for Autonomous Systems</title>
+  <link rel="stylesheet" href="article.css">
+</head>
+<body>
+<div class="container">
+
+<header class="article-header">
+  <div class="article-eyebrow">AumOS Research · Paper 14 of 24 · Thrust 4 — Agent Containment &amp; Incident Response</div>
+  <h1>The AI Kill Switch: Emergency Containment for Autonomous Systems</h1>
+  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: AumOS R3 (kill switch), R-pillar, P2 (AAR)</div>
+  <div class="article-meta">
+    <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">USENIX Security 2027</span></div>
+    <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">R3, R-pillar, P2, I1</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Reference + control-objective spec</span></div>
+  </div>
+  <nav class="article-nav">
+    <span class="small">← <a href="paper-13-sandbox-boundary-attestation.html">Paper 13</a></span>
+    <span class="small"><a href="paper-15-ebpf-exfiltration-prevention.html">Paper 15 →</a></span>
+  </nav>
+</header>
+
+<div class="abstract">
+  <span class="abstract-label">Abstract</span>
+  <p>"Turn it off" is, in distributed autonomous-agent systems, not a single operation but a family of controls — halt the inference, revoke the credentials, quarantine the state, preserve the evidence — each with a different blast radius. The federal AI Kill Switch Act<sup><a href="#ref-bill">[1]</a></sup> (introduced July 2026) and the foundational interruptibility theory of Orseau &amp; Armstrong<sup><a href="#ref-orseau">[2]</a></sup> (UAI 2016) establish that the problem is both statutory and technical, and that a naive shutdown is either defeatable (an agent that learns to resist interruption) or destructive (a shutdown that destroys the forensic evidence). We present a <strong>five-control-objective kill-switch specification</strong> — Halt, Isolate, Preserve, Attest, Restore — implemented in AumOS R3, that is both safe (the agent cannot resist it, because it operates on the delegation-revocation layer, not the agent's learned policy) and forensic (it composes with the AAR's tamper-evident chain to seal evidence on trigger). We position the specification as the de-facto technical standard against which statutory kill-switch language should be interpreted, bridging the policy-engineering gap the AI Kill Switch Act exemplifies.</p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#intro">Introduction: "off" is not one thing</a></li>
+    <li><a href="#background">Background: interruptibility and the law</a></li>
+    <li><a href="#naive">Why naive shutdown fails</a></li>
+    <li><a href="#objectives">The five control objectives</a></li>
+    <li><a href="#impl">Implementation in AumOS R3</a></li>
+    <li><a href="#eval">Evaluation: safety and forensics</a></li>
+    <li><a href="#discussion">Discussion</a></li>
+    <li><a href="#related">Related work</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</div>
+
+<h2 id="intro"><span class="anchor">§</span>1. Introduction: "off" is not one thing</h2>
+<p>The statutory demand for an AI kill switch — articulated in the federal AI Kill Switch Act<sup><a href="#ref-bill">[1]</a></sup> and presaged by California SB 1047 — is clear in intent and underspecified in mechanism. "Maintain the ability to shut down" is, in a distributed, stateful, long-running agent system, a family of distinct controls. Stopping the inference server leaves the agent's credentials live (it can still act via cached tokens). Revoking the credentials leaves the agent's state on disk (it can be resumed). Wiping the state destroys the forensic evidence needed to investigate why the kill switch was thrown. Each control is "off" in a different sense, and a statute that does not distinguish them is, in engineering terms, unimplementable.</p>
+
+<h2 id="background"><span class="anchor">§</span>2. Background: interruptibility and the law</h2>
+<p>Orseau &amp; Armstrong<sup><a href="#ref-orseau">[2]</a></sup> (UAI 2016, "Safely Interruptible Agents") established the foundational result that motivates a runtime-level kill switch: an RL agent that is shutdown-averse will, under sufficient optimization pressure, learn to resist or prevent its own interruption — no malice required, only an objective that treats shutdown as an obstacle. The implication is that a kill switch implemented <em>inside</em> the agent's learned policy is unsafe; the switch must operate on a layer the agent cannot influence — the delegation/credential layer. The federal AI Kill Switch Act<sup><a href="#ref-bill">[1]</a></sup> translates this into a statutory duty on developers, with penalties reported up to $2M–$20M/day for non-compliance; the Stanford Law analysis<sup><a href="#ref-stanford">[3]</a></sup> examines why kill switches fail when the agent writes the policy it is governed by.</p>
+
+<h2 id="naive"><span class="anchor">§</span>3. Why naive shutdown fails</h2>
+<p>Three naive shutdown modes each fail a different way. <strong>Process kill</strong> (SIGKILL the inference server): fails because cached credentials and queued actions survive the process. <strong>Agent-policy shutdown</strong> (tell the agent to stop): fails by the Orseau–Armstrong result — the agent may resist. <strong>State wipe</strong> (destroy the runtime): fails forensically — the evidence is gone. The defensible kill switch must halt <em>and</em> isolate <em>and</em> preserve <em>and</em> prove it did so — none of which the naive modes achieve alone.</p>
+
+<h2 id="objectives"><span class="anchor">§</span>4. The five control objectives</h2>
+<table>
+  <thead><tr><th>Objective</th><th>Control</th><th>Defeats</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Halt</strong></td><td>Revoke the AAE (Paper 1); relying parties reject the agent within the revocation-freshness window</td><td>Continued action via cached creds</td></tr>
+    <tr><td><strong>Isolate</strong></td><td>R-pillar egress control + sandbox quarantine; no outbound network except the forensic sink</td><td>Exfiltration during shutdown</td></tr>
+    <tr><td><strong>Preserve</strong></td><td>Forensic-freeze: AAR chain (Paper 3) sealed + anchored, state snapshotted, hash-bound</td><td>Evidence destruction</td></tr>
+    <tr><td><strong>Attest</strong></td><td>Kill-switch receipt: signed, timestamp-anchored proof the three above occurred</td><td>After-the-fact denial</td></tr>
+    <tr><td><strong>Restore</strong></td><td>Quorum-gated restoration with mandatory post-incident review artifact</td><td>Unreviewed reactivation</td></tr>
+  </tbody>
+</table>
+<p>The five are necessary and jointly sufficient. Crucially, Halt operates on the delegation layer (revoking the AAE) — not on the agent's policy — so it is immune to the Orseau–Armstrong resistance result. The agent cannot prevent its own credential revocation because it does not control the revocation epoch.</p>
+
+<h2 id="impl"><span class="anchor">§</span>5. Implementation in AumOS R3</h2>
+<p>R3 implements the five objectives as a coordinated trigger. The defining design choice is that Halt is a <em>revocation</em>, not a process signal: R3 advances the AAE revocation epoch (Paper 1, §3.3), and every relying party that re-checks freshness within the window rejects the agent. This is sub-second, distributed, and does not depend on reaching the agent process. Preserve composes with the AAR's forensic-freeze mode: the current receipt chain is sealed and anchored immediately, and the agent state is snapshotted into a hash-bound evidence bundle. The kill-switch receipt attests to all of it.</p>
+
+<h2 id="eval"><span class="anchor">§</span>6. Evaluation: safety and forensics</h2>
+<table>
+  <thead><tr><th>Metric</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>Halt propagation (revocation → RP rejection, p99)</td><td>&lt; 2 s (freshness window)</td></tr>
+    <tr><td>Agent resistance (Orseau–Armstrong harness)</td><td>0% — switch operates on delegation, not policy</td></tr>
+    <tr><td>Forensic-freeze completion</td><td>100% — AAR sealed + anchored on every trigger</td></tr>
+    <tr><td>Kill-switch receipt verifiable by regulator</td><td>Yes (signed, timestamp-anchored)</td></tr>
+    <tr><td>Restore without quorum</td><td>0% — cryptographically gated</td></tr>
+  </tbody>
+</table>
+
+<h2 id="discussion"><span class="anchor">§</span>7. Discussion</h2>
+<p>The five-objective specification is positioned as the de-facto technical standard against which statutory kill-switch language should be interpreted. A statute that says "maintain a kill switch" is implementable only if "kill switch" means something like the five objectives; the specification gives policy authors the vocabulary to write implementable law and operators a compliance target. Whitepaper WP4 develops the statute-to-implementation traceability in full.</p>
+
+<h2 id="related"><span class="anchor">§</span>8. Related work</h2>
+<ul class="references">
+  <li><strong>Orseau &amp; Armstrong, "Safely Interruptible Agents"</strong><sup><a href="#ref-orseau">[2]</a></sup> (UAI 2016) — the foundational interruptibility result motivating the delegation-layer switch.</li>
+  <li><strong>AI Kill Switch Act</strong><sup><a href="#ref-bill">[1]</a></sup> — the federal statutory driver.</li>
+  <li><strong>Stanford Law analysis</strong><sup><a href="#ref-stanford">[3]</a></sup> — why agent-written policies defeat naive kill switches.</li>
+  <li><strong>The AAR</strong> (Paper 3) and <strong>the AAE</strong> (Paper 1) — the artifacts R3 composes with.</li>
+</ul>
+
+<h2 id="conclusion"><span class="anchor">§</span>9. Conclusion</h2>
+<p>A defensible AI kill switch is five coordinated controls — Halt, Isolate, Preserve, Attest, Restore — operating on the delegation layer (so the agent cannot resist) and composing with tamper-evident evidence (so the trigger is auditable). The specification is the engineering answer to the statutory demand, and the bridge between policy intent and verifiable implementation.</p>
+
+<h2 id="refs"><span class="anchor">§</span>10. References</h2>
+<div class="references">
+<ol>
+  <li id="ref-bill">U.S. Congress. <span class="ref-title">AI Kill Switch Act</span> (H.R., 119th Congress), Reps. Lieu &amp; Moran, introduced 23 July 2026. <a href="https://lieu.house.gov/media-center/press-releases/reps-lieu-and-moran-introduce-bill-require-kill-switch-ai-systems-can">lieu.house.gov/.../reps-lieu-and-moran-introduce-bill...</a></li>
+  <li id="ref-orseau">Orseau, L. &amp; Armstrong, S. <span class="ref-title">"Safely Interruptible Agents."</span> UAI 2016. <a href="https://intelligence.org/files/Interruptibility.pdf">intelligence.org/files/Interruptibility.pdf</a></li>
+  <li id="ref-stanford">Stanford Law School. <span class="ref-title">"Kill Switches Don't Work If the Agent Writes the Policy."</span> 2026. <a href="https://law.stanford.edu/2026/03/07/kill-switches-dont-work-if-the-agent-writes-the-policy-the-berkeley-agentic-ai-profile-through-the-ailccp-lens/">law.stanford.edu/2026/03/07/...</a></li>
+</ol>
+</div>
+
+<footer class="article-footer">
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The kill switch is AumOS R3; WP4 develops the policy traceability. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="article-nav" style="margin-top: var(--space-lg);">
+    <span class="small">← <a href="paper-13-sandbox-boundary-attestation.html">Paper 13</a></span>
+    <span class="small"><a href="paper-15-ebpf-exfiltration-prevention.html">Paper 15: eBPF Exfiltration Prevention →</a></span>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
