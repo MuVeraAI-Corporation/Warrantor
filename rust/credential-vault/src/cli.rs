@@ -106,7 +106,9 @@ fn main() {
             }
         }
         Commands::RevokeAll => match aumos_credential_vault::revoke_all() {
-            Ok(()) => println!("credential-vault: all credentials revoked"),
+            Ok(count) => println!(
+                "credential-vault: revoked {count} credential(s)"
+            ),
             Err(e) => {
                 eprintln!("credential-vault: revoke failed — {e}");
                 std::process::exit(1);

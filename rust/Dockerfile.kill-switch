@@ -1,0 +1,32 @@
+# kill-switch (Rust) — emergency containment for the AI Kill Switch Act (H.R. 2026).
+# Library + CLI; the container runs the `kill-switch` binary.
+#
+# Build context MUST be the `rust/` workspace root (see docker-compose.yml):
+#   docker build -f Dockerfile.kill-switch .
+
+# ── Stage 1: build the release binary ────────────────────────────────────────
+FROM rust:1.80-slim AS builder
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . .
+RUN cargo build --release --bin kill-switch
+
+# ── Stage 2: minimal runtime image ───────────────────────────────────────────
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libssl3 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/kill-switch /usr/local/bin/kill-switch
+
+ENTRYPOINT ["kill-switch"]
+# Default to `status` so an unconfigured `docker run` reports service state
+# instead of requiring a trigger subcommand.
+CMD ["status"]
+
+EXPOSE 8446

@@ -1,0 +1,47 @@
+# trust-core (Rust) — the single authoritative implementation of every security
+# invariant in AumOS. The container runs the `trust-core` CLI binary.
+#
+# Build context MUST be the `rust/` workspace root (see docker-compose.yml):
+#   docker build -f Dockerfile.trust-core .
+#
+# The CLI is a one-shot tool (key-gen / sign / verify / notarize); it does not
+# listen on a port in v1.0. The compose healthcheck runs `trust-core key-gen`
+# to confirm the binary is present and functional. Port 8440 is EXPOSEd for
+# forward-compatibility with the v2 HTTP surface.
+
+# ── Stage 1: build the release binary ────────────────────────────────────────
+FROM rust:1.80-slim AS builder
+
+# Build dependencies for the crates that link against OpenSSL (ring/reqwest
+# transitive). `pkg-config` and `libssl-dev` are required to compile them.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the entire workspace so Cargo can resolve path dependencies
+# (aumos-api, etc.) and the shared Cargo.lock.
+COPY . .
+
+# Build only the trust-core binary. `--bin` avoids compiling every example/bin
+# in the workspace and keeps the layer cache effective.
+RUN cargo build --release --bin trust-core
+
+# ── Stage 2: minimal runtime image ───────────────────────────────────────────
+FROM debian:bookworm-slim
+
+# libssl3 is required at runtime by the OpenSSL-linked crates; ca-certificates
+# is required for any TLS verification (e.g. future KMS / Rekor calls).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libssl3 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/trust-core /usr/local/bin/trust-core
+
+ENTRYPOINT ["trust-core"]
+# Default to `key-gen` so `docker run aumos/trust-core` produces useful output
+# and the compose healthcheck (`trust-core key-gen`) stays valid.
+CMD ["key-gen"]
+
+EXPOSE 8440

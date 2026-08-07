@@ -1,0 +1,55 @@
+# flight-recorder (Rust, E1) — verifiable agent flight recorder. Emits signed
+# Agent Action Receipts (P2 AAR) pre-commit; exports to OCSF + OpenTelemetry.
+#
+# **Library-only in v1.0** (no `[[bin]]` in Cargo.toml). To keep `docker-compose up`
+# functional this image compiles the library (proving the source builds) and runs a
+# tiny HTTP health server that reports liveness on the recorder port (8445).
+#
+# Build context MUST be the `rust/` workspace root (see docker-compose.yml):
+#   docker build -f Dockerfile.flight-recorder .
+
+# ── Stage 1: build the library + a tiny health-server binary ─────────────────
+FROM rust:1.80-slim AS builder
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . .
+
+# 1. Compile the flight-recorder library. Proves the source builds.
+RUN cargo build --release -p aumos-flight-recorder
+
+# 2. Build a tiny, dependency-free health server on port 8445.
+RUN mkdir -p /health && \
+    printf '%s\n' \
+      'use std::net::TcpListener;' \
+      'use std::io::{Read, Write};' \
+      'fn main(){' \
+      '  let l = TcpListener::bind("0.0.0.0:8445").expect("bind");' \
+      '  eprintln!("flight-recorder health: listening on 0.0.0.0:8445");' \
+      "  for s in l.incoming() {" \
+      "    let mut s = s.unwrap(); let mut b=[0u8;256]; let _=s.read(&mut b);" \
+      "    let body = \"{\\\"service\\\":\\\"flight-recorder\\\",\\\"status\\\":\\\"ok\\\",\\\"mode\\\":\\\"library-only (E1)\\\"}\";" \
+      "    let resp = format!(\"HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\nContent-Length: {}\\r\\nConnection: close\\r\\n\\r\\n{}\", body.len(), body);" \
+      "    let _=s.write_all(resp.as_bytes());" \
+      '  }' \
+      '}' > /health/health.rs && \
+    rustc -O -o /health/health-server /health/health.rs
+
+# ── Stage 2: minimal runtime image ───────────────────────────────────────────
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libssl3 ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /health/health-server /usr/local/bin/health-server
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+    CMD curl -fsS http://localhost:8445/healthz || exit 1
+
+ENTRYPOINT ["/usr/local/bin/health-server"]
+
+EXPOSE 8445

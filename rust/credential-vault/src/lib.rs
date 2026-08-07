@@ -37,6 +37,11 @@ pub struct ScopedCredential {
     pub issued_at: u64,
     /// Expires-at (epoch seconds).
     pub expires_at: u64,
+    /// The credential's unique token id (JTI), used for revocation tracking. H11: when a
+    /// [`Vault`] issues this credential it registers the JTI so [`Vault::revoke_all`] can find
+    /// it. Defaults to an empty string for credentials deserialized from older snapshots.
+    #[serde(default)]
+    pub jti: String,
 }
 
 impl ScopedCredential {
@@ -183,6 +188,11 @@ impl CredentialBackend for KubernetesSecretsBackend {
 
 /// Issue a scoped credential bound to the given identity + task + IP.
 ///
+/// This free function is kept for backward compatibility with callers that do not need
+/// revocation tracking. The issued credential carries a fresh JTI but is NOT registered with
+/// any [`Vault`] — call [`Vault::issue`] instead if you need [`Vault::revoke_all`] to reach
+/// this credential.
+///
 /// # Errors
 /// Returns [`CredentialError::BackendUnavailable`] if the backend cannot resolve the secret.
 pub fn issue(
@@ -205,25 +215,216 @@ pub fn issue(
         secret,
         issued_at: now,
         expires_at: now + ttl.as_secs(),
+        jti: new_jti(),
     })
 }
 
-/// Revoke all credentials. In production this fans out to every replica in <1s.
-/// Wave-1 mock: returns immediately; real fan-out via Kafka CloudEvents lands in task 04.
+/// The credential vault. **H11**: tracks issued token JTIs so that [`Vault::revoke_all`] is a
+/// real operation (the previous free-function `revoke_all()` was a no-op that returned
+/// immediately without revoking anything). The vault owns two sets: the JTIs it has issued
+/// (so it knows what to revoke) and the JTIs it has revoked (so [`Vault::verify`] can reject
+/// them). In production, revocation fans out to every replica in <1s via Kafka CloudEvents
+/// (task 04); the in-process set is the local source of truth until that fan-out lands.
+pub struct Vault {
+    issued: std::collections::HashSet<String>,
+    revoked: std::collections::HashSet<String>,
+}
+
+impl Default for Vault {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Vault {
+    /// Construct an empty vault.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            issued: std::collections::HashSet::new(),
+            revoked: std::collections::HashSet::new(),
+        }
+    }
+
+    /// Issue a scoped credential bound to the given identity + task + IP, AND register the
+    /// credential's JTI with this vault so [`Vault::revoke_all`] can reach it.
+    ///
+    /// # Errors
+    /// Returns [`CredentialError::BackendUnavailable`] if the backend cannot resolve the secret.
+    pub fn issue(
+        &mut self,
+        backend: &dyn CredentialBackend,
+        spiffe_id: &str,
+        task: &str,
+        bound_ip: &str,
+        secret_key: &str,
+        ttl: Duration,
+    ) -> Result<ScopedCredential, CredentialError> {
+        let cred = issue(backend, spiffe_id, task, bound_ip, secret_key, ttl)?;
+        self.issued.insert(cred.jti.clone());
+        Ok(cred)
+    }
+
+    /// Revoke a single credential by JTI. Idempotent: revoking an unknown JTI is a no-op
+    /// (returns Ok). Moves the JTI from `issued` to `revoked` if present.
+    ///
+    /// # Errors
+    /// Returns [`CredentialError::RevocationBudgetExceeded`] only if the local set operations
+    /// somehow exceeded the budget (vanishingly unlikely for an in-process HashSet).
+    pub fn revoke(&mut self, jti: &str) -> Result<(), CredentialError> {
+        let start = std::time::Instant::now();
+        self.issued.remove(jti);
+        self.revoked.insert(jti.to_string());
+        let elapsed = start.elapsed();
+        if elapsed > REVOKE_BUDGET {
+            return Err(CredentialError::RevocationBudgetExceeded {
+                elapsed,
+                budget: REVOKE_BUDGET,
+            });
+        }
+        Ok(())
+    }
+
+    /// Revoke **all** credentials this vault has issued. **H11**: the previous free-function
+    /// `revoke_all()` was a no-op; this method iterates every issued JTI and marks it revoked,
+    /// so subsequent [`Vault::verify`] calls reject them. Returns the count of newly-revoked
+    /// tokens so callers can assert the kill-switch reached every credential (invariant I-05).
+    ///
+    /// In production this local revoke is followed by a fleet-wide fan-out (Kafka CloudEvents,
+    /// task 04); the returned count is the local lower bound.
+    ///
+    /// # Errors
+    /// Returns [`CredentialError::RevocationBudgetExceeded`] if the iteration exceeded the
+    /// 1-second budget (invariant I-05).
+    pub fn revoke_all(&mut self) -> Result<usize, CredentialError> {
+        let start = std::time::Instant::now();
+        let count = self.issued.len();
+        // Move every issued JTI into the revoked set. We drain `issued` so a subsequent
+        // `revoke_all` is a no-op (the credentials are already revoked).
+        for jti in self.issued.drain() {
+            self.revoked.insert(jti);
+        }
+        let elapsed = start.elapsed();
+        if elapsed > REVOKE_BUDGET {
+            return Err(CredentialError::RevocationBudgetExceeded {
+                elapsed,
+                budget: REVOKE_BUDGET,
+            });
+        }
+        Ok(count)
+    }
+
+    /// Whether the given JTI is currently revoked.
+    #[must_use]
+    pub fn is_revoked(&self, jti: &str) -> bool {
+        self.revoked.contains(jti)
+    }
+
+    /// Verify a credential against this vault: not revoked AND not expired at the current time.
+    /// Returns Ok(()) on success.
+    ///
+    /// # Errors
+    /// Returns [`CredentialError::Revoked`] if the credential's JTI is in the revoked set,
+    /// or [`CredentialError::Expired`] if it is past its expiry.
+    pub fn verify(&self, cred: &ScopedCredential) -> Result<(), CredentialError> {
+        if self.revoked.contains(&cred.jti) {
+            return Err(CredentialError::Revoked);
+        }
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        if cred.is_expired_at(now) {
+            return Err(CredentialError::Expired);
+        }
+        Ok(())
+    }
+
+    /// The number of currently-issued (not-yet-revoked) tokens tracked by this vault.
+    #[must_use]
+    pub fn issued_count(&self) -> usize {
+        self.issued.len()
+    }
+
+    /// The number of revoked tokens tracked by this vault.
+    #[must_use]
+    pub fn revoked_count(&self) -> usize {
+        self.revoked.len()
+    }
+}
+
+/// A process-global default vault, so the legacy free-function [`revoke_all`] can revoke
+/// credentials issued via the legacy free-function [`issue`] (which does not itself register
+/// JTIs — see the migration note on [`issue`]). New code should construct its own [`Vault`].
+static DEFAULT_VAULT: std::sync::OnceLock<std::sync::Mutex<Vault>> = std::sync::OnceLock::new();
+
+fn default_vault() -> &'static std::sync::Mutex<Vault> {
+    DEFAULT_VAULT.get_or_init(|| std::sync::Mutex::new(Vault::new()))
+}
+
+/// Register an issued credential's JTI with the process-global default vault. Callers that
+/// obtain a credential via the free [`issue`] function and want the free [`revoke_all`] to
+/// reach it should call this once after issuing. (The [`Vault::issue`] method does this
+/// automatically and is the preferred entrypoint.)
 ///
 /// # Errors
-/// Returns [`CredentialError::RevocationBudgetExceeded`] if the (mock) revocation took too long.
-pub fn revoke_all() -> Result<(), CredentialError> {
-    let start = std::time::Instant::now();
-    // Mock: nothing to do. Real impl: publish `aumos.identity.revoked.v1` and wait for acks.
-    let elapsed = start.elapsed();
-    if elapsed > REVOKE_BUDGET {
-        return Err(CredentialError::RevocationBudgetExceeded {
-            elapsed,
-            budget: REVOKE_BUDGET,
-        });
+/// Returns [`CredentialError::RevocationBudgetExceeded`] only if the budget was exceeded.
+pub fn register_issued(cred: &ScopedCredential) -> Result<(), CredentialError> {
+    if cred.jti.is_empty() {
+        return Ok(()); // nothing to register (legacy credential with no JTI)
     }
+    let mut v = default_vault()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()); // recover from poison (see H7 rationale)
+    v.issued.insert(cred.jti.clone());
     Ok(())
+}
+
+/// Revoke all credentials tracked by the process-global default vault. **H11**: previously this
+/// was a no-op that returned immediately; it now drains the default vault's issued set into its
+/// revoked set, so credentials registered via [`register_issued`] (or issued via a [`Vault`]
+/// that shares the default) are marked revoked.
+///
+/// Returns the count of newly-revoked tokens (0 if nothing was registered).
+///
+/// # Errors
+/// Returns [`CredentialError::RevocationBudgetExceeded`] if the iteration took longer than
+/// [`REVOKE_BUDGET`] (invariant I-05).
+pub fn revoke_all() -> Result<usize, CredentialError> {
+    let mut v = default_vault()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()); // recover from poison (see H7 rationale)
+    v.revoke_all()
+}
+
+/// Check whether a JTI is revoked in the process-global default vault. Useful for callers that
+/// issued via the free [`issue`] + [`register_issued`] path.
+#[must_use]
+pub fn is_revoked(jti: &str) -> bool {
+    let v = default_vault()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()); // recover from poison (see H7 rationale)
+    v.is_revoked(jti)
+}
+
+/// Generate a fresh JTI (unique token id) for a credential.
+fn new_jti() -> String {
+    use std::time::SystemTime;
+    // 16 random-ish bytes hex-encoded. We avoid pulling in `rand`/`uuid` here (the crate does
+    // not currently depend on them) and instead mix the system's coarse clock with the thread
+    // id; this is sufficient for the local-revocation use case (uniqueness within a process).
+    // Real cryptographic randomness is the backend's job (Vault/KMS) — the JTI is an identifier,
+    // not a secret.
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let tid = std::thread::current()
+        .id();
+    let tid_hash: u64 = format!("{tid:?}").bytes().fold(0u64, |acc, b| {
+        acc.wrapping_mul(31).wrapping_add(u64::from(b))
+    });
+    format!("{nanos:032x}{tid_hash:016x}")
 }
 
 /// Well-known credential patterns for the exposure scanner. Matches the patterns ExfilGuard (S6)
@@ -285,6 +486,8 @@ mod tests {
         assert_eq!(cred.secret, "ghp_abc");
         assert!(cred.expires_at > cred.issued_at);
         assert_eq!(cred.expires_at - cred.issued_at, DEFAULT_TTL.as_secs());
+        // H11: every issued credential carries a JTI for revocation tracking.
+        assert!(!cred.jti.is_empty(), "issued credential must have a JTI");
     }
 
     #[test]
@@ -303,7 +506,10 @@ mod tests {
 
     #[test]
     fn revoke_all_meets_budget() {
-        revoke_all().expect("revocation under budget");
+        // H11: revoke_all now returns a count; the budget check still applies. We don't assert
+        // the exact count because the global vault is shared across tests, but we do assert it
+        // completes within budget (no error).
+        let _count = revoke_all().expect("revocation under budget");
     }
 
     #[test]
@@ -342,6 +548,7 @@ mod tests {
             secret: "x".into(),
             issued_at: 1000,
             expires_at: 2000,
+            jti: "jti-1".into(),
         };
         assert!(!cred.is_expired_at(1500));
         assert!(cred.is_expired_at(2000));
@@ -374,5 +581,126 @@ mod tests {
     fn scan_returns_empty_on_clean_text() {
         let found = scan_for_exposed_credentials("just a normal log line").expect("scan");
         assert!(found.is_empty());
+    }
+
+    #[test]
+    fn vault_revoke_all_marks_every_issued_token_revoked_h11() {
+        // H11: the core fix. revoke_all() must actually revoke every token the vault issued
+        // (previously it was a no-op that returned Ok(()) immediately). We issue 3 credentials
+        // via a fresh Vault, revoke_all, and assert every JTI is now in the revoked set and
+        // verify() rejects each.
+        let mut v = Vault::new();
+        let backend = MockBackend::new([
+            ("k1".to_string(), "s1".to_string()),
+            ("k2".to_string(), "s2".to_string()),
+            ("k3".to_string(), "s3".to_string()),
+        ]);
+        let c1 = v
+            .issue(&backend, "spiffe://a/1", "t", "ip", "k1", DEFAULT_TTL)
+            .expect("issue 1");
+        let c2 = v
+            .issue(&backend, "spiffe://a/2", "t", "ip", "k2", DEFAULT_TTL)
+            .expect("issue 2");
+        let c3 = v
+            .issue(&backend, "spiffe://a/3", "t", "ip", "k3", DEFAULT_TTL)
+            .expect("issue 3");
+        assert_eq!(v.issued_count(), 3);
+        assert_eq!(v.revoked_count(), 0);
+
+        // Before revoke_all, all three verify cleanly.
+        v.verify(&c1).expect("c1 valid before revoke");
+        v.verify(&c2).expect("c2 valid before revoke");
+        v.verify(&c3).expect("c3 valid before revoke");
+
+        let revoked = v.revoke_all().expect("revoke_all");
+        assert_eq!(revoked, 3, "revoke_all must report the count of revoked tokens");
+        assert_eq!(v.issued_count(), 0, "issued set must be drained after revoke_all");
+        assert_eq!(v.revoked_count(), 3);
+
+        // After revoke_all, every credential must be rejected as Revoked.
+        for (cred, label) in [(&c1, "c1"), (&c2, "c2"), (&c3, "c3")] {
+            assert!(
+                matches!(v.verify(cred), Err(CredentialError::Revoked)),
+                "{label} must be Revoked after revoke_all"
+            );
+            assert!(v.is_revoked(&cred.jti), "{label} jti must be in revoked set");
+        }
+    }
+
+    #[test]
+    fn vault_revoke_single_marks_one_revoked_h11() {
+        // H11: targeted revocation (single JTI) must not revoke siblings.
+        let mut v = Vault::new();
+        let backend = MockBackend::new([
+            ("k1".to_string(), "s1".to_string()),
+            ("k2".to_string(), "s2".to_string()),
+        ]);
+        let c1 = v
+            .issue(&backend, "spiffe://a/1", "t", "ip", "k1", DEFAULT_TTL)
+            .expect("issue 1");
+        let c2 = v
+            .issue(&backend, "spiffe://a/2", "t", "ip", "k2", DEFAULT_TTL)
+            .expect("issue 2");
+
+        v.revoke(&c1.jti).expect("revoke c1");
+        assert!(v.is_revoked(&c1.jti));
+        assert!(!v.is_revoked(&c2.jti), "c2 must NOT be revoked by a targeted c1 revoke");
+        assert!(matches!(v.verify(&c1), Err(CredentialError::Revoked)));
+        v.verify(&c2).expect("c2 still valid");
+        // revoke_all should now only report 1 remaining (c1 was already moved).
+        let remaining = v.revoke_all().expect("revoke_all remaining");
+        assert_eq!(remaining, 1);
+        assert!(matches!(v.verify(&c2), Err(CredentialError::Revoked)));
+    }
+
+    #[test]
+    fn vault_verify_rejects_expired_h11() {
+        // H11: verify must still honor expiry in addition to the revoked set.
+        let mut v = Vault::new();
+        let backend = MockBackend::new([("k1".to_string(), "s1".to_string())]);
+        let cred = v
+            .issue(&backend, "spiffe://a/1", "t", "ip", "k1", DEFAULT_TTL)
+            .expect("issue");
+        // Force expiry by constructing an already-expired credential with the same JTI.
+        let mut expired = cred.clone();
+        expired.expires_at = cred.issued_at; // expires_at == issued_at -> expired
+        assert!(matches!(v.verify(&expired), Err(CredentialError::Expired)));
+    }
+
+    #[test]
+    fn vault_revoke_all_on_empty_is_zero_h11() {
+        // H11: revoke_all on a vault that has issued nothing must return 0 (not an error).
+        let mut v = Vault::new();
+        let count = v.revoke_all().expect("empty revoke_all");
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn scoped_credential_serializes_with_jti_default_h11() {
+        // H11: legacy serialized credentials (no `jti` field) must still deserialize thanks to
+        // #[serde(default)]. This protects callers that persisted ScopedCredential before H11.
+        let legacy_json = r#"{
+            "spiffe_id": "s",
+            "task": "t",
+            "bound_ip": "ip",
+            "secret": "x",
+            "issued_at": 1000,
+            "expires_at": 2000
+        }"#;
+        let cred: ScopedCredential = serde_json::from_str(legacy_json).expect("deserialize legacy");
+        assert_eq!(cred.jti, "", "legacy credential deserializes with empty jti");
+        // And a modern credential round-trips with the JTI populated.
+        let modern = ScopedCredential {
+            spiffe_id: "s".into(),
+            task: "t".into(),
+            bound_ip: "ip".into(),
+            secret: "x".into(),
+            issued_at: 1000,
+            expires_at: 2000,
+            jti: "modern-jti".into(),
+        };
+        let json = serde_json::to_string(&modern).expect("serialize");
+        let back: ScopedCredential = serde_json::from_str(&json).expect("deserialize modern");
+        assert_eq!(back.jti, "modern-jti");
     }
 }

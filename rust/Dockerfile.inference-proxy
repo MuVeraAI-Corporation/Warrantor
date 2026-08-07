@@ -1,0 +1,59 @@
+# inference-proxy (Rust, N3) — LLM inference gateway: auth, rate-limit,
+# prompt-filter, semantic cache, AAR audit, fallback.
+#
+# **Library-only in v1.0** (no `[[bin]]` in Cargo.toml). To keep `docker-compose up`
+# functional this image compiles the library (proving the source builds) and runs a
+# tiny HTTP health server that reports liveness on the gateway port (8444).
+#
+# Build context MUST be the `rust/` workspace root (see docker-compose.yml):
+#   docker build -f Dockerfile.inference-proxy .
+
+# ── Stage 1: build the library + a tiny health-server binary ─────────────────
+FROM rust:1.80-slim AS builder
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . .
+
+# 1. Compile the inference-proxy library. `-p` scopes the build to this crate
+#    (and its path-deps); a successful build proves the source is sound.
+RUN cargo build --release -p aumos-inference-proxy
+
+# 2. Build a tiny, dependency-free health server that reports liveness.
+#    Written to /tmp so it never pollutes the workspace source tree.
+RUN mkdir -p /health && \
+    printf '%s\n' \
+      'use std::net::TcpListener;' \
+      'use std::io::{Read, Write};' \
+      'fn main(){' \
+      '  let l = TcpListener::bind("0.0.0.0:8444").expect("bind");' \
+      '  eprintln!("inference-proxy health: listening on 0.0.0.0:8444");' \
+      "  for s in l.incoming() {" \
+      "    let mut s = s.unwrap(); let mut b=[0u8;256]; let _=s.read(&mut b);" \
+      "    let body = \"{\\\"service\\\":\\\"inference-proxy\\\",\\\"status\\\":\\\"ok\\\",\\\"mode\\\":\\\"library-only (N3)\\\"}\";" \
+      "    let resp = format!(\"HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\nContent-Length: {}\\r\\nConnection: close\\r\\n\\r\\n{}\", body.len(), body);" \
+      "    let _=s.write_all(resp.as_bytes());" \
+      '  }' \
+      '}' > /health/health.rs && \
+    rustc -O -o /health/health-server /health/health.rs
+
+# ── Stage 2: minimal runtime image ───────────────────────────────────────────
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libssl3 ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /health/health-server /usr/local/bin/health-server
+
+# Inline liveness probe: the compose file does not define a healthcheck for this
+# service, but we ship curl so `docker inspect` health can be added later.
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+    CMD curl -fsS http://localhost:8444/healthz || exit 1
+
+ENTRYPOINT ["/usr/local/bin/health-server"]
+
+EXPOSE 8444
