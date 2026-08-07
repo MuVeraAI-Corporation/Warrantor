@@ -1,0 +1,16 @@
+; P5 — Secure Skill Package (SSP) CDDL
+; Distribute skills safely with full provenance.
+
+ssp = {
+  instructions: tstr,                ; natural-language instructions
+  code: bstr,                        ; executable code (WASM/Python/etc)
+  tools: [* tstr],                   ; tool permissions required
+  permissions: [* tstr],             ; permission scope
+  publisher_identity: tstr,          ; DID/SPIFFE of the publisher
+  oms_signature: bstr,               ; OpenSSF Model Signing signature
+  ai_sbom: tstr,                     ; reference to the AI-SBOM (AATM P6)
+  eval_set: [* tstr],                ; evaluation result references
+  benchmark: tstr,                   ; benchmark score summary
+  limitations: [* tstr],             ; known limitations
+  revocation: tstr,                  ; revocation handle
+}

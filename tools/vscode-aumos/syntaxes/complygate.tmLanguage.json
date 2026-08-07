@@ -1,0 +1,43 @@
+{
+  "name": "ComplyGate",
+  "patterns": [
+    {
+      "include": "#keys"
+    },
+    {
+      "include": "#values"
+    }
+  ],
+  "repository": {
+    "keys": {
+      "patterns": [
+        {
+          "name": "keyword.control.complygate",
+          "match": "\\b(coverage|sbom|eval|disclosure|break_glass|min_coverage|required|overrides|approvers|minimum)\\b"
+        },
+        {
+          "name": "support.type.complygate",
+          "match": "\\b(gates|break_glass)\\b"
+        }
+      ]
+    },
+    "values": {
+      "patterns": [
+        {
+          "name": "constant.language.complygate",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.numeric.complygate",
+          "match": "\\b[0-9]+\\b"
+        },
+        {
+          "name": "string.quoted.double.complygate",
+          "begin": "\"",
+          "end": "\""
+        }
+      ]
+    }
+  },
+  "scopeName": "source.complygate"
+}

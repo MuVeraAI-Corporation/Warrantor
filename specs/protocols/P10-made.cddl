@@ -1,0 +1,12 @@
+; P10 — Multi-Agent Delegation Exchange (MADE) CDDL
+; Signed, attenuated delegation + result exchange between agents.
+
+made = {
+  delegation_chain: [* tstr],        ; ordered SVID chain (root → leaf)
+  hop_count: uint,                   ; number of delegation hops
+  quorum: uint,                      ; minimum approvals required
+  evidence_requirements: [* tstr],   ; required evidence types
+  trust_domain: tstr,                ; SPIFFE trust domain
+  result: tstr,                      ; result of the delegated action
+  signature: bstr,                   ; Ed25519 signature
+}

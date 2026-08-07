@@ -1,0 +1,18 @@
+; P3 — Context Provenance Envelope (CPE) CDDL
+; Origin/trust through retrieval + transformation. Enforces invariant I-03.
+
+cpe = {
+  source_identity: tstr,             ; who/what produced the source
+  acquisition_time: epoch_time,      ; when the data was acquired
+  consent: bool,                     ; was consent obtained?
+  sensitivity: tstr,                 ; L0 | L1 | L2 | L3 | L4
+  integrity: bstr,                   ; SHA-256 of the source content
+  confidence: float16,               ; 0.0-1.0 confidence in the source
+  transformations: [* tstr],         ; ordered list of transforms applied
+  derived_from: [* tstr],            ; parent CPE IDs (provenance graph)
+  taint: tstr,                       ; "clean" | "untrusted" | "pii" | "sensitive"
+  expiry: epoch_time,                ; when this provenance expires
+  allowed_use: [* tstr],             ; permitted purposes
+}
+
+epoch_time = uint

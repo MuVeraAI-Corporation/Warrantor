@@ -1,0 +1,52 @@
+{
+  "name": "CDDL",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#rules"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#keywords"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.semicolon.cddl",
+          "match": ";.*$"
+        }
+      ]
+    },
+    "rules": {
+      "patterns": [
+        {
+          "name": "entity.name.type.rule.cddl",
+          "match": "^[a-z][a-z0-9_]*\\s*="
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.cddl",
+          "match": "\\b(tstr|uint|int|float16|float64|bool|bstr|any)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.cddl",
+          "match": "\\b(&)\\b"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.cddl"
+}

@@ -1,0 +1,36 @@
+; P2 — Agent Action Receipt (AAR) CDDL
+; Tamper-evident receipt per material agent action. Emitted BEFORE commit (invariant I-07).
+
+aar = {
+  id: tstr,                           ; UUID receipt id
+  actor: tstr,                        ; SPIFFE SVID of the acting agent
+  authority_hash: bstr,               ; SHA-256 hash of the AAE (P1)
+  artifact_versions: {* tstr => tstr},; model/tool/skill versions
+  context_commitment: bstr,           ; SHA-256 of the CPE (P3)
+  policy_decision: {
+    engine: tstr,                     ; "opa" | "cedar" | "openshell"
+    decision: tstr,                   ; "allow" | "deny"
+    policy_hash: bstr,                ; SHA-256 of the policy bundle
+    matched_rules: [* tstr],          ; rule IDs that matched
+  },
+  tool_or_api_op: tstr,              ; e.g. "github.create_pr"
+  deterministic_checks: [* {
+    name: tstr,
+    passed: bool,
+    detail: tstr,
+  }],
+  approvers: [* tstr],               ; SPIFFE IDs of approvers (I-08)
+  outcome: outcome_enum,             ; pending | committed | rolled_back | failed
+  rollback_pointer: tstr,            ; reference to rollback record (empty if none)
+  emitted_at: epoch_time,            ; when the receipt was emitted (pre-commit)
+  signature: bstr,                   ; Ed25519 signature over canonical bytes
+}
+
+outcome_enum = &(
+  pending: 1,
+  committed: 2,
+  rolled_back: 3,
+  failed: 4,
+)
+
+epoch_time = uint

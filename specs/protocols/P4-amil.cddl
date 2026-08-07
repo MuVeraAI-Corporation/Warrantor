@@ -1,0 +1,22 @@
+; P4 — Agent Memory Integrity Ledger (AMIL) CDDL
+; Prevents silent memory poisoning.
+
+amil_record = {
+  record_id: tstr,                   ; unique record id
+  owner: tstr,                       ; agent SVID that owns this memory
+  confidence: float16,               ; 0.0-1.0
+  contradiction_links: [* tstr],     ; IDs of records that contradict this one
+  provenance: tstr,                  ; how this memory was formed
+  quarantine_state: quarantine_enum, ; clean | quarantined | resolved
+  supersession: tstr,                ; ID of the record that supersedes this
+  retention: epoch_time,             ; when this record expires
+  consent_revocation: bool,          ; was consent revoked?
+}
+
+quarantine_enum = &(
+  clean: 0,
+  quarantined: 1,
+  resolved: 2,
+)
+
+epoch_time = uint

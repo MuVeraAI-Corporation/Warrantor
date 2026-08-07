@@ -1,0 +1,20 @@
+; P12 — Capability Attestation Profile (CAP) CDDL
+; Declare and verify what an agent can actually do in a specific runtime.
+
+cap = {
+  runtime: tstr,                     ; runtime environment identifier
+  tools: [* tstr],                   ; tools available in this runtime
+  policy: tstr,                      ; active policy bundle hash
+  credentials: [* tstr],             ; credential types available
+  network: network_policy,           ; network egress policy
+  memory: tstr,                      ; memory isolation level
+  model: tstr,                       ; model id + version
+  sandbox: tstr,                     ; sandbox type (none | wasm | container | tee)
+  attestation_evidence: bstr,        ; attestation proof for the runtime
+}
+
+network_policy = {
+  egress_default: tstr,              ; "allow" | "deny"
+  allowlist: [* tstr],               ; allowed egress destinations
+  blocklist: [* tstr],               ; blocked egress destinations
+}

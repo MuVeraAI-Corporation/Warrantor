@@ -1,0 +1,14 @@
+; P7 — Autonomy Budget Specification (ABS) CDDL
+; Machine-enforceable budgets for agent autonomy.
+
+abs = {
+  steps: uint,                       ; max number of steps
+  wall_clock: uint,                  ; max wall-clock seconds
+  tokens: uint,                      ; max inference tokens
+  money: uint,                       ; max spend in minor currency units
+  external_calls: uint,              ; max external API/tool calls
+  data_volume: uint,                 ; max data volume in bytes
+  privilege: tstr,                   ; "none" | "read" | "write" | "admin"
+  irreversible_actions: uint,        ; max irreversible actions (0 = none allowed)
+  expected_risk: float16,            ; 0.0-1.0 expected risk score
+}

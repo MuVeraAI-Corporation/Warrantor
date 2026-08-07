@@ -1,0 +1,20 @@
+; P8 — Verifiable Evaluation Bundle (VEB) CDDL
+; Reproducible eval evidence.
+
+veb = {
+  corpus_digest: tstr,               ; sha256:... of the test corpus
+  environment: tstr,                 ; environment description
+  model_version: tstr,               ; model id + version
+  harness_version: tstr,             ; harness id + version
+  policy_version: tstr,              ; policy bundle version
+  seeds: [* uint],                   ; random seeds used
+  traces: [* tstr],                  ; execution trace references
+  judge_version: tstr,               ; judge model version
+  deterministic_assertions: [* {
+    name: tstr,
+    expected: tstr,
+    actual: tstr,
+    passed: bool,
+  }],
+  signed_result: bstr,               ; Ed25519 signature over the result
+}

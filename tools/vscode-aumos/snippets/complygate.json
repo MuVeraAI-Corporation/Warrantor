@@ -1,0 +1,36 @@
+{
+  "Coverage gate": {
+    "prefix": "cg-coverage",
+    "body": [
+      "coverage:",
+      "  minimum: ${1:85}",
+      "  required: ${2:true}"
+    ]
+  },
+  "SBOM gate": {
+    "prefix": "cg-sbom",
+    "body": [
+      "sbom:",
+      "  required: true",
+      "  format: cyclonedx"
+    ]
+  },
+  "Eval gate": {
+    "prefix": "cg-eval",
+    "body": [
+      "eval:",
+      "  required: ${1:false}",
+      "  pipeline: ${2:eval.yaml}"
+    ]
+  },
+  "Break-glass override": {
+    "prefix": "cg-break-glass",
+    "body": [
+      "break_glass:",
+      "  enabled: true",
+      "  min_approvers: 2",
+      "  approvers:",
+      "    - ${1:spiffe://aumos.dev/human/alice}"
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+; P9 — Agent Incident Exchange (AIX) CDDL
+; Normalized incidents for agent security. OCSF extension + MITRE ATLAS mapping.
+
+aix_incident = {
+  incident_id: tstr,                 ; unique incident id
+  type: incident_type,               ; incident classification
+  severity: severity_enum,           ; info | low | medium | high | critical
+  agent: tstr,                       ; agent SVID
+  authority: tstr,                   ; AAE hash that authorized the agent
+  evidence_refs: [* tstr],           ; AAR IDs with evidence
+  mitre_atlas_id: tstr,              ; MITRE ATLAS technique ID
+  ocsf_class: uint,                  ; OCSF class UID
+  detected_at: epoch_time,           ; when the incident was detected
+  contained_at: epoch_time,          ; when containment was achieved
+}
+
+incident_type = &(
+  goal_hijack: 1,
+  memory_poisoning: 2,
+  tool_abuse: 3,
+  identity_compromise: 4,
+  exfiltration: 5,
+  rogue_delegation: 6,
+)
+
+severity_enum = &(info: 1, low: 2, medium: 3, high: 4, critical: 5)
+
+epoch_time = uint

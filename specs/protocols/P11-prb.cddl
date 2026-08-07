@@ -1,0 +1,16 @@
+; P11 — Proof-Carrying Remediation Bundle (PRB) CDDL
+; Vulnerability fix with reproducer, root cause, and regression evidence.
+
+prb = {
+  reproducer: tstr,                  ; steps to reproduce the vulnerability
+  root_cause: tstr,                  ; root cause analysis
+  affected_versions: [* tstr],       ; version graph of affected artifacts
+  patch: bstr,                       ; the actual patch bytes
+  tests: [* tstr],                   ; test case references
+  regression_evidence: tstr,         ; VEB reference proving the fix works
+  build_provenance: tstr,            ; SLSA build attestation reference
+  signed_artifacts: [* bstr],        ; signed patch artifacts
+  embargo: epoch_time,              ; embargo expiry (0 = no embargo)
+}
+
+epoch_time = uint

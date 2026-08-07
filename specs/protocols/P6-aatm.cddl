@@ -1,0 +1,22 @@
+; P6 — AI Artifact Trust Manifest (AATM) CDDL
+; Binds model + dataset + tokenizer + prompt + adapter + container + policy + skill + eval.
+
+aatm = {
+  model: artifact_ref,
+  dataset: artifact_ref,
+  tokenizer: artifact_ref,
+  prompt: artifact_ref,
+  adapter: artifact_ref,
+  container: artifact_ref,
+  policy: artifact_ref,
+  skill: artifact_ref,
+  eval: artifact_ref,
+  deployment_attestations: [* bstr],  ; attestation evidence
+}
+
+artifact_ref = {
+  uri: tstr,                         ; artifact URI
+  digest: tstr,                      ; sha256:... content digest
+  version: tstr,                     ; semantic version
+  license: tstr,                     ; SPDX license identifier
+}
