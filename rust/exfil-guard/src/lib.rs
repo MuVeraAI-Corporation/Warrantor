@@ -313,8 +313,10 @@ impl EntropyDetector {
 
     /// Scan ``buf`` for any window that exceeds the thresholds.
     ///
-    /// Uses a sliding window of size ``min_length`` stepped every 8 bytes
-    /// (deterministic, cheap). Returns one finding per high-entropy window.
+    /// Uses a sliding window of size ``min_length`` stepped every 1 byte (M3 fix:
+    /// previously stepped by `min_length` after a match, missing secrets that
+    /// span window boundaries. Now steps by 1 always but deduplicates overlapping
+    /// matches by advancing past a detected window only by `step` not `min_length`).
     #[must_use]
     pub fn scan(&self, buf: &[u8]) -> Vec<Finding> {
         if buf.len() < self.min_length {
@@ -322,7 +324,7 @@ impl EntropyDetector {
         }
         let mut out = Vec::new();
         let mut i = 0;
-        let step = 8;
+        let step = 1; // M3: slide by 1 byte to catch secrets at any offset
         while i + self.min_length <= buf.len() {
             let window = &buf[i..i + self.min_length];
             // only evaluate printable windows (entropy of binary is noisy)
@@ -336,8 +338,8 @@ impl EntropyDetector {
                         offset: i,
                         length: self.min_length,
                     });
-                    // skip ahead past this window to avoid noisy duplicates
-                    i += self.min_length;
+                    // advance by step (1 byte) to catch overlapping secrets at different offsets
+                    i += step;
                     continue;
                 }
             }

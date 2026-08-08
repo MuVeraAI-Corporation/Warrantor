@@ -29,8 +29,10 @@ pub fn node_hash(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
 
 /// Compute the Merkle root over `leaves` (RFC 6962). Empty input returns the zero hash.
 ///
-/// For a non-power-of-two leaf count, the last node is promoted (RFC 6962-style duplication
-/// is NOT used; we replicate the Bitcoin convention of promoting the orphan).
+/// M10 fix: for a non-power-of-two leaf count, the odd node is RE-HASHED as a
+/// single-child internal node (SHA-256(0x01 || child || child)) rather than
+/// promoted unchanged. This prevents second-preimage attacks where a leaf hash
+/// could be confused with an internal node hash.
 pub fn merkle_root(leaves: &[&[u8]]) -> [u8; 32] {
     if leaves.is_empty() {
         return [0u8; 32];
@@ -43,8 +45,9 @@ pub fn merkle_root(leaves: &[&[u8]]) -> [u8; 32] {
             if i + 1 < layer.len() {
                 next.push(node_hash(&layer[i], &layer[i + 1]));
             } else {
-                // Odd node out — promote it.
-                next.push(layer[i]);
+                // M10: re-hash the orphan as a single-child node (not raw promotion).
+                // This prevents leaf/internal-node confusion attacks.
+                next.push(node_hash(&layer[i], &layer[i]));
             }
             i += 2;
         }

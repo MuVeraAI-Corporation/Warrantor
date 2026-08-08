@@ -133,10 +133,19 @@ impl Policy {
     /// allowlist. Suffix matching is used so that `evil.ngrok.io` matches a
     /// `ngrok.io` blocklist entry, and `sub.pastebin.com` matches
     /// `pastebin.com`.
+    /// M4 fix: when an allowlisted domain overrides a blocklisted one, log a warning
+    /// to stderr so operators can detect break-glass overrides.
     #[must_use]
     pub fn decide_domain(&self, domain: &str) -> Decision {
         let needle = domain.to_ascii_lowercase();
         if self.is_allowlisted_domain(&needle) {
+            // M4: audit-log when allowlist overrides blocklist (potential break-glass abuse)
+            if self.is_blocked_domain(&needle) {
+                eprintln!(
+                    "aumos-egress-filter: WARNING allowlisted domain {needle:?} is also in blocklist; \
+                     this override may be a break-glass bypass — verify intent."
+                );
+            }
             return Decision {
                 action: Action::Allow,
                 reason: DecisionReason::Allowlisted,

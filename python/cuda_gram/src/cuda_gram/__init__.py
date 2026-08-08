@@ -74,13 +74,30 @@ class AttestationReport:
 
     @classmethod
     def from_dict(cls, d: dict) -> "AttestationReport":
-        """Deserialize from a dict (the JSON shape produced by the Rust CLI)."""
+        """Deserialize from a dict (the JSON shape produced by the Rust CLI).
+
+        M9 fix: validates gpu_model (non-empty string) and attestation_bytes
+        (non-empty bytes) in addition to the nonce length check.
+        """
+        # Validate required keys exist
+        for key in ("gpu_model", "attestation_bytes", "nonce"):
+            if key not in d:
+                raise ValueError(f"missing required key: {key}")
+        # Validate nonce
         nonce = bytes(d["nonce"])
         if len(nonce) != 16:
             raise ValueError(f"nonce must be 16 bytes, got {len(nonce)}")
+        # M9: validate gpu_model
+        gpu_model = str(d["gpu_model"])
+        if not gpu_model or len(gpu_model) > 256:
+            raise ValueError(f"gpu_model must be a non-empty string (max 256 chars), got: {gpu_model!r}")
+        # M9: validate attestation_bytes
+        attestation_bytes = bytes(d["attestation_bytes"])
+        if len(attestation_bytes) == 0:
+            raise ValueError("attestation_bytes must not be empty")
         return cls(
-            gpu_model=d["gpu_model"],
-            attestation_bytes=bytes(d["attestation_bytes"]),
+            gpu_model=gpu_model,
+            attestation_bytes=attestation_bytes,
             nonce=nonce,
         )
 
