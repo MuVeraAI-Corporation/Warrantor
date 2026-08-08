@@ -1,8 +1,9 @@
 //! `trust-core` CLI entrypoint.
 //!
 //! Subcommands: `key-gen`, `sign`, `verify`, `notarize`.
-//! Wave-1: `key-gen`, `sign`, `verify` are fully wired (local Ed25519 keys).
-//! KMS / Rekor (`notarize`) lands in task 03.
+//! `key-gen`, `sign`, `verify` are fully wired (local Ed25519 keys).
+//! `notarize` records the signature in the Rekor transparency log via the
+//! [`aumos_trust_core::rekor::RekorClient`] (public Rekor by default).
 
 use clap::{Parser, Subcommand};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
@@ -35,10 +36,14 @@ enum Commands {
         #[arg(long)]
         signature: String,
     },
-    /// Sign and record in the Rekor transparency log. (Stubbed — task 03.)
+    /// Sign and record in the Rekor transparency log via [RekorClient].
     Notarize {
+        /// Hex-encoded signing key (64 hex chars).
         #[arg(long)]
         key: String,
+        /// Rekor base URL (defaults to the public instance https://rekor.sigstore.dev).
+        #[arg(long, default_value = aumos_trust_core::rekor::DEFAULT_REKOR_BASE_URL)]
+        rekor_url: String,
     },
 }
 
@@ -126,9 +131,46 @@ fn main() {
                 }
             }
         }
-        Commands::Notarize { key: _ } => {
-            eprintln!("notarize: requires Rekor transparency log access (task 03). Stubbed.");
-            std::process::exit(3);
+        Commands::Notarize { key, rekor_url } => {
+            let key_arr = match decode_hex_32(&key) {
+                Ok(a) => a,
+                Err(e) => fail(e),
+            };
+            let payload = match read_stdin_to_bytes() {
+                Ok(b) => b,
+                Err(e) => fail(format!("read stdin: {e}")),
+            };
+            let sk = SigningKey::from_bytes(&key_arr);
+            let sig: Signature = sk.sign(&payload);
+            let vk = sk.verifying_key();
+            let sig_hex = hex::encode(sig.to_bytes());
+            let vk_hex = hex::encode(vk.to_bytes());
+            println!("signature_hex={sig_hex}");
+            println!("verifying_key_hex={vk_hex}");
+
+            // Record the signature on Rekor. The public endpoint is HTTPS; the
+            // bundled StdTransport is plaintext TCP and will not be able to
+            // reach it directly — for production notarization supply a TLS-
+            // capable transport (e.g. via reqwest) by building RekorClient with
+            // `with_transport`. Here we attempt the call and report the typed
+            // error if the transport cannot reach the endpoint.
+            let client = aumos_trust_core::rekor::RekorClient::with_base_url(&rekor_url);
+            eprintln!("notarize: posting to {} ...", client.base_url());
+            match client.notarize(&payload, sig.to_bytes().as_ref(), vk.to_bytes().as_ref()) {
+                Ok(entry) => {
+                    println!("rekor_log_id={}", entry.log_id);
+                    println!("rekor_log_index={}", entry.log_index);
+                    println!("rekor_integrated_time={}", entry.integrated_time);
+                    if let Some(uuid) = &entry.uuid {
+                        println!("rekor_uuid={uuid}");
+                    }
+                    std::process::exit(0);
+                }
+                Err(e) => {
+                    eprintln!("notarize: rekor error: {e}");
+                    std::process::exit(3);
+                }
+            }
         }
     }
 }

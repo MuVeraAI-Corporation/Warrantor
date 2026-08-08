@@ -11,6 +11,7 @@
 
 pub mod canonical;
 pub mod merkle;
+pub mod rekor;
 pub mod signing;
 pub mod verification;
 
