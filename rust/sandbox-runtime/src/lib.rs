@@ -23,11 +23,11 @@ use wasmtime::{
 /// Signed sandbox policy wire format.
 pub const SANDBOX_POLICY_FORMAT: &str = "osaf.sandbox/1";
 /// Filesystem host ABI module.
-pub const FILESYSTEM_ABI_MODULE: &str = "aumos.fs";
+pub const FILESYSTEM_ABI_MODULE: &str = "warrantor.fs";
 /// Network host ABI module.
-pub const NETWORK_ABI_MODULE: &str = "aumos.net";
+pub const NETWORK_ABI_MODULE: &str = "warrantor.net";
 /// Process host ABI module.
-pub const PROCESS_ABI_MODULE: &str = "aumos.process";
+pub const PROCESS_ABI_MODULE: &str = "warrantor.process";
 
 /// Capability class visible in audit evidence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -890,7 +890,7 @@ mod tests {
             .execute(
                 &signed(policy()),
                 &request(
-                    "(module (import \"aumos.fs\" \"read\" (func $read (param i32) (result i32))) (func (export \"run\") (result i32) i32.const 0 call $read))",
+                    "(module (import \"warrantor.fs\" \"read\" (func $read (param i32) (result i32))) (func (export \"run\") (result i32) i32.const 0 call $read))",
                 ),
             )
             .expect("capability call");
@@ -910,7 +910,7 @@ mod tests {
         let audit = Arc::new(RecordingAudit::default());
         let backend = Arc::new(RecordingBackend::default());
         let process_import = request(
-            "(module (import \"aumos.process\" \"spawn\" (func $spawn (param i32) (result i32))) (func (export \"run\") (result i32) i32.const 0 call $spawn))",
+            "(module (import \"warrantor.process\" \"spawn\" (func $spawn (param i32) (result i32))) (func (export \"run\") (result i32) i32.const 0 call $spawn))",
         );
         let denied = runtime(Arc::clone(&audit), Arc::clone(&backend))
             .execute(&signed(policy()), &process_import);
@@ -927,7 +927,7 @@ mod tests {
 
         audit.events.lock().expect("events lock").clear();
         let out_of_range = request(
-            "(module (import \"aumos.fs\" \"read\" (func $read (param i32) (result i32))) (func (export \"run\") (result i32) i32.const 99 call $read))",
+            "(module (import \"warrantor.fs\" \"read\" (func $read (param i32) (result i32))) (func (export \"run\") (result i32) i32.const 99 call $read))",
         );
         let denied = runtime(Arc::clone(&audit), Arc::clone(&backend))
             .execute(&signed(policy()), &out_of_range);

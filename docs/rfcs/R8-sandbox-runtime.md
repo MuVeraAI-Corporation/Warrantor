@@ -51,8 +51,8 @@ addressed by a policy index rather than a guest-provided path/origin/command and
 before the injected backend is called. Out-of-range indices trap after a denied audit event.
 Compiler/import rejection and every guest result receive final evidence.
 
-The ABI currently exposes `aumos.fs::read(i32) -> i32`, `aumos.net::connect(i32) -> i32`, and
-`aumos.process::spawn(i32) -> i32`. The physical operation is delegated to
+The ABI currently exposes `warrantor.fs::read(i32) -> i32`, `warrantor.net::connect(i32) -> i32`, and
+`warrantor.process::spawn(i32) -> i32`. The physical operation is delegated to
 `HostCapabilityBackend`; `DenyHostBackend` is the safe zero-authority implementation. WASI is not
 linked, so there is no ambient environment, filesystem, network, clock, or process authority.
 
