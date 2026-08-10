@@ -29,9 +29,18 @@ Three independent things have to hold, and each is checked rather than assumed:
 A pre-deployment fingerprint of the site is committed here as
 `pre-deploy-baseline.json` — 35 paths captured before this Worker existed: 30 live
 pages with status and content hash, plus the 5 paths under `/go/` and `/schemas/`
-proving they were `404`. After deploying, re-probe and diff: any change to a page
-that is not under `/go/` or `/schemas/` is a regression, and the 404s becoming 200s
-is the only difference that should appear.
+proving they were `404`.
+
+**Compare status codes, not content hashes.** Seven pages — `/contact`, `/trust`,
+and five under `/platforms/` — are not byte-stable: three consecutive requests
+with no deployment in between return three different hashes. The first
+post-deploy diff flagged exactly those seven as regressions, and they were not;
+`/platforms/conductor` returned its exact pre-deploy hash on a third probe. Any
+hash-based check on this site produces false positives.
+
+A content hash is only meaningful for a path proven stable first. The reliable
+signal is: every previously-200 path still returns 200, and only paths under
+`/go/` and `/schemas/` moved from 404 to 200.
 
 ## Why the meta tag has four fields
 
@@ -100,4 +109,6 @@ curl -s -o /dev/null -w '%{http_code}\n' https://muveraai.com/     # must still 
 DID document at `/.well-known/did.json` would make it resolvable, but a DID
 document asserts a public key. Publishing one with a placeholder key would create
 a credential that looks authoritative and is not, so that path is left unserved
-and the identifier remains illustrative until a real key exists.
+and the identifier remains illustrative until a real key exists. What making it
+real would require -- key custody, rotation designed before first signature, the
+/.well-known route -- is scoped in docs/cross-cutting/22-did-web-identity.md.
