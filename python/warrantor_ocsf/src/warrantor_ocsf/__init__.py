@@ -167,7 +167,7 @@ def convert_aar_to_ocsf(aar: dict[str, Any]) -> dict[str, Any]:
         "metadata": {
             "product": {"name": "AumOS", "vendor_name": "MuVera AI"},
             "version": "1.0.0",
-            "log_source": "aumos.e1",
+            "log_source": "warrantor.e1",
             "original_time": aar_id,
         },
         "actor": {

@@ -90,7 +90,7 @@ The 12 formal invariants (I-01…​I-12) that this component must satisfy are l
 
 ## API
 
-Public surface (CLI, gRPC service, library) is defined in `proto/aumos/<service>/v1/<name>.proto`
+Public surface (CLI, gRPC service, library) is defined in `proto/warrantor/<service>/v1/<name>.proto`
 and exposed via generated bindings (Rust/Python/TypeScript/Go) per
 `docs/cross-cutting/19-inter-component-protocol.md`. CLI subcommands follow the
 `<component> <verb> --flag` convention.

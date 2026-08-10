@@ -40,7 +40,7 @@ def create_pull_request(repo: str, title: str, body: str):
     # your agent's actual logic here
     return {"pr_number": 42, "url": f"https://github.com/{repo}/pull/42"}
 
-result = create_pull_request("aumos/aumos", "feat: x", "body")
+result = create_pull_request("warrantor/aumos", "feat: x", "body")
 # result is the wrapped function's return value.
 # The structured ActionResult is on the function attribute:
 ar = create_pull_request.action_result

@@ -16,14 +16,14 @@ Buf lint clean. Contract plane authoritative.
 
 | Component | Version | Tests | CLI verified | Proto wired | Golden vector |
 |---|---|---|---|---|---|
-| **T1 trust-core** | 1.0.0 | 14 | ✅ `key-gen`, `sign`, `verify` round-trip + tamper detection | ✅ consumes `aumos.trust.v1` | ✅ sign-ed25519-001, merkle-001 |
+| **T1 trust-core** | 1.0.0 | 14 | ✅ `key-gen`, `sign`, `verify` round-trip + tamper detection | ✅ consumes `warrantor.trust.v1` | ✅ sign-ed25519-001, merkle-001 |
 | **X1 defstack-cli** | 1.0.0 | 4 | ✅ `list`, `install`, `verify`, `compliance-report` (all 10 frameworks) | ✅ | — |
-| **C1-1 nvtrust-bridge** | 1.0.0 | 5 | ✅ `issue-mock`, `verify` JSON round-trip | ✅ consumes `aumos.attestation.v1` | ✅ (mock attestation shape locked) |
+| **C1-1 nvtrust-bridge** | 1.0.0 | 5 | ✅ `issue-mock`, `verify` JSON round-trip | ✅ consumes `warrantor.attestation.v1` | ✅ (mock attestation shape locked) |
 | **C1-2 cuda-gram** | 1.0.0 | 9 (Python) | ✅ (library API) | ✅ mirrors proto shape | ✅ Rust-CLI JSON interop test |
-| **R2 eval-guard** | 1.0.0 | 4 | ✅ happy + failure path (fail-closed, exit 1) | ✅ consumes `aumos.attestation.v1` | — |
+| **R2 eval-guard** | 1.0.0 | 4 | ✅ happy + failure path (fail-closed, exit 1) | ✅ consumes `warrantor.attestation.v1` | — |
 | **R3 kill-switch** | 1.0.0 | 9 | ✅ sandbox-escape, behavioral-anomaly, regulatory-order, manual, status | ✅ (Government API stub) | — |
 | **R4 credential-vault** | 1.0.0 | 10 | ✅ issue, revoke-all, scan (detects AWS key, exit 1) | ✅ | — |
-| **I1 agent-identity** | mock | — | — | ✅ `aumos.identity.v1` mock interface defined | — |
+| **I1 agent-identity** | mock | — | — | ✅ `warrantor.identity.v1` mock interface defined | — |
 
 ## Contract plane verification
 
@@ -46,7 +46,7 @@ Buf lint clean. Contract plane authoritative.
 | **SLSA L3 build provenance** | Wave-1.5 | Requires GitHub Actions build-attestations setup; deferred to CI configuration task. |
 | **Signed release tags** | Wave-1.5 | No external publishing during Wave-1 (per scope boundary); signing setup is a release-engineering task. |
 | **PyO3 binding C1-2 → C1-1** | Wave-2 task 02 | Cross-compilation of the Rust core to a Python wheel is non-trivial on Windows; the pure-Python MockBackend in C1-2 mirrors the proto shape exactly so the binding swap is mechanical. |
-| **Real I1 agent-identity (SPIFFE/SPIRE)** | Wave-2 | Per the reconciliation matrix; Wave-1 ships against the mock defined in `proto/aumos/identity/v1/agent.proto`. |
+| **Real I1 agent-identity (SPIFFE/SPIRE)** | Wave-2 | Per the reconciliation matrix; Wave-1 ships against the mock defined in `proto/warrantor/identity/v1/agent.proto`. |
 | **Real KMS/HSM in T1** | Wave-1 task 03 | Stubbed; the trusted core has the trait and signing path ready, KMS backends (AWS/GCP/Azure/Yubikey/PKCS#11) are task 03. |
 | **OPA Rego policy in R3** | Wave-1 task 03 | Mock policy engine implements the documented thresholds; `regorus` integration is task 03. |
 | **Real Vault/AWS/K8s in R4** | Wave-1 task 03 | Stubs return `BackendUnavailable`; the `CredentialBackend` trait is ready for real impls. |

@@ -68,7 +68,7 @@ enum Commands {
         #[arg(long)]
         cloud: String,
         /// Configuration file path.
-        #[arg(long, default_value = "aumos.deploy.toml")]
+        #[arg(long, default_value = "warrantor.deploy.toml")]
         config: String,
     },
 }

@@ -8,7 +8,7 @@
 |---|---|
 | **Canonical ID** | I1 |
 | **Name** | agent-identity |
-| **Wave** | 2 (M3–M6) — Wave-1 uses the **mock** defined in `proto/aumos/identity/v1/agent.proto` |
+| **Wave** | 2 (M3–M6) — Wave-1 uses the **mock** defined in `proto/warrantor/identity/v1/agent.proto` |
 | **Languages** | **Go** (gated — clears activation trigger #3: SPIRE registration lifecycle) + Rust verify calls |
 | **DefStack origin** | F2 AgentVault |
 | **AumSecure origin** | "Agent Identity & Authority Fabric" (V2 #2) |
@@ -82,7 +82,7 @@ lifecycle management, and trigger #1: production K8s operator required for the i
   "sub": "spiffe://muveraai.com/agent/coding-agent-abc",
   "aud": ["spiffe://muveraai.com/tool/github"],
   "scope": "repo:write",
-  "args": { "repo": "aumos/aumos", "branch": "feat/*" },
+  "args": { "repo": "warrantor/aumos", "branch": "feat/*" },
   "iat": 1722859200,
   "exp": 1722859260,
   "jti": "uuid",
@@ -131,8 +131,8 @@ agent-identity revoke --svid <id> --reason <text>
 agent-identity delegate --parent <jwt> --child-claims <abs.json>
 ```
 
-Wire: gRPC service `aumos.identity.v1.AgentIdentity` (see
-`proto/aumos/identity/v1/agent.proto`). Async: `aumos.identity.revoked.v1` CloudEvent on Kafka.
+Wire: gRPC service `warrantor.identity.v1.AgentIdentity` (see
+`proto/warrantor/identity/v1/agent.proto`). Async: `warrantor.identity.revoked.v1` CloudEvent on Kafka.
 
 ## Testing
 
@@ -157,7 +157,7 @@ Wire: gRPC service `aumos.identity.v1.AgentIdentity` (see
 
 | Milestone | Target | Deliverable |
 |---|---|---|
-| Wave-1 (mock) | M0 | `proto/aumos/identity/v1/agent.proto` mock server returns canned tokens; Wave-1 components integrate |
+| Wave-1 (mock) | M0 | `proto/warrantor/identity/v1/agent.proto` mock server returns canned tokens; Wave-1 components integrate |
 | Week 2 (MVP) | M3+2wk | Real SPIRE integration; SVID issuance + verify; revocation (single-node) |
 | Week 4 (Alpha) | M3+4wk | Capability tokens (JWT); delegation chain; OPA policy eval |
 | Week 6 (Beta) | M3+6wk | Multi-replica revocation fan-out; HSM-backed CA; 12 dependents migrated from mock |
@@ -167,5 +167,5 @@ Wire: gRPC service `aumos.identity.v1.AgentIdentity` (see
 
 - Reconciliation: [`../00-reconciliation-matrix.md`](../00-reconciliation-matrix.md#I1)
 - Architecture: [`../02-architecture.md`](../02-architecture.md) planes 1–3
-- Mock contract: `proto/aumos/identity/v1/agent.proto` (Wave-1)
+- Mock contract: `proto/warrantor/identity/v1/agent.proto` (Wave-1)
 - Protocols: P1 AAE, P7 ABS, P10 MADE, P12 CAP

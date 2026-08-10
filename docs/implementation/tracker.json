@@ -3352,7 +3352,7 @@
         "path": "tools/ci/gen-handoffs.sh",
         "line": 18,
         "category": "mock",
-        "text": "R3|kill-switch|Rust core + Python policy|I1 (mock)|Three layers: Policy (OPA Rego, evaluated via regorus crate), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API stub for the AI Kill Switch Act (H.R. 2026). Wave-1 uses the mock I1 from proto/aumos/identity/v1/agent.proto."
+        "text": "R3|kill-switch|Rust core + Python policy|I1 (mock)|Three layers: Policy (OPA Rego, evaluated via regorus crate), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API stub for the AI Kill Switch Act (H.R. 2026). Wave-1 uses the mock I1 from proto/warrantor/identity/v1/agent.proto."
       },
       {
         "path": "tools/ci/gen-handoffs.sh",

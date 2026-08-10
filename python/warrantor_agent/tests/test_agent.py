@@ -333,8 +333,8 @@ class TestActionDecorator:
         def create_pr(repo: str, title: str) -> dict[str, Any]:
             return {"pr_number": 42, "repo": repo, "title": title}
 
-        out = create_pr("aumos/aumos", "feat: x")
-        assert out == {"pr_number": 42, "repo": "aumos/aumos", "title": "feat: x"}
+        out = create_pr("warrantor/aumos", "feat: x")
+        assert out == {"pr_number": 42, "repo": "warrantor/aumos", "title": "feat: x"}
 
         # The wrapper exposes the structured ActionResult.
         result = create_pr.action_result  # type: ignore[attr-defined]

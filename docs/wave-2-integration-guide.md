@@ -7,7 +7,7 @@
 ## The "wire off the mock" transition
 
 Wave-1 components (`aumos-kill-switch`, `aumos-credential-vault`, `aumos-eval-guard`) integrated
-against the proto-defined **mock** I1 interface in `proto/aumos/identity/v1/agent.proto`. Wave-2
+against the proto-defined **mock** I1 interface in `proto/warrantor/identity/v1/agent.proto`. Wave-2
 ships the real I1 implementation in Go (`go/agent-identity/`), which exposes the same RPCs over
 HTTP/JSON at the endpoints defined in `go/agent-identity/service.go`:
 

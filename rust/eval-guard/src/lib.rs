@@ -40,7 +40,7 @@ impl BoundaryCheck {
         BoundaryCheck::EgressAttestation,
     ];
 
-    /// The proto enum value (matches `aumos.attestation.v1.BoundaryCheck`).
+    /// The proto enum value (matches `warrantor.attestation.v1.BoundaryCheck`).
     #[must_use]
     pub fn to_proto(self) -> i32 {
         match self {

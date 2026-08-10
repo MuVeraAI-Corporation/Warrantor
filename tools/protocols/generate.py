@@ -669,7 +669,7 @@ def patch_protocol_markdown(registry: JsonObject, protocol: JsonObject, existing
        for all twelve protocols. Two implementations (``typescript/mcp-gateway`` and
        ``rust/authority-spec``) were built to the prose names and are wire-
        incompatible with the schema the validator enforces.
-    2. ``Schema location`` -- pointed at ``proto/aumos/protocols/v1/*.proto`` files
+    2. ``Schema location`` -- pointed at ``proto/warrantor/protocols/v1/*.proto`` files
        that do not exist for ten of twelve protocols.
     3. The adversarial-vector path -- pointed at ``testvectors/{ID}/``; the vectors
        actually live in ``testvectors/protocols/{ID}/``.

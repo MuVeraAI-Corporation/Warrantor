@@ -110,7 +110,7 @@ type capabilityTokenClaims struct {
 // retained for internal revocation bookkeeping, and a new `CapabilityToken` field carries the
 // actual signed capability token. The JSON wire shape (IssueResponse) now exposes
 // `capability_token` (the token) rather than `capability_jti` (just its id), matching
-// `IssueIdentityResponse.capability_token` in proto/aumos/identity/v1/agent.proto.
+// `IssueIdentityResponse.capability_token` in proto/warrantor/identity/v1/agent.proto.
 type SVID struct {
 	Token           string `json:"token"`            // the signed SVID (JWT-like string)
 	VerifyingKey    string `json:"verifying_key"`    // hex-encoded issuer verifying key

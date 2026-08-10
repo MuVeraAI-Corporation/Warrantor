@@ -24,7 +24,7 @@ import { createPublicKey, verify as cryptoVerify } from 'node:crypto';
  */
 
 // ---------------------------------------------------------------------------
-// Side-effect class — mirrors proto/aumos/identity/v1/agent.proto field 7 and
+// Side-effect class — mirrors proto/warrantor/identity/v1/agent.proto field 7 and
 // the invariant I-08 consequential-action escalation ladder.
 // ---------------------------------------------------------------------------
 
@@ -87,7 +87,7 @@ export function isSelfChange(scope: ToolScope): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Agent Authority Envelope (P1) — mirrors proto/aumos/identity/v1/agent.proto
+// Agent Authority Envelope (P1) — mirrors proto/warrantor/identity/v1/agent.proto
 // message AgentAuthorityEnvelope. The gateway consumes this from the VerifyIdentity
 // RPC; it does not sign/verify here (trust-core T1 owns the cryptography).
 // ---------------------------------------------------------------------------

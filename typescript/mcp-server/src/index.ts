@@ -22,7 +22,7 @@
  * fail-closed and observable, never silent).
  *
  * Wire shapes for I1 mirror go/agent-identity/service.go (HTTP/JSON gateway over the
- * proto/aumos/identity/v1/agent.proto RPCs).
+ * proto/warrantor/identity/v1/agent.proto RPCs).
  */
 
 import { createHash, randomUUID } from 'node:crypto';
@@ -143,7 +143,7 @@ export const TOOLS: ToolDescriptor[] = [
     name: 'aumos_issue_identity',
     description:
       'Issue an agent identity (SPIFFE SVID + capability token) via I1 agent-identity. ' +
-      'HTTP POST /v1/agent-identity:issue. Mirrors proto/aumos/identity/v1/IssueIdentityRequest.',
+      'HTTP POST /v1/agent-identity:issue. Mirrors proto/warrantor/identity/v1/IssueIdentityRequest.',
     inputSchema: {
       type: 'object',
       properties: {

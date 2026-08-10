@@ -3,7 +3,7 @@
 // (invariant I-07: evidence precedes commitment).
 syntax = "proto3";
 
-package aumos.protocols.v1;
+package warrantor.protocols.v1;
 
 import "google/protobuf/timestamp.proto";
 

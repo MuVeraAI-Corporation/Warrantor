@@ -1,7 +1,7 @@
 """AumOS cuda-gram — high-level GPU attestation SDK.
 
 Wave-1 v1.0 ships a pure-Python implementation that mirrors the proto types in
-``proto/aumos/attestation/v1/report.proto``. The PyO3 binding to C1-1's Rust core
+``proto/warrantor/attestation/v1/report.proto``. The PyO3 binding to C1-1's Rust core
 (``warrantor-nvtrust-bridge``) lands in task 02 — it replaces the pure-Python
 ``MockBackend`` with a call into the Rust trusted core via PyO3, NOT ctypes (that's
 the DefStack original we are migrating away from).
@@ -17,7 +17,7 @@ from typing import Protocol
 
 
 class BoundaryCheck(IntEnum):
-    """Mirrors ``aumos.attestation.v1.BoundaryCheck`` — the four pre-flight checks R2 runs."""
+    """Mirrors ``warrantor.attestation.v1.BoundaryCheck`` — the four pre-flight checks R2 runs."""
 
     UNSPECIFIED = 0
     NETWORK_ISOLATION = 1
@@ -56,7 +56,7 @@ class AttestationBackend(Protocol):
 @dataclass(frozen=True)
 class AttestationReport:
     """A GPU attestation report. Mirrors the Rust ``AttestationReport`` in C1-1 and
-    the proto type ``aumos.attestation.v1.GpuAttestationReport``."""
+    the proto type ``warrantor.attestation.v1.GpuAttestationReport``."""
 
     gpu_model: str
     attestation_bytes: bytes

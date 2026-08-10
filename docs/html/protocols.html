@@ -451,8 +451,8 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     delegation is simultaneously a workload identity and a least-privilege grant.</p>
 
     <h3>Schema sketch (mandatory fields)</h3>
-    <p>The normative schemas live at <code>proto/aumos/protocols/v1/aae.proto</code> (mirrored as
-    <code>AgentAuthorityEnvelope</code> in <code>proto/aumos/identity/v1/agent.proto</code>), the CDDL
+    <p>The normative schemas live at <code>proto/warrantor/protocols/v1/aae.proto</code> (mirrored as
+    <code>AgentAuthorityEnvelope</code> in <code>proto/warrantor/identity/v1/agent.proto</code>), the CDDL
     at <code>specs/protocols/P1-aae.cddl</code>, and the JSON-Schema at
     <code>specs/protocols/P1-aae.schema.json</code>. The mandatory fields are:</p>
     <pre><code>issuer, subject, purpose, resources, tools, data_classes,
@@ -520,7 +520,7 @@ signature</code></pre>
     <strong>R4</strong> (guardrails / runtime policy) enforce its limits; <strong>T1</strong> signs and
     verifies it; and the entire trusted-core treats a valid AAE as the precondition for any
     side-effecting call. <code>AgentIdentityService.IssueIdentity</code> in
-    <code>proto/aumos/identity/v1/agent.proto</code> takes the envelope as its first argument.</p>
+    <code>proto/warrantor/identity/v1/agent.proto</code> takes the envelope as its first argument.</p>
 
     <h3>Usage example (JSON)</h3>
 <pre><code>{
@@ -572,7 +572,7 @@ signature</code></pre>
     and consumed by every auditing component.</p>
 
     <h3>Schema sketch (mandatory fields)</h3>
-    <p>The normative schema is <code>proto/aumos/protocols/v1/aar.proto</code> (message
+    <p>The normative schema is <code>proto/warrantor/protocols/v1/aar.proto</code> (message
     <code>AgentActionReceipt</code>) plus CDDL. Mandatory fields per the spec:</p>
     <pre><code>actor, authority_hash, artifact_versions, context_commitment,
 policy_decision, tool_or_api_op, deterministic_checks,
@@ -659,7 +659,7 @@ approver, outcome, rollback_pointer</code></pre>
 
     <h3>Cross-references</h3>
     <p><code>docs/00-reconciliation-matrix.md</code> §9 ·
-    <code>proto/aumos/protocols/v1/aar.proto</code> ·
+    <code>proto/warrantor/protocols/v1/aar.proto</code> ·
     <code>docs/rfcs/T1-trust-core.md</code> ·
     <code>docs/rfcs/A6-conformance.md</code> ·
     references <a href="#p1">P1</a> (authority_hash), <a href="#p3">P3</a> (context_commitment).</p>
@@ -1598,8 +1598,8 @@ sandbox, attestation_evidence</code></pre>
       <p>The normative sources for this page are <code>specs/protocols/README.md</code>,
       <code>specs/protocols/P1-aae.md</code> … <code>specs/protocols/P12-cap.md</code>,
       <code>specs/protocols/P1-aae.cddl</code>, <code>specs/protocols/P1-aae.schema.json</code>,
-      <code>proto/aumos/identity/v1/agent.proto</code> (AAE message), and
-      <code>proto/aumos/protocols/v1/aar.proto</code> (AAR message). When this page and the specs
+      <code>proto/warrantor/identity/v1/agent.proto</code> (AAE message), and
+      <code>proto/warrantor/protocols/v1/aar.proto</code> (AAR message). When this page and the specs
       disagree, the specs win.</p>
     </div>
   </section>

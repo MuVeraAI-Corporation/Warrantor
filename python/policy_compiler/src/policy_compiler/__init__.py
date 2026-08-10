@@ -219,7 +219,7 @@ class RegoPolicyEmitter:
     canonical least-privilege default).
     """
 
-    def emit(self, rules: Iterable[Rule], *, package: str = "aumos.policy") -> str:
+    def emit(self, rules: Iterable[Rule], *, package: str = "warrantor.policy") -> str:
         """Render ``rules`` as a Rego module string."""
         rules = list(rules)
         allow_lines: list[str] = []

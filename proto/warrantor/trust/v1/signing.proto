@@ -3,7 +3,7 @@
 // sign/verify operation. Other languages call it via these RPCs or via in-process bindings.
 syntax = "proto3";
 
-package aumos.trust.v1;
+package warrantor.trust.v1;
 
 // TrustService is the gRPC service exposed when trust-core runs as a sidecar (e.g. for batch verify).
 // Most callers embed trust-core as a library and do NOT use this service.

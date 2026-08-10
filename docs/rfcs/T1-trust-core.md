@@ -108,7 +108,7 @@ trust-core key-gen --algorithm ed25519 [--kms aws://...]
 trust-core notarize --payload <file> --key <key-ref>
 ```
 
-Wire: gRPC service `aumos.trust.v1.Trust` (see `proto/aumos/trust/v1/signing.proto`).
+Wire: gRPC service `warrantor.trust.v1.Trust` (see `proto/warrantor/trust/v1/signing.proto`).
 
 ## Testing
 

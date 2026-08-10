@@ -2,7 +2,7 @@
 // C1-2 cuda-gram, and the composite attestation layer (P12 CAP, plane 9).
 syntax = "proto3";
 
-package aumos.attestation.v1;
+package warrantor.attestation.v1;
 
 import "google/protobuf/timestamp.proto";
 

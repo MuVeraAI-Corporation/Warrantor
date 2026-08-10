@@ -21,9 +21,9 @@ gated by Buf breaking-change detection.
 
 | Tier | Use case | Wire format | Defined in |
 |---|---|---|---|
-| **Internal (service-to-service)** | AumOS components talking to each other | **gRPC + protobuf** | `proto/aumos/<service>/v1/*.proto` |
+| **Internal (service-to-service)** | AumOS components talking to each other | **gRPC + protobuf** | `proto/warrantor/<service>/v1/*.proto` |
 | **External (client-facing)** | REST APIs, webhooks, third-party integrations | **REST + JSON** (HTTP/1.1 or HTTP/2) | `specs/rest/<service>/v1/*.yaml` (OpenAPI 3.1) |
-| **Async (event-driven)** | Audit events, action receipts, eval results, incident signals | **CloudEvents + Kafka** | `specs/events/<topic>/v1/*.yaml` + `proto/aumos/events/v1/*.proto` |
+| **Async (event-driven)** | Audit events, action receipts, eval results, incident signals | **CloudEvents + Kafka** | `specs/events/<topic>/v1/*.yaml` + `proto/warrantor/events/v1/*.proto` |
 
 **Rule:** no component invents a fourth tier. No raw TCP, no custom binary, no XML, no SOAP. If you
 need streaming, use gRPC server-streaming or bidirectional streaming.
@@ -105,7 +105,7 @@ language's SDK folder. Never hand-write REST clients — always generate.
   "specversion": "1.0",
   "id": "uuid",
   "source": "/aumos/agent-identity",
-  "type": "com.aumos.agent.identity.revoked",
+  "type": "com.warrantor.agent.identity.revoked",
   "time": "2026-08-05T12:34:56Z",
   "datacontenttype": "application/protobuf",
   "subject": "agent/abc-123",
@@ -115,10 +115,10 @@ language's SDK folder. Never hand-write REST clients — always generate.
 
 ### 4.2 Topics
 Kafka topics follow `aumos.<domain>.<event>.v<N>`:
-- `aumos.identity.revoked.v1`
-- `aumos.evidence.receipt.v1`
-- `aumos.evaluation.completed.v1`
-- `aumos.incident.detected.v1`
+- `warrantor.identity.revoked.v1`
+- `warrantor.evidence.receipt.v1`
+- `warrantor.evaluation.completed.v1`
+- `warrantor.incident.detected.v1`
 
 ### 4.3 Delivery semantics
 - **At-least-once** (default). Consumers must be idempotent (use the CloudEvent `id`).

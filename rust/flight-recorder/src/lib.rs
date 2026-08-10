@@ -46,7 +46,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 use uuid::Uuid;
 
-/// The action outcome. Mirrors `aumos.protocols.v1.ActionOutcome`.
+/// The action outcome. Mirrors `warrantor.protocols.v1.ActionOutcome`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActionOutcome {
@@ -518,13 +518,13 @@ impl FlightRecorder {
             "kind": "internal",
             "start_time_unix_nano": receipt.emitted_at.checked_mul(1_000_000_000).unwrap_or(0),
             "attributes": {
-                "aumos.agent.id": receipt.actor,
-                "aumos.action.authority_hash": receipt.authority_hash_hex,
-                "aumos.action.context_commitment": receipt.context_commitment_hex,
-                "aumos.action.outcome": format!("{:?}", receipt.outcome).to_lowercase(),
-                "aumos.action.tool": receipt.tool_or_api_op,
-                "aumos.action.signature": receipt.signature_hex,
-                "aumos.action.verifying_key": receipt.verifying_key_hex
+                "warrantor.agent.id": receipt.actor,
+                "warrantor.action.authority_hash": receipt.authority_hash_hex,
+                "warrantor.action.context_commitment": receipt.context_commitment_hex,
+                "warrantor.action.outcome": format!("{:?}", receipt.outcome).to_lowercase(),
+                "warrantor.action.tool": receipt.tool_or_api_op,
+                "warrantor.action.signature": receipt.signature_hex,
+                "warrantor.action.verifying_key": receipt.verifying_key_hex
             }
         })
     }
@@ -797,7 +797,7 @@ mod tests {
         let receipt = r.emit_pending(sample_input()).expect("emit");
         let span = r.to_otel_span_json(&receipt);
         assert!(span["name"].as_str().unwrap().starts_with("agent.action."));
-        assert!(span["attributes"]["aumos.agent.id"].is_string());
+        assert!(span["attributes"]["warrantor.agent.id"].is_string());
     }
 
     #[test]

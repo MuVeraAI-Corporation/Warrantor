@@ -4,7 +4,7 @@
 // Per docs/cross-cutting/19-inter-component-protocol.md: gRPC + protobuf for internal RPCs.
 syntax = "proto3";
 
-package aumos.identity.v1;
+package warrantor.identity.v1;
 
 import "google/protobuf/timestamp.proto";
 

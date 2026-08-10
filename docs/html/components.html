@@ -1238,7 +1238,7 @@ every agent that needs an outbound secret. Production backends (task 03): Vault 
 <h4>Limitations / Deferred work</h4>
 <p>All three production backends return <code>BackendUnavailable</code> with a "task 03" message in v1.0.
 <code>revoke_all</code> is single-process; the multi-replica fan-out (publish
-<code>aumos.identity.revoked.v1</code> and wait for acks) lands in task 04. The scanner uses regex; the
+<code>warrantor.identity.revoked.v1</code> and wait for acks) lands in task 04. The scanner uses regex; the
 real ExfilGuard (S6) uses a richer pattern set.</p>
 
 <h4>Cross-references</h4>
@@ -1614,7 +1614,7 @@ CI can exercise the verify path. The CLI (<code>nvtrust-verify</code>) wraps <co
 
 <h4>Overview</h4>
 <p><code>cuda-gram</code> is the high-level GPU attestation SDK. The Wave-1 v1.0 ships a pure-Python
-implementation that mirrors the proto types in <code>proto/aumos/attestation/v1/report.proto</code>. The
+implementation that mirrors the proto types in <code>proto/warrantor/attestation/v1/report.proto</code>. The
 PyO3 binding to C1-1's Rust core lands in task 02 — it replaces the pure-Python <code>MockBackend</code>
 with a call into the Rust trusted core via PyO3 (NOT ctypes, which is what the DefStack original
 used and what AumOS is migrating away from). The <code>AttestationBackend</code> protocol mirrors the

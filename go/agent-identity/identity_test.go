@@ -214,7 +214,7 @@ func TestVerifyingKeyHexIsStable(t *testing.T) {
 
 // TestCapabilityTokenIssued_H2 covers the H2 wire-shape fix: Issue must populate a signed
 // capability token (not just the JTI), and the wire shape must expose `capability_token` so it
-// matches proto/aumos/identity/v1/IssueIdentityResponse.capability_token.
+// matches proto/warrantor/identity/v1/IssueIdentityResponse.capability_token.
 func TestCapabilityTokenIssued_H2(t *testing.T) {
 	svc, _ := NewService("muveraai.com")
 	svid, err := svc.Issue(

@@ -17,10 +17,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Tell prost/tonic about all our proto packages.
     let proto_files = [
-        "aumos/identity/v1/agent.proto",
-        "aumos/trust/v1/signing.proto",
-        "aumos/attestation/v1/report.proto",
-        "aumos/protocols/v1/aar.proto",
+        "warrantor/identity/v1/agent.proto",
+        "warrantor/trust/v1/signing.proto",
+        "warrantor/attestation/v1/report.proto",
+        "warrantor/protocols/v1/aar.proto",
     ];
 
     tonic_build::configure()

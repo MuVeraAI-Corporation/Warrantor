@@ -78,7 +78,7 @@ def test_translate_intent_unknown_returns_empty() -> None:
 def test_rego_emitter_produces_default_deny() -> None:
     out = RegoPolicyEmitter().emit([])
     assert "default allow = false" in out
-    assert "package aumos.policy" in out
+    assert "package warrantor.policy" in out
 
 
 def test_rego_emitter_emits_allow_block() -> None:
@@ -135,7 +135,7 @@ def test_compiler_combines_intent_and_enterprise_rules() -> None:
         enterprise_rules="allow tool:read on /sandbox/* when clearance >= 3",
     )
     assert len(policy.rules) == 2
-    assert "package aumos.policy" in policy.rego
+    assert "package warrantor.policy" in policy.rego
     assert "permit (" in policy.cedar
     assert 'version: "1"' in policy.openshell
 
