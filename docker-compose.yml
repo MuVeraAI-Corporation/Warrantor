@@ -45,7 +45,7 @@ services:
       timeout: 5s
       retries: 3
     environment:
-      AUMOS_TRUST_DOMAIN: aumos.dev
+      AUMOS_TRUST_DOMAIN: warrantor.dev
       AUMOS_LOG_LEVEL: info
 
   # ─── Open Serve Kit (Go) ──────────────────────────────────────────────────
@@ -210,7 +210,7 @@ services:
   # Not a network service — run interactively: docker-compose run mcp-server
   aumos-mcp:
     build:
-      context: ./typescript/aumos-mcp-server
+      context: ./typescript/mcp-server
       dockerfile: Dockerfile
     stdin_open: true
     environment:

@@ -5,7 +5,8 @@
 > directory, and cross-reference in this repo defers to this table.
 >
 > **Methodology:** balanced merge — collapse names where the four source documents describe the same
-> thing; keep separate where there is genuine scope divergence. Total: **38 canonical components**.
+> thing; keep separate where there is genuine scope divergence. Total: **54 implementable canonical
+> components plus 12 protocol specifications (66 auditable catalogue rows)**.
 
 ## How to read this table
 
@@ -181,7 +182,7 @@ single language implementation; every relevant component consumes them.
 
 | Group | Count |
 |---|---|
-| Trust core / identity / runtime (§1) | 14 (T1, T2, I1, I2, R1–R8) |
+| Trust core / identity / runtime (§1) | 12 (T1, T2, I1, I2, R1–R8) |
 | Confidential compute / GPU (§2) | 5 (C1-1 … C1-5) |
 | Formats / supply chain (§3) | 9 (S1–S9) |
 | Evaluation (§4) | 8 (A1–A8) |
@@ -190,14 +191,14 @@ single language implementation; every relevant component consumes them.
 | Cross-cutting (§7) | 11 (X1–X11) |
 | Evidence (§10) | 1 (E1) |
 | Protocols (spec-only, §9) | 12 (P1–P12) |
-| **Total canonical components** | **56** (38 implementable + 12 spec-only protocols + 6 folded-in Sentinel frameworks already counted) |
-| **Implementable** | **44** |
+| **Total catalogue rows** | **66** (54 implementable components + 12 spec-only protocols) |
+| **Implementable** | **54** |
 | **Spec-only** | **12** (protocols) |
 
-> The "~38" figure in the planning conversation counted only the implementable, non-protocol
-> canonicals excluding the folded Sentinel frameworks and the future-only defensive-agent (AEGIS)
-> layer. The full canonical catalog above is **44 implementable components + 12 protocol specs**.
-> Wave-1 ships 8 of the 44.
+> Earlier planning counts of 38, 44, and 56 mixed implementation rows, protocol rows, and folded
+> Sentinel framework aliases. The enumerated tables are authoritative: **54 implementable
+> components + 12 protocol specifications = 66 distinct catalogue rows**. Folded framework aliases
+> are mappings, not additional components. Wave 1 targets 8 of the 54 implementable components.
 
 ---
 

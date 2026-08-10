@@ -149,7 +149,7 @@ export const TOOLS: ToolDescriptor[] = [
       properties: {
         subject: {
           type: 'string',
-          description: 'SPIFFE ID of the agent being issued (e.g. spiffe://aumos.dev/agent/coding-1).',
+          description: 'SPIFFE ID of the agent being issued (e.g. spiffe://warrantor.dev/agent/coding-1).',
         },
         audience: { type: 'string', description: 'Intended audience bound into the `aud` claim.' },
         parent_svid: { type: 'string', description: 'Parent SVID for delegation chains.' },
@@ -794,7 +794,7 @@ export async function CallTool(
             return dependencyFailure('aumos_verify_receipt', 'flight-recorder', cause);
           }
         }
-        return ok({ valid: receiptId.startsWith('aar-'), signer: 'spiffe://aumos.dev/flight-recorder', source: 'mock' });
+        return ok({ valid: receiptId.startsWith('aar-'), signer: 'spiffe://warrantor.dev/flight-recorder', source: 'mock' });
       }
 
       // --- C1-1 nvtrust-bridge ---------------------------------------------
@@ -841,7 +841,7 @@ export async function CallTool(
       // --- R3 kill-switch ---------------------------------------------------
       case 'aumos_kill': {
         const reason = String(args.reason ?? '');
-        const agent = String(args.agent ?? 'spiffe://aumos.dev/agent/default');
+        const agent = String(args.agent ?? 'spiffe://warrantor.dev/agent/default');
         if (!reason) return err('aumos_kill: "reason" is required');
         const payload = { reason, agent };
         if (!isStandalone) {

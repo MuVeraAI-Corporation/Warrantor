@@ -791,7 +791,7 @@ li::marker { color: var(--accent); }
 
 <h4>Install &amp; onboarding</h4>
 <div class="mv-grid-3">
-  <div class="mv-feature-card"><div class="num">DX-01</div><h4>One-command install</h4><p><code>curl -sSL https://get.aumos.dev | sh</code> bootstraps the defstack CLI and Wave-1 components on macOS, Linux, WSL. No prerequisite toolchain.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-01</div><h4>One-command install</h4><p><code>curl -sSL https://get.warrantor.dev | sh</code> bootstraps the defstack CLI and Wave-1 components on macOS, Linux, WSL. No prerequisite toolchain.</p></div>
   <div class="mv-feature-card"><div class="num">DX-02</div><h4>Per-component install</h4><p><code>defstack install &lt;component&gt;</code> installs any of 52 components (49 shipped + S3/R8 deferred + tooling), resolving the component DAG.</p></div>
   <div class="mv-feature-card"><div class="num">DX-03</div><h4>One-command compliance</h4><p><code>defstack compliance-report</code> produces a signed JSON bundle for all 10 frameworks from S4 + S5 + S2 + A1 + A2.</p></div>
   <div class="mv-feature-card"><div class="num">DX-27</div><h4>5-minute quickstart</h4><p>Clone → <code>make test</code> → first contributed patch. The repo is structured so a new contributor lands a green PR in one sitting.</p></div>
@@ -799,7 +799,7 @@ li::marker { color: var(--accent); }
 
 <h4>SDKs &amp; APIs</h4>
 <div class="mv-grid-3">
-  <div class="mv-feature-card"><div class="num">DX-04</div><h4>MCP server (15 tools)</h4><p>Any agent can call AumOS via <code>npx @muveraai/aumos-mcp-server</code>. 15 tools span identity, authority, evidence, and kill-switch.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-04</div><h4>MCP server (15 tools)</h4><p>Any agent can call AumOS via <code>npx @warrantor/aumos-mcp-server</code>. 15 tools span identity, authority, evidence, and kill-switch.</p></div>
   <div class="mv-feature-card"><div class="num">DX-05</div><h4><code>@agent.action</code> decorator</h4><p>Wrap any function with authority, evidence, and kill-switch in one line. Security becomes opt-out, not opt-in.</p></div>
   <div class="mv-feature-card"><div class="num">DX-06</div><h4><code>secure_session()</code> context manager</h4><p>Wrap an entire agent session: identity issued, budget enforced, evidence streamed, credentials auto-revoked on exit.</p></div>
   <div class="mv-feature-card"><div class="num">DX-23</div><h4>TypeScript SDK</h4><p>First-class SDK for the console (X7) and MCP gateway (X8). Generated from the proto contract — no hand-maintained types.</p></div>

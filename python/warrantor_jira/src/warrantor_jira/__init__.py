@@ -30,7 +30,7 @@ Incident dict shape (subset; extra keys are ignored)::
       "severity": "low" | "medium" | "high" | "critical",
       "summary": "short one-line description",
       "details": "long-form findings",
-      "agent_id": "spiffe://aumos.dev/agent/x",
+      "agent_id": "spiffe://warrantor.dev/agent/x",
       "detected_at": 1700000000.0,
     }
 

@@ -589,7 +589,7 @@ impl PendingAction {
 /// let mut rec = DurableFlightRecorder::open("evidence.jsonl")?;
 /// // emit_pending returns only once the signed receipt is fsync'd:
 /// let pending = rec.emit_pending(ReceiptInput {
-///     actor: "spiffe://aumos.dev/agent/a".into(),
+///     actor: "spiffe://warrantor.dev/agent/a".into(),
 ///     authority_hash_hex: String::new(),
 ///     tool_or_api_op: "github.create_pr".into(),
 ///     context_commitment_hex: String::new(),
@@ -724,7 +724,7 @@ mod tests {
 
     fn sample_input() -> ReceiptInput {
         ReceiptInput {
-            actor: "spiffe://aumos.dev/agent/coding-1".into(),
+            actor: "spiffe://warrantor.dev/agent/coding-1".into(),
             authority_hash_hex: "abc123".repeat(8),
             tool_or_api_op: "github.create_pr".into(),
             context_commitment_hex: "def456".repeat(8),
@@ -744,7 +744,7 @@ mod tests {
     fn tampered_receipt_fails_verification() {
         let mut r = FlightRecorder::new();
         let mut receipt = r.emit_pending(sample_input()).expect("emit");
-        receipt.actor = "spiffe://aumos.dev/agent/impostor".into();
+        receipt.actor = "spiffe://warrantor.dev/agent/impostor".into();
         assert!(matches!(
             FlightRecorder::verify(&receipt),
             Err(RecorderError::SignatureInvalid)

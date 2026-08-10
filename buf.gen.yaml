@@ -6,7 +6,7 @@ managed:
   enabled: true
   override:
     - file_option: java_package
-      value: dev.aumos.api
+      value: dev.warrantor.api
 plugins:
   - remote: buf.build/community/neoeinstein-prost
     out: rust/warrantor-api/src/generated

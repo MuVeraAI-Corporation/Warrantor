@@ -12,7 +12,7 @@ import (
 func hexDecode(s string) ([]byte, error) { return hex.DecodeString(s) }
 
 func TestIssueAndVerifyRoundTrip(t *testing.T) {
-	svc, err := NewService("aumos.dev")
+	svc, err := NewService("warrantor.dev")
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestIssueAndVerifyRoundTrip(t *testing.T) {
 }
 
 func TestTamperedTokenFails(t *testing.T) {
-	svc, _ := NewService("aumos.dev")
+	svc, _ := NewService("warrantor.dev")
 	svid, _ := svc.Issue("spiffe://warrantor.dev/agent/x", AgentAttributes{}, CapabilityClaims{}, "", "")
 	// Flip one byte in the signature half.
 	parts := strings.SplitN(svid.Token, ".", 2)
@@ -52,7 +52,7 @@ func TestTamperedTokenFails(t *testing.T) {
 func TestAudienceMismatchRejectedC5(t *testing.T) {
 	// C5: the confused-deputy defense must check the real `aud` claim. A token issued for
 	// audience "service-a" must NOT verify when the caller requests audience "service-b".
-	svc, _ := NewService("aumos.dev")
+	svc, _ := NewService("warrantor.dev")
 	svid, err := svc.Issue(
 		"spiffe://warrantor.dev/agent/x",
 		AgentAttributes{},
@@ -83,7 +83,7 @@ func TestAudienceMismatchRejectedC5(t *testing.T) {
 }
 
 func TestRevokedTokenRejected(t *testing.T) {
-	svc, _ := NewService("aumos.dev")
+	svc, _ := NewService("warrantor.dev")
 	svid, _ := svc.Issue("spiffe://warrantor.dev/agent/x", AgentAttributes{}, CapabilityClaims{}, "", "")
 	claims, _ := svc.Verify(svid.Token)
 	if _, err := svc.Revoke(claims.JTI); err != nil {
@@ -96,7 +96,7 @@ func TestRevokedTokenRejected(t *testing.T) {
 
 func TestRevocationBudgetMet(t *testing.T) {
 	// Revocation is in-memory so completes well under the 5s budget.
-	svc, _ := NewService("aumos.dev")
+	svc, _ := NewService("warrantor.dev")
 	start := time.Now()
 	_, err := svc.Revoke("any-jti")
 	if err != nil {
@@ -109,7 +109,7 @@ func TestRevocationBudgetMet(t *testing.T) {
 
 func TestDelegationIntersection_I02(t *testing.T) {
 	// Invariant I-02: child authority must be a subset of (intersection with) parent.
-	svc, _ := NewService("aumos.dev")
+	svc, _ := NewService("warrantor.dev")
 	parent, err := svc.Issue(
 		"spiffe://warrantor.dev/agent/parent",
 		AgentAttributes{},
@@ -159,7 +159,7 @@ func TestDelegationIntersection_I02(t *testing.T) {
 }
 
 func TestDelegationDepthExhausted(t *testing.T) {
-	svc, _ := NewService("aumos.dev")
+	svc, _ := NewService("warrantor.dev")
 	leaf, err := svc.Issue(
 		"spiffe://warrantor.dev/agent/leaf",
 		AgentAttributes{},
@@ -201,7 +201,7 @@ func TestSubset(t *testing.T) {
 }
 
 func TestVerifyingKeyHexIsStable(t *testing.T) {
-	svc, _ := NewService("aumos.dev")
+	svc, _ := NewService("warrantor.dev")
 	k1 := svc.VerifyingKeyHex()
 	k2 := svc.VerifyingKeyHex()
 	if k1 != k2 {
@@ -216,7 +216,7 @@ func TestVerifyingKeyHexIsStable(t *testing.T) {
 // capability token (not just the JTI), and the wire shape must expose `capability_token` so it
 // matches proto/aumos/identity/v1/IssueIdentityResponse.capability_token.
 func TestCapabilityTokenIssued_H2(t *testing.T) {
-	svc, _ := NewService("aumos.dev")
+	svc, _ := NewService("warrantor.dev")
 	svid, err := svc.Issue(
 		"spiffe://warrantor.dev/agent/cap",
 		AgentAttributes{Publisher: "warrantor.dev/coding-agent"},
@@ -259,7 +259,7 @@ func TestCapabilityTokenIssued_H2(t *testing.T) {
 // TestIssueResponseWireShape_H2 verifies the JSON wire shape emitted by the gateway carries the
 // proto field name `capability_token` (not the old `capability_jti`).
 func TestIssueResponseWireShape_H2(t *testing.T) {
-	svc, _ := NewService("aumos.dev")
+	svc, _ := NewService("warrantor.dev")
 	svid, _ := svc.Issue(
 		"spiffe://warrantor.dev/agent/wire",
 		AgentAttributes{},

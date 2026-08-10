@@ -735,7 +735,7 @@ hr { border-top-color: var(--border); }
 <section id="mcp-setup">
   <span class="eyebrow">04 · MCP Server Setup</span>
   <h2>Configuring Your Agent for the MCP Server</h2>
-  <p>The MCP server (<code>@muveraai/aumos-mcp-server</code>) speaks the Model Context Protocol over stdio JSON-RPC 2.0. It advertises 15 tools via <code>tools/list</code> and handles <code>tools/call</code>. It runs in <strong>standalone</strong> mode by default (deterministic mock responses, zero external deps — ideal for dev and dry-runs) and switches to <strong>connected</strong> mode when <code>AUMOS_MODE=connected</code> is set or <code>--connected</code> is passed, issuing real HTTP calls to the AumOS services.</p>
+  <p>The MCP server (<code>@warrantor/aumos-mcp-server</code>) speaks the Model Context Protocol over stdio JSON-RPC 2.0. It advertises 15 tools via <code>tools/list</code> and handles <code>tools/call</code>. It runs in <strong>standalone</strong> mode by default (deterministic mock responses, zero external deps — ideal for dev and dry-runs) and switches to <strong>connected</strong> mode when <code>AUMOS_MODE=connected</code> is set or <code>--connected</code> is passed, issuing real HTTP calls to the AumOS services.</p>
 
   <div class="agent-grid">
     <div class="agent-card">
@@ -745,7 +745,7 @@ hr { border-top-color: var(--border); }
         <pre><code>{
   "aumos": {
     "command": "npx",
-    "args": ["@muveraai/aumos-mcp-server"]
+    "args": ["@warrantor/aumos-mcp-server"]
   }
 }</code></pre>
       </div>
@@ -760,7 +760,7 @@ hr { border-top-color: var(--border); }
   "mcpServers": {
     "aumos": {
       "command": "npx",
-      "args": ["@muveraai/aumos-mcp-server"]
+      "args": ["@warrantor/aumos-mcp-server"]
     }
   }
 }</code></pre>
@@ -773,15 +773,15 @@ hr { border-top-color: var(--border); }
       <p>Any MCP-compatible client. Stdio transport, JSON-RPC 2.0:</p>
       <div class="config-template">
         <pre><code># Spawn the server directly
-npx @muveraai/aumos-mcp-server
+npx @warrantor/aumos-mcp-server
 
 # Connected mode (real services)
-AUMOS_MODE=connected npx @muveraai/aumos-mcp-server
+AUMOS_MODE=connected npx @warrantor/aumos-mcp-server
 
 # Pin service URLs via env
 AUMOS_AGENT_IDENTITY_URL=http://localhost:8441 \
 AUMOS_FLIGHT_RECORDER_URL=http://localhost:8445 \
-npx @muveraai/aumos-mcp-server --connected</code></pre>
+npx @warrantor/aumos-mcp-server --connected</code></pre>
       </div>
       <p style="font-size:0.88rem;color:var(--text-secondary);">Protocol version <code>2024-11-05</code>. Logs go to stderr; stdout is reserved for protocol frames.</p>
     </div>
@@ -967,7 +967,7 @@ class ActionResult:
     credential_vault_url="http://...",      # R4
     fail_closed=True,                       # block on preflight denial (I-09)
     auto_kill_on_error=True,                # trigger R3 on exception
-    agent_svid="spiffe://aumos.dev/agent/coding-1",
+    agent_svid="spiffe://warrantor.dev/agent/coding-1",
 )</code></pre>
   </div>
 </section>
@@ -1067,7 +1067,7 @@ git, npm, cargo, python, go, make, npx
     <pre><code>{
   "aumos": {
     "command": "npx",
-    "args": ["@muveraai/aumos-mcp-server"]
+    "args": ["@warrantor/aumos-mcp-server"]
   }
 }</code></pre>
   </div>
@@ -1179,7 +1179,7 @@ Required:
   "mcpServers": {
     "aumos": {
       "command": "npx",
-      "args": ["@muveraai/aumos-mcp-server"]
+      "args": ["@warrantor/aumos-mcp-server"]
     }
   }
 }</code></pre>
@@ -1294,7 +1294,7 @@ with secure_session(config) as session:
   <div class="cmd-grid">
     <div class="cmd-card">
       <div class="cmd-label">1 · Start the MCP server (any MCP agent)</div>
-      <pre><code>npx @muveraai/aumos-mcp-server</code></pre>
+      <pre><code>npx @warrantor/aumos-mcp-server</code></pre>
     </div>
     <div class="cmd-card">
       <div class="cmd-label">2 · Install the Agent SDK (Python custom tools)</div>
@@ -1450,7 +1450,7 @@ print('svid:   ', hello.action_result.svid)
     <li>Agent SDK source: <code>python/aumos_agent/src/aumos_agent/__init__.py</code> — <code>@agent.action</code> decorator and manual API.</li>
     <li>Harness source: <code>python/aumos_harness/src/aumos_harness/__init__.py</code> — <code>secure_session()</code>, config parsers.</li>
     <li>All packages: <code>github.com/MuVeraAI/aumos</code></li>
-    <li>MCP server npm: <code>@muveraai/aumos-mcp-server</code> &nbsp;·&nbsp; SDK pip: <code>aumos-agent</code> &nbsp;·&nbsp; Harness pip: <code>aumos-harness</code></li>
+    <li>MCP server npm: <code>@warrantor/aumos-mcp-server</code> &nbsp;·&nbsp; SDK pip: <code>aumos-agent</code> &nbsp;·&nbsp; Harness pip: <code>aumos-harness</code></li>
   </ul>
   <p style="color:var(--text-tertiary);font-size:0.88rem;margin-top:var(--space-lg);"><a href="index.html">&larr; Back to AumOS documentation index</a></p>
 </section>

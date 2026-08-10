@@ -16,7 +16,7 @@ terraform {
 
 provider "aumos" {
   endpoint     = "http://localhost:8441"
-  trust_domain = "aumos.dev"
+  trust_domain = "warrantor.dev"
 }
 
 # Install a component
@@ -27,7 +27,7 @@ resource "aumos_component" "trust_core" {
 
 # Issue an agent identity
 resource "aumos_identity" "coding_agent" {
-  subject = "spiffe://aumos.dev/agent/coding-1"
+  subject = "spiffe://warrantor.dev/agent/coding-1"
 }
 
 # Generate a compliance report

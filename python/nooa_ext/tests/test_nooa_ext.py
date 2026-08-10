@@ -40,7 +40,7 @@ def test_policy_enforcer_emits_audit_event_on_decision() -> None:
     policy = 'allow { input.action == "tool:read" }'
     streamer = AuditStreamer()
     ident = AgentIdentity(
-        spiffe_id="spiffe://aumos.dev/agent/1",
+        spiffe_id="spiffe://warrantor.dev/agent/1",
         agent_id="agent-1",
         workload_id="w-1",
     )
@@ -113,10 +113,10 @@ def test_audit_streamer_ring_buffer_capped() -> None:
 # ---------- IdentityBinder ----------
 def test_identity_binder_binds_svid_from_source() -> None:
     bundle = SVIDBundle(
-        spiffe_id="spiffe://aumos.dev/agent/x",
+        spiffe_id="spiffe://warrantor.dev/agent/x",
         serial="1",
         not_after="2026-12-31T00:00:00Z",
-        trust_domain="aumos.dev",
+        trust_domain="warrantor.dev",
         fingerprint="aa",
     )
 
@@ -126,9 +126,9 @@ def test_identity_binder_binds_svid_from_source() -> None:
 
     binder = IdentityBinder("agent-x", "w-x", StaticSource())
     ident = binder.bind()
-    assert ident.spiffe_id == "spiffe://aumos.dev/agent/x"
-    assert ident.attributes["trust_domain"] == "aumos.dev"
-    assert binder.verify("spiffe://aumos.dev/agent/x")
+    assert ident.spiffe_id == "spiffe://warrantor.dev/agent/x"
+    assert ident.attributes["trust_domain"] == "warrantor.dev"
+    assert binder.verify("spiffe://warrantor.dev/agent/x")
     assert binder.rotations == 1
 
 

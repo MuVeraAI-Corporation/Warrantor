@@ -422,9 +422,9 @@ mod tests {
 
     #[test]
     fn allow_list_auth_accepts_known() {
-        let a = AllowListAuth::new(["spiffe://aumos.dev/agent/x".to_string()]);
-        assert!(a.verify("spiffe://aumos.dev/agent/x").is_ok());
-        assert!(a.verify("spiffe://aumos.dev/agent/y").is_err());
+        let a = AllowListAuth::new(["spiffe://warrantor.dev/agent/x".to_string()]);
+        assert!(a.verify("spiffe://warrantor.dev/agent/x").is_ok());
+        assert!(a.verify("spiffe://warrantor.dev/agent/y").is_err());
     }
 
     #[test]

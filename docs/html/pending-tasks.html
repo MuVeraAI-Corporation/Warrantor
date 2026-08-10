@@ -523,7 +523,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <tbody>
     <tr><td><strong>SPIRE server</strong></td><td>v1.10+; deployed as a K8s StatefulSet or standalone binary</td><td>I1 agent-identity's real implementation wraps SPIRE's WorkloadAPI to issue SVIDs. The v1.0 uses an in-process Ed25519 CA instead.</td></tr>
     <tr><td><strong>SPIRE agents</strong></td><td>One per node; workload attestor configured for the AumOS agents</td><td>SPIRE agents run alongside each component process and provide SVIDs via the WorkloadAPI (Unix socket).</td></tr>
-    <tr><td><strong>Trust domain</strong></td><td><code>spiffe://aumos.dev</code> (or customer-specific)</td><td>Configured on the SPIRE server; all SVIDs carry this trust domain.</td></tr>
+    <tr><td><strong>Trust domain</strong></td><td><code>spiffe://warrantor.dev</code> (or customer-specific)</td><td>Configured on the SPIRE server; all SVIDs carry this trust domain.</td></tr>
     <tr><td><strong>OPA / Rego</strong></td><td>v0.70+; deployed as a sidecar or standalone</td><td>R3 kill-switch and R5 policy-compiler use OPA for policy evaluation. v1.0 uses <code>MockPolicyEngine</code> with hardcoded thresholds.</td></tr>
     <tr><td><strong>Cedar</strong></td><td>v4.0+ (Rust crate)</td><td>R5 policy-compiler emits Cedar policies as an alternative to Rego. v1.0 generates the text but doesn't evaluate it.</td></tr>
   </tbody>

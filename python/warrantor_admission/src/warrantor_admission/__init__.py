@@ -17,7 +17,7 @@ manifests (ValidatingWebhookConfiguration + Service + Deployment) are in the
 README.
 
 Usage:
-    webhook = AdmissionWebhook(required_annotations={"aumos.io/aae"})
+    webhook = AdmissionWebhook(required_annotations={"warrantor.dev/aae"})
     result = webhook.validate_pod(manifest)
     if not result.allowed:
         print(result.reason)
@@ -35,10 +35,10 @@ from typing import Any
 
 # Default AAE annotation key. Workloads MUST carry this annotation with a
 # non-empty value before they are admitted.
-DEFAULT_AAE_ANNOTATION = "aumos.io/aae"
+DEFAULT_AAE_ANNOTATION = "warrantor.dev/aae"
 
 # Optional: the digest annotation. If present, must look like "sha256:<hex>".
-DEFAULT_DIGEST_ANNOTATION = "aumos.io/aae-digest"
+DEFAULT_DIGEST_ANNOTATION = "warrantor.dev/aae-digest"
 
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-fA-F]{8,128}$")
 

@@ -969,9 +969,9 @@ const RevocationBudget         = 5 * time.Second
 var (ErrInvalidToken, ErrExpired, ErrRevoked, ErrAuthorityExpanded, ErrDelegationDepth)</code></pre>
 
 <h4>Usage</h4>
-<pre><code>svc, _ := identity.NewService("aumos.dev")
-svid, _ := svc.Issue("spiffe://aumos.dev/agent/coding-1",
-    identity.AgentAttributes{Publisher: "aumos.dev/coding-agent", Model: "claude-opus-4.5"},
+<pre><code>svc, _ := identity.NewService("warrantor.dev")
+svid, _ := svc.Issue("spiffe://warrantor.dev/agent/coding-1",
+    identity.AgentAttributes{Publisher: "warrantor.dev/coding-agent", Model: "claude-opus-4.5"},
     identity.CapabilityClaims{Tools: []string{"tool:github"}, SideEffectClass: "read"},
     "") // no parent - root issuance
 claims, err := svc.Verify(svid.Token)  // fail-closed on any error
@@ -1217,7 +1217,7 @@ pub fn scan_for_exposed_credentials(text: &amp;str) -&gt; Result&lt;Vec&lt;Crede
 <pre><code>use aumos_credential_vault::{issue, scan_for_exposed_credentials, MockBackend, DEFAULT_TTL};
 
 let backend = MockBackend::new([("github_token".to_string(), "ghp_xxx".to_string())]);
-let cred = issue(&amp;backend, "spiffe://aumos.dev/agent/x", "open-pr", "10.0.0.1",
+let cred = issue(&amp;backend, "spiffe://warrantor.dev/agent/x", "open-pr", "10.0.0.1",
                  "github_token", DEFAULT_TTL).unwrap();
 // The scanner that "would have caught the OpenAI incident":
 let found = scan_for_exposed_credentials(log_line).unwrap();</code></pre>
@@ -1392,7 +1392,7 @@ pub fn is_private_or_local(ip: &amp;IpAddr) -&gt; bool;</code></pre>
 <pre><code>use aumos_egress_filter::PolicyBuilder;
 
 let policy = PolicyBuilder::with_defaults()
-    .allow_domain("internal.aumos.dev")
+    .allow_domain("internal.warrantor.dev")
     .deny_private_egress(true)
     .build().unwrap();
 assert_eq!(policy.decide_domain("pastebin.com").action, aumos_egress_filter::Action::Deny);
@@ -1481,7 +1481,7 @@ impl FlightRecorder {
 let mut recorder = FlightRecorder::new();
 // 1. Emit BEFORE the side effect is visible (invariant I-07).
 let mut receipt = recorder.emit_pending(ReceiptInput {
-    actor: "spiffe://aumos.dev/agent/coding-1".into(),
+    actor: "spiffe://warrantor.dev/agent/coding-1".into(),
     authority_hash_hex: "abc123".repeat(8),
     tool_or_api_op: "github.create_pr".into(),
     context_commitment_hex: "def456".repeat(8),
@@ -1934,7 +1934,7 @@ impl FleetView { pub fn healthy_count(&amp;self) -&gt; usize; pub fn healthy_fra
 <h4>Usage</h4>
 <pre><code>use aumos_confidential_fabric::{Fabric, KeyReleasePolicy, ConfidentialContainer};
 
-let fabric = Fabric::new("aumos.dev");
+let fabric = Fabric::new("warrantor.dev");
 let composite = fabric.assemble_now(Some(gpu), runtime, agent);
 composite.verify_digest().expect("tamper detection");
 
@@ -2028,7 +2028,7 @@ pub enum StppError { Io, Json, InvalidHeaderLength, NotSafetensors, SignatureInv
 
 // Sign
 let mut header = serde_json::json!({"__metadata__": {"format": "pt"}, "weight_0": {"dtype":"F32","shape":[2,2],"data_offsets":[0,16]}});
-sign(&amp;mut header, &amp;data, "did:web:aumos.dev", &amp;key).unwrap();
+sign(&amp;mut header, &amp;data, "did:web:warrantor.dev", &amp;key).unwrap();
 let mut buf = Vec::new();
 write_safetensors(&amp;mut buf, &amp;header, &amp;data).unwrap();
 
@@ -2126,7 +2126,7 @@ ledger.append(Entry {
     id: String::new(), artifact_uri: "model://aumos-7b@v1".into(),
     artifact_digest: format!("sha256:{}", "a".repeat(64)),
     event_type: EventType::Trained, parents: vec![], metadata: BTreeMap::new(),
-    recorded_at: 0, signer: "did:web:aumos.dev".into(),
+    recorded_at: 0, signer: "did:web:warrantor.dev".into(),
 }).unwrap();
 let cp = ledger.checkpoint("rekor", "rekor-uuid-123");
 Ledger::verify_checkpoint(&amp;cp).unwrap();</code></pre>
@@ -2200,7 +2200,7 @@ class Dependency: name: str; version: str; digest: str | None = None
 class SbomInput:
     model: ModelInfo
     dependencies: list[Dependency] = field(default_factory=list)
-    supplier: str = "did:web:aumos.dev"
+    supplier: str = "did:web:warrantor.dev"
     created_at: datetime | None = None
 
 def to_cyclonedx(sbom: SbomInput) -&gt; dict[str, Any]   # CycloneDX 1.5 with model.* properties
@@ -3271,7 +3271,7 @@ export class Leaderboard {
 }</code></pre>
 
 <h4>Usage</h4>
-<pre><code>import { Leaderboard } from '@aumos/arena';
+<pre><code>import { Leaderboard } from '@warrantor/arena';
 
 const board = new Leaderboard();
 board.addContestant({ id: 'claude-opus-4.5', name: 'Claude Opus 4.5', elo: 1200, ... });
@@ -3540,11 +3540,11 @@ impl Proxy {
 <pre><code>use aumos_inference_proxy::{ProxyBuilder, ProxyRequest, AllowListAuth};
 
 let proxy = ProxyBuilder::new()
-    .auth(Box::new(AllowListAuth::new(["spiffe://aumos.dev/agent/x".to_string()])))
+    .auth(Box::new(AllowListAuth::new(["spiffe://warrantor.dev/agent/x".to_string()])))
     .rate_limit(50)
     .build();
 let resp = proxy.handle(
-    &amp;ProxyRequest { identity: "spiffe://aumos.dev/agent/x".into(), model: "aumos-7b".into(), prompt: "hello".into() },
+    &amp;ProxyRequest { identity: "spiffe://warrantor.dev/agent/x".into(), model: "aumos-7b".into(), prompt: "hello".into() },
     |req| call_n1_open_serve_kit(req),
 ).unwrap();</code></pre>
 
@@ -4196,7 +4196,7 @@ class AttestationHook:
 <pre><code>from nooa_ext import PolicyEnforcer, StubRegoEvaluator, AuditStreamer, WebhookBackend, IdentityBinder
 
 enforcer = PolicyEnforcer(StubRegoEvaluator())
-streamer = AuditStreamer(WebhookBackend("https://audit.aumos.dev/events"))
+streamer = AuditStreamer(WebhookBackend("https://audit.warrantor.dev/events"))
 binder = IdentityBinder(static_svid_source)
 agent = binder.bind()
 decision = enforcer.enforce(agent, "tool:github.create_pr", "repo/aumos", {})</code></pre>
@@ -4576,7 +4576,7 @@ METR's independent-evaluator role.</p>
 </div>
 
 <h4>Overview</h4>
-<p><code>@aumos/console</code> is the enterprise policy/evidence console — the data model, API client, and
+<p><code>@warrantor/console</code> is the enterprise policy/evidence console — the data model, API client, and
 view logic. The console provides five views: <strong>evidence</strong> (browse AARs from E1
 flight-recorder), <strong>approvals</strong> (the queue for consequential actions requiring invariant I-08
 approval), <strong>fleet</strong> (N4 tenant-guard GPU allocations), <strong>compliance</strong> (the 10-framework
@@ -4610,7 +4610,7 @@ export async function fetchReceipts(config: ApiClientConfig): Promise&lt;AgentAc
 export async function fetchApprovals(config: ApiClientConfig): Promise&lt;ApprovalRequest[]&gt;</code></pre>
 
 <h4>Usage</h4>
-<pre><code>import { initialState, reducer, consequentialPending } from '@aumos/console';
+<pre><code>import { initialState, reducer, consequentialPending } from '@warrantor/console';
 
 let state = initialState();
 state = reducer(state, { type: 'LOAD_RECEIPTS', receipts: await fetchReceipts(config) });
@@ -4654,7 +4654,7 @@ task 03.</p>
 </div>
 
 <h4>Overview</h4>
-<p><code>@aumos/mcp-gateway</code> is the authority-aware Model Context Protocol (MCP) middleware. The
+<p><code>@warrantor/mcp-gateway</code> is the authority-aware Model Context Protocol (MCP) middleware. The
 gateway sits between an MCP client (an agent) and one or more MCP tool servers. It intercepts
 every tool call, checks the caller's AAE (P1 Agent Authority Envelope) for the tool's required
 scope, and either forwards the call to the real tool server or denies it. Three defenses are
@@ -4698,11 +4698,11 @@ export class McpGateway {
 }</code></pre>
 
 <h4>Usage</h4>
-<pre><code>import { McpGateway, ToolRegistry, RegisteredTool } from '@aumos/mcp-gateway';
+<pre><code>import { McpGateway, ToolRegistry, RegisteredTool } from '@warrantor/mcp-gateway';
 
 const registry = new ToolRegistry();
 registry.register({ spiffeId: 'tool:github.create_pr', name: 'create PR', scope: { requiredSideEffectClass: 'write' } });
-const gateway = new McpGateway({ gatewaySpiffeId: 'spiffe://aumos.dev/mcp-gw', registry });
+const gateway = new McpGateway({ gatewaySpiffeId: 'spiffe://warrantor.dev/mcp-gw', registry });
 const result = gateway.authorize({ toolSpiffeId: 'tool:github.create_pr', args: {}, aae });
 if (result.allowed) await gateway.forward(call);</code></pre>
 
@@ -4783,7 +4783,7 @@ class IncidentRegistry:
 registry = IncidentRegistry()
 registry.add(Incident(
     id="inc-001", type=IncidentType.EXFILTRATION, severity=Severity.HIGH,
-    actor="spiffe://aumos.dev/agent/x", description="exfiltrated AWS key to pastebin",
+    actor="spiffe://warrantor.dev/agent/x", description="exfiltrated AWS key to pastebin",
     detected_at="2026-01-01T00:00:00Z", evidence={"destination": "pastebin.com"},
     mitre_atlas_techniques=["T0029"], related_aar_ids=["aar-abc"],
 ))
@@ -4867,7 +4867,7 @@ func ValidateBundle(bundle *SovereignBundle, config SovereignConfig) error   // 
 <h4>Usage</h4>
 <pre><code>bundle, _ := sovereign.ExportBundle(sovereign.SovereignConfig{
     Mode: sovereign.ModeSafeProduction, GPUModel: "H100",
-    TrustRoot: "spiffe://aumos.dev", Version: "1.0.0",
+    TrustRoot: "spiffe://warrantor.dev", Version: "1.0.0",
 })
 // Ship bundle (manifest + signed images) air-gapped to the customer...
 validation, _ := sovereign.ImportBundle(bundle)

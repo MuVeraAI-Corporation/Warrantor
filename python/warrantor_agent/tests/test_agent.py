@@ -139,7 +139,7 @@ class TestStandalonePrimitives:
 
     def test_issue_identity_returns_svid(self) -> None:
         agent = AumOS()
-        r = agent.issue_identity("spiffe://aumos.dev/agent/coding-1")
+        r = agent.issue_identity("spiffe://warrantor.dev/agent/coding-1")
         assert r["svid"].startswith("svid-mock-")
         assert r["capability_jti"].startswith("jti-")
         assert r["source"] == "mock"
@@ -151,10 +151,10 @@ class TestStandalonePrimitives:
 
     def test_verify_identity_round_trips(self) -> None:
         agent = AumOS()
-        issued = agent.issue_identity("spiffe://aumos.dev/agent/coding-1")
+        issued = agent.issue_identity("spiffe://warrantor.dev/agent/coding-1")
         r = agent.verify_identity(issued["svid"])
         assert r["valid"] is True
-        assert r["subject"] == "spiffe://aumos.dev/agent/coding-1"
+        assert r["subject"] == "spiffe://warrantor.dev/agent/coding-1"
 
     def test_verify_identity_rejects_unknown(self) -> None:
         assert AumOS().verify_identity("garbage")["valid"] is False
@@ -166,10 +166,10 @@ class TestStandalonePrimitives:
 
     def test_emit_receipt_returns_aar(self) -> None:
         agent = AumOS()
-        rec = agent.emit_receipt("spiffe://aumos.dev/agent/x", "github.create_pr", "pending")
+        rec = agent.emit_receipt("spiffe://warrantor.dev/agent/x", "github.create_pr", "pending")
         assert rec.receipt_id.startswith("aar-")
         assert len(rec.signature) == 64
-        assert rec.payload["actor"] == "spiffe://aumos.dev/agent/x"
+        assert rec.payload["actor"] == "spiffe://warrantor.dev/agent/x"
 
     def test_emit_receipt_requires_actor_and_tool(self) -> None:
         with pytest.raises(ValueError):
@@ -278,7 +278,7 @@ class TestConnectedMode:
             }
         )
         agent = AumOS(mode="connected", agent_identity_url="http://i1:8441", _backend=fake)
-        r = agent.issue_identity("spiffe://aumos.dev/agent/x")
+        r = agent.issue_identity("spiffe://warrantor.dev/agent/x")
         assert r["svid"] == "svid-real"
         assert r["source"] == "agent-identity"
         assert fake.calls and "agent-identity:issue" in fake.calls[0][0]
@@ -286,7 +286,7 @@ class TestConnectedMode:
     def test_issue_identity_degrades_on_connection_error(self) -> None:
         fake = FakeBackend(raise_on={"i1"})
         agent = AumOS(mode="connected", agent_identity_url="http://i1:8441", _backend=fake)
-        r = agent.issue_identity("spiffe://aumos.dev/agent/x")
+        r = agent.issue_identity("spiffe://warrantor.dev/agent/x")
         assert r["source"] == "mock"
         assert r["degraded"] is True
         assert "ECONNREFUSED" in r["http_error"]
@@ -490,7 +490,7 @@ class TestCLI:
         assert out["findings"][0]["type"] == "aws_access_key_id"
 
     def test_issue_prints_svid(self, capsys: pytest.CaptureFixture[str]) -> None:
-        rc = cli_main(["issue", "spiffe://aumos.dev/agent/x"])
+        rc = cli_main(["issue", "spiffe://warrantor.dev/agent/x"])
         assert rc == 0
         out = json.loads(capsys.readouterr().out)
         assert out["svid"].startswith("svid-mock-")

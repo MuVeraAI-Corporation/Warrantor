@@ -210,7 +210,7 @@ def protocol_schema(registry: JsonObject, protocol: JsonObject) -> JsonObject:
     definitions = require_object(registry.get("types"), "registry.types")
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "$id": f"https://schemas.aumos.dev/protocols/v1/{slug}.schema.json",
+        "$id": f"https://schemas.warrantor.dev/protocols/v1/{slug}.schema.json",
         "title": f"AumOS P{identifier[1:]} {title} v1 envelope",
         **common_schema,
         "$defs": {

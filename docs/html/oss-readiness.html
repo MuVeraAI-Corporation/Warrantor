@@ -377,9 +377,9 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <tr><td><code>retro-spec-kit</code></td><td>X5 retrospective transcript review</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-retro-spec-kit</code></td></tr>
     <tr><td><code>metr-bridge</code></td><td>X6 METR independent-evaluator integration</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-metr-bridge</code></td></tr>
     <tr><td><code>incident-exchange</code></td><td>X9 normalized agent incident format</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-incident-exchange</code></td></tr>
-    <tr><td><code>console</code></td><td>X7 enterprise policy/evidence web UI</td><td><span class="badge typescript">TS</span></td><td><code>npm install @muveraai/console</code></td></tr>
-    <tr><td><code>mcp-gateway</code></td><td>X8 authority-aware MCP middleware</td><td><span class="badge typescript">TS</span></td><td><code>npm install @muveraai/mcp-gateway</code></td></tr>
-    <tr><td><code>arena</code></td><td>A8 A/B Elo ranking leaderboard</td><td><span class="badge typescript">TS</span></td><td><code>npm install @muveraai/arena</code></td></tr>
+    <tr><td><code>console</code></td><td>X7 enterprise policy/evidence web UI</td><td><span class="badge typescript">TS</span></td><td><code>npm install @warrantor/console</code></td></tr>
+    <tr><td><code>mcp-gateway</code></td><td>X8 authority-aware MCP middleware</td><td><span class="badge typescript">TS</span></td><td><code>npm install @warrantor/mcp-gateway</code></td></tr>
+    <tr><td><code>arena</code></td><td>A8 A/B Elo ranking leaderboard</td><td><span class="badge typescript">TS</span></td><td><code>npm install @warrantor/arena</code></td></tr>
     <tr><td><code>kill-switch-policy</code></td><td>R3 OPA Rego policy bindings (Python host)</td><td><span class="badge python">Py</span></td><td><code>pip install aumos-kill-switch-policy</code></td></tr>
   </tbody>
 </table>
@@ -753,7 +753,7 @@ cargo test      # green — you're ready to contribute</code></pre>
 <ul class="checklist">
   <li>Publish Rust crates to <strong>crates.io</strong> (claim the <code>aumos-*</code> namespace)</li>
   <li>Publish Python packages to <strong>PyPI</strong> (claim <code>aumos-*</code>; enable 2FA + trusted publishing)</li>
-  <li>Publish TS packages to <strong>npm</strong> (claim the <code>@muveraai</code> scope)</li>
+  <li>Publish TS packages to <strong>npm</strong> (claim the <code>@warrantor</code> scope)</li>
   <li>Publish Go modules to <strong>pkg.go.dev</strong> (release tags trigger indexing)</li>
   <li>Tag <code>v1.0.0</code> on every repo, signed (<code>git tag -s</code>); create GitHub Releases with SBOM attached</li>
 </ul>
@@ -779,7 +779,7 @@ cargo test      # green — you're ready to contribute</code></pre>
   <li><strong>GitHub topics</strong> on every repo: <code>ai-agents</code>, <code>ai-safety</code>, <code>attestation</code>, <code>confidential-computing</code>, <code>gpu</code>, <code>rust</code>/<code>go</code>/<code>python</code>/<code>typescript</code>, <code>protocol</code>, <code>kubernetes-operator</code>, <code>eu-ai-act</code>, <code>osaf</code>, <code>sigstore</code>, <code>spiffe</code>, <code>ed25519</code>.</li>
   <li><strong>Description</strong> &mdash; one-sentence, keyword-rich, consistent across repos ("The Agent Authority Envelope — normative spec + conformance suite for verifiable agent identity").</li>
   <li><strong>Social preview image</strong> &mdash; a branded 1280x640 PNG per repo (generated from a template); the protocol repos share a consistent OSAF-marked style.</li>
-  <li><strong>Domain</strong> &mdash; <code>aumos.dev</code> (primary) and <code>docs.aumos.dev</code> (this documentation portal), with <code>MuVeraAI.org</code> redirecting to the org. DNSSEC + HSTS enabled.</li>
+  <li><strong>Domain</strong> &mdash; <code>warrantor.dev</code> (primary) and <code>docs.warrantor.dev</code> (this documentation portal), with <code>MuVeraAI.org</code> redirecting to the org. DNSSEC + HSTS enabled.</li>
   <li><strong>Google indexing</strong> &mdash; submit the docs sitemap to Google Search Console; per-page <code>&lt;meta name="description"&gt;</code> (this file carries one); structured data for the protocol specs.</li>
   <li><strong>Awesome lists</strong> &mdash; curated PRs to <code>awesome-rust</code>, <code>awesome-go</code>, <code>awesome-python</code>, <code>awesome-typescript</code>, <code>awesome-ai-agents</code>, <code>awesome-security</code>, <code>awesome-confidential-computing</code>.</li>
   <li><strong>Package-registry discoverability</strong> &mdash; complete PyPI/crates.io/npm descriptions, keywords, and project links (repo, docs, security policy); verified publisher badges where available.</li>

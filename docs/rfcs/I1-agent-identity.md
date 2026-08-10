@@ -73,20 +73,20 @@ lifecycle management, and trigger #1: production K8s operator required for the i
 - **Sidecar pattern** (not a fork): I1 runs alongside SPIRE, registering agent workloads and
   adding agent claims to the SVID via SPIFFE's `WorkloadAPI`.
 - **HSM/TPM-backed CA:** cloud HSM (AWS CloudHSM, GCP HSM) or on-prem TPM for sovereign.
-- **Trust domain:** `aumos.dev` default; customer-configurable per deployment.
+- **Trust domain:** `warrantor.dev` default; customer-configurable per deployment.
 
 ### Capability token (JWT, signed by I1 via T1)
 ```json
 {
-  "iss": "spiffe://aumos.dev/agent-identity",
-  "sub": "spiffe://aumos.dev/agent/coding-agent-abc",
-  "aud": ["spiffe://aumos.dev/tool/github"],
+  "iss": "spiffe://warrantor.dev/agent-identity",
+  "sub": "spiffe://warrantor.dev/agent/coding-agent-abc",
+  "aud": ["spiffe://warrantor.dev/tool/github"],
   "scope": "repo:write",
   "args": { "repo": "aumos/aumos", "branch": "feat/*" },
   "iat": 1722859200,
   "exp": 1722859260,
   "jti": "uuid",
-  "parent_svid": "spiffe://aumos.dev/agent/parent-xyz",
+  "parent_svid": "spiffe://warrantor.dev/agent/parent-xyz",
   "policy_hash": "sha256:...",
   "delegation_depth": 2
 }

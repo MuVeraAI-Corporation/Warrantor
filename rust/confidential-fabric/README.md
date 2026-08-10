@@ -16,7 +16,7 @@ The composite attestation fabric. Folds three independent attestation streams in
 ```rust
 use aumos_confidential_fabric::{Fabric, KeyReleasePolicy, ConfidentialContainer};
 
-let fabric = Fabric::new("aumos.dev");
+let fabric = Fabric::new("warrantor.dev");
 let composite = fabric.assemble(Some(gpu), runtime, agent, now);
 
 let policy = KeyReleasePolicy {

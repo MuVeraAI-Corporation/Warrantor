@@ -127,7 +127,7 @@ pub struct RuntimeAttestation {
 pub struct AgentIdentity {
     /// SPIFFE-style SVID URI of the agent.
     pub svid: String,
-    /// The agent's publisher (e.g. "aumos.dev/coding-agent").
+    /// The agent's publisher (e.g. "warrantor.dev/coding-agent").
     pub publisher: String,
     /// Capabilities claimed by the agent (tools, data classes).
     pub capabilities: Vec<String>,
@@ -249,7 +249,7 @@ fn canonical_digest(
 /// a [`CompositeAttestation`] with a canonical digest.
 #[derive(Debug, Clone)]
 pub struct Fabric {
-    /// Trust domain (e.g. "aumos.dev") — informational, used in logs/audit.
+    /// Trust domain (e.g. "warrantor.dev") — informational, used in logs/audit.
     pub trust_domain: String,
 }
 
@@ -610,7 +610,7 @@ mod tests {
     fn agent(svid: &str, ts: u64) -> AgentIdentity {
         AgentIdentity {
             svid: svid.to_string(),
-            publisher: "aumos.dev/coding-agent".to_string(),
+            publisher: "warrantor.dev/coding-agent".to_string(),
             capabilities: vec!["tool:github".to_string()],
             issued_at_secs: ts,
             expires_at_secs: ts + 900,
@@ -621,7 +621,7 @@ mod tests {
         fabric.assemble(
             Some(gpu("H100", now)),
             runtime("meas-A", now),
-            agent("spiffe://aumos.dev/agent/x", now),
+            agent("spiffe://warrantor.dev/agent/x", now),
             now,
         )
     }
@@ -629,7 +629,7 @@ mod tests {
     // 1. Assemble produces a composite with a non-empty sha256: digest.
     #[test]
     fn assemble_has_digest() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 1_000_000);
         assert!(c.digest.starts_with("sha256:"));
         // "sha256:" (7 chars) + 64 hex chars
@@ -640,7 +640,7 @@ mod tests {
     // 2. The digest verifies immediately after assembly.
     #[test]
     fn digest_verifies_after_assembly() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 100);
         assert!(c.verify_digest().is_ok());
     }
@@ -648,7 +648,7 @@ mod tests {
     // 3. Tampering with any leaf field invalidates the digest.
     #[test]
     fn tampering_invalidates_digest() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let mut c = base_composite(&f, 100);
         c.runtime.tee_measurement = "tampered".to_string();
         assert!(matches!(
@@ -660,7 +660,7 @@ mod tests {
     // 4. Two identical composites have the same digest (determinism).
     #[test]
     fn digest_is_deterministic() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c1 = base_composite(&f, 100);
         let c2 = base_composite(&f, 100);
         assert_eq!(c1.digest, c2.digest);
@@ -669,7 +669,7 @@ mod tests {
     // 5. CPU-only composite (None GPU) has a different but valid digest.
     #[test]
     fn cpu_only_composite_has_valid_digest() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = f.assemble(None, runtime("m", 100), agent("s", 100), 100);
         assert!(c.verify_digest().is_ok());
         assert!(c.gpu.is_none());
@@ -679,7 +679,7 @@ mod tests {
     #[test]
     fn default_policy_allows_fresh() {
         let p = KeyReleasePolicy::default();
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 1000);
         assert!(p.allows(&c, 1000));
         assert!(p.evaluate(&c, 1000).is_ok());
@@ -689,7 +689,7 @@ mod tests {
     #[test]
     fn stale_attestation_rejected() {
         let p = KeyReleasePolicy::default();
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 0);
         let now = 100_000; // way past DEFAULT_FRESHNESS + skew
         assert!(!p.allows(&c, now));
@@ -702,7 +702,7 @@ mod tests {
     // 8. GPU model constraint is enforced.
     #[test]
     fn gpu_model_enforced() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 1000); // GPU = H100
         let p = KeyReleasePolicy {
             required_gpu_model: "H200".to_string(),
@@ -718,7 +718,7 @@ mod tests {
     // 9. GPU constraint rejects CPU-only composite when GPU is required.
     #[test]
     fn gpu_required_rejects_none() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = f.assemble(None, runtime("m", 1000), agent("s", 1000), 1000);
         let p = KeyReleasePolicy {
             required_gpu_model: "H100".to_string(),
@@ -730,7 +730,7 @@ mod tests {
     // 10. TEE measurement constraint is enforced.
     #[test]
     fn tee_measurement_enforced() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 1000); // measurement "meas-A"
         let p = KeyReleasePolicy {
             required_tee_measurement: "meas-B".to_string(),
@@ -746,10 +746,10 @@ mod tests {
     // 11. Agent SVID allow list is enforced.
     #[test]
     fn agent_svid_allowlist_enforced() {
-        let f = Fabric::new("aumos.dev");
-        let c = base_composite(&f, 1000); // svid "spiffe://aumos.dev/agent/x"
+        let f = Fabric::new("warrantor.dev");
+        let c = base_composite(&f, 1000); // svid "spiffe://warrantor.dev/agent/x"
         let p = KeyReleasePolicy {
-            allowed_agent_svids: vec!["spiffe://aumos.dev/agent/y".to_string()],
+            allowed_agent_svids: vec!["spiffe://warrantor.dev/agent/y".to_string()],
             ..Default::default()
         };
         assert!(!p.allows(&c, 1000));
@@ -762,10 +762,10 @@ mod tests {
     // 12. Agent publisher allow list is enforced.
     #[test]
     fn agent_publisher_allowlist_enforced() {
-        let f = Fabric::new("aumos.dev");
-        let c = base_composite(&f, 1000); // publisher "aumos.dev/coding-agent"
+        let f = Fabric::new("warrantor.dev");
+        let c = base_composite(&f, 1000); // publisher "warrantor.dev/coding-agent"
         let p = KeyReleasePolicy {
-            allowed_agent_publishers: vec!["aumos.dev/other-agent".to_string()],
+            allowed_agent_publishers: vec!["warrantor.dev/other-agent".to_string()],
             ..Default::default()
         };
         assert!(!p.allows(&c, 1000));
@@ -774,7 +774,7 @@ mod tests {
     // 13. derive_key is stable for identical inputs and differs when salt changes.
     #[test]
     fn derive_key_stability() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 1000);
         let p = KeyReleasePolicy::default();
         let k1 = p.derive_key(&c, b"salt-A");
@@ -788,7 +788,7 @@ mod tests {
     // 14. ConfidentialContainer.release_key succeeds when policy is satisfied.
     #[test]
     fn container_release_ok() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 1000);
         let bundle = ConfidentialContainer::new(
             "falcon-7b",
@@ -805,7 +805,7 @@ mod tests {
     // 15. ConfidentialContainer.release_key fails when policy is violated.
     #[test]
     fn container_release_fails_when_policy_violated() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 0); // old
         let bundle = ConfidentialContainer::new(
             "falcon-7b",
@@ -823,7 +823,7 @@ mod tests {
     fn fleet_view_aggregates() {
         let mut v = FleetView::new();
         v.record(
-            "spiffe://aumos.dev/agent/a",
+            "spiffe://warrantor.dev/agent/a",
             PodAttestationState {
                 digest: "sha256:1".into(),
                 age_secs: 1,
@@ -831,7 +831,7 @@ mod tests {
             },
         );
         v.record(
-            "spiffe://aumos.dev/agent/b",
+            "spiffe://warrantor.dev/agent/b",
             PodAttestationState {
                 digest: "sha256:2".into(),
                 age_secs: 1,
@@ -839,7 +839,7 @@ mod tests {
             },
         );
         v.record(
-            "spiffe://aumos.dev/agent/c",
+            "spiffe://warrantor.dev/agent/c",
             PodAttestationState {
                 digest: "sha256:3".into(),
                 age_secs: 1,
@@ -861,7 +861,7 @@ mod tests {
     // 18. age_secs saturates at zero (never panics on underflow).
     #[test]
     fn age_saturates() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 1_000);
         assert_eq!(c.age_secs(500), 0);
     }
@@ -869,7 +869,7 @@ mod tests {
     // 19. assemble_now produces a composite with a non-zero timestamp.
     #[test]
     fn assemble_now_works() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = f.assemble_now(Some(gpu("H100", 0)), runtime("m", 0), agent("s", 0));
         // SystemTime should be well past epoch 0 in 2026.
         assert!(c.assembled_at_secs > 1_700_000_000);
@@ -879,7 +879,7 @@ mod tests {
     // 20. Round-trips through JSON.
     #[test]
     fn json_roundtrip() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 1000);
         let s = serde_json::to_string(&c).expect("ser");
         let c2: CompositeAttestation = serde_json::from_str(&s).expect("de");
@@ -890,7 +890,7 @@ mod tests {
     // 21. Required runtime digest enforced.
     #[test]
     fn runtime_digest_enforced() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 1000); // runtime_digest "sha256:runtime"
         let p = KeyReleasePolicy {
             required_runtime_digest: "sha256:other".to_string(),
@@ -902,10 +902,10 @@ mod tests {
     // 22. Composite attestation reflects the input leaves exactly.
     #[test]
     fn leaves_preserved() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let g = gpu("H100", 1234);
         let r = runtime("meas", 1234);
-        let a = agent("spiffe://aumos.dev/agent/y", 1234);
+        let a = agent("spiffe://warrantor.dev/agent/y", 1234);
         let c = f.assemble(Some(g.clone()), r.clone(), a.clone(), 1234);
         assert_eq!(c.gpu.as_ref().unwrap(), &g);
         assert_eq!(c.runtime, r);
@@ -915,7 +915,7 @@ mod tests {
     // 23. Freshness with max_age_secs=0 falls back to DEFAULT_FRESHNESS.
     #[test]
     fn freshness_zero_falls_back() {
-        let f = Fabric::new("aumos.dev");
+        let f = Fabric::new("warrantor.dev");
         let c = base_composite(&f, 0);
         let p = KeyReleasePolicy {
             max_age_secs: 0,

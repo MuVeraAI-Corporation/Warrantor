@@ -14,7 +14,7 @@ inference engine restarting.
 
 ```bash
 go run ./cmd/edge-sentinel \
-    --node-id spiffe://aumos.dev/node/gpu-1 \
+    --node-id spiffe://warrantor.dev/node/gpu-1 \
     --tee-measurement deadbeef \
     --gpu-model H100 \
     --driver-version 535.104.05 \

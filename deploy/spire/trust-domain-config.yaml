@@ -1,4 +1,4 @@
-# Trust-domain configuration for the aumos.dev SPIFFE trust domain.
+# Trust-domain configuration for the warrantor.dev SPIFFE trust domain.
 #
 # This file declares the trust domain itself, the registration entries that map
 # AumOS workloads to SVID selectors, and (optionally) federation to peer trust
@@ -6,7 +6,7 @@
 # SPIRE control plane; this defines the identity policy on top of it.
 #
 # Reference: SPIFFE spec — https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE.md
-# Aligns with: deploy/helm/aumos/values.yaml global.trustDomain = aumos.dev
+# Aligns with: deploy/helm/aumos/values.yaml global.trustDomain = warrantor.dev
 
 ---
 # The spire-bundle ConfigMap is published by the spire-server k8sbundle Notifier.
@@ -22,13 +22,13 @@ metadata:
     app.kubernetes.io/part-of: aumos
   annotations:
     # SPIFFE bundle format identifier, per the SPIFFE Bundle spec.
-    spiffe.io/trust-domain: aumos.dev
+    spiffe.io/trust-domain: warrantor.dev
     spiffe.io/bundle-endpoint: https://spire-server.spire.svc.cluster.local:8443
 data:
   # bundle.crt is populated at runtime by the spire-server Notifier "k8sbundle".
   # Placeholder keeps the ConfigMap reconcilable before the server boots.
   bundle.crt: |
-    # The JWKS (SPIFFE bundle) for trust domain aumos.dev is written here by
+    # The JWKS (SPIFFE bundle) for trust domain warrantor.dev is written here by
     # spire-server once it has bootstrapped its CA. See deploy/spire/README.md.
 ---
 # AumOS workload registration entries.
@@ -50,8 +50,8 @@ metadata:
 spec:
   # The trust-core service signs __provenance__ blocks (S1). Its SVID lets
   # downstream components authenticate signing requests over mTLS.
-  spiffeID: spiffe://aumos.dev/trust-core
-  parentID: spiffe://aumos.dev/spire/agent/k8s_psat/aumos-cluster
+  spiffeID: spiffe://warrantor.dev/trust-core
+  parentID: spiffe://warrantor.dev/spire/agent/k8s_psat/aumos-cluster
   # Select the trust-core pod by SA + namespace; only that pod gets this SVID.
   selectors:
     - k8s:sa:trust-core
@@ -59,7 +59,7 @@ spec:
   ttl: 3600   # 1h — matches server default_svid_ttl
   # Federates with the EU tenant trust domain so cross-region signing is verifiable.
   federatesWith:
-    - eu.aumos.dev
+    - eu.warrantor.dev
 ---
 apiVersion: spiffe.io/v1alpha1
 kind: SPIFFEEntry
@@ -67,8 +67,8 @@ metadata:
   name: inference-proxy
   namespace: spire
 spec:
-  spiffeID: spiffe://aumos.dev/inference-proxy
-  parentID: spiffe://aumos.dev/spire/agent/k8s_psat/aumos-cluster
+  spiffeID: spiffe://warrantor.dev/inference-proxy
+  parentID: spiffe://warrantor.dev/spire/agent/k8s_psat/aumos-cluster
   selectors:
     - k8s:sa:inference-proxy
     - k8s:ns:aumos
@@ -80,8 +80,8 @@ metadata:
   name: agent-identity
   namespace: spire
 spec:
-  spiffeID: spiffe://aumos.dev/agent-identity
-  parentID: spiffe://aumos.dev/spire/agent/k8s_psat/aumos-cluster
+  spiffeID: spiffe://warrantor.dev/agent-identity
+  parentID: spiffe://warrantor.dev/spire/agent/k8s_psat/aumos-cluster
   selectors:
     - k8s:sa:agent-identity
     - k8s:ns:aumos
@@ -95,8 +95,8 @@ metadata:
 spec:
   # credential-vault is the trust boundary for signing keys; pin its SVID so
   # only the vault, not its clients, can present this identity.
-  spiffeID: spiffe://aumos.dev/credential-vault
-  parentID: spiffe://aumos.dev/spire/agent/k8s_psat/aumos-cluster
+  spiffeID: spiffe://warrantor.dev/credential-vault
+  parentID: spiffe://warrantor.dev/spire/agent/k8s_psat/aumos-cluster
   selectors:
     - k8s:sa:credential-vault
     - k8s:ns:aumos
@@ -104,7 +104,7 @@ spec:
 ---
 # Federation: declare peer trust domains whose bundles we trust.
 # Mirrors the `federatesWith` references above. Apply with the CLI:
-#   spire-server bundle show -format spiffe-bundle eu.aumos.dev
+#   spire-server bundle show -format spiffe-bundle eu.warrantor.dev
 # or fetch from the peer's bundle endpoint.
 ---
 apiVersion: spiffe.io/v1alpha1
@@ -114,12 +114,12 @@ metadata:
   namespace: spire
 spec:
   # SPIFFE Federation endpoint of the EU region's SPIRE server.
-  endpoint: https://spire-server.eu.aumos.dev:8443
-  trustDomain: eu.aumos.dev
+  endpoint: https://spire-server.eu.warrantor.dev:8443
+  trustDomain: eu.warrantor.dev
   # Refresh the peer bundle every 5 minutes (SPIFFE bundle refresh hint).
   refreshHint: 300
 ---
-# mTLS policy: every AumOS service must present an SVID from aumos.dev to every
+# mTLS policy: every AumOS service must present an SVID from warrantor.dev to every
 # other AumOS service. This NetworkPolicy scopes the trust-core port to SVID-
 # presenting peers. (NetworkPolicy itself is L3/4; SPIRE enforces the L7 trust.
 # This is defense-in-depth — see deploy/helm/aumos/templates/deployments.yaml

@@ -411,8 +411,8 @@ impl Ledger {
             .collect();
         serde_json::json!({
             "@context": {
-                "aumos": "https://aumos.dev/vocab/provenance#",
-                "@vocab": "https://aumos.dev/vocab/provenance#"
+                "aumos": "https://warrantor.dev/vocab/provenance#",
+                "@vocab": "https://warrantor.dev/vocab/provenance#"
             },
             "@graph": nodes,
             "aumos:merkle_root": hex::encode(self.merkle_root()),
@@ -527,7 +527,7 @@ mod tests {
             parents: vec![],
             metadata: BTreeMap::new(),
             recorded_at: 0,
-            signer: "did:web:aumos.dev".into(),
+            signer: "did:web:warrantor.dev".into(),
         }
     }
 
@@ -662,7 +662,7 @@ mod tests {
             parents: vec![],
             metadata: BTreeMap::new(),
             recorded_at: 0,
-            signer: "did:web:aumos.dev".into(),
+            signer: "did:web:warrantor.dev".into(),
         };
         let entry_b = Entry {
             id: String::new(),
@@ -672,7 +672,7 @@ mod tests {
             parents: vec![],
             metadata: BTreeMap::new(),
             recorded_at: 0,
-            signer: "did:web:aumos.dev".into(),
+            signer: "did:web:warrantor.dev".into(),
         };
         assert_ne!(
             entry_a.canonical_bytes(),

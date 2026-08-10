@@ -7,7 +7,7 @@
 
 ### Private Disclosure (Preferred)
 
-Email: **security@aumos.dev** (PGP key: published at `https://aumos.dev/security/pgp-key.asc`).
+Email: **security@warrantor.dev** (PGP key: published at `https://warrantor.dev/security/pgp-key.asc`).
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
@@ -53,9 +53,9 @@ These components get the strictest review and the fastest SLA treatment (per
 
 ## Contacts
 
-- **General security:** security@aumos.dev
-- **Critical incidents:** security-critical@aumos.dev (paged 24/7 once the on-call rotation is live)
-- **PGP key:** https://aumos.dev/security/pgp-key.asc
+- **General security:** security@warrantor.dev
+- **Critical incidents:** security-critical@warrantor.dev (paged 24/7 once the on-call rotation is live)
+- **PGP key:** https://warrantor.dev/security/pgp-key.asc
 
 ## What We Promise
 

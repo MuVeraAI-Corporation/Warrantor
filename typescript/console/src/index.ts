@@ -215,7 +215,7 @@ export function allocationsByTenant(state: ConsoleState): Map<string, number> {
 
 /** Configuration for the API client. */
 export interface ApiClientConfig {
-  baseUrl: string; // e.g. "https://console.aumos.dev"
+  baseUrl: string; // e.g. "https://console.warrantor.dev"
   token?: string;  // bearer token (from SSO in production)
 }
 

@@ -139,7 +139,7 @@ func TestEnsureCertMaterialRejectsEmptyPaths(t *testing.T) {
 // and performs a real TLS handshake + HTTP request. This is the end-to-end check that the H6 TLS
 // path works against the actual http.Server.
 func TestServeTLSRealHandshake(t *testing.T) {
-	svc, err := NewService("aumos.dev")
+	svc, err := NewService("warrantor.dev")
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestServeTLSRealHandshake(t *testing.T) {
 // TestServeTLSRejectsUntrustedClient verifies that a client that does NOT trust the self-signed
 // cert fails the handshake. This guards the inverse: TLS is actually being enforced.
 func TestServeTLSRejectsUntrustedClient(t *testing.T) {
-	svc, _ := NewService("aumos.dev")
+	svc, _ := NewService("warrantor.dev")
 	gw := NewHTTPGateway(svc)
 
 	dir := t.TempDir()

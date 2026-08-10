@@ -463,7 +463,7 @@ signature</code></pre>
     <p>Field semantics, drawn from the CDDL and proto comments:</p>
     <ul>
       <li><code>issuer</code> / <code>subject</code> — SPIFFE IDs of the delegator and the agent being
-      authorized (e.g. <code>spiffe://aumos.dev/agent-identity</code>).</li>
+      authorized (e.g. <code>spiffe://warrantor.dev/agent-identity</code>).</li>
       <li><code>purpose</code> — human-readable task purpose ( minLength 1 in JSON-Schema); used in
       receipts and audits.</li>
       <li><code>resources</code> / <code>tools</code> — URIs the agent may touch and SPIFFE IDs of tool
@@ -524,11 +524,11 @@ signature</code></pre>
 
     <h3>Usage example (JSON)</h3>
 <pre><code>{
-  "issuer": "spiffe://aumos.dev/agent-identity",
-  "subject": "spiffe://aumos.dev/agent/coding-agent-7",
+  "issuer": "spiffe://warrantor.dev/agent-identity",
+  "subject": "spiffe://warrantor.dev/agent/coding-agent-7",
   "purpose": "open a pull request against aumos/aumos",
   "resources": ["github://aumos/aumos"],
-  "tools": ["spiffe://aumos.dev/tool/github-cli"],
+  "tools": ["spiffe://warrantor.dev/tool/github-cli"],
   "data_classes": ["L0", "L1"],
   "side_effect_class": "write",
   "spend_budget": 0,
@@ -536,7 +536,7 @@ signature</code></pre>
   "token_budget": 250000,
   "geography": "US",
   "delegation_depth": 0,
-  "approvals": ["spiffe://aumos.dev/human/alice"],
+  "approvals": ["spiffe://warrantor.dev/human/alice"],
   "expiry": 1767811200,
   "revocation_handle": "rh_01HZX...",
   "signature": "9f3c...ed25519hex"
@@ -628,7 +628,7 @@ approver, outcome, rollback_pointer</code></pre>
     <h3>Usage example (protobuf-style JSON)</h3>
 <pre><code>{
   "id": "f4c2...-aar",
-  "actor": "spiffe://aumos.dev/agent/coding-agent-7",
+  "actor": "spiffe://warrantor.dev/agent/coding-agent-7",
   "authority_hash": "sha256:8a1f...(of the AAE)",
   "artifact_versions": {
     "model": "claude-opus-4.5@sha256:...",
@@ -645,7 +645,7 @@ approver, outcome, rollback_pointer</code></pre>
   "deterministic_checks": [
     {"name": "diff_within_budget", "passed": true}
   ],
-  "approvers": ["spiffe://aumos.dev/human/alice"],
+  "approvers": ["spiffe://warrantor.dev/human/alice"],
   "outcome": "ACTION_OUTCOME_PENDING",
   "emitted_at": "2026-08-06T12:00:00Z",
   "signature": "12ab...ed25519hex"
@@ -734,7 +734,7 @@ expiry, allowed_use</code></pre>
 
     <h3>Usage example (JSON)</h3>
 <pre><code>{
-  "source_identity": "spiffe://aumos.dev/tool/web-fetch",
+  "source_identity": "spiffe://warrantor.dev/tool/web-fetch",
   "acquisition_time": 1767811200,
   "consent": "user_opt_in_v2",
   "sensitivity": "L2",
@@ -828,7 +828,7 @@ quarantine_state, supersession, retention, consent_revocation</code></pre>
     <h3>Usage example (JSON)</h3>
 <pre><code>{
   "record_id": "mem_01HZX...",
-  "owner": "spiffe://aumos.dev/agent/coding-agent-7",
+  "owner": "spiffe://warrantor.dev/agent/coding-agent-7",
   "confidence": 0.92,
   "contradiction_links": [],
   "provenance": "aar:f4c2...-aar",
@@ -917,9 +917,9 @@ revocation</code></pre>
 <pre><code>{
   "instructions": "When asked to summarize, fetch the URL and ...",
   "code": "sha256:9d2c...(adapter bundle)",
-  "tools": ["spiffe://aumos.dev/tool/web-fetch"],
+  "tools": ["spiffe://warrantor.dev/tool/web-fetch"],
   "permissions": ["web.fetch", "context.write:L1"],
-  "publisher_identity": "spiffe://aumos.dev/publisher/acme",
+  "publisher_identity": "spiffe://warrantor.dev/publisher/acme",
   "oms_signature": "oms:sig:3f8a...",
   "ai_sbom": { "models": [], "datasets": [], "deps": ["web-fetch@1.2"] },
   "eval_set": "sha256:eval_corpus_7",
@@ -1001,7 +1001,7 @@ skill, eval, deployment_attestations</code></pre>
 
     <h3>Usage example (JSON-LD sketch)</h3>
 <pre><code>{
-  "@context": "https://aumos.dev/ns/aatm/v1",
+  "@context": "https://warrantor.dev/ns/aatm/v1",
   "model":      { "digest": "sha256:m1...", "ref": "registry/aumos/coding-llm:4.5" },
   "dataset":    [ { "digest": "sha256:d1...", "role": "eval" } ],
   "tokenizer":  { "version": "tiktoken@2026-08" },
@@ -1266,7 +1266,7 @@ mitre_atlas_id, ocsf_class, detected_at, contained_at</code></pre>
   "incident_id": "inc_01HZX...",
   "type": "memory_poisoning",
   "severity": "high",
-  "agent": "spiffe://aumos.dev/agent/coding-agent-7",
+  "agent": "spiffe://warrantor.dev/agent/coding-agent-7",
   "authority": "sha256:8a1f...(AAE)",
   "evidence_refs": ["aar:f4c2...", "amil:mem_01HZX..."],
   "mitre_atlas_id": "AML.T.0048",
@@ -1355,9 +1355,9 @@ trust_domain, result, signature</code></pre>
     "aae:01HZY...(attenuated to sub-agent)"
   ],
   "hop_count": 2,
-  "quorum": ["spiffe://aumos.dev/human/alice"],
+  "quorum": ["spiffe://warrantor.dev/human/alice"],
   "evidence_requirements": ["aar:required", "cap:required"],
-  "trust_domain": "aumos.dev",
+  "trust_domain": "warrantor.dev",
   "result": { "status": "ok", "diff": "sha256:..." },
   "revocation_handle": "rh_made_01HZX...",
   "signature": "99e2...ed25519hex"
@@ -1447,7 +1447,7 @@ regression_evidence, build_provenance, signed_artifacts, embargo</code></pre>
   "regression_evidence": "veb:01HZX...",
   "build_provenance": { "slsa_level": "L3", "aatm": "aatm:01HZX..." },
   "signed_artifacts": [ { "ref": "ssp@1.3", "sig": "1f8c..." } ],
-  "embargo": { "until": 1767984000, "recipients": ["sec@aumos.dev"] },
+  "embargo": { "until": 1767984000, "recipients": ["sec@warrantor.dev"] },
   "revocation_handle": "rh_prb_01HZX...",
   "signature": "44bd...ed25519hex"
 }</code></pre>
@@ -1528,7 +1528,7 @@ sandbox, attestation_evidence</code></pre>
     <h3>Usage example (JSON)</h3>
 <pre><code>{
   "runtime": "container@sha256:r1...",
-  "tools": ["spiffe://aumos.dev/tool/github-cli"],
+  "tools": ["spiffe://warrantor.dev/tool/github-cli"],
   "policy": "sha256:pol1...",
   "credentials": ["spiffe-svid", "gh-token(readonly)"],
   "network": "egress:github.com:443",

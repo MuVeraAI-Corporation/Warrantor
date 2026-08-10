@@ -203,8 +203,8 @@ class Dataset:
         production; this method produces the canonical JSON-LD that gets signed)."""
         return {
             "@context": {
-                "aumos": "https://aumos.dev/vocab/dataset#",
-                "@vocab": "https://aumos.dev/vocab/dataset#",
+                "aumos": "https://warrantor.dev/vocab/dataset#",
+                "@vocab": "https://warrantor.dev/vocab/dataset#",
             },
             "@graph": [n.to_dict() for n in self.nodes],
             "aumos:final_row_count": len(self.rows),

@@ -52,7 +52,7 @@ func TestExportBundleProducesValidBundle(t *testing.T) {
 	b, err := ExportBundle(SovereignConfig{
 		Mode:      ModeSafeLocal,
 		GPUModel:  "H100",
-		TrustRoot: "spiffe://aumos.dev",
+		TrustRoot: "spiffe://warrantor.dev",
 		Version:   "1.2.3",
 	})
 	if err != nil {

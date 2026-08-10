@@ -24,7 +24,7 @@ class ReferenceHarness:
         self._ident_attrs = {
             "agent_id": "agent-1",
             "workload_id": "w-1",
-            "spiffe_id": "spiffe://aumos.dev/agent/1",
+            "spiffe_id": "spiffe://warrantor.dev/agent/1",
             "attributes": {"clearance": "3"},
         }
 

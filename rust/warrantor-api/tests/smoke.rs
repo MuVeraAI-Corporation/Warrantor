@@ -8,15 +8,15 @@ use warrantor_api::protocols::v1::AgentActionReceipt;
 fn generated_types_are_constructible() {
     // Confirms prost generated public types we can name and build.
     let _envelope = AgentAuthorityEnvelope {
-        issuer: "spiffe://aumos.dev/agent-identity".into(),
-        subject: "spiffe://aumos.dev/agent/x".into(),
+        issuer: "spiffe://warrantor.dev/agent-identity".into(),
+        subject: "spiffe://warrantor.dev/agent/x".into(),
         purpose: "smoke test".into(),
         ..Default::default()
     };
 
     let _receipt = AgentActionReceipt {
         id: "receipt-1".into(),
-        actor: "spiffe://aumos.dev/agent/x".into(),
+        actor: "spiffe://warrantor.dev/agent/x".into(),
         ..Default::default()
     };
 }

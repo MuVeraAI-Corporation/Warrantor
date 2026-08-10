@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.aumos.dev/protocols/v1/cap.schema.json",
+  "$id": "https://schemas.warrantor.dev/protocols/v1/cap.schema.json",
   "title": "AumOS P12 Capability Attestation Profile v1 envelope",
   "type": "object",
   "additionalProperties": false,

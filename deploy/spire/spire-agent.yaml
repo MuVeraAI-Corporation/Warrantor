@@ -72,7 +72,7 @@ data:
       server_address    = "spire-server"
       server_port       = "8081"
       socket_path       = "/run/spire/sockets/agent.sock"
-      trust_domain      = "aumos.dev"
+      trust_domain      = "warrantor.dev"
       # Bootstrap bundle, refreshed from the spire-bundle ConfigMap.
       trust_bundle_path = "/run/spire/bundle/bundle.crt"
     }
@@ -183,7 +183,7 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
             - name: AUMOS_TRUST_DOMAIN
-              value: "aumos.dev"
+              value: "warrantor.dev"
           readinessProbe:
             httpGet:
               path: /ready

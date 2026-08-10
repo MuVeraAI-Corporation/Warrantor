@@ -1,7 +1,13 @@
-# Final Verification Report — All 7 Waves Complete
+# Historical Verification Snapshot — Superseded
 
-> The AumOS project is now feature-complete. 49 components shipped at v1.0.0 across 7 waves,
-> reconciling 4 source portfolios into one unified open defense stack for AI.
+> **Superseded on 2026-08-09.** This document records an earlier source-presence snapshot and must
+> not be used as current implementation, release, or production-readiness evidence. Its 49-component
+> and 691-test claims were not generated from reproducible gate artifacts. The canonical catalogue is
+> [`implementation/catalog.json`](implementation/catalog.json); current readiness must be derived
+> from the implementation tracker and exact verification evidence for the target commit.
+
+> Historical claim retained for traceability: “The AumOS project is feature-complete with 49
+> components shipped at v1.0.0.” This claim is not currently substantiated.
 
 ## Grand totals
 

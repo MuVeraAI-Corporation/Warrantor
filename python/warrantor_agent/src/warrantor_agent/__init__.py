@@ -216,7 +216,7 @@ class AumOSConfig:
     http_timeout: float | None = None
     fail_closed: bool = True
     auto_kill_on_error: bool = True
-    agent_svid: str = "spiffe://aumos.dev/agent/default"
+    agent_svid: str = "spiffe://warrantor.dev/agent/default"
 
     def resolved(self) -> dict[str, Any]:
         """Return a dict of all config values with defaults filled in."""
@@ -365,7 +365,7 @@ class AumOS:
         http_timeout: float | None = None,
         fail_closed: bool = True,
         auto_kill_on_error: bool = True,
-        agent_svid: str = "spiffe://aumos.dev/agent/default",
+        agent_svid: str = "spiffe://warrantor.dev/agent/default",
         _backend: _HttpBackend | None = None,
     ) -> None:
         if mode not in ("standalone", "connected"):
@@ -641,7 +641,7 @@ class AumOS:
             except (RuntimeError, OSError) as e:
                 return {
                     "valid": receipt_id.startswith("aar-"),
-                    "signer": "spiffe://aumos.dev/flight-recorder",
+                    "signer": "spiffe://warrantor.dev/flight-recorder",
                     "receipt_id": receipt_id,
                     "source": "mock",
                     "degraded": True,
@@ -649,7 +649,7 @@ class AumOS:
                 }
         return {
             "valid": receipt_id.startswith("aar-"),
-            "signer": "spiffe://aumos.dev/flight-recorder",
+            "signer": "spiffe://warrantor.dev/flight-recorder",
             "receipt_id": receipt_id,
             "source": "mock",
         }

@@ -15,8 +15,8 @@ import {
   type TrustBundleEntry,
 } from './index.js';
 
-const GATEWAY = 'spiffe://aumos.dev/mcp-gateway/default';
-const ISSUER = 'spiffe://aumos.dev/agent-identity';
+const GATEWAY = 'spiffe://warrantor.dev/mcp-gateway/default';
+const ISSUER = 'spiffe://warrantor.dev/agent-identity';
 const KEY_ID = 'urn:aumos:key:test-issuer-1';
 
 // A real Ed25519 keypair. AX-02: envelopes must be signed by a key the gateway
@@ -42,19 +42,19 @@ function freshRegistry(): ToolRegistry {
   return new ToolRegistry().registerAll([
     {
       name: 'fs.read',
-      scope: { toolSvid: 'spiffe://aumos.dev/tools/fs-read', sideEffectClass: 'read' },
+      scope: { toolSvid: 'spiffe://warrantor.dev/tools/fs-read', sideEffectClass: 'read' },
     },
     {
       name: 'github.create_pr',
-      scope: { toolSvid: 'spiffe://aumos.dev/tools/github', sideEffectClass: 'write' },
+      scope: { toolSvid: 'spiffe://warrantor.dev/tools/github', sideEffectClass: 'write' },
     },
     {
       name: 'payment.send',
-      scope: { toolSvid: 'spiffe://aumos.dev/tools/payment', sideEffectClass: 'financial' },
+      scope: { toolSvid: 'spiffe://warrantor.dev/tools/payment', sideEffectClass: 'financial' },
     },
     {
       name: 'db.drop_table',
-      scope: { toolSvid: 'spiffe://aumos.dev/tools/db-destr', sideEffectClass: 'destructive' },
+      scope: { toolSvid: 'spiffe://warrantor.dev/tools/db-destr', sideEffectClass: 'destructive' },
     },
   ] satisfies RegisteredTool[]);
 }
@@ -62,13 +62,13 @@ function freshRegistry(): ToolRegistry {
 // AAE builder. Defaults grant the read/write tools to the gateway for the agent subject.
 function sampleAae(overrides: Partial<AgentAuthorityEnvelope> = {}): AgentAuthorityEnvelope {
   const base: AgentAuthorityEnvelope = {
-    issuer: 'spiffe://aumos.dev/agent-identity',
-    subject: 'spiffe://aumos.dev/agent/coding-1',
+    issuer: 'spiffe://warrantor.dev/agent-identity',
+    subject: 'spiffe://warrantor.dev/agent/coding-1',
     purpose: 'open a pull request',
     resources: [GATEWAY],
     tools: [
-      'spiffe://aumos.dev/tools/fs-read',
-      'spiffe://aumos.dev/tools/github',
+      'spiffe://warrantor.dev/tools/fs-read',
+      'spiffe://warrantor.dev/tools/github',
     ],
     dataClasses: ['L0', 'L1'],
     sideEffectClass: 'write',
@@ -88,7 +88,7 @@ function sampleAae(overrides: Partial<AgentAuthorityEnvelope> = {}): AgentAuthor
   return signed(base);
 }
 
-function call(tool: string, caller = 'spiffe://aumos.dev/agent/coding-1'): ToolCall {
+function call(tool: string, caller = 'spiffe://warrantor.dev/agent/coding-1'): ToolCall {
   return { tool, args: {}, callerSvid: caller };
 }
 
@@ -103,7 +103,7 @@ function gateway(now?: () => number, transport: ToolTransport = successfulTransp
     transport,
     now,
     trustBundle: TRUST_BUNDLE,
-    approvers: ['spiffe://aumos.dev/human/alice', 'spiffe://aumos.dev/human/bob'],
+    approvers: ['spiffe://warrantor.dev/human/alice', 'spiffe://warrantor.dev/human/bob'],
   });
 }
 
@@ -111,7 +111,7 @@ describe('ToolRegistry', () => {
   it('looks up registered tools and reports unknowns', () => {
     const r = freshRegistry();
     expect(r.has('fs.read')).toBe(true);
-    expect(r.lookup('fs.read')?.scope.toolSvid).toBe('spiffe://aumos.dev/tools/fs-read');
+    expect(r.lookup('fs.read')?.scope.toolSvid).toBe('spiffe://warrantor.dev/tools/fs-read');
     expect(r.has('does.not.exist')).toBe(false);
     expect(r.lookup('nope')).toBeUndefined();
   });
@@ -139,7 +139,7 @@ describe('McpGateway.authorize — happy path', () => {
     const r = g.authorize(call('fs.read'), sampleAae());
     expect(r.allowed).toBe(true);
     expect(r.reason).toBe('allowed');
-    expect(r.scope?.toolSvid).toBe('spiffe://aumos.dev/tools/fs-read');
+    expect(r.scope?.toolSvid).toBe('spiffe://warrantor.dev/tools/fs-read');
   });
 
   it('allows a write tool when side-effect class is sufficient', () => {
@@ -168,7 +168,7 @@ describe('McpGateway.authorize — denials', () => {
 
   it('denies on audience mismatch (AAE not issued for this gateway)', () => {
     const g = gateway();
-    const aae = sampleAae({ resources: ['spiffe://aumos.dev/some-other-gateway'] });
+    const aae = sampleAae({ resources: ['spiffe://warrantor.dev/some-other-gateway'] });
     const r = g.authorize(call('fs.read'), aae);
     expect(r.allowed).toBe(false);
     expect(r.reason).toBe('audience_mismatch');
@@ -198,7 +198,7 @@ describe('McpGateway.authorize — denials', () => {
   it('denies when caller SVID does not match AAE subject', () => {
     const g = gateway();
     const r = g.authorize(
-      call('fs.read', 'spiffe://aumos.dev/agent/impostor'),
+      call('fs.read', 'spiffe://warrantor.dev/agent/impostor'),
       sampleAae()
     );
     expect(r.allowed).toBe(false);
@@ -228,7 +228,7 @@ describe('McpGateway.authorize — side-effect-class enforcement', () => {
     const g = gateway();
     const aae = sampleAae({
       sideEffectClass: 'financial',
-      tools: ['spiffe://aumos.dev/tools/payment'],
+      tools: ['spiffe://warrantor.dev/tools/payment'],
     });
     // No approval entry → denied even though scope is otherwise sufficient.
     const denied = g.authorize(call('payment.send'), aae);
@@ -240,8 +240,8 @@ describe('McpGateway.authorize — side-effect-class enforcement', () => {
       call('payment.send'),
       sampleAae({
         sideEffectClass: 'financial',
-        tools: ['spiffe://aumos.dev/tools/payment'],
-        approvals: ['spiffe://aumos.dev/human/alice'],
+        tools: ['spiffe://warrantor.dev/tools/payment'],
+        approvals: ['spiffe://warrantor.dev/human/alice'],
       })
     );
     expect(ok.allowed).toBe(true);
@@ -252,8 +252,8 @@ describe('McpGateway.authorize — side-effect-class enforcement', () => {
     // financial AAE is rank 2 < destructive rank 3 → denied on class grounds first.
     const aaeFinancial = sampleAae({
       sideEffectClass: 'financial',
-      tools: ['spiffe://aumos.dev/tools/db-destr'],
-      approvals: ['spiffe://aumos.dev/human/alice'],
+      tools: ['spiffe://warrantor.dev/tools/db-destr'],
+      approvals: ['spiffe://warrantor.dev/human/alice'],
     });
     const r1 = g.authorize(call('db.drop_table'), aaeFinancial);
     expect(r1.allowed).toBe(false);
@@ -262,7 +262,7 @@ describe('McpGateway.authorize — side-effect-class enforcement', () => {
     // destructive AAE without approval → approval-missing denial.
     const aaeDestructive = sampleAae({
       sideEffectClass: 'destructive',
-      tools: ['spiffe://aumos.dev/tools/db-destr'],
+      tools: ['spiffe://warrantor.dev/tools/db-destr'],
       approvals: [],
     });
     const r2 = g.authorize(call('db.drop_table'), aaeDestructive);
@@ -272,8 +272,8 @@ describe('McpGateway.authorize — side-effect-class enforcement', () => {
     // destructive AAE with approval → allowed.
     const aaeOk = sampleAae({
       sideEffectClass: 'destructive',
-      tools: ['spiffe://aumos.dev/tools/db-destr'],
-      approvals: ['spiffe://aumos.dev/human/alice'],
+      tools: ['spiffe://warrantor.dev/tools/db-destr'],
+      approvals: ['spiffe://warrantor.dev/human/alice'],
     });
     expect(g.authorize(call('db.drop_table'), aaeOk).allowed).toBe(true);
   });
@@ -305,7 +305,7 @@ describe('McpGateway.forward', () => {
     expect(requests).toEqual([
       {
         call: c,
-        scope: { toolSvid: 'spiffe://aumos.dev/tools/fs-read', sideEffectClass: 'read' },
+        scope: { toolSvid: 'spiffe://warrantor.dev/tools/fs-read', sideEffectClass: 'read' },
         gatewaySvid: GATEWAY,
       },
     ]);
@@ -356,7 +356,7 @@ describe('McpGateway.forward', () => {
 describe('McpHttpTransport', () => {
   const request: ForwardRequest = {
     call: call('fs.read'),
-    scope: { toolSvid: 'spiffe://aumos.dev/tools/fs-read', sideEffectClass: 'read' },
+    scope: { toolSvid: 'spiffe://warrantor.dev/tools/fs-read', sideEffectClass: 'read' },
     gatewaySvid: GATEWAY,
   };
 
@@ -364,7 +364,7 @@ describe('McpHttpTransport', () => {
     let capturedUrl = '';
     let capturedInit: RequestInit | undefined;
     const transport = new McpHttpTransport({
-      resolveEndpoint: () => 'https://tools.aumos.dev/mcp',
+      resolveEndpoint: () => 'https://tools.warrantor.dev/mcp',
       requestId: () => 'request-1',
       fetchImpl: async (url, init) => {
         capturedUrl = String(url);
@@ -377,7 +377,7 @@ describe('McpHttpTransport', () => {
     });
 
     await expect(transport.call(request)).resolves.toEqual({ accepted: true });
-    expect(capturedUrl).toBe('https://tools.aumos.dev/mcp');
+    expect(capturedUrl).toBe('https://tools.warrantor.dev/mcp');
     const headers = new Headers(capturedInit?.headers);
     expect(headers.get('accept')).toBe('application/json, text/event-stream');
     expect(headers.get('mcp-protocol-version')).toBe(MCP_PROTOCOL_VERSION);
@@ -391,8 +391,8 @@ describe('McpHttpTransport', () => {
       _meta: {
         'io.modelcontextprotocol/protocolVersion': MCP_PROTOCOL_VERSION,
         'io.modelcontextprotocol/clientCapabilities': {},
-        'dev.aumos/gatewaySvid': GATEWAY,
-        'dev.aumos/callerSvid': request.call.callerSvid,
+        'dev.warrantor/gatewaySvid': GATEWAY,
+        'dev.warrantor/callerSvid': request.call.callerSvid,
       },
     });
   });
@@ -412,7 +412,7 @@ describe('McpHttpTransport', () => {
 
   it('turns JSON-RPC errors into typed remote failures without exposing synthetic success', async () => {
     const transport = new McpHttpTransport({
-      resolveEndpoint: () => 'https://tools.aumos.dev/mcp',
+      resolveEndpoint: () => 'https://tools.warrantor.dev/mcp',
       requestId: () => 8,
       fetchImpl: async () => new Response(
         JSON.stringify({ jsonrpc: '2.0', id: 8, error: { code: -32001, message: 'policy denied' } }),
@@ -431,7 +431,7 @@ describe('McpHttpTransport', () => {
     ['HTTP failure', new Response('unavailable', { status: 503, headers: { 'content-type': 'text/plain' } }), 'http_error'],
   ] as const)('fails closed on %s', async (_label, response, expectedCode) => {
     const transport = new McpHttpTransport({
-      resolveEndpoint: () => 'https://tools.aumos.dev/mcp',
+      resolveEndpoint: () => 'https://tools.warrantor.dev/mcp',
       requestId: () => 1,
       fetchImpl: async () => response,
     });
@@ -440,7 +440,7 @@ describe('McpHttpTransport', () => {
 
   it('aborts and reports a typed timeout', async () => {
     const transport = new McpHttpTransport({
-      resolveEndpoint: () => 'https://tools.aumos.dev/mcp',
+      resolveEndpoint: () => 'https://tools.warrantor.dev/mcp',
       timeoutMs: 5,
       fetchImpl: async (_url, init) => new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
@@ -469,8 +469,8 @@ describe('McpGateway — confused-deputy end-to-end', () => {
     // Attacker has an AAE for github only but tries payment.send (registered tool).
     const attackerAae = sampleAae({
       sideEffectClass: 'financial',
-      tools: ['spiffe://aumos.dev/tools/github'],
-      approvals: ['spiffe://aumos.dev/human/alice'],
+      tools: ['spiffe://warrantor.dev/tools/github'],
+      approvals: ['spiffe://warrantor.dev/human/alice'],
     });
     const r = g.authorize(call('payment.send'), attackerAae);
     expect(r.allowed).toBe(false);

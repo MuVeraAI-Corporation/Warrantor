@@ -1,7 +1,7 @@
 {
   "name": "warrantor",
   "displayName": "AumOS",
-  "description": "Syntax highlighting and language support for AumOS configuration files (.complygate.yml, OPA Rego, CDDL, .aumos/)",
+  "description": "Syntax highlighting and language support for AumOS configuration files (.complygate.yml, OPA Rego, CDDL)",
   "version": "1.0.0",
   "publisher": "MuVeraAI",
   "license": "Apache-2.0",
@@ -9,22 +9,44 @@
     "type": "git",
     "url": "https://github.com/MuVeraAI/aumos"
   },
-  "engines": { "vscode": "^1.80.0" },
-  "categories": ["Programming Languages", "Linters", "Snippets"],
-  "keywords": ["ai-security", "compliance", "opa", "rego", "cddl", "eu-ai-act"],
-  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Snippets"
+  ],
+  "keywords": [
+    "ai-security",
+    "compliance",
+    "opa",
+    "rego",
+    "cddl"
+  ],
   "contributes": {
     "languages": [
       {
         "id": "complygate",
-        "aliases": ["ComplyGate", "complygate"],
-        "extensions": [".complygate.yml", ".complygate.yaml"],
+        "aliases": [
+          "ComplyGate",
+          "complygate"
+        ],
+        "extensions": [
+          ".complygate.yml",
+          ".complygate.yaml"
+        ],
         "configuration": "./language-configuration.json"
       },
       {
         "id": "cddl",
-        "aliases": ["CDDL", "Concise Data Definition Language"],
-        "extensions": [".cddl"],
+        "aliases": [
+          "CDDL",
+          "Concise Data Definition Language"
+        ],
+        "extensions": [
+          ".cddl"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -45,39 +67,6 @@
         "language": "yaml",
         "path": "./snippets/complygate.json"
       }
-    ],
-    "commands": [
-      {
-        "command": "warrantor.installComponent",
-        "title": "AumOS: Install Component"
-      },
-      {
-        "command": "warrantor.complianceReport",
-        "title": "AumOS: Generate Compliance Report"
-      },
-      {
-        "command": "warrantor.scanSecrets",
-        "title": "AumOS: Scan for Exposed Secrets"
-      },
-      {
-        "command": "warrantor.init",
-        "title": "AumOS: Initialize Project"
-      }
-    ],
-    "configuration": {
-      "title": "AumOS",
-      "properties": {
-        "warrantor.defstackPath": {
-          "type": "string",
-          "default": "defstack",
-          "description": "Path to the defstack CLI binary"
-        },
-        "warrantor.autoScanSecrets": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically scan files for exposed secrets on save"
-        }
-      }
-    }
+    ]
   }
 }

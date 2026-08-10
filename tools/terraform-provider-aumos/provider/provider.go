@@ -46,7 +46,7 @@ func (p *aumosProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp
 				Optional:    true,
 			},
 			"trust_domain": schema.StringAttribute{
-				Description: "SPIFFE trust domain (default: aumos.dev)",
+				Description: "SPIFFE trust domain (default: warrantor.dev)",
 				Optional:    true,
 			},
 			"api_token": schema.StringAttribute{

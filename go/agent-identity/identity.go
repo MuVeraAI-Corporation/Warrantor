@@ -132,10 +132,10 @@ type Service struct {
 }
 
 // NewService constructs a new identity service with a freshly generated Ed25519 key pair.
-// The trust domain is used as the SPIFFE trust domain (default "aumos.dev").
+// The trust domain is used as the SPIFFE trust domain (default "warrantor.dev").
 func NewService(trustDomain string) (*Service, error) {
 	if trustDomain == "" {
-		trustDomain = "aumos.dev"
+		trustDomain = "warrantor.dev"
 	}
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

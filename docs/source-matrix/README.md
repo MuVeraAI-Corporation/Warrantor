@@ -51,6 +51,22 @@ proposed. AumOS is the unified implementation derived from them.
 
 ---
 
+## Curated reading list (max-depth external sources)
+
+High-quality blogs, RFCs, standards, and deep technical articles for **every**
+canonical component and protocol (full reconciliation inventory + P1–P12):
+
+| Artifact | Path |
+|----------|------|
+| **Visual HTML index** (coverage matrix + cards) | [`../html/curated-reading-list.html`](../html/curated-reading-list.html) |
+| Markdown companion | [`../curated-reading-list.md`](../curated-reading-list.md) |
+| Structured source data | [`curated-sources.json`](curated-sources.json) |
+| Generator | [`generate_reading_list.py`](generate_reading_list.py) |
+| Verification tests | [`test_reading_list.py`](test_reading_list.py) |
+
+Regenerate: `python aumos/docs/source-matrix/generate_reading_list.py`  
+Verify: `python aumos/docs/source-matrix/test_reading_list.py`
+
 ## How the four portfolios map to AumOS
 
 See [`../00-reconciliation-matrix.md`](../00-reconciliation-matrix.md) for the canonical mapping.
