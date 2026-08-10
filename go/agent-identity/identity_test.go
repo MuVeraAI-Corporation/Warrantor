@@ -12,13 +12,13 @@ import (
 func hexDecode(s string) ([]byte, error) { return hex.DecodeString(s) }
 
 func TestIssueAndVerifyRoundTrip(t *testing.T) {
-	svc, err := NewService("warrantor.dev")
+	svc, err := NewService("muveraai.com")
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
 	svid, err := svc.Issue(
-		"spiffe://warrantor.dev/agent/coding-1",
-		AgentAttributes{Publisher: "warrantor.dev/coding-agent", Model: "claude-opus-4.5"},
+		"spiffe://muveraai.com/agent/coding-1",
+		AgentAttributes{Publisher: "muveraai.com/coding-agent", Model: "claude-opus-4.5"},
 		CapabilityClaims{Tools: []string{"github"}, SideEffectClass: "write", DelegationDepth: 2},
 		"", // audience
 		"",
@@ -33,14 +33,14 @@ func TestIssueAndVerifyRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if claims.Subject != "spiffe://warrantor.dev/agent/coding-1" {
+	if claims.Subject != "spiffe://muveraai.com/agent/coding-1" {
 		t.Errorf("subject = %q, want coding-1", claims.Subject)
 	}
 }
 
 func TestTamperedTokenFails(t *testing.T) {
-	svc, _ := NewService("warrantor.dev")
-	svid, _ := svc.Issue("spiffe://warrantor.dev/agent/x", AgentAttributes{}, CapabilityClaims{}, "", "")
+	svc, _ := NewService("muveraai.com")
+	svid, _ := svc.Issue("spiffe://muveraai.com/agent/x", AgentAttributes{}, CapabilityClaims{}, "", "")
 	// Flip one byte in the signature half.
 	parts := strings.SplitN(svid.Token, ".", 2)
 	tampered := parts[0] + "." + flipHex(parts[1])
@@ -52,9 +52,9 @@ func TestTamperedTokenFails(t *testing.T) {
 func TestAudienceMismatchRejectedC5(t *testing.T) {
 	// C5: the confused-deputy defense must check the real `aud` claim. A token issued for
 	// audience "service-a" must NOT verify when the caller requests audience "service-b".
-	svc, _ := NewService("warrantor.dev")
+	svc, _ := NewService("muveraai.com")
 	svid, err := svc.Issue(
-		"spiffe://warrantor.dev/agent/x",
+		"spiffe://muveraai.com/agent/x",
 		AgentAttributes{},
 		CapabilityClaims{},
 		"service-a", // intended audience
@@ -72,7 +72,7 @@ func TestAudienceMismatchRejectedC5(t *testing.T) {
 		t.Errorf("expected ErrAudienceMismatch for wrong audience, got %v", err)
 	}
 	// A token issued with no audience must NOT satisfy a non-empty audience request.
-	noAud, _ := svc.Issue("spiffe://warrantor.dev/agent/y", AgentAttributes{}, CapabilityClaims{}, "", "")
+	noAud, _ := svc.Issue("spiffe://muveraai.com/agent/y", AgentAttributes{}, CapabilityClaims{}, "", "")
 	if _, err := svc.VerifyWithAudience(noAud.Token, "service-a"); err != ErrAudienceMismatch {
 		t.Errorf("expected ErrAudienceMismatch when token has no aud but a non-empty audience is requested, got %v", err)
 	}
@@ -83,8 +83,8 @@ func TestAudienceMismatchRejectedC5(t *testing.T) {
 }
 
 func TestRevokedTokenRejected(t *testing.T) {
-	svc, _ := NewService("warrantor.dev")
-	svid, _ := svc.Issue("spiffe://warrantor.dev/agent/x", AgentAttributes{}, CapabilityClaims{}, "", "")
+	svc, _ := NewService("muveraai.com")
+	svid, _ := svc.Issue("spiffe://muveraai.com/agent/x", AgentAttributes{}, CapabilityClaims{}, "", "")
 	claims, _ := svc.Verify(svid.Token)
 	if _, err := svc.Revoke(claims.JTI); err != nil {
 		t.Fatalf("Revoke: %v", err)
@@ -96,7 +96,7 @@ func TestRevokedTokenRejected(t *testing.T) {
 
 func TestRevocationBudgetMet(t *testing.T) {
 	// Revocation is in-memory so completes well under the 5s budget.
-	svc, _ := NewService("warrantor.dev")
+	svc, _ := NewService("muveraai.com")
 	start := time.Now()
 	_, err := svc.Revoke("any-jti")
 	if err != nil {
@@ -109,9 +109,9 @@ func TestRevocationBudgetMet(t *testing.T) {
 
 func TestDelegationIntersection_I02(t *testing.T) {
 	// Invariant I-02: child authority must be a subset of (intersection with) parent.
-	svc, _ := NewService("warrantor.dev")
+	svc, _ := NewService("muveraai.com")
 	parent, err := svc.Issue(
-		"spiffe://warrantor.dev/agent/parent",
+		"spiffe://muveraai.com/agent/parent",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github", "slack"}, DataClasses: []string{"L0", "L1"}, SideEffectClass: "write", DelegationDepth: 2},
 		"",
@@ -123,7 +123,7 @@ func TestDelegationIntersection_I02(t *testing.T) {
 
 	// Child A: subset of parent — must succeed.
 	_, err = svc.Issue(
-		"spiffe://warrantor.dev/agent/childA",
+		"spiffe://muveraai.com/agent/childA",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github"}, DataClasses: []string{"L0"}, SideEffectClass: "write", DelegationDepth: 1},
 		"",
@@ -135,7 +135,7 @@ func TestDelegationIntersection_I02(t *testing.T) {
 
 	// Child B: claims a tool the parent does not have — must fail with ErrAuthorityExpanded.
 	_, err = svc.Issue(
-		"spiffe://warrantor.dev/agent/childB",
+		"spiffe://muveraai.com/agent/childB",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"aws"}, SideEffectClass: "write", DelegationDepth: 1},
 		"",
@@ -147,7 +147,7 @@ func TestDelegationIntersection_I02(t *testing.T) {
 
 	// Child C: claims a higher side-effect class — must fail.
 	_, err = svc.Issue(
-		"spiffe://warrantor.dev/agent/childC",
+		"spiffe://muveraai.com/agent/childC",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github"}, SideEffectClass: "financial", DelegationDepth: 1},
 		"",
@@ -159,9 +159,9 @@ func TestDelegationIntersection_I02(t *testing.T) {
 }
 
 func TestDelegationDepthExhausted(t *testing.T) {
-	svc, _ := NewService("warrantor.dev")
+	svc, _ := NewService("muveraai.com")
 	leaf, err := svc.Issue(
-		"spiffe://warrantor.dev/agent/leaf",
+		"spiffe://muveraai.com/agent/leaf",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github"}, DelegationDepth: 0}, // no further delegation
 		"",
@@ -171,7 +171,7 @@ func TestDelegationDepthExhausted(t *testing.T) {
 		t.Fatalf("leaf Issue: %v", err)
 	}
 	_, err = svc.Issue(
-		"spiffe://warrantor.dev/agent/grandchild",
+		"spiffe://muveraai.com/agent/grandchild",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github"}, DelegationDepth: 1},
 		"",
@@ -201,7 +201,7 @@ func TestSubset(t *testing.T) {
 }
 
 func TestVerifyingKeyHexIsStable(t *testing.T) {
-	svc, _ := NewService("warrantor.dev")
+	svc, _ := NewService("muveraai.com")
 	k1 := svc.VerifyingKeyHex()
 	k2 := svc.VerifyingKeyHex()
 	if k1 != k2 {
@@ -216,10 +216,10 @@ func TestVerifyingKeyHexIsStable(t *testing.T) {
 // capability token (not just the JTI), and the wire shape must expose `capability_token` so it
 // matches proto/aumos/identity/v1/IssueIdentityResponse.capability_token.
 func TestCapabilityTokenIssued_H2(t *testing.T) {
-	svc, _ := NewService("warrantor.dev")
+	svc, _ := NewService("muveraai.com")
 	svid, err := svc.Issue(
-		"spiffe://warrantor.dev/agent/cap",
-		AgentAttributes{Publisher: "warrantor.dev/coding-agent"},
+		"spiffe://muveraai.com/agent/cap",
+		AgentAttributes{Publisher: "muveraai.com/coding-agent"},
 		CapabilityClaims{
 			Tools:           []string{"github", "slack"},
 			DataClasses:     []string{"L0"},
@@ -259,9 +259,9 @@ func TestCapabilityTokenIssued_H2(t *testing.T) {
 // TestIssueResponseWireShape_H2 verifies the JSON wire shape emitted by the gateway carries the
 // proto field name `capability_token` (not the old `capability_jti`).
 func TestIssueResponseWireShape_H2(t *testing.T) {
-	svc, _ := NewService("warrantor.dev")
+	svc, _ := NewService("muveraai.com")
 	svid, _ := svc.Issue(
-		"spiffe://warrantor.dev/agent/wire",
+		"spiffe://muveraai.com/agent/wire",
 		AgentAttributes{},
 		CapabilityClaims{Tools: []string{"github"}},
 		"",

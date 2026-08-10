@@ -3604,7 +3604,7 @@
         "path": "typescript/mcp-server/src/index.ts",
         "line": 797,
         "category": "mock",
-        "text": "return ok({ valid: receiptId.startsWith('aar-'), signer: 'spiffe://warrantor.dev/flight-recorder', source: 'mock' });"
+        "text": "return ok({ valid: receiptId.startsWith('aar-'), signer: 'spiffe://muveraai.com/flight-recorder', source: 'mock' });"
       },
       {
         "path": "typescript/mcp-server/src/index.ts",

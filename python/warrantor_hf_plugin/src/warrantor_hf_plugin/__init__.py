@@ -91,7 +91,7 @@ def _read_data(path: str, data_offset: int) -> bytes:
 
 def sign_model_for_upload(
     model_path: str,
-    signer: str = "did:web:warrantor.dev",
+    signer: str = "did:web:muveraai.com",
     signing_key_hex: str | None = None,
 ) -> ProvenanceBlock:
     """Sign a .safetensors model file by embedding a __provenance__ block.
@@ -206,7 +206,7 @@ class HFCallback:
     """
 
     def __init__(
-        self, signer: str = "did:web:warrantor.dev", signing_key_hex: str | None = None
+        self, signer: str = "did:web:muveraai.com", signing_key_hex: str | None = None
     ) -> None:
         self.signer = signer
         self.signing_key_hex = signing_key_hex

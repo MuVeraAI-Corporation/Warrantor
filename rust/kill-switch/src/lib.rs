@@ -421,7 +421,7 @@ mod tests {
     }
 
     fn mock_target() -> KillTarget {
-        KillTarget::named("spiffe://warrantor.dev/agent/test")
+        KillTarget::named("spiffe://muveraai.com/agent/test")
     }
 
     #[test]
@@ -787,7 +787,7 @@ mod tests {
         );
 
         let engine = LocalProcessEngine::new();
-        let target = KillTarget::local_process("spiffe://warrantor.dev/agent/victim", pid);
+        let target = KillTarget::local_process("spiffe://muveraai.com/agent/victim", pid);
         let outcome = execute_kill(
             &engine,
             &target,

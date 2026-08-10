@@ -15,8 +15,8 @@ delegated to the attestation verifier in the AumOS agent running on the node
 
 | Annotation              | Meaning                                            |
 | ----------------------- | -------------------------------------------------- |
-| `warrantor.dev/aae`          | Required. The base64 attestation envelope blob.    |
-| `warrantor.dev/aae-digest`   | Optional. When present, must match `sha256:<hex>`. |
+| `muveraai.com/aae`          | Required. The base64 attestation envelope blob.    |
+| `muveraai.com/aae-digest`   | Optional. When present, must match `sha256:<hex>`. |
 
 ## Behaviour
 
@@ -102,7 +102,7 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: warrantor-admission
 webhooks:
-  - name: admission.warrantor.dev
+  - name: admission.muveraai.com
     sideEffects: None
     admissionReviewVersions: ["v1"]
     rules:

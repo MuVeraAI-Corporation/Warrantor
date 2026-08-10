@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"warrantor.dev/tee-serve"
+	"muveraai.com/go/tee-serve"
 )
 
 func main() {

@@ -33,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--license", default=None, help="SPDX license identifier.")
     p.add_argument("--digest", default=None, help="Content digest of the weights (sha256 hex).")
-    p.add_argument("--supplier", default="did:web:warrantor.dev", help="Supplier identity.")
+    p.add_argument("--supplier", default="did:web:muveraai.com", help="Supplier identity.")
     p.add_argument(
         "--format",
         choices=[f.value for f in SbomFormat],

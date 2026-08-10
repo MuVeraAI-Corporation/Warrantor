@@ -637,7 +637,7 @@ mod tests {
         let backend = MockBackend::new([("github_token".to_string(), "ghp_abc".to_string())]);
         let cred = issue(
             &backend,
-            "spiffe://warrantor.dev/agent/x",
+            "spiffe://muveraai.com/agent/x",
             "open-pr",
             "10.0.0.1",
             "github_token",
@@ -656,7 +656,7 @@ mod tests {
         let backend = MockBackend::new(vec![]);
         let res = issue(
             &backend,
-            "spiffe://warrantor.dev/agent/x",
+            "spiffe://muveraai.com/agent/x",
             "t",
             "ip",
             "missing",

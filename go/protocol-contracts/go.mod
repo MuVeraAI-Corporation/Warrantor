@@ -1,3 +1,3 @@
-module warrantor.dev/protocol-contracts
+module muveraai.com/go/protocol-contracts
 
 go 1.22

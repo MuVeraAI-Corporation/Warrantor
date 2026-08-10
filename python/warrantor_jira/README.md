@@ -45,7 +45,7 @@ from warrantor_jira import JiraForwarder, MockForwarder
 fwd = JiraForwarder(
     base_url="https://yourorg.atlassian.net",
     api_token=os.environ["JIRA_API_TOKEN"],
-    user_email="bot@warrantor.dev",
+    user_email="bot@muveraai.com",
     project_key="SEC",
 )
 ticket = fwd.create_ticket(incident_dict)

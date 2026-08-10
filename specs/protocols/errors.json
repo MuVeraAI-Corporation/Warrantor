@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.warrantor.dev/protocols/v1/errors.schema.json",
+  "$id": "https://muveraai.com/schemas/protocols/v1/errors.schema.json",
   "schema_version": 1,
   "errors": [
     {"code": "MALFORMED_DOCUMENT", "retryable": false, "description": "The wire document is not a JSON object or cannot be decoded."},

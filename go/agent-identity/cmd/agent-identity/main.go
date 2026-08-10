@@ -20,7 +20,7 @@ import (
 	"syscall"
 	"time"
 
-	"warrantor.dev/agent-identity"
+	"muveraai.com/go/agent-identity"
 )
 
 // Default cert/key paths used when --tls is set without explicit paths. They live under the OS temp
@@ -32,7 +32,7 @@ const (
 
 func main() {
 	addr := flag.String("addr", ":8441", "listen address for the HTTP/JSON gateway")
-	trustDomain := flag.String("trust-domain", "warrantor.dev", "SPIFFE trust domain")
+	trustDomain := flag.String("trust-domain", "muveraai.com", "SPIFFE trust domain")
 	// H6: TLS flags.
 	tlsEnabled := flag.Bool("tls", false, "enable TLS (HTTPS) on the gateway (default: false, plaintext HTTP for backward compat)")
 	certFile := flag.String("cert", "", "path to TLS certificate PEM (when --tls; generated if empty)")

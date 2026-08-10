@@ -1078,7 +1078,7 @@ mod tests {
     #[test]
     fn policy_round_trips_through_json() {
         let p = PolicyBuilder::with_defaults()
-            .allow_domain("internal.warrantor.dev")
+            .allow_domain("internal.muveraai.com")
             .allow_ip("8.8.8.8")
             .deny_private_egress(true)
             .build()

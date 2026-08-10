@@ -32,7 +32,7 @@ def sample_incident(**overrides: Any) -> dict[str, Any]:
         "severity": "critical",
         "summary": "agent diverted from declared goal",
         "details": "the coding agent began exfiltrating tokens",
-        "agent_id": "spiffe://warrantor.dev/agent/coding-1",
+        "agent_id": "spiffe://muveraai.com/agent/coding-1",
         "detected_at": 1_700_000_000.0,
     }
     base.update(overrides)
@@ -176,7 +176,7 @@ def test_jira_create_payload_shape(monkeypatch):
     fwd = JiraForwarder(
         base_url="https://aumos.atlassian.net",
         api_token="tok",
-        user_email="bot@warrantor.dev",
+        user_email="bot@muveraai.com",
         project_key="SEC",
     )
     captured: dict[str, Any] = {}

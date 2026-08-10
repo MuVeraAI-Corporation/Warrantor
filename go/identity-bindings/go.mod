@@ -1,4 +1,4 @@
-module warrantor.dev/identity-bindings
+module muveraai.com/go/identity-bindings
 
 go 1.24.0
 

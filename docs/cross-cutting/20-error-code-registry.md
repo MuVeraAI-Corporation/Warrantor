@@ -106,7 +106,7 @@ All errors MUST be returned in this format:
   "code": "AUMOS.PROXY.RATE_LIMITED",
   "message": "The agent identity token expired at 2026-08-05T12:00:00Z",
   "details": {
-    "identity": "spiffe://warrantor.dev/agent/x",
+    "identity": "spiffe://muveraai.com/agent/x",
     "limit_per_sec": 100
   },
   "request_id": "req-abc-123",

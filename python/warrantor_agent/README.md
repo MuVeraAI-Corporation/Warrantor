@@ -136,7 +136,7 @@ unchanged (the failure receipt is still recorded).
 
 ```bash
 warrantor-agent status
-warrantor-agent issue spiffe://warrantor.dev/agent/coding-1
+warrantor-agent issue spiffe://muveraai.com/agent/coding-1
 warrantor-agent scan-secrets --text "token=ghp_..."
 echo "AKIAIOSFODNN7EXAMPLE" | warrantor-agent scan-secrets
 warrantor-agent --version

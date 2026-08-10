@@ -6,9 +6,16 @@
 
 ### Private Disclosure (Preferred)
 
-Email: **security@defstack.org** (PGP key: `security@defstack.org`.pub)
+Report through **GitHub Security Advisories**: the repository's "Security" tab → "Report a
+vulnerability". This opens a private advisory visible only to maintainers and to you, and it is the
+only reporting channel we operate.
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
+
+We deliberately do not publish a security email address or a PGP key. A disclosure channel that is
+advertised but unmonitored is worse than one that does not exist, because a reporter who mails it in
+good faith reasonably concludes we were told. GitHub advisories give us a channel that cannot be
+silently dropped, supports private collaboration on a fix, and issues the CVE at the end of it.
 
 Include:
 - Component name and version
@@ -17,10 +24,6 @@ Include:
 - Impact assessment
 - Suggested fix (optional)
 - Your name/handle for credit (optional)
-
-### GitHub Security Advisory
-
-For components hosted on GitHub, use the "Security" tab → "Report a vulnerability" feature. This creates a private advisory visible only to maintainers.
 
 ### Bug Bounty (Planned Q2 2027)
 
@@ -62,10 +65,12 @@ We follow **90-day disclosure** (Google Project Zero standard):
 ## Security Advisories
 
 All advisories published to:
-1. GitHub Security Advisories (per-repo)
-2. defstack.org/security/advisories
-3. oss-security mailing list (for Critical/High)
-4. NVD (after CVE assignment)
+1. GitHub Security Advisories (per-repo) — the system of record
+2. oss-security mailing list (for Critical/High)
+3. NVD (after CVE assignment)
+
+There is no separate advisory site. A second publication surface that can drift out of sync with
+the GitHub advisory is a liability, not a service.
 
 ## Incident Response
 
@@ -80,10 +85,12 @@ For critical vulnerabilities with active exploitation:
 
 ## Security Contacts
 
-- **General security:** security@defstack.org
-- **Critical incidents:** security-critical@defstack.org (paged 24/7)
-- **PGP key:** https://defstack.org/security/pgp-key.asc
+- **All reports, every severity:** the repository's "Security" tab → "Report a vulnerability".
 - **Security team lead:** CISO (to be hired by M6)
+
+No separate escalation address is published. A critical report is a GitHub advisory marked
+critical; maintainers are notified by GitHub directly. The 24/7 paging rotation referenced above is
+not yet operational, and this policy does not claim a channel until it is.
 
 ## What We Promise
 

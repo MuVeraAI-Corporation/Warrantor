@@ -31,7 +31,7 @@ go run ./cmd/fleet-marshal \
 ## CRD shape
 
 ```yaml
-apiVersion: warrantor.dev/v1
+apiVersion: muveraai.com/v1
 kind: ModelFleet
 metadata:
   name: falcon-fleet

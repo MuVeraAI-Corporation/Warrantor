@@ -79,7 +79,7 @@ type SovereignConfig struct {
 	Mode DeploymentMode `json:"mode"`
 	// Target GPU model (e.g. "H100", "A100", "L40S"). Informational; recorded in the bundle.
 	GPUModel string `json:"gpu_model"`
-	// Trust root: a SPIFFE trust domain (e.g. "spiffe://warrantor.dev") or a public-key fingerprint.
+	// Trust root: a SPIFFE trust domain (e.g. "spiffe://muveraai.com") or a public-key fingerprint.
 	TrustRoot string `json:"trust_root"`
 	// Optional extra components to include beyond the mode's required set.
 	ExtraComponents []string `json:"extra_components,omitempty"`

@@ -45,7 +45,7 @@ services:
       timeout: 5s
       retries: 3
     environment:
-      AUMOS_TRUST_DOMAIN: warrantor.dev
+      AUMOS_TRUST_DOMAIN: muveraai.com
       AUMOS_LOG_LEVEL: info
 
   # ─── Open Serve Kit (Go) ──────────────────────────────────────────────────

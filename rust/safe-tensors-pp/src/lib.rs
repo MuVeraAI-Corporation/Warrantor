@@ -30,7 +30,7 @@ pub const PROVENANCE_KEY: &str = "__provenance__";
 /// The provenance block embedded in a Safetensors++ header.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Provenance {
-    /// The signer identity (e.g. "did:web:warrantor.dev" or a SPIFFE ID).
+    /// The signer identity (e.g. "did:web:muveraai.com" or a SPIFFE ID).
     pub signer: String,
     /// Hex-encoded Ed25519 verifying key (32 bytes).
     pub verifying_key: String,
@@ -253,9 +253,9 @@ mod tests {
         let mut header = test_header();
         let data = test_data();
         let key = test_key();
-        sign(&mut header, &data, "did:web:warrantor.dev", &key).expect("sign");
+        sign(&mut header, &data, "did:web:muveraai.com", &key).expect("sign");
         let p = verify(&header, &data).expect("verify");
-        assert_eq!(p.signer, "did:web:warrantor.dev");
+        assert_eq!(p.signer, "did:web:muveraai.com");
     }
 
     #[test]
@@ -263,7 +263,7 @@ mod tests {
         let mut header = test_header();
         let data = test_data();
         let key = test_key();
-        sign(&mut header, &data, "did:web:warrantor.dev", &key).expect("sign");
+        sign(&mut header, &data, "did:web:muveraai.com", &key).expect("sign");
         let mut tampered = data.clone();
         tampered[0] ^= 0xff;
         assert!(matches!(
@@ -287,7 +287,7 @@ mod tests {
         let mut header = test_header();
         let data = test_data();
         let key = test_key();
-        sign(&mut header, &data, "did:web:warrantor.dev", &key).expect("sign");
+        sign(&mut header, &data, "did:web:muveraai.com", &key).expect("sign");
         let mut buf = Vec::new();
         write_safetensors(&mut buf, &header, &data).expect("write");
         let mut cursor = std::io::Cursor::new(buf);
@@ -306,7 +306,7 @@ mod tests {
     #[test]
     fn provenance_round_trips_through_json() {
         let p = Provenance {
-            signer: "did:web:warrantor.dev".into(),
+            signer: "did:web:muveraai.com".into(),
             verifying_key: "ab".repeat(16),
             signature: "cd".repeat(32),
             signed_at: 1000,

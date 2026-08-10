@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.warrantor.dev/protocols/v1/abs.schema.json",
+  "$id": "https://muveraai.com/schemas/protocols/v1/abs.schema.json",
   "title": "AumOS P7 Autonomy Budget Specification v1 envelope",
   "type": "object",
   "additionalProperties": false,

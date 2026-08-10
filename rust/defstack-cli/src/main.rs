@@ -226,7 +226,7 @@ fn compliance_report(model: &Option<String>) -> serde_json::Value {
         "generated_at": chrono_now(),
         "model": model.clone().unwrap_or_else(|| "<unspecified>".into()),
         "frameworks": frameworks,
-        "signed_by": "did:web:warrantor.dev",
+        "signed_by": "did:web:muveraai.com",
         "note": "Wave-1: structural report only — attestation signatures land as components ship"
     })
 }

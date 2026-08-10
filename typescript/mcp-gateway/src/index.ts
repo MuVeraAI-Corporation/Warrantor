@@ -62,15 +62,15 @@ export function isConsequential(cls: SideEffectClass): boolean {
  * allowance lets an agent rewrite the rules that bind it.
  */
 export const SELF_CHANGE_PROTECTED_PREFIXES: readonly string[] = [
-  'spiffe://warrantor.dev/trust-core',
-  'spiffe://warrantor.dev/authority',
-  'spiffe://warrantor.dev/agent-identity',
-  'spiffe://warrantor.dev/policy',
-  'spiffe://warrantor.dev/flight-recorder',
-  'spiffe://warrantor.dev/evidence',
-  'spiffe://warrantor.dev/trust-bundle',
-  'spiffe://warrantor.dev/kms',
-  'spiffe://warrantor.dev/mcp-gateway',
+  'spiffe://muveraai.com/trust-core',
+  'spiffe://muveraai.com/authority',
+  'spiffe://muveraai.com/agent-identity',
+  'spiffe://muveraai.com/policy',
+  'spiffe://muveraai.com/flight-recorder',
+  'spiffe://muveraai.com/evidence',
+  'spiffe://muveraai.com/trust-bundle',
+  'spiffe://muveraai.com/kms',
+  'spiffe://muveraai.com/mcp-gateway',
 ];
 
 /**
@@ -94,7 +94,7 @@ export function isSelfChange(scope: ToolScope): boolean {
 
 /** An Agent Authority Envelope, as resolved by I1 agent-identity's VerifyIdentity. */
 export interface AgentAuthorityEnvelope {
-  /** SPIFFE ID of the issuer (e.g. "spiffe://warrantor.dev/agent-identity"). */
+  /** SPIFFE ID of the issuer (e.g. "spiffe://muveraai.com/agent-identity"). */
   issuer: string;
   /** SPIFFE ID of the subject agent. */
   subject: string;
@@ -501,8 +501,8 @@ export class McpHttpTransport implements ToolTransport {
               'io.modelcontextprotocol/protocolVersion': MCP_PROTOCOL_VERSION,
               'io.modelcontextprotocol/clientInfo': this.clientInfo,
               'io.modelcontextprotocol/clientCapabilities': this.capabilities,
-              'dev.warrantor/gatewaySvid': request.gatewaySvid,
-              'dev.warrantor/callerSvid': request.call.callerSvid,
+              'com.muveraai/gatewaySvid': request.gatewaySvid,
+              'com.muveraai/callerSvid': request.call.callerSvid,
             },
           },
         }),

@@ -22,7 +22,7 @@ service AgentIdentityService {
 // An Agent Authority Envelope (P1) — the signed delegation that authorizes an agent to act.
 // See specs/protocols/P1-aae.md. Trust-core (T1) signs/verifies this.
 message AgentAuthorityEnvelope {
-  // The SPIFFE ID of the issuer (e.g. "spiffe://warrantor.dev/agent-identity").
+  // The SPIFFE ID of the issuer (e.g. "spiffe://muveraai.com/agent-identity").
   string issuer = 1;
   // The SPIFFE ID of the subject agent.
   string subject = 2;
@@ -67,7 +67,7 @@ message IssueIdentityRequest {
 
 // Runtime attributes bound to the agent's SVID (extends SPIFFE per RFC I1).
 message AgentAttributes {
-  string publisher = 1;          // e.g. "warrantor.dev/coding-agent"
+  string publisher = 1;          // e.g. "muveraai.com/coding-agent"
   string model = 2;              // e.g. "claude-opus-4.5"
   string version = 3;            // agent software version
   string rules_of_engagement = 4; // path or hash of the ROE document

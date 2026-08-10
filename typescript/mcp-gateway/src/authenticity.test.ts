@@ -22,10 +22,10 @@ import {
   type TrustBundleEntry,
 } from './index.js';
 
-const GATEWAY = 'spiffe://warrantor.dev/mcp-gateway/default';
-const ISSUER = 'spiffe://warrantor.dev/agent-identity';
+const GATEWAY = 'spiffe://muveraai.com/mcp-gateway/default';
+const ISSUER = 'spiffe://muveraai.com/agent-identity';
 const KEY_ID = 'urn:aumos:key:test-issuer-1';
-const AGENT = 'spiffe://warrantor.dev/agent/coding-1';
+const AGENT = 'spiffe://muveraai.com/agent/coding-1';
 
 const { publicKey: PUB, privateKey: PRIV } = generateKeyPairSync('ed25519');
 const PUB_HEX = PUB.export({ format: 'der', type: 'spki' }).subarray(12).toString('hex');
@@ -44,7 +44,7 @@ function baseAae(overrides: Partial<AgentAuthorityEnvelope> = {}): AgentAuthorit
     subject: AGENT,
     purpose: 'read a file',
     resources: [GATEWAY],
-    tools: ['spiffe://warrantor.dev/tools/fs-read'],
+    tools: ['spiffe://muveraai.com/tools/fs-read'],
     dataClasses: ['L0', 'L1'],
     sideEffectClass: 'write',
     spendBudget: 1000,
@@ -71,9 +71,9 @@ function transport(): ToolTransport {
 
 function registry(): ToolRegistry {
   return new ToolRegistry().registerAll([
-    { name: 'fs.read', scope: { toolSvid: 'spiffe://warrantor.dev/tools/fs-read', sideEffectClass: 'read' } },
-    { name: 'db.destroy', scope: { toolSvid: 'spiffe://warrantor.dev/tools/db-destr', sideEffectClass: 'destructive' } },
-    { name: 'pay.send', scope: { toolSvid: 'spiffe://warrantor.dev/tools/payment', sideEffectClass: 'financial' } },
+    { name: 'fs.read', scope: { toolSvid: 'spiffe://muveraai.com/tools/fs-read', sideEffectClass: 'read' } },
+    { name: 'db.destroy', scope: { toolSvid: 'spiffe://muveraai.com/tools/db-destr', sideEffectClass: 'destructive' } },
+    { name: 'pay.send', scope: { toolSvid: 'spiffe://muveraai.com/tools/payment', sideEffectClass: 'financial' } },
   ]);
 }
 
@@ -83,7 +83,7 @@ function gw(extra: Partial<ConstructorParameters<typeof McpGateway>[0]> = {}): M
     registry: registry(),
     transport: transport(),
     trustBundle: TRUST_BUNDLE,
-    approvers: ['spiffe://warrantor.dev/human/alice', 'spiffe://warrantor.dev/human/bob'],
+    approvers: ['spiffe://muveraai.com/human/alice', 'spiffe://muveraai.com/human/bob'],
     ...extra,
   });
 }
@@ -107,7 +107,7 @@ describe('AX-02 — envelope authenticity', () => {
       ...baseAae(),
       issuer: 'spiffe://evil.example/i-made-this-up',
       sideEffectClass: 'destructive',
-      tools: ['spiffe://warrantor.dev/tools/db-destr'],
+      tools: ['spiffe://muveraai.com/tools/db-destr'],
       signature: { algorithm: 'Ed25519', keyId: KEY_ID, value: '0'.repeat(128) },
     };
     const r = gw().authorize(call('db.destroy'), forged);
@@ -134,7 +134,7 @@ describe('AX-02 — envelope authenticity', () => {
   });
 
   it('denies a trusted key signing for an issuer it may not speak for', () => {
-    const aae = sign({ ...baseAae(), issuer: 'spiffe://warrantor.dev/some-other-issuer' });
+    const aae = sign({ ...baseAae(), issuer: 'spiffe://muveraai.com/some-other-issuer' });
     const r = gw().authorize(call('fs.read'), aae);
     expect(r.allowed).toBe(false);
     if (!r.allowed) expect(r.reason).toBe('signature_invalid');
@@ -202,7 +202,7 @@ describe('AX-02 — constraints that were declared and never enforced', () => {
     const reg = new ToolRegistry().register({
       name: 'secrets.read',
       scope: {
-        toolSvid: 'spiffe://warrantor.dev/tools/fs-read',
+        toolSvid: 'spiffe://muveraai.com/tools/fs-read',
         sideEffectClass: 'read',
         dataClasses: ['L4'],
       },
@@ -220,7 +220,7 @@ describe('AX-02 — constraints that were declared and never enforced', () => {
     const reg = new ToolRegistry().register({
       name: 'eu.only',
       scope: {
-        toolSvid: 'spiffe://warrantor.dev/tools/fs-read',
+        toolSvid: 'spiffe://muveraai.com/tools/fs-read',
         sideEffectClass: 'read',
         geography: 'DE',
       },
@@ -239,8 +239,8 @@ describe('AX-02 — constraints that were declared and never enforced', () => {
       call('pay.send'),
       baseAae({
         sideEffectClass: 'financial',
-        tools: ['spiffe://warrantor.dev/tools/payment'],
-        approvals: ['spiffe://warrantor.dev/tools/payment-readonly-DIFFERENT'],
+        tools: ['spiffe://muveraai.com/tools/payment'],
+        approvals: ['spiffe://muveraai.com/tools/payment-readonly-DIFFERENT'],
       })
     );
     expect(r.allowed).toBe(false);
@@ -252,8 +252,8 @@ describe('AX-02 — constraints that were declared and never enforced', () => {
       call('pay.send'),
       baseAae({
         sideEffectClass: 'financial',
-        tools: ['spiffe://warrantor.dev/tools/payment'],
-        approvals: ['spiffe://warrantor.dev/human/alice'],
+        tools: ['spiffe://muveraai.com/tools/payment'],
+        approvals: ['spiffe://muveraai.com/human/alice'],
       })
     );
     expect(r.allowed).toBe(true);
@@ -265,8 +265,8 @@ describe('AX-02 — constraints that were declared and never enforced', () => {
       call('pay.send'),
       baseAae({
         sideEffectClass: 'financial',
-        tools: ['spiffe://warrantor.dev/tools/payment'],
-        approvals: ['spiffe://warrantor.dev/human/alice'],
+        tools: ['spiffe://muveraai.com/tools/payment'],
+        approvals: ['spiffe://muveraai.com/human/alice'],
       })
     );
     expect(one.allowed).toBe(false);
@@ -274,8 +274,8 @@ describe('AX-02 — constraints that were declared and never enforced', () => {
       call('pay.send'),
       baseAae({
         sideEffectClass: 'financial',
-        tools: ['spiffe://warrantor.dev/tools/payment'],
-        approvals: ['spiffe://warrantor.dev/human/alice', 'spiffe://warrantor.dev/human/bob'],
+        tools: ['spiffe://muveraai.com/tools/payment'],
+        approvals: ['spiffe://muveraai.com/human/alice', 'spiffe://muveraai.com/human/bob'],
       })
     );
     expect(two.allowed).toBe(true);

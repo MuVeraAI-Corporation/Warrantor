@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	"warrantor.dev/fleet-marshal"
+	"muveraai.com/go/fleet-marshal"
 )
 
 // dryRunExecutor implements RolloutExecutor by logging each call (no K8s API).

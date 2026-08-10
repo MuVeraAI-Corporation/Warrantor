@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.warrantor.dev/protocols/v1/aix.schema.json",
+  "$id": "https://muveraai.com/schemas/protocols/v1/aix.schema.json",
   "title": "AumOS P9 Agent Incident Exchange v1 envelope",
   "type": "object",
   "additionalProperties": false,

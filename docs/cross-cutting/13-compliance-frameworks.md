@@ -123,7 +123,7 @@ DORA (applies from Jan 17, 2025; enforcement active 2026) requires financial ins
   "training_data": { "provenance_graph": "..." },
   "evaluations": { "safety": "passed", "adversarial": "passed" },
   "incidents": [],
-  "signed_by": "did:web:defstack.org"
+  "signed_by": "did:web:muveraai.com"
 }
 ```
 

@@ -54,7 +54,7 @@ class SbomInput:
 
     model: ModelInfo
     dependencies: list[Dependency] = field(default_factory=list)
-    supplier: str = "did:web:warrantor.dev"  # who built/provided the model
+    supplier: str = "did:web:muveraai.com"  # who built/provided the model
     created_at: datetime | None = None  # defaults to now()
 
 
@@ -237,7 +237,7 @@ def to_spdx(sbom: SbomInput) -> dict[str, Any]:
         "SPDXID": document_id,
         "name": sbom.model.name,
         "dataLicense": "CC0-1.0",
-        "documentNamespace": f"https://warrantor.dev/spdx/{uuid.uuid4()}",
+        "documentNamespace": f"https://muveraai.com/spdx/{uuid.uuid4()}",
         "creationInfo": {
             "created": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "creators": ["Tool: warrantor-model-sbom-1.0.0", f"Organization: {sbom.supplier}"],

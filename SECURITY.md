@@ -1,28 +1,31 @@
 # Security Policy
 
 > How AumOS handles vulnerability reports, CVEs, and coordinated disclosure.
-> Adopted verbatim from `docs/cross-cutting/14-security-disclosure-policy.md`.
+> Derived from `docs/cross-cutting/14-security-disclosure-policy.md`, which is the normative source.
+> This file is the GitHub-facing summary; where the two differ, the cross-cutting document governs.
 
 ## Reporting a Vulnerability
 
 ### Private Disclosure (Preferred)
 
-Email: **security@warrantor.dev** (PGP key: published at `https://warrantor.dev/security/pgp-key.asc`).
+Report through **GitHub Security Advisories**: the repository's "Security" tab → "Report a
+vulnerability". This opens a private advisory visible only to maintainers and to you, and it is the
+only reporting channel we operate.
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
+We deliberately do not publish a security email address or a PGP key. A disclosure channel that is
+advertised but unmonitored is worse than one that does not exist, because a reporter who mails it in
+good faith reasonably concludes we were told. GitHub advisories give us a channel that cannot be
+silently dropped, supports private collaboration on a fix, and issues the CVE at the end of it.
+
 Include:
-- Component name and version (e.g. `aumos-trust-core 1.0.0`)
+- Component name and version (e.g. `warrantor-trust-core 1.0.0`)
 - Description of the vulnerability
 - Steps to reproduce
 - Impact assessment
 - Suggested fix (optional)
 - Your name/handle for credit (optional)
-
-### GitHub Security Advisory
-
-Use the "Security" tab → "Report a vulnerability" feature. This creates a private advisory visible
-only to maintainers.
 
 ## Response SLAs
 
@@ -53,9 +56,11 @@ These components get the strictest review and the fastest SLA treatment (per
 
 ## Contacts
 
-- **General security:** security@warrantor.dev
-- **Critical incidents:** security-critical@warrantor.dev (paged 24/7 once the on-call rotation is live)
-- **PGP key:** https://warrantor.dev/security/pgp-key.asc
+- **All reports, every severity:** the repository's "Security" tab → "Report a vulnerability".
+
+There is no separate escalation address. A critical report is a GitHub advisory marked critical;
+maintainers are notified by GitHub directly. The 24/7 paging rotation referenced in the SLA table
+above is not yet operational, and this policy will not claim a channel until it is.
 
 ## What We Promise
 

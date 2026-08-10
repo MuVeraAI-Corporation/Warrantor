@@ -1,3 +1,3 @@
-module warrantor.dev/lightwell-bridge
+module muveraai.com/go/lightwell-bridge
 
 go 1.22

@@ -30,7 +30,7 @@
       "  enabled: true",
       "  min_approvers: 2",
       "  approvers:",
-      "    - ${1:spiffe://warrantor.dev/human/alice}"
+      "    - ${1:spiffe://muveraai.com/human/alice}"
     ]
   }
 }

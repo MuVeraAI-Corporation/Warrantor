@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"warrantor.dev/open-serve-kit"
+	"muveraai.com/go/open-serve-kit"
 )
 
 func main() {

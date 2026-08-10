@@ -222,7 +222,7 @@ describe('I1 agent-identity tools', () => {
   it('issue returns an SVID prefixed svid-mock- in standalone', async () => {
     const r = await CallTool(
       'aumos_issue_identity',
-      { subject: 'spiffe://warrantor.dev/agent/coding-1' },
+      { subject: 'spiffe://muveraai.com/agent/coding-1' },
       standalone()
     );
     expect(r.isError).toBe(false);
@@ -240,13 +240,13 @@ describe('I1 agent-identity tools', () => {
   it('verify_identity round-trips an issued SVID', async () => {
     const issued = await CallTool(
       'aumos_issue_identity',
-      { subject: 'spiffe://warrantor.dev/agent/coding-1' },
+      { subject: 'spiffe://muveraai.com/agent/coding-1' },
       standalone()
     );
     const svid = String(issued.data.svid);
     const r = await CallTool('aumos_verify_identity', { svid }, standalone());
     expect(r.data.valid).toBe(true);
-    expect(r.data.subject).toBe('spiffe://warrantor.dev/agent/coding-1');
+    expect(r.data.subject).toBe('spiffe://muveraai.com/agent/coding-1');
   });
 
   it('verify_identity rejects an unknown SVID', async () => {
@@ -263,7 +263,7 @@ describe('I1 agent-identity tools', () => {
   it('connected mode posts to /v1/agent-identity:issue', async () => {
     const r = await CallTool(
       'aumos_issue_identity',
-      { subject: 'spiffe://warrantor.dev/agent/coding-1' },
+      { subject: 'spiffe://muveraai.com/agent/coding-1' },
       {
         mode: 'connected',
         agentIdentityUrl: 'http://i1:8441',
@@ -277,7 +277,7 @@ describe('I1 agent-identity tools', () => {
   it('connected mode fails closed on connection error', async () => {
     const r = await CallTool(
       'aumos_issue_identity',
-      { subject: 'spiffe://warrantor.dev/agent/coding-1' },
+      { subject: 'spiffe://muveraai.com/agent/coding-1' },
       { mode: 'connected', agentIdentityUrl: 'http://i1:8441', fetchImpl: unreachableFetch() }
     );
     expect(r.isError).toBe(true);
@@ -297,7 +297,7 @@ describe('E1 flight-recorder tools', () => {
   it('emit_receipt returns an AAR id and signature (invariant I-07)', async () => {
     const r = await CallTool(
       'aumos_emit_receipt',
-      { actor: 'spiffe://warrantor.dev/agent/coding-1', tool: 'github.create_pr', outcome: 'success' },
+      { actor: 'spiffe://muveraai.com/agent/coding-1', tool: 'github.create_pr', outcome: 'success' },
       standalone()
     );
     expect(r.data.invariant).toBe('I-07');
@@ -488,7 +488,7 @@ interface HttpDependencyCase {
 const HTTP_DEPENDENCY_CASES: HttpDependencyCase[] = [
   {
     tool: 'aumos_issue_identity',
-    args: { subject: 'spiffe://warrantor.dev/agent/test' },
+    args: { subject: 'spiffe://muveraai.com/agent/test' },
     dependency: 'agent-identity',
     forbiddenFields: ['svid', 'capability_jti'],
   },
@@ -506,7 +506,7 @@ const HTTP_DEPENDENCY_CASES: HttpDependencyCase[] = [
   },
   {
     tool: 'aumos_emit_receipt',
-    args: { actor: 'spiffe://warrantor.dev/agent/test', tool: 'fs.read' },
+    args: { actor: 'spiffe://muveraai.com/agent/test', tool: 'fs.read' },
     dependency: 'flight-recorder',
     forbiddenFields: ['receipt_id', 'signature'],
   },

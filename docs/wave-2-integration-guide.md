@@ -66,8 +66,8 @@ go run ./go/agent-identity/cmd/agent-identity -addr=:8441
 # Terminal 2: issue, verify, revoke.
 curl -s -X POST http://localhost:8441/v1/agent-identity:issue \
   -H 'content-type: application/json' \
-  -d '{"subject":"spiffe://warrantor.dev/agent/coding-1",
-       "attributes":{"publisher":"warrantor.dev/coding-agent","model":"claude-opus-4.5"},
+  -d '{"subject":"spiffe://muveraai.com/agent/coding-1",
+       "attributes":{"publisher":"muveraai.com/coding-agent","model":"claude-opus-4.5"},
        "claims":{"tools":["github"],"data_classes":["L0","L1"],"side_effect_class":"write","delegation_depth":2}}'
 
 # The response contains the SVID token; pass it to verify.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.warrantor.dev/protocols/v1/aae.schema.json",
+  "$id": "https://muveraai.com/schemas/protocols/v1/aae.schema.json",
   "title": "AumOS P1 Agent Authority Envelope v1 envelope",
   "type": "object",
   "additionalProperties": false,

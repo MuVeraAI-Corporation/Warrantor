@@ -11,7 +11,7 @@ import (
 	"io"
 	"os"
 
-	protocolcontracts "warrantor.dev/protocol-contracts"
+	protocolcontracts "muveraai.com/go/protocol-contracts"
 )
 
 type batchVector struct {

@@ -317,8 +317,8 @@ mod tests {
     ) -> (AgentAuthorityEnvelope, SigningKey) {
         let mut rng = OsRng;
         let sk = SigningKey::generate(&mut rng);
-        let issuer = "spiffe://warrantor.dev/agent-identity";
-        let subject = "spiffe://warrantor.dev/agent/coding-1";
+        let issuer = "spiffe://muveraai.com/agent-identity";
+        let subject = "spiffe://muveraai.com/agent/coding-1";
         let expiry_seconds = (now_epoch() + 3600) as i64;
         // C6: sign over the SAME canonical-CBOR bytes the validator will reconstruct from the
         // envelope's unsigned fields. We build the body, serialize it to canonical CBOR, and
@@ -379,7 +379,7 @@ mod tests {
         // would NOT be detected unless the caller also updated the supplied bytes).
         let (mut envelope, sk) = make_signed_envelope("read", vec![], 0);
         let vk = sk.verifying_key();
-        envelope.subject = "spiffe://warrantor.dev/agent/impostor".into();
+        envelope.subject = "spiffe://muveraai.com/agent/impostor".into();
         let opts = ValidateOptions::coding_agent(&vk);
         assert!(matches!(
             validate(&envelope, &opts),
@@ -409,8 +409,8 @@ mod tests {
         let vk = sk.verifying_key();
         // Re-sign with an expiry in the past so the signature is still valid over the mutated
         // expiry field (otherwise this would trip SignatureInvalid, not Expired).
-        let issuer = "spiffe://warrantor.dev/agent-identity";
-        let subject = "spiffe://warrantor.dev/agent/coding-1";
+        let issuer = "spiffe://muveraai.com/agent-identity";
+        let subject = "spiffe://muveraai.com/agent/coding-1";
         let past_seconds: i64 = 1;
         let body = unsigned_body(issuer, subject, "read", &[], 0, past_seconds);
         let canon = serde_cbor::to_vec(&body).expect("canonical");
@@ -446,7 +446,7 @@ mod tests {
     #[test]
     fn financial_class_with_approval_validates_when_allowed() {
         let (envelope, sk) =
-            make_signed_envelope("financial", vec!["spiffe://warrantor.dev/human/alice"], 0);
+            make_signed_envelope("financial", vec!["spiffe://muveraai.com/human/alice"], 0);
         let vk = sk.verifying_key();
         let opts = ValidateOptions {
             issuer_verifying_key: &vk,

@@ -19,29 +19,29 @@ describe('I-11 — self-change is governed', () => {
 
   it('denies a destructive tool aimed at the policy corpus', () => {
     expect(
-      isSelfChange({ toolSvid: 'spiffe://warrantor.dev/policy/corpus', sideEffectClass: 'destructive' })
+      isSelfChange({ toolSvid: 'spiffe://muveraai.com/policy/corpus', sideEffectClass: 'destructive' })
     ).toBe(true);
   });
 
   it('denies a tool that mutates a protected surface indirectly', () => {
     expect(
       isSelfChange({
-        toolSvid: 'spiffe://warrantor.dev/tools/generic-writer',
+        toolSvid: 'spiffe://muveraai.com/tools/generic-writer',
         sideEffectClass: 'write',
-        mutates: ['spiffe://warrantor.dev/trust-bundle/keys'],
+        mutates: ['spiffe://muveraai.com/trust-bundle/keys'],
       })
     ).toBe(true);
   });
 
   it('permits READ access to a protected surface -- inspection is not modification', () => {
     expect(
-      isSelfChange({ toolSvid: 'spiffe://warrantor.dev/policy/corpus', sideEffectClass: 'read' })
+      isSelfChange({ toolSvid: 'spiffe://muveraai.com/policy/corpus', sideEffectClass: 'read' })
     ).toBe(false);
   });
 
   it('permits ordinary writes to unprotected resources', () => {
     expect(
-      isSelfChange({ toolSvid: 'spiffe://warrantor.dev/tools/github', sideEffectClass: 'write' })
+      isSelfChange({ toolSvid: 'spiffe://muveraai.com/tools/github', sideEffectClass: 'write' })
     ).toBe(false);
   });
 
@@ -49,7 +49,7 @@ describe('I-11 — self-change is governed', () => {
     // "policy-playground" must not match the "policy" prefix.
     expect(
       isSelfChange({
-        toolSvid: 'spiffe://warrantor.dev/policy-playground/scratch',
+        toolSvid: 'spiffe://muveraai.com/policy-playground/scratch',
         sideEffectClass: 'write',
       })
     ).toBe(false);
