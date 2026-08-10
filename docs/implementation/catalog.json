@@ -1,0 +1,916 @@
+{
+  "schema_version": 1,
+  "title": "AumOS canonical implementation catalog",
+  "status_semantics": {
+    "reference_implementation": "Source and tests exist; this does not imply production readiness.",
+    "unimplemented": "The canonical RFC exists but no matching implementation source exists.",
+    "draft_specification": "Normative draft assets exist; protocol runtime and interoperability are tracked separately."
+  },
+  "expected_counts": {
+    "implementable": 54,
+    "protocols": 12,
+    "total": 66,
+    "reference_implementations": 54,
+    "unimplemented": 0,
+    "support": 13
+  },
+  "entries": [
+    {
+      "id": "T1",
+      "name": "trust-core",
+      "kind": "component",
+      "domain": "trust",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/trust-core"
+      ],
+      "rfc": "docs/rfcs/T1-trust-core.md"
+    },
+    {
+      "id": "T2",
+      "name": "authority-spec",
+      "kind": "component",
+      "domain": "trust",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/authority-spec"
+      ],
+      "rfc": "docs/rfcs/T2-authority-spec.md"
+    },
+    {
+      "id": "I1",
+      "name": "agent-identity",
+      "kind": "component",
+      "domain": "identity",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/agent-identity"
+      ],
+      "rfc": "docs/rfcs/I1-agent-identity.md"
+    },
+    {
+      "id": "I2",
+      "name": "identity-bindings",
+      "kind": "component",
+      "domain": "identity",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/identity-bindings"
+      ],
+      "rfc": "docs/rfcs/I2-identity-bindings.md"
+    },
+    {
+      "id": "R1",
+      "name": "secure-workspace",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/secure-workspace"
+      ],
+      "rfc": "docs/rfcs/R1-secure-workspace.md"
+    },
+    {
+      "id": "R2",
+      "name": "eval-guard",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/eval-guard"
+      ],
+      "rfc": "docs/rfcs/R2-eval-guard.md"
+    },
+    {
+      "id": "R3",
+      "name": "kill-switch",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/kill-switch"
+      ],
+      "rfc": "docs/rfcs/R3-kill-switch.md"
+    },
+    {
+      "id": "R4",
+      "name": "credential-vault",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/credential-vault"
+      ],
+      "rfc": "docs/rfcs/R4-credential-vault.md"
+    },
+    {
+      "id": "R5",
+      "name": "policy-compiler",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/policy_compiler"
+      ],
+      "rfc": "docs/rfcs/R5-policy-compiler.md"
+    },
+    {
+      "id": "R6",
+      "name": "policy-bridge",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/policy-bridge"
+      ],
+      "rfc": "docs/rfcs/R6-policy-bridge.md"
+    },
+    {
+      "id": "R7",
+      "name": "egress-filter",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/egress-filter"
+      ],
+      "rfc": "docs/rfcs/R7-egress-filter.md"
+    },
+    {
+      "id": "R8",
+      "name": "sandbox-runtime",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/sandbox-runtime"
+      ],
+      "rfc": "docs/rfcs/R8-sandbox-runtime.md"
+    },
+    {
+      "id": "C1-1",
+      "name": "nvtrust-bridge",
+      "kind": "component",
+      "domain": "confidential_compute",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/nvtrust-bridge"
+      ],
+      "rfc": "docs/rfcs/C1-1-nvtrust-bridge.md"
+    },
+    {
+      "id": "C1-2",
+      "name": "cuda-gram",
+      "kind": "component",
+      "domain": "confidential_compute",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/cuda_gram"
+      ],
+      "rfc": "docs/rfcs/C1-2-cuda-gram.md"
+    },
+    {
+      "id": "C1-3",
+      "name": "attesta-flow",
+      "kind": "component",
+      "domain": "confidential_compute",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/attesta_flow"
+      ],
+      "rfc": "docs/rfcs/C1-3-attesta-flow.md"
+    },
+    {
+      "id": "C1-4",
+      "name": "tee-serve",
+      "kind": "component",
+      "domain": "confidential_compute",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/tee-serve"
+      ],
+      "rfc": "docs/rfcs/C1-4-tee-serve.md"
+    },
+    {
+      "id": "C1-5",
+      "name": "confidential-fabric",
+      "kind": "component",
+      "domain": "confidential_compute",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/confidential-fabric"
+      ],
+      "rfc": "docs/rfcs/C1-5-confidential-fabric.md"
+    },
+    {
+      "id": "S1",
+      "name": "safe-tensors-pp",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/safe-tensors-pp"
+      ],
+      "rfc": "docs/rfcs/S1-safe-tensors-pp.md"
+    },
+    {
+      "id": "S2",
+      "name": "provena-chain",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/provena-chain"
+      ],
+      "rfc": "docs/rfcs/S2-provena-chain.md"
+    },
+    {
+      "id": "S3",
+      "name": "gguf-ext",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/gguf-ext",
+        "testvectors/S3"
+      ],
+      "rfc": "docs/rfcs/S3-gguf-ext.md"
+    },
+    {
+      "id": "S4",
+      "name": "model-sbom",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/model_sbom"
+      ],
+      "rfc": "docs/rfcs/S4-model-sbom.md"
+    },
+    {
+      "id": "S5",
+      "name": "data-provenance-kit",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/data_provenance_kit"
+      ],
+      "rfc": "docs/rfcs/S5-data-provenance-kit.md"
+    },
+    {
+      "id": "S6",
+      "name": "exfil-guard",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/exfil-guard"
+      ],
+      "rfc": "docs/rfcs/S6-exfil-guard.md"
+    },
+    {
+      "id": "S7",
+      "name": "tamper-scan",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/tamper_scan"
+      ],
+      "rfc": "docs/rfcs/S7-tamper-scan.md"
+    },
+    {
+      "id": "S8",
+      "name": "train-guard",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/train_guard"
+      ],
+      "rfc": "docs/rfcs/S8-train-guard.md"
+    },
+    {
+      "id": "S9",
+      "name": "lightwell-bridge",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/lightwell-bridge"
+      ],
+      "rfc": "docs/rfcs/S9-lightwell-bridge.md"
+    },
+    {
+      "id": "A1",
+      "name": "safe-eval",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/safe_eval"
+      ],
+      "rfc": "docs/rfcs/A1-safe-eval.md"
+    },
+    {
+      "id": "A2",
+      "name": "adversaria",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/adversaria"
+      ],
+      "rfc": "docs/rfcs/A2-adversaria.md"
+    },
+    {
+      "id": "A3",
+      "name": "bias-sentinel",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/bias_sentinel"
+      ],
+      "rfc": "docs/rfcs/A3-bias-sentinel.md"
+    },
+    {
+      "id": "A4",
+      "name": "comply-gate",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/comply_gate"
+      ],
+      "rfc": "docs/rfcs/A4-comply-gate.md"
+    },
+    {
+      "id": "A5",
+      "name": "agentsec-lab",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/agentsec_lab"
+      ],
+      "rfc": "docs/rfcs/A5-agentsec-lab.md"
+    },
+    {
+      "id": "A6",
+      "name": "conformance",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "tools/conformance"
+      ],
+      "rfc": "docs/rfcs/A6-conformance.md"
+    },
+    {
+      "id": "A7",
+      "name": "red-team-cloud",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/red_team_cloud"
+      ],
+      "rfc": "docs/rfcs/A7-red-team-cloud.md"
+    },
+    {
+      "id": "A8",
+      "name": "arena",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "typescript/arena"
+      ],
+      "rfc": "docs/rfcs/A8-arena.md"
+    },
+    {
+      "id": "N1",
+      "name": "open-serve-kit",
+      "kind": "component",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/open-serve-kit"
+      ],
+      "rfc": "docs/rfcs/N1-open-serve-kit.md"
+    },
+    {
+      "id": "N2",
+      "name": "bridge-rt",
+      "kind": "component",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/bridge_rt"
+      ],
+      "rfc": "docs/rfcs/N2-bridge-rt.md"
+    },
+    {
+      "id": "N3",
+      "name": "inference-proxy",
+      "kind": "component",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/inference-proxy"
+      ],
+      "rfc": "docs/rfcs/N3-inference-proxy.md"
+    },
+    {
+      "id": "N4",
+      "name": "tenant-guard",
+      "kind": "component",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/tenant-guard"
+      ],
+      "rfc": "docs/rfcs/N4-tenant-guard.md"
+    },
+    {
+      "id": "F1",
+      "name": "fed-core",
+      "kind": "component",
+      "domain": "federation",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/fed_core"
+      ],
+      "rfc": "docs/rfcs/F1-fed-core.md"
+    },
+    {
+      "id": "F2",
+      "name": "dp-crate",
+      "kind": "component",
+      "domain": "federation",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/dp_crate"
+      ],
+      "rfc": "docs/rfcs/F2-dp-crate.md"
+    },
+    {
+      "id": "F3",
+      "name": "edge-sentinel",
+      "kind": "component",
+      "domain": "federation",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/edge-sentinel"
+      ],
+      "rfc": "docs/rfcs/F3-edge-sentinel.md"
+    },
+    {
+      "id": "F4",
+      "name": "fleet-marshal",
+      "kind": "component",
+      "domain": "federation",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/fleet-marshal"
+      ],
+      "rfc": "docs/rfcs/F4-fleet-marshal.md"
+    },
+    {
+      "id": "X1",
+      "name": "defstack-cli",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/defstack-cli"
+      ],
+      "rfc": "docs/rfcs/X1-defstack-cli.md"
+    },
+    {
+      "id": "X2",
+      "name": "nooa-ext",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/nooa_ext"
+      ],
+      "rfc": "docs/rfcs/X2-nooa-ext.md"
+    },
+    {
+      "id": "X3",
+      "name": "open-harness-spec",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/open_harness_spec"
+      ],
+      "rfc": "docs/rfcs/X3-open-harness-spec.md"
+    },
+    {
+      "id": "X4",
+      "name": "crypto-audit-ai",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/crypto_audit_ai"
+      ],
+      "rfc": "docs/rfcs/X4-crypto-audit-ai.md"
+    },
+    {
+      "id": "X5",
+      "name": "retro-spec-kit",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/retro_spec_kit"
+      ],
+      "rfc": "docs/rfcs/X5-retro-spec-kit.md"
+    },
+    {
+      "id": "X6",
+      "name": "metr-bridge",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/metr_bridge"
+      ],
+      "rfc": "docs/rfcs/X6-metr-bridge.md"
+    },
+    {
+      "id": "X7",
+      "name": "console",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "typescript/console"
+      ],
+      "rfc": "docs/rfcs/X7-console.md"
+    },
+    {
+      "id": "X8",
+      "name": "mcp-gateway",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "typescript/mcp-gateway",
+        "typescript/aumos-mcp-server"
+      ],
+      "rfc": "docs/rfcs/X8-mcp-gateway.md"
+    },
+    {
+      "id": "X9",
+      "name": "incident-exchange",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/incident_exchange"
+      ],
+      "rfc": "docs/rfcs/X9-incident-exchange.md"
+    },
+    {
+      "id": "X10",
+      "name": "sovereign-stack",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/sovereign-stack"
+      ],
+      "rfc": "docs/rfcs/X10-sovereign-stack.md"
+    },
+    {
+      "id": "X11",
+      "name": "defstack-cloud",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/defstack-cloud"
+      ],
+      "rfc": "docs/rfcs/X11-defstack-cloud.md"
+    },
+    {
+      "id": "E1",
+      "name": "flight-recorder",
+      "kind": "component",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/flight-recorder"
+      ],
+      "rfc": "docs/rfcs/E1-flight-recorder.md"
+    },
+    {
+      "id": "P1",
+      "name": "agent-authority-envelope",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P1-aae.md",
+        "specs/protocols/P1-aae.cddl",
+        "specs/protocols/P1-aae.schema.json"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P2",
+      "name": "agent-action-receipt",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P2-aar.md",
+        "specs/protocols/P2-aar.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P3",
+      "name": "context-provenance-envelope",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P3-cpe.md",
+        "specs/protocols/P3-cpe.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P4",
+      "name": "agent-memory-integrity-ledger",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P4-amil.md",
+        "specs/protocols/P4-amil.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P5",
+      "name": "secure-skill-package",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P5-ssp.md",
+        "specs/protocols/P5-ssp.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P6",
+      "name": "ai-artifact-trust-manifest",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P6-aatm.md",
+        "specs/protocols/P6-aatm.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P7",
+      "name": "autonomy-budget-specification",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P7-abs.md",
+        "specs/protocols/P7-abs.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P8",
+      "name": "verifiable-evaluation-bundle",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P8-veb.md",
+        "specs/protocols/P8-veb.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P9",
+      "name": "agent-incident-exchange",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P9-aix.md",
+        "specs/protocols/P9-aix.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P10",
+      "name": "multi-agent-delegation-exchange",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P10-made.md",
+        "specs/protocols/P10-made.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P11",
+      "name": "proof-carrying-remediation-bundle",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P11-prb.md",
+        "specs/protocols/P11-prb.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P12",
+      "name": "capability-attestation-profile",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P12-cap.md",
+        "specs/protocols/P12-cap.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "SUP-01",
+      "name": "aumos-agent",
+      "kind": "support",
+      "domain": "agent",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_agent"
+      ],
+      "rfc": null,
+      "note": "Largest Python package. Signing degrades to a forgeable HMAC on trust-core failure (AX-28)."
+    },
+    {
+      "id": "SUP-02",
+      "name": "aumos-harness",
+      "kind": "support",
+      "domain": "runtime",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_harness"
+      ],
+      "rfc": null,
+      "note": "Coding-agent harness. shell=True behind a one-token endswith allowlist (AX-30)."
+    },
+    {
+      "id": "SUP-03",
+      "name": "aumos-vllm",
+      "kind": "support",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/aumos_vllm"
+      ],
+      "rfc": null,
+      "note": "Attested vLLM wrapper. Fail-open attestation fixed under AX-27; now requires a QuoteCollector."
+    },
+    {
+      "id": "SUP-04",
+      "name": "aumos-hf-plugin",
+      "kind": "support",
+      "domain": "supply_chain",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_hf_plugin"
+      ],
+      "rfc": null,
+      "note": "Hugging Face download gate. Unkeyed provenance check (AX-28)."
+    },
+    {
+      "id": "SUP-05",
+      "name": "aumos-rbac",
+      "kind": "support",
+      "domain": "runtime",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_rbac"
+      ],
+      "rfc": null,
+      "note": "Second authorization engine gating TRIGGER_KILL_SWITCH, outside the Rust trust boundary."
+    },
+    {
+      "id": "SUP-06",
+      "name": "aumos-admission",
+      "kind": "support",
+      "domain": "runtime",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_admission"
+      ],
+      "rfc": null,
+      "note": "Kubernetes admission controller. Checks annotation presence only; never deployed by any manifest."
+    },
+    {
+      "id": "SUP-07",
+      "name": "aumos-ocsf",
+      "kind": "support",
+      "domain": "evidence",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_ocsf"
+      ],
+      "rfc": null,
+      "note": "OCSF mapping. Pinned to 1.1.0 with an incorrect class UID (AX-20)."
+    },
+    {
+      "id": "SUP-08",
+      "name": "aumos-retention",
+      "kind": "support",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/aumos_retention"
+      ],
+      "rfc": null,
+      "note": "Retention windows. Relevant to DPDP one-year logs and CERT-In 180-day in-country retention."
+    },
+    {
+      "id": "SUP-09",
+      "name": "aumos-backup",
+      "kind": "support",
+      "domain": "operations",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_backup"
+      ],
+      "rfc": null,
+      "note": "Backup/restore. Destructive restore path fixed under AX-45."
+    },
+    {
+      "id": "SUP-10",
+      "name": "aumos-langchain",
+      "kind": "support",
+      "domain": "integration",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/aumos_langchain"
+      ],
+      "rfc": null,
+      "note": "The only genuine agent-framework adapter in the repository."
+    },
+    {
+      "id": "SUP-11",
+      "name": "aumos-jira",
+      "kind": "support",
+      "domain": "operations",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/aumos_jira"
+      ],
+      "rfc": null,
+      "note": "Issue-tracker integration."
+    },
+    {
+      "id": "SUP-12",
+      "name": "aumos-sla",
+      "kind": "support",
+      "domain": "operations",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/aumos_sla"
+      ],
+      "rfc": null,
+      "note": "SLA tracking."
+    },
+    {
+      "id": "SUP-13",
+      "name": "aumos-metrics",
+      "kind": "support",
+      "domain": "observability",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/aumos-metrics"
+      ],
+      "rfc": null,
+      "note": "Stdlib Prometheus exposition. Honest and complete."
+    }
+  ]
+}

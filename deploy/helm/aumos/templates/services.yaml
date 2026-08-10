@@ -1,9 +1,10 @@
-{{- range $name, $svc := list
+{{- /* `dict`, not `list` — see deployments.yaml for why. */ -}}
+{{- range $name, $svc := dict
   "agent-identity" .Values.agentIdentity
   "open-serve-kit" .Values.openServeKit
   "inference-proxy" .Values.inferenceProxy
   "console" .Values.console
---}}
+-}}
 {{- if and $svc.enabled $svc.service }}
 ---
 apiVersion: v1

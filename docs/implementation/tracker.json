@@ -1,0 +1,5867 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-09T23:59:29.559795+00:00",
+  "repository": {
+    "commit": "4d122fea81382a7c50eb374ecfb08233f65dbffe",
+    "branch": "fix/critical-findings",
+    "dirty": true
+  },
+  "objective": "Implement every pending AumOS item and prove closure without conflating source presence, local verification, integration evidence, or production readiness.",
+  "status_definitions": {
+    "open": "No implementation closure evidence has been accepted.",
+    "in_progress": "Implementation work exists but acceptance evidence is incomplete.",
+    "implemented_pending_ci": "The change and local evidence exist; an independent CI run is still required.",
+    "verified_local": "Acceptance passed in the local evidence environment; production or external integration proof may still be required.",
+    "blocked_external": "Completion requires external infrastructure, credentials, hardware, publication, or independent review not present in this repository.",
+    "complete": "Every stated acceptance condition has current retained evidence."
+  },
+  "summary": {
+    "catalog_entries": 79,
+    "implementable_components": 54,
+    "protocols": 12,
+    "missing_catalog_artifacts": 0,
+    "audit_findings": 12,
+    "release_gates": 14,
+    "task_files": 56,
+    "task_checkboxes": 371,
+    "task_checkboxes_checked": 0,
+    "task_checkboxes_open": 371,
+    "explicit_pending_markers": 386
+  },
+  "catalog_integrity": {
+    "passed": true,
+    "missing_artifacts": [],
+    "unclaimed_sources": []
+  },
+  "catalog": [
+    {
+      "id": "T1",
+      "name": "trust-core",
+      "kind": "component",
+      "domain": "trust",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/trust-core"
+      ],
+      "rfc": "docs/rfcs/T1-trust-core.md"
+    },
+    {
+      "id": "T2",
+      "name": "authority-spec",
+      "kind": "component",
+      "domain": "trust",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/authority-spec"
+      ],
+      "rfc": "docs/rfcs/T2-authority-spec.md"
+    },
+    {
+      "id": "I1",
+      "name": "agent-identity",
+      "kind": "component",
+      "domain": "identity",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/agent-identity"
+      ],
+      "rfc": "docs/rfcs/I1-agent-identity.md"
+    },
+    {
+      "id": "I2",
+      "name": "identity-bindings",
+      "kind": "component",
+      "domain": "identity",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/identity-bindings"
+      ],
+      "rfc": "docs/rfcs/I2-identity-bindings.md"
+    },
+    {
+      "id": "R1",
+      "name": "secure-workspace",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/secure-workspace"
+      ],
+      "rfc": "docs/rfcs/R1-secure-workspace.md"
+    },
+    {
+      "id": "R2",
+      "name": "eval-guard",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/eval-guard"
+      ],
+      "rfc": "docs/rfcs/R2-eval-guard.md"
+    },
+    {
+      "id": "R3",
+      "name": "kill-switch",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/kill-switch"
+      ],
+      "rfc": "docs/rfcs/R3-kill-switch.md"
+    },
+    {
+      "id": "R4",
+      "name": "credential-vault",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/credential-vault"
+      ],
+      "rfc": "docs/rfcs/R4-credential-vault.md"
+    },
+    {
+      "id": "R5",
+      "name": "policy-compiler",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/policy_compiler"
+      ],
+      "rfc": "docs/rfcs/R5-policy-compiler.md"
+    },
+    {
+      "id": "R6",
+      "name": "policy-bridge",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/policy-bridge"
+      ],
+      "rfc": "docs/rfcs/R6-policy-bridge.md"
+    },
+    {
+      "id": "R7",
+      "name": "egress-filter",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/egress-filter"
+      ],
+      "rfc": "docs/rfcs/R7-egress-filter.md"
+    },
+    {
+      "id": "R8",
+      "name": "sandbox-runtime",
+      "kind": "component",
+      "domain": "runtime",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/sandbox-runtime"
+      ],
+      "rfc": "docs/rfcs/R8-sandbox-runtime.md"
+    },
+    {
+      "id": "C1-1",
+      "name": "nvtrust-bridge",
+      "kind": "component",
+      "domain": "confidential_compute",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/nvtrust-bridge"
+      ],
+      "rfc": "docs/rfcs/C1-1-nvtrust-bridge.md"
+    },
+    {
+      "id": "C1-2",
+      "name": "cuda-gram",
+      "kind": "component",
+      "domain": "confidential_compute",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/cuda_gram"
+      ],
+      "rfc": "docs/rfcs/C1-2-cuda-gram.md"
+    },
+    {
+      "id": "C1-3",
+      "name": "attesta-flow",
+      "kind": "component",
+      "domain": "confidential_compute",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/attesta_flow"
+      ],
+      "rfc": "docs/rfcs/C1-3-attesta-flow.md"
+    },
+    {
+      "id": "C1-4",
+      "name": "tee-serve",
+      "kind": "component",
+      "domain": "confidential_compute",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/tee-serve"
+      ],
+      "rfc": "docs/rfcs/C1-4-tee-serve.md"
+    },
+    {
+      "id": "C1-5",
+      "name": "confidential-fabric",
+      "kind": "component",
+      "domain": "confidential_compute",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/confidential-fabric"
+      ],
+      "rfc": "docs/rfcs/C1-5-confidential-fabric.md"
+    },
+    {
+      "id": "S1",
+      "name": "safe-tensors-pp",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/safe-tensors-pp"
+      ],
+      "rfc": "docs/rfcs/S1-safe-tensors-pp.md"
+    },
+    {
+      "id": "S2",
+      "name": "provena-chain",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/provena-chain"
+      ],
+      "rfc": "docs/rfcs/S2-provena-chain.md"
+    },
+    {
+      "id": "S3",
+      "name": "gguf-ext",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/gguf-ext",
+        "testvectors/S3"
+      ],
+      "rfc": "docs/rfcs/S3-gguf-ext.md"
+    },
+    {
+      "id": "S4",
+      "name": "model-sbom",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/model_sbom"
+      ],
+      "rfc": "docs/rfcs/S4-model-sbom.md"
+    },
+    {
+      "id": "S5",
+      "name": "data-provenance-kit",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/data_provenance_kit"
+      ],
+      "rfc": "docs/rfcs/S5-data-provenance-kit.md"
+    },
+    {
+      "id": "S6",
+      "name": "exfil-guard",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/exfil-guard"
+      ],
+      "rfc": "docs/rfcs/S6-exfil-guard.md"
+    },
+    {
+      "id": "S7",
+      "name": "tamper-scan",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/tamper_scan"
+      ],
+      "rfc": "docs/rfcs/S7-tamper-scan.md"
+    },
+    {
+      "id": "S8",
+      "name": "train-guard",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/train_guard"
+      ],
+      "rfc": "docs/rfcs/S8-train-guard.md"
+    },
+    {
+      "id": "S9",
+      "name": "lightwell-bridge",
+      "kind": "component",
+      "domain": "supply_chain",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/lightwell-bridge"
+      ],
+      "rfc": "docs/rfcs/S9-lightwell-bridge.md"
+    },
+    {
+      "id": "A1",
+      "name": "safe-eval",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/safe_eval"
+      ],
+      "rfc": "docs/rfcs/A1-safe-eval.md"
+    },
+    {
+      "id": "A2",
+      "name": "adversaria",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/adversaria"
+      ],
+      "rfc": "docs/rfcs/A2-adversaria.md"
+    },
+    {
+      "id": "A3",
+      "name": "bias-sentinel",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/bias_sentinel"
+      ],
+      "rfc": "docs/rfcs/A3-bias-sentinel.md"
+    },
+    {
+      "id": "A4",
+      "name": "comply-gate",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/comply_gate"
+      ],
+      "rfc": "docs/rfcs/A4-comply-gate.md"
+    },
+    {
+      "id": "A5",
+      "name": "agentsec-lab",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/agentsec_lab"
+      ],
+      "rfc": "docs/rfcs/A5-agentsec-lab.md"
+    },
+    {
+      "id": "A6",
+      "name": "conformance",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "tools/conformance"
+      ],
+      "rfc": "docs/rfcs/A6-conformance.md"
+    },
+    {
+      "id": "A7",
+      "name": "red-team-cloud",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/red_team_cloud"
+      ],
+      "rfc": "docs/rfcs/A7-red-team-cloud.md"
+    },
+    {
+      "id": "A8",
+      "name": "arena",
+      "kind": "component",
+      "domain": "assurance",
+      "status": "reference_implementation",
+      "source_paths": [
+        "typescript/arena"
+      ],
+      "rfc": "docs/rfcs/A8-arena.md"
+    },
+    {
+      "id": "N1",
+      "name": "open-serve-kit",
+      "kind": "component",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/open-serve-kit"
+      ],
+      "rfc": "docs/rfcs/N1-open-serve-kit.md"
+    },
+    {
+      "id": "N2",
+      "name": "bridge-rt",
+      "kind": "component",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/bridge_rt"
+      ],
+      "rfc": "docs/rfcs/N2-bridge-rt.md"
+    },
+    {
+      "id": "N3",
+      "name": "inference-proxy",
+      "kind": "component",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/inference-proxy"
+      ],
+      "rfc": "docs/rfcs/N3-inference-proxy.md"
+    },
+    {
+      "id": "N4",
+      "name": "tenant-guard",
+      "kind": "component",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/tenant-guard"
+      ],
+      "rfc": "docs/rfcs/N4-tenant-guard.md"
+    },
+    {
+      "id": "F1",
+      "name": "fed-core",
+      "kind": "component",
+      "domain": "federation",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/fed_core"
+      ],
+      "rfc": "docs/rfcs/F1-fed-core.md"
+    },
+    {
+      "id": "F2",
+      "name": "dp-crate",
+      "kind": "component",
+      "domain": "federation",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/dp_crate"
+      ],
+      "rfc": "docs/rfcs/F2-dp-crate.md"
+    },
+    {
+      "id": "F3",
+      "name": "edge-sentinel",
+      "kind": "component",
+      "domain": "federation",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/edge-sentinel"
+      ],
+      "rfc": "docs/rfcs/F3-edge-sentinel.md"
+    },
+    {
+      "id": "F4",
+      "name": "fleet-marshal",
+      "kind": "component",
+      "domain": "federation",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/fleet-marshal"
+      ],
+      "rfc": "docs/rfcs/F4-fleet-marshal.md"
+    },
+    {
+      "id": "X1",
+      "name": "defstack-cli",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/defstack-cli"
+      ],
+      "rfc": "docs/rfcs/X1-defstack-cli.md"
+    },
+    {
+      "id": "X2",
+      "name": "nooa-ext",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/nooa_ext"
+      ],
+      "rfc": "docs/rfcs/X2-nooa-ext.md"
+    },
+    {
+      "id": "X3",
+      "name": "open-harness-spec",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/open_harness_spec"
+      ],
+      "rfc": "docs/rfcs/X3-open-harness-spec.md"
+    },
+    {
+      "id": "X4",
+      "name": "crypto-audit-ai",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/crypto_audit_ai"
+      ],
+      "rfc": "docs/rfcs/X4-crypto-audit-ai.md"
+    },
+    {
+      "id": "X5",
+      "name": "retro-spec-kit",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/retro_spec_kit"
+      ],
+      "rfc": "docs/rfcs/X5-retro-spec-kit.md"
+    },
+    {
+      "id": "X6",
+      "name": "metr-bridge",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/metr_bridge"
+      ],
+      "rfc": "docs/rfcs/X6-metr-bridge.md"
+    },
+    {
+      "id": "X7",
+      "name": "console",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "typescript/console"
+      ],
+      "rfc": "docs/rfcs/X7-console.md"
+    },
+    {
+      "id": "X8",
+      "name": "mcp-gateway",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "typescript/mcp-gateway",
+        "typescript/aumos-mcp-server"
+      ],
+      "rfc": "docs/rfcs/X8-mcp-gateway.md"
+    },
+    {
+      "id": "X9",
+      "name": "incident-exchange",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/incident_exchange"
+      ],
+      "rfc": "docs/rfcs/X9-incident-exchange.md"
+    },
+    {
+      "id": "X10",
+      "name": "sovereign-stack",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/sovereign-stack"
+      ],
+      "rfc": "docs/rfcs/X10-sovereign-stack.md"
+    },
+    {
+      "id": "X11",
+      "name": "defstack-cloud",
+      "kind": "component",
+      "domain": "extensions",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/defstack-cloud"
+      ],
+      "rfc": "docs/rfcs/X11-defstack-cloud.md"
+    },
+    {
+      "id": "E1",
+      "name": "flight-recorder",
+      "kind": "component",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/flight-recorder"
+      ],
+      "rfc": "docs/rfcs/E1-flight-recorder.md"
+    },
+    {
+      "id": "P1",
+      "name": "agent-authority-envelope",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P1-aae.md",
+        "specs/protocols/P1-aae.cddl",
+        "specs/protocols/P1-aae.schema.json"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P2",
+      "name": "agent-action-receipt",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P2-aar.md",
+        "specs/protocols/P2-aar.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P3",
+      "name": "context-provenance-envelope",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P3-cpe.md",
+        "specs/protocols/P3-cpe.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P4",
+      "name": "agent-memory-integrity-ledger",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P4-amil.md",
+        "specs/protocols/P4-amil.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P5",
+      "name": "secure-skill-package",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P5-ssp.md",
+        "specs/protocols/P5-ssp.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P6",
+      "name": "ai-artifact-trust-manifest",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P6-aatm.md",
+        "specs/protocols/P6-aatm.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P7",
+      "name": "autonomy-budget-specification",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P7-abs.md",
+        "specs/protocols/P7-abs.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P8",
+      "name": "verifiable-evaluation-bundle",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P8-veb.md",
+        "specs/protocols/P8-veb.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P9",
+      "name": "agent-incident-exchange",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P9-aix.md",
+        "specs/protocols/P9-aix.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P10",
+      "name": "multi-agent-delegation-exchange",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P10-made.md",
+        "specs/protocols/P10-made.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P11",
+      "name": "proof-carrying-remediation-bundle",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P11-prb.md",
+        "specs/protocols/P11-prb.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "P12",
+      "name": "capability-attestation-profile",
+      "kind": "protocol",
+      "domain": "protocol",
+      "status": "draft_specification",
+      "source_paths": [
+        "specs/protocols/P12-cap.md",
+        "specs/protocols/P12-cap.cddl"
+      ],
+      "rfc": null
+    },
+    {
+      "id": "SUP-01",
+      "name": "aumos-agent",
+      "kind": "support",
+      "domain": "agent",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_agent"
+      ],
+      "rfc": null,
+      "note": "Largest Python package. Signing degrades to a forgeable HMAC on trust-core failure (AX-28)."
+    },
+    {
+      "id": "SUP-02",
+      "name": "aumos-harness",
+      "kind": "support",
+      "domain": "runtime",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_harness"
+      ],
+      "rfc": null,
+      "note": "Coding-agent harness. shell=True behind a one-token endswith allowlist (AX-30)."
+    },
+    {
+      "id": "SUP-03",
+      "name": "aumos-vllm",
+      "kind": "support",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/aumos_vllm"
+      ],
+      "rfc": null,
+      "note": "Attested vLLM wrapper. Fail-open attestation fixed under AX-27; now requires a QuoteCollector."
+    },
+    {
+      "id": "SUP-04",
+      "name": "aumos-hf-plugin",
+      "kind": "support",
+      "domain": "supply_chain",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_hf_plugin"
+      ],
+      "rfc": null,
+      "note": "Hugging Face download gate. Unkeyed provenance check (AX-28)."
+    },
+    {
+      "id": "SUP-05",
+      "name": "aumos-rbac",
+      "kind": "support",
+      "domain": "runtime",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_rbac"
+      ],
+      "rfc": null,
+      "note": "Second authorization engine gating TRIGGER_KILL_SWITCH, outside the Rust trust boundary."
+    },
+    {
+      "id": "SUP-06",
+      "name": "aumos-admission",
+      "kind": "support",
+      "domain": "runtime",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_admission"
+      ],
+      "rfc": null,
+      "note": "Kubernetes admission controller. Checks annotation presence only; never deployed by any manifest."
+    },
+    {
+      "id": "SUP-07",
+      "name": "aumos-ocsf",
+      "kind": "support",
+      "domain": "evidence",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_ocsf"
+      ],
+      "rfc": null,
+      "note": "OCSF mapping. Pinned to 1.1.0 with an incorrect class UID (AX-20)."
+    },
+    {
+      "id": "SUP-08",
+      "name": "aumos-retention",
+      "kind": "support",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/aumos_retention"
+      ],
+      "rfc": null,
+      "note": "Retention windows. Relevant to DPDP one-year logs and CERT-In 180-day in-country retention."
+    },
+    {
+      "id": "SUP-09",
+      "name": "aumos-backup",
+      "kind": "support",
+      "domain": "operations",
+      "status": "partial",
+      "source_paths": [
+        "python/aumos_backup"
+      ],
+      "rfc": null,
+      "note": "Backup/restore. Destructive restore path fixed under AX-45."
+    },
+    {
+      "id": "SUP-10",
+      "name": "aumos-langchain",
+      "kind": "support",
+      "domain": "integration",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/aumos_langchain"
+      ],
+      "rfc": null,
+      "note": "The only genuine agent-framework adapter in the repository."
+    },
+    {
+      "id": "SUP-11",
+      "name": "aumos-jira",
+      "kind": "support",
+      "domain": "operations",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/aumos_jira"
+      ],
+      "rfc": null,
+      "note": "Issue-tracker integration."
+    },
+    {
+      "id": "SUP-12",
+      "name": "aumos-sla",
+      "kind": "support",
+      "domain": "operations",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/aumos_sla"
+      ],
+      "rfc": null,
+      "note": "SLA tracking."
+    },
+    {
+      "id": "SUP-13",
+      "name": "aumos-metrics",
+      "kind": "support",
+      "domain": "observability",
+      "status": "reference_implementation",
+      "source_paths": [
+        "go/aumos-metrics"
+      ],
+      "rfc": null,
+      "note": "Stdlib Prometheus exposition. Honest and complete."
+    }
+  ],
+  "audit_findings": [
+    {
+      "id": "AUD-001",
+      "severity": "critical",
+      "title": "MCP returns success-shaped mocks when controls fail",
+      "status": "verified_local",
+      "evidence": [
+        "typescript/aumos-mcp-server/src/index.ts",
+        "typescript/aumos-mcp-server/src/index.test.ts",
+        "typescript/mcp-gateway/src/index.ts",
+        "typescript/mcp-gateway/src/index.test.ts",
+        "docs/rfcs/X8-mcp-gateway.md"
+      ]
+    },
+    {
+      "id": "AUD-002",
+      "severity": "critical",
+      "title": "Green gates can mean nothing meaningful ran",
+      "status": "implemented_pending_ci",
+      "evidence": [
+        "Makefile",
+        ".github/workflows/ci.yml",
+        "tools/conformance/run.py",
+        "tools/ci/run_python_checks.py",
+        "tools/ci/run_go_checks.py"
+      ]
+    },
+    {
+      "id": "AUD-003",
+      "severity": "critical",
+      "title": "Deployment health is decoupled from functional behavior",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "AUD-004",
+      "severity": "high",
+      "title": "The correctness baseline is red",
+      "status": "verified_local",
+      "evidence": [
+        "rust/trust-core/src/merkle.rs",
+        "rust/exfil-guard/src/lib.rs",
+        "rust/trust-core/src/rekor.rs",
+        "python/aumos_harness/tests/test_harness.py",
+        "typescript/eslint.config.mjs"
+      ]
+    },
+    {
+      "id": "AUD-005",
+      "severity": "high",
+      "title": "MCP and A2A interoperability trail current ecosystems",
+      "status": "in_progress",
+      "evidence": [
+        "typescript/aumos-mcp-server/src/index.ts",
+        "typescript/aumos-mcp-server/src/index.test.ts",
+        "typescript/mcp-gateway/src/index.ts",
+        "typescript/mcp-gateway/src/index.test.ts",
+        "docs/rfcs/X8-mcp-gateway.md"
+      ]
+    },
+    {
+      "id": "AUD-006",
+      "severity": "high",
+      "title": "Protocol documentation exceeds wire-level reality",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "AUD-007",
+      "severity": "high",
+      "title": "Control components do not enforce physical side effects",
+      "status": "in_progress",
+      "evidence": [
+        "rust/secure-workspace/src/lib.rs",
+        "rust/sandbox-runtime/src/lib.rs",
+        "rust/policy-bridge/src/lib.rs"
+      ]
+    },
+    {
+      "id": "AUD-008",
+      "severity": "high",
+      "title": "Helm is not a credible production installer",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "AUD-009",
+      "severity": "high",
+      "title": "Supply-chain claims lack published verifiable outputs",
+      "status": "in_progress",
+      "evidence": [
+        "typescript/package-lock.json",
+        "rust/gguf-ext/src/lib.rs",
+        "testvectors/S3/cases.json"
+      ]
+    },
+    {
+      "id": "AUD-010",
+      "severity": "high",
+      "title": "No durable available evidence and control-plane data layer",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "AUD-011",
+      "severity": "medium",
+      "title": "Model SBOM output trails the current format",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "AUD-012",
+      "severity": "medium",
+      "title": "Status documents are not generated from evidence",
+      "status": "in_progress",
+      "evidence": [
+        "docs/implementation/catalog.json",
+        "docs/implementation/tracker-state.json"
+      ]
+    }
+  ],
+  "release_gates": [
+    {
+      "id": "G1",
+      "title": "Catalogue integrity",
+      "status": "verified_local"
+    },
+    {
+      "id": "G2",
+      "title": "Reproducible build",
+      "status": "open"
+    },
+    {
+      "id": "G3",
+      "title": "Correctness",
+      "status": "verified_local"
+    },
+    {
+      "id": "G4",
+      "title": "Protocol conformance",
+      "status": "in_progress",
+      "evidence": [
+        "tools/conformance/run.py",
+        "tools/conformance/verify_typescript.ts",
+        "typescript/aumos-mcp-server/src/index.test.ts",
+        "typescript/mcp-gateway/src/index.test.ts"
+      ]
+    },
+    {
+      "id": "G5",
+      "title": "Fail-closed controls",
+      "status": "in_progress",
+      "evidence": [
+        "typescript/aumos-mcp-server/src/index.test.ts",
+        "typescript/mcp-gateway/src/index.test.ts",
+        "go/identity-bindings/identity_bindings_test.go",
+        "rust/secure-workspace/src/lib.rs",
+        "rust/policy-bridge/src/lib.rs",
+        "rust/sandbox-runtime/src/lib.rs"
+      ]
+    },
+    {
+      "id": "G6",
+      "title": "Functional deployment",
+      "status": "open"
+    },
+    {
+      "id": "G7",
+      "title": "Tenant isolation",
+      "status": "open"
+    },
+    {
+      "id": "G8",
+      "title": "Durable evidence",
+      "status": "open"
+    },
+    {
+      "id": "G9",
+      "title": "Containment",
+      "status": "in_progress",
+      "evidence": [
+        "rust/secure-workspace/src/lib.rs",
+        "rust/sandbox-runtime/src/lib.rs"
+      ]
+    },
+    {
+      "id": "G10",
+      "title": "Security assurance",
+      "status": "open"
+    },
+    {
+      "id": "G11",
+      "title": "Supply-chain verification",
+      "status": "open"
+    },
+    {
+      "id": "G12",
+      "title": "Reliability and operations",
+      "status": "open"
+    },
+    {
+      "id": "G13",
+      "title": "Regulatory evidence",
+      "status": "open"
+    },
+    {
+      "id": "G14",
+      "title": "Release usability",
+      "status": "open"
+    }
+  ],
+  "workstreams": [
+    {
+      "id": "WS-01",
+      "title": "Truthful deterministic gates",
+      "priority": "P0",
+      "status": "in_progress",
+      "covers": [
+        "AUD-002",
+        "AUD-004",
+        "AUD-012",
+        "G1",
+        "G3"
+      ]
+    },
+    {
+      "id": "WS-02",
+      "title": "Fail-closed MCP and gateway",
+      "priority": "P0",
+      "status": "in_progress",
+      "covers": [
+        "AUD-001",
+        "AUD-005",
+        "G5"
+      ]
+    },
+    {
+      "id": "WS-03",
+      "title": "Missing canonical implementations",
+      "priority": "P0",
+      "status": "verified_local",
+      "covers": [
+        "I2",
+        "R1",
+        "R6",
+        "R8",
+        "S3"
+      ],
+      "evidence": [
+        "go/identity-bindings",
+        "rust/secure-workspace",
+        "rust/policy-bridge",
+        "rust/sandbox-runtime",
+        "rust/gguf-ext",
+        "testvectors/S3"
+      ]
+    },
+    {
+      "id": "WS-04",
+      "title": "P1-P12 normative protocols, bindings, vectors, and TCK",
+      "priority": "P1",
+      "status": "open",
+      "covers": [
+        "AUD-006",
+        "G4"
+      ]
+    },
+    {
+      "id": "WS-05",
+      "title": "Integrated enforcement, evidence, data, and deployment plane",
+      "priority": "P1",
+      "status": "open",
+      "covers": [
+        "AUD-003",
+        "AUD-007",
+        "AUD-008",
+        "AUD-010",
+        "G6",
+        "G8",
+        "G9"
+      ]
+    },
+    {
+      "id": "WS-06",
+      "title": "Supply chain, packaging, and verifiable releases",
+      "priority": "P1",
+      "status": "in_progress",
+      "covers": [
+        "AUD-009",
+        "AUD-011",
+        "G2",
+        "G11"
+      ]
+    },
+    {
+      "id": "WS-07",
+      "title": "Tenancy, observability, resilience, compliance, and security assurance",
+      "priority": "P2",
+      "status": "open",
+      "covers": [
+        "G7",
+        "G10",
+        "G12",
+        "G13"
+      ]
+    },
+    {
+      "id": "WS-08",
+      "title": "Golden paths, completion audit, and release usability",
+      "priority": "P2",
+      "status": "open",
+      "covers": [
+        "G14"
+      ]
+    }
+  ],
+  "inventory": {
+    "scan_roots": [
+      ".github",
+      "deploy",
+      "go",
+      "python",
+      "rust",
+      "specs",
+      "tools",
+      "typescript"
+    ],
+    "pending_markers": [
+      {
+        "path": ".github/workflows/fuzz.yml",
+        "line": 2,
+        "category": "task 06",
+        "text": "# Cross-reference: docs/cross-cutting/ (fuzzing strategy) + RFC T-CORE-1 task 06."
+      },
+      {
+        "path": "deploy/helm/aumos/values.yaml",
+        "line": 42,
+        "category": "mock",
+        "text": "backend: mock  # or vllm, triton, ollama"
+      },
+      {
+        "path": "deploy/modal/adversaria_modal.py",
+        "line": 10,
+        "category": "mock",
+        "text": "a mock. The model is wrapped in a small ``Target`` adapter (implementing"
+      },
+      {
+        "path": "deploy/modal/adversaria_modal.py",
+        "line": 13,
+        "category": "stub",
+        "text": "a stub."
+      },
+      {
+        "path": "deploy/modal/safe_eval_modal.py",
+        "line": 15,
+        "category": "mock",
+        "text": "mock. The model is addressed through the in-process ``vllm.LLM`` /"
+      },
+      {
+        "path": "deploy/modal/tests/test_modal_scripts.py",
+        "line": 1,
+        "category": "stub",
+        "text": "\"\"\"Stub-based validation for the AumOS Modal scripts."
+      },
+      {
+        "path": "deploy/modal/tests/test_modal_scripts.py",
+        "line": 13,
+        "category": "stub",
+        "text": "``@modal.method()``, ``@app.local_entrypoint``) matches the stub's contract"
+      },
+      {
+        "path": "deploy/modal/tests/test_modal_scripts.py",
+        "line": 100,
+        "category": "stub",
+        "text": "# Calling .remote() should execute locally in this stub."
+      },
+      {
+        "path": "deploy/spire/README.md",
+        "line": 50,
+        "category": "todo",
+        "text": "`UpstreamAuthority \"disk\"` plugin \u2014 see the TODO in `server.conf`."
+      },
+      {
+        "path": "deploy/spire/trust-domain-config.yaml",
+        "line": 29,
+        "category": "placeholder",
+        "text": "# Placeholder keeps the ConfigMap reconcilable before the server boots."
+      },
+      {
+        "path": "go/agent-identity/cmd/agent-identity/main.go",
+        "line": 4,
+        "category": "task 03",
+        "text": "// (task 03) will add the SPIFFE WorkloadAPI as an alternative SVID source."
+      },
+      {
+        "path": "go/agent-identity/identity.go",
+        "line": 4,
+        "category": "mock",
+        "text": "// lifecycle). Wave-1 components integrated against the proto mock; this real implementation"
+      },
+      {
+        "path": "go/agent-identity/identity.go",
+        "line": 5,
+        "category": "mock",
+        "text": "// replaces the mock for Wave-2."
+      },
+      {
+        "path": "go/agent-identity/identity.go",
+        "line": 17,
+        "category": "task 03",
+        "text": "// claims. Real SPIRE integration is task 03."
+      },
+      {
+        "path": "go/agent-identity/identity.go",
+        "line": 218,
+        "category": "stub",
+        "text": "// Issue the short-lived capability token bound to this SVID (H2: previously this was a stub"
+      },
+      {
+        "path": "go/agent-identity/identity.go",
+        "line": 317,
+        "category": "task 03",
+        "text": "// of a Go struct with json tags is stable. CBOR alignment is task 03.)"
+      },
+      {
+        "path": "go/defstack-cloud/control.go",
+        "line": 6,
+        "category": "task 03",
+        "text": "// without a Kubernetes scheduler. The CRD-controller / API-server wrapper (task 03) calls into"
+      },
+      {
+        "path": "go/edge-sentinel/agent.go",
+        "line": 92,
+        "category": "mock",
+        "text": "// TeeKind names the TEE backend (\"sev-snp\", \"tdx\", \"nitro\", \"mock\")."
+      },
+      {
+        "path": "go/edge-sentinel/cmd/edge-sentinel/main.go",
+        "line": 22,
+        "category": "placeholder",
+        "text": "// mockAttestor is a placeholder for the C1-5 composite-attestation client. The real client"
+      },
+      {
+        "path": "go/edge-sentinel/cmd/edge-sentinel/main.go",
+        "line": 23,
+        "category": "task 03",
+        "text": "// is wired in production via build tags (see task 03)."
+      },
+      {
+        "path": "go/edge-sentinel/cmd/edge-sentinel/main.go",
+        "line": 73,
+        "category": "mock",
+        "text": "TeeKind:           \"mock\","
+      },
+      {
+        "path": "go/fleet-marshal/cmd/fleet-marshal/main.go",
+        "line": 5,
+        "category": "task 03",
+        "text": "// fleet_test.go). Production wiring lands in task 03 once the cluster CRD is registered."
+      },
+      {
+        "path": "go/fleet-marshal/fleet.go",
+        "line": 191,
+        "category": "mocked",
+        "text": "// RolloutExecutor \u2014 the K8s interaction surface (mocked in tests)"
+      },
+      {
+        "path": "go/open-serve-kit/cmd/open-serve-kit/main.go",
+        "line": 20,
+        "category": "mock",
+        "text": "backend := flag.String(\"backend\", \"mock\", \"default backend (mock|vllm|triton|tensorrt-llm|ollama)\")"
+      },
+      {
+        "path": "go/open-serve-kit/cmd/open-serve-kit/main.go",
+        "line": 21,
+        "category": "mock",
+        "text": "backendURL := flag.String(\"backend-url\", \"\", \"backend base URL (required for non-mock backends)\")"
+      },
+      {
+        "path": "go/open-serve-kit/proxy.go",
+        "line": 29,
+        "category": "mock",
+        "text": "BackendMock     BackendType = \"mock\" // for CI / development"
+      },
+      {
+        "path": "go/open-serve-kit/proxy.go",
+        "line": 107,
+        "category": "mock",
+        "text": "ID:      fmt.Sprintf(\"chatcmpl-mock-%d\", id),"
+      },
+      {
+        "path": "go/open-serve-kit/proxy_test.go",
+        "line": 30,
+        "category": "mock",
+        "text": "mock := &MockBackend{}"
+      },
+      {
+        "path": "go/open-serve-kit/proxy_test.go",
+        "line": 31,
+        "category": "mock",
+        "text": "r := NewRouter(mock)"
+      },
+      {
+        "path": "go/open-serve-kit/proxy_test.go",
+        "line": 32,
+        "category": "mock",
+        "text": "// Register a second mock for a specific model to confirm routing."
+      },
+      {
+        "path": "go/open-serve-kit/proxy_test.go",
+        "line": 38,
+        "category": "mock",
+        "text": "if r.Pick(\"anything-else\") != mock {"
+      },
+      {
+        "path": "go/tee-serve/README.md",
+        "line": 16,
+        "category": "mock",
+        "text": "# 1. Run a mock inference backend on a Unix socket."
+      },
+      {
+        "path": "go/tee-serve/README.md",
+        "line": 19,
+        "category": "mock",
+        "text": "# 2. Start tee-serve (plaintext, mock attestation)."
+      },
+      {
+        "path": "go/tee-serve/cmd/tee-serve/main.go",
+        "line": 4,
+        "category": "mock",
+        "text": "// process runs inside the enclave; in development it runs locally with mock attestation."
+      },
+      {
+        "path": "go/tee-serve/cmd/tee-serve/main.go",
+        "line": 42,
+        "category": "mock",
+        "text": "log.Printf(\"tee-serve: WARNING \u2014 running with mock attestation (TEE_KIND/TEE_MEASUREMENT unset)\")"
+      },
+      {
+        "path": "go/tee-serve/cmd/tee-serve/main.go",
+        "line": 68,
+        "category": "placeholder",
+        "text": "_ = cfg // placeholder \u2014 production wires ListenTLSMutual"
+      },
+      {
+        "path": "go/tee-serve/tee.go",
+        "line": 15,
+        "category": "mock",
+        "text": "// mock provider)."
+      },
+      {
+        "path": "go/tee-serve/tee.go",
+        "line": 79,
+        "category": "mock",
+        "text": "// TeeKind names the TEE backend: \"sev-snp\", \"tdx\", \"nitro\", \"az-snp-cvm\", or \"mock\"."
+      },
+      {
+        "path": "go/tee-serve/tee.go",
+        "line": 210,
+        "category": "mock",
+        "text": "// TeeKind returns the configured kind (default \"mock\")."
+      },
+      {
+        "path": "go/tee-serve/tee.go",
+        "line": 215,
+        "category": "mock",
+        "text": "return \"mock\""
+      },
+      {
+        "path": "go/tee-serve/tee.go",
+        "line": 218,
+        "category": "mock",
+        "text": "// TeeMeasurement returns the configured measurement (default \"mock-measurement\")."
+      },
+      {
+        "path": "go/tee-serve/tee.go",
+        "line": 223,
+        "category": "mock",
+        "text": "return \"mock-measurement\""
+      },
+      {
+        "path": "go/tee-serve/tee.go",
+        "line": 233,
+        "category": "task 03",
+        "text": "// wrapper over /sys/class/...; full SEV-SNP/TDX/Nitro integration ships in task 03 once the"
+      },
+      {
+        "path": "go/tee-serve/tee_test.go",
+        "line": 369,
+        "category": "mock",
+        "text": "if m.TeeKind() != \"mock\" {"
+      },
+      {
+        "path": "go/tee-serve/tee_test.go",
+        "line": 372,
+        "category": "mock",
+        "text": "if m.TeeMeasurement() != \"mock-measurement\" {"
+      },
+      {
+        "path": "go/tenant-guard/scheduler.go",
+        "line": 4,
+        "category": "task 03",
+        "text": "// is task 03). This package implements the **scheduling logic** itself \u2014 which is testable"
+      },
+      {
+        "path": "python/adversaria/src/adversaria/__init__.py",
+        "line": 15,
+        "category": "task 03",
+        "text": "deterministically so tests are reproducible). Real garak/PyRIT invocation is task 03 (the"
+      },
+      {
+        "path": "python/agentsec_lab/src/agentsec_lab/__init__.py",
+        "line": 12,
+        "category": "task 03",
+        "text": "once E1 flight-recorder is wired (Wave-2 task 03)."
+      },
+      {
+        "path": "python/attesta_flow/src/attesta_flow/__init__.py",
+        "line": 30,
+        "category": "mock",
+        "text": "MOCK = \"mock\"  # local dev"
+      },
+      {
+        "path": "python/attesta_flow/src/attesta_flow/__init__.py",
+        "line": 91,
+        "category": "mock",
+        "text": "\"\"\"Returns a mock attestation for CI.\"\"\""
+      },
+      {
+        "path": "python/attesta_flow/src/attesta_flow/__init__.py",
+        "line": 94,
+        "category": "mock",
+        "text": "return (\"mock-H100\", \"aumos-mock-attestation\")"
+      },
+      {
+        "path": "python/attesta_flow/src/attesta_flow/__init__.py",
+        "line": 108,
+        "category": "mock",
+        "text": "self.verifying_key_hex = verifying_key_hex or \"mock-pipeline-key\""
+      },
+      {
+        "path": "python/attesta_flow/tests/test_pipeline.py",
+        "line": 11,
+        "category": "mock",
+        "text": "p = Pipeline(CloudProvider.MOCK)"
+      },
+      {
+        "path": "python/attesta_flow/tests/test_pipeline.py",
+        "line": 20,
+        "category": "mock",
+        "text": "assert att.gpu_model == \"mock-H100\""
+      },
+      {
+        "path": "python/attesta_flow/tests/test_pipeline.py",
+        "line": 53,
+        "category": "mock",
+        "text": "assert gpu == \"mock-H100\""
+      },
+      {
+        "path": "python/attesta_flow/tests/test_pipeline.py",
+        "line": 58,
+        "category": "mock",
+        "text": "p = Pipeline(CloudProvider.MOCK)"
+      },
+      {
+        "path": "python/aumos_agent/README.md",
+        "line": 27,
+        "category": "mock",
+        "text": "# standalone = mock implementations, zero external services. Perfect for dev & dry-runs."
+      },
+      {
+        "path": "python/aumos_agent/README.md",
+        "line": 93,
+        "category": "mock",
+        "text": "| `standalone` (default) | All primitives return deterministic mock responses. Zero network, zero CLIs. For development, tests, demos, dry-runs. |"
+      },
+      {
+        "path": "python/aumos_agent/README.md",
+        "line": 94,
+        "category": "mock",
+        "text": "| `connected` | Primitives issue real HTTP calls (I1, E1, C1-1, S4, A1, R2, R3, R4) and shell out to CLIs (`trust-core`, `defstack`). **On connection failure, each call degrades gracefully** to the mock and sets `degraded: True` \u2014 your agent always gets an answer. |"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 29,
+        "category": "mock",
+        "text": "- **Graceful degradation**: in ``\"standalone\"`` mode, uses local mock implementations; in"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 139,
+        "category": "mock",
+        "text": "source: str = \"mock\""
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 188,
+        "category": "mock",
+        "text": "mode: ``\"standalone\"`` (mock implementations) or ``\"connected\"`` (real services)."
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 341,
+        "category": "mock",
+        "text": "Parameters mirror :class:`AumOSConfig`. ``mode`` selects between standalone (mock) and"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 421,
+        "category": "mock",
+        "text": "CLI is missing), returns a deterministic HMAC-SHA256 mock signature over ``data`` keyed"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 422,
+        "category": "mock",
+        "text": "by a derived key. The mock is *not* real cryptography \u2014 do not use it for production."
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 440,
+        "category": "mock",
+        "text": "pass  # fall through to mock"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 447,
+        "category": "mock",
+        "text": "``trust-core verify``; otherwise falls back to mock verification."
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 450,
+        "category": "mock",
+        "text": "\u2014 the mock treats the supplied ``key`` as the same identifier passed to :meth:`sign`'s"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 473,
+        "category": "mock",
+        "text": "# Mock verification: recompute the signature with the supplied key as the key_id."
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 479,
+        "category": "mock",
+        "text": "secret = hashlib.sha256(f\"aumos-mock-key:{key_id}\".encode()).digest()"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 511,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 515,
+        "category": "mock",
+        "text": "return {**self._mock_issue(subject), \"source\": \"mock\"}"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 532,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 537,
+        "category": "mock",
+        "text": "return {\"valid\": valid, \"subject\": subject, \"source\": \"mock\"}"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 553,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 557,
+        "category": "mock",
+        "text": "return {\"revoked\": True, \"revoked_at\": int(time.time()), \"source\": \"mock\"}"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 563,
+        "category": "mock",
+        "text": "\"svid\": f\"svid-mock-{hex_subject}\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 565,
+        "category": "mock",
+        "text": "\"verifying_key\": hashlib.sha256(f\"aumos-mock-key:{subject}\".encode()).hexdigest()[:64],"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 571,
+        "category": "mock",
+        "text": "if not svid.startswith(\"svid-mock-\"):"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 573,
+        "category": "mock",
+        "text": "hex_part = svid[len(\"svid-mock-\") :]"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 623,
+        "category": "mock",
+        "text": "rec.source = \"mock\""
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 646,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 654,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 687,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 702,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 729,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 746,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 772,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 781,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 857,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 880,
+        "category": "mock",
+        "text": "return {\"installed\": True, \"name\": name, \"version\": version, \"source\": \"mock\"}"
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 897,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 922,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 940,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
+        "line": 956,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/aumos_agent/src/aumos_agent/cli.py",
+        "line": 31,
+        "category": "mock",
+        "text": "ip = sub.add_parser(\"issue\", help=\"Issue a mock agent identity for a subject.\")"
+      },
+      {
+        "path": "python/aumos_agent/tests/test_agent.py",
+        "line": 132,
+        "category": "mock",
+        "text": "# Mock sign/verify round-trip: the key passed to verify matches the key_id used to sign."
+      },
+      {
+        "path": "python/aumos_agent/tests/test_agent.py",
+        "line": 143,
+        "category": "mock",
+        "text": "assert r[\"svid\"].startswith(\"svid-mock-\")"
+      },
+      {
+        "path": "python/aumos_agent/tests/test_agent.py",
+        "line": 145,
+        "category": "mock",
+        "text": "assert r[\"source\"] == \"mock\""
+      },
+      {
+        "path": "python/aumos_agent/tests/test_agent.py",
+        "line": 290,
+        "category": "mock",
+        "text": "assert r[\"source\"] == \"mock\""
+      },
+      {
+        "path": "python/aumos_agent/tests/test_agent.py",
+        "line": 496,
+        "category": "mock",
+        "text": "assert out[\"svid\"].startswith(\"svid-mock-\")"
+      },
+      {
+        "path": "python/aumos_hf_plugin/src/aumos_hf_plugin/__init__.py",
+        "line": 117,
+        "category": "mock",
+        "text": "# Mock signing for standalone mode"
+      },
+      {
+        "path": "python/aumos_hf_plugin/src/aumos_hf_plugin/__init__.py",
+        "line": 176,
+        "category": "mock",
+        "text": "# Verify signature (mock verification \u2014 production calls trust-core)"
+      },
+      {
+        "path": "python/aumos_vllm/README.md",
+        "line": 12,
+        "category": "mock",
+        "text": "| `mock`       | No real subprocess. Returns synthetic responses and a synthetic, digested attestation envelope. Use in tests and on hosts without a GPU. |"
+      },
+      {
+        "path": "python/aumos_vllm/README.md",
+        "line": 21,
+        "category": "mock",
+        "text": "(in mock mode, a deterministic synthetic value)."
+      },
+      {
+        "path": "python/aumos_vllm/README.md",
+        "line": 22,
+        "category": "mock",
+        "text": "- `backend` \u2014 `\"mock\"`, `\"nvidia-cc\"`, `\"sev-snp\"`, `\"tdx\"`, ..."
+      },
+      {
+        "path": "python/aumos_vllm/README.md",
+        "line": 44,
+        "category": "mock",
+        "text": "with AttestedVLLMServer(mode=\"mock\") as server:"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 14,
+        "category": "mock",
+        "text": "- ``mock``: returns synthetic responses and a synthetic attestation envelope."
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 18,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 39,
+        "category": "mock",
+        "text": "RunMode = Literal[\"standalone\", \"mock\"]"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 56,
+        "category": "mock",
+        "text": "TEE quote; in mock mode the envelope contains a synthetic, deterministic"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 65,
+        "category": "mock",
+        "text": "backend: str  # e.g. \"nvidia-cc\", \"sev-snp\", \"tdx\", \"mock\""
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 93,
+        "category": "mock",
+        "text": "\"\"\"Allocate an ephemeral TCP port for the mock/standalone server.\"\"\""
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 133,
+        "category": "mock",
+        "text": "Only the ``mock`` backend is verifiable in-tree, and only by recomputing the"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 138,
+        "category": "mock",
+        "text": "AttestationUnavailable: a non-mock backend was requested with no collector."
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 142,
+        "category": "mock",
+        "text": "if envelope.backend == \"mock\":"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 149,
+        "category": "mock",
+        "text": "\"via AttestedVLLMServer(quote_collector=...) or use backend='mock' and \""
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 168,
+        "category": "mock",
+        "text": "mode:               ``standalone`` (real subprocess) or ``mock``."
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 175,
+        "category": "mock",
+        "text": "mode: RunMode = \"mock\""
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 178,
+        "category": "mock",
+        "text": "attestation_backend: str = \"mock\""
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 180,
+        "category": "mock",
+        "text": "# Operator-supplied platform verifier. REQUIRED for any non-mock backend."
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 198,
+        "category": "mock",
+        "text": "\"\"\"Start the vLLM server (or mock) and capture an attestation envelope."
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 215,
+        "category": "mock",
+        "text": "elif self.mode == \"mock\":"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 234,
+        "category": "mock",
+        "text": "raise RuntimeError(\"vllm is not installed; install it or use mode='mock'\")"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 254,
+        "category": "mock",
+        "text": "\"\"\"In mock mode there is no real subprocess; we just mark started.\"\"\""
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 276,
+        "category": "mock",
+        "text": "if self.attestation_backend == \"mock\":"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 281,
+        "category": "mock",
+        "text": "quote=f\"mock-quote:{nonce}\","
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 283,
+        "category": "mock",
+        "text": "measurement=f\"mock-measurement:{digest[:16]}\","
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 285,
+        "category": "mock",
+        "text": "backend=\"mock\","
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 301,
+        "category": "mock",
+        "text": "\"verifier, or use backend='mock' and treat the result as unattested.\""
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 336,
+        "category": "mock",
+        "text": "if self.mode == \"mock\":"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 337,
+        "category": "mock",
+        "text": "# Mock is always \"up\" once start() has been called."
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 338,
+        "category": "mock",
+        "text": "return True, \"mock server up\""
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 395,
+        "category": "mock",
+        "text": "# Inference helpers (mock)"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 398,
+        "category": "mock",
+        "text": "\"\"\"Return a synthetic OpenAI-style completion (mock mode only).\"\"\""
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 399,
+        "category": "mock",
+        "text": "if self.mode != \"mock\" or self._envelope is None:"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 400,
+        "category": "mock",
+        "text": "raise RuntimeError(\"mock_complete requires mode='mock' and start()\")"
+      },
+      {
+        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
+        "line": 403,
+        "category": "mock",
+        "text": "\"id\": f\"mock-{self._instance_nonce[:8]}\","
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
+        "line": 6,
+        "category": "mock",
+        "text": "# `bool(measurement) and bool(quote)` for every non-mock backend, and"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
+        "line": 45,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\", attestation_backend=backend)"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
+        "line": 52,
+        "category": "mock",
+        "text": "mode=\"mock\", attestation_backend=\"nvidia-cc\", quote_collector=_StubCollector()"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
+        "line": 67,
+        "category": "mock",
+        "text": "mode=\"mock\","
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
+        "line": 78,
+        "category": "mock",
+        "text": "mode=\"mock\","
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
+        "line": 96,
+        "category": "mock",
+        "text": "mode=\"mock\", attestation_backend=\"nvidia-cc\", quote_collector=_ReplayCollector()"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
+        "line": 103,
+        "category": "mock",
+        "text": "\"\"\"Mock remains usable for local dev -- and is honestly labelled as mock.\"\"\""
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
+        "line": 104,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\", attestation_backend=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
+        "line": 108,
+        "category": "mock",
+        "text": "assert env.backend == \"mock\""
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 1,
+        "category": "mock",
+        "text": "\"\"\"Tests for aumos_vllm: lifecycle, attestation envelope, health, mock mode.\"\"\""
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 19,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 29,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 35,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 45,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 50,
+        "category": "mock",
+        "text": "with AttestedVLLMServer(mode=\"mock\") as server:"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 61,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 66,
+        "category": "mock",
+        "text": "assert env.backend == \"mock\""
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 76,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 82,
+        "category": "mock",
+        "text": "assert d[\"backend\"] == \"mock\""
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 89,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 98,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 107,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 110,
+        "category": "mock",
+        "text": "# Mock envelope is verified, so HEALTHY"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 117,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 122,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 135,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\", attestation_backend=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 151,
+        "category": "mock",
+        "text": "# Mock inference"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 154,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 167,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/aumos_vllm/tests/test_vllm.py",
+        "line": 173,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/bias_sentinel/README.md",
+        "line": 16,
+        "category": "task 03",
+        "text": "the full statistical variants (using a language model) are task 03."
+      },
+      {
+        "path": "python/bias_sentinel/src/bias_sentinel/__init__.py",
+        "line": 13,
+        "category": "task 03",
+        "text": "task 03."
+      },
+      {
+        "path": "python/bias_sentinel/src/bias_sentinel/__init__.py",
+        "line": 82,
+        "category": "task 03",
+        "text": "# production lexicon lives in a separate data file (task 03)."
+      },
+      {
+        "path": "python/bridge_rt/src/bridge_rt/__init__.py",
+        "line": 27,
+        "category": "mock",
+        "text": "MOCK = \"mock\""
+      },
+      {
+        "path": "python/bridge_rt/src/bridge_rt/__init__.py",
+        "line": 31,
+        "category": "mock",
+        "text": "PREFERENCE: list[Backend] = [Backend.TENSORRT_LLM, Backend.VLLM, Backend.OLLAMA, Backend.MOCK]"
+      },
+      {
+        "path": "python/bridge_rt/src/bridge_rt/__init__.py",
+        "line": 106,
+        "category": "mock",
+        "text": "# Built-in backend implementations. v1.0 ships the Mock + a CLI-probe-style"
+      },
+      {
+        "path": "python/bridge_rt/src/bridge_rt/__init__.py",
+        "line": 108,
+        "category": "task 03",
+        "text": "# in-process backends land in task 03."
+      },
+      {
+        "path": "python/bridge_rt/src/bridge_rt/__init__.py",
+        "line": 113,
+        "category": "mock",
+        "text": "name = Backend.MOCK"
+      },
+      {
+        "path": "python/bridge_rt/src/bridge_rt/__init__.py",
+        "line": 119,
+        "category": "mock",
+        "text": "return \"mock-1.0.0\""
+      },
+      {
+        "path": "python/bridge_rt/src/bridge_rt/__init__.py",
+        "line": 123,
+        "category": "mock",
+        "text": "text=f\"[mock] {req.prompt[:32]}\","
+      },
+      {
+        "path": "python/bridge_rt/src/bridge_rt/__init__.py",
+        "line": 175,
+        "category": "mock",
+        "text": "Backend.MOCK: MockBackend(),"
+      },
+      {
+        "path": "python/bridge_rt/src/bridge_rt/cli.py",
+        "line": 34,
+        "category": "mock",
+        "text": "for candidate in [Backend.TENSORRT_LLM, Backend.VLLM, Backend.OLLAMA, Backend.MOCK]:"
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 51,
+        "category": "mock",
+        "text": "\"\"\"Forcing Mock bypasses auto-selection \u2014 deterministic for tests.\"\"\""
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 52,
+        "category": "mock",
+        "text": "bridge = Bridge().force(Backend.MOCK)"
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 54,
+        "category": "mock",
+        "text": "assert impl.name is Backend.MOCK"
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 58,
+        "category": "mock",
+        "text": "bridge = Bridge().force(Backend.MOCK)"
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 59,
+        "category": "mock",
+        "text": "assert bridge.select().name is Backend.MOCK"
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 71,
+        "category": "mock",
+        "text": "bridge = Bridge().force(Backend.MOCK)"
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 73,
+        "category": "mock",
+        "text": "assert resp.backend is Backend.MOCK"
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 82,
+        "category": "mock",
+        "text": "assert \"mock\" in out"
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 90,
+        "category": "mock",
+        "text": "assert any(r[\"backend\"] == \"mock\" and r[\"available\"] for r in rows)"
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 95,
+        "category": "mock",
+        "text": "rc = main([\"generate\", \"--model\", \"m\", \"--prompt\", \"hi\", \"--force\", \"mock\"])"
+      },
+      {
+        "path": "python/bridge_rt/tests/test_bridge.py",
+        "line": 98,
+        "category": "mock",
+        "text": "assert out[\"backend\"] == \"mock\""
+      },
+      {
+        "path": "python/comply_gate/src/comply_gate/__init__.py",
+        "line": 15,
+        "category": "task 03",
+        "text": "parsing for production use (task 03)."
+      },
+      {
+        "path": "python/crypto_audit_ai/src/crypto_audit_ai/__init__.py",
+        "line": 280,
+        "category": "task 03",
+        "text": "crypto-primitive wiring (cryptography / openssl) is task 03."
+      },
+      {
+        "path": "python/crypto_audit_ai/src/crypto_audit_ai/__init__.py",
+        "line": 304,
+        "category": "task 03",
+        "text": "# task 03; the entries below cover the canonical examples used in tests and"
+      },
+      {
+        "path": "python/cuda_gram/README.md",
+        "line": 4,
+        "category": "task 02",
+        "text": "implementation (task 02) calls the C1-1 Rust core (`aumos-nvtrust-bridge`) via PyO3."
+      },
+      {
+        "path": "python/cuda_gram/pyproject.toml",
+        "line": 10,
+        "category": "task 02",
+        "text": "# No ctypes \u2014 C1-2 calls the C1-1 Rust core via PyO3 in task 02."
+      },
+      {
+        "path": "python/cuda_gram/pyproject.toml",
+        "line": 11,
+        "category": "mock",
+        "text": "# For Wave-1 scaffolding, we keep a pure-Python mock so the package is importable without Rust."
+      },
+      {
+        "path": "python/cuda_gram/src/cuda_gram/__init__.py",
+        "line": 5,
+        "category": "task 02",
+        "text": "(``aumos-nvtrust-bridge``) lands in task 02 \u2014 it replaces the pure-Python"
+      },
+      {
+        "path": "python/cuda_gram/src/cuda_gram/__init__.py",
+        "line": 144,
+        "category": "mock",
+        "text": "\"\"\"A mock backend for CI / offline / development use."
+      },
+      {
+        "path": "python/cuda_gram/src/cuda_gram/__init__.py",
+        "line": 146,
+        "category": "mock",
+        "text": "Always issues reports with the well-known mock attestation bytes; verifies"
+      },
+      {
+        "path": "python/cuda_gram/src/cuda_gram/__init__.py",
+        "line": 147,
+        "category": "mock",
+        "text": "any report whose attestation bytes match the mock marker. Mirrors the Rust"
+      },
+      {
+        "path": "python/cuda_gram/src/cuda_gram/__init__.py",
+        "line": 151,
+        "category": "mock",
+        "text": "MOCK_ATTESTATION_BYTES = b\"aumos-mock-attestation\""
+      },
+      {
+        "path": "python/cuda_gram/src/cuda_gram/__init__.py",
+        "line": 153,
+        "category": "mock",
+        "text": "def __init__(self, gpu_model: str = \"mock-H100\") -> None:"
+      },
+      {
+        "path": "python/cuda_gram/tests/test_mock_backend.py",
+        "line": 40,
+        "category": "mock",
+        "text": "assert MockBackend().gpu_model == \"mock-H100\""
+      },
+      {
+        "path": "python/cuda_gram/tests/test_mock_backend.py",
+        "line": 48,
+        "category": "mock",
+        "text": "gpu_model=\"mock-H100\","
+      },
+      {
+        "path": "python/cuda_gram/tests/test_mock_backend.py",
+        "line": 60,
+        "category": "mock",
+        "text": "assert session.gpu_model == \"mock-H100\""
+      },
+      {
+        "path": "python/cuda_gram/tests/test_mock_backend.py",
+        "line": 65,
+        "category": "mock",
+        "text": "gpu_model=\"mock-H100\","
+      },
+      {
+        "path": "python/cuda_gram/tests/test_mock_backend.py",
+        "line": 70,
+        "category": "mock",
+        "text": "assert d[\"gpu_model\"] == \"mock-H100\""
+      },
+      {
+        "path": "python/cuda_gram/tests/test_mock_backend.py",
+        "line": 89,
+        "category": "mock",
+        "text": "\"gpu_model\": \"mock-H100\","
+      },
+      {
+        "path": "python/cuda_gram/tests/test_mock_backend.py",
+        "line": 90,
+        "category": "mock",
+        "text": "\"attestation_bytes\": list(b\"aumos-mock-attestation\"),"
+      },
+      {
+        "path": "python/cuda_gram/tests/test_mock_backend.py",
+        "line": 140,
+        "category": "mock",
+        "text": "\"gpu_model\": \"mock-H100\","
+      },
+      {
+        "path": "python/cuda_gram/tests/test_mock_backend.py",
+        "line": 141,
+        "category": "mock",
+        "text": "\"attestation_bytes\": list(b\"aumos-mock-attestation\"),"
+      },
+      {
+        "path": "python/dp_crate/src/dp_crate/__init__.py",
+        "line": 510,
+        "category": "stub",
+        "text": "# CLI stub"
+      },
+      {
+        "path": "python/fed_core/README.md",
+        "line": 22,
+        "category": "mock",
+        "text": "participant_id=\"t1\", tee_kind=\"mock\", tee_measurement=\"m\","
+      },
+      {
+        "path": "python/fed_core/src/fed_core/__init__.py",
+        "line": 98,
+        "category": "mock",
+        "text": "tee_kind: str  # \"sev-snp\", \"tdx\", \"nitro\", \"az-snp-cvm\", \"mock\""
+      },
+      {
+        "path": "python/fed_core/src/fed_core/__init__.py",
+        "line": 555,
+        "category": "stub",
+        "text": "# CLI entrypoint stub"
+      },
+      {
+        "path": "python/fed_core/src/fed_core/__init__.py",
+        "line": 567,
+        "category": "mock",
+        "text": "tee_kind=\"mock\","
+      },
+      {
+        "path": "python/metr_bridge/src/metr_bridge/__init__.py",
+        "line": 16,
+        "category": "task 03",
+        "text": "``evaluations``). The full METR schema is task 03 once the METR runner is"
+      },
+      {
+        "path": "python/metr_bridge/src/metr_bridge/__init__.py",
+        "line": 253,
+        "category": "task 03",
+        "text": "Wave-1 ships a deterministic in-process runner; task 03 swaps in the"
+      },
+      {
+        "path": "python/nooa_ext/src/nooa_ext/__init__.py",
+        "line": 8,
+        "category": "stub",
+        "text": "PolicyEnforcer   \u2014 OPA/Rego integration stub for in-harness policy enforcement."
+      },
+      {
+        "path": "python/nooa_ext/src/nooa_ext/__init__.py",
+        "line": 14,
+        "category": "task 03",
+        "text": "wiring is task 03. Every component is mockable so unit tests run fully in-process."
+      },
+      {
+        "path": "python/nooa_ext/src/nooa_ext/__init__.py",
+        "line": 103,
+        "category": "stub",
+        "text": "Wave-1 ships an in-process stub evaluator; task 03 swaps in a real OPA HTTP client"
+      },
+      {
+        "path": "python/nooa_ext/src/nooa_ext/__init__.py",
+        "line": 132,
+        "category": "placeholder",
+        "text": "_ = m  # placeholder to satisfy linters in stubs"
+      },
+      {
+        "path": "python/nooa_ext/src/nooa_ext/__init__.py",
+        "line": 311,
+        "category": "task 03",
+        "text": "The real HTTP POST wiring (requests/httpx with HMAC signing) is task 03."
+      },
+      {
+        "path": "python/red_team_cloud/src/red_team_cloud/__init__.py",
+        "line": 13,
+        "category": "mock",
+        "text": "The runner is mock-friendly: the suite factory and the clock are injectable"
+      },
+      {
+        "path": "python/red_team_cloud/src/red_team_cloud/__init__.py",
+        "line": 265,
+        "category": "stub",
+        "text": "# Built-in suite runner (uses adversaria if available; otherwise a stub)"
+      },
+      {
+        "path": "python/red_team_cloud/src/red_team_cloud/__init__.py",
+        "line": 270,
+        "category": "stub",
+        "text": "Falls back to a deterministic stub when A2 is not installed so this"
+      },
+      {
+        "path": "python/red_team_cloud/src/red_team_cloud/__init__.py",
+        "line": 345,
+        "category": "stub",
+        "text": "# --- Stub path (no adversaria installed) ---"
+      },
+      {
+        "path": "python/red_team_cloud/tests/test_red_team_cloud.py",
+        "line": 59,
+        "category": "stub",
+        "text": "# InProcessRunner (stub mode \u2014 forced so tests are deterministic w/o A2)"
+      },
+      {
+        "path": "python/safe_eval/src/safe_eval/__init__.py",
+        "line": 105,
+        "category": "task 03",
+        "text": "# PyRIT/MDASH wrapping is task 03 once those tools are installed)."
+      },
+      {
+        "path": "python/safe_eval/src/safe_eval/__init__.py",
+        "line": 108,
+        "category": "task 03",
+        "text": "\"\"\"Built-in benchmarks adapter. Wraps HELM / LM-Eval in task 03.\"\"\""
+      },
+      {
+        "path": "python/safe_eval/src/safe_eval/__init__.py",
+        "line": 115,
+        "category": "task 03",
+        "text": "# benchmark installation. Real HELM/LM-Eval invocation is task 03."
+      },
+      {
+        "path": "rust/README.md",
+        "line": 10,
+        "category": "mock",
+        "text": "| `nvtrust-bridge` | C1-1 | NVIDIA NVTrust FFI bindings + Mock backend for CI |"
+      },
+      {
+        "path": "rust/aumos-api/tests/smoke.rs",
+        "line": 27,
+        "category": "mock",
+        "text": "gpu_model: \"mock-H100\".into(),"
+      },
+      {
+        "path": "rust/aumos-api/tests/smoke.rs",
+        "line": 28,
+        "category": "mock",
+        "text": "attestation_bytes: b\"aumos-mock\".to_vec(),"
+      },
+      {
+        "path": "rust/aumos-api/tests/smoke.rs",
+        "line": 32,
+        "category": "mock",
+        "text": "assert_eq!(report.gpu_model, \"mock-H100\");"
+      },
+      {
+        "path": "rust/aumos-api/tests/smoke.rs",
+        "line": 33,
+        "category": "mock",
+        "text": "assert_eq!(report.attestation_bytes, b\"aumos-mock\");"
+      },
+      {
+        "path": "rust/credential-vault/src/cli.rs",
+        "line": 33,
+        "category": "mock",
+        "text": "/// Backend: mock (default), vault, aws, k8s."
+      },
+      {
+        "path": "rust/credential-vault/src/cli.rs",
+        "line": 34,
+        "category": "mock",
+        "text": "#[arg(long, default_value = \"mock\")]"
+      },
+      {
+        "path": "rust/credential-vault/src/cli.rs",
+        "line": 61,
+        "category": "mock",
+        "text": "\"mock\" => Box::new(MockBackend::new(["
+      },
+      {
+        "path": "rust/credential-vault/src/cli.rs",
+        "line": 69,
+        "category": "mock",
+        "text": "eprintln!(\"credential-vault: unknown backend '{other}' (try mock|vault|aws|k8s)\");"
+      },
+      {
+        "path": "rust/credential-vault/src/cli.rs",
+        "line": 79,
+        "category": "mock",
+        "text": "println!(\"credential-vault: ready (mock backend; Vault/AWS/K8s are stubs in task 03)\");"
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 8,
+        "category": "mock",
+        "text": "//! Wave-1 ships against mock I1 and mock CredentialBackends. Real Vault/AWS/K8s integration"
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 9,
+        "category": "task 03",
+        "text": "//! is task 03. See RFC R4."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 77,
+        "category": "stub",
+        "text": "/// A credential backend. Implementations: [`MockBackend`], [`HashiCorpVaultBackend`] (stub),"
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 78,
+        "category": "stub",
+        "text": "/// [`AwsSecretsManagerBackend`] (stub), [`KubernetesSecretsBackend`] (stub)."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 87,
+        "category": "mock",
+        "text": "/// A mock backend for CI / development."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 94,
+        "category": "mock",
+        "text": "/// Construct a mock backend from an iterator of (key, secret) pairs."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 110,
+        "category": "mock",
+        "text": ".ok_or_else(|| CredentialError::BackendUnavailable(format!(\"mock miss: {key}\")))"
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 114,
+        "category": "stub",
+        "text": "/// HashiCorp Vault backend stub. Real integration (Vault HTTP API) is task 03."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 121,
+        "category": "stub",
+        "text": "/// Construct a stub Vault backend pointing at `address`."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 133,
+        "category": "task 03",
+        "text": "\"Vault backend at {} not yet wired (task 03)\","
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 139,
+        "category": "stub",
+        "text": "/// AWS Secrets Manager backend stub. Real integration (AWS SDK) is task 03."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 146,
+        "category": "stub",
+        "text": "/// Construct a stub AWS Secrets Manager backend in `region`."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 158,
+        "category": "task 03",
+        "text": "\"AWS Secrets Manager backend in {} not yet wired (task 03)\","
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 164,
+        "category": "stub",
+        "text": "/// Kubernetes Secrets backend stub. Real integration (kube-rs) is task 03."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 171,
+        "category": "stub",
+        "text": "/// Construct a stub K8s Secrets backend in `namespace`."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 183,
+        "category": "task 03",
+        "text": "\"K8s Secrets backend in namespace {} not yet wired (task 03)\","
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 227,
+        "category": "task 04",
+        "text": "/// (task 04); the in-process set is the local source of truth until that fan-out lands."
+      },
+      {
+        "path": "rust/credential-vault/src/lib.rs",
+        "line": 294,
+        "category": "task 04",
+        "text": "/// task 04); the returned count is the local lower bound."
+      },
+      {
+        "path": "rust/defstack-cli/src/main.rs",
+        "line": 53,
+        "category": "mock",
+        "text": "/// Start the local development environment (all services with mock backends)."
+      },
+      {
+        "path": "rust/defstack-cli/src/main.rs",
+        "line": 149,
+        "category": "mock",
+        "text": "language: \"go (mock in wave-1)\","
+      },
+      {
+        "path": "rust/defstack-cli/src/main.rs",
+        "line": 150,
+        "category": "mock",
+        "text": "status: \"mock\","
+      },
+      {
+        "path": "rust/defstack-cli/src/main.rs",
+        "line": 211,
+        "category": "stubbed",
+        "text": "frameworks.insert(\"AI-Kill-Switch-Act-HR-2026\", serde_json::json!({\"reference_implementation\": \"R3 kill-switch\", \"government_api\": \"stubbed in Wave-1\"}));"
+      },
+      {
+        "path": "rust/defstack-cli/src/main.rs",
+        "line": 240,
+        "category": "task 07",
+        "text": "format!(\"{secs}\") // epoch seconds; ISO 8601 conversion in task 07"
+      },
+      {
+        "path": "rust/egress-filter/src/lib.rs",
+        "line": 3,
+        "category": "task 03",
+        "text": "//! eBPF egress enforcement core. The Rust core that the eBPF programs (task 03)"
+      },
+      {
+        "path": "rust/egress-filter/src/lib.rs",
+        "line": 14,
+        "category": "task 03",
+        "text": "//! performs no I/O and no eBPF syscalls itself \u2014 those live in task 03."
+      },
+      {
+        "path": "rust/eval-guard/src/lib.rs",
+        "line": 57,
+        "category": "task 03",
+        "text": "/// is task 03). The verifying key is carried alongside so any reviewer can verify the signature"
+      },
+      {
+        "path": "rust/exfil-guard/src/lib.rs",
+        "line": 21,
+        "category": "task 03",
+        "text": "//! eBPF plumbing itself lives in task 03."
+      },
+      {
+        "path": "rust/flight-recorder/src/lib.rs",
+        "line": 25,
+        "category": "task 03",
+        "text": "//!   - **OpenTelemetry** \u2014 semantic-attribute JSON for the OTel collector (real OTLP export is task 03;"
+      },
+      {
+        "path": "rust/flight-recorder/src/lib.rs",
+        "line": 277,
+        "category": "task 03",
+        "text": "// byte concatenation that is just as verifiable cross-language. CBOR alignment is task 03.)"
+      },
+      {
+        "path": "rust/flight-recorder/src/lib.rs",
+        "line": 500,
+        "category": "task 03",
+        "text": "/// this and emits real OTLP in task 03)."
+      },
+      {
+        "path": "rust/inference-proxy/src/lib.rs",
+        "line": 7,
+        "category": "task 03",
+        "text": "//!   4. **cache** \u2014 semantic cache (exact-match in v1.0; similarity-based in task 03)"
+      },
+      {
+        "path": "rust/inference-proxy/src/lib.rs",
+        "line": 207,
+        "category": "task 03",
+        "text": "/// task 03 adds a learned classifier."
+      },
+      {
+        "path": "rust/inference-proxy/src/lib.rs",
+        "line": 271,
+        "category": "task 03",
+        "text": "/// An exact-match cache keyed on (model, sha256(prompt)). Similarity-based caching is task 03."
+      },
+      {
+        "path": "rust/kill-switch/src/cli.rs",
+        "line": 89,
+        "category": "mock",
+        "text": "println!(\"kill-switch: ready (mock policy; OPA Rego lands in task 03)\");"
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 3,
+        "category": "mock",
+        "text": "//! Three layers: Policy (via the `PolicyEngine` trait \u2014 mock in Wave-1, OPA Rego via `regorus`"
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 4,
+        "category": "task 03",
+        "text": "//! in task 03), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). Entire pipeline executes"
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 9,
+        "category": "stub",
+        "text": "//! a Government Compliance API stub for the AI Kill Switch Act (H.R. 2026, Reps. Lieu/Moran)."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 11,
+        "category": "mock",
+        "text": "//! Wave-1 ships against a mock I1 agent-identity. See RFC R3."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 23,
+        "category": "stubbed",
+        "text": "/// The Government Compliance API endpoint (AI Kill Switch Act). Stubbed in Wave-1."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 101,
+        "category": "task 03",
+        "text": "/// (task 03). The trait lets us swap engines without changing the decision engine."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 110,
+        "category": "mock",
+        "text": "/// The Wave-1 mock policy: sandbox_escape > 0.8, behavioral_anomaly > 0.9, any regulatory"
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 174,
+        "category": "mock",
+        "text": "// Wave-1 mock execution: record the canonical 5 actions without actually doing them."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 215,
+        "category": "stubbed",
+        "text": "/// Notify the Government Compliance API (stubbed in Wave-1; real HTTPS call in task 03)."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 218,
+        "category": "stub",
+        "text": "/// Returns [`KillError::GovernmentApiFailed`] only if the stub itself is broken (it isn't)."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 223,
+        "category": "task 03",
+        "text": "// The real implementation (task 03) makes an HTTPS POST to GOVERNMENT_API_URL with the"
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 284,
+        "category": "stub",
+        "text": "// C7: the stub must NOT claim the government confirmed \u2014 no HTTP call is made."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 286,
+        "category": "stub",
+        "text": "assert!(!ack.confirmed, \"Wave-1 stub must report confirmed=false\");"
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 289,
+        "category": "placeholder",
+        "text": "\"ack_id must be the pending placeholder, got {}\","
+      },
+      {
+        "path": "rust/nvtrust-bridge/Cargo.toml",
+        "line": 7,
+        "category": "mock",
+        "text": "description = \"NVTrust FFI bindings + nvtrust-verify CLI (with offline/mock mode for CI)\""
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/cli.rs",
+        "line": 11,
+        "category": "mock",
+        "text": "about = \"Verify NVIDIA GPU attestation reports (Mock backend in Wave-1)\""
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/cli.rs",
+        "line": 28,
+        "category": "mock",
+        "text": "/// Issue a mock attestation (CI/dev use only)."
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/cli.rs",
+        "line": 74,
+        "category": "mock",
+        "text": "println!(\"valid=true backend=mock gpu_model={}\", report.gpu_model);"
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/cli.rs",
+        "line": 110,
+        "category": "mock",
+        "text": "eprintln!(\"nvtrust-verify: issue-mock failed: {e}\");"
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 3,
+        "category": "mock",
+        "text": "//! Bindings to NVIDIA NVTrust (GPU attestation), with a Mock backend for CI."
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 6,
+        "category": "mock",
+        "text": "//! We define a `NvTrustBackend` trait with `Mock` and `Real` (FFI) implementations."
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 7,
+        "category": "mock",
+        "text": "//! Wave-1 ships with the `Mock` implementation; `Real` lands when the team has NVTrust access."
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 115,
+        "category": "mock",
+        "text": "/// A mock backend for CI / offline / development use. Always verifies successfully"
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 116,
+        "category": "mock",
+        "text": "/// for the well-known mock attestation bytes."
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 118,
+        "category": "mock",
+        "text": "/// GPU model reported by the mock."
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 125,
+        "category": "mock",
+        "text": "gpu_model: \"mock-H100\".to_string(),"
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 134,
+        "category": "mock",
+        "text": "// Deterministic mock attestation; NOT real GPU bytes."
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 135,
+        "category": "mock",
+        "text": "attestation_bytes: b\"aumos-mock-attestation\".to_vec(),"
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 150,
+        "category": "mock",
+        "text": "if report.attestation_bytes == b\"aumos-mock-attestation\" {"
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 185,
+        "category": "mock",
+        "text": "gpu_model: \"mock-H100\".into(),"
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 186,
+        "category": "mock",
+        "text": "attestation_bytes: b\"aumos-mock\".to_vec(),"
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 213,
+        "category": "mock",
+        "text": "gpu_model: \"mock-H100\".into(),"
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 214,
+        "category": "mock",
+        "text": "attestation_bytes: b\"aumos-mock-attestation\".to_vec(),"
+      },
+      {
+        "path": "rust/nvtrust-bridge/src/lib.rs",
+        "line": 218,
+        "category": "mock",
+        "text": "assert_eq!(r.gpu_model, \"mock-H100\");"
+      },
+      {
+        "path": "rust/provena-chain/src/lib.rs",
+        "line": 222,
+        "category": "task 03",
+        "text": "/// The schema version of this snapshot (forward-compat for task 03 changes)."
+      },
+      {
+        "path": "rust/trust-core/fuzz/fuzz_targets/rekor_response.rs",
+        "line": 4,
+        "category": "task 03",
+        "text": "//! (Rekor integration is task 03 \u2014 this target lands the harness so the nightly fuzz job"
+      },
+      {
+        "path": "rust/trust-core/fuzz/fuzz_targets/rekor_response.rs",
+        "line": 11,
+        "category": "task 03",
+        "text": "// We don't yet have a RekorClient in trust-core (task 03), but JSON parsing of"
+      },
+      {
+        "path": "rust/trust-core/src/cli.rs",
+        "line": 26,
+        "category": "task 03",
+        "text": "/// WARNING: the signing key is printed to stdout \u2014 local dev only. KMS in task 03."
+      },
+      {
+        "path": "rust/trust-core/src/rekor.rs",
+        "line": 15,
+        "category": "mock",
+        "text": "//!   - tests inject a mock transport (no network),"
+      },
+      {
+        "path": "rust/trust-core/src/rekor.rs",
+        "line": 346,
+        "category": "mock",
+        "text": "/// client, or a mock transport in tests)."
+      },
+      {
+        "path": "rust/trust-core/src/rekor.rs",
+        "line": 547,
+        "category": "mock",
+        "text": "/// A mock transport that records every call and returns a canned response"
+      },
+      {
+        "path": "rust/trust-core/src/signing.rs",
+        "line": 4,
+        "category": "task 03",
+        "text": "//! in task 03 (AWS KMS) and task 04 (GCP, Azure, YubiKey, PKCS#11)."
+      },
+      {
+        "path": "specs/protocols/P1-aae.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P10-made.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P11-prb.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P12-cap.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P2-aar.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P3-cpe.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P4-amil.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P5-ssp.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P6-aatm.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P7-abs.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P8-veb.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "specs/protocols/P9-aix.md",
+        "line": 50,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "tools/ci/gen-handoffs.sh",
+        "line": 15,
+        "category": "mock",
+        "text": "C1-1|nvtrust-bridge|Rust core + Python + Go bindings|none|NVTrust FFI bindings + nvtrust-verify CLI. NVTrust is NVIDIA's GPU attestation library. Offline/mock mode for CI is mandatory \u2014 do NOT attempt to download the real NVTrust SDK (NDA-gated). Define a Trait NVTrustBackend with Mock and Real impls."
+      },
+      {
+        "path": "tools/ci/gen-handoffs.sh",
+        "line": 18,
+        "category": "mock",
+        "text": "R3|kill-switch|Rust core + Python policy|I1 (mock)|Three layers: Policy (OPA Rego, evaluated via regorus crate), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API stub for the AI Kill Switch Act (H.R. 2026). Wave-1 uses the mock I1 from proto/aumos/identity/v1/agent.proto."
+      },
+      {
+        "path": "tools/ci/gen-handoffs.sh",
+        "line": 19,
+        "category": "mock",
+        "text": "R4|credential-vault|Rust|R3 (mock)|Agent-scoped credential brokering. 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates HashiCorp Vault, AWS Secrets Manager, K8s Secrets via trait CredentialBackend. Revokes all tokens <1s on kill-switch trigger. AumOS moved from Go to Rust."
+      },
+      {
+        "path": "tools/ci/gen-handoffs.sh",
+        "line": 54,
+        "category": "task 02",
+        "text": "- **External:** enumerated during MVP (task 02); record in the RFC."
+      },
+      {
+        "path": "tools/ci/gen-handoffs.sh",
+        "line": 104,
+        "category": "mock",
+        "text": "- \u274c Don't download the real NVIDIA NVTrust SDK in CI (NDA-gated). Use the documented Mock impl."
+      },
+      {
+        "path": "tools/ci/gen-handoffs.sh",
+        "line": 121,
+        "category": "stub",
+        "text": "- \u274c Don't skip the Government Compliance API stub even though the law isn't in force yet."
+      },
+      {
+        "path": "tools/ci/gen-handoffs.sh",
+        "line": 179,
+        "category": "mock",
+        "text": "\"03-alpha:External integrations, mock backends, golden vectors\""
+      },
+      {
+        "path": "tools/ci/gen-protocols.sh",
+        "line": 78,
+        "category": "future work",
+        "text": "(e.g. zero-knowledge proofs for sensitive authority claims \u2014 future work)."
+      },
+      {
+        "path": "tools/ci/gen-rfcs.sh",
+        "line": 22,
+        "category": "mock",
+        "text": "C1-1|nvtrust-bridge|1|Rust core + Python + Go bindings|C1.4 NVTrustBridge|(none)|(none)|none|NVTrust FFI bindings + nvtrust-verify CLI. Offline/mock mode for CI; reference verifiers for H100/H200."
+      },
+      {
+        "path": "tools/ci/gen-rfcs.sh",
+        "line": 25,
+        "category": "mock",
+        "text": "R3|kill-switch|1|Rust core + Python policy|C7.2 KillSwitchKit|(none)|(none)|I1 (mock)|Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 2026). AumOS moves execution layer to Rust trusted core."
+      },
+      {
+        "path": "tools/ci/gen-rfcs.sh",
+        "line": 26,
+        "category": "mock",
+        "text": "R4|credential-vault|1|Rust|C7.4 CredentialVault|(none)|(none)|R3 (mock)|Agent-scoped credential brokering: 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates Vault/AWS Secrets Mgr/K8s Secrets. Revokes <1s on kill. AumOS moves from Go to Rust per trusted-core doctrine."
+      },
+      {
+        "path": "tools/ci/gen-rfcs.sh",
+        "line": 126,
+        "category": "mock",
+        "text": "agent-identity), Wave-1 code integrates against the **mock** defined in the relevant \\`proto/\\`"
+      },
+      {
+        "path": "tools/ci/gen-rfcs.sh",
+        "line": 127,
+        "category": "mock",
+        "text": "file. The mock-to-real migration is a tracked task in the component's tasks/ directory."
+      },
+      {
+        "path": "tools/ci/gen-rfcs.sh",
+        "line": 164,
+        "category": "stub",
+        "text": "manifest, OTel instrumentation stub, PDB (min available 2), HPA (min 3, max 10), topology spread."
+      },
+      {
+        "path": "tools/ci/gen-rfcs.sh",
+        "line": 173,
+        "category": "stubbed",
+        "text": "| Week 4 (Alpha) | Wave-start + 4wk | Core features; threat model; external integrations stubbed |"
+      },
+      {
+        "path": "tools/implementation/generate_tracker.py",
+        "line": 120,
+        "category": "todo",
+        "text": "r\"\\b(?P<category>TODO|FIXME|HACK|stub(?:bed)?|mock(?:ed)?|placeholder|deferred|\""
+      },
+      {
+        "path": "tools/implementation/generate_tracker.py",
+        "line": 121,
+        "category": "future work",
+        "text": "r\"future work|not implemented|task\\s+0[2-8])\\b\","
+      },
+      {
+        "path": "tools/implementation/generate_tracker.py",
+        "line": 368,
+        "category": "mock",
+        "text": "\"\"\"Enumerate explicit pending/mock/stub markers without truncation.\"\"\""
+      },
+      {
+        "path": "tools/terraform-provider-aumos/main.go",
+        "line": 9,
+        "category": "stub",
+        "text": "// This is a stub provider using the Terraform Plugin Framework."
+      },
+      {
+        "path": "tools/terraform-provider-aumos/provider/provider.go",
+        "line": 2,
+        "category": "stub",
+        "text": "// This is a stub \u2014 the real provider wraps the AumOS HTTP/JSON APIs."
+      },
+      {
+        "path": "tools/terraform-provider-aumos/provider/provider.go",
+        "line": 108,
+        "category": "stub",
+        "text": "// Stub: in production, calls `defstack install <name>`"
+      },
+      {
+        "path": "tools/terraform-provider-aumos/provider/provider.go",
+        "line": 151,
+        "category": "stub",
+        "text": "data.SVID = types.StringValue(fmt.Sprintf(\"svid-stub-for-%s\", data.Subject.ValueString()))"
+      },
+      {
+        "path": "tools/terraform-provider-aumos/provider/provider.go",
+        "line": 187,
+        "category": "stub",
+        "text": "data.Report = types.StringValue(`{\"status\":\"stub\",\"frameworks\":10}`)"
+      },
+      {
+        "path": "typescript/arena/src/index.ts",
+        "line": 10,
+        "category": "task 03",
+        "text": "* Per RFC A8: this is the testable evaluation engine. The HTTP/scoreboard UI is task 03 and"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.test.ts",
+        "line": 118,
+        "category": "mock",
+        "text": "expect(r.data.algorithm).toBe('ed25519-mock');"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.test.ts",
+        "line": 119,
+        "category": "mock",
+        "text": "expect(r.data.source).toBe('mock');"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.test.ts",
+        "line": 122,
+        "category": "mock",
+        "text": "it('standalone verify round-trips a mock signature', async () => {"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.test.ts",
+        "line": 222,
+        "category": "mock",
+        "text": "it('issue returns an SVID prefixed svid-mock- in standalone', async () => {"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.test.ts",
+        "line": 229,
+        "category": "mock",
+        "text": "expect(String(r.data.svid)).toMatch(/^svid-mock-/);"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 383,
+        "category": "mock",
+        "text": "// Standalone (mock) implementations \u2014 deterministic, no I/O."
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 386,
+        "category": "mock",
+        "text": "/** Derive a deterministic 32-byte hex key from a seed string (mock verifying key). */"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 388,
+        "category": "mock",
+        "text": "return createHash('sha256').update(`aumos-mock-key:${seed}`).digest('hex').slice(0, 64);"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 392,
+        "category": "mock",
+        "text": "* Produce a deterministic mock signature over `data` using a raw hex `key` (the value returned"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 404,
+        "category": "mock",
+        "text": "* Produce a deterministic mock signature over `data` for a key *id* (resolves the id to a hex"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 646,
+        "category": "mock",
+        "text": "algorithm: 'ed25519-mock',"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 648,
+        "category": "mock",
+        "text": "source: 'mock',"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 678,
+        "category": "mock",
+        "text": "// Mock verification: a signature produced by mockSignature(data, keyId) verifies iff"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 681,
+        "category": "mock",
+        "text": "return ok({ valid, source: 'mock' });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 708,
+        "category": "mock",
+        "text": "return ok({ source: 'mock', ...mockIssueIdentity(subject) });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 727,
+        "category": "mock",
+        "text": "return ok({ valid: svid.startsWith('svid-mock-'), subject: extractMockSubject(svid), source: 'mock' });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 746,
+        "category": "mock",
+        "text": "return ok({ revoked: true, revoked_at: Math.floor(Date.now() / 1000), source: 'mock' });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 775,
+        "category": "mock",
+        "text": "return ok({ source: 'mock', ...mockReceipt(payload), invariant: 'I-07' });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 797,
+        "category": "mock",
+        "text": "return ok({ valid: receiptId.startsWith('aar-'), signer: 'spiffe://aumos.dev/flight-recorder', source: 'mock' });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 817,
+        "category": "mock",
+        "text": "return ok({ source: 'mock', ...mockAttestation(nonce, gpu) });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 838,
+        "category": "mock",
+        "text": "return ok({ source: 'mock', ...mockPreflight(tool, sideEffect) });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 859,
+        "category": "mock",
+        "text": "return ok({ triggered: true, killed_at: Math.floor(Date.now() / 1000), reason, agent, source: 'mock' });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 878,
+        "category": "mock",
+        "text": "return ok({ findings, count: findings.length, source: 'mock' });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 907,
+        "category": "mock",
+        "text": "return ok({ ...mockComplianceReport(scope), source: 'mock' });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 931,
+        "category": "mock",
+        "text": "return ok({ installed: true, name: compName, version, source: 'mock' });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 951,
+        "category": "mock",
+        "text": "return ok({ source: 'mock', ...mockSbom(model) });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 974,
+        "category": "mock",
+        "text": "return ok({ source: 'mock', ...mockEval(model, pipeline) });"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 987,
+        "category": "mock",
+        "text": "// Standalone mock payload builders."
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 993,
+        "category": "mock",
+        "text": "const svid = `svid-mock-${Buffer.from(subject, 'utf-8').toString('hex')}`;"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 1003,
+        "category": "mock",
+        "text": "if (!svid.startsWith('svid-mock-')) return '';"
+      },
+      {
+        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "line": 1005,
+        "category": "mock",
+        "text": "const hex = svid.slice('svid-mock-'.length);"
+      },
+      {
+        "path": "typescript/console/src/index.ts",
+        "line": 12,
+        "category": "task 03",
+        "text": "* The React/Next.js component layer is task 03 (it consumes this library)."
+      }
+    ],
+    "task_files": [
+      "docs/rfcs/C1-1-nvtrust-bridge/tasks/01-setup.md",
+      "docs/rfcs/C1-1-nvtrust-bridge/tasks/02-mvp.md",
+      "docs/rfcs/C1-1-nvtrust-bridge/tasks/03-alpha.md",
+      "docs/rfcs/C1-1-nvtrust-bridge/tasks/04-beta.md",
+      "docs/rfcs/C1-1-nvtrust-bridge/tasks/05-conformance.md",
+      "docs/rfcs/C1-1-nvtrust-bridge/tasks/06-fuzz.md",
+      "docs/rfcs/C1-1-nvtrust-bridge/tasks/07-docs.md",
+      "docs/rfcs/C1-1-nvtrust-bridge/tasks/08-release.md",
+      "docs/rfcs/C1-2-cuda-gram/tasks/01-setup.md",
+      "docs/rfcs/C1-2-cuda-gram/tasks/02-mvp.md",
+      "docs/rfcs/C1-2-cuda-gram/tasks/03-alpha.md",
+      "docs/rfcs/C1-2-cuda-gram/tasks/04-beta.md",
+      "docs/rfcs/C1-2-cuda-gram/tasks/05-conformance.md",
+      "docs/rfcs/C1-2-cuda-gram/tasks/06-fuzz.md",
+      "docs/rfcs/C1-2-cuda-gram/tasks/07-docs.md",
+      "docs/rfcs/C1-2-cuda-gram/tasks/08-release.md",
+      "docs/rfcs/R2-eval-guard/tasks/01-setup.md",
+      "docs/rfcs/R2-eval-guard/tasks/02-mvp.md",
+      "docs/rfcs/R2-eval-guard/tasks/03-alpha.md",
+      "docs/rfcs/R2-eval-guard/tasks/04-beta.md",
+      "docs/rfcs/R2-eval-guard/tasks/05-conformance.md",
+      "docs/rfcs/R2-eval-guard/tasks/06-fuzz.md",
+      "docs/rfcs/R2-eval-guard/tasks/07-docs.md",
+      "docs/rfcs/R2-eval-guard/tasks/08-release.md",
+      "docs/rfcs/R3-kill-switch/tasks/01-setup.md",
+      "docs/rfcs/R3-kill-switch/tasks/02-mvp.md",
+      "docs/rfcs/R3-kill-switch/tasks/03-alpha.md",
+      "docs/rfcs/R3-kill-switch/tasks/04-beta.md",
+      "docs/rfcs/R3-kill-switch/tasks/05-conformance.md",
+      "docs/rfcs/R3-kill-switch/tasks/06-fuzz.md",
+      "docs/rfcs/R3-kill-switch/tasks/07-docs.md",
+      "docs/rfcs/R3-kill-switch/tasks/08-release.md",
+      "docs/rfcs/R4-credential-vault/tasks/01-setup.md",
+      "docs/rfcs/R4-credential-vault/tasks/02-mvp.md",
+      "docs/rfcs/R4-credential-vault/tasks/03-alpha.md",
+      "docs/rfcs/R4-credential-vault/tasks/04-beta.md",
+      "docs/rfcs/R4-credential-vault/tasks/05-conformance.md",
+      "docs/rfcs/R4-credential-vault/tasks/06-fuzz.md",
+      "docs/rfcs/R4-credential-vault/tasks/07-docs.md",
+      "docs/rfcs/R4-credential-vault/tasks/08-release.md",
+      "docs/rfcs/T1-trust-core/tasks/01-setup.md",
+      "docs/rfcs/T1-trust-core/tasks/02-mvp-sign-verify.md",
+      "docs/rfcs/T1-trust-core/tasks/03-alpha-kms-rekor.md",
+      "docs/rfcs/T1-trust-core/tasks/04-beta-more-kms-yubikey.md",
+      "docs/rfcs/T1-trust-core/tasks/05-node-binding.md",
+      "docs/rfcs/T1-trust-core/tasks/06-fuzz.md",
+      "docs/rfcs/T1-trust-core/tasks/07-go-binding.md",
+      "docs/rfcs/T1-trust-core/tasks/08-release.md",
+      "docs/rfcs/X1-defstack-cli/tasks/01-setup.md",
+      "docs/rfcs/X1-defstack-cli/tasks/02-mvp.md",
+      "docs/rfcs/X1-defstack-cli/tasks/03-alpha.md",
+      "docs/rfcs/X1-defstack-cli/tasks/04-beta.md",
+      "docs/rfcs/X1-defstack-cli/tasks/05-conformance.md",
+      "docs/rfcs/X1-defstack-cli/tasks/06-fuzz.md",
+      "docs/rfcs/X1-defstack-cli/tasks/07-docs.md",
+      "docs/rfcs/X1-defstack-cli/tasks/08-release.md"
+    ],
+    "task_checkboxes": [
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/01-setup.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/01-setup.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/01-setup.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/01-setup.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/01-setup.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/01-setup.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/01-setup.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/02-mvp.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/02-mvp.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/02-mvp.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/02-mvp.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/02-mvp.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/02-mvp.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/02-mvp.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/03-alpha.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/03-alpha.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/03-alpha.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/03-alpha.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/03-alpha.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/03-alpha.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/03-alpha.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/04-beta.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/04-beta.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/04-beta.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/04-beta.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/04-beta.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/04-beta.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/04-beta.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/05-conformance.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/05-conformance.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/05-conformance.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/05-conformance.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/05-conformance.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/05-conformance.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/05-conformance.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/06-fuzz.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/06-fuzz.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/06-fuzz.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/06-fuzz.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/06-fuzz.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/06-fuzz.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/06-fuzz.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/07-docs.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/07-docs.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/07-docs.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/07-docs.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/07-docs.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/07-docs.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/07-docs.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/08-release.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/08-release.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/08-release.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/08-release.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/08-release.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/08-release.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-1-nvtrust-bridge/tasks/08-release.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/01-setup.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/01-setup.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/01-setup.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/01-setup.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/01-setup.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/01-setup.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/01-setup.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/02-mvp.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/02-mvp.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/02-mvp.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/02-mvp.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/02-mvp.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/02-mvp.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/02-mvp.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/03-alpha.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/03-alpha.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/03-alpha.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/03-alpha.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/03-alpha.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/03-alpha.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/03-alpha.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/04-beta.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/04-beta.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/04-beta.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/04-beta.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/04-beta.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/04-beta.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/04-beta.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/05-conformance.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/05-conformance.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/05-conformance.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/05-conformance.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/05-conformance.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/05-conformance.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/05-conformance.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/06-fuzz.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/06-fuzz.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/06-fuzz.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/06-fuzz.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/06-fuzz.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/06-fuzz.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/06-fuzz.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/07-docs.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/07-docs.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/07-docs.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/07-docs.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/07-docs.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/07-docs.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/07-docs.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/08-release.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/08-release.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/08-release.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/08-release.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/08-release.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/08-release.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/C1-2-cuda-gram/tasks/08-release.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/01-setup.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/01-setup.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/01-setup.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/01-setup.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/01-setup.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/01-setup.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/01-setup.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/02-mvp.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/02-mvp.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/02-mvp.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/02-mvp.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/02-mvp.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/02-mvp.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/02-mvp.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/03-alpha.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/03-alpha.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/03-alpha.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/03-alpha.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/03-alpha.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/03-alpha.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/03-alpha.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/04-beta.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/04-beta.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/04-beta.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/04-beta.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/04-beta.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/04-beta.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/04-beta.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/05-conformance.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/05-conformance.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/05-conformance.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/05-conformance.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/05-conformance.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/05-conformance.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/05-conformance.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/06-fuzz.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/06-fuzz.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/06-fuzz.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/06-fuzz.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/06-fuzz.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/06-fuzz.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/06-fuzz.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/07-docs.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/07-docs.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/07-docs.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/07-docs.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/07-docs.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/07-docs.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/07-docs.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/08-release.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/08-release.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/08-release.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/08-release.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/08-release.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/08-release.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R2-eval-guard/tasks/08-release.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/01-setup.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/01-setup.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/01-setup.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/01-setup.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/01-setup.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/01-setup.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/01-setup.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/02-mvp.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/02-mvp.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/02-mvp.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/02-mvp.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/02-mvp.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/02-mvp.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/02-mvp.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/03-alpha.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/03-alpha.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/03-alpha.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/03-alpha.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/03-alpha.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/03-alpha.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/03-alpha.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/04-beta.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/04-beta.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/04-beta.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/04-beta.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/04-beta.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/04-beta.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/04-beta.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/05-conformance.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/05-conformance.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/05-conformance.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/05-conformance.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/05-conformance.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/05-conformance.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/05-conformance.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/06-fuzz.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/06-fuzz.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/06-fuzz.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/06-fuzz.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/06-fuzz.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/06-fuzz.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/06-fuzz.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/07-docs.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/07-docs.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/07-docs.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/07-docs.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/07-docs.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/07-docs.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/07-docs.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/08-release.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/08-release.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/08-release.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/08-release.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/08-release.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/08-release.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R3-kill-switch/tasks/08-release.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/01-setup.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/01-setup.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/01-setup.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/01-setup.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/01-setup.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/01-setup.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/01-setup.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/02-mvp.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/02-mvp.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/02-mvp.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/02-mvp.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/02-mvp.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/02-mvp.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/02-mvp.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/03-alpha.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/03-alpha.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/03-alpha.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/03-alpha.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/03-alpha.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/03-alpha.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/03-alpha.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/04-beta.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/04-beta.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/04-beta.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/04-beta.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/04-beta.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/04-beta.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/04-beta.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/05-conformance.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/05-conformance.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/05-conformance.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/05-conformance.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/05-conformance.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/05-conformance.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/05-conformance.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/06-fuzz.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/06-fuzz.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/06-fuzz.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/06-fuzz.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/06-fuzz.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/06-fuzz.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/06-fuzz.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/07-docs.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/07-docs.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/07-docs.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/07-docs.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/07-docs.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/07-docs.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/07-docs.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/08-release.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/08-release.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/08-release.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/08-release.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/08-release.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/08-release.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/R4-credential-vault/tasks/08-release.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/01-setup.md",
+        "line": 23,
+        "checked": false,
+        "text": "`cargo build` succeeds with zero warnings."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/01-setup.md",
+        "line": 24,
+        "checked": false,
+        "text": "`cargo test` runs the smoke test green."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/01-setup.md",
+        "line": 25,
+        "checked": false,
+        "text": "`cargo clippy --all-targets -- -D warnings` clean."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/01-setup.md",
+        "line": 26,
+        "checked": false,
+        "text": "`cargo fmt --check` clean."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/01-setup.md",
+        "line": 27,
+        "checked": false,
+        "text": "CI workflow runs on push and PR."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/01-setup.md",
+        "line": 28,
+        "checked": false,
+        "text": "SBOM generation step present (even if empty CycloneDX for now)."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/02-mvp-sign-verify.md",
+        "line": 22,
+        "checked": false,
+        "text": "`cargo test` covers canonical, signing, verification \u2014 all green."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/02-mvp-sign-verify.md",
+        "line": 23,
+        "checked": false,
+        "text": "`trust-core key-gen | trust-core sign --payload x --key -` round-trips through `verify`."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/02-mvp-sign-verify.md",
+        "line": 24,
+        "checked": false,
+        "text": "Tampering the payload between sign and verify fails verification with a typed error."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/02-mvp-sign-verify.md",
+        "line": 25,
+        "checked": false,
+        "text": "Coverage \u226580% on these three modules."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/02-mvp-sign-verify.md",
+        "line": 26,
+        "checked": false,
+        "text": "Property tests: `proptest` confirms canonical encoding round-trips for 1000 random CBOR values."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/03-alpha-kms-rekor.md",
+        "line": 21,
+        "checked": false,
+        "text": "`trust-core sign --key aws://<arn> --payload x` works against a mock KMS."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/03-alpha-kms-rekor.md",
+        "line": 22,
+        "checked": false,
+        "text": "`trust-core notarize --payload x --key aws://<arn>` returns a Rekor entry (in online tests)."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/03-alpha-kms-rekor.md",
+        "line": 23,
+        "checked": false,
+        "text": "Python binding installs via `maturin develop` and verifies all 5 golden vectors."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/03-alpha-kms-rekor.md",
+        "line": 24,
+        "checked": false,
+        "text": "Coverage \u226585%."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/04-beta-more-kms-yubikey.md",
+        "line": 19,
+        "checked": false,
+        "text": "All four KMS/HSM backends work against mocks in CI."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/04-beta-more-kms-yubikey.md",
+        "line": 20,
+        "checked": false,
+        "text": "YubiKey integration test passes on hardware (mark `#[ignore]` for CI; document in README)."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/04-beta-more-kms-yubikey.md",
+        "line": 21,
+        "checked": false,
+        "text": "Merkle root matches RFC 6962 test vectors."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/04-beta-more-kms-yubikey.md",
+        "line": 22,
+        "checked": false,
+        "text": "Conformance green across Rust + Python."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/04-beta-more-kms-yubikey.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226588%."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/05-node-binding.md",
+        "line": 15,
+        "checked": false,
+        "text": "`npm run build` produces the native addon for linux-x64 + darwin-arm64."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/05-node-binding.md",
+        "line": 16,
+        "checked": false,
+        "text": "TS verifier passes all golden vectors."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/05-node-binding.md",
+        "line": 17,
+        "checked": false,
+        "text": "Coverage reported via the conformance runner (no separate TS coverage gate yet)."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/06-fuzz.md",
+        "line": 16,
+        "checked": false,
+        "text": "Three fuzz targets committed."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/06-fuzz.md",
+        "line": 17,
+        "checked": false,
+        "text": "Nightly CI job runs them; first run completes 1M iterations clean (or files regressions)."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/06-fuzz.md",
+        "line": 18,
+        "checked": false,
+        "text": "Any finding is filed per `docs/cross-cutting/14-security-disclosure-policy.md`."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/07-go-binding.md",
+        "line": 15,
+        "checked": false,
+        "text": "`go test ./...` passes in `bindings/go/`."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/07-go-binding.md",
+        "line": 16,
+        "checked": false,
+        "text": "Go verifier passes all golden vectors."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/07-go-binding.md",
+        "line": 17,
+        "checked": false,
+        "text": "cgo header generated, not hand-written."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/08-release.md",
+        "line": 20,
+        "checked": false,
+        "text": "`v1.0.0` tag exists and is signed."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/08-release.md",
+        "line": 21,
+        "checked": false,
+        "text": "CycloneDX SBOM attached to the GitHub release."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/08-release.md",
+        "line": 22,
+        "checked": false,
+        "text": "SLSA L3 provenance present."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/08-release.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage gates met."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/08-release.md",
+        "line": 24,
+        "checked": false,
+        "text": "External security review engagement letter filed."
+      },
+      {
+        "path": "docs/rfcs/T1-trust-core/tasks/08-release.md",
+        "line": 25,
+        "checked": false,
+        "text": "RFC marked \"Status: v1.0 shipped\" at the top."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/01-setup.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/01-setup.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/01-setup.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/01-setup.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/01-setup.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/01-setup.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/01-setup.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/02-mvp.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/02-mvp.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/02-mvp.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/02-mvp.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/02-mvp.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/02-mvp.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/02-mvp.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/03-alpha.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/03-alpha.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/03-alpha.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/03-alpha.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/03-alpha.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/03-alpha.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/03-alpha.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/04-beta.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/04-beta.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/04-beta.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/04-beta.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/04-beta.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/04-beta.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/04-beta.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/05-conformance.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/05-conformance.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/05-conformance.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/05-conformance.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/05-conformance.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/05-conformance.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/05-conformance.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/06-fuzz.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/06-fuzz.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/06-fuzz.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/06-fuzz.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/06-fuzz.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/06-fuzz.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/06-fuzz.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/07-docs.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/07-docs.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/07-docs.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/07-docs.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/07-docs.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/07-docs.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/07-docs.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/08-release.md",
+        "line": 20,
+        "checked": false,
+        "text": "Feature implemented per the RFC."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/08-release.md",
+        "line": 21,
+        "checked": false,
+        "text": "`cargo test` / `pytest` / `npm test` green (per language)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/08-release.md",
+        "line": 22,
+        "checked": false,
+        "text": "Lint clean (`cargo clippy -D warnings` / `ruff` / `eslint`)."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/08-release.md",
+        "line": 23,
+        "checked": false,
+        "text": "Coverage \u226585% on new code."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/08-release.md",
+        "line": 24,
+        "checked": false,
+        "text": "Golden vector present."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/08-release.md",
+        "line": 25,
+        "checked": false,
+        "text": "CHANGELOG updated."
+      },
+      {
+        "path": "docs/rfcs/X1-defstack-cli/tasks/08-release.md",
+        "line": 26,
+        "checked": false,
+        "text": "Commit signed (`-s`)."
+      }
+    ]
+  }
+}

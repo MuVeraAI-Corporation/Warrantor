@@ -23,6 +23,8 @@ Usage:
 
 from __future__ import annotations
 
+from typing import Protocol, runtime_checkable
+
 import hashlib
 import secrets
 import shutil
@@ -94,17 +96,60 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-def _verify_envelope(envelope: AttestationEnvelope) -> bool:
-    """Verify an attestation envelope. Mock envelopes are verified by digest."""
+class AttestationUnavailable(RuntimeError):
+    """Raised when a real attestation backend is requested but no verifier is wired.
+
+    This is deliberately an exception rather than a ``False`` return. A caller that
+    asks for ``nvidia-cc``/``sev-snp``/``tdx`` and silently receives an unverified
+    envelope is strictly worse off than one that fails to start: it believes it has
+    hardware attestation when it has none. Fail closed, loudly.
+    """
+
+
+@runtime_checkable
+class QuoteCollector(Protocol):
+    """Collects a platform attestation quote. Supplied by the operator.
+
+    Implementations wrap the real platform verifier -- NVIDIA nvTrust/NRAS, AMD
+    SEV-SNP via the KDS/VCEK chain, or Intel TDX. AumOS deliberately ships none:
+    binding an NDA-gated or vendor-specific SDK is the deployer's decision.
+    """
+
+    def collect(self, model_path: str, nonce: str) -> AttestationEnvelope:
+        """Return an envelope whose ``quote`` came from real hardware."""
+        ...
+
+    def verify(self, envelope: AttestationEnvelope) -> bool:
+        """Verify the quote against the platform's root of trust."""
+        ...
+
+
+def _verify_envelope(
+    envelope: AttestationEnvelope,
+    collector: QuoteCollector | None = None,
+) -> bool:
+    """Verify an attestation envelope, failing closed on every unknown path.
+
+    Only the ``mock`` backend is verifiable in-tree, and only by recomputing the
+    digest it was built from -- which proves nothing about hardware and is labelled
+    as such. Every other backend requires a ``QuoteCollector``.
+
+    Raises:
+        AttestationUnavailable: a non-mock backend was requested with no collector.
+    """
     if not envelope.quote or not envelope.measurement:
         return False
     if envelope.backend == "mock":
         expected = _mock_digest(envelope.model_path, envelope.report_data)
         return envelope.digest == expected
-    # For real backends, callers should override this with quote verification
-    # against the platform's verifier (NVIDIA Attestation SDK, AMD SEV-SNP, etc.).
-    # We treat a non-empty, well-formed envelope as verified here.
-    return bool(envelope.measurement) and bool(envelope.quote)
+    if collector is None:
+        raise AttestationUnavailable(
+            f"attestation_backend={envelope.backend!r} requires a QuoteCollector; "
+            "none was supplied. AumOS does not ship a platform verifier -- pass one "
+            "via AttestedVLLMServer(quote_collector=...) or use backend='mock' and "
+            "treat the result as unattested."
+        )
+    return bool(collector.verify(envelope))
 
 
 def _mock_digest(model_path: str, nonce: str) -> str:
@@ -132,6 +177,8 @@ class AttestedVLLMServer:
     host: str = "127.0.0.1"
     attestation_backend: str = "mock"
     request_timeout_s: float = 5.0
+    # Operator-supplied platform verifier. REQUIRED for any non-mock backend.
+    quote_collector: QuoteCollector | None = None
     # Populated by start()
     _model_path: str = ""
     _gpu_attestation_required: bool = False
@@ -184,9 +231,7 @@ class AttestedVLLMServer:
             check=False,
         )
         if probe.returncode != 0:
-            raise RuntimeError(
-                "vllm is not installed; install it or use mode='mock'"
-            )
+            raise RuntimeError("vllm is not installed; install it or use mode='mock'")
         cmd = [
             sys.executable,
             "-m",
@@ -243,21 +288,35 @@ class AttestedVLLMServer:
             env.verified = _verify_envelope(env)
             return env
 
-        # For a real backend the operator injects a quote collector here.
-        # We expose a synthetic but well-formed envelope so the contract is
-        # observable in tests that opt into the real backend label.
+        # A real backend MUST come from a real collector. Previously this branch
+        # fabricated `f"{backend}-quote:{nonce}"` and `f"{backend}-measurement:..."`
+        # itself and then "verified" them by checking both strings were non-empty --
+        # so any caller setting attestation_backend="nvidia-cc" received
+        # verified=True over a quote this process had just invented. Fail closed.
+        if self.quote_collector is None:
+            raise AttestationUnavailable(
+                f"attestation_backend={self.attestation_backend!r} requires a "
+                "QuoteCollector; none was supplied. Pass "
+                "AttestedVLLMServer(quote_collector=...) with a real platform "
+                "verifier, or use backend='mock' and treat the result as unattested."
+            )
         nonce = self._instance_nonce
-        digest = _mock_digest(self._model_path, nonce)
-        env = AttestationEnvelope(
-            model_path=self._model_path,
-            quote=f"{self.attestation_backend}-quote:{nonce}",
-            report_data=nonce,
-            measurement=f"{self.attestation_backend}-measurement:{digest[:16]}",
-            produced_at=time.time(),
-            backend=self.attestation_backend,
-            digest=digest,
-        )
-        env.verified = _verify_envelope(env)
+        env = self.quote_collector.collect(self._model_path, nonce)
+        if env.backend != self.attestation_backend:
+            raise AttestationUnavailable(
+                f"collector returned backend={env.backend!r} but server was "
+                f"configured for {self.attestation_backend!r}"
+            )
+        if env.report_data != nonce:
+            raise AttestationUnavailable(
+                "collector returned an envelope not bound to this instance nonce; "
+                "the quote may be replayed from another instance"
+            )
+        env.verified = _verify_envelope(env, self.quote_collector)
+        if not env.verified:
+            raise AttestationUnavailable(
+                f"platform verifier rejected the {env.backend} quote"
+            )
         return env
 
     def get_attestation_envelope(self) -> AttestationEnvelope:
@@ -347,11 +406,18 @@ class AttestedVLLMServer:
             "choices": [
                 {
                     "index": 0,
-                    "message": {"role": "assistant", "content": f"[attested:{digest[:12]}] echo: {prompt}"},
+                    "message": {
+                        "role": "assistant",
+                        "content": f"[attested:{digest[:12]}] echo: {prompt}",
+                    },
                     "finish_reason": "stop",
                 }
             ],
-            "usage": {"prompt_tokens": len(prompt.split()), "completion_tokens": 4, "total_tokens": len(prompt.split()) + 4},
+            "usage": {
+                "prompt_tokens": len(prompt.split()),
+                "completion_tokens": 4,
+                "total_tokens": len(prompt.split()) + 4,
+            },
         }
 
     # ------------------------------------------------------------------
@@ -365,6 +431,8 @@ class AttestedVLLMServer:
 
 
 __all__ = [
+    "AttestationUnavailable",
+    "QuoteCollector",
     "AttestationEnvelope",
     "AttestedVLLMServer",
     "HealthReport",

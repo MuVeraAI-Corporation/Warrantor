@@ -24,7 +24,7 @@ jobs:
         id: ver
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: Build release binaries (Linux x86_64)
-        working-directory: aumos/rust
+        working-directory: rust
         run: |
           cargo build --release --bins
           mkdir -p ../dist
@@ -33,7 +33,7 @@ jobs:
           done
           (cd ../dist && sha256sum * > sha256sums.txt)
       - name: Generate CycloneDX SBOM bundle
-        working-directory: aumos/rust
+        working-directory: rust
         run: |
           cargo install cargo-cyclonedx --locked || true
           cargo cyclonedx --all --format json --output-pattern package || true
@@ -68,7 +68,7 @@ jobs:
 
             See `docs/cross-cutting/14-security-disclosure-policy.md` for incident response.
           files: |
-            aumos/dist/*
-            aumos/sbom/*.bom.json
+            dist/*
+            sbom/*.bom.json
           draft: false
           prerelease: ${{ contains(steps.ver.outputs.version, '-') }}

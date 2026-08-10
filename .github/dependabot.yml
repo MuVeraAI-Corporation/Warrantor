@@ -4,7 +4,7 @@
 version: 2
 updates:
   - package-ecosystem: "cargo"
-    directory: "/aumos/rust"
+    directory: "/rust"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -19,7 +19,7 @@ updates:
         patterns: ["*"]
 
   - package-ecosystem: "pip"
-    directory: "/aumos/python/cuda_gram"
+    directory: "/python/cuda_gram"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -27,7 +27,7 @@ updates:
     labels: ["dependencies", "python"]
 
   - package-ecosystem: "github-actions"
-    directory: "/aumos/.github/workflows"
+    directory: "/.github/workflows"
     schedule:
       interval: "monthly"
     labels: ["dependencies", "ci"]

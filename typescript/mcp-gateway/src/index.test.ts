@@ -1,14 +1,41 @@
 import { describe, it, expect } from 'vitest';
+import { generateKeyPairSync, sign as cryptoSign } from 'node:crypto';
 import {
   McpGateway,
+  McpHttpTransport,
+  GatewayForwardError,
+  MCP_PROTOCOL_VERSION,
   ToolRegistry,
   isConsequential,
   type AgentAuthorityEnvelope,
   type ToolCall,
   type RegisteredTool,
+  type ForwardRequest,
+  type ToolTransport,
+  type TrustBundleEntry,
 } from './index.js';
 
 const GATEWAY = 'spiffe://aumos.dev/mcp-gateway/default';
+const ISSUER = 'spiffe://aumos.dev/agent-identity';
+const KEY_ID = 'urn:aumos:key:test-issuer-1';
+
+// A real Ed25519 keypair. AX-02: envelopes must be signed by a key the gateway
+// trusts, so the tests now mint genuine signatures instead of asserting policy
+// over an envelope whose authenticity was simply assumed.
+const { publicKey: ISSUER_PUB, privateKey: ISSUER_PRIV } = generateKeyPairSync('ed25519');
+const ISSUER_PUB_HEX = ISSUER_PUB.export({ format: 'der', type: 'spki' })
+  .subarray(12)
+  .toString('hex');
+
+const TRUST_BUNDLE: TrustBundleEntry[] = [
+  { keyId: KEY_ID, issuer: ISSUER, publicKeyHex: ISSUER_PUB_HEX },
+];
+
+/** Sign an envelope with the trusted test key, exactly as a real issuer would. */
+function signed(aae: AgentAuthorityEnvelope): AgentAuthorityEnvelope {
+  const value = cryptoSign(null, McpGateway.canonicalEnvelopeBytes(aae), ISSUER_PRIV).toString('hex');
+  return { ...aae, signature: { algorithm: 'Ed25519', keyId: KEY_ID, value } };
+}
 
 // A small registry covering read / write / financial tool classes.
 function freshRegistry(): ToolRegistry {
@@ -34,7 +61,7 @@ function freshRegistry(): ToolRegistry {
 
 // AAE builder. Defaults grant the read/write tools to the gateway for the agent subject.
 function sampleAae(overrides: Partial<AgentAuthorityEnvelope> = {}): AgentAuthorityEnvelope {
-  return {
+  const base: AgentAuthorityEnvelope = {
     issuer: 'spiffe://aumos.dev/agent-identity',
     subject: 'spiffe://aumos.dev/agent/coding-1',
     purpose: 'open a pull request',
@@ -51,18 +78,33 @@ function sampleAae(overrides: Partial<AgentAuthorityEnvelope> = {}): AgentAuthor
     geography: '',
     delegationDepth: 0,
     approvals: [],
-    expiry: 0, // 0 = no expiry enforcement
+    // AX-02: `expiry: 0` used to disable the expiry check entirely. It is now
+    // rejected as invalid, so fixtures carry a real far-future expiry.
+    expiry: 4_102_444_800, // 2100-01-01
     revocationHandle: 'rh-1',
+    signature: { algorithm: 'Ed25519', keyId: KEY_ID, value: '0'.repeat(128) },
     ...overrides,
   };
+  return signed(base);
 }
 
 function call(tool: string, caller = 'spiffe://aumos.dev/agent/coding-1'): ToolCall {
   return { tool, args: {}, callerSvid: caller };
 }
 
-function gateway(now?: () => number): McpGateway {
-  return new McpGateway({ gatewaySvid: GATEWAY, registry: freshRegistry(), now });
+function successfulTransport(response: unknown = { content: [{ type: 'text', text: 'ok' }] }): ToolTransport {
+  return { call: async () => response };
+}
+
+function gateway(now?: () => number, transport: ToolTransport = successfulTransport()): McpGateway {
+  return new McpGateway({
+    gatewaySvid: GATEWAY,
+    registry: freshRegistry(),
+    transport,
+    now,
+    trustBundle: TRUST_BUNDLE,
+    approvers: ['spiffe://aumos.dev/human/alice', 'spiffe://aumos.dev/human/bob'],
+  });
 }
 
 describe('ToolRegistry', () => {
@@ -140,10 +182,17 @@ describe('McpGateway.authorize — denials', () => {
     expect(r.reason).toBe('expired');
   });
 
-  it('does NOT treat expiry=0 as expired (0 means unbounded)', () => {
+  // AX-02 regression. This test previously asserted the defect: `expiry: 0` was
+  // treated as "unbounded", so an attacker-set 0 disabled expiry entirely and most
+  // of this suite ran with the control switched off. A non-positive expiry is not
+  // an unlimited grant -- it is a malformed envelope.
+  it('rejects a non-positive expiry instead of treating it as unbounded', () => {
     const g = gateway(() => 9_999_999);
-    const r = g.authorize(call('fs.read'), sampleAae({ expiry: 0 }));
-    expect(r.allowed).toBe(true);
+    for (const expiry of [0, -1]) {
+      const r = g.authorize(call('fs.read'), sampleAae({ expiry }));
+      expect(r.allowed).toBe(false);
+      if (!r.allowed) expect(r.reason).toBe('expired');
+    }
   });
 
   it('denies when caller SVID does not match AAE subject', () => {
@@ -192,7 +241,7 @@ describe('McpGateway.authorize — side-effect-class enforcement', () => {
       sampleAae({
         sideEffectClass: 'financial',
         tools: ['spiffe://aumos.dev/tools/payment'],
-        approvals: ['spiffe://aumos.dev/humans/alice/for/spiffe://aumos.dev/tools/payment'],
+        approvals: ['spiffe://aumos.dev/human/alice'],
       })
     );
     expect(ok.allowed).toBe(true);
@@ -204,7 +253,7 @@ describe('McpGateway.authorize — side-effect-class enforcement', () => {
     const aaeFinancial = sampleAae({
       sideEffectClass: 'financial',
       tools: ['spiffe://aumos.dev/tools/db-destr'],
-      approvals: ['x/spiffe://aumos.dev/tools/db-destr'],
+      approvals: ['spiffe://aumos.dev/human/alice'],
     });
     const r1 = g.authorize(call('db.drop_table'), aaeFinancial);
     expect(r1.allowed).toBe(false);
@@ -224,7 +273,7 @@ describe('McpGateway.authorize — side-effect-class enforcement', () => {
     const aaeOk = sampleAae({
       sideEffectClass: 'destructive',
       tools: ['spiffe://aumos.dev/tools/db-destr'],
-      approvals: ['approver/for/spiffe://aumos.dev/tools/db-destr'],
+      approvals: ['spiffe://aumos.dev/human/alice'],
     });
     expect(g.authorize(call('db.drop_table'), aaeOk).allowed).toBe(true);
   });
@@ -241,22 +290,59 @@ describe('isConsequential', () => {
 });
 
 describe('McpGateway.forward', () => {
-  it('forwards an authorized call and returns a stubbed ack', async () => {
-    const g = gateway();
+  it('passes an authorized call to the injected transport and returns its real response', async () => {
+    const requests: ForwardRequest[] = [];
+    const response = { content: [{ type: 'text', text: 'real tool result' }] };
+    const g = gateway(undefined, {
+      call: async (request) => {
+        requests.push(request);
+        return response;
+      },
+    });
     const c = call('fs.read');
     const r = g.authorize(c, sampleAae());
-    const ack = await g.forward(c, r);
-    expect(ack.tool).toBe('fs.read');
-    expect(ack.toolSvid).toBe('spiffe://aumos.dev/tools/fs-read');
-    expect(ack.stubbed).toBe(true);
+    await expect(g.forward(c, r)).resolves.toBe(response);
+    expect(requests).toEqual([
+      {
+        call: c,
+        scope: { toolSvid: 'spiffe://aumos.dev/tools/fs-read', sideEffectClass: 'read' },
+        gatewaySvid: GATEWAY,
+      },
+    ]);
     expect(g.counters().forwarded).toBe(1);
+    expect(g.counters().failed).toBe(0);
   });
 
-  it('refuses to forward a denied call', async () => {
-    const g = gateway();
+  it('refuses a denied call without invoking the transport', async () => {
+    let calls = 0;
+    const g = gateway(undefined, { call: async () => { calls++; return {}; } });
     const r = g.authorize(call('not.a.tool'), sampleAae());
     expect(r.allowed).toBe(false);
-    await expect(g.forward(call('not.a.tool'), r)).rejects.toThrow(/denied/);
+    await expect(g.forward(call('not.a.tool'), r)).rejects.toMatchObject({
+      code: 'authorization_denied',
+      retryable: false,
+    });
+    expect(calls).toBe(0);
+    expect(g.counters().failed).toBe(1);
+  });
+
+  it('propagates typed transport failures and never counts them as forwarded', async () => {
+    const failure = new GatewayForwardError('transport_timeout', 'timed out', { retryable: true });
+    const g = gateway(undefined, { call: async () => { throw failure; } });
+    const c = call('fs.read');
+    const r = g.authorize(c, sampleAae());
+    await expect(g.forward(c, r)).rejects.toBe(failure);
+    expect(g.counters()).toMatchObject({ forwarded: 0, failed: 1 });
+  });
+
+  it('wraps unknown dependency failures in the stable transport error contract', async () => {
+    const g = gateway(undefined, { call: async () => { throw new Error('socket closed'); } });
+    const c = call('fs.read');
+    const r = g.authorize(c, sampleAae());
+    await expect(g.forward(c, r)).rejects.toMatchObject({
+      code: 'transport_unavailable',
+      retryable: true,
+    });
   });
 
   it('increments authorized counter on allow', () => {
@@ -267,6 +353,116 @@ describe('McpGateway.forward', () => {
   });
 });
 
+describe('McpHttpTransport', () => {
+  const request: ForwardRequest = {
+    call: call('fs.read'),
+    scope: { toolSvid: 'spiffe://aumos.dev/tools/fs-read', sideEffectClass: 'read' },
+    gatewaySvid: GATEWAY,
+  };
+
+  it('sends a current MCP tools/call request and returns a validated JSON result', async () => {
+    let capturedUrl = '';
+    let capturedInit: RequestInit | undefined;
+    const transport = new McpHttpTransport({
+      resolveEndpoint: () => 'https://tools.aumos.dev/mcp',
+      requestId: () => 'request-1',
+      fetchImpl: async (url, init) => {
+        capturedUrl = String(url);
+        capturedInit = init;
+        return new Response(
+          JSON.stringify({ jsonrpc: '2.0', id: 'request-1', result: { accepted: true } }),
+          { status: 200, headers: { 'content-type': 'application/json; charset=utf-8' } }
+        );
+      },
+    });
+
+    await expect(transport.call(request)).resolves.toEqual({ accepted: true });
+    expect(capturedUrl).toBe('https://tools.aumos.dev/mcp');
+    const headers = new Headers(capturedInit?.headers);
+    expect(headers.get('accept')).toBe('application/json, text/event-stream');
+    expect(headers.get('mcp-protocol-version')).toBe(MCP_PROTOCOL_VERSION);
+    expect(headers.get('mcp-method')).toBe('tools/call');
+    expect(headers.get('mcp-name')).toBe('fs.read');
+    const parsedBody = JSON.parse(String(capturedInit?.body)) as Record<string, unknown>;
+    expect(parsedBody).toMatchObject({ jsonrpc: '2.0', id: 'request-1', method: 'tools/call' });
+    expect(parsedBody.params).toMatchObject({
+      name: 'fs.read',
+      arguments: {},
+      _meta: {
+        'io.modelcontextprotocol/protocolVersion': MCP_PROTOCOL_VERSION,
+        'io.modelcontextprotocol/clientCapabilities': {},
+        'dev.aumos/gatewaySvid': GATEWAY,
+        'dev.aumos/callerSvid': request.call.callerSvid,
+      },
+    });
+  });
+
+  it('extracts the matching response from an MCP event stream', async () => {
+    const transport = new McpHttpTransport({
+      resolveEndpoint: () => 'http://localhost:9000/mcp',
+      requestId: () => 7,
+      fetchImpl: async () => new Response(
+        'event: message\ndata: {"jsonrpc":"2.0","method":"notifications/progress"}\n\n' +
+          'event: message\ndata: {"jsonrpc":"2.0","id":7,"result":{"done":true}}\n\n',
+        { status: 200, headers: { 'content-type': 'text/event-stream' } }
+      ),
+    });
+    await expect(transport.call(request)).resolves.toEqual({ done: true });
+  });
+
+  it('turns JSON-RPC errors into typed remote failures without exposing synthetic success', async () => {
+    const transport = new McpHttpTransport({
+      resolveEndpoint: () => 'https://tools.aumos.dev/mcp',
+      requestId: () => 8,
+      fetchImpl: async () => new Response(
+        JSON.stringify({ jsonrpc: '2.0', id: 8, error: { code: -32001, message: 'policy denied' } }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      ),
+    });
+    await expect(transport.call(request)).rejects.toMatchObject({
+      code: 'remote_error',
+      details: { remoteCode: -32001, tool: 'fs.read' },
+    });
+  });
+
+  it.each([
+    ['mismatched response id', new Response('{"jsonrpc":"2.0","id":99,"result":{}}', { headers: { 'content-type': 'application/json' } }), 'invalid_response'],
+    ['unsupported response media type', new Response('ok', { headers: { 'content-type': 'text/plain' } }), 'unsupported_content_type'],
+    ['HTTP failure', new Response('unavailable', { status: 503, headers: { 'content-type': 'text/plain' } }), 'http_error'],
+  ] as const)('fails closed on %s', async (_label, response, expectedCode) => {
+    const transport = new McpHttpTransport({
+      resolveEndpoint: () => 'https://tools.aumos.dev/mcp',
+      requestId: () => 1,
+      fetchImpl: async () => response,
+    });
+    await expect(transport.call(request)).rejects.toMatchObject({ code: expectedCode });
+  });
+
+  it('aborts and reports a typed timeout', async () => {
+    const transport = new McpHttpTransport({
+      resolveEndpoint: () => 'https://tools.aumos.dev/mcp',
+      timeoutMs: 5,
+      fetchImpl: async (_url, init) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+      }),
+    });
+    await expect(transport.call(request)).rejects.toMatchObject({
+      code: 'transport_timeout',
+      retryable: true,
+    });
+  });
+
+  it('rejects cleartext remote endpoints before fetch', async () => {
+    let called = false;
+    const transport = new McpHttpTransport({
+      resolveEndpoint: () => 'http://tools.example/mcp',
+      fetchImpl: async () => { called = true; return new Response(); },
+    });
+    await expect(transport.call(request)).rejects.toMatchObject({ code: 'transport_unavailable' });
+    expect(called).toBe(false);
+  });
+});
+
 describe('McpGateway — confused-deputy end-to-end', () => {
   it('blocks an agent that tries to invoke a tool not in its own AAE', () => {
     const g = gateway();
@@ -274,7 +470,7 @@ describe('McpGateway — confused-deputy end-to-end', () => {
     const attackerAae = sampleAae({
       sideEffectClass: 'financial',
       tools: ['spiffe://aumos.dev/tools/github'],
-      approvals: ['x/spiffe://aumos.dev/tools/payment'],
+      approvals: ['spiffe://aumos.dev/human/alice'],
     });
     const r = g.authorize(call('payment.send'), attackerAae);
     expect(r.allowed).toBe(false);
@@ -285,13 +481,27 @@ describe('McpGateway — confused-deputy end-to-end', () => {
 describe('McpGateway constructor validation', () => {
   it('rejects a missing gatewaySvid', () => {
     expect(
-      () => new McpGateway({ gatewaySvid: '', registry: freshRegistry() })
+      () => new McpGateway({ gatewaySvid: '', registry: freshRegistry(), transport: successfulTransport() })
     ).toThrow(/gatewaySvid/);
   });
 
   it('rejects a missing registry', () => {
     expect(
-      () => new McpGateway({ gatewaySvid: GATEWAY, registry: undefined as unknown as ToolRegistry })
+      () => new McpGateway({
+        gatewaySvid: GATEWAY,
+        registry: undefined as unknown as ToolRegistry,
+        transport: successfulTransport(),
+      })
     ).toThrow(/registry/);
+  });
+
+  it('rejects a missing transport instead of permitting fabricated forwarding', () => {
+    expect(
+      () => new McpGateway({
+        gatewaySvid: GATEWAY,
+        registry: freshRegistry(),
+        transport: undefined as unknown as ToolTransport,
+      })
+    ).toThrow(/transport/);
   });
 });

@@ -33,9 +33,18 @@ enum Commands {
         /// Backend: mock (default), vault, aws, k8s.
         #[arg(long, default_value = "mock")]
         backend: String,
+        /// Path to the durable revocation journal (AX-40). Without it the issued JTI is tracked
+        /// in memory only and is lost when this process exits.
+        #[arg(long)]
+        journal: Option<std::path::PathBuf>,
     },
     /// Revoke all credentials (kill-switch hook).
-    RevokeAll,
+    RevokeAll {
+        /// Path to the durable revocation journal (AX-40). Without it the revocation applies to
+        /// this process only and is forgotten on restart — see invariant I-05.
+        #[arg(long)]
+        journal: Option<std::path::PathBuf>,
+    },
     /// Scan stdin (or --path) for exposed credentials. Exit 1 if any are found.
     Scan {
         /// Path to scan, or `-` for stdin.
@@ -84,9 +93,33 @@ fn main() {
             bound_ip,
             secret_key,
             backend,
+            journal,
         } => {
             let backend = select_backend(&backend);
-            match issue(backend.as_ref(), &spiffe_id, &task, &bound_ip, &secret_key, DEFAULT_TTL) {
+            if let Some(path) = &journal {
+                if let Err(e) = aumos_credential_vault::init_default_vault_at(path) {
+                    eprintln!(
+                        "credential-vault: journal {} unusable — {e}",
+                        path.display()
+                    );
+                    std::process::exit(1);
+                }
+            } else {
+                eprintln!(
+                    "credential-vault: WARNING no --journal given; this credential's JTI is \
+                     tracked in memory only and will be forgotten when this process exits."
+                );
+            }
+            match issue(
+                backend.as_ref(),
+                &spiffe_id,
+                &task,
+                &bound_ip,
+                &secret_key,
+                DEFAULT_TTL,
+            )
+            .and_then(|cred| aumos_credential_vault::register_issued(&cred).map(|()| cred))
+            {
                 Ok(cred) => {
                     // REDACT the secret in CLI output (never log secrets at INFO level).
                     let redacted = ScopedCredJson {
@@ -97,7 +130,10 @@ fn main() {
                         expires_at: cred.expires_at,
                         secret_redacted: true,
                     };
-                    println!("{}", serde_json::to_string_pretty(&redacted).expect("serialize"));
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&redacted).expect("serialize")
+                    );
                 }
                 Err(e) => {
                     eprintln!("credential-vault: issue failed — {e}");
@@ -105,15 +141,32 @@ fn main() {
                 }
             }
         }
-        Commands::RevokeAll => match aumos_credential_vault::revoke_all() {
-            Ok(count) => println!(
-                "credential-vault: revoked {count} credential(s)"
-            ),
-            Err(e) => {
-                eprintln!("credential-vault: revoke failed — {e}");
-                std::process::exit(1);
+        Commands::RevokeAll { journal } => {
+            if let Some(path) = &journal {
+                if let Err(e) = aumos_credential_vault::init_default_vault_at(path) {
+                    eprintln!(
+                        "credential-vault: journal {} unusable — {e}",
+                        path.display()
+                    );
+                    std::process::exit(1);
+                }
+            } else {
+                eprintln!(
+                    "credential-vault: WARNING no --journal given; this revocation is NOT \
+                     durable and will be forgotten on restart (invariant I-05)."
+                );
             }
-        },
+            match aumos_credential_vault::revoke_all() {
+                Ok(count) => println!(
+                    "credential-vault: revoked {count} credential(s) (durable={})",
+                    aumos_credential_vault::default_vault_is_durable()
+                ),
+                Err(e) => {
+                    eprintln!("credential-vault: revoke failed — {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
         Commands::Scan { path } => {
             let text = match read_input(&path) {
                 Ok(t) => t,
@@ -128,7 +181,10 @@ fn main() {
                     std::process::exit(0);
                 }
                 Ok(found) => {
-                    eprintln!("credential-vault: {} exposed credential(s) detected:", found.len());
+                    eprintln!(
+                        "credential-vault: {} exposed credential(s) detected:",
+                        found.len()
+                    );
                     for f in &found {
                         eprintln!("  - {} : {}", f.credential_type, f.matched);
                     }

@@ -5,6 +5,21 @@
 //! action commits** — an agent must not produce a visible side effect without a verifiable receipt
 //! already recorded.
 //!
+//! ## I-07 is enforced by the type system, not by a comment (AX-40)
+//!
+//! There are two entrypoints, and only one of them is I-07-compliant:
+//!
+//! * [`FlightRecorder`] — the **signing core**. It signs receipts and enforces emit-before-commit
+//!   *ordering*, but it writes nothing to disk. On its own it does **not** satisfy I-07.
+//! * [`DurableFlightRecorder`] — the **I-07 entrypoint**. [`DurableFlightRecorder::emit_pending`]
+//!   returns only after the signed receipt has been appended to a durable, hash-chained,
+//!   `fsync`'d evidence log, and it hands back a [`PendingAction`]. `PendingAction` has no public
+//!   constructor, so [`DurableFlightRecorder::commit`] — which consumes one — is *unreachable*
+//!   unless the evidence is already durable. Durability failures surface as
+//!   [`RecorderError::Io`]; nothing is swallowed.
+//!
+//! See [`evidence`] for the storage format and the rationale for a plain append-only file.
+//!
 //! Exports to:
 //!   - **OCSF** (Open Cybersecurity Schema Framework) — JSON, per cross-cutting 19 §1 external tier.
 //!   - **OpenTelemetry** — semantic-attribute JSON for the OTel collector (real OTLP export is task 03;
@@ -15,10 +30,18 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
+pub mod evidence;
+
+pub use evidence::{
+    compute_record_digest, EvidenceRecord, EvidenceStore, FileEvidenceStore,
+    NonDurableMemoryEvidenceStore, GENESIS_DIGEST_HEX,
+};
+
 use aumos_api::protocols::v1::AgentActionReceipt;
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 use uuid::Uuid;
@@ -75,6 +98,28 @@ pub enum RecorderError {
         #[source]
         source: hex::FromHexError,
     },
+    /// The evidence store could not make a receipt durable (AX-40 / I-07). The action MUST NOT
+    /// commit: no durable receipt means no permission to produce a visible side effect.
+    #[error("evidence store i/o failed for {path}: {source}")]
+    Io {
+        /// The path that failed.
+        path: String,
+        /// The underlying I/O error.
+        #[source]
+        source: std::io::Error,
+    },
+    /// An evidence record could not be serialized (AX-40).
+    #[error("evidence record encode failed: {0}")]
+    Encode(#[from] serde_json::Error),
+    /// The persisted evidence chain does not verify — a record was altered, reordered, or
+    /// removed (AX-40).
+    #[error("evidence chain corrupt at seq {seq}: {detail}")]
+    ChainCorrupt {
+        /// The sequence number at which verification failed.
+        seq: u64,
+        /// What was wrong.
+        detail: String,
+    },
 }
 
 /// Inputs to a new receipt (everything the caller supplies before signature).
@@ -92,7 +137,7 @@ pub struct ReceiptInput {
 
 /// A signed receipt in the recorder's ergonomic shape. The proto wire type is
 /// `aumos_api::protocols::v1::AgentActionReceipt`; convert with [`Receipt::to_proto`].
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Receipt {
     /// UUID receipt id.
     pub id: String,
@@ -123,7 +168,7 @@ pub struct Receipt {
 }
 
 /// The policy decision attached to a receipt.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PolicyDecision {
     /// Engine name ("opa", "cedar", "openshell").
     pub engine: String,
@@ -192,10 +237,7 @@ impl Receipt {
         Ok(AgentActionReceipt {
             id: self.id.clone(),
             actor: self.actor.clone(),
-            authority_hash: decode_hex_checked(
-                &self.authority_hash_hex,
-                "authority_hash_hex",
-            )?,
+            authority_hash: decode_hex_checked(&self.authority_hash_hex, "authority_hash_hex")?,
             artifact_versions: self.artifact_versions.clone().into_iter().collect(),
             context_commitment: decode_hex_checked(
                 &self.context_commitment_hex,
@@ -247,7 +289,10 @@ impl Receipt {
         write_len_prefixed(&mut out, self.policy_decision.engine.as_bytes());
         write_len_prefixed(&mut out, self.policy_decision.decision.as_bytes());
         write_len_prefixed(&mut out, self.policy_decision.policy_hash_hex.as_bytes());
-        write_len_prefixed(&mut out, &self.policy_decision.matched_rules.len().to_le_bytes());
+        write_len_prefixed(
+            &mut out,
+            &self.policy_decision.matched_rules.len().to_le_bytes(),
+        );
         for r in &self.policy_decision.matched_rules {
             write_len_prefixed(&mut out, r.as_bytes());
         }
@@ -294,10 +339,7 @@ fn decode_hex_or_warn(hex_str: &str, field: &'static str) -> Vec<u8> {
 /// Decode a hex string into bytes, returning [`RecorderError::MalformedHex`] on failure. Use this
 /// in the checked proto conversion path so callers that care about wire integrity can detect a
 /// corrupted signature/authority_hash rather than treat it as an empty field.
-fn decode_hex_checked(
-    hex_str: &str,
-    field: &'static str,
-) -> Result<Vec<u8>, RecorderError> {
+fn decode_hex_checked(hex_str: &str, field: &'static str) -> Result<Vec<u8>, RecorderError> {
     hex::decode(hex_str).map_err(|source| RecorderError::MalformedHex { field, source })
 }
 
@@ -307,6 +349,17 @@ pub struct FlightRecorder {
     signing_key: SigningKey,
     verifying_key_hex: String,
     seen: std::collections::HashSet<String>,
+}
+
+impl std::fmt::Debug for FlightRecorder {
+    /// Redacts the signing key — a `Debug` print of a recorder must never leak the secret.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FlightRecorder")
+            .field("verifying_key_hex", &self.verifying_key_hex)
+            .field("signing_key", &"<redacted>")
+            .field("emitted", &self.seen.len())
+            .finish()
+    }
 }
 
 impl FlightRecorder {
@@ -328,11 +381,14 @@ impl FlightRecorder {
         &self.verifying_key_hex
     }
 
-    /// Emit a **pending** receipt for an action that is about to commit.
+    /// Sign a **pending** receipt for an action that is about to commit.
     ///
-    /// **Invariant I-07**: callers MUST call this and persist the returned receipt BEFORE making
-    /// the action's effect visible. The recorder does not enforce persistence (that's the caller's
-    /// job); it only enforces the emit-before-commit ordering via [`Self::mark_committed`].
+    /// **This method does NOT satisfy invariant I-07 on its own** — it signs, it does not
+    /// persist. It enforces only the emit-before-commit *ordering* checked by
+    /// [`Self::mark_committed`]. For the I-07-compliant path (sign → append → `fsync` → only
+    /// then return), use [`DurableFlightRecorder::emit_pending`], whose
+    /// [`PendingAction`] receipt is the caller's proof of durability and the only key that
+    /// unlocks [`DurableFlightRecorder::commit`].
     ///
     /// # Errors
     /// Returns [`RecorderError::DuplicateReceiptId`] on a collision (vanishingly unlikely with UUID v4).
@@ -384,11 +440,15 @@ impl FlightRecorder {
             )));
         }
         receipt.outcome = ActionOutcome::Committed;
-        // Re-sign the updated receipt.
+        self.re_sign(receipt);
+        Ok(())
+    }
+
+    /// Re-sign a mutated receipt over its fresh canonical bytes.
+    fn re_sign(&self, receipt: &mut Receipt) {
         let canon = receipt.canonical_bytes();
         let sig = self.signing_key.sign(&canon);
         receipt.signature_hex = hex::encode(sig.to_bytes());
-        Ok(())
     }
 
     /// Verify a receipt's signature using the embedded verifying key.
@@ -407,7 +467,8 @@ impl FlightRecorder {
             .as_slice()
             .try_into()
             .map_err(|_| RecorderError::InvalidLength("signature must be 64 bytes".into()))?;
-        let vk = VerifyingKey::from_bytes(&vk_bytes).map_err(|_| RecorderError::SignatureInvalid)?;
+        let vk =
+            VerifyingKey::from_bytes(&vk_bytes).map_err(|_| RecorderError::SignatureInvalid)?;
         let sig = ed25519_dalek::Signature::from_bytes(&sig_arr);
         let canon = receipt.canonical_bytes();
         vk.verify(&canon, &sig)
@@ -472,6 +533,188 @@ impl FlightRecorder {
 impl Default for FlightRecorder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Proof that a signed receipt is **already durable** on stable storage.
+///
+/// This type is the mechanism that turns invariant I-07 from a comment into a compile-time
+/// obligation. It has no public constructor and no public fields, so the only way to obtain one
+/// is [`DurableFlightRecorder::emit_pending`], which returns it *after* `fsync` succeeds. Because
+/// [`DurableFlightRecorder::commit`] consumes a `PendingAction` by value, the commit path is
+/// unreachable for an action whose evidence was never written — and a durability failure is a
+/// hard [`RecorderError::Io`], never a swallowed error.
+#[derive(Debug, Clone)]
+pub struct PendingAction {
+    receipt: Receipt,
+    record: EvidenceRecord,
+}
+
+impl PendingAction {
+    /// The signed, durable receipt.
+    #[must_use]
+    pub fn receipt(&self) -> &Receipt {
+        &self.receipt
+    }
+
+    /// The evidence record (sequence number + hash-chain digests) that made it durable.
+    #[must_use]
+    pub fn record(&self) -> &EvidenceRecord {
+        &self.record
+    }
+
+    /// The receipt id.
+    #[must_use]
+    pub fn id(&self) -> &str {
+        &self.receipt.id
+    }
+
+    /// The evidence log sequence number this receipt occupies.
+    #[must_use]
+    pub fn seq(&self) -> u64 {
+        self.record.seq
+    }
+
+    /// The hash-chain digest of the durable record.
+    #[must_use]
+    pub fn digest_hex(&self) -> &str {
+        &self.record.digest_hex
+    }
+}
+
+/// The **I-07-compliant** flight recorder: a [`FlightRecorder`] bound to an [`EvidenceStore`].
+///
+/// ```no_run
+/// # use aumos_flight_recorder::{DurableFlightRecorder, ReceiptInput};
+/// let mut rec = DurableFlightRecorder::open("evidence.jsonl")?;
+/// // emit_pending returns only once the signed receipt is fsync'd:
+/// let pending = rec.emit_pending(ReceiptInput {
+///     actor: "spiffe://aumos.dev/agent/a".into(),
+///     authority_hash_hex: String::new(),
+///     tool_or_api_op: "github.create_pr".into(),
+///     context_commitment_hex: String::new(),
+/// })?;
+/// // ... perform the side effect ...
+/// let committed = rec.commit(pending)?; // consumes the durability proof
+/// # Ok::<(), aumos_flight_recorder::RecorderError>(())
+/// ```
+#[derive(Debug)]
+pub struct DurableFlightRecorder<S: EvidenceStore = FileEvidenceStore> {
+    recorder: FlightRecorder,
+    store: S,
+}
+
+impl DurableFlightRecorder<FileEvidenceStore> {
+    /// Open (or create) a durable recorder over the append-only evidence log at `path`.
+    ///
+    /// An existing log is replayed and its hash chain verified before any new record is accepted.
+    ///
+    /// # Errors
+    /// Returns [`RecorderError::Io`] on I/O failure or [`RecorderError::ChainCorrupt`] if the
+    /// existing evidence log does not verify.
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, RecorderError> {
+        Ok(Self {
+            recorder: FlightRecorder::new(),
+            store: FileEvidenceStore::open(path)?,
+        })
+    }
+}
+
+impl<S: EvidenceStore> DurableFlightRecorder<S> {
+    /// Bind a signing core to an arbitrary evidence store.
+    pub fn with_store(recorder: FlightRecorder, store: S) -> Self {
+        Self { recorder, store }
+    }
+
+    /// The hex-encoded verifying key of the underlying signing core.
+    #[must_use]
+    pub fn verifying_key_hex(&self) -> &str {
+        self.recorder.verifying_key_hex()
+    }
+
+    /// Borrow the evidence store (e.g. to read back the chain).
+    #[must_use]
+    pub fn store(&self) -> &S {
+        &self.store
+    }
+
+    /// The number of records written to the evidence log so far.
+    #[must_use]
+    pub fn evidence_len(&self) -> u64 {
+        self.store.next_seq()
+    }
+
+    /// The current hash-chain head.
+    #[must_use]
+    pub fn head_digest_hex(&self) -> String {
+        self.store.head_digest_hex()
+    }
+
+    /// Sign a pending receipt **and make it durable**, returning only after the evidence store
+    /// has acknowledged a synced write (invariant I-07).
+    ///
+    /// # Errors
+    /// Returns [`RecorderError::Io`] / [`RecorderError::Encode`] if the receipt could not be made
+    /// durable — in which case the caller MUST NOT perform the action — or
+    /// [`RecorderError::DuplicateReceiptId`] on an id collision.
+    pub fn emit_pending(&mut self, input: ReceiptInput) -> Result<PendingAction, RecorderError> {
+        let receipt = self.recorder.emit_pending(input)?;
+        let record = self.store.append(&receipt)?;
+        Ok(PendingAction { receipt, record })
+    }
+
+    /// Mark a durably-recorded action committed, appending the updated receipt to the evidence
+    /// log and returning only after that append is synced.
+    ///
+    /// Consuming the [`PendingAction`] is what makes I-07 structural: without a durability proof
+    /// there is no way to reach this function.
+    ///
+    /// # Errors
+    /// Returns [`RecorderError::Io`] / [`RecorderError::Encode`] if the committed record could
+    /// not be made durable, or [`RecorderError::Invariant`] if the signing core never saw the
+    /// receipt (only reachable across a restart).
+    pub fn commit(&mut self, pending: PendingAction) -> Result<Receipt, RecorderError> {
+        self.finalize(pending, ActionOutcome::Committed)
+    }
+
+    /// Record that a durably-recorded action was rolled back. Same durability contract as
+    /// [`Self::commit`].
+    ///
+    /// # Errors
+    /// See [`Self::commit`].
+    pub fn rollback(&mut self, pending: PendingAction) -> Result<Receipt, RecorderError> {
+        self.finalize(pending, ActionOutcome::RolledBack)
+    }
+
+    /// Record that a durably-recorded action failed. Same durability contract as
+    /// [`Self::commit`].
+    ///
+    /// # Errors
+    /// See [`Self::commit`].
+    pub fn fail(&mut self, pending: PendingAction) -> Result<Receipt, RecorderError> {
+        self.finalize(pending, ActionOutcome::Failed)
+    }
+
+    fn finalize(
+        &mut self,
+        pending: PendingAction,
+        outcome: ActionOutcome,
+    ) -> Result<Receipt, RecorderError> {
+        let mut receipt = pending.receipt;
+        if outcome == ActionOutcome::Committed {
+            self.recorder.mark_committed(&mut receipt)?;
+        } else {
+            if !self.recorder.seen.contains(&receipt.id) {
+                return Err(RecorderError::Invariant(format!(
+                    "finalize before emit for id {} (I-07)",
+                    receipt.id
+                )));
+            }
+            receipt.outcome = outcome;
+            self.recorder.re_sign(&mut receipt);
+        }
+        self.store.append(&receipt)?;
+        Ok(receipt)
     }
 }
 
@@ -569,20 +812,22 @@ mod tests {
         // Two receipts that differ ONLY in how their concatenated fields could be re-split
         // must produce different canonical bytes (and therefore different signatures).
         let mut r = FlightRecorder::new();
-        let receipt_a = r.emit_pending(ReceiptInput {
-            actor: "ab".into(),
-            authority_hash_hex: "c".repeat(8),
-            tool_or_api_op: "github.create_pr".into(),
-            context_commitment_hex: "def456".repeat(8),
-        })
-        .expect("emit a");
-        let receipt_b = r.emit_pending(ReceiptInput {
-            actor: "a".into(), // "ab" vs "a" + "b" re-split — same concatenated bytes only
-            authority_hash_hex: "bc".repeat(4), // if not length-prefixed: "c"*8 == "bc"*4
-            tool_or_api_op: "github.create_pr".into(),
-            context_commitment_hex: "def456".repeat(8),
-        })
-        .expect("emit b");
+        let receipt_a = r
+            .emit_pending(ReceiptInput {
+                actor: "ab".into(),
+                authority_hash_hex: "c".repeat(8),
+                tool_or_api_op: "github.create_pr".into(),
+                context_commitment_hex: "def456".repeat(8),
+            })
+            .expect("emit a");
+        let receipt_b = r
+            .emit_pending(ReceiptInput {
+                actor: "a".into(), // "ab" vs "a" + "b" re-split — same concatenated bytes only
+                authority_hash_hex: "bc".repeat(4), // if not length-prefixed: "c"*8 == "bc"*4
+                tool_or_api_op: "github.create_pr".into(),
+                context_commitment_hex: "def456".repeat(8),
+            })
+            .expect("emit b");
         let canon_a = receipt_a.canonical_bytes();
         let canon_b = receipt_b.canonical_bytes();
         assert_ne!(
@@ -610,7 +855,13 @@ mod tests {
             .to_proto_checked()
             .expect_err("malformed signature must error");
         assert!(
-            matches!(err, RecorderError::MalformedHex { field: "signature_hex", .. }),
+            matches!(
+                err,
+                RecorderError::MalformedHex {
+                    field: "signature_hex",
+                    ..
+                }
+            ),
             "expected MalformedHex on signature_hex, got {err:?}"
         );
     }
@@ -625,8 +876,293 @@ mod tests {
             .to_proto_checked()
             .expect_err("malformed authority_hash must error");
         assert!(
-            matches!(err, RecorderError::MalformedHex { field: "authority_hash_hex", .. }),
+            matches!(
+                err,
+                RecorderError::MalformedHex {
+                    field: "authority_hash_hex",
+                    ..
+                }
+            ),
             "expected MalformedHex on authority_hash_hex, got {err:?}"
+        );
+    }
+
+    // ================= AX-40: durable evidence store / invariant I-07 =================
+
+    /// A unique scratch path per test. We deliberately do NOT use a tempfile crate: the restart
+    /// tests must be able to reopen the exact same path after dropping the store.
+    fn scratch_path(tag: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let mut p = std::env::temp_dir();
+        p.push("aumos-flight-recorder-tests");
+        p.push(
+            format!("{tag}-{nanos}-{:?}.jsonl", std::thread::current().id()).replace(
+                |c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '.' && c != '_',
+                "",
+            ),
+        );
+        p
+    }
+
+    struct Scratch(std::path::PathBuf);
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    #[test]
+    fn emit_pending_durable_writes_a_synced_record_ax40() {
+        let scratch = Scratch(scratch_path("emit-durable"));
+        let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open store");
+        assert_eq!(rec.evidence_len(), 0);
+        assert_eq!(rec.head_digest_hex(), GENESIS_DIGEST_HEX);
+
+        let pending = rec.emit_pending(sample_input()).expect("durable emit");
+        assert_eq!(pending.seq(), 0);
+        assert_eq!(pending.record().prev_digest_hex, GENESIS_DIGEST_HEX);
+        assert_eq!(rec.evidence_len(), 1);
+
+        // The bytes are on disk the moment emit_pending returned — read them with a plain
+        // filesystem read, not through the store.
+        let raw = std::fs::read_to_string(&scratch.0).expect("file exists on disk");
+        assert!(
+            raw.contains(&pending.receipt().id),
+            "receipt id must already be on disk when emit_pending returns"
+        );
+        assert!(raw.ends_with('\n'), "records are newline-terminated");
+    }
+
+    #[test]
+    fn evidence_survives_an_actual_restart_ax40() {
+        // The load-bearing durability test: write, DROP the store, construct a brand-new store
+        // over the same path, and assert the evidence is still there and still verifies.
+        let scratch = Scratch(scratch_path("restart"));
+        let (id_a, id_b, head_before) = {
+            let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+            let a = rec.emit_pending(sample_input()).expect("emit a");
+            let id_a = a.id().to_string();
+            let committed = rec.commit(a).expect("commit a");
+            assert_eq!(committed.outcome, ActionOutcome::Committed);
+            let b = rec.emit_pending(sample_input()).expect("emit b");
+            let id_b = b.id().to_string();
+            (id_a, id_b, rec.head_digest_hex())
+            // `rec` (and its File handle) is dropped here — simulated process exit.
+        };
+
+        // ---- restart: a fresh store over the same path ----
+        let reopened = DurableFlightRecorder::open(&scratch.0).expect("reopen after restart");
+        assert_eq!(
+            reopened.evidence_len(),
+            3,
+            "pending(a) + committed(a) + pending(b) must all survive the restart"
+        );
+        assert_eq!(
+            reopened.head_digest_hex(),
+            head_before,
+            "chain head must be identical across the restart"
+        );
+
+        let records = reopened.store().records().expect("replay");
+        assert_eq!(records.len(), 3);
+        assert_eq!(records[0].receipt.id, id_a);
+        assert_eq!(records[0].receipt.outcome, ActionOutcome::Pending);
+        assert_eq!(records[1].receipt.id, id_a);
+        assert_eq!(records[1].receipt.outcome, ActionOutcome::Committed);
+        assert_eq!(records[2].receipt.id, id_b);
+        assert_eq!(records[2].receipt.outcome, ActionOutcome::Pending);
+
+        // Every surviving receipt still verifies against its embedded verifying key, even though
+        // the reopened recorder generated a brand-new signing key.
+        for r in &records {
+            FlightRecorder::verify(&r.receipt).expect("surviving receipt verifies");
+        }
+        assert_ne!(
+            reopened.verifying_key_hex(),
+            records[0].receipt.verifying_key_hex,
+            "the restarted process has a new key; verification must not depend on it"
+        );
+    }
+
+    #[test]
+    fn appends_after_restart_continue_the_same_chain_ax40() {
+        let scratch = Scratch(scratch_path("continue-chain"));
+        {
+            let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+            rec.emit_pending(sample_input()).expect("emit");
+        }
+        {
+            let mut rec = DurableFlightRecorder::open(&scratch.0).expect("reopen");
+            let p = rec
+                .emit_pending(sample_input())
+                .expect("emit after restart");
+            assert_eq!(p.seq(), 1, "sequence must continue, not restart at 0");
+        }
+        let records = FileEvidenceStore::read_all(&scratch.0).expect("chain verifies");
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[1].prev_digest_hex, records[0].digest_hex);
+    }
+
+    #[test]
+    fn tampering_with_a_persisted_record_is_detected_on_reload_ax40() {
+        let scratch = Scratch(scratch_path("tamper"));
+        {
+            let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+            rec.emit_pending(sample_input()).expect("emit 1");
+            rec.emit_pending(sample_input()).expect("emit 2");
+        }
+        // Rewrite the FIRST record's actor in place — the classic "edit the evidence" attack.
+        let raw = std::fs::read_to_string(&scratch.0).expect("read");
+        let tampered = raw.replacen("coding-1", "coding-9", 1);
+        assert_ne!(raw, tampered, "the fixture must actually change");
+        std::fs::write(&scratch.0, tampered).expect("write tampered");
+
+        let err = FileEvidenceStore::read_all(&scratch.0).expect_err("tampering must be detected");
+        assert!(
+            matches!(err, RecorderError::ChainCorrupt { seq: 0, .. }),
+            "expected ChainCorrupt at seq 0, got {err:?}"
+        );
+        // And a recorder refuses to open a corrupt log at all.
+        assert!(DurableFlightRecorder::open(&scratch.0).is_err());
+    }
+
+    #[test]
+    fn truncating_the_middle_of_the_chain_is_detected_ax40() {
+        let scratch = Scratch(scratch_path("drop-record"));
+        {
+            let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+            rec.emit_pending(sample_input()).expect("emit 1");
+            rec.emit_pending(sample_input()).expect("emit 2");
+            rec.emit_pending(sample_input()).expect("emit 3");
+        }
+        let raw = std::fs::read_to_string(&scratch.0).expect("read");
+        let lines: Vec<&str> = raw.lines().collect();
+        assert_eq!(lines.len(), 3);
+        // Delete the middle record.
+        std::fs::write(&scratch.0, format!("{}\n{}\n", lines[0], lines[2])).expect("write");
+
+        let err = FileEvidenceStore::read_all(&scratch.0).expect_err("deletion must be detected");
+        assert!(
+            matches!(err, RecorderError::ChainCorrupt { .. }),
+            "expected ChainCorrupt, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn torn_trailing_record_from_a_crash_is_recovered_ax40() {
+        let scratch = Scratch(scratch_path("torn-tail"));
+        {
+            let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+            rec.emit_pending(sample_input()).expect("emit 1");
+            rec.emit_pending(sample_input()).expect("emit 2");
+        }
+        // Simulate a crash mid-write: append a partial line with no trailing newline.
+        let raw = std::fs::read_to_string(&scratch.0).expect("read");
+        std::fs::write(&scratch.0, format!("{raw}{{\"seq\":2,\"prev_dig"))
+            .expect("write torn tail");
+
+        let rec = DurableFlightRecorder::open(&scratch.0).expect("torn tail must be recoverable");
+        assert_eq!(rec.evidence_len(), 2, "the two complete records survive");
+        let records = FileEvidenceStore::read_all(&scratch.0).expect("chain verifies after repair");
+        assert_eq!(records.len(), 2);
+        let on_disk = std::fs::read_to_string(&scratch.0).expect("read");
+        assert_eq!(on_disk, raw, "the torn bytes must have been truncated away");
+    }
+
+    #[test]
+    fn commit_requires_a_durability_proof_ax40() {
+        // The structural half of I-07: `commit` consumes a PendingAction, and a PendingAction is
+        // only obtainable from a successful durable emit. This test documents the shape (there is
+        // no way to write the negative case — it does not compile) and checks the happy path
+        // appends a second, chained record.
+        let scratch = Scratch(scratch_path("commit-proof"));
+        let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+        let pending = rec.emit_pending(sample_input()).expect("emit");
+        let pending_digest = pending.digest_hex().to_string();
+        let committed = rec.commit(pending).expect("commit");
+        assert_eq!(committed.outcome, ActionOutcome::Committed);
+        FlightRecorder::verify(&committed).expect("committed receipt verifies");
+
+        let records = rec.store().records().expect("replay");
+        assert_eq!(records.len(), 2);
+        assert_eq!(
+            records[1].prev_digest_hex, pending_digest,
+            "the commit record must chain onto the pending record"
+        );
+    }
+
+    #[test]
+    fn rollback_and_fail_are_also_durable_ax40() {
+        let scratch = Scratch(scratch_path("rollback"));
+        let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+        let p1 = rec.emit_pending(sample_input()).expect("emit 1");
+        let rolled = rec.rollback(p1).expect("rollback");
+        assert_eq!(rolled.outcome, ActionOutcome::RolledBack);
+        FlightRecorder::verify(&rolled).expect("rolled-back receipt verifies");
+
+        let p2 = rec.emit_pending(sample_input()).expect("emit 2");
+        let failed = rec.fail(p2).expect("fail");
+        assert_eq!(failed.outcome, ActionOutcome::Failed);
+        FlightRecorder::verify(&failed).expect("failed receipt verifies");
+        assert_eq!(rec.evidence_len(), 4);
+    }
+
+    #[test]
+    fn durability_failure_is_an_error_not_a_silent_success_ax40() {
+        // I-07 requires the failure mode to be explicit. A store whose append always fails must
+        // make emit_pending return Err — and therefore make commit unreachable.
+        struct BrokenStore;
+        impl EvidenceStore for BrokenStore {
+            fn append(&mut self, _r: &Receipt) -> Result<EvidenceRecord, RecorderError> {
+                Err(RecorderError::Io {
+                    path: "/dev/full".into(),
+                    source: std::io::Error::other("disk full"),
+                })
+            }
+            fn next_seq(&self) -> u64 {
+                0
+            }
+            fn head_digest_hex(&self) -> String {
+                GENESIS_DIGEST_HEX.to_string()
+            }
+        }
+        let mut rec = DurableFlightRecorder::with_store(FlightRecorder::new(), BrokenStore);
+        let err = rec
+            .emit_pending(sample_input())
+            .expect_err("a store that cannot persist must fail the emit");
+        assert!(
+            matches!(err, RecorderError::Io { .. }),
+            "expected Io, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn record_digest_is_stable_and_binds_the_signature_ax40() {
+        let mut r = FlightRecorder::new();
+        let receipt = r.emit_pending(sample_input()).expect("emit");
+        let prev = [7u8; 32];
+        let d1 = compute_record_digest(3, &prev, &receipt);
+        let d2 = compute_record_digest(3, &prev, &receipt);
+        assert_eq!(d1, d2, "digest must be deterministic");
+        assert_ne!(
+            d1,
+            compute_record_digest(4, &prev, &receipt),
+            "digest must bind the sequence number"
+        );
+        assert_ne!(
+            d1,
+            compute_record_digest(3, &[8u8; 32], &receipt),
+            "digest must bind the previous digest"
+        );
+        let mut resigned = receipt.clone();
+        resigned.signature_hex = "00".repeat(64);
+        assert_ne!(
+            d1,
+            compute_record_digest(3, &prev, &resigned),
+            "digest must bind the signature"
         );
     }
 

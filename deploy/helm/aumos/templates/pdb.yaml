@@ -1,0 +1,44 @@
+{{- /*
+  PodDisruptionBudget per enabled workload — consumes .Values.pdb.minAvailable,
+  which docs/cross-cutting/16-disaster-recovery.md pins at 2.
+
+  `dict`, not `list` — see deployments.yaml for why.
+
+  Single-replica workloads are skipped: a PDB whose minAvailable exceeds the
+  replica count can never be satisfied and permanently blocks node drains.
+  Note that a workload sitting at exactly minAvailable also reports
+  disruptionsAllowed=0 until the HPA scales it out; that is the documented
+  DR posture, not an accident.
+*/ -}}
+{{- if .Values.pdb.enabled }}
+{{- $minAvailable := .Values.pdb.minAvailable }}
+{{- range $name, $svc := dict
+  "trust-core" .Values.trustCore
+  "agent-identity" .Values.agentIdentity
+  "open-serve-kit" .Values.openServeKit
+  "inference-proxy" .Values.inferenceProxy
+  "flight-recorder" .Values.flightRecorder
+  "kill-switch" .Values.killSwitch
+  "credential-vault" .Values.credentialVault
+  "tenant-guard" .Values.tenantGuard
+  "fleet-marshal" .Values.fleetMarshal
+  "console" .Values.console
+-}}
+{{- $replicas := int ($svc.replicas | default 2) }}
+{{- if and $svc.enabled (gt $replicas 1) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/part-of: aumos
+spec:
+  minAvailable: {{ $minAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+{{- end }}
+{{- end }}
+{{- end }}

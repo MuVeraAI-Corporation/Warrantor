@@ -23,13 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: aumos/rust
+        working-directory: rust
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: aumos/rust
+          workspaces: rust
       - name: Build release binaries
         run: cargo build --release --bins
       - name: Stage binaries
@@ -44,9 +44,9 @@ jobs:
         uses: actions/attest-build-provenance@v1
         with:
           subject-path: |
-            aumos/dist/*
+            dist/*
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-binaries
-          path: aumos/dist/
+          path: dist/

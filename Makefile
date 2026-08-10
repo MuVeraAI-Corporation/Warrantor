@@ -1,157 +1,144 @@
-# AumOS — One-command dev/test/release Makefile
+# AumOS strict, one-command development and verification entry point.
 #
-# Design rule (from polyglot stack pressure test §13):
-#   "Monorepo cannot be built/tested with one top-level command" is a kill criterion.
-# Missing toolchains are DETECTED and SKIPPED, not failed.
+# Every target is fail-closed: a missing toolchain, empty project set, failed
+# check, or broken conformance vector returns a non-zero status.
 
 SHELL := /bin/bash
+.SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := help
 
-# --- Tool detection -----------------------------------------------------------
-CARGO      := $(shell command -v cargo 2>/dev/null)
-PYTHON     := $(shell command -v python 2>/dev/null)
-NODE       := $(shell command -v node 2>/dev/null)
-NPM        := $(shell command -v npm 2>/dev/null)
-GO         := $(shell command -v go 2>/dev/null)
-BUF        := $(shell command -v buf 2>/dev/null)
-UV         := $(shell command -v uv 2>/dev/null)
-PIPX       := $(shell command -v pipx 2>/dev/null)
+PYTHON ?= python3
 
-# --- Top-level targets --------------------------------------------------------
-.PHONY: help setup lint test conformance docs fmt clean check-proto check-docs
+.PHONY: help setup require-tools verify build lint test fmt fmt-check tracker \
+	build-rust build-ts lint-rust lint-python lint-ts lint-go \
+	test-rust test-python test-ts test-go fmt-rust fmt-python fmt-go \
+	fmt-check-rust fmt-check-python fmt-check-go check-proto check-protocols conformance \
+	check-docs docs clean
 
-help: ## Show this help
-	@awk 'BEGIN {FS = ":.*##"; printf "AumOS — targets:\n\n"} \
-	  /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+help: ## Show available targets
+	@awk 'BEGIN {FS = ":.*##"; printf "AumOS strict targets:\n\n"} \
+	  /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-setup: ## Install dev toolchains (best-effort; idempotent)
-	@echo "==> Installing dev toolchains (idempotent)..."
-ifdef BUF
-	@echo "    buf:           $(BUF)"
-else
-	@echo "    buf:           MISSING (install: https://buf.build/docs/installation)"
-endif
-ifdef CARGO
-	@echo "    cargo/rust:    $(CARGO)"
-else
-	@echo "    cargo/rust:    MISSING (install: https://rustup.rs)"
-endif
-ifdef PYTHON
-	@echo "    python:        $(PYTHON)"
-else
-	@echo "    python:        MISSING"
-endif
-ifdef NODE
-	@echo "    node/npm:      $(NODE)"
-else
-	@echo "    node/npm:      MISSING"
-endif
-ifdef GO
-	@echo "    go:            $(GO)  (phase-gated; see docs/cross-cutting/18-developer-experience.md)"
-else
-	@echo "    go:            MISSING (phase-gated; only required for Wave-2+ K8s operators)"
-endif
-	@echo "==> Detected toolchains listed above. Missing ones are skipped, not failed."
+require-tools: ## Fail unless every required toolchain is available
+	@command -v cargo >/dev/null
+	@command -v "$(PYTHON)" >/dev/null
+	@command -v go >/dev/null
+	@command -v node >/dev/null
+	@command -v npm >/dev/null
+	@command -v buf >/dev/null
+	@"$(PYTHON)" -c "import cryptography, pytest, ruff"
+	@printf 'cargo:  '; cargo --version
+	@printf 'python: '; "$(PYTHON)" --version
+	@printf 'go:     '; go version
+	@printf 'node:   '; node --version
+	@printf 'npm:    '; npm --version
+	@printf 'buf:    '; buf --version
 
-# --- Per-language checks ------------------------------------------------------
-.PHONY: lint-rust lint-python lint-ts lint-go test-rust test-python test-ts test-go fmt-rust fmt-python fmt-ts fmt-go
+setup: require-tools ## Validate toolchains and install locked TypeScript dependencies
+	@cd typescript && npm ci
+
+build-rust:
+	@echo "==> Rust build"
+	@cd rust && cargo build --workspace --all-targets
+
+build-ts:
+	@echo "==> TypeScript build"
+	@cd typescript && npm run build
+
+build: build-rust build-ts ## Build every compiled workspace
 
 lint-rust:
-ifdef CARGO
-	@echo "==> cargo clippy (rust/)"
-	@cd rust && cargo clippy --all-targets -- -D warnings || echo "    (rust workspace empty or not yet initialized)"
-endif
+	@echo "==> Rust clippy"
+	@cd rust && cargo clippy --workspace --all-targets -- -D warnings
 
 lint-python:
-ifdef PYTHON
-	@echo "==> ruff (python/)"
-	@cd python && (command -v ruff >/dev/null && ruff check . || echo "    ruff not installed; skipping")
-endif
+	@echo "==> Python lint (all projects)"
+	@"$(PYTHON)" tools/ci/run_python_checks.py lint
 
 lint-ts:
-ifdef NPM
-	@echo "==> eslint/tsc (typescript/)"
-	@cd typescript && ([ -f package.json ] && npm run lint 2>/dev/null || echo "    (typescript workspace empty or not yet initialized)")
-endif
+	@echo "==> TypeScript lint and conformance typecheck"
+	@cd typescript && npm run lint
+	@cd typescript && npm run typecheck:conformance
 
 lint-go:
-ifdef GO
-	@echo "==> go vet (go/)"
-	@cd go && ([ -f go.mod ] && go vet ./... || echo "    (go workspace empty or not yet initialized)")
-endif
+	@echo "==> Go vet (all modules)"
+	@"$(PYTHON)" tools/ci/run_go_checks.py vet
+
+lint: lint-rust lint-python lint-ts lint-go ## Lint every language and module
 
 test-rust:
-ifdef CARGO
-	@echo "==> cargo test (rust/)"
-	@cd rust && cargo test --all || echo "    (rust workspace empty or not yet initialized)"
-endif
+	@echo "==> Rust tests"
+	@cd rust && cargo test --workspace --all-targets
 
 test-python:
-ifdef PYTHON
-	@echo "==> pytest (python/)"
-	@cd python && (command -v pytest >/dev/null && pytest -q || echo "    pytest not installed; skipping")
-endif
+	@echo "==> Python tests (all projects)"
+	@"$(PYTHON)" tools/ci/run_python_checks.py test
 
 test-ts:
-ifdef NPM
-	@echo "==> npm test (typescript/)"
-	@cd typescript && ([ -f package.json ] && npm test 2>/dev/null || echo "    (typescript workspace empty or not yet initialized)")
-endif
+	@echo "==> TypeScript tests"
+	@cd typescript && npm test
 
 test-go:
-ifdef GO
-	@echo "==> go test (go/)"
-	@cd go && ([ -f go.mod ] && go test ./... || echo "    (go workspace empty or not yet initialized)")
-endif
+	@echo "==> Go tests (all modules)"
+	@"$(PYTHON)" tools/ci/run_go_checks.py test
 
-# --- Aggregates ---------------------------------------------------------------
-lint: lint-rust lint-python lint-ts lint-go ## Lint every present language
-test: test-rust test-python test-ts test-go ## Test every present language
+test: test-rust test-python test-ts test-go ## Test every language and module
+
+fmt-check-rust:
+	@cd rust && cargo fmt --all -- --check
+
+fmt-check-python:
+	@"$(PYTHON)" tools/ci/run_python_checks.py format
+
+fmt-check-go:
+	@unformatted="$$(gofmt -l $$(find go -type f -name '*.go'))"; \
+	  if [ -n "$$unformatted" ]; then printf '%s\n' "$$unformatted"; exit 1; fi
+
+fmt-check: fmt-check-rust fmt-check-python fmt-check-go ## Verify formatting without modifying files
 
 fmt-rust:
-ifdef CARGO
 	@cd rust && cargo fmt --all
-endif
+
 fmt-python:
-ifdef PYTHON
-	@cd python && (command -v ruff >/dev/null && ruff format . || true)
-endif
-fmt-ts:
-ifdef NPM
-	@cd typescript && ([ -f package.json ] && npm run format 2>/dev/null || true)
-endif
+	@for project in python/*; do \
+	  if [ -d "$$project/src" ]; then \
+	    "$(PYTHON)" -m ruff format "$$project/src" "$$project/tests"; \
+	  fi; \
+	done
+
 fmt-go:
-ifdef GO
-	@cd go && ([ -f go.mod ] && gofmt -w . || true)
-endif
-fmt: fmt-rust fmt-python fmt-ts fmt-go ## Format every present language
+	@gofmt -w $$(find go -type f -name '*.go')
 
-# --- Contract plane -----------------------------------------------------------
-check-proto:
-ifdef BUF
-	@echo "==> buf lint + breaking (proto/)"
-	@cd proto && buf lint
-	@cd proto && (buf breaking --against '.git#branch=main' 2>/dev/null || echo "    (no main branch yet; skipping breaking check)")
-else
-	@echo "==> buf not installed; skipping proto checks (install buf to enforce the breaking-change gate)"
-endif
+fmt: fmt-rust fmt-python fmt-go ## Format every supported language
 
-# --- Conformance (cross-language golden vectors) ------------------------------
-conformance:
-	@echo "==> Running cross-language conformance suite (tools/conformance/)"
-	@tools/conformance/run.sh || echo "    (conformance runner not yet implemented; see RFC T-CORE-1)"
+check-proto: ## Lint protobuf contracts and reject breaking changes from main
+	@echo "==> Protobuf contract plane"
+	@buf lint
+	@buf breaking --against '.git#branch=main'
 
-# --- Docs ---------------------------------------------------------------------
+check-protocols: ## Reject drift between registry.json and every generated protocol artifact
+	@echo "==> Protocol codegen drift"
+	@"$(PYTHON)" tools/protocols/generate.py --check
+
+conformance: ## Run the required Rust/Python/Go/TypeScript vector matrix
+	@echo "==> Cross-language conformance"
+	@"$(PYTHON)" tools/conformance/run.py
+
 check-docs:
-	@echo "==> Checking docs (markdown link integrity, RFC template)"
-	@tools/ci/check-docs.sh || echo "    (doc checker not yet implemented; see docs/cross-cutting/18-developer-experience.md)"
+	@echo "==> Documentation structure"
+	@"$(PYTHON)" tools/ci/check_docs.py
 
-docs: check-docs ## Check docs
+docs: check-docs ## Check documentation contracts
 
-# --- Clean --------------------------------------------------------------------
-clean:
-	@echo "==> Cleaning build artifacts"
-	@[ -d rust/target ] && (cd rust && cargo clean) || true
-	@[ -d python ] && find python -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	@[ -d typescript ] && ([ -f typescript/package.json ] && (cd typescript && npm run clean 2>/dev/null) || true) || true
-	@find . -type f -name '*.pyc' -delete 2>/dev/null || true
+tracker: ## Generate exhaustive machine-readable implementation inventory
+	@"$(PYTHON)" tools/implementation/generate_tracker.py
+
+verify: require-tools check-proto check-protocols fmt-check lint test build conformance docs tracker ## Run every required repository gate
+
+clean: ## Remove generated build and cache artifacts
+	@echo "==> Cleaning generated artifacts"
+	@cd rust && cargo clean
+	@find python -type d -name __pycache__ -prune -exec rm -rf {} +
+	@find python -type f -name '*.pyc' -delete
+	@find typescript -type f -name '*.tsbuildinfo' -delete
+	@find typescript -type d -name dist -prune -exec rm -rf {} +
