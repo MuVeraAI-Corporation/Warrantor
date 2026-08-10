@@ -1,0 +1,39 @@
+{
+  "id": "P7-negative-schema-001",
+  "category": "negative",
+  "protocol": "P7",
+  "expected": "invalid",
+  "expected_error": "PAYLOAD_SCHEMA",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P7",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000007",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "cccf4e606b9c6b219360459d005c497738ed837d9d6a471272ad4ac357ecb3b6",
+    "payload": {
+      "budget": {
+        "steps": 20,
+        "wall_clock_seconds": 600,
+        "tokens": 20000,
+        "money_minor": 5000,
+        "external_calls": 10,
+        "data_bytes": 1048576,
+        "irreversible_actions": 0
+      },
+      "currency": "USD",
+      "privilege": "write",
+      "expected_risk_micros": 300000,
+      "replenishment": "manual"
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "1c7b6b82e6ebae4691772d2c186a6581744d1751860875bc5674e4db80f021bba3e0e56bd40a4ba2a52b1509521b0a5300e687f85e8d94296aeee49334d19603"
+    }
+  }
+}

@@ -1,8 +1,9 @@
 # testvectors/ — Golden cross-language behavior vectors
 
 The golden vectors that prove a behavior in one language is identical in every other. The
-cross-language conformance suite (`tools/conformance/run.sh`, RFC A6) verifies every vector
-in Rust, Python, TypeScript, and Go.
+strict cross-language conformance suite (`tools/conformance/run.py`, with
+`tools/conformance/run.sh` retained as a POSIX shim) verifies every vector in Rust, Python,
+TypeScript, and Go. Missing required toolchains or zero-vector lanes are failures.
 
 ## Layout
 
@@ -24,10 +25,10 @@ testvectors/
 └── P2/           # AAR protocol: same
 ```
 
-The conformance runner (`tools/conformance/run.sh`) runs two T1 lanes: a sign/verify lane
+The conformance runner runs two T1 lanes: a sign/verify lane
 (vectors with `payload_hex` + `signature_hex`) and a Merkle-root lane (vectors with
 `leaves_hex` + `expected_root_hex`). Each lane verifies every matching vector in Rust,
-Python, and Go.
+Python, TypeScript, and Go.
 
 ## Vector format
 
@@ -47,6 +48,6 @@ Each vector is a JSON file:
 
 ## Status
 
-**Wave-1 (Phase 1) target.** The first vectors (T1 sign/verify, C1-1 mock attestation, R3
-kill-switch policy) land as part of each component's MVP task (task 02). The cross-language
-conformance suite enforces they verify identically in every present language.
+**Current implemented scope:** five T1 vectors across signature and RFC 6962 Merkle lanes.
+The runner requires identical behavior in all four supported languages. The other directories
+shown in the target layout remain pending and must not be inferred from this T1 result.

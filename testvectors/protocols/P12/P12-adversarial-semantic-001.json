@@ -1,0 +1,60 @@
+{
+  "id": "P12-adversarial-semantic-001",
+  "category": "adversarial",
+  "protocol": "P12",
+  "expected": "invalid",
+  "expected_error": "SEMANTIC_RULE",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P12",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000012",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "b15cf716ac6df2e870998b9ca5e2da9f0e761abe61ca315518579c28b263f8c2",
+    "payload": {
+      "subject": "spiffe://example.org/agent/researcher",
+      "runtime": "wasmtime-45.0.1",
+      "tools": [
+        "search"
+      ],
+      "policy_digest": "sha256:978a583da9c20268040c610d42061c4e3e21e480c2b2640aca7213a975da9fb0",
+      "credential_types": [
+        "oauth2"
+      ],
+      "network": {
+        "egress_default": "deny",
+        "allowlist": [
+          "search.example.org:443"
+        ],
+        "blocklist": [],
+        "dns_policy": "allowlisted"
+      },
+      "memory_isolation": "wasm",
+      "model": {
+        "uri": "oci://registry.example.org/aumos/runtime-model:1.0.0",
+        "digest": "sha256:068a8f7a61f8dc68598d6823fb8eeb1733e76095eb89299607b0e3554c1d47c7",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "sandbox": "wasm",
+      "attestation_evidence": {
+        "uri": "oci://registry.example.org/aumos/runtime-attestation:1.0.0",
+        "digest": "sha256:2b6cc2d44bdbfb9d16e5215917e80b549a38d5243e996334babbb606bb03bb47",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "valid_until": 1893459660
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "9497eef5680e8b7c516323fff9c29eb1961d8f0500145cf33642458610c24d171c7b28af893885fbaeddfdf146283c3fff170eb76f17449f43b9ef5dc7403707"
+    }
+  }
+}

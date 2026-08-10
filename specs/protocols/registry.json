@@ -1,0 +1,400 @@
+{
+  "schema_version": 1,
+  "wire_version": "1.0.0",
+  "media_types": {
+    "json": "application/vnd.aumos.protocol+json",
+    "cbor": "application/vnd.aumos.protocol+cbor"
+  },
+  "signature_profile": {
+    "algorithm": "Ed25519",
+    "json_canonicalization": "RFC8785",
+    "cbor_canonicalization": "RFC8949-core-deterministic",
+    "cbor_container": "COSE_Sign1"
+  },
+  "supported_critical_extensions": [],
+  "common": {
+    "required": [
+      "protocol",
+      "version",
+      "message_id",
+      "issuer",
+      "issued_at",
+      "expires_at",
+      "nonce",
+      "payload",
+      "critical_extensions",
+      "extensions",
+      "signature"
+    ],
+    "properties": {
+      "protocol": {"type": "string", "enum": ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11", "P12"]},
+      "version": {"type": "string", "const": "1.0.0"},
+      "message_id": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"},
+      "issuer": {"type": "string", "pattern": "^(spiffe|https|urn):[^\\s]+$"},
+      "issued_at": {"type": "integer", "minimum": 0},
+      "expires_at": {"type": "integer", "minimum": 1},
+      "nonce": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+      "payload": {"type": "object", "additionalProperties": true},
+      "critical_extensions": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+      "extensions": {"type": "object", "additionalProperties": true},
+      "signature": {"$ref": "Signature"}
+    }
+  },
+  "types": {
+    "Signature": {
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"type": "string", "const": "Ed25519"},
+        "key_id": {"type": "string", "pattern": "^[A-Za-z0-9._:/-]{1,160}$"},
+        "value": {"type": "string", "pattern": "^[0-9a-f]{128}$"}
+      }
+    },
+    "ArtifactReference": {
+      "required": ["uri", "digest", "media_type", "version", "license"],
+      "properties": {
+        "uri": {"type": "string", "pattern": "^(https|oci|urn|file):[^\\s]+$"},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "media_type": {"type": "string", "minLength": 3},
+        "version": {"type": "string", "minLength": 1},
+        "license": {"type": "string", "minLength": 1}
+      }
+    },
+    "Budget": {
+      "required": ["steps", "wall_clock_seconds", "tokens", "money_minor", "external_calls", "data_bytes", "irreversible_actions"],
+      "properties": {
+        "steps": {"type": "integer", "minimum": 0},
+        "wall_clock_seconds": {"type": "integer", "minimum": 0},
+        "tokens": {"type": "integer", "minimum": 0},
+        "money_minor": {"type": "integer", "minimum": 0},
+        "external_calls": {"type": "integer", "minimum": 0},
+        "data_bytes": {"type": "integer", "minimum": 0},
+        "irreversible_actions": {"type": "integer", "minimum": 0}
+      }
+    },
+    "PolicyDecision": {
+      "required": ["engine", "decision", "policy_digest", "matched_rules"],
+      "properties": {
+        "engine": {"type": "string", "enum": ["opa", "cedar", "openshell"]},
+        "decision": {"type": "string", "enum": ["allow", "deny"]},
+        "policy_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "matched_rules": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      }
+    },
+    "DeterministicCheck": {
+      "required": ["name", "passed", "detail_digest"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "passed": {"type": "boolean"},
+        "detail_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "Transformation": {
+      "required": ["operation", "implementation", "input_digest", "output_digest", "applied_at"],
+      "properties": {
+        "operation": {"type": "string", "minLength": 1},
+        "implementation": {"type": "string", "minLength": 1},
+        "input_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "output_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "applied_at": {"type": "integer", "minimum": 0}
+      }
+    },
+    "EvaluationAssertion": {
+      "required": ["name", "expected_digest", "actual_digest", "passed"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "expected_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "actual_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "passed": {"type": "boolean"}
+      }
+    },
+    "NetworkPolicy": {
+      "required": ["egress_default", "allowlist", "blocklist", "dns_policy"],
+      "properties": {
+        "egress_default": {"type": "string", "enum": ["deny", "allow"]},
+        "allowlist": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "blocklist": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "dns_policy": {"type": "string", "enum": ["deny", "allowlisted"]}
+      }
+    }
+  },
+  "protocols": [
+    {
+      "id": "P1",
+      "slug": "aae",
+      "type_name": "AgentAuthorityEnvelopePayload",
+      "title": "Agent Authority Envelope",
+      "purpose": "Bound, revocable authority for one agent subject.",
+      "rules": ["P1_APPROVAL_FOR_CONSEQUENTIAL_ACTION"],
+      "payload": {
+        "required": ["subject", "purpose", "resources", "tools", "data_classes", "side_effect_class", "budget", "geographies", "delegation_depth", "approvals", "revocation_handle"],
+        "properties": {
+          "subject": {"type": "string", "pattern": "^spiffe://[^\\s]+$"},
+          "purpose": {"type": "string", "minLength": 1},
+          "resources": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+          "tools": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+          "data_classes": {"type": "array", "items": {"type": "string", "enum": ["L0", "L1", "L2", "L3", "L4"]}, "minItems": 1, "uniqueItems": true},
+          "side_effect_class": {"type": "string", "enum": ["read", "write", "financial", "destructive", "physical"]},
+          "budget": {"$ref": "Budget"},
+          "geographies": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{2}$"}, "uniqueItems": true},
+          "delegation_depth": {"type": "integer", "minimum": 0, "maximum": 32},
+          "approvals": {"type": "array", "items": {"type": "string", "pattern": "^spiffe://[^\\s]+$"}, "uniqueItems": true},
+          "revocation_handle": {"type": "string", "pattern": "^urn:aumos:revoke:[A-Za-z0-9._~-]+$"}
+        }
+      }
+    },
+    {
+      "id": "P2",
+      "slug": "aar",
+      "type_name": "AgentActionReceiptPayload",
+      "title": "Agent Action Receipt",
+      "purpose": "Precommit and final tamper-evident action evidence.",
+      "rules": ["P2_PHASE_OUTCOME_CONSISTENCY"],
+      "payload": {
+        "required": ["phase", "actor", "authority_digest", "artifact_digests", "context_digest", "policy_decision", "operation", "checks", "approvers", "outcome", "rollback_pointer", "parent_receipt"],
+        "properties": {
+          "phase": {"type": "string", "enum": ["precommit", "final"]},
+          "actor": {"type": "string", "pattern": "^spiffe://[^\\s]+$"},
+          "authority_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "artifact_digests": {"type": "array", "items": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "uniqueItems": true},
+          "context_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "policy_decision": {"$ref": "PolicyDecision"},
+          "operation": {"type": "string", "minLength": 1},
+          "checks": {"type": "array", "items": {"$ref": "DeterministicCheck"}, "minItems": 1},
+          "approvers": {"type": "array", "items": {"type": "string", "pattern": "^spiffe://[^\\s]+$"}, "uniqueItems": true},
+          "outcome": {"type": "string", "enum": ["pending", "committed", "rolled_back", "failed"]},
+          "rollback_pointer": {"type": "string"},
+          "parent_receipt": {"type": "string"}
+        }
+      }
+    },
+    {
+      "id": "P3",
+      "slug": "cpe",
+      "type_name": "ContextProvenanceEnvelopePayload",
+      "title": "Context Provenance Envelope",
+      "purpose": "Purpose-bound provenance through retrieval and transformation.",
+      "rules": ["P3_PURPOSE_AND_PROVENANCE_CONSISTENCY"],
+      "payload": {
+        "required": ["source_identity", "acquired_at", "consent", "sensitivity", "content_digest", "confidence_micros", "transformations", "derived_from", "taints", "allowed_uses"],
+        "properties": {
+          "source_identity": {"type": "string", "minLength": 1},
+          "acquired_at": {"type": "integer", "minimum": 0},
+          "consent": {"type": "boolean"},
+          "sensitivity": {"type": "string", "enum": ["L0", "L1", "L2", "L3", "L4"]},
+          "content_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "confidence_micros": {"type": "integer", "minimum": 0, "maximum": 1000000},
+          "transformations": {"type": "array", "items": {"$ref": "Transformation"}},
+          "derived_from": {"type": "array", "items": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "uniqueItems": true},
+          "taints": {"type": "array", "items": {"type": "string", "enum": ["untrusted", "pii", "sensitive", "malware"]}, "uniqueItems": true},
+          "allowed_uses": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true}
+        }
+      }
+    },
+    {
+      "id": "P4",
+      "slug": "amil",
+      "type_name": "AgentMemoryIntegrityRecordPayload",
+      "title": "Agent Memory Integrity Ledger",
+      "purpose": "Hash-linked memory records with poisoning quarantine semantics.",
+      "rules": ["P4_CHAIN_AND_QUARANTINE_CONSISTENCY"],
+      "payload": {
+        "required": ["sequence", "previous_digest", "owner", "content_digest", "confidence_micros", "contradiction_links", "provenance_digest", "quarantine_state", "supersedes", "retention_until", "consent_revoked"],
+        "properties": {
+          "sequence": {"type": "integer", "minimum": 0},
+          "previous_digest": {"type": "string"},
+          "owner": {"type": "string", "pattern": "^spiffe://[^\\s]+$"},
+          "content_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "confidence_micros": {"type": "integer", "minimum": 0, "maximum": 1000000},
+          "contradiction_links": {"type": "array", "items": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "uniqueItems": true},
+          "provenance_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "quarantine_state": {"type": "string", "enum": ["clean", "quarantined", "resolved"]},
+          "supersedes": {"type": "string"},
+          "retention_until": {"type": "integer", "minimum": 1},
+          "consent_revoked": {"type": "boolean"}
+        }
+      }
+    },
+    {
+      "id": "P5",
+      "slug": "ssp",
+      "type_name": "SecureSkillPackagePayload",
+      "title": "Secure Skill Package",
+      "purpose": "Content-addressed, permission-scoped, revocable skill distribution.",
+      "rules": ["P5_PERMISSION_AND_REVOCATION_CONSISTENCY"],
+      "payload": {
+        "required": ["name", "package", "instructions_digest", "code", "runtime", "tools", "permissions", "publisher_identity", "ai_sbom", "evaluation_bundle", "limitations", "revocation_handle"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "package": {"$ref": "ArtifactReference"},
+          "instructions_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "code": {"$ref": "ArtifactReference"},
+          "runtime": {"type": "string", "enum": ["wasm", "python", "node", "container"]},
+          "tools": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+          "permissions": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+          "publisher_identity": {"type": "string", "pattern": "^(spiffe|https|urn):[^\\s]+$"},
+          "ai_sbom": {"$ref": "ArtifactReference"},
+          "evaluation_bundle": {"$ref": "ArtifactReference"},
+          "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+          "revocation_handle": {"type": "string", "pattern": "^urn:aumos:revoke:[A-Za-z0-9._~-]+$"}
+        }
+      }
+    },
+    {
+      "id": "P6",
+      "slug": "aatm",
+      "type_name": "AiArtifactTrustManifestPayload",
+      "title": "AI Artifact Trust Manifest",
+      "purpose": "Exact identity and provenance for the complete AI artifact graph.",
+      "rules": ["P6_REQUIRED_ROLES_AND_UNIQUE_ARTIFACTS"],
+      "payload": {
+        "required": ["artifacts", "roles", "root_digest", "build_provenance", "deployment_attestations"],
+        "properties": {
+          "artifacts": {"type": "array", "items": {"$ref": "ArtifactReference"}, "minItems": 2},
+          "roles": {"type": "array", "items": {"type": "string", "enum": ["model", "dataset", "tokenizer", "prompt", "adapter", "container", "policy", "skill", "evaluation"]}, "minItems": 2},
+          "root_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "build_provenance": {"$ref": "ArtifactReference"},
+          "deployment_attestations": {"type": "array", "items": {"$ref": "ArtifactReference"}}
+        }
+      }
+    },
+    {
+      "id": "P7",
+      "slug": "abs",
+      "type_name": "AutonomyBudgetSpecificationPayload",
+      "title": "Autonomy Budget Specification",
+      "purpose": "Machine-enforceable ceilings for autonomous execution.",
+      "rules": ["P7_RISK_REQUIRES_APPROVAL"],
+      "payload": {
+        "required": ["budget", "currency", "privilege", "expected_risk_micros", "approval_required", "replenishment"],
+        "properties": {
+          "budget": {"$ref": "Budget"},
+          "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+          "privilege": {"type": "string", "enum": ["none", "read", "write", "admin"]},
+          "expected_risk_micros": {"type": "integer", "minimum": 0, "maximum": 1000000},
+          "approval_required": {"type": "boolean"},
+          "replenishment": {"type": "string", "enum": ["none", "manual", "scheduled"]}
+        }
+      }
+    },
+    {
+      "id": "P8",
+      "slug": "veb",
+      "type_name": "VerifiableEvaluationBundlePayload",
+      "title": "Verifiable Evaluation Bundle",
+      "purpose": "Reproducible evaluation evidence bound to exact inputs.",
+      "rules": ["P8_ASSERTION_COUNTS_MATCH"],
+      "payload": {
+        "required": ["corpus", "environment", "model", "harness", "policy", "seeds", "trace_digests", "judge", "assertions", "passed_count", "failed_count"],
+        "properties": {
+          "corpus": {"$ref": "ArtifactReference"},
+          "environment": {"$ref": "ArtifactReference"},
+          "model": {"$ref": "ArtifactReference"},
+          "harness": {"$ref": "ArtifactReference"},
+          "policy": {"$ref": "ArtifactReference"},
+          "seeds": {"type": "array", "items": {"type": "integer", "minimum": 0}, "minItems": 1, "uniqueItems": true},
+          "trace_digests": {"type": "array", "items": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "minItems": 1, "uniqueItems": true},
+          "judge": {"$ref": "ArtifactReference"},
+          "assertions": {"type": "array", "items": {"$ref": "EvaluationAssertion"}, "minItems": 1},
+          "passed_count": {"type": "integer", "minimum": 0},
+          "failed_count": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    {
+      "id": "P9",
+      "slug": "aix",
+      "type_name": "AgentIncidentExchangePayload",
+      "title": "Agent Incident Exchange",
+      "purpose": "Normalized, attributable agent-security incident exchange.",
+      "rules": ["P9_INCIDENT_TIMELINE_CONSISTENCY"],
+      "payload": {
+        "required": ["incident_type", "severity", "agent", "authority_digest", "evidence_refs", "mitre_atlas_ids", "ocsf_class_uid", "detected_at", "contained_at", "containment_status"],
+        "properties": {
+          "incident_type": {"type": "string", "enum": ["goal_hijack", "memory_poisoning", "tool_abuse", "identity_compromise", "exfiltration", "rogue_delegation"]},
+          "severity": {"type": "string", "enum": ["info", "low", "medium", "high", "critical"]},
+          "agent": {"type": "string", "pattern": "^spiffe://[^\\s]+$"},
+          "authority_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+          "mitre_atlas_ids": {"type": "array", "items": {"type": "string", "pattern": "^AML\\.T[0-9]{4}(\\.[0-9]{3})?$"}, "uniqueItems": true},
+          "ocsf_class_uid": {"type": "integer", "minimum": 1},
+          "detected_at": {"type": "integer", "minimum": 0},
+          "contained_at": {"type": "integer", "minimum": 0},
+          "containment_status": {"type": "string", "enum": ["open", "contained", "eradicated", "recovered"]}
+        }
+      }
+    },
+    {
+      "id": "P10",
+      "slug": "made",
+      "type_name": "MultiAgentDelegationExchangePayload",
+      "title": "Multi-Agent Delegation Exchange",
+      "purpose": "Explicitly attenuated, attributable delegation between agents.",
+      "rules": ["P10_DELEGATION_MUST_ATTENUATE"],
+      "payload": {
+        "required": ["delegator", "delegatee", "parent_authority_digest", "delegation_chain", "hop_count", "max_depth", "capabilities", "parent_budget", "delegated_budget", "quorum", "approvals", "evidence_requirements", "result_digest", "status"],
+        "properties": {
+          "delegator": {"type": "string", "pattern": "^spiffe://[^\\s]+$"},
+          "delegatee": {"type": "string", "pattern": "^spiffe://[^\\s]+$"},
+          "parent_authority_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "delegation_chain": {"type": "array", "items": {"type": "string", "pattern": "^spiffe://[^\\s]+$"}, "minItems": 2},
+          "hop_count": {"type": "integer", "minimum": 1, "maximum": 32},
+          "max_depth": {"type": "integer", "minimum": 1, "maximum": 32},
+          "capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+          "parent_budget": {"$ref": "Budget"},
+          "delegated_budget": {"$ref": "Budget"},
+          "quorum": {"type": "integer", "minimum": 0},
+          "approvals": {"type": "array", "items": {"type": "string", "pattern": "^spiffe://[^\\s]+$"}, "uniqueItems": true},
+          "evidence_requirements": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+          "result_digest": {"type": "string"},
+          "status": {"type": "string", "enum": ["offered", "accepted", "completed", "rejected", "revoked"]}
+        }
+      }
+    },
+    {
+      "id": "P11",
+      "slug": "prb",
+      "type_name": "ProofCarryingRemediationBundlePayload",
+      "title": "Proof-Carrying Remediation Bundle",
+      "purpose": "Content-addressed remediation with reproduction and regression proof.",
+      "rules": ["P11_EMBARGO_AND_EVIDENCE_CONSISTENCY"],
+      "payload": {
+        "required": ["reproducer", "root_cause_digest", "affected_versions", "patch", "tests", "regression_evidence", "build_provenance", "embargo_until", "disclosure_status"],
+        "properties": {
+          "reproducer": {"$ref": "ArtifactReference"},
+          "root_cause_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "affected_versions": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+          "patch": {"$ref": "ArtifactReference"},
+          "tests": {"type": "array", "items": {"$ref": "ArtifactReference"}, "minItems": 1},
+          "regression_evidence": {"$ref": "ArtifactReference"},
+          "build_provenance": {"$ref": "ArtifactReference"},
+          "embargo_until": {"type": "integer", "minimum": 0},
+          "disclosure_status": {"type": "string", "enum": ["embargoed", "coordinated", "public"]}
+        }
+      }
+    },
+    {
+      "id": "P12",
+      "slug": "cap",
+      "type_name": "CapabilityAttestationProfilePayload",
+      "title": "Capability Attestation Profile",
+      "purpose": "Evidence-bound declaration of runtime capabilities and enforcement.",
+      "rules": ["P12_RUNTIME_AND_NETWORK_BOUNDARY"],
+      "payload": {
+        "required": ["subject", "runtime", "tools", "policy_digest", "credential_types", "network", "memory_isolation", "model", "sandbox", "attestation_evidence", "valid_until"],
+        "properties": {
+          "subject": {"type": "string", "pattern": "^spiffe://[^\\s]+$"},
+          "runtime": {"type": "string", "minLength": 1},
+          "tools": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+          "policy_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "credential_types": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+          "network": {"$ref": "NetworkPolicy"},
+          "memory_isolation": {"type": "string", "enum": ["process", "container", "wasm", "tee"]},
+          "model": {"$ref": "ArtifactReference"},
+          "sandbox": {"type": "string", "enum": ["wasm", "container", "tee"]},
+          "attestation_evidence": {"$ref": "ArtifactReference"},
+          "valid_until": {"type": "integer", "minimum": 1}
+        }
+      }
+    }
+  ]
+}

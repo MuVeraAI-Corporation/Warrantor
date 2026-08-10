@@ -1,0 +1,53 @@
+{
+  "id": "P1-adversarial-expired-003",
+  "category": "adversarial",
+  "protocol": "P1",
+  "expected": "invalid",
+  "expected_error": "EXPIRED",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P1",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000001",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893456060,
+    "nonce": "8ceaa62dce9094dac67128de54944efa72ee3a7da2caab452b6fe705efdff6e3",
+    "payload": {
+      "subject": "spiffe://example.org/agent/researcher",
+      "purpose": "analyze approved dataset",
+      "resources": [
+        "urn:aumos:dataset:approved"
+      ],
+      "tools": [
+        "spiffe://example.org/tool/search"
+      ],
+      "data_classes": [
+        "L1"
+      ],
+      "side_effect_class": "write",
+      "budget": {
+        "steps": 20,
+        "wall_clock_seconds": 600,
+        "tokens": 20000,
+        "money_minor": 5000,
+        "external_calls": 10,
+        "data_bytes": 1048576,
+        "irreversible_actions": 0
+      },
+      "geographies": [
+        "US"
+      ],
+      "delegation_depth": 1,
+      "approvals": [],
+      "revocation_handle": "urn:aumos:revoke:aae-001"
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "4568864aeb75ec43189e8a2a0502afd4051e784a1941e1dcad4592511aaafa2a175f4583b9902664047b3f80ba19fdc6fa6da9a6b414ee91b714eff04732e50e"
+    }
+  }
+}

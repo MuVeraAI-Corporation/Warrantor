@@ -1,0 +1,331 @@
+{
+  "schema_version": 1,
+  "wire_version": "1.0.0",
+  "canonicalization": "RFC8785-compatible integer-only profile",
+  "keyring": {
+    "urn:aumos:key:protocol-tck-ed25519-1": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8"
+  },
+  "vector_count": 40,
+  "vectors": [
+    {
+      "id": "P1-positive-001",
+      "protocol": "P1",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P1/P1-positive-001.json"
+    },
+    {
+      "id": "P1-negative-schema-001",
+      "protocol": "P1",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P1/P1-negative-schema-001.json"
+    },
+    {
+      "id": "P1-adversarial-semantic-001",
+      "protocol": "P1",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P1/P1-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P2-positive-001",
+      "protocol": "P2",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P2/P2-positive-001.json"
+    },
+    {
+      "id": "P2-negative-schema-001",
+      "protocol": "P2",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P2/P2-negative-schema-001.json"
+    },
+    {
+      "id": "P2-adversarial-semantic-001",
+      "protocol": "P2",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P2/P2-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P3-positive-001",
+      "protocol": "P3",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P3/P3-positive-001.json"
+    },
+    {
+      "id": "P3-negative-schema-001",
+      "protocol": "P3",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P3/P3-negative-schema-001.json"
+    },
+    {
+      "id": "P3-adversarial-semantic-001",
+      "protocol": "P3",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P3/P3-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P4-positive-001",
+      "protocol": "P4",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P4/P4-positive-001.json"
+    },
+    {
+      "id": "P4-negative-schema-001",
+      "protocol": "P4",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P4/P4-negative-schema-001.json"
+    },
+    {
+      "id": "P4-adversarial-semantic-001",
+      "protocol": "P4",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P4/P4-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P5-positive-001",
+      "protocol": "P5",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P5/P5-positive-001.json"
+    },
+    {
+      "id": "P5-negative-schema-001",
+      "protocol": "P5",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P5/P5-negative-schema-001.json"
+    },
+    {
+      "id": "P5-adversarial-semantic-001",
+      "protocol": "P5",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P5/P5-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P6-positive-001",
+      "protocol": "P6",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P6/P6-positive-001.json"
+    },
+    {
+      "id": "P6-negative-schema-001",
+      "protocol": "P6",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P6/P6-negative-schema-001.json"
+    },
+    {
+      "id": "P6-adversarial-semantic-001",
+      "protocol": "P6",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P6/P6-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P7-positive-001",
+      "protocol": "P7",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P7/P7-positive-001.json"
+    },
+    {
+      "id": "P7-negative-schema-001",
+      "protocol": "P7",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P7/P7-negative-schema-001.json"
+    },
+    {
+      "id": "P7-adversarial-semantic-001",
+      "protocol": "P7",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P7/P7-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P8-positive-001",
+      "protocol": "P8",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P8/P8-positive-001.json"
+    },
+    {
+      "id": "P8-negative-schema-001",
+      "protocol": "P8",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P8/P8-negative-schema-001.json"
+    },
+    {
+      "id": "P8-adversarial-semantic-001",
+      "protocol": "P8",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P8/P8-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P9-positive-001",
+      "protocol": "P9",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P9/P9-positive-001.json"
+    },
+    {
+      "id": "P9-negative-schema-001",
+      "protocol": "P9",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P9/P9-negative-schema-001.json"
+    },
+    {
+      "id": "P9-adversarial-semantic-001",
+      "protocol": "P9",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P9/P9-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P10-positive-001",
+      "protocol": "P10",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P10/P10-positive-001.json"
+    },
+    {
+      "id": "P10-negative-schema-001",
+      "protocol": "P10",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P10/P10-negative-schema-001.json"
+    },
+    {
+      "id": "P10-adversarial-semantic-001",
+      "protocol": "P10",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P10/P10-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P11-positive-001",
+      "protocol": "P11",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P11/P11-positive-001.json"
+    },
+    {
+      "id": "P11-negative-schema-001",
+      "protocol": "P11",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P11/P11-negative-schema-001.json"
+    },
+    {
+      "id": "P11-adversarial-semantic-001",
+      "protocol": "P11",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P11/P11-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P12-positive-001",
+      "protocol": "P12",
+      "category": "positive",
+      "expected": "valid",
+      "expected_error": "",
+      "path": "P12/P12-positive-001.json"
+    },
+    {
+      "id": "P12-negative-schema-001",
+      "protocol": "P12",
+      "category": "negative",
+      "expected": "invalid",
+      "expected_error": "PAYLOAD_SCHEMA",
+      "path": "P12/P12-negative-schema-001.json"
+    },
+    {
+      "id": "P12-adversarial-semantic-001",
+      "protocol": "P12",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "SEMANTIC_RULE",
+      "path": "P12/P12-adversarial-semantic-001.json"
+    },
+    {
+      "id": "P1-adversarial-unknown-critical-extension-002",
+      "protocol": "P1",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "UNKNOWN_CRITICAL_EXTENSION",
+      "path": "P1/P1-adversarial-unknown-critical-extension-002.json"
+    },
+    {
+      "id": "P1-adversarial-expired-003",
+      "protocol": "P1",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "EXPIRED",
+      "path": "P1/P1-adversarial-expired-003.json"
+    },
+    {
+      "id": "P1-adversarial-version-downgrade-004",
+      "protocol": "P1",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "UNSUPPORTED_VERSION",
+      "path": "P1/P1-adversarial-version-downgrade-004.json"
+    },
+    {
+      "id": "P1-adversarial-invalid-signature-005",
+      "protocol": "P1",
+      "category": "adversarial",
+      "expected": "invalid",
+      "expected_error": "INVALID_SIGNATURE",
+      "path": "P1/P1-adversarial-invalid-signature-005.json"
+    }
+  ]
+}

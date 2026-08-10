@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aumos-protocol-contracts"
+version = "1.0.0"
+description = "Generated bindings and reference validator for AumOS P1-P12"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = [
+  "cryptography>=44,<47",
+  "jsonschema>=4.23,<5",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["src/protocol_contracts/generated.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.format]
+exclude = ["src/protocol_contracts/generated.py"]

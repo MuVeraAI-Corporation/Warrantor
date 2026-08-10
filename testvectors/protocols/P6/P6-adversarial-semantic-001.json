@@ -1,0 +1,63 @@
+{
+  "id": "P6-adversarial-semantic-001",
+  "category": "adversarial",
+  "protocol": "P6",
+  "expected": "invalid",
+  "expected_error": "SEMANTIC_RULE",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P6",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000006",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "740ef7681d2e11a292c84aeafb09b7de649ef92e0710ba62f16aeaf9b4227a77",
+    "payload": {
+      "artifacts": [
+        {
+          "uri": "oci://registry.example.org/aumos/model:1.0.0",
+          "digest": "sha256:9372c470eeadd5ecd9c3c74c2b3cb633f8e2f2fad799250a0f70d652b6b825e4",
+          "media_type": "application/vnd.oci.image.manifest.v1+json",
+          "version": "1.0.0",
+          "license": "Apache-2.0"
+        },
+        {
+          "uri": "oci://registry.example.org/aumos/policy:1.0.0",
+          "digest": "sha256:823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+          "media_type": "application/vnd.oci.image.manifest.v1+json",
+          "version": "1.0.0",
+          "license": "Apache-2.0"
+        }
+      ],
+      "roles": [
+        "model",
+        "model"
+      ],
+      "root_digest": "sha256:9a6c124602c83dace1b18b4ff8dfd8585d7ffd1b729512d1482422016991e2e8",
+      "build_provenance": {
+        "uri": "oci://registry.example.org/aumos/provenance:1.0.0",
+        "digest": "sha256:96d815328a42cb4ef89d5e0b7a1df6be43b484832c83a7b4596d8402c7c0b12b",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "deployment_attestations": [
+        {
+          "uri": "oci://registry.example.org/aumos/attestation:1.0.0",
+          "digest": "sha256:813a89a296973e35545cfa74fe3efd172a7d19443c97c625d699e9737229b0a2",
+          "media_type": "application/vnd.oci.image.manifest.v1+json",
+          "version": "1.0.0",
+          "license": "Apache-2.0"
+        }
+      ]
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "341e2f98ef2fbc4860f7c63a783144427950376f3f1f9b37898f1dc96a2156a9c13f93d5286cb6ba0cfd7752be1062690020b3cea20c5110d5c147a4746a9101"
+    }
+  }
+}

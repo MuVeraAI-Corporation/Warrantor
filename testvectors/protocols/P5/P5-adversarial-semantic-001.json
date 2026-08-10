@@ -1,0 +1,68 @@
+{
+  "id": "P5-adversarial-semantic-001",
+  "category": "adversarial",
+  "protocol": "P5",
+  "expected": "invalid",
+  "expected_error": "SEMANTIC_RULE",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P5",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000005",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "a31be79cea35b9b5a7d7c95eb9cf023190394bf1594a8cef592c8d9fc15f0670",
+    "payload": {
+      "name": "approved-search",
+      "package": {
+        "uri": "oci://registry.example.org/aumos/skill-package:1.0.0",
+        "digest": "sha256:fc81e624f5d7676302ae52833fae162cfa15caca72898595a7b4de26144d5a98",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "instructions_digest": "sha256:04283496546f1b0b9e34af36503c4c9e0891712575429c949ea0cd22c7830b4b",
+      "code": {
+        "uri": "oci://registry.example.org/aumos/skill-code:1.0.0",
+        "digest": "sha256:d838b20ce46cb8e59b52b0e5de4eca59fa97ae09a9d4e3cda1942aae394427ec",
+        "media_type": "application/wasm",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "runtime": "python",
+      "tools": [
+        "search"
+      ],
+      "permissions": [
+        "net:search.example.org"
+      ],
+      "publisher_identity": "spiffe://example.org/publisher/security",
+      "ai_sbom": {
+        "uri": "oci://registry.example.org/aumos/skill-sbom:1.0.0",
+        "digest": "sha256:b026198f567cb0dfff27dfd97ad0bee75c64bcddea65a9e2e9e3096d3639e019",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "evaluation_bundle": {
+        "uri": "oci://registry.example.org/aumos/skill-eval:1.0.0",
+        "digest": "sha256:f195433408961092513037d729518fec4e88dc915e9e90613dd35ada4846d37b",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "limitations": [
+        "approved corpus only"
+      ],
+      "revocation_handle": "urn:aumos:revoke:ssp-001"
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "61a081be3e83ebdaf35e3a900614c5cc502236bbea6f785319ca2d759cc98a8e9bf3a5826d88215be72ae0f8cd78e86949f8aeca54d320848779849b0f99ee00"
+    }
+  }
+}

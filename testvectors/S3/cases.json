@@ -1,0 +1,37 @@
+[
+  {
+    "id": "valid-empty-v3",
+    "hex": "4747554603000000000000000000000000000000000000000000000000000000",
+    "outcome": "valid"
+  },
+  {
+    "id": "invalid-magic",
+    "hex": "4241442103000000000000000000000000000000000000000000000000000000",
+    "outcome": "invalid_magic"
+  },
+  {
+    "id": "unsupported-version",
+    "hex": "4747554604000000000000000000000000000000000000000000000000000000",
+    "outcome": "unsupported_version"
+  },
+  {
+    "id": "big-endian-version-marker",
+    "hex": "4747554600000003000000000000000000000000000000000000000000000000",
+    "outcome": "unsupported_endianness"
+  },
+  {
+    "id": "truncated-header",
+    "hex": "474755460300",
+    "outcome": "truncated"
+  },
+  {
+    "id": "metadata-count-bomb",
+    "hex": "47475546030000000000000000000000ffffffffffffffff",
+    "outcome": "metadata_count_limit"
+  },
+  {
+    "id": "tensor-count-bomb",
+    "hex": "4747554603000000ffffffffffffffff0000000000000000",
+    "outcome": "tensor_count_limit"
+  }
+]

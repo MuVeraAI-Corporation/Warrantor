@@ -1,0 +1,53 @@
+{
+  "id": "P2-negative-schema-001",
+  "category": "negative",
+  "protocol": "P2",
+  "expected": "invalid",
+  "expected_error": "PAYLOAD_SCHEMA",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P2",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000002",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "f01305686091c2444a3f66c0b3643fa5fa2d69f39ffbf69595e9e265b11ea466",
+    "payload": {
+      "phase": "precommit",
+      "authority_digest": "sha256:ffbb92502cb6778449a21791fa3f524deeec800c84faee10f934737a86ecca85",
+      "artifact_digests": [
+        "sha256:9372c470eeadd5ecd9c3c74c2b3cb633f8e2f2fad799250a0f70d652b6b825e4",
+        "sha256:7c9bbe5ec9b3fb774e8fa0f54247e93c34ddf8e5d16fe3073420de0ae81a262d"
+      ],
+      "context_digest": "sha256:ea7792a26f405e2ae9c6f49ca93bbe6076ceac0a1fc53d83426c7d7f2d9377e4",
+      "policy_decision": {
+        "engine": "opa",
+        "decision": "allow",
+        "policy_digest": "sha256:823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+        "matched_rules": [
+          "allow-approved-dataset"
+        ]
+      },
+      "operation": "dataset.write_summary",
+      "checks": [
+        {
+          "name": "authority-current",
+          "passed": true,
+          "detail_digest": "sha256:21904d0104b6ea2e99123b7f9d82fafa71689916a0811aa852c176ac1c19f70b"
+        }
+      ],
+      "approvers": [],
+      "outcome": "pending",
+      "rollback_pointer": "",
+      "parent_receipt": ""
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "fb8961a71f8e609f52b2171a0ecb29f4b4f5a9676061d60ba240a7efe801812496dc488a69b964cdfeb66a9eb8cb0987792c4ebaaebf41e64c32b24bb4622a05"
+    }
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "id": "P11-adversarial-semantic-001",
+  "category": "adversarial",
+  "protocol": "P11",
+  "expected": "invalid",
+  "expected_error": "SEMANTIC_RULE",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P11",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000011",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "ae42dc60c55004edcf7ef20596f4c034af0148a7027b79747165a75c50f79120",
+    "payload": {
+      "reproducer": {
+        "uri": "oci://registry.example.org/aumos/reproducer:1.0.0",
+        "digest": "sha256:82c225d2ef3a8810bb5932d44106ab3aa6a50f717af25b285494d4f7aee81331",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "root_cause_digest": "sha256:96c4406cef46ea0bd507fe302659c9db0322c8ec25fcdcfd0901c1f80467d53d",
+      "affected_versions": [
+        "1.0.0"
+      ],
+      "patch": {
+        "uri": "oci://registry.example.org/aumos/patch:1.0.0",
+        "digest": "sha256:a4895eb44afc336fecbba6e520cd67e178dace0276655d102fceffa8e5f70570",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "tests": [
+        {
+          "uri": "oci://registry.example.org/aumos/regression-test:1.0.0",
+          "digest": "sha256:4056918c943b10a92ef8d214298062cb3c97da1db49040ab5d3c192f2b376dcc",
+          "media_type": "application/vnd.oci.image.manifest.v1+json",
+          "version": "1.0.0",
+          "license": "Apache-2.0"
+        }
+      ],
+      "regression_evidence": {
+        "uri": "oci://registry.example.org/aumos/regression-veb:1.0.0",
+        "digest": "sha256:a60976a4755afbfb4ade71e6a3f6e61040964310ed0839c71e4f576537ce0c3d",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "build_provenance": {
+        "uri": "oci://registry.example.org/aumos/patch-provenance:1.0.0",
+        "digest": "sha256:083d50f14b92d96e3f143b0c60dff261f5056d129f8e2943c30ad1158e9067dd",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "embargo_until": 1893546000,
+      "disclosure_status": "public"
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "2162c166075f3119b789e37164e8fb0438c499af979cdd24712c78a043b91d6e7fdde544b6878c6ab95c510e22a20d2a0e1372815ed5458413836ea3a9613208"
+    }
+  }
+}
