@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import json
-import math
-import os
-import tempfile
 
 import pytest
 
@@ -103,7 +100,9 @@ def test_report_to_dict_round_trips() -> None:
     assert "type" in d["findings"][0]
 
 
-def test_cli_emits_report_and_exits_nonzero_on_high(tmp_path, capsys: pytest.CaptureFixture[str]) -> int | None:
+def test_cli_emits_report_and_exits_nonzero_on_high(
+    tmp_path, capsys: pytest.CaptureFixture[str]
+) -> int | None:
     subject = {"w": [100.0, 0.0, 0.0]}
     p = tmp_path / "subj.json"
     p.write_text(json.dumps(subject), encoding="utf-8")

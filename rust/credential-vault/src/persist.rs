@@ -97,7 +97,7 @@ impl RevocationJournal {
         let (records, good_bytes, torn) = Self::replay(&path)?;
         if torn {
             eprintln!(
-                "aumos-credential-vault: WARNING torn trailing record in {} — truncating to \
+                "warrantor-credential-vault: WARNING torn trailing record in {} — truncating to \
                  {good_bytes} bytes ({} complete records recovered)",
                 path.display(),
                 records.len()

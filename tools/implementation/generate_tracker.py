@@ -262,7 +262,7 @@ UNCATALOGUED_ALLOWLIST: frozenset[str] = frozenset(
         "go/protocol-contracts",
         "typescript/protocol-contracts",
         # Generated protobuf/tonic bindings for the contract plane.
-        "rust/aumos-api",
+        "rust/warrantor-api",
     }
 )
 

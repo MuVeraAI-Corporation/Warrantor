@@ -9,12 +9,12 @@
 //!   and the RBAC that let you run it at all. AX-05 therefore requires
 //!   `--i-am-not-authenticating` on every manual kill, so the gap cannot be accepted by accident.
 //!   (The intended replacement is a signed operator token; see
-//!   `aumos_kill_switch::OperatorAuthentication`.)
+//!   `warrantor_kill_switch::OperatorAuthentication`.)
 //! * **`--engine mock` contains nothing.** It exists for rehearsals. It prints a banner, and the
 //!   emitted outcome carries `engine="mock"` / `simulated=true`. The default is `local`, which
 //!   really terminates the target process.
 
-use aumos_kill_switch::{
+use warrantor_kill_switch::{
     execute_kill, ExecutionEngine, KillTarget, KillTrigger, LocalProcessEngine,
     MockExecutionEngine, OperatorAuthentication,
 };
@@ -106,7 +106,7 @@ enum Commands {
     Status,
 }
 
-fn report(outcome: Result<aumos_kill_switch::KillOutcome, aumos_kill_switch::KillError>) -> ! {
+fn report(outcome: Result<warrantor_kill_switch::KillOutcome, warrantor_kill_switch::KillError>) -> ! {
     match outcome {
         Ok(o) => {
             if o.simulated {
@@ -189,7 +189,7 @@ fn main() {
             );
             println!(
                 "kill-switch: government api url={}",
-                aumos_kill_switch::GOVERNMENT_API_URL
+                warrantor_kill_switch::GOVERNMENT_API_URL
             );
             println!(
                 "kill-switch: TRUST ASSUMPTION — --operator/--clearance are UNAUTHENTICATED \

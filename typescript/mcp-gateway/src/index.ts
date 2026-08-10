@@ -1,7 +1,7 @@
 import { createPublicKey, verify as cryptoVerify } from 'node:crypto';
 
 /**
- * @aumos/mcp-gateway (X8) — authority-aware Model Context Protocol (MCP) middleware.
+ * @warrantor/mcp-gateway (X8) — authority-aware Model Context Protocol (MCP) middleware.
  *
  * The gateway sits between an MCP client (an agent) and one or more MCP tool servers. It
  * intercepts every tool call, checks the caller's AAE (P1 Agent Authority Envelope) for the
@@ -454,7 +454,7 @@ export class McpHttpTransport implements ToolTransport {
     this.resolveEndpoint = config.resolveEndpoint;
     this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
     this.timeoutMs = config.timeoutMs ?? 5_000;
-    this.clientInfo = config.clientInfo ?? { name: '@aumos/mcp-gateway', version: '1.0.0' };
+    this.clientInfo = config.clientInfo ?? { name: '@warrantor/mcp-gateway', version: '1.0.0' };
     this.capabilities = { ...(config.capabilities ?? {}) };
     this.requestId = config.requestId ?? (() => `aumos-gateway-${++this.sequence}`);
   }

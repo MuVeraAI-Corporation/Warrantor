@@ -21,10 +21,10 @@ func freshPlane(gpus int) *ControlPlane {
 
 func TestPlanDefaults(t *testing.T) {
 	cases := []struct {
-		plan          Plan
-		wantQuota     int
-		wantSLA       SLATier
-		wantAttest    bool
+		plan       Plan
+		wantQuota  int
+		wantSLA    SLATier
+		wantAttest bool
 	}{
 		{PlanFree, 0, SLANone, true},
 		{PlanTeam, 1, SLAStandard, true},

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-09T23:59:29.559795+00:00",
+  "generated_at": "2026-08-10T03:17:26.825683+00:00",
   "repository": {
-    "commit": "4d122fea81382a7c50eb374ecfb08233f65dbffe",
+    "commit": "43a7e1acf33fa393a513aa3ed146cab030469c15",
     "branch": "fix/critical-findings",
     "dirty": true
   },
@@ -26,7 +26,7 @@
     "task_checkboxes": 371,
     "task_checkboxes_checked": 0,
     "task_checkboxes_open": 371,
-    "explicit_pending_markers": 386
+    "explicit_pending_markers": 403
   },
   "catalog_integrity": {
     "passed": true,
@@ -582,7 +582,7 @@
       "status": "reference_implementation",
       "source_paths": [
         "typescript/mcp-gateway",
-        "typescript/aumos-mcp-server"
+        "typescript/mcp-server"
       ],
       "rfc": "docs/rfcs/X8-mcp-gateway.md"
     },
@@ -782,7 +782,7 @@
       "domain": "agent",
       "status": "partial",
       "source_paths": [
-        "python/aumos_agent"
+        "python/warrantor_agent"
       ],
       "rfc": null,
       "note": "Largest Python package. Signing degrades to a forgeable HMAC on trust-core failure (AX-28)."
@@ -794,7 +794,7 @@
       "domain": "runtime",
       "status": "partial",
       "source_paths": [
-        "python/aumos_harness"
+        "python/warrantor_harness"
       ],
       "rfc": null,
       "note": "Coding-agent harness. shell=True behind a one-token endswith allowlist (AX-30)."
@@ -806,7 +806,7 @@
       "domain": "inference",
       "status": "reference_implementation",
       "source_paths": [
-        "python/aumos_vllm"
+        "python/warrantor_vllm"
       ],
       "rfc": null,
       "note": "Attested vLLM wrapper. Fail-open attestation fixed under AX-27; now requires a QuoteCollector."
@@ -818,7 +818,7 @@
       "domain": "supply_chain",
       "status": "partial",
       "source_paths": [
-        "python/aumos_hf_plugin"
+        "python/warrantor_hf_plugin"
       ],
       "rfc": null,
       "note": "Hugging Face download gate. Unkeyed provenance check (AX-28)."
@@ -830,7 +830,7 @@
       "domain": "runtime",
       "status": "partial",
       "source_paths": [
-        "python/aumos_rbac"
+        "python/warrantor_rbac"
       ],
       "rfc": null,
       "note": "Second authorization engine gating TRIGGER_KILL_SWITCH, outside the Rust trust boundary."
@@ -842,7 +842,7 @@
       "domain": "runtime",
       "status": "partial",
       "source_paths": [
-        "python/aumos_admission"
+        "python/warrantor_admission"
       ],
       "rfc": null,
       "note": "Kubernetes admission controller. Checks annotation presence only; never deployed by any manifest."
@@ -854,7 +854,7 @@
       "domain": "evidence",
       "status": "partial",
       "source_paths": [
-        "python/aumos_ocsf"
+        "python/warrantor_ocsf"
       ],
       "rfc": null,
       "note": "OCSF mapping. Pinned to 1.1.0 with an incorrect class UID (AX-20)."
@@ -866,7 +866,7 @@
       "domain": "evidence",
       "status": "reference_implementation",
       "source_paths": [
-        "python/aumos_retention"
+        "python/warrantor_retention"
       ],
       "rfc": null,
       "note": "Retention windows. Relevant to DPDP one-year logs and CERT-In 180-day in-country retention."
@@ -878,7 +878,7 @@
       "domain": "operations",
       "status": "partial",
       "source_paths": [
-        "python/aumos_backup"
+        "python/warrantor_backup"
       ],
       "rfc": null,
       "note": "Backup/restore. Destructive restore path fixed under AX-45."
@@ -890,7 +890,7 @@
       "domain": "integration",
       "status": "reference_implementation",
       "source_paths": [
-        "python/aumos_langchain"
+        "python/warrantor_langchain"
       ],
       "rfc": null,
       "note": "The only genuine agent-framework adapter in the repository."
@@ -902,7 +902,7 @@
       "domain": "operations",
       "status": "reference_implementation",
       "source_paths": [
-        "python/aumos_jira"
+        "python/warrantor_jira"
       ],
       "rfc": null,
       "note": "Issue-tracker integration."
@@ -914,7 +914,7 @@
       "domain": "operations",
       "status": "reference_implementation",
       "source_paths": [
-        "python/aumos_sla"
+        "python/warrantor_sla"
       ],
       "rfc": null,
       "note": "SLA tracking."
@@ -926,7 +926,7 @@
       "domain": "observability",
       "status": "reference_implementation",
       "source_paths": [
-        "go/aumos-metrics"
+        "go/metrics"
       ],
       "rfc": null,
       "note": "Stdlib Prometheus exposition. Honest and complete."
@@ -939,8 +939,8 @@
       "title": "MCP returns success-shaped mocks when controls fail",
       "status": "verified_local",
       "evidence": [
-        "typescript/aumos-mcp-server/src/index.ts",
-        "typescript/aumos-mcp-server/src/index.test.ts",
+        "typescript/mcp-server/src/index.ts",
+        "typescript/mcp-server/src/index.test.ts",
         "typescript/mcp-gateway/src/index.ts",
         "typescript/mcp-gateway/src/index.test.ts",
         "docs/rfcs/X8-mcp-gateway.md"
@@ -975,7 +975,7 @@
         "rust/trust-core/src/merkle.rs",
         "rust/exfil-guard/src/lib.rs",
         "rust/trust-core/src/rekor.rs",
-        "python/aumos_harness/tests/test_harness.py",
+        "python/warrantor_harness/tests/test_harness.py",
         "typescript/eslint.config.mjs"
       ]
     },
@@ -985,8 +985,8 @@
       "title": "MCP and A2A interoperability trail current ecosystems",
       "status": "in_progress",
       "evidence": [
-        "typescript/aumos-mcp-server/src/index.ts",
-        "typescript/aumos-mcp-server/src/index.test.ts",
+        "typescript/mcp-server/src/index.ts",
+        "typescript/mcp-server/src/index.test.ts",
         "typescript/mcp-gateway/src/index.ts",
         "typescript/mcp-gateway/src/index.test.ts",
         "docs/rfcs/X8-mcp-gateway.md"
@@ -1076,7 +1076,7 @@
       "evidence": [
         "tools/conformance/run.py",
         "tools/conformance/verify_typescript.ts",
-        "typescript/aumos-mcp-server/src/index.test.ts",
+        "typescript/mcp-server/src/index.test.ts",
         "typescript/mcp-gateway/src/index.test.ts"
       ]
     },
@@ -1085,7 +1085,7 @@
       "title": "Fail-closed controls",
       "status": "in_progress",
       "evidence": [
-        "typescript/aumos-mcp-server/src/index.test.ts",
+        "typescript/mcp-server/src/index.test.ts",
         "typescript/mcp-gateway/src/index.test.ts",
         "go/identity-bindings/identity_bindings_test.go",
         "rust/secure-workspace/src/lib.rs",
@@ -1564,7 +1564,7 @@
         "path": "python/attesta_flow/src/attesta_flow/__init__.py",
         "line": 94,
         "category": "mock",
-        "text": "return (\"mock-H100\", \"aumos-mock-attestation\")"
+        "text": "return (\"mock-H100\", \"warrantor-mock-attestation\")"
       },
       {
         "path": "python/attesta_flow/src/attesta_flow/__init__.py",
@@ -1595,678 +1595,6 @@
         "line": 58,
         "category": "mock",
         "text": "p = Pipeline(CloudProvider.MOCK)"
-      },
-      {
-        "path": "python/aumos_agent/README.md",
-        "line": 27,
-        "category": "mock",
-        "text": "# standalone = mock implementations, zero external services. Perfect for dev & dry-runs."
-      },
-      {
-        "path": "python/aumos_agent/README.md",
-        "line": 93,
-        "category": "mock",
-        "text": "| `standalone` (default) | All primitives return deterministic mock responses. Zero network, zero CLIs. For development, tests, demos, dry-runs. |"
-      },
-      {
-        "path": "python/aumos_agent/README.md",
-        "line": 94,
-        "category": "mock",
-        "text": "| `connected` | Primitives issue real HTTP calls (I1, E1, C1-1, S4, A1, R2, R3, R4) and shell out to CLIs (`trust-core`, `defstack`). **On connection failure, each call degrades gracefully** to the mock and sets `degraded: True` \u2014 your agent always gets an answer. |"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 29,
-        "category": "mock",
-        "text": "- **Graceful degradation**: in ``\"standalone\"`` mode, uses local mock implementations; in"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 139,
-        "category": "mock",
-        "text": "source: str = \"mock\""
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 188,
-        "category": "mock",
-        "text": "mode: ``\"standalone\"`` (mock implementations) or ``\"connected\"`` (real services)."
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 341,
-        "category": "mock",
-        "text": "Parameters mirror :class:`AumOSConfig`. ``mode`` selects between standalone (mock) and"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 421,
-        "category": "mock",
-        "text": "CLI is missing), returns a deterministic HMAC-SHA256 mock signature over ``data`` keyed"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 422,
-        "category": "mock",
-        "text": "by a derived key. The mock is *not* real cryptography \u2014 do not use it for production."
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 440,
-        "category": "mock",
-        "text": "pass  # fall through to mock"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 447,
-        "category": "mock",
-        "text": "``trust-core verify``; otherwise falls back to mock verification."
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 450,
-        "category": "mock",
-        "text": "\u2014 the mock treats the supplied ``key`` as the same identifier passed to :meth:`sign`'s"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 473,
-        "category": "mock",
-        "text": "# Mock verification: recompute the signature with the supplied key as the key_id."
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 479,
-        "category": "mock",
-        "text": "secret = hashlib.sha256(f\"aumos-mock-key:{key_id}\".encode()).digest()"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 511,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 515,
-        "category": "mock",
-        "text": "return {**self._mock_issue(subject), \"source\": \"mock\"}"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 532,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 537,
-        "category": "mock",
-        "text": "return {\"valid\": valid, \"subject\": subject, \"source\": \"mock\"}"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 553,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 557,
-        "category": "mock",
-        "text": "return {\"revoked\": True, \"revoked_at\": int(time.time()), \"source\": \"mock\"}"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 563,
-        "category": "mock",
-        "text": "\"svid\": f\"svid-mock-{hex_subject}\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 565,
-        "category": "mock",
-        "text": "\"verifying_key\": hashlib.sha256(f\"aumos-mock-key:{subject}\".encode()).hexdigest()[:64],"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 571,
-        "category": "mock",
-        "text": "if not svid.startswith(\"svid-mock-\"):"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 573,
-        "category": "mock",
-        "text": "hex_part = svid[len(\"svid-mock-\") :]"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 623,
-        "category": "mock",
-        "text": "rec.source = \"mock\""
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 646,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 654,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 687,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 702,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 729,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 746,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 772,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 781,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 857,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 880,
-        "category": "mock",
-        "text": "return {\"installed\": True, \"name\": name, \"version\": version, \"source\": \"mock\"}"
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 897,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 922,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 940,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/__init__.py",
-        "line": 956,
-        "category": "mock",
-        "text": "\"source\": \"mock\","
-      },
-      {
-        "path": "python/aumos_agent/src/aumos_agent/cli.py",
-        "line": 31,
-        "category": "mock",
-        "text": "ip = sub.add_parser(\"issue\", help=\"Issue a mock agent identity for a subject.\")"
-      },
-      {
-        "path": "python/aumos_agent/tests/test_agent.py",
-        "line": 132,
-        "category": "mock",
-        "text": "# Mock sign/verify round-trip: the key passed to verify matches the key_id used to sign."
-      },
-      {
-        "path": "python/aumos_agent/tests/test_agent.py",
-        "line": 143,
-        "category": "mock",
-        "text": "assert r[\"svid\"].startswith(\"svid-mock-\")"
-      },
-      {
-        "path": "python/aumos_agent/tests/test_agent.py",
-        "line": 145,
-        "category": "mock",
-        "text": "assert r[\"source\"] == \"mock\""
-      },
-      {
-        "path": "python/aumos_agent/tests/test_agent.py",
-        "line": 290,
-        "category": "mock",
-        "text": "assert r[\"source\"] == \"mock\""
-      },
-      {
-        "path": "python/aumos_agent/tests/test_agent.py",
-        "line": 496,
-        "category": "mock",
-        "text": "assert out[\"svid\"].startswith(\"svid-mock-\")"
-      },
-      {
-        "path": "python/aumos_hf_plugin/src/aumos_hf_plugin/__init__.py",
-        "line": 117,
-        "category": "mock",
-        "text": "# Mock signing for standalone mode"
-      },
-      {
-        "path": "python/aumos_hf_plugin/src/aumos_hf_plugin/__init__.py",
-        "line": 176,
-        "category": "mock",
-        "text": "# Verify signature (mock verification \u2014 production calls trust-core)"
-      },
-      {
-        "path": "python/aumos_vllm/README.md",
-        "line": 12,
-        "category": "mock",
-        "text": "| `mock`       | No real subprocess. Returns synthetic responses and a synthetic, digested attestation envelope. Use in tests and on hosts without a GPU. |"
-      },
-      {
-        "path": "python/aumos_vllm/README.md",
-        "line": 21,
-        "category": "mock",
-        "text": "(in mock mode, a deterministic synthetic value)."
-      },
-      {
-        "path": "python/aumos_vllm/README.md",
-        "line": 22,
-        "category": "mock",
-        "text": "- `backend` \u2014 `\"mock\"`, `\"nvidia-cc\"`, `\"sev-snp\"`, `\"tdx\"`, ..."
-      },
-      {
-        "path": "python/aumos_vllm/README.md",
-        "line": 44,
-        "category": "mock",
-        "text": "with AttestedVLLMServer(mode=\"mock\") as server:"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 14,
-        "category": "mock",
-        "text": "- ``mock``: returns synthetic responses and a synthetic attestation envelope."
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 18,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 39,
-        "category": "mock",
-        "text": "RunMode = Literal[\"standalone\", \"mock\"]"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 56,
-        "category": "mock",
-        "text": "TEE quote; in mock mode the envelope contains a synthetic, deterministic"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 65,
-        "category": "mock",
-        "text": "backend: str  # e.g. \"nvidia-cc\", \"sev-snp\", \"tdx\", \"mock\""
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 93,
-        "category": "mock",
-        "text": "\"\"\"Allocate an ephemeral TCP port for the mock/standalone server.\"\"\""
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 133,
-        "category": "mock",
-        "text": "Only the ``mock`` backend is verifiable in-tree, and only by recomputing the"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 138,
-        "category": "mock",
-        "text": "AttestationUnavailable: a non-mock backend was requested with no collector."
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 142,
-        "category": "mock",
-        "text": "if envelope.backend == \"mock\":"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 149,
-        "category": "mock",
-        "text": "\"via AttestedVLLMServer(quote_collector=...) or use backend='mock' and \""
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 168,
-        "category": "mock",
-        "text": "mode:               ``standalone`` (real subprocess) or ``mock``."
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 175,
-        "category": "mock",
-        "text": "mode: RunMode = \"mock\""
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 178,
-        "category": "mock",
-        "text": "attestation_backend: str = \"mock\""
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 180,
-        "category": "mock",
-        "text": "# Operator-supplied platform verifier. REQUIRED for any non-mock backend."
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 198,
-        "category": "mock",
-        "text": "\"\"\"Start the vLLM server (or mock) and capture an attestation envelope."
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 215,
-        "category": "mock",
-        "text": "elif self.mode == \"mock\":"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 234,
-        "category": "mock",
-        "text": "raise RuntimeError(\"vllm is not installed; install it or use mode='mock'\")"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 254,
-        "category": "mock",
-        "text": "\"\"\"In mock mode there is no real subprocess; we just mark started.\"\"\""
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 276,
-        "category": "mock",
-        "text": "if self.attestation_backend == \"mock\":"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 281,
-        "category": "mock",
-        "text": "quote=f\"mock-quote:{nonce}\","
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 283,
-        "category": "mock",
-        "text": "measurement=f\"mock-measurement:{digest[:16]}\","
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 285,
-        "category": "mock",
-        "text": "backend=\"mock\","
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 301,
-        "category": "mock",
-        "text": "\"verifier, or use backend='mock' and treat the result as unattested.\""
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 336,
-        "category": "mock",
-        "text": "if self.mode == \"mock\":"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 337,
-        "category": "mock",
-        "text": "# Mock is always \"up\" once start() has been called."
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 338,
-        "category": "mock",
-        "text": "return True, \"mock server up\""
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 395,
-        "category": "mock",
-        "text": "# Inference helpers (mock)"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 398,
-        "category": "mock",
-        "text": "\"\"\"Return a synthetic OpenAI-style completion (mock mode only).\"\"\""
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 399,
-        "category": "mock",
-        "text": "if self.mode != \"mock\" or self._envelope is None:"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 400,
-        "category": "mock",
-        "text": "raise RuntimeError(\"mock_complete requires mode='mock' and start()\")"
-      },
-      {
-        "path": "python/aumos_vllm/src/aumos_vllm/__init__.py",
-        "line": 403,
-        "category": "mock",
-        "text": "\"id\": f\"mock-{self._instance_nonce[:8]}\","
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
-        "line": 6,
-        "category": "mock",
-        "text": "# `bool(measurement) and bool(quote)` for every non-mock backend, and"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
-        "line": 45,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\", attestation_backend=backend)"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
-        "line": 52,
-        "category": "mock",
-        "text": "mode=\"mock\", attestation_backend=\"nvidia-cc\", quote_collector=_StubCollector()"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
-        "line": 67,
-        "category": "mock",
-        "text": "mode=\"mock\","
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
-        "line": 78,
-        "category": "mock",
-        "text": "mode=\"mock\","
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
-        "line": 96,
-        "category": "mock",
-        "text": "mode=\"mock\", attestation_backend=\"nvidia-cc\", quote_collector=_ReplayCollector()"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
-        "line": 103,
-        "category": "mock",
-        "text": "\"\"\"Mock remains usable for local dev -- and is honestly labelled as mock.\"\"\""
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
-        "line": 104,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\", attestation_backend=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_aumos_vllm.py",
-        "line": 108,
-        "category": "mock",
-        "text": "assert env.backend == \"mock\""
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 1,
-        "category": "mock",
-        "text": "\"\"\"Tests for aumos_vllm: lifecycle, attestation envelope, health, mock mode.\"\"\""
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 19,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 29,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 35,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 45,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 50,
-        "category": "mock",
-        "text": "with AttestedVLLMServer(mode=\"mock\") as server:"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 61,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 66,
-        "category": "mock",
-        "text": "assert env.backend == \"mock\""
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 76,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 82,
-        "category": "mock",
-        "text": "assert d[\"backend\"] == \"mock\""
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 89,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 98,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 107,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 110,
-        "category": "mock",
-        "text": "# Mock envelope is verified, so HEALTHY"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 117,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 122,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 135,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\", attestation_backend=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 151,
-        "category": "mock",
-        "text": "# Mock inference"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 154,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 167,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
-      },
-      {
-        "path": "python/aumos_vllm/tests/test_vllm.py",
-        "line": 173,
-        "category": "mock",
-        "text": "server = AttestedVLLMServer(mode=\"mock\")"
       },
       {
         "path": "python/bias_sentinel/README.md",
@@ -2428,7 +1756,7 @@
         "path": "python/cuda_gram/README.md",
         "line": 4,
         "category": "task 02",
-        "text": "implementation (task 02) calls the C1-1 Rust core (`aumos-nvtrust-bridge`) via PyO3."
+        "text": "implementation (task 02) calls the C1-1 Rust core (`warrantor-nvtrust-bridge`) via PyO3."
       },
       {
         "path": "python/cuda_gram/pyproject.toml",
@@ -2446,7 +1774,7 @@
         "path": "python/cuda_gram/src/cuda_gram/__init__.py",
         "line": 5,
         "category": "task 02",
-        "text": "(``aumos-nvtrust-bridge``) lands in task 02 \u2014 it replaces the pure-Python"
+        "text": "(``warrantor-nvtrust-bridge``) lands in task 02 \u2014 it replaces the pure-Python"
       },
       {
         "path": "python/cuda_gram/src/cuda_gram/__init__.py",
@@ -2470,7 +1798,7 @@
         "path": "python/cuda_gram/src/cuda_gram/__init__.py",
         "line": 151,
         "category": "mock",
-        "text": "MOCK_ATTESTATION_BYTES = b\"aumos-mock-attestation\""
+        "text": "MOCK_ATTESTATION_BYTES = b\"warrantor-mock-attestation\""
       },
       {
         "path": "python/cuda_gram/src/cuda_gram/__init__.py",
@@ -2518,7 +1846,7 @@
         "path": "python/cuda_gram/tests/test_mock_backend.py",
         "line": 90,
         "category": "mock",
-        "text": "\"attestation_bytes\": list(b\"aumos-mock-attestation\"),"
+        "text": "\"attestation_bytes\": list(b\"warrantor-mock-attestation\"),"
       },
       {
         "path": "python/cuda_gram/tests/test_mock_backend.py",
@@ -2530,7 +1858,7 @@
         "path": "python/cuda_gram/tests/test_mock_backend.py",
         "line": 141,
         "category": "mock",
-        "text": "\"attestation_bytes\": list(b\"aumos-mock-attestation\"),"
+        "text": "\"attestation_bytes\": list(b\"warrantor-mock-attestation\"),"
       },
       {
         "path": "python/dp_crate/src/dp_crate/__init__.py",
@@ -2653,34 +1981,682 @@
         "text": "# benchmark installation. Real HELM/LM-Eval invocation is task 03."
       },
       {
+        "path": "python/warrantor_agent/README.md",
+        "line": 27,
+        "category": "mock",
+        "text": "# standalone = mock implementations, zero external services. Perfect for dev & dry-runs."
+      },
+      {
+        "path": "python/warrantor_agent/README.md",
+        "line": 93,
+        "category": "mock",
+        "text": "| `standalone` (default) | All primitives return deterministic mock responses. Zero network, zero CLIs. For development, tests, demos, dry-runs. |"
+      },
+      {
+        "path": "python/warrantor_agent/README.md",
+        "line": 94,
+        "category": "mock",
+        "text": "| `connected` | Primitives issue real HTTP calls (I1, E1, C1-1, S4, A1, R2, R3, R4) and shell out to CLIs (`trust-core`, `defstack`). **On connection failure, each call degrades gracefully** to the mock and sets `degraded: True` \u2014 your agent always gets an answer. |"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 29,
+        "category": "mock",
+        "text": "- **Graceful degradation**: in ``\"standalone\"`` mode, uses local mock implementations; in"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 139,
+        "category": "mock",
+        "text": "source: str = \"mock\""
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 188,
+        "category": "mock",
+        "text": "mode: ``\"standalone\"`` (mock implementations) or ``\"connected\"`` (real services)."
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 341,
+        "category": "mock",
+        "text": "Parameters mirror :class:`AumOSConfig`. ``mode`` selects between standalone (mock) and"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 421,
+        "category": "mock",
+        "text": "CLI is missing), returns a deterministic HMAC-SHA256 mock signature over ``data`` keyed"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 422,
+        "category": "mock",
+        "text": "by a derived key. The mock is *not* real cryptography \u2014 do not use it for production."
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 440,
+        "category": "mock",
+        "text": "pass  # fall through to mock"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 447,
+        "category": "mock",
+        "text": "``trust-core verify``; otherwise falls back to mock verification."
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 450,
+        "category": "mock",
+        "text": "\u2014 the mock treats the supplied ``key`` as the same identifier passed to :meth:`sign`'s"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 473,
+        "category": "mock",
+        "text": "# Mock verification: recompute the signature with the supplied key as the key_id."
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 479,
+        "category": "mock",
+        "text": "secret = hashlib.sha256(f\"warrantor-mock-key:{key_id}\".encode()).digest()"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 511,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 515,
+        "category": "mock",
+        "text": "return {**self._mock_issue(subject), \"source\": \"mock\"}"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 532,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 537,
+        "category": "mock",
+        "text": "return {\"valid\": valid, \"subject\": subject, \"source\": \"mock\"}"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 553,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 557,
+        "category": "mock",
+        "text": "return {\"revoked\": True, \"revoked_at\": int(time.time()), \"source\": \"mock\"}"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 563,
+        "category": "mock",
+        "text": "\"svid\": f\"svid-mock-{hex_subject}\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 565,
+        "category": "mock",
+        "text": "\"verifying_key\": hashlib.sha256(f\"warrantor-mock-key:{subject}\".encode()).hexdigest()[:64],"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 571,
+        "category": "mock",
+        "text": "if not svid.startswith(\"svid-mock-\"):"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 573,
+        "category": "mock",
+        "text": "hex_part = svid[len(\"svid-mock-\") :]"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 623,
+        "category": "mock",
+        "text": "rec.source = \"mock\""
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 646,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 654,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 687,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 702,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 729,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 746,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 772,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 781,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 857,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 880,
+        "category": "mock",
+        "text": "return {\"installed\": True, \"name\": name, \"version\": version, \"source\": \"mock\"}"
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 897,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 922,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 940,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
+        "line": 956,
+        "category": "mock",
+        "text": "\"source\": \"mock\","
+      },
+      {
+        "path": "python/warrantor_agent/src/warrantor_agent/cli.py",
+        "line": 31,
+        "category": "mock",
+        "text": "ip = sub.add_parser(\"issue\", help=\"Issue a mock agent identity for a subject.\")"
+      },
+      {
+        "path": "python/warrantor_agent/tests/test_agent.py",
+        "line": 132,
+        "category": "mock",
+        "text": "# Mock sign/verify round-trip: the key passed to verify matches the key_id used to sign."
+      },
+      {
+        "path": "python/warrantor_agent/tests/test_agent.py",
+        "line": 143,
+        "category": "mock",
+        "text": "assert r[\"svid\"].startswith(\"svid-mock-\")"
+      },
+      {
+        "path": "python/warrantor_agent/tests/test_agent.py",
+        "line": 145,
+        "category": "mock",
+        "text": "assert r[\"source\"] == \"mock\""
+      },
+      {
+        "path": "python/warrantor_agent/tests/test_agent.py",
+        "line": 290,
+        "category": "mock",
+        "text": "assert r[\"source\"] == \"mock\""
+      },
+      {
+        "path": "python/warrantor_agent/tests/test_agent.py",
+        "line": 496,
+        "category": "mock",
+        "text": "assert out[\"svid\"].startswith(\"svid-mock-\")"
+      },
+      {
+        "path": "python/warrantor_hf_plugin/src/warrantor_hf_plugin/__init__.py",
+        "line": 117,
+        "category": "mock",
+        "text": "# Mock signing for standalone mode"
+      },
+      {
+        "path": "python/warrantor_hf_plugin/src/warrantor_hf_plugin/__init__.py",
+        "line": 176,
+        "category": "mock",
+        "text": "# Verify signature (mock verification \u2014 production calls trust-core)"
+      },
+      {
+        "path": "python/warrantor_vllm/README.md",
+        "line": 12,
+        "category": "mock",
+        "text": "| `mock`       | No real subprocess. Returns synthetic responses and a synthetic, digested attestation envelope. Use in tests and on hosts without a GPU. |"
+      },
+      {
+        "path": "python/warrantor_vllm/README.md",
+        "line": 21,
+        "category": "mock",
+        "text": "(in mock mode, a deterministic synthetic value)."
+      },
+      {
+        "path": "python/warrantor_vllm/README.md",
+        "line": 22,
+        "category": "mock",
+        "text": "- `backend` \u2014 `\"mock\"`, `\"nvidia-cc\"`, `\"sev-snp\"`, `\"tdx\"`, ..."
+      },
+      {
+        "path": "python/warrantor_vllm/README.md",
+        "line": 44,
+        "category": "mock",
+        "text": "with AttestedVLLMServer(mode=\"mock\") as server:"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 14,
+        "category": "mock",
+        "text": "- ``mock``: returns synthetic responses and a synthetic attestation envelope."
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 18,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 39,
+        "category": "mock",
+        "text": "RunMode = Literal[\"standalone\", \"mock\"]"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 56,
+        "category": "mock",
+        "text": "TEE quote; in mock mode the envelope contains a synthetic, deterministic"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 65,
+        "category": "mock",
+        "text": "backend: str  # e.g. \"nvidia-cc\", \"sev-snp\", \"tdx\", \"mock\""
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 93,
+        "category": "mock",
+        "text": "\"\"\"Allocate an ephemeral TCP port for the mock/standalone server.\"\"\""
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 133,
+        "category": "mock",
+        "text": "Only the ``mock`` backend is verifiable in-tree, and only by recomputing the"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 138,
+        "category": "mock",
+        "text": "AttestationUnavailable: a non-mock backend was requested with no collector."
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 142,
+        "category": "mock",
+        "text": "if envelope.backend == \"mock\":"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 149,
+        "category": "mock",
+        "text": "\"via AttestedVLLMServer(quote_collector=...) or use backend='mock' and \""
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 168,
+        "category": "mock",
+        "text": "mode:               ``standalone`` (real subprocess) or ``mock``."
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 175,
+        "category": "mock",
+        "text": "mode: RunMode = \"mock\""
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 178,
+        "category": "mock",
+        "text": "attestation_backend: str = \"mock\""
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 180,
+        "category": "mock",
+        "text": "# Operator-supplied platform verifier. REQUIRED for any non-mock backend."
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 198,
+        "category": "mock",
+        "text": "\"\"\"Start the vLLM server (or mock) and capture an attestation envelope."
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 215,
+        "category": "mock",
+        "text": "elif self.mode == \"mock\":"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 234,
+        "category": "mock",
+        "text": "raise RuntimeError(\"vllm is not installed; install it or use mode='mock'\")"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 254,
+        "category": "mock",
+        "text": "\"\"\"In mock mode there is no real subprocess; we just mark started.\"\"\""
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 276,
+        "category": "mock",
+        "text": "if self.attestation_backend == \"mock\":"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 281,
+        "category": "mock",
+        "text": "quote=f\"mock-quote:{nonce}\","
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 283,
+        "category": "mock",
+        "text": "measurement=f\"mock-measurement:{digest[:16]}\","
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 285,
+        "category": "mock",
+        "text": "backend=\"mock\","
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 301,
+        "category": "mock",
+        "text": "\"verifier, or use backend='mock' and treat the result as unattested.\""
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 336,
+        "category": "mock",
+        "text": "if self.mode == \"mock\":"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 337,
+        "category": "mock",
+        "text": "# Mock is always \"up\" once start() has been called."
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 338,
+        "category": "mock",
+        "text": "return True, \"mock server up\""
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 395,
+        "category": "mock",
+        "text": "# Inference helpers (mock)"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 398,
+        "category": "mock",
+        "text": "\"\"\"Return a synthetic OpenAI-style completion (mock mode only).\"\"\""
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 399,
+        "category": "mock",
+        "text": "if self.mode != \"mock\" or self._envelope is None:"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 400,
+        "category": "mock",
+        "text": "raise RuntimeError(\"mock_complete requires mode='mock' and start()\")"
+      },
+      {
+        "path": "python/warrantor_vllm/src/warrantor_vllm/__init__.py",
+        "line": 403,
+        "category": "mock",
+        "text": "\"id\": f\"mock-{self._instance_nonce[:8]}\","
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_aumos_vllm.py",
+        "line": 6,
+        "category": "mock",
+        "text": "# `bool(measurement) and bool(quote)` for every non-mock backend, and"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_aumos_vllm.py",
+        "line": 45,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\", attestation_backend=backend)"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_aumos_vllm.py",
+        "line": 52,
+        "category": "mock",
+        "text": "mode=\"mock\", attestation_backend=\"nvidia-cc\", quote_collector=_StubCollector()"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_aumos_vllm.py",
+        "line": 67,
+        "category": "mock",
+        "text": "mode=\"mock\","
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_aumos_vllm.py",
+        "line": 78,
+        "category": "mock",
+        "text": "mode=\"mock\","
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_aumos_vllm.py",
+        "line": 96,
+        "category": "mock",
+        "text": "mode=\"mock\", attestation_backend=\"nvidia-cc\", quote_collector=_ReplayCollector()"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_aumos_vllm.py",
+        "line": 103,
+        "category": "mock",
+        "text": "\"\"\"Mock remains usable for local dev -- and is honestly labelled as mock.\"\"\""
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_aumos_vllm.py",
+        "line": 104,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\", attestation_backend=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_aumos_vllm.py",
+        "line": 108,
+        "category": "mock",
+        "text": "assert env.backend == \"mock\""
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 1,
+        "category": "mock",
+        "text": "\"\"\"Tests for warrantor_vllm: lifecycle, attestation envelope, health, mock mode.\"\"\""
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 19,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 29,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 35,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 45,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 50,
+        "category": "mock",
+        "text": "with AttestedVLLMServer(mode=\"mock\") as server:"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 61,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 66,
+        "category": "mock",
+        "text": "assert env.backend == \"mock\""
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 76,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 82,
+        "category": "mock",
+        "text": "assert d[\"backend\"] == \"mock\""
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 89,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 98,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 107,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 110,
+        "category": "mock",
+        "text": "# Mock envelope is verified, so HEALTHY"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 117,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 122,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 135,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\", attestation_backend=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 151,
+        "category": "mock",
+        "text": "# Mock inference"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 154,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 167,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
+        "path": "python/warrantor_vllm/tests/test_vllm.py",
+        "line": 173,
+        "category": "mock",
+        "text": "server = AttestedVLLMServer(mode=\"mock\")"
+      },
+      {
         "path": "rust/README.md",
         "line": 10,
         "category": "mock",
         "text": "| `nvtrust-bridge` | C1-1 | NVIDIA NVTrust FFI bindings + Mock backend for CI |"
-      },
-      {
-        "path": "rust/aumos-api/tests/smoke.rs",
-        "line": 27,
-        "category": "mock",
-        "text": "gpu_model: \"mock-H100\".into(),"
-      },
-      {
-        "path": "rust/aumos-api/tests/smoke.rs",
-        "line": 28,
-        "category": "mock",
-        "text": "attestation_bytes: b\"aumos-mock\".to_vec(),"
-      },
-      {
-        "path": "rust/aumos-api/tests/smoke.rs",
-        "line": 32,
-        "category": "mock",
-        "text": "assert_eq!(report.gpu_model, \"mock-H100\");"
-      },
-      {
-        "path": "rust/aumos-api/tests/smoke.rs",
-        "line": 33,
-        "category": "mock",
-        "text": "assert_eq!(report.attestation_bytes, b\"aumos-mock\");"
       },
       {
         "path": "rust/credential-vault/src/cli.rs",
@@ -2696,19 +2672,19 @@
       },
       {
         "path": "rust/credential-vault/src/cli.rs",
-        "line": 61,
+        "line": 70,
         "category": "mock",
         "text": "\"mock\" => Box::new(MockBackend::new(["
       },
       {
         "path": "rust/credential-vault/src/cli.rs",
-        "line": 69,
+        "line": 78,
         "category": "mock",
         "text": "eprintln!(\"credential-vault: unknown backend '{other}' (try mock|vault|aws|k8s)\");"
       },
       {
         "path": "rust/credential-vault/src/cli.rs",
-        "line": 79,
+        "line": 88,
         "category": "mock",
         "text": "println!(\"credential-vault: ready (mock backend; Vault/AWS/K8s are stubs in task 03)\");"
       },
@@ -2726,97 +2702,97 @@
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 77,
+        "line": 122,
         "category": "stub",
         "text": "/// A credential backend. Implementations: [`MockBackend`], [`HashiCorpVaultBackend`] (stub),"
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 78,
+        "line": 123,
         "category": "stub",
         "text": "/// [`AwsSecretsManagerBackend`] (stub), [`KubernetesSecretsBackend`] (stub)."
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 87,
+        "line": 132,
         "category": "mock",
         "text": "/// A mock backend for CI / development."
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 94,
+        "line": 139,
         "category": "mock",
         "text": "/// Construct a mock backend from an iterator of (key, secret) pairs."
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 110,
+        "line": 155,
         "category": "mock",
         "text": ".ok_or_else(|| CredentialError::BackendUnavailable(format!(\"mock miss: {key}\")))"
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 114,
+        "line": 159,
         "category": "stub",
         "text": "/// HashiCorp Vault backend stub. Real integration (Vault HTTP API) is task 03."
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 121,
+        "line": 166,
         "category": "stub",
         "text": "/// Construct a stub Vault backend pointing at `address`."
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 133,
+        "line": 178,
         "category": "task 03",
         "text": "\"Vault backend at {} not yet wired (task 03)\","
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 139,
+        "line": 184,
         "category": "stub",
         "text": "/// AWS Secrets Manager backend stub. Real integration (AWS SDK) is task 03."
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 146,
+        "line": 191,
         "category": "stub",
         "text": "/// Construct a stub AWS Secrets Manager backend in `region`."
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 158,
+        "line": 203,
         "category": "task 03",
         "text": "\"AWS Secrets Manager backend in {} not yet wired (task 03)\","
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 164,
+        "line": 209,
         "category": "stub",
         "text": "/// Kubernetes Secrets backend stub. Real integration (kube-rs) is task 03."
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 171,
+        "line": 216,
         "category": "stub",
         "text": "/// Construct a stub K8s Secrets backend in `namespace`."
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 183,
+        "line": 228,
         "category": "task 03",
         "text": "\"K8s Secrets backend in namespace {} not yet wired (task 03)\","
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 227,
+        "line": 272,
         "category": "task 04",
         "text": "/// (task 04); the in-process set is the local source of truth until that fan-out lands."
       },
       {
         "path": "rust/credential-vault/src/lib.rs",
-        "line": 294,
+        "line": 420,
         "category": "task 04",
         "text": "/// task 04); the returned count is the local lower bound."
       },
@@ -2858,7 +2834,7 @@
       },
       {
         "path": "rust/egress-filter/src/lib.rs",
-        "line": 14,
+        "line": 32,
         "category": "task 03",
         "text": "//! performs no I/O and no eBPF syscalls itself \u2014 those live in task 03."
       },
@@ -2888,7 +2864,7 @@
       },
       {
         "path": "rust/flight-recorder/src/lib.rs",
-        "line": 500,
+        "line": 511,
         "category": "task 03",
         "text": "/// this and emits real OTLP in task 03)."
       },
@@ -2912,9 +2888,75 @@
       },
       {
         "path": "rust/kill-switch/src/cli.rs",
-        "line": 89,
+        "line": 13,
+        "category": "mock",
+        "text": "//! * **`--engine mock` contains nothing.** It exists for rehearsals. It prints a banner, and the"
+      },
+      {
+        "path": "rust/kill-switch/src/cli.rs",
+        "line": 14,
+        "category": "mock",
+        "text": "//!   emitted outcome carries `engine=\"mock\"` / `simulated=true`. The default is `local`, which"
+      },
+      {
+        "path": "rust/kill-switch/src/cli.rs",
+        "line": 34,
+        "category": "mock",
+        "text": "/// `mock` simulates and contains NOTHING."
+      },
+      {
+        "path": "rust/kill-switch/src/cli.rs",
+        "line": 59,
+        "category": "mock",
+        "text": "Mock,"
+      },
+      {
+        "path": "rust/kill-switch/src/cli.rs",
+        "line": 158,
+        "category": "mock",
+        "text": "EngineChoice::Mock => {"
+      },
+      {
+        "path": "rust/kill-switch/src/cli.rs",
+        "line": 160,
+        "category": "mock",
+        "text": "\"kill-switch: *** --engine mock selected: this run will CONTAIN NOTHING. *** \\"
+      },
+      {
+        "path": "rust/kill-switch/src/cli.rs",
+        "line": 161,
+        "category": "mock",
+        "text": "The outcome will be tagged engine=mock simulated=true.\""
+      },
+      {
+        "path": "rust/kill-switch/src/cli.rs",
+        "line": 184,
         "category": "mock",
         "text": "println!(\"kill-switch: ready (mock policy; OPA Rego lands in task 03)\");"
+      },
+      {
+        "path": "rust/kill-switch/src/execution.rs",
+        "line": 7,
+        "category": "mock",
+        "text": "//! The in-code comment was honest (\"Wave-1 mock execution \u2026 without actually doing them\") but the"
+      },
+      {
+        "path": "rust/kill-switch/src/execution.rs",
+        "line": 104,
+        "category": "mock",
+        "text": "/// The canonical wire name (the same strings the pre-AX-05 mock emitted)."
+      },
+      {
+        "path": "rust/kill-switch/src/execution.rs",
+        "line": 617,
+        "category": "mock",
+        "text": "/// returns `true`, and [`ExecutionEngine::name`] returns `\"mock\"` \u2014 all three surface in"
+      },
+      {
+        "path": "rust/kill-switch/src/execution.rs",
+        "line": 643,
+        "category": "mock",
+        "text": "\"mock\""
       },
       {
         "path": "rust/kill-switch/src/lib.rs",
@@ -2942,63 +2984,99 @@
       },
       {
         "path": "rust/kill-switch/src/lib.rs",
-        "line": 23,
+        "line": 21,
+        "category": "mock",
+        "text": "//!   `engine = \"mock\"` and `simulated = true` on the returned [`KillOutcome`]."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 40,
         "category": "stubbed",
         "text": "/// The Government Compliance API endpoint (AI Kill Switch Act). Stubbed in Wave-1."
       },
       {
         "path": "rust/kill-switch/src/lib.rs",
-        "line": 101,
+        "line": 226,
+        "category": "mock",
+        "text": "/// **AX-05**: the name of the [`ExecutionEngine`] that ran (`\"local-process\"`, `\"mock\"`, \u2026)."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 250,
         "category": "task 03",
         "text": "/// (task 03). The trait lets us swap engines without changing the decision engine."
       },
       {
         "path": "rust/kill-switch/src/lib.rs",
-        "line": 110,
+        "line": 259,
         "category": "mock",
         "text": "/// The Wave-1 mock policy: sandbox_escape > 0.8, behavioral_anomaly > 0.9, any regulatory"
       },
       {
         "path": "rust/kill-switch/src/lib.rs",
-        "line": 174,
-        "category": "mock",
-        "text": "// Wave-1 mock execution: record the canonical 5 actions without actually doing them."
-      },
-      {
-        "path": "rust/kill-switch/src/lib.rs",
-        "line": 215,
+        "line": 399,
         "category": "stubbed",
         "text": "/// Notify the Government Compliance API (stubbed in Wave-1; real HTTPS call in task 03)."
       },
       {
         "path": "rust/kill-switch/src/lib.rs",
-        "line": 218,
+        "line": 402,
         "category": "stub",
         "text": "/// Returns [`KillError::GovernmentApiFailed`] only if the stub itself is broken (it isn't)."
       },
       {
         "path": "rust/kill-switch/src/lib.rs",
-        "line": 223,
+        "line": 407,
         "category": "task 03",
         "text": "// The real implementation (task 03) makes an HTTPS POST to GOVERNMENT_API_URL with the"
       },
       {
         "path": "rust/kill-switch/src/lib.rs",
-        "line": 284,
+        "line": 482,
         "category": "stub",
         "text": "// C7: the stub must NOT claim the government confirmed \u2014 no HTTP call is made."
       },
       {
         "path": "rust/kill-switch/src/lib.rs",
-        "line": 286,
+        "line": 484,
         "category": "stub",
         "text": "assert!(!ack.confirmed, \"Wave-1 stub must report confirmed=false\");"
       },
       {
         "path": "rust/kill-switch/src/lib.rs",
-        "line": 289,
+        "line": 487,
         "category": "placeholder",
         "text": "\"ack_id must be the pending placeholder, got {}\","
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 876,
+        "category": "mock",
+        "text": "// Choosing the mock must be visible to a consumer of the outcome."
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 883,
+        "category": "mock",
+        "text": "assert_eq!(outcome.engine, \"mock\");"
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 884,
+        "category": "mock",
+        "text": "assert!(outcome.simulated, \"the mock must flag itself as simulated\");"
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 890,
+        "category": "mock",
+        "text": "\"every mock action must be labelled Simulated\""
+      },
+      {
+        "path": "rust/kill-switch/src/lib.rs",
+        "line": 900,
+        "category": "mock",
+        "text": "assert!(json.contains(r#\"\"engine\":\"mock\"\"#), \"got {json}\");"
       },
       {
         "path": "rust/nvtrust-bridge/Cargo.toml",
@@ -3082,13 +3160,13 @@
         "path": "rust/nvtrust-bridge/src/lib.rs",
         "line": 135,
         "category": "mock",
-        "text": "attestation_bytes: b\"aumos-mock-attestation\".to_vec(),"
+        "text": "attestation_bytes: b\"warrantor-mock-attestation\".to_vec(),"
       },
       {
         "path": "rust/nvtrust-bridge/src/lib.rs",
         "line": 150,
         "category": "mock",
-        "text": "if report.attestation_bytes == b\"aumos-mock-attestation\" {"
+        "text": "if report.attestation_bytes == b\"warrantor-mock-attestation\" {"
       },
       {
         "path": "rust/nvtrust-bridge/src/lib.rs",
@@ -3100,7 +3178,7 @@
         "path": "rust/nvtrust-bridge/src/lib.rs",
         "line": 186,
         "category": "mock",
-        "text": "attestation_bytes: b\"aumos-mock\".to_vec(),"
+        "text": "attestation_bytes: b\"warrantor-mock\".to_vec(),"
       },
       {
         "path": "rust/nvtrust-bridge/src/lib.rs",
@@ -3112,7 +3190,7 @@
         "path": "rust/nvtrust-bridge/src/lib.rs",
         "line": 214,
         "category": "mock",
-        "text": "attestation_bytes: b\"aumos-mock-attestation\".to_vec(),"
+        "text": "attestation_bytes: b\"warrantor-mock-attestation\".to_vec(),"
       },
       {
         "path": "rust/nvtrust-bridge/src/lib.rs",
@@ -3167,6 +3245,30 @@
         "line": 4,
         "category": "task 03",
         "text": "//! in task 03 (AWS KMS) and task 04 (GCP, Azure, YubiKey, PKCS#11)."
+      },
+      {
+        "path": "rust/warrantor-api/tests/smoke.rs",
+        "line": 27,
+        "category": "mock",
+        "text": "gpu_model: \"mock-H100\".into(),"
+      },
+      {
+        "path": "rust/warrantor-api/tests/smoke.rs",
+        "line": 28,
+        "category": "mock",
+        "text": "attestation_bytes: b\"warrantor-mock\".to_vec(),"
+      },
+      {
+        "path": "rust/warrantor-api/tests/smoke.rs",
+        "line": 32,
+        "category": "mock",
+        "text": "assert_eq!(report.gpu_model, \"mock-H100\");"
+      },
+      {
+        "path": "rust/warrantor-api/tests/smoke.rs",
+        "line": 33,
+        "category": "mock",
+        "text": "assert_eq!(report.attestation_bytes, b\"warrantor-mock\");"
       },
       {
         "path": "specs/protocols/P1-aae.md",
@@ -3385,196 +3487,196 @@
         "text": "* Per RFC A8: this is the testable evaluation engine. The HTTP/scoreboard UI is task 03 and"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.test.ts",
+        "path": "typescript/console/src/index.ts",
+        "line": 12,
+        "category": "task 03",
+        "text": "* The React/Next.js component layer is task 03 (it consumes this library)."
+      },
+      {
+        "path": "typescript/mcp-server/src/index.test.ts",
         "line": 118,
         "category": "mock",
         "text": "expect(r.data.algorithm).toBe('ed25519-mock');"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.test.ts",
+        "path": "typescript/mcp-server/src/index.test.ts",
         "line": 119,
         "category": "mock",
         "text": "expect(r.data.source).toBe('mock');"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.test.ts",
+        "path": "typescript/mcp-server/src/index.test.ts",
         "line": 122,
         "category": "mock",
         "text": "it('standalone verify round-trips a mock signature', async () => {"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.test.ts",
+        "path": "typescript/mcp-server/src/index.test.ts",
         "line": 222,
         "category": "mock",
         "text": "it('issue returns an SVID prefixed svid-mock- in standalone', async () => {"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.test.ts",
+        "path": "typescript/mcp-server/src/index.test.ts",
         "line": 229,
         "category": "mock",
         "text": "expect(String(r.data.svid)).toMatch(/^svid-mock-/);"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 383,
         "category": "mock",
         "text": "// Standalone (mock) implementations \u2014 deterministic, no I/O."
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 386,
         "category": "mock",
         "text": "/** Derive a deterministic 32-byte hex key from a seed string (mock verifying key). */"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 388,
         "category": "mock",
         "text": "return createHash('sha256').update(`aumos-mock-key:${seed}`).digest('hex').slice(0, 64);"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 392,
         "category": "mock",
         "text": "* Produce a deterministic mock signature over `data` using a raw hex `key` (the value returned"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 404,
         "category": "mock",
         "text": "* Produce a deterministic mock signature over `data` for a key *id* (resolves the id to a hex"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 646,
         "category": "mock",
         "text": "algorithm: 'ed25519-mock',"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 648,
         "category": "mock",
         "text": "source: 'mock',"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 678,
         "category": "mock",
         "text": "// Mock verification: a signature produced by mockSignature(data, keyId) verifies iff"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 681,
         "category": "mock",
         "text": "return ok({ valid, source: 'mock' });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 708,
         "category": "mock",
         "text": "return ok({ source: 'mock', ...mockIssueIdentity(subject) });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 727,
         "category": "mock",
         "text": "return ok({ valid: svid.startsWith('svid-mock-'), subject: extractMockSubject(svid), source: 'mock' });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 746,
         "category": "mock",
         "text": "return ok({ revoked: true, revoked_at: Math.floor(Date.now() / 1000), source: 'mock' });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 775,
         "category": "mock",
         "text": "return ok({ source: 'mock', ...mockReceipt(payload), invariant: 'I-07' });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 797,
         "category": "mock",
         "text": "return ok({ valid: receiptId.startsWith('aar-'), signer: 'spiffe://aumos.dev/flight-recorder', source: 'mock' });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 817,
         "category": "mock",
         "text": "return ok({ source: 'mock', ...mockAttestation(nonce, gpu) });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 838,
         "category": "mock",
         "text": "return ok({ source: 'mock', ...mockPreflight(tool, sideEffect) });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 859,
         "category": "mock",
         "text": "return ok({ triggered: true, killed_at: Math.floor(Date.now() / 1000), reason, agent, source: 'mock' });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 878,
         "category": "mock",
         "text": "return ok({ findings, count: findings.length, source: 'mock' });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 907,
         "category": "mock",
         "text": "return ok({ ...mockComplianceReport(scope), source: 'mock' });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 931,
         "category": "mock",
         "text": "return ok({ installed: true, name: compName, version, source: 'mock' });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 951,
         "category": "mock",
         "text": "return ok({ source: 'mock', ...mockSbom(model) });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 974,
         "category": "mock",
         "text": "return ok({ source: 'mock', ...mockEval(model, pipeline) });"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 987,
         "category": "mock",
         "text": "// Standalone mock payload builders."
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 993,
         "category": "mock",
         "text": "const svid = `svid-mock-${Buffer.from(subject, 'utf-8').toString('hex')}`;"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 1003,
         "category": "mock",
         "text": "if (!svid.startsWith('svid-mock-')) return '';"
       },
       {
-        "path": "typescript/aumos-mcp-server/src/index.ts",
+        "path": "typescript/mcp-server/src/index.ts",
         "line": 1005,
         "category": "mock",
         "text": "const hex = svid.slice('svid-mock-'.length);"
-      },
-      {
-        "path": "typescript/console/src/index.ts",
-        "line": 12,
-        "category": "task 03",
-        "text": "* The React/Next.js component layer is task 03 (it consumes this library)."
       }
     ],
     "task_files": [

@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 
 import pytest
 
 from safe_eval import (
-    Metric,
     PipelineSpec,
     StageSpec,
     StageType,
@@ -24,10 +21,14 @@ from safe_eval.cli import main
 
 def sample_pipeline() -> PipelineSpec:
     return PipelineSpec(
-        target="model://aumos-7b",
+        target="model://warrantor-7b",
         stages=[
             StageSpec(StageType.BENCHMARKS, "benchmarks", {"mock_accuracy": 0.85}),
-            StageSpec(StageType.ADVERSARIAL, "adversarial", {"attacks": ["prompt_injection"], "mock_attack_success_rate": 0.05}),
+            StageSpec(
+                StageType.ADVERSARIAL,
+                "adversarial",
+                {"attacks": ["prompt_injection"], "mock_attack_success_rate": 0.05},
+            ),
             StageSpec(StageType.SAFETY, "safety"),
             StageSpec(StageType.BIAS, "bias"),
             StageSpec(StageType.RED_TEAM, "red_team"),
@@ -45,7 +46,13 @@ def test_run_pipeline_executes_every_stage() -> None:
     assert len(result.stages) == 5
     assert result.ok
     types = {s.stage_type for s in result.stages}
-    assert types == {StageType.BENCHMARKS, StageType.ADVERSARIAL, StageType.SAFETY, StageType.BIAS, StageType.RED_TEAM}
+    assert types == {
+        StageType.BENCHMARKS,
+        StageType.ADVERSARIAL,
+        StageType.SAFETY,
+        StageType.BIAS,
+        StageType.RED_TEAM,
+    }
 
 
 def test_run_pipeline_collects_metrics() -> None:
@@ -69,7 +76,7 @@ def test_failing_adapter_does_not_abort_pipeline() -> None:
     class BoomAdapter:
         name = "boom"
 
-        def run(self, target, config):  # noqa: ANN001
+        def run(self, target, config):
             raise RuntimeError("kaboom")
 
     register_adapter(BoomAdapter())
@@ -89,7 +96,7 @@ def test_failing_adapter_does_not_abort_pipeline() -> None:
 def test_to_veb_emits_bundle() -> None:
     result = run_pipeline(sample_pipeline())
     veb = to_veb(result, corpus_digest="sha256:abc")
-    assert veb["model"] == "model://aumos-7b"
+    assert veb["model"] == "model://warrantor-7b"
     assert veb["corpus_digest"] == "sha256:abc"
     assert any(m["name"].endswith(".accuracy") for m in veb["metrics"])
 

@@ -27,7 +27,7 @@
 //! * Fewer dependencies is a smaller supply-chain surface for a security-critical crate.
 //!
 //! Records are **hash-chained**: each record commits to the previous record's digest, mirroring
-//! the P4 / `aumos-provena-chain` tamper-evidence design. Truncating or rewriting any record in
+//! the P4 / `warrantor-provena-chain` tamper-evidence design. Truncating or rewriting any record in
 //! the middle of the log breaks the chain and is detected on load.
 //!
 //! # Crash recovery
@@ -148,7 +148,7 @@ impl FileEvidenceStore {
         let (records, good_bytes, torn) = Self::replay(&path)?;
         if torn {
             eprintln!(
-                "aumos-flight-recorder: WARNING torn trailing record in {} — truncating to \
+                "warrantor-flight-recorder: WARNING torn trailing record in {} — truncating to \
                  {good_bytes} bytes (last complete record seq={})",
                 path.display(),
                 records.last().map_or(-1i64, |r| r.seq as i64)

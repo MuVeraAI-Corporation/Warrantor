@@ -1,5 +1,5 @@
 [package]
-name = "aumos-provena-chain"
+name = "warrantor-provena-chain"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "S2 — tamper-evident model provenance ledger (Merkle root anchored to Rekor)"
 
 [lib]
-name = "aumos_provena_chain"
+name = "warrantor_provena_chain"
 path = "src/lib.rs"
 
 [dependencies]

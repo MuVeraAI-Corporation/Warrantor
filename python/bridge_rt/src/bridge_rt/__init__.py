@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import re
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 
 class Backend(str, Enum):
@@ -132,7 +133,12 @@ class CliProbeBackend:
     if generate() is called directly (it's expected that N1 open-serve-kit routes via HTTP
     instead)."""
 
-    def __init__(self, name: Backend, binary: str, generate_fn: Callable[[GenerateRequest], GenerateResponse] | None = None) -> None:
+    def __init__(
+        self,
+        name: Backend,
+        binary: str,
+        generate_fn: Callable[[GenerateRequest], GenerateResponse] | None = None,
+    ) -> None:
         self.name = name
         self.binary = binary
         self._generate_fn = generate_fn
@@ -146,7 +152,9 @@ class CliProbeBackend:
 
     def version(self) -> str:
         try:
-            r = subprocess.run([self.binary, "--version"], capture_output=True, timeout=5, text=True, check=False)
+            r = subprocess.run(
+                [self.binary, "--version"], capture_output=True, timeout=5, text=True, check=False
+            )
             return (r.stdout or r.stderr or "").strip() or "unknown"
         except (OSError, subprocess.SubprocessError):
             return "unknown"
@@ -175,7 +183,7 @@ class Bridge:
     registry: dict[Backend, BackendImpl] = field(default_factory=_default_registry)
     forced: Backend | None = None  # if set, always use this backend
 
-    def force(self, backend: Backend) -> "Bridge":
+    def force(self, backend: Backend) -> Bridge:
         """Pin the bridge to a specific backend (skips auto-selection)."""
         self.forced = backend
         return self
@@ -209,6 +217,7 @@ def generate(req: GenerateRequest, bridge: Bridge | None = None) -> GenerateResp
 
 
 __all__ = [
+    "PREFERENCE",
     "Backend",
     "BackendImpl",
     "Bridge",
@@ -216,7 +225,6 @@ __all__ = [
     "GenerateRequest",
     "GenerateResponse",
     "MockBackend",
-    "PREFERENCE",
     "adapt_for_trt_llm",
     "generate",
     "needs_sampler_type",

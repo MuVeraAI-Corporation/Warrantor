@@ -21,10 +21,10 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Callable, Protocol
+from datetime import UTC, datetime
+from typing import Any, Protocol
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ class AuditEvent:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
         if not self.event_id:
             self.event_id = str(uuid.uuid4())
 
@@ -281,22 +281,21 @@ class AuditStreamer:
         """
         payload = json.dumps(event.to_dict(), sort_keys=True).encode("utf-8")
         any_ok = False
-        last_err: Exception | None = None
         for backend in self._backends:
             ok = False
-            for attempt in range(self._max_retries):
+            for _attempt in range(self._max_retries):
                 try:
                     backend.send(payload)
                     ok = True
                     break
-                except Exception as exc:  # noqa: BLE001 - sink backends are pluggable
-                    last_err = exc
+                except Exception:
+                    continue
             if ok:
                 any_ok = True
         if any_ok:
             self._ring.append(event)
             if len(self._ring) > self._ring_size:
-                self._ring = self._ring[-self._ring_size:]
+                self._ring = self._ring[-self._ring_size :]
         else:
             self._failed.append(event)
         return any_ok

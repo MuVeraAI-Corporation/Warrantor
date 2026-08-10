@@ -1,5 +1,5 @@
 [project]
-name = "aumos-model-sbom"
+name = "warrantor-model-sbom"
 version = "1.0.0"
 description = "S4 — Model SBOM generator (CycloneDX + SPDX with AI extensions)"
 readme = "README.md"

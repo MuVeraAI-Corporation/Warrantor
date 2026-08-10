@@ -1,5 +1,5 @@
 [project]
-name = "aumos-crypto-audit-ai"
+name = "warrantor-crypto-audit-ai"
 version = "1.0.0"
 description = "X4 — AI-assisted cryptanalysis (3 modes: implementation audit, algorithm stress test, dependency scan)"
 readme = "README.md"

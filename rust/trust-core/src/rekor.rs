@@ -148,9 +148,9 @@ impl StdTransport {
         let authority = stripped.split('/').next().unwrap_or(stripped);
         let (host, port) = match authority.rsplit_once(':') {
             Some((h, p)) => {
-                let port = p.parse::<u16>().map_err(|_| {
-                    RekorError::Network(format!("invalid port in url {url:?}"))
-                })?;
+                let port = p
+                    .parse::<u16>()
+                    .map_err(|_| RekorError::Network(format!("invalid port in url {url:?}")))?;
                 (h.to_string(), port)
             }
             None => {
@@ -172,7 +172,12 @@ impl StdTransport {
         self
     }
 
-    fn request(&self, method: &str, path: &str, body: Option<&[u8]>) -> Result<TransportResponse, RekorError> {
+    fn request(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<&[u8]>,
+    ) -> Result<TransportResponse, RekorError> {
         let addr = format!("{}:{}", self.host, self.port);
         let mut stream = TcpStream::connect_timeout(
             &addr
@@ -191,7 +196,7 @@ impl StdTransport {
         let body_len = body.map(|b| b.len()).unwrap_or(0);
         let mut req = format!(
             "{method} {path} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\
-             User-Agent: aumos-trust-core/1.0\r\n",
+             User-Agent: warrantor-trust-core/1.0\r\n",
             self.host
         );
         if body.is_some() {
@@ -247,7 +252,10 @@ impl StdTransport {
     /// Decode a chunked-transfer-encoded body when `Transfer-Encoding: chunked`
     /// is present. Returns `None` if the body is not chunked.
     fn maybe_unchunk(body: &[u8], headers: &str) -> Option<Vec<u8>> {
-        if !headers.to_ascii_lowercase().contains("transfer-encoding: chunked") {
+        if !headers
+            .to_ascii_lowercase()
+            .contains("transfer-encoding: chunked")
+        {
             return None;
         }
         let mut out = Vec::new();
@@ -432,13 +440,16 @@ impl RekorClient {
     /// Rekor returns a map of `{uuid: { logID, logIndex, integratedTime, body }}`
     /// (a map because the API is generic over batched submissions). We pick the
     /// first entry. If the map is empty we return an `InvalidResponse` error.
-    fn parse_notarize_response(&self, raw: &[u8], digest_b64: &str) -> Result<RekorEntry, RekorError> {
-        let val: Value = serde_json::from_slice(raw).map_err(|e| {
-            RekorError::InvalidResponse(format!("not a JSON object: {e}"))
-        })?;
-        let obj = val.as_object().ok_or_else(|| {
-            RekorError::InvalidResponse("response is not a JSON object".into())
-        })?;
+    fn parse_notarize_response(
+        &self,
+        raw: &[u8],
+        digest_b64: &str,
+    ) -> Result<RekorEntry, RekorError> {
+        let val: Value = serde_json::from_slice(raw)
+            .map_err(|e| RekorError::InvalidResponse(format!("not a JSON object: {e}")))?;
+        let obj = val
+            .as_object()
+            .ok_or_else(|| RekorError::InvalidResponse("response is not a JSON object".into()))?;
         if obj.is_empty() {
             return Err(RekorError::InvalidResponse(
                 "response object has no entries".into(),
@@ -451,10 +462,7 @@ impl RekorClient {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let log_index = entry
-            .get("logIndex")
-            .and_then(|v| v.as_i64())
-            .unwrap_or(0);
+        let log_index = entry.get("logIndex").and_then(|v| v.as_i64()).unwrap_or(0);
         let integrated_time = entry
             .get("integratedTime")
             .and_then(|v| v.as_i64())
@@ -489,9 +497,8 @@ impl RekorClient {
                 body: String::from_utf8_lossy(&resp.body).to_string(),
             });
         }
-        let val: Value = serde_json::from_slice(&resp.body).map_err(|e| {
-            RekorError::InvalidResponse(format!("verify response not JSON: {e}"))
-        })?;
+        let val: Value = serde_json::from_slice(&resp.body)
+            .map_err(|e| RekorError::InvalidResponse(format!("verify response not JSON: {e}")))?;
         // The entry's UUID should be a top-level key.
         let found = val
             .as_object()
@@ -533,18 +540,20 @@ mod tests {
     use super::*;
     use std::sync::{Arc, Mutex};
 
+    type RecordedCall = (String, Vec<u8>);
+    type SharedCalls = Arc<Mutex<Vec<RecordedCall>>>;
+    type CannedResponses = Arc<Mutex<Vec<Result<TransportResponse, RekorError>>>>;
+
     /// A mock transport that records every call and returns a canned response
     /// from a shared queue. Both the call log and the response queue live
     /// behind `Arc<Mutex<...>>` so the transport is cheaply shareable.
     struct SharedMockTransport {
-        calls: Arc<Mutex<Vec<(String, Vec<u8>)>>>,
-        responses: Arc<Mutex<Vec<Result<TransportResponse, RekorError>>>>,
+        calls: SharedCalls,
+        responses: CannedResponses,
     }
 
     impl SharedMockTransport {
-        fn new(
-            responses: Vec<Result<TransportResponse, RekorError>>,
-        ) -> (Self, Arc<Mutex<Vec<(String, Vec<u8>)>>>) {
+        fn new(responses: Vec<Result<TransportResponse, RekorError>>) -> (Self, SharedCalls) {
             let calls = Arc::new(Mutex::new(Vec::new()));
             let responses = Arc::new(Mutex::new(responses));
             let calls_handle = Arc::clone(&calls);
@@ -620,10 +629,7 @@ mod tests {
             status: 201,
             body: canned_body.as_bytes().to_vec(),
         })]);
-        let client = RekorClient::with_transport(
-            "https://rekor.example",
-            Box::new(transport),
-        );
+        let client = RekorClient::with_transport("https://rekor.example", Box::new(transport));
 
         let entry = client
             .notarize(b"hello", b"fakesig", b"fakekey")
@@ -639,7 +645,10 @@ mod tests {
         // The entry was parsed.
         assert_eq!(entry.log_index, 42);
         assert_eq!(entry.integrated_time, 1_700_000_000);
-        assert_eq!(entry.uuid.as_deref(), Some("11111111-2222-3333-4444-555555555555"));
+        assert_eq!(
+            entry.uuid.as_deref(),
+            Some("11111111-2222-3333-4444-555555555555")
+        );
     }
 
     #[test]
@@ -661,9 +670,8 @@ mod tests {
 
     #[test]
     fn notarize_propagates_network_errors() {
-        let (transport, _calls) = SharedMockTransport::new(vec![Err(RekorError::Network(
-            "conn refused".into(),
-        ))]);
+        let (transport, _calls) =
+            SharedMockTransport::new(vec![Err(RekorError::Network("conn refused".into()))]);
         let client = RekorClient::with_transport("https://x", Box::new(transport));
         let err = client.notarize(b"x", b"y", b"z").unwrap_err();
         assert!(matches!(err, RekorError::Network(_)));

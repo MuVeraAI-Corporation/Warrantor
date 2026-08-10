@@ -20,7 +20,7 @@ import (
 	"syscall"
 	"time"
 
-	"aumos.dev/agent-identity"
+	"warrantor.dev/agent-identity"
 )
 
 // Default cert/key paths used when --tls is set without explicit paths. They live under the OS temp

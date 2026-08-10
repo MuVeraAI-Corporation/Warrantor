@@ -11,7 +11,7 @@
 // thin. Every K8s interaction is an interface (RolloutExecutor) so the maths can be tested
 // exhaustively in-memory.
 //
-// See ``docs/rfcs/F4-fleet-marshal.md``.
+// See “docs/rfcs/F4-fleet-marshal.md“.
 package fleetmarshal
 
 import (
@@ -106,14 +106,14 @@ type ModelFleetSpec struct {
 // DefaultSpec returns a sensible default spec with the given image and replica count.
 func DefaultSpec(image string, replicas int32) ModelFleetSpec {
 	return ModelFleetSpec{
-		ModelImage:             image,
-		Replicas:               replicas,
-		Strategy:               StrategyCanary,
-		FailureThreshold:       DefaultFailureThreshold,
-		CanaryStepPct:          DefaultCanaryStepPct,
-		CanaryStepInterval:     DefaultCanaryStepInterval,
-		BlueGreenDwell:         DefaultBlueGreenDwell,
-		MinReplicasForCanary:   10,
+		ModelImage:           image,
+		Replicas:             replicas,
+		Strategy:             StrategyCanary,
+		FailureThreshold:     DefaultFailureThreshold,
+		CanaryStepPct:        DefaultCanaryStepPct,
+		CanaryStepInterval:   DefaultCanaryStepInterval,
+		BlueGreenDwell:       DefaultBlueGreenDwell,
+		MinReplicasForCanary: 10,
 	}
 }
 

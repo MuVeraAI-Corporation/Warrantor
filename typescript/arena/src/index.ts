@@ -1,5 +1,5 @@
 /**
- * @aumos/arena (A8) — A/B Elo ranking leaderboard for model/agent evaluation.
+ * @warrantor/arena (A8) — A/B Elo ranking leaderboard for model/agent evaluation.
  *
  * Implements a standard Elo rating system for head-to-head comparison of models or agents.
  * Models/agents ("contestants") start at 1200. Each match updates both contestants' Elo:
@@ -205,8 +205,8 @@ export class Leaderboard {
     const eloABefore = a.elo;
     const eloBBefore = b.elo;
 
-    let eloAAfter = eloABefore;
-    let eloBAfter = eloBBefore;
+    let eloAAfter: number;
+    let eloBAfter: number;
 
     if (winner === 'a') {
       const [nw, nl] = eloUpdate(a.elo, b.elo, this.k);

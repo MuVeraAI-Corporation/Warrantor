@@ -32,6 +32,20 @@ pub fn verify<T: serde::Serialize>(
         .map_err(|_| VerifyError::InvalidSignature)
 }
 
+/// Verify already-canonical, domain-separated bytes.
+///
+/// # Errors
+/// Returns [`VerifyError::InvalidSignature`] if the signature does not verify.
+pub fn verify_bytes(
+    message: &[u8],
+    signature: &Signature,
+    verifying_key: &VerifyingKey,
+) -> Result<(), VerifyError> {
+    verifying_key
+        .verify(message, signature)
+        .map_err(|_| VerifyError::InvalidSignature)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,5 +72,25 @@ mod tests {
             ),
             "wrong key must reject"
         );
+    }
+
+    #[test]
+    fn verify_bytes_rejects_tampered_domain_separated_message() {
+        let signer = SigningKeyWrapper::generate();
+        let signature = signer.sign_bytes(b"AUMOS-RAW-V1\0payload");
+        verify_bytes(
+            b"AUMOS-RAW-V1\0payload",
+            &signature,
+            &signer.verifying_key(),
+        )
+        .expect("valid raw signature");
+        assert!(matches!(
+            verify_bytes(
+                b"AUMOS-RAW-V1\0tampered",
+                &signature,
+                &signer.verifying_key()
+            ),
+            Err(VerifyError::InvalidSignature)
+        ));
     }
 }

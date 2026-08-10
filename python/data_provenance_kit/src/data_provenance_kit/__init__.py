@@ -13,10 +13,11 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 
 class SourceType(str, Enum):
@@ -32,12 +33,12 @@ class SourceType(str, Enum):
 class TransformationType(str, Enum):
     """The kinds of transformations recorded as lineage nodes."""
 
-    SOURCE = "source"          # the initial ingestion
-    FILTER = "filter"          # row filtering
-    MAP = "map"                # per-row transformation
-    SHARD = "shard"            # sharding / splitting
-    CONCAT = "concat"          # concatenation of multiple parents
-    DEDUP = "dedup"            # deduplication
+    SOURCE = "source"  # the initial ingestion
+    FILTER = "filter"  # row filtering
+    MAP = "map"  # per-row transformation
+    SHARD = "shard"  # sharding / splitting
+    CONCAT = "concat"  # concatenation of multiple parents
+    DEDUP = "dedup"  # deduplication
     PII_REDACT = "pii_redact"  # PII redaction (per cross-cutting 17)
     LICENSE_FILTER = "license_filter"
     CUSTOM = "custom"
@@ -74,7 +75,7 @@ class LineageNode:
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def snapshot_digest(rows: list[dict[str, Any]]) -> str:
@@ -101,7 +102,7 @@ class Dataset:
         source_type: SourceType,
         source_uri: str,
         operator: str = "unknown",
-    ) -> "Dataset":
+    ) -> Dataset:
         """Construct a Dataset from an external source. Records the initial ``source`` node."""
         node = LineageNode(
             id=str(uuid.uuid4()),
@@ -122,7 +123,7 @@ class Dataset:
         new_rows: list[dict[str, Any]],
         operator: str | None = None,
         extra_parents: list[str] | None = None,
-    ) -> "Dataset":
+    ) -> Dataset:
         before_digest = snapshot_digest(self.rows)
         before_count = len(self.rows)
         parents = [self._current, *(extra_parents or [])]
@@ -143,17 +144,17 @@ class Dataset:
         self._current = node.id
         return self
 
-    def filter(self, predicate: Callable[[dict[str, Any]], bool], detail: str = "") -> "Dataset":
+    def filter(self, predicate: Callable[[dict[str, Any]], bool], detail: str = "") -> Dataset:
         """Filter rows by ``predicate``. Records a ``filter`` node."""
         kept = [r for r in self.rows if predicate(r)]
         return self._record(TransformationType.FILTER, detail or "filter", kept)
 
-    def map(self, fn: Callable[[dict[str, Any]], dict[str, Any]], detail: str = "") -> "Dataset":
+    def map(self, fn: Callable[[dict[str, Any]], dict[str, Any]], detail: str = "") -> Dataset:
         """Apply ``fn`` to every row. Records a ``map`` node."""
         mapped = [fn(r) for r in self.rows]
         return self._record(TransformationType.MAP, detail or "map", mapped)
 
-    def dedup(self, detail: str = "") -> "Dataset":
+    def dedup(self, detail: str = "") -> Dataset:
         """Deduplicate rows (by JSON-canonical form). Records a ``dedup`` node."""
         seen: set[str] = set()
         out: list[dict[str, Any]] = []
@@ -164,12 +165,14 @@ class Dataset:
                 out.append(r)
         return self._record(TransformationType.DEDUP, detail or "dedup", out)
 
-    def pii_redact(self, redactor: Callable[[dict[str, Any]], dict[str, Any]], detail: str = "") -> "Dataset":
+    def pii_redact(
+        self, redactor: Callable[[dict[str, Any]], dict[str, Any]], detail: str = ""
+    ) -> Dataset:
         """Apply a PII-redaction transform. Records a ``pii_redact`` node per cross-cutting 17."""
         out = [redactor(r) for r in self.rows]
         return self._record(TransformationType.PII_REDACT, detail or "pii_redact", out)
 
-    def concat(self, other: "Dataset", detail: str = "") -> "Dataset":
+    def concat(self, other: Dataset, detail: str = "") -> Dataset:
         """Concatenate ``other`` onto the end of this dataset. Records a ``concat`` node with
         two parents (the current node of self and the current node of other)."""
         combined = [*self.rows, *other.rows]
@@ -185,7 +188,7 @@ class Dataset:
         fn: Callable[[list[dict[str, Any]]], list[dict[str, Any]]],
         detail: str,
         operator: str | None = None,
-    ) -> "Dataset":
+    ) -> Dataset:
         """Apply an arbitrary transformation. Records a ``custom`` node with the supplied detail."""
         out = fn(self.rows)
         return self._record(TransformationType.CUSTOM, detail, out, operator=operator)

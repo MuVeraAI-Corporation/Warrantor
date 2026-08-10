@@ -1,5 +1,5 @@
 [project]
-name = "aumos-tamper-scan"
+name = "warrantor-tamper-scan"
 version = "1.0.0"
 description = "S7 — model tamper detection scanner (weight/backdoor/pruning/fine-tune detectors)"
 readme = "README.md"

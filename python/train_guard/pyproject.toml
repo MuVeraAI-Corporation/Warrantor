@@ -1,5 +1,5 @@
 [project]
-name = "aumos-train-guard"
+name = "warrantor-train-guard"
 version = "1.0.0"
 description = "S8 — training-time integrity monitor; emits signed training attestations"
 readme = "README.md"

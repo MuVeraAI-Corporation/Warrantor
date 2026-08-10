@@ -201,9 +201,7 @@ class AccountantConfig:
                 f"noise_multiplier must be > 0, got {self.noise_multiplier}"
             )
         if not 0 < self.sampling_rate <= 1:
-            raise InvalidSamplingRate(
-                f"sampling_rate must be in (0, 1], got {self.sampling_rate}"
-            )
+            raise InvalidSamplingRate(f"sampling_rate must be in (0, 1], got {self.sampling_rate}")
         if not 0 < self.delta < 1:
             raise DPCrateError(f"delta must be in (0, 1), got {self.delta}")
         if self.target_epsilon <= 0:
@@ -232,9 +230,7 @@ class PrivacyAccountant:
     def step_rdp(self) -> dict[float, float]:
         """Return the per-step RDP contribution at each alpha (without consuming budget)."""
         return {
-            a: _rdp_subsampled_gaussian(
-                self.config.sampling_rate, self.config.noise_multiplier, a
-            )
+            a: _rdp_subsampled_gaussian(self.config.sampling_rate, self.config.noise_multiplier, a)
             for a in self.config.alphas
         }
 
@@ -364,9 +360,7 @@ class DPSGDOptimizer:
         if clipping_norm <= 0:
             raise DPCrateError(f"clipping_norm must be > 0, got {clipping_norm}")
         if noise_multiplier <= 0:
-            raise InvalidNoiseMultiplier(
-                f"noise_multiplier must be > 0, got {noise_multiplier}"
-            )
+            raise InvalidNoiseMultiplier(f"noise_multiplier must be > 0, got {noise_multiplier}")
         self.clipping_norm = clipping_norm
         self.noise_multiplier = noise_multiplier
         self.accountant = accountant
@@ -427,7 +421,9 @@ class DPSGDOptimizer:
         self.accountant.consume(1)
         return update
 
-    def private_step_no_account(self, per_example_gradients: list[list[float]], learning_rate: float = 1.0) -> list[float]:
+    def private_step_no_account(
+        self, per_example_gradients: list[list[float]], learning_rate: float = 1.0
+    ) -> list[float]:
         """Like :meth:`private_step` but does not consume budget (for unit testing the maths)."""
         if not per_example_gradients:
             raise DPCrateError("private_step requires at least one gradient")

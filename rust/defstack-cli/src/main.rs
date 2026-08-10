@@ -93,21 +93,67 @@ struct Component {
 
 /// The Wave-1 component catalog (the 8 components shipped in Wave-1).
 const WAVE1: &[Component] = &[
-    Component { id: "T1",   name: "trust-core",       wave: 1, language: "rust",                status: "v1.0.0" },
-    Component { id: "X1",   name: "defstack-cli",     wave: 1, language: "rust",                status: "v1.0.0" },
-    Component { id: "C1-1", name: "nvtrust-bridge",   wave: 1, language: "rust+py+go",          status: "v1.0.0" },
-    Component { id: "C1-2", name: "cuda-gram",        wave: 1, language: "python",              status: "v1.0.0" },
-    Component { id: "R2",   name: "eval-guard",       wave: 1, language: "rust+ebpf",           status: "v1.0.0" },
-    Component { id: "R3",   name: "kill-switch",      wave: 1, language: "rust+python",         status: "v1.0.0" },
-    Component { id: "R4",   name: "credential-vault", wave: 1, language: "rust",                status: "v1.0.0" },
-    Component { id: "I1",   name: "agent-identity",   wave: 1, language: "go (mock in wave-1)", status: "mock" },
+    Component {
+        id: "T1",
+        name: "trust-core",
+        wave: 1,
+        language: "rust",
+        status: "v1.0.0",
+    },
+    Component {
+        id: "X1",
+        name: "defstack-cli",
+        wave: 1,
+        language: "rust",
+        status: "v1.0.0",
+    },
+    Component {
+        id: "C1-1",
+        name: "nvtrust-bridge",
+        wave: 1,
+        language: "rust+py+go",
+        status: "v1.0.0",
+    },
+    Component {
+        id: "C1-2",
+        name: "cuda-gram",
+        wave: 1,
+        language: "python",
+        status: "v1.0.0",
+    },
+    Component {
+        id: "R2",
+        name: "eval-guard",
+        wave: 1,
+        language: "rust+ebpf",
+        status: "v1.0.0",
+    },
+    Component {
+        id: "R3",
+        name: "kill-switch",
+        wave: 1,
+        language: "rust+python",
+        status: "v1.0.0",
+    },
+    Component {
+        id: "R4",
+        name: "credential-vault",
+        wave: 1,
+        language: "rust",
+        status: "v1.0.0",
+    },
+    Component {
+        id: "I1",
+        name: "agent-identity",
+        wave: 1,
+        language: "go (mock in wave-1)",
+        status: "mock",
+    },
 ];
 
 fn find_component(name: &str) -> Option<&'static Component> {
     // Match by canonical id or kebab-name.
-    WAVE1
-        .iter()
-        .find(|c| c.id == name || c.name == name)
+    WAVE1.iter().find(|c| c.id == name || c.name == name)
 }
 
 fn install_plan(c: &Component) -> serde_json::Value {
@@ -152,14 +198,29 @@ fn compliance_report(model: &Option<String>) -> serde_json::Value {
             "Manage": "R3 kill-switch + R2 eval-guard + R4 credential-vault"
         }),
     );
-    frameworks.insert("ISO-IEC-42001-2023", serde_json::json!({"target_certification": "M18"}));
+    frameworks.insert(
+        "ISO-IEC-42001-2023",
+        serde_json::json!({"target_certification": "M18"}),
+    );
     frameworks.insert("FedRAMP-AI", serde_json::json!({"target_components": ["R3 kill-switch", "I1 agent-identity", "C1-3 attesta-flow"], "target": "M18"}));
-    frameworks.insert("OpenSSF-SLSA-v1.0", serde_json::json!({"target_level": "L3", "all_components": true}));
+    frameworks.insert(
+        "OpenSSF-SLSA-v1.0",
+        serde_json::json!({"target_level": "L3", "all_components": true}),
+    );
     frameworks.insert("EU-DORA", serde_json::json!({"financial_sector_components": ["N1 open-serve-kit", "N3 inference-proxy", "N4 tenant-guard", "R3 kill-switch"]}));
     frameworks.insert("AI-Kill-Switch-Act-HR-2026", serde_json::json!({"reference_implementation": "R3 kill-switch", "government_api": "stubbed in Wave-1"}));
-    frameworks.insert("EU-NIS2", serde_json::json!({"audit_components": ["I1 agent-identity"]}));
-    frameworks.insert("UK-AI-Safety-Bill", serde_json::json!({"mirrors": "EU-AI-Act-Article-55"}));
-    frameworks.insert("China-Generative-AI", serde_json::json!({"status": "out of scope for v1"}));
+    frameworks.insert(
+        "EU-NIS2",
+        serde_json::json!({"audit_components": ["I1 agent-identity"]}),
+    );
+    frameworks.insert(
+        "UK-AI-Safety-Bill",
+        serde_json::json!({"mirrors": "EU-AI-Act-Article-55"}),
+    );
+    frameworks.insert(
+        "China-Generative-AI",
+        serde_json::json!({"status": "out of scope for v1"}),
+    );
 
     serde_json::json!({
         "generated_at": chrono_now(),
@@ -190,15 +251,24 @@ fn main() {
     let cli = Cli::parse();
     match cli.command {
         Commands::List => {
-            println!("{:<6} {:<22} {:<5} {:<18} STATUS", "ID", "NAME", "WAVE", "LANGUAGE");
+            println!(
+                "{:<6} {:<22} {:<5} {:<18} STATUS",
+                "ID", "NAME", "WAVE", "LANGUAGE"
+            );
             for c in WAVE1 {
-                println!("{:<6} {:<22} {:<5} {:<18} {}", c.id, c.name, c.wave, c.language, c.status);
+                println!(
+                    "{:<6} {:<22} {:<5} {:<18} {}",
+                    c.id, c.name, c.wave, c.language, c.status
+                );
             }
         }
         Commands::Install { name } => match find_component(&name) {
             Some(c) => {
                 let plan = install_plan(c);
-                println!("{}", serde_json::to_string_pretty(&plan).expect("serialize"));
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&plan).expect("serialize")
+                );
             }
             None => {
                 eprintln!("defstack: unknown component '{name}'. Try `defstack list`.");
@@ -208,7 +278,10 @@ fn main() {
         Commands::Verify { name } => match name {
             Some(n) => match find_component(&n) {
                 Some(c) => {
-                    println!("defstack verify {}: known (id={}, status={})", c.name, c.id, c.status);
+                    println!(
+                        "defstack verify {}: known (id={}, status={})",
+                        c.name, c.id, c.status
+                    );
                 }
                 None => {
                     eprintln!("defstack verify: unknown component '{n}'");
@@ -217,7 +290,10 @@ fn main() {
             },
             None => {
                 // Verify all Wave-1 components.
-                println!("defstack verify: checking {} Wave-1 components", WAVE1.len());
+                println!(
+                    "defstack verify: checking {} Wave-1 components",
+                    WAVE1.len()
+                );
                 for c in WAVE1 {
                     println!("  [ok] {} ({}) — {}", c.id, c.name, c.status);
                 }
@@ -232,7 +308,10 @@ fn main() {
         }
         Commands::ComplianceReport { model } => {
             let report = compliance_report(&model);
-            println!("{}", serde_json::to_string_pretty(&report).expect("serialize"));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&report).expect("serialize")
+            );
         }
         Commands::Privacy { action } => match action {
             PrivacyAction::Export { subject } => {
@@ -251,12 +330,12 @@ fn main() {
                 std::env::current_dir()
                     .ok()
                     .and_then(|d| d.file_name().map(|n| n.to_string_lossy().into_owned()))
-                    .unwrap_or_else(|| "aumos-project".into())
+                    .unwrap_or_else(|| "warrantor-project".into())
             });
             println!(" Initializing AumOS project: {project_name}");
             // Create .aumos/ directory
-            let aumos_dir = std::path::Path::new(".aumos");
-            let _ = std::fs::create_dir_all(aumos_dir);
+            let warrantor_dir = std::path::Path::new(".aumos");
+            let _ = std::fs::create_dir_all(warrantor_dir);
             // Create aumos.toml config
             let config = format!(
                 r#"[project]
@@ -274,12 +353,11 @@ kill_on_secret_exposure = true
 "#,
                 agent.as_deref().unwrap_or("generic")
             );
-            std::fs::write(aumos_dir.join("config.toml"), config)
-                .expect("write config");
+            std::fs::write(warrantor_dir.join("config.toml"), config).expect("write config");
             println!(" Created .aumos/config.toml");
             // Create CLAUDE.md if agent is claude_code
             if agent.as_deref() == Some("claude_code") {
-                std::fs::write("CLAUDE.md", "# AumOS Secured Project\n\n## Allowed Tools\ngit, npm, cargo, python\n\n## AumOS Integration\npip install aumos-agent\n").ok();
+                std::fs::write("CLAUDE.md", "# AumOS Secured Project\n\n## Allowed Tools\ngit, npm, cargo, python\n\n## AumOS Integration\npip install warrantor-agent\n").ok();
                 println!(" Created CLAUDE.md");
             }
             // Create .complygate.yml

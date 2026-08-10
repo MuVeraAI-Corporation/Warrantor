@@ -14,8 +14,8 @@ from nooa_ext import (
     AuditStreamer,
     IdentityBinder,
     PolicyEnforcer,
-    SVIDBundle,
     StubRegoEvaluator,
+    SVIDBundle,
     WebhookBackend,
 )
 
@@ -157,9 +157,7 @@ def test_identity_binder_requires_bind_before_current() -> None:
 
 # ---------- AttestationHook ----------
 def test_attestation_hook_opens_on_passed_report() -> None:
-    report = AttestationReport(
-        kind="tee", measurement="m1", nonce="n", passed=True
-    )
+    report = AttestationReport(kind="tee", measurement="m1", nonce="n", passed=True)
 
     class Static:
         def attest(self, nonce: str) -> AttestationReport:

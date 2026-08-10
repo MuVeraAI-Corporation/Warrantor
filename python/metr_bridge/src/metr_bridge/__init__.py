@@ -25,7 +25,7 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 
@@ -120,7 +120,7 @@ class AgentStep:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
 
 class TranscriptExporter:
@@ -264,7 +264,7 @@ class _DeterministicRunner:
     pipeline+seed (used by tests and as the Wave-1 default)."""
 
     def run(self, pipeline: SafeEvalPipeline, seed: int) -> float:
-        h = hashlib.sha256(f"{pipeline.target}|{seed}".encode("utf-8")).digest()
+        h = hashlib.sha256(f"{pipeline.target}|{seed}".encode()).digest()
         # First 4 bytes -> score in [0,1] to 4 dp. Stable for a given (target, seed).
         n = int.from_bytes(h[:4], "big") / float(2**32)
         score = round(n, 4)

@@ -18,8 +18,8 @@ See ``docs/rfcs/A3-bias-sentinel.md``.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable
 
 
 # ---------------------------------------------------------------------------
@@ -381,11 +381,11 @@ def run_copyright_audit(
 
 
 __all__ = [
+    "IDENTITY_TOKENS",
+    "NEGATIVE_TOKENS",
     "BOLDFinding",
     "CopyrightMatch",
     "Finding",
-    "IDENTITY_TOKENS",
-    "NEGATIVE_TOKENS",
     "Report",
     "bold_detect",
     "copyright_detect",

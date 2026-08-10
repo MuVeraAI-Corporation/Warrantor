@@ -1,4 +1,4 @@
-//! # aumos-inference-proxy (N3)
+//! # warrantor-inference-proxy (N3)
 //!
 //! A dedicated LLM inference gateway that sits in front of N1 open-serve-kit. Middleware chain:
 //!   1. **auth** — verify a SPIFFE SVID or API key
@@ -37,7 +37,7 @@ fn lock_or_recover<'a, T>(mx: &'a Mutex<T>, label: &'static str) -> MutexGuard<'
         // inference gateway. The rate limiter / cache degrade gracefully on partial state
         // (worst case: a slightly stale token count or a cache miss).
         eprintln!(
-            "aumos-inference-proxy: WARNING recovered poisoned mutex {label:?}; \
+            "warrantor-inference-proxy: WARNING recovered poisoned mutex {label:?}; \
              protected state may be partially written"
         );
         e.into_inner()
@@ -440,7 +440,10 @@ mod tests {
         let r = RateLimiter::new(2);
         r.check("id").expect("1");
         r.check("id").expect("2");
-        assert!(matches!(r.check("id"), Err(ProxyError::RateLimitExceeded { .. })));
+        assert!(matches!(
+            r.check("id"),
+            Err(ProxyError::RateLimitExceeded { .. })
+        ));
     }
 
     #[test]
@@ -474,7 +477,10 @@ mod tests {
 
     #[test]
     fn proxy_full_chain_caches_second_call() {
-        let proxy = ProxyBuilder::new().auth(Box::new(OpenAuth)).rate_limit(10).build();
+        let proxy = ProxyBuilder::new()
+            .auth(Box::new(OpenAuth))
+            .rate_limit(10)
+            .build();
         let req = ProxyRequest {
             identity: "id".into(),
             model: "m".into(),

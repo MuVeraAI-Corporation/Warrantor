@@ -1,14 +1,14 @@
 {
-  "name": "aumos-typescript",
+  "name": "warrantor-typescript",
   "private": true,
   "version": "1.0.0",
-  "description": "AumOS TypeScript workspace — console, MCP gateway, arena, AumOS MCP server",
+  "description": "AumOS TypeScript workspace \u2014 console, MCP gateway, arena, AumOS MCP server",
   "license": "Apache-2.0",
   "workspaces": [
     "console",
     "mcp-gateway",
     "arena",
-    "aumos-mcp-server",
+    "mcp-server",
     "protocol-contracts"
   ],
   "scripts": {

@@ -6,7 +6,14 @@ import json
 
 import pytest
 
-from bridge_rt import Backend, Bridge, GenerateRequest, MockBackend, needs_sampler_type, adapt_for_trt_llm
+from bridge_rt import (
+    Backend,
+    Bridge,
+    GenerateRequest,
+    MockBackend,
+    adapt_for_trt_llm,
+    needs_sampler_type,
+)
 from bridge_rt.cli import main
 
 

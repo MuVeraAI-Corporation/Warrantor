@@ -3,14 +3,18 @@
 //! Subcommands: `key-gen`, `sign`, `verify`, `notarize`.
 //! `key-gen`, `sign`, `verify` are fully wired (local Ed25519 keys).
 //! `notarize` records the signature in the Rekor transparency log via the
-//! [`aumos_trust_core::rekor::RekorClient`] (public Rekor by default).
+//! [`warrantor_trust_core::rekor::RekorClient`] (public Rekor by default).
 
 use clap::{Parser, Subcommand};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use std::io::{self, Read};
 
 #[derive(Parser, Debug)]
-#[command(name = "trust-core", version, about = "AumOS trusted core — sign and verify")]
+#[command(
+    name = "trust-core",
+    version,
+    about = "AumOS trusted core — sign and verify"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -42,7 +46,7 @@ enum Commands {
         #[arg(long)]
         key: String,
         /// Rekor base URL (defaults to the public instance https://rekor.sigstore.dev).
-        #[arg(long, default_value = aumos_trust_core::rekor::DEFAULT_REKOR_BASE_URL)]
+        #[arg(long, default_value = warrantor_trust_core::rekor::DEFAULT_REKOR_BASE_URL)]
         rekor_url: String,
     },
 }
@@ -100,7 +104,10 @@ fn main() {
             let sk = SigningKey::from_bytes(&key_arr);
             let sig: Signature = sk.sign(&payload);
             println!("signature_hex={}", hex::encode(sig.to_bytes()));
-            println!("verifying_key_hex={}", hex::encode(sk.verifying_key().to_bytes()));
+            println!(
+                "verifying_key_hex={}",
+                hex::encode(sk.verifying_key().to_bytes())
+            );
         }
         Commands::Verify { key, signature } => {
             let key_arr = match decode_hex_32(&key) {
@@ -154,7 +161,7 @@ fn main() {
             // capable transport (e.g. via reqwest) by building RekorClient with
             // `with_transport`. Here we attempt the call and report the typed
             // error if the transport cannot reach the endpoint.
-            let client = aumos_trust_core::rekor::RekorClient::with_base_url(&rekor_url);
+            let client = warrantor_trust_core::rekor::RekorClient::with_base_url(&rekor_url);
             eprintln!("notarize: posting to {} ...", client.base_url());
             match client.notarize(&payload, sig.to_bytes().as_ref(), vk.to_bytes().as_ref()) {
                 Ok(entry) => {

@@ -1,5 +1,5 @@
 /**
- * `@aumos/protocol-contracts` — generated P1-P12 wire types plus the
+ * `@warrantor/protocol-contracts` — generated P1-P12 wire types plus the
  * independent TypeScript protocol validator.
  */
 

@@ -22,11 +22,11 @@ import (
 type BackendType string
 
 const (
-	BackendVLLM       BackendType = "vllm"
-	BackendTriton     BackendType = "triton"
-	BackendTensorRT   BackendType = "tensorrt-llm"
-	BackendOllama     BackendType = "ollama"
-	BackendMock       BackendType = "mock" // for CI / development
+	BackendVLLM     BackendType = "vllm"
+	BackendTriton   BackendType = "triton"
+	BackendTensorRT BackendType = "tensorrt-llm"
+	BackendOllama   BackendType = "ollama"
+	BackendMock     BackendType = "mock" // for CI / development
 )
 
 // ChatRequest mirrors the OpenAI /v1/chat/completions request shape (subset).
@@ -52,20 +52,20 @@ type ChatChoice struct {
 
 // ChatResponse mirrors the OpenAI /v1/chat/completions response shape (subset).
 type ChatResponse struct {
-	ID      string        `json:"id"`
-	Object  string        `json:"object"`
-	Created int64         `json:"created"`
-	Model   string        `json:"model"`
-	Choices []ChatChoice  `json:"choices"`
-	Usage   map[int]int   `json:"usage,omitempty"`
+	ID      string       `json:"id"`
+	Object  string       `json:"object"`
+	Created int64        `json:"created"`
+	Model   string       `json:"model"`
+	Choices []ChatChoice `json:"choices"`
+	Usage   map[int]int  `json:"usage,omitempty"`
 }
 
 // AttestationEnvelope wraps a response with an attestation claim (per RFC N1).
 type AttestationEnvelope struct {
-	GPUModel        string `json:"gpu_model,omitempty"`
-	Attested        bool   `json:"attested"`
-	AttestationHex  string `json:"attestation_hex,omitempty"`
-	VerifierKeyHex  string `json:"verifier_key_hex,omitempty"`
+	GPUModel       string `json:"gpu_model,omitempty"`
+	Attested       bool   `json:"attested"`
+	AttestationHex string `json:"attestation_hex,omitempty"`
+	VerifierKeyHex string `json:"verifier_key_hex,omitempty"`
 }
 
 // AttestedResponse wraps a ChatResponse with an optional attestation.
@@ -192,8 +192,8 @@ func (r *Router) Pick(model string) Backend {
 
 // Proxy is the OpenAI-compatible proxy.
 type Proxy struct {
-	router           *Router
-	wrapAttestation  bool
+	router          *Router
+	wrapAttestation bool
 }
 
 // NewProxy constructs a Proxy. If wrapAttestation is true, responses are wrapped in an

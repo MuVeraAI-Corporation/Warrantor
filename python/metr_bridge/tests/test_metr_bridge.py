@@ -30,8 +30,8 @@ def test_adapter_translates_evaluations_into_stages() -> None:
             {"name": "goal", "metric": "completion", "threshold": 0.9, "weight": 2.0},
         ],
     )
-    pipeline = METREvalAdapter().adapt(spec, target="model://aumos-7b")
-    assert pipeline.target == "model://aumos-7b"
+    pipeline = METREvalAdapter().adapt(spec, target="model://warrantor-7b")
+    assert pipeline.target == "model://warrantor-7b"
     assert pipeline.metadata["task_id"] == "t-1"
     assert pipeline.metadata["max_steps"] == 30
     # 2 evaluations + 1 final gate
@@ -55,7 +55,7 @@ def test_exporter_serializes_to_jsonl() -> None:
     ]
     blob = TranscriptExporter().export(steps)
     text = blob.decode("utf-8")
-    lines = [l for l in text.splitlines() if l]
+    lines = [line for line in text.splitlines() if line]
     assert len(lines) == 2
     rec0 = json.loads(lines[0])
     assert rec0["role"] == "user"
@@ -73,7 +73,7 @@ def test_exporter_lines_returns_dicts_in_order() -> None:
 # ---------- RiskReportBridge ----------
 def test_risk_bridge_sorts_by_severity_and_adds_tags() -> None:
     report = AumOSRiskReport(
-        target="model://aumos-7b",
+        target="model://warrantor-7b",
         findings=[
             AumOSFinding(rule_id="LOW1", severity="low", message="m1", cwe="CWE-123"),
             AumOSFinding(rule_id="CRIT1", severity="critical", message="m2", atlas="AML.T0051"),
@@ -125,7 +125,7 @@ def test_verifier_flags_non_reproducible_eval() -> None:
 
 def test_default_deterministic_runner_is_seed_dependent() -> None:
     v = IndependentVerifier(tolerance=0.0, secondary_seed=2)
-    r = v.verify(SafeEvalPipeline(target="model://aumos-7b"), primary_seed=1)
+    r = v.verify(SafeEvalPipeline(target="model://warrantor-7b"), primary_seed=1)
     # different seeds with the default runner -> different scores -> not reproduced at tol=0
     assert r.primary_score != r.secondary_score
 

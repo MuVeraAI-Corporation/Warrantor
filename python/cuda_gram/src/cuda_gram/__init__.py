@@ -2,7 +2,7 @@
 
 Wave-1 v1.0 ships a pure-Python implementation that mirrors the proto types in
 ``proto/aumos/attestation/v1/report.proto``. The PyO3 binding to C1-1's Rust core
-(``aumos-nvtrust-bridge``) lands in task 02 — it replaces the pure-Python
+(``warrantor-nvtrust-bridge``) lands in task 02 — it replaces the pure-Python
 ``MockBackend`` with a call into the Rust trusted core via PyO3, NOT ctypes (that's
 the DefStack original we are migrating away from).
 
@@ -29,13 +29,11 @@ class BoundaryCheck(IntEnum):
 class AttestationBackend(Protocol):
     """A backend that can issue and verify GPU attestation reports."""
 
-    def attest(self, nonce: bytes) -> "AttestationReport":
+    def attest(self, nonce: bytes) -> AttestationReport:
         """Request an attestation report from the local GPU."""
         ...
 
-    def verify_with_challenge(
-        self, report: "AttestationReport", challenge_nonce: bytes
-    ) -> None:
+    def verify_with_challenge(self, report: AttestationReport, challenge_nonce: bytes) -> None:
         """Verify a report against a caller-supplied challenge nonce.
 
         C4: the challenge nonce is the anti-replay control. The verifier sent
@@ -46,7 +44,7 @@ class AttestationBackend(Protocol):
         """
         ...
 
-    def verify(self, report: "AttestationReport") -> None:
+    def verify(self, report: AttestationReport) -> None:
         """Verify a report using the report's own embedded nonce.
 
         Backward-compatible convenience only — does NOT provide replay protection on its
@@ -73,7 +71,7 @@ class AttestationReport:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "AttestationReport":
+    def from_dict(cls, d: dict) -> AttestationReport:
         """Deserialize from a dict (the JSON shape produced by the Rust CLI).
 
         M9 fix: validates gpu_model (non-empty string) and attestation_bytes
@@ -90,7 +88,9 @@ class AttestationReport:
         # M9: validate gpu_model
         gpu_model = str(d["gpu_model"])
         if not gpu_model or len(gpu_model) > 256:
-            raise ValueError(f"gpu_model must be a non-empty string (max 256 chars), got: {gpu_model!r}")
+            raise ValueError(
+                f"gpu_model must be a non-empty string (max 256 chars), got: {gpu_model!r}"
+            )
         # M9: validate attestation_bytes
         attestation_bytes = bytes(d["attestation_bytes"])
         if len(attestation_bytes) == 0:
@@ -120,7 +120,7 @@ class AttestationVerifier:
         try:
             self._backend.verify(report)
             return True
-        except Exception:  # noqa: BLE001 — fail-closed
+        except Exception:
             return False
 
 
@@ -145,10 +145,10 @@ class MockBackend:
 
     Always issues reports with the well-known mock attestation bytes; verifies
     any report whose attestation bytes match the mock marker. Mirrors the Rust
-    ``MockBackend`` in ``aumos-nvtrust-bridge`` byte-for-byte so a report issued
+    ``MockBackend`` in ``warrantor-nvtrust-bridge`` byte-for-byte so a report issued
     by the Rust CLI verifies here and vice versa."""
 
-    MOCK_ATTESTATION_BYTES = b"aumos-mock-attestation"
+    MOCK_ATTESTATION_BYTES = b"warrantor-mock-attestation"
 
     def __init__(self, gpu_model: str = "mock-H100") -> None:
         self.gpu_model = gpu_model
@@ -162,15 +162,11 @@ class MockBackend:
             nonce=nonce,
         )
 
-    def verify_with_challenge(
-        self, report: AttestationReport, challenge_nonce: bytes
-    ) -> None:
+    def verify_with_challenge(self, report: AttestationReport, challenge_nonce: bytes) -> None:
         # C4: enforce the challenge nonce — a report whose nonce does not match the challenge
         # the verifier issued is a replay and must be rejected.
         if len(challenge_nonce) != 16:
-            raise ValueError(
-                f"challenge_nonce must be 16 bytes, got {len(challenge_nonce)}"
-            )
+            raise ValueError(f"challenge_nonce must be 16 bytes, got {len(challenge_nonce)}")
         if report.nonce != challenge_nonce:
             raise ValueError("attestation verification failed: nonce mismatch (replay)")
         if report.attestation_bytes != self.MOCK_ATTESTATION_BYTES:

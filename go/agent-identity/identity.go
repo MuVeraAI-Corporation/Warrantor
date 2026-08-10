@@ -92,16 +92,16 @@ type svidClaims struct {
 // SVID. It mirrors a subset of the AAE (P1) — the per-action capability envelope. The token is
 // signed with the same Ed25519 key as the SVID so a single verifying key suffices.
 type capabilityTokenClaims struct {
-	Issuer          string            `json:"iss"`           // spiffe://<td>/agent-identity
-	Subject         string            `json:"sub"`           // the SVID subject this token is bound to
-	Tools           []string          `json:"tools"`
-	DataClasses     []string          `json:"data_classes"`
-	SideEffectClass string            `json:"side_effect_class"`
-	Geography       string            `json:"geography"`
-	DelegationDepth int               `json:"delegation_depth"`
-	IssuedAt        int64             `json:"iat"`
-	ExpiresAt       int64             `json:"exp"` // short TTL (DefaultCapabilityTokenTTL)
-	JTI             string            `json:"jti"` // capability-token JTI (for revocation)
+	Issuer          string   `json:"iss"` // spiffe://<td>/agent-identity
+	Subject         string   `json:"sub"` // the SVID subject this token is bound to
+	Tools           []string `json:"tools"`
+	DataClasses     []string `json:"data_classes"`
+	SideEffectClass string   `json:"side_effect_class"`
+	Geography       string   `json:"geography"`
+	DelegationDepth int      `json:"delegation_depth"`
+	IssuedAt        int64    `json:"iat"`
+	ExpiresAt       int64    `json:"exp"` // short TTL (DefaultCapabilityTokenTTL)
+	JTI             string   `json:"jti"` // capability-token JTI (for revocation)
 }
 
 // An SVID as issued by the service.
@@ -122,13 +122,13 @@ type SVID struct {
 
 // Service is the in-process agent-identity service.
 type Service struct {
-	mu            sync.RWMutex
-	signingKey    ed25519.PrivateKey
-	verifyingKey  ed25519.PublicKey
-	trustDomain   string
-	revoked       map[string]time.Time // JTI -> revoked-at
-	parents       map[string]string    // subject SVID -> parent SVID (delegation graph)
-	authorities   map[string]CapabilityClaims
+	mu           sync.RWMutex
+	signingKey   ed25519.PrivateKey
+	verifyingKey ed25519.PublicKey
+	trustDomain  string
+	revoked      map[string]time.Time // JTI -> revoked-at
+	parents      map[string]string    // subject SVID -> parent SVID (delegation graph)
+	authorities  map[string]CapabilityClaims
 }
 
 // NewService constructs a new identity service with a freshly generated Ed25519 key pair.

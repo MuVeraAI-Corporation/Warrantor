@@ -1,4 +1,4 @@
-//! # aumos-confidential-fabric (C1-5)
+//! # warrantor-confidential-fabric (C1-5)
 //!
 //! The composite attestation fabric. Takes three independent attestation streams — GPU
 //! (C1-1 nvtrust-bridge), runtime/TEE (C1-3 attesta-flow), and agent identity (I1
@@ -412,9 +412,7 @@ impl KeyReleasePolicy {
 
         // 6. Agent identity: SVID allow list.
         if !self.allowed_agent_svids.is_empty()
-            && !self
-                .allowed_agent_svids
-                .contains(&attestation.agent.svid)
+            && !self.allowed_agent_svids.contains(&attestation.agent.svid)
         {
             return Err(FabricError::AgentNotAllowed(attestation.agent.svid.clone()));
         }
@@ -446,7 +444,7 @@ impl KeyReleasePolicy {
     #[must_use]
     pub fn derive_key(&self, attestation: &CompositeAttestation, salt: &[u8]) -> String {
         let mut h = Sha256::new();
-        h.update(b"aumos-confidential-fabric-key-v1|");
+        h.update(b"warrantor-confidential-fabric-key-v1|");
         h.update(salt);
         h.update(b"|");
         h.update(attestation.digest.as_bytes());
@@ -620,7 +618,12 @@ mod tests {
     }
 
     fn base_composite(fabric: &Fabric, now: u64) -> CompositeAttestation {
-        fabric.assemble(Some(gpu("H100", now)), runtime("meas-A", now), agent("spiffe://aumos.dev/agent/x", now), now)
+        fabric.assemble(
+            Some(gpu("H100", now)),
+            runtime("meas-A", now),
+            agent("spiffe://aumos.dev/agent/x", now),
+            now,
+        )
     }
 
     // 1. Assemble produces a composite with a non-empty sha256: digest.
@@ -648,7 +651,10 @@ mod tests {
         let f = Fabric::new("aumos.dev");
         let mut c = base_composite(&f, 100);
         c.runtime.tee_measurement = "tampered".to_string();
-        assert!(matches!(c.verify_digest(), Err(FabricError::DigestMismatch { .. })));
+        assert!(matches!(
+            c.verify_digest(),
+            Err(FabricError::DigestMismatch { .. })
+        ));
     }
 
     // 4. Two identical composites have the same digest (determinism).
@@ -687,7 +693,10 @@ mod tests {
         let c = base_composite(&f, 0);
         let now = 100_000; // way past DEFAULT_FRESHNESS + skew
         assert!(!p.allows(&c, now));
-        assert!(matches!(p.evaluate(&c, now), Err(FabricError::Stale { .. })));
+        assert!(matches!(
+            p.evaluate(&c, now),
+            Err(FabricError::Stale { .. })
+        ));
     }
 
     // 8. GPU model constraint is enforced.
@@ -700,7 +709,10 @@ mod tests {
             ..Default::default()
         };
         assert!(!p.allows(&c, 1000));
-        assert!(matches!(p.evaluate(&c, 1000), Err(FabricError::GpuModelMismatch { .. })));
+        assert!(matches!(
+            p.evaluate(&c, 1000),
+            Err(FabricError::GpuModelMismatch { .. })
+        ));
     }
 
     // 9. GPU constraint rejects CPU-only composite when GPU is required.
@@ -725,7 +737,10 @@ mod tests {
             ..Default::default()
         };
         assert!(!p.allows(&c, 1000));
-        assert!(matches!(p.evaluate(&c, 1000), Err(FabricError::TeeMeasurementMismatch { .. })));
+        assert!(matches!(
+            p.evaluate(&c, 1000),
+            Err(FabricError::TeeMeasurementMismatch { .. })
+        ));
     }
 
     // 11. Agent SVID allow list is enforced.
@@ -738,7 +753,10 @@ mod tests {
             ..Default::default()
         };
         assert!(!p.allows(&c, 1000));
-        assert!(matches!(p.evaluate(&c, 1000), Err(FabricError::AgentNotAllowed(_))));
+        assert!(matches!(
+            p.evaluate(&c, 1000),
+            Err(FabricError::AgentNotAllowed(_))
+        ));
     }
 
     // 12. Agent publisher allow list is enforced.
@@ -806,15 +824,27 @@ mod tests {
         let mut v = FleetView::new();
         v.record(
             "spiffe://aumos.dev/agent/a",
-            PodAttestationState { digest: "sha256:1".into(), age_secs: 1, ok: true },
+            PodAttestationState {
+                digest: "sha256:1".into(),
+                age_secs: 1,
+                ok: true,
+            },
         );
         v.record(
             "spiffe://aumos.dev/agent/b",
-            PodAttestationState { digest: "sha256:2".into(), age_secs: 1, ok: false },
+            PodAttestationState {
+                digest: "sha256:2".into(),
+                age_secs: 1,
+                ok: false,
+            },
         );
         v.record(
             "spiffe://aumos.dev/agent/c",
-            PodAttestationState { digest: "sha256:3".into(), age_secs: 1, ok: true },
+            PodAttestationState {
+                digest: "sha256:3".into(),
+                age_secs: 1,
+                ok: true,
+            },
         );
         assert_eq!(v.healthy_count(), 2);
         assert!((v.healthy_fraction() - 2.0 / 3.0).abs() < 1e-9);

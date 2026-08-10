@@ -17,12 +17,12 @@ import (
 
 // IssueRequest mirrors proto/aumos/identity/v1/IssueIdentityRequest.
 type IssueRequest struct {
-	Subject    string            `json:"subject"`
-	Attributes AgentAttributes   `json:"attributes"`
-	Claims     CapabilityClaims  `json:"claims"`
-	Audience   string            `json:"audience,omitempty"` // C5: intended audience bound into the `aud` claim
-	ParentSVID string            `json:"parent_svid,omitempty"`
-	RequestID  string            `json:"request_id,omitempty"`
+	Subject    string           `json:"subject"`
+	Attributes AgentAttributes  `json:"attributes"`
+	Claims     CapabilityClaims `json:"claims"`
+	Audience   string           `json:"audience,omitempty"` // C5: intended audience bound into the `aud` claim
+	ParentSVID string           `json:"parent_svid,omitempty"`
+	RequestID  string           `json:"request_id,omitempty"`
 }
 
 // IssueResponse mirrors proto/aumos/identity/v1/IssueIdentityResponse.
@@ -50,8 +50,8 @@ type VerifyRequest struct {
 
 // VerifyResponse mirrors proto/aumos/identity/v1/VerifyIdentityResponse.
 type VerifyResponse struct {
-	Valid  bool   `json:"valid"`
-	Reason string `json:"reason,omitempty"`
+	Valid   bool   `json:"valid"`
+	Reason  string `json:"reason,omitempty"`
 	Subject string `json:"subject,omitempty"`
 }
 
@@ -64,8 +64,8 @@ type RevokeRequest struct {
 
 // RevokeResponse mirrors proto/aumos/identity/v1/RevokeResponse.
 type RevokeResponse struct {
-	Revoked   bool   `json:"revoked"`
-	RevokedAt int64  `json:"revoked_at"`
+	Revoked   bool  `json:"revoked"`
+	RevokedAt int64 `json:"revoked_at"`
 }
 
 // HTTPGateway exposes the service over HTTP/JSON.

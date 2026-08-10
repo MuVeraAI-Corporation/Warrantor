@@ -1,4 +1,4 @@
-//! # aumos-exfil-guard
+//! # warrantor-exfil-guard
 //!
 //! eBPF exfiltration prevention core. Three detectors run on every outbound
 //! buffer (the eBPF upcall hands the Rust core a `(buffer, flow)` pair):
@@ -24,7 +24,7 @@
 #![deny(missing_docs)]
 
 use serde::{Deserialize, Serialize};
-use std::collections::{VecDeque, HashMap};
+use std::collections::{HashMap, VecDeque};
 use thiserror::Error;
 
 /// The default per-transfer byte cap (1 MiB). Larger single transfers are
@@ -43,12 +43,8 @@ pub const DEFAULT_MIN_ENTROPY: f64 = 4.5;
 pub const DEFAULT_MIN_LENGTH: usize = 32;
 
 /// The default domain blocklist (mirrors R7).
-pub const DEFAULT_BLOCKED_DOMAINS: &[&str] = &[
-    "pastebin.com",
-    "requestbin.com",
-    "webhook.site",
-    "ngrok.io",
-];
+pub const DEFAULT_BLOCKED_DOMAINS: &[&str] =
+    &["pastebin.com", "requestbin.com", "webhook.site", "ngrok.io"];
 
 /// The kind of detector that flagged a sample.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -135,7 +131,11 @@ impl PatternMatcher {
         let bytes = text.as_bytes();
         let mut i = 0;
         while i + 20 <= bytes.len() {
-            if &bytes[i..i + 4] == b"AKIA" && bytes[i + 4..i + 20].iter().all(u8::is_ascii_uppercase_or_digit) {
+            if &bytes[i..i + 4] == b"AKIA"
+                && bytes[i + 4..i + 20]
+                    .iter()
+                    .all(u8::is_ascii_uppercase_or_digit)
+            {
                 out.push(Finding {
                     kind: DetectorKind::PatternMatcher,
                     rule_id: "AWS_ACCESS_KEY".to_string(),
@@ -160,7 +160,10 @@ impl PatternMatcher {
             let abs = i + pos;
             // gather >=36 alphanumeric chars after the prefix
             let mut end = abs + prefix.len();
-            while end < bytes.len() && bytes[end].is_ascii_alphanumeric() && end - (abs + prefix.len()) < 40 {
+            while end < bytes.len()
+                && bytes[end].is_ascii_alphanumeric()
+                && end - (abs + prefix.len()) < 40
+            {
                 end += 1;
             }
             let token_len = end - (abs + prefix.len());
@@ -313,37 +316,45 @@ impl EntropyDetector {
 
     /// Scan ``buf`` for any window that exceeds the thresholds.
     ///
-    /// Uses a sliding window of size ``min_length`` stepped every 1 byte (M3 fix:
-    /// previously stepped by `min_length` after a match, missing secrets that
-    /// span window boundaries. Now steps by 1 always but deduplicates overlapping
-    /// matches by advancing past a detected window only by `step` not `min_length`).
+    /// Uses a sliding window of size ``min_length`` stepped every byte. Adjacent
+    /// matching windows are coalesced into one maximal finding so a single
+    /// secret is reported once without creating blind spots at window boundaries.
     #[must_use]
     pub fn scan(&self, buf: &[u8]) -> Vec<Finding> {
         if buf.len() < self.min_length {
             return Vec::new();
         }
-        let mut out = Vec::new();
+        let mut out: Vec<Finding> = Vec::new();
         let mut i = 0;
-        let step = 1; // M3: slide by 1 byte to catch secrets at any offset
         while i + self.min_length <= buf.len() {
             let window = &buf[i..i + self.min_length];
             // only evaluate printable windows (entropy of binary is noisy)
             if window.iter().all(is_printable) {
                 let h = shannon_entropy(window);
                 if h >= self.min_entropy {
-                    out.push(Finding {
-                        kind: DetectorKind::EntropyDetector,
-                        rule_id: "HIGH_ENTROPY_BLOB".to_string(),
-                        message: format!("high-entropy window (h={h:.2} >= {:.2})", self.min_entropy),
-                        offset: i,
-                        length: self.min_length,
-                    });
-                    // advance by step (1 byte) to catch overlapping secrets at different offsets
-                    i += step;
+                    let window_end = i + self.min_length;
+                    if let Some(previous) = out.last_mut().filter(|finding| {
+                        finding.kind == DetectorKind::EntropyDetector
+                            && i <= finding.offset + finding.length
+                    }) {
+                        previous.length = window_end.saturating_sub(previous.offset);
+                    } else {
+                        out.push(Finding {
+                            kind: DetectorKind::EntropyDetector,
+                            rule_id: "HIGH_ENTROPY_BLOB".to_string(),
+                            message: format!(
+                                "high-entropy region (window h={h:.2} >= {:.2})",
+                                self.min_entropy
+                            ),
+                            offset: i,
+                            length: self.min_length,
+                        });
+                    }
+                    i += 1;
                     continue;
                 }
             }
-            i += step;
+            i += 1;
         }
         out
     }
@@ -445,7 +456,12 @@ impl VolumeMonitor {
     /// Returns a decision that says whether the transfer is allowed under
     /// both caps. The monitor records the sample even when denying so the
     /// running total reflects attempted exfil volume.
-    pub fn record(&mut self, flow: &FlowKey, len: usize, now: u64) -> Result<VolumeDecision, VolumeError> {
+    pub fn record(
+        &mut self,
+        flow: &FlowKey,
+        len: usize,
+        now: u64,
+    ) -> Result<VolumeDecision, VolumeError> {
         let dq = self.flows.entry(flow.clone()).or_default();
         if let Some(&(t, _)) = dq.back() {
             if now < t {
@@ -628,9 +644,7 @@ fn is_printable(b: &u8) -> bool {
 }
 
 fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack
-        .windows(needle.len())
-        .position(|w| w == needle)
+    haystack.windows(needle.len()).position(|w| w == needle)
 }
 
 fn luhn_passes(digits: &[u8]) -> bool {
@@ -723,6 +737,24 @@ mod tests {
         let f = det.scan(blob);
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].rule_id, "HIGH_ENTROPY_BLOB");
+        assert_eq!(f[0].offset, 0);
+        assert_eq!(f[0].length, blob.len());
+    }
+
+    #[test]
+    fn entropy_keeps_disjoint_regions_separate() {
+        let det = EntropyDetector::default();
+        let blob = b"qxP9zR1vY8mK2bT7nL4sH6dF3jC5gW0aE9rU2iN7oM1pB8tX6yV4cQ3";
+        let mut payload = blob.to_vec();
+        payload.extend([0_u8; DEFAULT_MIN_LENGTH]);
+        payload.extend(blob);
+
+        let findings = det.scan(&payload);
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].offset, 0);
+        assert_eq!(findings[0].length, blob.len());
+        assert_eq!(findings[1].offset, blob.len() + DEFAULT_MIN_LENGTH);
+        assert_eq!(findings[1].length, blob.len());
     }
 
     #[test]
@@ -762,7 +794,10 @@ mod tests {
     #[test]
     fn volume_allows_under_both_caps() {
         let mut m = VolumeMonitor::new(1024, 4096);
-        let flow = FlowKey { destination: "example.com".to_string(), port: 443 };
+        let flow = FlowKey {
+            destination: "example.com".to_string(),
+            port: 443,
+        };
         let d = m.record(&flow, 100, 0).unwrap();
         assert!(d.allowed);
         assert_eq!(d.window_total, 100);
@@ -771,7 +806,10 @@ mod tests {
     #[test]
     fn volume_flags_single_large_transfer() {
         let mut m = VolumeMonitor::new(100, 1000);
-        let flow = FlowKey { destination: "x".to_string(), port: 1 };
+        let flow = FlowKey {
+            destination: "x".to_string(),
+            port: 1,
+        };
         let d = m.record(&flow, 200, 0).unwrap();
         assert!(!d.allowed);
         assert_eq!(d.findings[0].rule_id, "PER_TRANSFER_EXCEEDED");
@@ -780,7 +818,10 @@ mod tests {
     #[test]
     fn volume_flags_rolling_hour_cap() {
         let mut m = VolumeMonitor::new(100, 250);
-        let flow = FlowKey { destination: "x".to_string(), port: 1 };
+        let flow = FlowKey {
+            destination: "x".to_string(),
+            port: 1,
+        };
         assert!(m.record(&flow, 100, 0).unwrap().allowed);
         assert!(m.record(&flow, 100, 100).unwrap().allowed);
         let d = m.record(&flow, 100, 200).unwrap();
@@ -791,7 +832,10 @@ mod tests {
     #[test]
     fn volume_window_purges_old_samples() {
         let mut m = VolumeMonitor::new(10_000, 250);
-        let flow = FlowKey { destination: "x".to_string(), port: 1 };
+        let flow = FlowKey {
+            destination: "x".to_string(),
+            port: 1,
+        };
         // first sample outside the 3600s window
         m.record(&flow, 200, 0).unwrap();
         // 2h later -> first sample purged
@@ -803,7 +847,10 @@ mod tests {
     #[test]
     fn volume_rejects_non_monotonic_clock() {
         let mut m = VolumeMonitor::default();
-        let flow = FlowKey { destination: "x".to_string(), port: 1 };
+        let flow = FlowKey {
+            destination: "x".to_string(),
+            port: 1,
+        };
         m.record(&flow, 1, 100).unwrap();
         assert!(matches!(
             m.record(&flow, 1, 50),
@@ -825,8 +872,15 @@ mod tests {
     fn guard_combines_all_detectors() {
         let mut g = ExfilGuard::default();
         let buf = b"token=AKIAIOSFODNN7EXAMPLE and a credit card 4242 4242 4242 4242";
-        let flow = FlowKey { destination: "pastebin.com".to_string(), port: 443 };
-        let v = g.evaluate(EvaluateRequest { buffer: buf, flow: Some(flow), now: 0 });
+        let flow = FlowKey {
+            destination: "pastebin.com".to_string(),
+            port: 443,
+        };
+        let v = g.evaluate(EvaluateRequest {
+            buffer: buf,
+            flow: Some(flow),
+            now: 0,
+        });
         assert!(!v.allowed);
         let rules: Vec<_> = v.findings.iter().map(|f| f.rule_id.as_str()).collect();
         assert!(rules.contains(&"AWS_ACCESS_KEY"));
@@ -838,8 +892,15 @@ mod tests {
     fn guard_allows_clean_buffer_to_clean_destination() {
         let mut g = ExfilGuard::default();
         let buf = b"hello world";
-        let flow = FlowKey { destination: "example.com".to_string(), port: 443 };
-        let v = g.evaluate(EvaluateRequest { buffer: buf, flow: Some(flow), now: 0 });
+        let flow = FlowKey {
+            destination: "example.com".to_string(),
+            port: 443,
+        };
+        let v = g.evaluate(EvaluateRequest {
+            buffer: buf,
+            flow: Some(flow),
+            now: 0,
+        });
         assert!(v.allowed);
         assert!(v.findings.is_empty());
     }

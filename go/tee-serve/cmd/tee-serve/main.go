@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"aumos.dev/tee-serve"
+	"warrantor.dev/tee-serve"
 )
 
 func main() {

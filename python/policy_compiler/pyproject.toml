@@ -1,5 +1,5 @@
 [project]
-name = "aumos-policy-compiler"
+name = "warrantor-policy-compiler"
 version = "1.0.0"
 description = "R5 — compile NL intent + enterprise rules into OpenShell policy + OPA Rego + Cedar rules"
 readme = "README.md"

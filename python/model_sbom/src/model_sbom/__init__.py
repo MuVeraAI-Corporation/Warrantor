@@ -11,10 +11,9 @@ See ``docs/rfcs/S4-model-sbom.md``.
 
 from __future__ import annotations
 
-import json
 import uuid
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -60,11 +59,11 @@ class SbomInput:
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _now_or(input_dt: datetime | None) -> datetime:
-    return input_dt if input_dt is not None else datetime.now(timezone.utc)
+    return input_dt if input_dt is not None else datetime.now(UTC)
 
 
 def to_cyclonedx(sbom: SbomInput) -> dict[str, Any]:
@@ -158,10 +157,18 @@ def to_spdx(sbom: SbomInput) -> dict[str, Any]:
         # AI extension fields per SPDX AI-BOM draft.
         "builtDate": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "annotations": [
-            {"annotationType": "REVIEW", "annotator": sbom.supplier, "annotationDate": _utcnow_iso(),
-             "comment": f"model.architecture={sbom.model.architecture}"},
-            {"annotationType": "REVIEW", "annotator": sbom.supplier, "annotationDate": _utcnow_iso(),
-             "comment": f"model.parameters={sbom.model.parameters}"},
+            {
+                "annotationType": "REVIEW",
+                "annotator": sbom.supplier,
+                "annotationDate": _utcnow_iso(),
+                "comment": f"model.architecture={sbom.model.architecture}",
+            },
+            {
+                "annotationType": "REVIEW",
+                "annotator": sbom.supplier,
+                "annotationDate": _utcnow_iso(),
+                "comment": f"model.parameters={sbom.model.parameters}",
+            },
         ],
     }
     if sbom.model.training_data:
@@ -187,8 +194,11 @@ def to_spdx(sbom: SbomInput) -> dict[str, Any]:
         model_pkg["licenseDeclared"] = sbom.model.license
     if sbom.model.digest:
         model_pkg["externalRefs"] = [
-            {"referenceCategory": "SECURITY", "referenceType": "cpe23Type",
-             "referenceLocator": f"sha256:{sbom.model.digest}"}
+            {
+                "referenceCategory": "SECURITY",
+                "referenceType": "cpe23Type",
+                "referenceLocator": f"sha256:{sbom.model.digest}",
+            }
         ]
     packages.append(model_pkg)
 
@@ -205,8 +215,11 @@ def to_spdx(sbom: SbomInput) -> dict[str, Any]:
         }
         if d.digest:
             pkg["externalRefs"] = [
-                {"referenceCategory": "SECURITY", "referenceType": "cpe23Type",
-                 "referenceLocator": f"sha256:{d.digest}"}
+                {
+                    "referenceCategory": "SECURITY",
+                    "referenceType": "cpe23Type",
+                    "referenceLocator": f"sha256:{d.digest}",
+                }
             ]
         packages.append(pkg)
 
@@ -227,7 +240,7 @@ def to_spdx(sbom: SbomInput) -> dict[str, Any]:
         "documentNamespace": f"https://aumos.dev/spdx/{uuid.uuid4()}",
         "creationInfo": {
             "created": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "creators": [f"Tool: aumos-model-sbom-1.0.0", f"Organization: {sbom.supplier}"],
+            "creators": ["Tool: warrantor-model-sbom-1.0.0", f"Organization: {sbom.supplier}"],
         },
         "packages": packages,
         "relationships": relationships,

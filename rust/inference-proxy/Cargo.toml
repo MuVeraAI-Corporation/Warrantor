@@ -1,5 +1,5 @@
 [package]
-name = "aumos-inference-proxy"
+name = "warrantor-inference-proxy"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "N3 — LLM inference gateway (auth, rate-limit, prompt-filter, semantic cache)"
 
 [lib]
-name = "aumos_inference_proxy"
+name = "warrantor_inference_proxy"
 path = "src/lib.rs"
 
 [dependencies]

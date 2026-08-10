@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from comply_gate import (
-    ComplyGateConfig,
     EvidenceProviders,
     GateConfig,
     GateStatus,
@@ -17,7 +16,6 @@ from comply_gate import (
     parse_config,
     run_pipeline,
 )
-
 
 SAMPLE_YAML = """\
 version: "1"
@@ -106,8 +104,12 @@ def test_sbom_present_uses_path() -> None:
 
 def test_eval_passed_gate_wires_provider() -> None:
     gate = GateConfig(GateType.EVAL_PASSED)
-    assert evaluate_gate(gate, EvidenceProviders(eval_passed=lambda: True)).status == GateStatus.PASS
-    assert evaluate_gate(gate, EvidenceProviders(eval_passed=lambda: False)).status == GateStatus.FAIL
+    assert (
+        evaluate_gate(gate, EvidenceProviders(eval_passed=lambda: True)).status == GateStatus.PASS
+    )
+    assert (
+        evaluate_gate(gate, EvidenceProviders(eval_passed=lambda: False)).status == GateStatus.FAIL
+    )
 
 
 def test_disclosure_filed_gate_defaults_path() -> None:

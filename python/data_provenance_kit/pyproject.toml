@@ -1,5 +1,5 @@
 [project]
-name = "aumos-data-provenance-kit"
+name = "warrantor-data-provenance-kit"
 version = "1.0.0"
 description = "S5 — dataset lineage tracker with signed JSON-LD export"
 readme = "README.md"

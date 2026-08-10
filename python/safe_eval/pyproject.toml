@@ -1,5 +1,5 @@
 [project]
-name = "aumos-safe-eval"
+name = "warrantor-safe-eval"
 version = "1.0.0"
 description = "A1 — unified safety-evaluation pipeline framework (HELM/garak/PyRIT/MDASH orchestration)"
 readme = "README.md"

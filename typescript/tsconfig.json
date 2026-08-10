@@ -4,7 +4,7 @@
     { "path": "./console" },
     { "path": "./mcp-gateway" },
     { "path": "./arena" },
-    { "path": "./aumos-mcp-server" },
+    { "path": "./mcp-server" },
     { "path": "./protocol-contracts" }
   ]
 }

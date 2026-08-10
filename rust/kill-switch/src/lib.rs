@@ -1,4 +1,4 @@
-//! # aumos-kill-switch
+//! # warrantor-kill-switch
 //!
 //! Three layers: Policy (via the `PolicyEngine` trait — mock in Wave-1, OPA Rego via `regorus`
 //! in task 03), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). Entire pipeline executes

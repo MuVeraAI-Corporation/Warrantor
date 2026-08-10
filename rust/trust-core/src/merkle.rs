@@ -29,10 +29,10 @@ pub fn node_hash(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
 
 /// Compute the Merkle root over `leaves` (RFC 6962). Empty input returns the zero hash.
 ///
-/// M10 fix: for a non-power-of-two leaf count, the odd node is RE-HASHED as a
-/// single-child internal node (SHA-256(0x01 || child || child)) rather than
-/// promoted unchanged. This prevents second-preimage attacks where a leaf hash
-/// could be confused with an internal node hash.
+/// RFC 6962 defines the root recursively by splitting at the largest power of
+/// two smaller than the tree size. The equivalent iterative construction
+/// promotes an unpaired node unchanged to the next layer. It must not duplicate
+/// and re-hash that node: doing so produces a different, non-RFC-6962 tree.
 pub fn merkle_root(leaves: &[&[u8]]) -> [u8; 32] {
     if leaves.is_empty() {
         return [0u8; 32];
@@ -45,9 +45,7 @@ pub fn merkle_root(leaves: &[&[u8]]) -> [u8; 32] {
             if i + 1 < layer.len() {
                 next.push(node_hash(&layer[i], &layer[i + 1]));
             } else {
-                // M10: re-hash the orphan as a single-child node (not raw promotion).
-                // This prevents leaf/internal-node confusion attacks.
-                next.push(node_hash(&layer[i], &layer[i]));
+                next.push(layer[i]);
             }
             i += 2;
         }
@@ -82,7 +80,7 @@ mod tests {
 
     #[test]
     fn three_leaves_promotes_orphan() {
-        // Three leaves: hash(a,b), then promote c, then combine.
+        // Three leaves: hash(a,b), promote hash(c), then combine.
         let a = b"a";
         let b = b"b";
         let c = b"c";
@@ -112,6 +110,18 @@ mod tests {
             hex::encode(root),
             "33376a3bd63e9993708a84ddfe6c28ae58b83505dd1fed711bd924ec5a6239f0",
             "Merkle root must match the golden vector in testvectors/T1/merkle-001.json"
+        );
+    }
+
+    #[test]
+    fn golden_vector_merkle_002() {
+        // Locks testvectors/T1/merkle-002.json — five leaves exercise RFC 6962
+        // orphan promotion across two non-power-of-two layers.
+        let root = merkle_root(&[b"w", b"x", b"y", b"z", b"1"]);
+        assert_eq!(
+            hex::encode(root),
+            "cb7545f2feb7fd36ea7dbd2acc90f94dabe6e800439a6e9d12e9363d1954c125",
+            "Merkle root must match the golden vector in testvectors/T1/merkle-002.json"
         );
     }
 }

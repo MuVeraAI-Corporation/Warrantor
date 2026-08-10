@@ -1,5 +1,5 @@
 [package]
-name = "aumos-protocol-contracts"
+name = "warrantor-protocol-contracts"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

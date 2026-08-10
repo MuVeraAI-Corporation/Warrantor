@@ -20,9 +20,9 @@ See ``docs/rfcs/X4-crypto-audit-ai.md``.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterable
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +46,7 @@ class Severity(str, Enum):
     CRITICAL = "critical"
 
     @classmethod
-    def rank(cls, sev: "Severity") -> int:
+    def rank(cls, sev: Severity) -> int:
         """Return an integer rank so callers can sort findings."""
         order = {
             cls.INFO: 0,
@@ -199,14 +199,7 @@ def _scan_line(line: str) -> list[Finding]:
             )
         )
     # CRYPT005-specific: extract the bit length and only fire if < 3072
-    out = [
-        f
-        for f in out
-        if not (
-            f.rule_id == "CRYPT005"
-            and not _is_short_rsa(f.snippet)
-        )
-    ]
+    out = [f for f in out if not (f.rule_id == "CRYPT005" and not _is_short_rsa(f.snippet))]
     return out
 
 
@@ -313,7 +306,12 @@ def stress_test(cases: Iterable[StressCase] | None = None) -> AuditReport:
 _VULN_DB: dict[str, list[tuple[str, str, str, Severity]]] = {
     # package: [(vulnerable_range, advisory_id, summary, severity)]
     "pycryptodome": [
-        ("<3.6.6", "CVE-2018-15505", "pycryptodome < 3.6.6 has a heap read overrun in AES-GCM", Severity.HIGH),
+        (
+            "<3.6.6",
+            "CVE-2018-15505",
+            "pycryptodome < 3.6.6 has a heap read overrun in AES-GCM",
+            Severity.HIGH,
+        ),
     ],
     "cryptography": [
         ("<3.4.0", "CVE-2018-10903", "cryptography < 3.4 HMAC verify bypass", Severity.HIGH),

@@ -48,3 +48,6 @@ coverage/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Transient audit virtualenv
+.auditvenv/

@@ -11,10 +11,10 @@ import (
 // ----- fakes -------------------------------------------------------------------------
 
 type fakeAttestor struct {
-	att     *Attestation
-	err     error
-	calls   int
-	delay   time.Duration
+	att   *Attestation
+	err   error
+	calls int
+	delay time.Duration
 }
 
 func (f *fakeAttestor) Attest(ctx context.Context) (*Attestation, error) {

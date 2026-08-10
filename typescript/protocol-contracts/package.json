@@ -1,5 +1,5 @@
 {
-  "name": "@aumos/protocol-contracts",
+  "name": "@warrantor/protocol-contracts",
   "version": "1.0.0",
   "description": "P1-P12 wire protocol bindings and the independent TypeScript validator",
   "license": "Apache-2.0",

@@ -1,5 +1,5 @@
 [project]
-name = "aumos-adversaria"
+name = "warrantor-adversaria"
 version = "1.0.0"
 description = "A2 — unified adversarial testing framework wrapping garak + PyRIT, with built-in attack generators"
 readme = "README.md"

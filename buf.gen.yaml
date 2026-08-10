@@ -1,5 +1,5 @@
 # Buf code-generation config.
-# Generates Rust types via prost + tonic (gRPC service stubs) into rust/aumos-api/src/generated/.
+# Generates Rust types via prost + tonic (gRPC service stubs) into rust/warrantor-api/src/generated/.
 # Run `buf generate` from the repo root. CI rejects uncommitted generated code.
 version: v2
 managed:
@@ -9,7 +9,7 @@ managed:
       value: dev.aumos.api
 plugins:
   - remote: buf.build/community/neoeinstein-prost
-    out: rust/aumos-api/src/generated
+    out: rust/warrantor-api/src/generated
     opt:
       - compile_well_known_types=false
       - disable_comments=false

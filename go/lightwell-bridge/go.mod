@@ -1,3 +1,3 @@
-module aumos.dev/lightwell-bridge
+module warrantor.dev/lightwell-bridge
 
 go 1.22

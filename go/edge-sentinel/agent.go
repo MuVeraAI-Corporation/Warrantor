@@ -12,7 +12,7 @@
 // clock) is an interface — the production wiring lives in the cmd/ main; the unit tests run
 // fully in-memory with deterministic fakes.
 //
-// See ``docs/rfcs/F3-edge-sentinel.md``.
+// See “docs/rfcs/F3-edge-sentinel.md“.
 package edgesentinel
 
 import (
@@ -236,14 +236,14 @@ type Agent struct {
 // NewAgent constructs an Agent with sensible defaults for nil fields.
 func NewAgent(nodeID string, baseline Baseline, attestor Attestor, kill KillSwitch, alerter Alerter) *Agent {
 	return &Agent{
-		NodeID:    nodeID,
-		Baseline:  baseline,
-		Attestor:  attestor,
-		Detector:  DefaultDetector{},
-		Kill:      kill,
-		Alerter:   alerter,
-		Clock:     WallClock{},
-		Interval:  DefaultAttestInterval,
+		NodeID:   nodeID,
+		Baseline: baseline,
+		Attestor: attestor,
+		Detector: DefaultDetector{},
+		Kill:     kill,
+		Alerter:  alerter,
+		Clock:    WallClock{},
+		Interval: DefaultAttestInterval,
 	}
 }
 

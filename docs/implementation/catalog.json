@@ -563,7 +563,7 @@
       "status": "reference_implementation",
       "source_paths": [
         "typescript/mcp-gateway",
-        "typescript/aumos-mcp-server"
+        "typescript/mcp-server"
       ],
       "rfc": "docs/rfcs/X8-mcp-gateway.md"
     },
@@ -763,7 +763,7 @@
       "domain": "agent",
       "status": "partial",
       "source_paths": [
-        "python/aumos_agent"
+        "python/warrantor_agent"
       ],
       "rfc": null,
       "note": "Largest Python package. Signing degrades to a forgeable HMAC on trust-core failure (AX-28)."
@@ -775,7 +775,7 @@
       "domain": "runtime",
       "status": "partial",
       "source_paths": [
-        "python/aumos_harness"
+        "python/warrantor_harness"
       ],
       "rfc": null,
       "note": "Coding-agent harness. shell=True behind a one-token endswith allowlist (AX-30)."
@@ -787,7 +787,7 @@
       "domain": "inference",
       "status": "reference_implementation",
       "source_paths": [
-        "python/aumos_vllm"
+        "python/warrantor_vllm"
       ],
       "rfc": null,
       "note": "Attested vLLM wrapper. Fail-open attestation fixed under AX-27; now requires a QuoteCollector."
@@ -799,7 +799,7 @@
       "domain": "supply_chain",
       "status": "partial",
       "source_paths": [
-        "python/aumos_hf_plugin"
+        "python/warrantor_hf_plugin"
       ],
       "rfc": null,
       "note": "Hugging Face download gate. Unkeyed provenance check (AX-28)."
@@ -811,7 +811,7 @@
       "domain": "runtime",
       "status": "partial",
       "source_paths": [
-        "python/aumos_rbac"
+        "python/warrantor_rbac"
       ],
       "rfc": null,
       "note": "Second authorization engine gating TRIGGER_KILL_SWITCH, outside the Rust trust boundary."
@@ -823,7 +823,7 @@
       "domain": "runtime",
       "status": "partial",
       "source_paths": [
-        "python/aumos_admission"
+        "python/warrantor_admission"
       ],
       "rfc": null,
       "note": "Kubernetes admission controller. Checks annotation presence only; never deployed by any manifest."
@@ -835,7 +835,7 @@
       "domain": "evidence",
       "status": "partial",
       "source_paths": [
-        "python/aumos_ocsf"
+        "python/warrantor_ocsf"
       ],
       "rfc": null,
       "note": "OCSF mapping. Pinned to 1.1.0 with an incorrect class UID (AX-20)."
@@ -847,7 +847,7 @@
       "domain": "evidence",
       "status": "reference_implementation",
       "source_paths": [
-        "python/aumos_retention"
+        "python/warrantor_retention"
       ],
       "rfc": null,
       "note": "Retention windows. Relevant to DPDP one-year logs and CERT-In 180-day in-country retention."
@@ -859,7 +859,7 @@
       "domain": "operations",
       "status": "partial",
       "source_paths": [
-        "python/aumos_backup"
+        "python/warrantor_backup"
       ],
       "rfc": null,
       "note": "Backup/restore. Destructive restore path fixed under AX-45."
@@ -871,7 +871,7 @@
       "domain": "integration",
       "status": "reference_implementation",
       "source_paths": [
-        "python/aumos_langchain"
+        "python/warrantor_langchain"
       ],
       "rfc": null,
       "note": "The only genuine agent-framework adapter in the repository."
@@ -883,7 +883,7 @@
       "domain": "operations",
       "status": "reference_implementation",
       "source_paths": [
-        "python/aumos_jira"
+        "python/warrantor_jira"
       ],
       "rfc": null,
       "note": "Issue-tracker integration."
@@ -895,7 +895,7 @@
       "domain": "operations",
       "status": "reference_implementation",
       "source_paths": [
-        "python/aumos_sla"
+        "python/warrantor_sla"
       ],
       "rfc": null,
       "note": "SLA tracking."
@@ -907,7 +907,7 @@
       "domain": "observability",
       "status": "reference_implementation",
       "source_paths": [
-        "go/aumos-metrics"
+        "go/metrics"
       ],
       "rfc": null,
       "note": "Stdlib Prometheus exposition. Honest and complete."

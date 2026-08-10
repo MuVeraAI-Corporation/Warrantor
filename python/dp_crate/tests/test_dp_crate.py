@@ -1,4 +1,4 @@
-"""Tests for aumos-dp-crate (F2)."""
+"""Tests for warrantor-dp-crate (F2)."""
 
 from __future__ import annotations
 
@@ -116,9 +116,7 @@ def test_rdp_rejects_bad_args():
 
 
 def test_fresh_accountant_has_zero_epsilon():
-    acc = PrivacyAccountant(
-        AccountantConfig(noise_multiplier=1.0, sampling_rate=0.01, delta=1e-5)
-    )
+    acc = PrivacyAccountant(AccountantConfig(noise_multiplier=1.0, sampling_rate=0.01, delta=1e-5))
     assert acc.epsilon() == pytest.approx(0.0)
     assert acc.steps == 0
     assert acc.state() == BudgetState.OK
@@ -153,9 +151,7 @@ def test_consume_composition_is_additive():
 
 def test_budget_exhausted_raises():
     acc = PrivacyAccountant(
-        AccountantConfig(
-            noise_multiplier=0.5, sampling_rate=0.1, delta=1e-5, target_epsilon=0.01
-        )
+        AccountantConfig(noise_multiplier=0.5, sampling_rate=0.1, delta=1e-5, target_epsilon=0.01)
     )
     with pytest.raises(BudgetExhausted):
         acc.consume(1000)
@@ -163,18 +159,14 @@ def test_budget_exhausted_raises():
 
 def test_try_consume_returns_false_when_exhausted():
     acc = PrivacyAccountant(
-        AccountantConfig(
-            noise_multiplier=0.5, sampling_rate=0.1, delta=1e-5, target_epsilon=0.001
-        )
+        AccountantConfig(noise_multiplier=0.5, sampling_rate=0.1, delta=1e-5, target_epsilon=0.001)
     )
     assert acc.try_consume(1_000_000) is False
 
 
 def test_state_approaching_near_target():
     acc = PrivacyAccountant(
-        AccountantConfig(
-            noise_multiplier=0.5, sampling_rate=0.1, delta=1e-5, target_epsilon=0.5
-        )
+        AccountantConfig(noise_multiplier=0.5, sampling_rate=0.1, delta=1e-5, target_epsilon=0.5)
     )
     # Push close to but not over.
     while acc.epsilon() < 0.45 * 1.0 and acc.try_consume(10):
@@ -184,9 +176,7 @@ def test_state_approaching_near_target():
 
 def test_reset_zeros_budget():
     acc = PrivacyAccountant(
-        AccountantConfig(
-            noise_multiplier=1.0, sampling_rate=0.01, delta=1e-5, target_epsilon=1e6
-        )
+        AccountantConfig(noise_multiplier=1.0, sampling_rate=0.01, delta=1e-5, target_epsilon=1e6)
     )
     acc.consume(10)
     assert acc.epsilon() > 0
@@ -197,9 +187,7 @@ def test_reset_zeros_budget():
 
 def test_step_epsilon_positive():
     acc = PrivacyAccountant(
-        AccountantConfig(
-            noise_multiplier=1.0, sampling_rate=0.01, delta=1e-5, target_epsilon=1e6
-        )
+        AccountantConfig(noise_multiplier=1.0, sampling_rate=0.01, delta=1e-5, target_epsilon=1e6)
     )
     assert acc.step_epsilon() > 0
     acc.consume(5)
@@ -363,9 +351,7 @@ def test_private_step_noise_has_correct_std():
     import random
 
     rec = Recorder()
-    opt = DPSGDOptimizer(
-        clipping_norm=2.0, noise_multiplier=3.0, accountant=make_acc(), noise=rec
-    )
+    opt = DPSGDOptimizer(clipping_norm=2.0, noise_multiplier=3.0, accountant=make_acc(), noise=rec)
     # Use a zero gradient so the noise IS the entire summed gradient.
     opt.private_step_no_account([[0.0]], learning_rate=1.0)
     # noise_std passed to .sample should be noise_multiplier * clipping_norm = 6.0.
@@ -409,7 +395,9 @@ def test_dashboard_round_trip_json():
         AccountantConfig(noise_multiplier=1.0, sampling_rate=0.01, delta=1e-5, target_epsilon=2.0)
     )
     acc.consume(5)
-    dash = DPDashboard.from_accountant(acc, clipping_norm=1.5, captured_at_iso="2026-01-01T00:00:00Z")
+    dash = DPDashboard.from_accountant(
+        acc, clipping_norm=1.5, captured_at_iso="2026-01-01T00:00:00Z"
+    )
     s = dash.to_json()
     d = json.loads(s)
     assert d["steps"] == 5
@@ -423,9 +411,7 @@ def test_dashboard_round_trip_json():
 
 
 def test_dashboard_state_matches_accountant():
-    cfg = AccountantConfig(
-        noise_multiplier=0.3, sampling_rate=0.1, delta=1e-5, target_epsilon=0.5
-    )
+    cfg = AccountantConfig(noise_multiplier=0.3, sampling_rate=0.1, delta=1e-5, target_epsilon=0.5)
     acc = PrivacyAccountant(cfg)
     try:
         for _ in range(1000):
@@ -438,9 +424,7 @@ def test_dashboard_state_matches_accountant():
 
 
 def test_dashboard_extra_passthrough():
-    acc = PrivacyAccountant(
-        AccountantConfig(noise_multiplier=1.0, sampling_rate=0.01, delta=1e-5)
-    )
+    acc = PrivacyAccountant(AccountantConfig(noise_multiplier=1.0, sampling_rate=0.01, delta=1e-5))
     dash = DPDashboard.from_accountant(
         acc, clipping_norm=1.0, extra={"model": "falcon-7b", "round": 3}
     )

@@ -1,5 +1,5 @@
 [package]
-name = "aumos-flight-recorder"
+name = "warrantor-flight-recorder"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "E1 — verifiable agent flight recorder; emits signed Agent Action Receipts (P2 AAR) pre-commit"
 
 [lib]
-name = "aumos_flight_recorder"
+name = "warrantor_flight_recorder"
 path = "src/lib.rs"
 
 [dependencies]
@@ -20,7 +20,7 @@ hex = "0.4"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 prost-types = "0.13"
-aumos-api = { path = "../aumos-api" }
+warrantor-api = { path = "../warrantor-api" }
 
 [dev-dependencies]
 proptest = "1"

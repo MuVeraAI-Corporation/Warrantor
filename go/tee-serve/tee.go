@@ -14,7 +14,7 @@
 // pluggable AttestationProvider (in production: C1-3 attesta-flow; in tests: a deterministic
 // mock provider).
 //
-// See ``docs/rfcs/C1-4-tee-serve.md``.
+// See “docs/rfcs/C1-4-tee-serve.md“.
 package teeserve
 
 import (
@@ -234,10 +234,10 @@ func (m *MockAttestationProvider) GpuAttestationHex() string { return m.GPUAttes
 // team has the NDA-gated SDKs. Until then it falls back to environment-injected values so
 // production code can run on dev VMs without panicking.
 type TeeAttestationProvider struct {
-	kind       string
+	kind        string
 	measurement string
-	gpu        string
-	gpuAtt     string
+	gpu         string
+	gpuAtt      string
 }
 
 // NewTeeAttestationProvider constructs a provider from environment variables (TEE_KIND,
@@ -497,15 +497,15 @@ func (p *TeeProxy) buildEnvelope(body []byte, upstreamStatus int) *AttestationEn
 	defer p.mu.RUnlock()
 	sum := sha256.Sum256(body)
 	return &AttestationEnvelope{
-		SchemaVersion:    EnvelopeV1,
-		TeeKind:          p.provider.TeeKind(),
-		TeeMeasurement:   p.provider.TeeMeasurement(),
-		GpuModel:         p.provider.GpuModel(),
+		SchemaVersion:     EnvelopeV1,
+		TeeKind:           p.provider.TeeKind(),
+		TeeMeasurement:    p.provider.TeeMeasurement(),
+		GpuModel:          p.provider.GpuModel(),
 		GpuAttestationHex: p.provider.GpuAttestationHex(),
-		ModelDigest:      p.modelDigest,
-		ResponseDigest:   "sha256:" + hex.EncodeToString(sum[:]),
-		UpstreamStatus:   upstreamStatus,
-		ProxiedAt:        time.Now().UTC().Format(time.RFC3339Nano),
+		ModelDigest:       p.modelDigest,
+		ResponseDigest:    "sha256:" + hex.EncodeToString(sum[:]),
+		UpstreamStatus:    upstreamStatus,
+		ProxiedAt:         time.Now().UTC().Format(time.RFC3339Nano),
 	}
 }
 

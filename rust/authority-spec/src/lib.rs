@@ -1,11 +1,11 @@
-//! # aumos-authority-spec (T2)
+//! # warrantor-authority-spec (T2)
 //!
 //! The normative reference for the **Agent Authority Envelope (AAE, P1)** — the signed
 //! task-specific delegation that authorizes an agent to act. AumOS components consume this
 //! crate to validate an AAE's signature, expiry, and delegation constraints.
 //!
 //! Schema lives in `specs/protocols/P1-aae.{cddl,schema.json}`. Wire type in
-//! `aumos_api::identity::v1::AgentAuthorityEnvelope`. See RFC T2 and `specs/protocols/P1-aae.md`.
+//! `warrantor_api::identity::v1::AgentAuthorityEnvelope`. See RFC T2 and `specs/protocols/P1-aae.md`.
 //!
 //! ## What the reference validator checks
 //!
@@ -113,8 +113,7 @@ impl<'a> ValidateOptions<'a> {
     /// Default options for a coding-agent caller: honors read+write, rejects consequential
     /// classes, accepts delegation depth up to 2.
     pub fn coding_agent(issuer_verifying_key: &'a VerifyingKey) -> Self {
-        static ALLOWED: &[SideEffectClass] =
-            &[SideEffectClass::Read, SideEffectClass::Write];
+        static ALLOWED: &[SideEffectClass] = &[SideEffectClass::Read, SideEffectClass::Write];
         Self {
             issuer_verifying_key,
             now: None,
@@ -178,17 +177,13 @@ fn now_epoch() -> u64 {
 /// verify it. Now the validator derives the to-be-signed bytes from the envelope's own fields,
 /// so the signature cryptographically binds the envelope's contents.
 fn canonical_unsigned_bytes(
-    envelope: &aumos_api::identity::v1::AgentAuthorityEnvelope,
+    envelope: &warrantor_api::identity::v1::AgentAuthorityEnvelope,
 ) -> Result<Vec<u8>, AaeError> {
     // Deterministic, sorted-key map serialized as canonical CBOR. We include every field the
     // issuer could have intended to sign (the unsigned envelope fields), omitting only
     // `signature`. Expiry is included as its seconds value so the encoding is stable across
     // protobuf Timestamp wire encodings.
-    let expiry_seconds = envelope
-        .expiry
-        .as_ref()
-        .map(|t| t.seconds)
-        .unwrap_or(0);
+    let expiry_seconds = envelope.expiry.as_ref().map(|t| t.seconds).unwrap_or(0);
     let unsigned = serde_json::json!({
         "issuer": envelope.issuer,
         "subject": envelope.subject,
@@ -223,7 +218,7 @@ fn canonical_unsigned_bytes(
 /// # Errors
 /// Returns [`AaeError`] on any validation failure. Fail-closed (no partial validation).
 pub fn validate(
-    envelope: &aumos_api::identity::v1::AgentAuthorityEnvelope,
+    envelope: &warrantor_api::identity::v1::AgentAuthorityEnvelope,
     options: &ValidateOptions<'_>,
 ) -> Result<(), AaeError> {
     // 1. Signature. C6: reconstruct the to-be-signed bytes from the envelope's own fields rather
@@ -251,7 +246,10 @@ pub fn validate(
         .map(|t| t.seconds.max(0) as u64)
         .unwrap_or(0);
     if expiry <= now {
-        return Err(AaeError::Expired { expired_at: expiry, now });
+        return Err(AaeError::Expired {
+            expired_at: expiry,
+            now,
+        });
     }
 
     // 3. Side-effect class
@@ -279,7 +277,7 @@ pub fn validate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aumos_api::identity::v1::AgentAuthorityEnvelope;
+    use warrantor_api::identity::v1::AgentAuthorityEnvelope;
     use ed25519_dalek::{Signer, SigningKey};
     use rand::rngs::OsRng;
 
@@ -325,7 +323,14 @@ mod tests {
         // C6: sign over the SAME canonical-CBOR bytes the validator will reconstruct from the
         // envelope's unsigned fields. We build the body, serialize it to canonical CBOR, and
         // sign that. The envelope is then assembled from the same fields.
-        let body = unsigned_body(issuer, subject, class, &approvals, delegation_depth, expiry_seconds);
+        let body = unsigned_body(
+            issuer,
+            subject,
+            class,
+            &approvals,
+            delegation_depth,
+            expiry_seconds,
+        );
         let canon = serde_cbor::to_vec(&body).expect("canonical");
         let sig = sk.sign(&canon);
         let envelope = AgentAuthorityEnvelope {
@@ -410,7 +415,10 @@ mod tests {
         let body = unsigned_body(issuer, subject, "read", &[], 0, past_seconds);
         let canon = serde_cbor::to_vec(&body).expect("canonical");
         let sig = sk.sign(&canon);
-        envelope.expiry = Some(prost_types::Timestamp { seconds: past_seconds, nanos: 0 });
+        envelope.expiry = Some(prost_types::Timestamp {
+            seconds: past_seconds,
+            nanos: 0,
+        });
         envelope.signature = sig.to_bytes().to_vec();
         let opts = ValidateOptions {
             issuer_verifying_key: &vk,

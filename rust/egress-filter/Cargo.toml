@@ -1,5 +1,5 @@
 [package]
-name = "aumos-egress-filter"
+name = "warrantor-egress-filter"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "R7 — eBPF egress enforcement core (domain blocklist + canary IP detection + policy decision)"
 
 [lib]
-name = "aumos_egress_filter"
+name = "warrantor_egress_filter"
 path = "src/lib.rs"
 
 [dependencies]

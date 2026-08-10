@@ -41,6 +41,7 @@ def test_encoding_attack_generator_count() -> None:
     assert len(prompts) == 1
     # The encoded payload is the base64 of "forbidden".
     import base64
+
     expected = base64.b64encode(b"forbidden").decode("ascii")
     assert expected in prompts[0].text
 
@@ -116,7 +117,13 @@ def test_cli_list(capsys: pytest.CaptureFixture[str]) -> None:
     rc = main(["list"])
     assert rc == 0
     out = capsys.readouterr().out
-    for at in ("prompt_injection", "jailbreak", "encoding_attack", "multi_turn_manipulation", "training_data_extraction"):
+    for at in (
+        "prompt_injection",
+        "jailbreak",
+        "encoding_attack",
+        "multi_turn_manipulation",
+        "training_data_extraction",
+    ):
         assert at in out
 
 

@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"aumos.dev/open-serve-kit"
+	"warrantor.dev/open-serve-kit"
 )
 
 func main() {

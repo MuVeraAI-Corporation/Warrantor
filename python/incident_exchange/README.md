@@ -1,4 +1,4 @@
-# aumos-incident-exchange (X9)
+# warrantor-incident-exchange (X9)
 
 Normalized agent-incident exchange. Six incident types:
 

@@ -1,3 +1,3 @@
-module aumos.dev/tenant-guard
+module warrantor.dev/tenant-guard
 
 go 1.22

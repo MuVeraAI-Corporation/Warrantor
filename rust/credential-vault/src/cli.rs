@@ -1,6 +1,6 @@
 //! `credential-vault` CLI.
 
-use aumos_credential_vault::{
+use warrantor_credential_vault::{
     issue, scan_for_exposed_credentials, AwsSecretsManagerBackend, CredentialBackend,
     HashiCorpVaultBackend, KubernetesSecretsBackend, MockBackend, DEFAULT_TTL,
 };
@@ -97,7 +97,7 @@ fn main() {
         } => {
             let backend = select_backend(&backend);
             if let Some(path) = &journal {
-                if let Err(e) = aumos_credential_vault::init_default_vault_at(path) {
+                if let Err(e) = warrantor_credential_vault::init_default_vault_at(path) {
                     eprintln!(
                         "credential-vault: journal {} unusable — {e}",
                         path.display()
@@ -118,7 +118,7 @@ fn main() {
                 &secret_key,
                 DEFAULT_TTL,
             )
-            .and_then(|cred| aumos_credential_vault::register_issued(&cred).map(|()| cred))
+            .and_then(|cred| warrantor_credential_vault::register_issued(&cred).map(|()| cred))
             {
                 Ok(cred) => {
                     // REDACT the secret in CLI output (never log secrets at INFO level).
@@ -143,7 +143,7 @@ fn main() {
         }
         Commands::RevokeAll { journal } => {
             if let Some(path) = &journal {
-                if let Err(e) = aumos_credential_vault::init_default_vault_at(path) {
+                if let Err(e) = warrantor_credential_vault::init_default_vault_at(path) {
                     eprintln!(
                         "credential-vault: journal {} unusable — {e}",
                         path.display()
@@ -156,10 +156,10 @@ fn main() {
                      durable and will be forgotten on restart (invariant I-05)."
                 );
             }
-            match aumos_credential_vault::revoke_all() {
+            match warrantor_credential_vault::revoke_all() {
                 Ok(count) => println!(
                     "credential-vault: revoked {count} credential(s) (durable={})",
-                    aumos_credential_vault::default_vault_is_durable()
+                    warrantor_credential_vault::default_vault_is_durable()
                 ),
                 Err(e) => {
                     eprintln!("credential-vault: revoke failed — {e}");

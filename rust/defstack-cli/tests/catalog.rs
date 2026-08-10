@@ -9,11 +9,17 @@ use std::process::Command;
 fn list_outputs_all_wave1_components() {
     // The CLI is a binary; invoke it and check the list contains every Wave-1 component id.
     let bin = env!("CARGO_BIN_EXE_defstack");
-    let output = Command::new(bin).arg("list").output().expect("run defstack list");
+    let output = Command::new(bin)
+        .arg("list")
+        .output()
+        .expect("run defstack list");
     assert!(output.status.success(), "defstack list should succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
     for id in ["T1", "X1", "C1-1", "C1-2", "R2", "R3", "R4", "I1"] {
-        assert!(stdout.contains(id), "list output must contain component id {id}");
+        assert!(
+            stdout.contains(id),
+            "list output must contain component id {id}"
+        );
     }
 }
 
@@ -36,7 +42,10 @@ fn install_known_component_emits_json_plan() {
         .expect("run defstack install trust-core");
     assert!(output.status.success(), "install trust-core should succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("\"component\""), "output should be a JSON plan");
+    assert!(
+        stdout.contains("\"component\""),
+        "output should be a JSON plan"
+    );
     assert!(stdout.contains("trust-core"));
 }
 

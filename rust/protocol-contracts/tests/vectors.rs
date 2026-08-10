@@ -2,7 +2,7 @@
 
 use std::{collections::BTreeMap, path::PathBuf};
 
-use aumos_protocol_contracts::ProtocolValidator;
+use warrantor_protocol_contracts::ProtocolValidator;
 use serde_json::Value;
 
 fn repository_root() -> PathBuf {

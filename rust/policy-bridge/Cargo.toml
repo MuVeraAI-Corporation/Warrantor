@@ -1,0 +1,18 @@
+[package]
+name = "warrantor-policy-bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "R6 — fail-closed decision-equivalent policy adapters"
+
+[lib]
+name = "warrantor_policy_bridge"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+sha2 = "0.10"
+hex = "0.4"

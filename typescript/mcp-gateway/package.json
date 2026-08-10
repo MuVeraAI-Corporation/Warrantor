@@ -1,5 +1,5 @@
 {
-  "name": "@aumos/mcp-gateway",
+  "name": "@warrantor/mcp-gateway",
   "version": "1.0.0",
   "description": "X8 — authority-aware Model Context Protocol (MCP) middleware gateway",
   "license": "Apache-2.0",

@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	"aumos.dev/edge-sentinel"
+	"warrantor.dev/edge-sentinel"
 )
 
 // mockAttestor is a placeholder for the C1-5 composite-attestation client. The real client

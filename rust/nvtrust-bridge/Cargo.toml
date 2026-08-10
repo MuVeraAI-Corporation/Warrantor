@@ -1,5 +1,5 @@
 [package]
-name = "aumos-nvtrust-bridge"
+name = "warrantor-nvtrust-bridge"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "NVTrust FFI bindings + nvtrust-verify CLI (with offline/mock mode for CI)"
 
 [lib]
-name = "aumos_nvtrust_bridge"
+name = "warrantor_nvtrust_bridge"
 path = "src/lib.rs"
 
 [[bin]]
@@ -20,7 +20,7 @@ serde.workspace = true
 serde_json = "1"
 clap.workspace = true
 hex = "0.4"
-aumos-api = { path = "../aumos-api" }
+warrantor-api = { path = "../warrantor-api" }
 
 [dev-dependencies]
 proptest = "1"

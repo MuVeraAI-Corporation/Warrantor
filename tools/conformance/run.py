@@ -338,7 +338,7 @@ def protocol_batch_command(language: str, executable: str) -> tuple[list[str], P
                 "run",
                 "-q",
                 "-p",
-                "aumos-protocol-contracts",
+                "warrantor-protocol-contracts",
                 "--bin",
                 "protocol-tck-rust",
                 "--",
@@ -357,7 +357,7 @@ def protocol_batch_command(language: str, executable: str) -> tuple[list[str], P
         return (
             [executable, "run", "./cmd/protocol-tck", registry],
             REPOSITORY_ROOT / "go" / "protocol-contracts",
-            {"GOCACHE": str(Path(tempfile.gettempdir()) / "aumos-conformance-go-build")},
+            {"GOCACHE": str(Path(tempfile.gettempdir()) / "warrantor-conformance-go-build")},
         )
     if language == "typescript":
         return (
@@ -607,7 +607,7 @@ def verify_rust(
             "run",
             "-q",
             "-p",
-            "aumos-trust-core",
+            "warrantor-trust-core",
             "--bin",
             "trust-core",
             "--",
@@ -632,7 +632,7 @@ def verify_rust(
         "run",
         "-q",
         "-p",
-        "aumos-trust-core",
+        "warrantor-trust-core",
         "--example",
         "merkle_vector",
         "--",
@@ -684,7 +684,7 @@ def verify_external(
     environment = None
     if language == "go":
         environment = {
-            "GOCACHE": str(Path(tempfile.gettempdir()) / "aumos-conformance-go-build")
+            "GOCACHE": str(Path(tempfile.gettempdir()) / "warrantor-conformance-go-build")
         }
     return execute(
         command,

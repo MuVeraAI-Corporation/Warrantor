@@ -1,5 +1,5 @@
 [package]
-name = "aumos-safe-tensors-pp"
+name = "warrantor-safe-tensors-pp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "S1 — Safetensors++ : drop-in extension adding signed __provenance__ metadata"
 
 [lib]
-name = "aumos_safe_tensors_pp"
+name = "warrantor_safe_tensors_pp"
 path = "src/lib.rs"
 
 [dependencies]

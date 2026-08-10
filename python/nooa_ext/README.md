@@ -1,4 +1,4 @@
-# aumos-nooa-ext (X2)
+# warrantor-nooa-ext (X2)
 
 Production extensions to NVIDIA NOOA. NOOA itself is NVIDIA's agent harness; this package
 extends it with four production-grade components:

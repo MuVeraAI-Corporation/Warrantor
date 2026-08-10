@@ -1,3 +1,3 @@
-module aumos.dev/defstack-cloud
+module warrantor.dev/defstack-cloud
 
 go 1.22

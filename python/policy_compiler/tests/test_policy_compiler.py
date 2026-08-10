@@ -10,7 +10,6 @@ from policy_compiler import (
     OpenShellEmitter,
     PolicyCompiler,
     RegoPolicyEmitter,
-    Rule,
     RuleParseError,
     parse_rule,
     parse_rules,
@@ -78,7 +77,7 @@ def test_translate_intent_unknown_returns_empty() -> None:
 # ---------- Rego emitter ----------
 def test_rego_emitter_produces_default_deny() -> None:
     out = RegoPolicyEmitter().emit([])
-    assert 'default allow = false' in out
+    assert "default allow = false" in out
     assert "package aumos.policy" in out
 
 
@@ -123,8 +122,8 @@ def test_openshell_emitter_serializes_rules() -> None:
     out = OpenShellEmitter().emit(rules)
     assert 'version: "1"' in out
     assert "rules:" in out
-    assert 'effect: allow' in out
-    assert 'effect: deny' in out
+    assert "effect: allow" in out
+    assert "effect: deny" in out
     assert "when: always" in out
     assert 'attribute: "clearance"' in out
 
@@ -133,7 +132,7 @@ def test_openshell_emitter_serializes_rules() -> None:
 def test_compiler_combines_intent_and_enterprise_rules() -> None:
     policy = PolicyCompiler().compile(
         intent="deny all egress",
-        enterprise_rules='allow tool:read on /sandbox/* when clearance >= 3',
+        enterprise_rules="allow tool:read on /sandbox/* when clearance >= 3",
     )
     assert len(policy.rules) == 2
     assert "package aumos.policy" in policy.rego

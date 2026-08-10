@@ -1,5 +1,5 @@
 [project]
-name = "aumos-metr-bridge"
+name = "warrantor-metr-bridge"
 version = "1.0.0"
 description = "X6 — METR evaluation integration (adapter, exporter, risk-report bridge, independent verifier)"
 readme = "README.md"

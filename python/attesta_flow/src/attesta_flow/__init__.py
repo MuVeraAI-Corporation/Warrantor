@@ -14,19 +14,20 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 
 class CloudProvider(str, Enum):
     """Supported cloud providers for the TEE provisioning."""
 
     AZURE = "azure"  # DC-series confidential VMs
-    AWS = "aws"      # Nitro Enclaves
-    GCP = "gcp"      # Confidential VMs
-    MOCK = "mock"    # local dev
+    AWS = "aws"  # Nitro Enclaves
+    GCP = "gcp"  # Confidential VMs
+    MOCK = "mock"  # local dev
 
 
 class Stage(str, Enum):
@@ -68,7 +69,7 @@ class PipelineAttestation:
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _digest(items: list[Any]) -> str:
@@ -90,7 +91,7 @@ class MockHardwareAttestor:
     """Returns a mock attestation for CI."""
 
     def attest(self) -> tuple[str, str]:
-        return ("mock-H100", "aumos-mock-attestation")
+        return ("mock-H100", "warrantor-mock-attestation")
 
 
 class Pipeline:

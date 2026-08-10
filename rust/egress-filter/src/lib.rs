@@ -1,4 +1,4 @@
-//! # aumos-egress-filter
+//! # warrantor-egress-filter
 //!
 //! eBPF egress enforcement core. The Rust core that the eBPF programs (task 03)
 //! consult on every outbound packet. The core exposes a deterministic
@@ -8,7 +8,7 @@
 //! ## Polarity: **default deny** (AX-05)
 //!
 //! This core used to end every decision path with `Action::Allow` /
-//! `DecisionReason::DefaultAllow` — the opposite polarity to `aumos-policy-bridge` in the same
+//! `DecisionReason::DefaultAllow` — the opposite polarity to `warrantor-policy-bridge` in the same
 //! workspace, which correctly refuses to load a policy whose default effect is not `Deny`. A
 //! security control whose failure mode is "let it through" is not a control. The terminal branch
 //! is now [`DecisionReason::DefaultDeny`]: a destination reaches the network only if it is
@@ -60,7 +60,7 @@ pub const DEFAULT_CANARY_IPS: &[&str] = &[
     "127.0.0.1", // loopback (used by exfil proxies); deny by default for non-loopback paths
     "169.254.169.254", // cloud metadata endpoint (AWS/GCP/Azure IMDS)
     "100.100.100.200", // Alibaba cloud metadata
-    "fd00:a405::1", // aumos-internal canary (ULA; was the invalid literal "fd00:aumos::1")
+    "fd00:a405::1", // warrantor-internal canary (ULA; was the invalid literal "fd00:aumos::1")
 ];
 
 /// The action the eBPF layer should take on a given outbound packet.
@@ -178,7 +178,7 @@ impl Policy {
     #[must_use]
     pub fn new_default() -> Self {
         Self::try_new_default().expect(
-            "DEFAULT_CANARY_IPS must all be valid IP literals — see aumos-egress-filter constants",
+            "DEFAULT_CANARY_IPS must all be valid IP literals — see warrantor-egress-filter constants",
         )
     }
 
@@ -236,7 +236,7 @@ impl Policy {
         if self.is_blocked_domain(&needle) && self.is_allowlisted_domain(&needle) {
             // M4: audit-log when allowlist overrides blocklist (potential break-glass abuse)
             eprintln!(
-                "aumos-egress-filter: WARNING allowlisted domain {needle:?} is also in blocklist; \
+                "warrantor-egress-filter: WARNING allowlisted domain {needle:?} is also in blocklist; \
                  this override may be a break-glass bypass — verify intent."
             );
         }

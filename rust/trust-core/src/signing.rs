@@ -54,6 +54,14 @@ impl SigningKeyWrapper {
         }
     }
 
+    /// Construct a zeroizing signer from an exact 32-byte Ed25519 secret key.
+    #[must_use]
+    pub fn from_bytes(bytes: &[u8; 32]) -> Self {
+        Self {
+            inner: SigningKey::from_bytes(bytes),
+        }
+    }
+
     /// Sign a payload (canonicalized first).
     ///
     /// # Errors
@@ -61,6 +69,12 @@ impl SigningKeyWrapper {
     pub fn sign<T: serde::Serialize>(&self, payload: &T) -> Result<Signature, SignError> {
         let bytes = canonical_cbor(payload)?;
         Ok(self.inner.sign(&bytes))
+    }
+
+    /// Sign already-canonical, domain-separated bytes without re-encoding them.
+    #[must_use]
+    pub fn sign_bytes(&self, message: &[u8]) -> Signature {
+        self.inner.sign(message)
     }
 
     /// The verifying key that matches this signing key.
@@ -103,5 +117,13 @@ mod tests {
             signer.verifying_key().verify(&wrong_bytes, &sig).is_err(),
             "tampered payload must fail verification"
         );
+    }
+
+    #[test]
+    fn raw_domain_separated_bytes_roundtrip() {
+        let signer = SigningKeyWrapper::from_bytes(&[7; 32]);
+        let message = b"AUMOS-TEST-V1\0payload";
+        let signature = signer.sign_bytes(message);
+        assert!(signer.verifying_key().verify(message, &signature).is_ok());
     }
 }

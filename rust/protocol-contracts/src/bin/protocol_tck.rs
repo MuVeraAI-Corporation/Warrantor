@@ -2,7 +2,7 @@
 
 use std::{collections::BTreeMap, io::Read, path::PathBuf};
 
-use aumos_protocol_contracts::ProtocolValidator;
+use warrantor_protocol_contracts::ProtocolValidator;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -24,7 +24,7 @@ struct Vector {
 struct VectorResult {
     id: String,
     valid: bool,
-    error_code: Option<aumos_protocol_contracts::ErrorCode>,
+    error_code: Option<warrantor_protocol_contracts::ErrorCode>,
     detail: String,
 }
 

@@ -1,4 +1,4 @@
-//! # aumos-flight-recorder (E1)
+//! # warrantor-flight-recorder (E1)
 //!
 //! The verifiable agent flight recorder. Emits **signed Agent Action Receipts (AAR, P2)** for
 //! every material agent action. **Invariant I-07: the receipt is signed and durable BEFORE the
@@ -37,7 +37,7 @@ pub use evidence::{
     NonDurableMemoryEvidenceStore, GENESIS_DIGEST_HEX,
 };
 
-use aumos_api::protocols::v1::AgentActionReceipt;
+use warrantor_api::protocols::v1::AgentActionReceipt;
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
@@ -136,7 +136,7 @@ pub struct ReceiptInput {
 }
 
 /// A signed receipt in the recorder's ergonomic shape. The proto wire type is
-/// `aumos_api::protocols::v1::AgentActionReceipt`; convert with [`Receipt::to_proto`].
+/// `warrantor_api::protocols::v1::AgentActionReceipt`; convert with [`Receipt::to_proto`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Receipt {
     /// UUID receipt id.
@@ -204,7 +204,7 @@ impl Receipt {
                 &self.context_commitment_hex,
                 "context_commitment_hex",
             ),
-            policy_decision: Some(aumos_api::protocols::v1::PolicyDecision {
+            policy_decision: Some(warrantor_api::protocols::v1::PolicyDecision {
                 engine: self.policy_decision.engine.clone(),
                 decision: self.policy_decision.decision.clone(),
                 policy_hash: decode_hex_or_warn(
@@ -243,7 +243,7 @@ impl Receipt {
                 &self.context_commitment_hex,
                 "context_commitment_hex",
             )?,
-            policy_decision: Some(aumos_api::protocols::v1::PolicyDecision {
+            policy_decision: Some(warrantor_api::protocols::v1::PolicyDecision {
                 engine: self.policy_decision.engine.clone(),
                 decision: self.policy_decision.decision.clone(),
                 policy_hash: decode_hex_checked(
@@ -327,7 +327,7 @@ fn decode_hex_or_warn(hex_str: &str, field: &'static str) -> Vec<u8> {
             // Surface the malformation — a malformed signature/authority_hash on the wire is a
             // real integrity signal, not a recoverable default.
             eprintln!(
-                "aumos-flight-recorder: WARNING malformed hex in field {field:?} \
+                "warrantor-flight-recorder: WARNING malformed hex in field {field:?} \
                  (len={}, err={e}); emitting empty bytes on the wire",
                 hex_str.len()
             );
@@ -499,7 +499,7 @@ impl FlightRecorder {
             "outcome": format!("{:?}", receipt.outcome).to_lowercase(),
             "metadata": {
                 "version": "1.0.0",
-                "product": { "name": "aumos-flight-recorder", "vendor_name": "AumOS" },
+                "product": { "name": "warrantor-flight-recorder", "vendor_name": "AumOS" },
                 "receipt_id": receipt.id,
                 "verifying_key": receipt.verifying_key_hex,
                 "signature": receipt.signature_hex
@@ -585,7 +585,7 @@ impl PendingAction {
 /// The **I-07-compliant** flight recorder: a [`FlightRecorder`] bound to an [`EvidenceStore`].
 ///
 /// ```no_run
-/// # use aumos_flight_recorder::{DurableFlightRecorder, ReceiptInput};
+/// # use warrantor_flight_recorder::{DurableFlightRecorder, ReceiptInput};
 /// let mut rec = DurableFlightRecorder::open("evidence.jsonl")?;
 /// // emit_pending returns only once the signed receipt is fsync'd:
 /// let pending = rec.emit_pending(ReceiptInput {
@@ -596,7 +596,7 @@ impl PendingAction {
 /// })?;
 /// // ... perform the side effect ...
 /// let committed = rec.commit(pending)?; // consumes the durability proof
-/// # Ok::<(), aumos_flight_recorder::RecorderError>(())
+/// # Ok::<(), warrantor_flight_recorder::RecorderError>(())
 /// ```
 #[derive(Debug)]
 pub struct DurableFlightRecorder<S: EvidenceStore = FileEvidenceStore> {
@@ -897,7 +897,7 @@ mod tests {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         let mut p = std::env::temp_dir();
-        p.push("aumos-flight-recorder-tests");
+        p.push("warrantor-flight-recorder-tests");
         p.push(
             format!("{tag}-{nanos}-{:?}.jsonl", std::thread::current().id()).replace(
                 |c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '.' && c != '_',

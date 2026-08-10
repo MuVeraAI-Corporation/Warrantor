@@ -1,3 +1,3 @@
-module aumos.dev/open-serve-kit
+module warrantor.dev/open-serve-kit
 
 go 1.22

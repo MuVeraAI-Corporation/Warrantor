@@ -1,4 +1,4 @@
-//! # aumos-credential-vault
+//! # warrantor-credential-vault
 //!
 //! Agent-scoped credential brokering. Short-lived (15-minute) scoped tokens bound to a
 //! SPIFFE identity + task + IP. Integrates HashiCorp Vault, AWS Secrets Manager, K8s Secrets
@@ -927,7 +927,7 @@ mod tests {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         let mut p = std::env::temp_dir();
-        p.push("aumos-credential-vault-tests");
+        p.push("warrantor-credential-vault-tests");
         p.push(format!("{tag}-{nanos}.jsonl"));
         p
     }

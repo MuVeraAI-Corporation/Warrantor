@@ -19,10 +19,11 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Iterable
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +66,7 @@ ATLAS_MAPPING: dict[IncidentType, list[str]] = {
 
 # OCSF extension class ids. OCSF uses a numeric class id + category_uid; we
 # extend the "Security Finding" class (2004) and "Incident" class (3003) with
-# an aumos-specific activity_id for agent incidents.
+# an warrantor-specific activity_id for agent incidents.
 OCSF_CLASS_UID = 3003  # Incident class per OCSF v1.1
 OCSF_CATEGORY_UID = 3  # Application Security
 OCSF_ACTIVITY_UID: dict[IncidentType, int] = {
@@ -100,7 +101,7 @@ class Incident:
 
     def __post_init__(self) -> None:
         if not self.occurred_at:
-            self.occurred_at = datetime.now(timezone.utc).isoformat()
+            self.occurred_at = datetime.now(UTC).isoformat()
         if not self.incident_id:
             self.incident_id = str(uuid.uuid4())
 
@@ -265,12 +266,12 @@ class IncidentRegistry:
 
 __all__ = [
     "ATLAS_MAPPING",
-    "Incident",
-    "IncidentRegistry",
-    "IncidentType",
     "OCSF_ACTIVITY_UID",
     "OCSF_CATEGORY_UID",
     "OCSF_CLASS_UID",
+    "Incident",
+    "IncidentRegistry",
+    "IncidentType",
     "RegistryStats",
     "Severity",
 ]

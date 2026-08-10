@@ -11,6 +11,6 @@ use libfuzzer_sys::fuzz_target;
 fuzz_target!(|data: &[u8]| {
     if let Ok(value) = serde_cbor::from_slice::<serde_cbor::Value>(data) {
         // canonical_cbor returns Result<Vec<u8>, CanonicalError>. We only care that it doesn't panic.
-        let _ = aumos_trust_core::canonical::canonical_cbor(&value);
+        let _ = warrantor_trust_core::canonical::canonical_cbor(&value);
     }
 });

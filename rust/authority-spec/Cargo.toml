@@ -1,5 +1,5 @@
 [package]
-name = "aumos-authority-spec"
+name = "warrantor-authority-spec"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "T2 — normative Agent Authority Envelope (AAE, P1) schema + Rust reference validator"
 
 [lib]
-name = "aumos_authority_spec"
+name = "warrantor_authority_spec"
 path = "src/lib.rs"
 
 [dependencies]
@@ -18,7 +18,7 @@ serde_json = "1"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand = "0.8"
 prost-types = "0.13"
-aumos-api = { path = "../aumos-api" }
+warrantor-api = { path = "../warrantor-api" }
 
 [dev-dependencies]
 proptest = "1"

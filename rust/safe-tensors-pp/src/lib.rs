@@ -1,4 +1,4 @@
-//! # aumos-safe-tensors-pp (S1)
+//! # warrantor-safe-tensors-pp (S1)
 //!
 //! Drop-in extension of HuggingFace Safetensors that adds a `__provenance__` block to the JSON
 //! header. The provenance block carries the signer, signature (Ed25519), signing timestamp,
@@ -81,7 +81,9 @@ pub enum StppError {
 ///
 /// # Errors
 /// Returns [`StppError`] on any I/O, length, or JSON failure.
-pub fn read_safetensors<R: Read>(reader: &mut R) -> Result<(serde_json::Value, Vec<u8>), StppError> {
+pub fn read_safetensors<R: Read>(
+    reader: &mut R,
+) -> Result<(serde_json::Value, Vec<u8>), StppError> {
     let mut len_bytes = [0u8; 8];
     reader.read_exact(&mut len_bytes)?;
     let header_len = u64::from_le_bytes(len_bytes);
@@ -119,9 +121,7 @@ pub fn write_safetensors<W: Write>(
 /// # Errors
 /// Returns [`StppError::NoProvenance`] if absent.
 pub fn provenance_from_header(header: &serde_json::Value) -> Result<Provenance, StppError> {
-    let p = header
-        .get(PROVENANCE_KEY)
-        .ok_or(StppError::NoProvenance)?;
+    let p = header.get(PROVENANCE_KEY).ok_or(StppError::NoProvenance)?;
     Ok(serde_json::from_value(p.clone())?)
 }
 
@@ -276,7 +276,10 @@ mod tests {
     fn header_without_provenance_returns_no_provenance_error() {
         let header = test_header();
         let data = test_data();
-        assert!(matches!(verify(&header, &data), Err(StppError::NoProvenance)));
+        assert!(matches!(
+            verify(&header, &data),
+            Err(StppError::NoProvenance)
+        ));
     }
 
     #[test]
