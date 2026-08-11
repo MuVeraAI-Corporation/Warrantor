@@ -184,6 +184,38 @@ pub struct HashiCorpVaultBackend {
     /// KV v2 mount point. Defaults to `secret`.
     pub mount: String,
     token: String,
+    /// Pre-configured agent carrying the redirect and timeout policy. Every request goes through
+    /// it, so neither policy can be bypassed by reaching for a bare `ureq::get`.
+    agent: ureq::Agent,
+}
+
+/// Total budget for a single Vault read. Deliberately short: this call sits on the hot path of
+/// every credential resolution, and a broker that hangs is indistinguishable from one that is
+/// down -- except that it also holds the caller's thread.
+pub const DEFAULT_VAULT_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Time allowed to establish the TCP/TLS connection, within [`DEFAULT_VAULT_TIMEOUT`].
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Build the agent used for every Vault request.
+///
+/// Two policies live here, both of which the previous bare `ureq::get` left at ureq's defaults:
+///
+/// * `redirects(0)`. The default agent follows up to five redirects AND replays headers set with
+///   `.set()`, so a single injected `302` sent the raw `X-Vault-Token` to an attacker-chosen
+///   origin, and the redirect target's response body was then accepted as the brokered secret.
+///   Vault has no legitimate reason to redirect a KV read.
+/// * Read/write/overall timeouts. ureq's default agent sets only a connect timeout, so a server
+///   that accepted the connection and never answered hung `resolve()` indefinitely -- observed
+///   still blocked after 120 seconds.
+fn build_agent(timeout: Duration) -> ureq::Agent {
+    ureq::AgentBuilder::new()
+        .redirects(0)
+        .timeout_connect(CONNECT_TIMEOUT.min(timeout))
+        .timeout_read(timeout)
+        .timeout_write(timeout)
+        .timeout(timeout)
+        .build()
 }
 
 impl HashiCorpVaultBackend {
@@ -196,7 +228,15 @@ impl HashiCorpVaultBackend {
             address: address.into(),
             mount: "secret".to_string(),
             token: token.into(),
+            agent: build_agent(DEFAULT_VAULT_TIMEOUT),
         }
+    }
+
+    /// Override the per-request timeout budget.
+    #[must_use]
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.agent = build_agent(timeout);
+        self
     }
 
     /// Override the KV v2 mount point.
@@ -288,7 +328,9 @@ impl CredentialBackend for HashiCorpVaultBackend {
             safe_path
         );
 
-        let response = ureq::get(&url)
+        let response = self
+            .agent
+            .get(&url)
             .set("X-Vault-Token", &self.token)
             .call()
             .map_err(|error| match error {
@@ -301,6 +343,17 @@ impl CredentialBackend for HashiCorpVaultBackend {
                     "vault transport error: {transport}"
                 )),
             })?;
+
+        // Belt-and-braces on top of `redirects(0)`: depending on the ureq version, an exhausted
+        // redirect budget can surface the 3xx as a successful response rather than an error.
+        // Never parse a redirect body as a secret -- that body is attacker-chosen.
+        if (300..400).contains(&response.status()) {
+            return Err(CredentialError::BackendUnavailable(format!(
+                "vault returned redirect HTTP {} for {path}; refusing to follow \
+                 (a redirected read would leak the Vault token to the target host)",
+                response.status()
+            )));
+        }
 
         let body: serde_json::Value = response
             .into_json()
