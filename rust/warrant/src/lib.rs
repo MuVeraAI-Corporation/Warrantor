@@ -25,14 +25,20 @@
 //! without durable evidence because `PendingAction` has no public constructor. Make the wrong thing
 //! *impossible* rather than *forbidden*.
 
-#![forbid(unsafe_code)]
+// `deny`, not `forbid`. The crate was unsafe-free until the supervisor needed a Windows job object
+// and a Unix `pre_exec` -- guarantees that ARE kernel objects and cannot be expressed in safe Rust.
+// `deny` still makes any new unsafe a compile error unless it is explicitly annotated, so the two
+// exceptions in `supervise` stay visible instead of opening the door crate-wide.
+#![deny(unsafe_code)]
 #![deny(missing_docs)]
 
 pub mod adapters;
+pub mod daemon;
 pub mod proxy;
 pub mod settle;
 pub mod staging;
 pub mod store;
+pub mod supervise;
 pub mod worktree;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};

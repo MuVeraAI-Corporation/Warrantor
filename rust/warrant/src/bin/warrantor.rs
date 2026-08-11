@@ -18,9 +18,13 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use ed25519_dalek::{SigningKey, VerifyingKey};
+use warrantor_warrant::daemon::{
+    process_is_alive, supervise_run, DaemonState, Reconciliation, SuperviseRequest,
+};
 use warrantor_warrant::settle::{settle, void, EffectOutcome, EffectPerformer, SettleReport};
 use warrantor_warrant::staging::{EffectRegistry, StagedEffect, StagingQueue};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
+use warrantor_warrant::supervise::{describe_linkage, spawn_detached};
 use warrantor_warrant::worktree::Worktree;
 use warrantor_warrant::{
     bound_strengths, BoundStrength, SideEffectClass, Warrant, WarrantBounds, WarrantState,
@@ -77,6 +81,11 @@ struct Args {
     command: String,
     positional: Vec<String>,
     flags: BTreeMap<String, String>,
+    /// Everything after a bare `--`, passed through untouched.
+    ///
+    /// Kept separate because it is the agent's own command line: rewriting or re-parsing it would
+    /// change what the developer asked to run.
+    trailing: Vec<String>,
 }
 
 fn parse_args() -> Option<Args> {
@@ -84,9 +93,18 @@ fn parse_args() -> Option<Args> {
     let command = raw.next()?;
     let mut positional = Vec::new();
     let mut flags = BTreeMap::new();
+    let mut trailing = Vec::new();
     let mut pending: Option<String> = None;
+    let mut after_separator = false;
     for token in raw {
-        if let Some(name) = token.strip_prefix("--") {
+        if after_separator {
+            trailing.push(token);
+        } else if token == "--" {
+            if let Some(previous) = pending.take() {
+                flags.insert(previous, "true".to_string());
+            }
+            after_separator = true;
+        } else if let Some(name) = token.strip_prefix("--") {
             if let Some(previous) = pending.take() {
                 flags.insert(previous, "true".to_string());
             }
@@ -108,6 +126,7 @@ fn parse_args() -> Option<Args> {
         command,
         positional,
         flags,
+        trailing,
     })
 }
 
@@ -146,6 +165,12 @@ warrantor — bounded authority for coding agents
   settle  <warrant-id>
   void    <warrant-id>
   stage   <warrant-id> --tool T [--target H] [--arg k=v ...]
+  run     <warrant-id> -- <command> [args...]
+  status
+
+Run starts the agent under a supervisor detached from this terminal: closing the
+terminal ends your view of the run, not the run. Status says what is still going
+and what stopped and needs a decision.
 
 Grant creates an isolated git worktree. The agent works there; nothing it does is
 visible outside until you settle. External effects are staged, not performed.";
@@ -561,6 +586,157 @@ fn cmd_stage(args: &Args, store: &WarrantStore) -> ExitCode {
     }
 }
 
+// ── run / status / supervise ──────────────────────────────────────────────────────────
+
+/// `warrantor run <id> -- <command...>` — start the agent under a detached supervisor.
+///
+/// The command you type exits immediately; the daemon it started keeps supervising. That is the
+/// whole point of the split, and it is why this prints where the log went: a detached process has
+/// nowhere else to say anything.
+fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
+    let Some(id) = args.positional.first() else {
+        return fail("usage: warrantor run <warrant-id> -- <command> [args...]");
+    };
+    if args.trailing.is_empty() {
+        return fail("nothing to run: put the agent command after `--`");
+    }
+    let stored = match store.load(id) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+    if !matches!(stored.warrant.state, WarrantState::Open) {
+        return fail(&format!(
+            "{id} is {:?}, not Open. A warrant that has been settled or voided cannot be run \
+             again -- grant a new one.",
+            stored.warrant.state
+        ));
+    }
+    if stored.warrant.claims.bounds.expires_at <= now() {
+        return fail(&format!(
+            "{id} expired at {}. Grant a new warrant rather than extending a dead one.",
+            stored.warrant.claims.bounds.expires_at
+        ));
+    }
+
+    let state = match DaemonState::open(root) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+    if let Some(existing) = state.get(id) {
+        if process_is_alive(existing.pid) {
+            return fail(&format!(
+                "{id} is already supervised by pid {}. Two supervisors on one warrant would each \
+                 enforce the deadline independently.",
+                existing.pid
+            ));
+        }
+    }
+
+    let Ok(exe) = std::env::current_exe() else {
+        return fail("cannot locate the warrantor executable to re-launch as a daemon");
+    };
+    let mut daemon_args = vec!["supervise".to_string(), id.clone(), "--".to_string()];
+    daemon_args.extend(args.trailing.iter().cloned());
+
+    let log = root.join("logs").join(format!("{id}.log"));
+    match spawn_detached(&exe.to_string_lossy(), &daemon_args, &log) {
+        Ok(pid) => {
+            let linkage = describe_linkage();
+            println!("warrantor: supervisor started as pid {pid}, detached from this terminal.");
+            println!("  lifetime link : {} — {}", linkage.mechanism, linkage.detail);
+            println!("  log           : {}", log.display());
+            println!("  check on it   : warrantor status");
+            if !linkage.survives_supervisor_death {
+                eprintln!(
+                    "warrantor: WARNING -- on this platform the agent can outlive the supervisor. \
+                     Do not leave this run unattended."
+                );
+            }
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&e),
+    }
+}
+
+/// The daemon body. Not advertised in the usage text: `run` re-enters the binary here.
+fn cmd_supervise(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
+    let Some(id) = args.positional.first() else {
+        return fail("usage: warrantor supervise <warrant-id> -- <command> [args...]");
+    };
+    let Some((program, rest)) = args.trailing.split_first() else {
+        return fail("nothing to supervise: put the agent command after `--`");
+    };
+    let stored = match store.load(id) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let state = match DaemonState::open(root) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+
+    // The agent runs in its worktree when it has one, so an escape from the warrant's write paths
+    // would have to be an absolute path rather than a relative slip.
+    let cwd = stored.worktree.as_deref();
+
+    match supervise_run(
+        &state,
+        &SuperviseRequest {
+            warrant_id: id.clone(),
+            expires_at: stored.warrant.claims.bounds.expires_at,
+            program: program.clone(),
+            args: rest.to_vec(),
+            cwd: cwd.map(Path::to_path_buf),
+            root: root.to_path_buf(),
+            now: now(),
+        },
+    ) {
+        Ok(0) => ExitCode::SUCCESS,
+        Ok(_) => ExitCode::FAILURE,
+        Err(e) => fail(&e),
+    }
+}
+
+/// `warrantor status` — what is running, what stopped, and what needs a decision.
+///
+/// The command you run first thing in the morning. It reconciles as a side effect, which is
+/// deliberate: the answer to "what happened overnight" and the cleanup of dead supervisors are the
+/// same operation.
+fn cmd_status(store: &WarrantStore, root: &Path) -> ExitCode {
+    let state = match DaemonState::open(root) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let found = match state.reconcile(store, &process_is_alive) {
+        Ok(f) => f,
+        Err(e) => return fail(&e.to_string()),
+    };
+
+    let mut live = 0;
+    let mut needs_decision = Vec::new();
+    for (id, status) in &found {
+        match status {
+            Reconciliation::Supervised { pid } => {
+                live += 1;
+                println!("  running    {id}  (supervisor pid {pid})");
+            }
+            Reconciliation::Interrupted { detail } => {
+                needs_decision.push((id, detail));
+            }
+            Reconciliation::Finished => {}
+        }
+    }
+    if live == 0 && needs_decision.is_empty() {
+        println!("warrantor: nothing open. `warrantor list` shows finished warrants.");
+        return ExitCode::SUCCESS;
+    }
+    for (id, detail) in &needs_decision {
+        println!("  attention  {id}");
+        println!("             {detail}");
+    }
+    ExitCode::SUCCESS
+}
+
 fn main() -> ExitCode {
     let Some(args) = parse_args() else {
         println!("{USAGE}");
@@ -582,6 +758,9 @@ fn main() -> ExitCode {
         "settle" => cmd_settle(&args, &store, &root),
         "void" => cmd_void(&args, &store, &root),
         "stage" => cmd_stage(&args, &store),
+        "run" => cmd_run(&args, &store, &root),
+        "supervise" => cmd_supervise(&args, &store, &root),
+        "status" => cmd_status(&store, &root),
         "help" | "--help" | "-h" => {
             println!("{USAGE}");
             ExitCode::SUCCESS
