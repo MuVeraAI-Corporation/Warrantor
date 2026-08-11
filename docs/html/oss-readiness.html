@@ -351,12 +351,12 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <tr><th>Repo</th><th>Component(s)</th><th>Lang</th><th>Install</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>agent-identity</code></td><td>I1 (the keystone — 12 components depend on it)</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/agent-identity</code></td></tr>
-    <tr><td><code>open-serve-kit</code></td><td>N1 OpenAI-compatible proxy</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/open-serve-kit</code></td></tr>
-    <tr><td><code>tenant-guard</code></td><td>N4 K8s MIG/MPS multi-tenant operator</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/tenant-guard</code></td></tr>
-    <tr><td><code>fleet-marshal</code></td><td>F4 ModelFleet CRD operator</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/fleet-marshal</code></td></tr>
-    <tr><td><code>edge-sentinel</code></td><td>F3 edge attestation agent (&lt;5MB binary)</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/edge-sentinel</code></td></tr>
-    <tr><td><code>tee-serve</code></td><td>C1-4 TEE-backed model serving</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI/tee-serve</code></td></tr>
+    <tr><td><code>agent-identity</code></td><td>I1 (the keystone — 12 components depend on it)</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI-Corporation/agent-identity</code></td></tr>
+    <tr><td><code>open-serve-kit</code></td><td>N1 OpenAI-compatible proxy</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI-Corporation/open-serve-kit</code></td></tr>
+    <tr><td><code>tenant-guard</code></td><td>N4 K8s MIG/MPS multi-tenant operator</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI-Corporation/tenant-guard</code></td></tr>
+    <tr><td><code>fleet-marshal</code></td><td>F4 ModelFleet CRD operator</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI-Corporation/fleet-marshal</code></td></tr>
+    <tr><td><code>edge-sentinel</code></td><td>F3 edge attestation agent (&lt;5MB binary)</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI-Corporation/edge-sentinel</code></td></tr>
+    <tr><td><code>tee-serve</code></td><td>C1-4 TEE-backed model serving</td><td><span class="badge go">Go</span></td><td><code>go get github.com/MuVeraAI-Corporation/tee-serve</code></td></tr>
     <tr><td><code>bridge-rt</code></td><td>N2 unified backend abstraction</td><td><span class="badge python">Py</span> + Go</td><td><code>pip install warrantor-bridge-rt</code></td></tr>
     <tr><td><code>cuda-gram</code></td><td>C1-2 high-level GPU attestation SDK</td><td><span class="badge python">Py</span></td><td><code>pip install cuda-gram</code></td></tr>
     <tr><td><code>attesta-flow</code></td><td>C1-3 E2E attested inference pipeline</td><td><span class="badge python">Py</span></td><td><code>pip install attesta-flow</code></td></tr>
@@ -453,7 +453,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <div class="callout info">
   <div class="callout-title">Trademark</div>
-  <p>"AumOS", "DefStack", and the OSAF protocol names (AAE, AAR, CAP, etc.) are trademarks of the founding company, licensed freely to OSS projects that comply with the usage guidelines. Commercial products and derivative forks must use a distinct name (e.g., "Acme AumOS Fork"). Trademark policy lives at <code>github.com/MuVeraAI/.github</code>.</p>
+  <p>"AumOS", "DefStack", and the OSAF protocol names (AAE, AAR, CAP, etc.) are trademarks of the founding company, licensed freely to OSS projects that comply with the usage guidelines. Commercial products and derivative forks must use a distinct name (e.g., "Acme AumOS Fork"). Trademark policy lives at <code>github.com/MuVeraAI-Corporation/.github</code>.</p>
 </div>
 
 <hr>
@@ -502,7 +502,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <h3>Code of Conduct</h3>
 
-<p>AumOS adopts the <strong>Contributor Covenant 2.1</strong>, enforced by a rotating 3-person CoC team. Reports go to <code>conduct@MuVeraAI.org</code> (confidential, reviewed within 72 hours). The full text lives at <code>github.com/MuVeraAI/.github/CODE_OF_CONDUCT.md</code> and is mirrored into every repo.</p>
+<p>AumOS adopts the <strong>Contributor Covenant 2.1</strong>, enforced by a rotating 3-person CoC team. Reports go to <code>conduct@MuVeraAI.org</code> (confidential, reviewed within 72 hours). The full text lives at <code>github.com/MuVeraAI-Corporation/.github/CODE_OF_CONDUCT.md</code> and is mirrored into every repo.</p>
 
 <hr>
 
@@ -513,7 +513,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <h3>The loop</h3>
 
-<pre><code>1. Fork the repo (github.com/MuVeraAI/&lt;repo&gt;) or branch if internal
+<pre><code>1. Fork the repo (github.com/MuVeraAI-Corporation/&lt;repo&gt;) or branch if internal
 2. git checkout -b feat/&lt;canonical-id&gt;-&lt;short-description&gt;
 3. Make changes; commit with `git commit -s`   (DCO sign-off — REQUIRED)
 4. make lint test conformance                    (all must pass locally)
@@ -559,7 +559,7 @@ cargo test      # green — you're ready to contribute</code></pre>
   <li>Write an RFC in <code>docs/rfcs/&lt;id&gt;-&lt;name&gt;.md</code> (10-section template). Get it to "Accepted".</li>
   <li>Scaffold the RFC's companion files: <code>CLAUDE.md</code> (build instructions), <code>AGENTS.md</code> (agent anti-patterns), <code>PROMPT.md</code> (master agent prompt), <code>tasks/01-setup.md ... 08-release.md</code>.</li>
   <li>Decide the language via the polyglot stack-test doctrine (default Rust; Go only if it clears the Go activation gate — 3 of 7 conditions).</li>
-  <li>If it's a standalone service/package, create its repo under <code>github.com/MuVeraAI/&lt;name&gt;</code> from the <code>repo-template</code>; otherwise add it to the monorepo.</li>
+  <li>If it's a standalone service/package, create its repo under <code>github.com/MuVeraAI-Corporation/&lt;name&gt;</code> from the <code>repo-template</code>; otherwise add it to the monorepo.</li>
   <li>Register it in <code>docs/00-reconciliation-matrix.md</code> and the conformance suite.</li>
 </ol>
 
@@ -572,7 +572,7 @@ cargo test      # green — you're ready to contribute</code></pre>
 
 <h3>Per-repo CI (GitHub Actions)</h3>
 
-<p>Every repo has the same workflow shape, templated from <code>github.com/MuVeraAI/.github/workflow-templates</code>:</p>
+<p>Every repo has the same workflow shape, templated from <code>github.com/MuVeraAI-Corporation/.github/workflow-templates</code>:</p>
 
 <table>
   <thead><tr><th>Job</th><th>What it enforces</th></tr></thead>
