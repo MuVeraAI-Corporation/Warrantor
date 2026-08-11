@@ -89,12 +89,18 @@ jobs:
           cache: pip
           cache-dependency-path: python/*/pyproject.toml
       - name: Install required test tooling
-        run: python -m pip install --disable-pip-version-check pytest ruff
+        run: python -m pip install --disable-pip-version-check pytest
       # Install each project from its own pyproject.toml rather than maintaining a
       # package list here. The previous hardcoded list omitted jsonschema and
       # pyyaml, which both projects declare correctly -- the list was the defect.
       - name: Install every project and its declared dependencies
         run: python tools/ci/run_python_checks.py install
+      # Pin the linter AFTER the project installs, which declare `ruff>=0.4` and
+      # would otherwise float it to latest. A lint gate whose ruleset changes
+      # without a commit is not a gate -- it fails builds that were green
+      # yesterday, for code nobody touched. Bump this deliberately.
+      - name: Pin the lint toolchain
+        run: python -m pip install --disable-pip-version-check "ruff==0.12.0"
       - name: Test every project
         run: python tools/ci/run_python_checks.py test --report evidence/python-tests.json
       - name: Lint every project

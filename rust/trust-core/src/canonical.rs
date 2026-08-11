@@ -35,7 +35,7 @@ fn sort_value(value: &mut CborValue) {
         CborValue::Map(map) => {
             // BTreeMap is already sorted by key (Value: Ord), so no explicit sort needed.
             // But we recurse into nested values to ensure they're also canonical.
-            for (_k, v) in map.iter_mut() {
+            for v in map.values_mut() {
                 sort_value(v);
             }
         }
