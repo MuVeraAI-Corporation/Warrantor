@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warrantor — Integrations Inventory</title>
+<style>
+  :root {
+    --bg: #fbfaf8; --fg: #23201c; --muted: #6b645c; --rule: #e2ddd5;
+    --card: #ffffff; --accent: #8a4b2a; --ok: #2f6b45; --warn: #8a6a1f; --bad: #8f3232;
+    --code-bg: #f4f1ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16140f; --fg: #ece7df; --muted: #a49c90; --rule: #322d26;
+      --card: #1e1b16; --accent: #d99a6c; --ok: #7dc79b; --warn: #d9bb6c; --bad: #e08c8c;
+      --code-bg: #241f19;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.65 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 62rem; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+  header { border-bottom: 2px solid var(--fg); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
+  h1 { font-size: clamp(1.9rem, 4vw, 2.7rem); line-height: 1.15; margin: 0 0 .4rem; letter-spacing: -.015em; }
+  .sub { color: var(--muted); font-size: 1.02rem; margin: 0; }
+  .meta { color: var(--muted); font-size: .84rem; margin-top: .9rem; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  h2 {
+    font-size: 1.45rem; margin: 3.2rem 0 .3rem; letter-spacing: -.01em;
+    padding-bottom: .35rem; border-bottom: 1px solid var(--rule);
+  }
+  h3 { font-size: 1.12rem; margin: 2rem 0 .5rem; }
+  h4 { font-size: .97rem; margin: 1.4rem 0 .35rem; color: var(--accent); }
+  p { margin: .7rem 0; }
+  .lede { font-size: 1.08rem; color: var(--fg); }
+  code, kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .87em;
+    background: var(--code-bg); padding: .1em .35em; border-radius: 3px; }
+  pre { background: var(--code-bg); border: 1px solid var(--rule); border-radius: 6px;
+    padding: .9rem 1rem; overflow-x: auto; font-size: .84rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .scroll { overflow-x: auto; margin: 1rem 0; border: 1px solid var(--rule); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; font-family: system-ui, -apple-system, sans-serif; }
+  th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-left: 3px solid var(--accent);
+    border-radius: 6px; padding: 1rem 1.2rem; margin: 1.2rem 0; }
+  .card.ok { border-left-color: var(--ok); }
+  .card.warn { border-left-color: var(--warn); }
+  .card.bad { border-left-color: var(--bad); }
+  .card h4 { margin-top: 0; }
+  .tag { display: inline-block; font-family: system-ui, sans-serif; font-size: .7rem; font-weight: 600;
+    letter-spacing: .04em; text-transform: uppercase; padding: .16em .5em; border-radius: 3px;
+    border: 1px solid currentColor; white-space: nowrap; }
+  .t-wired { color: var(--ok); }
+  .t-cli { color: var(--warn); }
+  .t-unwired { color: var(--bad); }
+  .t-partial { color: var(--accent); }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin: .3rem 0; }
+  .muted { color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: .6rem 1.2rem; font-size: .85rem;
+    font-family: system-ui, sans-serif; margin: 1rem 0; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 2.5rem 0; }
+  .footnote { font-size: .87rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Integrations Inventory</h1>
+  <p class="sub">Every integration surface a developer can reach in the Warrantor platform today — what is wired, what is built but unreachable, and what is honestly missing.</p>
+  <p class="meta">aumos @ integration/end-to-end &middot; 11 August 2026 &middot; measured from source, not from docs</p>
+</header>
+
+<p class="lede">This inventory was produced by measuring the repository, not by reading its own documentation. Every claim below carries evidence: line counts from source, test counts from test files, and — the measure that matters most — whether anything in the codebase actually <em>calls</em> the component. A well-tested module that nothing invokes is not an integration; it is a library waiting for one.</p>
+
+<div class="card warn">
+  <h4>Why "referenced by" is the load-bearing column</h4>
+  <p>During this survey the <code>mcp-gateway</code> package turned out to be 913 lines with 53 passing tests and <strong>zero runtime callers</strong> — every reference to it was in a design document. That is the failure mode this inventory exists to catch. A component can be complete, correct, and completely unreachable at the same time, and only the reference count distinguishes it from a shipped feature.</p>
+</div>
+
+<div class="legend">
+  <span><span class="tag t-wired">wired</span> reachable by a developer today, end to end</span>
+  <span><span class="tag t-cli">cli only</span> works, but only from the command line</span>
+  <span><span class="tag t-partial">partial</span> reachable, with a stated limit</span>
+  <span><span class="tag t-unwired">unwired</span> built and tested; nothing calls it</span>
+</div>
+
+<h2>The headline: two generations of integration</h2>
+
+<p>The repository contains two distinct bodies of integration work, and conflating them produces a misleading picture in either direction.</p>
+
+<p><strong>Generation 1 — broad and wired.</strong> The AumOS component surface: an MCP server exposing 15 tools to any MCP-speaking coding agent, a session harness for Claude Code / Codex / Cursor, framework adapters for LangChain and vLLM and Hugging Face, incident forwarding to Jira and Linear, SIEM export in OCSF 1.9.0, a Kubernetes admission webhook, and twelve Go services orchestrated by a single <code>docker-compose.yml</code>. This layer is genuinely reachable. A developer can install it and use it today.</p>
+
+<p><strong>Generation 2 — deep and unwired.</strong> The Warrant primitive: <code>grant → run → status → report → settle / void</code>, with staged effects, git-worktree isolation, OS-enforced process supervision, and a detached daemon. This is the newest and most consequential work in the repository, and a search for any reference to it outside its own crate returns <strong>nothing</strong>. No MCP tool exposes it. No LangChain callback uses it. No compose service runs it. It is reachable only by typing <code>warrantor</code>.</p>
+
+<div class="card bad">
+  <h4>The single most important gap</h4>
+  <p>The Warrant primitive — the thing that actually solves the babysitting tax — has no integration surface. Everything Generation 1 integrates with is a <em>component</em>; the Warrant is the <em>product</em>, and it is currently CLI-only. Closing this is worth more than any new adapter, because every existing adapter becomes more valuable the moment it can issue and settle warrants rather than merely emit receipts.</p>
+</div>
+
+<hr>
+
+<h2>A. Coding-agent integrations</h2>
+
+<p>This is the entry point that matters: how a developer's existing agent starts talking to Warrantor.</p>
+
+<h3>A1. MCP server — <code>@warrantor/mcp-server</code></h3>
+
+<p><span class="tag t-wired">wired</span> &nbsp; 1,500 lines &middot; 56 test cases &middot; binary <code>warrantor-mcp</code> &middot; shipped as compose service <code>aumos-mcp</code></p>
+
+<p>The broadest integration in the platform. Any MCP-compatible client — Claude Code, Codex, Cursor, Windsurf, Zed, or anything else speaking the protocol — registers this server and gains fifteen tools. It is a stdio server with a <code>bin</code> entry, so registration is a one-line config change on the client side; no HTTP endpoint, no port, no auth to configure.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Tool</th><th>What it does</th><th>Backed by</th></tr></thead>
+  <tbody>
+    <tr><td><code>warrantor_sign</code></td><td>Sign arbitrary data</td><td><code>trust-core</code> binary (Rust, Ed25519)</td></tr>
+    <tr><td><code>warrantor_verify</code></td><td>Verify a signature</td><td><code>trust-core</code></td></tr>
+    <tr><td><code>warrantor_issue_identity</code></td><td>Mint an agent identity</td><td><code>agent-identity</code> service (Go)</td></tr>
+    <tr><td><code>warrantor_verify_identity</code></td><td>Validate an agent identity</td><td><code>agent-identity</code></td></tr>
+    <tr><td><code>warrantor_revoke_identity</code></td><td>Revoke an identity</td><td><code>agent-identity</code></td></tr>
+    <tr><td><code>warrantor_emit_receipt</code></td><td>Emit an Agent Action Receipt <em>before</em> the action commits</td><td><code>flight-recorder</code></td></tr>
+    <tr><td><code>warrantor_verify_receipt</code></td><td>Verify a receipt against the log</td><td><code>flight-recorder</code></td></tr>
+    <tr><td><code>warrantor_check_attestation</code></td><td>Check hardware/TEE attestation</td><td><code>nvtrust-bridge</code></td></tr>
+    <tr><td><code>warrantor_run_preflight</code></td><td>Sandbox pre-flight before an action</td><td><code>eval-guard</code></td></tr>
+    <tr><td><code>warrantor_kill</code></td><td>Halt a running agent</td><td><code>kill-switch</code></td></tr>
+    <tr><td><code>warrantor_scan_secrets</code></td><td>Scan text for 8 credential classes</td><td>in-process (regex set)</td></tr>
+    <tr><td><code>warrantor_compliance_report</code></td><td>Generate a compliance report</td><td><code>defstack</code> binary</td></tr>
+    <tr><td><code>warrantor_install</code></td><td>Install platform components</td><td><code>defstack</code></td></tr>
+    <tr><td><code>warrantor_generate_sbom</code></td><td>Emit a model SBOM (CycloneDX)</td><td><code>model-sbom</code></td></tr>
+    <tr><td><code>warrantor_run_eval</code></td><td>Run a safety evaluation</td><td><code>safe-eval</code> / <code>eval-guard</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Connected vs standalone — and why the distinction is handled honestly</h4>
+
+<p>The server runs in one of two modes. <strong>Connected</strong> (the default when no flag is given) shells out to the real Rust binaries and real Go services; if a binary is missing or exits non-zero, the tool returns a typed failure naming the missing dependency. <strong>Standalone</strong> returns deterministic stand-ins so the server is usable with nothing else installed.</p>
+
+<p>The important property is that standalone mode does not lie. A signature produced there comes back tagged <code>algorithm: "ed25519-mock"</code> and <code>source: "mock"</code> — the response is structurally valid but self-identifying. This was the fix for audit finding AUD-001 ("MCP returns success-shaped mocks when controls fail"), and it is the correct resolution: the mock is still there, because a zero-install demo is worth having, but it can no longer be mistaken for enforcement by a caller reading the response.</p>
+
+<div class="card warn">
+  <h4>Gap: the shipped compose file defaults to the demo</h4>
+  <p><code>docker-compose.yml</code> sets <code>AUMOS_MODE: standalone</code> on the <code>aumos-mcp</code> service — even though <code>trust-core</code>, <code>agent-identity</code>, <code>flight-recorder</code>, <code>kill-switch</code> and <code>credential-vault</code> are all defined in the same file and healthy. A developer who runs <code>docker compose up</code> and registers the MCP server gets labelled mocks while real enforcement sits one environment variable away. The responses are honest, so nothing is <em>wrong</em>; but the default is the demo rather than the product.</p>
+</div>
+
+<h3>A2. Session harness — <code>warrantor-harness</code> (Python)</h3>
+
+<p><span class="tag t-wired">wired</span> &nbsp; 941 lines &middot; 32 tests &middot; three agents supported</p>
+
+<p>Where the MCP server integrates at the <em>tool</em> boundary, the harness integrates at the <em>session</em> boundary: it wraps the whole agent process. It supports three agents explicitly, and for each it can both read and generate the agent's native config file:</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Agent</th><th>Config file</th><th>Functions</th></tr></thead>
+  <tbody>
+    <tr><td>Claude Code</td><td><code>CLAUDE.md</code></td><td><code>parse_claude_code_config()</code> &middot; generator in <code>cli.py</code></td></tr>
+    <tr><td>OpenAI Codex</td><td><code>AGENTS.md</code></td><td><code>parse_codex_config()</code> &middot; generator</td></tr>
+    <tr><td>Cursor</td><td><code>.cursorrules</code></td><td><code>parse_cursor_config()</code> &middot; generator</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Within a session it enforces a tool allowlist, tracks every file access, scans output for secrets, emits receipts, and — since the W0 work — holds the agent process under an OS-enforced lifetime link so it cannot outlive its supervisor. That linkage has since been ported to Rust (see A5); the Python implementation remains in place so the orphan hole never reopens during the transition.</p>
+
+<h3>A3. Agent SDK — <code>warrantor-agent</code> (Python)</h3>
+
+<p><span class="tag t-wired">wired</span> &nbsp; 1,281 lines &middot; 60 tests &middot; the largest Python package</p>
+
+<p>For developers writing their own agent rather than driving a vendor's. The headline is a decorator that wraps any function in the full security envelope:</p>
+
+<pre><code>from warrantor_agent import AumOS
+
+agent = AumOS(mode="standalone")   # or "connected" against running services
+
+@agent.action(tool="github.create_pr", side_effect="write")
+def create_pull_request(repo: str, title: str, body: str):
+    return {"pr_number": 42, "url": f"https://github.com/{repo}/pull/42"}</code></pre>
+
+<p>A decorated action issues or verifies an agent identity, runs an <code>eval-guard</code> pre-flight, brokers scoped credentials through <code>credential-vault</code>, and emits the receipt <em>before</em> the action commits — the ordering being the point, since a receipt written afterwards cannot prove anything about an action that failed halfway.</p>
+
+<h3>A4. MCP gateway — <code>@warrantor/mcp-gateway</code></h3>
+
+<p><span class="tag t-unwired">unwired</span> &nbsp; 913 lines &middot; 53 test cases &middot; <strong>zero runtime callers</strong></p>
+
+<p>Authority-aware MCP middleware with confused-deputy protection and an explicit empty-<code>aud</code> bypass check. It is complete and it is tested. Every reference to it in the repository is in a design document, a threat model, or a tracker file — nothing imports it, nothing runs it, and no compose service starts it. It is the clearest example of the gap this inventory measures.</p>
+
+<h3>A5. The Warrant CLI — <code>warrantor</code> (Rust)</h3>
+
+<p><span class="tag t-cli">cli only</span> &nbsp; crate <code>warrantor-warrant</code> &middot; 79 tests &middot; verified end to end against real processes</p>
+
+<p>The newest and deepest work, and — as stated above — reachable only from a shell. The full lifecycle:</p>
+
+<pre><code>warrantor grant --goal "fix the token refresh bug" \
+                --tools git,cargo,github.create_pr \
+                --write 'src/**' --egress api.github.com --deadline 8h --repo .
+
+warrantor run    &lt;id&gt; -- claude --dangerously-skip-permissions
+warrantor status                 # what is running, what stopped and needs a decision
+warrantor report &lt;id&gt;            # diff, staged effects, denied requests
+warrantor settle &lt;id&gt;            # release staged effects in dependency order
+warrantor void   &lt;id&gt;            # discard the worktree and branch; keep the log</code></pre>
+
+<p>What it provides that nothing else in the repository does:</p>
+<ul>
+  <li><strong>Git worktree isolation</strong> — the agent works in its own worktree on its own branch; the main checkout is untouched until settle.</li>
+  <li><strong>Staged effects</strong> — irreversible actions are never performed speculatively. The agent receives a typed synthetic handle (<code>pr://</code>, <code>comment://</code>, <code>review://</code>, <code>label://</code>) and the real call happens at settle, addressed by the number the API actually returned.</li>
+  <li><strong>Topological release</strong> — staged effects settle in dependency order, so every prefix is a coherent state and partial failure is survivable. On partial settle the warrant goes to <em>Held</em>, not <em>Settled</em>, and reports exactly where the boundary is.</li>
+  <li><strong>Settle-authority separation</strong> — the agent holds an act-scoped capability token with no settle field; the settle key is separate and named inside signed claims.</li>
+  <li><strong>Detached supervision</strong> — <code>run</code> starts a daemon detached from the terminal, so closing the terminal ends your view of the run rather than the run. The daemon holds the agent under a Windows job object (or <code>setsid</code> + <code>PR_SET_PDEATHSIG</code> on Linux), so the agent cannot outlive its supervisor either.</li>
+</ul>
+
+<p class="footnote">Verified against real processes rather than mocks: a run survived the launching shell exiting; killing only the supervisor killed the agent <em>and</em> a grandchild it had spawned; a 15-second warrant stopped its agent at 15 seconds; and <code>status</code> then reported the interruption with the decision it needed.</p>
+
+<h3>A6. GitHub adapter (Rust)</h3>
+
+<p><span class="tag t-partial">partial</span> &nbsp; 5 integration tests &middot; injectable transport</p>
+
+<p>The only external-service adapter behind staged settle. It creates pull requests, posts comments, requests reviews and applies labels — resolving each staged handle to the real number GitHub returned. The transport is a trait, so tests drive it without a network. Reachable only through <code>warrantor settle</code>, which inherits the CLI-only limitation above.</p>
+
+<hr>
+
+<h2>B. Framework integrations</h2>
+
+<h3>B1. LangChain — <code>warrantor-langchain</code></h3>
+
+<p><span class="tag t-wired">wired</span> &nbsp; 456 lines &middot; 17 tests</p>
+
+<p>Provides <code>AumOSCallback</code> (a <code>BaseCallbackHandler</code> that records receipts and scans for secrets), <code>AumOSTool</code>, <code>SecuredAgent</code>, and a <code>wrap_agent()</code> helper. The notable engineering decision is the optional import: if <code>langchain_core</code> is absent the base class degrades to <code>object</code> and <code>has_langchain()</code> reports false, so the package installs and imports cleanly in an environment with no LangChain at all.</p>
+
+<hr>
+
+<h2>C. Model and serving integrations</h2>
+
+<h3>C1. vLLM — <code>warrantor-vllm</code></h3>
+<p><span class="tag t-wired">wired</span> &nbsp; 497 lines &middot; 27 tests</p>
+<p><code>AttestedVLLMServer</code> wraps a vLLM process with an attestation envelope: the server will not serve until the model's identity is verified against a quote. Includes a <code>QuoteCollector</code> protocol for pluggable attestation sources and an explicit <code>AttestationUnavailable</code> error rather than a silent downgrade.</p>
+
+<h3>C2. Hugging Face — <code>warrantor-hf-plugin</code></h3>
+<p><span class="tag t-wired">wired</span> &nbsp; 243 lines &middot; 10 tests</p>
+<p>Signs models on upload and verifies them on download by writing a provenance block directly into the <strong>safetensors header</strong> — meaning provenance travels with the file rather than alongside it, and survives any transport that preserves the file. Provides <code>sign_model_for_upload()</code>, <code>verify_model_on_download()</code>, <code>batch_verify()</code> and an <code>HFCallback</code>.</p>
+
+<h3>C3. Ollama</h3>
+<p><span class="tag t-wired">wired</span> &nbsp; compose service with a named volume</p>
+<p>Local inference, fronted by the <code>inference-proxy</code> service so prompts and completions pass a policy boundary before reaching the model.</p>
+
+<hr>
+
+<h2>D. Incident and ticketing</h2>
+
+<h3>D1. Jira and Linear — <code>warrantor-jira</code></h3>
+<p><span class="tag t-wired">wired</span> &nbsp; 588 lines &middot; 25 tests</p>
+<p>Despite the package name it ships three forwarders behind one <code>TicketForwarder</code> protocol: <code>JiraForwarder</code>, <code>LinearForwarder</code>, and <code>MockForwarder</code> for tests. Incidents are mapped to labels and priorities by type and severity, with title and description built from the incident record. The protocol boundary means a third tracker is a new class, not a fork.</p>
+
+<hr>
+
+<h2>E. SIEM and telemetry</h2>
+
+<h3>E1. OCSF export — <code>warrantor-ocsf</code></h3>
+<p><span class="tag t-wired">wired</span> &nbsp; 561 lines &middot; 37 tests &middot; OCSF schema 1.9.0</p>
+<p>Converts Agent Action Receipts into <strong>OCSF 1.9.0</strong> events — <code>class_uid 6003</code> (API Activity) in <code>category_uid 6</code> — which is the format Splunk, Sentinel, Chronicle and the rest of the SIEM market already ingest. Two sinks ship: <code>FileSink</code> and <code>HTTPSink</code>, both behind a <code>Sink</code> protocol, with <code>ForwardStats</code> for delivery accounting. The conversion is defensive by construction: a malformed receipt still produces a structurally valid event rather than dropping the signal.</p>
+
+<h3>E2. Metrics (Go)</h3>
+<p><span class="tag t-wired">wired</span> &nbsp; 228 lines &middot; 8 tests &middot; Prometheus-shaped</p>
+
+<hr>
+
+<h2>F. Platform and infrastructure</h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Surface</th><th>Status</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr><td>Docker Compose</td><td><span class="tag t-wired">wired</span></td><td>17 services: trust-core, agent-identity, open-serve-kit, ollama, inference-proxy, flight-recorder, kill-switch, credential-vault, tee-serve, tenant-guard, fleet-marshal, edge-sentinel, lightwell-bridge, defstack-cloud, sovereign-stack, aumos-mcp, console. Health-gated dependencies.</td></tr>
+    <tr><td>Kubernetes admission</td><td><span class="tag t-wired">wired</span></td><td><code>warrantor-admission</code>, 291 lines, 15 tests. Validating webhook enforcing AAE annotation presence and <code>sha256:&lt;hex&gt;</code> digest format, with a namespace allowlist so it cannot brick <code>kube-system</code>.</td></tr>
+    <tr><td>Helm</td><td><span class="tag t-partial">partial</span></td><td><code>deploy/helm/aumos</code> — Chart.yaml, values.yaml, templates, files.</td></tr>
+    <tr><td>SPIFFE / SPIRE</td><td><span class="tag t-partial">partial</span></td><td>Server, agent and trust-domain configs. Agent identities are SPIFFE IDs (<code>spiffe://muveraai.com/agent/&hellip;</code>) throughout the warrant code.</td></tr>
+    <tr><td>Modal</td><td><span class="tag t-wired">wired</span></td><td><code>adversaria_modal.py</code>, <code>safe_eval_modal.py</code> with tests — GPU-backed red-teaming and evaluation.</td></tr>
+    <tr><td>Terraform</td><td><span class="tag t-partial">partial</span></td><td>A single <code>main.tf</code> under <code>attesta_flow</code>. Not a platform-wide IaC surface.</td></tr>
+    <tr><td>Sigstore / Rekor</td><td><span class="tag t-wired">wired</span></td><td><code>make sigstore-up</code> brings up MySQL + Trillian + Rekor locally for transparency-log testing.</td></tr>
+    <tr><td>Cloudflare Worker</td><td><span class="tag t-partial">partial</span></td><td><code>deploy/muveraai-worker</code> exists and is <strong>deliberately untouched</strong> per standing instruction.</td></tr>
+    <tr><td><code>deploy/k8s</code></td><td><span class="tag t-unwired">empty</span></td><td>Directory exists; no manifests.</td></tr>
+    <tr><td><code>deploy/systemd</code></td><td><span class="tag t-unwired">empty</span></td><td>Directory exists; no unit files. Notable now that a daemon exists that would want one.</td></tr>
+    <tr><td><code>deploy/airgap</code></td><td><span class="tag t-unwired">empty</span></td><td>Directory exists; no content.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<hr>
+
+<h2>G. Protocol contracts — the cross-language substrate</h2>
+
+<p><span class="tag t-wired">wired</span> &nbsp; four languages generated from one protobuf source</p>
+
+<p>Under <code>proto/warrantor</code>, with generated bindings and validators in Rust, Go (1,278 lines), TypeScript (1,053 lines) and Python. Two Makefile targets keep them honest: <code>check-proto</code> lints the protobuf and rejects breaking changes against <code>main</code>, and <code>check-protocols</code> rejects drift between <code>registry.json</code> and every generated artifact. <code>make conformance</code> runs a shared test-vector matrix across all four languages.</p>
+
+<p>This is the reason a receipt emitted by the Python SDK verifies in the Go service and renders in the TypeScript console — the integration nobody notices because it never breaks.</p>
+
+<hr>
+
+<h2>H. Go service layer</h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Service</th><th>Lines</th><th>Tests</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td><code>protocol-contracts</code></td><td>1,278</td><td>5</td><td>Generated contract bindings + validator</td></tr>
+    <tr><td><code>agent-identity</code></td><td>1,102</td><td>35</td><td>Issue / verify / revoke agent identities</td></tr>
+    <tr><td><code>edge-sentinel</code></td><td>689</td><td>26</td><td>Edge policy enforcement</td></tr>
+    <tr><td><code>tee-serve</code></td><td>689</td><td>21</td><td>TEE-backed serving</td></tr>
+    <tr><td><code>fleet-marshal</code></td><td>661</td><td>25</td><td>Fleet coordination</td></tr>
+    <tr><td><code>open-serve-kit</code></td><td>329</td><td>7</td><td>Serving toolkit</td></tr>
+    <tr><td><code>defstack-cloud</code></td><td>310</td><td>17</td><td>Cloud control surface</td></tr>
+    <tr><td><code>lightwell-bridge</code></td><td>306</td><td>17</td><td>Bridge component</td></tr>
+    <tr><td><code>identity-bindings</code></td><td>282</td><td>6</td><td>Identity binding primitives</td></tr>
+    <tr><td><code>tenant-guard</code></td><td>273</td><td>9</td><td>Multi-tenant isolation</td></tr>
+    <tr><td><code>sovereign-stack</code></td><td>255</td><td>16</td><td>Sovereignty controls</td></tr>
+    <tr><td><code>metrics</code></td><td>228</td><td>8</td><td>Prometheus metrics</td></tr>
+  </tbody>
+</table>
+</div>
+
+<hr>
+
+<h2>I. Operational Python packages</h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Package</th><th>Lines</th><th>Tests</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>warrantor-backup</code></td><td>388</td><td>17</td><td>Backup and restore of evidence state</td></tr>
+    <tr><td><code>warrantor-retention</code></td><td>391</td><td>22</td><td>Retention policy enforcement</td></tr>
+    <tr><td><code>warrantor-sla</code></td><td>206</td><td>17</td><td>SLA tracking</td></tr>
+    <tr><td><code>warrantor-rbac</code></td><td>198</td><td>19</td><td>Role-based access control</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="card ok">
+  <h4>A property worth stating explicitly: zero runtime dependencies</h4>
+  <p>Every one of the twelve <code>warrantor-*</code> Python packages declares an <strong>empty</strong> <code>[project].dependencies</code>. Third-party libraries — LangChain, <code>responses</code> — appear only as optional imports or test dependencies. Installing any Warrantor package adds no transitive supply-chain surface to a developer's environment. For a security product this is not incidental; it is the difference between being an assurance layer and being another thing to audit.</p>
+</div>
+
+<hr>
+
+<h2>What a developer can actually do today</h2>
+
+<h4>1. Give any MCP-speaking agent the fifteen tools</h4>
+<pre><code>cd typescript/mcp-server &amp;&amp; npm run build
+# register the built ./dist/index.js as an MCP server in your client's config
+# default mode is "connected" — it will use real binaries and fail loudly without them</code></pre>
+
+<h4>2. Run an agent under a warrant, and walk away</h4>
+<pre><code>cargo build -p warrantor-warrant
+warrantor grant --goal "fix the flaky auth test" --tools git,cargo \
+                --write 'src/**' --deadline 8h --repo .
+warrantor run &lt;id&gt; -- claude -p "fix the flaky auth test"
+# close the terminal; the run continues
+warrantor status      # in the morning
+warrantor report &lt;id&gt; # then settle or void</code></pre>
+
+<h4>3. Secure a hand-rolled Python agent</h4>
+<pre><code>pip install -e python/warrantor_agent
+# then decorate your actions with @agent.action(tool=..., side_effect=...)</code></pre>
+
+<h4>4. Ship receipts to an existing SIEM</h4>
+<pre><code>pip install -e python/warrantor_ocsf
+# convert_aar_to_ocsf() → HTTPSink → your OCSF 1.9.0 ingest endpoint</code></pre>
+
+<h4>5. Bring the whole platform up locally</h4>
+<pre><code>docker compose up          # 17 services
+make demo                  # sign an action, log it, verify the proof
+make test                  # Rust + Python + Go + TypeScript
+make conformance           # cross-language vector matrix</code></pre>
+
+<hr>
+
+<h2>Honest gaps, ranked by what they cost</h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>#</th><th>Gap</th><th>Cost</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><strong>The Warrant primitive has no integration surface.</strong> No MCP tool, no SDK binding, no compose service. CLI only.</td><td>The deepest work in the platform is reachable by the fewest people. Every Generation-1 adapter is worth more once it can issue and settle warrants.</td></tr>
+    <tr><td>2</td><td><strong>The MCP proxy has no MCP transport.</strong> <code>warrant/src/proxy.rs</code> holds the policy engine — enforce/observe modes, staging, egress checks, authority-request recording — but nothing speaks stdio JSON-RPC to it yet.</td><td>The tool allowlist in a warrant is currently enforced only where the harness sees the call. The proxy is the piece that makes it a boundary for third-party MCP servers.</td></tr>
+    <tr><td>3</td><td><strong><code>mcp-gateway</code> is unreachable.</strong> 913 lines, 53 tests, zero callers.</td><td>Confused-deputy protection that exists but does not run.</td></tr>
+    <tr><td>4</td><td><strong>Compose defaults the MCP server to standalone.</strong> Real services are in the same file.</td><td>First-run experience is the demo, not the product.</td></tr>
+    <tr><td>5</td><td><strong>No systemd unit</strong> now that a long-lived daemon exists.</td><td>Supervision survives your terminal but not a reboot.</td></tr>
+    <tr><td>6</td><td><strong>Registry publishing is blocked.</strong> Packages are named and versioned for npm (<code>@warrantor/*</code>), PyPI (<code>warrantor-*</code>) and crates.io (<code>warrantor-warrant</code>), but nothing is published.</td><td>Every install path above is <code>-e</code> or <code>cargo build</code>. Blocked on credentials held by the maintainer — deliberately not handled here.</td></tr>
+    <tr><td>7</td><td><strong>Empty <code>deploy/k8s</code>, <code>deploy/systemd</code>, <code>deploy/airgap</code>.</strong></td><td>Directories that promise a deployment story they do not yet contain.</td></tr>
+    <tr><td>8</td><td><strong>Supply-chain hazard on the <code>github.com/MuVeraAI</code> org</strong> remains unresolved and is flagged here as it has been elsewhere.</td><td>Outstanding, owner-action.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<hr>
+
+<h2>Summary count</h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Category</th><th>Wired</th><th>CLI only</th><th>Partial</th><th>Unwired / empty</th></tr></thead>
+  <tbody>
+    <tr><td>Coding agents &amp; MCP</td><td>3</td><td>2</td><td>1</td><td>1</td></tr>
+    <tr><td>Frameworks</td><td>1</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>Model / serving</td><td>3</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>Ticketing</td><td>2 <span class="muted">(Jira, Linear)</span></td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>SIEM / telemetry</td><td>2</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>Infrastructure</td><td>4</td><td>—</td><td>4</td><td>3</td></tr>
+    <tr><td>Protocol / services</td><td>13 <span class="muted">(12 Go + contracts)</span></td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>Operational packages</td><td>4</td><td>—</td><td>—</td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p class="footnote" style="margin-top:2rem">Counts are of integration surfaces, not components. Line and test counts are measured from source at the commit named in the header. "Wired" means a developer can reach it today without writing glue code; it does not mean the integration is complete.</p>
+
+</div>
+</body>
+</html>
