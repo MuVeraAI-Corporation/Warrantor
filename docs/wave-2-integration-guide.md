@@ -6,8 +6,8 @@
 
 ## The "wire off the mock" transition
 
-Wave-1 components (`aumos-kill-switch`, `aumos-credential-vault`, `aumos-eval-guard`) integrated
-against the proto-defined **mock** I1 interface in `proto/aumos/identity/v1/agent.proto`. Wave-2
+Wave-1 components (`warrantor-kill-switch`, `warrantor-credential-vault`, `warrantor-eval-guard`) integrated
+against the proto-defined **mock** I1 interface in `proto/warrantor/identity/v1/agent.proto`. Wave-2
 ships the real I1 implementation in Go (`go/agent-identity/`), which exposes the same RPCs over
 HTTP/JSON at the endpoints defined in `go/agent-identity/service.go`:
 
@@ -37,7 +37,7 @@ assert!(resp.revoked);
 ```
 
 The wiring is **type-stable**: the JSON shapes the Go service emits match the proto types
-`aumos_api::identity::v1::RevokeRequest`/`RevokeResponse` exactly. A future `buf generate`
+`warrantor_api::identity::v1::RevokeRequest`/`RevokeResponse` exactly. A future `buf generate`
 task (03) will swap the manual `reqwest` calls for generated connect-go / tonic stubs without
 changing the wire format.
 
@@ -66,8 +66,8 @@ go run ./go/agent-identity/cmd/agent-identity -addr=:8441
 # Terminal 2: issue, verify, revoke.
 curl -s -X POST http://localhost:8441/v1/agent-identity:issue \
   -H 'content-type: application/json' \
-  -d '{"subject":"spiffe://aumos.dev/agent/coding-1",
-       "attributes":{"publisher":"aumos.dev/coding-agent","model":"claude-opus-4.5"},
+  -d '{"subject":"spiffe://muveraai.com/agent/coding-1",
+       "attributes":{"publisher":"muveraai.com/coding-agent","model":"claude-opus-4.5"},
        "claims":{"tools":["github"],"data_classes":["L0","L1"],"side_effect_class":"write","delegation_depth":2}}'
 
 # The response contains the SVID token; pass it to verify.

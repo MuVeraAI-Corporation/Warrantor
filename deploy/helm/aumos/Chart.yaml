@@ -4,9 +4,9 @@ description: AumOS — Open Authority and Evidence Layer for Autonomous Systems.
 type: application
 version: 1.0.0
 appVersion: "1.0.0"
-home: https://github.com/MuVeraAI/aumos
+home: https://github.com/MuVeraAI-Corporation/Warrantor
 sources:
-  - https://github.com/MuVeraAI/aumos
+  - https://github.com/MuVeraAI-Corporation/Warrantor
 maintainers:
   - name: MuVera AI
     url: https://muveraai.com

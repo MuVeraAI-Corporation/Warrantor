@@ -1,6 +1,4 @@
-# AumOS main CI — runs on every push and pull request.
-# Mirrors the local Makefile targets but is robust to environments without `make`.
-# Per docs/cross-cutting/18-developer-experience.md: one-command CI is non-negotiable.
+# AumOS strict CI: every language, every module, every contract lane.
 name: CI
 
 on:
@@ -13,33 +11,60 @@ permissions:
   contents: read
 
 jobs:
-  # Single setup job that other jobs depend on. Keeps toolchain versions consistent.
-  contract-plane:
-    name: Contract plane (buf lint + breaking)
+  dco:
+    name: DCO sign-off
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # buf breaking needs the git history
+          fetch-depth: 0
+      - name: Verify every commit carries a Signed-off-by trailer
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          missing=0
+          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            if git show -s --format=%B "$sha" | grep -qiE '^Signed-off-by: .+ <[^>]+@[^>]+>[[:space:]]*$'; then
+              echo "ok   $(git show -s --format='%h %s' "$sha")"
+            else
+              echo "::error::Commit $sha is missing a 'Signed-off-by:' trailer (see CONTRIBUTING — commit with 'git commit -s')"
+              git show -s --format='FAIL %h %s' "$sha"
+              missing=1
+            fi
+          done
+          test "$missing" -eq 0
+
+  contract-plane:
+    name: Contract plane
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: bufbuild/buf-setup-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: buf lint
-        working-directory: aumos
+      - name: Lint protobuf contracts
         run: buf lint
-      - name: buf breaking (against main)
-        # Only fail on breaking changes once a main branch exists. Tolerates first-push.
-        working-directory: aumos
-        run: |
-          buf breaking --against 'https://github.com/${{ github.repository }}.git#branch=main,subdir=aumos/proto' || \
-            echo "WARN: buf breaking skipped (likely first push or no main baseline yet)"
+      # Compare against the LOCAL clone, not a fresh HTTPS clone of the remote.
+      # The remote form cannot authenticate against a private repository -- it
+      # fails with "could not read Username for 'https://github.com'" before it
+      # compares a single proto, so the gate silently stops gating.
+      # actions/checkout already fetched full history (fetch-depth: 0); this just
+      # materialises main as a local branch for buf to read.
+      - name: Fetch main for the breaking-change comparison
+        run: git fetch --no-tags origin +refs/heads/main:refs/heads/main
+      - name: Reject breaking changes from main
+        run: buf breaking --against '.git#branch=main'
 
   rust:
-    name: Rust (test + clippy + fmt check)
+    name: Rust
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: aumos
+        working-directory: rust
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -47,46 +72,181 @@ jobs:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: aumos/rust
-      - name: cargo fmt --check
+          workspaces: rust
+      # warrantor-api's build.rs runs tonic-build, which shells out to protoc.
+      # Without this the whole workspace fails to build, not just that crate.
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Check formatting
         run: cargo fmt --all -- --check
-        working-directory: aumos/rust
-      - name: cargo clippy (-D warnings)
-        run: cargo clippy --all-targets -- -D warnings
-        working-directory: aumos/rust
-      - name: cargo test
-        run: cargo test --all
-        working-directory: aumos/rust
+      - name: Run clippy with warnings denied
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Run tests
+        run: cargo test --workspace --all-targets
+      - name: Build all targets
+        run: cargo build --workspace --all-targets
 
   python:
-    name: Python (pytest)
+    name: Python (35 projects)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: aumos/python/cuda_gram
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-      - name: ruff
-        run: ruff check .
-      - name: pytest
-        run: pytest -q
+          cache: pip
+          cache-dependency-path: python/*/pyproject.toml
+      - name: Install required test tooling
+        run: python -m pip install --disable-pip-version-check pytest
+      # Install each project from its own pyproject.toml rather than maintaining a
+      # package list here. The previous hardcoded list omitted jsonschema and
+      # pyyaml, which both projects declare correctly -- the list was the defect.
+      - name: Install every project and its declared dependencies
+        run: python tools/ci/run_python_checks.py install
+      # Pin the linter AFTER the project installs, which declare `ruff>=0.4` and
+      # would otherwise float it to latest. A lint gate whose ruleset changes
+      # without a commit is not a gate -- it fails builds that were green
+      # yesterday, for code nobody touched. Bump this deliberately.
+      - name: Pin the lint toolchain
+        run: python -m pip install --disable-pip-version-check "ruff==0.12.0"
+      - name: Test every project
+        run: python tools/ci/run_python_checks.py test --report evidence/python-tests.json
+      - name: Lint every project
+        run: python tools/ci/run_python_checks.py lint --report evidence/python-lint.json
+      - name: Check formatting for every project
+        run: python tools/ci/run_python_checks.py format --report evidence/python-format.json
+      - name: Upload Python evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-gate-evidence
+          path: evidence/python-*.json
+          if-no-files-found: error
 
-  gate-scripts:
-    name: Gate scripts (conformance + docs)
+  go:
+    name: Go (12 modules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: false
+      - name: Test every module
+        run: python tools/ci/run_go_checks.py test --report evidence/go-tests.json
+      - name: Vet every module
+        run: python tools/ci/run_go_checks.py vet --report evidence/go-vet.json
+      - name: Check formatting
+        run: test -z "$(gofmt -l $(find go -type f -name '*.go'))"
+      - name: Upload Go evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-gate-evidence
+          path: evidence/go-*.json
+          if-no-files-found: error
+
+  typescript:
+    name: TypeScript (5 workspaces)
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: aumos
+        working-directory: typescript
     steps:
       - uses: actions/checkout@v4
-      - name: conformance runner
-        run: bash tools/conformance/run.sh
-      - name: doc checker
-        run: bash tools/ci/check-docs.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+          cache-dependency-path: typescript/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Typecheck conformance verifier
+        run: npm run typecheck:conformance
+      - name: Audit production and development dependencies
+        run: npm audit --audit-level=moderate
+
+  conformance:
+    name: Cross-language conformance (220 checks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      # The Rust verifier is built from the workspace, so this job needs protoc too.
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      # The Python verifier imports protocol_contracts, which needs jsonschema.
+      # Installing the project pulls its declared dependencies; a bare `cryptography`
+      # left the verifier unavailable and cost 84 of 220 checks.
+      - name: Install Python verifier dependencies
+        run: |
+          python -m pip install --disable-pip-version-check cryptography
+          python -m pip install --disable-pip-version-check -e python/protocol_contracts
+      - name: Run required vector matrix
+        run: python tools/conformance/run.py --report evidence/conformance.json
+      - name: Upload conformance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-evidence
+          path: evidence/conformance.json
+          if-no-files-found: error
+
+  docs:
+    name: Documentation and tracker contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run documentation checks
+        run: python tools/ci/check_docs.py
+      - name: Generate exhaustive implementation tracker
+        run: python tools/implementation/generate_tracker.py --output evidence/implementation-tracker.json
+      - name: Upload implementation inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: implementation-tracker
+          path: evidence/implementation-tracker.json
+          if-no-files-found: error
+
+  required:
+    name: Required checks
+    if: always()
+    needs: [dco, contract-plane, rust, python, go, typescript, conformance, docs]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce all required jobs
+        env:
+          DCO: ${{ needs.dco.result }}
+          CONTRACT_PLANE: ${{ needs.contract-plane.result }}
+          RUST: ${{ needs.rust.result }}
+          PYTHON: ${{ needs.python.result }}
+          GO: ${{ needs.go.result }}
+          TYPESCRIPT: ${{ needs.typescript.result }}
+          CONFORMANCE: ${{ needs.conformance.result }}
+          DOCS: ${{ needs.docs.result }}
+        run: |
+          for result in "$DCO" "$CONTRACT_PLANE" "$RUST" "$PYTHON" "$GO" "$TYPESCRIPT" "$CONFORMANCE" "$DOCS"; do
+            test "$result" = "success"
+          done

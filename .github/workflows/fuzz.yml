@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: aumos/rust/trust-core
+        working-directory: rust/trust-core
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -26,7 +26,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: aumos/rust
+          workspaces: rust
       - name: Install cargo-fuzz
         run: cargo +nightly install cargo-fuzz --locked || echo "cargo-fuzz cached"
       - name: Initialize fuzz targets (idempotent)
@@ -44,7 +44,7 @@ jobs:
           [ -f fuzz/fuzz_targets/canonical_cbor.rs ] || cat > fuzz/fuzz_targets/canonical_cbor.rs <<'EOF'
           #![no_main]
           use libfuzzer_sys::fuzz_target;
-          use aumos_trust_core::canonical::canonical_cbor;
+          use warrantor_trust_core::canonical::canonical_cbor;
 
           fuzz_target!(|data: &[u8]| {
               // Try to interpret the fuzz input as a CBOR value; canonical_cbor must not panic
@@ -62,5 +62,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fuzz-corpus
-          path: aumos/rust/trust-core/fuzz/artifacts/
+          path: rust/trust-core/fuzz/artifacts/
           if-no-files-found: ignore

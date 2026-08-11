@@ -1,5 +1,5 @@
 [project]
-name = "aumos-agentsec-lab"
+name = "warrantor-agentsec-lab"
 version = "1.0.0"
 description = "A5 — adversarial benchmark framework for AI agents (rotating holdouts, maintainer-first disclosure)"
 readme = "README.md"

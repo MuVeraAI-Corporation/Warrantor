@@ -1,16 +1,21 @@
 [workspace]
 resolver = "2"
 members = [
-    "aumos-api",
+    "warrantor-api",
     "authority-spec",
     "trust-core",
     "defstack-cli",
     "nvtrust-bridge",
     "eval-guard",
     "kill-switch",
+    "policy-bridge",
+    "protocol-contracts",
     "credential-vault",
     "flight-recorder",
+    "gguf-ext",
     "safe-tensors-pp",
+    "sandbox-runtime",
+    "secure-workspace",
     "provena-chain",
     "inference-proxy",
     "confidential-fabric",
@@ -19,6 +24,7 @@ members = [
 ]
 exclude = [
     "trust-core/fuzz",  # nested cargo-fuzz workspace (own [workspace] table)
+    "gguf-ext/fuzz",    # bounded parser/profile fuzz workspace
 ]
 
 [workspace.package]

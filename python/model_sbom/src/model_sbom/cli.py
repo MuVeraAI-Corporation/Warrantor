@@ -15,20 +15,38 @@ from model_sbom import Dependency, ModelInfo, SbomFormat, SbomInput, generate
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="model-sbom", description="Generate a Model SBOM (CycloneDX or SPDX with AI extensions).")
+    p = argparse.ArgumentParser(
+        prog="model-sbom",
+        description="Generate a Model SBOM (CycloneDX or SPDX with AI extensions).",
+    )
     p.add_argument("--name", required=True, help="Model name.")
-    p.add_argument("--architecture", required=True, help="Model architecture (e.g. transformer-decoder).")
+    p.add_argument(
+        "--architecture", required=True, help="Model architecture (e.g. transformer-decoder)."
+    )
     p.add_argument("--parameters", required=True, type=int, help="Total parameter count.")
-    p.add_argument("--training-data", action="append", default=[], help="Training dataset URI (repeatable).")
+    p.add_argument(
+        "--training-data", action="append", default=[], help="Training dataset URI (repeatable)."
+    )
     p.add_argument("--base-model", default=None, help="Parent model URI (for fine-tunes).")
-    p.add_argument("--evaluations", action="append", default=[], help="Evaluation reference (repeatable).")
+    p.add_argument(
+        "--evaluations", action="append", default=[], help="Evaluation reference (repeatable)."
+    )
     p.add_argument("--license", default=None, help="SPDX license identifier.")
     p.add_argument("--digest", default=None, help="Content digest of the weights (sha256 hex).")
-    p.add_argument("--supplier", default="did:web:aumos.dev", help="Supplier identity.")
-    p.add_argument("--format", choices=[f.value for f in SbomFormat], default=SbomFormat.CYCLONEDX.value,
-                   help="SBOM format (default: cyclonedx).")
-    p.add_argument("--dep", action="append", default=[], metavar="NAME@VERSION",
-                   help="Software dependency (repeatable; format NAME@VERSION).")
+    p.add_argument("--supplier", default="did:web:muveraai.com", help="Supplier identity.")
+    p.add_argument(
+        "--format",
+        choices=[f.value for f in SbomFormat],
+        default=SbomFormat.CYCLONEDX.value,
+        help="SBOM format (default: cyclonedx).",
+    )
+    p.add_argument(
+        "--dep",
+        action="append",
+        default=[],
+        metavar="NAME@VERSION",
+        help="Software dependency (repeatable; format NAME@VERSION).",
+    )
     args = p.parse_args(argv)
 
     deps: list[Dependency] = []

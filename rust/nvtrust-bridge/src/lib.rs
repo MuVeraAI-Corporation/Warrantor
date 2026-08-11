@@ -1,4 +1,4 @@
-//! # aumos-nvtrust-bridge
+//! # warrantor-nvtrust-bridge
 //!
 //! Bindings to NVIDIA NVTrust (GPU attestation), with a Mock backend for CI.
 //!
@@ -11,11 +11,11 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
-use aumos_api::attestation::v1::GpuAttestationReport;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use warrantor_api::attestation::v1::GpuAttestationReport;
 
-/// A GPU attestation report. The proto-canonical view (aumos_api::attestation::v1::GpuAttestationReport)
+/// A GPU attestation report. The proto-canonical view (warrantor_api::attestation::v1::GpuAttestationReport)
 /// is the wire type; this is the AumOS-side ergonomic wrapper.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AttestationReport {
@@ -132,7 +132,7 @@ impl NvTrustBackend for MockBackend {
         Ok(AttestationReport {
             gpu_model: self.gpu_model.clone(),
             // Deterministic mock attestation; NOT real GPU bytes.
-            attestation_bytes: b"aumos-mock-attestation".to_vec(),
+            attestation_bytes: b"warrantor-mock-attestation".to_vec(),
             nonce,
         })
     }
@@ -147,7 +147,7 @@ impl NvTrustBackend for MockBackend {
         if report.nonce != challenge_nonce {
             return Err(AttestationError::VerifyFailed);
         }
-        if report.attestation_bytes == b"aumos-mock-attestation" {
+        if report.attestation_bytes == b"warrantor-mock-attestation" {
             Ok(())
         } else {
             Err(AttestationError::VerifyFailed)
@@ -183,7 +183,7 @@ mod tests {
     fn proto_round_trip_preserves_fields() {
         let report = AttestationReport {
             gpu_model: "mock-H100".into(),
-            attestation_bytes: b"aumos-mock".to_vec(),
+            attestation_bytes: b"warrantor-mock".to_vec(),
             nonce: [7u8; 16],
         };
         let proto = report.to_proto();
@@ -211,7 +211,7 @@ mod tests {
         // will consume via PyO3). This locks the shape so any breaking proto change fails CI here.
         let r = GpuAttestationReport {
             gpu_model: "mock-H100".into(),
-            attestation_bytes: b"aumos-mock-attestation".to_vec(),
+            attestation_bytes: b"warrantor-mock-attestation".to_vec(),
             nonce: vec![42u8; 16],
             ..Default::default()
         };

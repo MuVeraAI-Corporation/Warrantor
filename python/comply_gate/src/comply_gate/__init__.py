@@ -19,9 +19,10 @@ See ``docs/rfcs/A4-comply-gate.md``.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +317,9 @@ class OverrideError(Exception):
     """Raised when an override is invalid."""
 
 
-def apply_override(result: GateResult, override: Override, require_approvers: int = 2) -> GateResult:
+def apply_override(
+    result: GateResult, override: Override, require_approvers: int = 2
+) -> GateResult:
     """Apply ``override`` to ``result`` if it is valid.
 
     An override is valid iff the gate is failing, the reason is non-empty, and

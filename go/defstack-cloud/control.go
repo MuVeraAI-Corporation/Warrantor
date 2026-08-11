@@ -45,10 +45,10 @@ func AllPlans() []Plan {
 type SLATier string
 
 const (
-	SLANone             SLATier = "none"
-	SLAStandard         SLATier = "standard"
-	SLAPremium          SLATier = "premium"
-	SLAMissionCritical  SLATier = "mission_critical"
+	SLANone            SLATier = "none"
+	SLAStandard        SLATier = "standard"
+	SLAPremium         SLATier = "premium"
+	SLAMissionCritical SLATier = "mission_critical"
 )
 
 // Errors returned by this package.
@@ -149,11 +149,11 @@ func NewControlPlane(cfg ControlPlaneConfig) *ControlPlane {
 		now = time.Now
 	}
 	return &ControlPlane{
-		tenants:            map[string]*Tenant{},
-		tenantAllocations:  map[string]map[string]struct{}{},
-		gpuOwner:           map[string]string{},
-		gpuPool:            append([]string(nil), cfg.GPUs...),
-		clock:              now,
+		tenants:           map[string]*Tenant{},
+		tenantAllocations: map[string]map[string]struct{}{},
+		gpuOwner:          map[string]string{},
+		gpuPool:           append([]string(nil), cfg.GPUs...),
+		clock:             now,
 	}
 }
 

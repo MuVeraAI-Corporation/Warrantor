@@ -17,7 +17,7 @@ Read it first.
 
 ## Component-specific context
 
-Three layers: Policy (OPA Rego, evaluated via regorus crate), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API stub for the AI Kill Switch Act (H.R. 2026). Wave-1 uses the mock I1 from proto/aumos/identity/v1/agent.proto.
+Three layers: Policy (OPA Rego, evaluated via regorus crate), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API stub for the AI Kill Switch Act (H.R. 2026). Wave-1 uses the mock I1 from proto/warrantor/identity/v1/agent.proto.
 
 ## Dependencies
 

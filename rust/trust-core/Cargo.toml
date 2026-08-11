@@ -1,5 +1,5 @@
 [package]
-name = "aumos-trust-core"
+name = "warrantor-trust-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "The single authoritative implementation of every security invariant in AumOS"
 
 [lib]
-name = "aumos_trust_core"
+name = "warrantor_trust_core"
 path = "src/lib.rs"
 
 [[bin]]
@@ -26,7 +26,7 @@ rand = "0.8"
 sha2 = "0.10"
 hex = "0.4"
 base64 = "0.22"
-aumos-api = { path = "../aumos-api" }
+warrantor-api = { path = "../warrantor-api" }
 
 [dev-dependencies]
 proptest = "1"

@@ -21,7 +21,7 @@ RUN apt-get update \
 WORKDIR /app
 
 # Copy the entire workspace so Cargo can resolve path dependencies
-# (aumos-api, etc.) and the shared Cargo.lock.
+# (warrantor-api, etc.) and the shared Cargo.lock.
 COPY . .
 
 # Build only the trust-core binary. `--bin` avoids compiling every example/bin

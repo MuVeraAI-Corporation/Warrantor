@@ -6,14 +6,14 @@ import json
 
 import pytest
 
-from model_sbom import Dependency, ModelInfo, SbomFormat, SbomInput, generate, to_cyclonedx, to_spdx
+from model_sbom import Dependency, ModelInfo, SbomInput, generate, to_cyclonedx, to_spdx
 from model_sbom.cli import main
 
 
 def sample_input() -> SbomInput:
     return SbomInput(
         model=ModelInfo(
-            name="aumos-7b",
+            name="warrantor-7b",
             architecture="transformer-decoder",
             parameters=7_000_000_000,
             training_data=["dataset://pile", "dataset://c4"],
@@ -22,7 +22,10 @@ def sample_input() -> SbomInput:
             license="Apache-2.0",
             digest="abc123",
         ),
-        dependencies=[Dependency(name="transformers", version="4.40.0"), Dependency(name="tokenizers", version="0.19")],
+        dependencies=[
+            Dependency(name="transformers", version="4.40.0"),
+            Dependency(name="tokenizers", version="0.19"),
+        ],
     )
 
 
@@ -74,15 +77,24 @@ def test_generate_rejects_unknown_format() -> None:
 
 
 def test_cli_emits_cyclonedx_json(capsys: pytest.CaptureFixture[str]) -> None:
-    rc = main([
-        "--name", "test-model",
-        "--architecture", "mlp",
-        "--parameters", "1000",
-        "--training-data", "dataset://x",
-        "--license", "MIT",
-        "--dep", "torch@2.3.0",
-        "--format", "cyclonedx",
-    ])
+    rc = main(
+        [
+            "--name",
+            "test-model",
+            "--architecture",
+            "mlp",
+            "--parameters",
+            "1000",
+            "--training-data",
+            "dataset://x",
+            "--license",
+            "MIT",
+            "--dep",
+            "torch@2.3.0",
+            "--format",
+            "cyclonedx",
+        ]
+    )
     assert rc == 0
     out = capsys.readouterr().out
     sbom = json.loads(out)
@@ -91,10 +103,18 @@ def test_cli_emits_cyclonedx_json(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_cli_rejects_bad_dep_format(capsys: pytest.CaptureFixture[str]) -> None:
-    rc = main([
-        "--name", "x", "--architecture", "x", "--parameters", "1",
-        "--dep", "no-version-suffix",
-    ])
+    rc = main(
+        [
+            "--name",
+            "x",
+            "--architecture",
+            "x",
+            "--parameters",
+            "1",
+            "--dep",
+            "no-version-suffix",
+        ]
+    )
     assert rc == 2
     err = capsys.readouterr().err
     assert "NAME@VERSION" in err

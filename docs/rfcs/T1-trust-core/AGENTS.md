@@ -23,7 +23,7 @@ What **not** to do when building T1 trust-core. Each entry has bitten someone be
 
 ## Wire format
 
-- ❌ **Don't** hand-write protobuf messages — generate from `proto/aumos/trust/v1/*.proto` via `buf
+- ❌ **Don't** hand-write protobuf messages — generate from `proto/warrantor/trust/v1/*.proto` via `buf
   generate`.
 - ❌ **Don't** introduce a fourth protocol tier (only internal gRPC, external REST, async CloudEvents
   are allowed).

@@ -1,0 +1,61 @@
+{
+  "id": "P5-negative-schema-001",
+  "category": "negative",
+  "protocol": "P5",
+  "expected": "invalid",
+  "expected_error": "PAYLOAD_SCHEMA",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P5",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000005",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "a31be79cea35b9b5a7d7c95eb9cf023190394bf1594a8cef592c8d9fc15f0670",
+    "payload": {
+      "name": "approved-search",
+      "package": {
+        "uri": "oci://registry.example.org/aumos/skill-package:1.0.0",
+        "digest": "sha256:fc81e624f5d7676302ae52833fae162cfa15caca72898595a7b4de26144d5a98",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "instructions_digest": "sha256:04283496546f1b0b9e34af36503c4c9e0891712575429c949ea0cd22c7830b4b",
+      "code": {
+        "uri": "oci://registry.example.org/aumos/skill-code:1.0.0",
+        "digest": "sha256:d838b20ce46cb8e59b52b0e5de4eca59fa97ae09a9d4e3cda1942aae394427ec",
+        "media_type": "application/wasm",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "runtime": "wasm",
+      "tools": [
+        "search"
+      ],
+      "permissions": [
+        "net:search.example.org"
+      ],
+      "publisher_identity": "spiffe://example.org/publisher/security",
+      "evaluation_bundle": {
+        "uri": "oci://registry.example.org/aumos/skill-eval:1.0.0",
+        "digest": "sha256:f195433408961092513037d729518fec4e88dc915e9e90613dd35ada4846d37b",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "limitations": [
+        "approved corpus only"
+      ],
+      "revocation_handle": "urn:aumos:revoke:ssp-001"
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "cb0c45b427c178369feee3f343b98c3bce4d09b225dd3d5ac5c41f8af0a3b45fb0d3d5c4a2bc52f85dc0aff6e567cbab85585f71bdffcb6473a655d1b451eb0e"
+    }
+  }
+}

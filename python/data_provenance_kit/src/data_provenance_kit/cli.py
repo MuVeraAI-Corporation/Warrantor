@@ -15,7 +15,9 @@ def main(argv: list[str] | None = None) -> int:
         description="Load a JSONL dataset, compute a snapshot digest, and emit a lineage JSON-LD node.",
     )
     p.add_argument("--input", required=True, help="Path to JSONL file (one JSON object per line).")
-    p.add_argument("--source-type", choices=[s.value for s in SourceType], default=SourceType.LOCAL.value)
+    p.add_argument(
+        "--source-type", choices=[s.value for s in SourceType], default=SourceType.LOCAL.value
+    )
     p.add_argument("--source-uri", required=True, help="Source URI (e.g. hf_hub://dataset/c4).")
     p.add_argument("--operator", default="cli", help="Who/what loaded the dataset.")
     args = p.parse_args(argv)

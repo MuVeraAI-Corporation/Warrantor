@@ -1,3 +1,3 @@
-module aumos.dev/tenant-guard
+module muveraai.com/go/tenant-guard
 
 go 1.22

@@ -44,7 +44,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 import modal
 
-APP_NAME = "aumos-adversaria"
+APP_NAME = "warrantor-adversaria"
 
 MODEL_NAME = os.environ.get("AUMOS_MODAL_MODEL", "facebook/opt-1.3b")
 GPU_SPEC = os.environ.get("AUMOS_MODAL_GPU", "A10G")

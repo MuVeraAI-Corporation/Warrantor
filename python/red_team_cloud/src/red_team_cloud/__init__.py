@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import random
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Protocol
+from datetime import UTC, datetime
+from typing import Any, Protocol
 
 
 # ---------------------------------------------------------------------------
@@ -257,7 +258,7 @@ class JobRunner:
 
 def _epoch_clock() -> float:
     """A monotonic-ish clock returning epoch seconds (UTC)."""
-    return datetime.now(timezone.utc).timestamp()
+    return datetime.now(UTC).timestamp()
 
 
 # ---------------------------------------------------------------------------
@@ -278,7 +279,9 @@ class InProcessRunner:
         force_stub: bool = False,
     ) -> None:
         self._library = library
-        self._target_responder = target_responder or (lambda _p: "I can't comply with that request.")
+        self._target_responder = target_responder or (
+            lambda _p: "I can't comply with that request."
+        )
         self._adversaria = None if force_stub else _try_import_adversaria()
 
     def run(self, scenario_name: str, target_name: str) -> SuiteRunResult:
@@ -287,7 +290,7 @@ class InProcessRunner:
         if scenario is None:
             raise KeyError(f"unknown scenario: {scenario_name}")
         run_id = str(uuid.uuid4())
-        started_at = datetime.now(timezone.utc).isoformat()
+        started_at = datetime.now(UTC).isoformat()
         if self._adversaria is not None:
             return self._run_via_adversaria(scenario, target_name, run_id, started_at)
         return self._run_stub(scenario, target_name, run_id, started_at)
@@ -321,7 +324,9 @@ class InProcessRunner:
         for r in summary.results:
             records.append(
                 AttackResultRecord(
-                    attack_type=r.prompt.attack_type.value if hasattr(r.prompt, "attack_type") else "unknown",
+                    attack_type=r.prompt.attack_type.value
+                    if hasattr(r.prompt, "attack_type")
+                    else "unknown",
                     succeeded=r.succeeded,
                     severity=r.severity.value if hasattr(r, "severity") else "info",
                     detail=r.detail,
@@ -375,10 +380,10 @@ class InProcessRunner:
 def _try_import_adversaria() -> Any:
     """Import the A2 adversaria package if available, else return None."""
     try:
-        import adversaria  # type: ignore[import-not-found]  # noqa: F401
+        import adversaria  # type: ignore[import-not-found]
 
         return adversaria
-    except Exception:  # noqa: BLE001 - any import failure means stub mode
+    except Exception:
         return None
 
 

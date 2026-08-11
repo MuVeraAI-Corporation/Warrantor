@@ -74,9 +74,7 @@ def test_report_round_trips_through_dict() -> None:
 
 def test_from_dict_rejects_bad_nonce_length() -> None:
     with pytest.raises(ValueError, match="nonce must be 16 bytes"):
-        AttestationReport.from_dict(
-            {"gpu_model": "x", "attestation_bytes": [], "nonce": [0, 1, 2]}
-        )
+        AttestationReport.from_dict({"gpu_model": "x", "attestation_bytes": [], "nonce": [0, 1, 2]})
 
 
 def test_interop_with_rust_cli_json_shape() -> None:
@@ -89,7 +87,7 @@ def test_interop_with_rust_cli_json_shape() -> None:
     rust_json = json.dumps(
         {
             "gpu_model": "mock-H100",
-            "attestation_bytes": list(b"aumos-mock-attestation"),
+            "attestation_bytes": list(b"warrantor-mock-attestation"),
             "nonce": list(bytes(range(16))),
         }
     )
@@ -106,7 +104,7 @@ def test_attest_rejects_wrong_nonce_length() -> None:
 def test_verify_with_challenge_accepts_matching_nonce_c4() -> None:
     # C4: a report verified against the same challenge nonce it was issued with must verify.
     backend = MockBackend()
-    challenge = b"\x0A" * 16
+    challenge = b"\x0a" * 16
     report = backend.attest(challenge)
     backend.verify_with_challenge(report, challenge)  # no raise
 
@@ -140,7 +138,7 @@ def test_interop_rust_json_report_rejects_mismatched_challenge_c4() -> None:
     rust_json = json.dumps(
         {
             "gpu_model": "mock-H100",
-            "attestation_bytes": list(b"aumos-mock-attestation"),
+            "attestation_bytes": list(b"warrantor-mock-attestation"),
             "nonce": list(bytes(range(16))),
         }
     )
@@ -148,4 +146,4 @@ def test_interop_rust_json_report_rejects_mismatched_challenge_c4() -> None:
     backend = MockBackend()
     backend.verify_with_challenge(report, bytes(range(16)))  # matches → ok
     with pytest.raises(ValueError, match="nonce mismatch"):
-        backend.verify_with_challenge(report, b"\xFF" * 16)
+        backend.verify_with_challenge(report, b"\xff" * 16)

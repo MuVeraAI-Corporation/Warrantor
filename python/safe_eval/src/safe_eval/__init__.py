@@ -14,12 +14,11 @@ See ``docs/rfcs/A1-safe-eval.md``.
 
 from __future__ import annotations
 
-import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 
 class StageType(str, Enum):
@@ -118,7 +117,9 @@ class _BenchmarksAdapter:
             stage_type=StageType.BENCHMARKS,
             adapter=self.name,
             metrics=[
-                Metric(name=f"{suite}.accuracy", value=config.get("mock_accuracy", 0.75), unit="score"),
+                Metric(
+                    name=f"{suite}.accuracy", value=config.get("mock_accuracy", 0.75), unit="score"
+                ),
                 Metric(name=f"{suite}.f1", value=config.get("mock_f1", 0.72), unit="score"),
             ],
             raw_output={"suite": suite, "target": target},
@@ -138,7 +139,9 @@ class _AdversarialAdapter:
             stage_type=StageType.ADVERSARIAL,
             adapter=self.name,
             metrics=[
-                Metric(name="attack_success_rate", value=asr, unit="%", detail=f"attacks={attacks}"),
+                Metric(
+                    name="attack_success_rate", value=asr, unit="%", detail=f"attacks={attacks}"
+                ),
                 Metric(name="attacks_run", value=float(len(attacks)), unit="count"),
             ],
             raw_output={"attacks": attacks, "target": target},
@@ -155,8 +158,12 @@ class _SafetyAdapter:
             stage_type=StageType.SAFETY,
             adapter=self.name,
             metrics=[
-                Metric(name="safety.toxicity_rate", value=config.get("mock_toxicity", 0.02), unit="%"),
-                Metric(name="safety.refusal_rate", value=config.get("mock_refusal", 0.95), unit="%"),
+                Metric(
+                    name="safety.toxicity_rate", value=config.get("mock_toxicity", 0.02), unit="%"
+                ),
+                Metric(
+                    name="safety.refusal_rate", value=config.get("mock_refusal", 0.95), unit="%"
+                ),
             ],
             raw_output={"target": target},
         )
@@ -189,15 +196,25 @@ class _RedTeamAdapter:
             stage_type=StageType.RED_TEAM,
             adapter=self.name,
             metrics=[
-                Metric(name="red_team.findings", value=config.get("mock_findings", 3.0), unit="count"),
-                Metric(name="red_team.severity_high", value=config.get("mock_high", 1.0), unit="count"),
+                Metric(
+                    name="red_team.findings", value=config.get("mock_findings", 3.0), unit="count"
+                ),
+                Metric(
+                    name="red_team.severity_high", value=config.get("mock_high", 1.0), unit="count"
+                ),
             ],
             raw_output={"target": target},
         )
 
 
 def _register_builtins() -> None:
-    for a in (_BenchmarksAdapter(), _AdversarialAdapter(), _SafetyAdapter(), _BiasAdapter(), _RedTeamAdapter()):
+    for a in (
+        _BenchmarksAdapter(),
+        _AdversarialAdapter(),
+        _SafetyAdapter(),
+        _BiasAdapter(),
+        _RedTeamAdapter(),
+    ):
         if a.name not in _ADAPTERS:
             register_adapter(a)
 
@@ -206,7 +223,7 @@ _register_builtins()
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @dataclass
@@ -276,7 +293,7 @@ def run_pipeline(spec: PipelineSpec) -> PipelineResult:
             # Ensure the stage_type matches the spec (adapters may not know their stage).
             res.stage_type = stage.type
             result.stages.append(res)
-        except Exception as e:  # noqa: BLE001 — don't let one bad adapter abort the pipeline
+        except Exception as e:
             result.stages.append(
                 StageResult(
                     stage_type=stage.type,
@@ -315,7 +332,9 @@ def parse_pipeline_yaml(text: str) -> PipelineSpec:
     try:
         import yaml
     except ImportError as e:
-        raise RuntimeError("pyyaml is required to parse pipeline YAML; install with [yaml] extra") from e
+        raise RuntimeError(
+            "pyyaml is required to parse pipeline YAML; install with [yaml] extra"
+        ) from e
     doc = yaml.safe_load(text)
     if not isinstance(doc, dict):
         raise ValueError("pipeline YAML root must be a mapping")

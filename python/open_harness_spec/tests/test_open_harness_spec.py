@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any
-
-import pytest
 
 from open_harness_spec import (
     SPEC_VERSION,
     AttestationReport,
     ConformanceChecker,
-    ConformanceResult,
     DefaultAuditEvent,
     EvalResult,
     PermissionDecision,
@@ -28,7 +24,7 @@ class ReferenceHarness:
         self._ident_attrs = {
             "agent_id": "agent-1",
             "workload_id": "w-1",
-            "spiffe_id": "spiffe://aumos.dev/agent/1",
+            "spiffe_id": "spiffe://muveraai.com/agent/1",
             "attributes": {"clearance": "3"},
         }
 
@@ -60,9 +56,7 @@ class ReferenceHarness:
 
     # AuditEvent
     def last_event(self) -> DefaultAuditEvent:
-        return DefaultAuditEvent(
-            agent_id=self.agent_id, action="x", resource="r", outcome="allow"
-        )
+        return DefaultAuditEvent(agent_id=self.agent_id, action="x", resource="r", outcome="allow")
 
     # These are present as attributes so the duck-type checker is happy.
     @property
@@ -123,7 +117,7 @@ def test_reports_missing_attributes_with_detail() -> None:
     assert not result.conforms
     assert len(result.failures) == 5
     # find the AgentIdentity failure and check the reason lists missing attrs
-    ai = [c for c in result.checks if c[0] == "AgentIdentity"][0]
+    ai = next(check for check in result.checks if check[0] == "AgentIdentity")
     assert not ai[1]
     assert "agent_id" in ai[2]
 

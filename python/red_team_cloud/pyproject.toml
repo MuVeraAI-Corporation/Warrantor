@@ -1,5 +1,5 @@
 [project]
-name = "aumos-red-team-cloud"
+name = "warrantor-red-team-cloud"
 version = "1.0.0"
 description = "A7 — continuous adversarial simulation service (scheduled job runner wrapping A2 AttackSuite)"
 readme = "README.md"

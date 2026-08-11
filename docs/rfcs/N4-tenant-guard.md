@@ -36,7 +36,7 @@ Implementation language(s): Go (gated). The component consumes the contract plan
 (`proto/`, `specs/`, `testvectors/`) and depends on: I1, N1.
 
 Detailed per-message and per-RPC design will be expanded in this section during the component's
-Wave sprint (MVP week 2 → v1.0 week 8). The contract definitions land in `proto/aumos/<service>/v1/`
+Wave sprint (MVP week 2 → v1.0 week 8). The contract definitions land in `proto/warrantor/<service>/v1/`
 and `specs/` first; this RFC section references them.
 
 **Dependency note:** where N4 depends on a Wave-2+ component not yet shipped (e.g. I1
@@ -62,7 +62,7 @@ The 12 formal invariants (I-01…​I-12) that this component must satisfy are l
 
 ## API
 
-Public surface (CLI, gRPC service, library) is defined in `proto/aumos/<service>/v1/<name>.proto`
+Public surface (CLI, gRPC service, library) is defined in `proto/warrantor/<service>/v1/<name>.proto`
 and exposed via generated bindings (Rust/Python/TypeScript/Go) per
 `docs/cross-cutting/19-inter-component-protocol.md`. CLI subcommands follow the
 `<component> <verb> --flag` convention.

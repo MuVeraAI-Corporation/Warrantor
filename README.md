@@ -17,7 +17,7 @@ project folder:
 
 The four portfolios describe the **same mission** (build the open authority/evidence/enforcement layer
 that AI agents cannot bypass) at four different granularities. AumOS merges them into **one canonical
-catalog of ~38 components** with no duplicate effort. See
+catalog of 54 implementable components plus 12 protocol specifications** with no duplicate effort. See
 [`docs/00-reconciliation-matrix.md`](docs/00-reconciliation-matrix.md) for the full provenance map.
 
 ---
@@ -108,7 +108,8 @@ make docs            # render/check docs
 ```
 
 AumOS is designed to build/test with **one top-level command** regardless of how many languages are
-present. Missing toolchains are detected and skipped, not failed.
+present. Required toolchains, an empty project inventory, and failed checks are fail-closed; they
+are never reported as a skipped green gate.
 
 ---
 
@@ -146,5 +147,9 @@ milestones, success metrics, and the 3-war-horizon framing.
 
 ## Status
 
-**Phase 0 (docs + scaffolding) in progress.** No Wave-1 component has shipped v1.0 yet. See
-[`docs/decisions/`](docs/decisions/) for ADRs and the active todo list for current progress.
+The canonical catalogue currently records source-and-test reference implementations for all 54
+implementable components and draft specifications for P1–P12. This is a source-presence boundary,
+not a v1.0, deployment, interoperability, or production-readiness claim. Current findings, release
+gates, evidence paths, and unclosed work are generated in
+[`docs/implementation/tracker.json`](docs/implementation/tracker.json) from the canonical catalogue
+and tracker state.

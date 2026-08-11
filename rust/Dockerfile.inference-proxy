@@ -20,7 +20,7 @@ COPY . .
 
 # 1. Compile the inference-proxy library. `-p` scopes the build to this crate
 #    (and its path-deps); a successful build proves the source is sound.
-RUN cargo build --release -p aumos-inference-proxy
+RUN cargo build --release -p warrantor-inference-proxy
 
 # 2. Build a tiny, dependency-free health server that reports liveness.
 #    Written to /tmp so it never pollutes the workspace source tree.

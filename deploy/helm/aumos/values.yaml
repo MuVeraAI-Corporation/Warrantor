@@ -3,7 +3,7 @@
 
 # ─── Global ──────────────────────────────────────────────────────────────────
 global:
-  trustDomain: aumos.dev
+  trustDomain: muveraai.com
   imageRegistry: ""  # Set to your registry (e.g. ghcr.io/muverai)
   imagePullPolicy: IfNotPresent
   logLevel: info
@@ -15,7 +15,7 @@ global:
 # ─── Trust Core (Rust) ──────────────────────────────────────────────────────
 trustCore:
   enabled: true
-  image: aumos-trust-core:1.0.0
+  image: warrantor-trust-core:1.0.0
   replicas: 2
   resources:
     requests: { cpu: 100m, memory: 128Mi }
@@ -24,7 +24,7 @@ trustCore:
 # ─── Agent Identity (Go) ────────────────────────────────────────────────────
 agentIdentity:
   enabled: true
-  image: aumos-agent-identity:1.0.0
+  image: warrantor-agent-identity:1.0.0
   replicas: 3
   service:
     port: 8441
@@ -35,67 +35,91 @@ agentIdentity:
 # ─── Open Serve Kit (Go) ────────────────────────────────────────────────────
 openServeKit:
   enabled: true
-  image: aumos-open-serve-kit:1.0.0
+  image: warrantor-open-serve-kit:1.0.0
   replicas: 2
   service:
     port: 8443
   backend: mock  # or vllm, triton, ollama
   backendUrl: ""
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { cpu: 1000m, memory: 1Gi }
 
 # ─── Inference Proxy (Rust) ─────────────────────────────────────────────────
 inferenceProxy:
   enabled: true
-  image: aumos-inference-proxy:1.0.0
+  image: warrantor-inference-proxy:1.0.0
   replicas: 2
   service:
     port: 8444
+  resources:
+    requests: { cpu: 200m, memory: 128Mi }
+    limits: { cpu: 1000m, memory: 512Mi }
 
 # ─── Flight Recorder (Rust) ─────────────────────────────────────────────────
 flightRecorder:
   enabled: true
-  image: aumos-flight-recorder:1.0.0
+  image: warrantor-flight-recorder:1.0.0
   replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
 
 # ─── Kill Switch (Rust) ─────────────────────────────────────────────────────
 killSwitch:
   enabled: true
-  image: aumos-kill-switch:1.0.0
+  image: warrantor-kill-switch:1.0.0
   replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 256Mi }
 
 # ─── Credential Vault (Rust) ────────────────────────────────────────────────
 credentialVault:
   enabled: true
-  image: aumos-credential-vault:1.0.0
+  image: warrantor-credential-vault:1.0.0
   replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
 
 # ─── Tee Serve (Go) ─────────────────────────────────────────────────────────
 teeServe:
   enabled: false  # Enable when confidential computing is available
-  image: aumos-tee-serve:1.0.0
+  image: warrantor-tee-serve:1.0.0
 
 # ─── Tenant Guard (Go) ──────────────────────────────────────────────────────
 tenantGuard:
   enabled: true
-  image: aumos-tenant-guard:1.0.0
+  image: warrantor-tenant-guard:1.0.0
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 300m, memory: 256Mi }
 
 # ─── Fleet Marshal (Go) ─────────────────────────────────────────────────────
 fleetMarshal:
   enabled: true
-  image: aumos-fleet-marshal:1.0.0
+  image: warrantor-fleet-marshal:1.0.0
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 300m, memory: 256Mi }
 
 # ─── Edge Sentinel (Go) ─────────────────────────────────────────────────────
 edgeSentinel:
   enabled: false  # Deploy on edge nodes, not in cluster
-  image: aumos-edge-sentinel:1.0.0
+  image: warrantor-edge-sentinel:1.0.0
 
 # ─── Console (TypeScript) ───────────────────────────────────────────────────
 console:
   enabled: true
-  image: aumos-console:1.0.0
+  image: warrantor-console:1.0.0
   replicas: 2
   service:
     port: 3000
     type: ClusterIP  # Use LoadBalancer for external access
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
 
 # ─── Persistence ────────────────────────────────────────────────────────────
 persistence:
@@ -105,6 +129,7 @@ persistence:
 
 # ─── Pod Disruption Budget ──────────────────────────────────────────────────
 pdb:
+  enabled: true
   minAvailable: 2
 
 # ─── Horizontal Pod Autoscaler ──────────────────────────────────────────────

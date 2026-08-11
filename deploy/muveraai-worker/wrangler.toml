@@ -1,0 +1,28 @@
+name = "muveraai-namespace"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+account_id = "1041b5513611a1f21fa2ac3fe28aa589"
+
+# ROUTES ARE THE SAFETY BOUNDARY.
+#
+# muveraai.com is a live production site. These two patterns are the ONLY paths
+# this Worker is attached to, and both returned 404 from the origin before it
+# existed (verified and fingerprinted in .domain-baseline/baseline.json).
+#
+# Do NOT add `muveraai.com/*`. A route on the bare domain would put this Worker
+# in front of the marketing site, the blog and every platform page, converting
+# any bug here into a full site outage. The four-field go-import meta tag exists
+# precisely so that Go never needs to fetch `muveraai.com/` -- see src/index.ts.
+#
+# Email is unaffected by any route: MX points at Google Workspace and SMTP never
+# traverses a Worker.
+[[routes]]
+pattern = "muveraai.com/go/*"
+zone_name = "muveraai.com"
+
+[[routes]]
+pattern = "muveraai.com/schemas/*"
+zone_name = "muveraai.com"
+
+[observability]
+enabled = true

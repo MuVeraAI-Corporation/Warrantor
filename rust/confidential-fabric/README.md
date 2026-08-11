@@ -1,4 +1,4 @@
-# aumos-confidential-fabric (C1-5)
+# warrantor-confidential-fabric (C1-5)
 
 The composite attestation fabric. Folds three independent attestation streams into a single
 `CompositeAttestation` and gates the release of model-wrapping keys behind a `KeyReleasePolicy`.
@@ -14,9 +14,9 @@ The composite attestation fabric. Folds three independent attestation streams in
 ## API
 
 ```rust
-use aumos_confidential_fabric::{Fabric, KeyReleasePolicy, ConfidentialContainer};
+use warrantor_confidential_fabric::{Fabric, KeyReleasePolicy, ConfidentialContainer};
 
-let fabric = Fabric::new("aumos.dev");
+let fabric = Fabric::new("muveraai.com");
 let composite = fabric.assemble(Some(gpu), runtime, agent, now);
 
 let policy = KeyReleasePolicy {

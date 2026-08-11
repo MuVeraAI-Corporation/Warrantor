@@ -35,7 +35,7 @@ fn sort_value(value: &mut CborValue) {
         CborValue::Map(map) => {
             // BTreeMap is already sorted by key (Value: Ord), so no explicit sort needed.
             // But we recurse into nested values to ensure they're also canonical.
-            for (_k, v) in map.iter_mut() {
+            for v in map.values_mut() {
                 sort_value(v);
             }
         }
@@ -63,9 +63,8 @@ fn sort_value(value: &mut CborValue) {
 /// Returns [`CanonicalError::Serialize`] if the value cannot be CBOR-encoded.
 pub fn canonical_cbor<T: Serialize>(value: &T) -> Result<Vec<u8>, CanonicalError> {
     // Step 1: serialize to an intermediate CBOR Value tree.
-    let mut cbor_value: CborValue = serde_cbor::from_slice(
-        &serde_cbor::to_vec(value)?
-    ).unwrap_or(CborValue::Null);
+    let mut cbor_value: CborValue =
+        serde_cbor::from_slice(&serde_cbor::to_vec(value)?).unwrap_or(CborValue::Null);
 
     // Step 2: recursively sort all map keys.
     sort_value(&mut cbor_value);
@@ -146,8 +145,14 @@ mod tests {
     #[test]
     fn nested_map_keys_sorted() {
         let outer: HashMap<String, HashMap<String, u64>> = HashMap::from([
-            ("outer2".to_string(), HashMap::from([("inner_b".to_string(), 2u64), ("inner_a".to_string(), 1u64)])),
-            ("outer1".to_string(), HashMap::from([("inner_d".to_string(), 4u64), ("inner_c".to_string(), 3u64)])),
+            (
+                "outer2".to_string(),
+                HashMap::from([("inner_b".to_string(), 2u64), ("inner_a".to_string(), 1u64)]),
+            ),
+            (
+                "outer1".to_string(),
+                HashMap::from([("inner_d".to_string(), 4u64), ("inner_c".to_string(), 3u64)]),
+            ),
         ]);
         let bytes = canonical_cbor(&outer).expect("encode");
         // The encoding should be stable regardless of HashMap order.

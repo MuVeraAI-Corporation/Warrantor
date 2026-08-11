@@ -34,7 +34,7 @@ RUN mkdir -p /srv && \
       "<title>AumOS Console</title><style>body{font-family:system-ui,sans-serif;background:#0b1020;color:#e6edf3;margin:0;padding:3rem;line-height:1.5}h1{margin-top:0}code{background:#1f2740;padding:.15em .4em;border-radius:4px}</style></head>" \
       "<body><h1>AumOS Console (X7)</h1>" \
       "<p>The enterprise policy &amp; evidence console. v1.0 ships the data model, API client, and view reducers as a TypeScript library.</p>" \
-      "<p>The React/Next.js UI layer is <em>task 03</em> and consumes <code>@aumos/console</code>.</p>" \
+      "<p>The React/Next.js UI layer is <em>task 03</em> and consumes <code>@warrantor/console</code>.</p>" \
       "<p>Health: <a href=\"/healthz\">/healthz</a></p></body></html>`;" \
       "const server = createServer((req, res) => {" \
       "  if (req.url === '/healthz') {" \

@@ -1,5 +1,5 @@
 [package]
-name = "aumos-eval-guard"
+name = "warrantor-eval-guard"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "Cryptographic sandbox boundary attestation (eBPF egress filter)"
 
 [lib]
-name = "aumos_eval_guard"
+name = "warrantor_eval_guard"
 path = "src/lib.rs"
 
 [[bin]]
@@ -22,7 +22,7 @@ clap.workspace = true
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand = "0.8"
 hex = "0.4"
-aumos-api = { path = "../aumos-api" }
+warrantor-api = { path = "../warrantor-api" }
 
 [dev-dependencies]
 proptest = "1"

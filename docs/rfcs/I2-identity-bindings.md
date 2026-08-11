@@ -7,7 +7,7 @@
 | **Canonical ID** | I2 |
 | **Name** | identity-bindings |
 | **Wave** | 2 |
-| **Languages** | Rust + Go adapter |
+| **Languages** | Go adapter (consumes T1/I1 identity contracts) |
 | **DefStack origin** | (folded into F2) |
 | **AumSecure origin** | spiffe-agent-identity (V2 W0) |
 | **Sentinel origin** | ztai-spiffe-bridge |
@@ -23,7 +23,9 @@ appears in the matrix entry and the originating source document (see
 
 ## Goals and Non-Goals
 
-**Goals:** SPIFFE/SPIRE binding layer. Rust signs; Go registers workloads via SPIRE WorkloadAPI.
+**Goals:** SPIFFE/SPIRE binding layer. Go registers validated workloads with SPIRE and obtains
+continuously maintained X.509-SVIDs from the Workload API. T1 remains the only signing-policy
+owner; I2 does not create a second identity or signature format.
 
 **Non-Goals:**
 - Reinventing mature standards (SPIFFE, OCSF, OTel, CycloneDX) — we extend, not fork.
@@ -32,55 +34,61 @@ appears in the matrix entry and the originating source document (see
 
 ## Detailed Design
 
-Implementation language(s): Rust + Go adapter. The component consumes the contract plane
-(`proto/`, `specs/`, `testvectors/`) and depends on: T1, I1.
+The reference implementation is [`go/identity-bindings`](../../go/identity-bindings). It has two
+independent, dependency-injected boundaries:
 
-Detailed per-message and per-RPC design will be expanded in this section during the component's
-Wave sprint (MVP week 2 → v1.0 week 8). The contract definitions land in `proto/aumos/<service>/v1/`
-and `specs/` first; this RFC section references them.
+1. `Registrar` validates a registration entry, renders one exact `spire-server entry create`
+   argument vector, invokes it without a shell, and accepts success only when the CLI returns a
+   non-empty entry ID. Parent/child SPIFFE IDs must share the configured trust domain. Selector
+   type/value pairs must be unique and free of command/control characters. TTL is bounded.
+2. `WorkloadSource` uses `github.com/spiffe/go-spiffe/v2/workloadapi` v2.8.1 to maintain an
+   X.509 source over the configured Workload API address. Retrieval rejects an empty chain,
+   missing URI SAN, wrong SPIFFE ID, future-dated leaf, expired leaf, and source ID mismatch.
 
-**Dependency note:** where I2 depends on a Wave-2+ component not yet shipped (e.g. I1
-agent-identity), Wave-1 code integrates against the **mock** defined in the relevant `proto/`
-file. The mock-to-real migration is a tracked task in the component's tasks/ directory.
+The default library has no success-shaped fallback. An unavailable SPIRE CLI or Workload API is
+an error. The CLI executor and Workload API source factory are injected so tests can assert exact
+arguments and outage behavior without claiming a live SPIRE deployment.
 
 ## Dependencies
 
-- **AumOS internal:** T1, I1
-- **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
-- **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
-  OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).
+- **AumOS internal:** T1 and I1 identity/authority contracts.
+- **External:** `go-spiffe/v2` v2.8.1 and the operator-installed `spire-server` CLI.
+- **Authoritative standards:** [SPIRE registration](https://spiffe.io/docs/latest/deploying/registering/),
+  [SPIRE server CLI](https://github.com/spiffe/spire/blob/main/doc/spire_server.md), and
+  [go-spiffe Workload API](https://pkg.go.dev/github.com/spiffe/go-spiffe/v2/workloadapi).
 
 ## Threat Model
 
-A full STRIDE analysis is produced during the component's Alpha sprint (week 4). Security-critical
-components (T-group, R-group, I-group, S6/R7 eBPF) get the full template per
-`docs/cross-cutting/` threat-model standard; non-security components get the condensed version.
-
-Cross-cutting threats and mitigations are summarized in [`02-architecture.md`](../02-architecture.md) §9.
-The 12 formal invariants (I-01…​I-12) that this component must satisfy are listed in
-`02-architecture.md` §3; the component's tests assert the relevant subset.
+| Threat | Enforced mitigation |
+|---|---|
+| CLI injection | Arguments are a slice passed directly to `exec.CommandContext`; no shell exists. |
+| Trust-domain escape | Parent and child IDs are parsed and compared to the configured domain. |
+| Selector ambiguity | Empty, duplicate, NUL, CR, and LF selector values are rejected. |
+| Stale credential | Leaf validity is checked against an injected trusted clock on every retrieval. |
+| Wrong identity | URI SAN and Workload API source ID must equal the requested SPIFFE ID. |
+| Control outage | Registration/source/retrieval errors propagate; no local credential is minted. |
 
 ## API
 
-Public surface (CLI, gRPC service, library) is defined in `proto/aumos/<service>/v1/<name>.proto`
-and exposed via generated bindings (Rust/Python/TypeScript/Go) per
-`docs/cross-cutting/19-inter-component-protocol.md`. CLI subcommands follow the
-`<component> <verb> --flag` convention.
+The Go package exports `BindingConfig`, `RegistrationEntry`, `ValidateRegistrationEntry`,
+`SPIRECLIRegistrar`, `WorkloadAPISource`, `IdentityCertificate`, and narrow interfaces for command
+execution/source construction. Every constructor validates the Workload API address and trust
+domain before external work.
 
 ## Testing
 
-- **Unit:** ≥85% coverage gate (per `docs/cross-cutting/18-developer-experience.md`).
-- **Golden vectors:** `testvectors/I2/` — exercised by the cross-language conformance suite (A6).
-- **Integration:** cross-component flows per `docs/cross-cutting/` integration-test standard.
-- **Fuzz:** required for crypto/parsing-heavy components (per fuzzing strategy cross-cutting).
-- **Performance:** budget listed in `02-architecture.md` §10 where applicable.
+- Unit tests exercise validation, exact SPIRE arguments, command failure/malformed output,
+  Workload API source construction, a real generated X.509-SVID chain, expiry, and ID mismatch.
+- Local acceptance: `go test ./...` and `go vet ./...` pass in `go/identity-bindings`.
+- Retained live-SPIRE integration evidence, coverage percentage, workload rotation timing, and
+  production trust-domain deployment remain release gates; local unit evidence is not that proof.
 
 ## Deployment
 
-If deployable (one of the 14 deployable components), ships with: Dockerfile, Helm chart, K8s
-manifest, OTel instrumentation stub, PDB (min available 2), HPA (min 3, max 10), topology spread.
-RTO/RPO per `docs/cross-cutting/16-disaster-recovery.md`. SLSA L3 build provenance; CycloneDX SBOM
-attached to release.
+I2 is a library/adapter deployed with the identity control plane. Operators provide the SPIRE
+server socket, Workload API address, trust domain, and CLI binary. This reference implementation
+does not by itself prove HA SPIRE deployment, node/workload attestation policy, rotation SLOs,
+revocation propagation, SBOM publication, or SLSA provenance.
 
 ## Milestones
 

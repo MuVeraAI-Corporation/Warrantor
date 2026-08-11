@@ -1,5 +1,5 @@
 [package]
-name = "aumos-credential-vault"
+name = "warrantor-credential-vault"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "Agent-scoped credential brokering — 15-min TTL, <1s revocation"
 
 [lib]
-name = "aumos_credential_vault"
+name = "warrantor_credential_vault"
 path = "src/lib.rs"
 
 [[bin]]

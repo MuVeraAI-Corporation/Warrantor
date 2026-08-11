@@ -1,0 +1,2479 @@
+{
+  "meta": {
+    "title": "AumOS Curated Reading List — Highest-Quality Blogs, Specs & Deep Technical Articles",
+    "version": "1.0.0",
+    "generated": "2026-08-09",
+    "portfolio_truth": [
+      "aumos/docs/01-vision-and-portfolio.md",
+      "aumos/docs/00-reconciliation-matrix.md",
+      "aumos/specs/protocols/README.md"
+    ],
+    "doctrine": "Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not SEO listicles. US/India/GCC regulatory anchors when compliance appears."
+  },
+  "components": {
+    "T1": {
+      "name": "trust-core",
+      "group": "trust",
+      "wave": "1"
+    },
+    "T2": {
+      "name": "authority-spec",
+      "group": "trust",
+      "wave": "2"
+    },
+    "I1": {
+      "name": "agent-identity",
+      "group": "identity",
+      "wave": "2"
+    },
+    "I2": {
+      "name": "identity-bindings",
+      "group": "identity",
+      "wave": "2"
+    },
+    "R1": {
+      "name": "secure-workspace",
+      "group": "runtime",
+      "wave": "1"
+    },
+    "R2": {
+      "name": "eval-guard",
+      "group": "runtime",
+      "wave": "1"
+    },
+    "R3": {
+      "name": "kill-switch",
+      "group": "runtime",
+      "wave": "1"
+    },
+    "R4": {
+      "name": "credential-vault",
+      "group": "runtime",
+      "wave": "1"
+    },
+    "R5": {
+      "name": "policy-compiler",
+      "group": "runtime",
+      "wave": "6"
+    },
+    "R6": {
+      "name": "policy-bridge",
+      "group": "runtime",
+      "wave": "2"
+    },
+    "R7": {
+      "name": "egress-filter",
+      "group": "runtime",
+      "wave": "6"
+    },
+    "R8": {
+      "name": "sandbox-runtime",
+      "group": "runtime",
+      "wave": "4"
+    },
+    "C1-1": {
+      "name": "nvtrust-bridge",
+      "group": "confidential",
+      "wave": "1"
+    },
+    "C1-2": {
+      "name": "cuda-gram",
+      "group": "confidential",
+      "wave": "1"
+    },
+    "C1-3": {
+      "name": "attesta-flow",
+      "group": "confidential",
+      "wave": "5"
+    },
+    "C1-4": {
+      "name": "tee-serve",
+      "group": "confidential",
+      "wave": "5"
+    },
+    "C1-5": {
+      "name": "confidential-fabric",
+      "group": "confidential",
+      "wave": "5"
+    },
+    "S1": {
+      "name": "safe-tensors-pp",
+      "group": "supply",
+      "wave": "2"
+    },
+    "S2": {
+      "name": "provena-chain",
+      "group": "supply",
+      "wave": "3"
+    },
+    "S3": {
+      "name": "gguf-ext",
+      "group": "supply",
+      "wave": "3"
+    },
+    "S4": {
+      "name": "model-sbom",
+      "group": "supply",
+      "wave": "2"
+    },
+    "S5": {
+      "name": "data-provenance-kit",
+      "group": "supply",
+      "wave": "3"
+    },
+    "S6": {
+      "name": "exfil-guard",
+      "group": "supply",
+      "wave": "6"
+    },
+    "S7": {
+      "name": "tamper-scan",
+      "group": "supply",
+      "wave": "3"
+    },
+    "S8": {
+      "name": "train-guard",
+      "group": "supply",
+      "wave": "3"
+    },
+    "S9": {
+      "name": "lightwell-bridge",
+      "group": "supply",
+      "wave": "6"
+    },
+    "A1": {
+      "name": "safe-eval",
+      "group": "eval",
+      "wave": "3"
+    },
+    "A2": {
+      "name": "adversaria",
+      "group": "eval",
+      "wave": "3"
+    },
+    "A3": {
+      "name": "bias-sentinel",
+      "group": "eval",
+      "wave": "6"
+    },
+    "A4": {
+      "name": "comply-gate",
+      "group": "eval",
+      "wave": "6"
+    },
+    "A5": {
+      "name": "agentsec-lab",
+      "group": "eval",
+      "wave": "2"
+    },
+    "A6": {
+      "name": "conformance",
+      "group": "eval",
+      "wave": "1"
+    },
+    "A7": {
+      "name": "red-team-cloud",
+      "group": "eval",
+      "wave": "6"
+    },
+    "A8": {
+      "name": "arena",
+      "group": "eval",
+      "wave": "7"
+    },
+    "N1": {
+      "name": "open-serve-kit",
+      "group": "inference",
+      "wave": "4"
+    },
+    "N2": {
+      "name": "bridge-rt",
+      "group": "inference",
+      "wave": "4"
+    },
+    "N3": {
+      "name": "inference-proxy",
+      "group": "inference",
+      "wave": "4"
+    },
+    "N4": {
+      "name": "tenant-guard",
+      "group": "inference",
+      "wave": "4"
+    },
+    "F1": {
+      "name": "fed-core",
+      "group": "federated",
+      "wave": "5"
+    },
+    "F2": {
+      "name": "dp-crate",
+      "group": "federated",
+      "wave": "5"
+    },
+    "F3": {
+      "name": "edge-sentinel",
+      "group": "federated",
+      "wave": "5"
+    },
+    "F4": {
+      "name": "fleet-marshal",
+      "group": "federated",
+      "wave": "5"
+    },
+    "X1": {
+      "name": "defstack-cli",
+      "group": "crosscut",
+      "wave": "1"
+    },
+    "X2": {
+      "name": "nooa-ext",
+      "group": "crosscut",
+      "wave": "6"
+    },
+    "X3": {
+      "name": "open-harness-spec",
+      "group": "crosscut",
+      "wave": "6"
+    },
+    "X4": {
+      "name": "crypto-audit-ai",
+      "group": "crosscut",
+      "wave": "6"
+    },
+    "X5": {
+      "name": "retro-spec-kit",
+      "group": "crosscut",
+      "wave": "6"
+    },
+    "X6": {
+      "name": "metr-bridge",
+      "group": "crosscut",
+      "wave": "6"
+    },
+    "X7": {
+      "name": "console",
+      "group": "crosscut",
+      "wave": "7"
+    },
+    "X8": {
+      "name": "mcp-gateway",
+      "group": "crosscut",
+      "wave": "2"
+    },
+    "X9": {
+      "name": "incident-exchange",
+      "group": "crosscut",
+      "wave": "6"
+    },
+    "X10": {
+      "name": "sovereign-stack",
+      "group": "crosscut",
+      "wave": "7"
+    },
+    "X11": {
+      "name": "defstack-cloud",
+      "group": "crosscut",
+      "wave": "7"
+    },
+    "E1": {
+      "name": "flight-recorder",
+      "group": "evidence",
+      "wave": "2"
+    }
+  },
+  "protocols": {
+    "P1": {
+      "name": "aae",
+      "spelled": "Agent Authority Envelope"
+    },
+    "P2": {
+      "name": "aar",
+      "spelled": "Agent Action Receipt"
+    },
+    "P3": {
+      "name": "cpe",
+      "spelled": "Context Provenance Envelope"
+    },
+    "P4": {
+      "name": "amil",
+      "spelled": "Agent Memory Integrity Ledger"
+    },
+    "P5": {
+      "name": "ssp",
+      "spelled": "Secure Skill Package"
+    },
+    "P6": {
+      "name": "aatm",
+      "spelled": "AI Artifact Trust Manifest"
+    },
+    "P7": {
+      "name": "abs",
+      "spelled": "Autonomy Budget Specification"
+    },
+    "P8": {
+      "name": "veb",
+      "spelled": "Verifiable Evaluation Bundle"
+    },
+    "P9": {
+      "name": "aix",
+      "spelled": "Agent Incident Exchange"
+    },
+    "P10": {
+      "name": "made",
+      "spelled": "Multi-Agent Delegation Exchange"
+    },
+    "P11": {
+      "name": "prb",
+      "spelled": "Proof-Carrying Remediation Bundle"
+    },
+    "P12": {
+      "name": "cap",
+      "spelled": "Capability Attestation Profile"
+    }
+  },
+  "entries": [
+    {
+      "id": "spiffe-home",
+      "title": "SPIFFE — Secure Production Identity Framework for Everyone",
+      "author": "SPIFFE / CNCF",
+      "url": "https://spiffe.io/",
+      "why": "Canonical primary standard for workload identity; AumOS I1/I2 profile SPIFFE IDs and SVIDs rather than inventing agent identity.",
+      "tags": [
+        "SPIFFE",
+        "SPIRE",
+        "zero-trust",
+        "workload-identity"
+      ],
+      "maps": [
+        "I1",
+        "I2",
+        "P1",
+        "P12",
+        "R4"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "identity"
+    },
+    {
+      "id": "spire-concepts",
+      "title": "SPIRE Concepts — Attestation, Agents, and Trust Domains",
+      "author": "SPIFFE Project",
+      "url": "https://spiffe.io/docs/latest/spire-about/spire-concepts/",
+      "why": "Deep operational model for node/workload attestation that I2 identity-bindings must implement as the SPIRE adapter layer.",
+      "tags": [
+        "SPIRE",
+        "attestation",
+        "SVID"
+      ],
+      "maps": [
+        "I1",
+        "I2",
+        "P12",
+        "C1-5"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "identity"
+    },
+    {
+      "id": "spiffe-bottom-turtle",
+      "title": "Solving the Bottom Turtle — SPIFFE/SPIRE Book (PDF)",
+      "author": "SPIFFE Community",
+      "url": "https://spiffe.io/pdf/Solving-the-bottom-turtle-SPIFFE-SPIRE-Book.pdf",
+      "why": "Long-form technical book on establishing universal trust; the identity substrate T1/I1 build on.",
+      "tags": [
+        "SPIFFE",
+        "deep-dive",
+        "book"
+      ],
+      "maps": [
+        "I1",
+        "I2",
+        "T1"
+      ],
+      "tier": "deep-secondary",
+      "date": "2022+",
+      "cluster": "identity"
+    },
+    {
+      "id": "zero-to-trusted-spiffe",
+      "title": "Zero to Trusted: SPIFFE and SPIRE, Demystified",
+      "author": "Spletzer",
+      "url": "https://www.spletzer.com/2025/03/zero-to-trusted-spiffe-and-spire-demystified/",
+      "why": "Clear 2025 explainer of SVIDs, selectors, and federation patterns useful for agent identity onboarding docs.",
+      "tags": [
+        "SPIFFE",
+        "explainer",
+        "SVID"
+      ],
+      "maps": [
+        "I1",
+        "I2"
+      ],
+      "tier": "deep-secondary",
+      "date": "2025-03",
+      "cluster": "identity"
+    },
+    {
+      "id": "mcp-intro-anthropic",
+      "title": "Introducing the Model Context Protocol",
+      "author": "Anthropic",
+      "url": "https://www.anthropic.com/news/model-context-protocol",
+      "why": "Original announcement of MCP — the tool/context plane X8 mcp-gateway and P5 SSP must authority-gate.",
+      "tags": [
+        "MCP",
+        "agents",
+        "tools"
+      ],
+      "maps": [
+        "X8",
+        "P5",
+        "R1",
+        "R8",
+        "P10"
+      ],
+      "tier": "canonical",
+      "date": "2024-11",
+      "cluster": "multi-agent"
+    },
+    {
+      "id": "mcp-spec-latest",
+      "title": "Model Context Protocol Specification (latest)",
+      "author": "MCP Project",
+      "url": "https://modelcontextprotocol.io/specification/latest",
+      "why": "Normative wire protocol for tools/resources/prompts; primary reference for X8 admission control and skill packaging (P5).",
+      "tags": [
+        "MCP",
+        "specification",
+        "JSON-RPC"
+      ],
+      "maps": [
+        "X8",
+        "P5",
+        "P10",
+        "R8"
+      ],
+      "tier": "canonical",
+      "date": "2026-07",
+      "cluster": "multi-agent"
+    },
+    {
+      "id": "mcp-docs-intro",
+      "title": "What is the Model Context Protocol (MCP)?",
+      "author": "MCP Docs",
+      "url": "https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro",
+      "why": "Architecture overview (hosts, clients, servers) for designing authority-aware MCP middleware.",
+      "tags": [
+        "MCP",
+        "architecture"
+      ],
+      "maps": [
+        "X8",
+        "P5"
+      ],
+      "tier": "canonical",
+      "date": "2026-07",
+      "cluster": "multi-agent"
+    },
+    {
+      "id": "mcp-security-arxiv",
+      "title": "Model Context Protocol (MCP): Landscape, Security Threats, and Future Research Directions",
+      "author": "arXiv",
+      "url": "https://arxiv.org/pdf/2503.23278",
+      "why": "Threat model for MCP surfaces — required reading for X8 fail-closed admission and P5 skill package signing.",
+      "tags": [
+        "MCP",
+        "security",
+        "threat-model"
+      ],
+      "maps": [
+        "X8",
+        "P5",
+        "A5",
+        "R1"
+      ],
+      "tier": "deep-secondary",
+      "date": "2025-04",
+      "cluster": "multi-agent"
+    },
+    {
+      "id": "a2a-announce",
+      "title": "Announcing the Agent2Agent Protocol (A2A)",
+      "author": "Google Developers Blog",
+      "url": "https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/",
+      "why": "Primary announcement of A2A interoperability; maps to P10 MADE multi-agent delegation exchange.",
+      "tags": [
+        "A2A",
+        "multi-agent",
+        "interoperability"
+      ],
+      "maps": [
+        "P10",
+        "I1",
+        "P1",
+        "P7"
+      ],
+      "tier": "canonical",
+      "date": "2025-04",
+      "cluster": "multi-agent"
+    },
+    {
+      "id": "a2a-spec",
+      "title": "A2A Protocol Specification",
+      "author": "A2A Project / Linux Foundation",
+      "url": "https://a2a-protocol.org/latest/specification/",
+      "why": "Normative A2A spec for agent-to-agent messaging; P10 MADE profiles delegation semantics on this plane.",
+      "tags": [
+        "A2A",
+        "specification"
+      ],
+      "maps": [
+        "P10",
+        "P1",
+        "I1",
+        "P7"
+      ],
+      "tier": "canonical",
+      "date": "2025–2026",
+      "cluster": "multi-agent"
+    },
+    {
+      "id": "a2a-mcp-topics",
+      "title": "A2A and MCP — How the Protocols Relate",
+      "author": "A2A Protocol Docs",
+      "url": "https://a2a-protocol.org/latest/topics/a2a-and-mcp/",
+      "why": "Clarifies tool-plane (MCP) vs agent-plane (A2A) split — critical for X8 + P10 architecture.",
+      "tags": [
+        "A2A",
+        "MCP",
+        "architecture"
+      ],
+      "maps": [
+        "P10",
+        "X8",
+        "P5"
+      ],
+      "tier": "canonical",
+      "date": "2025+",
+      "cluster": "multi-agent"
+    },
+    {
+      "id": "auth0-mcp-vs-a2a",
+      "title": "MCP vs A2A: A Guide to AI Agent Communication Protocols",
+      "author": "Auth0",
+      "url": "https://auth0.com/blog/mcp-vs-a2a/",
+      "why": "Security-focused comparison with OAuth angles for agent identity and delegated authority (P1/P7).",
+      "tags": [
+        "MCP",
+        "A2A",
+        "OAuth",
+        "auth"
+      ],
+      "maps": [
+        "X8",
+        "P10",
+        "I1",
+        "P1",
+        "R4"
+      ],
+      "tier": "deep-secondary",
+      "date": "2025-07",
+      "cluster": "multi-agent"
+    },
+    {
+      "id": "cedar-agentic-aws",
+      "title": "Enforce Least-Privilege Authorization in Multi-Agent AI Chains Using Cedar",
+      "author": "AWS Security Blog",
+      "url": "https://aws.amazon.com/blogs/security/enforce-least-privilege-authorization-in-multi-agent-ai-chains-using-cedar/",
+      "why": "Three-layer Cedar + OAuth model for multi-agent chains — direct blueprint for R5/R6 policy-compiler/bridge and P7 ABS budgets.",
+      "tags": [
+        "Cedar",
+        "OPA",
+        "multi-agent",
+        "authorization",
+        "OAuth"
+      ],
+      "maps": [
+        "R5",
+        "R6",
+        "P7",
+        "P10",
+        "I1",
+        "R3",
+        "R4"
+      ],
+      "tier": "canonical",
+      "date": "2026-07",
+      "cluster": "policy"
+    },
+    {
+      "id": "cedar-home",
+      "title": "Cedar Policy Language",
+      "author": "AWS Open Source",
+      "url": "https://www.cedarpolicy.com/",
+      "why": "Primary Cedar language home; AumOS compiles authority to Cedar/OPA/OpenShell equivalence.",
+      "tags": [
+        "Cedar",
+        "policy-as-code"
+      ],
+      "maps": [
+        "R5",
+        "R6",
+        "P1",
+        "P7"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "policy"
+    },
+    {
+      "id": "opa-docs",
+      "title": "Open Policy Agent Documentation",
+      "author": "OPA / CNCF",
+      "url": "https://www.openpolicyagent.org/docs/latest/",
+      "why": "Rego policy engine docs; R6 decision-equivalence tests include OPA adapters.",
+      "tags": [
+        "OPA",
+        "Rego",
+        "policy"
+      ],
+      "maps": [
+        "R5",
+        "R6",
+        "R3"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "policy"
+    },
+    {
+      "id": "oauth-rar",
+      "title": "RFC 9396 — OAuth 2.0 Rich Authorization Requests (RAR)",
+      "author": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc9396.html",
+      "why": "Structured authorization_details for fine-grained scopes — profiled into P1 AAE and R4 credential brokering.",
+      "tags": [
+        "OAuth",
+        "RAR",
+        "RFC"
+      ],
+      "maps": [
+        "P1",
+        "R4",
+        "I1",
+        "P7"
+      ],
+      "tier": "canonical",
+      "date": "2023",
+      "cluster": "policy"
+    },
+    {
+      "id": "oauth-dpop",
+      "title": "RFC 9449 — OAuth 2.0 Demonstrating Proof of Possession (DPoP)",
+      "author": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc9449.html",
+      "why": "Sender-constrained tokens prevent credential replay — required pattern for R4 CredentialVault and agent-scoped secrets.",
+      "tags": [
+        "OAuth",
+        "DPoP",
+        "RFC"
+      ],
+      "maps": [
+        "R4",
+        "I1",
+        "P1"
+      ],
+      "tier": "canonical",
+      "date": "2023",
+      "cluster": "policy"
+    },
+    {
+      "id": "oauth-token-exchange",
+      "title": "RFC 8693 — OAuth 2.0 Token Exchange",
+      "author": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc8693.html",
+      "why": "On-behalf-of token exchange for multi-agent delegation chains (P10 MADE).",
+      "tags": [
+        "OAuth",
+        "delegation",
+        "RFC"
+      ],
+      "maps": [
+        "P10",
+        "P1",
+        "R4",
+        "I1"
+      ],
+      "tier": "canonical",
+      "date": "2020",
+      "cluster": "policy"
+    },
+    {
+      "id": "teleport-policy-benchmark",
+      "title": "Security Benchmarking Authorization Policy Engines: Rego, Cedar…",
+      "author": "Teleport / Trail of Bits research summary",
+      "url": "https://goteleport.com/blog/benchmarking-policy-languages/",
+      "why": "Adversarial comparison of policy languages informing R6 fail-closed multi-engine adapters.",
+      "tags": [
+        "Cedar",
+        "Rego",
+        "security",
+        "benchmark"
+      ],
+      "maps": [
+        "R5",
+        "R6"
+      ],
+      "tier": "deep-secondary",
+      "date": "2025-06",
+      "cluster": "policy"
+    },
+    {
+      "id": "sigstore-home",
+      "title": "Sigstore — Software Signing and Transparency",
+      "author": "Sigstore / OpenSSF",
+      "url": "https://www.sigstore.dev/",
+      "why": "Keyless signing + transparency stack; S2 ProvenaChain roots Merkle evidence in Rekor.",
+      "tags": [
+        "Sigstore",
+        "cosign",
+        "supply-chain"
+      ],
+      "maps": [
+        "S2",
+        "S4",
+        "T1",
+        "P6",
+        "S1"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "rekor-overview",
+      "title": "Rekor — Immutable Transparency Log Overview",
+      "author": "Sigstore Docs",
+      "url": "https://docs.sigstore.dev/logging/overview/",
+      "why": "How Rekor records signed metadata; maps to S2 ledger and P6 AATM artifact trust manifests.",
+      "tags": [
+        "Rekor",
+        "transparency-log",
+        "Sigstore"
+      ],
+      "maps": [
+        "S2",
+        "P6",
+        "T1",
+        "E1"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "cosign-quickstart",
+      "title": "Cosign Signing Quickstart",
+      "author": "Sigstore Docs",
+      "url": "https://docs.sigstore.dev/signing/quickstart/",
+      "why": "Operational signing path for model/artifact signatures consumed by T1 trust-core verifiers.",
+      "tags": [
+        "Cosign",
+        "signing"
+      ],
+      "maps": [
+        "T1",
+        "S2",
+        "S4",
+        "P6"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "cyclonedx-mlbom",
+      "title": "Machine Learning Bill of Materials (AI/ML-BOM) — CycloneDX",
+      "author": "OWASP CycloneDX",
+      "url": "https://cyclonedx.org/capabilities/mlbom/",
+      "why": "Primary AI/ML BOM capability; S4 ModelSBOM and P6 AATM align to CycloneDX ML-BOM fields.",
+      "tags": [
+        "CycloneDX",
+        "ML-BOM",
+        "SBOM",
+        "AI-BOM"
+      ],
+      "maps": [
+        "S4",
+        "P6",
+        "S5",
+        "S1"
+      ],
+      "tier": "canonical",
+      "date": "2023–2026",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "cyclonedx-home",
+      "title": "CycloneDX Bill of Materials Standard (ECMA-424)",
+      "author": "OWASP / Ecma",
+      "url": "https://cyclonedx.org/",
+      "why": "Full-stack BOM standard underpinning S4 and compliance export paths.",
+      "tags": [
+        "CycloneDX",
+        "SBOM",
+        "ECMA-424"
+      ],
+      "maps": [
+        "S4",
+        "P6",
+        "A4"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "spdx-specs",
+      "title": "SPDX Specifications (incl. AI Profile)",
+      "author": "Linux Foundation SPDX",
+      "url": "https://spdx.dev/use/specifications/",
+      "why": "SPDX 3.x AI/Dataset profiles as dual-standard path for S4/S5 regulatory filings.",
+      "tags": [
+        "SPDX",
+        "AI-profile",
+        "SBOM"
+      ],
+      "maps": [
+        "S4",
+        "S5",
+        "P6"
+      ],
+      "tier": "canonical",
+      "date": "2024+",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "safetensors-docs",
+      "title": "Safetensors — Safe Tensor Serialization Format",
+      "author": "Hugging Face",
+      "url": "https://huggingface.co/docs/safetensors/en/index",
+      "why": "Canonical safe weight format; S1 SafeTensors++ extends with __provenance__ without breaking load safety.",
+      "tags": [
+        "Safetensors",
+        "model-format",
+        "security"
+      ],
+      "maps": [
+        "S1",
+        "S3",
+        "P6",
+        "S7"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "safetensors-audit",
+      "title": "Safetensors Audited as Really Safe and Becoming the Default",
+      "author": "Hugging Face Blog",
+      "url": "https://huggingface.co/blog/safetensors-security-audit",
+      "why": "External security audit results establishing why pickle-replacement is non-negotiable for S1.",
+      "tags": [
+        "Safetensors",
+        "audit",
+        "security"
+      ],
+      "maps": [
+        "S1",
+        "S7",
+        "T1"
+      ],
+      "tier": "canonical",
+      "date": "2023-05",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "hiddenlayer-safetensors",
+      "title": "Hijacking Safetensors Conversion on Hugging Face",
+      "author": "HiddenLayer Research",
+      "url": "https://www.hiddenlayer.com/research/silent-sabotage",
+      "why": "Adversarial analysis of conversion-bot supply chain — motivates S7 tamper-scan + signed provenance beyond format safety alone.",
+      "tags": [
+        "Safetensors",
+        "supply-chain",
+        "adversarial"
+      ],
+      "maps": [
+        "S1",
+        "S7",
+        "S2",
+        "P6"
+      ],
+      "tier": "deep-secondary",
+      "date": "2024-02",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "nvtrust-docs",
+      "title": "NVIDIA Trusted Computing / nvtrust Documentation",
+      "author": "NVIDIA",
+      "url": "https://docs.nvidia.com/nvtrust/index.html",
+      "why": "Official NVIDIA attestation documentation; primary source for C1-1 nvtrust-bridge and C1-2 cuda-gram.",
+      "tags": [
+        "NVIDIA",
+        "nvtrust",
+        "attestation",
+        "confidential-computing"
+      ],
+      "maps": [
+        "C1-1",
+        "C1-2",
+        "C1-3",
+        "C1-4",
+        "C1-5",
+        "P12"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "confidential"
+    },
+    {
+      "id": "nvidia-cc-h100",
+      "title": "Confidential Computing on NVIDIA H100 GPUs for Secure and Trustworthy AI",
+      "author": "NVIDIA Technical Blog",
+      "url": "https://developer.nvidia.com/blog/confidential-computing-on-h100-gpus-for-secure-and-trustworthy-ai/",
+      "why": "Deep writeup of H100 CC, device identity, attestation reports, and NRAS — C1-* design bible.",
+      "tags": [
+        "H100",
+        "confidential-computing",
+        "NRAS",
+        "attestation"
+      ],
+      "maps": [
+        "C1-1",
+        "C1-2",
+        "C1-3",
+        "C1-4",
+        "C1-5",
+        "N4"
+      ],
+      "tier": "canonical",
+      "date": "2023-08",
+      "cluster": "confidential"
+    },
+    {
+      "id": "intel-gpu-attestation",
+      "title": "GPU Remote Attestation With Intel Trust Authority",
+      "author": "Intel Trust Authority Docs",
+      "url": "https://docs.trustauthority.intel.com/main/articles/articles/ita/concept-gpu-attestation.html",
+      "why": "Composite TEE+GPU attestation workflows informing C1-3 AttestaFlow multi-cloud pipelines.",
+      "tags": [
+        "attestation",
+        "TEE",
+        "GPU",
+        "Intel"
+      ],
+      "maps": [
+        "C1-3",
+        "C1-5",
+        "C1-4",
+        "P12"
+      ],
+      "tier": "canonical",
+      "date": "2026",
+      "cluster": "confidential"
+    },
+    {
+      "id": "go-nvtrust",
+      "title": "go-nvtrust — Go Library for NVIDIA GPU/NVSwitch Attestation",
+      "author": "Confident Security / NVIDIA community",
+      "url": "https://github.com/confidentsecurity/go-nvtrust",
+      "why": "Open Go bindings for NRAS evidence collection — reference for C1-1 multi-language bindings.",
+      "tags": [
+        "nvtrust",
+        "Go",
+        "NRAS"
+      ],
+      "maps": [
+        "C1-1",
+        "C1-4",
+        "C1-5"
+      ],
+      "tier": "deep-secondary",
+      "date": "2025-10",
+      "cluster": "confidential"
+    },
+    {
+      "id": "otel-genai-agents",
+      "title": "AI Agent Observability — Evolving Standards and Best Practices",
+      "author": "OpenTelemetry Blog",
+      "url": "https://opentelemetry.io/blog/2025/ai-agent-observability/",
+      "why": "OTel GenAI semantic conventions for agent spans — E1 flight-recorder and P2 AAR evidence plane alignment.",
+      "tags": [
+        "OpenTelemetry",
+        "GenAI",
+        "observability",
+        "agents"
+      ],
+      "maps": [
+        "E1",
+        "P2",
+        "X2",
+        "X9"
+      ],
+      "tier": "canonical",
+      "date": "2025-03",
+      "cluster": "evidence"
+    },
+    {
+      "id": "owasp-aos-trace",
+      "title": "OWASP Agent Observability Standard — Trace Spec",
+      "author": "OWASP AOS",
+      "url": "https://owasp.github.io/www-project-agent-observability-standard/spec/trace/",
+      "why": "Agent-specific tracing standard bridging OTel and OCSF — maps to E1 and P9 AIX incident exchange.",
+      "tags": [
+        "OWASP",
+        "OCSF",
+        "OpenTelemetry",
+        "agents"
+      ],
+      "maps": [
+        "E1",
+        "P2",
+        "P9",
+        "X9"
+      ],
+      "tier": "canonical",
+      "date": "2025+",
+      "cluster": "evidence"
+    },
+    {
+      "id": "owasp-aos-ocsf",
+      "title": "AOS Tracing with OCSF Extension",
+      "author": "OWASP AOS",
+      "url": "https://owasp.github.io/www-project-agent-observability-standard/spec/trace/extend_ocsf/",
+      "why": "OCSF extension path for agent events — X9 incident-exchange and P9 AIX normalize here.",
+      "tags": [
+        "OCSF",
+        "incidents",
+        "agents"
+      ],
+      "maps": [
+        "X9",
+        "P9",
+        "E1",
+        "P2"
+      ],
+      "tier": "canonical",
+      "date": "2025+",
+      "cluster": "evidence"
+    },
+    {
+      "id": "ocsf-home",
+      "title": "Open Cybersecurity Schema Framework (OCSF)",
+      "author": "OCSF Project",
+      "url": "https://schema.ocsf.io/",
+      "why": "Primary security event schema; AumOS profiles agent incidents as OCSF extensions rather than forking formats.",
+      "tags": [
+        "OCSF",
+        "schema",
+        "SIEM"
+      ],
+      "maps": [
+        "X9",
+        "P9",
+        "E1"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "evidence"
+    },
+    {
+      "id": "pyrit-announce",
+      "title": "Announcing Microsoft’s Open Automation Framework to Red Team Generative AI Systems (PyRIT)",
+      "author": "Microsoft Security Blog",
+      "url": "https://www.microsoft.com/en-us/security/blog/2024/02/22/announcing-microsofts-open-automation-framework-to-red-team-generative-ai-systems/",
+      "why": "Primary PyRIT announcement — A1/A2/A7 orchestration target for multi-turn adversarial testing.",
+      "tags": [
+        "PyRIT",
+        "red-team",
+        "Microsoft"
+      ],
+      "maps": [
+        "A1",
+        "A2",
+        "A5",
+        "A7",
+        "P8"
+      ],
+      "tier": "canonical",
+      "date": "2024-02",
+      "cluster": "eval"
+    },
+    {
+      "id": "pyrit-github",
+      "title": "Azure/PyRIT — Python Risk Identification Toolkit",
+      "author": "Microsoft Azure",
+      "url": "https://github.com/Azure/PyRIT",
+      "why": "Living codebase for multi-turn jailbreaks/scorers; A2 Adversaria unifies PyRIT with garak probes.",
+      "tags": [
+        "PyRIT",
+        "GitHub",
+        "red-team"
+      ],
+      "maps": [
+        "A1",
+        "A2",
+        "A7",
+        "P8"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "eval"
+    },
+    {
+      "id": "garak-github",
+      "title": "NVIDIA/garak — LLM Vulnerability Scanner",
+      "author": "NVIDIA",
+      "url": "https://github.com/NVIDIA/garak",
+      "why": "Breadth scanner with 100+ probes; A1 SafeEval YAML pipelines orchestrate garak alongside HELM/PyRIT.",
+      "tags": [
+        "garak",
+        "NVIDIA",
+        "LLM-security"
+      ],
+      "maps": [
+        "A1",
+        "A2",
+        "A5",
+        "A7"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "eval"
+    },
+    {
+      "id": "helm-home",
+      "title": "HELM — Holistic Evaluation of Language Models",
+      "author": "Stanford CRFM",
+      "url": "https://crfm.stanford.edu/helm/",
+      "why": "Foundational multi-metric eval framework integrated into A1 SafeEval pipelines.",
+      "tags": [
+        "HELM",
+        "evaluation",
+        "benchmarks"
+      ],
+      "maps": [
+        "A1",
+        "A8",
+        "P8",
+        "X6"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "eval"
+    },
+    {
+      "id": "agentdojo",
+      "title": "AgentDojo — Agent Hijacking Benchmark (ETH Zurich)",
+      "author": "ETH Zurich spylab",
+      "url": "https://github.com/ethz-spylab/agentdojo",
+      "why": "629 agent hijacking tests across tool environments — A5 agentsec-lab adversarial holdouts.",
+      "tags": [
+        "agents",
+        "hijacking",
+        "benchmark"
+      ],
+      "maps": [
+        "A5",
+        "A2",
+        "A1",
+        "R1",
+        "R8"
+      ],
+      "tier": "canonical",
+      "date": "2024+",
+      "cluster": "eval"
+    },
+    {
+      "id": "metr-home",
+      "title": "METR — Model Evaluation & Threat Research",
+      "author": "METR",
+      "url": "https://metr.org/",
+      "why": "Independent evaluator org; X6 metr-bridge integration target for external eval substrate.",
+      "tags": [
+        "METR",
+        "evals",
+        "autonomy"
+      ],
+      "maps": [
+        "X6",
+        "A1",
+        "P8",
+        "A6"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "eval"
+    },
+    {
+      "id": "anthropic-crypto",
+      "title": "Discovering cryptographic weaknesses with Claude",
+      "author": "Anthropic Frontier Red Team",
+      "url": "https://www.anthropic.com/research/discovering-cryptographic-weaknesses",
+      "why": "Primary Anthropic research on LLM-assisted cryptanalysis; productization target for X4 CryptoAuditAI. Pair with the Jul 30 cybersecurity-eval incident writeup for X5 retrospective culture.",
+      "tags": [
+        "Anthropic",
+        "cryptanalysis",
+        "research"
+      ],
+      "maps": [
+        "X4",
+        "X5",
+        "A2"
+      ],
+      "tier": "deep-secondary",
+      "date": "2026-07-28",
+      "cluster": "eval",
+      "note": "Also see https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals (141,006-run retrospective) for X5 RetroSpecKit motivation."
+    },
+    {
+      "id": "vllm-docs",
+      "title": "vLLM Documentation — High-Throughput LLM Serving",
+      "author": "vLLM Project",
+      "url": "https://docs.vllm.ai/",
+      "why": "Primary open serving engine behind N1/N2 OpenServeKit and BridgeRT backends.",
+      "tags": [
+        "vLLM",
+        "inference",
+        "serving"
+      ],
+      "maps": [
+        "N1",
+        "N2",
+        "N3",
+        "N4"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "inference"
+    },
+    {
+      "id": "trtllm-docs",
+      "title": "TensorRT-LLM Documentation",
+      "author": "NVIDIA",
+      "url": "https://nvidia.github.io/TensorRT-LLM/",
+      "why": "N2 BridgeRT must absorb TRT-LLM sampler_type and version skew; primary engine docs.",
+      "tags": [
+        "TensorRT-LLM",
+        "NVIDIA",
+        "inference"
+      ],
+      "maps": [
+        "N2",
+        "N1",
+        "C1-4"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "inference"
+    },
+    {
+      "id": "openai-api-compat",
+      "title": "OpenAI API Reference — Chat Completions",
+      "author": "OpenAI",
+      "url": "https://platform.openai.com/docs/api-reference/chat",
+      "why": "De-facto wire API that N1 OpenServeKit mirrors for backend-agnostic proxying.",
+      "tags": [
+        "OpenAI-API",
+        "inference",
+        "proxy"
+      ],
+      "maps": [
+        "N1",
+        "N3"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "inference"
+    },
+    {
+      "id": "nvidia-mig",
+      "title": "NVIDIA Multi-Instance GPU (MIG) User Guide",
+      "author": "NVIDIA",
+      "url": "https://docs.nvidia.com/datacenter/tesla/mig-user-guide/",
+      "why": "Hardware isolation model for N4 TenantGuard multi-tenant GPU operators.",
+      "tags": [
+        "MIG",
+        "multi-tenant",
+        "GPU"
+      ],
+      "maps": [
+        "N4",
+        "F4",
+        "C1-5"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "inference"
+    },
+    {
+      "id": "ebpf-docs",
+      "title": "eBPF Documentation",
+      "author": "eBPF Foundation",
+      "url": "https://ebpf.io/what-is-ebpf/",
+      "why": "Kernel programmable dataplane for R7 egress-filter and S6 ExfilGuard.",
+      "tags": [
+        "eBPF",
+        "networking",
+        "security"
+      ],
+      "maps": [
+        "R7",
+        "S6",
+        "R2"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "runtime"
+    },
+    {
+      "id": "tetragon",
+      "title": "Cilium Tetragon — eBPF-based Security Observability & Runtime Enforcement",
+      "author": "Cilium / Isovalent",
+      "url": "https://tetragon.io/",
+      "why": "Production eBPF enforcement reference overlapping S6/R7 design choices.",
+      "tags": [
+        "eBPF",
+        "Tetragon",
+        "runtime-security"
+      ],
+      "maps": [
+        "S6",
+        "R7",
+        "R2"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "runtime"
+    },
+    {
+      "id": "falco",
+      "title": "Falco — Cloud Native Runtime Security",
+      "author": "CNCF Falco",
+      "url": "https://falco.org/",
+      "why": "Syscall threat detection patterns informing S6 exfil rules and R2 sandbox boundary monitoring.",
+      "tags": [
+        "Falco",
+        "runtime-security",
+        "eBPF"
+      ],
+      "maps": [
+        "S6",
+        "R2",
+        "R7"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "runtime"
+    },
+    {
+      "id": "wasmtime",
+      "title": "Wasmtime — WebAssembly Runtime",
+      "author": "Bytecode Alliance",
+      "url": "https://wasmtime.dev/",
+      "why": "WASM runtime choice for R8 sandbox-runtime capability-scoped execution.",
+      "tags": [
+        "WASM",
+        "Wasmtime",
+        "sandbox"
+      ],
+      "maps": [
+        "R8",
+        "R1",
+        "P12"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "runtime"
+    },
+    {
+      "id": "nvidia-openshell",
+      "title": "Run Autonomous, Self-Evolving Agents More Safely with NVIDIA OpenShell",
+      "author": "NVIDIA Technical Blog",
+      "url": "https://developer.nvidia.com/blog/run-autonomous-self-evolving-agents-more-safely-with-nvidia-openshell/",
+      "why": "Primary NVIDIA eng blog for OpenShell sandbox runtime — R1 secure-workspace and R8 sandbox-runtime profile this surface. Maps OSAF founding runtime contribution.",
+      "tags": [
+        "OpenShell",
+        "NVIDIA",
+        "sandbox",
+        "agents",
+        "OSAF"
+      ],
+      "maps": [
+        "R1",
+        "R8",
+        "R2",
+        "X3"
+      ],
+      "tier": "canonical",
+      "date": "2026-03",
+      "cluster": "runtime"
+    },
+    {
+      "id": "opacus-dp",
+      "title": "Opacus — Train PyTorch Models with Differential Privacy",
+      "author": "Meta / Opacus",
+      "url": "https://opacus.ai/",
+      "why": "Primary DP training toolkit for F2 DPCrate and F1 FedCore privacy budgets.",
+      "tags": [
+        "differential-privacy",
+        "PyTorch",
+        "Opacus"
+      ],
+      "maps": [
+        "F2",
+        "F1",
+        "S8"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "federated"
+    },
+    {
+      "id": "flower-fl",
+      "title": "Flower — A Friendly Federated Learning Framework",
+      "author": "Flower Labs",
+      "url": "https://flower.ai/",
+      "why": "Mature open FL orchestration patterns for F1 FedCore multi-party training design.",
+      "tags": [
+        "federated-learning",
+        "Flower"
+      ],
+      "maps": [
+        "F1",
+        "F2",
+        "F4"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "federated"
+    },
+    {
+      "id": "jetson-edge",
+      "title": "NVIDIA Jetson / EGX Edge AI Platform Docs",
+      "author": "NVIDIA",
+      "url": "https://developer.nvidia.com/embedded-computing",
+      "why": "Edge hardware target for F3 EdgeSentinel attestation agents (<5MB Go binary).",
+      "tags": [
+        "Jetson",
+        "edge",
+        "EGX"
+      ],
+      "maps": [
+        "F3",
+        "F4",
+        "C1-1"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "federated"
+    },
+    {
+      "id": "k8s-operators",
+      "title": "Kubernetes Operator Pattern",
+      "author": "Kubernetes Docs",
+      "url": "https://kubernetes.io/docs/concepts/extend-kubernetes/operator/",
+      "why": "Control-plane pattern for F4 FleetMarshal ModelFleet CRDs and N4 TenantGuard.",
+      "tags": [
+        "Kubernetes",
+        "operators",
+        "CRD"
+      ],
+      "maps": [
+        "F4",
+        "N4",
+        "I1",
+        "X11"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "federated"
+    },
+    {
+      "id": "ibm-lightwell",
+      "title": "IBM and Red Hat Expand Lightwell with New Commercial Offerings",
+      "author": "IBM Newsroom",
+      "url": "https://newsroom.ibm.com/2026-07-08-ibm-and-red-hat-expand-lightwell-with-new-commercial-offerings-to-build-the-trust-infrastructure-for-ai-era-open-source",
+      "why": "Primary Lightwell commercial launch (Network + Clearinghouse) for signed remediated packages and SBOMs — S9 lightwell-bridge and P11 PRB extend this patch-distribution model for AI artifacts.",
+      "tags": [
+        "Lightwell",
+        "IBM",
+        "Red Hat",
+        "supply-chain",
+        "SBOM",
+        "OSAF"
+      ],
+      "maps": [
+        "S9",
+        "P11",
+        "X9",
+        "S4"
+      ],
+      "tier": "canonical",
+      "date": "2026-07-08",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "ssf-caep",
+      "title": "OpenID Shared Signals Framework / CAEP",
+      "author": "OpenID Foundation",
+      "url": "https://openid.net/sg/sharedsignals/",
+      "why": "Continuous access evaluation and shared signals for revocation — maps to R3 kill-switch and P1 expiry/revocation semantics.",
+      "tags": [
+        "OpenID",
+        "SSF",
+        "CAEP",
+        "revocation"
+      ],
+      "maps": [
+        "R3",
+        "P1",
+        "I1",
+        "R4"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "runtime"
+    },
+    {
+      "id": "mitre-atlas",
+      "title": "MITRE ATLAS — Adversarial Threat Landscape for AI Systems",
+      "author": "MITRE",
+      "url": "https://atlas.mitre.org/",
+      "why": "AI-specific ATT&CK-style knowledge base for X9 incident taxonomy and A2/A5 attack libraries.",
+      "tags": [
+        "MITRE",
+        "ATLAS",
+        "threats",
+        "AI"
+      ],
+      "maps": [
+        "X9",
+        "P9",
+        "A2",
+        "A5",
+        "S7"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "evidence"
+    },
+    {
+      "id": "nist-ai-rmf",
+      "title": "NIST AI Risk Management Framework (AI RMF 1.0)",
+      "author": "NIST",
+      "url": "https://www.nist.gov/itl/ai-risk-management-framework",
+      "why": "US primary AI risk framework for A4 ComplyGate mappings (prefer US anchors over EU-first framing).",
+      "tags": [
+        "NIST",
+        "AI-RMF",
+        "compliance",
+        "US"
+      ],
+      "maps": [
+        "A4",
+        "A3",
+        "X1",
+        "A1"
+      ],
+      "tier": "canonical",
+      "date": "2023+",
+      "cluster": "eval"
+    },
+    {
+      "id": "clap-rust",
+      "title": "clap — Command Line Argument Parser for Rust",
+      "author": "clap-rs",
+      "url": "https://docs.rs/clap/latest/clap/",
+      "why": "X1 defstack-cli is Rust/clap per polyglot doctrine; canonical CLI architecture reference.",
+      "tags": [
+        "Rust",
+        "CLI",
+        "clap"
+      ],
+      "maps": [
+        "X1"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "crosscut"
+    },
+    {
+      "id": "nextjs-docs",
+      "title": "Next.js Documentation",
+      "author": "Vercel",
+      "url": "https://nextjs.org/docs",
+      "why": "X7 console is TypeScript/Next.js; primary framework docs for enterprise policy/evidence UI.",
+      "tags": [
+        "Next.js",
+        "TypeScript",
+        "console"
+      ],
+      "maps": [
+        "X7",
+        "X11",
+        "A8"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "crosscut"
+    },
+    {
+      "id": "chatbot-arena",
+      "title": "Chatbot Arena / LMSYS Elo Ranking Methodology",
+      "author": "LMSYS / Arena",
+      "url": "https://lmsys.org/blog/2023-05-03-arena/",
+      "why": "Elo pairwise ranking methodology underlying A8 arena leaderboard design.",
+      "tags": [
+        "Elo",
+        "arena",
+        "evaluation"
+      ],
+      "maps": [
+        "A8",
+        "A1",
+        "P8"
+      ],
+      "tier": "canonical",
+      "date": "2023-05",
+      "cluster": "eval"
+    },
+    {
+      "id": "gguf-spec",
+      "title": "GGUF File Format Specification",
+      "author": "ggml-org / llama.cpp",
+      "url": "https://github.com/ggml-org/ggml/blob/master/docs/gguf.md",
+      "why": "Canonical GGUF layout; S3 GGUF-Ext adds osaf.safety metadata blocks for llama.cpp/Ollama.",
+      "tags": [
+        "GGUF",
+        "llama.cpp",
+        "model-format"
+      ],
+      "maps": [
+        "S3",
+        "S1",
+        "P6"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "model-cards",
+      "title": "Model Cards for Model Reporting (Mitchell et al.)",
+      "author": "Google Research / arXiv",
+      "url": "https://arxiv.org/abs/1810.03993",
+      "why": "Foundational model documentation practice feeding S5 data provenance and A3 bias auditing.",
+      "tags": [
+        "model-cards",
+        "documentation",
+        "bias"
+      ],
+      "maps": [
+        "S5",
+        "A3",
+        "S4",
+        "P6"
+      ],
+      "tier": "canonical",
+      "date": "2019",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "datasheets",
+      "title": "Datasheets for Datasets (Gebru et al.)",
+      "author": "arXiv",
+      "url": "https://arxiv.org/abs/1803.09010",
+      "why": "Dataset documentation standard for S5 DataProvenanceKit lineage exports.",
+      "tags": [
+        "datasets",
+        "documentation",
+        "provenance"
+      ],
+      "maps": [
+        "S5",
+        "S4",
+        "P3"
+      ],
+      "tier": "canonical",
+      "date": "2018–2021",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "hashi-vault",
+      "title": "HashiCorp Vault Documentation — Secrets Engines & Identity",
+      "author": "HashiCorp",
+      "url": "https://developer.hashicorp.com/vault/docs",
+      "why": "Industry pattern for dynamic secrets that R4 CredentialVault specializes for agent-scoped brokering.",
+      "tags": [
+        "Vault",
+        "secrets",
+        "identity"
+      ],
+      "maps": [
+        "R4",
+        "I1",
+        "R3"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "runtime"
+    },
+    {
+      "id": "in-toto",
+      "title": "in-toto — Software Supply Chain Security Framework",
+      "author": "in-toto / CNCF",
+      "url": "https://in-toto.io/",
+      "why": "Attestation layout for multi-step supply chains — informs P11 PRB remediation bundles and S8 train-guard attestations.",
+      "tags": [
+        "in-toto",
+        "attestation",
+        "supply-chain"
+      ],
+      "maps": [
+        "P11",
+        "S8",
+        "S2",
+        "P6",
+        "T1"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "slsa",
+      "title": "SLSA — Supply-chain Levels for Software Artifacts",
+      "author": "OpenSSF",
+      "url": "https://slsa.dev/",
+      "why": "Maturity levels for build integrity; S2/S4/P6 trust levels map cleanly onto SLSA.",
+      "tags": [
+        "SLSA",
+        "supply-chain",
+        "provenance"
+      ],
+      "maps": [
+        "S2",
+        "S4",
+        "P6",
+        "T1",
+        "S8"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "w3c-prov",
+      "title": "W3C PROV — Data Provenance Standard Family",
+      "author": "W3C",
+      "url": "https://www.w3.org/TR/prov-overview/",
+      "why": "Graph provenance model for P3 CPE context provenance and S5 signed JSON-LD exports.",
+      "tags": [
+        "PROV",
+        "provenance",
+        "W3C"
+      ],
+      "maps": [
+        "P3",
+        "S5",
+        "P4",
+        "E1"
+      ],
+      "tier": "canonical",
+      "date": "2013+",
+      "cluster": "evidence"
+    },
+    {
+      "id": "merkle-rfc",
+      "title": "RFC 6962 — Certificate Transparency (Merkle log design)",
+      "author": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc6962.html",
+      "why": "Classic Merkle transparency log design pattern behind Rekor and S2 ProvenaChain.",
+      "tags": [
+        "Merkle",
+        "transparency",
+        "RFC"
+      ],
+      "maps": [
+        "S2",
+        "E1",
+        "P2",
+        "T1"
+      ],
+      "tier": "canonical",
+      "date": "2013",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "cbor-rfc",
+      "title": "RFC 8949 — Concise Binary Object Representation (CBOR)",
+      "author": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc8949.html",
+      "why": "Binary encoding used by AumOS protocol CDDL schemas (P1–P12 machine-checkable forms).",
+      "tags": [
+        "CBOR",
+        "encoding",
+        "RFC"
+      ],
+      "maps": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P7",
+        "P8",
+        "P10",
+        "P12",
+        "T2"
+      ],
+      "tier": "canonical",
+      "date": "2020",
+      "cluster": "protocols"
+    },
+    {
+      "id": "cddl-rfc",
+      "title": "RFC 8610 — Concise Data Definition Language (CDDL)",
+      "author": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc8610.html",
+      "why": "Schema language for AumOS protocol CDDL files under specs/protocols/.",
+      "tags": [
+        "CDDL",
+        "schema",
+        "RFC"
+      ],
+      "maps": [
+        "T2",
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P7",
+        "P8",
+        "P10",
+        "P11",
+        "P12",
+        "A6"
+      ],
+      "tier": "canonical",
+      "date": "2019",
+      "cluster": "protocols"
+    },
+    {
+      "id": "cose-rfc",
+      "title": "RFC 9052 — CBOR Object Signing and Encryption (COSE)",
+      "author": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc9052.html",
+      "why": "Signing envelopes for compact protocol objects (AAE/AAR) verified in T1 trust-core.",
+      "tags": [
+        "COSE",
+        "signing",
+        "CBOR"
+      ],
+      "maps": [
+        "T1",
+        "P1",
+        "P2",
+        "P6",
+        "E1"
+      ],
+      "tier": "canonical",
+      "date": "2022",
+      "cluster": "protocols"
+    },
+    {
+      "id": "json-ld",
+      "title": "JSON-LD 1.1 — A JSON-based Serialization for Linked Data",
+      "author": "W3C",
+      "url": "https://www.w3.org/TR/json-ld11/",
+      "why": "Linked-data packaging for P5 SSP, P6 AATM, P11 PRB JSON-LD manifests.",
+      "tags": [
+        "JSON-LD",
+        "linked-data"
+      ],
+      "maps": [
+        "P5",
+        "P6",
+        "P11",
+        "S4",
+        "S5"
+      ],
+      "tier": "canonical",
+      "date": "2020",
+      "cluster": "protocols"
+    },
+    {
+      "id": "ocsf-schema-classes",
+      "title": "OCSF Schema Browser — Event Classes",
+      "author": "OCSF",
+      "url": "https://schema.ocsf.io/categories",
+      "why": "Event class taxonomy to extend for P9 AIX agent incident types.",
+      "tags": [
+        "OCSF",
+        "schema"
+      ],
+      "maps": [
+        "P9",
+        "X9"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "protocols"
+    },
+    {
+      "id": "openai-evals",
+      "title": "OpenAI Evals Framework",
+      "author": "OpenAI",
+      "url": "https://github.com/openai/evals",
+      "why": "Early eval harness patterns informing A6 conformance packaging and P8 VEB bundles.",
+      "tags": [
+        "evals",
+        "OpenAI",
+        "harness"
+      ],
+      "maps": [
+        "A6",
+        "A1",
+        "P8",
+        "X3"
+      ],
+      "tier": "deep-secondary",
+      "date": "ongoing",
+      "cluster": "eval"
+    },
+    {
+      "id": "inspect-ai",
+      "title": "UK AISI Inspect — Evaluation Framework",
+      "author": "UK AI Security Institute",
+      "url": "https://inspect.aisi.org.uk/",
+      "why": "Modern agent eval framework used with AgentDojo ports; A1/X6 quality bar.",
+      "tags": [
+        "Inspect",
+        "evals",
+        "agents"
+      ],
+      "maps": [
+        "A1",
+        "A5",
+        "X6",
+        "P8"
+      ],
+      "tier": "canonical",
+      "date": "2024+",
+      "cluster": "eval"
+    },
+    {
+      "id": "airgapped-k8s",
+      "title": "Running Kubernetes in Air-Gapped Environments",
+      "author": "Kubernetes / community best practices (SIG Cluster Lifecycle patterns)",
+      "url": "https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/",
+      "why": "Offline install patterns for X10 sovereign-stack air-gapped bundles (paired with Helm/Ansible).",
+      "tags": [
+        "airgap",
+        "Kubernetes",
+        "sovereign"
+      ],
+      "maps": [
+        "X10",
+        "X11",
+        "F4"
+      ],
+      "tier": "deep-secondary",
+      "date": "ongoing",
+      "cluster": "crosscut"
+    },
+    {
+      "id": "helm-docs",
+      "title": "Helm — The Kubernetes Package Manager",
+      "author": "CNCF Helm",
+      "url": "https://helm.sh/docs/",
+      "why": "Packaging for X10/X11 deploy surfaces and C1-3 Terraform-adjacent infra.",
+      "tags": [
+        "Helm",
+        "Kubernetes"
+      ],
+      "maps": [
+        "X10",
+        "X11",
+        "F4",
+        "N4"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "crosscut"
+    },
+    {
+      "id": "rbi-dpdp-adjacent",
+      "title": "The Digital Personal Data Protection Act, 2023 (Gazette of India)",
+      "author": "Government of India / MeitY (Legislative Department gazette)",
+      "url": "https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf",
+      "why": "Primary India DPDP Act text — regional privacy/data-residency anchor for F2/A4/E1/S5 (not EU-first framing).",
+      "tags": [
+        "DPDP",
+        "India",
+        "privacy",
+        "compliance"
+      ],
+      "maps": [
+        "F2",
+        "A4",
+        "E1",
+        "S5"
+      ],
+      "tier": "canonical",
+      "date": "2023-08-11",
+      "cluster": "eval"
+    },
+    {
+      "id": "occ-mrm-note",
+      "title": "Model Risk Management: Revised Guidance (OCC Bulletin 2026-13)",
+      "author": "OCC (interagency with Fed/FDIC)",
+      "url": "https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html",
+      "why": "Current US interagency model-risk guidance superseding SR 11-7; primary compliance anchor for A4 ComplyGate in banking deployments. Parallel Fed designation: SR 26-2.",
+      "tags": [
+        "OCC",
+        "model-risk",
+        "US",
+        "compliance"
+      ],
+      "maps": [
+        "A4",
+        "A1",
+        "X1"
+      ],
+      "tier": "canonical",
+      "date": "2026-04-17",
+      "cluster": "eval",
+      "note": "Fed companion: https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm — cite OCC Bulletin 2026-13 / Fed SR 26-2. Generative/agentic AI deferred from this guidance scope; underlying safety-and-soundness duties remain."
+    },
+    {
+      "id": "t2-aae-authority",
+      "title": "RFC 9396 — OAuth 2.0 Rich Authorization Requests (RAR)",
+      "author": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc9396.html",
+      "why": "Real RAR specification. AumOS T2 authority-spec / P1 AAE compose RAR authorization_details with SPIFFE principals and Cedar multi-agent least privilege (see also cedar-agentic-aws + SPIFFE entries).",
+      "tags": [
+        "AAE",
+        "authority",
+        "RAR",
+        "SPIFFE"
+      ],
+      "maps": [
+        "T2",
+        "P1",
+        "P7",
+        "I1"
+      ],
+      "tier": "canonical",
+      "date": "2023–2026",
+      "cluster": "protocols",
+      "note": "AumOS composition (AAE envelope) is not this RFC alone — multi-source: RAR + SPIFFE + Cedar."
+    },
+    {
+      "id": "p2-aar-receipts",
+      "title": "AI Agent Observability — Evolving Standards and Best Practices",
+      "author": "OpenTelemetry Blog",
+      "url": "https://opentelemetry.io/blog/2025/ai-agent-observability/",
+      "why": "Real OTel GenAI agent observability writeup. P2 AAR / E1 flight-recorder compose signed action receipts from GenAI span semantics + transparency-log thinking (RFC 6962) + COSE (RFC 9052).",
+      "tags": [
+        "AAR",
+        "receipts",
+        "evidence"
+      ],
+      "maps": [
+        "P2",
+        "E1",
+        "T1",
+        "X2"
+      ],
+      "tier": "canonical",
+      "date": "2025–2026",
+      "cluster": "protocols",
+      "note": "AumOS AAR packaging is multi-source: OTel GenAI + Certificate Transparency log design + COSE signing."
+    },
+    {
+      "id": "p4-memory-integrity",
+      "title": "PROV-Overview: An Overview of the PROV Family of Documents",
+      "author": "W3C",
+      "url": "https://www.w3.org/TR/prov-overview/",
+      "why": "Real W3C PROV overview. P4 AMIL models agent memory integrity as provenance graphs with hash-chained integrity (PROV + Merkle CT patterns).",
+      "tags": [
+        "AMIL",
+        "memory",
+        "integrity"
+      ],
+      "maps": [
+        "P4",
+        "P3",
+        "E1"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "protocols",
+      "note": "AumOS AMIL has no single public twin; compose PROV + Merkle transparency designs."
+    },
+    {
+      "id": "p8-veb",
+      "title": "HELM — Holistic Evaluation of Language Models",
+      "author": "Stanford CRFM",
+      "url": "https://crfm.stanford.edu/helm/",
+      "why": "Real HELM evaluation framework. P8 VEB packages signed evaluation artifacts using HELM/Inspect-style content standards bound with COSE/Sigstore.",
+      "tags": [
+        "VEB",
+        "evaluation",
+        "bundles"
+      ],
+      "maps": [
+        "P8",
+        "A1",
+        "A5",
+        "A6"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "protocols",
+      "note": "AumOS VEB is a packaging/signing layer over HELM/Inspect/evals content — not a HELM feature."
+    },
+    {
+      "id": "cap-attestation",
+      "title": "SPIRE Concepts — Attestation, Agents, and Trust Domains",
+      "author": "SPIFFE Project",
+      "url": "https://spiffe.io/docs/latest/spire-about/spire-concepts/",
+      "why": "Real SPIRE concepts page. P12 CAP binds runtime capabilities to attested environments (SPIFFE selectors + sandbox + GPU CC quotes).",
+      "tags": [
+        "CAP",
+        "attestation",
+        "capabilities"
+      ],
+      "maps": [
+        "P12",
+        "R1",
+        "R2",
+        "R8",
+        "C1-1"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "protocols",
+      "note": "AumOS CAP profile also draws Wasmtime capability models and NVIDIA CC attestation (separate entries)."
+    },
+    {
+      "id": "kill-switch-patterns",
+      "title": "OpenID Shared Signals Framework Working Group",
+      "author": "OpenID Foundation",
+      "url": "https://openid.net/sg/sharedsignals/",
+      "why": "Real OpenID Shared Signals / CAEP home. R3 KillSwitchKit maps continuous access evaluation and emergency revoke events to this signal plane.",
+      "tags": [
+        "kill-switch",
+        "revocation",
+        "CAEP"
+      ],
+      "maps": [
+        "R3",
+        "P1",
+        "P7",
+        "I1"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "runtime",
+      "note": "AumOS kill-switch policy/execution layer is additional; SSF provides the continuous-evaluation event model."
+    },
+    {
+      "id": "conformance-testing",
+      "title": "RFC 8610 — Concise Data Definition Language (CDDL)",
+      "author": "IETF",
+      "url": "https://www.rfc-editor.org/rfc/rfc8610.html",
+      "why": "Real CDDL specification used by AumOS protocol schemas. A6 conformance suites pair CDDL schemas with multi-implementation adversarial vectors.",
+      "tags": [
+        "conformance",
+        "CDDL",
+        "testing"
+      ],
+      "maps": [
+        "A6",
+        "T2",
+        "P1",
+        "P2"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "eval",
+      "note": "Conformance culture also follows SPIFFE multi-impl discipline; CDDL is the schema primary."
+    },
+    {
+      "id": "bias-fairness",
+      "title": "NIST AI Risk Management Framework (AI RMF 1.0)",
+      "author": "NIST",
+      "url": "https://www.nist.gov/itl/ai-risk-management-framework",
+      "why": "Real NIST AI RMF. A3 BiasSentinel measurement posture tracks NIST Measure functions and model-card metrics.",
+      "tags": [
+        "bias",
+        "fairness",
+        "NIST"
+      ],
+      "maps": [
+        "A3",
+        "A4",
+        "S5"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "eval",
+      "note": "Duplicate domain with nist-ai-rmf entry is intentional multi-map; A3-focused why text."
+    },
+    {
+      "id": "train-integrity",
+      "title": "SLSA — Supply-chain Levels for Software Artifacts",
+      "author": "OpenSSF",
+      "url": "https://slsa.dev/",
+      "why": "Real SLSA framework. S8 TrainGuard signed training attestations map onto SLSA provenance levels (with in-toto steps).",
+      "tags": [
+        "training",
+        "integrity",
+        "SLSA"
+      ],
+      "maps": [
+        "S8",
+        "S2",
+        "P6",
+        "F1"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "supply-chain",
+      "note": "Also see in-toto entry for multi-step attestation layout."
+    },
+    {
+      "id": "semantic-cache-gateway",
+      "title": "vLLM Documentation — High-Throughput LLM Serving",
+      "author": "vLLM Project",
+      "url": "https://docs.vllm.ai/",
+      "why": "Real vLLM docs (primary open serving stack). N3 InferenceProxy industry patterns (auth, rate-limit, prompt-filter, semantic cache) sit in front of engines documented here and the OpenAI API surface.",
+      "tags": [
+        "gateway",
+        "inference",
+        "proxy"
+      ],
+      "maps": [
+        "N3",
+        "N1",
+        "R4"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "inference",
+      "note": "Gateway behavior is composed across N1/N3 designs; this entry anchors the serving plane primary."
+    },
+    {
+      "id": "x3-harness",
+      "title": "Model Context Protocol Specification (latest)",
+      "author": "MCP Project",
+      "url": "https://modelcontextprotocol.io/specification/latest",
+      "why": "Real MCP specification. X3 OpenHarnessSpec aims at vendor-neutral harness contracts; closest live tool/harness wire standard is MCP, with Inspect/evals as eval harness counterparts.",
+      "tags": [
+        "harness",
+        "OSAF",
+        "agents"
+      ],
+      "maps": [
+        "X3",
+        "X8",
+        "A1",
+        "A6"
+      ],
+      "tier": "canonical",
+      "date": "2025–2026",
+      "cluster": "crosscut",
+      "note": "AumOS OpenHarnessSpec is OSAF-proposed; not identical to MCP — multi-source with Inspect + NOOA."
+    },
+    {
+      "id": "p11-remediation",
+      "title": "CycloneDX Bill of Materials Standard (ECMA-424)",
+      "author": "OWASP / Ecma",
+      "url": "https://cyclonedx.org/",
+      "why": "Real CycloneDX standard (incl. VEX capabilities). P11 PRB packages signed remediation proofs using VEX-style status + in-toto steps + transparency logs.",
+      "tags": [
+        "remediation",
+        "VEX",
+        "PRB"
+      ],
+      "maps": [
+        "P11",
+        "S9",
+        "X9",
+        "S4"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "protocols",
+      "note": "AumOS PRB composition also uses in-toto + Sigstore (separate entries)."
+    },
+    {
+      "id": "p5-skills",
+      "title": "Model Context Protocol Specification (latest)",
+      "author": "MCP Project",
+      "url": "https://modelcontextprotocol.io/specification/latest",
+      "why": "Real MCP specification for tool schemas. P5 SSP wraps tools/skills as signed packages for X8 admission — MCP tool contracts + Cosign/JSON-LD manifests.",
+      "tags": [
+        "skills",
+        "MCP",
+        "SSP"
+      ],
+      "maps": [
+        "P5",
+        "X8",
+        "S4",
+        "T1"
+      ],
+      "tier": "canonical",
+      "date": "2025–2026",
+      "cluster": "protocols",
+      "note": "AumOS Secure Skill Package signing/packaging is multi-source with Sigstore + JSON-LD."
+    },
+    {
+      "id": "aegis-incident",
+      "title": "MITRE ATLAS — Adversarial Threat Landscape for AI Systems",
+      "author": "MITRE",
+      "url": "https://atlas.mitre.org/",
+      "why": "Real MITRE ATLAS knowledge base. X9/P9 normalize agent incidents using ATLAS techniques plus OCSF event classes.",
+      "tags": [
+        "incidents",
+        "ATLAS",
+        "OCSF"
+      ],
+      "maps": [
+        "X9",
+        "P9",
+        "R3",
+        "A5"
+      ],
+      "tier": "canonical",
+      "date": "ongoing",
+      "cluster": "evidence",
+      "note": "AumOS AIX incident exchange also requires OCSF schema entries."
+    },
+    {
+      "id": "nvidia-nooa",
+      "title": "Industry Leaders Join Open Secure AI Alliance for AI Safety (NOOA + OpenShell)",
+      "author": "NVIDIA Blog",
+      "url": "https://blogs.nvidia.com/blog/open-secure-ai-alliance/",
+      "why": "OSAF launch post announcing NOOA (NVIDIA Labs Object-Oriented Agent) open source harness research and alliance membership — primary for X2 nooa-ext and X3 open-harness-spec.",
+      "tags": [
+        "NOOA",
+        "OSAF",
+        "NVIDIA",
+        "agent-harness"
+      ],
+      "maps": [
+        "X2",
+        "X3",
+        "R1"
+      ],
+      "tier": "canonical",
+      "date": "2026-07-27",
+      "cluster": "crosscut"
+    },
+    {
+      "id": "redhat-lightwell",
+      "title": "Lightwell — Red Hat",
+      "author": "Red Hat",
+      "url": "https://www.redhat.com/en/lightwell",
+      "why": "Red Hat product page for Lightwell Network remediations and signed patched artifacts — second primary for S9 lightwell-bridge.",
+      "tags": [
+        "Lightwell",
+        "Red Hat",
+        "supply-chain"
+      ],
+      "maps": [
+        "S9",
+        "P11",
+        "S4"
+      ],
+      "tier": "canonical",
+      "date": "2026",
+      "cluster": "supply-chain"
+    },
+    {
+      "id": "nvidia-nooa-harness",
+      "title": "NVIDIA Labs Object-Oriented Agents (NOOA) — GitHub",
+      "author": "NVIDIA NeMo Labs",
+      "url": "https://github.com/NVIDIA-NeMo/labs-OO-Agents/tree/main",
+      "why": "Primary open-source NOOA repository (Apache 2.0) for object-oriented agent harness research — X2 nooa-ext integration target.",
+      "tags": [
+        "NOOA",
+        "harness",
+        "NVIDIA"
+      ],
+      "maps": [
+        "X2",
+        "X3",
+        "A1"
+      ],
+      "tier": "canonical",
+      "date": "2026-07",
+      "cluster": "crosscut"
+    },
+    {
+      "id": "anthropic-cyber-incidents",
+      "title": "Investigating three real-world incidents in our cybersecurity evaluations",
+      "author": "Anthropic",
+      "url": "https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals",
+      "why": "Primary Anthropic disclosure reviewing 141,006 eval runs — direct catalyst for X5 RetroSpecKit and containment-focused evidence culture.",
+      "tags": [
+        "Anthropic",
+        "evaluations",
+        "incidents",
+        "containment"
+      ],
+      "maps": [
+        "X5",
+        "A1",
+        "R1",
+        "R3",
+        "E1"
+      ],
+      "tier": "canonical",
+      "date": "2026-07-30",
+      "cluster": "eval"
+    },
+    {
+      "id": "fed-sr-26-2",
+      "title": "SR 26-2: Revised Guidance on Model Risk Management",
+      "author": "Federal Reserve Board",
+      "url": "https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm",
+      "why": "Fed parallel issuance to OCC Bulletin 2026-13 — cite as Fed SR 26-2 / OCC 2026-13 for dual-audience US model-risk supervision.",
+      "tags": [
+        "Fed",
+        "SR-26-2",
+        "model-risk",
+        "US",
+        "compliance"
+      ],
+      "maps": [
+        "A4",
+        "A1",
+        "X1"
+      ],
+      "tier": "canonical",
+      "date": "2026-04-17",
+      "cluster": "eval"
+    }
+  ]
+}

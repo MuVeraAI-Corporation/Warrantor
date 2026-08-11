@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	"aumos.dev/fleet-marshal"
+	"muveraai.com/go/fleet-marshal"
 )
 
 // dryRunExecutor implements RolloutExecutor by logging each call (no K8s API).
@@ -51,7 +51,7 @@ func (d *dryRunExecutor) TearDown(_ context.Context, f *fleetmarshal.ModelFleet,
 	return nil
 }
 
-func (d *dryRunExecutor) Now() time.Time                  { return d.now }
+func (d *dryRunExecutor) Now() time.Time { return d.now }
 func (d *dryRunExecutor) Sleep(_ context.Context, dur time.Duration) error {
 	d.now = d.now.Add(dur)
 	return nil

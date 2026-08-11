@@ -1,4 +1,4 @@
-"""Tests for aumos-fed-core (F1)."""
+"""Tests for warrantor-fed-core (F1)."""
 
 from __future__ import annotations
 

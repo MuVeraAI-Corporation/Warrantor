@@ -1,4 +1,4 @@
-# aumos-open-harness-spec (X3)
+# warrantor-open-harness-spec (X3)
 
 A vendor-neutral specification for agent harnesses. Defines five mandatory interfaces
 as Python ``Protocol`` classes:

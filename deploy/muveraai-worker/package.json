@@ -1,0 +1,21 @@
+{
+  "name": "@warrantor/muveraai-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Serves Go vanity imports and protocol JSON Schemas on muveraai.com.",
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "check": "node scripts/generate.mjs && git diff --exit-code -- src/generated.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "deploy": "wrangler deploy",
+    "dry-run": "wrangler deploy --dry-run --outdir=.dry"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "wrangler": "^4.0.0"
+  }
+}

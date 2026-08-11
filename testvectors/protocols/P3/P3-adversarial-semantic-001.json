@@ -1,0 +1,48 @@
+{
+  "id": "P3-adversarial-semantic-001",
+  "category": "adversarial",
+  "protocol": "P3",
+  "expected": "invalid",
+  "expected_error": "SEMANTIC_RULE",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P3",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000003",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "1ef1a55c7e8cb82a928a90d9d11be60cd83ec9b7008f05069ceff875bb335d6c",
+    "payload": {
+      "source_identity": "urn:aumos:source:approved-corpus",
+      "acquired_at": 1893455940,
+      "consent": false,
+      "sensitivity": "L3",
+      "content_digest": "sha256:4a255dc80efac767d39d7c5d4097c0b935615161535fc6694a6d6de141fd580a",
+      "confidence_micros": 900000,
+      "transformations": [
+        {
+          "operation": "normalize",
+          "implementation": "urn:aumos:transform:normalize-v1",
+          "input_digest": "sha256:4a255dc80efac767d39d7c5d4097c0b935615161535fc6694a6d6de141fd580a",
+          "output_digest": "sha256:3b752f33420202eba628af5ce750b226e4de71c4b215dd11ab090b3fc856b63b",
+          "applied_at": 1893455970
+        }
+      ],
+      "derived_from": [
+        "sha256:df61caed394f7c04683db3456fea0b8f169a349018cbaddfbb734e6fdf6f4795"
+      ],
+      "taints": [],
+      "allowed_uses": [
+        "analysis"
+      ]
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "62ca7307c5e44007b85efa6166d3f50cf068f583ec8e9beac807f6b62d7af560e84b4b6440aa357ab072648ff34f2cd6fb7047d85109040f10682540dde44d0e"
+    }
+  }
+}

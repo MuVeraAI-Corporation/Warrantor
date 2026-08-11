@@ -1,5 +1,5 @@
 [project]
-name = "aumos-bridge-rt"
+name = "warrantor-bridge-rt"
 version = "1.0.0"
 description = "N2 — unified inference backend abstraction; auto-selects TRT-LLM > vLLM > Ollama; handles TRT-LLM v0.16 sampler_type"
 readme = "README.md"

@@ -1,4 +1,4 @@
-# aumos-fed-core (F1)
+# warrantor-fed-core (F1)
 
 Attested federated training orchestration. Three roles collaborate:
 

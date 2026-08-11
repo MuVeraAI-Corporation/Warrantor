@@ -1,5 +1,5 @@
 [project]
-name = "aumos-safe-eval"
+name = "warrantor-safe-eval"
 version = "1.0.0"
 description = "A1 — unified safety-evaluation pipeline framework (HELM/garak/PyRIT/MDASH orchestration)"
 readme = "README.md"
@@ -9,7 +9,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.4"]
+dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.4", "pyyaml>=6.0"]
 yaml = ["pyyaml>=6.0"]
 
 [project.scripts]

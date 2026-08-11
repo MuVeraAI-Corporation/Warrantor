@@ -1,0 +1,37 @@
+{
+  "id": "P4-positive-001",
+  "category": "positive",
+  "protocol": "P4",
+  "expected": "valid",
+  "expected_error": "",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P4",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000004",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "eafb01b74987e6089fa45dcd0a078960d14701baa908d63f2886bfba062c29c5",
+    "payload": {
+      "sequence": 1,
+      "previous_digest": "sha256:295fa0a3f7a09ae2fa13d8e165d2511285fb7a904f02f17cea003e6a4ec0c0c4",
+      "owner": "spiffe://example.org/agent/researcher",
+      "content_digest": "sha256:4565348f2fe62c2a644a03b4cc7e200177a07f6917ca0e037263dd23489cdb97",
+      "confidence_micros": 800000,
+      "contradiction_links": [],
+      "provenance_digest": "sha256:b0ffe6d84a48b76d8e823ff6baa71d66f6386d6c1821c0edc497e11865355306",
+      "quarantine_state": "clean",
+      "supersedes": "",
+      "retention_until": 1893546000,
+      "consent_revoked": false
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "f4aa777eed0f1a98d6f616eaae130898c2284127e10eebe573a45b85a7e73cb1f178fd4f4d1052e80f3f728c85651198f11ddda19b6f96a7e3b3ea9a20470f09"
+    }
+  }
+}

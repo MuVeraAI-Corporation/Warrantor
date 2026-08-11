@@ -1,5 +1,5 @@
 [project]
-name = "aumos-retro-spec-kit"
+name = "warrantor-retro-spec-kit"
 version = "1.0.0"
 description = "X5 — automated retrospective transcript review with six safety analyzers"
 readme = "README.md"

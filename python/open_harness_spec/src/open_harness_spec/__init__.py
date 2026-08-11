@@ -21,9 +21,8 @@ See ``docs/rfcs/X3-open-harness-spec.md``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
-
 
 SPEC_VERSION = "1.0.0"
 """The open-harness-spec version this package implements."""
@@ -167,7 +166,7 @@ class DefaultAuditEvent:
 
             self.event_id = str(uuid.uuid4())
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the event to a plain dict."""
@@ -285,9 +284,7 @@ class ConformanceResult:
         return {
             "conforms": self.conforms,
             "spec_version": SPEC_VERSION,
-            "checks": [
-                {"interface": n, "passed": p, "reason": r} for n, p, r in self.checks
-            ],
+            "checks": [{"interface": n, "passed": p, "reason": r} for n, p, r in self.checks],
         }
 
 
@@ -342,9 +339,7 @@ class ConformanceChecker:
             required = _REQUIRED[name]
             missing = [a for a in required if not hasattr(harness, a)]
             if missing:
-                result.checks.append(
-                    (name, False, f"missing: {', '.join(missing)}")
-                )
+                result.checks.append((name, False, f"missing: {', '.join(missing)}"))
             else:
                 result.checks.append((name, True, "ok"))
         return result
@@ -355,6 +350,8 @@ class ConformanceChecker:
 
 
 __all__ = [
+    "INTERFACE_NAMES",
+    "SPEC_VERSION",
     "AgentIdentity",
     "AttestationEnvelope",
     "AttestationReport",
@@ -364,8 +361,6 @@ __all__ = [
     "DefaultAuditEvent",
     "EvalResult",
     "EvaluationReport",
-    "INTERFACE_NAMES",
     "PermissionDecision",
-    "SPEC_VERSION",
     "ToolPermission",
 ]

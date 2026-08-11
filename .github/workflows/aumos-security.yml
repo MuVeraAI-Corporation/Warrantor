@@ -109,7 +109,7 @@ jobs:
           fi
       - name: Install defstack CLI
         if: steps.config.outputs.exists == 'true'
-        run: cargo install --git https://github.com/MuVeraAI/aumos defstack-cli || true
+        run: cargo install --git https://github.com/MuVeraAI-Corporation/Warrantor defstack-cli || true
       - name: Run compliance report
         if: steps.config.outputs.exists == 'true'
         run: defstack compliance-report || echo "Compliance report generated (informational)"

@@ -791,7 +791,7 @@ li::marker { color: var(--accent); }
 
 <h4>Install &amp; onboarding</h4>
 <div class="mv-grid-3">
-  <div class="mv-feature-card"><div class="num">DX-01</div><h4>One-command install</h4><p><code>curl -sSL https://get.aumos.dev | sh</code> bootstraps the defstack CLI and Wave-1 components on macOS, Linux, WSL. No prerequisite toolchain.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-01</div><h4>One-command install</h4><p><code>curl -sSL https://get.muveraai.com | sh</code> bootstraps the defstack CLI and Wave-1 components on macOS, Linux, WSL. No prerequisite toolchain.</p></div>
   <div class="mv-feature-card"><div class="num">DX-02</div><h4>Per-component install</h4><p><code>defstack install &lt;component&gt;</code> installs any of 52 components (49 shipped + S3/R8 deferred + tooling), resolving the component DAG.</p></div>
   <div class="mv-feature-card"><div class="num">DX-03</div><h4>One-command compliance</h4><p><code>defstack compliance-report</code> produces a signed JSON bundle for all 10 frameworks from S4 + S5 + S2 + A1 + A2.</p></div>
   <div class="mv-feature-card"><div class="num">DX-27</div><h4>5-minute quickstart</h4><p>Clone → <code>make test</code> → first contributed patch. The repo is structured so a new contributor lands a green PR in one sitting.</p></div>
@@ -799,12 +799,12 @@ li::marker { color: var(--accent); }
 
 <h4>SDKs &amp; APIs</h4>
 <div class="mv-grid-3">
-  <div class="mv-feature-card"><div class="num">DX-04</div><h4>MCP server (15 tools)</h4><p>Any agent can call AumOS via <code>npx @muveraai/aumos-mcp-server</code>. 15 tools span identity, authority, evidence, and kill-switch.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-04</div><h4>MCP server (15 tools)</h4><p>Any agent can call AumOS via <code>npx @warrantor/mcp-server</code>. 15 tools span identity, authority, evidence, and kill-switch.</p></div>
   <div class="mv-feature-card"><div class="num">DX-05</div><h4><code>@agent.action</code> decorator</h4><p>Wrap any function with authority, evidence, and kill-switch in one line. Security becomes opt-out, not opt-in.</p></div>
   <div class="mv-feature-card"><div class="num">DX-06</div><h4><code>secure_session()</code> context manager</h4><p>Wrap an entire agent session: identity issued, budget enforced, evidence streamed, credentials auto-revoked on exit.</p></div>
   <div class="mv-feature-card"><div class="num">DX-23</div><h4>TypeScript SDK</h4><p>First-class SDK for the console (X7) and MCP gateway (X8). Generated from the proto contract — no hand-maintained types.</p></div>
   <div class="mv-feature-card"><div class="num">DX-24</div><h4>Python SDK</h4><p>First-class SDK for agents, evals (A1/A2), and research (X5/X6). PyO3 bindings into the Rust trusted core.</p></div>
-  <div class="mv-feature-card"><div class="num">DX-25</div><h4>Rust crate</h4><p>The trusted-core crate (<code>aumos-trust-core</code>) is published so any Rust service can verify AAE/AAR without FFI.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-25</div><h4>Rust crate</h4><p>The trusted-core crate (<code>warrantor-trust-core</code>) is published so any Rust service can verify AAE/AAR without FFI.</p></div>
   <div class="mv-feature-card"><div class="num">DX-26</div><h4>Go modules</h4><p>Control-plane services (I1, N1, N4, F3, F4) ship as importable Go modules for K8s operator extension.</p></div>
   <div class="mv-feature-card"><div class="num">DX-09</div><h4>Contract-first design</h4><p>Proto → generated bindings → all consumers. <code>buf breaking</code> runs on every PR so the contract plane cannot drift silently.</p></div>
 </div>
@@ -1166,7 +1166,7 @@ li::marker { color: var(--accent); }
 
 <!-- ====================== SOURCES / FOOTER ====================== -->
 <div class="mv-foot">
-<p><strong>Sources (all <code>github.com/MuVeraAI/aumos</code>):</strong></p>
+<p><strong>Sources (all <code>github.com/MuVeraAI-Corporation/Warrantor</code>):</strong></p>
 <ul>
   <li><code>docs/html/aumos-docs.css</code> &mdash; stylesheet inlined verbatim into this page (with MuVera dark enterprise overlay).</li>
   <li><code>docs/00-reconciliation-matrix.md</code> &mdash; canonical component list (1A).</li>

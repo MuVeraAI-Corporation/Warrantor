@@ -1,4 +1,4 @@
-# aumos-red-team-cloud (A7)
+# warrantor-red-team-cloud (A7)
 
 Continuous adversarial simulation service. Wraps A2 `adversaria`'s
 `AttackSuite` into a scheduled job runner that fires attack suites on a

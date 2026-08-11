@@ -523,7 +523,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <tbody>
     <tr><td><strong>SPIRE server</strong></td><td>v1.10+; deployed as a K8s StatefulSet or standalone binary</td><td>I1 agent-identity's real implementation wraps SPIRE's WorkloadAPI to issue SVIDs. The v1.0 uses an in-process Ed25519 CA instead.</td></tr>
     <tr><td><strong>SPIRE agents</strong></td><td>One per node; workload attestor configured for the AumOS agents</td><td>SPIRE agents run alongside each component process and provide SVIDs via the WorkloadAPI (Unix socket).</td></tr>
-    <tr><td><strong>Trust domain</strong></td><td><code>spiffe://aumos.dev</code> (or customer-specific)</td><td>Configured on the SPIRE server; all SVIDs carry this trust domain.</td></tr>
+    <tr><td><strong>Trust domain</strong></td><td><code>spiffe://muveraai.com</code> (or customer-specific)</td><td>Configured on the SPIRE server; all SVIDs carry this trust domain.</td></tr>
     <tr><td><strong>OPA / Rego</strong></td><td>v0.70+; deployed as a sidecar or standalone</td><td>R3 kill-switch and R5 policy-compiler use OPA for policy evaluation. v1.0 uses <code>MockPolicyEngine</code> with hardcoded thresholds.</td></tr>
     <tr><td><strong>Cedar</strong></td><td>v4.0+ (Rust crate)</td><td>R5 policy-compiler emits Cedar policies as an alternative to Rego. v1.0 generates the text but doesn't evaluate it.</td></tr>
   </tbody>
@@ -547,7 +547,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <tbody>
     <tr><td><strong>Sigstore Rekor</strong></td><td>Public instance (<code>rekor.sigstore.dev</code>) or self-hosted</td><td>T1 trust-core's <code>notarize</code> records signatures in Rekor's append-only transparency log. S2 provena-chain anchors Merkle roots in Rekor periodically. v1.0 stubs both.</td></tr>
     <tr><td><strong>OpenTelemetry Collector</strong></td><td>v0.100+; OTLP receiver enabled</td><td>E1 flight-recorder emits OTel-shaped JSON in v1.0; real OTLP export requires a collector running and the OTLP exporter wired.</td></tr>
-    <tr><td><strong>Kafka (or equivalent)</strong></td><td>v3.7+; topics <code>aumos.identity.revoked.v1</code>, <code>aumos.evidence.receipt.v1</code>, etc.</td><td>I1 revocation fan-out and E1 receipt emission use CloudEvents + Kafka for async delivery. v1.0 is in-process.</td></tr>
+    <tr><td><strong>Kafka (or equivalent)</strong></td><td>v3.7+; topics <code>warrantor.identity.revoked.v1</code>, <code>warrantor.evidence.receipt.v1</code>, etc.</td><td>I1 revocation fan-out and E1 receipt emission use CloudEvents + Kafka for async delivery. v1.0 is in-process.</td></tr>
     <tr><td><strong>OCSF-compatible SIEM</strong></td><td>Splunk, Elastic, Microsoft Sentinel, or any OCSF-compatible system</td><td>E1 flight-recorder's OCSF export (class_uid 6003) must be ingested by the SIEM for audit.</td></tr>
   </tbody>
 </table>
@@ -555,7 +555,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <h4>E1 flight-recorder</h4>
 <table class="meta-table">
   <tr><td>Current state</td><td>Signed AAR emission pre-commit (I-07); OCSF + OTel JSON export working. No real OTLP/Kafka/SIEM wiring.</td></tr>
-  <tr><td>Integration step</td><td>1. Add <code>opentelemetry-otlp</code> exporter. 2. Replace the JSON export with real OTLP gRPC push to the collector. 3. Add <code>kafka</code> producer for the <code>aumos.evidence.receipt.v1</code> CloudEvent topic. 4. Verify OCSF JSON is accepted by the SIEM.</td></tr>
+  <tr><td>Integration step</td><td>1. Add <code>opentelemetry-otlp</code> exporter. 2. Replace the JSON export with real OTLP gRPC push to the collector. 3. Add <code>kafka</code> producer for the <code>warrantor.evidence.receipt.v1</code> CloudEvent topic. 4. Verify OCSF JSON is accepted by the SIEM.</td></tr>
   <tr><td>Verification</td><td>Emit an AAR → it must appear in the OTel collector's trace pipeline and in the SIEM as an OCSF event.</td></tr>
   <tr><td>Blocked on</td><td>OTel Collector deployment + Kafka cluster + SIEM integration</td></tr>
 </table>

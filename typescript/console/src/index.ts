@@ -1,5 +1,5 @@
 /**
- * @aumos/console (X7) — AumOS enterprise policy/evidence console.
+ * @warrantor/console (X7) — AumOS enterprise policy/evidence console.
  *
  * The data model, API client, and view logic for the enterprise console. The console provides:
  *   - Evidence viewer (browse AARs from E1 flight-recorder)
@@ -215,7 +215,7 @@ export function allocationsByTenant(state: ConsoleState): Map<string, number> {
 
 /** Configuration for the API client. */
 export interface ApiClientConfig {
-  baseUrl: string; // e.g. "https://console.aumos.dev"
+  baseUrl: string; // e.g. "https://console.muveraai.com"
   token?: string;  // bearer token (from SSO in production)
 }
 

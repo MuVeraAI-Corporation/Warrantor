@@ -34,6 +34,7 @@ def test_attestation_to_dict_round_trips() -> None:
 def PipelineAttestation_from_dict(d: dict) -> object:
     """Helper to round-trip — exercises the to_dict shape."""
     from attesta_flow import PipelineAttestation
+
     return PipelineAttestation(
         batch_id=d["batch_id"],
         cloud_provider=CloudProvider(d["cloud_provider"]),

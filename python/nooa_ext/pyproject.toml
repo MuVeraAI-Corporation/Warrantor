@@ -1,5 +1,5 @@
 [project]
-name = "aumos-nooa-ext"
+name = "warrantor-nooa-ext"
 version = "1.0.0"
 description = "X2 — production extensions to NVIDIA NOOA (PolicyEnforcer, AuditStreamer, IdentityBinder, AttestationHook)"
 readme = "README.md"

@@ -42,9 +42,9 @@ var (
 
 // TenantQuota is a tenant's GPU quota (per RFC N4 GPUQuota CRD).
 type TenantQuota struct {
-	TenantID       string        `json:"tenant_id"`
-	MaxGPUs        int           `json:"max_gpus"`
-	PreferredMode  IsolationMode `json:"preferred_mode"`
+	TenantID      string        `json:"tenant_id"`
+	MaxGPUs       int           `json:"max_gpus"`
+	PreferredMode IsolationMode `json:"preferred_mode"`
 	// Per-tenant attestation: the AAE (P1) the tenant's agents must present.
 	// An empty TrustedAAEHash disables attestation enforcement (CI only).
 	TrustedAAEHash string `json:"trusted_aae_hash,omitempty"`
@@ -52,37 +52,37 @@ type TenantQuota struct {
 
 // Allocation is a GPU allocation for a tenant.
 type Allocation struct {
-	TenantID    string        `json:"tenant_id"`
-	GPUID       string        `json:"gpu_id"`
-	GPUModel    string        `json:"gpu_model"`
-	Mode        IsolationMode `json:"mode"`
-	Slice       string        `json:"slice,omitempty"` // MIG slice id (e.g. "1g.10gb") or MPS id
-	AAEValidated bool         `json:"aae_validated"`
+	TenantID     string        `json:"tenant_id"`
+	GPUID        string        `json:"gpu_id"`
+	GPUModel     string        `json:"gpu_model"`
+	Mode         IsolationMode `json:"mode"`
+	Slice        string        `json:"slice,omitempty"` // MIG slice id (e.g. "1g.10gb") or MPS id
+	AAEValidated bool          `json:"aae_validated"`
 }
 
 // GPU is a physical GPU that can be partitioned.
 type GPU struct {
-	ID         string
-	Model      string // "H100", "H200", "B100"
+	ID            string
+	Model         string // "H100", "H200", "B100"
 	TotalMemoryGB int
-	SupportsMIG bool
-	SupportsMPS bool
+	SupportsMIG   bool
+	SupportsMPS   bool
 	// Already-allocated slices (slice-id → tenant).
-	migSlices map[string]string
+	migSlices  map[string]string
 	mpsClients map[string]string
-	mu        sync.Mutex
+	mu         sync.Mutex
 }
 
 // NewGPU constructs a new GPU with the given attributes and empty allocation.
 func NewGPU(id, model string, memGB int, mig, mps bool) *GPU {
 	return &GPU{
-		ID:          id,
-		Model:       model,
+		ID:            id,
+		Model:         model,
 		TotalMemoryGB: memGB,
-		SupportsMIG: mig,
-		SupportsMPS: mps,
-		migSlices:   map[string]string{},
-		mpsClients:  map[string]string{},
+		SupportsMIG:   mig,
+		SupportsMPS:   mps,
+		migSlices:     map[string]string{},
+		mpsClients:    map[string]string{},
 	}
 }
 
@@ -148,10 +148,10 @@ func (g *GPU) AllocatedTenants() []string {
 
 // Scheduler is the multi-tenant GPU scheduler.
 type Scheduler struct {
-	mu       sync.Mutex
-	gpus     []*GPU
-	quotas   map[string]*TenantQuota
-	usage    map[string]int // tenantID → current allocation count
+	mu     sync.Mutex
+	gpus   []*GPU
+	quotas map[string]*TenantQuota
+	usage  map[string]int // tenantID → current allocation count
 }
 
 // NewScheduler constructs a scheduler with the given GPUs and no quotas.
@@ -229,11 +229,11 @@ func (s *Scheduler) Allocate(tenantID, aaeHash string) (*Allocation, error) {
 	s.usage[tenantID]++
 
 	return &Allocation{
-		TenantID:    tenantID,
-		GPUID:       picked.ID,
-		GPUModel:    picked.Model,
-		Mode:        mode,
-		Slice:       slice,
+		TenantID:     tenantID,
+		GPUID:        picked.ID,
+		GPUModel:     picked.Model,
+		Mode:         mode,
+		Slice:        slice,
 		AAEValidated: aaeValidated,
 	}, nil
 }

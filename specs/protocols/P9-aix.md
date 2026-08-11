@@ -8,7 +8,7 @@
 | **Name** | aix (Agent Incident Exchange) |
 | **Spec-only canonical** | Yes — see [`../../docs/00-reconciliation-matrix.md`](../../docs/00-reconciliation-matrix.md) §9 |
 | **Consumed by** | X9, R3 |
-| **Schema location** | `OCSF extension + JSON` |
+| **Schema location** | `specs/protocols/P9-aix.schema.json + .cddl` |
 | **Base standards** | SPIFFE, OAuth RAR/DPoP, OCSF, OTel, CycloneDX/SPDX, OMS, MITRE ATLAS (as applicable) |
 
 ## Purpose
@@ -21,10 +21,12 @@ language implementation via the contract plane (see
 
 ## Schema sketch (CDDL / protobuf)
 
-The normative schema lives at `OCSF extension + JSON`. Mandatory fields:
+The normative schema lives at `specs/protocols/P9-aix.schema.json + .cddl`. Mandatory fields:
 
 ```
-incident_id, type, severity, agent, authority, evidence_refs, mitre_atlas_id, ocsf_class, detected_at, contained_at
+envelope: protocol, version, message_id, issuer, issued_at, expires_at, nonce, critical_extensions, extensions
+payload:  incident_type, severity, agent, authority_digest, evidence_refs, mitre_atlas_ids, ocsf_class_uid, detected_at, contained_at, containment_status
+signature: algorithm, key_id, value
 ```
 
 (Field names are stable; renaming is a breaking change requiring a new protocol version per the
@@ -49,7 +51,7 @@ Sigstore Rekor transparency log entry is returned for non-repudiation.
 
 ## Adversarial test vectors
 
-Each protocol ships adversarial test vectors in `testvectors/P9/`:
+Each protocol ships adversarial test vectors in `testvectors/protocols/P9/`:
 
 - **Replay** — expired and re-used instances are rejected.
 - **Tampering** — any field modified post-signing fails verification.
@@ -60,8 +62,10 @@ Each protocol ships adversarial test vectors in `testvectors/P9/`:
 - **Replay across contexts** — a receipt from one task replayed in another is detected by
   `subject` + `jti` uniqueness.
 
-Conformance is enforced by A6 (the cross-language conformance suite) against every language
-implementation that consumes the protocol.
+Conformance is enforced by the protocol vector suite in
+[`testvectors/protocols/`](../../testvectors/protocols/). Coverage by language is reported by
+`tools/conformance/run.py`; a language absent from that report has not been verified against
+these vectors.
 
 ## Cross-references
 

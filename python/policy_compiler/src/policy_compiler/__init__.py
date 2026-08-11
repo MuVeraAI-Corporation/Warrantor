@@ -29,9 +29,10 @@ See ``docs/rfcs/R5-policy-compiler.md``.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Iterable
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +159,10 @@ def parse_rules(text: str) -> list[Rule]:
 _INTENT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bdeny\s+all\s+egress\b", re.IGNORECASE), "deny tool:http on * when always"),
     (re.compile(r"\brequire\s+mfa\b", re.IGNORECASE), "allow tool:* on * when mfa == true"),
-    (re.compile(r"\bblock\s+external\s+network\b", re.IGNORECASE), "deny tool:net on external/* when always"),
+    (
+        re.compile(r"\bblock\s+external\s+network\b", re.IGNORECASE),
+        "deny tool:net on external/* when always",
+    ),
     (re.compile(r"\bonly\s+allow\s+read\b", re.IGNORECASE), "allow tool:read on * when always"),
 ]
 
@@ -215,7 +219,7 @@ class RegoPolicyEmitter:
     canonical least-privilege default).
     """
 
-    def emit(self, rules: Iterable[Rule], *, package: str = "aumos.policy") -> str:
+    def emit(self, rules: Iterable[Rule], *, package: str = "warrantor.policy") -> str:
         """Render ``rules`` as a Rego module string."""
         rules = list(rules)
         allow_lines: list[str] = []
@@ -229,7 +233,7 @@ class RegoPolicyEmitter:
             cond = ", ".join(p for p in cond_parts if p != "")
             target = allow_lines if r.effect == Effect.ALLOW else deny_lines
             target.append(f"    {cond}")
-        out: list[str] = [f"package {package}", "", 'default allow = false  # deny by default']
+        out: list[str] = [f"package {package}", "", "default allow = false  # deny by default"]
         if allow_lines:
             out.append("allow {")
             out.extend(allow_lines)
@@ -264,9 +268,7 @@ class CedarPolicyEmitter:
             if when_clause:
                 cond_parts.append(when_clause)
             cond = ",\n  ".join(p for p in cond_parts if p)
-            out.append(
-                f"{keyword} (\n  principal is {principal},\n  {cond}\n);  // rule #{i + 1}"
-            )
+            out.append(f"{keyword} (\n  principal is {principal},\n  {cond}\n);  // rule #{i + 1}")
         return "\n".join(out) + "\n"
 
 
@@ -313,7 +315,7 @@ class OpenShellEmitter:
         rules = list(rules)
         lines: list[str] = [f'version: "{version}"', "rules:"]
         for r in rules:
-            lines.append(f'  - effect: {r.effect.value}')
+            lines.append(f"  - effect: {r.effect.value}")
             lines.append(f'    action: "{r.action}"')
             lines.append(f'    resource: "{r.resource}"')
             if r.conditional:

@@ -32,29 +32,57 @@ appears in the matrix entry and the originating source document (see
 
 ## Detailed Design
 
-Implementation language(s): TypeScript + Rust verify. The component consumes the contract plane
-(`proto/`, `specs/`, `testvectors/`) and depends on: I1, S4, T1.
+The TypeScript implementation is split into two explicit boundaries:
 
-Detailed per-message and per-RPC design will be expanded in this section during the component's
-Wave sprint (MVP week 2 → v1.0 week 8). The contract definitions land in `proto/aumos/<service>/v1/`
-and `specs/` first; this RFC section references them.
+1. `mcp-gateway` resolves the requested tool in a registry, evaluates the caller's P1 Agent
+   Authority Envelope, and passes only an `AllowedAuthorizationResult` to a required
+   `ToolTransport`. The discriminated result type guarantees that an allowed decision carries
+   the exact tool SVID and side-effect class that were evaluated.
+2. `aumos-mcp-server` exposes the AumOS control operations over stdio. Its default `connected`
+   dependency graph calls the real HTTP services and CLIs. The deterministic `standalone`
+   implementation is an explicit demo-only graph and is never used as an error fallback.
 
-**Dependency note:** where X8 depends on a Wave-2+ component not yet shipped (e.g. I1
-agent-identity), Wave-1 code integrates against the **mock** defined in the relevant `proto/`
-file. The mock-to-real migration is a tracked task in the component's tasks/ directory.
+The bundled `McpHttpTransport` sends one JSON-RPC `tools/call` POST to the endpoint resolved for
+the authorized tool SVID. It declares the MCP protocol version, accepts JSON or Server-Sent
+Events, enforces a timeout, requires HTTPS except for loopback development, matches the response
+ID, validates the JSON-RPC envelope, and converts remote errors into typed gateway failures.
+Only a validated remote result increments the `forwarded` counter; denials and transport failures
+increment `failed` and cannot produce a success acknowledgement.
+
+The stdio server implements the modern `2026-07-28` stateless era: every request carries the
+reserved `io.modelcontextprotocol/*` version and client-capability metadata, `server/discover`
+advertises supported versions and server capabilities, and modern tool/list results carry
+`resultType` plus required cache metadata. A contained dual-era path retains explicit
+`initialize` compatibility for `2025-11-25` and `2024-11-05`; requests without modern metadata
+are rejected unless that legacy handshake has succeeded.
+
+Connected server adapters validate every security-relevant response field before returning
+success. Outages use `CONTROL_UNAVAILABLE`; malformed success-status responses use
+`CONTROL_RESPONSE_INVALID`. Neither error contains a synthetic `valid`, `allowed`, `triggered`,
+`revoked`, receipt, SVID, signature, attestation, SBOM, or evaluation bundle.
 
 ## Dependencies
 
 - **AumOS internal:** I1, S4, T1
-- **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
+- **External:** MCP Streamable HTTP; the T1 `trust-core` and X1 `defstack` CLIs; configured HTTP
+  endpoints for I1, E1, C1-1, R2, R3, R4, S4, and A1.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).
 
 ## Threat Model
 
-A full STRIDE analysis is produced during the component's Alpha sprint (week 4). Security-critical
-components (T-group, R-group, I-group, S6/R7 eBPF) get the full template per
-`docs/cross-cutting/` threat-model standard; non-security components get the condensed version.
+Primary threats and implemented mitigations:
+
+| Threat | Mitigation |
+|---|---|
+| Confused deputy calls a tool outside delegated authority | Exact tool SVID membership and gateway audience checks before transport invocation |
+| Consequential action bypasses approval | Side-effect rank plus explicit approval binding for financial, destructive, and physical tools |
+| Dependency outage is misreported as control success | Required transport and fail-closed connected adapters; no mock fallback |
+| Compromised service returns a success-shaped but incomplete payload | Runtime validation of required security fields |
+| Response substitution or stale event is accepted | JSON-RPC version and request-ID matching |
+| Cleartext remote interception | HTTPS required for non-loopback Streamable HTTP endpoints |
+| Hung server consumes the caller's time budget | AbortController timeout and typed retryability |
+| Remote error is hidden behind a synthetic acknowledgement | JSON-RPC errors propagate as `remote_error`; forwarding counters advance only on validated results |
 
 Cross-cutting threats and mitigations are summarized in [`02-architecture.md`](../02-architecture.md) §9.
 The 12 formal invariants (I-01…​I-12) that this component must satisfy are listed in
@@ -62,14 +90,16 @@ The 12 formal invariants (I-01…​I-12) that this component must satisfy are l
 
 ## API
 
-Public surface (CLI, gRPC service, library) is defined in `proto/aumos/<service>/v1/<name>.proto`
+Public surface (CLI, gRPC service, library) is defined in `proto/warrantor/<service>/v1/<name>.proto`
 and exposed via generated bindings (Rust/Python/TypeScript/Go) per
 `docs/cross-cutting/19-inter-component-protocol.md`. CLI subcommands follow the
 `<component> <verb> --flag` convention.
 
 ## Testing
 
-- **Unit:** ≥85% coverage gate (per `docs/cross-cutting/18-developer-experience.md`).
+- **Unit:** authority ordering, confused-deputy defenses, consequential approvals, required
+  transport injection, JSON and SSE forwarding, response-ID matching, HTTPS, timeout, HTTP and
+  JSON-RPC error propagation, and all connected adapter outage/malformed-response paths.
 - **Golden vectors:** `testvectors/X8/` — exercised by the cross-language conformance suite (A6).
 - **Integration:** cross-component flows per `docs/cross-cutting/` integration-test standard.
 - **Fuzz:** required for crypto/parsing-heavy components (per fuzzing strategy cross-cutting).

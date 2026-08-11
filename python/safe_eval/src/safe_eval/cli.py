@@ -10,9 +10,13 @@ from safe_eval import parse_pipeline_yaml, run_pipeline, to_veb
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="safe-eval", description="Run a YAML eval pipeline against a target.")
+    p = argparse.ArgumentParser(
+        prog="safe-eval", description="Run a YAML eval pipeline against a target."
+    )
     p.add_argument("--pipeline", required=True, help="Path to a YAML pipeline file.")
-    p.add_argument("--veb", action="store_true", help="Emit a Verifiable Evaluation Bundle (P8 VEB).")
+    p.add_argument(
+        "--veb", action="store_true", help="Emit a Verifiable Evaluation Bundle (P8 VEB)."
+    )
     args = p.parse_args(argv)
 
     try:

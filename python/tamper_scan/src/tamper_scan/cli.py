@@ -24,7 +24,9 @@ def main(argv: list[str] | None = None) -> int:
         description="Scan model tensors for tampering (weight/backdoor/pruning/fine-tune).",
     )
     p.add_argument("--subject", required=True, help="JSON file of subject tensors.")
-    p.add_argument("--baseline", default=None, help="JSON file of trusted baseline tensors (optional).")
+    p.add_argument(
+        "--baseline", default=None, help="JSON file of trusted baseline tensors (optional)."
+    )
     args = p.parse_args(argv)
 
     try:

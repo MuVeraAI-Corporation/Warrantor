@@ -32,7 +32,7 @@ type fakeExecutor struct {
 	setReplicasErr error
 	observeErr     error
 	steerErr       error
-	tearDownErr   error
+	tearDownErr    error
 }
 
 type setReplicasCall struct {
@@ -48,8 +48,8 @@ type steerCall struct {
 
 func newFakeExecutor(now time.Time) *fakeExecutor {
 	return &fakeExecutor{
-		pods:    map[string][]string{},
-		health:  map[string]PodObservation{},
+		pods:   map[string][]string{},
+		health: map[string]PodObservation{},
 	}
 }
 

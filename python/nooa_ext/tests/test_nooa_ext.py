@@ -14,8 +14,8 @@ from nooa_ext import (
     AuditStreamer,
     IdentityBinder,
     PolicyEnforcer,
-    SVIDBundle,
     StubRegoEvaluator,
+    SVIDBundle,
     WebhookBackend,
 )
 
@@ -40,7 +40,7 @@ def test_policy_enforcer_emits_audit_event_on_decision() -> None:
     policy = 'allow { input.action == "tool:read" }'
     streamer = AuditStreamer()
     ident = AgentIdentity(
-        spiffe_id="spiffe://aumos.dev/agent/1",
+        spiffe_id="spiffe://muveraai.com/agent/1",
         agent_id="agent-1",
         workload_id="w-1",
     )
@@ -113,10 +113,10 @@ def test_audit_streamer_ring_buffer_capped() -> None:
 # ---------- IdentityBinder ----------
 def test_identity_binder_binds_svid_from_source() -> None:
     bundle = SVIDBundle(
-        spiffe_id="spiffe://aumos.dev/agent/x",
+        spiffe_id="spiffe://muveraai.com/agent/x",
         serial="1",
         not_after="2026-12-31T00:00:00Z",
-        trust_domain="aumos.dev",
+        trust_domain="muveraai.com",
         fingerprint="aa",
     )
 
@@ -126,9 +126,9 @@ def test_identity_binder_binds_svid_from_source() -> None:
 
     binder = IdentityBinder("agent-x", "w-x", StaticSource())
     ident = binder.bind()
-    assert ident.spiffe_id == "spiffe://aumos.dev/agent/x"
-    assert ident.attributes["trust_domain"] == "aumos.dev"
-    assert binder.verify("spiffe://aumos.dev/agent/x")
+    assert ident.spiffe_id == "spiffe://muveraai.com/agent/x"
+    assert ident.attributes["trust_domain"] == "muveraai.com"
+    assert binder.verify("spiffe://muveraai.com/agent/x")
     assert binder.rotations == 1
 
 
@@ -157,9 +157,7 @@ def test_identity_binder_requires_bind_before_current() -> None:
 
 # ---------- AttestationHook ----------
 def test_attestation_hook_opens_on_passed_report() -> None:
-    report = AttestationReport(
-        kind="tee", measurement="m1", nonce="n", passed=True
-    )
+    report = AttestationReport(kind="tee", measurement="m1", nonce="n", passed=True)
 
     class Static:
         def attest(self, nonce: str) -> AttestationReport:

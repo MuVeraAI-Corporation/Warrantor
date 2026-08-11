@@ -8,6 +8,13 @@ import {
   DEFAULT_K,
 } from './index.js';
 
+function requireDefined<T>(value: T | null | undefined, label: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`test invariant failed: ${label} must be defined`);
+  }
+  return value;
+}
+
 describe('expectedScore', () => {
   it('returns 0.5 for equal ratings', () => {
     expect(expectedScore(1200, 1200)).toBeCloseTo(0.5, 10);
@@ -131,8 +138,8 @@ describe('Leaderboard — match recording', () => {
     lb.addContestant('b');
     const m = lb.recordMatch('g1', 'a', 'b', 'a');
     expect(m.winner).toBe('a');
-    const a = lb.getContestant('a')!;
-    const b = lb.getContestant('b')!;
+    const a = requireDefined(lb.getContestant('a'), 'contestant a');
+    const b = requireDefined(lb.getContestant('b'), 'contestant b');
     expect(a.elo).toBeGreaterThan(DEFAULT_ELO);
     expect(b.elo).toBeLessThan(DEFAULT_ELO);
     expect(a.wins).toBe(1);
@@ -148,8 +155,12 @@ describe('Leaderboard — match recording', () => {
     const m = lb.recordMatch('g1', 'a', 'b', 'b');
     expect(m.eloABefore).toBe(DEFAULT_ELO);
     expect(m.eloBBefore).toBe(DEFAULT_ELO);
-    expect(m.eloBAfter!).toBeGreaterThan(m.eloBBefore!);
-    expect(m.eloAAfter!).toBeLessThan(m.eloABefore!);
+    expect(requireDefined(m.eloBAfter, 'B Elo after')).toBeGreaterThan(
+      requireDefined(m.eloBBefore, 'B Elo before'),
+    );
+    expect(requireDefined(m.eloAAfter, 'A Elo after')).toBeLessThan(
+      requireDefined(m.eloABefore, 'A Elo before'),
+    );
   });
 
   it('handles draws with half-credit', () => {
@@ -157,8 +168,8 @@ describe('Leaderboard — match recording', () => {
     lb.addContestant('a', 'A', 1400);
     lb.addContestant('b', 'B', 1200);
     const m = lb.recordMatch('g1', 'a', 'b', 'draw');
-    const a = lb.getContestant('a')!;
-    const b = lb.getContestant('b')!;
+    const a = requireDefined(lb.getContestant('a'), 'contestant a');
+    const b = requireDefined(lb.getContestant('b'), 'contestant b');
     expect(a.elo).toBeLessThan(1400);
     expect(b.elo).toBeGreaterThan(1200);
     expect(a.draws).toBe(1);
@@ -251,8 +262,10 @@ describe('Leaderboard — K-factor sensitivity', () => {
     }
     calm.recordMatch('g1', 'a', 'b', 'a');
     hot.recordMatch('g1', 'a', 'b', 'a');
-    const calmSwing = Math.abs(calm.getContestant('a')!.elo - DEFAULT_ELO);
-    const hotSwing = Math.abs(hot.getContestant('a')!.elo - DEFAULT_ELO);
+    const calmContestant = requireDefined(calm.getContestant('a'), 'calm contestant a');
+    const hotContestant = requireDefined(hot.getContestant('a'), 'hot contestant a');
+    const calmSwing = Math.abs(calmContestant.elo - DEFAULT_ELO);
+    const hotSwing = Math.abs(hotContestant.elo - DEFAULT_ELO);
     expect(hotSwing).toBeGreaterThan(calmSwing);
   });
 });

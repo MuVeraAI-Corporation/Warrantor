@@ -21,9 +21,9 @@ gated by Buf breaking-change detection.
 
 | Tier | Use case | Wire format | Defined in |
 |---|---|---|---|
-| **Internal (service-to-service)** | AumOS components talking to each other | **gRPC + protobuf** | `proto/aumos/<service>/v1/*.proto` |
+| **Internal (service-to-service)** | AumOS components talking to each other | **gRPC + protobuf** | `proto/warrantor/<service>/v1/*.proto` |
 | **External (client-facing)** | REST APIs, webhooks, third-party integrations | **REST + JSON** (HTTP/1.1 or HTTP/2) | `specs/rest/<service>/v1/*.yaml` (OpenAPI 3.1) |
-| **Async (event-driven)** | Audit events, action receipts, eval results, incident signals | **CloudEvents + Kafka** | `specs/events/<topic>/v1/*.yaml` + `proto/aumos/events/v1/*.proto` |
+| **Async (event-driven)** | Audit events, action receipts, eval results, incident signals | **CloudEvents + Kafka** | `specs/events/<topic>/v1/*.yaml` + `proto/warrantor/events/v1/*.proto` |
 
 **Rule:** no component invents a fourth tier. No raw TCP, no custom binary, no XML, no SOAP. If you
 need streaming, use gRPC server-streaming or bidirectional streaming.
@@ -105,7 +105,7 @@ language's SDK folder. Never hand-write REST clients — always generate.
   "specversion": "1.0",
   "id": "uuid",
   "source": "/aumos/agent-identity",
-  "type": "com.aumos.agent.identity.revoked",
+  "type": "com.warrantor.agent.identity.revoked",
   "time": "2026-08-05T12:34:56Z",
   "datacontenttype": "application/protobuf",
   "subject": "agent/abc-123",
@@ -115,10 +115,10 @@ language's SDK folder. Never hand-write REST clients — always generate.
 
 ### 4.2 Topics
 Kafka topics follow `aumos.<domain>.<event>.v<N>`:
-- `aumos.identity.revoked.v1`
-- `aumos.evidence.receipt.v1`
-- `aumos.evaluation.completed.v1`
-- `aumos.incident.detected.v1`
+- `warrantor.identity.revoked.v1`
+- `warrantor.evidence.receipt.v1`
+- `warrantor.evaluation.completed.v1`
+- `warrantor.incident.detected.v1`
 
 ### 4.3 Delivery semantics
 - **At-least-once** (default). Consumers must be idempotent (use the CloudEvent `id`).
@@ -223,15 +223,29 @@ need is mutually understood.
 
 ## 10. Generating Cross-Language Bindings
 
+**Implemented today — Rust only, and not via buf:**
+
 ```
-proto/ ──buf generate──┬── rust/        (tonic + prost)
-                       ├── python/      (grpcio + protobuf)
-                       ├── typescript/  (connect-es + protobuf-es)
-                       └── go/          (connect-go + protobuf-go)
+proto/ ──build.rs (tonic-build)──> OUT_DIR ──include!──> warrantor-api
+         runs on every `cargo build`; nothing committed
 ```
 
+**Planned — the other three languages:**
+
+```
+proto/ ──(not yet)──┬── python/      (grpcio + protobuf)
+                    ├── typescript/  (connect-es + protobuf-es)
+                    └── go/          (connect-go + protobuf-go)
+```
+
+Go, Python and TypeScript currently hand-mirror the wire types where they need them, and say so at
+the definition site (`go/agent-identity/service.go`). buf is used for `lint` and `breaking` only;
+there is no `buf.gen.yaml` and no `buf generate` step. See `proto/README.md` for why one targeting
+Rust must not be reintroduced.
+
 **Rules:**
-- Generate, don't hand-write. CI rejects uncommitted generated code (`buf generate --diff` check).
+- Generate, don't hand-write — for Rust this is enforced structurally, because the types live only
+  in `OUT_DIR` and are rebuilt from `proto/` on every build, so drift is not expressible.
 - Each language wraps generated types in ergonomic, idiomatic facades; the generated types are never
   the public API.
 - A conformance test (A6) verifies that a message serialized in one language deserializes identically

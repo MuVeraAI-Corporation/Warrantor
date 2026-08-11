@@ -1,5 +1,5 @@
 [package]
-name = "aumos-exfil-guard"
+name = "warrantor-exfil-guard"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "S6 — eBPF exfiltration prevention (PatternMatcher + EntropyDetector + VolumeMonitor)"
 
 [lib]
-name = "aumos_exfil_guard"
+name = "warrantor_exfil_guard"
 path = "src/lib.rs"
 
 [dependencies]

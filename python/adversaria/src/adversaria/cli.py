@@ -62,16 +62,23 @@ def _build_suite(args: argparse.Namespace) -> AttackSuite:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="adversaria", description="Run adversarial attacks against a target.")
+    p = argparse.ArgumentParser(
+        prog="adversaria", description="Run adversarial attacks against a target."
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
     run_p = sub.add_parser("run", help="Run attacks against a target.")
     tgt = run_p.add_mutually_exclusive_group(required=True)
-    tgt.add_argument("--target-refusing", action="store_true", help="Safe baseline (always refuses).")
-    tgt.add_argument("--target-compliant", action="store_true", help="Unsafe baseline (always complies).")
+    tgt.add_argument(
+        "--target-refusing", action="store_true", help="Safe baseline (always refuses)."
+    )
+    tgt.add_argument(
+        "--target-compliant", action="store_true", help="Unsafe baseline (always complies)."
+    )
     tgt.add_argument("--target-script", metavar="PATH", help="External script target.")
-    run_p.add_argument("--attacks", nargs="+",
-                       help="Attack types to run (default: all 5 built-in types).")
+    run_p.add_argument(
+        "--attacks", nargs="+", help="Attack types to run (default: all 5 built-in types)."
+    )
     run_p.add_argument("--count", type=int, default=1, help="Prompts per attack type (default 1).")
 
     list_p = sub.add_parser("list", help="List available attack types.")

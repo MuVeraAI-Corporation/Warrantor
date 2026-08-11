@@ -1,4 +1,4 @@
-# aumos-bias-sentinel (A3)
+# warrantor-bias-sentinel (A3)
 
 Combined bias and copyright auditing for model outputs.
 

@@ -1,4 +1,4 @@
-//! # aumos-safe-tensors-pp (S1)
+//! # warrantor-safe-tensors-pp (S1)
 //!
 //! Drop-in extension of HuggingFace Safetensors that adds a `__provenance__` block to the JSON
 //! header. The provenance block carries the signer, signature (Ed25519), signing timestamp,
@@ -30,7 +30,7 @@ pub const PROVENANCE_KEY: &str = "__provenance__";
 /// The provenance block embedded in a Safetensors++ header.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Provenance {
-    /// The signer identity (e.g. "did:web:aumos.dev" or a SPIFFE ID).
+    /// The signer identity (e.g. "did:web:muveraai.com" or a SPIFFE ID).
     pub signer: String,
     /// Hex-encoded Ed25519 verifying key (32 bytes).
     pub verifying_key: String,
@@ -81,7 +81,9 @@ pub enum StppError {
 ///
 /// # Errors
 /// Returns [`StppError`] on any I/O, length, or JSON failure.
-pub fn read_safetensors<R: Read>(reader: &mut R) -> Result<(serde_json::Value, Vec<u8>), StppError> {
+pub fn read_safetensors<R: Read>(
+    reader: &mut R,
+) -> Result<(serde_json::Value, Vec<u8>), StppError> {
     let mut len_bytes = [0u8; 8];
     reader.read_exact(&mut len_bytes)?;
     let header_len = u64::from_le_bytes(len_bytes);
@@ -119,9 +121,7 @@ pub fn write_safetensors<W: Write>(
 /// # Errors
 /// Returns [`StppError::NoProvenance`] if absent.
 pub fn provenance_from_header(header: &serde_json::Value) -> Result<Provenance, StppError> {
-    let p = header
-        .get(PROVENANCE_KEY)
-        .ok_or(StppError::NoProvenance)?;
+    let p = header.get(PROVENANCE_KEY).ok_or(StppError::NoProvenance)?;
     Ok(serde_json::from_value(p.clone())?)
 }
 
@@ -253,9 +253,9 @@ mod tests {
         let mut header = test_header();
         let data = test_data();
         let key = test_key();
-        sign(&mut header, &data, "did:web:aumos.dev", &key).expect("sign");
+        sign(&mut header, &data, "did:web:muveraai.com", &key).expect("sign");
         let p = verify(&header, &data).expect("verify");
-        assert_eq!(p.signer, "did:web:aumos.dev");
+        assert_eq!(p.signer, "did:web:muveraai.com");
     }
 
     #[test]
@@ -263,7 +263,7 @@ mod tests {
         let mut header = test_header();
         let data = test_data();
         let key = test_key();
-        sign(&mut header, &data, "did:web:aumos.dev", &key).expect("sign");
+        sign(&mut header, &data, "did:web:muveraai.com", &key).expect("sign");
         let mut tampered = data.clone();
         tampered[0] ^= 0xff;
         assert!(matches!(
@@ -276,7 +276,10 @@ mod tests {
     fn header_without_provenance_returns_no_provenance_error() {
         let header = test_header();
         let data = test_data();
-        assert!(matches!(verify(&header, &data), Err(StppError::NoProvenance)));
+        assert!(matches!(
+            verify(&header, &data),
+            Err(StppError::NoProvenance)
+        ));
     }
 
     #[test]
@@ -284,7 +287,7 @@ mod tests {
         let mut header = test_header();
         let data = test_data();
         let key = test_key();
-        sign(&mut header, &data, "did:web:aumos.dev", &key).expect("sign");
+        sign(&mut header, &data, "did:web:muveraai.com", &key).expect("sign");
         let mut buf = Vec::new();
         write_safetensors(&mut buf, &header, &data).expect("write");
         let mut cursor = std::io::Cursor::new(buf);
@@ -303,7 +306,7 @@ mod tests {
     #[test]
     fn provenance_round_trips_through_json() {
         let p = Provenance {
-            signer: "did:web:aumos.dev".into(),
+            signer: "did:web:muveraai.com".into(),
             verifying_key: "ab".repeat(16),
             signature: "cd".repeat(32),
             signed_at: 1000,

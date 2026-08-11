@@ -7,7 +7,7 @@ Expose trust-core to TypeScript via napi-rs.
 
 ## Steps
 1. `bindings/node/` — `napi-rs` setup; expose `sign`, `verify`, `canonicalCbor`, `notarize`.
-2. Generate TypeScript types; ship as `@aumos/trust-core` (local during Wave-1).
+2. Generate TypeScript types; ship as `@warrantor/trust-core` (local during Wave-1).
 3. Add TypeScript golden-vector verifier to the conformance suite.
 4. Document install + usage in `bindings/node/README.md`.
 

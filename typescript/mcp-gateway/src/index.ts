@@ -1,5 +1,7 @@
+import { createPublicKey, verify as cryptoVerify } from 'node:crypto';
+
 /**
- * @aumos/mcp-gateway (X8) — authority-aware Model Context Protocol (MCP) middleware.
+ * @warrantor/mcp-gateway (X8) — authority-aware Model Context Protocol (MCP) middleware.
  *
  * The gateway sits between an MCP client (an agent) and one or more MCP tool servers. It
  * intercepts every tool call, checks the caller's AAE (P1 Agent Authority Envelope) for the
@@ -16,12 +18,13 @@
  *     sufficient to cover the tool's declared class. Consequential classes (financial,
  *     destructive, physical) additionally require an explicit approval entry (invariant I-08).
  *
- * v1.0 ships the authorization logic + tool registry; `forward()` is a stub that would in
- * production proxy the call over MCP JSON-RPC to the real tool server.
+ * Forwarding is dependency-injected and fail-closed. The bundled Streamable HTTP transport
+ * sends a real MCP JSON-RPC `tools/call` request and validates the remote response before the
+ * gateway records a successful forward.
  */
 
 // ---------------------------------------------------------------------------
-// Side-effect class — mirrors proto/aumos/identity/v1/agent.proto field 7 and
+// Side-effect class — mirrors proto/warrantor/identity/v1/agent.proto field 7 and
 // the invariant I-08 consequential-action escalation ladder.
 // ---------------------------------------------------------------------------
 
@@ -49,15 +52,49 @@ export function isConsequential(cls: SideEffectClass): boolean {
   return CONSEQUENTIAL_CLASSES.has(cls);
 }
 
+/**
+ * Enforcement surfaces an agent may never write to, per invariant I-11
+ * ("self-change is governed"). Matched as a prefix against the tool's SPIFFE ID
+ * and, where declared, against the resources the tool mutates.
+ *
+ * Rationale in docs/cross-cutting/21-threat-model.md §4. The set is deliberately
+ * coarse: a false denial here is an operator inconvenience, whereas a false
+ * allowance lets an agent rewrite the rules that bind it.
+ */
+export const SELF_CHANGE_PROTECTED_PREFIXES: readonly string[] = [
+  'spiffe://muveraai.com/trust-core',
+  'spiffe://muveraai.com/authority',
+  'spiffe://muveraai.com/agent-identity',
+  'spiffe://muveraai.com/policy',
+  'spiffe://muveraai.com/flight-recorder',
+  'spiffe://muveraai.com/evidence',
+  'spiffe://muveraai.com/trust-bundle',
+  'spiffe://muveraai.com/kms',
+  'spiffe://muveraai.com/mcp-gateway',
+];
+
+/**
+ * True if invoking this tool would let the caller mutate the substrate that
+ * constrains it. Read-only access to these surfaces is permitted — an agent may
+ * inspect the policy that governs it; it may not rewrite it.
+ */
+export function isSelfChange(scope: ToolScope): boolean {
+  if (scope.sideEffectClass === 'read') return false;
+  const targets = [scope.toolSvid, ...(scope.mutates ?? [])];
+  return targets.some((t) =>
+    SELF_CHANGE_PROTECTED_PREFIXES.some((p) => t === p || t.startsWith(`${p}/`))
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Agent Authority Envelope (P1) — mirrors proto/aumos/identity/v1/agent.proto
+// Agent Authority Envelope (P1) — mirrors proto/warrantor/identity/v1/agent.proto
 // message AgentAuthorityEnvelope. The gateway consumes this from the VerifyIdentity
 // RPC; it does not sign/verify here (trust-core T1 owns the cryptography).
 // ---------------------------------------------------------------------------
 
 /** An Agent Authority Envelope, as resolved by I1 agent-identity's VerifyIdentity. */
 export interface AgentAuthorityEnvelope {
-  /** SPIFFE ID of the issuer (e.g. "spiffe://aumos.dev/agent-identity"). */
+  /** SPIFFE ID of the issuer (e.g. "spiffe://muveraai.com/agent-identity"). */
   issuer: string;
   /** SPIFFE ID of the subject agent. */
   subject: string;
@@ -83,10 +120,54 @@ export interface AgentAuthorityEnvelope {
   delegationDepth: number;
   /** Required approver SPIFFE IDs (for consequential actions; invariant I-08). */
   approvals: string[];
-  /** Expiry epoch seconds. After this the envelope is invalid. */
+  /** Expiry epoch seconds. Must be > 0; 0 or negative is invalid, never "unlimited". */
   expiry: number;
-  /** Revocation handle (opaque). */
+  /** Revocation handle (opaque). Checked against the injected RevocationChecker. */
   revocationHandle: string;
+  /**
+   * Detached Ed25519 signature by the issuer over the canonical envelope bytes.
+   *
+   * AX-02: this field previously did not exist. `authorize()` accepted the envelope
+   * as a plain caller-supplied object, so a forged envelope claiming
+   * `issuer: "spiffe://evil.example"` authorised a `destructive` tool call. An
+   * authority envelope without a verified signature is a suggestion, not authority.
+   */
+  signature: EnvelopeSignature;
+}
+
+/** Detached Ed25519 signature over the canonical envelope encoding. */
+export interface EnvelopeSignature {
+  algorithm: 'Ed25519';
+  /** Key identifier, resolved against the gateway's trust bundle. */
+  keyId: string;
+  /** 128 lowercase hex characters (64 raw bytes). */
+  value: string;
+}
+
+/**
+ * Maps a key identifier to the raw 32-byte Ed25519 public key that may use it,
+ * and to the issuer SPIFFE ID that key is authorised to speak for.
+ *
+ * Binding keyId → issuer matters: without it any key in the bundle can sign for
+ * any agent, which is the same defect recorded as AX-07 in the Rust crates.
+ */
+export interface TrustBundleEntry {
+  keyId: string;
+  issuer: string;
+  /** Raw Ed25519 public key, 32 bytes, hex-encoded (64 chars). */
+  publicKeyHex: string;
+}
+
+/** Resolves whether a revocation handle has been revoked. Injected by the deployer. */
+export interface RevocationChecker {
+  isRevoked(revocationHandle: string): boolean;
+}
+
+/** Observed resource consumption for the current authority, used for budget ceilings. */
+export interface BudgetUsage {
+  spentMinor: number;
+  elapsedSeconds: number;
+  tokensUsed: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +180,12 @@ export interface ToolScope {
   toolSvid: string;
   /** The side-effect class this tool performs. */
   sideEffectClass: SideEffectClass;
+  /** Data classes this tool touches (L0..L4). Must be a subset of the AAE's grant. */
+  dataClasses?: string[];
+  /** ISO-3166 alpha-2 region this tool executes in, if regionally pinned. */
+  geography?: string;
+  /** Resources this tool mutates, if broader than its own SVID. Checked against I-11. */
+  mutates?: string[];
 }
 
 /** A tool registered with the gateway. */
@@ -174,18 +261,6 @@ export interface ToolCall {
 // Authorization result.
 // ---------------------------------------------------------------------------
 
-/** The outcome of authorizing a tool call against an AAE. */
-export interface AuthorizationResult {
-  /** True if the call may be forwarded; false if it must be denied. */
-  allowed: boolean;
-  /** Machine-stable reason code for telemetry / logging. */
-  reason: Reason;
-  /** Human-readable explanation. */
-  detail: string;
-  /** The tool scope that was evaluated (set when the tool is known). */
-  scope?: ToolScope;
-}
-
 /** Machine-stable reason codes. */
 export type Reason =
   | 'allowed'
@@ -195,15 +270,293 @@ export type Reason =
   | 'side_effect_class_insufficient'
   | 'consequential_approval_missing' // invariant I-08
   | 'expired'
-  | 'subject_mismatch';
+  | 'subject_mismatch'
+  | 'signature_invalid'          // AX-02: envelope authenticity
+  | 'revoked'
+  | 'data_class_exceeded'
+  | 'geography_violation'
+  | 'budget_exhausted'
+  | 'delegation_depth_invalid'
+  | 'self_change_denied';        // invariant I-11
+
+export type DenialReason = Exclude<Reason, 'allowed'>;
+
+/** A successful authorization always carries the exact scope that may be forwarded. */
+export interface AllowedAuthorizationResult {
+  allowed: true;
+  reason: 'allowed';
+  detail: string;
+  scope: ToolScope;
+}
+
+/** A denied authorization can never be passed to the transport. */
+export interface DeniedAuthorizationResult {
+  allowed: false;
+  reason: DenialReason;
+  detail: string;
+  scope?: ToolScope;
+}
+
+/** The discriminated outcome of authorizing a tool call against an AAE. */
+export type AuthorizationResult = AllowedAuthorizationResult | DeniedAuthorizationResult;
 
 /** Convenience constructors. */
-function allow(scope: ToolScope): AuthorizationResult {
+function allow(scope: ToolScope): AllowedAuthorizationResult {
   return { allowed: true, reason: 'allowed', detail: 'call authorized', scope };
 }
 
-function deny(reason: Reason, detail: string, scope?: ToolScope): AuthorizationResult {
+function deny(reason: DenialReason, detail: string, scope?: ToolScope): DeniedAuthorizationResult {
   return { allowed: false, reason, detail, scope };
+}
+
+// ---------------------------------------------------------------------------
+// Forward transport.
+// ---------------------------------------------------------------------------
+
+/** The authorized request passed to an outbound transport. */
+export interface ForwardRequest {
+  call: ToolCall;
+  scope: ToolScope;
+  gatewaySvid: string;
+}
+
+/** Dependency boundary used by the gateway to call an actual tool server. */
+export interface ToolTransport {
+  call(request: ForwardRequest): Promise<unknown>;
+}
+
+export type GatewayForwardErrorCode =
+  | 'authorization_denied'
+  | 'transport_unavailable'
+  | 'transport_timeout'
+  | 'http_error'
+  | 'unsupported_content_type'
+  | 'invalid_response'
+  | 'remote_error';
+
+/** A stable, observable failure returned by the forwarding boundary. */
+export class GatewayForwardError extends Error {
+  readonly code: GatewayForwardErrorCode;
+  readonly retryable: boolean;
+  readonly details: Readonly<Record<string, unknown>>;
+
+  constructor(
+    code: GatewayForwardErrorCode,
+    message: string,
+    options: { retryable?: boolean; details?: Record<string, unknown>; cause?: unknown } = {}
+  ) {
+    super(message, { cause: options.cause });
+    this.name = 'GatewayForwardError';
+    this.code = code;
+    this.retryable = options.retryable ?? false;
+    this.details = Object.freeze({ ...(options.details ?? {}) });
+  }
+}
+
+export const MCP_PROTOCOL_VERSION = '2026-07-28';
+
+export interface McpHttpTransportConfig {
+  /** Resolves a registered tool identity to its Streamable HTTP endpoint. */
+  resolveEndpoint: (toolSvid: string, toolName: string) => string;
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  clientInfo?: { name: string; version: string };
+  capabilities?: Record<string, unknown>;
+  requestId?: () => string | number;
+}
+
+interface JsonRpcResponse {
+  jsonrpc: '2.0';
+  id: string | number | null;
+  result?: unknown;
+  error?: { code: number; message: string; data?: unknown };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseJsonRpcResponse(value: unknown, expectedId: string | number): JsonRpcResponse {
+  if (!isRecord(value) || value.jsonrpc !== '2.0' || value.id !== expectedId) {
+    throw new GatewayForwardError(
+      'invalid_response',
+      'tool server returned an invalid or mismatched JSON-RPC response'
+    );
+  }
+  if (value.error !== undefined) {
+    if (
+      !isRecord(value.error) ||
+      typeof value.error.code !== 'number' ||
+      typeof value.error.message !== 'string'
+    ) {
+      throw new GatewayForwardError('invalid_response', 'tool server returned a malformed JSON-RPC error');
+    }
+    return {
+      jsonrpc: '2.0',
+      id: value.id as string | number | null,
+      error: {
+        code: value.error.code,
+        message: value.error.message,
+        ...(value.error.data === undefined ? {} : { data: value.error.data }),
+      },
+    };
+  }
+  if (!Object.prototype.hasOwnProperty.call(value, 'result')) {
+    throw new GatewayForwardError('invalid_response', 'tool server response has neither result nor error');
+  }
+  return { jsonrpc: '2.0', id: value.id as string | number | null, result: value.result };
+}
+
+function parseSseResponses(body: string, expectedId: string | number): JsonRpcResponse {
+  const dataPayloads: string[] = [];
+  let currentDataLines: string[] = [];
+  for (const line of body.split(/\r?\n/)) {
+    if (line === '') {
+      if (currentDataLines.length > 0) dataPayloads.push(currentDataLines.join('\n'));
+      currentDataLines = [];
+    } else if (line.startsWith('data:')) {
+      currentDataLines.push(line.slice(5).trimStart());
+    }
+  }
+  if (currentDataLines.length > 0) dataPayloads.push(currentDataLines.join('\n'));
+
+  for (const payload of dataPayloads.reverse()) {
+    if (payload === '[DONE]') continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      continue;
+    }
+    if (isRecord(parsed) && parsed.id === expectedId) return parseJsonRpcResponse(parsed, expectedId);
+  }
+  throw new GatewayForwardError(
+    'invalid_response',
+    'tool server event stream did not contain the matching JSON-RPC response'
+  );
+}
+
+/** Current MCP Streamable HTTP transport for authorized `tools/call` requests. */
+export class McpHttpTransport implements ToolTransport {
+  private readonly resolveEndpoint: (toolSvid: string, toolName: string) => string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly timeoutMs: number;
+  private readonly clientInfo: { name: string; version: string };
+  private readonly capabilities: Record<string, unknown>;
+  private readonly requestId: () => string | number;
+  private sequence = 0;
+
+  constructor(config: McpHttpTransportConfig) {
+    if (!config.resolveEndpoint) throw new Error('McpHttpTransport: resolveEndpoint is required');
+    if (config.timeoutMs !== undefined && (!Number.isFinite(config.timeoutMs) || config.timeoutMs <= 0)) {
+      throw new Error('McpHttpTransport: timeoutMs must be a positive finite number');
+    }
+    this.resolveEndpoint = config.resolveEndpoint;
+    this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
+    this.timeoutMs = config.timeoutMs ?? 5_000;
+    this.clientInfo = config.clientInfo ?? { name: '@warrantor/mcp-gateway', version: '1.0.0' };
+    this.capabilities = { ...(config.capabilities ?? {}) };
+    this.requestId = config.requestId ?? (() => `aumos-gateway-${++this.sequence}`);
+  }
+
+  async call(request: ForwardRequest): Promise<unknown> {
+    const endpoint = this.resolveEndpoint(request.scope.toolSvid, request.call.tool);
+    let url: URL;
+    try {
+      url = new URL(endpoint);
+    } catch (cause) {
+      throw new GatewayForwardError('transport_unavailable', 'tool endpoint resolver returned an invalid URL', {
+        details: { tool: request.call.tool, toolSvid: request.scope.toolSvid },
+        cause,
+      });
+    }
+    if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+      throw new GatewayForwardError('transport_unavailable', 'remote MCP endpoints must use HTTPS', {
+        details: { tool: request.call.tool, scheme: url.protocol },
+      });
+    }
+
+    const id = this.requestId();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    let response: Response;
+    try {
+      response = await this.fetchImpl(url, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json, text/event-stream',
+          'content-type': 'application/json',
+          'MCP-Protocol-Version': MCP_PROTOCOL_VERSION,
+          'Mcp-Method': 'tools/call',
+          'Mcp-Name': request.call.tool,
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id,
+          method: 'tools/call',
+          params: {
+            name: request.call.tool,
+            arguments: request.call.args,
+            _meta: {
+              'io.modelcontextprotocol/protocolVersion': MCP_PROTOCOL_VERSION,
+              'io.modelcontextprotocol/clientInfo': this.clientInfo,
+              'io.modelcontextprotocol/clientCapabilities': this.capabilities,
+              'com.muveraai/gatewaySvid': request.gatewaySvid,
+              'com.muveraai/callerSvid': request.call.callerSvid,
+            },
+          },
+        }),
+        signal: controller.signal,
+      });
+    } catch (cause) {
+      const timedOut = controller.signal.aborted;
+      throw new GatewayForwardError(
+        timedOut ? 'transport_timeout' : 'transport_unavailable',
+        timedOut ? `tool request timed out after ${this.timeoutMs}ms` : 'tool transport request failed',
+        {
+          retryable: true,
+          details: { tool: request.call.tool, toolSvid: request.scope.toolSvid },
+          cause,
+        }
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const body = await response.text();
+    if (!response.ok) {
+      throw new GatewayForwardError('http_error', `tool server returned HTTP ${response.status}`, {
+        retryable: response.status >= 500 || response.status === 429,
+        details: { status: response.status, tool: request.call.tool },
+      });
+    }
+
+    const contentType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase();
+    let envelope: JsonRpcResponse;
+    if (contentType === 'application/json') {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(body);
+      } catch (cause) {
+        throw new GatewayForwardError('invalid_response', 'tool server returned invalid JSON', { cause });
+      }
+      envelope = parseJsonRpcResponse(parsed, id);
+    } else if (contentType === 'text/event-stream') {
+      envelope = parseSseResponses(body, id);
+    } else {
+      throw new GatewayForwardError(
+        'unsupported_content_type',
+        `tool server returned unsupported content type "${contentType ?? 'missing'}"`
+      );
+    }
+
+    if (envelope.error) {
+      throw new GatewayForwardError('remote_error', `tool server rejected the call: ${envelope.error.message}`, {
+        details: { remoteCode: envelope.error.code, tool: request.call.tool },
+      });
+    }
+    return envelope.result;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +569,20 @@ export interface McpGatewayConfig {
   gatewaySvid: string;
   /** The tool registry the gateway enforces. */
   registry: ToolRegistry;
+  /** Required outbound transport. Omitting it would make real forwarding impossible. */
+  transport: ToolTransport;
+  /**
+   * Trust bundle: the keys permitted to issue authority for this gateway, each bound
+   * to the issuer SPIFFE ID it may speak for. REQUIRED — a gateway with no trust
+   * bundle cannot distinguish authority from assertion.
+   */
+  trustBundle: TrustBundleEntry[];
+  /** Approver SPIFFE IDs accepted for consequential actions (invariant I-08). */
+  approvers?: string[];
+  /** Distinct approvers required for a consequential action. Defaults to 1. */
+  approvalQuorum?: number;
+  /** Revocation oracle. Defaults to a checker that treats nothing as revoked. */
+  revocation?: RevocationChecker;
   /**
    * Optional clock function (epoch seconds). Defaults to Date.now()/1000. Injected for tests.
    */
@@ -226,22 +593,39 @@ export interface McpGatewayConfig {
  * McpGateway intercepts MCP tool calls and enforces the caller's AAE before forwarding.
  *
  * Usage:
- *   const gw = new McpGateway({ gatewaySvid, registry });
+ *   const gw = new McpGateway({ gatewaySvid, registry, transport });
  *   const result = gw.authorize(call, aae);
- *   if (result.allowed) { await gw.forward(call); }
+ *   if (result.allowed) { await gw.forward(call, result); }
  */
 export class McpGateway {
   readonly gatewaySvid: string;
   readonly registry: ToolRegistry;
   private readonly now: () => number;
+  private readonly transport: ToolTransport;
+  private readonly trustBundle: Map<string, TrustBundleEntry>;
+  private readonly approvers: Set<string>;
+  private readonly approvalQuorum: number;
+  private readonly revocation: RevocationChecker;
   /** Counters for observability; incremented on every authorize() / forward(). */
-  private readonly stats = { authorized: 0, denied: 0, forwarded: 0 };
+  private readonly stats = { authorized: 0, denied: 0, forwarded: 0, failed: 0 };
 
   constructor(config: McpGatewayConfig) {
     if (!config.gatewaySvid) throw new Error('McpGateway: gatewaySvid is required');
     if (!config.registry) throw new Error('McpGateway: registry is required');
+    if (!config.transport) throw new Error('McpGateway: transport is required');
     this.gatewaySvid = config.gatewaySvid;
     this.registry = config.registry;
+    this.transport = config.transport;
+    if (!Array.isArray(config.trustBundle) || config.trustBundle.length === 0) {
+      throw new Error(
+        'McpGateway: trustBundle is required and must be non-empty. A gateway with no ' +
+          'trust anchor cannot verify authority, only assume it (AX-02).'
+      );
+    }
+    this.trustBundle = new Map(config.trustBundle.map((e) => [e.keyId, e]));
+    this.approvers = new Set(config.approvers ?? []);
+    this.approvalQuorum = config.approvalQuorum ?? 1;
+    this.revocation = config.revocation ?? { isRevoked: () => false };
     this.now = config.now ?? (() => Math.floor(Date.now() / 1000));
   }
 
@@ -258,15 +642,105 @@ export class McpGateway {
    *   7. Consequential (I-08): if the tool's class is consequential, the AAE must carry an
    *      approval entry naming this tool's SVID (i.e. the approver signed off on this tool).
    */
-  authorize(call: ToolCall, aae: AgentAuthorityEnvelope): AuthorizationResult {
+  /**
+   * Canonical byte encoding an issuer signs over. Field order is fixed here and must
+   * not depend on object key order, which is why the fields are listed explicitly
+   * rather than serialised from the object.
+   */
+  static canonicalEnvelopeBytes(aae: AgentAuthorityEnvelope): Buffer {
+    const canonical = [
+      aae.issuer,
+      aae.subject,
+      aae.purpose,
+      aae.resources.join(','),
+      aae.tools.join(','),
+      aae.dataClasses.join(','),
+      aae.sideEffectClass,
+      String(aae.spendBudget),
+      String(aae.timeBudgetSeconds),
+      String(aae.tokenBudget),
+      aae.geography,
+      String(aae.delegationDepth),
+      aae.approvals.join(','),
+      String(aae.expiry),
+      aae.revocationHandle,
+    ].join('');
+    return Buffer.from(`aumos-aae-v1${canonical}`, 'utf8');
+  }
+
+  /**
+   * Verify envelope authenticity against the trust bundle.
+   *
+   * Three things must hold, and the third is the one usually forgotten: the key that
+   * signed must be authorised to speak for the issuer named in the envelope.
+   * Otherwise any key in the bundle can mint authority for any agent.
+   */
+  private verifyEnvelope(
+    aae: AgentAuthorityEnvelope
+  ): { ok: true } | { ok: false; detail: string } {
+    const sig = aae.signature;
+    if (!sig || sig.algorithm !== 'Ed25519') {
+      return { ok: false, detail: 'envelope carries no Ed25519 signature' };
+    }
+    if (!/^[0-9a-f]{128}$/.test(sig.value)) {
+      return { ok: false, detail: 'signature value must be 128 lowercase hex characters' };
+    }
+    const entry = this.trustBundle.get(sig.keyId);
+    if (!entry) {
+      return { ok: false, detail: `key "${sig.keyId}" is not in the gateway trust bundle` };
+    }
+    if (entry.issuer !== aae.issuer) {
+      return {
+        ok: false,
+        detail:
+          `key "${sig.keyId}" is authorised for issuer "${entry.issuer}" but the envelope ` +
+          `claims "${aae.issuer}"`,
+      };
+    }
+    const spki = Buffer.concat([
+      Buffer.from('302a300506032b6570032100', 'hex'),
+      Buffer.from(entry.publicKeyHex, 'hex'),
+    ]);
+    const key = createPublicKey({ key: spki, format: 'der', type: 'spki' });
+    const verified = cryptoVerify(
+      null,
+      McpGateway.canonicalEnvelopeBytes(aae),
+      key,
+      Buffer.from(sig.value, 'hex')
+    );
+    return verified ? { ok: true } : { ok: false, detail: 'Ed25519 signature does not verify' };
+  }
+
+  authorize(
+    call: ToolCall,
+    aae: AgentAuthorityEnvelope,
+    usage: BudgetUsage = { spentMinor: 0, elapsedSeconds: 0, tokensUsed: 0 }
+  ): AuthorizationResult {
     const tool = this.registry.lookup(call.tool);
     if (!tool) {
       return deny('unknown_tool', `tool "${call.tool}" is not registered with this gateway`);
     }
     const scope = tool.scope;
 
-    // 2. Expiry.
-    if (aae.expiry > 0 && this.now() >= aae.expiry) {
+    // 1. AUTHENTICITY — before any policy evaluation. An unverified envelope is not
+    //    authority. This check did not exist prior to AX-02.
+    const authentic = this.verifyEnvelope(aae);
+    if (!authentic.ok) {
+      return deny('signature_invalid', authentic.detail, scope);
+    }
+
+    // 1b. Revocation. `revocationHandle` was previously declared and never read.
+    if (this.revocation.isRevoked(aae.revocationHandle)) {
+      return deny('revoked', `authority ${aae.revocationHandle} has been revoked`, scope);
+    }
+
+    // 2. Expiry. `expiry <= 0` is INVALID, not "unlimited". The previous guard was
+    //    `aae.expiry > 0 && now >= aae.expiry`, so an attacker-set `expiry: 0`
+    //    disabled the check entirely — and the test fixtures shipped that way.
+    if (!Number.isInteger(aae.expiry) || aae.expiry <= 0) {
+      return deny('expired', `AAE expiry must be a positive epoch second, got ${aae.expiry}`, scope);
+    }
+    if (this.now() >= aae.expiry) {
       return deny('expired', `AAE expired at ${aae.expiry}`, scope);
     }
 
@@ -306,10 +780,80 @@ export class McpGateway {
       );
     }
 
+    // 6b. Data-class ceiling. Declared in the envelope and previously never read.
+    if (scope.dataClasses !== undefined) {
+      const permitted = new Set(aae.dataClasses);
+      const excess = scope.dataClasses.filter((c) => !permitted.has(c));
+      if (excess.length > 0) {
+        return deny(
+          'data_class_exceeded',
+          `tool requires data classes [${excess.join(', ')}] not granted by the AAE`,
+          scope
+        );
+      }
+    }
+
+    // 6c. Geography. Declared and previously never read.
+    if (aae.geography && scope.geography && aae.geography !== scope.geography) {
+      return deny(
+        'geography_violation',
+        `AAE is scoped to ${aae.geography}; tool executes in ${scope.geography}`,
+        scope
+      );
+    }
+
+    // 6d. Budget ceilings. All three were declared, typed, documented — and never read.
+    if (usage.spentMinor > aae.spendBudget) {
+      return deny('budget_exhausted', `spend ${usage.spentMinor} exceeds ${aae.spendBudget}`, scope);
+    }
+    if (usage.elapsedSeconds > aae.timeBudgetSeconds) {
+      return deny(
+        'budget_exhausted',
+        `elapsed ${usage.elapsedSeconds}s exceeds ${aae.timeBudgetSeconds}s`,
+        scope
+      );
+    }
+    if (usage.tokensUsed > aae.tokenBudget) {
+      return deny('budget_exhausted', `tokens ${usage.tokensUsed} exceeds ${aae.tokenBudget}`, scope);
+    }
+
+    // 6e. Delegation depth. Declared and previously never read.
+    if (!Number.isInteger(aae.delegationDepth) || aae.delegationDepth < 0 || aae.delegationDepth > 32) {
+      return deny(
+        'delegation_depth_invalid',
+        `delegationDepth must be an integer in 0..32, got ${aae.delegationDepth}`,
+        scope
+      );
+    }
+
+    // 6f. INVARIANT I-11 — self-change is governed. An agent may not modify the
+    //     enforcement boundary, policy, identity or evidence that constrains it.
+    //     This is checked BEFORE the approval gate and is deliberately not
+    //     overridable by approval: an agent that can obtain sign-off to rewrite the
+    //     policy engine can obtain sign-off for everything afterwards.
+    //     Documented in docs/cross-cutting/21-threat-model.md §4, including its
+    //     limitation -- this is one chokepoint, not an OS-level guarantee.
+    if (isSelfChange(scope)) {
+      return deny(
+        'self_change_denied',
+        `tool "${scope.toolSvid}" targets a protected enforcement surface; ` +
+          `an agent cannot modify its own boundary, policy, identity or evidence (I-11)`,
+        scope
+      );
+    }
+
     // 7. Consequential-action approval (invariant I-08).
     if (isConsequential(scope.sideEffectClass)) {
-      // The AAE must carry an approval entry that names this tool's SVID.
-      const hasApproval = aae.approvals.some((a) => a.includes(scope.toolSvid));
+      // `approvals` holds APPROVER SPIFFE IDs. The previous check was
+      // `approvals.some(a => a.includes(scope.toolSvid))` — a substring match of an
+      // approver string against the TOOL's SVID. Type-confused and collidable: an
+      // approval naming `.../payroll-readonly-DIFFERENT-TOOL` authorised a financial
+      // tool whose SVID was `.../pay`. Approvers must be exact members of the
+      // gateway's configured approver set, and quorum must be met.
+      const distinctApprovers = new Set(
+        aae.approvals.filter((a) => this.approvers.has(a))
+      );
+      const hasApproval = distinctApprovers.size >= this.approvalQuorum;
       if (!hasApproval) {
         return deny(
           'consequential_approval_missing',
@@ -327,29 +871,38 @@ export class McpGateway {
   /**
    * Forwards an authorized tool call to the real tool server.
    *
-   * v1.0 STUB: in production this would proxy the call over MCP JSON-RPC to the tool server
-   * identified by `scope.toolSvid`. Here it records the forward and returns a synthetic
-   * acknowledgement so callers and tests can exercise the happy path end-to-end.
-   *
    * @throws if `result` is not an allowed AuthorizationResult.
    */
-  async forward(call: ToolCall, result: AuthorizationResult): Promise<ForwardAck> {
-    if (!result.allowed || result.reason !== 'allowed') {
-      throw new Error(`McpGateway.forward: refusing to forward a denied call (${result.reason})`);
+  async forward(call: ToolCall, result: AuthorizationResult): Promise<unknown> {
+    if (!result.allowed) {
+      this.stats.failed++;
+      throw new GatewayForwardError(
+        'authorization_denied',
+        `McpGateway.forward: refusing to forward a denied call (${result.reason})`,
+        { details: { reason: result.reason, tool: call.tool } }
+      );
     }
-    this.stats.forwarded++;
-    return {
-      tool: call.tool,
-      toolSvid: result.scope?.toolSvid ?? '',
-      forwardedTo: result.scope?.toolSvid ?? '',
-      args: call.args,
-      // Stubbed transport: real tool server response would go here.
-      stubbed: true,
-    };
+    try {
+      const response = await this.transport.call({
+        call,
+        scope: result.scope,
+        gatewaySvid: this.gatewaySvid,
+      });
+      this.stats.forwarded++;
+      return response;
+    } catch (cause) {
+      this.stats.failed++;
+      if (cause instanceof GatewayForwardError) throw cause;
+      throw new GatewayForwardError('transport_unavailable', 'tool transport failed', {
+        retryable: true,
+        details: { tool: call.tool, toolSvid: result.scope.toolSvid },
+        cause,
+      });
+    }
   }
 
-  /** Returns counters for observability (authorized, denied, forwarded). */
-  counters(): { authorized: number; denied: number; forwarded: number } {
+  /** Returns counters for observability (authorized, denied, forwarded, failed). */
+  counters(): { authorized: number; denied: number; forwarded: number; failed: number } {
     return { ...this.stats };
   }
 
@@ -357,14 +910,4 @@ export class McpGateway {
   noteDenial(): void {
     this.stats.denied++;
   }
-}
-
-/** A synthetic acknowledgement from the stubbed forward() transport. */
-export interface ForwardAck {
-  tool: string;
-  toolSvid: string;
-  forwardedTo: string;
-  args: Record<string, unknown>;
-  /** Always true in v1.0 — marks the response as a stub, not a real tool-server reply. */
-  stubbed: true;
 }

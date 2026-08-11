@@ -1,9 +1,9 @@
 //! `eval-guard` CLI.
 
-use aumos_eval_guard::{run_preflight, CheckResults};
 use clap::Parser;
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
+use warrantor_eval_guard::{run_preflight, CheckResults};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -46,7 +46,10 @@ fn main() {
             std::process::exit(0);
         }
         Err(e) => {
-            eprintln!("eval-guard: pre-flight FAILED for agent '{}' — {e}", cli.agent);
+            eprintln!(
+                "eval-guard: pre-flight FAILED for agent '{}' — {e}",
+                cli.agent
+            );
             eprintln!("eval-guard: REFUSING to start the agent (invariant I-09: failure is safe).");
             std::process::exit(1);
         }

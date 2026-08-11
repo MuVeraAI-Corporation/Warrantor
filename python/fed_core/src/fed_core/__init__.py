@@ -305,7 +305,9 @@ class DefaultVerifier:
         # Measurement: ensure the trainer is running the trusted client image.
         att = ctx.attestations.get(update.participant_id)
         if att is None:
-            return RejectedUpdate(update.participant_id, RejectReason.MEASUREMENT_MISMATCH, "no attestation")
+            return RejectedUpdate(
+                update.participant_id, RejectReason.MEASUREMENT_MISMATCH, "no attestation"
+            )
         if (
             self.trusted_client_image_digest
             and att.client_image_digest != self.trusted_client_image_digest
@@ -463,9 +465,7 @@ class Federation:
                 continue
             reason = p.admit_to(nonce, started)
             if reason is not None:
-                ctx.rejected.append(
-                    RejectedUpdate(p.participant_id, reason, "attestation gate")
-                )
+                ctx.rejected.append(RejectedUpdate(p.participant_id, reason, "attestation gate"))
                 rejected_ids.add(p.participant_id)
         # Collect updates.
         collected: list[ModelUpdate] = []

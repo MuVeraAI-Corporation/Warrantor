@@ -1,4 +1,10 @@
-{{- range $name, $svc := list
+{{- /*
+  Iterate name -> service-values pairs. This MUST be `dict`, not `list`:
+  `range $k, $v` over a slice binds (index, element), which would make $name an
+  integer and $svc a bare string. Over a map it binds (key, value) as intended,
+  and Go templates walk map keys in sorted order, so output is deterministic.
+*/ -}}
+{{- range $name, $svc := dict
   "trust-core" .Values.trustCore
   "agent-identity" .Values.agentIdentity
   "open-serve-kit" .Values.openServeKit
@@ -9,8 +15,9 @@
   "tenant-guard" .Values.tenantGuard
   "fleet-marshal" .Values.fleetMarshal
   "console" .Values.console
---}}
+-}}
 {{- if $svc.enabled }}
+{{- $port := int (dig "port" 8080 (default (dict) $svc.service)) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39,7 +46,8 @@ spec:
       {{- end }}
       containers:
         - name: {{ $name }}
-          image: {{ $.Values.global.imageRegistry }}/{{ $svc.image }}
+          {{- /* imageRegistry defaults to "" — do not emit a leading "/". */}}
+          image: {{ with $.Values.global.imageRegistry }}{{ . }}/{{ end }}{{ $svc.image }}
           imagePullPolicy: {{ $.Values.global.imagePullPolicy }}
           env:
             - name: RUST_LOG
@@ -48,18 +56,18 @@ spec:
               value: {{ $.Values.global.trustDomain | quote }}
           {{- if $svc.service }}
           ports:
-            - containerPort: {{ $svc.service.port }}
+            - containerPort: {{ $port }}
           {{- end }}
           readinessProbe:
             httpGet:
               path: /healthz
-              port: {{ $svc.service.port | default 8080 }}
+              port: {{ $port }}
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /healthz
-              port: {{ $svc.service.port | default 8080 }}
+              port: {{ $port }}
             initialDelaySeconds: 15
             periodSeconds: 20
           resources:

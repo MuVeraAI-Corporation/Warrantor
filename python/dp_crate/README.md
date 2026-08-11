@@ -1,4 +1,4 @@
-# aumos-dp-crate (F2)
+# warrantor-dp-crate (F2)
 
 Production-grade differential privacy toolkit. Three components:
 

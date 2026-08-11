@@ -1,8 +1,8 @@
 //! `nvtrust-verify` CLI.
 
-use aumos_nvtrust_bridge::{AttestationReport, MockBackend, NvTrustBackend};
 use clap::{Parser, Subcommand};
 use std::io::{self, Read};
+use warrantor_nvtrust_bridge::{AttestationReport, MockBackend, NvTrustBackend};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -48,7 +48,10 @@ fn main() {
     let backend = MockBackend::default();
     match cli.command {
         Commands::Status => {
-            println!("nvtrust-verify: MockBackend active (gpu_model={})", backend.gpu_model);
+            println!(
+                "nvtrust-verify: MockBackend active (gpu_model={})",
+                backend.gpu_model
+            );
             println!("note: Real backend is NDA-gated; see RFC C1-1");
         }
         Commands::Verify { path } => {
@@ -79,21 +82,23 @@ fn main() {
         }
         Commands::IssueMock { nonce_hex } => {
             let nonce = match nonce_hex {
-                Some(h) => match hex::decode(h.trim()) {
-                    Ok(v) if v.len() == 16 => {
-                        let mut a = [0u8; 16];
-                        a.copy_from_slice(&v);
-                        a
+                Some(h) => {
+                    match hex::decode(h.trim()) {
+                        Ok(v) if v.len() == 16 => {
+                            let mut a = [0u8; 16];
+                            a.copy_from_slice(&v);
+                            a
+                        }
+                        Ok(v) => {
+                            eprintln!("nvtrust-verify: --nonce-hex must be 16 bytes (32 hex chars), got {}", v.len());
+                            std::process::exit(2);
+                        }
+                        Err(e) => {
+                            eprintln!("nvtrust-verify: --nonce-hex decode: {e}");
+                            std::process::exit(2);
+                        }
                     }
-                    Ok(v) => {
-                        eprintln!("nvtrust-verify: --nonce-hex must be 16 bytes (32 hex chars), got {}", v.len());
-                        std::process::exit(2);
-                    }
-                    Err(e) => {
-                        eprintln!("nvtrust-verify: --nonce-hex decode: {e}");
-                        std::process::exit(2);
-                    }
-                },
+                }
                 None => [0u8; 16],
             };
             match backend.attest(nonce) {

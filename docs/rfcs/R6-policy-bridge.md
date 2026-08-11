@@ -32,55 +32,59 @@ appears in the matrix entry and the originating source document (see
 
 ## Detailed Design
 
-Implementation language(s): Rust ref + multi-engine adapters. The component consumes the contract plane
-(`proto/`, `specs/`, `testvectors/`) and depends on: T1, R5.
+The reference implementation is [`rust/policy-bridge`](../../rust/policy-bridge). It defines one
+validated `osaf.policy/1` model with an explicit default deny, ordered identity-independent rules,
+exact or wildcard principal/action matching, exact/global/trailing-prefix resource matching, and
+exact context conditions. Canonical serialization produces a SHA-256 policy digest.
 
-Detailed per-message and per-RPC design will be expanded in this section during the component's
-Wave sprint (MVP week 2 → v1.0 week 8). The contract definitions land in `proto/aumos/<service>/v1/`
-and `specs/` first; this RFC section references them.
+The in-process reference evaluator implements deterministic deny-overrides. OPA, Cedar, and
+OpenShell adapters use an injected `EngineClient`; every request includes the complete canonical
+policy and digest. An adapter rejects a different digest, unknown matched-rule IDs, malformed
+responses, or transport failure. `DecisionBridge` requires at least two uniquely named engines
+and returns no partial result unless every engine agrees on allow/deny and digest.
 
-**Dependency note:** where R6 depends on a Wave-2+ component not yet shipped (e.g. I1
-agent-identity), Wave-1 code integrates against the **mock** defined in the relevant `proto/`
-file. The mock-to-real migration is a tracked task in the component's tasks/ directory.
+The crate also provides the stable OPA Rego module and a deterministic OpenShell bundle compiler.
+The adapter boundary is deliberately transport-neutral so the caller can use local processes,
+mTLS services, or embedded engines without hardcoding credentials or endpoints.
 
 ## Dependencies
 
-- **AumOS internal:** T1, R5
-- **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
-- **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
-  OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).
+- **AumOS internal:** R5 source compiler and T1 digest/signature policy.
+- **External adapters:** OPA/Rego, Cedar, and OpenShell. The crate does not vendor or silently
+  substitute those engines.
 
 ## Threat Model
 
-A full STRIDE analysis is produced during the component's Alpha sprint (week 4). Security-critical
-components (T-group, R-group, I-group, S6/R7 eBPF) get the full template per
-`docs/cross-cutting/` threat-model standard; non-security components get the condensed version.
-
-Cross-cutting threats and mitigations are summarized in [`02-architecture.md`](../02-architecture.md) §9.
-The 12 formal invariants (I-01…​I-12) that this component must satisfy are listed in
-`02-architecture.md` §3; the component's tests assert the relevant subset.
+| Threat | Enforced mitigation |
+|---|---|
+| Permissive empty/default policy | Format requires explicit default deny and at least one valid rule. |
+| Semantic drift | All engines receive the same canonical document/digest and must agree. |
+| Stale/wrong policy response | Returned digest must equal the request digest. |
+| Fabricated rule evidence | Matched IDs must exist in the canonical policy. |
+| One-engine outage | Equivalence returns an error and no decision. |
+| Duplicate engine masquerading as independence | Engine kinds must be unique. |
+| Prefix confusion | Only a trailing `*` is a resource prefix; interior wildcards are invalid. |
 
 ## API
 
-Public surface (CLI, gRPC service, library) is defined in `proto/aumos/<service>/v1/<name>.proto`
-and exposed via generated bindings (Rust/Python/TypeScript/Go) per
-`docs/cross-cutting/19-inter-component-protocol.md`. CLI subcommands follow the
-`<component> <verb> --flag` convention.
+The public surface includes `CanonicalPolicy`, `Rule`, `DecisionRequest`, `ReferenceEngine`,
+`ExternalEngine`, `EngineClient`, `DecisionBridge`, `OPA_REGO_MODULE`, and `compile_openshell`.
+External clients return structured `EngineResponse`; no adapter parses unstructured success text.
 
 ## Testing
 
-- **Unit:** ≥85% coverage gate (per `docs/cross-cutting/18-developer-experience.md`).
-- **Golden vectors:** `testvectors/R6/` — exercised by the cross-language conformance suite (A6).
-- **Integration:** cross-component flows per `docs/cross-cutting/` integration-test standard.
-- **Fuzz:** required for crypto/parsing-heavy components (per fuzzing strategy cross-cutting).
-- **Performance:** budget listed in `02-architecture.md` §10 where applicable.
+- Unit tests cover validation, deny-overrides, exact/prefix matching, four-engine equivalence,
+  digest substitution, unknown rules, engine outage, divergence, and OpenShell bundle output.
+- Local acceptance: focused tests pass and the crate participates in workspace formatting/Clippy.
+- A retained run against independently installed OPA, Cedar, and OpenShell binaries, performance
+  evidence, and cross-version semantic vectors are still required before claiming external-engine
+  interoperability. Injected client tests prove fail-closed contracts, not those deployments.
 
 ## Deployment
 
-If deployable (one of the 14 deployable components), ships with: Dockerfile, Helm chart, K8s
-manifest, OTel instrumentation stub, PDB (min available 2), HPA (min 3, max 10), topology spread.
-RTO/RPO per `docs/cross-cutting/16-disaster-recovery.md`. SLSA L3 build provenance; CycloneDX SBOM
-attached to release.
+R6 is a library used by policy-enforcing services. Production wiring must authenticate engine
+connections, pin supported engine versions, retain equivalence evidence, and fail readiness when
+the configured quorum is unavailable. This reference crate is not a deployable policy service.
 
 ## Milestones
 

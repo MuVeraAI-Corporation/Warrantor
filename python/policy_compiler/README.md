@@ -1,4 +1,4 @@
-# aumos-policy-compiler (R5)
+# warrantor-policy-compiler (R5)
 
 Compiles NL intent + enterprise rules into OpenShell policy + OPA Rego +
 Cedar rules.

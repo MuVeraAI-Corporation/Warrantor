@@ -108,7 +108,7 @@ trust-core key-gen --algorithm ed25519 [--kms aws://...]
 trust-core notarize --payload <file> --key <key-ref>
 ```
 
-Wire: gRPC service `aumos.trust.v1.Trust` (see `proto/aumos/trust/v1/signing.proto`).
+Wire: gRPC service `warrantor.trust.v1.Trust` (see `proto/warrantor/trust/v1/signing.proto`).
 
 ## Testing
 
@@ -123,9 +123,9 @@ Wire: gRPC service `aumos.trust.v1.Trust` (see `proto/aumos/trust/v1/signing.pro
 
 ## Deployment
 
-- Library: published as `aumos-trust-core` crate (crates.io after Wave-1 signoff; locally during
+- Library: published as `warrantor-trust-core` crate (crates.io after Wave-1 signoff; locally during
   Wave-1).
-- Bindings: `aumos-trust-core` on PyPI, npm, and Go module path (all locally until signoff).
+- Bindings: `warrantor-trust-core` on PyPI, npm, and Go module path (all locally until signoff).
 - Not a deployable service (other components embed it as a library). When the trust-core gRPC
   service is needed (e.g., for batch verify), it ships as a sidecar with OTel instrumentation.
 - SBOM: CycloneDX generated in CI; SLSA L3 build provenance.

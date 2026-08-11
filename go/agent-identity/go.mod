@@ -1,3 +1,3 @@
-module aumos.dev/agent-identity
+module muveraai.com/go/agent-identity
 
 go 1.22

@@ -1,5 +1,5 @@
 [project]
-name = "aumos-incident-exchange"
+name = "warrantor-incident-exchange"
 version = "1.0.0"
 description = "X9 — normalized agent incidents (OCSF extension + MITRE ATLAS mapping + registry)"
 readme = "README.md"

@@ -1,4 +1,4 @@
-//! # aumos-eval-guard
+//! # warrantor-eval-guard
 //!
 //! Cryptographic sandbox boundary attestation. Four pre-flight checks before an agent starts:
 //! NetworkIsolation, FilesystemBoundary, ProcessIsolation, EgressAttestation.
@@ -11,11 +11,11 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
-use aumos_api::attestation::v1::SandboxAttestation as ProtoSandboxAttestation;
 use ed25519_dalek::{Signer, SigningKey};
 use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use warrantor_api::attestation::v1::SandboxAttestation as ProtoSandboxAttestation;
 
 /// The four pre-flight boundary checks.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -40,7 +40,7 @@ impl BoundaryCheck {
         BoundaryCheck::EgressAttestation,
     ];
 
-    /// The proto enum value (matches `aumos.attestation.v1.BoundaryCheck`).
+    /// The proto enum value (matches `warrantor.attestation.v1.BoundaryCheck`).
     #[must_use]
     pub fn to_proto(self) -> i32 {
         match self {
@@ -254,7 +254,9 @@ mod tests {
         );
         assert!(matches!(
             res,
-            Err(EvalGuardError::CheckFailed(BoundaryCheck::FilesystemBoundary))
+            Err(EvalGuardError::CheckFailed(
+                BoundaryCheck::FilesystemBoundary
+            ))
         ));
     }
 

@@ -16,7 +16,9 @@ from retro_spec_kit import (
 )
 
 
-def e(kind: EntryKind, content: str, *, tool: str = "", step: int = 0, resource: str = "") -> TranscriptEntry:
+def e(
+    kind: EntryKind, content: str, *, tool: str = "", step: int = 0, resource: str = ""
+) -> TranscriptEntry:
     meta = {"resource": resource} if resource else {}
     return TranscriptEntry(kind=kind, content=content, tool=tool, step=step, meta=meta)
 
@@ -24,11 +26,15 @@ def e(kind: EntryKind, content: str, *, tool: str = "", step: int = 0, resource:
 # ---------- network_access_scanner ----------
 def test_network_scanner_flags_curl() -> None:
     findings = network_access_scanner([e(EntryKind.TOOL, "ran: curl https://example.com", step=1)])
-    assert any(f.analyzer == "network_access_scanner" and f.severity == Severity.HIGH for f in findings)
+    assert any(
+        f.analyzer == "network_access_scanner" and f.severity == Severity.HIGH for f in findings
+    )
 
 
 def test_network_scanner_flags_url_only_as_medium() -> None:
-    findings = network_access_scanner([e(EntryKind.ASSISTANT, "see https://example.com for details")])
+    findings = network_access_scanner(
+        [e(EntryKind.ASSISTANT, "see https://example.com for details")]
+    )
     severities = {f.severity for f in findings}
     assert Severity.MEDIUM in severities
     assert Severity.HIGH not in severities
@@ -66,7 +72,9 @@ def test_behavioral_divergence_clean_for_in_scope() -> None:
 
 # ---------- credential_exposure_detector ----------
 def test_credential_detector_finds_aws_key() -> None:
-    findings = credential_exposure_detector([e(EntryKind.ASSISTANT, "key AKIAIOSFODNN7EXAMPLE here")])
+    findings = credential_exposure_detector(
+        [e(EntryKind.ASSISTANT, "key AKIAIOSFODNN7EXAMPLE here")]
+    )
     assert any(f.severity == Severity.CRITICAL for f in findings)
 
 
@@ -82,7 +90,9 @@ def test_credential_detector_finds_password_literal() -> None:
 
 # ---------- supply_chain_attack_detector ----------
 def test_supply_chain_flags_pip_install() -> None:
-    findings = supply_chain_attack_detector([e(EntryKind.TOOL, "pip install malicious-pkg", step=3)])
+    findings = supply_chain_attack_detector(
+        [e(EntryKind.TOOL, "pip install malicious-pkg", step=3)]
+    )
     assert any(f.severity == Severity.HIGH for f in findings)
 
 

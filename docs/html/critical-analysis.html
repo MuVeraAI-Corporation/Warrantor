@@ -367,7 +367,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <h3>H2. Go agent-identity JSON wire shape does NOT match the proto</h3>
 <table class="meta-table">
   <tr><td>Component</td><td>I1 agent-identity (Go) ↔ proto <code>IssueIdentityResponse</code></td></tr>
-  <tr><td>File</td><td><code>go/agent-identity/service.go:29-34</code> vs <code>proto/aumos/identity/v1/agent.proto:77-83</code></td></tr>
+  <tr><td>File</td><td><code>go/agent-identity/service.go:29-34</code> vs <code>proto/warrantor/identity/v1/agent.proto:77-83</code></td></tr>
 </table>
 <p>Mismatches: (a) <code>capability_jti</code> vs <code>capability_token</code> — different field names AND different content. (b) Go adds a <code>verifying_key</code> field absent from the proto. (c) Go omits the timestamp wrapper. Also: the capability token is never actually issued (<code>_ = capJTI</code>).</p>
 

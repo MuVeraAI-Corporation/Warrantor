@@ -1,5 +1,5 @@
 [project]
-name = "aumos-fed-core"
+name = "warrantor-fed-core"
 version = "1.0.0"
 description = "F1 — attested federated training orchestration (Aggregator / Trainer / Verifier)"
 readme = "README.md"

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from incident_exchange import (
     ATLAS_MAPPING,
+    OCSF_ACTIVITY_UID,
+    OCSF_CLASS_UID,
     Incident,
     IncidentRegistry,
     IncidentType,
-    OCSF_ACTIVITY_UID,
-    OCSF_CLASS_UID,
     Severity,
 )
 

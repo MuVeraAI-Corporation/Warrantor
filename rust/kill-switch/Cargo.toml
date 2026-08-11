@@ -1,5 +1,5 @@
 [package]
-name = "aumos-kill-switch"
+name = "warrantor-kill-switch"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "Kill switch for the AI Kill Switch Act (H.R. 2026) — <5s end-to-end"
 
 [lib]
-name = "aumos_kill_switch"
+name = "warrantor_kill_switch"
 path = "src/lib.rs"
 
 [[bin]]

@@ -1,4 +1,4 @@
-# SPIRE mTLS deployment for the AumOS trust domain (`aumos.dev`)
+# SPIRE mTLS deployment for the AumOS trust domain (`muveraai.com`)
 
 This directory deploys [SPIRE](https://github.com/spiffe/spire) — the reference
 implementation of the [SPIFFE](https://spiffe.io/) workload-identity standard —
@@ -11,7 +11,7 @@ Verifiable Identity Document) over the Workload API. Two pods then establish
 **mutual TLS** by presenting each other's SVIDs — no static certificates, no
 long-lived secrets in `Values.yaml`, no per-service CA.
 
-The trust domain is `aumos.dev`, matching `global.trustDomain` in
+The trust domain is `muveraai.com`, matching `global.trustDomain` in
 `deploy/helm/aumos/values.yaml`.
 
 ## Files
@@ -20,13 +20,13 @@ The trust domain is `aumos.dev`, matching `global.trustDomain` in
 |------|---------|
 | `spire-server.yaml` | Namespace, RBAC, ConfigMap, Deployment, Service, PVC for the SPIRE **server** (the CA / registration authority). |
 | `spire-agent.yaml` | DaemonSet for the SPIRE **agent** that runs on every node and serves the Workload API on `/run/spire/sockets/agent.sock`. |
-| `trust-domain-config.yaml` | Trust-domain policy: workload registration entries (`spiffe://aumos.dev/<service>`), federation to `eu.aumos.dev`, and an mTLS-scoped NetworkPolicy. |
+| `trust-domain-config.yaml` | Trust-domain policy: workload registration entries (`spiffe://muveraai.com/<service>`), federation to `eu.muveraai.com`, and an mTLS-scoped NetworkPolicy. |
 
 ## Architecture
 
 ```
                        ┌────────────────────────────────────────────┐
-                       │              Trust domain: aumos.dev         │
+                       │              Trust domain: muveraai.com         │
                        └────────────────────────────────────────────┘
                                           │
    ┌─────────────── Workload API ────────┐ │ ┌──── agent gRPC (8081) ────┐
@@ -55,7 +55,7 @@ The trust domain is `aumos.dev`, matching `global.trustDomain` in
 # 1. Create the bootstrap root CA (dev only — keep this out of git in prod).
 openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
   -keyout root.key -out root.crt \
-  -subj "/O=AumOS — Open Secure AI Alliance/CN=aumos.dev SPIRE CA"
+  -subj "/O=AumOS — Open Secure AI Alliance/CN=muveraai.com SPIRE CA"
 
 kubectl create namespace spire
 kubectl -n spire create secret generic spire-server-bootstrap \
@@ -96,7 +96,7 @@ spec:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
             - name: AUMOS_TRUST_DOMAIN
-              value: aumos.dev
+              value: muveraai.com
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -109,7 +109,7 @@ spec:
 ```
 
 Then `verify_model_on_download`-style calls inside `trust-core` can authenticate
-peers by their SPIFFE ID (`spiffe://aumos.dev/inference-proxy`) over mTLS.
+peers by their SPIFFE ID (`spiffe://muveraai.com/inference-proxy`) over mTLS.
 
 ### Enabling mTLS cluster-wide
 
@@ -145,12 +145,12 @@ kubectl -n aumos exec deploy/trust-core -- \
 
 ## Federation
 
-To federate with a second region (e.g. `eu.aumos.dev`):
+To federate with a second region (e.g. `eu.muveraai.com`):
 
-1. Stand up a SPIRE stack in the EU cluster with `trust_domain = "eu.aumos.dev"`.
+1. Stand up a SPIRE stack in the EU cluster with `trust_domain = "eu.muveraai.com"`.
 2. Apply the `SPIFFEBundleEndpoint` in `trust-domain-config.yaml` — it pulls the
-   peer bundle from `https://spire-server.eu.aumos.dev:8443` every 5 minutes.
-3. Add `eu.aumos.dev` to the `federatesWith` list of any entry that needs to
+   peer bundle from `https://spire-server.eu.muveraai.com:8443` every 5 minutes.
+3. Add `eu.muveraai.com` to the `federatesWith` list of any entry that needs to
    authenticate EU workloads (the `trust-core` entry already does).
 
 ## Production notes

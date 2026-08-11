@@ -2,7 +2,7 @@
 //
 // Wave-2 v1.0 exposes the service over HTTP/JSON (per cross-cutting 19 §1 external tier) rather
 // than raw gRPC, to keep the Go binary self-contained without a protoc toolchain dependency.
-// The proto remains the source of truth for the wire types (proto/aumos/identity/v1/agent.proto);
+// The proto remains the source of truth for the wire types (proto/warrantor/identity/v1/agent.proto);
 // the JSON shapes here mirror it field-for-field. A `buf generate` task (03) will swap this for
 // generated connect-go stubs.
 
@@ -15,17 +15,17 @@ import (
 	"time"
 )
 
-// IssueRequest mirrors proto/aumos/identity/v1/IssueIdentityRequest.
+// IssueRequest mirrors proto/warrantor/identity/v1/IssueIdentityRequest.
 type IssueRequest struct {
-	Subject    string            `json:"subject"`
-	Attributes AgentAttributes   `json:"attributes"`
-	Claims     CapabilityClaims  `json:"claims"`
-	Audience   string            `json:"audience,omitempty"` // C5: intended audience bound into the `aud` claim
-	ParentSVID string            `json:"parent_svid,omitempty"`
-	RequestID  string            `json:"request_id,omitempty"`
+	Subject    string           `json:"subject"`
+	Attributes AgentAttributes  `json:"attributes"`
+	Claims     CapabilityClaims `json:"claims"`
+	Audience   string           `json:"audience,omitempty"` // C5: intended audience bound into the `aud` claim
+	ParentSVID string           `json:"parent_svid,omitempty"`
+	RequestID  string           `json:"request_id,omitempty"`
 }
 
-// IssueResponse mirrors proto/aumos/identity/v1/IssueIdentityResponse.
+// IssueResponse mirrors proto/warrantor/identity/v1/IssueIdentityResponse.
 //
 // H2 wire-shape alignment: the proto field is `capability_token` (the short-lived capability
 // token string), but the previous Go struct exposed it as `capability_jti` (carrying only the
@@ -42,30 +42,30 @@ type IssueResponse struct {
 	ExpiresAt       int64  `json:"expires_at"`
 }
 
-// VerifyRequest mirrors proto/aumos/identity/v1/VerifyIdentityRequest.
+// VerifyRequest mirrors proto/warrantor/identity/v1/VerifyIdentityRequest.
 type VerifyRequest struct {
 	SVID     string `json:"svid"`
 	Audience string `json:"audience,omitempty"`
 }
 
-// VerifyResponse mirrors proto/aumos/identity/v1/VerifyIdentityResponse.
+// VerifyResponse mirrors proto/warrantor/identity/v1/VerifyIdentityResponse.
 type VerifyResponse struct {
-	Valid  bool   `json:"valid"`
-	Reason string `json:"reason,omitempty"`
+	Valid   bool   `json:"valid"`
+	Reason  string `json:"reason,omitempty"`
 	Subject string `json:"subject,omitempty"`
 }
 
-// RevokeRequest mirrors proto/aumos/identity/v1/RevokeRequest.
+// RevokeRequest mirrors proto/warrantor/identity/v1/RevokeRequest.
 type RevokeRequest struct {
 	JTI       string `json:"jti"`
 	Reason    string `json:"reason,omitempty"`
 	RequestID string `json:"request_id,omitempty"`
 }
 
-// RevokeResponse mirrors proto/aumos/identity/v1/RevokeResponse.
+// RevokeResponse mirrors proto/warrantor/identity/v1/RevokeResponse.
 type RevokeResponse struct {
-	Revoked   bool   `json:"revoked"`
-	RevokedAt int64  `json:"revoked_at"`
+	Revoked   bool  `json:"revoked"`
+	RevokedAt int64 `json:"revoked_at"`
 }
 
 // HTTPGateway exposes the service over HTTP/JSON.

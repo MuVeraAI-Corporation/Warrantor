@@ -6,7 +6,7 @@ no single language implementation owns them; every relevant component consumes t
 contract plane.
 
 Each protocol lives as `<id>-<kebab-name>.md` (human-readable normative spec) plus a future
-machine-checkable schema in `proto/aumos/protocols/v1/` or `specs/<id>/schema.cddl` (CDDL) /
+machine-checkable schema in `proto/warrantor/protocols/v1/` or `specs/<id>/schema.cddl` (CDDL) /
 `schema.json` (JSON-Schema). Schemas land in Wave-1 for P1/P2 (consumed by T1, I1, E1) and
 incrementally after.
 
@@ -22,8 +22,8 @@ incrementally after.
 
 | ID | Name | Spelled out | Consumed by | Schema |
 |----|------|-------------|-------------|--------|
-| P1 | `aae` | Agent Authority Envelope | I1, R3, R4, all trusted-core | `proto/aumos/protocols/v1/aae.proto` + CDDL |
-| P2 | `aar` | Agent Action Receipt | E1, X2, all auditing components | `proto/aumos/protocols/v1/aar.proto` + CDDL |
+| P1 | `aae` | Agent Authority Envelope | I1, R3, R4, all trusted-core | `proto/warrantor/protocols/v1/aae.proto` + CDDL |
+| P2 | `aar` | Agent Action Receipt | E1, X2, all auditing components | `proto/warrantor/protocols/v1/aar.proto` + CDDL |
 | P3 | `cpe` | Context Provenance Envelope | (future context components) | CDDL |
 | P4 | `amil` | Agent Memory Integrity Ledger | (future context/memory components) | CDDL |
 | P5 | `ssp` | Secure Skill Package | S4, X8 | CDDL + JSON-LD |

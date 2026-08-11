@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://muveraai.com/schemas/protocols/v1/errors.schema.json",
+  "schema_version": 1,
+  "errors": [
+    {"code": "MALFORMED_DOCUMENT", "retryable": false, "description": "The wire document is not a JSON object or cannot be decoded."},
+    {"code": "COMMON_SCHEMA", "retryable": false, "description": "The shared envelope violates its normative structural schema."},
+    {"code": "UNSUPPORTED_PROTOCOL", "retryable": false, "description": "The protocol identifier is unknown to this implementation."},
+    {"code": "PROTOCOL_MISMATCH", "retryable": false, "description": "The declared protocol does not match the selected schema or vector lane."},
+    {"code": "UNSUPPORTED_VERSION", "retryable": false, "description": "The major/minor wire version is not supported; downgrade is forbidden."},
+    {"code": "PAYLOAD_SCHEMA", "retryable": false, "description": "The protocol-specific payload violates its normative schema."},
+    {"code": "SEMANTIC_RULE", "retryable": false, "description": "A protocol cross-field safety invariant failed."},
+    {"code": "NOT_YET_VALID", "retryable": true, "description": "The envelope was evaluated before its issuance time."},
+    {"code": "EXPIRED", "retryable": false, "description": "The envelope was evaluated at or after its expiry."},
+    {"code": "UNKNOWN_CRITICAL_EXTENSION", "retryable": false, "description": "A required extension is not understood; fail closed."},
+    {"code": "UNKNOWN_KEY", "retryable": true, "description": "The signature key identifier cannot be resolved."},
+    {"code": "INVALID_SIGNATURE", "retryable": false, "description": "The detached Ed25519 signature is malformed or invalid."}
+  ]
+}

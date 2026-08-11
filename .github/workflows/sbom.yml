@@ -17,20 +17,20 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: aumos/rust
+        working-directory: rust
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: aumos/rust
+          workspaces: rust
       - name: Install cargo-cyclonedx
         run: cargo install cargo-cyclonedx --locked || echo "cargo-cyclonedx cached"
       - name: Generate CycloneDX SBOMs
-        # Generates one bom.json per crate under aumos/rust/<crate>/.
+        # Generates one bom.json per crate under rust/<crate>/.
         run: cargo cyclonedx --all --format json --output-pattern package
       - name: Aggregate SBOMs
-        working-directory: aumos
+        working-directory: .
         run: |
           mkdir -p sbom
           # Collect every generated bom.json into sbom/<crate>-bom.json
@@ -44,14 +44,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cyclonedx-sboms
-          path: aumos/sbom/
+          path: sbom/
 
   python-sbom:
     name: Python CycloneDX SBOM
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: aumos/python/cuda_gram
+        working-directory: python/cuda_gram
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -68,4 +68,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: python-cyclonedx-sbom
-          path: aumos/python/cuda_gram/aumos-python-cuda-gram.bom.json
+          path: python/cuda_gram/aumos-python-cuda-gram.bom.json

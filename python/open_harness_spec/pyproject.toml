@@ -1,5 +1,5 @@
 [project]
-name = "aumos-open-harness-spec"
+name = "warrantor-open-harness-spec"
 version = "1.0.0"
 description = "X3 — vendor-neutral agent harness specification (5 interfaces + conformance checker)"
 readme = "README.md"

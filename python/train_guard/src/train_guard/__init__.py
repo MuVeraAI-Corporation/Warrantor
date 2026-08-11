@@ -18,11 +18,9 @@ See ``docs/rfcs/S8-train-guard.md``.
 from __future__ import annotations
 
 import hashlib
-import json
 import math
-import statistics
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -87,19 +85,19 @@ class DependencySnapshot:
     digest: str = ""
 
     @classmethod
-    def from_packages(cls, packages: dict[str, str]) -> "DependencySnapshot":
+    def from_packages(cls, packages: dict[str, str]) -> DependencySnapshot:
         """Construct a snapshot, computing the digest (deterministic over sorted name=version)."""
         canon = "\n".join(f"{k}=={v}" for k, v in sorted(packages.items()))
         digest = "sha256:" + hashlib.sha256(canon.encode("utf-8")).hexdigest()
         return cls(packages=dict(packages), digest=digest)
 
-    def matches(self, other: "DependencySnapshot") -> bool:
+    def matches(self, other: DependencySnapshot) -> bool:
         """True if this snapshot's digest equals another's."""
         return self.digest == other.digest
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class TrainGuard:
@@ -275,7 +273,7 @@ class TrainGuard:
         """Convenience: run both gradient + loss checks for a step."""
         return [*self.check_gradient(gradient_norm, step), *self.check_loss(loss, step)]
 
-    def finalize(self, run_id: str, model_id: str) -> "TrainingAttestation":
+    def finalize(self, run_id: str, model_id: str) -> TrainingAttestation:
         """Emit the signed training attestation. The signature is added by T1 trust-core in
         production; this method produces the canonical JSON the attestation wraps."""
         return TrainingAttestation(

@@ -8,7 +8,7 @@
 DefStack v1/v2 had inconsistent setup instructions per component. The polyglot stack pressure test
 made this a **kill criterion** (#7): "Monorepo cannot be built/tested with one top-level command."
 This standard defines the canonical setup, contribution workflow, debugging story, and documentation
-rules — the same across all 44 components.
+rules — the same across all 54 implementable components and 12 protocol specifications.
 
 ---
 
@@ -17,13 +17,14 @@ rules — the same across all 44 components.
 ```bash
 git clone <repo> aumos
 cd aumos
-make setup    # detects toolchains, reports what's missing (does not fail)
-make test     # tests every present language; skips missing ones
+make setup    # validates every required toolchain and installs locked TypeScript dependencies
+make verify   # runs every required build, test, lint, format, protocol, and docs gate
 ```
 
-If `make setup` reports a missing toolchain, install it (links printed) and re-run. The Makefile
-**detects and skips** missing languages rather than failing — so a contributor who only touches the
-Rust core can run `make test` without installing Python or Node.
+If `make setup` reports a missing toolchain, install it and re-run. The Makefile is deliberately
+fail-closed: a missing executor, empty lane, or failed gate is a repository verification failure.
+Language-specific targets remain available for focused inner-loop work, but only `make verify`
+represents the repository-wide result.
 
 **Forbidden:** any per-component setup script that diverges from this. Component-specific
 instructions belong in the RFC, not in a separate README that drifts.
@@ -43,14 +44,14 @@ instructions belong in the RFC, not in a separate README that drifts.
 | **Docker** | deployable components | latest | https://docker.com |
 | **Helm** | K8s deployable components | 3.x | https://helm.sh |
 
-**`make setup`** checks each of these and prints status. It never installs anything without
-confirmation (respecting the user's environment).
+**`make setup`** checks each of these, prints exact versions, and installs the TypeScript workspace
+from its committed lockfile. It does not install or upgrade host language toolchains.
 
 ---
 
 ## 3. Repository Layout (recap)
 
-See [`../README.md`](../README.md) and [`../00-reconciliation-matrix.md`](../00-reconciliation-matrix.md).
+See [`../../README.md`](../../README.md) and [`../00-reconciliation-matrix.md`](../00-reconciliation-matrix.md).
 The contract plane (`specs/`, `proto/`, `testvectors/`) is the spine; per-language implementations
 hang off it.
 
@@ -122,7 +123,7 @@ in order.
 | Symptom | First check |
 |---|---|
 | `make test` fails on one language | Is the toolchain installed? `make setup` will say |
-| Proto changes don't propagate | Did you run `buf generate`? Is `buf breaking` failing? |
+| Proto changes don't propagate | Rust regenerates on `cargo build`; try `cargo clean -p warrantor-api`. Is `buf breaking` failing? Note Go/Python/TS hand-mirror the types and do not propagate automatically. |
 | Conformance fails | Did you update `testvectors/`? See RFC T-CORE-1 |
 | Component can't find a dependency | Are mocks in place? Wave-1 components use mock I1 (AgentVault) |
 | eBPF fails to load (R2/R7/S6) | Are you on Linux 5.13+? See component RFC |

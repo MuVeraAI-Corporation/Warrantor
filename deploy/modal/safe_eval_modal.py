@@ -47,7 +47,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 import modal
 
-APP_NAME = "aumos-safe-eval"
+APP_NAME = "warrantor-safe-eval"
 
 # Defaults — overridable via env at deploy/run time.
 MODEL_NAME = os.environ.get("AUMOS_MODAL_MODEL", "facebook/opt-1.3b")

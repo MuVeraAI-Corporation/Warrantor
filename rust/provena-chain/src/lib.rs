@@ -1,4 +1,4 @@
-//! # aumos-provena-chain (S2)
+//! # warrantor-provena-chain (S2)
 //!
 //! Tamper-evident model provenance ledger. Every model artifact (weights, fine-tune, merge,
 //! evaluation) is recorded as a ledger entry; the Merkle root over all entries is anchored to
@@ -25,7 +25,7 @@ use uuid::Uuid;
 pub struct Entry {
     /// UUID entry id.
     pub id: String,
-    /// The artifact URI this entry records (e.g. "model://aumos-7b@v1").
+    /// The artifact URI this entry records (e.g. "model://warrantor-7b@v1").
     pub artifact_uri: String,
     /// The artifact's content digest (sha256:...) — invariant I-06 (artifact identity is exact).
     pub artifact_digest: String,
@@ -411,8 +411,8 @@ impl Ledger {
             .collect();
         serde_json::json!({
             "@context": {
-                "aumos": "https://aumos.dev/vocab/provenance#",
-                "@vocab": "https://aumos.dev/vocab/provenance#"
+                "aumos": "https://muveraai.com/vocab/provenance#",
+                "@vocab": "https://muveraai.com/vocab/provenance#"
             },
             "@graph": nodes,
             "aumos:merkle_root": hex::encode(self.merkle_root()),
@@ -451,9 +451,7 @@ impl Ledger {
     /// # Errors
     /// Returns [`LedgerError::PersistSerde`] if deserialization fails or
     /// [`LedgerError::PersistIo`] if the backend read fails.
-    pub fn load_from(
-        backend: &dyn PersistenceBackend,
-    ) -> Result<Option<Ledger>, LedgerError> {
+    pub fn load_from(backend: &dyn PersistenceBackend) -> Result<Option<Ledger>, LedgerError> {
         let Some(bytes) = backend.read()? else {
             return Ok(None);
         };
@@ -480,10 +478,7 @@ impl Ledger {
     ///
     /// # Errors
     /// See [`Self::persist_to`].
-    pub fn persist_to_file<P: AsRef<std::path::Path>>(
-        &self,
-        path: P,
-    ) -> Result<(), LedgerError> {
+    pub fn persist_to_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), LedgerError> {
         let mut backend = FileBackend::new(path.as_ref());
         self.persist_to(&mut backend)
     }
@@ -532,7 +527,7 @@ mod tests {
             parents: vec![],
             metadata: BTreeMap::new(),
             recorded_at: 0,
-            signer: "did:web:aumos.dev".into(),
+            signer: "did:web:muveraai.com".into(),
         }
     }
 
@@ -667,7 +662,7 @@ mod tests {
             parents: vec![],
             metadata: BTreeMap::new(),
             recorded_at: 0,
-            signer: "did:web:aumos.dev".into(),
+            signer: "did:web:muveraai.com".into(),
         };
         let entry_b = Entry {
             id: String::new(),
@@ -677,7 +672,7 @@ mod tests {
             parents: vec![],
             metadata: BTreeMap::new(),
             recorded_at: 0,
-            signer: "did:web:aumos.dev".into(),
+            signer: "did:web:muveraai.com".into(),
         };
         assert_ne!(
             entry_a.canonical_bytes(),
@@ -697,7 +692,7 @@ mod tests {
         // Merkle root, and checkpoint verifiability all round-trip. The temp dir keeps the test
         // hermetic (no stray files in the repo).
         let tmp = std::env::temp_dir().join(format!(
-            "aumos-provena-test-{}-{}.json",
+            "warrantor-provena-test-{}-{}.json",
             std::process::id(),
             uuid::Uuid::new_v4()
         ));
@@ -722,7 +717,10 @@ mod tests {
         // Entries round-trip.
         assert_eq!(restored.len(), 2);
         assert_eq!(
-            restored.get(&restored.entries[0].id.clone()).unwrap().artifact_uri,
+            restored
+                .get(&restored.entries[0].id.clone())
+                .unwrap()
+                .artifact_uri,
             "model://a"
         );
         // The signing key (and therefore the verifying key) round-trips.
@@ -744,7 +742,7 @@ mod tests {
         // H10: loading from a path that does not exist must return Ok(None), not an error, so a
         // fresh process can boot and create the ledger on first write.
         let missing = std::env::temp_dir().join(format!(
-            "aumos-provena-missing-{}-{}.json",
+            "warrantor-provena-missing-{}-{}.json",
             std::process::id(),
             uuid::Uuid::new_v4()
         ));
@@ -758,7 +756,7 @@ mod tests {
         // H10: the FileBackend writes to a temp file then renames, so a successful write leaves
         // no .tmp sibling behind.
         let path = std::env::temp_dir().join(format!(
-            "aumos-provena-atomic-{}-{}.json",
+            "warrantor-provena-atomic-{}-{}.json",
             std::process::id(),
             uuid::Uuid::new_v4()
         ));
@@ -770,7 +768,10 @@ mod tests {
         let mut backend = FileBackend::new(&path);
         backend.write(b"snapshot-bytes").expect("write");
         assert!(path.exists(), "target file must exist after write");
-        assert!(!tmp.exists(), "temp sibling must be gone after atomic rename");
+        assert!(
+            !tmp.exists(),
+            "temp sibling must be gone after atomic rename"
+        );
         assert_eq!(std::fs::read(&path).unwrap(), b"snapshot-bytes");
         // Round-trip through the backend read().
         assert_eq!(backend.read().unwrap(), Some(b"snapshot-bytes".to_vec()));

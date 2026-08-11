@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
-
 from train_guard import (
     CheckStatus,
     CheckType,

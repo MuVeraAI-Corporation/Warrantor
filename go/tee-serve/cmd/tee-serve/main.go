@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"aumos.dev/tee-serve"
+	"muveraai.com/go/tee-serve"
 )
 
 func main() {

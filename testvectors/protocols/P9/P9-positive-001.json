@@ -1,0 +1,40 @@
+{
+  "id": "P9-positive-001",
+  "category": "positive",
+  "protocol": "P9",
+  "expected": "valid",
+  "expected_error": "",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P9",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000009",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "ec434dc4d60a594098e9c81098de862e448a3979e8b093c5b93fa7768e2b6f67",
+    "payload": {
+      "incident_type": "tool_abuse",
+      "severity": "high",
+      "agent": "spiffe://example.org/agent/researcher",
+      "authority_digest": "sha256:ffbb92502cb6778449a21791fa3f524deeec800c84faee10f934737a86ecca85",
+      "evidence_refs": [
+        "urn:aumos:receipt:001"
+      ],
+      "mitre_atlas_ids": [
+        "AML.T0051"
+      ],
+      "ocsf_class_uid": 6003,
+      "detected_at": 1893455880,
+      "contained_at": 1893455940,
+      "containment_status": "contained"
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "16eb836150c3782a1bd951bcb89b1a7da48d4a43e96a4b50ffe114a0f1e5fbed5e63ca0cb8934475a563ddf8cd37ede5d1c1ae0233d76f4588bc79deb6dc190a"
+    }
+  }
+}

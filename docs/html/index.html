@@ -235,12 +235,16 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <div class="doc-header">
   <h1>AumOS Documentation Portal</h1>
-  <div class="subtitle">The open authority and evidence layer for autonomous systems — 49 components, 12 protocols, 691 tests across Rust, Go, Python, and TypeScript.</div>
+  <div class="subtitle">The open authority and evidence layer for autonomous systems — 54 canonical component IDs, 49 source-mapped implementations, and 12 draft protocols across Rust, Go, Python, and TypeScript.</div>
   <nav>
+    <a href="aumos-critical-analysis-2026-08-09.html">Critical Analysis (canonical)</a>
+    <a href="adoption-blockers-2026-08-09.html">Adoption Blockers</a>
+    <a href="operating-playbook-2026-08-09.html">Operating Playbook</a>
+    <a href="implementation-readiness-audit-2026-08-09.html">Readiness Audit (superseded)</a>
     <a href="components.html">Components</a>
     <a href="protocols.html">Protocols</a>
     <a href="pending-tasks.html">Pending Tasks</a>
-    <a href="critical-analysis.html">Critical Analysis</a>
+    <a href="critical-analysis.html">Critical Analysis (Aug 6, historical)</a>
     <a href="oss-readiness.html">OSS Readiness</a>
     <a href="roadmap.html">Roadmap</a>
     <a href="value-proposition.html">Value Proposition</a>
@@ -261,7 +265,8 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <p>AumOS reconciles four source portfolios (DefStack 36-component, AumSecure 20+protocols,
 AumSecure-V3 6-repo, PROJECT SENTINEL 10-framework) into one unified catalog of
-<strong>49 implementable components</strong> and <strong>12 spec-only protocols</strong>. It is
+<strong>54 implementable component IDs</strong>—49 with mapped source implementations—and
+<strong>12 draft protocols</strong>. It is
 the reference implementation for the Open Secure AI Alliance (OSAF / OSAA).</p>
 
 <h2>Implementation at a Glance</h2>
@@ -269,23 +274,23 @@ the reference implementation for the Open Secure AI Alliance (OSAF / OSAA).</p>
 <div class="stats-grid">
   <div class="stat-card">
     <div class="stat-value">49</div>
-    <div class="stat-label">Components at v1.0.0</div>
+    <div class="stat-label">Source-Mapped Components</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value">691</div>
-    <div class="stat-label">Tests Passing</div>
+    <div class="stat-value">995</div>
+    <div class="stat-label">Static Test Declarations</div>
   </div>
   <div class="stat-card">
     <div class="stat-value">12</div>
-    <div class="stat-label">Open Protocols</div>
+    <div class="stat-label">Draft Protocols</div>
   </div>
   <div class="stat-card">
     <div class="stat-value">4</div>
     <div class="stat-label">Languages</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value">7</div>
-    <div class="stat-label">Waves Delivered</div>
+    <div class="stat-value">5</div>
+    <div class="stat-label">Canonical IDs Unimplemented</div>
   </div>
   <div class="stat-card">
     <div class="stat-value">53</div>
@@ -296,6 +301,49 @@ the reference implementation for the Open Secure AI Alliance (OSAF / OSAA).</p>
 <h2>Documentation Artifacts</h2>
 
 <div class="card-grid">
+
+  <a href="operating-playbook-2026-08-09.html" style="text-decoration:none;border-bottom:none;">
+    <div class="card" style="border-color:var(--accent);border-width:2px;">
+      <div class="card-id">PROCESS &middot; 2026-08-09</div>
+      <div class="card-title">Operating Playbook</div>
+      <div class="card-desc">Six dependency-ordered phases, each with an explicit &ldquo;what I need from you&rdquo; gate, plus a nine-item decision log of choices only Vikram can make and the standing risks that would change the plan.</div>
+      <div class="card-meta"><span class="badge" style="background:var(--green-light);color:var(--green)">Start here</span></div>
+    </div>
+  </a>
+
+  <a href="adoption-blockers-2026-08-09.html" style="text-decoration:none;border-bottom:none;">
+    <div class="card" style="border-color:var(--accent);">
+      <div class="card-id">STRATEGY &middot; 2026-08-09</div>
+      <div class="card-title">Adoption Blockers</div>
+      <div class="card-desc">Every pending item, challenge and limitation stopping developers and enterprises &mdash; the Microsoft Agent Governance Toolkit reframe, the enterprise and developer gates, per-component value verdicts, the capability surface beyond the four use cases, and the multi-jurisdiction regulatory wedge.</div>
+      <div class="card-meta"><span class="badge" style="background:var(--red-light);color:var(--red)">Competitive reframe</span></div>
+    </div>
+  </a>
+
+  <a href="aumos-critical-analysis-2026-08-09.html" style="text-decoration:none;border-bottom:none;">
+    <div class="card" style="border-color:var(--accent);border-width:2px;">
+      <div class="card-id">CANONICAL · 2026-08-09 · SUPERSEDES BOTH BELOW</div>
+      <div class="card-title">Implementation &amp; Protocol Critical Analysis</div>
+      <div class="card-desc">Executed, source-level analysis of all 54 components and 12 protocols for developer and enterprise adoption in native and agentic AI environments. Includes a proven Helm render failure, CI that has never executed, 47 graded findings mapped to release gates and adoption blockers, a primary-source standards and competitive teardown, a US/India/GCC regulatory evidence map, and a sequenced remediation blueprint.</div>
+      <div class="card-meta">
+        <span class="badge" style="background:var(--red-light);color:var(--red)">10 critical findings</span>
+        <span class="badge" style="background:var(--amber-light);color:var(--amber)">1 of 14 gates passing</span>
+        <span class="badge" style="background:var(--blue-light);color:var(--blue)">Internal · brutally honest</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="implementation-readiness-audit-2026-08-09.html" style="text-decoration:none;border-bottom:none;">
+    <div class="card">
+      <div class="card-id">SUPERSEDED · 2026-08-09</div>
+      <div class="card-title">Implementation &amp; Enterprise Readiness Audit</div>
+      <div class="card-desc">The current evidence-backed verdict across all 49 claimed implementations, five missing canonical components, 12 draft protocols, live build and test results, developer and agent-framework fit, enterprise controls, deployment truth, current standards, prioritized findings, and release gates.</div>
+      <div class="card-meta">
+        <span class="badge" style="background:var(--red-light);color:var(--red)">Production: no-go</span>
+        <span class="badge" style="background:var(--green-light);color:var(--green)">Research: conditional go</span>
+      </div>
+    </div>
+  </a>
 
   <a href="components.html" style="text-decoration:none;border-bottom:none;">
     <div class="card">
@@ -338,10 +386,10 @@ the reference implementation for the Open Secure AI Alliance (OSAF / OSAA).</p>
   <a href="critical-analysis.html" style="text-decoration:none;border-bottom:none;">
     <div class="card">
       <div class="card-id">DOCUMENT</div>
-      <div class="card-title">Critical Analysis & Stress Test</div>
-      <div class="card-desc">Brutally honest assessment of the implementation's gaps: security weaknesses, cross-component integration mismatches, missing test coverage, architecture gaps, protocol completeness, production-readiness gaps, compliance gaps, and code-quality issues. Every finding cites the specific file and line.</div>
+      <div class="card-title">Historical Critical Analysis & Stress Test</div>
+      <div class="card-desc">The 6 August 2026 assessment that preceded later C1–C7 source fixes. Retained as historical evidence; use the 9 August implementation-readiness audit above for the current verdict and revalidated findings.</div>
       <div class="card-meta">
-        <span class="badge" style="background:var(--red-light);color:var(--red)">Critical findings</span>
+        <span class="badge" style="background:var(--bg-secondary);color:var(--text-secondary)">Historical</span>
         <span class="badge" style="background:var(--amber-light);color:var(--amber)">Architecture</span>
       </div>
     </div>

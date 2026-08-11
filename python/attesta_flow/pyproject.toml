@@ -1,5 +1,5 @@
 [project]
-name = "aumos-attesta-flow"
+name = "warrantor-attesta-flow"
 version = "1.0.0"
 description = "C1-3 — end-to-end attested inference pipeline orchestrator"
 readme = "README.md"

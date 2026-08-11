@@ -1,5 +1,5 @@
 [package]
-name = "aumos-confidential-fabric"
+name = "warrantor-confidential-fabric"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ authors.workspace = true
 description = "C1-5 — composite attestation fabric: GPU + runtime + agent identity → key release"
 
 [lib]
-name = "aumos_confidential_fabric"
+name = "warrantor_confidential_fabric"
 path = "src/lib.rs"
 
 [dependencies]

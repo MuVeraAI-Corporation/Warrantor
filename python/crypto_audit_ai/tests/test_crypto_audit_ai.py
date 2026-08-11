@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from crypto_audit_ai import (
     AuditMode,
-    Finding,
     Severity,
     StressCase,
     audit,
@@ -100,7 +99,9 @@ def test_stress_test_fails_on_ecb_invariant() -> None:
 
 def test_stress_test_passes_with_all_green_cases() -> None:
     cases = [
-        StressCase(primitive="RSA-key-size", name="ok", input_hex="x", expected_hex="y", should_pass=True)
+        StressCase(
+            primitive="RSA-key-size", name="ok", input_hex="x", expected_hex="y", should_pass=True
+        )
     ]
     report = stress_test(cases)
     assert report.passed

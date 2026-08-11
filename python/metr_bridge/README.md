@@ -1,4 +1,4 @@
-# aumos-metr-bridge (X6)
+# warrantor-metr-bridge (X6)
 
 Integration with [METR](https://metr.org/) (Model Evaluation & Threat Research)
 evaluations. Four components:

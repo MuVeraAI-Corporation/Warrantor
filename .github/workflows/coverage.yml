@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: aumos/rust
+        working-directory: rust
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -26,7 +26,7 @@ jobs:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: aumos/rust
+          workspaces: rust
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --locked || echo "cargo-llvm-cov already cached"
       - name: Run coverage
@@ -37,7 +37,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rust-lcov
-          path: aumos/rust/lcov.info
+          path: rust/lcov.info
       # The ≥85% gate is informational in Wave-1.5; we report but do not fail.
       # Wave-2 will replace the `|| true` with a hard `cargo llvm-cov --failunder-lines 85`.
 
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: aumos/python/cuda_gram
+        working-directory: python/cuda_gram
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -62,4 +62,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: python-coverage-xml
-          path: aumos/python/cuda_gram/coverage.xml
+          path: python/cuda_gram/coverage.xml

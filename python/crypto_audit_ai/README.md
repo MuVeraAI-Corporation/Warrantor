@@ -1,4 +1,4 @@
-# aumos-crypto-audit-ai (X4)
+# warrantor-crypto-audit-ai (X4)
 
 AI-assisted cryptanalysis. Three modes:
 

@@ -8,7 +8,7 @@ Expose trust-core to Go via cgo to a C FFI shim.
 ## Steps
 1. Add a C ABI shim in Rust (`#[no_mangle] pub extern "C" fn aumos_trust_sign(...)`) using `cbindgen`
    to generate the header.
-2. `bindings/go/` — cgo wrapper; Go package `aumos.dev/trustcore`.
+2. `bindings/go/` — cgo wrapper; Go package `muveraai.com/trustcore`.
 3. Add Go golden-vector verifier to the conformance suite.
 
 ## Acceptance criteria

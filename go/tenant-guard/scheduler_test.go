@@ -44,9 +44,9 @@ func TestAllocateEnforcesQuota(t *testing.T) {
 func TestAllocateRequiresTrustedAAE(t *testing.T) {
 	s := freshScheduler()
 	s.RegisterQuota(TenantQuota{
-		TenantID:      "t1",
-		MaxGPUs:       1,
-		PreferredMode: IsolationMIG,
+		TenantID:       "t1",
+		MaxGPUs:        1,
+		PreferredMode:  IsolationMIG,
 		TrustedAAEHash: "sha256:expected",
 	})
 	_, err := s.Allocate("t1", "sha256:wrong")

@@ -9,12 +9,11 @@ import tempfile
 import pytest
 
 from agentsec_lab import (
+    PROMPT_INJECTION_BASIC,
     CompliantTarget,
     Finding,
-    PROMPT_INJECTION_BASIC,
     RefusingTarget,
     RunResult,
-    Scenario,
     ScenarioCategory,
     Severity,
     default_lab,
@@ -44,7 +43,7 @@ def test_deterministic_seed_reproducible() -> None:
     r1 = lab1.run(CompliantTarget(), "t")
     r2 = lab2.run(CompliantTarget(), "t")
     assert len(r1.findings) == len(r2.findings)
-    for f1, f2 in zip(r1.findings, r2.findings):
+    for f1, f2 in zip(r1.findings, r2.findings, strict=False):
         assert f1.scenario_id == f2.scenario_id
         assert f1.detected == f2.detected
 
@@ -78,10 +77,15 @@ def test_holdouts_loaded_and_skipped_by_default() -> None:
 
 
 def test_run_result_summary_fields() -> None:
-    result = RunResult(run_id="x", target_name="t", started_at=0, findings=[
-        Finding("a", ScenarioCategory.PROMPT_INJECTION, Severity.HIGH, "p", "r", True),
-        Finding("b", ScenarioCategory.EXFILTRATION, Severity.LOW, "p", "r", False),
-    ])
+    result = RunResult(
+        run_id="x",
+        target_name="t",
+        started_at=0,
+        findings=[
+            Finding("a", ScenarioCategory.PROMPT_INJECTION, Severity.HIGH, "p", "r", True),
+            Finding("b", ScenarioCategory.EXFILTRATION, Severity.LOW, "p", "r", False),
+        ],
+    )
     assert result.detected_count == 1
     assert len(result.critical_or_high) == 1
 

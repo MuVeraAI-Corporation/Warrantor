@@ -1,5 +1,5 @@
 [project]
-name = "aumos-dp-crate"
+name = "warrantor-dp-crate"
 version = "1.0.0"
 description = "F2 — production-grade differential privacy toolkit (DPSGD + RDP moments accountant)"
 readme = "README.md"

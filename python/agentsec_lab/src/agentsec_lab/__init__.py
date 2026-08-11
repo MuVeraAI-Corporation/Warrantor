@@ -16,13 +16,13 @@ See ``docs/rfcs/A5-agentsec-lab.md``.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import random
 import uuid
-from dataclasses import asdict, dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable, Protocol
+from typing import Protocol
 
 
 class Severity(str, Enum):
@@ -254,11 +254,11 @@ class CompliantTarget:
 
 
 __all__ = [
+    "PROMPT_INJECTION_BASIC",
     "CompliantTarget",
     "Detector",
     "Finding",
     "Lab",
-    "PROMPT_INJECTION_BASIC",
     "RefusingTarget",
     "RunResult",
     "Scenario",

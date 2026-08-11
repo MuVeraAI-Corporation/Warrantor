@@ -3,6 +3,8 @@
   "references": [
     { "path": "./console" },
     { "path": "./mcp-gateway" },
-    { "path": "./arena" }
+    { "path": "./arena" },
+    { "path": "./mcp-server" },
+    { "path": "./protocol-contracts" }
   ]
 }

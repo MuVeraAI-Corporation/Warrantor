@@ -15,7 +15,7 @@ import {
 function sampleReceipt(overrides: Partial<AgentActionReceipt> = {}): AgentActionReceipt {
   return {
     id: 'r-1',
-    actor: 'spiffe://aumos.dev/agent/coding-1',
+    actor: 'spiffe://muveraai.com/agent/coding-1',
     authorityHashHex: 'abc123',
     toolOrApiOp: 'github.create_pr',
     outcome: 'committed',
@@ -31,7 +31,7 @@ function sampleApproval(overrides: Partial<ApprovalRequest> = {}): ApprovalReque
   return {
     id: 'a-1',
     receiptId: 'r-1',
-    actor: 'spiffe://aumos.dev/agent/coding-1',
+    actor: 'spiffe://muveraai.com/agent/coding-1',
     toolOrApiOp: 'payment.send',
     sideEffectClass: 'financial',
     requestedAt: 1000,

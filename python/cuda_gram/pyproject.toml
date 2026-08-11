@@ -1,5 +1,5 @@
 [project]
-name = "aumos-cuda-gram"
+name = "warrantor-cuda-gram"
 version = "1.0.0"
 description = "High-level GPU attestation SDK (AumOS C1-2 cuda-gram)"
 readme = "README.md"

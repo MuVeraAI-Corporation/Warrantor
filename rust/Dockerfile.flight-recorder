@@ -19,7 +19,7 @@ WORKDIR /app
 COPY . .
 
 # 1. Compile the flight-recorder library. Proves the source builds.
-RUN cargo build --release -p aumos-flight-recorder
+RUN cargo build --release -p warrantor-flight-recorder
 
 # 2. Build a tiny, dependency-free health server on port 8445.
 RUN mkdir -p /health && \

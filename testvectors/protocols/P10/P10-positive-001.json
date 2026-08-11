@@ -1,0 +1,65 @@
+{
+  "id": "P10-positive-001",
+  "category": "positive",
+  "protocol": "P10",
+  "expected": "valid",
+  "expected_error": "",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P10",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000010",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "443406090fa4f2afd5d1f0f0fda419e5205c629cc7031c22c6d5d0f9d05aecd8",
+    "payload": {
+      "delegator": "spiffe://example.org/agent/planner",
+      "delegatee": "spiffe://example.org/agent/researcher",
+      "parent_authority_digest": "sha256:c4b13dd3e6bffb46ab1956aca90fc22146fb7226a5b8a6acee37760a5c6d8b41",
+      "delegation_chain": [
+        "spiffe://example.org/agent/planner",
+        "spiffe://example.org/agent/researcher"
+      ],
+      "hop_count": 1,
+      "max_depth": 2,
+      "capabilities": [
+        "dataset:read"
+      ],
+      "parent_budget": {
+        "steps": 40,
+        "wall_clock_seconds": 1200,
+        "tokens": 40000,
+        "money_minor": 10000,
+        "external_calls": 20,
+        "data_bytes": 2097152,
+        "irreversible_actions": 0
+      },
+      "delegated_budget": {
+        "steps": 20,
+        "wall_clock_seconds": 600,
+        "tokens": 20000,
+        "money_minor": 5000,
+        "external_calls": 10,
+        "data_bytes": 1048576,
+        "irreversible_actions": 0
+      },
+      "quorum": 1,
+      "approvals": [
+        "spiffe://example.org/approver/security"
+      ],
+      "evidence_requirements": [
+        "P2"
+      ],
+      "result_digest": "",
+      "status": "accepted"
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "03e76aa142adc469850719812998928e1b26d6426dbc6408f5a3179342096f31970be55a54c4d90117934225f2bfcf8864cef266ee9a2f8a0e5efc248670a904"
+    }
+  }
+}

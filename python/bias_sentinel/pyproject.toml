@@ -1,5 +1,5 @@
 [project]
-name = "aumos-bias-sentinel"
+name = "warrantor-bias-sentinel"
 version = "1.0.0"
 description = "A3 — combined bias and copyright auditing (BOLD/HONEST/CrowS-Pairs/WinoBias + n-gram copyright)"
 readme = "README.md"

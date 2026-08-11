@@ -25,6 +25,7 @@ from typing import Any
 # Optional numpy — used for fast statistics when present; pure-Python fallback otherwise.
 try:
     import numpy as _np
+
     _HAVE_NUMPY = True
 except ImportError:  # pragma: no cover
     _np = None
@@ -75,7 +76,7 @@ class TensorStats:
     sparsity: float  # fraction of weights == 0
 
     @classmethod
-    def from_weights(cls, name: str, weights: list[float]) -> "TensorStats":
+    def from_weights(cls, name: str, weights: list[float]) -> TensorStats:
         """Compute summary stats from a flat list of weights."""
         if not weights:
             return cls(name, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
@@ -114,7 +115,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
         if na == 0 or nb == 0:
             return 0.0
         return float(_np.dot(va, vb) / (na * nb))
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(y * y for y in b))
     if na == 0 or nb == 0:
@@ -127,8 +128,8 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 class WeightDistributionConfig:
     """Thresholds for the weight-distribution analyzer."""
 
-    outlier_fraction_threshold: float = 0.05  # 5% of weights > 4σ is suspicious
-    stddev_ratio_threshold: float = 3.0  # stddev 3× baseline is suspicious
+    outlier_fraction_threshold: float = 0.05  # 5% beyond 4 standard deviations is suspicious
+    stddev_ratio_threshold: float = 3.0  # stddev 3x baseline is suspicious
 
 
 def scan_weight_distribution(
@@ -173,7 +174,9 @@ def scan_weight_distribution(
 class BackdoorConfig:
     """Thresholds for the backdoor-pattern analyzer."""
 
-    cluster_magnitude_threshold: float = 10.0  # |weight| > 10 is suspicious in a normally-scaled tensor
+    cluster_magnitude_threshold: float = (
+        10.0  # |weight| > 10 is suspicious in a normally-scaled tensor
+    )
 
 
 def scan_backdoor_patterns(
@@ -206,7 +209,7 @@ def scan_backdoor_patterns(
 class NeuronPruningConfig:
     """Thresholds for the pruning analyzer."""
 
-    sparsity_ratio_threshold: float = 2.0  # 2× baseline sparsity is suspicious
+    sparsity_ratio_threshold: float = 2.0  # 2x baseline sparsity is suspicious
     absolute_sparsity_threshold: float = 0.5  # > 50% zeros
 
 

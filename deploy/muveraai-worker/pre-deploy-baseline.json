@@ -1,0 +1,177 @@
+{
+  "/": {
+    "code": "200",
+    "sha256": "16b6d1c7a6069b7a",
+    "bytes": 48502
+  },
+  "/_next/static/chunks/0k0lbkz4b3ges.css": {
+    "code": "200",
+    "sha256": "46215632f65654f0",
+    "bytes": 40375
+  },
+  "/_next/static/chunks/1jexzsn2qdw84.js": {
+    "code": "200",
+    "sha256": "fef38aa79be4483b",
+    "bytes": 5372
+  },
+  "/architecture": {
+    "code": "200",
+    "sha256": "078ee78bb3adc629",
+    "bytes": 85915
+  },
+  "/blog": {
+    "code": "200",
+    "sha256": "eda1f263c9f59d93",
+    "bytes": 26648
+  },
+  "/company": {
+    "code": "200",
+    "sha256": "b0cfe1b0f1b41019",
+    "bytes": 34176
+  },
+  "/contact": {
+    "code": "200",
+    "sha256": "12d569ddf9f45be0",
+    "bytes": 29069
+  },
+  "/developers": {
+    "code": "200",
+    "sha256": "bf2e3a2d55c8c751",
+    "bytes": 69030
+  },
+  "/enterprise": {
+    "code": "200",
+    "sha256": "0639dfb20ec5159d",
+    "bytes": 28795
+  },
+  "/evaluate": {
+    "code": "200",
+    "sha256": "ff1700227728c5ab",
+    "bytes": 117190
+  },
+  "/icon.svg": {
+    "code": "200",
+    "sha256": "660bbd68759b2b45",
+    "bytes": 984
+  },
+  "/partners": {
+    "code": "200",
+    "sha256": "16646cee717e8986",
+    "bytes": 44248
+  },
+  "/platforms": {
+    "code": "200",
+    "sha256": "33943f0c6571f53e",
+    "bytes": 32561
+  },
+  "/platforms/aegis": {
+    "code": "200",
+    "sha256": "cb439d3982505973",
+    "bytes": 79657
+  },
+  "/platforms/asset-twin": {
+    "code": "200",
+    "sha256": "60ef1864ffdf0e61",
+    "bytes": 78748
+  },
+  "/platforms/conductor": {
+    "code": "200",
+    "sha256": "120943a5b3fc1180",
+    "bytes": 69246
+  },
+  "/platforms/context-graph": {
+    "code": "200",
+    "sha256": "9a9ad13d8f1d37e3",
+    "bytes": 78768
+  },
+  "/platforms/governance-cloud": {
+    "code": "200",
+    "sha256": "0c38282b92ec789e",
+    "bytes": 78593
+  },
+  "/platforms/ledger": {
+    "code": "200",
+    "sha256": "4cd49af65bc3a325",
+    "bytes": 77099
+  },
+  "/platforms/meter": {
+    "code": "200",
+    "sha256": "cfeeba603987cfd4",
+    "bytes": 78550
+  },
+  "/platforms/perimeter": {
+    "code": "200",
+    "sha256": "ea2c2168b5313796",
+    "bytes": 79873
+  },
+  "/pricing": {
+    "code": "200",
+    "sha256": "4221149c300ab0e9",
+    "bytes": 51154
+  },
+  "/programs": {
+    "code": "200",
+    "sha256": "a34cc39c9951f766",
+    "bytes": 29173
+  },
+  "/programs/developers": {
+    "code": "200",
+    "sha256": "c9899ed8d749e868",
+    "bytes": 32980
+  },
+  "/programs/startup-beta": {
+    "code": "200",
+    "sha256": "e2ff8168caf430e5",
+    "bytes": 34017
+  },
+  "/security-questionnaire": {
+    "code": "200",
+    "sha256": "cf0756a49a696c6f",
+    "bytes": 185443
+  },
+  "/simulation": {
+    "code": "200",
+    "sha256": "2a6f9701bbd8ac65",
+    "bytes": 31702
+  },
+  "/solutions": {
+    "code": "200",
+    "sha256": "8f23253cc5c9cb56",
+    "bytes": 35904
+  },
+  "/teams": {
+    "code": "200",
+    "sha256": "b3c8bc51546df3ce",
+    "bytes": 26861
+  },
+  "/trust": {
+    "code": "200",
+    "sha256": "04530810f7596b9d",
+    "bytes": 72703
+  },
+  "/go/agent-identity": {
+    "code": "404",
+    "sha256": "d7a834dbdeeb9213",
+    "bytes": 7885
+  },
+  "/go/agent-identity?go-get=1": {
+    "code": "404",
+    "sha256": "d7a834dbdeeb9213",
+    "bytes": 7885
+  },
+  "/schemas/protocols/v1/p1.schema.json": {
+    "code": "404",
+    "sha256": "d7a834dbdeeb9213",
+    "bytes": 7885
+  },
+  "/go/": {
+    "code": "404",
+    "sha256": "d7a834dbdeeb9213",
+    "bytes": 7885
+  },
+  "/schemas/": {
+    "code": "404",
+    "sha256": "d7a834dbdeeb9213",
+    "bytes": 7885
+  }
+}

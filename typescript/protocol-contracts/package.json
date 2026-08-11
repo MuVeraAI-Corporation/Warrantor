@@ -1,0 +1,19 @@
+{
+  "name": "@warrantor/protocol-contracts",
+  "version": "1.0.0",
+  "description": "P1-P12 wire protocol bindings and the independent TypeScript validator",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.10",
+    "@types/node": "^20.0.0"
+  }
+}

@@ -1,4 +1,4 @@
-# aumos-retro-spec-kit (X5)
+# warrantor-retro-spec-kit (X5)
 
 Automated retrospective transcript review. Ingests a transcript of agent
 behavior and runs six analyzers over it:

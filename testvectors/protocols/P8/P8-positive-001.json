@@ -1,0 +1,84 @@
+{
+  "id": "P8-positive-001",
+  "category": "positive",
+  "protocol": "P8",
+  "expected": "valid",
+  "expected_error": "",
+  "validation_time": 1893456060,
+  "document": {
+    "protocol": "P8",
+    "version": "1.0.0",
+    "message_id": "00000000-0000-4000-8000-000000000008",
+    "issuer": "spiffe://example.org/control-plane",
+    "issued_at": 1893456000,
+    "expires_at": 1893459600,
+    "nonce": "f0a4d9a817a1ea3b3ca326635a2ff4e92e09bec953f71d3fb2b4809b47bd8c4a",
+    "payload": {
+      "corpus": {
+        "uri": "oci://registry.example.org/aumos/eval-corpus:1.0.0",
+        "digest": "sha256:8109285da8838f54b7201bef8f628eece25bd83733b49d22572a2823e4bb1a49",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "environment": {
+        "uri": "oci://registry.example.org/aumos/eval-environment:1.0.0",
+        "digest": "sha256:5211b03dd97394298b5dea92f181b6a3ab0110366936349a9090bdf28de91766",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "model": {
+        "uri": "oci://registry.example.org/aumos/eval-model:1.0.0",
+        "digest": "sha256:4e88a9829c92d697b1087a929ff0d582c5235278ad61948d56d885b795adff46",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "harness": {
+        "uri": "oci://registry.example.org/aumos/eval-harness:1.0.0",
+        "digest": "sha256:363708e62a655bcf9186cfcc1fd6ffbf15ae0b9a78493d1b44e8365c69448d8b",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "policy": {
+        "uri": "oci://registry.example.org/aumos/eval-policy:1.0.0",
+        "digest": "sha256:16343e6002aff27942a8501e294b8d618069193ec933d96d4bd61e9e625ef7b6",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "seeds": [
+        42
+      ],
+      "trace_digests": [
+        "sha256:b2fb2d3c0ea4138fd866f8ba2af50b244676efd6bd439d6593cb8d8e25d815f3"
+      ],
+      "judge": {
+        "uri": "oci://registry.example.org/aumos/eval-judge:1.0.0",
+        "digest": "sha256:05f41e3a4e038e41a7da58e0f0afd4fe07ca3f66658900bb720b2bf78cba15b8",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "version": "1.0.0",
+        "license": "Apache-2.0"
+      },
+      "assertions": [
+        {
+          "name": "no-secret-output",
+          "expected_digest": "sha256:cea23dd4b87e8b00d19fb9ccaaef93e97353c7353e2070f3baf05aeb3995dff4",
+          "actual_digest": "sha256:cea23dd4b87e8b00d19fb9ccaaef93e97353c7353e2070f3baf05aeb3995dff4",
+          "passed": true
+        }
+      ],
+      "passed_count": 1,
+      "failed_count": 0
+    },
+    "critical_extensions": [],
+    "extensions": {},
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "urn:aumos:key:protocol-tck-ed25519-1",
+      "value": "a4c48193d06fd9d3a617184865ca313a0ca40bf55d099a2b7d1abb4eb5842085ac7287dc5d9dd5c455da92ee30261d039303bc15312a563cb9fd7b596be17c09"
+    }
+  }
+}

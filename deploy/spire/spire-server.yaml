@@ -1,4 +1,4 @@
-# SPIRE Server — Kubernetes manifests for the AumOS trust domain (aumos.dev).
+# SPIRE Server — Kubernetes manifests for the AumOS trust domain (muveraai.com).
 #
 # Deploys:
 #   - Namespace + service account
@@ -9,7 +9,7 @@
 #   - Required RBAC (ClusterRole to read projected SA tokens + configmaps)
 #
 # Aligns with deploy/helm/aumos/values.yaml:
-#     global.trustDomain: aumos.dev
+#     global.trustDomain: muveraai.com
 #     global.mtls.spireServer: spire-server.spire.svc.cluster.local
 #
 # This is a real manifest following the official SPIRE Helm chart patterns
@@ -92,7 +92,7 @@ data:
       bind_address = "0.0.0.0"
       bind_port    = "8081"
       socket_path  = "/tmp/spire-server/private/api.sock"
-      trust_domain = "aumos.dev"
+      trust_domain = "muveraai.com"
       data_dir     = "/run/spire/data"
       log_level    = "INFO"
 
@@ -104,7 +104,7 @@ data:
       ca_subject = {
         country      = ["US"]
         organization = ["AumOS — Open Secure AI Alliance"]
-        common_name  = "aumos.dev SPIRE CA"
+        common_name  = "muveraai.com SPIRE CA"
       }
 
       # Bundle endpoint — used for SPIFFE federation across clusters / regions.
@@ -251,7 +251,7 @@ spec:
           env:
             # Consumed by AumOS workloads via the bundle endpoint discovery.
             - name: AUMOS_TRUST_DOMAIN
-              value: "aumos.dev"
+              value: "muveraai.com"
           readinessProbe:
             httpGet:
               path: /ready

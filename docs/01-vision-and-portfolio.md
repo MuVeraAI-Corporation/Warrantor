@@ -54,7 +54,7 @@ And the load-bearing **polyglot discipline** from the stack pressure test:
 
 ## 4. The unified portfolio
 
-**44 implementable canonical components + 12 spec-only protocols.** Full mapping in
+**54 implementable canonical components + 12 spec-only protocols.** Full mapping in
 [`00-reconciliation-matrix.md`](00-reconciliation-matrix.md). Summary:
 
 | Group | Components | Wave shipped |
@@ -97,7 +97,7 @@ AumOS ships in **7 delivery waves** that map onto the **3 war horizons** from th
 
 | Metric | M3 (Wave 1) | M6 (Wave 2) | M12 (Wave 4–5) | M18 (Wave 7) | M21+ |
 |---|---|---|---|---|---|
-| Components shipped v1.0 | 8 | 14 | 28 | 38 | 44 |
+| Components targeted for v1.0 | 8 | 14 | 28 | 38 | 54 |
 | GitHub stars (cumulative) | 2k | 5k | 25k | 100k | 100k+ |
 | Design partners | 1 | 3 | 8 | 15 | 20 |
 | Enterprise customers | 0 | 1 | 3 | 5 | 8 |

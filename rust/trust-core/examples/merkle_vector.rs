@@ -1,7 +1,7 @@
 //! Conformance helper: compute the RFC 6962 Merkle root over a JSON array of hex leaves.
 //! Used by tools/conformance/run.sh to verify Merkle golden vectors cross-language.
 //! Reads a JSON array of hex strings from argv[1] and prints `{"root_hex":"..."}`.
-use aumos_trust_core::merkle::merkle_root;
+use warrantor_trust_core::merkle::merkle_root;
 
 fn main() {
     let arg = std::env::args().nth(1).unwrap_or_else(|| {
