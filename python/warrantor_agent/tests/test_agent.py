@@ -14,12 +14,14 @@ import pytest
 
 import warrantor_agent
 from warrantor_agent import (
+    MOCK_SIGNATURE_PREFIX,
     SIDE_EFFECTS,
     ActionBlocked,
     ActionResult,
     AumOS,
     ContainmentTriggered,
     Finding,
+    SigningUnavailable,
     __version__,
 )
 from warrantor_agent.cli import main as cli_main
@@ -121,7 +123,11 @@ class TestStandalonePrimitives:
         s1 = agent.sign("hello", key_id="k1")
         s2 = agent.sign("hello", key_id="k1")
         assert s1 == s2
-        assert len(s1) == 64 and all(c in "0123456789abcdef" for c in s1)
+        # Standalone output is a labelled mock, not bare hex (AX-28). The label is what
+        # keeps it from being stored or forwarded as though it were a real signature.
+        assert s1.startswith(MOCK_SIGNATURE_PREFIX)
+        digest = s1[len(MOCK_SIGNATURE_PREFIX) :]
+        assert len(digest) == 64 and all(c in "0123456789abcdef" for c in digest)
 
     def test_sign_accepts_bytes(self) -> None:
         agent = AumOS()
@@ -499,3 +505,60 @@ class TestCLI:
         with pytest.raises(SystemExit) as ei:
             cli_main(["--version"])
         assert ei.value.code == 0
+
+
+class TestAX28SigningFailsClosed:
+    """A signer that cannot sign must raise, never downgrade (AX-28).
+
+    The original code caught OSError/SubprocessError from the trust-core CLI and returned
+    `_mock_sign`, an HMAC keyed by sha256("warrantor-mock-key:" + key_id). Both halves are
+    public, so the result is forgeable by anyone -- and the caller could not tell it apart
+    from a real Ed25519 signature.
+    """
+
+    @staticmethod
+    def _connected_agent(monkeypatch, failure):
+        agent = AumOS(mode="connected")
+        assert agent.is_connected
+
+        def explode(*_args, **_kwargs):
+            raise failure
+
+        monkeypatch.setattr(agent, "_run_cli", explode)
+        return agent
+
+    def test_sign_raises_when_the_signer_is_unreachable(self, monkeypatch) -> None:
+        agent = self._connected_agent(monkeypatch, OSError("trust-core not on PATH"))
+        with pytest.raises(SigningUnavailable):
+            agent.sign("hello", key_id="k1")
+
+    def test_verify_raises_rather_than_falling_back(self, monkeypatch) -> None:
+        agent = self._connected_agent(monkeypatch, OSError("trust-core not on PATH"))
+        with pytest.raises(SigningUnavailable):
+            agent.verify("hello", "deadbeef", key="k1")
+
+    def test_sign_raises_on_nonzero_exit(self, monkeypatch) -> None:
+        agent = AumOS(mode="connected")
+        monkeypatch.setattr(
+            agent,
+            "_run_cli",
+            lambda *_a, **_k: subprocess.CompletedProcess([], 1, stdout="", stderr="boom"),
+        )
+        with pytest.raises(SigningUnavailable):
+            agent.sign("hello", key_id="k1")
+
+    def test_mock_output_is_labelled_and_cannot_pass_as_a_signature(self) -> None:
+        agent = AumOS(mode="standalone")
+        sig = agent.sign("hello", key_id="k1")
+        assert sig.startswith(MOCK_SIGNATURE_PREFIX)
+        # A real Ed25519 signature is bare hex, so the prefix makes the two disjoint.
+        assert not all(c in "0123456789abcdef" for c in sig)
+
+    def test_standalone_verify_rejects_anything_not_declaring_itself_a_mock(self) -> None:
+        agent = AumOS(mode="standalone")
+        # A real 64-byte Ed25519 signature must not be silently "verified" by an HMAC check.
+        assert agent.verify("hello", "ab" * 64, key="k1") is False
+
+    def test_standalone_round_trip_still_works(self) -> None:
+        agent = AumOS(mode="standalone")
+        assert agent.verify("hello", agent.sign("hello", key_id="k1"), key="k1") is True
