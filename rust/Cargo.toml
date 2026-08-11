@@ -21,6 +21,7 @@ members = [
     "confidential-fabric",
     "egress-filter",
     "exfil-guard",
+    "warrant",
 ]
 exclude = [
     "trust-core/fuzz",  # nested cargo-fuzz workspace (own [workspace] table)

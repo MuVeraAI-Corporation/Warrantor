@@ -1,0 +1,20 @@
+[package]
+name = "warrantor-warrant"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The warrant: bounded authority granted in advance, answerable afterwards (W1)."
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+hex = "0.4"
+sha2 = "0.10"
+warrantor-trust-core = { path = "../trust-core" }
+warrantor-authority-spec = { path = "../authority-spec" }
+
+[dev-dependencies]
+rand = "0.8"

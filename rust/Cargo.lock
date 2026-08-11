@@ -2627,6 +2627,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "warrantor-warrant"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "hex",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+ "warrantor-authority-spec",
+ "warrantor-trust-core",
+]
+
+[[package]]
 name = "wasi"
 version = "0.11.1+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
