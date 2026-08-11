@@ -446,11 +446,22 @@ export function mockScanSecrets(text: string): { type: string; value: string; in
 async function httpPost(
   cfg: { httpTimeoutMs?: number },
   fetchImpl: typeof fetch,
-  baseUrl: string,
+  baseUrl: string | undefined,
   path: string,
   body: unknown,
   timeoutMs?: number
 ): Promise<unknown> {
+  // In `connected` mode every service URL is optional, so an unconfigured service used to
+  // reach `baseUrl.replace(...)` as `undefined` and surface as
+  // `Cannot read properties of undefined (reading 'replace')` -- an internal TypeError that
+  // named neither the service nor the setting needed to fix it. Six of the fifteen tools failed
+  // this way out of the box. Fail with the env var the operator actually has to set.
+  if (!baseUrl) {
+    throw new Error(
+      `service URL is not configured; set the matching AUMOS_*_URL environment variable ` +
+        `(see --help) or run the server with --standalone to use local stubs`
+    );
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs ?? cfg.httpTimeoutMs ?? 5000);
   try {
@@ -1123,6 +1134,11 @@ export const MCP_SUPPORTED_PROTOCOL_VERSIONS: readonly string[] = [
   MCP_PROTOCOL_VERSION,
   ...MCP_LEGACY_PROTOCOL_VERSIONS,
 ];
+/** Default CLI binary names, resolved from PATH when no env override is given. */
+export const DEFAULT_TRUST_CORE_BIN = 'trust-core';
+/** @see DEFAULT_TRUST_CORE_BIN */
+export const DEFAULT_DEFSTACK_BIN = 'defstack';
+
 export const MCP_SERVER_NAME = 'mcp-server';
 export const MCP_SERVER_VERSION = '1.0.0';
 const MCP_PROTOCOL_VERSION_META_KEY = 'io.modelcontextprotocol/protocolVersion';
@@ -1449,8 +1465,16 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env, argv: string
     evalGuardUrl: env.AUMOS_EVAL_GUARD_URL || undefined,
     killSwitchUrl: env.AUMOS_KILL_SWITCH_URL || undefined,
     credentialVaultUrl: env.AUMOS_CREDENTIAL_VAULT_URL || undefined,
-    trustCoreBin: env.AUMOS_TRUST_CORE_BIN || undefined,
-    defstackBin: env.AUMOS_DEFSTACK_BIN || undefined,
+    // Fall back to the bare command name so the binary resolves from PATH.
+    //
+    // These previously defaulted to `undefined`, which reached `spawn(undefined, ...)` and threw
+    // `The "file" argument must be of type string. Received undefined`. Because `connected` is
+    // the DEFAULT mode, every CLI-backed tool -- sign, verify, receipts, SBOM -- failed on first
+    // use for anyone who had not set these env vars, with an error naming neither the tool nor
+    // the missing binary. The doc comments on AumOSMcpConfig already promised these defaults;
+    // only the code was missing them.
+    trustCoreBin: env.AUMOS_TRUST_CORE_BIN || DEFAULT_TRUST_CORE_BIN,
+    defstackBin: env.AUMOS_DEFSTACK_BIN || DEFAULT_DEFSTACK_BIN,
     httpTimeoutMs: env.AUMOS_HTTP_TIMEOUT_MS ? Number(env.AUMOS_HTTP_TIMEOUT_MS) : undefined,
   };
 }
