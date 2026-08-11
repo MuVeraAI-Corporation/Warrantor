@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Cryptographic sandbox boundary attestation (eBPF egress filter)"
+description = "Signs and fail-closed-verifies caller-asserted sandbox boundary results (does not itself probe the sandbox)"
 
 [lib]
 name = "warrantor_eval_guard"

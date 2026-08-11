@@ -1,12 +1,30 @@
 //! # warrantor-eval-guard
 //!
-//! Cryptographic sandbox boundary attestation. Four pre-flight checks before an agent starts:
-//! NetworkIsolation, FilesystemBoundary, ProcessIsolation, EgressAttestation.
-//! Emits a signed `SandboxAttestation`. Refuses to start the agent if any boundary is violated
-//! (invariant I-09: failure is safe = fail closed).
+//! Signs a caller's assertion about four sandbox boundaries, and refuses to sign an assertion
+//! that any boundary failed.
+//!
+//! ## What this crate does NOT do (AX-46)
+//!
+//! **It does not perform the checks.** [`run_preflight`] takes [`CheckResults`] as an *input*:
+//! four booleans the caller has already decided. This crate verifies they are all true and emits
+//! a signed [`SandboxAttestation`] over them. It has no eBPF, opens no sockets, inspects no
+//! namespaces, and cannot observe the sandbox at all.
+//!
+//! That makes the attestation exactly as trustworthy as whoever supplied the booleans, and no
+//! more. It is a *notarisation* of a claim, not a measurement of a system. Documentation here
+//! previously described it as "cryptographic sandbox boundary attestation ... requires Linux
+//! 5.13+ for eBPF", which described a component that does not exist and invited callers to treat
+//! a signature over their own assertion as independent evidence.
+//!
+//! Producing the four booleans honestly -- an actual NetworkIsolation probe, an actual
+//! FilesystemBoundary check -- is unimplemented and is what R2 still owes.
+//!
+//! ## What it does do, and does correctly
+//!
+//! Given results, it fails closed: any false boundary yields [`EvalGuardError::CheckFailed`] and
+//! no attestation is produced (invariant I-09). The signature and canonical encoding are real.
 //!
 //! AumOS moved this from Go to Rust per the trusted-core doctrine (see RFC R2).
-//! Requires Linux 5.13+ for eBPF; CI runs the non-eBPF checks and gates the eBPF tests.
 
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
@@ -159,10 +177,14 @@ fn canonical_signing_bytes(nonce: &[u8], results: &[bool; 4], timestamp: u64) ->
     canon
 }
 
-/// Run all four pre-flight checks and emit a signed attestation on success.
+/// Verify caller-supplied boundary results and sign them on success.
+///
+/// Does NOT run the checks -- `results` is an input. The returned attestation certifies that
+/// *someone asserted* these four boundaries held, not that they did. See the crate docs (AX-46).
 ///
 /// # Errors
-/// Returns [`EvalGuardError::CheckFailed`] if any check fails. Callers MUST NOT start the agent.
+/// Returns [`EvalGuardError::CheckFailed`] if any supplied result is false. Callers MUST NOT
+/// start the agent.
 pub fn run_preflight(
     results: &CheckResults,
     signing_key: &SigningKey,
