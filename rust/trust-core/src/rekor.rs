@@ -22,7 +22,7 @@
 //!
 //! ## Entry type
 //!
-//! We create **hashed-rekord** entries (Rekor type `hashedrekor:v0.0.1`),
+//! We create **hashed-rekord** entries (Rekor type `hashedrekord:v0.0.1`),
 //! which record a SHA-256 digest + signature + verifying key without uploading
 //! the payload itself. This keeps the notarized artifact confidential while
 //! still providing a public, timestamped proof of the signature.
@@ -43,7 +43,7 @@
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha512};
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::time::Duration;
@@ -53,7 +53,7 @@ use thiserror::Error;
 pub const DEFAULT_REKOR_BASE_URL: &str = "https://rekor.sigstore.dev";
 
 /// The Rekor entry type string this client creates.
-pub const HASHED_REKORD_TYPE: &str = "hashedrekor:v0.0.1";
+pub const HASHED_REKORD_TYPE: &str = "hashedrekord:v0.0.1";
 
 /// Errors returned by the Rekor client.
 #[derive(Debug, Error)]
@@ -358,7 +358,7 @@ impl RekorClient {
         &self.base_url
     }
 
-    /// Build the exact JSON body for a `hashedrekor:v0.0.1` entry request.
+    /// Build the exact JSON body for a `hashedrekord:v0.0.1` entry request.
     ///
     /// This is the canonical Rekor request shape and is exposed publicly so
     /// callers (and tests) can verify the bytes that would be submitted
@@ -377,7 +377,7 @@ impl RekorClient {
     ) -> Value {
         json!({
             "apiVersion": "0.0.1",
-            "kind": "hashedrekor",
+            "kind": "hashedrekord",
             "spec": {
                 "signature": {
                     "content": signature_b64,
@@ -387,7 +387,7 @@ impl RekorClient {
                 },
                 "data": {
                     "hash": {
-                        "algorithm": "sha256",
+                        "algorithm": "sha512",
                         "value": digest_b64
                     }
                 }
@@ -412,16 +412,23 @@ impl RekorClient {
         signature: &[u8],
         verifying_key: &[u8],
     ) -> Result<RekorEntry, RekorError> {
-        let digest = Sha256::digest(payload);
-        // Rekor wants the digest as the hex... actually as base64 of the raw
-        // 32-byte digest for the hashedrekor `data.hash.value` field. (Rekor's
-        // own spec: "value is the base64-encoded hash digest".)
-        let digest_b64 = base64::engine::general_purpose::STANDARD.encode(digest);
+        // SHA-512, not SHA-256. Ed25519 signs over SHA-512 internally, and Rekor rejects a
+        // hashedrekord whose hash algorithm does not match the key type:
+        //   "unsupported hash algorithm: \"SHA-256\" not in [SHA-512]"
+        // Verified against Rekor v1.3.6.
+        let digest = Sha512::digest(payload);
+        // `data.hash.value` is HEX, not base64. The previous comment here recorded the
+        // author guessing between the two and choosing base64; a real Rekor rejects that
+        // entry.
+        let digest_hex = hex::encode(digest);
         let signature_b64 = base64::engine::general_purpose::STANDARD.encode(signature);
-        let key_b64 = base64::engine::general_purpose::STANDARD.encode(verifying_key);
+        // `signature.publicKey.content` is base64 of a PEM-encoded key, not of the raw
+        // key bytes. Raw bytes yield "invalid public key: failure decoding PEM" (400).
+        let key_b64 =
+            base64::engine::general_purpose::STANDARD.encode(ed25519_public_key_pem(verifying_key));
 
         let body = self
-            .build_notarize_request(&digest_b64, &signature_b64, &key_b64)
+            .build_notarize_request(&digest_hex, &signature_b64, &key_b64)
             .to_string();
         let body_bytes = body.as_bytes();
 
@@ -432,7 +439,7 @@ impl RekorClient {
                 body: String::from_utf8_lossy(&resp.body).to_string(),
             });
         }
-        self.parse_notarize_response(&resp.body, &digest_b64)
+        self.parse_notarize_response(&resp.body, &digest_hex)
     }
 
     /// Parse the JSON returned by `POST /api/v1/log/entries`.
@@ -535,6 +542,38 @@ impl RekorTransport for AlwaysErrorTransport {
     }
 }
 
+/// Wrap a raw 32-byte Ed25519 public key as a PEM `SubjectPublicKeyInfo`.
+///
+/// Rekor's `hashedrekord` entry requires `signature.publicKey.content` to be base64 of a
+/// PEM document. Supplying base64 of the raw key bytes returns
+/// `400 invalid public key: failure decoding PEM`.
+///
+/// Ed25519 SPKI is fixed-shape, so the DER is a constant 12-byte prefix followed by the
+/// key. Encoding it by hand avoids pulling a full ASN.1 crate into the trusted core.
+///
+///   30 2a           SEQUENCE (42 bytes)
+///     30 05         SEQUENCE (5 bytes)  -- AlgorithmIdentifier
+///       06 03 2b6570  OID 1.3.101.112 (Ed25519)
+///     03 21 00      BIT STRING (33 bytes, 0 unused bits)
+///       <32-byte key>
+fn ed25519_public_key_pem(verifying_key: &[u8]) -> String {
+    const SPKI_PREFIX: [u8; 12] = [
+        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+    ];
+    let mut der = Vec::with_capacity(SPKI_PREFIX.len() + verifying_key.len());
+    der.extend_from_slice(&SPKI_PREFIX);
+    der.extend_from_slice(verifying_key);
+
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&der);
+    let mut pem = String::from("-----BEGIN PUBLIC KEY-----\n");
+    for chunk in b64.as_bytes().chunks(64) {
+        pem.push_str(std::str::from_utf8(chunk).unwrap_or_default());
+        pem.push('\n');
+    }
+    pem.push_str("-----END PUBLIC KEY-----\n");
+    pem
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -599,10 +638,13 @@ mod tests {
         let c = RekorClient::new();
         let req = c.build_notarize_request("DIGESTB64", "SIGB64", "KEYB64");
         assert_eq!(req["apiVersion"], "0.0.1");
-        assert_eq!(req["kind"], "hashedrekor");
+        assert_eq!(req["kind"], "hashedrekord");
         assert_eq!(req["spec"]["signature"]["content"], "SIGB64");
         assert_eq!(req["spec"]["signature"]["publicKey"]["content"], "KEYB64");
-        assert_eq!(req["spec"]["data"]["hash"]["algorithm"], "sha256");
+        // sha512, not sha256: Rekor rejects SHA-256 for an Ed25519 key with
+        // "unsupported hash algorithm: SHA-256 not in [SHA-512]". This assertion
+        // previously locked in the wrong value, which is why the bug survived.
+        assert_eq!(req["spec"]["data"]["hash"]["algorithm"], "sha512");
         assert_eq!(req["spec"]["data"]["hash"]["value"], "DIGESTB64");
     }
 
@@ -641,7 +683,7 @@ mod tests {
         assert_eq!(calls[0].0, "POST /api/v1/log/entries");
         // The body posted was the hashed-rekord JSON.
         let posted: Value = serde_json::from_slice(&calls[0].1).unwrap();
-        assert_eq!(posted["kind"], "hashedrekor");
+        assert_eq!(posted["kind"], "hashedrekord");
         // The entry was parsed.
         assert_eq!(entry.log_index, 42);
         assert_eq!(entry.integrated_time, 1_700_000_000);

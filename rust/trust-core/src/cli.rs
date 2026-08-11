@@ -7,6 +7,7 @@
 
 use clap::{Parser, Subcommand};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use sha2::{Digest, Sha512};
 use std::io::{self, Read};
 
 #[derive(Parser, Debug)]
@@ -148,7 +149,20 @@ fn main() {
                 Err(e) => fail(format!("read stdin: {e}")),
             };
             let sk = SigningKey::from_bytes(&key_arr);
-            let sig: Signature = sk.sign(&payload);
+            // Sign the DIGEST, not the payload. A `hashedrekord` entry deliberately never
+            // carries the payload -- that is what keeps the notarized artifact private --
+            // so Rekor can only verify the signature against the digest it was given.
+            // Signing the payload produces a signature Rekor rejects with
+            // "ed25519: invalid signature", which reads like a key problem and is not.
+            // Ed25519ph, not Ed25519-over-a-digest. RFC 8032 5.1 prehashed mode applies
+            // domain separation, so the two produce DIFFERENT signatures and Rekor accepts
+            // only the former. Context is empty, matching sigstore.
+            let mut prehash = Sha512::new();
+            prehash.update(&payload);
+            let sig: Signature = match sk.sign_prehashed(prehash, None) {
+                Ok(s) => s,
+                Err(e) => fail(format!("ed25519ph sign: {e}")),
+            };
             let vk = sk.verifying_key();
             let sig_hex = hex::encode(sig.to_bytes());
             let vk_hex = hex::encode(vk.to_bytes());
