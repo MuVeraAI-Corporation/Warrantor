@@ -54,6 +54,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 __all__ = [
+    "MOCK_SIGNATURE_PREFIX",
     "ActionBlocked",
     "ActionResult",
     "AumOS",
@@ -63,6 +64,7 @@ __all__ = [
     "Receipt",
     "SecurityError",
     "SideEffect",
+    "SigningUnavailable",
 ]
 
 __version__ = "1.0.0"
@@ -95,9 +97,24 @@ _DEFAULTS = {
 
 SideEffect = str  # one of SIDE_EFFECTS
 
+#: Marks a standalone-mode stand-in so it can never be confused with a real signature.
+#: A real Ed25519 signature is bare hex; anything carrying this prefix is a mock and any
+#: consumer can reject it on sight. See :meth:`AumOSAgent.sign` and AX-28.
+MOCK_SIGNATURE_PREFIX = "mock-unverifiable:"
+
 
 class SecurityError(Exception):
     """Base class for all AumOS SDK security errors."""
+
+
+class SigningUnavailable(SecurityError):
+    """Raised when connected mode cannot reach trust-core.
+
+    Deliberately fatal. The previous behaviour caught the failure and returned a mock HMAC
+    whose key is derived entirely from public values, so a caller that asked for a real
+    signature silently received a forgeable one and had no way to tell (AX-28). An unavailable
+    signer is an error, never a weaker signer.
+    """
 
 
 class ActionBlocked(SecurityError):
@@ -417,9 +434,13 @@ class AumOS:
     def sign(self, data: str | bytes, key_id: str = "default") -> str:
         """Sign ``data`` with Ed25519 (T1 trust-core). Returns a hex signature.
 
-        In connected mode, shells out to ``trust-core sign``; in standalone mode (or when the
-        CLI is missing), returns a deterministic HMAC-SHA256 mock signature over ``data`` keyed
-        by a derived key. The mock is *not* real cryptography — do not use it for production.
+        In **connected** mode this shells out to ``trust-core sign`` and raises
+        :class:`SigningUnavailable` if that fails. It does not fall back to the mock: a caller
+        that asked for real signing must never receive a forgeable one instead (AX-28).
+
+        In **standalone** mode it returns a ``MOCK_SIGNATURE_PREFIX``-tagged HMAC. That value is
+        not a signature and is not unforgeable — its key is derived from public inputs, so anyone
+        can compute it. The prefix exists so it cannot be mistaken for, or stored as, real output.
         """
         payload = data.encode("utf-8") if isinstance(data, str) else data
         if self.is_connected:
@@ -434,10 +455,17 @@ class AumOS:
                         key_id,
                     ],
                 )
-                if out.returncode == 0 and out.stdout.strip():
-                    return out.stdout.strip()
-            except (OSError, subprocess.SubprocessError):
-                pass  # fall through to mock
+            except (OSError, subprocess.SubprocessError) as error:
+                raise SigningUnavailable(
+                    f"connected mode: trust-core sign could not be executed ({error}). "
+                    "Refusing to substitute a mock signature."
+                ) from error
+            if out.returncode != 0 or not out.stdout.strip():
+                raise SigningUnavailable(
+                    f"connected mode: trust-core sign failed (exit {out.returncode}). "
+                    "Refusing to substitute a mock signature."
+                )
+            return out.stdout.strip()
         return self._mock_sign(payload, key_id)
 
     def verify(self, data: str | bytes, signature: str, key: str) -> bool:
@@ -466,18 +494,36 @@ class AumOS:
                         key,
                     ],
                 )
-                if out.returncode == 0:
-                    return "valid" in out.stdout.lower()
-            except (OSError, subprocess.SubprocessError):
-                pass
-        # Mock verification: recompute the signature with the supplied key as the key_id.
-        expected = self._mock_sign(payload, key)
-        return hmac.compare_digest(expected, signature)
+            except (OSError, subprocess.SubprocessError) as error:
+                raise SigningUnavailable(
+                    f"connected mode: trust-core verify could not be executed ({error}). "
+                    "Refusing to fall back to mock verification."
+                ) from error
+            if out.returncode != 0:
+                raise SigningUnavailable(
+                    f"connected mode: trust-core verify failed (exit {out.returncode}). "
+                    "Refusing to fall back to mock verification."
+                )
+            return "valid" in out.stdout.lower()
+
+        # Standalone: only ever accept a value that declares itself a mock. Without this
+        # guard a real Ed25519 signature reaching a standalone verifier would be compared
+        # against an HMAC, fail, and read as "signature invalid" rather than
+        # "this verifier cannot check real signatures".
+        if not signature.startswith(MOCK_SIGNATURE_PREFIX):
+            return False
+        return hmac.compare_digest(self._mock_sign(payload, key), signature)
 
     @staticmethod
     def _mock_sign(payload: bytes, key_id: str) -> str:
+        """A tagged HMAC standing in for a signature in standalone mode.
+
+        NOT unforgeable. The key is ``sha256("warrantor-mock-key:" + key_id)``, and both halves
+        are public, so any party can recompute it. It exists so dry-runs work end to end without
+        a running trust-core. The prefix is what keeps it from being mistaken for real output.
+        """
         secret = hashlib.sha256(f"warrantor-mock-key:{key_id}".encode()).digest()
-        return hmac.new(secret, payload, hashlib.sha256).hexdigest()
+        return MOCK_SIGNATURE_PREFIX + hmac.new(secret, payload, hashlib.sha256).hexdigest()
 
     # ------------------------------------------------------------------
     # I1 agent-identity.

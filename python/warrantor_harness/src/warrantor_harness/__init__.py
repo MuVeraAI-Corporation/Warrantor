@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import subprocess
 import time
 import uuid
@@ -142,6 +143,31 @@ def _utcnow() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _split_command(command: str) -> list[str]:
+    """Split a command string into argv, correctly on both POSIX and Windows.
+
+    `shlex` defaults to POSIX rules, where a backslash is an escape character. On Windows
+    that silently destroys any absolute path -- ``C:\\Python\\python.exe`` parses as
+    ``C:Pythonpython.exe`` -- so a legitimate command gets refused by the allowlist for a
+    reason that has nothing to do with policy. Non-POSIX mode keeps backslashes but leaves
+    quotes attached to the tokens, which then have to be stripped.
+    """
+
+    posix = os.name != "nt"
+    try:
+        argv = shlex.split(command, posix=posix)
+    except ValueError:
+        return []  # unbalanced quotes: unparseable, therefore not runnable
+    if not posix:
+        argv = [
+            token[1:-1]
+            if len(token) >= 2 and token[0] == token[-1] and token[0] in "\"'"
+            else token
+            for token in argv
+        ]
+    return argv
+
+
 class TrackedSession:
     """A tracked coding agent session with AumOS security controls."""
 
@@ -159,12 +185,40 @@ class TrackedSession:
         self._start_time = time.monotonic()
         self._killed = False
 
+    def _resolve_argv(self, command: str) -> list[str] | None:
+        """Parse ``command`` into argv, or return None if it is not allowed (AX-30).
+
+        The previous implementation was bypassable three separate ways, and each one alone
+        was sufficient:
+
+        * it took ``command.split()[0]`` -- only the FIRST token -- then ran the whole string
+          with ``shell=True``. ``git; rm -rf /`` was approved as ``git`` and executed entire.
+        * it matched with ``endswith``, so ``evilgit`` satisfied an allowlist of ``git``.
+        * ``shell=True`` gave every command a shell, so ``;``, ``&&``, ``|``, backticks and
+          ``$()`` were all live.
+
+        Now: parse to real argv with shlex, match the basename EXACTLY, and execute with
+        ``shell=False``. Shell metacharacters stop being operators and become ordinary
+        argument text, so the allowlist is the only way through.
+        """
+
+        argv = _split_command(command)
+        if not argv:
+            return None
+        # Deliberately NO shell-metacharacter filter. `shell=False` already makes `;`, `&&`
+        # and `$(...)` inert -- they arrive as literal argument text -- so a filter would add
+        # no security while rejecting legitimate input: `git commit -m 'fix: a; b'` carries a
+        # semicolon inside a quoted message, and `python -c 'import time; time.sleep(1)'`
+        # carries one by necessity. A rule that blocks real commands to re-block something
+        # already blocked trains people to disable it.
+        base = os.path.basename(argv[0])
+        if base not in set(self.config.allowed_tools):
+            return None
+        return argv
+
     def _check_tool_allowed(self, command: str) -> bool:
-        """Check if the command's base tool is in the allowed list."""
-        base = command.strip().split()[0] if command.strip() else ""
-        # Handle paths like /usr/bin/git
-        base = os.path.basename(base)
-        return any(base == tool or base.endswith(tool) for tool in self.config.allowed_tools)
+        """Whether ``command`` names an allowed tool. Retained for callers and tests."""
+        return self._resolve_argv(command) is not None
 
     def _emit_receipt(
         self, tool: str, command: str, outcome: str, secrets: list[str] | None = None
@@ -211,8 +265,9 @@ class TrackedSession:
         if self._killed:
             return {"error": "session killed", "exit_code": -1}
 
-        # Check tool allowlist
-        if not self._check_tool_allowed(command):
+        # Check tool allowlist. argv is the parsed command; None means "refuse".
+        argv = self._resolve_argv(command)
+        if argv is None:
             receipt = self._emit_receipt(
                 tool=command.split()[0] if command else "unknown",
                 command=command,
@@ -224,12 +279,14 @@ class TrackedSession:
                 "receipt": receipt,
             }
 
-        # Run the command
+        # Run the command. shell=False and an argv LIST, never the raw string: with a shell
+        # the allowlist only ever gated the first token while the rest of the line ran
+        # unchecked (AX-30).
         try:
             effective_timeout = timeout or self.config.max_duration_seconds
             proc = subprocess.run(
-                command,
-                shell=True,
+                argv,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=effective_timeout,

@@ -195,3 +195,55 @@ def test_timeout_kills_command() -> None:
     assert result["exit_code"] == -1
     assert "timed out" in result["stderr"]
     session.close()
+
+
+class TestAX30CommandExecutionIsNotShellInterpreted:
+    """The allowlist must gate the whole command, not its first token (AX-30).
+
+    Previously: `command.split()[0]` was basenamed, matched with `endswith`, and the raw
+    string was then handed to `subprocess.run(..., shell=True)`. Each of the three was
+    independently sufficient to escape the allowlist.
+    """
+
+    @staticmethod
+    def _session():
+        return TrackedSession(HarnessConfig(allowed_tools=["git", "python"]))
+
+    def test_chained_command_cannot_reach_a_shell(self) -> None:
+        # `git; rm -rf /` parses to argv[0] == "git;", which is not an allowed tool.
+        assert self._session()._check_tool_allowed("git; rm -rf /") is False
+        # `git && curl x` keeps argv[0] == "git", so it runs -- but `&&` and `curl` arrive
+        # as arguments TO git, never as a second command. That is the whole fix.
+        assert self._session()._resolve_argv("git && curl evil.example") == [
+            "git",
+            "&&",
+            "curl",
+            "evil.example",
+        ]
+
+    def test_substitution_is_inert_rather_than_executed(self) -> None:
+        # These ARE allowed -- argv[0] is genuinely `git`. The security property is that
+        # with shell=False the rest is literal argument text, so nothing substitutes.
+        assert self._session()._resolve_argv("git $(rm -rf /)") == ["git", "$(rm", "-rf", "/)"]
+        assert self._session()._resolve_argv("git `rm -rf /`") == ["git", "`rm", "-rf", "/`"]
+
+    def test_endswith_lookalike_is_refused(self) -> None:
+        # "evilgit".endswith("git") was True under the old matcher.
+        assert self._session()._check_tool_allowed("evilgit status") is False
+        assert self._session()._check_tool_allowed("notpython x.py") is False
+
+    def test_genuine_commands_still_allowed(self) -> None:
+        session = self._session()
+        assert session._check_tool_allowed("git status") is True
+        assert session._check_tool_allowed("/usr/bin/git status") is True
+        assert session._check_tool_allowed("python -c 'print(1)'") is True
+
+    def test_unparseable_command_is_refused(self) -> None:
+        assert self._session()._check_tool_allowed("git 'unbalanced") is False
+        assert self._session()._check_tool_allowed("") is False
+        assert self._session()._check_tool_allowed("   ") is False
+
+    def test_argv_is_a_list_so_no_shell_can_reinterpret_it(self) -> None:
+        argv = self._session()._resolve_argv("git commit -m 'a; b'")
+        assert argv == ["git", "commit", "-m", "a; b"]
+        # The semicolon survives as literal argument text, not as an operator.
