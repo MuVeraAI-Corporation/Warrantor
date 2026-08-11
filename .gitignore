@@ -56,3 +56,4 @@ htmlcov/
 
 # Transient audit virtualenv
 .auditvenv/
+evidence/

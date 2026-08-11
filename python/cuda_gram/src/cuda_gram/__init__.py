@@ -1,4 +1,8 @@
-"""AumOS cuda-gram — high-level GPU attestation SDK.
+"""AumOS cuda-gram — high-level GPU attestation SDK (MOCK backend only in Wave-1).
+
+This package contains no NVML, no ioctl and no device access. It cannot obtain a GPU
+attestation; it mirrors the wire types and returns mock reports. Any "attestation" it
+produces is unverifiable and must not be relied on as evidence about hardware.
 
 Wave-1 v1.0 ships a pure-Python implementation that mirrors the proto types in
 ``proto/warrantor/attestation/v1/report.proto``. The PyO3 binding to C1-1's Rust core

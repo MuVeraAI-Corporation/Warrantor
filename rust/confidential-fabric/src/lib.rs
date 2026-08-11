@@ -5,6 +5,20 @@
 //! agent-identity) — and folds them into a single [`CompositeAttestation`] with a digest
 //! suitable for use as a key-derivation input or a confidential-container release token.
 //!
+//! ## The gate is only as strong as its inputs, and its inputs are currently mock
+//!
+//! [`KeyReleasePolicy::evaluate`] does real work: it recomputes and checks the composite digest,
+//! enforces freshness, and tolerates bounded clock skew. What it does **not** do is verify that
+//! the underlying GPU, TEE and identity attestations are authentic -- there is no signature check
+//! against an NVIDIA or TEE vendor root, because no component here produces a genuine one.
+//! `nvtrust-bridge` ships a Mock backend (the real NVTrust SDK is NDA-gated and absent), and
+//! `cuda-gram` is pure Python with no NVML, ioctl or device access.
+//!
+//! So this gate currently answers "is this composite internally consistent and fresh?", not
+//! "did this hardware really attest?". Those are different questions, and only the second one
+//! protects a model key. Treat a release decision as unverified until at least one input
+//! attestation is backed by hardware.
+//!
 //! It also implements [`KeyReleasePolicy`], the policy engine that decides whether a given
 //! composite attestation authorizes the release of a wrapped model key. This is the gate that
 //! protects encrypted model delivery (the encrypted blob is shipped to the customer; only an
