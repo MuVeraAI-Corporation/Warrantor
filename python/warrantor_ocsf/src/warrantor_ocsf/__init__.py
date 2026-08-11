@@ -253,7 +253,12 @@ class HTTPSink:
         import urllib.request
 
         payload = self.encoder(event)
-        body = json.dumps(payload).encode("utf-8")
+        # `default=str` matches FileSink. Without it, an AAR carrying a datetime (or any
+        # non-JSON-native value) raised TypeError here -- outside the try below, so it
+        # escaped to the caller, which counted the send as merely "not accepted". With a
+        # FileSink also registered, the file write succeeded, `forward()` returned True and
+        # the stats read succeeded=1, while the SIEM received nothing at all.
+        body = json.dumps(payload, default=str).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
@@ -285,13 +290,27 @@ class _CountingSink:
 # ---------------------------------------------------------------------------
 # Forwarder
 # ---------------------------------------------------------------------------
+#: Cap on retained per-sink error samples, so a persistently broken sink cannot grow this
+#: list without bound in a long-running forwarder.
+_MAX_RECENT_SINK_ERRORS = 20
+
+
 @dataclass
 class ForwardStats:
-    """Per-forwarder counters."""
+    """Per-forwarder counters.
+
+    ``succeeded`` means *at least one* sink accepted the event, so it is not evidence that
+    any particular sink is healthy. Use ``sink_failures`` for that: a SIEM sink that never
+    receives an event while a file sink keeps working shows up there and nowhere else.
+    """
 
     forwarded: int = 0
     succeeded: int = 0
     failed: int = 0
+    #: Total per-sink rejections and exceptions, counted even when another sink succeeded.
+    sink_failures: int = 0
+    #: A bounded sample of recent per-sink failure descriptions, for diagnosis.
+    recent_sink_errors: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -325,13 +344,20 @@ class OCSFForwarder:
         """
         ocsf = convert_aar_to_ocsf(aar_event)
         any_ok = False
+        failures: list[str] = []
         with self._lock:
             sinks = list(self.sinks)
         for sink in sinks:
+            name = type(sink).__name__
             try:
                 ok = bool(sink.send(ocsf))
-            except Exception:
+                if not ok:
+                    failures.append(f"{name}: rejected the event")
+            # Broad by design: one sink must never prevent the others from receiving
+            # the event, and the failure is recorded rather than swallowed.
+            except Exception as error:
                 ok = False
+                failures.append(f"{name}: {type(error).__name__}: {error}")
             if ok:
                 any_ok = True
         with self._lock:
@@ -340,6 +366,17 @@ class OCSFForwarder:
                 self.stats.succeeded += 1
             else:
                 self.stats.failed += 1
+            # Per-sink failures are recorded even when another sink succeeded.
+            #
+            # `any_ok` alone hid a permanently-broken SIEM: with a FileSink and an HTTPSink
+            # registered, the file write made forward() return True and stats read
+            # succeeded=1 while the SIEM received nothing. For a security-event forwarder
+            # that is the worst possible failure -- the events stop arriving and every
+            # health signal stays green.
+            for detail in failures:
+                self.stats.sink_failures += 1
+                if len(self.stats.recent_sink_errors) < _MAX_RECENT_SINK_ERRORS:
+                    self.stats.recent_sink_errors.append(detail)
         return any_ok
 
     def batch_forward(self, events: list[dict[str, Any]]) -> int:
