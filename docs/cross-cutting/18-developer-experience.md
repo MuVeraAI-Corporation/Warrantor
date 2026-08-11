@@ -123,7 +123,7 @@ in order.
 | Symptom | First check |
 |---|---|
 | `make test` fails on one language | Is the toolchain installed? `make setup` will say |
-| Proto changes don't propagate | Did you run `buf generate`? Is `buf breaking` failing? |
+| Proto changes don't propagate | Rust regenerates on `cargo build`; try `cargo clean -p warrantor-api`. Is `buf breaking` failing? Note Go/Python/TS hand-mirror the types and do not propagate automatically. |
 | Conformance fails | Did you update `testvectors/`? See RFC T-CORE-1 |
 | Component can't find a dependency | Are mocks in place? Wave-1 components use mock I1 (AgentVault) |
 | eBPF fails to load (R2/R7/S6) | Are you on Linux 5.13+? See component RFC |

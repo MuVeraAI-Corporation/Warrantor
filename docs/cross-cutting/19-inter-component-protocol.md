@@ -223,15 +223,29 @@ need is mutually understood.
 
 ## 10. Generating Cross-Language Bindings
 
+**Implemented today — Rust only, and not via buf:**
+
 ```
-proto/ ──buf generate──┬── rust/        (tonic + prost)
-                       ├── python/      (grpcio + protobuf)
-                       ├── typescript/  (connect-es + protobuf-es)
-                       └── go/          (connect-go + protobuf-go)
+proto/ ──build.rs (tonic-build)──> OUT_DIR ──include!──> warrantor-api
+         runs on every `cargo build`; nothing committed
 ```
 
+**Planned — the other three languages:**
+
+```
+proto/ ──(not yet)──┬── python/      (grpcio + protobuf)
+                    ├── typescript/  (connect-es + protobuf-es)
+                    └── go/          (connect-go + protobuf-go)
+```
+
+Go, Python and TypeScript currently hand-mirror the wire types where they need them, and say so at
+the definition site (`go/agent-identity/service.go`). buf is used for `lint` and `breaking` only;
+there is no `buf.gen.yaml` and no `buf generate` step. See `proto/README.md` for why one targeting
+Rust must not be reintroduced.
+
 **Rules:**
-- Generate, don't hand-write. CI rejects uncommitted generated code (`buf generate --diff` check).
+- Generate, don't hand-write — for Rust this is enforced structurally, because the types live only
+  in `OUT_DIR` and are rebuilt from `proto/` on every build, so drift is not expressible.
 - Each language wraps generated types in ergonomic, idiomatic facades; the generated types are never
   the public API.
 - A conformance test (A6) verifies that a message serialized in one language deserializes identically
