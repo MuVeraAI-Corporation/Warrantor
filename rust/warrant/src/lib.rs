@@ -29,6 +29,7 @@
 #![deny(missing_docs)]
 
 pub mod adapters;
+pub mod proxy;
 pub mod settle;
 pub mod staging;
 pub mod store;
