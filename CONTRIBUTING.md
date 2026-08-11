@@ -5,7 +5,7 @@ Thank you for your interest in contributing to AumOS! This document describes ho
 ## Quick Start
 
 ```bash
-git clone https://github.com/MuVeraAI/aumos.git
+git clone https://github.com/MuVeraAI-Corporation/Warrantor.git
 cd aumos
 make setup   # detects toolchains
 make test    # runs all tests

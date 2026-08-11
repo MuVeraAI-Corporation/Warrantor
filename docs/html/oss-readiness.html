@@ -321,7 +321,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <p>The organization lives at <strong><a href="https://github.com/MuVeraAI">github.com/MuVeraAI</a></strong>. It uses a <strong>hybrid model</strong>: one core monorepo that enforces cross-language coherence, a fan-out of independently versionable service repos, and a parallel set of protocol repos that are the OSAF-standard wedge. This is the same shape as the OpenTelemetry project (a core repo + per-language SDKs + a specification repo) — proven to scale to hundreds of contributors.</p>
 
-<h3 id="org-core">2.1 Core Monorepo — <code>github.com/MuVeraAI/aumos</code></h3>
+<h3 id="org-core">2.1 Core Monorepo — <code>github.com/MuVeraAI-Corporation/Warrantor</code></h3>
 
 <p>The monorepo is the spine. It contains everything that must stay <em>coherent across all four languages</em>. Splitting it would let drift creep in; keeping it lets the Buf breaking-change gate, the conformance suite, and the cross-language test vectors all run in one place.</p>
 
@@ -486,7 +486,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <h3>RFC Process</h3>
 
 <ol>
-  <li><strong>Idea</strong> &rarr; open a GitHub Discussion in <code>github.com/MuVeraAI/aumos</code>.</li>
+  <li><strong>Idea</strong> &rarr; open a GitHub Discussion in <code>github.com/MuVeraAI-Corporation/Warrantor</code>.</li>
   <li><strong>Draft RFC</strong> &rarr; PR against <code>docs/rfcs/</code> using the 10-section template. Two-week comment window minimum.</li>
   <li><strong>Accepted / Rejected / Deferred</strong> &rarr; Steering Committee decision (Phase 1: BDFL). Accepted RFCs get a tracking issue and a component/protocol repo if applicable.</li>
   <li><strong>Implementation</strong> &rarr; the RFC's <code>tasks/01-setup.md ... 08-release.md</code> drive the work. A typical component takes one coding-agent session (~8 focused hours).</li>
@@ -530,7 +530,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <p>A new contributor's first task must be runnable in 5 minutes on a fresh machine. If it takes longer, that is a bug against the developer-experience standard.</p>
 
-<pre><code>git clone https://github.com/MuVeraAI/aumos.git
+<pre><code>git clone https://github.com/MuVeraAI-Corporation/Warrantor.git
 cd aumos
 make setup      # detects toolchains, reports what's missing (does NOT fail)
 make test       # tests every present language; skips missing ones

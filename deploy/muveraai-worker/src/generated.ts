@@ -6,7 +6,7 @@ export interface GoModule {
   readonly subDir: string;
 }
 
-export const REPO_URL = 'https://github.com/MuVeraAI/aumos';
+export const REPO_URL = 'https://github.com/MuVeraAI-Corporation/Warrantor';
 
 export const GO_MODULES: Readonly<Record<string, GoModule>> = {
   "agent-identity": {

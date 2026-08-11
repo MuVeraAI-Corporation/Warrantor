@@ -45,7 +45,7 @@ signal is: every previously-200 path still returns 200, and only paths under
 ## Why the meta tag has four fields
 
 ```html
-<meta name="go-import" content="muveraai.com/go/agent-identity git https://github.com/MuVeraAI/aumos go/agent-identity">
+<meta name="go-import" content="muveraai.com/go/agent-identity git https://github.com/MuVeraAI-Corporation/Warrantor go/agent-identity">
                                 └── prefix ──────────────────┘     └── repo ──────────────────┘ └── subdir ──┘
 ```
 

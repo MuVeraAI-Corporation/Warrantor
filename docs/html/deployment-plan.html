@@ -868,7 +868,7 @@ defstack install incident-exchange retro-spec-kit metr-bridge</code></pre>
     <tr><th>Component</th><th>Hosted on</th><th>Deploy command</th><th>Depends on</th><th>Verify</th></tr>
   </thead>
   <tbody>
-    <tr><td><span class="dep-id">X1</span> defstack-cli</td><td>Engineer workstation / CI</td><td><code>go install github.com/MuVeraAI/aumos/defstack-cli@latest</code></td><td>trust-core endpoint</td><td><code>defstack version</code> OK</td></tr>
+    <tr><td><span class="dep-id">X1</span> defstack-cli</td><td>Engineer workstation / CI</td><td><code>cargo install --git https://github.com/MuVeraAI-Corporation/Warrantor defstack-cli</code></td><td>trust-core endpoint</td><td><code>defstack version</code> OK</td></tr>
     <tr><td><span class="dep-id">A6</span> conformance</td><td>AWS Lambda (periodic) + CI</td><td><code>defstack install conformance --schedule rate(1h)</code></td><td>protocol test vectors</td><td>Conformance gate passes</td></tr>
     <tr><td><span class="dep-id">S4</span> model-sbom</td><td>DC-series VM (job)</td><td><code>defstack install model-sbom --format cyclonedx-ai</code></td><td>safe-tensors-pp</td><td>SBOM validates vs schema</td></tr>
     <tr><td><span class="dep-id">S5</span> data-provenance-kit</td><td>AKS pod</td><td><code>kubectl apply -f deploy/k8s/data-provenance.yaml</code></td><td>Cosmos DB</td><td>Dataset lineage recorded</td></tr>
