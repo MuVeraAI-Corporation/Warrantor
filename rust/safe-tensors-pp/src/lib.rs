@@ -48,6 +48,66 @@ pub struct Provenance {
     pub lineage: Vec<String>,
 }
 
+/// Build the exact bytes a Safetensors++ signature covers.
+///
+/// Shared by [`sign`] and [`verify`] so the two cannot drift -- when they were written out
+/// separately, the metadata was omitted from both and neither side noticed.
+///
+/// # What is covered, and why
+///
+/// The header (minus `__provenance__`), the data digest, and the provenance METADATA:
+/// `signer`, `signed_at`, `evaluations`, `lineage`, `verifying_key`.
+///
+/// Previously only `header || digest` was signed, so the entire provenance block was
+/// unauthenticated -- yet `verify()` returned it to the caller as though it had been
+/// attested. Rewriting `signer` from `did:web:honest-lab.example` to any other identity
+/// left the signature valid and `verify()` returned `Ok` with the forged attribution. For a
+/// component whose purpose is answering "who signed these weights", the answer was
+/// editable by anyone holding the file.
+///
+/// `signature` is excluded because a signature cannot cover itself. `data_digest` is
+/// excluded from the metadata section because the digest is already committed above it;
+/// including it twice would only add a place for the two copies to disagree.
+///
+/// Every field is length-prefixed so it cannot be re-split -- without that,
+/// `signer="ab"` + `evaluations=["c"]` and `signer="a"` + `evaluations=["bc"]` would
+/// produce identical bytes.
+fn canonical_signing_bytes(
+    header_without_provenance: &serde_json::Value,
+    data_digest_hex: &str,
+    signer: &str,
+    verifying_key_hex: &str,
+    signed_at: u64,
+    evaluations: &[String],
+    lineage: &[String],
+) -> Result<Vec<u8>, StppError> {
+    fn put(out: &mut Vec<u8>, bytes: &[u8]) {
+        out.extend_from_slice(&(bytes.len() as u64).to_le_bytes());
+        out.extend_from_slice(bytes);
+    }
+
+    let header_canon = serde_json::to_vec(header_without_provenance)?;
+    let mut canon = Vec::with_capacity(header_canon.len() + 256);
+    // Preserved from the original format so the header/digest framing is unchanged.
+    canon.extend_from_slice(&header_canon);
+    canon.push(b'|');
+    canon.extend_from_slice(data_digest_hex.as_bytes());
+    // Metadata section.
+    canon.push(b'|');
+    put(&mut canon, signer.as_bytes());
+    put(&mut canon, verifying_key_hex.as_bytes());
+    canon.extend_from_slice(&signed_at.to_le_bytes());
+    put(&mut canon, &(evaluations.len() as u64).to_le_bytes());
+    for e in evaluations {
+        put(&mut canon, e.as_bytes());
+    }
+    put(&mut canon, &(lineage.len() as u64).to_le_bytes());
+    for l in lineage {
+        put(&mut canon, l.as_bytes());
+    }
+    Ok(canon)
+}
+
 /// Errors returned by Safetensors++.
 #[derive(Debug, Error)]
 pub enum StppError {
@@ -154,24 +214,34 @@ pub fn sign(
     if let Some(obj) = header.as_object_mut() {
         let _ = obj.remove(PROVENANCE_KEY);
     }
-    let header_canon = serde_json::to_vec(header)?;
     let digest = data_digest(data);
-    let mut canon = Vec::with_capacity(header_canon.len() + digest.len() / 2 + 1);
-    canon.extend_from_slice(&header_canon);
-    canon.push(b'|');
-    canon.extend_from_slice(digest.as_bytes());
+    let verifying_key_hex = hex::encode(signing_key.verifying_key().to_bytes());
+    let signed_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let evaluations: Vec<String> = vec![];
+    let lineage: Vec<String> = vec![];
+
+    // The metadata is signed, not merely attached. See canonical_signing_bytes.
+    let canon = canonical_signing_bytes(
+        header,
+        &digest,
+        signer,
+        &verifying_key_hex,
+        signed_at,
+        &evaluations,
+        &lineage,
+    )?;
     let sig = signing_key.sign(&canon);
     let provenance = Provenance {
         signer: signer.to_string(),
-        verifying_key: hex::encode(signing_key.verifying_key().to_bytes()),
+        verifying_key: verifying_key_hex,
         signature: hex::encode(sig.to_bytes()),
-        signed_at: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0),
+        signed_at,
         data_digest: digest,
-        evaluations: vec![],
-        lineage: vec![],
+        evaluations,
+        lineage,
     };
     // Now re-borrow mutably to insert the provenance block.
     let obj = header
@@ -196,16 +266,21 @@ pub fn verify(header: &serde_json::Value, data: &[u8]) -> Result<Provenance, Stp
     if digest != p.data_digest {
         return Err(StppError::SignatureInvalid);
     }
-    // Reconstruct the canonical bytes (header without __provenance__ || digest).
+    // Reconstruct the canonical bytes from the SAME function sign() used, including the
+    // provenance metadata. Reconstructing them inline here is what let the two drift.
     let mut header_copy = header.clone();
     if let Some(obj) = header_copy.as_object_mut() {
         obj.remove(PROVENANCE_KEY);
     }
-    let header_canon = serde_json::to_vec(&header_copy)?;
-    let mut canon = Vec::with_capacity(header_canon.len() + digest.len() / 2 + 1);
-    canon.extend_from_slice(&header_canon);
-    canon.push(b'|');
-    canon.extend_from_slice(digest.as_bytes());
+    let canon = canonical_signing_bytes(
+        &header_copy,
+        &digest,
+        &p.signer,
+        &p.verifying_key,
+        p.signed_at,
+        &p.evaluations,
+        &p.lineage,
+    )?;
 
     let vk_bytes: [u8; 32] = hex::decode(&p.verifying_key)?
         .as_slice()
@@ -327,5 +402,91 @@ mod tests {
         let mut reader = std::io::Cursor::new(huge.to_le_bytes().to_vec());
         let res = read_safetensors(&mut reader);
         assert!(res.is_err(), "oversized header must be rejected");
+    }
+}
+
+#[cfg(test)]
+mod provenance_is_signed {
+    use super::*;
+    use ed25519_dalek::SigningKey;
+
+    fn signed_header() -> (serde_json::Value, Vec<u8>) {
+        let data = b"weights-go-here".to_vec();
+        let mut header = serde_json::json!({
+            "t": {"dtype": "F32", "shape": [2, 2], "data_offsets": [0, 15]}
+        });
+        let key = SigningKey::from_bytes(&[7u8; 32]);
+        sign(&mut header, &data, "did:web:honest-lab.example", &key).expect("sign");
+        (header, data)
+    }
+
+    fn provenance_field_mut<'a>(
+        header: &'a mut serde_json::Value,
+        field: &str,
+    ) -> &'a mut serde_json::Value {
+        header
+            .get_mut(PROVENANCE_KEY)
+            .and_then(|p| p.get_mut(field))
+            .expect("provenance field")
+    }
+
+    /// The reported forgery: rewrite `signer` and the signature still verified, so
+    /// `verify()` returned Ok while reporting an attacker-chosen identity.
+    #[test]
+    fn rewriting_the_signer_invalidates_the_signature() {
+        let (header, data) = signed_header();
+        let honest = verify(&header, &data).expect("clean file verifies");
+        assert_eq!(honest.signer, "did:web:honest-lab.example");
+
+        let mut forged = header.clone();
+        *provenance_field_mut(&mut forged, "signer") =
+            serde_json::Value::String("did:web:anthropic.com".into());
+        assert!(
+            verify(&forged, &data).is_err(),
+            "a rewritten signer MUST invalidate the signature -- attribution is the point"
+        );
+    }
+
+    #[test]
+    fn rewriting_signed_at_invalidates_the_signature() {
+        let (header, data) = signed_header();
+        let mut forged = header;
+        *provenance_field_mut(&mut forged, "signed_at") = serde_json::json!(1u64);
+        assert!(verify(&forged, &data).is_err(), "signed_at must be covered");
+    }
+
+    /// Evaluations and lineage are provenance claims a downstream consumer acts on, so
+    /// injecting them must break the signature rather than silently enrich the record.
+    #[test]
+    fn injecting_evaluations_or_lineage_invalidates_the_signature() {
+        let (header, data) = signed_header();
+
+        let mut forged = header.clone();
+        forged[PROVENANCE_KEY]["evaluations"] =
+            serde_json::json!(["https://evil.example/passed-every-eval"]);
+        assert!(
+            verify(&forged, &data).is_err(),
+            "evaluations must be covered"
+        );
+
+        let mut forged = header;
+        forged[PROVENANCE_KEY]["lineage"] = serde_json::json!(["did:web:reputable-lab.example"]);
+        assert!(verify(&forged, &data).is_err(), "lineage must be covered");
+    }
+
+    /// The existing guarantees must survive: tampered weights and a tampered header still
+    /// fail, and an untouched file still verifies.
+    #[test]
+    fn existing_protections_are_unchanged() {
+        let (header, data) = signed_header();
+        assert!(verify(&header, &data).is_ok(), "clean file must verify");
+
+        let mut tampered_data = data.clone();
+        tampered_data[0] ^= 0xff;
+        assert!(verify(&header, &tampered_data).is_err(), "weights covered");
+
+        let mut tampered_header = header;
+        tampered_header["t"]["shape"] = serde_json::json!([4, 4]);
+        assert!(verify(&tampered_header, &data).is_err(), "header covered");
     }
 }
