@@ -48,8 +48,16 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Lint protobuf contracts
         run: buf lint
+      # Compare against the LOCAL clone, not a fresh HTTPS clone of the remote.
+      # The remote form cannot authenticate against a private repository -- it
+      # fails with "could not read Username for 'https://github.com'" before it
+      # compares a single proto, so the gate silently stops gating.
+      # actions/checkout already fetched full history (fetch-depth: 0); this just
+      # materialises main as a local branch for buf to read.
+      - name: Fetch main for the breaking-change comparison
+        run: git fetch --no-tags origin +refs/heads/main:refs/heads/main
       - name: Reject breaking changes from main
-        run: buf breaking --against "https://github.com/${{ github.repository }}.git#branch=main"
+        run: buf breaking --against '.git#branch=main'
 
   rust:
     name: Rust
