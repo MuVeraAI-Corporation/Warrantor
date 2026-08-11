@@ -28,22 +28,20 @@
 //! spawn per action — irrelevant against the 5-second budget.
 
 use std::process::Command;
-#[cfg(unix)]
-use std::time::Duration;
-#[cfg(unix)]
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
 use crate::KillError;
 
 /// How long to wait for a signalled process to actually disappear before declaring failure.
-/// Unix only: the Windows path gets its confirmation from `taskkill`'s exit status instead of
-/// polling (see [`force_terminate`]).
-#[cfg(unix)]
+///
+/// Applies on **both** platforms. This was previously Unix-only, on the stated rationale that
+/// "the Windows path gets its confirmation from `taskkill`'s exit status instead of polling".
+/// That rationale was false: `TerminateProcess` initiates termination and returns immediately,
+/// so an exit status of 0 says the request was accepted, not that the process is gone.
 const TERMINATION_TIMEOUT: Duration = Duration::from_secs(2);
-/// Poll interval while waiting for termination (Unix only).
-#[cfg(unix)]
+/// Poll interval while waiting for termination.
 const TERMINATION_POLL: Duration = Duration::from_millis(20);
 
 /// What the kill switch is being asked to contain.
@@ -376,7 +374,7 @@ pub fn process_exists(pid: u32) -> bool {
     }
     #[cfg(windows)]
     {
-        Command::new("tasklist")
+        Command::new(system32_tool("tasklist.exe"))
             .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).contains(&format!("\"{pid}\"")))
@@ -417,6 +415,23 @@ fn run(mut cmd: Command, what: &str) -> Result<String, KillError> {
 /// `taskkill /F /T` calls `TerminateProcess` synchronously, so its exit status *is* the
 /// confirmation, and "process not found" is the already-gone case. See
 /// [`LocalProcessEngine::contain`], which folds all five actions onto this single call.
+/// Absolute path to a Windows system tool.
+///
+/// `Command::new(system32_tool("taskkill.exe"))` resolves through the search path, and on Windows
+/// `CreateProcess` searches the **application directory first**. A `taskkill.exe` dropped
+/// next to the binary therefore wins -- which an audit agent demonstrated by planting one
+/// that printed "SUCCESS: The process has been terminated." and exited 0 without
+/// terminating anything.
+///
+/// Anchoring to `%SystemRoot%\System32` removes that. It is not a complete defence -- an
+/// attacker who can write next to your binary has other options -- but a containment
+/// component should not be the easiest of them.
+#[cfg(windows)]
+fn system32_tool(name: &str) -> std::path::PathBuf {
+    let root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
+    std::path::Path::new(&root).join("System32").join(name)
+}
+
 fn force_terminate(pid: u32, action: ActionKind) -> Result<String, KillError> {
     #[cfg(unix)]
     {
@@ -448,10 +463,32 @@ fn force_terminate(pid: u32, action: ActionKind) -> Result<String, KillError> {
                 KillError::ExecutionFailed(format!("{action}: could not spawn taskkill: {e}"))
             })?;
         if out.status.success() {
-            return Ok(format!(
-                "pid {pid} terminated via taskkill /F /T (TerminateProcess is synchronous, so \
-                 success is the confirmation)"
-            ));
+            // taskkill's exit status is NOT confirmation, and the comment that used to sit
+            // here saying "TerminateProcess is synchronous, so success is the confirmation"
+            // was simply false. MSDN: TerminateProcess "initiates termination and returns
+            // immediately" -- the process cannot exit until pending I/O completes or is
+            // cancelled and its address space is torn down.
+            //
+            // Measured on this codebase: against a 6 GB process, taskkill exited 0 after
+            // 1761ms and the process object persisted a further 1194ms. An in-process
+            // harness against a 12 GB victim caught contain() reporting "the kernel has
+            // reclaimed pid N's address space" while this crate's OWN process_exists(N)
+            // returned true at that same instant.
+            //
+            // So poll, exactly as the Unix arm does. The window only opens for large
+            // processes -- i.e. real model-serving agents, which is precisely what this
+            // component exists to kill, and precisely what no unit test spawns.
+            let deadline = Instant::now() + TERMINATION_TIMEOUT;
+            while Instant::now() < deadline {
+                if !process_exists(pid) {
+                    return Ok(format!("pid {pid} terminated and verified gone"));
+                }
+                std::thread::sleep(TERMINATION_POLL);
+            }
+            return Err(KillError::ExecutionFailed(format!(
+                "{action}: pid {pid} still present {TERMINATION_TIMEOUT:?} after taskkill /F /T \
+                 — containment NOT achieved"
+            )));
         }
         let stderr = String::from_utf8_lossy(&out.stderr);
         let stdout = String::from_utf8_lossy(&out.stdout);
