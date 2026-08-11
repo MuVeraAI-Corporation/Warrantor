@@ -16,8 +16,8 @@ use std::sync::Arc;
 use thiserror::Error;
 use warrantor_trust_core::verification;
 use wasmtime::{
-    format_err, Caller, Config, Engine, ExternType, Linker, Module, Result as WasmtimeResult,
-    Store, StoreLimits, StoreLimitsBuilder, Trap,
+    format_err, Caller, Config, Engine, Error as WasmtimeError, ExternType, Linker, Module,
+    Result as WasmtimeResult, Store, StoreLimits, StoreLimitsBuilder, Trap,
 };
 
 /// Signed sandbox policy wire format.
@@ -556,7 +556,10 @@ impl SandboxRuntime {
             Err(error) if error.downcast_ref::<Trap>() == Some(&Trap::Interrupt) => {
                 ("failed", Some("deadline_exceeded".to_string()))
             }
-            Err(_) => ("failed", Some("guest_trap".to_string())),
+            Err(error) => (
+                "failed",
+                Some(classify_execution_failure(error).to_string()),
+            ),
         };
         let final_sequence = self.append(AuditEvent {
             kind: AuditKind::ExecutionFinal,
@@ -717,7 +720,7 @@ fn dispatch_capability(
 ) -> WasmtimeResult<i32> {
     let state = caller.data();
     let resources = capability_resources(&state.policy, capability)
-        .ok_or_else(|| format_err!("capability has no resource mapping"))?;
+        .ok_or_else(|| format_err!("{CAPABILITY_UNMAPPED_MARKER}"))?;
     let resource = usize::try_from(index)
         .ok()
         .and_then(|index| resources.get(index))
@@ -745,13 +748,61 @@ fn dispatch_capability(
             failure_class,
         })
         .map_err(|message| format_err!("capability audit unavailable: {message}"))?;
-    let resource = resource.ok_or_else(|| format_err!("capability resource index denied"))?;
+    let resource = resource.ok_or_else(|| format_err!("{CAPABILITY_DENIED_MARKER}"))?;
     match capability {
         Capability::FilesystemRead => state.host_backend.filesystem_read(&resource),
         Capability::NetworkConnect => state.host_backend.network_connect(&resource),
         Capability::ProcessSpawn => state.host_backend.process_spawn(&resource),
     }
-    .map_err(|message| format_err!("host capability denied: {message}"))
+    .map_err(|message| format_err!("{BACKEND_DENIED_MARKER}: {message}"))
+}
+
+/// Marker in the error raised when a capability's resource index is not in the granted list.
+/// Shared with [`classify_execution_failure`] so the producer and the classifier cannot drift.
+const CAPABILITY_DENIED_MARKER: &str = "capability resource index denied";
+/// Marker for a capability whose policy carries no resource mapping at all.
+const CAPABILITY_UNMAPPED_MARKER: &str = "capability has no resource mapping";
+/// Marker for a denial that came from the host backend rather than from policy.
+const BACKEND_DENIED_MARKER: &str = "host capability denied";
+
+/// Classify why an execution failed, for the `failure_class` on the final audit event.
+///
+/// Every non-fuel, non-deadline failure was previously recorded as `guest_trap`, which told an
+/// operator the guest had a bug. That was wrong for most of them, and wrong in the direction that
+/// matters: a module rejected because it declared more memory than policy allows, or asked for a
+/// capability it was not granted, is the sandbox *working*. Filing those as guest bugs means the
+/// audit log cannot answer "did policy stop anything today", which is the question this component
+/// exists to answer.
+///
+/// The wasmtime cases are matched on message text because wasmtime raises them as opaque
+/// `anyhow` errors with no typed variant to match on; the capability cases use the shared markers
+/// above, which we raise ourselves. Anything genuinely unrecognised stays `guest_trap`.
+fn classify_execution_failure(error: &WasmtimeError) -> &'static str {
+    for cause in error.chain() {
+        let message: String = cause.to_string();
+        // Our own host-function denials. Checked first: they are exact and we own the wording.
+        if message.contains(CAPABILITY_DENIED_MARKER)
+            || message.contains(CAPABILITY_UNMAPPED_MARKER)
+        {
+            return "capability_denied";
+        }
+        if message.contains(BACKEND_DENIED_MARKER) {
+            return "backend_denied";
+        }
+        // Resource limits the store's limiter refused -- policy enforcement, not a guest fault.
+        if message.contains("exceeds memory limits") || message.contains("exceeds table limits") {
+            return "resource_limit_denied";
+        }
+        // The guest asked for a host function whose signature does not match the one we expose.
+        if message.contains("incompatible import type") {
+            return "import_type_mismatch";
+        }
+        // A host function the policy never granted, so the linker has nothing to satisfy it with.
+        if message.contains("unknown import") || message.contains("unknown func") {
+            return "import_denied";
+        }
+    }
+    "guest_trap"
 }
 
 /// Fail-closed sandbox runtime errors.
@@ -1140,5 +1191,80 @@ mod tests {
         )
         .expect("a trivial guest must complete under a sub-tick budget");
         assert_eq!(result.value, 7);
+    }
+
+    /// Pull the failure_class off the ExecutionFinal audit event.
+    fn final_failure_class(audit: &RecordingAudit) -> Option<String> {
+        audit
+            .events
+            .lock()
+            .expect("events lock")
+            .iter()
+            .find(|event| event.kind == AuditKind::ExecutionFinal)
+            .and_then(|event| event.failure_class.clone())
+    }
+
+    fn run_and_classify(wat_source: &str) -> Option<String> {
+        let audit = Arc::new(RecordingAudit::default());
+        let mut policy = policy();
+        // One page, so a module declaring two is refused by the limiter.
+        policy.max_memory_bytes = 65_536;
+        policy.max_table_elements = 8;
+        let _ = runtime(Arc::clone(&audit), Arc::new(RecordingBackend::default()))
+            .execute(&signed(policy), &request(wat_source));
+        final_failure_class(&audit)
+    }
+
+    /// A module declaring more memory than policy permits is the SANDBOX WORKING. Recording it as
+    /// `guest_trap` told the operator the guest had a bug and left the audit log unable to answer
+    /// "did policy stop anything today".
+    #[test]
+    fn exceeding_the_memory_limit_is_a_policy_denial_not_a_guest_trap() {
+        let class = run_and_classify(
+            "(module (memory 2) (func (export \"run\") (result i32) i32.const 1))",
+        );
+        assert_eq!(class.as_deref(), Some("resource_limit_denied"));
+    }
+
+    #[test]
+    fn exceeding_the_table_limit_is_a_policy_denial_not_a_guest_trap() {
+        let class = run_and_classify(
+            "(module (table 1000 funcref) (func (export \"run\") (result i32) i32.const 1))",
+        );
+        assert_eq!(class.as_deref(), Some("resource_limit_denied"));
+    }
+
+    /// A genuine guest fault must still read as one, or the classification is just noise.
+    #[test]
+    fn a_real_guest_fault_is_still_a_guest_trap() {
+        let class = run_and_classify("(module (func (export \"run\") (result i32) unreachable))");
+        assert_eq!(class.as_deref(), Some("guest_trap"));
+    }
+
+    #[test]
+    fn a_divide_by_zero_is_a_guest_trap() {
+        let class = run_and_classify(
+            "(module (func (export \"run\") (result i32) i32.const 1 i32.const 0 i32.div_s))",
+        );
+        assert_eq!(class.as_deref(), Some("guest_trap"));
+    }
+
+    /// The classifier's markers must stay tied to the strings the host functions actually raise.
+    #[test]
+    fn capability_markers_classify_to_their_own_classes() {
+        let denied = format_err!("{CAPABILITY_DENIED_MARKER}");
+        assert_eq!(classify_execution_failure(&denied), "capability_denied");
+
+        let unmapped = format_err!("{CAPABILITY_UNMAPPED_MARKER}");
+        assert_eq!(classify_execution_failure(&unmapped), "capability_denied");
+
+        let backend = format_err!("{BACKEND_DENIED_MARKER}: path not permitted");
+        assert_eq!(classify_execution_failure(&backend), "backend_denied");
+    }
+
+    #[test]
+    fn an_unrecognised_error_falls_back_to_guest_trap() {
+        let other = format_err!("something nobody anticipated");
+        assert_eq!(classify_execution_failure(&other), "guest_trap");
     }
 }
