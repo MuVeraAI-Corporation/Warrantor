@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-10T04:22:37.031711+00:00",
+  "generated_at": "2026-08-11T01:56:25.989537+00:00",
   "repository": {
-    "commit": "ed55b3674e7d8e167d5554d8e9975b13c4d1335b",
+    "commit": "e0f9175c10ebba49bcf63335d351358fd97684e3",
     "branch": "fix/critical-findings",
     "dirty": true
   },
@@ -26,7 +26,7 @@
     "task_checkboxes": 371,
     "task_checkboxes_checked": 0,
     "task_checkboxes_open": 371,
-    "explicit_pending_markers": 403
+    "explicit_pending_markers": 406
   },
   "catalog_integrity": {
     "passed": true,
@@ -921,7 +921,7 @@
     },
     {
       "id": "SUP-13",
-      "name": "aumos-metrics",
+      "name": "metrics",
       "kind": "support",
       "domain": "observability",
       "status": "reference_implementation",
@@ -1307,6 +1307,24 @@
         "line": 100,
         "category": "stub",
         "text": "# Calling .remote() should execute locally in this stub."
+      },
+      {
+        "path": "deploy/muveraai-worker/README.md",
+        "line": 110,
+        "category": "placeholder",
+        "text": "document asserts a public key. Publishing one with a placeholder key would create"
+      },
+      {
+        "path": "deploy/muveraai-worker/src/index.test.ts",
+        "line": 6,
+        "category": "stub",
+        "text": "* The pass-through path calls global fetch. Stub it so a test failure is"
+      },
+      {
+        "path": "deploy/muveraai-worker/src/index.test.ts",
+        "line": 7,
+        "category": "deferred",
+        "text": "* \"the Worker answered when it should have deferred\", not a network call."
       },
       {
         "path": "deploy/spire/README.md",
@@ -3451,32 +3469,32 @@
         "text": "\"\"\"Enumerate explicit pending/mock/stub markers without truncation.\"\"\""
       },
       {
-        "path": "tools/terraform-provider-aumos/main.go",
+        "path": "tools/terraform-provider-warrantor/main.go",
         "line": 9,
         "category": "stub",
         "text": "// This is a stub provider using the Terraform Plugin Framework."
       },
       {
-        "path": "tools/terraform-provider-aumos/provider/provider.go",
+        "path": "tools/terraform-provider-warrantor/provider/provider.go",
         "line": 2,
         "category": "stub",
         "text": "// This is a stub \u2014 the real provider wraps the AumOS HTTP/JSON APIs."
       },
       {
-        "path": "tools/terraform-provider-aumos/provider/provider.go",
+        "path": "tools/terraform-provider-warrantor/provider/provider.go",
         "line": 108,
         "category": "stub",
         "text": "// Stub: in production, calls `defstack install <name>`"
       },
       {
-        "path": "tools/terraform-provider-aumos/provider/provider.go",
-        "line": 151,
+        "path": "tools/terraform-provider-warrantor/provider/provider.go",
+        "line": 158,
         "category": "stub",
         "text": "data.SVID = types.StringValue(fmt.Sprintf(\"svid-stub-for-%s\", data.Subject.ValueString()))"
       },
       {
-        "path": "tools/terraform-provider-aumos/provider/provider.go",
-        "line": 187,
+        "path": "tools/terraform-provider-warrantor/provider/provider.go",
+        "line": 199,
         "category": "stub",
         "text": "data.Report = types.StringValue(`{\"status\":\"stub\",\"frameworks\":10}`)"
       },

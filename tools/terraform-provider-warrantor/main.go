@@ -1,10 +1,10 @@
-// terraform-provider-aumos — manage AumOS resources as Infrastructure-as-Code.
+// terraform-provider-warrantor — manage AumOS resources as Infrastructure-as-Code.
 //
 // Resources:
-//   - aumos_component: install/verify an AumOS component
-//   - aumos_identity: issue an agent identity (SVID)
-//   - aumos_attestation: request and verify a GPU attestation
-//   - aumos_compliance_report: generate a compliance report
+//   - warrantor_component: install/verify an AumOS component
+//   - warrantor_identity: issue an agent identity (SVID)
+//   - warrantor_attestation: request and verify a GPU attestation
+//   - warrantor_compliance_report: generate a compliance report
 //
 // This is a stub provider using the Terraform Plugin Framework.
 // The real provider wraps the AumOS HTTP/JSON APIs.
@@ -29,7 +29,7 @@ func main() {
 	flag.Parse()
 
 	err := providerserver.Serve(context.Background(), NewProvider, providerserver.ServeOpts{
-		Address:         "registry.terraform.io/MuVeraAI/aumos",
+		Address:         "registry.terraform.io/MuVeraAI/warrantor",
 		Debug:           debug,
 		ProtocolVersion: 6,
 	})

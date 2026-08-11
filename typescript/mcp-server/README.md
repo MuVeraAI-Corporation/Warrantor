@@ -14,21 +14,21 @@ compliance, SBOM, and evaluation:
 
 | Tool | Component | Purpose |
 |---|---|---|
-| `aumos_sign` | T1 trust-core | Ed25519 sign |
-| `aumos_verify` | T1 trust-core | Ed25519 verify |
-| `aumos_issue_identity` | I1 agent-identity | Issue SPIFFE SVID + capability token |
-| `aumos_verify_identity` | I1 agent-identity | Verify an SVID |
-| `aumos_revoke_identity` | I1 agent-identity | Revoke an identity |
-| `aumos_emit_receipt` | E1 flight-recorder | Emit an Agent Action Receipt (P2 AAR) |
-| `aumos_verify_receipt` | E1 flight-recorder | Verify a receipt signature |
-| `aumos_check_attestation` | C1-1 nvtrust-bridge | Check a GPU attestation |
-| `aumos_run_preflight` | R2 eval-guard | Run sandbox pre-flight checks |
-| `aumos_kill` | R3 kill-switch | Trigger containment |
-| `aumos_scan_secrets` | R4 credential-vault | Scan text for exposed credentials |
-| `aumos_compliance_report` | X1 defstack-cli | Generate a compliance report |
-| `aumos_install` | X1 defstack-cli | Install an AumOS component |
-| `aumos_generate_sbom` | S4 model-sbom | Generate a Model SBOM (CycloneDX) |
-| `aumos_run_eval` | A1 safe-eval | Run an evaluation pipeline |
+| `warrantor_sign` | T1 trust-core | Ed25519 sign |
+| `warrantor_verify` | T1 trust-core | Ed25519 verify |
+| `warrantor_issue_identity` | I1 agent-identity | Issue SPIFFE SVID + capability token |
+| `warrantor_verify_identity` | I1 agent-identity | Verify an SVID |
+| `warrantor_revoke_identity` | I1 agent-identity | Revoke an identity |
+| `warrantor_emit_receipt` | E1 flight-recorder | Emit an Agent Action Receipt (P2 AAR) |
+| `warrantor_verify_receipt` | E1 flight-recorder | Verify a receipt signature |
+| `warrantor_check_attestation` | C1-1 nvtrust-bridge | Check a GPU attestation |
+| `warrantor_run_preflight` | R2 eval-guard | Run sandbox pre-flight checks |
+| `warrantor_kill` | R3 kill-switch | Trigger containment |
+| `warrantor_scan_secrets` | R4 credential-vault | Scan text for exposed credentials |
+| `warrantor_compliance_report` | X1 defstack-cli | Generate a compliance report |
+| `warrantor_install` | X1 defstack-cli | Install an AumOS component |
+| `warrantor_generate_sbom` | S4 model-sbom | Generate a Model SBOM (CycloneDX) |
+| `warrantor_run_eval` | A1 safe-eval | Run an evaluation pipeline |
 
 ## Two modes
 
@@ -100,7 +100,7 @@ import { ListTools, CallTool, Server } from '@warrantor/mcp-server';
 const { tools } = ListTools();
 
 // Call a tool directly (no stdio)
-const result = await CallTool('aumos_scan_secrets', { text: 'token=ghp_…' }, { mode: 'standalone' });
+const result = await CallTool('warrantor_scan_secrets', { text: 'token=ghp_…' }, { mode: 'standalone' });
 console.log(result.data);        // { findings, count, source }
 console.log(result.isError);     // false
 

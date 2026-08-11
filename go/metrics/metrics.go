@@ -8,10 +8,10 @@
 //	mux.HandleFunc("/metrics", metrics.Handler())
 //	mux.HandleFunc("/healthz", metrics.HealthHandler("agent-identity"))
 //
-//	counter := metrics.NewCounter("aumos_identity_svids_issued_total", "Total SVIDs issued")
+//	counter := metrics.NewCounter("warrantor_identity_svids_issued_total", "Total SVIDs issued")
 //	counter.Inc()
 //
-//	hist := metrics.NewHistogram("aumos_identity_verify_duration_seconds", "SVID verify latency")
+//	hist := metrics.NewHistogram("warrantor_identity_verify_duration_seconds", "SVID verify latency")
 //	hist.Observe(0.001)
 package metrics
 

@@ -15,29 +15,29 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ provider.Provider = &aumosProvider{}
+	_ provider.Provider = &warrantorProvider{}
 )
 
 // NewProvider is a factory for the AumOS Terraform provider.
 func NewProvider() provider.Provider {
-	return &aumosProvider{}
+	return &warrantorProvider{}
 }
 
-type aumosProvider struct{}
+type warrantorProvider struct{}
 
 // Provider schema model.
-type aumosProviderModel struct {
-	Endpoint     types.String `tfsdk:"endpoint"`
-	TrustDomain  types.String `tfsdk:"trust_domain"`
-	APIToken     types.String `tfsdk:"api_token"`
+type warrantorProviderModel struct {
+	Endpoint    types.String `tfsdk:"endpoint"`
+	TrustDomain types.String `tfsdk:"trust_domain"`
+	APIToken    types.String `tfsdk:"api_token"`
 }
 
-func (p *aumosProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "aumos"
+func (p *warrantorProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "warrantor"
 	resp.Version = "1.0.0"
 }
 
-func (p *aumosProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *warrantorProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Manage AumOS resources (components, identities, attestations, compliance reports).",
 		Attributes: map[string]schema.Attribute{
@@ -58,8 +58,8 @@ func (p *aumosProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp
 	}
 }
 
-func (p *aumosProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var config aumosProviderModel
+func (p *warrantorProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var config warrantorProviderModel
 	diags := req.Config.Get(ctx, &config)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -70,14 +70,14 @@ func (p *aumosProvider) Configure(ctx context.Context, req provider.ConfigureReq
 	resp.ResourceData = &config
 }
 
-func (p *aumosProvider) Resources(_ context.Context) []func() resource.Resource {
+func (p *warrantorProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewComponentResource,
 		NewIdentityResource,
 	}
 }
 
-func (p *aumosProvider) DataSources(_ context.Context) []func() datasource.DataSource {
+func (p *warrantorProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewComplianceReportDataSource,
 	}
@@ -97,8 +97,8 @@ func (r *componentResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 	resp.Schema = schema.Schema{
 		Description: "Install and verify an AumOS component.",
 		Attributes: map[string]schema.Attribute{
-			"name": schema.StringAttribute{Required: true, Description: "Component name (e.g. trust-core)"},
-			"version": schema.StringAttribute{Optional: true, Description: "Component version"},
+			"name":      schema.StringAttribute{Required: true, Description: "Component name (e.g. trust-core)"},
+			"version":   schema.StringAttribute{Optional: true, Description: "Component version"},
 			"installed": schema.BoolAttribute{Computed: true, Description: "Whether the component is installed"},
 		},
 	}
@@ -107,20 +107,25 @@ func (r *componentResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 func (r *componentResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	// Stub: in production, calls `defstack install <name>`
 	var data struct {
-		Name     types.String `tfsdk:"name"`
-		Version  types.String `tfsdk:"version"`
-		Installed types.Bool  `tfsdk:"installed"`
+		Name      types.String `tfsdk:"name"`
+		Version   types.String `tfsdk:"version"`
+		Installed types.Bool   `tfsdk:"installed"`
 	}
 	diags := req.Plan.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	data.Installed = types.BoolValue(true)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r *componentResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {}
-func (r *componentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {}
-func (r *componentResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {}
+func (r *componentResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+}
+func (r *componentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+}
+func (r *componentResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+}
 
 type identityResource struct{}
 
@@ -135,7 +140,7 @@ func (r *identityResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 		Description: "Issue an AumOS agent identity (SVID).",
 		Attributes: map[string]schema.Attribute{
 			"subject": schema.StringAttribute{Required: true, Description: "Agent SPIFFE SVID subject"},
-			"svid": schema.StringAttribute{Computed: true, Description: "Issued SVID token"},
+			"svid":    schema.StringAttribute{Computed: true, Description: "Issued SVID token"},
 		},
 	}
 }
@@ -147,14 +152,19 @@ func (r *identityResource) Create(ctx context.Context, req resource.CreateReques
 	}
 	diags := req.Plan.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	data.SVID = types.StringValue(fmt.Sprintf("svid-stub-for-%s", data.Subject.ValueString()))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r *identityResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {}
-func (r *identityResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {}
-func (r *identityResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {}
+func (r *identityResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+}
+func (r *identityResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+}
+func (r *identityResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+}
 
 // --- Data Sources ---
 
@@ -170,7 +180,7 @@ func (d *complianceReportDataSource) Schema(_ context.Context, _ datasource.Sche
 	resp.Schema = schema.Schema{
 		Description: "Generate an AumOS compliance report.",
 		Attributes: map[string]schema.Attribute{
-			"model": schema.StringAttribute{Optional: true, Description: "Model to scope the report"},
+			"model":  schema.StringAttribute{Optional: true, Description: "Model to scope the report"},
 			"report": schema.StringAttribute{Computed: true, Description: "JSON compliance report"},
 		},
 	}
@@ -183,7 +193,9 @@ func (d *complianceReportDataSource) Read(ctx context.Context, req datasource.Re
 	}
 	diags := req.Config.Get(ctx, &data)
 	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	data.Report = types.StringValue(`{"status":"stub","frameworks":10}`)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

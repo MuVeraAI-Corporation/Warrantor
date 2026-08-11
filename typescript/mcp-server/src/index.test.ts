@@ -60,21 +60,21 @@ function fakeExec(stdoutByCmd: Record<string, string>): (cmd: string, args: stri
 }
 
 const REQUIRED_TOOL_NAMES = [
-  'aumos_sign',
-  'aumos_verify',
-  'aumos_issue_identity',
-  'aumos_verify_identity',
-  'aumos_revoke_identity',
-  'aumos_emit_receipt',
-  'aumos_verify_receipt',
-  'aumos_check_attestation',
-  'aumos_run_preflight',
-  'aumos_kill',
-  'aumos_scan_secrets',
-  'aumos_compliance_report',
-  'aumos_install',
-  'aumos_generate_sbom',
-  'aumos_run_eval',
+  'warrantor_sign',
+  'warrantor_verify',
+  'warrantor_issue_identity',
+  'warrantor_verify_identity',
+  'warrantor_revoke_identity',
+  'warrantor_emit_receipt',
+  'warrantor_verify_receipt',
+  'warrantor_check_attestation',
+  'warrantor_run_preflight',
+  'warrantor_kill',
+  'warrantor_scan_secrets',
+  'warrantor_compliance_report',
+  'warrantor_install',
+  'warrantor_generate_sbom',
+  'warrantor_run_eval',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -110,9 +110,9 @@ describe('tool catalog', () => {
 // T1 trust-core: sign / verify.
 // ---------------------------------------------------------------------------
 
-describe('aumos_sign / aumos_verify', () => {
+describe('warrantor_sign / warrantor_verify', () => {
   it('standalone sign returns a deterministic hex signature', async () => {
-    const r = await CallTool('aumos_sign', { data: 'hello', key_id: 'k1' }, standalone());
+    const r = await CallTool('warrantor_sign', { data: 'hello', key_id: 'k1' }, standalone());
     expect(r.isError).toBe(false);
     expect(r.data.signature_hex).toBe(mockSignature('hello', 'k1'));
     expect(r.data.algorithm).toBe('ed25519-mock');
@@ -122,13 +122,13 @@ describe('aumos_sign / aumos_verify', () => {
   it('standalone verify round-trips a mock signature', async () => {
     const sig = mockSignature('hello', 'k1');
     const key = mockKey('k1');
-    const r = await CallTool('aumos_verify', { data: 'hello', signature: sig, key }, standalone());
+    const r = await CallTool('warrantor_verify', { data: 'hello', signature: sig, key }, standalone());
     expect(r.data.valid).toBe(true);
   });
 
   it('standalone verify rejects a tampered signature', async () => {
     const key = mockKey('k1');
-    const r = await CallTool('aumos_verify', { data: 'hello', signature: 'deadbeef', key }, standalone());
+    const r = await CallTool('warrantor_verify', { data: 'hello', signature: 'deadbeef', key }, standalone());
     expect(r.data.valid).toBe(false);
   });
 
@@ -138,7 +138,7 @@ describe('aumos_sign / aumos_verify', () => {
     const verifyingKey = 'bb'.repeat(32);
     let invocation: { command: string; args: string[]; stdin?: string } | undefined;
     const r = await CallTool(
-      'aumos_sign',
+      'warrantor_sign',
       { data: 'hello', key: signingKey },
       {
         mode: 'connected',
@@ -167,7 +167,7 @@ describe('aumos_sign / aumos_verify', () => {
 
   it('connected mode fails closed when the CLI is missing', async () => {
     const r = await CallTool(
-      'aumos_sign',
+      'warrantor_sign',
       { data: 'hello', key: '11'.repeat(32) },
       { mode: 'connected', execImpl: fakeExec({}) }
     );
@@ -180,7 +180,7 @@ describe('aumos_sign / aumos_verify', () => {
 
   it('connected sign rejects a missing real key before invoking trust-core', async () => {
     let invoked = false;
-    const r = await CallTool('aumos_sign', { data: 'hello' }, {
+    const r = await CallTool('warrantor_sign', { data: 'hello' }, {
       mode: 'connected',
       execImpl: async () => { invoked = true; return { stdout: '', stderr: '', code: 0 }; },
     });
@@ -190,7 +190,7 @@ describe('aumos_sign / aumos_verify', () => {
 
   it('connected verify preserves a real invalid-signature result without treating it as an outage', async () => {
     const r = await CallTool(
-      'aumos_verify',
+      'warrantor_verify',
       { data: 'hello', signature: 'aa'.repeat(64), key: 'bb'.repeat(32) },
       {
         mode: 'connected',
@@ -208,7 +208,7 @@ describe('aumos_sign / aumos_verify', () => {
   });
 
   it('sign rejects empty data', async () => {
-    const r = await CallTool('aumos_sign', { data: '' }, standalone());
+    const r = await CallTool('warrantor_sign', { data: '' }, standalone());
     expect(r.isError).toBe(true);
     expect(r.data.error).toMatch(/data/);
   });
@@ -221,7 +221,7 @@ describe('aumos_sign / aumos_verify', () => {
 describe('I1 agent-identity tools', () => {
   it('issue returns an SVID prefixed svid-mock- in standalone', async () => {
     const r = await CallTool(
-      'aumos_issue_identity',
+      'warrantor_issue_identity',
       { subject: 'spiffe://muveraai.com/agent/coding-1' },
       standalone()
     );
@@ -233,36 +233,36 @@ describe('I1 agent-identity tools', () => {
   });
 
   it('issue requires a subject', async () => {
-    const r = await CallTool('aumos_issue_identity', {}, standalone());
+    const r = await CallTool('warrantor_issue_identity', {}, standalone());
     expect(r.isError).toBe(true);
   });
 
   it('verify_identity round-trips an issued SVID', async () => {
     const issued = await CallTool(
-      'aumos_issue_identity',
+      'warrantor_issue_identity',
       { subject: 'spiffe://muveraai.com/agent/coding-1' },
       standalone()
     );
     const svid = String(issued.data.svid);
-    const r = await CallTool('aumos_verify_identity', { svid }, standalone());
+    const r = await CallTool('warrantor_verify_identity', { svid }, standalone());
     expect(r.data.valid).toBe(true);
     expect(r.data.subject).toBe('spiffe://muveraai.com/agent/coding-1');
   });
 
   it('verify_identity rejects an unknown SVID', async () => {
-    const r = await CallTool('aumos_verify_identity', { svid: 'unknown-token' }, standalone());
+    const r = await CallTool('warrantor_verify_identity', { svid: 'unknown-token' }, standalone());
     expect(r.data.valid).toBe(false);
   });
 
   it('revoke returns revoked=true in standalone', async () => {
-    const r = await CallTool('aumos_revoke_identity', { jti: 'jti-abc', reason: 'rotation' }, standalone());
+    const r = await CallTool('warrantor_revoke_identity', { jti: 'jti-abc', reason: 'rotation' }, standalone());
     expect(r.data.revoked).toBe(true);
     expect(r.data.revoked_at).toBeTypeOf('number');
   });
 
   it('connected mode posts to /v1/agent-identity:issue', async () => {
     const r = await CallTool(
-      'aumos_issue_identity',
+      'warrantor_issue_identity',
       { subject: 'spiffe://muveraai.com/agent/coding-1' },
       {
         mode: 'connected',
@@ -276,7 +276,7 @@ describe('I1 agent-identity tools', () => {
 
   it('connected mode fails closed on connection error', async () => {
     const r = await CallTool(
-      'aumos_issue_identity',
+      'warrantor_issue_identity',
       { subject: 'spiffe://muveraai.com/agent/coding-1' },
       { mode: 'connected', agentIdentityUrl: 'http://i1:8441', fetchImpl: unreachableFetch() }
     );
@@ -296,7 +296,7 @@ describe('I1 agent-identity tools', () => {
 describe('E1 flight-recorder tools', () => {
   it('emit_receipt returns an AAR id and signature (invariant I-07)', async () => {
     const r = await CallTool(
-      'aumos_emit_receipt',
+      'warrantor_emit_receipt',
       { actor: 'spiffe://muveraai.com/agent/coding-1', tool: 'github.create_pr', outcome: 'success' },
       standalone()
     );
@@ -306,19 +306,19 @@ describe('E1 flight-recorder tools', () => {
   });
 
   it('emit_receipt requires actor and tool', async () => {
-    const r = await CallTool('aumos_emit_receipt', { actor: 'x' }, standalone());
+    const r = await CallTool('warrantor_emit_receipt', { actor: 'x' }, standalone());
     expect(r.isError).toBe(true);
   });
 
   it('verify_receipt validates an aar- prefixed id', async () => {
-    const r = await CallTool('aumos_verify_receipt', { receipt_id: 'aar-123' }, standalone());
+    const r = await CallTool('warrantor_verify_receipt', { receipt_id: 'aar-123' }, standalone());
     expect(r.data.valid).toBe(true);
     expect(String(r.data.signer)).toMatch(/flight-recorder/);
   });
 
   it('connected emit_receipt posts to /v1/flight-recorder:emit', async () => {
     const r = await CallTool(
-      'aumos_emit_receipt',
+      'warrantor_emit_receipt',
       { actor: 'a', tool: 't', outcome: 'success' },
       {
         mode: 'connected',
@@ -337,33 +337,33 @@ describe('E1 flight-recorder tools', () => {
 
 describe('C1-1 / R2 / R3 / R4 tools', () => {
   it('check_attestation returns a verified report', async () => {
-    const r = await CallTool('aumos_check_attestation', { nonce: 'n1', gpu_pci_id: 'GPU-0' }, standalone());
+    const r = await CallTool('warrantor_check_attestation', { nonce: 'n1', gpu_pci_id: 'GPU-0' }, standalone());
     expect(r.data.verified).toBe(true);
     expect(r.data.hardware_tee).toMatch(/nvidia/);
   });
 
   it('run_preflight allows reads and blocks destructive by default (I-08)', async () => {
-    const read = await CallTool('aumos_run_preflight', { tool: 'fs.read', side_effect: 'read' }, standalone());
+    const read = await CallTool('warrantor_run_preflight', { tool: 'fs.read', side_effect: 'read' }, standalone());
     expect(read.data.allowed).toBe(true);
-    const destr = await CallTool('aumos_run_preflight', { tool: 'db.drop', side_effect: 'destructive' }, standalone());
+    const destr = await CallTool('warrantor_run_preflight', { tool: 'db.drop', side_effect: 'destructive' }, standalone());
     expect(destr.data.allowed).toBe(false);
     expect(String(destr.data.reason)).toMatch(/consequential/);
   });
 
   it('kill returns triggered=true', async () => {
-    const r = await CallTool('aumos_kill', { reason: 'behavioral_anomaly' }, standalone());
+    const r = await CallTool('warrantor_kill', { reason: 'behavioral_anomaly' }, standalone());
     expect(r.data.triggered).toBe(true);
     expect(r.data.reason).toBe('behavioral_anomaly');
   });
 
   it('kill requires a reason', async () => {
-    const r = await CallTool('aumos_kill', {}, standalone());
+    const r = await CallTool('warrantor_kill', {}, standalone());
     expect(r.isError).toBe(true);
   });
 
   it('scan_secrets detects common secret shapes', async () => {
     const text = 'token=ghp_abcdefghijklmnopqrstuvwxyz0123456789 and AKIAIOSFODNN7EXAMPLE';
-    const r = await CallTool('aumos_scan_secrets', { text }, standalone());
+    const r = await CallTool('warrantor_scan_secrets', { text }, standalone());
     expect(r.data.count).toBeGreaterThanOrEqual(2);
     const types = (r.data.findings as { type: string }[]).map((f) => f.type);
     expect(types).toContain('github_pat');
@@ -372,7 +372,7 @@ describe('C1-1 / R2 / R3 / R4 tools', () => {
 
   it('scan_secrets masks the captured value', async () => {
     const text = 'key=sk_live_abcdefghijklmnopqrstuvwxyz0123456789';
-    const r = await CallTool('aumos_scan_secrets', { text }, standalone());
+    const r = await CallTool('warrantor_scan_secrets', { text }, standalone());
     const findings = r.data.findings as { value: string }[];
     for (const f of findings) {
       expect(f.value).not.toContain('sk_live_abcdefghijklmnopqrstuvwxyz');
@@ -380,13 +380,13 @@ describe('C1-1 / R2 / R3 / R4 tools', () => {
   });
 
   it('scan_secrets returns no findings for clean text', async () => {
-    const r = await CallTool('aumos_scan_secrets', { text: 'just a normal log line' }, standalone());
+    const r = await CallTool('warrantor_scan_secrets', { text: 'just a normal log line' }, standalone());
     expect(r.data.count).toBe(0);
   });
 
   it('connected scan_secrets posts to /v1/credential-vault:scan', async () => {
     const r = await CallTool(
-      'aumos_scan_secrets',
+      'warrantor_scan_secrets',
       { text: 'x' },
       {
         mode: 'connected',
@@ -405,14 +405,14 @@ describe('C1-1 / R2 / R3 / R4 tools', () => {
 
 describe('X1 / S4 / A1 tools', () => {
   it('compliance_report returns JSON in standalone', async () => {
-    const r = await CallTool('aumos_compliance_report', { scope: 'soc2' }, standalone());
+    const r = await CallTool('warrantor_compliance_report', { scope: 'soc2' }, standalone());
     expect(r.data.format).toBe('json');
     expect(r.data.report_json).toBeTypeOf('string');
   });
 
   it('compliance_report uses defstack in connected mode', async () => {
     const r = await CallTool(
-      'aumos_compliance_report',
+      'warrantor_compliance_report',
       { scope: 'soc2' },
       { mode: 'connected', execImpl: fakeExec({ defstack: '{"scope":"soc2","ok":true}' }) }
     );
@@ -422,7 +422,7 @@ describe('X1 / S4 / A1 tools', () => {
 
   it('install runs defstack install and returns installed=true', async () => {
     const r = await CallTool(
-      'aumos_install',
+      'warrantor_install',
       { name: 'agent-identity' },
       { mode: 'connected', execImpl: fakeExec({ defstack: 'installed agent-identity' }) }
     );
@@ -433,7 +433,7 @@ describe('X1 / S4 / A1 tools', () => {
 
   it('connected install rejects unsupported version pinning instead of claiming success', async () => {
     const r = await CallTool(
-      'aumos_install',
+      'warrantor_install',
       { name: 'agent-identity', version: '1.0.0' },
       { mode: 'connected', execImpl: fakeExec({ defstack: 'not invoked' }) }
     );
@@ -443,7 +443,7 @@ describe('X1 / S4 / A1 tools', () => {
 
   it('install fails closed when defstack is missing', async () => {
     const r = await CallTool(
-      'aumos_install',
+      'warrantor_install',
       { name: 'flight-recorder' },
       { mode: 'connected', execImpl: fakeExec({}) }
     );
@@ -455,22 +455,22 @@ describe('X1 / S4 / A1 tools', () => {
   });
 
   it('generate_sbom returns a CycloneDX bom', async () => {
-    const r = await CallTool('aumos_generate_sbom', { model: 'llama-3-8b' }, standalone());
+    const r = await CallTool('warrantor_generate_sbom', { model: 'llama-3-8b' }, standalone());
     expect((r.data.sbom as { bomFormat: string }).bomFormat).toBe('CycloneDX');
     expect(r.data.format).toBe('cyclonedx');
   });
 
   it('run_eval returns results + VEB', async () => {
-    const r = await CallTool('aumos_run_eval', { model: 'model://aumos-7b' }, standalone());
+    const r = await CallTool('warrantor_run_eval', { model: 'model://aumos-7b' }, standalone());
     expect((r.data.results as { accuracy: number }).accuracy).toBeTypeOf('number');
     expect(String((r.data.veb as { bundleId: string }).bundleId)).toMatch(/^veb-/);
   });
 
   it('unknown tool returns an error result (not a crash)', async () => {
-    const r = await CallTool('aumos_nonexistent', {}, standalone());
+    const r = await CallTool('warrantor_nonexistent', {}, standalone());
     expect(r.isError).toBe(true);
     expect(String(r.data.error)).toMatch(/unknown tool/);
-    expect(r.data.available as string[]).toContain('aumos_sign');
+    expect(r.data.available as string[]).toContain('warrantor_sign');
   });
 });
 
@@ -487,67 +487,67 @@ interface HttpDependencyCase {
 
 const HTTP_DEPENDENCY_CASES: HttpDependencyCase[] = [
   {
-    tool: 'aumos_issue_identity',
+    tool: 'warrantor_issue_identity',
     args: { subject: 'spiffe://muveraai.com/agent/test' },
     dependency: 'agent-identity',
     forbiddenFields: ['svid', 'capability_jti'],
   },
   {
-    tool: 'aumos_verify_identity',
+    tool: 'warrantor_verify_identity',
     args: { svid: 'svid-real' },
     dependency: 'agent-identity',
     forbiddenFields: ['valid'],
   },
   {
-    tool: 'aumos_revoke_identity',
+    tool: 'warrantor_revoke_identity',
     args: { jti: 'jti-real' },
     dependency: 'agent-identity',
     forbiddenFields: ['revoked'],
   },
   {
-    tool: 'aumos_emit_receipt',
+    tool: 'warrantor_emit_receipt',
     args: { actor: 'spiffe://muveraai.com/agent/test', tool: 'fs.read' },
     dependency: 'flight-recorder',
     forbiddenFields: ['receipt_id', 'signature'],
   },
   {
-    tool: 'aumos_verify_receipt',
+    tool: 'warrantor_verify_receipt',
     args: { receipt_id: 'aar-real' },
     dependency: 'flight-recorder',
     forbiddenFields: ['valid'],
   },
   {
-    tool: 'aumos_check_attestation',
+    tool: 'warrantor_check_attestation',
     args: { nonce: 'nonce-1' },
     dependency: 'nvtrust-bridge',
     forbiddenFields: ['verified'],
   },
   {
-    tool: 'aumos_run_preflight',
+    tool: 'warrantor_run_preflight',
     args: { tool: 'fs.read' },
     dependency: 'eval-guard',
     forbiddenFields: ['allowed'],
   },
   {
-    tool: 'aumos_kill',
+    tool: 'warrantor_kill',
     args: { reason: 'incident' },
     dependency: 'kill-switch',
     forbiddenFields: ['triggered', 'killed_at'],
   },
   {
-    tool: 'aumos_scan_secrets',
+    tool: 'warrantor_scan_secrets',
     args: { text: 'secret text' },
     dependency: 'credential-vault',
     forbiddenFields: ['findings', 'count'],
   },
   {
-    tool: 'aumos_generate_sbom',
+    tool: 'warrantor_generate_sbom',
     args: { model: 'model://test' },
     dependency: 'model-sbom',
     forbiddenFields: ['sbom'],
   },
   {
-    tool: 'aumos_run_eval',
+    tool: 'warrantor_run_eval',
     args: { model: 'model://test' },
     dependency: 'safe-eval',
     forbiddenFields: ['results', 'summary', 'veb'],
@@ -584,25 +584,25 @@ describe('connected-mode fail-closed boundary', () => {
 
   it.each([
     {
-      tool: 'aumos_sign',
+      tool: 'warrantor_sign',
       args: { data: 'hello', key: '11'.repeat(32) },
       dependency: 'trust-core',
       forbiddenFields: ['signature_hex'],
     },
     {
-      tool: 'aumos_verify',
+      tool: 'warrantor_verify',
       args: { data: 'hello', signature: 'aa'.repeat(64), key: 'bb'.repeat(32) },
       dependency: 'trust-core',
       forbiddenFields: ['valid'],
     },
     {
-      tool: 'aumos_compliance_report',
+      tool: 'warrantor_compliance_report',
       args: { scope: 'soc2' },
       dependency: 'defstack',
       forbiddenFields: ['report_json'],
     },
     {
-      tool: 'aumos_install',
+      tool: 'warrantor_install',
       args: { name: 'flight-recorder' },
       dependency: 'defstack',
       forbiddenFields: ['installed'],
@@ -707,7 +707,7 @@ describe('Server (JSON-RPC dispatch)', () => {
     expect(res.result.ttlMs).toBeGreaterThan(0);
     expect(res.result.cacheScope).toBe('public');
     expect(res.result.tools).toHaveLength(15);
-    expect(res.result.tools[0].name).toBe('aumos_sign');
+    expect(res.result.tools[0].name).toBe('warrantor_sign');
   });
 
   it('dispatches tools/call and returns structured content', async () => {
@@ -715,7 +715,7 @@ describe('Server (JSON-RPC dispatch)', () => {
       jsonrpc: '2.0',
       id: 3,
       method: 'tools/call',
-      params: modernParams({ name: 'aumos_kill', arguments: { reason: 'test' } }),
+      params: modernParams({ name: 'warrantor_kill', arguments: { reason: 'test' } }),
     });
     const res = JSON.parse(requireDefined(line, 'tools/call response'));
     expect(res.result.resultType).toBe('complete');
@@ -824,7 +824,7 @@ describe('Server (JSON-RPC dispatch)', () => {
       jsonrpc: '2.0',
       id: 12,
       method: 'tools/call',
-      params: modernParams({ name: 'aumos_kill', arguments: 'not-an-object' }),
+      params: modernParams({ name: 'warrantor_kill', arguments: 'not-an-object' }),
     });
     const res = JSON.parse(requireDefined(line, 'invalid arguments response'));
     expect(res.error.code).toBe(-32602);
@@ -836,13 +836,13 @@ describe('Server (JSON-RPC dispatch)', () => {
       jsonrpc: '2.0',
       id: 2,
       method: 'tools/call',
-      params: modernParams({ name: 'aumos_kill', arguments: { reason: 'x' } }),
+      params: modernParams({ name: 'warrantor_kill', arguments: { reason: 'x' } }),
     });
     await server.handle({
       jsonrpc: '2.0',
       id: 3,
       method: 'tools/call',
-      params: modernParams({ name: 'aumos_unknown', arguments: {} }),
+      params: modernParams({ name: 'warrantor_unknown', arguments: {} }),
     });
     expect(server.stats.requests).toBe(3);
     expect(server.stats.calls).toBe(2);

@@ -902,7 +902,7 @@
     },
     {
       "id": "SUP-13",
-      "name": "aumos-metrics",
+      "name": "metrics",
       "kind": "support",
       "domain": "observability",
       "status": "reference_implementation",

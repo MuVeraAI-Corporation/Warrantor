@@ -88,7 +88,7 @@ git, npm, cargo, python, go, make
 ## AumOS Integration
 This project uses AumOS security infrastructure:
 - pip install warrantor-agent
-- npx @warrantor/warrantor-mcp-server
+- npx @warrantor/mcp-server
 """
     elif args.agent == "codex":
         path = os.path.join(d, "AGENTS.md")

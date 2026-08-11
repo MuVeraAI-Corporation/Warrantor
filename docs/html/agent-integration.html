@@ -735,7 +735,7 @@ hr { border-top-color: var(--border); }
 <section id="mcp-setup">
   <span class="eyebrow">04 · MCP Server Setup</span>
   <h2>Configuring Your Agent for the MCP Server</h2>
-  <p>The MCP server (<code>@warrantor/aumos-mcp-server</code>) speaks the Model Context Protocol over stdio JSON-RPC 2.0. It advertises 15 tools via <code>tools/list</code> and handles <code>tools/call</code>. It runs in <strong>standalone</strong> mode by default (deterministic mock responses, zero external deps — ideal for dev and dry-runs) and switches to <strong>connected</strong> mode when <code>AUMOS_MODE=connected</code> is set or <code>--connected</code> is passed, issuing real HTTP calls to the AumOS services.</p>
+  <p>The MCP server (<code>@warrantor/mcp-server</code>) speaks the Model Context Protocol over stdio JSON-RPC 2.0. It advertises 15 tools via <code>tools/list</code> and handles <code>tools/call</code>. It runs in <strong>standalone</strong> mode by default (deterministic mock responses, zero external deps — ideal for dev and dry-runs) and switches to <strong>connected</strong> mode when <code>AUMOS_MODE=connected</code> is set or <code>--connected</code> is passed, issuing real HTTP calls to the AumOS services.</p>
 
   <div class="agent-grid">
     <div class="agent-card">
@@ -745,7 +745,7 @@ hr { border-top-color: var(--border); }
         <pre><code>{
   "aumos": {
     "command": "npx",
-    "args": ["@warrantor/aumos-mcp-server"]
+    "args": ["@warrantor/mcp-server"]
   }
 }</code></pre>
       </div>
@@ -760,7 +760,7 @@ hr { border-top-color: var(--border); }
   "mcpServers": {
     "aumos": {
       "command": "npx",
-      "args": ["@warrantor/aumos-mcp-server"]
+      "args": ["@warrantor/mcp-server"]
     }
   }
 }</code></pre>
@@ -773,15 +773,15 @@ hr { border-top-color: var(--border); }
       <p>Any MCP-compatible client. Stdio transport, JSON-RPC 2.0:</p>
       <div class="config-template">
         <pre><code># Spawn the server directly
-npx @warrantor/aumos-mcp-server
+npx @warrantor/mcp-server
 
 # Connected mode (real services)
-AUMOS_MODE=connected npx @warrantor/aumos-mcp-server
+AUMOS_MODE=connected npx @warrantor/mcp-server
 
 # Pin service URLs via env
 AUMOS_AGENT_IDENTITY_URL=http://localhost:8441 \
 AUMOS_FLIGHT_RECORDER_URL=http://localhost:8445 \
-npx @warrantor/aumos-mcp-server --connected</code></pre>
+npx @warrantor/mcp-server --connected</code></pre>
       </div>
       <p style="font-size:0.88rem;color:var(--text-secondary);">Protocol version <code>2024-11-05</code>. Logs go to stderr; stdout is reserved for protocol frames.</p>
     </div>
@@ -796,77 +796,77 @@ npx @warrantor/aumos-mcp-server --connected</code></pre>
     </thead>
     <tbody>
       <tr>
-        <td>aumos_sign</td>
+        <td>warrantor_sign</td>
         <td>Sign data with Ed25519 via T1 trust-core. Returns <code>{signature_hex, algorithm}</code>.</td>
         <td><code>data</code> · <code>key_id?</code></td>
       </tr>
       <tr>
-        <td>aumos_verify</td>
+        <td>warrantor_verify</td>
         <td>Verify an Ed25519 signature. Returns <code>{valid, reason?}</code>.</td>
         <td><code>data, signature, key</code></td>
       </tr>
       <tr>
-        <td>aumos_issue_identity</td>
+        <td>warrantor_issue_identity</td>
         <td>Issue a SPIFFE SVID + capability token via I1 agent-identity. <code>POST /v1/agent-identity:issue</code>.</td>
         <td><code>subject</code> · <code>audience?, parent_svid?</code></td>
       </tr>
       <tr>
-        <td>aumos_verify_identity</td>
+        <td>warrantor_verify_identity</td>
         <td>Verify an SVID via I1. <code>POST /v1/agent-identity:verify</code>.</td>
         <td><code>svid</code> · <code>audience?</code></td>
       </tr>
       <tr>
-        <td>aumos_revoke_identity</td>
+        <td>warrantor_revoke_identity</td>
         <td>Revoke an identity. Propagation target: identity &lt;5s, credentials &lt;1s (I-05).</td>
         <td><code>jti</code> · <code>reason?</code></td>
       </tr>
       <tr>
-        <td>aumos_emit_receipt</td>
+        <td>warrantor_emit_receipt</td>
         <td>Emit an Agent Action Receipt (P2 AAR) via E1 flight-recorder — <strong>before</strong> the action commits (I-07).</td>
         <td><code>actor, tool, outcome</code> · <code>side_effect?, inputs_hash?</code></td>
       </tr>
       <tr>
-        <td>aumos_verify_receipt</td>
+        <td>warrantor_verify_receipt</td>
         <td>Verify a receipt signature. Returns <code>{valid, signer, receipt_id}</code>.</td>
         <td><code>receipt_id</code> · <code>signature?</code></td>
       </tr>
       <tr>
-        <td>aumos_check_attestation</td>
+        <td>warrantor_check_attestation</td>
         <td>Check a GPU attestation report via C1-1 nvtrust-bridge. Returns <code>{verified, hardware_tee}</code>.</td>
         <td><code>nonce?, gpu_pci_id?</code></td>
       </tr>
       <tr>
-        <td>aumos_run_preflight</td>
+        <td>warrantor_run_preflight</td>
         <td>Run sandbox pre-flight via R2 eval-guard. Action proceeds only if <code>allowed: true</code> (I-09).</td>
         <td><code>tool</code> · <code>inputs?, side_effect?</code></td>
       </tr>
       <tr>
-        <td>aumos_kill</td>
+        <td>warrantor_kill</td>
         <td>Trigger the R3 kill-switch — halts/quarantines the agent. Returns <code>{triggered, reason, killed_at}</code>.</td>
         <td><code>reason</code> · <code>agent?</code></td>
       </tr>
       <tr>
-        <td>aumos_scan_secrets</td>
+        <td>warrantor_scan_secrets</td>
         <td>Scan text for exposed credentials via R4 credential-vault. Detects AWS keys, GitHub PATs, Slack tokens, private keys, generic bearers.</td>
         <td><code>text</code></td>
       </tr>
       <tr>
-        <td>aumos_compliance_report</td>
+        <td>warrantor_compliance_report</td>
         <td>Generate a compliance report via X1 defstack-cli. Returns <code>{report_json}</code>.</td>
         <td><code>scope?, format?</code></td>
       </tr>
       <tr>
-        <td>aumos_install</td>
+        <td>warrantor_install</td>
         <td>Install an AumOS component via <code>defstack install &lt;name&gt;</code>. Returns <code>{installed, version}</code>.</td>
         <td><code>name</code> · <code>version?</code></td>
       </tr>
       <tr>
-        <td>aumos_generate_sbom</td>
+        <td>warrantor_generate_sbom</td>
         <td>Generate a Model SBOM (CycloneDX) via S4 model-sbom. Returns <code>{sbom, components}</code>.</td>
         <td><code>model</code> · <code>format?</code></td>
       </tr>
       <tr>
-        <td>aumos_run_eval</td>
+        <td>warrantor_run_eval</td>
         <td>Run an eval pipeline via A1 safe-eval (HELM/garak/PyRIT/MDASH). Returns results + a Verifiable Evaluation Bundle.</td>
         <td><code>model</code> · <code>pipeline_yaml?</code></td>
       </tr>
@@ -1054,11 +1054,11 @@ for anything security-sensitive (signing, identity, attestation).
 git, npm, cargo, python, go, make, npx
 
 ## Rules
-- Never commit secrets. If `aumos_scan_secrets` returns findings, stop.
-- For destructive operations, run `aumos_run_preflight` first.
-- Emit a receipt with `aumos_emit_receipt` before any write that
+- Never commit secrets. If `warrantor_scan_secrets` returns findings, stop.
+- For destructive operations, run `warrantor_run_preflight` first.
+- Emit a receipt with `warrantor_emit_receipt` before any write that
   modifies production state.
-- If a kill-switch fires (`aumos_kill`), do not retry — surface it.</code></pre>
+- If a kill-switch fires (`warrantor_kill`), do not retry — surface it.</code></pre>
   </div>
 
   <h3>2. MCP server config</h3>
@@ -1067,7 +1067,7 @@ git, npm, cargo, python, go, make, npx
     <pre><code>{
   "aumos": {
     "command": "npx",
-    "args": ["@warrantor/aumos-mcp-server"]
+    "args": ["@warrantor/mcp-server"]
   }
 }</code></pre>
   </div>
@@ -1118,12 +1118,12 @@ under the `aumos_*` namespace.
 git, npm, cargo, python, go, make
 
 ## Security protocol
-1. Before any write, call `aumos_run_preflight` with the
+1. Before any write, call `warrantor_run_preflight` with the
    intended tool and side_effect class.
 2. Before committing production changes, emit a receipt:
-   `aumos_emit_receipt` with outcome `pending`.
+   `warrantor_emit_receipt` with outcome `pending`.
 3. After generating any code that may contain credentials,
-   call `aumos_scan_secrets` on the output.
+   call `warrantor_scan_secrets` on the output.
 4. On unexpected errors, expect the kill-switch to fire.</code></pre>
   </div>
 
@@ -1163,10 +1163,10 @@ AumOS MCP tools (`aumos_*`) are available. Use them for any
 security-sensitive operation.
 
 Required:
-- Before destructive edits, call `aumos_run_preflight`.
-- Emit a receipt via `aumos_emit_receipt` before commits that
+- Before destructive edits, call `warrantor_run_preflight`.
+- Emit a receipt via `warrantor_emit_receipt` before commits that
   touch production paths.
-- Scan generated output with `aumos_scan_secrets` before
+- Scan generated output with `warrantor_scan_secrets` before
   suggesting it to the user.
 - This session requires attestation: do not perform actions
   you cannot receipt.</code></pre>
@@ -1179,7 +1179,7 @@ Required:
   "mcpServers": {
     "aumos": {
       "command": "npx",
-      "args": ["@warrantor/aumos-mcp-server"]
+      "args": ["@warrantor/mcp-server"]
     }
   }
 }</code></pre>
@@ -1294,7 +1294,7 @@ with secure_session(config) as session:
   <div class="cmd-grid">
     <div class="cmd-card">
       <div class="cmd-label">1 · Start the MCP server (any MCP agent)</div>
-      <pre><code>npx @warrantor/aumos-mcp-server</code></pre>
+      <pre><code>npx @warrantor/mcp-server</code></pre>
     </div>
     <div class="cmd-card">
       <div class="cmd-label">2 · Install the Agent SDK (Python custom tools)</div>
@@ -1450,7 +1450,7 @@ print('svid:   ', hello.action_result.svid)
     <li>Agent SDK source: <code>python/warrantor_agent/src/warrantor_agent/__init__.py</code> — <code>@agent.action</code> decorator and manual API.</li>
     <li>Harness source: <code>python/warrantor_harness/src/warrantor_harness/__init__.py</code> — <code>secure_session()</code>, config parsers.</li>
     <li>All packages: <code>github.com/MuVeraAI/aumos</code></li>
-    <li>MCP server npm: <code>@warrantor/aumos-mcp-server</code> &nbsp;·&nbsp; SDK pip: <code>warrantor-agent</code> &nbsp;·&nbsp; Harness pip: <code>warrantor-harness</code></li>
+    <li>MCP server npm: <code>@warrantor/mcp-server</code> &nbsp;·&nbsp; SDK pip: <code>warrantor-agent</code> &nbsp;·&nbsp; Harness pip: <code>warrantor-harness</code></li>
   </ul>
   <p style="color:var(--text-tertiary);font-size:0.88rem;margin-top:var(--space-lg);"><a href="index.html">&larr; Back to AumOS documentation index</a></p>
 </section>

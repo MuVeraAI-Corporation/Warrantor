@@ -109,7 +109,7 @@ export interface ToolDescriptor {
  */
 export const TOOLS: ToolDescriptor[] = [
   {
-    name: 'aumos_sign',
+    name: 'warrantor_sign',
     description:
       'Sign data using T1 trust-core (Ed25519). Connected mode requires a raw hex signing key; ' +
       'standalone mode uses an explicit deterministic demo key. Returns {signature_hex, algorithm}.',
@@ -125,7 +125,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_verify',
+    name: 'warrantor_verify',
     description:
       'Verify an Ed25519 signature using T1 trust-core. Returns {valid: bool, reason?: string}.',
     inputSchema: {
@@ -140,7 +140,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_issue_identity',
+    name: 'warrantor_issue_identity',
     description:
       'Issue an agent identity (SPIFFE SVID + capability token) via I1 agent-identity. ' +
       'HTTP POST /v1/agent-identity:issue. Mirrors proto/warrantor/identity/v1/IssueIdentityRequest.',
@@ -159,7 +159,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_verify_identity',
+    name: 'warrantor_verify_identity',
     description:
       'Verify an SVID via I1 agent-identity. HTTP POST /v1/agent-identity:verify. ' +
       'Returns {valid, subject?, reason?}.',
@@ -174,7 +174,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_revoke_identity',
+    name: 'warrantor_revoke_identity',
     description:
       'Revoke an identity via I1 agent-identity. HTTP POST /v1/agent-identity:revoke. ' +
       'Propagation target: identity <5s fleet-wide, credentials <1s (invariant I-05).',
@@ -189,7 +189,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_emit_receipt',
+    name: 'warrantor_emit_receipt',
     description:
       'Emit an Agent Action Receipt (P2 AAR) via E1 flight-recorder. Per invariant I-07, a ' +
       'receipt must be emitted *before* the action commits. Returns {receipt_id, signed_at}.',
@@ -215,7 +215,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_verify_receipt',
+    name: 'warrantor_verify_receipt',
     description: 'Verify a flight-recorder receipt signature. Returns {valid, signer, receipt_id}.',
     inputSchema: {
       type: 'object',
@@ -228,7 +228,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_check_attestation',
+    name: 'warrantor_check_attestation',
     description:
       'Check a GPU attestation report via C1-1 nvtrust-bridge. Returns {verified, hardware_tee, ...}.',
     inputSchema: {
@@ -241,7 +241,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_run_preflight',
+    name: 'warrantor_run_preflight',
     description:
       'Run sandbox pre-flight checks via R2 eval-guard. Implements invariant I-09 (fail-closed): ' +
       'an action may only proceed if preflight returns {allowed: true}.',
@@ -260,7 +260,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_kill',
+    name: 'warrantor_kill',
     description:
       'Trigger the R3 kill-switch. Halts/quarantines the agent. Used by containment on anomaly ' +
       'or by an operator. Returns {triggered, reason, killed_at}.',
@@ -278,7 +278,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_scan_secrets',
+    name: 'warrantor_scan_secrets',
     description:
       'Scan text for exposed credentials via R4 credential-vault. Returns {findings: [...]}. ' +
       'Detects common secret shapes (API keys, tokens, private keys).',
@@ -292,7 +292,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_compliance_report',
+    name: 'warrantor_compliance_report',
     description:
       'Generate a compliance report via X1 defstack-cli (`defstack compliance-report`). Returns {report_json}.',
     inputSchema: {
@@ -305,7 +305,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_install',
+    name: 'warrantor_install',
     description:
       'Install an AumOS component via `defstack install <name>`. Returns {installed, version}.',
     inputSchema: {
@@ -322,7 +322,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_generate_sbom',
+    name: 'warrantor_generate_sbom',
     description:
       'Generate a Model SBOM via S4 model-sbom (CycloneDX). Returns {sbom, format, components}.',
     inputSchema: {
@@ -336,7 +336,7 @@ export const TOOLS: ToolDescriptor[] = [
     },
   },
   {
-    name: 'aumos_run_eval',
+    name: 'warrantor_run_eval',
     description:
       'Run an evaluation pipeline via A1 safe-eval (HELM/garak/PyRIT/MDASH orchestration). ' +
       'Returns {results, summary, veb (Verifiable Evaluation Bundle)}.',
@@ -402,7 +402,7 @@ export function mockSignatureWithKey(data: string, keyHex: string): string {
 
 /**
  * Produce a deterministic mock signature over `data` for a key *id* (resolves the id to a hex
- * verifying key via {@link mockKey}). This is what `aumos_sign` uses; the resulting signature
+ * verifying key via {@link mockKey}). This is what `warrantor_sign` uses; the resulting signature
  * verifies under {@link mockSignatureWithKey} with the resolved key.
  */
 export function mockSignature(data: string, keyId: string): string {
@@ -614,21 +614,21 @@ export async function CallTool(
   try {
     switch (name) {
       // --- T1 trust-core: sign / verify -------------------------------------
-      case 'aumos_sign': {
+      case 'warrantor_sign': {
         const data = String(args.data ?? '');
         const keyId = String(args.key_id ?? 'default');
-        if (!data) return err('aumos_sign: "data" is required');
+        if (!data) return err('warrantor_sign: "data" is required');
 
         if (!isStandalone) {
           const key = String(args.key ?? '');
           if (!/^[0-9a-fA-F]{64}$/.test(key)) {
-            return err('aumos_sign: connected mode requires a 64-character hex "key"', {
+            return err('warrantor_sign: connected mode requires a 64-character hex "key"', {
               code: 'INVALID_ARGUMENT',
             });
           }
           try {
             const result = await exec(cfg.trustCoreBin, ['sign', '--key', key], data);
-            if (result.code !== 0) return cliFailure('aumos_sign', 'trust-core', result);
+            if (result.code !== 0) return cliFailure('warrantor_sign', 'trust-core', result);
             const parsed = parseTrustCoreSignOutput(result.stdout);
             return ok({
               signature_hex: parsed.signatureHex,
@@ -638,7 +638,7 @@ export async function CallTool(
               source: 'trust-core',
             });
           } catch (cause) {
-            return dependencyFailure('aumos_sign', 'trust-core', cause);
+            return dependencyFailure('warrantor_sign', 'trust-core', cause);
           }
         }
         return ok({
@@ -649,12 +649,12 @@ export async function CallTool(
         });
       }
 
-      case 'aumos_verify': {
+      case 'warrantor_verify': {
         const data = String(args.data ?? '');
         const signature = String(args.signature ?? '');
         const key = String(args.key ?? '');
         if (!data || !signature || !key) {
-          return err('aumos_verify: "data", "signature", and "key" are required');
+          return err('warrantor_verify: "data", "signature", and "key" are required');
         }
         if (!isStandalone) {
           try {
@@ -669,10 +669,10 @@ export async function CallTool(
             if (result.code === 1 && /^valid=false(?:\s|$)/im.test(result.stdout)) {
               return ok({ valid: false, source: 'trust-core', reason: 'signature_did_not_verify' });
             }
-            if (result.code !== 0) return cliFailure('aumos_verify', 'trust-core', result);
+            if (result.code !== 0) return cliFailure('warrantor_verify', 'trust-core', result);
             throw new InvalidControlResponse('trust-core', 'verify output is missing a canonical valid field');
           } catch (cause) {
-            return dependencyFailure('aumos_verify', 'trust-core', cause);
+            return dependencyFailure('warrantor_verify', 'trust-core', cause);
           }
         }
         // Mock verification: a signature produced by mockSignature(data, keyId) verifies iff
@@ -682,9 +682,9 @@ export async function CallTool(
       }
 
       // --- I1 agent-identity ------------------------------------------------
-      case 'aumos_issue_identity': {
+      case 'warrantor_issue_identity': {
         const subject = String(args.subject ?? '');
-        if (!subject) return err('aumos_issue_identity: "subject" is required');
+        if (!subject) return err('warrantor_issue_identity: "subject" is required');
         const body = {
           subject,
           audience: String(args.audience ?? ''),
@@ -702,15 +702,15 @@ export async function CallTool(
             requireNumberField(response, 'expires_at', 'agent-identity');
             return ok({ ...response, source: 'agent-identity' });
           } catch (cause) {
-            return dependencyFailure('aumos_issue_identity', 'agent-identity', cause);
+            return dependencyFailure('warrantor_issue_identity', 'agent-identity', cause);
           }
         }
         return ok({ source: 'mock', ...mockIssueIdentity(subject) });
       }
 
-      case 'aumos_verify_identity': {
+      case 'warrantor_verify_identity': {
         const svid = String(args.svid ?? '');
-        if (!svid) return err('aumos_verify_identity: "svid" is required');
+        if (!svid) return err('warrantor_verify_identity: "svid" is required');
         const body = { svid, audience: String(args.audience ?? '') };
         if (!isStandalone) {
           try {
@@ -721,15 +721,15 @@ export async function CallTool(
             requireBooleanField(response, 'valid', 'agent-identity');
             return ok({ ...response, source: 'agent-identity' });
           } catch (cause) {
-            return dependencyFailure('aumos_verify_identity', 'agent-identity', cause);
+            return dependencyFailure('warrantor_verify_identity', 'agent-identity', cause);
           }
         }
         return ok({ valid: svid.startsWith('svid-mock-'), subject: extractMockSubject(svid), source: 'mock' });
       }
 
-      case 'aumos_revoke_identity': {
+      case 'warrantor_revoke_identity': {
         const jti = String(args.jti ?? '');
-        if (!jti) return err('aumos_revoke_identity: "jti" is required');
+        if (!jti) return err('warrantor_revoke_identity: "jti" is required');
         const body = { jti, reason: String(args.reason ?? '') };
         if (!isStandalone) {
           try {
@@ -740,18 +740,18 @@ export async function CallTool(
             requireBooleanField(response, 'revoked', 'agent-identity');
             return ok({ ...response, source: 'agent-identity' });
           } catch (cause) {
-            return dependencyFailure('aumos_revoke_identity', 'agent-identity', cause);
+            return dependencyFailure('warrantor_revoke_identity', 'agent-identity', cause);
           }
         }
         return ok({ revoked: true, revoked_at: Math.floor(Date.now() / 1000), source: 'mock' });
       }
 
       // --- E1 flight-recorder ----------------------------------------------
-      case 'aumos_emit_receipt': {
+      case 'warrantor_emit_receipt': {
         const actor = String(args.actor ?? '');
         const tool = String(args.tool ?? '');
         const outcome = String(args.outcome ?? 'pending');
-        if (!actor || !tool) return err('aumos_emit_receipt: "actor" and "tool" are required');
+        if (!actor || !tool) return err('warrantor_emit_receipt: "actor" and "tool" are required');
         const inputsHash = String(args.inputs_hash ?? '');
         const payload = {
           actor, tool, outcome,
@@ -769,15 +769,15 @@ export async function CallTool(
             requireStringField(response, 'signature', 'flight-recorder');
             return ok({ ...response, source: 'flight-recorder', invariant: 'I-07' });
           } catch (cause) {
-            return dependencyFailure('aumos_emit_receipt', 'flight-recorder', cause);
+            return dependencyFailure('warrantor_emit_receipt', 'flight-recorder', cause);
           }
         }
         return ok({ source: 'mock', ...mockReceipt(payload), invariant: 'I-07' });
       }
 
-      case 'aumos_verify_receipt': {
+      case 'warrantor_verify_receipt': {
         const receiptId = String(args.receipt_id ?? '');
-        if (!receiptId) return err('aumos_verify_receipt: "receipt_id" is required');
+        if (!receiptId) return err('warrantor_verify_receipt: "receipt_id" is required');
         const signature = String(args.signature ?? '');
         if (!isStandalone) {
           try {
@@ -791,14 +791,14 @@ export async function CallTool(
             requireBooleanField(response, 'valid', 'flight-recorder');
             return ok({ ...response, source: 'flight-recorder' });
           } catch (cause) {
-            return dependencyFailure('aumos_verify_receipt', 'flight-recorder', cause);
+            return dependencyFailure('warrantor_verify_receipt', 'flight-recorder', cause);
           }
         }
         return ok({ valid: receiptId.startsWith('aar-'), signer: 'spiffe://muveraai.com/flight-recorder', source: 'mock' });
       }
 
       // --- C1-1 nvtrust-bridge ---------------------------------------------
-      case 'aumos_check_attestation': {
+      case 'warrantor_check_attestation': {
         const nonce = String(args.nonce ?? randomUUID());
         const gpu = String(args.gpu_pci_id ?? '');
         const payload = { nonce, gpu_pci_id: gpu };
@@ -811,16 +811,16 @@ export async function CallTool(
             requireBooleanField(response, 'verified', 'nvtrust-bridge');
             return ok({ ...response, source: 'nvtrust-bridge' });
           } catch (cause) {
-            return dependencyFailure('aumos_check_attestation', 'nvtrust-bridge', cause);
+            return dependencyFailure('warrantor_check_attestation', 'nvtrust-bridge', cause);
           }
         }
         return ok({ source: 'mock', ...mockAttestation(nonce, gpu) });
       }
 
       // --- R2 eval-guard ----------------------------------------------------
-      case 'aumos_run_preflight': {
+      case 'warrantor_run_preflight': {
         const tool = String(args.tool ?? '');
-        if (!tool) return err('aumos_run_preflight: "tool" is required');
+        if (!tool) return err('warrantor_run_preflight: "tool" is required');
         const sideEffect = String(args.side_effect ?? 'read');
         const payload = { tool, inputs: String(args.inputs ?? '{}'), side_effect: sideEffect };
         if (!isStandalone) {
@@ -832,17 +832,17 @@ export async function CallTool(
             requireBooleanField(response, 'allowed', 'eval-guard');
             return ok({ ...response, source: 'eval-guard' });
           } catch (cause) {
-            return dependencyFailure('aumos_run_preflight', 'eval-guard', cause);
+            return dependencyFailure('warrantor_run_preflight', 'eval-guard', cause);
           }
         }
         return ok({ source: 'mock', ...mockPreflight(tool, sideEffect) });
       }
 
       // --- R3 kill-switch ---------------------------------------------------
-      case 'aumos_kill': {
+      case 'warrantor_kill': {
         const reason = String(args.reason ?? '');
         const agent = String(args.agent ?? 'spiffe://muveraai.com/agent/default');
-        if (!reason) return err('aumos_kill: "reason" is required');
+        if (!reason) return err('warrantor_kill: "reason" is required');
         const payload = { reason, agent };
         if (!isStandalone) {
           try {
@@ -853,14 +853,14 @@ export async function CallTool(
             requireBooleanField(response, 'triggered', 'kill-switch');
             return ok({ ...response, source: 'kill-switch' });
           } catch (cause) {
-            return dependencyFailure('aumos_kill', 'kill-switch', cause);
+            return dependencyFailure('warrantor_kill', 'kill-switch', cause);
           }
         }
         return ok({ triggered: true, killed_at: Math.floor(Date.now() / 1000), reason, agent, source: 'mock' });
       }
 
       // --- R4 credential-vault ---------------------------------------------
-      case 'aumos_scan_secrets': {
+      case 'warrantor_scan_secrets': {
         const text = String(args.text ?? '');
         if (!isStandalone) {
           try {
@@ -871,7 +871,7 @@ export async function CallTool(
             const findings = requireArrayField(response, 'findings', 'credential-vault');
             return ok({ ...response, findings, count: findings.length, source: 'credential-vault' });
           } catch (cause) {
-            return dependencyFailure('aumos_scan_secrets', 'credential-vault', cause);
+            return dependencyFailure('warrantor_scan_secrets', 'credential-vault', cause);
           }
         }
         const findings = mockScanSecrets(text);
@@ -879,18 +879,18 @@ export async function CallTool(
       }
 
       // --- X1 defstack-cli --------------------------------------------------
-      case 'aumos_compliance_report': {
+      case 'warrantor_compliance_report': {
         const scope = String(args.scope ?? 'soc2');
         const format = String(args.format ?? 'json');
         if (!isStandalone) {
           if (format !== 'json') {
-            return err('aumos_compliance_report: defstack supports JSON output in connected mode', {
+            return err('warrantor_compliance_report: defstack supports JSON output in connected mode', {
               code: 'INVALID_ARGUMENT',
             });
           }
           try {
             const result = await exec(cfg.defstackBin, ['compliance-report', '--model', scope]);
-            if (result.code !== 0) return cliFailure('aumos_compliance_report', 'defstack', result);
+            if (result.code !== 0) return cliFailure('warrantor_compliance_report', 'defstack', result);
             if (!result.stdout.trim()) {
               throw new InvalidControlResponse('defstack', 'compliance-report output is empty');
             }
@@ -901,40 +901,40 @@ export async function CallTool(
             }
             return ok({ report_json: result.stdout.trim(), format: 'json', source: 'defstack' });
           } catch (cause) {
-            return dependencyFailure('aumos_compliance_report', 'defstack', cause);
+            return dependencyFailure('warrantor_compliance_report', 'defstack', cause);
           }
         }
         return ok({ ...mockComplianceReport(scope), source: 'mock' });
       }
 
-      case 'aumos_install': {
+      case 'warrantor_install': {
         const compName = String(args.name ?? '');
-        if (!compName) return err('aumos_install: "name" is required');
+        if (!compName) return err('warrantor_install: "name" is required');
         const version = args.version ? String(args.version) : 'latest';
         if (!isStandalone) {
           if (args.version) {
-            return err('aumos_install: the connected defstack CLI does not support version pinning', {
+            return err('warrantor_install: the connected defstack CLI does not support version pinning', {
               code: 'INVALID_ARGUMENT',
             });
           }
           try {
             const result = await exec(cfg.defstackBin, ['install', compName]);
-            if (result.code !== 0) return cliFailure('aumos_install', 'defstack', result);
+            if (result.code !== 0) return cliFailure('warrantor_install', 'defstack', result);
             if (!result.stdout.trim()) {
               throw new InvalidControlResponse('defstack', 'install output is empty');
             }
             return ok({ installed: true, name: compName, version, source: 'defstack', stdout: result.stdout.trim() });
           } catch (cause) {
-            return dependencyFailure('aumos_install', 'defstack', cause);
+            return dependencyFailure('warrantor_install', 'defstack', cause);
           }
         }
         return ok({ installed: true, name: compName, version, source: 'mock' });
       }
 
       // --- S4 model-sbom ----------------------------------------------------
-      case 'aumos_generate_sbom': {
+      case 'warrantor_generate_sbom': {
         const model = String(args.model ?? '');
-        if (!model) return err('aumos_generate_sbom: "model" is required');
+        if (!model) return err('warrantor_generate_sbom: "model" is required');
         const format = String(args.format ?? 'cyclonedx');
         if (!isStandalone) {
           try {
@@ -945,16 +945,16 @@ export async function CallTool(
             requirePresentField(response, 'sbom', 'model-sbom');
             return ok({ ...response, source: 'model-sbom' });
           } catch (cause) {
-            return dependencyFailure('aumos_generate_sbom', 'model-sbom', cause);
+            return dependencyFailure('warrantor_generate_sbom', 'model-sbom', cause);
           }
         }
         return ok({ source: 'mock', ...mockSbom(model) });
       }
 
       // --- A1 safe-eval -----------------------------------------------------
-      case 'aumos_run_eval': {
+      case 'warrantor_run_eval': {
         const model = String(args.model ?? '');
-        if (!model) return err('aumos_run_eval: "model" is required');
+        if (!model) return err('warrantor_run_eval: "model" is required');
         const pipeline = String(args.pipeline_yaml ?? '');
         const payload = { model, pipeline_yaml: pipeline };
         if (!isStandalone) {
@@ -968,7 +968,7 @@ export async function CallTool(
             requirePresentField(response, 'veb', 'safe-eval');
             return ok({ ...response, source: 'safe-eval' });
           } catch (cause) {
-            return dependencyFailure('aumos_run_eval', 'safe-eval', cause);
+            return dependencyFailure('warrantor_run_eval', 'safe-eval', cause);
           }
         }
         return ok({ source: 'mock', ...mockEval(model, pipeline) });
