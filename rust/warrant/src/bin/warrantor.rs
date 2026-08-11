@@ -346,23 +346,84 @@ fn cmd_report(args: &Args, store: &WarrantStore) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// A performer that does not perform anything.
+/// Refuses every effect, naming what is missing.
 ///
-/// The GitHub adapter (W9) is not built. Rather than silently pretending effects were released,
-/// this refuses, so `settle` reports an honest boundary instead of claiming a pull request exists.
-struct UnimplementedPerformer;
+/// Used when no adapter can be constructed. Refusing rather than pretending is the whole point:
+/// a settle that silently reported success would be the worst possible failure for a tool whose
+/// claim is that you can trust what it tells you.
+struct NoAdapter {
+    reason: String,
+}
 
-impl EffectPerformer for UnimplementedPerformer {
+impl EffectPerformer for NoAdapter {
     fn perform(
         &mut self,
         effect: &StagedEffect,
         _resolved: &BTreeMap<String, String>,
     ) -> Result<String, String> {
         Err(format!(
-            "no adapter is registered for {}; the effect remains staged and was NOT performed",
-            effect.tool
+            "{} was not performed: {}. The effect remains staged.",
+            effect.tool, self.reason
         ))
     }
+}
+
+/// A real HTTPS transport for the GitHub API.
+///
+/// The token is read here, in the settling process. The agent never runs in this process, so it
+/// cannot read the token out of memory, and by construction it never had it.
+struct HttpsGitHub {
+    token: String,
+    agent: ureq::Agent,
+}
+
+impl warrantor_warrant::adapters::github::GitHubTransport for HttpsGitHub {
+    fn post(&mut self, path: &str, body: &str) -> Result<String, String> {
+        let response = self
+            .agent
+            .post(&format!("https://api.github.com{path}"))
+            .set("authorization", &format!("Bearer {}", self.token))
+            .set("accept", "application/vnd.github+json")
+            .set("user-agent", "warrantor")
+            .send_string(body);
+        match response {
+            Ok(ok) => ok.into_string().map_err(|e| format!("read response: {e}")),
+            // Report the status, never the body: a GitHub error body can echo the request, and
+            // the request may contain the developer's content.
+            Err(ureq::Error::Status(code, _)) => Err(format!("GitHub returned HTTP {code}")),
+            Err(other) => Err(format!("GitHub request failed: {other}")),
+        }
+    }
+}
+
+/// Build the performer for a settle: the real adapter when configured, an honest refusal otherwise.
+fn build_performer() -> Box<dyn EffectPerformer> {
+    let Ok(slug) = std::env::var("WARRANTOR_GITHUB_REPO") else {
+        return Box::new(NoAdapter {
+            reason: "set WARRANTOR_GITHUB_REPO=owner/repo to enable the GitHub adapter".to_string(),
+        });
+    };
+    let Ok(token) = std::env::var("WARRANTOR_GITHUB_TOKEN") else {
+        return Box::new(NoAdapter {
+            reason: "set WARRANTOR_GITHUB_TOKEN to enable the GitHub adapter".to_string(),
+        });
+    };
+    let Some((owner, repo)) = slug.split_once('/') else {
+        return Box::new(NoAdapter {
+            reason: format!("WARRANTOR_GITHUB_REPO={slug:?} must look like owner/repo"),
+        });
+    };
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(30))
+        // A settle must not follow a redirect: the token would go to the redirect target.
+        .redirects(0)
+        .build();
+    Box::new(warrantor_warrant::adapters::github::GitHubAdapter::new(
+        HttpsGitHub { token, agent },
+        owner,
+        repo,
+    ))
 }
 
 fn print_settle_report(report: &SettleReport) {
@@ -402,13 +463,13 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     };
 
     let tree = worktree_of(&stored, id);
-    let mut performer = UnimplementedPerformer;
+    let mut performer = build_performer();
     match settle(
         &mut stored.warrant,
         &queue,
         tree.as_ref(),
         &settle_key.verifying_key(),
-        &mut performer,
+        performer.as_mut(),
     ) {
         Ok(report) => {
             print_settle_report(&report);

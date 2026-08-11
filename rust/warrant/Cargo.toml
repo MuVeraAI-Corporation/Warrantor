@@ -17,6 +17,7 @@ warrantor-trust-core = { path = "../trust-core" }
 warrantor-authority-spec = { path = "../authority-spec" }
 
 rand = "0.8"
+ureq = { version = "2", default-features = false, features = ["tls", "json"] }
 
 [[bin]]
 name = "warrantor"

@@ -28,6 +28,7 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
+pub mod adapters;
 pub mod settle;
 pub mod staging;
 pub mod store;
