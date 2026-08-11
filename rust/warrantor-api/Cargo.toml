@@ -12,7 +12,7 @@ build = "build.rs"
 [dependencies]
 prost = "0.13"
 prost-types = "0.13"
-tonic = "0.12"
+tonic = "0.14"
 serde.workspace = true
 
 [build-dependencies]
