@@ -10,6 +10,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"log"
@@ -17,6 +18,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,9 +33,88 @@ const (
 	defaultKeyFile  = "agent-identity-key.pem"
 )
 
+// Environment variables. Containers set environment, not flags: the Dockerfile's CMD is empty, so
+// anything that is flag-only can never be configured in a deployed container. Each of these is the
+// *default* for the matching flag, so an explicit flag still wins.
+const (
+	envTrustDomain = "AUMOS_TRUST_DOMAIN"
+	envAddr        = "AUMOS_IDENTITY_ADDR"
+	// envSigningKey carries a hex-encoded 32-byte Ed25519 seed. Every replica must be given the
+	// same value or they will reject each other's tokens.
+	envSigningKey = "AUMOS_IDENTITY_SIGNING_KEY"
+	// envSigningKeyFile points at a file containing that hex seed — the form to use with a
+	// mounted Kubernetes secret or a Vault agent sidecar, so the key never appears in `ps` output
+	// or in the pod's environment.
+	envSigningKeyFile = "AUMOS_IDENTITY_SIGNING_KEY_FILE"
+	// envAllowEphemeralKey must be set to "true" to start without shared key material. It exists
+	// so a single-replica dev run stays one command, while a replicated deployment that forgot to
+	// mount its key fails loudly at startup instead of silently failing ~2/3 of verifies.
+	envAllowEphemeralKey = "AUMOS_IDENTITY_ALLOW_EPHEMERAL_KEY"
+)
+
+// envOr returns the environment value for `key`, or `fallback` when it is unset or empty.
+func envOr(key, fallback string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// loadSigningSeed resolves the Ed25519 seed from the key file or the inline env var, in that
+// order. It returns (nil, nil) when neither is configured, meaning "generate an ephemeral key".
+func loadSigningSeed() ([]byte, error) {
+	if path := strings.TrimSpace(os.Getenv(envSigningKeyFile)); path != "" {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s=%s: %w", envSigningKeyFile, path, err)
+		}
+		return decodeSeed(strings.TrimSpace(string(raw)), envSigningKeyFile)
+	}
+	if inline := strings.TrimSpace(os.Getenv(envSigningKey)); inline != "" {
+		return decodeSeed(inline, envSigningKey)
+	}
+	return nil, nil
+}
+
+func decodeSeed(value, source string) ([]byte, error) {
+	seed, err := hex.DecodeString(value)
+	if err != nil {
+		return nil, fmt.Errorf("%s must be hex-encoded: %w", source, err)
+	}
+	if len(seed) != identity.SigningKeySeedLen {
+		return nil, fmt.Errorf("%s must decode to %d bytes, got %d",
+			source, identity.SigningKeySeedLen, len(seed))
+	}
+	return seed, nil
+}
+
+// newServiceFromEnv builds the service, choosing shared or ephemeral key material and refusing to
+// start ephemerally unless that was asked for explicitly.
+func newServiceFromEnv(trustDomain string) (*identity.Service, error) {
+	seed, err := loadSigningSeed()
+	if err != nil {
+		return nil, err
+	}
+	if seed != nil {
+		return identity.NewServiceWithSeed(trustDomain, seed)
+	}
+
+	allow, _ := strconv.ParseBool(os.Getenv(envAllowEphemeralKey))
+	if !allow {
+		return nil, fmt.Errorf(
+			"no signing key configured: set %s (path to a hex Ed25519 seed) or %s.\n"+
+				"Every replica must share this key -- without it each process signs with its own "+
+				"key and rejects tokens issued by its siblings.\n"+
+				"For a single-replica development run, set %s=true to accept a generated key.\n"+
+				"Generate one with: openssl rand -hex %d",
+			envSigningKeyFile, envSigningKey, envAllowEphemeralKey, identity.SigningKeySeedLen)
+	}
+	return identity.NewService(trustDomain)
+}
+
 func main() {
-	addr := flag.String("addr", ":8441", "listen address for the HTTP/JSON gateway")
-	trustDomain := flag.String("trust-domain", "muveraai.com", "SPIFFE trust domain")
+	addr := flag.String("addr", envOr(envAddr, ":8441"), "listen address for the HTTP/JSON gateway (env "+envAddr+")")
+	trustDomain := flag.String("trust-domain", envOr(envTrustDomain, "muveraai.com"), "SPIFFE trust domain (env "+envTrustDomain+")")
 	// H6: TLS flags.
 	tlsEnabled := flag.Bool("tls", false, "enable TLS (HTTPS) on the gateway (default: false, plaintext HTTP for backward compat)")
 	certFile := flag.String("cert", "", "path to TLS certificate PEM (when --tls; generated if empty)")
@@ -40,9 +122,14 @@ func main() {
 	tlsDNSName := flag.String("tls-dns-name", "localhost", "DNS name baked into a generated self-signed cert (when --tls without --cert/--key)")
 	flag.Parse()
 
-	svc, err := identity.NewService(*trustDomain)
+	svc, err := newServiceFromEnv(*trustDomain)
 	if err != nil {
-		log.Fatalf("agent-identity: construct service: %v", err)
+		log.Fatalf("agent-identity: %v", err)
+	}
+	if svc.HasEphemeralKey() {
+		log.Printf("agent-identity: WARNING: using a generated signing key. This process cannot be "+
+			"replicated -- tokens it issues will be rejected by any sibling. Set %s for a real deployment.",
+			envSigningKeyFile)
 	}
 	gw := identity.NewHTTPGateway(svc)
 	h := gw.Handler()

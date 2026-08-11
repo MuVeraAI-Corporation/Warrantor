@@ -28,6 +28,20 @@ agentIdentity:
   replicas: 3
   service:
     port: 8441
+  # Shared Ed25519 signing key. EVERY replica must sign with the same key, or a token issued by
+  # one pod is rejected by the other two. Create the secret out-of-band (it is key material, so it
+  # does not belong in values.yaml or in git):
+  #
+  #   kubectl create secret generic agent-identity-signing-key \
+  #     --from-literal=seed="$(openssl rand -hex 32)"
+  #
+  # The chart refuses to render with replicas > 1 unless secretName is set.
+  signingKey:
+    secretName: ""
+    secretKey: seed
+    # Set true ONLY for a single-replica development install: each pod then generates its own
+    # key, which is safe exactly because there is no sibling to disagree with.
+    allowEphemeral: false
   resources:
     requests: { cpu: 100m, memory: 64Mi }
     limits: { cpu: 300m, memory: 256Mi }

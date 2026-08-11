@@ -18,6 +18,22 @@
 -}}
 {{- if $svc.enabled }}
 {{- $port := int (dig "port" 8080 (default (dict) $svc.service)) }}
+{{- /*
+  agent-identity signs every SVID with an Ed25519 key. If each replica generates its own, tokens
+  issued by one pod fail verification at the other two -- roughly 2/3 of verifies fail, and
+  revocation never propagates past the pod that recorded it. Fail rendering rather than ship that.
+*/ -}}
+{{- $signingKey := dict }}
+{{- if eq $name "agent-identity" }}
+  {{- $signingKey = default (dict) $svc.signingKey }}
+  {{- $replicas := int ($svc.replicas | default 2) }}
+  {{- if and (gt $replicas 1) (not $signingKey.secretName) }}
+    {{- fail (printf "agentIdentity.replicas is %d but agentIdentity.signingKey.secretName is unset. Replicas must share one signing key or they will reject each other's tokens. Create the secret (see values.yaml) and set signingKey.secretName, or set agentIdentity.replicas=1." $replicas) }}
+  {{- end }}
+  {{- if and (not $signingKey.secretName) (not $signingKey.allowEphemeral) }}
+    {{- fail "agentIdentity.signingKey.secretName is unset. Set it, or set agentIdentity.signingKey.allowEphemeral=true for a single-replica development install." }}
+  {{- end }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -54,6 +70,23 @@ spec:
               value: {{ $.Values.global.logLevel | quote }}
             - name: AUMOS_TRUST_DOMAIN
               value: {{ $.Values.global.trustDomain | quote }}
+          {{- if eq $name "agent-identity" }}
+            {{- if $signingKey.secretName }}
+            # Mounted as a file rather than an inline env value so the key never appears in the
+            # pod spec, in `kubectl describe`, or in the process environment.
+            - name: AUMOS_IDENTITY_SIGNING_KEY_FILE
+              value: /etc/aumos/identity/{{ $signingKey.secretKey | default "seed" }}
+            {{- else }}
+            - name: AUMOS_IDENTITY_ALLOW_EPHEMERAL_KEY
+              value: "true"
+            {{- end }}
+          {{- end }}
+          {{- if and (eq $name "agent-identity") $signingKey.secretName }}
+          volumeMounts:
+            - name: identity-signing-key
+              mountPath: /etc/aumos/identity
+              readOnly: true
+          {{- end }}
           {{- if $svc.service }}
           ports:
             - containerPort: {{ $port }}
@@ -72,6 +105,13 @@ spec:
             periodSeconds: 20
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
+      {{- if and (eq $name "agent-identity") $signingKey.secretName }}
+      volumes:
+        - name: identity-signing-key
+          secret:
+            secretName: {{ $signingKey.secretName | quote }}
+            defaultMode: 0400
+      {{- end }}
       topologySpreadConstraints:
         - maxSkew: {{ $.Values.topologySpread.maxSkew }}
           topologyKey: {{ $.Values.topologySpread.topologyKey }}
