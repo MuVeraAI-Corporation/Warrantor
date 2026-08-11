@@ -29,10 +29,12 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Literal, Protocol, runtime_checkable
+from pathlib import Path
+from typing import IO, Any, Literal, Protocol, runtime_checkable
 
 RunMode = Literal["standalone", "mock"]
 
@@ -168,6 +170,8 @@ class AttestedVLLMServer:
         host:               bind host for the OpenAI-compatible API.
         attestation_backend: label placed in the attestation envelope.
         request_timeout_s:  per-probe timeout for ``health_check``.
+        log_dir:            directory for the vLLM server log. ``None`` uses a
+                            per-instance temporary directory.
     """
 
     mode: RunMode = "mock"
@@ -175,12 +179,15 @@ class AttestedVLLMServer:
     host: str = "127.0.0.1"
     attestation_backend: str = "mock"
     request_timeout_s: float = 5.0
+    log_dir: str | None = None
     # Operator-supplied platform verifier. REQUIRED for any non-mock backend.
     quote_collector: QuoteCollector | None = None
     # Populated by start()
     _model_path: str = ""
     _gpu_attestation_required: bool = False
     _process: subprocess.Popen | None = None
+    _log_path: Path | None = None
+    _log_handle: IO[bytes] | None = None
     _started_at: float = 0.0
     _envelope: AttestationEnvelope | None = None
     _instance_nonce: str = field(default_factory=lambda: secrets.token_hex(16))
@@ -217,20 +224,20 @@ class AttestedVLLMServer:
 
         self._envelope = self._collect_attestation()
 
-    def _start_standalone(self) -> None:
-        """Spawn ``python -m vllm.entrypoints.openai.api_server``."""
-        if shutil.which("python") is None and sys.executable == "":
-            raise RuntimeError("no python interpreter available to launch vllm")
-        # We import-test vllm via the subprocess module so this package does
-        # NOT add vllm as a hard dependency.
+    def _vllm_importable(self) -> bool:
+        """Import-test vllm in a subprocess so this package does NOT take vllm
+        as a hard dependency. Overridable for tests."""
         probe = subprocess.run(
             [sys.executable, "-c", "import vllm"],
             capture_output=True,
             check=False,
         )
-        if probe.returncode != 0:
-            raise RuntimeError("vllm is not installed; install it or use mode='mock'")
-        cmd = [
+        return probe.returncode == 0
+
+    def _build_command(self) -> list[str]:
+        """The argv used to launch vLLM. Overridable so tests can drive the
+        real spawn/redirect path without installing vllm."""
+        return [
             sys.executable,
             "-m",
             "vllm.entrypoints.openai.api_server",
@@ -241,16 +248,62 @@ class AttestedVLLMServer:
             "--port",
             str(self.port),
         ]
-        # Subprocess args are all controlled (no shell). Suppressed S603 accordingly.
-        self._process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+
+    def _start_standalone(self) -> None:
+        """Spawn ``python -m vllm.entrypoints.openai.api_server``."""
+        if shutil.which("python") is None and sys.executable == "":
+            raise RuntimeError("no python interpreter available to launch vllm")
+        if not self._vllm_importable():
+            raise RuntimeError("vllm is not installed; install it or use mode='mock'")
+        cmd = self._build_command()
+        # vLLM writes a large volume of progress output while loading weights.
+        # Piping it without a reader would fill the OS pipe buffer (as little as
+        # 4 KiB on some platforms) and block the child forever, so the server
+        # would never finish binding its port. Redirect to a file instead: the
+        # kernel never blocks the writer, and the output stays available for
+        # diagnosing startup failures.
+        base = Path(self.log_dir) if self.log_dir else Path(tempfile.gettempdir())
+        base.mkdir(parents=True, exist_ok=True)
+        self._log_path = base / f"vllm-{self.port}-{self._instance_nonce}.log"
+        self._log_handle = self._log_path.open("wb")
+        try:
+            # Subprocess args are all controlled (no shell). Suppressed S603 accordingly.
+            self._process = subprocess.Popen(
+                cmd,
+                stdout=self._log_handle,
+                stderr=subprocess.STDOUT,
+            )
+        except OSError:
+            self._close_log()
+            raise
 
     def _start_mock(self) -> None:
         """In mock mode there is no real subprocess; we just mark started."""
         self._process = None  # type: ignore[assignment]
+
+    def _close_log(self) -> None:
+        """Close the server log handle. The file itself is left on disk."""
+        handle = self._log_handle
+        self._log_handle = None
+        if handle is not None:
+            handle.close()
+
+    @property
+    def server_log_path(self) -> Path | None:
+        """Path to this instance's vLLM log, or ``None`` in mock mode."""
+        return self._log_path
+
+    def read_server_log(self, max_bytes: int = 8192) -> str:
+        """Return the tail of the server log — the first place to look when
+        ``start`` succeeds but the server never becomes healthy."""
+        path = self._log_path
+        if path is None or not path.exists():
+            return ""
+        with path.open("rb") as handle:
+            handle.seek(0, 2)
+            size = handle.tell()
+            handle.seek(max(0, size - max_bytes))
+            return handle.read().decode("utf-8", errors="replace")
 
     def stop(self) -> None:
         """Terminate the server (if running). Safe to call when not started."""
@@ -262,6 +315,7 @@ class AttestedVLLMServer:
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait()
+        self._close_log()
         self._process = None
         self._envelope = None
         self._started_at = 0.0
@@ -334,7 +388,13 @@ class AttestedVLLMServer:
             return True, "mock server up"
         proc = self._process
         if proc is None or proc.poll() is not None:
-            return False, "vllm subprocess not running"
+            detail = "vllm subprocess not running"
+            if proc is not None:
+                detail = f"{detail} (exit={proc.returncode})"
+            tail = self.read_server_log(max_bytes=2048).strip()
+            if tail:
+                detail = f"{detail}; last log output:\n{tail}"
+            return False, detail
         # In standalone mode we'd issue an HTTP request here. We use the
         # standard library only to avoid a hard dep on ``requests``.
         import urllib.request
