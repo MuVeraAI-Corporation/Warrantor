@@ -11,8 +11,9 @@ from pathlib import Path
 import pytest
 
 from warrantor_ocsf import (
+    ACTIVITY_OTHER,
+    ACTIVITY_UNKNOWN,
     CLASS_API_ACTIVITY,
-    CLASS_SECURITY_RESPONSE,
     SEVERITY_CRITICAL,
     SEVERITY_HIGH,
     SEVERITY_INFO,
@@ -41,7 +42,9 @@ def test_convert_basic_aar() -> None:
     ocsf = convert_aar_to_ocsf(aar)
     assert ocsf["class_uid"] == CLASS_API_ACTIVITY
     assert ocsf["category_uid"] == 6
-    assert ocsf["activity_id"] == 1
+    # This AAR carries no side_effect_class, so the activity is genuinely unknown --
+    # not "Create", which is what the hard-coded 1 used to claim for every event.
+    assert ocsf["activity_id"] == ACTIVITY_UNKNOWN
     assert ocsf["severity_id"] == SEVERITY_INFO
     assert ocsf["actor"]["user"]["uid"] == "alice"
     assert ocsf["api"]["operation"] == "calc"
@@ -49,7 +52,8 @@ def test_convert_basic_aar() -> None:
     assert ocsf["api"]["request"]["data"] == {"x": 1}
     assert ocsf["api"]["response"]["data"] == {"y": 2}
     assert ocsf["status"] == "Success"
-    assert ocsf["time"] == 1700000000
+    # OCSF timestamp_t is milliseconds, not seconds.
+    assert ocsf["time"] == 1700000000 * 1000
 
 
 def test_convert_secret_finding_marks_high_severity() -> None:
@@ -67,7 +71,12 @@ def test_convert_secret_finding_marks_high_severity() -> None:
     assert "AWS Access Key" in ocsf["message"]
 
 
-def test_convert_kill_switch_uses_class_6007() -> None:
+def test_convert_kill_switch_stays_api_activity_at_critical_severity() -> None:
+    """Kill-switch events are API Activity, flagged by severity.
+
+    They were previously emitted as class 6007 -- which is Scan Activity, a class that defines no
+    actor, api or resources attribute. The whole security payload was dropped by the schema.
+    """
     aar = {
         "aar_id": "r3",
         "identity": "alice",
@@ -77,12 +86,16 @@ def test_convert_kill_switch_uses_class_6007() -> None:
         "completed_at": 1.0,
     }
     ocsf = convert_aar_to_ocsf(aar)
-    assert ocsf["class_uid"] == CLASS_SECURITY_RESPONSE
+    assert ocsf["class_uid"] == CLASS_API_ACTIVITY
     assert ocsf["severity_id"] == SEVERITY_CRITICAL
-    assert ocsf["activity_id"] == 6  # Detect
+    # The payload the 6007 class would have discarded must still be present.
+    assert ocsf["actor"]["user"]["uid"] == "alice"
+    assert ocsf["api"]["operation"] == "danger"
+    assert ocsf["unmapped"]["kill_switch_triggered"] is True
 
 
-def test_convert_attestation_uses_authenticate_activity() -> None:
+def test_convert_attestation_uses_a_defined_activity_id() -> None:
+    """OCSF 6003 defines no Authenticate activity; 5 was invented and failed validation."""
     aar = {
         "aar_id": "r4",
         "identity": "node-1",
@@ -92,7 +105,7 @@ def test_convert_attestation_uses_authenticate_activity() -> None:
     }
     ocsf = convert_aar_to_ocsf(aar)
     assert ocsf["class_uid"] == CLASS_API_ACTIVITY
-    assert ocsf["activity_id"] == 5  # Authenticate
+    assert ocsf["activity_id"] == ACTIVITY_OTHER
 
 
 def test_convert_error_marks_failure() -> None:

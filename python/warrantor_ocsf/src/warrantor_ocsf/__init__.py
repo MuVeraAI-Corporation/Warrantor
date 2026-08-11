@@ -2,20 +2,33 @@
 
 Receives **AAR** (Agent Action Record) events from the E1 flight-recorder,
 converts them to the [OCSF](https://schema.ocsf.io/) (Open Cybersecurity
-Schema Framework) v1.1.0 format, and forwards them to one or more sinks
+Schema Framework) v1.9.0 format, and forwards them to one or more sinks
 (Splunk HEC, Elastic, Datadog, or a local JSONL file for testing).
 
-Mapping rules (per the OCSF schema):
+Every event is ``class_uid 6003`` (API Activity) in ``category_uid 6``
+(Application Activity). ``activity_id`` comes from the AAR's
+``side_effect_class`` and must be one of the six values OCSF defines for this
+class -- ``0`` Unknown, ``1`` Create, ``2`` Read, ``3`` Update, ``4`` Delete,
+``99`` Other:
 
-- AAR / generic agent activity  -> ``class_uid 6003`` (API Activity),
-  ``category_uid 6`` (Application Activity), ``activity_id 1`` (Access).
-- Kill-switch trigger           -> ``class_uid 6007`` (Web Resources Activity
-  extended for security response), ``severity_id 99`` (Critical) and
-  ``activity_id 6`` (Detect).
-- AAR with secret finding       -> ``class_uid 6003`` plus ``severity_id 90``
-  (High) and a ``resources`` entry describing the exposed secret type.
-- Attestation verification      -> ``class_uid 6003``, ``activity_id 5``
-  (Authenticate), with ``user`` reflecting the verified identity.
+- read / none            -> ``2`` (Read)
+- write / create/ append -> ``1`` (Create)
+- update / modify        -> ``3`` (Update)
+- delete / destroy       -> ``4`` (Delete)
+- attestation, anything else -> ``99`` (Other)
+
+Significance is carried by ``severity_id`` (OCSF: 1 Informational, 2 Low,
+3 Medium, 4 High, 5 Critical), not by the class:
+
+- kill-switch trigger  -> ``5`` (Critical)
+- secret finding       -> ``4`` (High), plus a ``resources`` entry naming the
+  exposed credential type
+- tool error           -> ``3`` (Medium)
+- everything else      -> ``1`` (Informational)
+
+Events are validated against the published schema by
+``tools/audit/ocsf_validate.py``; ``tests/test_ocsf_schema.py`` pins the same
+invariants offline so CI does not depend on the network.
 
 Sinks implement the :class:`Sink` protocol: ``send(event: dict) -> bool``.
 This package ships two concrete sinks:
@@ -49,20 +62,49 @@ from typing import Any, Protocol, runtime_checkable
 # OCSF class/activity identifiers used by this forwarder.
 # ---------------------------------------------------------------------------
 CLASS_API_ACTIVITY = 6003  # API Activity
-CLASS_SECURITY_RESPONSE = 6007  # Security Response
 CATEGORY_APPLICATION = 6  # Application Activity
-ACTIVITY_ACCESS = 1
-ACTIVITY_AUTHENTICATE = 5
-ACTIVITY_DETECT = 6
 
-# OCSF severity_id mapping.
+# OCSF 6003 activity_id enum -- the ONLY values the schema defines. Every agent action is one of
+# these; there is no "Access" and no "Authenticate". Inventing members (this module previously used
+# 5 and 6) makes the event fail validation and land in the SIEM's parse-error queue.
+ACTIVITY_UNKNOWN = 0
+ACTIVITY_CREATE = 1
+ACTIVITY_READ = 2
+ACTIVITY_UPDATE = 3
+ACTIVITY_DELETE = 4
+ACTIVITY_OTHER = 99
+
+#: The AAR already carries the discriminator OCSF's enum wants. Use it rather than hard-coding.
+_ACTIVITY_BY_SIDE_EFFECT = {
+    "read": ACTIVITY_READ,
+    "none": ACTIVITY_READ,
+    "write": ACTIVITY_CREATE,
+    "create": ACTIVITY_CREATE,
+    "append": ACTIVITY_CREATE,
+    "update": ACTIVITY_UPDATE,
+    "modify": ACTIVITY_UPDATE,
+    "delete": ACTIVITY_DELETE,
+    "destroy": ACTIVITY_DELETE,
+}
+
+# OCSF severity_id enum (schema.ocsf.io): 0=Unknown, 1=Informational, 2=Low, 3=Medium, 4=High,
+# 5=Critical, 6=Fatal, 99=Other. The previous values (HIGH=3, LOW=99) meant a secret exposure was
+# reported as "Medium" -- indistinguishable from an ordinary tool error.
+SEVERITY_UNKNOWN = 0
 SEVERITY_INFO = 1
-SEVERITY_LOW = 99  # informational-low per OCSF v1.1; we use INFO=1 above
-SEVERITY_HIGH = 3
+SEVERITY_LOW = 2
+SEVERITY_MEDIUM = 3
+SEVERITY_HIGH = 4
 SEVERITY_CRITICAL = 5
-# (OCSF: 1=Info, 2=Low, 3=Medium, 4=High, 5=Critical, 6/Fatal)
 
-OCSF_VERSION = "1.1.0"
+#: The OCSF schema version these events declare in ``metadata.version``. Events are validated
+#: against this version by ``tools/audit/ocsf_validate.py``; declaring an older version than we
+#: actually target makes every consumer's validator emit version-skew warnings.
+OCSF_VERSION = "1.9.0"
+
+#: This forwarder's own version, reported as ``metadata.product.version``. Distinct from
+#: OCSF_VERSION: one describes the schema, the other the producer.
+PRODUCT_VERSION = "1.0.0"
 
 
 @runtime_checkable
@@ -77,10 +119,44 @@ class Sink(Protocol):
 # OCSF conversion
 # ---------------------------------------------------------------------------
 def _iso(ts: float) -> str:
-    """Render a unix timestamp as an ISO-8601 UTC string."""
+    """Render a unix timestamp (seconds) as an ISO-8601 UTC string."""
     if not ts:
         ts = time.time()
     return datetime.fromtimestamp(ts, tz=UTC).isoformat().replace("+00:00", "Z")
+
+
+def _coerce_ts(value: Any) -> float | None:
+    """Best-effort conversion of an AAR timestamp to unix seconds.
+
+    AARs reach us from several producers, and they do not agree on a format: the in-process
+    harness emits a float, while records replayed from the E1 log carry ISO-8601 strings. A bare
+    ``float()`` raised ValueError on the latter -- and because the conversion happened outside
+    ``forward``'s try block, one such record aborted an entire batch.
+
+    Returns ``None`` when the value is absent or uninterpretable, so the caller can fall back to
+    the current time rather than fail.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):  # bool is an int subclass; never a timestamp
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, datetime):
+        return value.timestamp()
+    text = str(value).strip()
+    try:
+        return float(text)
+    except ValueError:
+        pass
+    try:
+        # fromisoformat handles "+00:00"; normalise the "Z" suffix it rejects on older versions.
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.timestamp()
 
 
 def _pick_severity(aar: dict[str, Any]) -> int:
@@ -88,10 +164,27 @@ def _pick_severity(aar: dict[str, Any]) -> int:
     if aar.get("kill_switch_triggered"):
         return SEVERITY_CRITICAL
     if aar.get("secret_findings"):
+        # High, not Medium: a leaked credential must be distinguishable from a tool error.
         return SEVERITY_HIGH
     if aar.get("error"):
-        return 3  # medium
+        return SEVERITY_MEDIUM
     return SEVERITY_INFO
+
+
+def _pick_activity(aar: dict[str, Any]) -> int:
+    """Map an AAR to one of OCSF 6003's six defined activity_id values."""
+    if aar.get("action_type") == "attestation":
+        # OCSF 6003 has no Authenticate activity. "Other" is the honest mapping: calling an
+        # attestation verification a "Read" would mislabel a security control as a data access.
+        # Class 3002 (Authentication) is the correct long-term home for these events.
+        return ACTIVITY_OTHER
+    side_effect = str(aar.get("side_effect_class") or "").strip().lower()
+    if not side_effect:
+        # No side_effect_class at all: we have no information about what the action did. That is
+        # what OCSF's "Unknown" means -- distinct from "Other", which asserts the action does not
+        # fit any defined category.
+        return ACTIVITY_UNKNOWN
+    return _ACTIVITY_BY_SIDE_EFFECT.get(side_effect, ACTIVITY_OTHER)
 
 
 def _build_message(aar: dict[str, Any]) -> str:
@@ -123,18 +216,21 @@ def convert_aar_to_ocsf(aar: dict[str, Any]) -> dict[str, Any]:
         raise TypeError("aar must be a dict")
 
     aar_id = str(aar.get("aar_id") or aar.get("id") or uuid.uuid4().hex)
-    ts = float(aar.get("completed_at") or aar.get("timestamp") or time.time())
+    ts = _coerce_ts(aar.get("completed_at"))
+    if ts is None:
+        ts = _coerce_ts(aar.get("timestamp"))
+    if ts is None:
+        ts = time.time()
     severity = _pick_severity(aar)
 
-    # Kill-switch events upgrade to class 6007 (Security Response).
-    if aar.get("kill_switch_triggered"):
-        class_uid = CLASS_SECURITY_RESPONSE
-        activity_id = ACTIVITY_DETECT
-    else:
-        class_uid = CLASS_API_ACTIVITY
-        activity_id = (
-            ACTIVITY_AUTHENTICATE if aar.get("action_type") == "attestation" else ACTIVITY_ACCESS
-        )
+    # Every event is API Activity (6003). Kill-switch events were previously emitted as class
+    # 6007 -- which is Scan Activity, not "Security Response". That class defines no actor, api or
+    # resources attribute, so the entire security payload was silently discarded by the schema and
+    # the event failed validation for a missing `scan` object it could never have. A kill-switch
+    # trigger is an API action taken by an agent, so it belongs here, distinguished by Critical
+    # severity and the `is_alert` flag rather than by a class that does not describe it.
+    class_uid = CLASS_API_ACTIVITY
+    activity_id = _pick_activity(aar)
 
     identity = str(aar.get("identity") or "anonymous")
     action_name = str(aar.get("action_name") or aar.get("name") or "unknown")
@@ -152,8 +248,6 @@ def convert_aar_to_ocsf(aar: dict[str, Any]) -> dict[str, Any]:
         )
 
     event: dict[str, Any] = {
-        "$schema": "https://schema.ocsf.io/" + OCSF_VERSION,
-        "version": OCSF_VERSION,
         "class_uid": class_uid,
         "category_uid": CATEGORY_APPLICATION,
         "activity_id": activity_id,
@@ -161,21 +255,44 @@ def convert_aar_to_ocsf(aar: dict[str, Any]) -> dict[str, Any]:
         "severity_id": severity,
         "status": "Success" if not aar.get("error") else "Failure",
         "status_id": 1 if not aar.get("error") else 2,
-        "time": int(ts),
-        "time_dt": _iso(ts),
+        # OCSF timestamp_t is MILLISECONDS since the epoch. Emitting seconds put every event in
+        # January 1970, where retention rules and time-range searches never found them. Both time
+        # fields derive from the same `ts` so they cannot drift apart.
+        "time": int(ts * 1000),
         "message": _build_message(aar),
+        # What tells a SIEM "this one needs a human" is severity_id: Critical for a kill-switch
+        # trigger, High for a secret exposure. (OCSF's dedicated `is_alert` flag only exists from
+        # schema 1.2 onward, so it cannot be emitted while we declare 1.1.0.)
         "metadata": {
-            "product": {"name": "AumOS", "vendor_name": "MuVera AI"},
-            "version": "1.0.0",
-            "log_source": "warrantor.e1",
-            "original_time": aar_id,
+            # metadata.version is the OCSF *schema* version; the product's own version belongs
+            # under product.version. Conflating them told consumers we spoke schema 1.0.0.
+            "version": OCSF_VERSION,
+            "product": {
+                "name": "AumOS",
+                "vendor_name": "MuVera AI",
+                "version": PRODUCT_VERSION,
+            },
+            "log_name": "warrantor.e1",
+            # The AAR id is the correlation key back to the flight recorder. It was previously
+            # stuffed into `original_time`, which is neither valid here nor a time.
+            "uid": aar_id,
+            "correlation_uid": aar_id,
+            "logged_time": int(time.time() * 1000),
+            "original_time": _iso(ts),
         },
         "actor": {
             "user": {
                 "uid": identity,
                 "name": identity,
             },
-            "invoked_by": "warrantor-agent",
+            # `actor.app_name` is deprecated as of OCSF 1.9 in favour of `actor.application`.
+            "application": {"name": "warrantor-agent"},
+        },
+        # src_endpoint is required by the class. We do not observe a network peer for an
+        # in-process agent action, so name the producing component rather than omit the field.
+        "src_endpoint": {
+            "svc_name": "warrantor-agent",
+            "hostname": str(aar.get("host") or "localhost"),
         },
         "api": {
             "operation": action_name,
@@ -193,6 +310,8 @@ def convert_aar_to_ocsf(aar: dict[str, Any]) -> dict[str, Any]:
             "side_effect_class": side_effect,
             "started_at": aar.get("started_at"),
             "duration_ms": aar.get("duration_ms"),
+            "kill_switch_triggered": bool(aar.get("kill_switch_triggered")),
+            "action_type": aar.get("action_type"),
         },
     }
     return event
@@ -309,6 +428,10 @@ class ForwardStats:
     failed: int = 0
     #: Total per-sink rejections and exceptions, counted even when another sink succeeded.
     sink_failures: int = 0
+    #: Events that could not be converted to OCSF at all. These never reached a sink, so they are
+    #: invisible in ``sink_failures``; a non-zero value here means AARs are being dropped upstream
+    #: of delivery.
+    conversion_failures: int = 0
     #: A bounded sample of recent per-sink failure descriptions, for diagnosis.
     recent_sink_errors: list[str] = field(default_factory=list)
 
@@ -342,7 +465,23 @@ class OCSFForwarder:
         Returns ``True`` if at least one sink accepted the event, ``False``
         otherwise (including when no sinks are registered).
         """
-        ocsf = convert_aar_to_ocsf(aar_event)
+        # Conversion runs inside the accounting path. It used to happen before it, so a single
+        # malformed AAR raised straight out of forward(), aborted the enclosing batch_forward
+        # loop, and left every remaining event undelivered AND uncounted -- stats reported a 100%
+        # success rate while most of the batch was lost. A record we cannot convert is a failure,
+        # not an absence.
+        try:
+            ocsf = convert_aar_to_ocsf(aar_event)
+        except Exception as error:
+            with self._lock:
+                self.stats.forwarded += 1
+                self.stats.failed += 1
+                self.stats.conversion_failures += 1
+                detail = f"convert: {type(error).__name__}: {error}"
+                if len(self.stats.recent_sink_errors) < _MAX_RECENT_SINK_ERRORS:
+                    self.stats.recent_sink_errors.append(detail)
+            return False
+
         any_ok = False
         failures: list[str] = []
         with self._lock:
@@ -380,7 +519,11 @@ class OCSFForwarder:
         return any_ok
 
     def batch_forward(self, events: list[dict[str, Any]]) -> int:
-        """Forward a batch. Returns the number of events accepted by >=1 sink."""
+        """Forward a batch. Returns the number of events accepted by >=1 sink.
+
+        Every event is attempted. One unconvertible record does not stop the rest: in a security
+        pipeline, a poison record must cost you that record, not the batch behind it.
+        """
         accepted = 0
         for event in events:
             if self.forward(event):
@@ -393,16 +536,22 @@ class OCSFForwarder:
 
 
 __all__ = [
-    "ACTIVITY_ACCESS",
-    "ACTIVITY_AUTHENTICATE",
-    "ACTIVITY_DETECT",
+    "ACTIVITY_CREATE",
+    "ACTIVITY_DELETE",
+    "ACTIVITY_OTHER",
+    "ACTIVITY_READ",
+    "ACTIVITY_UNKNOWN",
+    "ACTIVITY_UPDATE",
     "CATEGORY_APPLICATION",
     "CLASS_API_ACTIVITY",
-    "CLASS_SECURITY_RESPONSE",
     "OCSF_VERSION",
+    "PRODUCT_VERSION",
     "SEVERITY_CRITICAL",
     "SEVERITY_HIGH",
     "SEVERITY_INFO",
+    "SEVERITY_LOW",
+    "SEVERITY_MEDIUM",
+    "SEVERITY_UNKNOWN",
     "FileSink",
     "ForwardStats",
     "HTTPSink",
