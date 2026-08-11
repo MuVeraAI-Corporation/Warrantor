@@ -16,5 +16,8 @@ sha2 = "0.10"
 warrantor-trust-core = { path = "../trust-core" }
 warrantor-authority-spec = { path = "../authority-spec" }
 
-[dev-dependencies]
 rand = "0.8"
+
+[[bin]]
+name = "warrantor"
+path = "src/bin/warrantor.rs"

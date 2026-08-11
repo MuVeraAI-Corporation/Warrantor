@@ -28,6 +28,11 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
+pub mod settle;
+pub mod staging;
+pub mod store;
+pub mod worktree;
+
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
