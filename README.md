@@ -98,6 +98,25 @@ aumos/
 
 ## Quick start
 
+**See it do something first.** Two commands, no cloud account, no signup:
+
+```bash
+make sigstore-up     # local transparency log (MySQL + Trillian + Rekor, ~1GB)
+make demo            # sign an action, record it, verify the proof
+```
+
+`make demo` signs a payload, records it in the log, then **asks the log to prove the
+entry exists** — reading its answer rather than our own. It prints the inclusion proof,
+the log-signed timestamp, and the curl commands to check the result yourself.
+
+It also prints what was *not* proven. The log attests that a record exists at a point in
+time; it does not attest that the action described really happened. Binding a record to a
+real action is the agent runtime's job, and is where the remaining work is.
+
+If a dependency is missing, the demo names the exact command that fixes it and exits 2.
+
+### Then the gates
+
 ```bash
 # Prereqs: make, git, and the toolchains for the languages you'll touch
 make help            # list all targets
