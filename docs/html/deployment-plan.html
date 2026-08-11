@@ -934,7 +934,7 @@ defstack install incident-exchange retro-spec-kit metr-bridge</code></pre>
 <p>Modal is not Terraform-managed; each function is shipped with the Modal CLI. The scripts live under <code>deploy/modal/</code> and read configuration (endpoint URLs, SVID paths) from environment variables injected by the master workspace's <code>terraform output</code>.</p>
 <pre><code># deploy/modal/safe_eval.py (sketch)
 import modal
-app = modal.App("aumos-safe-eval")
+app = modal.App("warrantor-safe-eval")
 image = modal.Image.debian_slim().pip_install("helm","lm-eval","spiffe","requests")
 
 @app.function(image=image, gpu="a10g", timeout=3600)

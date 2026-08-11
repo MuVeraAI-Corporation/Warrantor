@@ -6,7 +6,7 @@
 Stand up the `rust/trust-core/` crate skeleton with CI, lint, formatting, and a smoke test.
 
 ## Steps
-1. Create `rust/trust-core/Cargo.toml` — crate name `aumos-trust-core`, edition 2021, `[lib]` +
+1. Create `rust/trust-core/Cargo.toml` — crate name `warrantor-trust-core`, edition 2021, `[lib]` +
    `[[bin]]` for the CLI.
 2. Add dependencies: `ed25519-dalek = "2"`, `serde_cbor = "0.12"`, `thiserror`, `zeroize`,
    `sigstore = "0.10"`, `clap = { version = "4", features = ["derive"] }`.

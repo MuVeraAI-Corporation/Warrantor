@@ -29,7 +29,7 @@ buf lint clean, cross-language conformance verified in Rust + Python + Go.
 The single most load-bearing Wave-2 result. The same Ed25519 signature in
 `testvectors/T1/sign-ed25519-conformance-001.json` verifies identically in:
 
-- ✅ Rust (`aumos-trust-core` CLI)
+- ✅ Rust (`warrantor-trust-core` CLI)
 - ✅ Python (`tools/conformance/verify_python.py` via cryptography/PyNaCl)
 - ✅ Go (`tools/conformance/verify_go.go` via `crypto/ed25519`)
 
@@ -40,7 +40,7 @@ This is the proof that the contract plane actually works across the language bou
 Documented in `docs/wave-2-integration-guide.md`. The 3 Wave-1 components that depended on mock
 I1 (R2 eval-guard, R3 kill-switch, R4 credential-vault) now have a real wire path to the Go
 I1 service at the HTTP/JSON endpoints defined in `go/agent-identity/service.go`. Type-stable:
-the Go service emits JSON shapes matching `aumos_api::identity::v1::*` exactly, so a future
+the Go service emits JSON shapes matching `warrantor_api::identity::v1::*` exactly, so a future
 `buf generate` swap to connect-go / tonic stubs is mechanical.
 
 ## What is explicitly NOT yet verified (deferred)

@@ -11,7 +11,7 @@ Add KMS-backed signing (AWS first), Sigstore Rekor transparency log, and the Pyt
 2. `src/rekor.rs` — `RekorClient` with `pub fn notarize(payload, sig) -> Result<RekorEntry>`.
 3. Wire `notarize` CLI subcommand.
 4. `bindings/python/` — PyO3 wrapper via `maturin`. Expose `sign`, `verify`, `canonical_cbor`,
-   `notarize`. Publishable as `aumos-trust-core` Python wheel (local only during Wave-1).
+   `notarize`. Publishable as `warrantor-trust-core` Python wheel (local only during Wave-1).
 5. Tests: mock KMS (use `aws-smithy-mocks-experimental`); Rekor integration test against the
    public Rekor instance (mark `#[ignore]` for offline CI).
 6. Add the first 5 golden vectors in `testvectors/T1/`: each is a `(payload, canonical_cbor,

@@ -29,7 +29,7 @@ Buf lint clean. Contract plane authoritative.
 
 - `buf lint` — clean (zero errors) on 4 proto packages: identity, trust, attestation, protocols.
 - `buf build` — succeeds.
-- `aumos-api` Rust crate — compiles the protos at build time via tonic-build; 2 smoke tests confirm the generated types are constructible. Every Wave-1 crate consumes `aumos-api` instead of redefining wire types (per cross-cutting 19 §10).
+- `warrantor-api` Rust crate — compiles the protos at build time via tonic-build; 2 smoke tests confirm the generated types are constructible. Every Wave-1 crate consumes `warrantor-api` instead of redefining wire types (per cross-cutting 19 §10).
 
 ## Gate scripts
 

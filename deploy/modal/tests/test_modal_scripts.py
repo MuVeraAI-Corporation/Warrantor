@@ -275,7 +275,7 @@ def test_safe_eval_app_uses_a10g_gpu(safe_eval_modal):
     apps = _MODAL_STATE["apps"]
     assert len(apps) == 1
     app = apps[0]
-    assert app.name.startswith("aumos-safe-eval")
+    assert app.name.startswith("warrantor-safe-eval")
     # The runner function requested the A10G GPU.
     assert any("run_safe_eval" in f for f in app.functions)
 
@@ -326,7 +326,7 @@ def test_adversaria_app_registered(adversaria_modal):
     apps = _MODAL_STATE["apps"]
     assert len(apps) == 1
     app = apps[0]
-    assert app.name.startswith("aumos-adversaria")
+    assert app.name.startswith("warrantor-adversaria")
     assert any("run_adversaria" in f for f in app.functions)
 
 

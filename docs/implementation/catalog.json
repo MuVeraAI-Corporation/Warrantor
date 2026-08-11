@@ -758,7 +758,7 @@
     },
     {
       "id": "SUP-01",
-      "name": "aumos-agent",
+      "name": "warrantor-agent",
       "kind": "support",
       "domain": "agent",
       "status": "partial",
@@ -770,7 +770,7 @@
     },
     {
       "id": "SUP-02",
-      "name": "aumos-harness",
+      "name": "warrantor-harness",
       "kind": "support",
       "domain": "runtime",
       "status": "partial",
@@ -782,7 +782,7 @@
     },
     {
       "id": "SUP-03",
-      "name": "aumos-vllm",
+      "name": "warrantor-vllm",
       "kind": "support",
       "domain": "inference",
       "status": "reference_implementation",
@@ -794,7 +794,7 @@
     },
     {
       "id": "SUP-04",
-      "name": "aumos-hf-plugin",
+      "name": "warrantor-hf-plugin",
       "kind": "support",
       "domain": "supply_chain",
       "status": "partial",
@@ -806,7 +806,7 @@
     },
     {
       "id": "SUP-05",
-      "name": "aumos-rbac",
+      "name": "warrantor-rbac",
       "kind": "support",
       "domain": "runtime",
       "status": "partial",
@@ -818,7 +818,7 @@
     },
     {
       "id": "SUP-06",
-      "name": "aumos-admission",
+      "name": "warrantor-admission",
       "kind": "support",
       "domain": "runtime",
       "status": "partial",
@@ -830,7 +830,7 @@
     },
     {
       "id": "SUP-07",
-      "name": "aumos-ocsf",
+      "name": "warrantor-ocsf",
       "kind": "support",
       "domain": "evidence",
       "status": "partial",
@@ -842,7 +842,7 @@
     },
     {
       "id": "SUP-08",
-      "name": "aumos-retention",
+      "name": "warrantor-retention",
       "kind": "support",
       "domain": "evidence",
       "status": "reference_implementation",
@@ -854,7 +854,7 @@
     },
     {
       "id": "SUP-09",
-      "name": "aumos-backup",
+      "name": "warrantor-backup",
       "kind": "support",
       "domain": "operations",
       "status": "partial",
@@ -866,7 +866,7 @@
     },
     {
       "id": "SUP-10",
-      "name": "aumos-langchain",
+      "name": "warrantor-langchain",
       "kind": "support",
       "domain": "integration",
       "status": "reference_implementation",
@@ -878,7 +878,7 @@
     },
     {
       "id": "SUP-11",
-      "name": "aumos-jira",
+      "name": "warrantor-jira",
       "kind": "support",
       "domain": "operations",
       "status": "reference_implementation",
@@ -890,7 +890,7 @@
     },
     {
       "id": "SUP-12",
-      "name": "aumos-sla",
+      "name": "warrantor-sla",
       "kind": "support",
       "domain": "operations",
       "status": "reference_implementation",

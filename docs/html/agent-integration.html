@@ -886,9 +886,9 @@ npx @warrantor/aumos-mcp-server --connected</code></pre>
 <section id="sdk">
   <span class="eyebrow">05 · Agent SDK Quick Start</span>
   <h2>The <code>@agent.action</code> Decorator</h2>
-  <p>The Python Agent SDK (<code>aumos-agent</code>) wraps any function with the full AumOS security envelope. The decorator is the headline: one line and your tool gets identity, preflight, credential brokering, a pre-commit receipt, evidence recording, and an automatic kill-switch on error.</p>
+  <p>The Python Agent SDK (<code>warrantor-agent</code>) wraps any function with the full AumOS security envelope. The decorator is the headline: one line and your tool gets identity, preflight, credential brokering, a pre-commit receipt, evidence recording, and an automatic kill-switch on error.</p>
 
-  <pre><code>from aumos_agent import AumOS
+  <pre><code>from warrantor_agent import AumOS
 
 agent = AumOS(mode="standalone")   # or mode="connected" against running services
 
@@ -976,9 +976,9 @@ class ActionResult:
 <section id="harness">
   <span class="eyebrow">06 · Harness Wrappers</span>
   <h2>Wrapping Agent Sessions with <code>secure_session()</code></h2>
-  <p>The harness (<code>aumos-harness</code>) is the perimeter layer. Where the SDK decorates individual functions, the harness wraps an <em>entire agent process</em>: every shell command it runs, every file it touches, every byte of stdout and stderr it emits. Use it when you launch a third-party agent binary (like <code>claude</code> or <code>codex</code>) and cannot modify its internals.</p>
+  <p>The harness (<code>warrantor-harness</code>) is the perimeter layer. Where the SDK decorates individual functions, the harness wraps an <em>entire agent process</em>: every shell command it runs, every file it touches, every byte of stdout and stderr it emits. Use it when you launch a third-party agent binary (like <code>claude</code> or <code>codex</code>) and cannot modify its internals.</p>
 
-  <pre><code>from aumos_harness import secure_session, HarnessConfig, AgentType
+  <pre><code>from warrantor_harness import secure_session, HarnessConfig, AgentType
 
 config = HarnessConfig(
     agent_type=AgentType.CLAUDE_CODE,
@@ -1077,7 +1077,7 @@ git, npm, cargo, python, go, make, npx
 
   <div class="config-template">
     <h5>tools/create_pr.py</h5>
-<pre><code>from aumos_agent import AumOS
+<pre><code>from warrantor_agent import AumOS
 
 agent = AumOS(mode="connected")
 
@@ -1128,7 +1128,7 @@ git, npm, cargo, python, go, make
   </div>
 
   <h3>2. Harness wrapping Codex commands</h3>
-  <pre><code>from aumos_harness import parse_codex_config, secure_session
+  <pre><code>from warrantor_harness import parse_codex_config, secure_session
 
 config = parse_codex_config(".")          # reads AGENTS.md
 config.kill_on_secret_exposure = True
@@ -1188,7 +1188,7 @@ Required:
   <h3>3. Require attestation flag</h3>
   <p>Cursor sessions tend to run with less supervision, so the harness treats the presence of a <code>.cursorrules</code> file as a signal to tighten policy. <code>parse_cursor_config()</code> sets <code>require_attestation=True</code>, which you can enforce in your session wrapper by rejecting any <code>run_agent()</code> receipt that lacks a valid signature:</p>
 
-  <pre><code>from aumos_harness import parse_cursor_config, secure_session
+  <pre><code>from warrantor_harness import parse_cursor_config, secure_session
 
 config = parse_cursor_config(".")            # sets require_attestation=True
 config.allowed_tools = ["git", "npm", "python"]
@@ -1298,19 +1298,19 @@ with secure_session(config) as session:
     </div>
     <div class="cmd-card">
       <div class="cmd-label">2 · Install the Agent SDK (Python custom tools)</div>
-      <pre><code>pip install aumos-agent</code></pre>
+      <pre><code>pip install warrantor-agent</code></pre>
     </div>
     <div class="cmd-card">
       <div class="cmd-label">3 · Install the harness (wrap agent processes)</div>
-      <pre><code>pip install aumos-harness</code></pre>
+      <pre><code>pip install warrantor-harness</code></pre>
     </div>
   </div>
 
   <h3>Thirty seconds to a secured action</h3>
-  <pre><code>pip install aumos-agent
+  <pre><code>pip install warrantor-agent
 
 python -c "
-from aumos_agent import AumOS
+from warrantor_agent import AumOS
 agent = AumOS(mode='standalone')
 
 @agent.action(tool='demo.hello', side_effect='read')
@@ -1447,10 +1447,10 @@ print('svid:   ', hello.action_result.svid)
   <h2>Reference</h2>
   <ul>
     <li>MCP server source: <code>typescript/aumos-mcp-server/src/index.ts</code> — 15 tools, JSON-RPC 2.0 over stdio.</li>
-    <li>Agent SDK source: <code>python/aumos_agent/src/aumos_agent/__init__.py</code> — <code>@agent.action</code> decorator and manual API.</li>
-    <li>Harness source: <code>python/aumos_harness/src/aumos_harness/__init__.py</code> — <code>secure_session()</code>, config parsers.</li>
+    <li>Agent SDK source: <code>python/warrantor_agent/src/warrantor_agent/__init__.py</code> — <code>@agent.action</code> decorator and manual API.</li>
+    <li>Harness source: <code>python/warrantor_harness/src/warrantor_harness/__init__.py</code> — <code>secure_session()</code>, config parsers.</li>
     <li>All packages: <code>github.com/MuVeraAI/aumos</code></li>
-    <li>MCP server npm: <code>@warrantor/aumos-mcp-server</code> &nbsp;·&nbsp; SDK pip: <code>aumos-agent</code> &nbsp;·&nbsp; Harness pip: <code>aumos-harness</code></li>
+    <li>MCP server npm: <code>@warrantor/aumos-mcp-server</code> &nbsp;·&nbsp; SDK pip: <code>warrantor-agent</code> &nbsp;·&nbsp; Harness pip: <code>warrantor-harness</code></li>
   </ul>
   <p style="color:var(--text-tertiary);font-size:0.88rem;margin-top:var(--space-lg);"><a href="index.html">&larr; Back to AumOS documentation index</a></p>
 </section>

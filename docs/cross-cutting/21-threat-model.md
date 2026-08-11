@@ -178,7 +178,7 @@ policy decision that must be made explicitly per side-effect class.
 **Current defence:** inconsistent, and this is the honest finding. `inference-proxy`'s
 `DenyAllAuth` default and `policy-bridge`'s `default allow := false` are correct. But four
 paths failed open under dependency failure, of which the attestation path was the worst —
-`aumos_vllm` returned `verified=True` for any non-empty strings on real hardware until
+`warrantor_vllm` returned `verified=True` for any non-empty strings on real hardware until
 AX-27.
 
 **Requirement:** a single documented rule — **read may degrade, everything else denies** —

@@ -193,7 +193,7 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ### Added — Phase 1 (Wave-1 v1.0 components)
 - **Proto contract plane** (`proto/warrantor/`): identity, trust, attestation, AAR protocols. Buf lint clean.
-- **aumos-api** crate: prost/tonic codegen at build time. Single source of truth for wire types.
+- **warrantor-api** crate: prost/tonic codegen at build time. Single source of truth for wire types.
 - **T1 trust-core** v1.0.0 — Ed25519 sign/verify, canonical CBOR, RFC 6962 Merkle. 14 tests.
 - **X1 defstack-cli** v1.0.0 — list/install/verify/compliance-report (10 frameworks). 4 tests.
 - **C1-1 nvtrust-bridge** v1.0.0 — NvTrustBackend trait + Mock, proto round-trip. 5 tests.
@@ -207,7 +207,7 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 - 57 tests passing (48 Rust + 9 Python).
 - clippy clean with `-D warnings`.
 - buf lint clean; buf build succeeds.
-- Contract plane authoritative: proto → aumos-api → all consumers.
+- Contract plane authoritative: proto → warrantor-api → all consumers.
 - Cross-language interop locked: Rust nvtrust-bridge ↔ Python cuda-gram JSON shape.
 
 ### Deferred
