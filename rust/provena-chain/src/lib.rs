@@ -1,9 +1,32 @@
 //! # warrantor-provena-chain (S2)
 //!
 //! Tamper-evident model provenance ledger. Every model artifact (weights, fine-tune, merge,
-//! evaluation) is recorded as a ledger entry; the Merkle root over all entries is anchored to
-//! the Sigstore Rekor transparency log (or a blockchain) periodically. Required for EU AI Act
-//! Article 55 lineage compliance (per cross-cutting 13-compliance-frameworks.md).
+//! evaluation) is recorded as a ledger entry, and an RFC 6962 Merkle root is computed over all
+//! entries.
+//!
+//! ## The anchor is asserted, not performed
+//!
+//! [`Ledger::checkpoint`] takes `log` and `log_entry_id` as **arguments**. This crate contains no
+//! network code of any kind: it never contacts Rekor, never submits the root, and never verifies
+//! that the entry id it is signing corresponds to anything. The caller supplies both values and
+//! this crate signs them.
+//!
+//! So a [`Checkpoint`] reading `log: "rekor", log_entry_id: "..."` carries a valid signature over
+//! a claim that **nothing checked**. A caller can sign an anchor that was never made, and the
+//! signature will verify.
+//!
+//! That inverts the point of a transparency log. An anchor exists so a relying party does not
+//! have to trust the ledger operator; an anchor the operator merely asserts provides exactly the
+//! assurance of the operator's word, which is what the log was supposed to replace. The Merkle
+//! tree, the inclusion proofs and the signatures below are all real and independently checkable —
+//! it is only the *external anchoring* that is unimplemented.
+//!
+//! Treat `Checkpoint.log` and `Checkpoint.log_entry_id` as **unverified metadata** until a real
+//! submission path exists. Verifying an anchor means fetching the entry from the log yourself and
+//! confirming the root matches.
+//!
+//! Related: the same shape was found in eval-guard (AX-46), where a signature over caller-asserted
+//! booleans was described as sandbox attestation.
 //!
 //! Builds on the Merkle primitives pattern from T1 trust-core (RFC 6962 SHA-256 ordering).
 //!
@@ -331,7 +354,13 @@ impl Ledger {
     }
 
     /// Create a checkpoint of the current Merkle root, signed by this ledger's key.
-    /// The `log` and `log_entry_id` describe where the root was anchored (e.g. Rekor).
+    ///
+    /// `log` and `log_entry_id` are **caller-asserted and unverified**. This crate does not
+    /// submit the root anywhere and does not check that `log_entry_id` exists — it signs the
+    /// strings it is given. The resulting signature therefore attests that *someone claimed* this
+    /// root was anchored, not that it was. See the crate documentation.
+    ///
+    /// The Merkle root itself, and any inclusion proof derived from this ledger, are real.
     #[must_use]
     pub fn checkpoint(&self, log: &str, log_entry_id: &str) -> Checkpoint {
         let root = self.merkle_root();
