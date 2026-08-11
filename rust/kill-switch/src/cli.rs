@@ -14,11 +14,11 @@
 //!   emitted outcome carries `engine="mock"` / `simulated=true`. The default is `local`, which
 //!   really terminates the target process.
 
+use clap::{Parser, Subcommand, ValueEnum};
 use warrantor_kill_switch::{
     execute_kill, ExecutionEngine, KillTarget, KillTrigger, LocalProcessEngine,
     MockExecutionEngine, OperatorAuthentication,
 };
-use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -106,7 +106,9 @@ enum Commands {
     Status,
 }
 
-fn report(outcome: Result<warrantor_kill_switch::KillOutcome, warrantor_kill_switch::KillError>) -> ! {
+fn report(
+    outcome: Result<warrantor_kill_switch::KillOutcome, warrantor_kill_switch::KillError>,
+) -> ! {
     match outcome {
         Ok(o) => {
             if o.simulated {

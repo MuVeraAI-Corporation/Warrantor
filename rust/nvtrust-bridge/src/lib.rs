@@ -11,9 +11,9 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
-use warrantor_api::attestation::v1::GpuAttestationReport;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use warrantor_api::attestation::v1::GpuAttestationReport;
 
 /// A GPU attestation report. The proto-canonical view (warrantor_api::attestation::v1::GpuAttestationReport)
 /// is the wire type; this is the AumOS-side ergonomic wrapper.

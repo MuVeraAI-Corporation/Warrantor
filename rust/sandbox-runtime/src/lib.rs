@@ -8,13 +8,13 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
-use warrantor_trust_core::verification;
 use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use thiserror::Error;
+use warrantor_trust_core::verification;
 use wasmtime::{
     format_err, Caller, Config, Engine, ExternType, Linker, Module, Result as WasmtimeResult,
     Store, StoreLimits, StoreLimitsBuilder, Trap,
@@ -743,8 +743,8 @@ pub enum SandboxError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use warrantor_trust_core::signing::SigningKeyWrapper;
     use std::sync::Mutex;
+    use warrantor_trust_core::signing::SigningKeyWrapper;
 
     struct AcceptVerifier;
 

@@ -11,11 +11,11 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
-use warrantor_api::attestation::v1::SandboxAttestation as ProtoSandboxAttestation;
 use ed25519_dalek::{Signer, SigningKey};
 use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use warrantor_api::attestation::v1::SandboxAttestation as ProtoSandboxAttestation;
 
 /// The four pre-flight boundary checks.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]

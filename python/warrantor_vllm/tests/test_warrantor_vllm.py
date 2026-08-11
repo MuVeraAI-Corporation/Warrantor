@@ -1,5 +1,3 @@
-
-
 # ---------------------------------------------------------------------------
 # AX-27 regression: a real attestation backend must never verify without a
 # real verifier. Previously `_verify_envelope` returned

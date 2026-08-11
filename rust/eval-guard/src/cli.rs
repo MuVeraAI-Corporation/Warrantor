@@ -1,9 +1,9 @@
 //! `eval-guard` CLI.
 
-use warrantor_eval_guard::{run_preflight, CheckResults};
 use clap::Parser;
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
+use warrantor_eval_guard::{run_preflight, CheckResults};
 
 #[derive(Parser, Debug)]
 #[command(

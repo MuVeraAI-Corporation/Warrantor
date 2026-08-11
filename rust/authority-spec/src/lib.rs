@@ -277,9 +277,9 @@ pub fn validate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use warrantor_api::identity::v1::AgentAuthorityEnvelope;
     use ed25519_dalek::{Signer, SigningKey};
     use rand::rngs::OsRng;
+    use warrantor_api::identity::v1::AgentAuthorityEnvelope;
 
     /// Build an unsigned envelope body (the JSON map the signature covers) for the given fields.
     /// Must stay in sync with [`canonical_unsigned_bytes`].

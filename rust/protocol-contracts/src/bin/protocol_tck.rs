@@ -2,9 +2,9 @@
 
 use std::{collections::BTreeMap, io::Read, path::PathBuf};
 
-use warrantor_protocol_contracts::ProtocolValidator;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use warrantor_protocol_contracts::ProtocolValidator;
 
 #[derive(Deserialize)]
 struct Batch {

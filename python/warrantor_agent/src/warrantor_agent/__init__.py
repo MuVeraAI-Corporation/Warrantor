@@ -562,7 +562,9 @@ class AumOS:
         return {
             "svid": f"svid-mock-{hex_subject}",
             "capability_jti": f"jti-{uuid.uuid4()}",
-            "verifying_key": hashlib.sha256(f"warrantor-mock-key:{subject}".encode()).hexdigest()[:64],
+            "verifying_key": hashlib.sha256(f"warrantor-mock-key:{subject}".encode()).hexdigest()[
+                :64
+            ],
             "expires_at": int(time.time()) + 60,
         }
 

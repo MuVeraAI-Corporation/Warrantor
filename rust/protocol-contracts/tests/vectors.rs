@@ -2,8 +2,8 @@
 
 use std::{collections::BTreeMap, path::PathBuf};
 
-use warrantor_protocol_contracts::ProtocolValidator;
 use serde_json::Value;
+use warrantor_protocol_contracts::ProtocolValidator;
 
 fn repository_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")

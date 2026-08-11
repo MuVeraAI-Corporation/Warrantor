@@ -2,8 +2,6 @@ use crate::format::{
     inspect_reader, payload_digest_reader, rewrite_metadata, GgufError, GgufLimits, GgufValue,
     MetadataEntry, SAFETY_PREFIX,
 };
-use warrantor_trust_core::signing::SigningKeyWrapper;
-use warrantor_trust_core::verification;
 use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -13,6 +11,8 @@ use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 use thiserror::Error;
+use warrantor_trust_core::signing::SigningKeyWrapper;
+use warrantor_trust_core::verification;
 
 /// Exact stable safety profile identifier.
 pub const SAFETY_PROFILE: &str = "osaf.gguf.safety/1";

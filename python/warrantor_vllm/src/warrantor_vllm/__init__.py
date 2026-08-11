@@ -23,8 +23,6 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
-
 import hashlib
 import secrets
 import shutil
@@ -34,7 +32,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, Protocol, runtime_checkable
 
 RunMode = Literal["standalone", "mock"]
 
@@ -314,9 +312,7 @@ class AttestedVLLMServer:
             )
         env.verified = _verify_envelope(env, self.quote_collector)
         if not env.verified:
-            raise AttestationUnavailable(
-                f"platform verifier rejected the {env.backend} quote"
-            )
+            raise AttestationUnavailable(f"platform verifier rejected the {env.backend} quote")
         return env
 
     def get_attestation_envelope(self) -> AttestationEnvelope:
@@ -431,11 +427,11 @@ class AttestedVLLMServer:
 
 
 __all__ = [
-    "AttestationUnavailable",
-    "QuoteCollector",
     "AttestationEnvelope",
+    "AttestationUnavailable",
     "AttestedVLLMServer",
     "HealthReport",
     "HealthStatus",
+    "QuoteCollector",
     "RunMode",
 ]

@@ -1,15 +1,15 @@
 #![forbid(unsafe_code)]
 
-use warrantor_gguf_ext::{
-    inspect, payload_digest, rewrite_path_with_profile, strip_safety_path, verify, GgufLimits,
-    SafetyManifest, TrustCoreManifestSigner, VerifyPolicy,
-};
-use warrantor_trust_core::signing::SigningKeyWrapper;
 use clap::{Parser, Subcommand};
 use serde_json::json;
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::PathBuf;
+use warrantor_gguf_ext::{
+    inspect, payload_digest, rewrite_path_with_profile, strip_safety_path, verify, GgufLimits,
+    SafetyManifest, TrustCoreManifestSigner, VerifyPolicy,
+};
+use warrantor_trust_core::signing::SigningKeyWrapper;
 use zeroize::Zeroize;
 
 #[derive(Debug, Parser)]

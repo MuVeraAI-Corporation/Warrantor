@@ -1,8 +1,8 @@
 //! `nvtrust-verify` CLI.
 
-use warrantor_nvtrust_bridge::{AttestationReport, MockBackend, NvTrustBackend};
 use clap::{Parser, Subcommand};
 use std::io::{self, Read};
+use warrantor_nvtrust_bridge::{AttestationReport, MockBackend, NvTrustBackend};
 
 #[derive(Parser, Debug)]
 #[command(

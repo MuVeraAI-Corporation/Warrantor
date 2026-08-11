@@ -1,11 +1,11 @@
 //! `credential-vault` CLI.
 
+use clap::{Parser, Subcommand};
+use std::io::{self, Read};
 use warrantor_credential_vault::{
     issue, scan_for_exposed_credentials, AwsSecretsManagerBackend, CredentialBackend,
     HashiCorpVaultBackend, KubernetesSecretsBackend, MockBackend, DEFAULT_TTL,
 };
-use clap::{Parser, Subcommand};
-use std::io::{self, Read};
 
 #[derive(Parser, Debug)]
 #[command(

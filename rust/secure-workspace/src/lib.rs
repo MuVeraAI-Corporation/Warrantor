@@ -8,12 +8,12 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
-use warrantor_trust_core::verification;
 use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use thiserror::Error;
+use warrantor_trust_core::verification;
 
 /// Workspace policy wire format.
 pub const WORKSPACE_POLICY_FORMAT: &str = "osaf.secure-workspace/1";
@@ -775,8 +775,8 @@ pub enum WorkspaceError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use warrantor_trust_core::signing::SigningKeyWrapper;
     use std::sync::Mutex;
+    use warrantor_trust_core::signing::SigningKeyWrapper;
 
     fn policy() -> WorkspacePolicy {
         WorkspacePolicy {

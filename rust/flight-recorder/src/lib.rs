@@ -37,7 +37,6 @@ pub use evidence::{
     NonDurableMemoryEvidenceStore, GENESIS_DIGEST_HEX,
 };
 
-use warrantor_api::protocols::v1::AgentActionReceipt;
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
@@ -45,6 +44,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 use uuid::Uuid;
+use warrantor_api::protocols::v1::AgentActionReceipt;
 
 /// The action outcome. Mirrors `warrantor.protocols.v1.ActionOutcome`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
