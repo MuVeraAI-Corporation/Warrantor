@@ -844,11 +844,23 @@ mod tests {
             .kill_pod(&KillTarget::named("agent"))
             .expect_err("a pid-less target must be an error, not a fake success");
         assert!(matches!(err, KillError::ExecutionFailed(_)));
-        // Reserved pids.
-        for pid in [0u32, 1u32] {
-            assert!(engine
-                .kill_pod(&KillTarget::local_process("agent", pid))
-                .is_err());
+        // Reserved pids. The set is platform-specific: pid 1 is init on Unix but an ordinary PID
+        // on Windows, where the kernel occupies pid 4 (System) and pid 8 (Secure System). The
+        // previous list -- [0, 1] on every platform -- blocked a harmless Windows PID while
+        // letting pid 4 reach taskkill.
+        #[cfg(unix)]
+        let reserved: &[u32] = &[0, 1];
+        #[cfg(windows)]
+        let reserved: &[u32] = &[0, 4, 8];
+        #[cfg(not(any(unix, windows)))]
+        let reserved: &[u32] = &[0];
+        for pid in reserved {
+            assert!(
+                engine
+                    .kill_pod(&KillTarget::local_process("agent", *pid))
+                    .is_err(),
+                "pid {pid} is reserved on this platform and must be refused"
+            );
         }
         // Self.
         let err = engine
