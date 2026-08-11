@@ -6,7 +6,10 @@ rust/**/*.rs.bk
 # commit it -- and the repository claims SLSA provenance, which a floating
 # dependency resolution would quietly contradict. npm lockfiles were already
 # committed; this removes the inconsistency.
-rust/**/fuzz/Cargo.lock
+# Only the workspace root has a lockfile. Nested ones are Cargo artifacts that the
+# workspace ignores, and committing one invites edits to a file nothing reads.
+rust/*/Cargo.lock
+!rust/Cargo.lock
 
 # Python
 **/__pycache__/
@@ -56,3 +59,4 @@ htmlcov/
 
 # Transient audit virtualenv
 .auditvenv/
+evidence/
