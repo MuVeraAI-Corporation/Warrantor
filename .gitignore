@@ -1,7 +1,12 @@
 # Rust
 rust/**/target/
 rust/**/*.rs.bk
-rust/**/Cargo.lock
+# Cargo.lock IS committed. This workspace ships binaries (trust-core,
+# credential-vault, kill-switch, defstack-cli), where Cargo'''s own guidance is to
+# commit it -- and the repository claims SLSA provenance, which a floating
+# dependency resolution would quietly contradict. npm lockfiles were already
+# committed; this removes the inconsistency.
+rust/**/fuzz/Cargo.lock
 
 # Python
 **/__pycache__/

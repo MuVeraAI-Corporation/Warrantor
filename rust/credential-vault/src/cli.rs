@@ -71,7 +71,19 @@ fn select_backend(name: &str) -> Box<dyn CredentialBackend> {
             ("github_token".to_string(), "ghp_REDACTED".to_string()),
             ("aws_key".to_string(), "AKIA_REDACTED".to_string()),
         ])),
-        "vault" => Box::new(HashiCorpVaultBackend::new("https://vault.example.com:8200")),
+        "vault" => match HashiCorpVaultBackend::from_env() {
+            Ok(backend) => Box::new(backend),
+            Err(error) => {
+                // Exit rather than defaulting to an address. A hardcoded default is how a
+                // process ends up reading production secrets from a dev server, or silently
+                // reporting "unavailable" when the real problem is unset configuration.
+                eprintln!("credential-vault: {error}");
+                eprintln!("  set VAULT_ADDR and VAULT_TOKEN, e.g.");
+                eprintln!("    export VAULT_ADDR=http://127.0.0.1:8200");
+                eprintln!("    export VAULT_TOKEN=<token>");
+                std::process::exit(2);
+            }
+        },
         "aws" => Box::new(AwsSecretsManagerBackend::new("us-east-1")),
         "k8s" => Box::new(KubernetesSecretsBackend::new("default")),
         other => {

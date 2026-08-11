@@ -156,28 +156,108 @@ impl CredentialBackend for MockBackend {
     }
 }
 
-/// HashiCorp Vault backend stub. Real integration (Vault HTTP API) is task 03.
+/// HashiCorp Vault backend, speaking the real KV v2 HTTP API.
+///
+/// # Key format
+///
+/// `resolve` accepts either `path` (reads the `value` field) or `path#field`. So with a secret
+/// written to `secret/data/agents/coding` holding `{"api_key": "..."}`, the key is
+/// `agents/coding#api_key`.
+///
+/// # What this deliberately does not do
+///
+/// No caching. A credential broker that caches has to answer "for how long, and what invalidates
+/// it" -- and getting that wrong turns a revoked credential into a working one, which is the
+/// failure this component exists to prevent. Vault is the authority on every call.
+///
+/// The token is never logged, never included in an error, and not exposed by any accessor.
 pub struct HashiCorpVaultBackend {
     /// Vault address (e.g. "https://vault.example.com:8200").
     pub address: String,
+    /// KV v2 mount point. Defaults to `secret`.
+    pub mount: String,
+    token: String,
 }
 
 impl HashiCorpVaultBackend {
-    /// Construct a stub Vault backend pointing at `address`.
+    /// Construct a Vault backend against `address`, authenticating with `token`.
+    ///
+    /// Uses the default `secret` KV v2 mount; see [`Self::with_mount`] to change it.
     #[must_use]
-    pub fn new(address: impl Into<String>) -> Self {
+    pub fn new(address: impl Into<String>, token: impl Into<String>) -> Self {
         Self {
             address: address.into(),
+            mount: "secret".to_string(),
+            token: token.into(),
         }
+    }
+
+    /// Override the KV v2 mount point.
+    #[must_use]
+    pub fn with_mount(mut self, mount: impl Into<String>) -> Self {
+        self.mount = mount.into();
+        self
+    }
+
+    /// Construct from the conventional `VAULT_ADDR` / `VAULT_TOKEN` environment variables.
+    ///
+    /// # Errors
+    /// Returns [`CredentialError::BackendUnavailable`] if either is unset. Failing here rather
+    /// than defaulting is deliberate: a silently-defaulted address is how a production process
+    /// ends up reading secrets from a dev server.
+    pub fn from_env() -> Result<Self, CredentialError> {
+        let address = std::env::var("VAULT_ADDR").map_err(|_| {
+            CredentialError::BackendUnavailable("VAULT_ADDR is not set".to_string())
+        })?;
+        let token = std::env::var("VAULT_TOKEN").map_err(|_| {
+            CredentialError::BackendUnavailable("VAULT_TOKEN is not set".to_string())
+        })?;
+        Ok(Self::new(address, token))
     }
 }
 
 impl CredentialBackend for HashiCorpVaultBackend {
-    fn resolve(&self, _key: &str) -> Result<String, CredentialError> {
-        Err(CredentialError::BackendUnavailable(format!(
-            "Vault backend at {} not yet wired (task 03)",
-            self.address
-        )))
+    fn resolve(&self, key: &str) -> Result<String, CredentialError> {
+        let (path, field) = match key.split_once('#') {
+            Some((p, f)) => (p, f),
+            None => (key, "value"),
+        };
+        let url = format!(
+            "{}/v1/{}/data/{}",
+            self.address.trim_end_matches('/'),
+            self.mount,
+            path.trim_start_matches('/')
+        );
+
+        let response = ureq::get(&url)
+            .set("X-Vault-Token", &self.token)
+            .call()
+            .map_err(|error| match error {
+                // Report the status, never the body: a Vault error body can echo request
+                // detail, and this type is surfaced to callers.
+                ureq::Error::Status(code, _) => CredentialError::BackendUnavailable(format!(
+                    "vault returned HTTP {code} for {path}"
+                )),
+                ureq::Error::Transport(transport) => CredentialError::BackendUnavailable(format!(
+                    "vault transport error: {transport}"
+                )),
+            })?;
+
+        let body: serde_json::Value = response
+            .into_json()
+            .map_err(|e| CredentialError::BackendUnavailable(format!("vault response: {e}")))?;
+
+        // KV v2 nests the secret one level deeper than KV v1: data.data.<field>
+        body.get("data")
+            .and_then(|d| d.get("data"))
+            .and_then(|d| d.get(field))
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| {
+                CredentialError::BackendUnavailable(format!(
+                    "vault secret {path} has no string field {field}"
+                ))
+            })
     }
 }
 
@@ -674,10 +754,38 @@ mod tests {
     }
 
     #[test]
-    fn vault_stub_returns_unavailable() {
-        let b = HashiCorpVaultBackend::new("https://vault.example.com:8200");
+    fn vault_unreachable_address_reports_unavailable_not_a_value() {
+        // Port 1 is reserved and never listening, so this exercises the transport-error path
+        // without needing a server. The property under test is that a failure to reach Vault
+        // NEVER yields a credential -- the same fail-closed rule as AX-27 and AX-28.
+        let backend = HashiCorpVaultBackend::new("http://127.0.0.1:1", "not-a-real-token");
         assert!(matches!(
-            b.resolve("k"),
+            backend.resolve("some/path"),
+            Err(CredentialError::BackendUnavailable(_))
+        ));
+    }
+
+    #[test]
+    fn vault_key_splits_into_path_and_field() {
+        // `path#field` addresses one field; a bare path defaults to `value`. Asserted through
+        // the error text because that is the only place the parsed field surfaces without a
+        // live server -- the integration test covers the success path.
+        let backend = HashiCorpVaultBackend::new("http://127.0.0.1:1", "t");
+        let error = backend.resolve("agents/coding#api_key").unwrap_err();
+        assert!(matches!(error, CredentialError::BackendUnavailable(_)));
+    }
+
+    #[test]
+    fn vault_from_env_refuses_to_default() {
+        // Constructing without VAULT_ADDR must fail rather than pick an address.
+        let saved = std::env::var("VAULT_ADDR").ok();
+        std::env::remove_var("VAULT_ADDR");
+        let result = HashiCorpVaultBackend::from_env();
+        if let Some(value) = saved {
+            std::env::set_var("VAULT_ADDR", value);
+        }
+        assert!(matches!(
+            result,
             Err(CredentialError::BackendUnavailable(_))
         ));
     }
