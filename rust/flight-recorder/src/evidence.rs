@@ -274,9 +274,45 @@ impl FileEvidenceStore {
             raw_lines.push((line, consumed));
         }
 
+        // Does the file end with the newline the writer always emits?
+        //
+        // This is the only reliable torn-tail signal, and byte arithmetic cannot substitute
+        // for it: `consumed` above adds 1 for a newline unconditionally, so a file missing
+        // its final newline yields good_bytes == the length it WOULD have had. Comparing
+        // good_bytes to total_len therefore either matches (hiding the tear) or overshoots
+        // (making the truncation target longer than the file).
+        //
+        // Previously the torn-tail check lived only inside the JSON-parse-failure arm, so a
+        // final record that parsed cleanly but lost its newline was accepted -- and the next
+        // append concatenated onto it, producing `}{` on one line. The chain then broke at a
+        // record the writer had never touched, blaming the wrong one.
+        let ends_with_newline = total_len == 0 || {
+            let mut f = File::open(path).map_err(|source| RecorderError::Io {
+                path: path.display().to_string(),
+                source,
+            })?;
+            f.seek(SeekFrom::End(-1))
+                .map_err(|source| RecorderError::Io {
+                    path: path.display().to_string(),
+                    source,
+                })?;
+            let mut last = [0u8; 1];
+            std::io::Read::read_exact(&mut f, &mut last).map_err(|source| RecorderError::Io {
+                path: path.display().to_string(),
+                source,
+            })?;
+            last[0] == b'\n'
+        };
+
         let line_count = raw_lines.len();
         for (idx, (line, consumed)) in raw_lines.into_iter().enumerate() {
             let is_last = idx + 1 == line_count;
+            // A final line with no terminating newline is a partial write, whatever it
+            // parses as. Stop here: `good_bytes` is the offset of the last COMPLETE record,
+            // which is exactly what open() truncates to.
+            if is_last && !ends_with_newline {
+                return Ok((records, good_bytes, true));
+            }
             if line.trim().is_empty() {
                 good_bytes += consumed;
                 continue;
@@ -330,6 +366,7 @@ impl FileEvidenceStore {
             good_bytes += consumed;
             records.push(record);
         }
+
         Ok((records, good_bytes, false))
     }
 }
@@ -415,5 +452,84 @@ impl EvidenceStore for NonDurableMemoryEvidenceStore {
 
     fn head_digest_hex(&self) -> String {
         hex::encode(self.head)
+    }
+}
+
+#[cfg(test)]
+mod torn_tail {
+    use super::*;
+    use crate::{FlightRecorder, ReceiptInput};
+
+    fn input(n: u8) -> ReceiptInput {
+        ReceiptInput {
+            actor: format!("spiffe://muveraai.com/agent/{n}"),
+            authority_hash_hex: "ab".repeat(32),
+            tool_or_api_op: "deploy".into(),
+            context_commitment_hex: "cd".repeat(32),
+        }
+    }
+
+    /// A last record that PARSES but lost its terminating newline is a partial write.
+    ///
+    /// Accepting it meant the next append concatenated onto it (`}{` on one line), which
+    /// corrupted the chain permanently -- and the error surfaced later at a record the
+    /// writer had not touched, blaming the wrong one.
+    #[test]
+    fn a_log_missing_its_final_newline_is_treated_as_torn() {
+        let dir = std::env::temp_dir().join(format!("warrantor-torn-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let path = dir.join("evidence.jsonl");
+        let _ = std::fs::remove_file(&path);
+
+        let mut recorder = FlightRecorder::new();
+        {
+            let mut store = FileEvidenceStore::open(&path).expect("open");
+            for n in 0..3u8 {
+                let receipt = recorder.emit_pending(input(n)).expect("emit");
+                store.append(&receipt).expect("append");
+            }
+        }
+
+        // Simulate the interrupted write: drop the trailing newline only.
+        let bytes = std::fs::read(&path).expect("read");
+        assert_eq!(
+            bytes.last(),
+            Some(&b'\n'),
+            "writer should terminate records"
+        );
+        std::fs::write(&path, &bytes[..bytes.len() - 1]).expect("truncate newline");
+
+        // Reopening must NOT silently accept the tail; it is a partial record.
+        let store = FileEvidenceStore::open(&path).expect("reopen");
+        assert_eq!(
+            store.len(),
+            2,
+            "the unterminated final record must be treated as torn and dropped, \
+             leaving 2 whole records -- accepting it corrupts the next append"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The ordinary case must be unaffected: a properly terminated log keeps every record.
+    #[test]
+    fn a_well_formed_log_keeps_every_record() {
+        let dir = std::env::temp_dir().join(format!("warrantor-whole-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let path = dir.join("evidence.jsonl");
+        let _ = std::fs::remove_file(&path);
+
+        let mut recorder = FlightRecorder::new();
+        {
+            let mut store = FileEvidenceStore::open(&path).expect("open");
+            for n in 0..3u8 {
+                let receipt = recorder.emit_pending(input(n)).expect("emit");
+                store.append(&receipt).expect("append");
+            }
+        }
+        let store = FileEvidenceStore::open(&path).expect("reopen");
+        assert_eq!(store.len(), 3, "a complete log must keep all records");
+
+        let _ = std::fs::remove_file(&path);
     }
 }

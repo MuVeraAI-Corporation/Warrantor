@@ -302,8 +302,26 @@ impl Receipt {
             write_len_prefixed(&mut out, a.as_bytes());
         }
         out.extend_from_slice(&self.outcome.to_proto().to_le_bytes());
+        // rollback_pointer was omitted here, so it was covered by neither the Ed25519
+        // signature nor the hash chain: an attacker could rewrite it on a persisted record
+        // and both `verify` and the chain still validated, byte-identical digest and all.
+        // On a receipt whose whole purpose is to say what an agent did, "this action was
+        // rolled back, see <url>" was freely forgeable.
+        //
+        // The discriminant byte is load-bearing: without it `None` and `Some("")` would
+        // both encode as a zero-length field and alias to the same bytes, so "never rolled
+        // back" and "rolled back to nowhere" would share a signature.
+        match &self.rollback_pointer {
+            None => out.push(0u8),
+            Some(pointer) => {
+                out.push(1u8);
+                write_len_prefixed(&mut out, pointer.as_bytes());
+            }
+        }
         out.extend_from_slice(&self.emitted_at.to_le_bytes());
         write_len_prefixed(&mut out, self.verifying_key_hex.as_bytes());
+        // NOTE: `signature_hex` is deliberately absent -- a signature cannot cover itself.
+        // Every other field of Receipt is included; see the coverage test below.
         out
     }
 }
@@ -1175,5 +1193,82 @@ mod tests {
         assert_eq!(proto.actor, receipt.actor);
         assert!(!proto.signature.is_empty());
         assert!(!proto.authority_hash.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod signature_coverage {
+    use super::*;
+
+    fn sample_input() -> ReceiptInput {
+        ReceiptInput {
+            actor: "spiffe://muveraai.com/agent/coverage".into(),
+            authority_hash_hex: "ab".repeat(32),
+            tool_or_api_op: "deploy".into(),
+            context_commitment_hex: "cd".repeat(32),
+        }
+    }
+
+    /// The reported defect: rewriting rollback_pointer on a signed receipt left the
+    /// signature valid, so "this action was rolled back, see <url>" was forgeable.
+    #[test]
+    fn tampering_with_rollback_pointer_invalidates_the_signature() {
+        let mut recorder = FlightRecorder::new();
+        let receipt = recorder.emit_pending(sample_input()).expect("emit");
+        FlightRecorder::verify(&receipt).expect("clean receipt verifies");
+
+        let mut forged = receipt.clone();
+        forged.rollback_pointer = Some("https://evil.example/forged-rollback".into());
+        assert!(
+            FlightRecorder::verify(&forged).is_err(),
+            "a forged rollback_pointer MUST invalidate the signature"
+        );
+    }
+
+    /// None and Some("") must not share an encoding, or "never rolled back" and "rolled
+    /// back to nowhere" would be interchangeable under one signature.
+    #[test]
+    fn none_and_empty_pointer_do_not_alias() {
+        let mut recorder = FlightRecorder::new();
+        let receipt = recorder.emit_pending(sample_input()).expect("emit");
+        let mut a = receipt.clone();
+        let mut b = receipt;
+        a.rollback_pointer = None;
+        b.rollback_pointer = Some(String::new());
+        assert_ne!(
+            a.canonical_bytes(),
+            b.canonical_bytes(),
+            "None and Some(\"\") must encode differently"
+        );
+    }
+
+    /// Guards the general failure, not just this instance: a field added to Receipt and
+    /// forgotten in canonical_bytes is silently unsigned.
+    #[test]
+    fn every_field_except_the_signature_is_covered() {
+        let mut recorder = FlightRecorder::new();
+        let receipt = recorder.emit_pending(sample_input()).expect("emit");
+        let base = receipt.canonical_bytes();
+
+        let mut m = receipt.clone();
+        m.rollback_pointer = Some("x".into());
+        assert_ne!(base, m.canonical_bytes(), "rollback_pointer uncovered");
+
+        let mut m = receipt.clone();
+        m.actor = "other".into();
+        assert_ne!(base, m.canonical_bytes(), "actor uncovered");
+
+        let mut m = receipt.clone();
+        m.emitted_at += 1;
+        assert_ne!(base, m.canonical_bytes(), "emitted_at uncovered");
+
+        // signature_hex is the one field that must NOT be covered.
+        let mut m = receipt.clone();
+        m.signature_hex = "ff".repeat(64);
+        assert_eq!(
+            base,
+            m.canonical_bytes(),
+            "signature_hex must be excluded -- a signature cannot sign itself"
+        );
     }
 }
