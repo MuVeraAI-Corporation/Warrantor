@@ -34,6 +34,8 @@
 
 pub mod adapters;
 pub mod daemon;
+pub mod mcp;
+pub mod mcp_endpoints;
 pub mod proxy;
 pub mod settle;
 pub mod staging;

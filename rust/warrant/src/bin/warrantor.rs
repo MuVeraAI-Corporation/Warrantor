@@ -21,6 +21,9 @@ use ed25519_dalek::{SigningKey, VerifyingKey};
 use warrantor_warrant::daemon::{
     process_is_alive, supervise_run, DaemonState, Reconciliation, SuperviseRequest,
 };
+use warrantor_warrant::mcp::serve;
+use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
+use warrantor_warrant::proxy::ProxyMode;
 use warrantor_warrant::settle::{settle, void, EffectOutcome, EffectPerformer, SettleReport};
 use warrantor_warrant::staging::{EffectRegistry, StagedEffect, StagingQueue};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
@@ -167,6 +170,11 @@ warrantor — bounded authority for coding agents
   stage   <warrant-id> --tool T [--target H] [--arg k=v ...]
   run     <warrant-id> -- <command> [args...]
   status
+  mcp     [--agent <warrant-id>] [--observe]
+
+Mcp serves the warrant lifecycle to your own coding agent over MCP. With --agent it
+instead serves a SUPERVISED agent: only that warrant's tools, policed, with no
+lifecycle tool published -- so the agent has no route to settling its own work.
 
 Run starts the agent under a supervisor detached from this terminal: closing the
 terminal ends your view of the run, not the run. Status says what is still going
@@ -737,6 +745,80 @@ fn cmd_status(store: &WarrantStore, root: &Path) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+// ── mcp ───────────────────────────────────────────────────────────────────────────────
+
+/// `warrantor mcp [--agent <id>] [--observe]` — serve MCP over stdio.
+///
+/// Two endpoints, and which one you get is decided here rather than by a runtime permission check.
+/// Without `--agent` you get the control endpoint, which holds the settle key and belongs in the
+/// agent *you* drive. With `--agent <id>` you get the supervised endpoint, which publishes only the
+/// warrant's own tools and has no lifecycle tool to call.
+///
+/// Registering the control endpoint inside a supervised agent would hand it settle authority. The
+/// flag split makes that a deliberate act rather than a default.
+fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
+    let stdin = std::io::stdin();
+    let mut stdout = std::io::stdout();
+
+    if let Some(id) = args.flags.get("agent") {
+        let stored = match store.load(id) {
+            Ok(s) => s,
+            Err(e) => return fail(&e.to_string()),
+        };
+        let mode = if args.flags.contains_key("observe") {
+            ProxyMode::Observe
+        } else {
+            ProxyMode::Enforce
+        };
+        let mut endpoint =
+            match agent_endpoint_for(&stored, store.staged_path(id), mode, now) {
+                Ok(e) => e,
+                Err(e) => return fail(&e.to_string()),
+            };
+        // stderr, not stdout: stdout is the JSON-RPC channel and a stray line there desynchronises
+        // every client reading it line by line.
+        eprintln!(
+            "warrantor: MCP agent endpoint for {id} ({}). Lifecycle tools are not published on \
+             this endpoint.",
+            if mode == ProxyMode::Observe {
+                "observe -- recording, not enforcing"
+            } else {
+                "enforce"
+            }
+        );
+        return match serve(&mut endpoint, stdin.lock(), &mut stdout) {
+            Ok(_) => {
+                for request in endpoint.authority_requests() {
+                    eprintln!(
+                        "warrantor: denied {} x{} ({})",
+                        request.tool, request.count, request.bound
+                    );
+                }
+                ExitCode::SUCCESS
+            }
+            Err(e) => fail(&format!("mcp: {e}")),
+        };
+    }
+
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), "issuer") {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    let settle_key = match load_or_create_key(&root.join("keys/settle.key"), "settle") {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    let mut endpoint = ControlEndpoint::new(store, root.to_path_buf(), issuer, settle_key, now);
+    eprintln!(
+        "warrantor: MCP control endpoint. This holds the settle key -- register it only in an \
+         agent you are driving, never in one running under a warrant."
+    );
+    match serve(&mut endpoint, stdin.lock(), &mut stdout) {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(e) => fail(&format!("mcp: {e}")),
+    }
+}
+
 fn main() -> ExitCode {
     let Some(args) = parse_args() else {
         println!("{USAGE}");
@@ -761,6 +843,7 @@ fn main() -> ExitCode {
         "run" => cmd_run(&args, &store, &root),
         "supervise" => cmd_supervise(&args, &store, &root),
         "status" => cmd_status(&store, &root),
+        "mcp" => cmd_mcp(&args, store, &root),
         "help" | "--help" | "-h" => {
             println!("{USAGE}");
             ExitCode::SUCCESS
