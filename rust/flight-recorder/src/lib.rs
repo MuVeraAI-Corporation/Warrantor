@@ -929,6 +929,104 @@ mod tests {
     impl Drop for Scratch {
         fn drop(&mut self) {
             let _ = std::fs::remove_file(&self.0);
+            // The store keeps a sidecar lock file next to the log; clean it up too.
+            let mut lock = self.0.as_os_str().to_os_string();
+            lock.push(".lock");
+            let _ = std::fs::remove_file(std::path::PathBuf::from(lock));
+        }
+    }
+
+    /// Two recorders over one log each cached their own next_seq at open time, so both handed out
+    /// a durability proof for the SAME sequence number. Both callers committed their side effects;
+    /// the log was then permanently unreadable, including the record that had been written
+    /// correctly. Opening the second recorder has to fail instead.
+    #[test]
+    fn two_recorders_cannot_share_one_evidence_log_ax40() {
+        let scratch = Scratch(scratch_path("double-open"));
+        let mut first = DurableFlightRecorder::open(&scratch.0).expect("first open");
+
+        let second = DurableFlightRecorder::open(&scratch.0);
+        match second {
+            Ok(_) => panic!(
+                "a second recorder opened the same evidence log; both would assign the same \
+                 seq and corrupt the chain"
+            ),
+            Err(RecorderError::Io { source, .. }) => {
+                let message = source.to_string();
+                assert!(
+                    message.contains("already open"),
+                    "the error should explain the conflict, got: {message}"
+                );
+            }
+            Err(other) => panic!("unexpected error variant: {other:?}"),
+        }
+
+        // The holder is unaffected and the log stays consistent.
+        first
+            .emit_pending(sample_input())
+            .expect("first still works");
+        let records = first.store().records().expect("replay");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].seq, 0);
+    }
+
+    #[test]
+    fn dropping_a_recorder_releases_the_log_for_the_next_one_ax40() {
+        let scratch = Scratch(scratch_path("lock-release"));
+        {
+            let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+            rec.emit_pending(sample_input()).expect("emit");
+        }
+        // A normal restart must still work -- the lock is a concurrency guard, not a tombstone.
+        let mut reopened = DurableFlightRecorder::open(&scratch.0).expect("reopen after drop");
+        let pending = reopened.emit_pending(sample_input()).expect("emit again");
+        assert_eq!(pending.seq(), 1, "the chain continues where it left off");
+    }
+
+    /// The lock must not make the log unreadable: an external auditor with `jq` and no access to
+    /// this crate is the whole reason the evidence format is plain JSONL.
+    #[test]
+    fn the_evidence_log_stays_readable_while_a_recorder_holds_it_ax40() {
+        let scratch = Scratch(scratch_path("readable-while-locked"));
+        let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+        rec.emit_pending(sample_input()).expect("emit");
+
+        let contents = std::fs::read_to_string(&scratch.0).expect("read the log while locked");
+        assert!(
+            contents.contains("\"seq\":0"),
+            "the log must be readable by an outside reader while held"
+        );
+    }
+
+    /// A flipped byte that breaks UTF-8 is tampering, not a device fault. Reporting it as
+    /// RecorderError::Io made the one signal this component exists to raise indistinguishable
+    /// from a failing disk.
+    #[test]
+    fn non_utf8_corruption_is_reported_as_chain_corruption_not_io_ax40() {
+        let scratch = Scratch(scratch_path("utf8-corrupt"));
+        {
+            let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+            rec.emit_pending(sample_input()).expect("emit");
+        }
+
+        // Flip a byte in the middle of the record to something that cannot be UTF-8.
+        let mut bytes = std::fs::read(&scratch.0).expect("read log");
+        let midpoint = bytes.len() / 2;
+        bytes[midpoint] = 0xFF;
+        std::fs::write(&scratch.0, &bytes).expect("write corrupted log");
+
+        match DurableFlightRecorder::open(&scratch.0) {
+            Err(RecorderError::ChainCorrupt { detail, .. }) => {
+                assert!(
+                    detail.contains("UTF-8"),
+                    "the detail should name the corruption, got: {detail}"
+                );
+            }
+            Err(RecorderError::Io { source, .. }) => panic!(
+                "byte corruption was reported as an I/O fault, hiding the tamper signal: {source}"
+            ),
+            Err(other) => panic!("unexpected error variant: {other:?}"),
+            Ok(_) => panic!("corrupted log opened successfully"),
         }
     }
 
