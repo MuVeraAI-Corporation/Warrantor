@@ -1,0 +1,109 @@
+# A working local Sigstore transparency log: MySQL -> Trillian -> Rekor.
+#
+# This exists because rekor.sigstore.dev is unreachable from some networks (DNS
+# resolves, HTTPS returns nothing) and because writing to the PUBLIC log is a
+# permanent, public act. A local log gives real inclusion proofs with neither
+# problem.
+#
+#   docker compose -f deploy/local-sigstore/docker-compose.yml up -d
+#   ./deploy/local-sigstore/bootstrap.sh        # loads schema, creates the tree
+#   curl -s http://127.0.0.1:3000/api/v1/log
+#
+# Every version below is pinned deliberately -- see NOTES at the bottom.
+
+name: warrantor-sigstore
+
+services:
+  trillian-db:
+    image: mysql:8.0
+    container_name: warrantor-trillian-db
+    environment:
+      MYSQL_ROOT_PASSWORD: zaphod
+      MYSQL_DATABASE: test
+      MYSQL_USER: test
+      MYSQL_PASSWORD: zaphod
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pzaphod"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  trillian-server:
+    image: gcr.io/trillian-opensource-ci/log_server:latest
+    container_name: warrantor-trillian-server
+    depends_on:
+      trillian-db:
+        condition: service_healthy
+    command:
+      - --storage_system=mysql
+      - --mysql_uri=test:zaphod@tcp(warrantor-trillian-db:3306)/test
+      - --rpc_endpoint=0.0.0.0:8090
+      - --http_endpoint=0.0.0.0:8091
+      - --alsologtostderr
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+
+  trillian-signer:
+    image: gcr.io/trillian-opensource-ci/log_signer:latest
+    container_name: warrantor-trillian-signer
+    depends_on:
+      trillian-db:
+        condition: service_healthy
+    command:
+      - --storage_system=mysql
+      - --mysql_uri=test:zaphod@tcp(warrantor-trillian-db:3306)/test
+      # Single-node: nothing else will ever win the master election, so take it.
+      - --force_master
+      - --http_endpoint=0.0.0.0:8092
+      - --alsologtostderr
+    ports:
+      - "8092:8092"
+
+  rekor:
+    image: ghcr.io/sigstore/rekor/rekor-server:v1.3.6
+    container_name: warrantor-rekor
+    depends_on:
+      - trillian-server
+    command:
+      - serve
+      - --trillian_log_server.address=warrantor-trillian-server
+      - --trillian_log_server.port=8090
+      # Set by bootstrap.sh. Rekor will NOT create its own tree.
+      - --trillian_log_server.tlog_id=${REKOR_TLOG_ID:-0}
+      # The bind address. NOT --host (a different setting) and NOT
+      # --rekor_server.hostname (which is only the advertised public name).
+      - --rekor_server.address=0.0.0.0
+      - --port=3000
+      - --enable_retrieve_api=true
+      - --search_index.storage_provider=mysql
+      - --search_index.mysql.dsn=test:zaphod@tcp(warrantor-trillian-db:3306)/test
+    ports:
+      - "3000:3000"
+
+# NOTES -- each of these cost an attempt to discover.
+#
+# rekor-server image
+#   `gcr.io/projectsigstore/rekor-server:latest` is a 2021 build (go1.16.3,
+#   cobra 1.2.1). It panics during startup and its flags differ from current
+#   Rekor. Use the ghcr.io/sigstore path with an explicit version.
+#
+# bind address
+#   Rekor has three superficially similar settings. `--rekor_server.address` is
+#   the one that binds. With the others, Rekor logs "Serving rekor server at
+#   http://127.0.0.1:3000" and the published port reaches nothing -- the process
+#   is listening only on the container's loopback. The tell is that the log line
+#   reads 127.0.0.1 rather than [::].
+#
+# tree creation
+#   Rekor requires an existing Trillian tree and will not create one. There is no
+#   published `createtree` image (gcr.io/trillian-opensource-ci/createtree and
+#   ghcr.io/google/trillian/createtree both 404), and the Trillian images are
+#   distroless, so there is no shell to run the binary in. bootstrap.sh inserts
+#   the row directly; see the caveat there about key columns.
+#
+# redis
+#   Rekor logs an error about publishing checkpoints to 127.0.0.1:6379. That is
+#   the optional witness feature. It is not fatal and no Redis is needed.
