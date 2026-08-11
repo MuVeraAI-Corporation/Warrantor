@@ -1,0 +1,2513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AumOS Curated Reading List — Highest-Quality Blogs, Specs &amp; Deep Technical Articles</title>
+  <link rel="stylesheet" href="aumos-docs.css">
+  <style>
+    :root { --max-width: 1100px; }
+    body { max-width: none; }
+    .page { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    .hero {
+      background: linear-gradient(135deg, #faf0eb 0%, #f5f3ef 55%, #eef3fa 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .hero p.lead { font-size: 1.1rem; color: var(--text-secondary); max-width: 70ch; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin: 1.25rem 0 0;
+    }
+    .stat {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+    }
+    .stat .n { font-size: 1.6rem; font-weight: 700; color: var(--accent); font-family: var(--font-serif); }
+    .stat .l { font-size: 0.8rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
+    .nav-map {
+      display: flex; flex-wrap: wrap; gap: 0.35rem;
+      margin: 1rem 0 2rem;
+    }
+    .nav-chip {
+      font-family: var(--font-mono); font-size: 0.75rem;
+      padding: 0.2rem 0.5rem; border-radius: 999px;
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      color: var(--text-primary); text-decoration: none;
+    }
+    .nav-chip.protocol { background: var(--blue-light); border-color: #c5d4e8; }
+    .nav-chip:hover { border-color: var(--accent); color: var(--accent-hover); }
+    table.coverage {
+      width: 100%; border-collapse: collapse; font-size: 0.9rem;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    table.coverage th, table.coverage td {
+      text-align: left; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border);
+    }
+    table.coverage th { background: var(--bg-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    table.coverage tr.group-row td { background: var(--accent-subtle); font-family: var(--font-serif); }
+    table.coverage tr.ok td:last-child { color: var(--green); }
+    table.coverage tr.sub td:last-child { color: var(--amber); }
+    table.coverage tr.miss td:last-child { color: var(--red); font-weight: 600; }
+    .diagram {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin: 1.5rem 0;
+    }
+    .plane {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      background: var(--bg-card);
+      min-height: 110px;
+    }
+    .plane h3 { font-size: 0.95rem; margin: 0 0 0.5rem; border: none; padding: 0; }
+    .plane .ids { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary); line-height: 1.5; }
+    .cards { display: grid; gap: 1rem; }
+    .entry-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.1rem 1.25rem;
+    }
+    .entry-card h4 { margin: 0 0 0.4rem; font-size: 1.05rem; border: none; padding: 0; }
+    .entry-card h4 a { color: var(--text-primary); text-decoration: none; }
+    .entry-card h4 a:hover { color: var(--accent); }
+    .entry-card .meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.85rem; color: var(--text-tertiary); margin-bottom: 0.6rem; }
+    .tier { font-size: 0.72rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 999px; }
+    .tier-canonical { background: var(--green-light); color: var(--green); }
+    .tier-secondary { background: var(--blue-light); color: var(--blue); }
+    .tier-gap { background: var(--amber-light); color: var(--amber); }
+    .map-chip {
+      font-family: var(--font-mono); font-size: 0.72rem;
+      background: var(--accent-light); color: #8a3d24;
+      padding: 0.1rem 0.4rem; border-radius: 4px; margin-right: 0.25rem;
+    }
+    .tag {
+      font-size: 0.72rem; color: var(--text-tertiary);
+      background: var(--bg-secondary); padding: 0.1rem 0.4rem; border-radius: 4px; margin-right: 0.25rem;
+    }
+    .maps, .tags { margin-top: 0.55rem; }
+    .maps .label { font-size: 0.8rem; color: var(--text-tertiary); margin-right: 0.35rem; }
+    .why { color: var(--text-secondary); margin: 0.4rem 0; }
+    .gap-note { background: var(--amber-light); border-left: 3px solid var(--amber); padding: 0.5rem 0.75rem; font-size: 0.9rem; }
+    .url { font-size: 0.8rem; margin-top: 0.5rem; word-break: break-all; }
+    .toc a { color: var(--blue); }
+    .legend { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; margin: 0.75rem 0 1rem; }
+    .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 0.35rem; }
+    .legend .l-ok::before { background: var(--green); }
+    .legend .l-sub::before { background: var(--amber); }
+    .legend .l-miss::before { background: var(--red); }
+    footer.page-foot { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--text-tertiary); font-size: 0.85rem; }
+    @media (max-width: 640px) {
+      .hero { padding: 1.25rem; }
+      table.coverage { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <p style="font-size:0.85rem;color:var(--accent);font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin:0 0 0.5rem;">AumOS · Source Matrix · Local Deliverable</p>
+      <h1>AumOS Curated Reading List — Highest-Quality Blogs, Specs &amp; Deep Technical Articles</h1>
+      <p class="lead">Highest-quality primary standards, RFCs, vendor engineering blogs, and deep technical analyses mapped to every implementable component and every protocol in the AumOS portfolio. Depth over listicles. Visual coverage matrix + browsable cards.</p>
+      <div class="stats">
+        <div class="stat"><div class="n">101</div><div class="l">Curated entries</div></div>
+        <div class="stat"><div class="n">57</div><div class="l">Unique domains</div></div>
+        <div class="stat"><div class="n">54</div><div class="l">Components</div></div>
+        <div class="stat"><div class="n">12</div><div class="l">Protocols</div></div>
+        <div class="stat"><div class="n">66</div><div class="l">IDs covered</div></div>
+        <div class="stat"><div class="n">91</div><div class="l">Canonical tier</div></div>
+      </div>
+    </header>
+
+    <nav class="toc">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#portfolio-map">Portfolio visual map</a></li>
+        <li><a href="#matrix">Coverage matrix (all IDs)</a></li>
+        <li><a href="#legend-quality">Quality tiers &amp; doctrine</a></li>
+        <li><a href="#clusters">Deep source clusters</a></li>
+        <li><a href="#gaps">Explicit gaps &amp; substitutes</a></li>
+      </ol>
+    </nav>
+
+    <section id="portfolio-map">
+      <h2>Portfolio visual map</h2>
+      <p>Navigable index of all <strong>54 implementable component IDs</strong> from
+      <code>00-reconciliation-matrix.md</code> tables (SSOT; broader than the vision-doc “44”
+      summary figure) + <strong>12 protocols (P1–P12)</strong>. Jump chips link to the coverage matrix.</p>
+      <div class="diagram">
+        <div class="plane"><h3>Trust / Identity</h3><div class="ids">T1 T2 · I1 I2</div></div>
+        <div class="plane"><h3>Runtime</h3><div class="ids">R1–R8</div></div>
+        <div class="plane"><h3>Confidential</h3><div class="ids">C1-1 … C1-5</div></div>
+        <div class="plane"><h3>Supply chain</h3><div class="ids">S1–S9</div></div>
+        <div class="plane"><h3>Eval / red-team</h3><div class="ids">A1–A8</div></div>
+        <div class="plane"><h3>Inference</h3><div class="ids">N1–N4</div></div>
+        <div class="plane"><h3>Federated / edge</h3><div class="ids">F1–F4</div></div>
+        <div class="plane"><h3>Cross-cutting</h3><div class="ids">X1–X11</div></div>
+        <div class="plane"><h3>Evidence</h3><div class="ids">E1</div></div>
+        <div class="plane"><h3>Protocols</h3><div class="ids">P1–P12 · AAE AAR CPE AMIL SSP AATM ABS VEB AIX MADE PRB CAP</div></div>
+      </div>
+      <div class="nav-map" id="id-nav">
+        <a class="nav-chip" data-portfolio-id="T1" href="#matrix">T1</a>
+<a class="nav-chip" data-portfolio-id="T2" href="#matrix">T2</a>
+<a class="nav-chip" data-portfolio-id="I1" href="#matrix">I1</a>
+<a class="nav-chip" data-portfolio-id="I2" href="#matrix">I2</a>
+<a class="nav-chip" data-portfolio-id="R1" href="#matrix">R1</a>
+<a class="nav-chip" data-portfolio-id="R2" href="#matrix">R2</a>
+<a class="nav-chip" data-portfolio-id="R3" href="#matrix">R3</a>
+<a class="nav-chip" data-portfolio-id="R4" href="#matrix">R4</a>
+<a class="nav-chip" data-portfolio-id="R5" href="#matrix">R5</a>
+<a class="nav-chip" data-portfolio-id="R6" href="#matrix">R6</a>
+<a class="nav-chip" data-portfolio-id="R7" href="#matrix">R7</a>
+<a class="nav-chip" data-portfolio-id="R8" href="#matrix">R8</a>
+<a class="nav-chip" data-portfolio-id="C1-1" href="#matrix">C1-1</a>
+<a class="nav-chip" data-portfolio-id="C1-2" href="#matrix">C1-2</a>
+<a class="nav-chip" data-portfolio-id="C1-3" href="#matrix">C1-3</a>
+<a class="nav-chip" data-portfolio-id="C1-4" href="#matrix">C1-4</a>
+<a class="nav-chip" data-portfolio-id="C1-5" href="#matrix">C1-5</a>
+<a class="nav-chip" data-portfolio-id="S1" href="#matrix">S1</a>
+<a class="nav-chip" data-portfolio-id="S2" href="#matrix">S2</a>
+<a class="nav-chip" data-portfolio-id="S3" href="#matrix">S3</a>
+<a class="nav-chip" data-portfolio-id="S4" href="#matrix">S4</a>
+<a class="nav-chip" data-portfolio-id="S5" href="#matrix">S5</a>
+<a class="nav-chip" data-portfolio-id="S6" href="#matrix">S6</a>
+<a class="nav-chip" data-portfolio-id="S7" href="#matrix">S7</a>
+<a class="nav-chip" data-portfolio-id="S8" href="#matrix">S8</a>
+<a class="nav-chip" data-portfolio-id="S9" href="#matrix">S9</a>
+<a class="nav-chip" data-portfolio-id="A1" href="#matrix">A1</a>
+<a class="nav-chip" data-portfolio-id="A2" href="#matrix">A2</a>
+<a class="nav-chip" data-portfolio-id="A3" href="#matrix">A3</a>
+<a class="nav-chip" data-portfolio-id="A4" href="#matrix">A4</a>
+<a class="nav-chip" data-portfolio-id="A5" href="#matrix">A5</a>
+<a class="nav-chip" data-portfolio-id="A6" href="#matrix">A6</a>
+<a class="nav-chip" data-portfolio-id="A7" href="#matrix">A7</a>
+<a class="nav-chip" data-portfolio-id="A8" href="#matrix">A8</a>
+<a class="nav-chip" data-portfolio-id="N1" href="#matrix">N1</a>
+<a class="nav-chip" data-portfolio-id="N2" href="#matrix">N2</a>
+<a class="nav-chip" data-portfolio-id="N3" href="#matrix">N3</a>
+<a class="nav-chip" data-portfolio-id="N4" href="#matrix">N4</a>
+<a class="nav-chip" data-portfolio-id="F1" href="#matrix">F1</a>
+<a class="nav-chip" data-portfolio-id="F2" href="#matrix">F2</a>
+<a class="nav-chip" data-portfolio-id="F3" href="#matrix">F3</a>
+<a class="nav-chip" data-portfolio-id="F4" href="#matrix">F4</a>
+<a class="nav-chip" data-portfolio-id="X1" href="#matrix">X1</a>
+<a class="nav-chip" data-portfolio-id="X2" href="#matrix">X2</a>
+<a class="nav-chip" data-portfolio-id="X3" href="#matrix">X3</a>
+<a class="nav-chip" data-portfolio-id="X4" href="#matrix">X4</a>
+<a class="nav-chip" data-portfolio-id="X5" href="#matrix">X5</a>
+<a class="nav-chip" data-portfolio-id="X6" href="#matrix">X6</a>
+<a class="nav-chip" data-portfolio-id="X7" href="#matrix">X7</a>
+<a class="nav-chip" data-portfolio-id="X8" href="#matrix">X8</a>
+<a class="nav-chip" data-portfolio-id="X9" href="#matrix">X9</a>
+<a class="nav-chip" data-portfolio-id="X10" href="#matrix">X10</a>
+<a class="nav-chip" data-portfolio-id="X11" href="#matrix">X11</a>
+<a class="nav-chip" data-portfolio-id="E1" href="#matrix">E1</a>
+<a class="nav-chip protocol" data-portfolio-id="P1" href="#matrix">P1</a>
+<a class="nav-chip protocol" data-portfolio-id="P2" href="#matrix">P2</a>
+<a class="nav-chip protocol" data-portfolio-id="P3" href="#matrix">P3</a>
+<a class="nav-chip protocol" data-portfolio-id="P4" href="#matrix">P4</a>
+<a class="nav-chip protocol" data-portfolio-id="P5" href="#matrix">P5</a>
+<a class="nav-chip protocol" data-portfolio-id="P6" href="#matrix">P6</a>
+<a class="nav-chip protocol" data-portfolio-id="P7" href="#matrix">P7</a>
+<a class="nav-chip protocol" data-portfolio-id="P8" href="#matrix">P8</a>
+<a class="nav-chip protocol" data-portfolio-id="P9" href="#matrix">P9</a>
+<a class="nav-chip protocol" data-portfolio-id="P10" href="#matrix">P10</a>
+<a class="nav-chip protocol" data-portfolio-id="P11" href="#matrix">P11</a>
+<a class="nav-chip protocol" data-portfolio-id="P12" href="#matrix">P12</a>
+      </div>
+    </section>
+
+    <section id="legend-quality">
+      <h2>Quality tiers &amp; research doctrine</h2>
+      <ul>
+        <li><strong>Canonical primary</strong> — standards bodies, RFCs, official project docs, first-party eng blogs that define the surface.</li>
+        <li><strong>Deep secondary</strong> — rigorous security research, long-form technical analysis, conference/arXiv writeups that are definitive on a subtopic.</li>
+        <li><strong>Adjacent / gap substitute</strong> — honest note when AumOS owns a novel composition; multi-source ecosystem anchors stand in until a public twin exists.</li>
+      </ul>
+      <p>Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not SEO listicles. US/India/GCC regulatory anchors when compliance appears.</p>
+      <p>Portfolio truth files: <code>aumos/docs/01-vision-and-portfolio.md, aumos/docs/00-reconciliation-matrix.md, aumos/specs/protocols/README.md</code>. Generated 2026-08-09 · v1.0.0.</p>
+    </section>
+
+    <section id="matrix">
+      <h2>Coverage matrix</h2>
+      <div class="legend">
+        <span class="l-ok">Covered with primary/secondary depth</span>
+        <span class="l-sub">Covered via adjacent substitutes / gap notes</span>
+        <span class="l-miss">Missing (must be zero)</span>
+      </div>
+      <table class="coverage">
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Wave</th><th># sources</th><th>Status / tiers</th></tr>
+        </thead>
+        <tbody>
+          <tr class="group-row"><td colspan="5"><strong>Trust Core</strong></td></tr>
+<tr class="ok">
+                <td data-portfolio-id="T1"><code>T1</code></td>
+                <td><code>trust-core</code></td>
+                <td>Wave 1</td>
+                <td>11</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="T2"><code>T2</code></td>
+                <td><code>authority-spec</code></td>
+                <td>Wave 2</td>
+                <td>4</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="group-row"><td colspan="5"><strong>Identity &amp; Authority</strong></td></tr>
+<tr class="ok">
+                <td data-portfolio-id="I1"><code>I1</code></td>
+                <td><code>agent-identity</code></td>
+                <td>Wave 2</td>
+                <td>16</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="I2"><code>I2</code></td>
+                <td><code>identity-bindings</code></td>
+                <td>Wave 2</td>
+                <td>4</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="group-row"><td colspan="5"><strong>Runtime &amp; Enforcement</strong></td></tr>
+<tr class="ok">
+                <td data-portfolio-id="R1"><code>R1</code></td>
+                <td><code>secure-workspace</code></td>
+                <td>Wave 1</td>
+                <td>8</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="R2"><code>R2</code></td>
+                <td><code>eval-guard</code></td>
+                <td>Wave 1</td>
+                <td>5</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="R3"><code>R3</code></td>
+                <td><code>kill-switch</code></td>
+                <td>Wave 1</td>
+                <td>7</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="R4"><code>R4</code></td>
+                <td><code>credential-vault</code></td>
+                <td>Wave 1</td>
+                <td>9</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="R5"><code>R5</code></td>
+                <td><code>policy-compiler</code></td>
+                <td>Wave 6</td>
+                <td>4</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="R6"><code>R6</code></td>
+                <td><code>policy-bridge</code></td>
+                <td>Wave 2</td>
+                <td>4</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="R7"><code>R7</code></td>
+                <td><code>egress-filter</code></td>
+                <td>Wave 6</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="R8"><code>R8</code></td>
+                <td><code>sandbox-runtime</code></td>
+                <td>Wave 4</td>
+                <td>6</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="group-row"><td colspan="5"><strong>Confidential Compute &amp; GPU Attestation</strong></td></tr>
+<tr class="ok">
+                <td data-portfolio-id="C1-1"><code>C1-1</code></td>
+                <td><code>nvtrust-bridge</code></td>
+                <td>Wave 1</td>
+                <td>5</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="C1-2"><code>C1-2</code></td>
+                <td><code>cuda-gram</code></td>
+                <td>Wave 1</td>
+                <td>2</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="C1-3"><code>C1-3</code></td>
+                <td><code>attesta-flow</code></td>
+                <td>Wave 5</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="C1-4"><code>C1-4</code></td>
+                <td><code>tee-serve</code></td>
+                <td>Wave 5</td>
+                <td>5</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="C1-5"><code>C1-5</code></td>
+                <td><code>confidential-fabric</code></td>
+                <td>Wave 5</td>
+                <td>6</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="group-row"><td colspan="5"><strong>Safe Formats &amp; Supply Chain</strong></td></tr>
+<tr class="ok">
+                <td data-portfolio-id="S1"><code>S1</code></td>
+                <td><code>safe-tensors-pp</code></td>
+                <td>Wave 2</td>
+                <td>6</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="S2"><code>S2</code></td>
+                <td><code>provena-chain</code></td>
+                <td>Wave 3</td>
+                <td>8</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="S3"><code>S3</code></td>
+                <td><code>gguf-ext</code></td>
+                <td>Wave 3</td>
+                <td>2</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="S4"><code>S4</code></td>
+                <td><code>model-sbom</code></td>
+                <td>Wave 2</td>
+                <td>13</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="S5"><code>S5</code></td>
+                <td><code>data-provenance-kit</code></td>
+                <td>Wave 3</td>
+                <td>8</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="S6"><code>S6</code></td>
+                <td><code>exfil-guard</code></td>
+                <td>Wave 6</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="S7"><code>S7</code></td>
+                <td><code>tamper-scan</code></td>
+                <td>Wave 3</td>
+                <td>4</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="S8"><code>S8</code></td>
+                <td><code>train-guard</code></td>
+                <td>Wave 3</td>
+                <td>4</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="S9"><code>S9</code></td>
+                <td><code>lightwell-bridge</code></td>
+                <td>Wave 6</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="group-row"><td colspan="5"><strong>Evaluation &amp; Red-Team</strong></td></tr>
+<tr class="ok">
+                <td data-portfolio-id="A1"><code>A1</code></td>
+                <td><code>safe-eval</code></td>
+                <td>Wave 3</td>
+                <td>16</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="A2"><code>A2</code></td>
+                <td><code>adversaria</code></td>
+                <td>Wave 3</td>
+                <td>6</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="A3"><code>A3</code></td>
+                <td><code>bias-sentinel</code></td>
+                <td>Wave 6</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="A4"><code>A4</code></td>
+                <td><code>comply-gate</code></td>
+                <td>Wave 6</td>
+                <td>6</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="A5"><code>A5</code></td>
+                <td><code>agentsec-lab</code></td>
+                <td>Wave 2</td>
+                <td>8</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="A6"><code>A6</code></td>
+                <td><code>conformance</code></td>
+                <td>Wave 1</td>
+                <td>6</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="A7"><code>A7</code></td>
+                <td><code>red-team-cloud</code></td>
+                <td>Wave 6</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="A8"><code>A8</code></td>
+                <td><code>arena</code></td>
+                <td>Wave 7</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="group-row"><td colspan="5"><strong>Inference Stack</strong></td></tr>
+<tr class="ok">
+                <td data-portfolio-id="N1"><code>N1</code></td>
+                <td><code>open-serve-kit</code></td>
+                <td>Wave 4</td>
+                <td>4</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="N2"><code>N2</code></td>
+                <td><code>bridge-rt</code></td>
+                <td>Wave 4</td>
+                <td>2</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="N3"><code>N3</code></td>
+                <td><code>inference-proxy</code></td>
+                <td>Wave 4</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="N4"><code>N4</code></td>
+                <td><code>tenant-guard</code></td>
+                <td>Wave 4</td>
+                <td>5</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="group-row"><td colspan="5"><strong>Federated &amp; Edge</strong></td></tr>
+<tr class="ok">
+                <td data-portfolio-id="F1"><code>F1</code></td>
+                <td><code>fed-core</code></td>
+                <td>Wave 5</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="F2"><code>F2</code></td>
+                <td><code>dp-crate</code></td>
+                <td>Wave 5</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="F3"><code>F3</code></td>
+                <td><code>edge-sentinel</code></td>
+                <td>Wave 5</td>
+                <td>1</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="F4"><code>F4</code></td>
+                <td><code>fleet-marshal</code></td>
+                <td>Wave 5</td>
+                <td>6</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="group-row"><td colspan="5"><strong>Cross-Cutting / Aggregation</strong></td></tr>
+<tr class="ok">
+                <td data-portfolio-id="X1"><code>X1</code></td>
+                <td><code>defstack-cli</code></td>
+                <td>Wave 1</td>
+                <td>4</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="X2"><code>X2</code></td>
+                <td><code>nooa-ext</code></td>
+                <td>Wave 6</td>
+                <td>4</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="X3"><code>X3</code></td>
+                <td><code>open-harness-spec</code></td>
+                <td>Wave 6</td>
+                <td>5</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="X4"><code>X4</code></td>
+                <td><code>crypto-audit-ai</code></td>
+                <td>Wave 6</td>
+                <td>1</td>
+                <td>Covered · deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="X5"><code>X5</code></td>
+                <td><code>retro-spec-kit</code></td>
+                <td>Wave 6</td>
+                <td>2</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="X6"><code>X6</code></td>
+                <td><code>metr-bridge</code></td>
+                <td>Wave 6</td>
+                <td>3</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="X7"><code>X7</code></td>
+                <td><code>console</code></td>
+                <td>Wave 7</td>
+                <td>1</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="X8"><code>X8</code></td>
+                <td><code>mcp-gateway</code></td>
+                <td>Wave 2</td>
+                <td>8</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="X9"><code>X9</code></td>
+                <td><code>incident-exchange</code></td>
+                <td>Wave 6</td>
+                <td>9</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="X10"><code>X10</code></td>
+                <td><code>sovereign-stack</code></td>
+                <td>Wave 7</td>
+                <td>2</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="ok">
+                <td data-portfolio-id="X11"><code>X11</code></td>
+                <td><code>defstack-cloud</code></td>
+                <td>Wave 7</td>
+                <td>4</td>
+                <td>Covered · canonical, deep-secondary</td>
+                </tr>
+<tr class="group-row"><td colspan="5"><strong>Evidence Plane</strong></td></tr>
+<tr class="ok">
+                <td data-portfolio-id="E1"><code>E1</code></td>
+                <td><code>flight-recorder</code></td>
+                <td>Wave 2</td>
+                <td>12</td>
+                <td>Covered · canonical</td>
+                </tr>
+<tr class="group-row"><td colspan="5"><strong>Protocols (spec-only P1–P12)</strong></td></tr>
+<tr class="ok">
+            <td data-portfolio-id="P1"><code>P1</code></td>
+            <td><code>aae</code> — Agent Authority Envelope</td>
+            <td>Spec</td>
+            <td>15</td>
+            <td>Covered · canonical, deep-secondary</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P2"><code>P2</code></td>
+            <td><code>aar</code> — Agent Action Receipt</td>
+            <td>Spec</td>
+            <td>9</td>
+            <td>Covered · canonical</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P3"><code>P3</code></td>
+            <td><code>cpe</code> — Context Provenance Envelope</td>
+            <td>Spec</td>
+            <td>5</td>
+            <td>Covered · canonical</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P4"><code>P4</code></td>
+            <td><code>amil</code> — Agent Memory Integrity Ledger</td>
+            <td>Spec</td>
+            <td>4</td>
+            <td>Covered · canonical</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P5"><code>P5</code></td>
+            <td><code>ssp</code> — Secure Skill Package</td>
+            <td>Spec</td>
+            <td>8</td>
+            <td>Covered · canonical, deep-secondary</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P6"><code>P6</code></td>
+            <td><code>aatm</code> — AI Artifact Trust Manifest</td>
+            <td>Spec</td>
+            <td>15</td>
+            <td>Covered · canonical, deep-secondary</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P7"><code>P7</code></td>
+            <td><code>abs</code> — Autonomy Budget Specification</td>
+            <td>Spec</td>
+            <td>9</td>
+            <td>Covered · canonical</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P8"><code>P8</code></td>
+            <td><code>veb</code> — Verifiable Evaluation Bundle</td>
+            <td>Spec</td>
+            <td>10</td>
+            <td>Covered · canonical, deep-secondary</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P9"><code>P9</code></td>
+            <td><code>aix</code> — Agent Incident Exchange</td>
+            <td>Spec</td>
+            <td>6</td>
+            <td>Covered · canonical</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P10"><code>P10</code></td>
+            <td><code>made</code> — Multi-Agent Delegation Exchange</td>
+            <td>Spec</td>
+            <td>10</td>
+            <td>Covered · canonical, deep-secondary</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P11"><code>P11</code></td>
+            <td><code>prb</code> — Proof-Carrying Remediation Bundle</td>
+            <td>Spec</td>
+            <td>6</td>
+            <td>Covered · canonical</td>
+            </tr>
+<tr class="ok">
+            <td data-portfolio-id="P12"><code>P12</code></td>
+            <td><code>cap</code> — Capability Attestation Profile</td>
+            <td>Spec</td>
+            <td>8</td>
+            <td>Covered · canonical</td>
+            </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="gaps">
+      <h2>Explicit gaps &amp; substitutes</h2>
+      <p><strong>Uncovered IDs (must be empty):</strong> none</p>
+      <p><strong>IDs relying only on adjacent substitutes:</strong> none</p>
+      <p>Notable thin public surfaces called out in entries: OpenShell/NOOA deep eng docs, IBM/Red Hat Lightwell long-form, and several AumOS-native protocol envelopes (AAE/AAR/AMIL/etc.) which are composed from SPIFFE + OAuth RAR/DPoP + Cedar + OTel + OCSF + Sigstore rather than a single existing public twin.</p>
+    </section>
+
+    <div id="clusters">
+      <h2>Deep source clusters</h2>
+      
+        <section class="cluster" id="cluster-identity">
+          <h2>Identity</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-spiffe-home" data-entry-id="spiffe-home">
+      <header>
+        <h4><a href="https://spiffe.io/" rel="noopener noreferrer" target="_blank">SPIFFE — Secure Production Identity Framework for Everyone</a></h4>
+        <div class="meta">
+          <span class="author">SPIFFE / CNCF</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Canonical primary standard for workload identity; AumOS I1/I2 profile SPIFFE IDs and SVIDs rather than inventing agent identity.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="I2">I2</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="P12">P12</span> <span class="map-chip" data-portfolio-id="R4">R4</span></div>
+      <div class="tags"><span class="tag">SPIFFE</span> <span class="tag">SPIRE</span> <span class="tag">zero-trust</span> <span class="tag">workload-identity</span></div>
+      <p class="url"><code>https://spiffe.io/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-spire-concepts" data-entry-id="spire-concepts">
+      <header>
+        <h4><a href="https://spiffe.io/docs/latest/spire-about/spire-concepts/" rel="noopener noreferrer" target="_blank">SPIRE Concepts — Attestation, Agents, and Trust Domains</a></h4>
+        <div class="meta">
+          <span class="author">SPIFFE Project</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Deep operational model for node/workload attestation that I2 identity-bindings must implement as the SPIRE adapter layer.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="I2">I2</span> <span class="map-chip" data-portfolio-id="P12">P12</span> <span class="map-chip" data-portfolio-id="C1-5">C1-5</span></div>
+      <div class="tags"><span class="tag">SPIRE</span> <span class="tag">attestation</span> <span class="tag">SVID</span></div>
+      <p class="url"><code>https://spiffe.io/docs/latest/spire-about/spire-concepts/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-spiffe-bottom-turtle" data-entry-id="spiffe-bottom-turtle">
+      <header>
+        <h4><a href="https://spiffe.io/pdf/Solving-the-bottom-turtle-SPIFFE-SPIRE-Book.pdf" rel="noopener noreferrer" target="_blank">Solving the Bottom Turtle — SPIFFE/SPIRE Book (PDF)</a></h4>
+        <div class="meta">
+          <span class="author">SPIFFE Community</span>
+          <span class="date">2022+</span>
+          <span class="tier tier-secondary">Deep secondary</span>
+        </div>
+      </header>
+      <p class="why">Long-form technical book on establishing universal trust; the identity substrate T1/I1 build on.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="I2">I2</span> <span class="map-chip" data-portfolio-id="T1">T1</span></div>
+      <div class="tags"><span class="tag">SPIFFE</span> <span class="tag">deep-dive</span> <span class="tag">book</span></div>
+      <p class="url"><code>https://spiffe.io/pdf/Solving-the-bottom-turtle-SPIFFE-SPIRE-Book.pdf</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-zero-to-trusted-spiffe" data-entry-id="zero-to-trusted-spiffe">
+      <header>
+        <h4><a href="https://www.spletzer.com/2025/03/zero-to-trusted-spiffe-and-spire-demystified/" rel="noopener noreferrer" target="_blank">Zero to Trusted: SPIFFE and SPIRE, Demystified</a></h4>
+        <div class="meta">
+          <span class="author">Spletzer</span>
+          <span class="date">2025-03</span>
+          <span class="tier tier-secondary">Deep secondary</span>
+        </div>
+      </header>
+      <p class="why">Clear 2025 explainer of SVIDs, selectors, and federation patterns useful for agent identity onboarding docs.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="I2">I2</span></div>
+      <div class="tags"><span class="tag">SPIFFE</span> <span class="tag">explainer</span> <span class="tag">SVID</span></div>
+      <p class="url"><code>https://www.spletzer.com/2025/03/zero-to-trusted-spiffe-and-spire-demystified/</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-policy">
+          <h2>Policy</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-cedar-agentic-aws" data-entry-id="cedar-agentic-aws">
+      <header>
+        <h4><a href="https://aws.amazon.com/blogs/security/enforce-least-privilege-authorization-in-multi-agent-ai-chains-using-cedar/" rel="noopener noreferrer" target="_blank">Enforce Least-Privilege Authorization in Multi-Agent AI Chains Using Cedar</a></h4>
+        <div class="meta">
+          <span class="author">AWS Security Blog</span>
+          <span class="date">2026-07</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Three-layer Cedar + OAuth model for multi-agent chains — direct blueprint for R5/R6 policy-compiler/bridge and P7 ABS budgets.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R5">R5</span> <span class="map-chip" data-portfolio-id="R6">R6</span> <span class="map-chip" data-portfolio-id="P7">P7</span> <span class="map-chip" data-portfolio-id="P10">P10</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="R3">R3</span> <span class="map-chip" data-portfolio-id="R4">R4</span></div>
+      <div class="tags"><span class="tag">Cedar</span> <span class="tag">OPA</span> <span class="tag">multi-agent</span> <span class="tag">authorization</span> <span class="tag">OAuth</span></div>
+      <p class="url"><code>https://aws.amazon.com/blogs/security/enforce-least-privilege-authorization-in-multi-agent-ai-chains-using-cedar/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-cedar-home" data-entry-id="cedar-home">
+      <header>
+        <h4><a href="https://www.cedarpolicy.com/" rel="noopener noreferrer" target="_blank">Cedar Policy Language</a></h4>
+        <div class="meta">
+          <span class="author">AWS Open Source</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary Cedar language home; AumOS compiles authority to Cedar/OPA/OpenShell equivalence.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R5">R5</span> <span class="map-chip" data-portfolio-id="R6">R6</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="P7">P7</span></div>
+      <div class="tags"><span class="tag">Cedar</span> <span class="tag">policy-as-code</span></div>
+      <p class="url"><code>https://www.cedarpolicy.com/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-opa-docs" data-entry-id="opa-docs">
+      <header>
+        <h4><a href="https://www.openpolicyagent.org/docs/latest/" rel="noopener noreferrer" target="_blank">Open Policy Agent Documentation</a></h4>
+        <div class="meta">
+          <span class="author">OPA / CNCF</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Rego policy engine docs; R6 decision-equivalence tests include OPA adapters.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R5">R5</span> <span class="map-chip" data-portfolio-id="R6">R6</span> <span class="map-chip" data-portfolio-id="R3">R3</span></div>
+      <div class="tags"><span class="tag">OPA</span> <span class="tag">Rego</span> <span class="tag">policy</span></div>
+      <p class="url"><code>https://www.openpolicyagent.org/docs/latest/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-oauth-rar" data-entry-id="oauth-rar">
+      <header>
+        <h4><a href="https://www.rfc-editor.org/rfc/rfc9396.html" rel="noopener noreferrer" target="_blank">RFC 9396 — OAuth 2.0 Rich Authorization Requests (RAR)</a></h4>
+        <div class="meta">
+          <span class="author">IETF</span>
+          <span class="date">2023</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Structured authorization_details for fine-grained scopes — profiled into P1 AAE and R4 credential brokering.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="R4">R4</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="P7">P7</span></div>
+      <div class="tags"><span class="tag">OAuth</span> <span class="tag">RAR</span> <span class="tag">RFC</span></div>
+      <p class="url"><code>https://www.rfc-editor.org/rfc/rfc9396.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-oauth-dpop" data-entry-id="oauth-dpop">
+      <header>
+        <h4><a href="https://www.rfc-editor.org/rfc/rfc9449.html" rel="noopener noreferrer" target="_blank">RFC 9449 — OAuth 2.0 Demonstrating Proof of Possession (DPoP)</a></h4>
+        <div class="meta">
+          <span class="author">IETF</span>
+          <span class="date">2023</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Sender-constrained tokens prevent credential replay — required pattern for R4 CredentialVault and agent-scoped secrets.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R4">R4</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="P1">P1</span></div>
+      <div class="tags"><span class="tag">OAuth</span> <span class="tag">DPoP</span> <span class="tag">RFC</span></div>
+      <p class="url"><code>https://www.rfc-editor.org/rfc/rfc9449.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-oauth-token-exchange" data-entry-id="oauth-token-exchange">
+      <header>
+        <h4><a href="https://www.rfc-editor.org/rfc/rfc8693.html" rel="noopener noreferrer" target="_blank">RFC 8693 — OAuth 2.0 Token Exchange</a></h4>
+        <div class="meta">
+          <span class="author">IETF</span>
+          <span class="date">2020</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">On-behalf-of token exchange for multi-agent delegation chains (P10 MADE).</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P10">P10</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="R4">R4</span> <span class="map-chip" data-portfolio-id="I1">I1</span></div>
+      <div class="tags"><span class="tag">OAuth</span> <span class="tag">delegation</span> <span class="tag">RFC</span></div>
+      <p class="url"><code>https://www.rfc-editor.org/rfc/rfc8693.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-teleport-policy-benchmark" data-entry-id="teleport-policy-benchmark">
+      <header>
+        <h4><a href="https://goteleport.com/blog/benchmarking-policy-languages/" rel="noopener noreferrer" target="_blank">Security Benchmarking Authorization Policy Engines: Rego, Cedar…</a></h4>
+        <div class="meta">
+          <span class="author">Teleport / Trail of Bits research summary</span>
+          <span class="date">2025-06</span>
+          <span class="tier tier-secondary">Deep secondary</span>
+        </div>
+      </header>
+      <p class="why">Adversarial comparison of policy languages informing R6 fail-closed multi-engine adapters.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R5">R5</span> <span class="map-chip" data-portfolio-id="R6">R6</span></div>
+      <div class="tags"><span class="tag">Cedar</span> <span class="tag">Rego</span> <span class="tag">security</span> <span class="tag">benchmark</span></div>
+      <p class="url"><code>https://goteleport.com/blog/benchmarking-policy-languages/</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-runtime">
+          <h2>Runtime</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-ebpf-docs" data-entry-id="ebpf-docs">
+      <header>
+        <h4><a href="https://ebpf.io/what-is-ebpf/" rel="noopener noreferrer" target="_blank">eBPF Documentation</a></h4>
+        <div class="meta">
+          <span class="author">eBPF Foundation</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Kernel programmable dataplane for R7 egress-filter and S6 ExfilGuard.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R7">R7</span> <span class="map-chip" data-portfolio-id="S6">S6</span> <span class="map-chip" data-portfolio-id="R2">R2</span></div>
+      <div class="tags"><span class="tag">eBPF</span> <span class="tag">networking</span> <span class="tag">security</span></div>
+      <p class="url"><code>https://ebpf.io/what-is-ebpf/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-tetragon" data-entry-id="tetragon">
+      <header>
+        <h4><a href="https://tetragon.io/" rel="noopener noreferrer" target="_blank">Cilium Tetragon — eBPF-based Security Observability &amp; Runtime Enforcement</a></h4>
+        <div class="meta">
+          <span class="author">Cilium / Isovalent</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Production eBPF enforcement reference overlapping S6/R7 design choices.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S6">S6</span> <span class="map-chip" data-portfolio-id="R7">R7</span> <span class="map-chip" data-portfolio-id="R2">R2</span></div>
+      <div class="tags"><span class="tag">eBPF</span> <span class="tag">Tetragon</span> <span class="tag">runtime-security</span></div>
+      <p class="url"><code>https://tetragon.io/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-falco" data-entry-id="falco">
+      <header>
+        <h4><a href="https://falco.org/" rel="noopener noreferrer" target="_blank">Falco — Cloud Native Runtime Security</a></h4>
+        <div class="meta">
+          <span class="author">CNCF Falco</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Syscall threat detection patterns informing S6 exfil rules and R2 sandbox boundary monitoring.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S6">S6</span> <span class="map-chip" data-portfolio-id="R2">R2</span> <span class="map-chip" data-portfolio-id="R7">R7</span></div>
+      <div class="tags"><span class="tag">Falco</span> <span class="tag">runtime-security</span> <span class="tag">eBPF</span></div>
+      <p class="url"><code>https://falco.org/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-wasmtime" data-entry-id="wasmtime">
+      <header>
+        <h4><a href="https://wasmtime.dev/" rel="noopener noreferrer" target="_blank">Wasmtime — WebAssembly Runtime</a></h4>
+        <div class="meta">
+          <span class="author">Bytecode Alliance</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">WASM runtime choice for R8 sandbox-runtime capability-scoped execution.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R8">R8</span> <span class="map-chip" data-portfolio-id="R1">R1</span> <span class="map-chip" data-portfolio-id="P12">P12</span></div>
+      <div class="tags"><span class="tag">WASM</span> <span class="tag">Wasmtime</span> <span class="tag">sandbox</span></div>
+      <p class="url"><code>https://wasmtime.dev/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-nvidia-openshell" data-entry-id="nvidia-openshell">
+      <header>
+        <h4><a href="https://developer.nvidia.com/blog/run-autonomous-self-evolving-agents-more-safely-with-nvidia-openshell/" rel="noopener noreferrer" target="_blank">Run Autonomous, Self-Evolving Agents More Safely with NVIDIA OpenShell</a></h4>
+        <div class="meta">
+          <span class="author">NVIDIA Technical Blog</span>
+          <span class="date">2026-03</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary NVIDIA eng blog for OpenShell sandbox runtime — R1 secure-workspace and R8 sandbox-runtime profile this surface. Maps OSAF founding runtime contribution.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R1">R1</span> <span class="map-chip" data-portfolio-id="R8">R8</span> <span class="map-chip" data-portfolio-id="R2">R2</span> <span class="map-chip" data-portfolio-id="X3">X3</span></div>
+      <div class="tags"><span class="tag">OpenShell</span> <span class="tag">NVIDIA</span> <span class="tag">sandbox</span> <span class="tag">agents</span> <span class="tag">OSAF</span></div>
+      <p class="url"><code>https://developer.nvidia.com/blog/run-autonomous-self-evolving-agents-more-safely-with-nvidia-openshell/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-ssf-caep" data-entry-id="ssf-caep">
+      <header>
+        <h4><a href="https://openid.net/sg/sharedsignals/" rel="noopener noreferrer" target="_blank">OpenID Shared Signals Framework / CAEP</a></h4>
+        <div class="meta">
+          <span class="author">OpenID Foundation</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Continuous access evaluation and shared signals for revocation — maps to R3 kill-switch and P1 expiry/revocation semantics.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R3">R3</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="R4">R4</span></div>
+      <div class="tags"><span class="tag">OpenID</span> <span class="tag">SSF</span> <span class="tag">CAEP</span> <span class="tag">revocation</span></div>
+      <p class="url"><code>https://openid.net/sg/sharedsignals/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-hashi-vault" data-entry-id="hashi-vault">
+      <header>
+        <h4><a href="https://developer.hashicorp.com/vault/docs" rel="noopener noreferrer" target="_blank">HashiCorp Vault Documentation — Secrets Engines &amp; Identity</a></h4>
+        <div class="meta">
+          <span class="author">HashiCorp</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Industry pattern for dynamic secrets that R4 CredentialVault specializes for agent-scoped brokering.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R4">R4</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="R3">R3</span></div>
+      <div class="tags"><span class="tag">Vault</span> <span class="tag">secrets</span> <span class="tag">identity</span></div>
+      <p class="url"><code>https://developer.hashicorp.com/vault/docs</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-kill-switch-patterns" data-entry-id="kill-switch-patterns">
+      <header>
+        <h4><a href="https://openid.net/sg/sharedsignals/" rel="noopener noreferrer" target="_blank">OpenID Shared Signals Framework Working Group</a></h4>
+        <div class="meta">
+          <span class="author">OpenID Foundation</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real OpenID Shared Signals / CAEP home. R3 KillSwitchKit maps continuous access evaluation and emergency revoke events to this signal plane.</p>
+      <p class="entry-note">AumOS kill-switch policy/execution layer is additional; SSF provides the continuous-evaluation event model.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="R3">R3</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="P7">P7</span> <span class="map-chip" data-portfolio-id="I1">I1</span></div>
+      <div class="tags"><span class="tag">kill-switch</span> <span class="tag">revocation</span> <span class="tag">CAEP</span></div>
+      <p class="url"><code>https://openid.net/sg/sharedsignals/</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-confidential">
+          <h2>Confidential</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-nvtrust-docs" data-entry-id="nvtrust-docs">
+      <header>
+        <h4><a href="https://docs.nvidia.com/nvtrust/index.html" rel="noopener noreferrer" target="_blank">NVIDIA Trusted Computing / nvtrust Documentation</a></h4>
+        <div class="meta">
+          <span class="author">NVIDIA</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Official NVIDIA attestation documentation; primary source for C1-1 nvtrust-bridge and C1-2 cuda-gram.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="C1-1">C1-1</span> <span class="map-chip" data-portfolio-id="C1-2">C1-2</span> <span class="map-chip" data-portfolio-id="C1-3">C1-3</span> <span class="map-chip" data-portfolio-id="C1-4">C1-4</span> <span class="map-chip" data-portfolio-id="C1-5">C1-5</span> <span class="map-chip" data-portfolio-id="P12">P12</span></div>
+      <div class="tags"><span class="tag">NVIDIA</span> <span class="tag">nvtrust</span> <span class="tag">attestation</span> <span class="tag">confidential-computing</span></div>
+      <p class="url"><code>https://docs.nvidia.com/nvtrust/index.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-nvidia-cc-h100" data-entry-id="nvidia-cc-h100">
+      <header>
+        <h4><a href="https://developer.nvidia.com/blog/confidential-computing-on-h100-gpus-for-secure-and-trustworthy-ai/" rel="noopener noreferrer" target="_blank">Confidential Computing on NVIDIA H100 GPUs for Secure and Trustworthy AI</a></h4>
+        <div class="meta">
+          <span class="author">NVIDIA Technical Blog</span>
+          <span class="date">2023-08</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Deep writeup of H100 CC, device identity, attestation reports, and NRAS — C1-* design bible.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="C1-1">C1-1</span> <span class="map-chip" data-portfolio-id="C1-2">C1-2</span> <span class="map-chip" data-portfolio-id="C1-3">C1-3</span> <span class="map-chip" data-portfolio-id="C1-4">C1-4</span> <span class="map-chip" data-portfolio-id="C1-5">C1-5</span> <span class="map-chip" data-portfolio-id="N4">N4</span></div>
+      <div class="tags"><span class="tag">H100</span> <span class="tag">confidential-computing</span> <span class="tag">NRAS</span> <span class="tag">attestation</span></div>
+      <p class="url"><code>https://developer.nvidia.com/blog/confidential-computing-on-h100-gpus-for-secure-and-trustworthy-ai/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-intel-gpu-attestation" data-entry-id="intel-gpu-attestation">
+      <header>
+        <h4><a href="https://docs.trustauthority.intel.com/main/articles/articles/ita/concept-gpu-attestation.html" rel="noopener noreferrer" target="_blank">GPU Remote Attestation With Intel Trust Authority</a></h4>
+        <div class="meta">
+          <span class="author">Intel Trust Authority Docs</span>
+          <span class="date">2026</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Composite TEE+GPU attestation workflows informing C1-3 AttestaFlow multi-cloud pipelines.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="C1-3">C1-3</span> <span class="map-chip" data-portfolio-id="C1-5">C1-5</span> <span class="map-chip" data-portfolio-id="C1-4">C1-4</span> <span class="map-chip" data-portfolio-id="P12">P12</span></div>
+      <div class="tags"><span class="tag">attestation</span> <span class="tag">TEE</span> <span class="tag">GPU</span> <span class="tag">Intel</span></div>
+      <p class="url"><code>https://docs.trustauthority.intel.com/main/articles/articles/ita/concept-gpu-attestation.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-go-nvtrust" data-entry-id="go-nvtrust">
+      <header>
+        <h4><a href="https://github.com/confidentsecurity/go-nvtrust" rel="noopener noreferrer" target="_blank">go-nvtrust — Go Library for NVIDIA GPU/NVSwitch Attestation</a></h4>
+        <div class="meta">
+          <span class="author">Confident Security / NVIDIA community</span>
+          <span class="date">2025-10</span>
+          <span class="tier tier-secondary">Deep secondary</span>
+        </div>
+      </header>
+      <p class="why">Open Go bindings for NRAS evidence collection — reference for C1-1 multi-language bindings.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="C1-1">C1-1</span> <span class="map-chip" data-portfolio-id="C1-4">C1-4</span> <span class="map-chip" data-portfolio-id="C1-5">C1-5</span></div>
+      <div class="tags"><span class="tag">nvtrust</span> <span class="tag">Go</span> <span class="tag">NRAS</span></div>
+      <p class="url"><code>https://github.com/confidentsecurity/go-nvtrust</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-supply-chain">
+          <h2>Supply Chain</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-sigstore-home" data-entry-id="sigstore-home">
+      <header>
+        <h4><a href="https://www.sigstore.dev/" rel="noopener noreferrer" target="_blank">Sigstore — Software Signing and Transparency</a></h4>
+        <div class="meta">
+          <span class="author">Sigstore / OpenSSF</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Keyless signing + transparency stack; S2 ProvenaChain roots Merkle evidence in Rekor.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S2">S2</span> <span class="map-chip" data-portfolio-id="S4">S4</span> <span class="map-chip" data-portfolio-id="T1">T1</span> <span class="map-chip" data-portfolio-id="P6">P6</span> <span class="map-chip" data-portfolio-id="S1">S1</span></div>
+      <div class="tags"><span class="tag">Sigstore</span> <span class="tag">cosign</span> <span class="tag">supply-chain</span></div>
+      <p class="url"><code>https://www.sigstore.dev/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-rekor-overview" data-entry-id="rekor-overview">
+      <header>
+        <h4><a href="https://docs.sigstore.dev/logging/overview/" rel="noopener noreferrer" target="_blank">Rekor — Immutable Transparency Log Overview</a></h4>
+        <div class="meta">
+          <span class="author">Sigstore Docs</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">How Rekor records signed metadata; maps to S2 ledger and P6 AATM artifact trust manifests.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S2">S2</span> <span class="map-chip" data-portfolio-id="P6">P6</span> <span class="map-chip" data-portfolio-id="T1">T1</span> <span class="map-chip" data-portfolio-id="E1">E1</span></div>
+      <div class="tags"><span class="tag">Rekor</span> <span class="tag">transparency-log</span> <span class="tag">Sigstore</span></div>
+      <p class="url"><code>https://docs.sigstore.dev/logging/overview/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-cosign-quickstart" data-entry-id="cosign-quickstart">
+      <header>
+        <h4><a href="https://docs.sigstore.dev/signing/quickstart/" rel="noopener noreferrer" target="_blank">Cosign Signing Quickstart</a></h4>
+        <div class="meta">
+          <span class="author">Sigstore Docs</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Operational signing path for model/artifact signatures consumed by T1 trust-core verifiers.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="T1">T1</span> <span class="map-chip" data-portfolio-id="S2">S2</span> <span class="map-chip" data-portfolio-id="S4">S4</span> <span class="map-chip" data-portfolio-id="P6">P6</span></div>
+      <div class="tags"><span class="tag">Cosign</span> <span class="tag">signing</span></div>
+      <p class="url"><code>https://docs.sigstore.dev/signing/quickstart/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-cyclonedx-mlbom" data-entry-id="cyclonedx-mlbom">
+      <header>
+        <h4><a href="https://cyclonedx.org/capabilities/mlbom/" rel="noopener noreferrer" target="_blank">Machine Learning Bill of Materials (AI/ML-BOM) — CycloneDX</a></h4>
+        <div class="meta">
+          <span class="author">OWASP CycloneDX</span>
+          <span class="date">2023–2026</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary AI/ML BOM capability; S4 ModelSBOM and P6 AATM align to CycloneDX ML-BOM fields.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S4">S4</span> <span class="map-chip" data-portfolio-id="P6">P6</span> <span class="map-chip" data-portfolio-id="S5">S5</span> <span class="map-chip" data-portfolio-id="S1">S1</span></div>
+      <div class="tags"><span class="tag">CycloneDX</span> <span class="tag">ML-BOM</span> <span class="tag">SBOM</span> <span class="tag">AI-BOM</span></div>
+      <p class="url"><code>https://cyclonedx.org/capabilities/mlbom/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-cyclonedx-home" data-entry-id="cyclonedx-home">
+      <header>
+        <h4><a href="https://cyclonedx.org/" rel="noopener noreferrer" target="_blank">CycloneDX Bill of Materials Standard (ECMA-424)</a></h4>
+        <div class="meta">
+          <span class="author">OWASP / Ecma</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Full-stack BOM standard underpinning S4 and compliance export paths.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S4">S4</span> <span class="map-chip" data-portfolio-id="P6">P6</span> <span class="map-chip" data-portfolio-id="A4">A4</span></div>
+      <div class="tags"><span class="tag">CycloneDX</span> <span class="tag">SBOM</span> <span class="tag">ECMA-424</span></div>
+      <p class="url"><code>https://cyclonedx.org/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-spdx-specs" data-entry-id="spdx-specs">
+      <header>
+        <h4><a href="https://spdx.dev/use/specifications/" rel="noopener noreferrer" target="_blank">SPDX Specifications (incl. AI Profile)</a></h4>
+        <div class="meta">
+          <span class="author">Linux Foundation SPDX</span>
+          <span class="date">2024+</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">SPDX 3.x AI/Dataset profiles as dual-standard path for S4/S5 regulatory filings.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S4">S4</span> <span class="map-chip" data-portfolio-id="S5">S5</span> <span class="map-chip" data-portfolio-id="P6">P6</span></div>
+      <div class="tags"><span class="tag">SPDX</span> <span class="tag">AI-profile</span> <span class="tag">SBOM</span></div>
+      <p class="url"><code>https://spdx.dev/use/specifications/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-safetensors-docs" data-entry-id="safetensors-docs">
+      <header>
+        <h4><a href="https://huggingface.co/docs/safetensors/en/index" rel="noopener noreferrer" target="_blank">Safetensors — Safe Tensor Serialization Format</a></h4>
+        <div class="meta">
+          <span class="author">Hugging Face</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Canonical safe weight format; S1 SafeTensors++ extends with __provenance__ without breaking load safety.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S1">S1</span> <span class="map-chip" data-portfolio-id="S3">S3</span> <span class="map-chip" data-portfolio-id="P6">P6</span> <span class="map-chip" data-portfolio-id="S7">S7</span></div>
+      <div class="tags"><span class="tag">Safetensors</span> <span class="tag">model-format</span> <span class="tag">security</span></div>
+      <p class="url"><code>https://huggingface.co/docs/safetensors/en/index</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-safetensors-audit" data-entry-id="safetensors-audit">
+      <header>
+        <h4><a href="https://huggingface.co/blog/safetensors-security-audit" rel="noopener noreferrer" target="_blank">Safetensors Audited as Really Safe and Becoming the Default</a></h4>
+        <div class="meta">
+          <span class="author">Hugging Face Blog</span>
+          <span class="date">2023-05</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">External security audit results establishing why pickle-replacement is non-negotiable for S1.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S1">S1</span> <span class="map-chip" data-portfolio-id="S7">S7</span> <span class="map-chip" data-portfolio-id="T1">T1</span></div>
+      <div class="tags"><span class="tag">Safetensors</span> <span class="tag">audit</span> <span class="tag">security</span></div>
+      <p class="url"><code>https://huggingface.co/blog/safetensors-security-audit</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-hiddenlayer-safetensors" data-entry-id="hiddenlayer-safetensors">
+      <header>
+        <h4><a href="https://www.hiddenlayer.com/research/silent-sabotage" rel="noopener noreferrer" target="_blank">Hijacking Safetensors Conversion on Hugging Face</a></h4>
+        <div class="meta">
+          <span class="author">HiddenLayer Research</span>
+          <span class="date">2024-02</span>
+          <span class="tier tier-secondary">Deep secondary</span>
+        </div>
+      </header>
+      <p class="why">Adversarial analysis of conversion-bot supply chain — motivates S7 tamper-scan + signed provenance beyond format safety alone.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S1">S1</span> <span class="map-chip" data-portfolio-id="S7">S7</span> <span class="map-chip" data-portfolio-id="S2">S2</span> <span class="map-chip" data-portfolio-id="P6">P6</span></div>
+      <div class="tags"><span class="tag">Safetensors</span> <span class="tag">supply-chain</span> <span class="tag">adversarial</span></div>
+      <p class="url"><code>https://www.hiddenlayer.com/research/silent-sabotage</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-ibm-lightwell" data-entry-id="ibm-lightwell">
+      <header>
+        <h4><a href="https://newsroom.ibm.com/2026-07-08-ibm-and-red-hat-expand-lightwell-with-new-commercial-offerings-to-build-the-trust-infrastructure-for-ai-era-open-source" rel="noopener noreferrer" target="_blank">IBM and Red Hat Expand Lightwell with New Commercial Offerings</a></h4>
+        <div class="meta">
+          <span class="author">IBM Newsroom</span>
+          <span class="date">2026-07-08</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary Lightwell commercial launch (Network + Clearinghouse) for signed remediated packages and SBOMs — S9 lightwell-bridge and P11 PRB extend this patch-distribution model for AI artifacts.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S9">S9</span> <span class="map-chip" data-portfolio-id="P11">P11</span> <span class="map-chip" data-portfolio-id="X9">X9</span> <span class="map-chip" data-portfolio-id="S4">S4</span></div>
+      <div class="tags"><span class="tag">Lightwell</span> <span class="tag">IBM</span> <span class="tag">Red Hat</span> <span class="tag">supply-chain</span> <span class="tag">SBOM</span> <span class="tag">OSAF</span></div>
+      <p class="url"><code>https://newsroom.ibm.com/2026-07-08-ibm-and-red-hat-expand-lightwell-with-new-commercial-offerings-to-build-the-trust-infrastructure-for-ai-era-open-source</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-gguf-spec" data-entry-id="gguf-spec">
+      <header>
+        <h4><a href="https://github.com/ggml-org/ggml/blob/master/docs/gguf.md" rel="noopener noreferrer" target="_blank">GGUF File Format Specification</a></h4>
+        <div class="meta">
+          <span class="author">ggml-org / llama.cpp</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Canonical GGUF layout; S3 GGUF-Ext adds osaf.safety metadata blocks for llama.cpp/Ollama.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S3">S3</span> <span class="map-chip" data-portfolio-id="S1">S1</span> <span class="map-chip" data-portfolio-id="P6">P6</span></div>
+      <div class="tags"><span class="tag">GGUF</span> <span class="tag">llama.cpp</span> <span class="tag">model-format</span></div>
+      <p class="url"><code>https://github.com/ggml-org/ggml/blob/master/docs/gguf.md</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-model-cards" data-entry-id="model-cards">
+      <header>
+        <h4><a href="https://arxiv.org/abs/1810.03993" rel="noopener noreferrer" target="_blank">Model Cards for Model Reporting (Mitchell et al.)</a></h4>
+        <div class="meta">
+          <span class="author">Google Research / arXiv</span>
+          <span class="date">2019</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Foundational model documentation practice feeding S5 data provenance and A3 bias auditing.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S5">S5</span> <span class="map-chip" data-portfolio-id="A3">A3</span> <span class="map-chip" data-portfolio-id="S4">S4</span> <span class="map-chip" data-portfolio-id="P6">P6</span></div>
+      <div class="tags"><span class="tag">model-cards</span> <span class="tag">documentation</span> <span class="tag">bias</span></div>
+      <p class="url"><code>https://arxiv.org/abs/1810.03993</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-datasheets" data-entry-id="datasheets">
+      <header>
+        <h4><a href="https://arxiv.org/abs/1803.09010" rel="noopener noreferrer" target="_blank">Datasheets for Datasets (Gebru et al.)</a></h4>
+        <div class="meta">
+          <span class="author">arXiv</span>
+          <span class="date">2018–2021</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Dataset documentation standard for S5 DataProvenanceKit lineage exports.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S5">S5</span> <span class="map-chip" data-portfolio-id="S4">S4</span> <span class="map-chip" data-portfolio-id="P3">P3</span></div>
+      <div class="tags"><span class="tag">datasets</span> <span class="tag">documentation</span> <span class="tag">provenance</span></div>
+      <p class="url"><code>https://arxiv.org/abs/1803.09010</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-in-toto" data-entry-id="in-toto">
+      <header>
+        <h4><a href="https://in-toto.io/" rel="noopener noreferrer" target="_blank">in-toto — Software Supply Chain Security Framework</a></h4>
+        <div class="meta">
+          <span class="author">in-toto / CNCF</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Attestation layout for multi-step supply chains — informs P11 PRB remediation bundles and S8 train-guard attestations.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P11">P11</span> <span class="map-chip" data-portfolio-id="S8">S8</span> <span class="map-chip" data-portfolio-id="S2">S2</span> <span class="map-chip" data-portfolio-id="P6">P6</span> <span class="map-chip" data-portfolio-id="T1">T1</span></div>
+      <div class="tags"><span class="tag">in-toto</span> <span class="tag">attestation</span> <span class="tag">supply-chain</span></div>
+      <p class="url"><code>https://in-toto.io/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-slsa" data-entry-id="slsa">
+      <header>
+        <h4><a href="https://slsa.dev/" rel="noopener noreferrer" target="_blank">SLSA — Supply-chain Levels for Software Artifacts</a></h4>
+        <div class="meta">
+          <span class="author">OpenSSF</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Maturity levels for build integrity; S2/S4/P6 trust levels map cleanly onto SLSA.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S2">S2</span> <span class="map-chip" data-portfolio-id="S4">S4</span> <span class="map-chip" data-portfolio-id="P6">P6</span> <span class="map-chip" data-portfolio-id="T1">T1</span> <span class="map-chip" data-portfolio-id="S8">S8</span></div>
+      <div class="tags"><span class="tag">SLSA</span> <span class="tag">supply-chain</span> <span class="tag">provenance</span></div>
+      <p class="url"><code>https://slsa.dev/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-merkle-rfc" data-entry-id="merkle-rfc">
+      <header>
+        <h4><a href="https://www.rfc-editor.org/rfc/rfc6962.html" rel="noopener noreferrer" target="_blank">RFC 6962 — Certificate Transparency (Merkle log design)</a></h4>
+        <div class="meta">
+          <span class="author">IETF</span>
+          <span class="date">2013</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Classic Merkle transparency log design pattern behind Rekor and S2 ProvenaChain.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S2">S2</span> <span class="map-chip" data-portfolio-id="E1">E1</span> <span class="map-chip" data-portfolio-id="P2">P2</span> <span class="map-chip" data-portfolio-id="T1">T1</span></div>
+      <div class="tags"><span class="tag">Merkle</span> <span class="tag">transparency</span> <span class="tag">RFC</span></div>
+      <p class="url"><code>https://www.rfc-editor.org/rfc/rfc6962.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-train-integrity" data-entry-id="train-integrity">
+      <header>
+        <h4><a href="https://slsa.dev/" rel="noopener noreferrer" target="_blank">SLSA — Supply-chain Levels for Software Artifacts</a></h4>
+        <div class="meta">
+          <span class="author">OpenSSF</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real SLSA framework. S8 TrainGuard signed training attestations map onto SLSA provenance levels (with in-toto steps).</p>
+      <p class="entry-note">Also see in-toto entry for multi-step attestation layout.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S8">S8</span> <span class="map-chip" data-portfolio-id="S2">S2</span> <span class="map-chip" data-portfolio-id="P6">P6</span> <span class="map-chip" data-portfolio-id="F1">F1</span></div>
+      <div class="tags"><span class="tag">training</span> <span class="tag">integrity</span> <span class="tag">SLSA</span></div>
+      <p class="url"><code>https://slsa.dev/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-redhat-lightwell" data-entry-id="redhat-lightwell">
+      <header>
+        <h4><a href="https://www.redhat.com/en/lightwell" rel="noopener noreferrer" target="_blank">Lightwell — Red Hat</a></h4>
+        <div class="meta">
+          <span class="author">Red Hat</span>
+          <span class="date">2026</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Red Hat product page for Lightwell Network remediations and signed patched artifacts — second primary for S9 lightwell-bridge.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="S9">S9</span> <span class="map-chip" data-portfolio-id="P11">P11</span> <span class="map-chip" data-portfolio-id="S4">S4</span></div>
+      <div class="tags"><span class="tag">Lightwell</span> <span class="tag">Red Hat</span> <span class="tag">supply-chain</span></div>
+      <p class="url"><code>https://www.redhat.com/en/lightwell</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-evidence">
+          <h2>Evidence</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-otel-genai-agents" data-entry-id="otel-genai-agents">
+      <header>
+        <h4><a href="https://opentelemetry.io/blog/2025/ai-agent-observability/" rel="noopener noreferrer" target="_blank">AI Agent Observability — Evolving Standards and Best Practices</a></h4>
+        <div class="meta">
+          <span class="author">OpenTelemetry Blog</span>
+          <span class="date">2025-03</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">OTel GenAI semantic conventions for agent spans — E1 flight-recorder and P2 AAR evidence plane alignment.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="E1">E1</span> <span class="map-chip" data-portfolio-id="P2">P2</span> <span class="map-chip" data-portfolio-id="X2">X2</span> <span class="map-chip" data-portfolio-id="X9">X9</span></div>
+      <div class="tags"><span class="tag">OpenTelemetry</span> <span class="tag">GenAI</span> <span class="tag">observability</span> <span class="tag">agents</span></div>
+      <p class="url"><code>https://opentelemetry.io/blog/2025/ai-agent-observability/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-owasp-aos-trace" data-entry-id="owasp-aos-trace">
+      <header>
+        <h4><a href="https://owasp.github.io/www-project-agent-observability-standard/spec/trace/" rel="noopener noreferrer" target="_blank">OWASP Agent Observability Standard — Trace Spec</a></h4>
+        <div class="meta">
+          <span class="author">OWASP AOS</span>
+          <span class="date">2025+</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Agent-specific tracing standard bridging OTel and OCSF — maps to E1 and P9 AIX incident exchange.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="E1">E1</span> <span class="map-chip" data-portfolio-id="P2">P2</span> <span class="map-chip" data-portfolio-id="P9">P9</span> <span class="map-chip" data-portfolio-id="X9">X9</span></div>
+      <div class="tags"><span class="tag">OWASP</span> <span class="tag">OCSF</span> <span class="tag">OpenTelemetry</span> <span class="tag">agents</span></div>
+      <p class="url"><code>https://owasp.github.io/www-project-agent-observability-standard/spec/trace/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-owasp-aos-ocsf" data-entry-id="owasp-aos-ocsf">
+      <header>
+        <h4><a href="https://owasp.github.io/www-project-agent-observability-standard/spec/trace/extend_ocsf/" rel="noopener noreferrer" target="_blank">AOS Tracing with OCSF Extension</a></h4>
+        <div class="meta">
+          <span class="author">OWASP AOS</span>
+          <span class="date">2025+</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">OCSF extension path for agent events — X9 incident-exchange and P9 AIX normalize here.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X9">X9</span> <span class="map-chip" data-portfolio-id="P9">P9</span> <span class="map-chip" data-portfolio-id="E1">E1</span> <span class="map-chip" data-portfolio-id="P2">P2</span></div>
+      <div class="tags"><span class="tag">OCSF</span> <span class="tag">incidents</span> <span class="tag">agents</span></div>
+      <p class="url"><code>https://owasp.github.io/www-project-agent-observability-standard/spec/trace/extend_ocsf/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-ocsf-home" data-entry-id="ocsf-home">
+      <header>
+        <h4><a href="https://schema.ocsf.io/" rel="noopener noreferrer" target="_blank">Open Cybersecurity Schema Framework (OCSF)</a></h4>
+        <div class="meta">
+          <span class="author">OCSF Project</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary security event schema; AumOS profiles agent incidents as OCSF extensions rather than forking formats.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X9">X9</span> <span class="map-chip" data-portfolio-id="P9">P9</span> <span class="map-chip" data-portfolio-id="E1">E1</span></div>
+      <div class="tags"><span class="tag">OCSF</span> <span class="tag">schema</span> <span class="tag">SIEM</span></div>
+      <p class="url"><code>https://schema.ocsf.io/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-mitre-atlas" data-entry-id="mitre-atlas">
+      <header>
+        <h4><a href="https://atlas.mitre.org/" rel="noopener noreferrer" target="_blank">MITRE ATLAS — Adversarial Threat Landscape for AI Systems</a></h4>
+        <div class="meta">
+          <span class="author">MITRE</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">AI-specific ATT&amp;CK-style knowledge base for X9 incident taxonomy and A2/A5 attack libraries.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X9">X9</span> <span class="map-chip" data-portfolio-id="P9">P9</span> <span class="map-chip" data-portfolio-id="A2">A2</span> <span class="map-chip" data-portfolio-id="A5">A5</span> <span class="map-chip" data-portfolio-id="S7">S7</span></div>
+      <div class="tags"><span class="tag">MITRE</span> <span class="tag">ATLAS</span> <span class="tag">threats</span> <span class="tag">AI</span></div>
+      <p class="url"><code>https://atlas.mitre.org/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-w3c-prov" data-entry-id="w3c-prov">
+      <header>
+        <h4><a href="https://www.w3.org/TR/prov-overview/" rel="noopener noreferrer" target="_blank">W3C PROV — Data Provenance Standard Family</a></h4>
+        <div class="meta">
+          <span class="author">W3C</span>
+          <span class="date">2013+</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Graph provenance model for P3 CPE context provenance and S5 signed JSON-LD exports.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P3">P3</span> <span class="map-chip" data-portfolio-id="S5">S5</span> <span class="map-chip" data-portfolio-id="P4">P4</span> <span class="map-chip" data-portfolio-id="E1">E1</span></div>
+      <div class="tags"><span class="tag">PROV</span> <span class="tag">provenance</span> <span class="tag">W3C</span></div>
+      <p class="url"><code>https://www.w3.org/TR/prov-overview/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-aegis-incident" data-entry-id="aegis-incident">
+      <header>
+        <h4><a href="https://atlas.mitre.org/" rel="noopener noreferrer" target="_blank">MITRE ATLAS — Adversarial Threat Landscape for AI Systems</a></h4>
+        <div class="meta">
+          <span class="author">MITRE</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real MITRE ATLAS knowledge base. X9/P9 normalize agent incidents using ATLAS techniques plus OCSF event classes.</p>
+      <p class="entry-note">AumOS AIX incident exchange also requires OCSF schema entries.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X9">X9</span> <span class="map-chip" data-portfolio-id="P9">P9</span> <span class="map-chip" data-portfolio-id="R3">R3</span> <span class="map-chip" data-portfolio-id="A5">A5</span></div>
+      <div class="tags"><span class="tag">incidents</span> <span class="tag">ATLAS</span> <span class="tag">OCSF</span></div>
+      <p class="url"><code>https://atlas.mitre.org/</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-eval">
+          <h2>Eval</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-pyrit-announce" data-entry-id="pyrit-announce">
+      <header>
+        <h4><a href="https://www.microsoft.com/en-us/security/blog/2024/02/22/announcing-microsofts-open-automation-framework-to-red-team-generative-ai-systems/" rel="noopener noreferrer" target="_blank">Announcing Microsoft’s Open Automation Framework to Red Team Generative AI Systems (PyRIT)</a></h4>
+        <div class="meta">
+          <span class="author">Microsoft Security Blog</span>
+          <span class="date">2024-02</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary PyRIT announcement — A1/A2/A7 orchestration target for multi-turn adversarial testing.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="A2">A2</span> <span class="map-chip" data-portfolio-id="A5">A5</span> <span class="map-chip" data-portfolio-id="A7">A7</span> <span class="map-chip" data-portfolio-id="P8">P8</span></div>
+      <div class="tags"><span class="tag">PyRIT</span> <span class="tag">red-team</span> <span class="tag">Microsoft</span></div>
+      <p class="url"><code>https://www.microsoft.com/en-us/security/blog/2024/02/22/announcing-microsofts-open-automation-framework-to-red-team-generative-ai-systems/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-pyrit-github" data-entry-id="pyrit-github">
+      <header>
+        <h4><a href="https://github.com/Azure/PyRIT" rel="noopener noreferrer" target="_blank">Azure/PyRIT — Python Risk Identification Toolkit</a></h4>
+        <div class="meta">
+          <span class="author">Microsoft Azure</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Living codebase for multi-turn jailbreaks/scorers; A2 Adversaria unifies PyRIT with garak probes.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="A2">A2</span> <span class="map-chip" data-portfolio-id="A7">A7</span> <span class="map-chip" data-portfolio-id="P8">P8</span></div>
+      <div class="tags"><span class="tag">PyRIT</span> <span class="tag">GitHub</span> <span class="tag">red-team</span></div>
+      <p class="url"><code>https://github.com/Azure/PyRIT</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-garak-github" data-entry-id="garak-github">
+      <header>
+        <h4><a href="https://github.com/NVIDIA/garak" rel="noopener noreferrer" target="_blank">NVIDIA/garak — LLM Vulnerability Scanner</a></h4>
+        <div class="meta">
+          <span class="author">NVIDIA</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Breadth scanner with 100+ probes; A1 SafeEval YAML pipelines orchestrate garak alongside HELM/PyRIT.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="A2">A2</span> <span class="map-chip" data-portfolio-id="A5">A5</span> <span class="map-chip" data-portfolio-id="A7">A7</span></div>
+      <div class="tags"><span class="tag">garak</span> <span class="tag">NVIDIA</span> <span class="tag">LLM-security</span></div>
+      <p class="url"><code>https://github.com/NVIDIA/garak</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-helm-home" data-entry-id="helm-home">
+      <header>
+        <h4><a href="https://crfm.stanford.edu/helm/" rel="noopener noreferrer" target="_blank">HELM — Holistic Evaluation of Language Models</a></h4>
+        <div class="meta">
+          <span class="author">Stanford CRFM</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Foundational multi-metric eval framework integrated into A1 SafeEval pipelines.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="A8">A8</span> <span class="map-chip" data-portfolio-id="P8">P8</span> <span class="map-chip" data-portfolio-id="X6">X6</span></div>
+      <div class="tags"><span class="tag">HELM</span> <span class="tag">evaluation</span> <span class="tag">benchmarks</span></div>
+      <p class="url"><code>https://crfm.stanford.edu/helm/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-agentdojo" data-entry-id="agentdojo">
+      <header>
+        <h4><a href="https://github.com/ethz-spylab/agentdojo" rel="noopener noreferrer" target="_blank">AgentDojo — Agent Hijacking Benchmark (ETH Zurich)</a></h4>
+        <div class="meta">
+          <span class="author">ETH Zurich spylab</span>
+          <span class="date">2024+</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">629 agent hijacking tests across tool environments — A5 agentsec-lab adversarial holdouts.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A5">A5</span> <span class="map-chip" data-portfolio-id="A2">A2</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="R1">R1</span> <span class="map-chip" data-portfolio-id="R8">R8</span></div>
+      <div class="tags"><span class="tag">agents</span> <span class="tag">hijacking</span> <span class="tag">benchmark</span></div>
+      <p class="url"><code>https://github.com/ethz-spylab/agentdojo</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-metr-home" data-entry-id="metr-home">
+      <header>
+        <h4><a href="https://metr.org/" rel="noopener noreferrer" target="_blank">METR — Model Evaluation &amp; Threat Research</a></h4>
+        <div class="meta">
+          <span class="author">METR</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Independent evaluator org; X6 metr-bridge integration target for external eval substrate.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X6">X6</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="P8">P8</span> <span class="map-chip" data-portfolio-id="A6">A6</span></div>
+      <div class="tags"><span class="tag">METR</span> <span class="tag">evals</span> <span class="tag">autonomy</span></div>
+      <p class="url"><code>https://metr.org/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-anthropic-crypto" data-entry-id="anthropic-crypto">
+      <header>
+        <h4><a href="https://www.anthropic.com/research/discovering-cryptographic-weaknesses" rel="noopener noreferrer" target="_blank">Discovering cryptographic weaknesses with Claude</a></h4>
+        <div class="meta">
+          <span class="author">Anthropic Frontier Red Team</span>
+          <span class="date">2026-07-28</span>
+          <span class="tier tier-secondary">Deep secondary</span>
+        </div>
+      </header>
+      <p class="why">Primary Anthropic research on LLM-assisted cryptanalysis; productization target for X4 CryptoAuditAI. Pair with the Jul 30 cybersecurity-eval incident writeup for X5 retrospective culture.</p>
+      <p class="entry-note">Also see https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals (141,006-run retrospective) for X5 RetroSpecKit motivation.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X4">X4</span> <span class="map-chip" data-portfolio-id="X5">X5</span> <span class="map-chip" data-portfolio-id="A2">A2</span></div>
+      <div class="tags"><span class="tag">Anthropic</span> <span class="tag">cryptanalysis</span> <span class="tag">research</span></div>
+      <p class="url"><code>https://www.anthropic.com/research/discovering-cryptographic-weaknesses</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-nist-ai-rmf" data-entry-id="nist-ai-rmf">
+      <header>
+        <h4><a href="https://www.nist.gov/itl/ai-risk-management-framework" rel="noopener noreferrer" target="_blank">NIST AI Risk Management Framework (AI RMF 1.0)</a></h4>
+        <div class="meta">
+          <span class="author">NIST</span>
+          <span class="date">2023+</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">US primary AI risk framework for A4 ComplyGate mappings (prefer US anchors over EU-first framing).</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A4">A4</span> <span class="map-chip" data-portfolio-id="A3">A3</span> <span class="map-chip" data-portfolio-id="X1">X1</span> <span class="map-chip" data-portfolio-id="A1">A1</span></div>
+      <div class="tags"><span class="tag">NIST</span> <span class="tag">AI-RMF</span> <span class="tag">compliance</span> <span class="tag">US</span></div>
+      <p class="url"><code>https://www.nist.gov/itl/ai-risk-management-framework</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-chatbot-arena" data-entry-id="chatbot-arena">
+      <header>
+        <h4><a href="https://lmsys.org/blog/2023-05-03-arena/" rel="noopener noreferrer" target="_blank">Chatbot Arena / LMSYS Elo Ranking Methodology</a></h4>
+        <div class="meta">
+          <span class="author">LMSYS / Arena</span>
+          <span class="date">2023-05</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Elo pairwise ranking methodology underlying A8 arena leaderboard design.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A8">A8</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="P8">P8</span></div>
+      <div class="tags"><span class="tag">Elo</span> <span class="tag">arena</span> <span class="tag">evaluation</span></div>
+      <p class="url"><code>https://lmsys.org/blog/2023-05-03-arena/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-openai-evals" data-entry-id="openai-evals">
+      <header>
+        <h4><a href="https://github.com/openai/evals" rel="noopener noreferrer" target="_blank">OpenAI Evals Framework</a></h4>
+        <div class="meta">
+          <span class="author">OpenAI</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-secondary">Deep secondary</span>
+        </div>
+      </header>
+      <p class="why">Early eval harness patterns informing A6 conformance packaging and P8 VEB bundles.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A6">A6</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="P8">P8</span> <span class="map-chip" data-portfolio-id="X3">X3</span></div>
+      <div class="tags"><span class="tag">evals</span> <span class="tag">OpenAI</span> <span class="tag">harness</span></div>
+      <p class="url"><code>https://github.com/openai/evals</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-inspect-ai" data-entry-id="inspect-ai">
+      <header>
+        <h4><a href="https://inspect.aisi.org.uk/" rel="noopener noreferrer" target="_blank">UK AISI Inspect — Evaluation Framework</a></h4>
+        <div class="meta">
+          <span class="author">UK AI Security Institute</span>
+          <span class="date">2024+</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Modern agent eval framework used with AgentDojo ports; A1/X6 quality bar.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="A5">A5</span> <span class="map-chip" data-portfolio-id="X6">X6</span> <span class="map-chip" data-portfolio-id="P8">P8</span></div>
+      <div class="tags"><span class="tag">Inspect</span> <span class="tag">evals</span> <span class="tag">agents</span></div>
+      <p class="url"><code>https://inspect.aisi.org.uk/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-rbi-dpdp-adjacent" data-entry-id="rbi-dpdp-adjacent">
+      <header>
+        <h4><a href="https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf" rel="noopener noreferrer" target="_blank">The Digital Personal Data Protection Act, 2023 (Gazette of India)</a></h4>
+        <div class="meta">
+          <span class="author">Government of India / MeitY (Legislative Department gazette)</span>
+          <span class="date">2023-08-11</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary India DPDP Act text — regional privacy/data-residency anchor for F2/A4/E1/S5 (not EU-first framing).</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="F2">F2</span> <span class="map-chip" data-portfolio-id="A4">A4</span> <span class="map-chip" data-portfolio-id="E1">E1</span> <span class="map-chip" data-portfolio-id="S5">S5</span></div>
+      <div class="tags"><span class="tag">DPDP</span> <span class="tag">India</span> <span class="tag">privacy</span> <span class="tag">compliance</span></div>
+      <p class="url"><code>https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-occ-mrm-note" data-entry-id="occ-mrm-note">
+      <header>
+        <h4><a href="https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html" rel="noopener noreferrer" target="_blank">Model Risk Management: Revised Guidance (OCC Bulletin 2026-13)</a></h4>
+        <div class="meta">
+          <span class="author">OCC (interagency with Fed/FDIC)</span>
+          <span class="date">2026-04-17</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Current US interagency model-risk guidance superseding SR 11-7; primary compliance anchor for A4 ComplyGate in banking deployments. Parallel Fed designation: SR 26-2.</p>
+      <p class="entry-note">Fed companion: https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm — cite OCC Bulletin 2026-13 / Fed SR 26-2. Generative/agentic AI deferred from this guidance scope; underlying safety-and-soundness duties remain.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A4">A4</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="X1">X1</span></div>
+      <div class="tags"><span class="tag">OCC</span> <span class="tag">model-risk</span> <span class="tag">US</span> <span class="tag">compliance</span></div>
+      <p class="url"><code>https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-conformance-testing" data-entry-id="conformance-testing">
+      <header>
+        <h4><a href="https://www.rfc-editor.org/rfc/rfc8610.html" rel="noopener noreferrer" target="_blank">RFC 8610 — Concise Data Definition Language (CDDL)</a></h4>
+        <div class="meta">
+          <span class="author">IETF</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real CDDL specification used by AumOS protocol schemas. A6 conformance suites pair CDDL schemas with multi-implementation adversarial vectors.</p>
+      <p class="entry-note">Conformance culture also follows SPIFFE multi-impl discipline; CDDL is the schema primary.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A6">A6</span> <span class="map-chip" data-portfolio-id="T2">T2</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="P2">P2</span></div>
+      <div class="tags"><span class="tag">conformance</span> <span class="tag">CDDL</span> <span class="tag">testing</span></div>
+      <p class="url"><code>https://www.rfc-editor.org/rfc/rfc8610.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-bias-fairness" data-entry-id="bias-fairness">
+      <header>
+        <h4><a href="https://www.nist.gov/itl/ai-risk-management-framework" rel="noopener noreferrer" target="_blank">NIST AI Risk Management Framework (AI RMF 1.0)</a></h4>
+        <div class="meta">
+          <span class="author">NIST</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real NIST AI RMF. A3 BiasSentinel measurement posture tracks NIST Measure functions and model-card metrics.</p>
+      <p class="entry-note">Duplicate domain with nist-ai-rmf entry is intentional multi-map; A3-focused why text.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A3">A3</span> <span class="map-chip" data-portfolio-id="A4">A4</span> <span class="map-chip" data-portfolio-id="S5">S5</span></div>
+      <div class="tags"><span class="tag">bias</span> <span class="tag">fairness</span> <span class="tag">NIST</span></div>
+      <p class="url"><code>https://www.nist.gov/itl/ai-risk-management-framework</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-anthropic-cyber-incidents" data-entry-id="anthropic-cyber-incidents">
+      <header>
+        <h4><a href="https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals" rel="noopener noreferrer" target="_blank">Investigating three real-world incidents in our cybersecurity evaluations</a></h4>
+        <div class="meta">
+          <span class="author">Anthropic</span>
+          <span class="date">2026-07-30</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary Anthropic disclosure reviewing 141,006 eval runs — direct catalyst for X5 RetroSpecKit and containment-focused evidence culture.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X5">X5</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="R1">R1</span> <span class="map-chip" data-portfolio-id="R3">R3</span> <span class="map-chip" data-portfolio-id="E1">E1</span></div>
+      <div class="tags"><span class="tag">Anthropic</span> <span class="tag">evaluations</span> <span class="tag">incidents</span> <span class="tag">containment</span></div>
+      <p class="url"><code>https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-fed-sr-26-2" data-entry-id="fed-sr-26-2">
+      <header>
+        <h4><a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm" rel="noopener noreferrer" target="_blank">SR 26-2: Revised Guidance on Model Risk Management</a></h4>
+        <div class="meta">
+          <span class="author">Federal Reserve Board</span>
+          <span class="date">2026-04-17</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Fed parallel issuance to OCC Bulletin 2026-13 — cite as Fed SR 26-2 / OCC 2026-13 for dual-audience US model-risk supervision.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="A4">A4</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="X1">X1</span></div>
+      <div class="tags"><span class="tag">Fed</span> <span class="tag">SR-26-2</span> <span class="tag">model-risk</span> <span class="tag">US</span> <span class="tag">compliance</span></div>
+      <p class="url"><code>https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-inference">
+          <h2>Inference</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-vllm-docs" data-entry-id="vllm-docs">
+      <header>
+        <h4><a href="https://docs.vllm.ai/" rel="noopener noreferrer" target="_blank">vLLM Documentation — High-Throughput LLM Serving</a></h4>
+        <div class="meta">
+          <span class="author">vLLM Project</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary open serving engine behind N1/N2 OpenServeKit and BridgeRT backends.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="N1">N1</span> <span class="map-chip" data-portfolio-id="N2">N2</span> <span class="map-chip" data-portfolio-id="N3">N3</span> <span class="map-chip" data-portfolio-id="N4">N4</span></div>
+      <div class="tags"><span class="tag">vLLM</span> <span class="tag">inference</span> <span class="tag">serving</span></div>
+      <p class="url"><code>https://docs.vllm.ai/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-trtllm-docs" data-entry-id="trtllm-docs">
+      <header>
+        <h4><a href="https://nvidia.github.io/TensorRT-LLM/" rel="noopener noreferrer" target="_blank">TensorRT-LLM Documentation</a></h4>
+        <div class="meta">
+          <span class="author">NVIDIA</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">N2 BridgeRT must absorb TRT-LLM sampler_type and version skew; primary engine docs.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="N2">N2</span> <span class="map-chip" data-portfolio-id="N1">N1</span> <span class="map-chip" data-portfolio-id="C1-4">C1-4</span></div>
+      <div class="tags"><span class="tag">TensorRT-LLM</span> <span class="tag">NVIDIA</span> <span class="tag">inference</span></div>
+      <p class="url"><code>https://nvidia.github.io/TensorRT-LLM/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-openai-api-compat" data-entry-id="openai-api-compat">
+      <header>
+        <h4><a href="https://platform.openai.com/docs/api-reference/chat" rel="noopener noreferrer" target="_blank">OpenAI API Reference — Chat Completions</a></h4>
+        <div class="meta">
+          <span class="author">OpenAI</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">De-facto wire API that N1 OpenServeKit mirrors for backend-agnostic proxying.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="N1">N1</span> <span class="map-chip" data-portfolio-id="N3">N3</span></div>
+      <div class="tags"><span class="tag">OpenAI-API</span> <span class="tag">inference</span> <span class="tag">proxy</span></div>
+      <p class="url"><code>https://platform.openai.com/docs/api-reference/chat</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-nvidia-mig" data-entry-id="nvidia-mig">
+      <header>
+        <h4><a href="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/" rel="noopener noreferrer" target="_blank">NVIDIA Multi-Instance GPU (MIG) User Guide</a></h4>
+        <div class="meta">
+          <span class="author">NVIDIA</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Hardware isolation model for N4 TenantGuard multi-tenant GPU operators.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="N4">N4</span> <span class="map-chip" data-portfolio-id="F4">F4</span> <span class="map-chip" data-portfolio-id="C1-5">C1-5</span></div>
+      <div class="tags"><span class="tag">MIG</span> <span class="tag">multi-tenant</span> <span class="tag">GPU</span></div>
+      <p class="url"><code>https://docs.nvidia.com/datacenter/tesla/mig-user-guide/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-semantic-cache-gateway" data-entry-id="semantic-cache-gateway">
+      <header>
+        <h4><a href="https://docs.vllm.ai/" rel="noopener noreferrer" target="_blank">vLLM Documentation — High-Throughput LLM Serving</a></h4>
+        <div class="meta">
+          <span class="author">vLLM Project</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real vLLM docs (primary open serving stack). N3 InferenceProxy industry patterns (auth, rate-limit, prompt-filter, semantic cache) sit in front of engines documented here and the OpenAI API surface.</p>
+      <p class="entry-note">Gateway behavior is composed across N1/N3 designs; this entry anchors the serving plane primary.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="N3">N3</span> <span class="map-chip" data-portfolio-id="N1">N1</span> <span class="map-chip" data-portfolio-id="R4">R4</span></div>
+      <div class="tags"><span class="tag">gateway</span> <span class="tag">inference</span> <span class="tag">proxy</span></div>
+      <p class="url"><code>https://docs.vllm.ai/</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-federated">
+          <h2>Federated</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-opacus-dp" data-entry-id="opacus-dp">
+      <header>
+        <h4><a href="https://opacus.ai/" rel="noopener noreferrer" target="_blank">Opacus — Train PyTorch Models with Differential Privacy</a></h4>
+        <div class="meta">
+          <span class="author">Meta / Opacus</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary DP training toolkit for F2 DPCrate and F1 FedCore privacy budgets.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="F2">F2</span> <span class="map-chip" data-portfolio-id="F1">F1</span> <span class="map-chip" data-portfolio-id="S8">S8</span></div>
+      <div class="tags"><span class="tag">differential-privacy</span> <span class="tag">PyTorch</span> <span class="tag">Opacus</span></div>
+      <p class="url"><code>https://opacus.ai/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-flower-fl" data-entry-id="flower-fl">
+      <header>
+        <h4><a href="https://flower.ai/" rel="noopener noreferrer" target="_blank">Flower — A Friendly Federated Learning Framework</a></h4>
+        <div class="meta">
+          <span class="author">Flower Labs</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Mature open FL orchestration patterns for F1 FedCore multi-party training design.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="F1">F1</span> <span class="map-chip" data-portfolio-id="F2">F2</span> <span class="map-chip" data-portfolio-id="F4">F4</span></div>
+      <div class="tags"><span class="tag">federated-learning</span> <span class="tag">Flower</span></div>
+      <p class="url"><code>https://flower.ai/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-jetson-edge" data-entry-id="jetson-edge">
+      <header>
+        <h4><a href="https://developer.nvidia.com/embedded-computing" rel="noopener noreferrer" target="_blank">NVIDIA Jetson / EGX Edge AI Platform Docs</a></h4>
+        <div class="meta">
+          <span class="author">NVIDIA</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Edge hardware target for F3 EdgeSentinel attestation agents (&lt;5MB Go binary).</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="F3">F3</span> <span class="map-chip" data-portfolio-id="F4">F4</span> <span class="map-chip" data-portfolio-id="C1-1">C1-1</span></div>
+      <div class="tags"><span class="tag">Jetson</span> <span class="tag">edge</span> <span class="tag">EGX</span></div>
+      <p class="url"><code>https://developer.nvidia.com/embedded-computing</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-k8s-operators" data-entry-id="k8s-operators">
+      <header>
+        <h4><a href="https://kubernetes.io/docs/concepts/extend-kubernetes/operator/" rel="noopener noreferrer" target="_blank">Kubernetes Operator Pattern</a></h4>
+        <div class="meta">
+          <span class="author">Kubernetes Docs</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Control-plane pattern for F4 FleetMarshal ModelFleet CRDs and N4 TenantGuard.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="F4">F4</span> <span class="map-chip" data-portfolio-id="N4">N4</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="X11">X11</span></div>
+      <div class="tags"><span class="tag">Kubernetes</span> <span class="tag">operators</span> <span class="tag">CRD</span></div>
+      <p class="url"><code>https://kubernetes.io/docs/concepts/extend-kubernetes/operator/</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-multi-agent">
+          <h2>Multi Agent</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-mcp-intro-anthropic" data-entry-id="mcp-intro-anthropic">
+      <header>
+        <h4><a href="https://www.anthropic.com/news/model-context-protocol" rel="noopener noreferrer" target="_blank">Introducing the Model Context Protocol</a></h4>
+        <div class="meta">
+          <span class="author">Anthropic</span>
+          <span class="date">2024-11</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Original announcement of MCP — the tool/context plane X8 mcp-gateway and P5 SSP must authority-gate.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X8">X8</span> <span class="map-chip" data-portfolio-id="P5">P5</span> <span class="map-chip" data-portfolio-id="R1">R1</span> <span class="map-chip" data-portfolio-id="R8">R8</span> <span class="map-chip" data-portfolio-id="P10">P10</span></div>
+      <div class="tags"><span class="tag">MCP</span> <span class="tag">agents</span> <span class="tag">tools</span></div>
+      <p class="url"><code>https://www.anthropic.com/news/model-context-protocol</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-mcp-spec-latest" data-entry-id="mcp-spec-latest">
+      <header>
+        <h4><a href="https://modelcontextprotocol.io/specification/latest" rel="noopener noreferrer" target="_blank">Model Context Protocol Specification (latest)</a></h4>
+        <div class="meta">
+          <span class="author">MCP Project</span>
+          <span class="date">2026-07</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Normative wire protocol for tools/resources/prompts; primary reference for X8 admission control and skill packaging (P5).</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X8">X8</span> <span class="map-chip" data-portfolio-id="P5">P5</span> <span class="map-chip" data-portfolio-id="P10">P10</span> <span class="map-chip" data-portfolio-id="R8">R8</span></div>
+      <div class="tags"><span class="tag">MCP</span> <span class="tag">specification</span> <span class="tag">JSON-RPC</span></div>
+      <p class="url"><code>https://modelcontextprotocol.io/specification/latest</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-mcp-docs-intro" data-entry-id="mcp-docs-intro">
+      <header>
+        <h4><a href="https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro" rel="noopener noreferrer" target="_blank">What is the Model Context Protocol (MCP)?</a></h4>
+        <div class="meta">
+          <span class="author">MCP Docs</span>
+          <span class="date">2026-07</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Architecture overview (hosts, clients, servers) for designing authority-aware MCP middleware.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X8">X8</span> <span class="map-chip" data-portfolio-id="P5">P5</span></div>
+      <div class="tags"><span class="tag">MCP</span> <span class="tag">architecture</span></div>
+      <p class="url"><code>https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-mcp-security-arxiv" data-entry-id="mcp-security-arxiv">
+      <header>
+        <h4><a href="https://arxiv.org/pdf/2503.23278" rel="noopener noreferrer" target="_blank">Model Context Protocol (MCP): Landscape, Security Threats, and Future Research Directions</a></h4>
+        <div class="meta">
+          <span class="author">arXiv</span>
+          <span class="date">2025-04</span>
+          <span class="tier tier-secondary">Deep secondary</span>
+        </div>
+      </header>
+      <p class="why">Threat model for MCP surfaces — required reading for X8 fail-closed admission and P5 skill package signing.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X8">X8</span> <span class="map-chip" data-portfolio-id="P5">P5</span> <span class="map-chip" data-portfolio-id="A5">A5</span> <span class="map-chip" data-portfolio-id="R1">R1</span></div>
+      <div class="tags"><span class="tag">MCP</span> <span class="tag">security</span> <span class="tag">threat-model</span></div>
+      <p class="url"><code>https://arxiv.org/pdf/2503.23278</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-a2a-announce" data-entry-id="a2a-announce">
+      <header>
+        <h4><a href="https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/" rel="noopener noreferrer" target="_blank">Announcing the Agent2Agent Protocol (A2A)</a></h4>
+        <div class="meta">
+          <span class="author">Google Developers Blog</span>
+          <span class="date">2025-04</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary announcement of A2A interoperability; maps to P10 MADE multi-agent delegation exchange.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P10">P10</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="P7">P7</span></div>
+      <div class="tags"><span class="tag">A2A</span> <span class="tag">multi-agent</span> <span class="tag">interoperability</span></div>
+      <p class="url"><code>https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-a2a-spec" data-entry-id="a2a-spec">
+      <header>
+        <h4><a href="https://a2a-protocol.org/latest/specification/" rel="noopener noreferrer" target="_blank">A2A Protocol Specification</a></h4>
+        <div class="meta">
+          <span class="author">A2A Project / Linux Foundation</span>
+          <span class="date">2025–2026</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Normative A2A spec for agent-to-agent messaging; P10 MADE profiles delegation semantics on this plane.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P10">P10</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="P7">P7</span></div>
+      <div class="tags"><span class="tag">A2A</span> <span class="tag">specification</span></div>
+      <p class="url"><code>https://a2a-protocol.org/latest/specification/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-a2a-mcp-topics" data-entry-id="a2a-mcp-topics">
+      <header>
+        <h4><a href="https://a2a-protocol.org/latest/topics/a2a-and-mcp/" rel="noopener noreferrer" target="_blank">A2A and MCP — How the Protocols Relate</a></h4>
+        <div class="meta">
+          <span class="author">A2A Protocol Docs</span>
+          <span class="date">2025+</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Clarifies tool-plane (MCP) vs agent-plane (A2A) split — critical for X8 + P10 architecture.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P10">P10</span> <span class="map-chip" data-portfolio-id="X8">X8</span> <span class="map-chip" data-portfolio-id="P5">P5</span></div>
+      <div class="tags"><span class="tag">A2A</span> <span class="tag">MCP</span> <span class="tag">architecture</span></div>
+      <p class="url"><code>https://a2a-protocol.org/latest/topics/a2a-and-mcp/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-auth0-mcp-vs-a2a" data-entry-id="auth0-mcp-vs-a2a">
+      <header>
+        <h4><a href="https://auth0.com/blog/mcp-vs-a2a/" rel="noopener noreferrer" target="_blank">MCP vs A2A: A Guide to AI Agent Communication Protocols</a></h4>
+        <div class="meta">
+          <span class="author">Auth0</span>
+          <span class="date">2025-07</span>
+          <span class="tier tier-secondary">Deep secondary</span>
+        </div>
+      </header>
+      <p class="why">Security-focused comparison with OAuth angles for agent identity and delegated authority (P1/P7).</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X8">X8</span> <span class="map-chip" data-portfolio-id="P10">P10</span> <span class="map-chip" data-portfolio-id="I1">I1</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="R4">R4</span></div>
+      <div class="tags"><span class="tag">MCP</span> <span class="tag">A2A</span> <span class="tag">OAuth</span> <span class="tag">auth</span></div>
+      <p class="url"><code>https://auth0.com/blog/mcp-vs-a2a/</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-protocols">
+          <h2>Protocols</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-cbor-rfc" data-entry-id="cbor-rfc">
+      <header>
+        <h4><a href="https://www.rfc-editor.org/rfc/rfc8949.html" rel="noopener noreferrer" target="_blank">RFC 8949 — Concise Binary Object Representation (CBOR)</a></h4>
+        <div class="meta">
+          <span class="author">IETF</span>
+          <span class="date">2020</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Binary encoding used by AumOS protocol CDDL schemas (P1–P12 machine-checkable forms).</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="P2">P2</span> <span class="map-chip" data-portfolio-id="P3">P3</span> <span class="map-chip" data-portfolio-id="P4">P4</span> <span class="map-chip" data-portfolio-id="P7">P7</span> <span class="map-chip" data-portfolio-id="P8">P8</span> <span class="map-chip" data-portfolio-id="P10">P10</span> <span class="map-chip" data-portfolio-id="P12">P12</span> <span class="map-chip" data-portfolio-id="T2">T2</span></div>
+      <div class="tags"><span class="tag">CBOR</span> <span class="tag">encoding</span> <span class="tag">RFC</span></div>
+      <p class="url"><code>https://www.rfc-editor.org/rfc/rfc8949.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-cddl-rfc" data-entry-id="cddl-rfc">
+      <header>
+        <h4><a href="https://www.rfc-editor.org/rfc/rfc8610.html" rel="noopener noreferrer" target="_blank">RFC 8610 — Concise Data Definition Language (CDDL)</a></h4>
+        <div class="meta">
+          <span class="author">IETF</span>
+          <span class="date">2019</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Schema language for AumOS protocol CDDL files under specs/protocols/.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="T2">T2</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="P2">P2</span> <span class="map-chip" data-portfolio-id="P3">P3</span> <span class="map-chip" data-portfolio-id="P4">P4</span> <span class="map-chip" data-portfolio-id="P5">P5</span> <span class="map-chip" data-portfolio-id="P7">P7</span> <span class="map-chip" data-portfolio-id="P8">P8</span> <span class="map-chip" data-portfolio-id="P10">P10</span> <span class="map-chip" data-portfolio-id="P11">P11</span> <span class="map-chip" data-portfolio-id="P12">P12</span> <span class="map-chip" data-portfolio-id="A6">A6</span></div>
+      <div class="tags"><span class="tag">CDDL</span> <span class="tag">schema</span> <span class="tag">RFC</span></div>
+      <p class="url"><code>https://www.rfc-editor.org/rfc/rfc8610.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-cose-rfc" data-entry-id="cose-rfc">
+      <header>
+        <h4><a href="https://www.rfc-editor.org/rfc/rfc9052.html" rel="noopener noreferrer" target="_blank">RFC 9052 — CBOR Object Signing and Encryption (COSE)</a></h4>
+        <div class="meta">
+          <span class="author">IETF</span>
+          <span class="date">2022</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Signing envelopes for compact protocol objects (AAE/AAR) verified in T1 trust-core.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="T1">T1</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="P2">P2</span> <span class="map-chip" data-portfolio-id="P6">P6</span> <span class="map-chip" data-portfolio-id="E1">E1</span></div>
+      <div class="tags"><span class="tag">COSE</span> <span class="tag">signing</span> <span class="tag">CBOR</span></div>
+      <p class="url"><code>https://www.rfc-editor.org/rfc/rfc9052.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-json-ld" data-entry-id="json-ld">
+      <header>
+        <h4><a href="https://www.w3.org/TR/json-ld11/" rel="noopener noreferrer" target="_blank">JSON-LD 1.1 — A JSON-based Serialization for Linked Data</a></h4>
+        <div class="meta">
+          <span class="author">W3C</span>
+          <span class="date">2020</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Linked-data packaging for P5 SSP, P6 AATM, P11 PRB JSON-LD manifests.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P5">P5</span> <span class="map-chip" data-portfolio-id="P6">P6</span> <span class="map-chip" data-portfolio-id="P11">P11</span> <span class="map-chip" data-portfolio-id="S4">S4</span> <span class="map-chip" data-portfolio-id="S5">S5</span></div>
+      <div class="tags"><span class="tag">JSON-LD</span> <span class="tag">linked-data</span></div>
+      <p class="url"><code>https://www.w3.org/TR/json-ld11/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-ocsf-schema-classes" data-entry-id="ocsf-schema-classes">
+      <header>
+        <h4><a href="https://schema.ocsf.io/categories" rel="noopener noreferrer" target="_blank">OCSF Schema Browser — Event Classes</a></h4>
+        <div class="meta">
+          <span class="author">OCSF</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Event class taxonomy to extend for P9 AIX agent incident types.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P9">P9</span> <span class="map-chip" data-portfolio-id="X9">X9</span></div>
+      <div class="tags"><span class="tag">OCSF</span> <span class="tag">schema</span></div>
+      <p class="url"><code>https://schema.ocsf.io/categories</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-t2-aae-authority" data-entry-id="t2-aae-authority">
+      <header>
+        <h4><a href="https://www.rfc-editor.org/rfc/rfc9396.html" rel="noopener noreferrer" target="_blank">RFC 9396 — OAuth 2.0 Rich Authorization Requests (RAR)</a></h4>
+        <div class="meta">
+          <span class="author">IETF</span>
+          <span class="date">2023–2026</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real RAR specification. AumOS T2 authority-spec / P1 AAE compose RAR authorization_details with SPIFFE principals and Cedar multi-agent least privilege (see also cedar-agentic-aws + SPIFFE entries).</p>
+      <p class="entry-note">AumOS composition (AAE envelope) is not this RFC alone — multi-source: RAR + SPIFFE + Cedar.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="T2">T2</span> <span class="map-chip" data-portfolio-id="P1">P1</span> <span class="map-chip" data-portfolio-id="P7">P7</span> <span class="map-chip" data-portfolio-id="I1">I1</span></div>
+      <div class="tags"><span class="tag">AAE</span> <span class="tag">authority</span> <span class="tag">RAR</span> <span class="tag">SPIFFE</span></div>
+      <p class="url"><code>https://www.rfc-editor.org/rfc/rfc9396.html</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-p2-aar-receipts" data-entry-id="p2-aar-receipts">
+      <header>
+        <h4><a href="https://opentelemetry.io/blog/2025/ai-agent-observability/" rel="noopener noreferrer" target="_blank">AI Agent Observability — Evolving Standards and Best Practices</a></h4>
+        <div class="meta">
+          <span class="author">OpenTelemetry Blog</span>
+          <span class="date">2025–2026</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real OTel GenAI agent observability writeup. P2 AAR / E1 flight-recorder compose signed action receipts from GenAI span semantics + transparency-log thinking (RFC 6962) + COSE (RFC 9052).</p>
+      <p class="entry-note">AumOS AAR packaging is multi-source: OTel GenAI + Certificate Transparency log design + COSE signing.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P2">P2</span> <span class="map-chip" data-portfolio-id="E1">E1</span> <span class="map-chip" data-portfolio-id="T1">T1</span> <span class="map-chip" data-portfolio-id="X2">X2</span></div>
+      <div class="tags"><span class="tag">AAR</span> <span class="tag">receipts</span> <span class="tag">evidence</span></div>
+      <p class="url"><code>https://opentelemetry.io/blog/2025/ai-agent-observability/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-p4-memory-integrity" data-entry-id="p4-memory-integrity">
+      <header>
+        <h4><a href="https://www.w3.org/TR/prov-overview/" rel="noopener noreferrer" target="_blank">PROV-Overview: An Overview of the PROV Family of Documents</a></h4>
+        <div class="meta">
+          <span class="author">W3C</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real W3C PROV overview. P4 AMIL models agent memory integrity as provenance graphs with hash-chained integrity (PROV + Merkle CT patterns).</p>
+      <p class="entry-note">AumOS AMIL has no single public twin; compose PROV + Merkle transparency designs.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P4">P4</span> <span class="map-chip" data-portfolio-id="P3">P3</span> <span class="map-chip" data-portfolio-id="E1">E1</span></div>
+      <div class="tags"><span class="tag">AMIL</span> <span class="tag">memory</span> <span class="tag">integrity</span></div>
+      <p class="url"><code>https://www.w3.org/TR/prov-overview/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-p8-veb" data-entry-id="p8-veb">
+      <header>
+        <h4><a href="https://crfm.stanford.edu/helm/" rel="noopener noreferrer" target="_blank">HELM — Holistic Evaluation of Language Models</a></h4>
+        <div class="meta">
+          <span class="author">Stanford CRFM</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real HELM evaluation framework. P8 VEB packages signed evaluation artifacts using HELM/Inspect-style content standards bound with COSE/Sigstore.</p>
+      <p class="entry-note">AumOS VEB is a packaging/signing layer over HELM/Inspect/evals content — not a HELM feature.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P8">P8</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="A5">A5</span> <span class="map-chip" data-portfolio-id="A6">A6</span></div>
+      <div class="tags"><span class="tag">VEB</span> <span class="tag">evaluation</span> <span class="tag">bundles</span></div>
+      <p class="url"><code>https://crfm.stanford.edu/helm/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-cap-attestation" data-entry-id="cap-attestation">
+      <header>
+        <h4><a href="https://spiffe.io/docs/latest/spire-about/spire-concepts/" rel="noopener noreferrer" target="_blank">SPIRE Concepts — Attestation, Agents, and Trust Domains</a></h4>
+        <div class="meta">
+          <span class="author">SPIFFE Project</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real SPIRE concepts page. P12 CAP binds runtime capabilities to attested environments (SPIFFE selectors + sandbox + GPU CC quotes).</p>
+      <p class="entry-note">AumOS CAP profile also draws Wasmtime capability models and NVIDIA CC attestation (separate entries).</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P12">P12</span> <span class="map-chip" data-portfolio-id="R1">R1</span> <span class="map-chip" data-portfolio-id="R2">R2</span> <span class="map-chip" data-portfolio-id="R8">R8</span> <span class="map-chip" data-portfolio-id="C1-1">C1-1</span></div>
+      <div class="tags"><span class="tag">CAP</span> <span class="tag">attestation</span> <span class="tag">capabilities</span></div>
+      <p class="url"><code>https://spiffe.io/docs/latest/spire-about/spire-concepts/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-p11-remediation" data-entry-id="p11-remediation">
+      <header>
+        <h4><a href="https://cyclonedx.org/" rel="noopener noreferrer" target="_blank">CycloneDX Bill of Materials Standard (ECMA-424)</a></h4>
+        <div class="meta">
+          <span class="author">OWASP / Ecma</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real CycloneDX standard (incl. VEX capabilities). P11 PRB packages signed remediation proofs using VEX-style status + in-toto steps + transparency logs.</p>
+      <p class="entry-note">AumOS PRB composition also uses in-toto + Sigstore (separate entries).</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P11">P11</span> <span class="map-chip" data-portfolio-id="S9">S9</span> <span class="map-chip" data-portfolio-id="X9">X9</span> <span class="map-chip" data-portfolio-id="S4">S4</span></div>
+      <div class="tags"><span class="tag">remediation</span> <span class="tag">VEX</span> <span class="tag">PRB</span></div>
+      <p class="url"><code>https://cyclonedx.org/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-p5-skills" data-entry-id="p5-skills">
+      <header>
+        <h4><a href="https://modelcontextprotocol.io/specification/latest" rel="noopener noreferrer" target="_blank">Model Context Protocol Specification (latest)</a></h4>
+        <div class="meta">
+          <span class="author">MCP Project</span>
+          <span class="date">2025–2026</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real MCP specification for tool schemas. P5 SSP wraps tools/skills as signed packages for X8 admission — MCP tool contracts + Cosign/JSON-LD manifests.</p>
+      <p class="entry-note">AumOS Secure Skill Package signing/packaging is multi-source with Sigstore + JSON-LD.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="P5">P5</span> <span class="map-chip" data-portfolio-id="X8">X8</span> <span class="map-chip" data-portfolio-id="S4">S4</span> <span class="map-chip" data-portfolio-id="T1">T1</span></div>
+      <div class="tags"><span class="tag">skills</span> <span class="tag">MCP</span> <span class="tag">SSP</span></div>
+      <p class="url"><code>https://modelcontextprotocol.io/specification/latest</code></p>
+    </article>
+    </div>
+        </section>
+        
+        <section class="cluster" id="cluster-crosscut">
+          <h2>Crosscut</h2>
+          <div class="cards">
+    <article class="entry-card" id="entry-clap-rust" data-entry-id="clap-rust">
+      <header>
+        <h4><a href="https://docs.rs/clap/latest/clap/" rel="noopener noreferrer" target="_blank">clap — Command Line Argument Parser for Rust</a></h4>
+        <div class="meta">
+          <span class="author">clap-rs</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">X1 defstack-cli is Rust/clap per polyglot doctrine; canonical CLI architecture reference.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X1">X1</span></div>
+      <div class="tags"><span class="tag">Rust</span> <span class="tag">CLI</span> <span class="tag">clap</span></div>
+      <p class="url"><code>https://docs.rs/clap/latest/clap/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-nextjs-docs" data-entry-id="nextjs-docs">
+      <header>
+        <h4><a href="https://nextjs.org/docs" rel="noopener noreferrer" target="_blank">Next.js Documentation</a></h4>
+        <div class="meta">
+          <span class="author">Vercel</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">X7 console is TypeScript/Next.js; primary framework docs for enterprise policy/evidence UI.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X7">X7</span> <span class="map-chip" data-portfolio-id="X11">X11</span> <span class="map-chip" data-portfolio-id="A8">A8</span></div>
+      <div class="tags"><span class="tag">Next.js</span> <span class="tag">TypeScript</span> <span class="tag">console</span></div>
+      <p class="url"><code>https://nextjs.org/docs</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-airgapped-k8s" data-entry-id="airgapped-k8s">
+      <header>
+        <h4><a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/" rel="noopener noreferrer" target="_blank">Running Kubernetes in Air-Gapped Environments</a></h4>
+        <div class="meta">
+          <span class="author">Kubernetes / community best practices (SIG Cluster Lifecycle patterns)</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-secondary">Deep secondary</span>
+        </div>
+      </header>
+      <p class="why">Offline install patterns for X10 sovereign-stack air-gapped bundles (paired with Helm/Ansible).</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X10">X10</span> <span class="map-chip" data-portfolio-id="X11">X11</span> <span class="map-chip" data-portfolio-id="F4">F4</span></div>
+      <div class="tags"><span class="tag">airgap</span> <span class="tag">Kubernetes</span> <span class="tag">sovereign</span></div>
+      <p class="url"><code>https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-helm-docs" data-entry-id="helm-docs">
+      <header>
+        <h4><a href="https://helm.sh/docs/" rel="noopener noreferrer" target="_blank">Helm — The Kubernetes Package Manager</a></h4>
+        <div class="meta">
+          <span class="author">CNCF Helm</span>
+          <span class="date">ongoing</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Packaging for X10/X11 deploy surfaces and C1-3 Terraform-adjacent infra.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X10">X10</span> <span class="map-chip" data-portfolio-id="X11">X11</span> <span class="map-chip" data-portfolio-id="F4">F4</span> <span class="map-chip" data-portfolio-id="N4">N4</span></div>
+      <div class="tags"><span class="tag">Helm</span> <span class="tag">Kubernetes</span></div>
+      <p class="url"><code>https://helm.sh/docs/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-x3-harness" data-entry-id="x3-harness">
+      <header>
+        <h4><a href="https://modelcontextprotocol.io/specification/latest" rel="noopener noreferrer" target="_blank">Model Context Protocol Specification (latest)</a></h4>
+        <div class="meta">
+          <span class="author">MCP Project</span>
+          <span class="date">2025–2026</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Real MCP specification. X3 OpenHarnessSpec aims at vendor-neutral harness contracts; closest live tool/harness wire standard is MCP, with Inspect/evals as eval harness counterparts.</p>
+      <p class="entry-note">AumOS OpenHarnessSpec is OSAF-proposed; not identical to MCP — multi-source with Inspect + NOOA.</p>
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X3">X3</span> <span class="map-chip" data-portfolio-id="X8">X8</span> <span class="map-chip" data-portfolio-id="A1">A1</span> <span class="map-chip" data-portfolio-id="A6">A6</span></div>
+      <div class="tags"><span class="tag">harness</span> <span class="tag">OSAF</span> <span class="tag">agents</span></div>
+      <p class="url"><code>https://modelcontextprotocol.io/specification/latest</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-nvidia-nooa" data-entry-id="nvidia-nooa">
+      <header>
+        <h4><a href="https://blogs.nvidia.com/blog/open-secure-ai-alliance/" rel="noopener noreferrer" target="_blank">Industry Leaders Join Open Secure AI Alliance for AI Safety (NOOA + OpenShell)</a></h4>
+        <div class="meta">
+          <span class="author">NVIDIA Blog</span>
+          <span class="date">2026-07-27</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">OSAF launch post announcing NOOA (NVIDIA Labs Object-Oriented Agent) open source harness research and alliance membership — primary for X2 nooa-ext and X3 open-harness-spec.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X2">X2</span> <span class="map-chip" data-portfolio-id="X3">X3</span> <span class="map-chip" data-portfolio-id="R1">R1</span></div>
+      <div class="tags"><span class="tag">NOOA</span> <span class="tag">OSAF</span> <span class="tag">NVIDIA</span> <span class="tag">agent-harness</span></div>
+      <p class="url"><code>https://blogs.nvidia.com/blog/open-secure-ai-alliance/</code></p>
+    </article>
+    
+
+    <article class="entry-card" id="entry-nvidia-nooa-harness" data-entry-id="nvidia-nooa-harness">
+      <header>
+        <h4><a href="https://github.com/NVIDIA-NeMo/labs-OO-Agents/tree/main" rel="noopener noreferrer" target="_blank">NVIDIA Labs Object-Oriented Agents (NOOA) — GitHub</a></h4>
+        <div class="meta">
+          <span class="author">NVIDIA NeMo Labs</span>
+          <span class="date">2026-07</span>
+          <span class="tier tier-canonical">Canonical primary</span>
+        </div>
+      </header>
+      <p class="why">Primary open-source NOOA repository (Apache 2.0) for object-oriented agent harness research — X2 nooa-ext integration target.</p>
+      
+      <div class="maps"><span class="label">Maps to:</span> <span class="map-chip" data-portfolio-id="X2">X2</span> <span class="map-chip" data-portfolio-id="X3">X3</span> <span class="map-chip" data-portfolio-id="A1">A1</span></div>
+      <div class="tags"><span class="tag">NOOA</span> <span class="tag">harness</span> <span class="tag">NVIDIA</span></div>
+      <p class="url"><code>https://github.com/NVIDIA-NeMo/labs-OO-Agents/tree/main</code></p>
+    </article>
+    </div>
+        </section>
+        
+    </div>
+
+    <footer class="page-foot">
+      <p>Local in-repo deliverable for Project AumOS — Open Secure AI Alliance. Not a hosted artifact.
+      Companion Markdown: <code>aumos/docs/curated-reading-list.md</code>. Data: <code>aumos/docs/source-matrix/curated-sources.json</code>.</p>
+      <p>Unique domains: a2a-protocol.org, anthropic.com, arxiv.org, atlas.mitre.org, auth0.com, aws.amazon.com, blogs.nvidia.com, cedarpolicy.com, crfm.stanford.edu, cyclonedx.org, developer.hashicorp.com, developer.nvidia.com, developers.googleblog.com, docs.nvidia.com, docs.rs, docs.sigstore.dev, docs.trustauthority.intel.com, docs.vllm.ai, ebpf.io, falco.org, federalreserve.gov, flower.ai, github.com, goteleport.com, helm.sh, hiddenlayer.com, huggingface.co, in-toto.io, inspect.aisi.org.uk, kubernetes.io, lmsys.org, meity.gov.in, metr.org, microsoft.com, modelcontextprotocol.io, newsroom.ibm.com, nextjs.org, nist.gov, nvidia.github.io, occ.gov, opacus.ai, openid.net, openpolicyagent.org, opentelemetry.io, owasp.github.io, platform.openai.com, redhat.com, rfc-editor.org, schema.ocsf.io, sigstore.dev, slsa.dev, spdx.dev, spiffe.io, spletzer.com, tetragon.io, w3.org, wasmtime.dev</p>
+    </footer>
+  </div>
+</body>
+</html>

@@ -65,6 +65,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
+      # warrantor-api's build.rs runs tonic-build, which shells out to protoc.
+      # Without this the whole workspace fails to build, not just that crate.
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Run clippy with warnings denied
@@ -85,7 +89,12 @@ jobs:
           cache: pip
           cache-dependency-path: python/*/pyproject.toml
       - name: Install required test tooling
-        run: python -m pip install --disable-pip-version-check pytest ruff cryptography
+        run: python -m pip install --disable-pip-version-check pytest ruff
+      # Install each project from its own pyproject.toml rather than maintaining a
+      # package list here. The previous hardcoded list omitted jsonschema and
+      # pyyaml, which both projects declare correctly -- the list was the defect.
+      - name: Install every project and its declared dependencies
+        run: python tools/ci/run_python_checks.py install
       - name: Test every project
         run: python tools/ci/run_python_checks.py test --report evidence/python-tests.json
       - name: Lint every project
@@ -101,7 +110,7 @@ jobs:
           if-no-files-found: error
 
   go:
-    name: Go (11 modules)
+    name: Go (12 modules)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -127,7 +136,7 @@ jobs:
           if-no-files-found: error
 
   typescript:
-    name: TypeScript (4 workspaces)
+    name: TypeScript (5 workspaces)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -153,7 +162,7 @@ jobs:
         run: npm audit --audit-level=moderate
 
   conformance:
-    name: Cross-language conformance (20 checks)
+    name: Cross-language conformance (220 checks)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -168,8 +177,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.x"
-      - name: Install Python verifier dependency
-        run: python -m pip install --disable-pip-version-check cryptography
+      # The Rust verifier is built from the workspace, so this job needs protoc too.
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      # The Python verifier imports protocol_contracts, which needs jsonschema.
+      # Installing the project pulls its declared dependencies; a bare `cryptography`
+      # left the verifier unavailable and cost 84 of 220 checks.
+      - name: Install Python verifier dependencies
+        run: |
+          python -m pip install --disable-pip-version-check cryptography
+          python -m pip install --disable-pip-version-check -e python/protocol_contracts
       - name: Run required vector matrix
         run: python tools/conformance/run.py --report evidence/conformance.json
       - name: Upload conformance evidence

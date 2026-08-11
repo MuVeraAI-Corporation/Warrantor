@@ -9,13 +9,14 @@ import os
 import subprocess
 import sys
 import tempfile
+import tomllib
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PYTHON_ROOT = REPOSITORY_ROOT / "python"
-SUPPORTED_CHECKS = ("test", "lint", "format")
+SUPPORTED_CHECKS = ("install", "test", "lint", "format")
 
 
 @dataclass(frozen=True)
@@ -51,9 +52,53 @@ def discover_projects() -> list[Path]:
     return projects
 
 
+TEST_EXTRA = "dev"
+
+
+def declared_extras(project: Path) -> list[str]:
+    """The optional-dependency groups CI installs for a project.
+
+    Only `dev` is installed, not every declared extra. Extras exist to keep heavy
+    optional dependencies out of a default install -- `adversaria` declares `garak`
+    and `pyrit`, and pulling those into every CI run to satisfy one project would
+    cost far more than it proves.
+
+    The contract this creates: if a project's TESTS need a package, that package
+    belongs in its `dev` extra. Anything else is an optional feature dependency and
+    its tests must degrade gracefully without it.
+
+    Read from the project rather than hardcoded in the workflow. A hand-maintained
+    package list is what let `jsonschema` and `pyyaml` reach CI uninstalled while
+    passing locally on a machine that happened to already have them.
+    """
+
+    try:
+        with (project / "pyproject.toml").open("rb") as handle:
+            data = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        return []
+    optional = data.get("project", {}).get("optional-dependencies", {})
+    if not isinstance(optional, dict):
+        return []
+    return [TEST_EXTRA] if TEST_EXTRA in optional else []
+
+
 def command_for(project: Path, check: str) -> list[str]:
     """Build the command for a project check."""
 
+    if check == "install":
+        extras = declared_extras(project)
+        target = f".[{','.join(extras)}]" if extras else "."
+        return [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--disable-pip-version-check",
+            "--quiet",
+            "-e",
+            target,
+        ]
     if check == "test":
         if not (project / "tests").is_dir():
             raise RuntimeError(f"{project.name}: required tests directory is missing")
@@ -101,9 +146,7 @@ def check_project(project: Path, check: str) -> ProjectResult:
     command = command_for(project, check)
     environment = os.environ.copy()
     loopback_hosts = ("localhost", "127.0.0.1", "::1")
-    configured_no_proxy = environment.get("NO_PROXY") or environment.get(
-        "no_proxy", ""
-    )
+    configured_no_proxy = environment.get("NO_PROXY") or environment.get("no_proxy", "")
     no_proxy_hosts = [
         host.strip() for host in configured_no_proxy.split(",") if host.strip()
     ]
