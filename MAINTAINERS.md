@@ -5,11 +5,7 @@ ownership — anyone may review anything.
 
 | Maintainer | GitHub | Areas |
 |---|---|---|
-| MuVeraAI | *(to be filled in before launch)* | Overall direction, authority semantics, release |
-
-> **Before the repository goes public**, replace the placeholder above with real GitHub handles.
-> A maintainers file that names nobody tells a prospective contributor there is nobody to talk to,
-> which is worse than not having the file.
+| Vikram Jha | [@invincible-jha](https://github.com/invincible-jha) | Overall direction, authority semantics, release |
 
 ## Areas needing a maintainer
 
