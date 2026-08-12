@@ -32,10 +32,13 @@
 # image pin is a floor that silently expires as the dependency tree moves.
 FROM rust:1.85-slim AS rust-builder
 
-# protobuf-compiler is required: warrantor-api's build script regenerates types from
-# the vendored protos on every build, and prost-build shells out to protoc.
+# protobuf-compiler gives us protoc; libprotobuf-dev supplies the WELL-KNOWN types
+# (/usr/include/google/protobuf/*.proto). Our protos import
+# google/protobuf/timestamp.proto, and on Debian those .proto files ship in the -dev
+# package, not with the compiler binary -- installing only protobuf-compiler gets you
+# a protoc that cannot resolve its own standard imports.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends pkg-config libssl-dev protobuf-compiler \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev protobuf-compiler libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /rust
