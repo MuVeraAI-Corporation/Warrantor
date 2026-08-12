@@ -1,6 +1,6 @@
-# Contributing to AumOS
+# Contributing to Warrantor
 
-Thank you for your interest in contributing to AumOS! This document describes how to set up your development environment and submit changes.
+Thank you for your interest in contributing to Warrantor! This document describes how to set up your development environment and submit changes.
 
 ## Quick Start
 

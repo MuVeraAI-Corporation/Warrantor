@@ -4,11 +4,11 @@
 
 ---
 
-You are implementing **R2 eval-guard** for AumOS. Language: Rust + eBPF (aya). Dependencies: C1-2.
+You are implementing **R2 eval-guard** for Warrantor. Language: Rust + eBPF (aya). Dependencies: C1-2.
 
 ## Component context
 
-Sandbox boundary attestation. Four pre-flight checks: NetworkIsolation (canary IPs: huggingface.co, pypi.org, 1.1.1.1), FilesystemBoundary, ProcessIsolation, EgressAttestation (eBPF iptables rules, deny-all default). Emits signed SandboxAttestation via T1. AumOS moved from Go to Rust per trusted-core doctrine. Requires Linux 5.13+ for eBPF; document this in the README.
+Sandbox boundary attestation. Four pre-flight checks: NetworkIsolation (canary IPs: huggingface.co, pypi.org, 1.1.1.1), FilesystemBoundary, ProcessIsolation, EgressAttestation (eBPF iptables rules, deny-all default). Emits signed SandboxAttestation via T1. Warrantor moved from Go to Rust per trusted-core doctrine. Requires Linux 5.13+ for eBPF; document this in the README.
 
 ## Read first
 

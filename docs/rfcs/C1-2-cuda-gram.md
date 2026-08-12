@@ -8,7 +8,7 @@
 | **Name** | cuda-gram |
 | **Wave** | 1 |
 | **Languages** | Python (PyO3) |
-| **DefStack origin** | C1.1 CudaGram |
+| **Warrantor origin** | C1.1 CudaGram |
 | **AumSecure origin** | (none) |
 | **Sentinel origin** | (none) |
 | **Dependencies** | C1-1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack C1.1 CudaGram; AumSecure (none); Sentinel (none). The full strategic rationale
+Warrantor C1.1 CudaGram; AumSecure (none); Sentinel (none). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** C1-1
+- **Warrantor internal:** C1-1
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

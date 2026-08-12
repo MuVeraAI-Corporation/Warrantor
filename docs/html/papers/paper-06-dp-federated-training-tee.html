@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Research · Paper 6 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
+  <div class="article-eyebrow">Warrantor Research · Paper 6 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
   <h1>Differentially Private Federated Training with TEE Attestation</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS C1 (confidential computing), A-pillar (audit)</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor C1 (confidential computing), A-pillar (audit)</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">PETS 2027</span></div>
     <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">C1-3, C1-5, A-pillar</span></div>
@@ -92,7 +92,7 @@
 <p>The key subtlety is that the TEE attestation makes the DP guarantee <em>auditable</em>: without it, a client must trust the server's claim that it added noise correctly. With attested in-TEE noising, the client verifies the noising code ran — converting a trust assumption into a verification. This is the structural improvement composition provides over either defense alone.</p>
 
 <h2 id="impl"><span class="anchor">§</span>6. Implementation and the attestation binding</h2>
-<p>We implement the framework using an Intel TDX (or AMD SEV-SNP) TEE running a DP-SGD noising-and-aggregation module, with the AumOS C1 attestation client (Paper 5) providing the verification path. Each client, before submitting gradients, verifies the TEE attestation against a policy specifying the noising code's measurement, the σ and C parameters, and the debug-disabled flag. A client whose policy is not satisfied refuses to participate. The moments accountant runs in the TEE and exposes the cumulative (ε, δ) to an audit endpoint.</p>
+<p>We implement the framework using an Intel TDX (or AMD SEV-SNP) TEE running a DP-SGD noising-and-aggregation module, with the Warrantor C1 attestation client (Paper 5) providing the verification path. Each client, before submitting gradients, verifies the TEE attestation against a policy specifying the noising code's measurement, the σ and C parameters, and the debug-disabled flag. A client whose policy is not satisfied refuses to participate. The moments accountant runs in the TEE and exposes the cumulative (ε, δ) to an audit endpoint.</p>
 
 <h2 id="eval"><span class="anchor">§</span>7. Evaluation: privacy-utility-operational tradeoff</h2>
 <table>
@@ -130,7 +130,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact derived from the AumOS research roadmap. The framework composes AumOS C1 attestation with DP-SGD. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact derived from the Warrantor research roadmap. The framework composes Warrantor C1 attestation with DP-SGD. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-05-attested-inference-pipelines.html">Paper 5</a></span>
     <span class="small"><a href="paper-07-confidential-gpu-composition.html">Paper 7: Confidential GPU Composition →</a></span>

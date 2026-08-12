@@ -1,4 +1,4 @@
-"""AumOS data-provenance-kit (S5) — dataset lineage tracker.
+"""Warrantor data-provenance-kit (S5) — dataset lineage tracker.
 
 A ``Dataset`` class that wraps HF Datasets / S3 / local sources and records every transformation
 (filter, map, shard, concat, dedup) as a node in a directed lineage graph. Exports signed

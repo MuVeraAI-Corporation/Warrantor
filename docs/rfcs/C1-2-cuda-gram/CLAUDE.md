@@ -17,11 +17,11 @@ Read it first.
 
 ## Component-specific context
 
-High-level GPU attestation SDK. Exposes AttestationReport, CCSession, AttestationVerifier. Consumes C1-1's Rust core via PyO3 (do not use ctypes — that's the DefStack original we are migrating away from).
+High-level GPU attestation SDK. Exposes AttestationReport, CCSession, AttestationVerifier. Consumes C1-1's Rust core via PyO3 (do not use ctypes — that's the Warrantor original we are migrating away from).
 
 ## Dependencies
 
-- **AumOS internal:** C1-1
+- **Warrantor internal:** C1-1
 - **External:** enumerated during MVP (task 02); record in the RFC.
 
 ## Build entrypoint

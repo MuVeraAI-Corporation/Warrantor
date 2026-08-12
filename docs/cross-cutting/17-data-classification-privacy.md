@@ -1,12 +1,12 @@
 # 17 — Data Classification & Privacy
 
-> Every AumOS component that touches data must classify it, enforce residency, redact PII on egress,
+> Every Warrantor component that touches data must classify it, enforce residency, redact PII on egress,
 > and honor data-subject rights. This standard closes the gap that blocked EU / healthcare / financial
 > customers (gap-analysis-v3 gap #35).
 
 ## Why this exists
 
-DefStack v1/v2 had no data-classification spec. Without it:
+Warrantor v1/v2 had no data-classification spec. Without it:
 - Components cannot decide what may be logged, cached, replicated, or sent to a third-party model.
 - EU customers cannot demonstrate GDPR compliance.
 - Healthcare customers cannot demonstrate HIPAA compliance.
@@ -54,9 +54,9 @@ library so behavior is identical.
 
 ## 3. GDPR Data-Subject Rights
 
-AumOS supports all six GDPR rights data subjects can exercise:
+Warrantor supports all six GDPR rights data subjects can exercise:
 
-| Right (Article) | AumOS mechanism | Component |
+| Right (Article) | Warrantor mechanism | Component |
 |---|---|---|
 | **Access (Art. 15)** | `defstack privacy export --subject <id>` → JSON of every record referencing the subject | E1 + A6 (search the evidence store) |
 | **Rectification (Art. 16)** | `defstack privacy rectify --subject <id> --field <x> --value <y>` | E1 (append-only ledger entry) |
@@ -81,7 +81,7 @@ replicas within **72 hours**.
   "sale" downstream.
 - **Right to non-discrimination** — explicitly: opting out does not degrade service.
 
-CCPA applies to California residents; AumOS applies the rule globally when the mode is enabled (it
+CCPA applies to California residents; Warrantor applies the rule globally when the mode is enabled (it
 is stricter than the default).
 
 ---
@@ -91,12 +91,12 @@ is stricter than the default).
 `defstack privacy --mode hipaa` enables **L4 (Regulated)** handling for all health data:
 
 - **PHI detection:** NER model trained on HIPAA's 18 identifiers, runs at ingestion.
-- **Encryption:** customer-managed keys in a FIPS 140-2 Level 3 HSM; no AumOS-side key access.
-- **BAA (Business Associate Agreement):** required before any PHI touches AumOS. Template stored in
+- **Encryption:** customer-managed keys in a FIPS 140-2 Level 3 HSM; no Warrantor-side key access.
+- **BAA (Business Associate Agreement):** required before any PHI touches Warrantor. Template stored in
   `docs/legal/baa-template.pdf` (provided per customer).
 - **Audit:** every PHI access logged with accessor identity, purpose, timestamp. Logs retained 6
   years (HIPAA requirement).
-- **Breach notification:** if PHI is exposed, the HIPAA breach-notification clock starts — AumOS
+- **Breach notification:** if PHI is exposed, the HIPAA breach-notification clock starts — Warrantor
   provides the audit trail within 1 hour to support the customer's 60-day notification obligation.
 - **No third-party model routing:** PHI never sent to any non-HIPAA-compliant inference provider.
   The Privacy & Sovereignty Router (future) enforces this.

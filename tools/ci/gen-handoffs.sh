@@ -11,12 +11,12 @@ RFC_DIR="$REPO_ROOT/docs/rfcs"
 
 # id|name|lang|deps|extra_context_for_agent
 read -r -d '' WAVE1 <<'EOF' || true
-X1|defstack-cli|Rust (clap)|none|The unified installer/orchestrator. Subcommands: install/verify/upgrade/compliance-report. Reads from a single ~/.aumos/config.yaml. AumOS moved from Go/Cobra to Rust/clap per stack-test consolidation.
+X1|defstack-cli|Rust (clap)|none|The unified installer/orchestrator. Subcommands: install/verify/upgrade/compliance-report. Reads from a single ~/.aumos/config.yaml. Warrantor moved from Go/Cobra to Rust/clap per stack-test consolidation.
 C1-1|nvtrust-bridge|Rust core + Python + Go bindings|none|NVTrust FFI bindings + nvtrust-verify CLI. NVTrust is NVIDIA's GPU attestation library. Offline/mock mode for CI is mandatory — do NOT attempt to download the real NVTrust SDK (NDA-gated). Define a Trait NVTrustBackend with Mock and Real impls.
-C1-2|cuda-gram|Python (PyO3)|C1-1|High-level GPU attestation SDK. Exposes AttestationReport, CCSession, AttestationVerifier. Consumes C1-1's Rust core via PyO3 (do not use ctypes — that's the DefStack original we are migrating away from).
-R2|eval-guard|Rust + eBPF (aya)|C1-2|Sandbox boundary attestation. Four pre-flight checks: NetworkIsolation (canary IPs: huggingface.co, pypi.org, 1.1.1.1), FilesystemBoundary, ProcessIsolation, EgressAttestation (eBPF iptables rules, deny-all default). Emits signed SandboxAttestation via T1. AumOS moved from Go to Rust per trusted-core doctrine. Requires Linux 5.13+ for eBPF; document this in the README.
+C1-2|cuda-gram|Python (PyO3)|C1-1|High-level GPU attestation SDK. Exposes AttestationReport, CCSession, AttestationVerifier. Consumes C1-1's Rust core via PyO3 (do not use ctypes — that's the Warrantor original we are migrating away from).
+R2|eval-guard|Rust + eBPF (aya)|C1-2|Sandbox boundary attestation. Four pre-flight checks: NetworkIsolation (canary IPs: huggingface.co, pypi.org, 1.1.1.1), FilesystemBoundary, ProcessIsolation, EgressAttestation (eBPF iptables rules, deny-all default). Emits signed SandboxAttestation via T1. Warrantor moved from Go to Rust per trusted-core doctrine. Requires Linux 5.13+ for eBPF; document this in the README.
 R3|kill-switch|Rust core + Python policy|I1 (mock)|Three layers: Policy (OPA Rego, evaluated via regorus crate), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API stub for the AI Kill Switch Act (H.R. 2026). Wave-1 uses the mock I1 from proto/warrantor/identity/v1/agent.proto.
-R4|credential-vault|Rust|R3 (mock)|Agent-scoped credential brokering. 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates HashiCorp Vault, AWS Secrets Manager, K8s Secrets via trait CredentialBackend. Revokes all tokens <1s on kill-switch trigger. AumOS moved from Go to Rust.
+R4|credential-vault|Rust|R3 (mock)|Agent-scoped credential brokering. 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates HashiCorp Vault, AWS Secrets Manager, K8s Secrets via trait CredentialBackend. Revokes all tokens <1s on kill-switch trigger. Warrantor moved from Go to Rust.
 EOF
 
 while IFS='|' read -r id name lang deps extra; do
@@ -50,7 +50,7 @@ ${extra}
 
 ## Dependencies
 
-- **AumOS internal:** ${deps}
+- **Warrantor internal:** ${deps}
 - **External:** enumerated during MVP (task 02); record in the RFC.
 
 ## Build entrypoint
@@ -139,7 +139,7 @@ EOF
 
 ---
 
-You are implementing **${id} ${name}** for AumOS. Language: ${lang}. Dependencies: ${deps}.
+You are implementing **${id} ${name}** for Warrantor. Language: ${lang}. Dependencies: ${deps}.
 
 ## Component context
 

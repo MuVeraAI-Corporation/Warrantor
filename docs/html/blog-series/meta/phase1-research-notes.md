@@ -48,7 +48,7 @@ Used in Essays 03–06, 08.
 
 | Gap | Handling in series |
 |-----|-------------------|
-| No single public “AAE RFC” | Essay 01: compose RAR+SPIFFE+Cedar; P1 is AumOS-native |
+| No single public “AAE RFC” | Essay 01: compose RAR+SPIFFE+Cedar; P1 is Warrantor-native |
 | NOOA is harness research, not containment | Essay 02: pair with OpenShell; X2 extends |
 | CAEP says “robotic users” not “AI agent” | Essay 02: map agents to robotic subjects |
 | Living specs evolve | Citations pin current primary URLs; dates in refs |

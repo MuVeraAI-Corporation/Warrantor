@@ -3,7 +3,7 @@
 ## Summary
 
 Wave-4 shipped **4 components at v1.0.0**: N1 open-serve-kit (Go), N2 bridge-rt (Python),
-N3 inference-proxy (Rust), N4 tenant-guard (Go). The full AumOS inference stack is now
+N3 inference-proxy (Rust), N4 tenant-guard (Go). The full Warrantor inference stack is now
 operational.
 
 **Cumulative test totals: 224 tests passing** (93 Rust + 107 Python + 24 Go).

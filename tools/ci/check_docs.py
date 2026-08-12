@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed structural and local-link validation for AumOS documentation."""
+"""Fail-closed structural and local-link validation for Warrantor documentation."""
 
 from __future__ import annotations
 

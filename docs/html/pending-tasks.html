@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pending Tasks & External Infrastructure — AumOS</title>
+  <title>Pending Tasks & External Infrastructure — Warrantor</title>
   <style>
-/* AumOS Documentation — Anthropic-inspired Style System */
+/* Warrantor Documentation — Anthropic-inspired Style System */
 /* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
    serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
 
@@ -248,7 +248,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <h2>Executive Summary</h2>
 
-<p>AumOS ships 49 components at v1.0.0 with 691 passing tests across 4 languages. Every component implements real logic against well-defined interfaces — but many integrate with <strong>mock or stub backends</strong> for external systems that require infrastructure, credentials, or NDA-gated access. This document enumerates <strong>every pending integration</strong>, what exactly is needed, and how to verify each one is complete.</p>
+<p>Warrantor ships 49 components at v1.0.0 with 691 passing tests across 4 languages. Every component implements real logic against well-defined interfaces — but many integrate with <strong>mock or stub backends</strong> for external systems that require infrastructure, credentials, or NDA-gated access. This document enumerates <strong>every pending integration</strong>, what exactly is needed, and how to verify each one is complete.</p>
 
 <div class="callout warning">
   <div class="callout-title">The "Task 03" Pattern</div>
@@ -414,7 +414,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <h4>C1-3 attesta-flow</h4>
 <table class="meta-table">
   <tr><td>Current state</td><td><code>Pipeline</code> runs 5 stages with a <code>MockHardwareAttestor</code>; Terraform module is written but not <code>apply</code>'d.</td></tr>
-  <tr><td>Integration step</td><td>1. <code>terraform init && terraform apply</code> on Azure with the DC-series confidential VM. 2. Install AumOS + NVTrust inside the VM. 3. Replace <code>MockHardwareAttestor</code> with <code>RealHardwareAttestor</code> that calls C1-2. 4. Wire <code>infer_fn</code> to call N1 open-serve-kit via HTTP.</td></tr>
+  <tr><td>Integration step</td><td>1. <code>terraform init && terraform apply</code> on Azure with the DC-series confidential VM. 2. Install Warrantor + NVTrust inside the VM. 3. Replace <code>MockHardwareAttestor</code> with <code>RealHardwareAttestor</code> that calls C1-2. 4. Wire <code>infer_fn</code> to call N1 open-serve-kit via HTTP.</td></tr>
   <tr><td>Verification</td><td><code>run_batch()</code> must produce a <code>PipelineAttestation</code> with <code>gpu_model="H100"</code> and a real attestation hex (not "aumos-mock-attestation").</td></tr>
   <tr><td>Blocked on</td><td>Azure subscription + DC-series VM availability + C1-1/C1-2 real NVTrust</td></tr>
 </table>
@@ -456,7 +456,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <tbody>
     <tr>
       <td><strong>AWS KMS</strong></td>
-      <td> symmetric + asymmetric keys; Ed25519 support or RSA-PSS fallback; IAM policy scoping the key to the AumOS service</td>
+      <td> symmetric + asymmetric keys; Ed25519 support or RSA-PSS fallback; IAM policy scoping the key to the Warrantor service</td>
       <td>T1 trust-core's <code>KmsSigningKey::Aws(arn)</code> calls AWS KMS to sign without the private key leaving KMS. Required for all production signing (model weights, AARs, AAEs, checkpoint anchors).</td>
     </tr>
     <tr>
@@ -522,7 +522,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <table>
   <tbody>
     <tr><td><strong>SPIRE server</strong></td><td>v1.10+; deployed as a K8s StatefulSet or standalone binary</td><td>I1 agent-identity's real implementation wraps SPIRE's WorkloadAPI to issue SVIDs. The v1.0 uses an in-process Ed25519 CA instead.</td></tr>
-    <tr><td><strong>SPIRE agents</strong></td><td>One per node; workload attestor configured for the AumOS agents</td><td>SPIRE agents run alongside each component process and provide SVIDs via the WorkloadAPI (Unix socket).</td></tr>
+    <tr><td><strong>SPIRE agents</strong></td><td>One per node; workload attestor configured for the Warrantor agents</td><td>SPIRE agents run alongside each component process and provide SVIDs via the WorkloadAPI (Unix socket).</td></tr>
     <tr><td><strong>Trust domain</strong></td><td><code>spiffe://muveraai.com</code> (or customer-specific)</td><td>Configured on the SPIRE server; all SVIDs carry this trust domain.</td></tr>
     <tr><td><strong>OPA / Rego</strong></td><td>v0.70+; deployed as a sidecar or standalone</td><td>R3 kill-switch and R5 policy-compiler use OPA for policy evaluation. v1.0 uses <code>MockPolicyEngine</code> with hardcoded thresholds.</td></tr>
     <tr><td><strong>Cedar</strong></td><td>v4.0+ (Rust crate)</td><td>R5 policy-compiler emits Cedar policies as an alternative to Rego. v1.0 generates the text but doesn't evaluate it.</td></tr>
@@ -532,7 +532,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <h4>I1 agent-identity</h4>
 <table class="meta-table">
   <tr><td>Current state</td><td>Real SVID issuance + JWT capability tokens + delegation chain with intersection (I-02) + revocation <5s (I-05). Uses in-process Ed25519 CA. HTTP/JSON gateway works. 8 tests pass.</td></tr>
-  <tr><td>Integration step</td><td>1. Deploy SPIRE server + agents. 2. Replace the in-process CA with SPIRE WorkloadAPI calls. 3. Register AumOS components as SPIRE workloads. 4. Wire the <code>AgentIdentityService.Issue</code> to call SPIRE's <code>NewSVID</code>. 5. Replace deterministic JSON signing with T1 trust-core canonical CBOR signing.</td></tr>
+  <tr><td>Integration step</td><td>1. Deploy SPIRE server + agents. 2. Replace the in-process CA with SPIRE WorkloadAPI calls. 3. Register Warrantor components as SPIRE workloads. 4. Wire the <code>AgentIdentityService.Issue</code> to call SPIRE's <code>NewSVID</code>. 5. Replace deterministic JSON signing with T1 trust-core canonical CBOR signing.</td></tr>
   <tr><td>Verification</td><td>Every Wave-1 component (R2, R3, R4) that currently calls the mock I1 must successfully call the real I1 and get a real SPIFFE SVID. The <code>spire-agent verify</code> CLI must confirm the SVID is valid against the trust domain's bundle.</td></tr>
   <tr><td>Blocked on</td><td>SPIRE deployment + trust domain setup</td></tr>
 </table>
@@ -619,7 +619,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <h4>S6 exfil-guard</h4>
 <table class="meta-table">
   <tr><td>Current state</td><td>PatternMatcher (AWS/GitHub/OpenAI/SSN/CC), EntropyDetector, VolumeMonitor all implemented in pure Rust (user-space). 20 tests pass.</td></tr>
-  <tr><td>Integration step</td><td>1. Write the eBPF programs that hook <code>sys_connect</code> and <code>sys_write</code> before TLS encryption. 2. Deploy Falco rules for AI-agent exfil detection patterns. 3. Deploy Tetragon policies for real-time enforcement. 4. Wire the coordinator service that combines Falco alerts + Tetragon enforcement + AumOS kill-switch.</td></tr>
+  <tr><td>Integration step</td><td>1. Write the eBPF programs that hook <code>sys_connect</code> and <code>sys_write</code> before TLS encryption. 2. Deploy Falco rules for AI-agent exfil detection patterns. 3. Deploy Tetragon policies for real-time enforcement. 4. Wire the coordinator service that combines Falco alerts + Tetragon enforcement + Warrantor kill-switch.</td></tr>
   <tr><td>Verification</td><td>A test agent that attempts to send an AWS key to <code>pastebin.com</code> must be blocked at the kernel level and trigger a kill-switch event.</td></tr>
   <tr><td>Blocked on</td><td>Falco + Tetragon deployment + eBPF program authoring + Linux with CAP_BPF.</td></tr>
 </table>
@@ -638,7 +638,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <div class="callout info">
   <div class="callout-title">Complete External Infrastructure Requirements</div>
-  <p>To take AumOS from v1.0 (mock backends) to production (real backends), the following infrastructure must be provisioned:</p>
+  <p>To take Warrantor from v1.0 (mock backends) to production (real backends), the following infrastructure must be provisioned:</p>
 </div>
 
 <table>

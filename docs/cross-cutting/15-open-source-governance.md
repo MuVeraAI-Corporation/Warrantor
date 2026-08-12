@@ -1,6 +1,6 @@
 # Open Source Governance Charter
 
-> How the DefStack open-source project is governed, licensed, and maintained.
+> How the Warrantor open-source project is governed, licensed, and maintained.
 
 ## Governance Model (Phased)
 
@@ -17,7 +17,7 @@
 ### Phase 3 (M24+): Foundation Donation
 - **Option A:** Donate core libraries to Linux Foundation
 - **Option B:** Donate to PyTorch Foundation
-- **Option C:** Establish DefStack Foundation
+- **Option C:** Establish Warrantor Foundation
 - **Rationale:** Maximize neutrality and adoption (Horizon 3)
 
 ## Roles
@@ -35,7 +35,7 @@
 |----------------|---------|-----------|
 | Core libraries (CudaGram, SafeTensors++, etc.) | Apache 2.0 | Maximum adoption, OSAF-friendly |
 | Enterprise features (TenantGuard, FedRAMP package) | BSL 1.1 | Source-available, prevents cloud competition |
-| CLI tools (DefStack CLI, ModelNotary) | Apache 2.0 | Developers expect CLI tools to be open |
+| CLI tools (Warrantor CLI, ModelNotary) | Apache 2.0 | Developers expect CLI tools to be open |
 | Specifications (OpenHarnessSpec) | CC-BY-4.0 | Standards must be freely reusable |
 | Documentation | CC-BY-SA-4.0 | Allows community improvement |
 | Reference implementations | Apache 2.0 | Reference code should be maximally adoptable |
@@ -59,10 +59,10 @@ All contributions undergo IP review:
 
 ## Trademark
 
-"DefStack" is a trademark of the founding company. Usage guidelines:
-- OSS projects: free to use "DefStack" in code and docs
+"Warrantor" is a trademark of the founding company. Usage guidelines:
+- OSS projects: free to use "Warrantor" in code and docs
 - Commercial products: must obtain trademark license
-- Derivative works: must use different name (e.g., "Acme DefStack Fork")
+- Derivative works: must use different name (e.g., "Acme Warrantor Fork")
 
 ## Release Process
 

@@ -60,7 +60,7 @@ moved on while others were never built. Where a document and the code disagree, 
 truth — and the [integrations inventory](integrations-inventory.html) is the reconciliation between
 them, because it was produced by measuring rather than by reading.
 
-**Naming is inconsistent.** *AumOS*, *DefStack* and *Warrantor* all appear and all mean the same
+**Naming is inconsistent.** *Warrantor*, *Warrantor* and *Warrantor* all appear and all mean the same
 project. The consolidation onto Warrantor is in progress.
 
 **`decisions/` is empty.** Architecture decision records were planned and not written. The reasoning

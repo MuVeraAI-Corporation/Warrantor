@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Per-Component Roadmap — AumOS</title>
+  <title>Per-Component Roadmap — Warrantor</title>
   <style>
-/* AumOS Documentation — Anthropic-inspired Style System */
+/* Warrantor Documentation — Anthropic-inspired Style System */
 /* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
    serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
 
@@ -278,7 +278,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
 <body>
 
 <div class="doc-header">
-  <h1>Per-Component Roadmap — AumOS</h1>
+  <h1>Per-Component Roadmap — Warrantor</h1>
   <div class="subtitle">The honest, code-anchored path from 49 reference-shape components at v1.0 to a hardened, standardized, ecosystem-integrated platform through Q4 2027.</div>
   <nav>
     <a href="index.html">&larr; Portal</a>
@@ -297,7 +297,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
 <!-- =================================================================== -->
 <h2 id="intro"><span class="section-number">1</span>Introduction &amp; How to Read This Roadmap <a href="#intro" class="anchor">&para;</a></h2>
 
-<p>This document is the per-component roadmap for the AumOS project (<a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>). It covers all <strong>49 implementable components</strong> across the seven domain groups and the <strong>12 open protocols (P1&ndash;P12)</strong>. It is the successor artifact to <a href="critical-analysis.html">the stress-test audit</a>: where that document diagnosed what is broken, this one schedules the fix, the hardening, and the long-arc feature work.</p>
+<p>This document is the per-component roadmap for the Warrantor project (<a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>). It covers all <strong>49 implementable components</strong> across the seven domain groups and the <strong>12 open protocols (P1&ndash;P12)</strong>. It is the successor artifact to <a href="critical-analysis.html">the stress-test audit</a>: where that document diagnosed what is broken, this one schedules the fix, the hardening, and the long-arc feature work.</p>
 
 <div class="callout danger">
   <div class="callout-title">Read this first &mdash; the honest starting point</div>
@@ -315,7 +315,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
 </ul>
 
 <h3>Timeline philosophy &mdash; quarterly milestones, not dates</h3>
-<p>AumOS plans in <strong>quarters</strong>, not calendar dates. Software-security work has irreducible uncertainty (a cryptographic repair can unlock three dependents or expose two more breaks), so we commit to milestone <em>order</em> and milestone <em>scope</em>, not to specific days. The rule is strict sequencing: <strong>v1.1 before v2.0, fixes before features, the cryptographic spine before everything that depends on it.</strong> A component may not start v2.0 feature work until its v1.1 critical fixes land and pass the expanded conformance suite. The Gantt in &sect;2 makes the dependency order explicit.</p>
+<p>Warrantor plans in <strong>quarters</strong>, not calendar dates. Software-security work has irreducible uncertainty (a cryptographic repair can unlock three dependents or expose two more breaks), so we commit to milestone <em>order</em> and milestone <em>scope</em>, not to specific days. The rule is strict sequencing: <strong>v1.1 before v2.0, fixes before features, the cryptographic spine before everything that depends on it.</strong> A component may not start v2.0 feature work until its v1.1 critical fixes land and pass the expanded conformance suite. The Gantt in &sect;2 makes the dependency order explicit.</p>
 
 <div class="callout info">
   <div class="callout-title">Versioning contract</div>
@@ -436,7 +436,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
   <div class="rm-title">trust-core</div>
   <div class="rm-path">rust/trust-core/</div>
   <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">critical fixes pending (C1, M6, M10)</span></div>
-  <p>The single authoritative implementation of every security invariant in AumOS. Owns canonical CBOR, SHA-256 binary Merkle trees, Ed25519 signing/verification, and the cross-language golden vectors. Every other language consumes it via PyO3, napi-rs, and FFI. It is the keystone of the keystone &mdash; 14 dependents wait on its correctness.</p>
+  <p>The single authoritative implementation of every security invariant in Warrantor. Owns canonical CBOR, SHA-256 binary Merkle trees, Ed25519 signing/verification, and the cross-language golden vectors. Every other language consumes it via PyO3, napi-rs, and FFI. It is the keystone of the keystone &mdash; 14 dependents wait on its correctness.</p>
   <div class="rm-milestones">
     <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 14 tests. <span class="crit">Critical break C1:</span> <code>canonical.rs</code> uses <code>serde_cbor</code> with no <code>deterministic</code> feature, so map keys are not sorted &mdash; two signatures can be produced for one payload. <span class="crit">M6:</span> signing key not zeroized on drop (missing <code>zeroize</code> feature). <span class="crit">M10:</span> Merkle orphan promotion is not second-preimage resistant (RFC 6962 requires re-hashing the lone node).</div>
     <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Migrate from deprecated <code>serde_cbor</code> to <code>ciborium</code> with explicit RFC 8949 &sect;4.2.2 canonicalization (length-first then bytewise). Add a golden vector built from an <em>unordered</em> <code>IndexMap</code> so the determinism cannot regress. Enable <code>ed25519-dalek/zeroize</code> and a real <code>Zeroize</code> impl in <code>SigningKeyWrapper::Drop</code>. Re-hash the lone node in orphan promotion. This is the highest-priority fix in the entire project &mdash; it unblocks C2, C3, C6 and every downstream verifier.</div>
@@ -1062,7 +1062,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
   <div class="rm-title">defstack-cli</div>
   <div class="rm-path">rust/defstack-cli/</div>
   <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill maintained">install/verify/upgrade/report</span></div>
-  <p>The AumOS CLI, in Rust/clap (consolidated from DefStack's Go/Cobra and Sentinel's sentinelos-cli). Subcommands: install, verify, upgrade, compliance-report.</p>
+  <p>The Warrantor CLI, in Rust/clap (consolidated from Warrantor's Go/Cobra and Sentinel's sentinelos-cli). Subcommands: install, verify, upgrade, compliance-report.</p>
   <div class="rm-milestones">
     <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with the four subcommands. The CLI runs but <code>compliance-report</code> reports the v1.0 "feature-complete" framing that the stress test contradicted &mdash; the report overstates maturity.</div>
     <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Make <code>compliance-report</code> honestly reflect the v1.1 fix state (which critical fixes are merged, which conformance vectors pass). Add a <code>doctor</code> subcommand that checks the local install against the conformance suite.</div>
@@ -1142,7 +1142,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
   <div class="rm-title">metr-bridge</div>
   <div class="rm-path">python/metr_bridge/</div>
   <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill mock">evaluator adapter stub</span></div>
-  <p>METR independent-evaluator integration. Lets a third-party evaluator measure an AumOS-governed agent.</p>
+  <p>METR independent-evaluator integration. Lets a third-party evaluator measure an Warrantor-governed agent.</p>
   <div class="rm-milestones">
     <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0. The adapter shape exists but does not run a real METR task end-to-end.</div>
     <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Run a real METR task suite. Emit a signed VEB (P8) per task. Reproducibility harness.</div>
@@ -1379,7 +1379,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
 <!-- =================================================================== -->
 <h2 id="community"><span class="section-number">6</span>Community Contribution Opportunities <a href="#community" class="anchor">&para;</a></h2>
 
-<p>AumOS is an open project at <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>. Not every area is equally suited to external contribution: the cryptographic spine (Tier 0) needs careful internal review, while the eval tooling, the conformance vectors, the protocol schemas, and the cloud/edge integrations are wide-open for community help. The table below ranks each area by how welcome external contributors are and how much existing context is required to be productive.</p>
+<p>Warrantor is an open project at <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>. Not every area is equally suited to external contribution: the cryptographic spine (Tier 0) needs careful internal review, while the eval tooling, the conformance vectors, the protocol schemas, and the cloud/edge integrations are wide-open for community help. The table below ranks each area by how welcome external contributors are and how much existing context is required to be productive.</p>
 
 <table class="contrib">
 <thead>
@@ -1401,7 +1401,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
 <tr>
   <td>A1 safe-eval &mdash; harness adapters</td>
   <td><span class="effort-low">Low</span></td>
-  <td>Each harness (HELM, garak, PyRIT, MDASH, plus new ones) is an isolated adapter. A contributor who knows one harness can add it without learning the rest of AumOS.</td>
+  <td>Each harness (HELM, garak, PyRIT, MDASH, plus new ones) is an isolated adapter. A contributor who knows one harness can add it without learning the rest of Warrantor.</td>
   <td>Add a new harness adapter; pin its version into the VEB (P8).</td>
 </tr>
 <tr>
@@ -1457,7 +1457,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
 
 <div class="callout success">
   <div class="callout-title">Where to start</div>
-  <p>If you are a new contributor, the highest-leverage first PR is a conformance vector (A6) or a protocol schema (P2&ndash;P12). Both are small, self-contained, unblock named findings (H3 and H4 respectively), and need no deep AumOS context. See the issues labeled <code>good-first-issue</code> at <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>.</p>
+  <p>If you are a new contributor, the highest-leverage first PR is a conformance vector (A6) or a protocol schema (P2&ndash;P12). Both are small, self-contained, unblock named findings (H3 and H4 respectively), and need no deep Warrantor context. See the issues labeled <code>good-first-issue</code> at <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>.</p>
 </div>
 
 <hr>
@@ -1473,7 +1473,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
 
 <div class="callout">
   <div class="callout-title">The one-sentence version</div>
-  <p>AumOS today is 49 reference-shape components at v1.0 with a broken cryptographic spine; by Q4 2027 it is a hardened, standardized, ecosystem-integrated platform whose three core protocols are on the IETF track &mdash; provided the v1.1 critical-fix wave lands first, in order, with no exceptions.</p>
+  <p>Warrantor today is 49 reference-shape components at v1.0 with a broken cryptographic spine; by Q4 2027 it is a hardened, standardized, ecosystem-integrated platform whose three core protocols are on the IETF track &mdash; provided the v1.1 critical-fix wave lands first, in order, with no exceptions.</p>
 </div>
 
 </div>

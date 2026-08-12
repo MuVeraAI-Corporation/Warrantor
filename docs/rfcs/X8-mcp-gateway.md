@@ -8,7 +8,7 @@
 | **Name** | mcp-gateway |
 | **Wave** | 2 (docs) |
 | **Languages** | TypeScript + Rust verify |
-| **DefStack origin** | (none) |
+| **Warrantor origin** | (none) |
 | **AumSecure origin** | mcp-authority-gateway (V2 W0) |
 | **Sentinel origin** | (none) |
 | **Dependencies** | I1, S4, T1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack (none); AumSecure mcp-authority-gateway (V2 W0); Sentinel (none). The full strategic rationale
+Warrantor (none); AumSecure mcp-authority-gateway (V2 W0); Sentinel (none). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -38,7 +38,7 @@ The TypeScript implementation is split into two explicit boundaries:
    Authority Envelope, and passes only an `AllowedAuthorizationResult` to a required
    `ToolTransport`. The discriminated result type guarantees that an allowed decision carries
    the exact tool SVID and side-effect class that were evaluated.
-2. `aumos-mcp-server` exposes the AumOS control operations over stdio. Its default `connected`
+2. `aumos-mcp-server` exposes the Warrantor control operations over stdio. Its default `connected`
    dependency graph calls the real HTTP services and CLIs. The deterministic `standalone`
    implementation is an explicit demo-only graph and is never used as an error fallback.
 
@@ -63,7 +63,7 @@ success. Outages use `CONTROL_UNAVAILABLE`; malformed success-status responses u
 
 ## Dependencies
 
-- **AumOS internal:** I1, S4, T1
+- **Warrantor internal:** I1, S4, T1
 - **External:** MCP Streamable HTTP; the T1 `trust-core` and X1 `defstack` CLIs; configured HTTP
   endpoints for I1, E1, C1-1, R2, R3, R4, S4, and A1.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,

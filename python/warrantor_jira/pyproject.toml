@@ -1,7 +1,7 @@
 [project]
 name = "warrantor-jira"
 version = "1.0.0"
-description = "Auto-create Jira/Linear tickets from AumOS incidents (P9/X9)"
+description = "Auto-create Jira/Linear tickets from Warrantor incidents (P9/X9)"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]

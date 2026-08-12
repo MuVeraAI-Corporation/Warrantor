@@ -1,6 +1,6 @@
 //! # warrantor-trust-core
 //!
-//! The single authoritative implementation of every security invariant in AumOS.
+//! The single authoritative implementation of every security invariant in Warrantor.
 //! No security invariant may have two authoritative implementations (polyglot stack
 //! pressure test kill criterion).
 //!

@@ -1,5 +1,5 @@
 // Registry-driven structural, semantic, temporal, extension, and signature
-// validation for the AumOS P1-P12 wire protocols.
+// validation for the Warrantor P1-P12 wire protocols.
 //
 // The validator is a generic interpreter over specs/protocols/registry.json:
 // it never hardcodes per-protocol structure, mirroring

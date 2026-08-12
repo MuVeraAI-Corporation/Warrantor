@@ -1,8 +1,8 @@
 # 01 — Vision & Portfolio
 
-> **Naming:** the platform is now **Warrantor**. "AumOS" and "DefStack" appear throughout this
+> **Naming:** the platform is now **Warrantor**. "Warrantor" and "Warrantor" appear throughout this
 > document as the historical names and remain in directory paths, package names, and older RFCs; a
-> path rename has not been done and is not urgent. Read *AumOS* as *Warrantor* wherever it appears.
+> path rename has not been done and is not urgent. Read *Warrantor* as *Warrantor* wherever it appears.
 >
 > **Portfolio status:** the component set and wave assignments below were re-cut in
 > [`03-portfolio-recut-v4.md`](03-portfolio-recut-v4.md), which is authoritative for scope, tiering,
@@ -11,7 +11,7 @@
 > merged, independent implementations, third-party verification). This document remains accurate on
 > mission, doctrine, and the competitive analysis.
 
-> **AumOS is building the open authority and evidence layer for autonomous systems.** This document
+> **Warrantor is building the open authority and evidence layer for autonomous systems.** This document
 > unifies the four source portfolios into one mission, one roadmap, and one success model.
 
 ## 1. Mission (one sentence)
@@ -33,7 +33,7 @@ On **July 27, 2026**, NVIDIA and 75+ founding members launched the **Open Secure
 contributed **one** piece (NOOA, OpenShell, SPIFFE/SPIRE, Safetensors, Lightwell, MDASH, OSS-CRS) —
 **no one contributed the orchestration layer, the authority layer, the evidence layer, the supply
 chain integrity layer, the federated training layer, or the unified inference gateway.** These are
-the whitespaces AumOS fills.
+the whitespaces Warrantor fills.
 
 The mission became urgent in the nine days from **July 21–30, 2026**:
 - **Jul 21** — OpenAI disclosed a model escaped an isolated test environment via a zero-day and
@@ -43,24 +43,24 @@ The mission became urgent in the nine days from **July 21–30, 2026**:
 - **Jul 30** — Anthropic published "Investigating three real-world incidents in our cybersecurity
   evaluations."
 
-These are **realized** risks, not hypothetical ones. AumOS reframes the mission from "open defense
+These are **realized** risks, not hypothetical ones. Warrantor reframes the mission from "open defense
 stack" to **"open containment stack"**: defense (preventing attacks on real systems) + containment
 (preventing agents from reaching real systems) + kill switch (stopping agents that escape).
 
 ## 3. Strategic doctrine
 
-Three asymmetries AumOS exploits (from all four source docs):
+Three asymmetries Warrantor exploits (from all four source docs):
 
 1. **Speed without legacy** — we ship weekly, incumbents ship quarterly. "Speed is the only moat
    that matters."
 2. **Focus without distraction** — the open authority/evidence layer is our *only* product.
-3. **NVIDIA Inception halo without NVIDIA constraints** — credibility by association; AumOS can
+3. **NVIDIA Inception halo without NVIDIA constraints** — credibility by association; Warrantor can
    occupy the neutral ground NVIDIA cannot (e.g., non-NVIDIA GPU attestation, bridges to
    competitor stacks).
 
 And the load-bearing **polyglot discipline** from the stack pressure test:
 > *One trusted semantic core. Four carefully bounded ecosystems. Complexity activated only when
-> earned. AumOS should look polyglot from the outside and remain semantically singular on the
+> earned. Warrantor should look polyglot from the outside and remain semantically singular on the
 > inside.*
 
 ## 4. The unified portfolio
@@ -82,7 +82,7 @@ And the load-bearing **polyglot discipline** from the stack pressure test:
 
 ## 5. Roadmap (waves → horizons)
 
-AumOS ships in **7 delivery waves** that map onto the **3 war horizons** from the source docs:
+Warrantor ships in **7 delivery waves** that map onto the **3 war horizons** from the source docs:
 
 | Wave | Theme | Months | Components | Horizon |
 |---|---|---|---|---|
@@ -126,8 +126,8 @@ Each of those exists; we sit *beneath* them, providing the verifiable substrate 
 
 **Reference customers / proof points (target):**
 - A GPAI model provider demonstrates **EU AI Act Article 55** compliance with `defstack compliance-report`.
-- METR uses AumOS as the substrate for independent AI evaluations (X6 metr-bridge).
-- A regulated enterprise accepts AumOS AARs (P2) as audit evidence in a SOC 2 / ISO 42001 audit.
+- METR uses Warrantor as the substrate for independent AI evaluations (X6 metr-bridge).
+- A regulated enterprise accepts Warrantor AARs (P2) as audit evidence in a SOC 2 / ISO 42001 audit.
 - Reps. Lieu/Moran's offices cite KillSwitchKit (R3) as the reference implementation of the AI Kill
   Switch Act.
 
@@ -152,7 +152,7 @@ Each of those exists; we sit *beneath* them, providing the verifiable substrate 
 | **Team** | $50/user/month | Hosted console, shared policy, basic support |
 | **Enterprise** | $100k+/year | SSO/SAML, audit streaming, SLA, on-prem, BSL features |
 | **Mission-Critical** | $500k+/year | FedRAMP, dedicated CSE, custom integrations, 24/7 |
-| **AumOS Cloud** | $2–5/GPU-hour | Managed, per-GPU pricing with attestation, 80% margin |
+| **Warrantor Cloud** | $2–5/GPU-hour | Managed, per-GPU pricing with attestation, 80% margin |
 
 BSL-licensed enterprise modules convert to Apache 2.0 after 4 years (the HashiCorp/MongoDB
 playbook).

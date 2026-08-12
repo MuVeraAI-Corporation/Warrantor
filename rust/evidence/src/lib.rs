@@ -19,7 +19,6 @@
 #![forbid(unsafe_code)]
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
@@ -509,7 +508,7 @@ pub fn check_mode_honesty(
 
 #[must_use]
 pub fn generate_keypair() -> (SigningKey, VerifyingKey) {
-    let mut csprng = OsRng;
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing = SigningKey::generate(&mut csprng);
     let verifying = signing.verifying_key();
     (signing, verifying)

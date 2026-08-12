@@ -1,4 +1,4 @@
-# 21 — Threat Model: AumOS as an Attack Surface
+# 21 — Threat Model: Warrantor as an Attack Surface
 
 > **Status:** normative. Every component RFC must reference this document rather than
 > deferring to a "threat-model standard" that did not previously exist.
@@ -36,7 +36,7 @@ not observable and capability is.
 | **A2** | **Malicious tool server** | Controls the responses to every tool call routed to it; can lie in its tool descriptors and annotations; can be slow, or absent. | Cannot forge the gateway's identity to third parties. |
 | **A3** | **Network adversary** | Full Dolev–Yao on any link not protected by mTLS: read, drop, reorder, replay, inject. | Cannot break Ed25519 or SHA-256. |
 | **A4** | **Malicious insider / rogue issuer** | Holds a legitimate credential; may be an authority issuer, a policy author, an approver, or an operator with kill-switch rights. | Does not hold the trust-root private key (that is A5). |
-| **A5** | **Root-key holder / supply-chain adversary** | Can sign artifacts the substrate accepts as authoritative; can substitute a dependency or a build artifact. | Assumed to be *detectable but not preventable* by AumOS alone — see §3.1. |
+| **A5** | **Root-key holder / supply-chain adversary** | Can sign artifacts the substrate accepts as authoritative; can substitute a dependency or a build artifact. | Assumed to be *detectable but not preventable* by Warrantor alone — see §3.1. |
 
 **Position matters more than label.** A1 is the adversary the product is marketed against;
 A4 and A5 are the adversaries that determine whether the product is worth deploying.
@@ -93,7 +93,7 @@ There is no signal in the artifact itself.
 signing key, no transparency-log witness that would let a relying party detect
 retrospective issuance.
 
-**Residual risk: ACCEPTED AND HIGH.** AumOS cannot prevent this. What it must do — and does
+**Residual risk: ACCEPTED AND HIGH.** Warrantor cannot prevent this. What it must do — and does
 not yet — is make it *detectable*:
 
 - Anchor every issuance in an append-only transparency log with an independent witness, so
@@ -132,7 +132,7 @@ control.
 ### 3.4 Hostile skill or plugin package (A1 supplying, A2 executing)
 
 **What happens:** P5 defines a signed, permission-scoped skill package. Nothing enforces
-the permission scope at runtime, and the MCP registry AumOS interoperates with performs no
+the permission scope at runtime, and the MCP registry Warrantor interoperates with performs no
 signing at all.
 
 **Current defence:** `sandbox-runtime` is real — genuine Wasmtime fuel metering, WASI
@@ -226,24 +226,24 @@ weakest path to those files, which is an OS-level concern the gateway cannot rea
 
 ---
 
-## 5. What AumOS does not defend against
+## 5. What Warrantor does not defend against
 
 Stated explicitly, because a security document without a residual-risk section is marketing.
 
 1. **A compromised trust root.** See §3.1. Detectable at best, and not yet detectable.
 2. **An adversary who does not call the gateway.** Enforcement lives in a library. An agent
    with arbitrary code execution and direct network access reaches tool servers without
-   passing through any AumOS code. Closing this requires a network chokepoint, an OS
+   passing through any Warrantor code. Closing this requires a network chokepoint, an OS
    boundary, or a credential boundary — an architectural decision, not a patch.
 3. **Filesystem-level tampering** with policies, trust bundles or evidence, by anything
    running with sufficient local privilege.
-4. **A malicious model.** AumOS constrains what an agent may *do*, not what it may *think*.
+4. **A malicious model.** Warrantor constrains what an agent may *do*, not what it may *think*.
    Prompt injection that stays within granted authority is out of scope by design.
 5. **Availability.** There is no DDoS defence, no rate limiting that survives more than one
    replica, and no backpressure.
 6. **Side channels.** Timing, cache and speculative-execution attacks are unaddressed.
-7. **Correctness of a TEE vendor's attestation.** AumOS verifies a quote against a vendor
-   root; if the vendor root is compromised or the silicon is broken, AumOS reports success.
+7. **Correctness of a TEE vendor's attestation.** Warrantor verifies a quote against a vendor
+   root; if the vendor root is compromised or the silicon is broken, Warrantor reports success.
 8. **Anything at all, currently, in the four components graded `mock_only`.**
 
 ---

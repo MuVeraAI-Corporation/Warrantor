@@ -8,7 +8,7 @@
 | **Name** | incident-exchange |
 | **Wave** | 6 |
 | **Languages** | Spec + Python |
-| **DefStack origin** | (none) |
+| **Warrantor origin** | (none) |
 | **AumSecure origin** | agent-incident-exchange (V2 W2) + AIX protocol |
 | **Sentinel origin** | AEGIS SOC + delta-notify |
 | **Dependencies** | R3, E1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack (none); AumSecure agent-incident-exchange (V2 W2) + AIX protocol; Sentinel AEGIS SOC + delta-notify. The full strategic rationale
+Warrantor (none); AumSecure agent-incident-exchange (V2 W2) + AIX protocol; Sentinel AEGIS SOC + delta-notify. The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** R3, E1
+- **Warrantor internal:** R3, E1
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

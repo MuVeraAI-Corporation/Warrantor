@@ -8,7 +8,7 @@
 | **Name** | identity-bindings |
 | **Wave** | 2 |
 | **Languages** | Go adapter (consumes T1/I1 identity contracts) |
-| **DefStack origin** | (folded into F2) |
+| **Warrantor origin** | (folded into F2) |
 | **AumSecure origin** | spiffe-agent-identity (V2 W0) |
 | **Sentinel origin** | ztai-spiffe-bridge |
 | **Dependencies** | T1, I1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack (folded into F2); AumSecure spiffe-agent-identity (V2 W0); Sentinel ztai-spiffe-bridge. The full strategic rationale
+Warrantor (folded into F2); AumSecure spiffe-agent-identity (V2 W0); Sentinel ztai-spiffe-bridge. The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -51,7 +51,7 @@ arguments and outage behavior without claiming a live SPIRE deployment.
 
 ## Dependencies
 
-- **AumOS internal:** T1 and I1 identity/authority contracts.
+- **Warrantor internal:** T1 and I1 identity/authority contracts.
 - **External:** `go-spiffe/v2` v2.8.1 and the operator-installed `spire-server` CLI.
 - **Authoritative standards:** [SPIRE registration](https://spiffe.io/docs/latest/deploying/registering/),
   [SPIRE server CLI](https://github.com/spiffe/spire/blob/main/doc/spire_server.md), and

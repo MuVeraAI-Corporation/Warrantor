@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Industry Whitepaper · WP6 of 6 · For security architects planning the PQC migration</div>
+  <div class="article-eyebrow">Warrantor Industry Whitepaper · WP6 of 6 · For security architects planning the PQC migration</div>
   <h1>Post-Quantum AI Security: Migrating Agent Infrastructure to NIST FIPS 203/204/205</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS T1 (trust-core), T2, I1, C1-4</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor T1 (trust-core), T2, I1, C1-4</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">RSA / PQ Crypto 2027</span></div>
     <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">~18–22 pages, full migration sequence + agility design</span></div>
@@ -62,7 +62,7 @@
 <p>ML-DSA signatures are larger (~2.7 KB at security level 2) and signing/verification slower than Ed25519, which matters most for the high-frequency AAE and receipt paths — hence their placement mid-sequence. ML-KEM key encapsulation is competitive with ECDH in compute but larger in wire size, affecting TLS most. The whitepaper provides measured overhead numbers so the architect can budget rather than guess.</p>
 
 <h2 id="agility"><span class="anchor">§</span>5. Cryptographic agility as the substrate</h2>
-<p>The migration is survivable only if the cryptographic layer was designed for agility. AumOS T1 (trust-core) is: primitives are behind a trait/interface with an algorithm identifier in every artifact, so adding ML-DSA or a future scheme is a new implementation, not a fork. Platforms built without agility face a traumatic migration rather than a routine one — and the NIST PQC migration is, for such platforms, the first of several.</p>
+<p>The migration is survivable only if the cryptographic layer was designed for agility. Warrantor T1 (trust-core) is: primitives are behind a trait/interface with an algorithm identifier in every artifact, so adding ML-DSA or a future scheme is a new implementation, not a fork. Platforms built without agility face a traumatic migration rather than a routine one — and the NIST PQC migration is, for such platforms, the first of several.</p>
 
 <h2 id="deployment"><span class="anchor">§</span>6. Deployment sequence</h2>
 <ol style="margin-left: var(--space-xl);">
@@ -87,7 +87,7 @@
 </ul>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper. The cryptographic-agility substrate is AumOS T1; the migration sequence covers T1/T2/I1/C1-4 and protocols P1/P2/P4/P5. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper. The cryptographic-agility substrate is Warrantor T1; the migration sequence covers T1/T2/I1/C1-4 and protocols P1/P2/P4/P5. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="wp5-confidential-ai-h100.html">WP5: Confidential AI on H100</a></span>
     <span class="small"><a href="../research-papers.html">Research roadmap</a></span>

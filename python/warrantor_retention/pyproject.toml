@@ -1,7 +1,7 @@
 [project]
 name = "warrantor-retention"
 version = "1.0.0"
-description = "AumOS data retention policy engine and GDPR right-to-erasure (tombstone) support"
+description = "Warrantor data retention policy engine and GDPR right-to-erasure (tombstone) support"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]

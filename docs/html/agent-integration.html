@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agent Integration Guide — AumOS</title>
-  <meta name="description" content="The definitive guide for making coding agents (Claude Code, OpenAI Codex, Cursor, any MCP agent) work with AumOS. MCP server, Agent SDK, and Harness wrappers.">
+  <title>Agent Integration Guide — Warrantor</title>
+  <meta name="description" content="The definitive guide for making coding agents (Claude Code, OpenAI Codex, Cursor, any MCP agent) work with Warrantor. MCP server, Agent SDK, and Harness wrappers.">
 <style>
-/* AumOS Documentation — Anthropic-inspired Style System */
+/* Warrantor Documentation — Anthropic-inspired Style System */
 /* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
    serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
 
@@ -233,7 +233,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 /* =========================================================================
    MuVera AI — Dark Enterprise Aesthetic Override
    The structural CSS above is preserved verbatim; this block re-themes the
-   design tokens for AumOS's dark enterprise look: near-black #0a0a0f canvas,
+   design tokens for Warrantor's dark enterprise look: near-black #0a0a0f canvas,
    electric-blue #6366f1 accent, bold sans-serif, system fonts, zero external deps.
    ========================================================================= */
 :root {
@@ -569,9 +569,9 @@ hr { border-top-color: var(--border); }
 
 <header class="doc-header">
   <div style="max-width: 1200px; margin: 0 auto;">
-    <span class="eyebrow">AumOS · For Agent Developers</span>
+    <span class="eyebrow">Warrantor · For Agent Developers</span>
     <h1>Agent Integration Guide</h1>
-    <p class="subtitle">Make Claude Code, OpenAI Codex, Cursor, and any MCP-compatible agent work with AumOS — three integration paths, one security envelope.</p>
+    <p class="subtitle">Make Claude Code, OpenAI Codex, Cursor, and any MCP-compatible agent work with Warrantor — three integration paths, one security envelope.</p>
     <nav>
       <a href="index.html">&larr; Back to Index</a>
       <a href="#overview">Overview</a>
@@ -586,7 +586,7 @@ hr { border-top-color: var(--border); }
 </header>
 
 <div class="hero">
-  <p class="lede">AumOS is the open authority and evidence layer for autonomous systems. For coding agents this means two things: your agent can <strong>call</strong> AumOS security primitives (identity, receipts, attestation), and AumOS can <strong>secure</strong> the agent itself (sandbox boundary, kill-switch, file tracking). This guide is the definitive reference for both directions.</p>
+  <p class="lede">Warrantor is the open authority and evidence layer for autonomous systems. For coding agents this means two things: your agent can <strong>call</strong> Warrantor security primitives (identity, receipts, attestation), and Warrantor can <strong>secure</strong> the agent itself (sandbox boundary, kill-switch, file tracking). This guide is the definitive reference for both directions.</p>
   <div class="pillars">
     <span class="pillar">MCP Server · 15 tools</span>
     <span class="pillar">Agent SDK · @agent.action</span>
@@ -601,10 +601,10 @@ hr { border-top-color: var(--border); }
 <section id="overview">
   <span class="eyebrow">02 · Overview</span>
   <h2>Bidirectional: Agents Call In, We Lock Down</h2>
-  <p>Most agent integrations are one-way. AumOS is bidirectional. An agent reaches <em>into</em> AumOS to sign data, issue identity, emit receipts, and check attestation. Simultaneously, AumOS wraps <em>around</em> the agent to enforce a sandbox boundary, scan its output for leaked credentials, and kill it on misbehavior. The two directions compose: an agent wrapped by the harness can still call the MCP server, and every call produces a verifiable receipt.</p>
+  <p>Most agent integrations are one-way. Warrantor is bidirectional. An agent reaches <em>into</em> Warrantor to sign data, issue identity, emit receipts, and check attestation. Simultaneously, Warrantor wraps <em>around</em> the agent to enforce a sandbox boundary, scan its output for leaked credentials, and kill it on misbehavior. The two directions compose: an agent wrapped by the harness can still call the MCP server, and every call produces a verifiable receipt.</p>
 
   <div class="flow-diagram">
-<svg viewBox="0 0 920 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bidirectional integration: agents call AumOS tools, AumOS secures the agents">
+<svg viewBox="0 0 920 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bidirectional integration: agents call Warrantor tools, Warrantor secures the agents">
   <defs>
     <marker id="arr-accent" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
       <path d="M0,0 L8,3 L0,6 Z" fill="#6366f1"/>
@@ -630,9 +630,9 @@ hr { border-top-color: var(--border); }
     <text x="100" y="254" text-anchor="middle">Any MCP agent</text>
   </g>
 
-  <!-- Center: AumOS integration surface -->
+  <!-- Center: Warrantor integration surface -->
   <rect x="340" y="48" width="240" height="224" rx="12" fill="#0d0d16" stroke="#6366f1" stroke-width="2"/>
-  <text x="460" y="76" fill="#818cf8" font-family="-apple-system,sans-serif" font-size="15" font-weight="800" text-anchor="middle">AumOS</text>
+  <text x="460" y="76" fill="#818cf8" font-family="-apple-system,sans-serif" font-size="15" font-weight="800" text-anchor="middle">Warrantor</text>
   <text x="460" y="96" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">integration surface</text>
   <g font-family="ui-monospace,monospace" font-size="12" fill="#c4c4d4">
     <rect x="356" y="112" width="208" height="28" rx="6" fill="#14141d" stroke="#232333"/>
@@ -660,11 +660,11 @@ hr { border-top-color: var(--border); }
 
   <!-- Direction 1: agents CALL IN (top arrow, accent) -->
   <path d="M 160 110 C 250 110, 250 110, 340 110" fill="none" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arr-accent)"/>
-  <text x="250" y="102" fill="#818cf8" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">1 · agent calls AumOS tools</text>
+  <text x="250" y="102" fill="#818cf8" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">1 · agent calls Warrantor tools</text>
 
-  <!-- Direction 2: AumOS SECURES (bottom arrow, red) -->
+  <!-- Direction 2: Warrantor SECURES (bottom arrow, red) -->
   <path d="M 340 210 C 250 210, 250 210, 160 210" fill="none" stroke="#f87171" stroke-width="2.5" marker-end="url(#arr-red)"/>
-  <text x="250" y="206" fill="#f87171" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">2 · AumOS wraps &amp; secures agent</text>
+  <text x="250" y="206" fill="#f87171" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">2 · Warrantor wraps &amp; secures agent</text>
 
   <!-- Center to outcomes -->
   <path d="M 580 160 L 720 160" fill="none" stroke="#6366f1" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arr-accent)"/>
@@ -672,8 +672,8 @@ hr { border-top-color: var(--border); }
   <!-- Legend -->
   <g font-family="ui-monospace,monospace" font-size="11">
     <rect x="40" y="296" width="840" height="48" rx="8" fill="#0d0d16" stroke="#232333"/>
-    <text x="60" y="316" fill="#818cf8">Direction 1 (blue): agent invokes AumOS tools → produces receipts, signatures, attestation.</text>
-    <text x="60" y="334" fill="#f87171">Direction 2 (red): AumOS harness wraps the agent → enforces allowlist, scans output, kills on anomaly.</text>
+    <text x="60" y="316" fill="#818cf8">Direction 1 (blue): agent invokes Warrantor tools → produces receipts, signatures, attestation.</text>
+    <text x="60" y="334" fill="#f87171">Direction 2 (red): Warrantor harness wraps the agent → enforces allowlist, scans output, kills on anomaly.</text>
   </g>
 </svg>
   </div>
@@ -688,13 +688,13 @@ hr { border-top-color: var(--border); }
 <section id="paths">
   <span class="eyebrow">03 · The Three Integration Paths</span>
   <h2>Three Ways In, One Security Envelope</h2>
-  <p>Pick the path that matches your integration surface. All three produce the same verifiable artifacts (SVIDs, AAR receipts) and talk to the same 49 AumOS components. They differ in how much of the agent you control.</p>
+  <p>Pick the path that matches your integration surface. All three produce the same verifiable artifacts (SVIDs, AAR receipts) and talk to the same 49 Warrantor components. They differ in how much of the agent you control.</p>
 
   <div class="card-grid">
     <div class="card path-card">
       <div class="path-num">01</div>
       <div class="card-title">MCP Server</div>
-      <p class="card-desc">Any MCP-compatible agent (Claude Code, Cursor, Zed, Codex) discovers and invokes AumOS tools over stdio JSON-RPC. Zero code on the agent side — just a config entry. Best when you control the agent's MCP client but not its internals.</p>
+      <p class="card-desc">Any MCP-compatible agent (Claude Code, Cursor, Zed, Codex) discovers and invokes Warrantor tools over stdio JSON-RPC. Zero code on the agent side — just a config entry. Best when you control the agent's MCP client but not its internals.</p>
       <div class="card-meta">
         <span class="badge typescript">TypeScript</span>
         <span class="badge wave-3">stdio transport</span>
@@ -705,7 +705,7 @@ hr { border-top-color: var(--border); }
     <div class="card path-card">
       <div class="path-num">02</div>
       <div class="card-title">Agent SDK</div>
-      <p class="card-desc">A Python <code>@agent.action</code> decorator wraps any function with the full AumOS envelope — identity, preflight, credentials, receipt, evidence, kill-switch. Best when you write the tool code the agent calls, or you ship a custom agent.</p>
+      <p class="card-desc">A Python <code>@agent.action</code> decorator wraps any function with the full Warrantor envelope — identity, preflight, credentials, receipt, evidence, kill-switch. Best when you write the tool code the agent calls, or you ship a custom agent.</p>
       <div class="card-meta">
         <span class="badge python">Python</span>
         <span class="badge wave-3">@agent.action</span>
@@ -735,7 +735,7 @@ hr { border-top-color: var(--border); }
 <section id="mcp-setup">
   <span class="eyebrow">04 · MCP Server Setup</span>
   <h2>Configuring Your Agent for the MCP Server</h2>
-  <p>The MCP server (<code>@warrantor/mcp-server</code>) speaks the Model Context Protocol over stdio JSON-RPC 2.0. It advertises 15 tools via <code>tools/list</code> and handles <code>tools/call</code>. It runs in <strong>standalone</strong> mode by default (deterministic mock responses, zero external deps — ideal for dev and dry-runs) and switches to <strong>connected</strong> mode when <code>AUMOS_MODE=connected</code> is set or <code>--connected</code> is passed, issuing real HTTP calls to the AumOS services.</p>
+  <p>The MCP server (<code>@warrantor/mcp-server</code>) speaks the Model Context Protocol over stdio JSON-RPC 2.0. It advertises 15 tools via <code>tools/list</code> and handles <code>tools/call</code>. It runs in <strong>standalone</strong> mode by default (deterministic mock responses, zero external deps — ideal for dev and dry-runs) and switches to <strong>connected</strong> mode when <code>AUMOS_MODE=connected</code> is set or <code>--connected</code> is passed, issuing real HTTP calls to the Warrantor services.</p>
 
   <div class="agent-grid">
     <div class="agent-card">
@@ -765,7 +765,7 @@ hr { border-top-color: var(--border); }
   }
 }</code></pre>
       </div>
-      <p style="font-size:0.88rem;color:var(--text-secondary);">Cursor discovers the tools on next chat session. The AumOS tools appear alongside Cursor's built-in tools.</p>
+      <p style="font-size:0.88rem;color:var(--text-secondary);">Cursor discovers the tools on next chat session. The Warrantor tools appear alongside Cursor's built-in tools.</p>
     </div>
 
     <div class="agent-card">
@@ -787,7 +787,7 @@ npx @warrantor/mcp-server --connected</code></pre>
     </div>
   </div>
 
-  <h3>The 15 AumOS Tools</h3>
+  <h3>The 15 Warrantor Tools</h3>
   <p>Each tool is backed by a real async implementation. In connected mode failures degrade gracefully to mock responses with a <code>degraded: true</code> flag — a tool never crashes the server (invariant I-09).</p>
 
   <table class="tools-table">
@@ -857,7 +857,7 @@ npx @warrantor/mcp-server --connected</code></pre>
       </tr>
       <tr>
         <td>warrantor_install</td>
-        <td>Install an AumOS component via <code>defstack install &lt;name&gt;</code>. Returns <code>{installed, version}</code>.</td>
+        <td>Install an Warrantor component via <code>defstack install &lt;name&gt;</code>. Returns <code>{installed, version}</code>.</td>
         <td><code>name</code> · <code>version?</code></td>
       </tr>
       <tr>
@@ -886,11 +886,11 @@ npx @warrantor/mcp-server --connected</code></pre>
 <section id="sdk">
   <span class="eyebrow">05 · Agent SDK Quick Start</span>
   <h2>The <code>@agent.action</code> Decorator</h2>
-  <p>The Python Agent SDK (<code>warrantor-agent</code>) wraps any function with the full AumOS security envelope. The decorator is the headline: one line and your tool gets identity, preflight, credential brokering, a pre-commit receipt, evidence recording, and an automatic kill-switch on error.</p>
+  <p>The Python Agent SDK (<code>warrantor-agent</code>) wraps any function with the full Warrantor security envelope. The decorator is the headline: one line and your tool gets identity, preflight, credential brokering, a pre-commit receipt, evidence recording, and an automatic kill-switch on error.</p>
 
-  <pre><code>from warrantor_agent import AumOS
+  <pre><code>from warrantor_agent import Warrantor
 
-agent = AumOS(mode="standalone")   # or mode="connected" against running services
+agent = Warrantor(mode="standalone")   # or mode="connected" against running services
 
 @agent.action(tool="github.create_pr", side_effect="write")
 def create_pr(repo, title):
@@ -915,7 +915,7 @@ result = create_pr("MuVeraAI/aumos", "fix: off-by-one")
 
   <div class="callout warning">
     <div class="callout-title">The pre-commit receipt is load-bearing</div>
-    <p>Step 4 is not cosmetic. AumOS invariant I-07 requires that a receipt exists <em>before</em> the action commits. If you bypass the decorator and call services manually, you must emit the <code>pending</code> receipt yourself first — otherwise the action is not I-07-compliant.</p>
+    <p>Step 4 is not cosmetic. Warrantor invariant I-07 requires that a receipt exists <em>before</em> the action commits. If you bypass the decorator and call services manually, you must emit the <code>pending</code> receipt yourself first — otherwise the action is not I-07-compliant.</p>
   </div>
 
   <h3>What a decorated call returns</h3>
@@ -933,7 +933,7 @@ class ActionResult:
     error: str | None</code></pre>
 
   <h3>Manual API methods</h3>
-  <p>You don't have to use the decorator. The <code>AumOS</code> class exposes every primitive as a plain method, returning plain dicts/dataclasses. Use these when you need finer control than the decorator's fixed sequence.</p>
+  <p>You don't have to use the decorator. The <code>Warrantor</code> class exposes every primitive as a plain method, returning plain dicts/dataclasses. Use these when you need finer control than the decorator's fixed sequence.</p>
 
   <table class="tools-table">
     <thead><tr><th>Method</th><th>Returns</th><th>Backs</th></tr></thead>
@@ -958,7 +958,7 @@ class ActionResult:
 
   <div class="config-template">
     <h5>Configuration</h5>
-    <pre><code>agent = AumOS(
+    <pre><code>agent = Warrantor(
     mode="connected",                       # "standalone" | "connected"
     agent_identity_url="http://...",        # I1
     flight_recorder_url="http://...",       # E1
@@ -1044,9 +1044,9 @@ class SessionResult:
 
   <div class="config-template">
     <h5>CLAUDE.md</h5>
-<pre><code># Project: AumOS-secured repo
+<pre><code># Project: Warrantor-secured repo
 
-This repository is instrumented with AumOS. Every action you take
+This repository is instrumented with Warrantor. Every action you take
 may be receipted and signed. Prefer calling the `aumos_*` MCP tools
 for anything security-sensitive (signing, identity, attestation).
 
@@ -1077,9 +1077,9 @@ git, npm, cargo, python, go, make, npx
 
   <div class="config-template">
     <h5>tools/create_pr.py</h5>
-<pre><code>from warrantor_agent import AumOS
+<pre><code>from warrantor_agent import Warrantor
 
-agent = AumOS(mode="connected")
+agent = Warrantor(mode="connected")
 
 @agent.action(tool="github.create_pr", side_effect="write")
 def create_pr(repo: str, title: str, body: str = ""):
@@ -1111,7 +1111,7 @@ if __name__ == "__main__":
     <h5>AGENTS.md</h5>
 <pre><code># Agent instructions
 
-This repo is secured by AumOS. AumOS MCP tools are available
+This repo is secured by Warrantor. Warrantor MCP tools are available
 under the `aumos_*` namespace.
 
 ## Tools
@@ -1157,9 +1157,9 @@ with secure_session(config) as session:
   <h3>1. .cursorrules template</h3>
   <div class="config-template">
     <h5>.cursorrules</h5>
-<pre><code>You are operating in an AumOS-secured repository.
+<pre><code>You are operating in an Warrantor-secured repository.
 
-AumOS MCP tools (`aumos_*`) are available. Use them for any
+Warrantor MCP tools (`aumos_*`) are available. Use them for any
 security-sensitive operation.
 
 Required:
@@ -1289,7 +1289,7 @@ with secure_session(config) as session:
 <section id="quick-start">
   <span class="eyebrow">11 · Quick Start</span>
   <h2>Three Commands to Get Started</h2>
-  <p>All three packages are zero-config in standalone mode. Run any one of them and you have working AumOS security with deterministic mock responses — no services to stand up.</p>
+  <p>All three packages are zero-config in standalone mode. Run any one of them and you have working Warrantor security with deterministic mock responses — no services to stand up.</p>
 
   <div class="cmd-grid">
     <div class="cmd-card">
@@ -1310,8 +1310,8 @@ with secure_session(config) as session:
   <pre><code>pip install warrantor-agent
 
 python -c "
-from warrantor_agent import AumOS
-agent = AumOS(mode='standalone')
+from warrantor_agent import Warrantor
+agent = Warrantor(mode='standalone')
 
 @agent.action(tool='demo.hello', side_effect='read')
 def hello(name):
@@ -1332,10 +1332,10 @@ print('svid:   ', hello.action_result.svid)
 <section id="architecture">
   <span class="eyebrow">12 · Architecture</span>
   <h2>How the Three Paths Relate to the 49 Components</h2>
-  <p>All three integration paths are thin facades over the same 49 AumOS components. The MCP server and SDK translate tool calls into HTTP requests (I1, E1, C1-1, S4, A1, R2, R3, R4) and CLI invocations (T1 <code>trust-core</code>, X1 <code>defstack</code>). The harness adds a process perimeter that feeds the same receipt and kill-switch services.</p>
+  <p>All three integration paths are thin facades over the same 49 Warrantor components. The MCP server and SDK translate tool calls into HTTP requests (I1, E1, C1-1, S4, A1, R2, R3, R4) and CLI invocations (T1 <code>trust-core</code>, X1 <code>defstack</code>). The harness adds a process perimeter that feeds the same receipt and kill-switch services.</p>
 
   <div class="arch-diagram">
-<svg viewBox="0 0 920 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture: three integration paths over 49 AumOS components">
+<svg viewBox="0 0 920 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture: three integration paths over 49 Warrantor components">
   <defs>
     <marker id="arr2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
       <path d="M0,0 L7,3 L0,6 Z" fill="#6366f1"/>
@@ -1363,7 +1363,7 @@ print('svid:   ', hello.action_result.svid)
 
   <!-- Tier 1: unified facade -->
   <rect x="60" y="124" width="800" height="48" rx="8" fill="#0d0d16" stroke="#6366f1" stroke-width="2"/>
-  <text x="460" y="144" fill="#818cf8" font-family="-apple-system,sans-serif" font-size="14" font-weight="800" text-anchor="middle">AumOS Security Envelope</text>
+  <text x="460" y="144" fill="#818cf8" font-family="-apple-system,sans-serif" font-size="14" font-weight="800" text-anchor="middle">Warrantor Security Envelope</text>
   <text x="460" y="162" fill="#a8a8bd" font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">identity · preflight · receipts · attestation · secrets · kill-switch</text>
 
   <!-- arrow down -->
@@ -1452,7 +1452,7 @@ print('svid:   ', hello.action_result.svid)
     <li>All packages: <code>github.com/MuVeraAI-Corporation/Warrantor</code></li>
     <li>MCP server npm: <code>@warrantor/mcp-server</code> &nbsp;·&nbsp; SDK pip: <code>warrantor-agent</code> &nbsp;·&nbsp; Harness pip: <code>warrantor-harness</code></li>
   </ul>
-  <p style="color:var(--text-tertiary);font-size:0.88rem;margin-top:var(--space-lg);"><a href="index.html">&larr; Back to AumOS documentation index</a></p>
+  <p style="color:var(--text-tertiary);font-size:0.88rem;margin-top:var(--space-lg);"><a href="index.html">&larr; Back to Warrantor documentation index</a></p>
 </section>
 
 </div>

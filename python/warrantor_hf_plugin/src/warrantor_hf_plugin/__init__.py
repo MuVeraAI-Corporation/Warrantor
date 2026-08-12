@@ -1,4 +1,4 @@
-"""AumOS HuggingFace Hub Plugin — sign models at upload, verify at download.
+"""Warrantor HuggingFace Hub Plugin — sign models at upload, verify at download.
 
 Hooks into the HuggingFace Hub workflow to automatically:
   1. Sign .safetensors files with __provenance__ metadata before upload

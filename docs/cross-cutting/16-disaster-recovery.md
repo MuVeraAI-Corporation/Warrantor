@@ -1,6 +1,6 @@
 # Disaster Recovery & Business Continuity
 
-> How DefStack services recover from failures, and how we ensure our own operational continuity.
+> How Warrantor services recover from failures, and how we ensure our own operational continuity.
 
 ## RTO and RPO Targets
 

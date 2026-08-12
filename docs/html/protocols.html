@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Open Protocols (P1–P12) — AumOS Documentation</title>
-  <meta name="description" content="The 12 spec-first, language-neutral open protocols of AumOS: AAE, AAR, CPE, AMIL, SSP, AATM, ABS, VEB, AIX, MADE, PRB, CAP. Schemas, signing, revocation, adversarial test vectors.">
+  <title>Open Protocols (P1–P12) — Warrantor Documentation</title>
+  <meta name="description" content="The 12 spec-first, language-neutral open protocols of Warrantor: AAE, AAR, CPE, AMIL, SSP, AATM, ABS, VEB, AIX, MADE, PRB, CAP. Schemas, signing, revocation, adversarial test vectors.">
   <style>
-/* AumOS Documentation — Anthropic-inspired Style System */
+/* Warrantor Documentation — Anthropic-inspired Style System */
 /* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
    serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
 
@@ -236,7 +236,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <header class="doc-header">
   <h1>Open Protocols (P1–P12)</h1>
-  <p class="subtitle">Spec-first, language-neutral contracts that bind every AumOS component across Rust, Go, Python, and TypeScript.</p>
+  <p class="subtitle">Spec-first, language-neutral contracts that bind every Warrantor component across Rust, Go, Python, and TypeScript.</p>
   <nav>
     <a href="index.html">← Index</a>
     <a href="#introduction">Introduction</a>
@@ -263,14 +263,14 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <section id="introduction">
     <h2><span class="section-number">1</span>Introduction</h2>
 
-    <p>AumOS is built on a single, load-bearing doctrine: <strong>the spec is the contract</strong>. No
+    <p>Warrantor is built on a single, load-bearing doctrine: <strong>the spec is the contract</strong>. No
     language implementation — Rust, Go, Python, or TypeScript — owns the meaning of a delegation, a
     receipt, a manifest, or an incident. That meaning lives in <strong>twelve open protocols
     (P1–P12)</strong>, reconciled from the AumSecure V2 portfolio into spec-only canonical components,
     and consumed identically by every runtime via the contract plane described in
     <code>docs/cross-cutting/19-inter-component-protocol.md</code>.</p>
 
-    <p>An <em>open protocol</em> in AumOS is a normative, machine-checkable contract that defines a
+    <p>An <em>open protocol</em> in Warrantor is a normative, machine-checkable contract that defines a
     signed data shape, a signing requirement, a revocation mechanism, and a mandatory set of
     adversarial test vectors. It is intentionally <strong>not</strong> a library: there is no canonical
     Go struct or Rust enum that other languages wrap. Instead, each protocol is authored once as CDDL
@@ -1607,7 +1607,7 @@ sandbox, attestation_evidence</code></pre>
 </main>
 
 <footer class="doc-header" style="margin-top:var(--space-2xl);text-align:center">
-  <p class="subtitle">AumOS Open Protocols · spec-first, language-neutral, adversarially tested ·
+  <p class="subtitle">Warrantor Open Protocols · spec-first, language-neutral, adversarially tested ·
   <a href="index.html">Back to index</a></p>
 </footer>
 

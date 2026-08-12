@@ -4,11 +4,11 @@
 
 ---
 
-You are implementing **R4 credential-vault** for AumOS. Language: Rust. Dependencies: R3 (mock).
+You are implementing **R4 credential-vault** for Warrantor. Language: Rust. Dependencies: R3 (mock).
 
 ## Component context
 
-Agent-scoped credential brokering. 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates HashiCorp Vault, AWS Secrets Manager, K8s Secrets via trait CredentialBackend. Revokes all tokens <1s on kill-switch trigger. AumOS moved from Go to Rust.
+Agent-scoped credential brokering. 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates HashiCorp Vault, AWS Secrets Manager, K8s Secrets via trait CredentialBackend. Revokes all tokens <1s on kill-switch trigger. Warrantor moved from Go to Rust.
 
 ## Read first
 

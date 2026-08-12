@@ -17,11 +17,11 @@ Read it first.
 
 ## Component-specific context
 
-Sandbox boundary attestation. Four pre-flight checks: NetworkIsolation (canary IPs: huggingface.co, pypi.org, 1.1.1.1), FilesystemBoundary, ProcessIsolation, EgressAttestation (eBPF iptables rules, deny-all default). Emits signed SandboxAttestation via T1. AumOS moved from Go to Rust per trusted-core doctrine. Requires Linux 5.13+ for eBPF; document this in the README.
+Sandbox boundary attestation. Four pre-flight checks: NetworkIsolation (canary IPs: huggingface.co, pypi.org, 1.1.1.1), FilesystemBoundary, ProcessIsolation, EgressAttestation (eBPF iptables rules, deny-all default). Emits signed SandboxAttestation via T1. Warrantor moved from Go to Rust per trusted-core doctrine. Requires Linux 5.13+ for eBPF; document this in the README.
 
 ## Dependencies
 
-- **AumOS internal:** C1-2
+- **Warrantor internal:** C1-2
 - **External:** enumerated during MVP (task 02); record in the RFC.
 
 ## Build entrypoint

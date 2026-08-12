@@ -8,7 +8,7 @@
 | **Name** | policy-bridge |
 | **Wave** | 2 |
 | **Languages** | Rust ref + multi-engine adapters |
-| **DefStack origin** | (none) |
+| **Warrantor origin** | (none) |
 | **AumSecure origin** | agent-policy-bridge (V3 repo #4) |
 | **Sentinel origin** | (none) |
 | **Dependencies** | T1, R5 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack (none); AumSecure agent-policy-bridge (V3 repo #4); Sentinel (none). The full strategic rationale
+Warrantor (none); AumSecure agent-policy-bridge (V3 repo #4); Sentinel (none). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -49,7 +49,7 @@ mTLS services, or embedded engines without hardcoding credentials or endpoints.
 
 ## Dependencies
 
-- **AumOS internal:** R5 source compiler and T1 digest/signature policy.
+- **Warrantor internal:** R5 source compiler and T1 digest/signature policy.
 - **External adapters:** OPA/Rego, Cedar, and OpenShell. The crate does not vendor or silently
   substitute those engines.
 

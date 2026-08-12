@@ -1,4 +1,4 @@
-"""Tests for the AumOS Agent SDK.
+"""Tests for the Warrantor Agent SDK.
 
 Covers: standalone primitives, connected mode (with fakes), the @agent.action decorator
 (happy path, fail-closed preflight, exception containment), and the CLI entry point.
@@ -18,10 +18,10 @@ from warrantor_agent import (
     SIDE_EFFECTS,
     ActionBlocked,
     ActionResult,
-    AumOS,
     ContainmentTriggered,
     Finding,
     SigningUnavailable,
+    Warrantor,
     __version__,
 )
 from warrantor_agent.cli import main as cli_main
@@ -69,14 +69,14 @@ class TestSurface:
 
     def test_public_api_exports(self) -> None:
         for name in (
-            "AumOS",
+            "Warrantor",
             "ActionResult",
             "Receipt",
             "Finding",
             "ActionBlocked",
             "ContainmentTriggered",
             "SecurityError",
-            "AumOSConfig",
+            "WarrantorConfig",
             "SideEffect",
         ):
             assert hasattr(warrantor_agent, name), f"missing public export: {name}"
@@ -92,21 +92,21 @@ class TestSurface:
 
 class TestConfig:
     def test_default_mode_is_standalone(self) -> None:
-        assert AumOS().mode == "standalone"
+        assert Warrantor().mode == "standalone"
 
     def test_invalid_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="mode"):
-            AumOS(mode="bogus")
+            Warrantor(mode="bogus")
 
     def test_config_resolves_defaults(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
         cfg = agent.config.resolved()
         assert cfg["agent_identity_url"].startswith("http://")
         assert cfg["http_timeout"] == 5.0
         assert cfg["trust_core_bin"] == "trust-core"
 
     def test_config_overrides_propagate(self) -> None:
-        agent = AumOS(agent_identity_url="http://i1:9999", http_timeout=10.0)
+        agent = Warrantor(agent_identity_url="http://i1:9999", http_timeout=10.0)
         cfg = agent.config.resolved()
         assert cfg["agent_identity_url"] == "http://i1:9999"
         assert cfg["http_timeout"] == 10.0
@@ -119,7 +119,7 @@ class TestConfig:
 
 class TestStandalonePrimitives:
     def test_sign_is_deterministic_hex(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
         s1 = agent.sign("hello", key_id="k1")
         s2 = agent.sign("hello", key_id="k1")
         assert s1 == s2
@@ -130,21 +130,21 @@ class TestStandalonePrimitives:
         assert len(digest) == 64 and all(c in "0123456789abcdef" for c in digest)
 
     def test_sign_accepts_bytes(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
         assert agent.sign(b"hello", key_id="k1") == agent.sign("hello", key_id="k1")
 
     def test_verify_round_trip(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
         # Mock sign/verify round-trip: the key passed to verify matches the key_id used to sign.
         sig = agent.sign("hello", key_id="k1")
         assert agent.verify("hello", sig, key="k1") is True
 
     def test_verify_rejects_tampered(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
         assert agent.verify("hello", "deadbeef" * 8, key="k1") is False
 
     def test_issue_identity_returns_svid(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
         r = agent.issue_identity("spiffe://muveraai.com/agent/coding-1")
         assert r["svid"].startswith("svid-mock-")
         assert r["capability_jti"].startswith("jti-")
@@ -153,25 +153,25 @@ class TestStandalonePrimitives:
 
     def test_issue_requires_subject(self) -> None:
         with pytest.raises(ValueError):
-            AumOS().issue_identity("")
+            Warrantor().issue_identity("")
 
     def test_verify_identity_round_trips(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
         issued = agent.issue_identity("spiffe://muveraai.com/agent/coding-1")
         r = agent.verify_identity(issued["svid"])
         assert r["valid"] is True
         assert r["subject"] == "spiffe://muveraai.com/agent/coding-1"
 
     def test_verify_identity_rejects_unknown(self) -> None:
-        assert AumOS().verify_identity("garbage")["valid"] is False
+        assert Warrantor().verify_identity("garbage")["valid"] is False
 
     def test_revoke_identity(self) -> None:
-        r = AumOS().revoke_identity("jti-abc", reason="rotation")
+        r = Warrantor().revoke_identity("jti-abc", reason="rotation")
         assert r["revoked"] is True
         assert isinstance(r["revoked_at"], int)
 
     def test_emit_receipt_returns_aar(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
         rec = agent.emit_receipt("spiffe://muveraai.com/agent/x", "github.create_pr", "pending")
         assert rec.receipt_id.startswith("aar-")
         assert len(rec.signature) == 64
@@ -179,41 +179,41 @@ class TestStandalonePrimitives:
 
     def test_emit_receipt_requires_actor_and_tool(self) -> None:
         with pytest.raises(ValueError):
-            AumOS().emit_receipt("", "t")
+            Warrantor().emit_receipt("", "t")
 
     def test_verify_receipt(self) -> None:
-        r = AumOS().verify_receipt("aar-123")
+        r = Warrantor().verify_receipt("aar-123")
         assert r["valid"] is True
         assert "flight-recorder" in r["signer"]
 
     def test_check_attestation(self) -> None:
-        r = AumOS().check_attestation(nonce="n1", gpu_pci_id="GPU-0")
+        r = Warrantor().check_attestation(nonce="n1", gpu_pci_id="GPU-0")
         assert r["verified"] is True
         assert "nvidia" in r["hardware_tee"]
 
     def test_run_preflight_allows_read(self) -> None:
-        r = AumOS().run_preflight("fs.read", side_effect="read")
+        r = Warrantor().run_preflight("fs.read", side_effect="read")
         assert r["allowed"] is True
         assert r["reason"] == "ok"
 
     @pytest.mark.parametrize("cls", ["financial", "destructive", "physical"])
     def test_run_preflight_blocks_consequential(self, cls: str) -> None:
-        r = AumOS().run_preflight(f"x.{cls}", side_effect=cls)
+        r = Warrantor().run_preflight(f"x.{cls}", side_effect=cls)
         assert r["allowed"] is False
         assert "consequential" in r["reason"]
 
     def test_kill(self) -> None:
-        r = AumOS().kill(reason="behavioral_anomaly")
+        r = Warrantor().kill(reason="behavioral_anomaly")
         assert r["triggered"] is True
         assert r["reason"] == "behavioral_anomaly"
 
     def test_kill_requires_reason(self) -> None:
         with pytest.raises(ValueError):
-            AumOS().kill(reason="")
+            Warrantor().kill(reason="")
 
     def test_scan_secrets_detects_github_pat(self) -> None:
         text = "token=ghp_" + "a" * 36
-        findings = AumOS().scan_secrets(text)
+        findings = Warrantor().scan_secrets(text)
         types = [f.type for f in findings]
         assert "github_pat" in types
         # value must be masked
@@ -222,46 +222,46 @@ class TestStandalonePrimitives:
 
     def test_scan_secrets_detects_multiple(self) -> None:
         text = "AKIAIOSFODNN7EXAMPLE and sk_live_" + "a" * 30
-        findings = AumOS().scan_secrets(text)
+        findings = Warrantor().scan_secrets(text)
         types = {f.type for f in findings}
         assert "aws_access_key_id" in types
         assert "stripe_key" in types
 
     def test_scan_secrets_clean_text(self) -> None:
-        assert AumOS().scan_secrets("nothing to see here") == []
+        assert Warrantor().scan_secrets("nothing to see here") == []
 
     def test_scan_secrets_detects_private_key_block(self) -> None:
         text = "-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----"
-        findings = AumOS().scan_secrets(text)
+        findings = Warrantor().scan_secrets(text)
         assert any(f.type == "private_key_block" for f in findings)
 
     def test_compliance_report(self) -> None:
-        r = AumOS().compliance_report(scope="soc2")
+        r = Warrantor().compliance_report(scope="soc2")
         assert r["format"] == "json"
         report = json.loads(r["report_json"])
         assert report["scope"] == "soc2"
         assert report["status"] == "compliant"
 
     def test_install(self) -> None:
-        r = AumOS().install("agent-identity", version="1.0.0")
+        r = Warrantor().install("agent-identity", version="1.0.0")
         assert r["installed"] is True
         assert r["name"] == "agent-identity"
 
     def test_install_requires_name(self) -> None:
         with pytest.raises(ValueError):
-            AumOS().install("")
+            Warrantor().install("")
 
     def test_generate_sbom(self) -> None:
-        r = AumOS().generate_sbom("llama-3-8b")
+        r = Warrantor().generate_sbom("llama-3-8b")
         assert r["sbom"]["bomFormat"] == "CycloneDX"
         assert any(c["name"] == "llama-3-8b" for c in r["sbom"]["components"])
 
     def test_generate_sbom_requires_model(self) -> None:
         with pytest.raises(ValueError):
-            AumOS().generate_sbom("")
+            Warrantor().generate_sbom("")
 
     def test_run_eval(self) -> None:
-        r = AumOS().run_eval("model://warrantor-7b")
+        r = Warrantor().run_eval("model://warrantor-7b")
         assert r["results"]["accuracy"] == 0.85
         assert r["veb"]["bundleId"].startswith("veb-")
 
@@ -283,7 +283,7 @@ class TestConnectedMode:
                 }
             }
         )
-        agent = AumOS(mode="connected", agent_identity_url="http://i1:8441", _backend=fake)
+        agent = Warrantor(mode="connected", agent_identity_url="http://i1:8441", _backend=fake)
         r = agent.issue_identity("spiffe://muveraai.com/agent/x")
         assert r["svid"] == "svid-real"
         assert r["source"] == "agent-identity"
@@ -291,7 +291,7 @@ class TestConnectedMode:
 
     def test_issue_identity_degrades_on_connection_error(self) -> None:
         fake = FakeBackend(raise_on={"i1"})
-        agent = AumOS(mode="connected", agent_identity_url="http://i1:8441", _backend=fake)
+        agent = Warrantor(mode="connected", agent_identity_url="http://i1:8441", _backend=fake)
         r = agent.issue_identity("spiffe://muveraai.com/agent/x")
         assert r["source"] == "mock"
         assert r["degraded"] is True
@@ -299,7 +299,7 @@ class TestConnectedMode:
 
     def test_emit_receipt_uses_flight_recorder(self) -> None:
         fake = FakeBackend(responses={"emit": {"receipt_id": "aar-real", "signature": "sig-real"}})
-        agent = AumOS(mode="connected", flight_recorder_url="http://e1:8445", _backend=fake)
+        agent = Warrantor(mode="connected", flight_recorder_url="http://e1:8445", _backend=fake)
         rec = agent.emit_receipt("a", "t", "pending")
         assert rec.receipt_id == "aar-real"
         assert rec.signature == "sig-real"
@@ -309,19 +309,19 @@ class TestConnectedMode:
         fake = FakeBackend(
             responses={"scan": {"findings": [{"type": "github_pat", "value": "x", "index": 0}]}}
         )
-        agent = AumOS(mode="connected", credential_vault_url="http://r4:8465", _backend=fake)
+        agent = Warrantor(mode="connected", credential_vault_url="http://r4:8465", _backend=fake)
         findings = agent.scan_secrets("token=ghp_" + "a" * 36)
         assert findings == [Finding(type="github_pat", value="x", index=0)]
 
     def test_scan_secrets_falls_back_on_error(self) -> None:
         fake = FakeBackend(raise_on={"r4"})
-        agent = AumOS(mode="connected", credential_vault_url="http://r4:8465", _backend=fake)
+        agent = Warrantor(mode="connected", credential_vault_url="http://r4:8465", _backend=fake)
         findings = agent.scan_secrets("AKIAIOSFODNN7EXAMPLE")
         assert any(f.type == "aws_access_key_id" for f in findings)
 
     def test_kill_posts_to_kill_switch(self) -> None:
         fake = FakeBackend(responses={"trigger": {"triggered": True, "killed_at": 42}})
-        agent = AumOS(mode="connected", kill_switch_url="http://r3:8461", _backend=fake)
+        agent = Warrantor(mode="connected", kill_switch_url="http://r3:8461", _backend=fake)
         r = agent.kill(reason="x")
         assert r == {"triggered": True, "killed_at": 42}
 
@@ -333,7 +333,7 @@ class TestConnectedMode:
 
 class TestActionDecorator:
     def test_decorator_wraps_and_returns_value(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
 
         @agent.action(tool="github.create_pr", side_effect="write")
         def create_pr(repo: str, title: str) -> dict[str, Any]:
@@ -351,7 +351,7 @@ class TestActionDecorator:
         assert result.svid is not None
 
     def test_decorator_records_evidence(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
 
         @agent.action(tool="fs.read", side_effect="read")
         def read(path: str) -> str:
@@ -368,7 +368,7 @@ class TestActionDecorator:
         We assert this by checking that the 'pending' receipt was emitted (the implementation
         emits pending -> success; the pending emission is the load-bearing pre-commit step).
         """
-        agent = AumOS()
+        agent = Warrantor()
         emitted: list[str] = []
 
         @agent.action(tool="x.write", side_effect="write")
@@ -386,7 +386,7 @@ class TestActionDecorator:
 
     def test_decorator_fail_closed_blocks_consequential(self) -> None:
         """Invariant I-09: fail-closed. A denied preflight must raise ActionBlocked."""
-        agent = AumOS(fail_closed=True)
+        agent = Warrantor(fail_closed=True)
         called = {"n": 0}
 
         @agent.action(tool="db.drop", side_effect="destructive")
@@ -402,7 +402,7 @@ class TestActionDecorator:
         assert any(e["outcome"] == "denied" for e in agent.evidence)
 
     def test_decorator_fail_open_allows_when_fail_closed_false(self) -> None:
-        agent = AumOS(fail_closed=False)
+        agent = Warrantor(fail_closed=False)
 
         @agent.action(tool="db.drop", side_effect="destructive")
         def drop_table() -> str:
@@ -416,7 +416,7 @@ class TestActionDecorator:
 
     def test_decorator_triggers_containment_on_exception(self) -> None:
         """If the wrapped function raises, the kill-switch fires (ContainmentTriggered)."""
-        agent = AumOS(auto_kill_on_error=True)
+        agent = Warrantor(auto_kill_on_error=True)
 
         @agent.action(tool="x.write", side_effect="write")
         def boom() -> None:
@@ -429,7 +429,7 @@ class TestActionDecorator:
         assert any(e["outcome"] == "failure" for e in agent.evidence)
 
     def test_decorator_no_auto_kill_reraises_original(self) -> None:
-        agent = AumOS(auto_kill_on_error=False)
+        agent = Warrantor(auto_kill_on_error=False)
 
         @agent.action(tool="x.write", side_effect="write")
         def boom() -> None:
@@ -441,7 +441,7 @@ class TestActionDecorator:
         assert any(e["outcome"] == "failure" for e in agent.evidence)
 
     def test_decorator_rejects_invalid_side_effect(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
         with pytest.raises(ValueError, match="side_effect"):
 
             @agent.action(tool="x", side_effect="nuclear")  # type: ignore[arg-type]
@@ -449,7 +449,7 @@ class TestActionDecorator:
 
     def test_decorator_scans_inputs_for_secrets(self) -> None:
         """Credential brokering (R4): a leaked secret in args is recorded on the preflight."""
-        agent = AumOS()
+        agent = Warrantor()
 
         @agent.action(tool="http.post", side_effect="write")
         def post(body: str) -> str:
@@ -461,7 +461,7 @@ class TestActionDecorator:
         assert result.preflight["secret_findings"][0]["type"] == "github_pat"
 
     def test_action_result_as_dict_roundtrips(self) -> None:
-        agent = AumOS()
+        agent = Warrantor()
 
         @agent.action(tool="x.read", side_effect="read")
         def f() -> int:
@@ -518,7 +518,7 @@ class TestAX28SigningFailsClosed:
 
     @staticmethod
     def _connected_agent(monkeypatch, failure):
-        agent = AumOS(mode="connected")
+        agent = Warrantor(mode="connected")
         assert agent.is_connected
 
         def explode(*_args, **_kwargs):
@@ -538,7 +538,7 @@ class TestAX28SigningFailsClosed:
             agent.verify("hello", "deadbeef", key="k1")
 
     def test_sign_raises_on_nonzero_exit(self, monkeypatch) -> None:
-        agent = AumOS(mode="connected")
+        agent = Warrantor(mode="connected")
         monkeypatch.setattr(
             agent,
             "_run_cli",
@@ -548,17 +548,17 @@ class TestAX28SigningFailsClosed:
             agent.sign("hello", key_id="k1")
 
     def test_mock_output_is_labelled_and_cannot_pass_as_a_signature(self) -> None:
-        agent = AumOS(mode="standalone")
+        agent = Warrantor(mode="standalone")
         sig = agent.sign("hello", key_id="k1")
         assert sig.startswith(MOCK_SIGNATURE_PREFIX)
         # A real Ed25519 signature is bare hex, so the prefix makes the two disjoint.
         assert not all(c in "0123456789abcdef" for c in sig)
 
     def test_standalone_verify_rejects_anything_not_declaring_itself_a_mock(self) -> None:
-        agent = AumOS(mode="standalone")
+        agent = Warrantor(mode="standalone")
         # A real 64-byte Ed25519 signature must not be silently "verified" by an HMAC check.
         assert agent.verify("hello", "ab" * 64, key="k1") is False
 
     def test_standalone_round_trip_still_works(self) -> None:
-        agent = AumOS(mode="standalone")
+        agent = Warrantor(mode="standalone")
         assert agent.verify("hello", agent.sign("hello", key_id="k1"), key="k1") is True

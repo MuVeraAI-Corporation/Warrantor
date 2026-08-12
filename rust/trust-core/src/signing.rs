@@ -1,11 +1,10 @@
 //! Ed25519 signing.
 //!
-//! Wraps `ed25519-dalek` with a stable AumOS error type. KMS/HSM integration lands
+//! Wraps `ed25519-dalek` with a stable Warrantor error type. KMS/HSM integration lands
 //! in task 03 (AWS KMS) and task 04 (GCP, Azure, YubiKey, PKCS#11).
 
 use crate::canonical::canonical_cbor;
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
-use rand::rngs::OsRng;
 use thiserror::Error;
 use zeroize::Zeroize;
 
@@ -48,7 +47,7 @@ impl Zeroize for SigningKeyWrapper {
 impl SigningKeyWrapper {
     /// Generate a new random signing key.
     pub fn generate() -> Self {
-        let mut rng = OsRng;
+        let mut rng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
         Self {
             inner: SigningKey::generate(&mut rng),
         }

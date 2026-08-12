@@ -1,6 +1,6 @@
-"""AumOS vLLM Integration — attested LLM serving plugin.
+"""Warrantor vLLM Integration — attested LLM serving plugin.
 
-Wraps a `vLLM <https://github.com/vllm-project/vllm>`_ server with AumOS
+Wraps a `vLLM <https://github.com/vllm-project/vllm>`_ server with Warrantor
 attestation checks. Before the server is allowed to serve traffic it must
 produce a hardware attestation (GPU TEE / SEV-SNP / TDX / NVIDIA CC) that the
 caller can verify; the resulting attestation envelope is exposed via
@@ -111,7 +111,7 @@ class QuoteCollector(Protocol):
     """Collects a platform attestation quote. Supplied by the operator.
 
     Implementations wrap the real platform verifier -- NVIDIA nvTrust/NRAS, AMD
-    SEV-SNP via the KDS/VCEK chain, or Intel TDX. AumOS deliberately ships none:
+    SEV-SNP via the KDS/VCEK chain, or Intel TDX. Warrantor deliberately ships none:
     binding an NDA-gated or vendor-specific SDK is the deployer's decision.
     """
 
@@ -145,7 +145,7 @@ def _verify_envelope(
     if collector is None:
         raise AttestationUnavailable(
             f"attestation_backend={envelope.backend!r} requires a QuoteCollector; "
-            "none was supplied. AumOS does not ship a platform verifier -- pass one "
+            "none was supplied. Warrantor does not ship a platform verifier -- pass one "
             "via AttestedVLLMServer(quote_collector=...) or use backend='mock' and "
             "treat the result as unattested."
         )
@@ -162,7 +162,7 @@ def _mock_digest(model_path: str, nonce: str) -> str:
 
 @dataclass
 class AttestedVLLMServer:
-    """A vLLM server wrapped with AumOS attestation checks.
+    """A vLLM server wrapped with Warrantor attestation checks.
 
     Parameters:
         mode:               ``standalone`` (real subprocess) or ``mock``.

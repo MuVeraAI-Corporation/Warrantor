@@ -24,8 +24,8 @@ use warrantor_kill_switch::{
 #[command(
     name = "kill-switch",
     version,
-    about = "Execute an AumOS kill-switch action (<5s end-to-end)",
-    long_about = "Execute an AumOS kill-switch action (<5s end-to-end).\n\n\
+    about = "Execute an Warrantor kill-switch action (<5s end-to-end)",
+    long_about = "Execute an Warrantor kill-switch action (<5s end-to-end).\n\n\
                   TRUST ASSUMPTION: --operator and --clearance are UNAUTHENTICATED argv strings. \
                   A manual kill therefore requires --i-am-not-authenticating."
 )]

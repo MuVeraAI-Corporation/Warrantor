@@ -1,4 +1,4 @@
-"""AumOS bias-sentinel (A3) — combined bias and copyright auditing.
+"""Warrantor bias-sentinel (A3) — combined bias and copyright auditing.
 
 Two modules:
 

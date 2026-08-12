@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Inference Gateways and Multi-Agent Protocols: MCP, A2A, MADE · AumOS Blog Series</title>
+  <title>Inference Gateways and Multi-Agent Protocols: MCP, A2A, MADE · Warrantor Blog Series</title>
   <link rel="stylesheet" href="blog-series.css">
 </head>
 <body>
 <div class="container">
   <div class="series-bar">
     <a href="index.html">← Series index</a>
-    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span class="series-pill">Warrantor · Open Authority &amp; Evidence Stack</span>
     <span>Local technical essay · 2026</span>
   </div>
 
   <header class="article-header">
     <div class="article-eyebrow">Essay 7 of 8 · Inference / Multi-Agent</div>
     <h1>Inference Gateways and Multi-Agent Protocols: MCP, A2A, MADE</h1>
-    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-authors">Warrantor Engineering Essays · Open Secure AI Alliance portfolio</p>
     <p class="article-affil">Tool plane (MCP) and agent plane (A2A) are different. Authority-aware gateways and delegation exchange keep both fail-closed.</p>
     <div class="article-meta">
       <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value"><span class="id-chip" data-aumos-id="N1">N1</span> <span class="id-chip" data-aumos-id="N2">N2</span> <span class="id-chip" data-aumos-id="N3">N3</span> <span class="id-chip" data-aumos-id="N4">N4</span> <span class="id-chip" data-aumos-id="X8">X8</span> <span class="id-chip" data-aumos-id="I1">I1</span> <span class="id-chip protocol" data-aumos-id="P5">P5</span> <span class="id-chip protocol" data-aumos-id="P10">P10</span> <span class="id-chip protocol" data-aumos-id="P1">P1</span></span></div>
@@ -30,7 +30,7 @@
 
   <div class="abstract">
     <span class="abstract-label">Thesis</span>
-    <p>MCP standardizes tools; A2A standardizes agent-to-agent messaging. Confusing them produces insecure gateways. AumOS <span class="id-chip">X8</span> is authority-aware MCP admission; <span class="id-chip protocol">P10</span> MADE profiles multi-agent delegation; <span class="id-chip">N1</span>–<span class="id-chip">N3</span> are the inference edge.</p>
+    <p>MCP standardizes tools; A2A standardizes agent-to-agent messaging. Confusing them produces insecure gateways. Warrantor <span class="id-chip">X8</span> is authority-aware MCP admission; <span class="id-chip protocol">P10</span> MADE profiles multi-agent delegation; <span class="id-chip">N1</span>–<span class="id-chip">N3</span> are the inference edge.</p>
   </div>
   <div class="toc"><div class="toc-title">Contents</div>
   <ol>
@@ -42,7 +42,7 @@
   </ol></div>
 
   <h2 id="split">1. MCP vs A2A split</h2>
-  <p>MCP is USB-C for tools/resources/prompts<sup><a href="#refs">[1,2]</a></sup>. A2A is agent interoperability over HTTP/JSON with a formal spec and LF momentum<sup><a href="#refs">[3,4]</a></sup>. Official topic pages explain coexistence<sup><a href="#refs">[5]</a></sup>; Auth0 covers security framing<sup><a href="#refs">[6]</a></sup>. AumOS keeps both: tools go through X8; agent peers use MADE + AAE.</p>
+  <p>MCP is USB-C for tools/resources/prompts<sup><a href="#refs">[1,2]</a></sup>. A2A is agent interoperability over HTTP/JSON with a formal spec and LF momentum<sup><a href="#refs">[3,4]</a></sup>. Official topic pages explain coexistence<sup><a href="#refs">[5]</a></sup>; Auth0 covers security framing<sup><a href="#refs">[6]</a></sup>. Warrantor keeps both: tools go through X8; agent peers use MADE + AAE.</p>
 
   <div class="visual" data-visual="mcp-a2a">
     <div class="visual-caption">Figure 1 — Two planes, one authority core</div>
@@ -72,12 +72,12 @@
     <li>Debit ABS budget for tool class; deny on exhaust.</li>
     <li>Dispatch tool; emit AAR (Essay 5) for allow <em>and</em> deny.</li>
   </ol>
-  <p>Unsigned community MCP servers are untrusted code—because they are. <span class="id-chip protocol">P5</span> is AumOS packaging, not a claim that MCP itself ships skill signatures.</p>
+  <p>Unsigned community MCP servers are untrusted code—because they are. <span class="id-chip protocol">P5</span> is Warrantor packaging, not a claim that MCP itself ships skill signatures.</p>
 
   <h2 id="made">3. MADE delegation exchange</h2>
   <div class="callout warning">
-    <div class="callout-title">AumOS-native (P10 MADE)</div>
-    <p>Multi-Agent Delegation Exchange is an AumOS profile for constrained inter-agent authority. It sits <em>on</em> A2A messaging and OAuth token exchange—it is not the A2A specification itself.</p>
+    <div class="callout-title">Warrantor-native (P10 MADE)</div>
+    <p>Multi-Agent Delegation Exchange is an Warrantor profile for constrained inter-agent authority. It sits <em>on</em> A2A messaging and OAuth token exchange—it is not the A2A specification itself.</p>
   </div>
   <p><strong>Sequence sketch:</strong> Agent A holds AAE<sub>A</sub>. A creates MADE with <code>parent_jti</code>, task hash, residual RAR details (strict subset), TTL, and signature. Agent B accepts only if residual ⊆ A’s grants and OBO token exchange succeeds. B’s tools at X8 use AAE<sub>B</sub> derived from MADE—not A’s full envelope. Confused-deputy fix: B cannot widen scope by asking A2A peers for “help with everything.”</p>
 
@@ -98,7 +98,7 @@
   </div>
 
   <h2 id="threats">5. Implications</h2>
-  <p>Ship MCP for productivity, A2A for federation, and AumOS authority for both—or accept that interoperability multiplies blast radius. Prompt injection that fires tools is not a model-only bug; it is an admission-control bug at X8. Multi-agent OBO without residual scope is privilege laundering with better branding.</p>
+  <p>Ship MCP for productivity, A2A for federation, and Warrantor authority for both—or accept that interoperability multiplies blast radius. Prompt injection that fires tools is not a model-only bug; it is an admission-control bug at X8. Multi-agent OBO without residual scope is privilege laundering with better branding.</p>
   <div class="callout">
     <div class="callout-title">US / India note</div>
     <p>Tool logs and delegated actions often process personal or customer data. DPDP and US third-party / safety-and-soundness expectations both require knowing <em>which</em> agent acted under <em>which</em> residual authority—MADE + AAR, not chat screenshots.</p>

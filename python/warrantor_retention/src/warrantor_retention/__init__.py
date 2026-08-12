@@ -1,4 +1,4 @@
-"""AumOS data retention policy engine and GDPR right-to-erasure (tombstone) support.
+"""Warrantor data retention policy engine and GDPR right-to-erasure (tombstone) support.
 
 This module implements:
 
@@ -11,7 +11,7 @@ This module implements:
     preserving its structural identity (the "tombstone"). The append-only
     attestation ledger stays intact; only the sensitive payload is shredded.
   * **Cryptographic key shredding** — for records whose confidentiality depends
-    on an encryption key (the recommended pattern for AumOS audit records),
+    on an encryption key (the recommended pattern for Warrantor audit records),
     erasing the key renders the ciphertext permanently unreadable without
     deleting a single byte of the ledger.
 
@@ -97,7 +97,7 @@ class RetentionPolicy:
             raise ValueError(f"action must be one of {sorted(_VALID_ACTIONS)}; got {self.action!r}")
 
 
-# Default policies shipped with AumOS. Callers can register more with
+# Default policies shipped with Warrantor. Callers can register more with
 # ``RetentionEngine.register_policy``; re-registering a data_type replaces the
 # prior policy.
 DEFAULT_POLICIES: tuple[RetentionPolicy, ...] = (
@@ -330,7 +330,7 @@ class RetentionEngine:
 
         This implements GDPR right-to-erasure for records whose confidentiality
         depends on a per-record encryption key (the recommended pattern for
-        AumOS audit records and the attestation ledger). The **ciphertext is
+        Warrantor audit records and the attestation ledger). The **ciphertext is
         left in place**; only the key is deleted. The data therefore becomes
         cryptographically inaccessible without altering the append-only ledger
         — satisfying both GDPR's "put beyond use" requirement and the

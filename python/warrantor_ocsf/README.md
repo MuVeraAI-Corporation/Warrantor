@@ -1,6 +1,6 @@
 # warrantor-ocsf
 
-AumOS **OCSF event forwarder**. Receives **AAR** (Agent Action Record) events
+Warrantor **OCSF event forwarder**. Receives **AAR** (Agent Action Record) events
 from the E1 flight-recorder, converts them to the
 [OCSF](https://schema.ocsf.io/) v1.9.0 schema, and ships them to one or more
 SIEM sinks (Splunk HEC, Elastic, Datadog, or a local JSONL file).
@@ -39,7 +39,7 @@ activity; class `3002` (Authentication) is the correct long-term home.
 
 The full event includes `actor.user`, `actor.application`, `src_endpoint`,
 `api.request` / `api.response`, `resources` (one entry per secret finding),
-`metadata.product` (AumOS / MuVera AI) and a human-readable `message` line.
+`metadata.product` (Warrantor / MuVera AI) and a human-readable `message` line.
 `metadata.version` is the **OCSF schema** version; this package's own version is
 `metadata.product.version`.
 

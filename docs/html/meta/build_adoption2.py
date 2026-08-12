@@ -21,7 +21,7 @@ def sec_ossgate():
 <tr><td>promptfoo</td><td>2 to start, 5 to a result</td><td>Provider key</td><td>Evals run locally</td></tr>
 <tr><td>E2B</td><td>1 install &mdash; but <strong>cannot run without an API key</strong></td><td>Yes, hard gate</td><td>Terraform self-host only</td></tr>
 <tr><td>SPIRE</td><td><strong>No one-command start</strong> &mdash; docs say learn the architecture first</td><td>No</td><td>Yes</td></tr>
-<tr><td><strong>AumOS today</strong></td><td><strong>&infin;</strong> &mdash; nothing published; the documented command exits 0 silently</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td><strong>Warrantor today</strong></td><td><strong>&infin;</strong> &mdash; nothing published; the documented command exits 0 silently</td><td>&mdash;</td><td>&mdash;</td></tr>
 </tbody></table></div>
 {para("**cloudflare-os took 7,123 stars and 704 forks in four days** (open-sourced 2026-08-05, Apache-2.0) on one "
       "command and no account &mdash; with **Quick Start as README section #2, above the architecture prose**. "
@@ -32,7 +32,7 @@ def sec_ossgate():
       "executable conformance suite**. Sigstore publishes theirs daily &mdash; cosign, sigstore-js and sigstore-rust "
       "at 100%, python 96%, java 95% &mdash; which is why `sigstore-go` can call itself production-ready *at 90 "
       "stars*. MCP has ten official SDKs, no conformance suite, and visible drift as a result.")}
-{para("**AumOS's conformance runner is already at 220/220 across four languages and is genuinely fail-closed** &mdash; "
+{para("**Warrantor's conformance runner is already at 220/220 across four languages and is genuinely fail-closed** &mdash; "
       "removing a verifier yields FAIL, never a skip. That is the parity claim and the assurance story in one "
       "artifact. **Publish it, date it, badge it in the README.** Almost nobody in this space has one.")}</div>
 <h3>Distribution: what is table stakes, and what is folklore</h3>
@@ -338,7 +338,7 @@ def sec_decisions():
 <tr><td>5</td><td><strong>OSTIF audit application</strong></td><td>Long lead time; it is the hardest enterprise gate and it is free. Only you can submit.</td><td>Apply now, regardless of readiness. The queue is the constraint, not the code.</td></tr>
 <tr><td>6</td><td><strong>Confidential-compute hardware</strong></td><td>The attested-inference use case cannot stop being simulated without it. You have Azure credit.</td><td>Spin up one NCCadsH100v5 in East US 2. One instance, a few days, closes a whole category of finding.</td></tr>
 <tr><td>7</td><td><strong>Standards venue</strong></td><td>CoSAI, IETF SCITT and AAIF have different costs and audiences, and the in-toto <code>agent-decision</code> RFC thread is open <em>now</em>.</td><td>IETF SCITT for P2, in-toto for P8. Contribute rather than compete &mdash; you cannot out-govern a foundation.</td></tr>
-<tr><td>8</td><td><strong>Git identity override</strong></td><td>Every future commit is authored as <code>AumOS Wave-1 &lt;aumos@local&gt;</code> unless the local config override is removed. DCO sign-off under a synthetic identity is not a meaningful attestation.</td><td>Drop the override. The two commits I made already use your real identity.</td></tr>
+<tr><td>8</td><td><strong>Git identity override</strong></td><td>Every future commit is authored as <code>Warrantor Wave-1 &lt;aumos@local&gt;</code> unless the local config override is removed. DCO sign-off under a synthetic identity is not a meaningful attestation.</td><td>Drop the override. The two commits I made already use your real identity.</td></tr>
 <tr><td>9</td><td><strong>Which ~25 components survive</strong></td><td>Maintenance burden is the most likely cause of project death; three comparable projects died exactly this way.</td><td>The KEEP/THIN/CUT verdicts in the companion analysis are my recommendation. Confirm or override each.</td></tr>
 </tbody></table></div>
 <div class="note"><div class="calltitle">What I do not need from you</div>

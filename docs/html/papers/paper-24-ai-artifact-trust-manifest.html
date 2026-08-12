@@ -10,9 +10,9 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow spec">AumOS Research · Paper 24 of 24 (Specification) · Thrust 6 — Standards &amp; Protocol Contributions</div>
+  <div class="article-eyebrow spec">Warrantor Research · Paper 24 of 24 (Specification) · Thrust 6 — Standards &amp; Protocol Contributions</div>
   <h1>AI Artifact Trust Manifest: Binding Models, Data, and Code</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
   <div class="article-affil">Proposed OASIS-track specification; builds on Papers 9, 11</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">OASIS standard (CycloneDX extension)</span></div>
@@ -26,7 +26,7 @@
 
 <div class="abstract spec">
   <span class="abstract-label">Specification Abstract</span>
-  <p>A deployed AI system is not just a model: it is a model, a dataset (or dataset manifest), a codebase (inference server, agent runtime, tool definitions), and a configuration. Existing BOM formats — CycloneDX ML-BOM<sup><a href="#ref-cyclonedx">[1]</a></sup>, SPDX 3.0<sup><a href="#ref-spdx">[2]</a></sup>, the in-toto Attestation Framework<sup><a href="#ref-intoto">[3]</a></sup> — describe each artifact class separately but do not bind them into a single, signed, verifiable trust manifest that a relying party can check before invoking the system. We propose the <strong>AI Artifact Trust Manifest (AATM)</strong>, extending CycloneDX ML-BOM, as an OASIS-track specification that binds model, data, code, and configuration into one signed manifest with a single verification entry point. The AATM composes with the OpenSSF Model Signing lineage (Paper 9) and the in-toto Statement format<sup><a href="#ref-intoto">[3]</a></sup>, and is implemented in AumOS <code>model-sbom</code> (S4).</p>
+  <p>A deployed AI system is not just a model: it is a model, a dataset (or dataset manifest), a codebase (inference server, agent runtime, tool definitions), and a configuration. Existing BOM formats — CycloneDX ML-BOM<sup><a href="#ref-cyclonedx">[1]</a></sup>, SPDX 3.0<sup><a href="#ref-spdx">[2]</a></sup>, the in-toto Attestation Framework<sup><a href="#ref-intoto">[3]</a></sup> — describe each artifact class separately but do not bind them into a single, signed, verifiable trust manifest that a relying party can check before invoking the system. We propose the <strong>AI Artifact Trust Manifest (AATM)</strong>, extending CycloneDX ML-BOM, as an OASIS-track specification that binds model, data, code, and configuration into one signed manifest with a single verification entry point. The AATM composes with the OpenSSF Model Signing lineage (Paper 9) and the in-toto Statement format<sup><a href="#ref-intoto">[3]</a></sup>, and is implemented in Warrantor <code>model-sbom</code> (S4).</p>
 </div>
 
 <div class="toc">
@@ -76,7 +76,7 @@
 <p>The AATM is designed as a CycloneDX ML-BOM extension (the model/data/code fields reuse CycloneDX types) carrying an in-toto Statement (so it composes with SLSA/OpenSSF signing). SPDX 3.0 interop is provided via a translator, since SPDX 3.0's extensible model can represent the same bindings. The AATM does not compete with these standards; it <em>binds</em> them.</p>
 
 <h2 id="path"><span class="anchor">§</span>7. Path to standardization</h2>
-<p>CycloneDX working-group extension Q1 2027, with a parallel OASIS standard track; committee-spec Q4 2027, referencing the AumOS S4 implementation and the OpenSSF Model Signing interop (Paper 9). The G7 SBOM-for-AI minimum elements (Paper 11) are the floor the AATM exceeds.</p>
+<p>CycloneDX working-group extension Q1 2027, with a parallel OASIS standard track; committee-spec Q4 2027, referencing the Warrantor S4 implementation and the OpenSSF Model Signing interop (Paper 9). The G7 SBOM-for-AI minimum elements (Paper 11) are the floor the AATM exceeds.</p>
 
 <h2 id="refs"><span class="anchor">§</span>8. Normative references</h2>
 <div class="references">
@@ -88,7 +88,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Specification derived from Papers 9, 11. Reference implementation: AumOS S4 (<code>model-sbom</code>). AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Specification derived from Papers 9, 11. Reference implementation: Warrantor S4 (<code>model-sbom</code>). Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-23-open-harness-specification.html">Paper 23</a></span>
     <span class="small"><a href="../whitepapers/wp1-open-defense-stack.html">Whitepaper WP1: Open Defense Stack →</a></span>

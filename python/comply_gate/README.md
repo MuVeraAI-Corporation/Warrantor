@@ -1,6 +1,6 @@
 # warrantor-comply-gate (A4)
 
-CI/CD compliance gates for AumOS components. Parses a `.complygate.yml`
+CI/CD compliance gates for Warrantor components. Parses a `.complygate.yml`
 config and enforces four gate types:
 
 - **test-coverage** — minimum line coverage threshold (default 80%).

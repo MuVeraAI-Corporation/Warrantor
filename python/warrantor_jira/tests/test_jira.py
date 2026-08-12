@@ -1,4 +1,4 @@
-"""Tests for the AumOS Jira/Linear incident forwarder.
+"""Tests for the Warrantor Jira/Linear incident forwarder.
 
 Uses the MockForwarder for the bulk of the tests (no network), plus a
 monkeypatched JiraForwarder/LinearForwarder to verify payload shape and the
@@ -102,7 +102,7 @@ def test_mock_create_ticket_uses_summary_when_missing():
     del inc["summary"]
     ticket = fwd.create_ticket(inc)
     # Falls back to a generated title.
-    assert ticket.title.startswith("[AumOS] goal_hijack incident inc-123")
+    assert ticket.title.startswith("[Warrantor] goal_hijack incident inc-123")
 
 
 def test_mock_create_increments_ticket_id():

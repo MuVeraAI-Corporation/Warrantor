@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Industry Whitepaper · WP5 of 6 · For infrastructure / MLOps teams</div>
+  <div class="article-eyebrow">Warrantor Industry Whitepaper · WP5 of 6 · For infrastructure / MLOps teams</div>
   <h1>Confidential AI on NVIDIA H100: A Deployment Guide</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS C1-1…C1-5 (confidential computing pillar)</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor C1-1…C1-5 (confidential computing pillar)</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">GPU Technology Conference 2027</span></div>
     <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">~18–24 pages, full deployment + day-2 runbook</span></div>
@@ -26,7 +26,7 @@
 
 <div class="abstract">
   <span class="abstract-label">Executive Summary</span>
-  <p>The NVIDIA H100 (Hopper)<sup><a href="#ref-hcc">[1]</a></sup> and the forthcoming N1 are the first broadly available GPUs with hardware-enforced confidential computing, enabling inference and training workloads where the model weights, the prompts, and the outputs are cryptographically protected from the host, the hypervisor, and the cloud operator. This is a structural change in the trust model of AI infrastructure — but the operational reality is poorly documented, and most teams that attempt confidential inference stall on attestation-domain setup, multi-tenant composition, or key-release orchestration. This whitepaper is the deployment guide built on the AumOS C1 components (Paper 5, Paper 7), the NVIDIA Attestation SDK, and the Intel+NVIDIA seamless composite-attestation work<sup><a href="#ref-intel-nvidia">[2]</a></sup>.</p>
+  <p>The NVIDIA H100 (Hopper)<sup><a href="#ref-hcc">[1]</a></sup> and the forthcoming N1 are the first broadly available GPUs with hardware-enforced confidential computing, enabling inference and training workloads where the model weights, the prompts, and the outputs are cryptographically protected from the host, the hypervisor, and the cloud operator. This is a structural change in the trust model of AI infrastructure — but the operational reality is poorly documented, and most teams that attempt confidential inference stall on attestation-domain setup, multi-tenant composition, or key-release orchestration. This whitepaper is the deployment guide built on the Warrantor C1 components (Paper 5, Paper 7), the NVIDIA Attestation SDK, and the Intel+NVIDIA seamless composite-attestation work<sup><a href="#ref-intel-nvidia">[2]</a></sup>.</p>
 </div>
 
 <div class="toc">
@@ -46,7 +46,7 @@
 <p>Confidential computing on a CPU TEE (Intel TDX, AMD SEV-SNP) is a solved operational problem. Confidential computing on an H100 is not, for three reasons: (1) the attestation model is NVIDIA-specific and runs through NVIDIA's root of trust; (2) multi-tenant composition without cross-tenant leakage requires careful attestation-domain design (Paper 7); (3) the performance overhead is real and must be tuned — Chrapek et al.<sup><a href="#ref-perf">[3]</a></sup> pinpoint PCIe encryption as the dominant bottleneck. Teams need a documented path through all three.</p>
 
 <h2 id="architecture"><span class="anchor">§</span>2. Architecture: the attestation domain</h2>
-<p>The foundational concept is the attestation domain (Paper 7): a set of GPUs, model keys, and a verification policy over which a consistent trust decision is made. AumOS C1-1 binds to NVIDIA NVTrust; C1-2 retrieves/verifies attestation reports; C1-3 orchestrates the attested pipeline in-TEE; C1-4 terminates TLS in the enclave; C1-5 composes the streams and gates model-key release. The five compose; none is sufficient alone.</p>
+<p>The foundational concept is the attestation domain (Paper 7): a set of GPUs, model keys, and a verification policy over which a consistent trust decision is made. Warrantor C1-1 binds to NVIDIA NVTrust; C1-2 retrieves/verifies attestation reports; C1-3 orchestrates the attested pipeline in-TEE; C1-4 terminates TLS in the enclave; C1-5 composes the streams and gates model-key release. The five compose; none is sufficient alone.</p>
 
 <h2 id="handshake"><span class="anchor">§</span>3. The attestation handshake</h2>
 <ul>
@@ -59,7 +59,7 @@
 </ul>
 
 <h2 id="multitenant"><span class="anchor">§</span>4. Multi-tenant composition</h2>
-<p>The naive anti-pattern — one GPU per tenant — is economically fatal. The AumOS pattern is attestation-domain partitioning (Paper 7): tenants sharing a physical GPU are isolated by distinct policies and distinct key-release gates, so a key released for tenant A's model cannot be consumed by tenant B's context, and a context switch requires a fresh attestation. C1-5 enforces this by binding each key release to both the attestation and the tenant's identity (I1).</p>
+<p>The naive anti-pattern — one GPU per tenant — is economically fatal. The Warrantor pattern is attestation-domain partitioning (Paper 7): tenants sharing a physical GPU are isolated by distinct policies and distinct key-release gates, so a key released for tenant A's model cannot be consumed by tenant B's context, and a context switch requires a fresh attestation. C1-5 enforces this by binding each key release to both the attestation and the tenant's identity (I1).</p>
 
 <h2 id="deployment"><span class="anchor">§</span>5. Deployment sequence</h2>
 <ol style="margin-left: var(--space-xl);">
@@ -83,7 +83,7 @@
 </ul>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper. The pipeline is AumOS C1-1…C1-5; the academic basis is Papers 5, 7. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper. The pipeline is Warrantor C1-1…C1-5; the academic basis is Papers 5, 7. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="wp4-ai-kill-switch-act.html">WP4: AI Kill Switch Act</a></span>
     <span class="small"><a href="wp6-post-quantum-ai-security.html">WP6: Post-Quantum AI Security →</a></span>

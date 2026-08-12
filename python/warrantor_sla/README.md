@@ -1,6 +1,6 @@
 # warrantor-sla
 
-Rolling-window **SLA monitor** for AumOS. Records metric samples and evaluates
+Rolling-window **SLA monitor** for Warrantor. Records metric samples and evaluates
 them against `SLATarget` definitions.
 
 ## Model
@@ -17,7 +17,7 @@ A target is **meeting** the SLA if *every* sample inside the rolling window
 satisfies the comparison, and **breaching** if *any* sample violates it. With
 no target registered or no samples in the window the status is `UNKNOWN`.
 
-## Typical AumOS metrics
+## Typical Warrantor metrics
 
 | Metric                            | Threshold | Comparison | Window | Meaning                          |
 | --------------------------------- | --------- | ---------- | ------ | -------------------------------- |

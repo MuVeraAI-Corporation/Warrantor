@@ -6,7 +6,7 @@
 //! signature publicly verifiable and timestamped.
 //!
 //! This module is part of T1 trust-core — the single authoritative
-//! implementation of every security invariant in AumOS. Per the trusted-core
+//! implementation of every security invariant in Warrantor. Per the trusted-core
 //! scope boundary, the **request construction and response parsing have no
 //! external HTTP dependency**: they are pure functions over byte buffers. The
 //! actual network transport is isolated behind the [`RekorTransport`] trait so

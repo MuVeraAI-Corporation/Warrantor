@@ -1,6 +1,6 @@
-"""AumOS RBAC Engine — role-based access control for the AAE permission gate.
+"""Warrantor RBAC Engine — role-based access control for the AAE permission gate.
 
-This is the runtime permission engine behind the AumOS Action Enforcer (AAE).
+This is the runtime permission engine behind the Warrantor Action Enforcer (AAE).
 Every privileged action (approve, install component, trigger kill-switch,
 manage tenants, view compliance reports, read signed evidence) must pass
 ``RBACEngine.check_permission`` before it executes.
@@ -25,7 +25,7 @@ from enum import Enum
 
 
 class Role(str, Enum):
-    """AumOS first-class roles. Use ``str`` mixin so values serialise cleanly."""
+    """Warrantor first-class roles. Use ``str`` mixin so values serialise cleanly."""
 
     ADMIN = "admin"
     SECURITY_OFFICER = "security_officer"

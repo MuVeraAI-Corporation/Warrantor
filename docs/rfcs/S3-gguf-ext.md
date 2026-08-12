@@ -9,7 +9,7 @@
 | **Name** | gguf-ext |
 | **Wave** | 3 |
 | **Languages** | Rust |
-| **DefStack origin** | C2.4 GGUF-Ext |
+| **Warrantor origin** | C2.4 GGUF-Ext |
 | **Dependencies** | T1 trust-core, P6 AI Artifact Trust Manifest |
 | **Upstream format** | GGUF v3 (`ggml-org/ggml` and `ggml-org/llama.cpp`) |
 
@@ -17,11 +17,11 @@
 
 GGUF is the deployment format used by GGML-based executors such as llama.cpp. GGUF v3 stores a
 typed key/value metadata table before tensor descriptors and aligned tensor bytes. Upstream permits
-community metadata when keys use a collision-resistant namespace. AumOS uses the
+community metadata when keys use a collision-resistant namespace. Warrantor uses the
 `osaf.safety.*` namespace to bind a model's immutable tensor content and execution-relevant
 metadata to a signed safety manifest.
 
-This component is deliberately an extension, not a fork of GGUF. Files without AumOS metadata stay
+This component is deliberately an extension, not a fork of GGUF. Files without Warrantor metadata stay
 valid GGUF files. Unaware runtimes may ignore the namespaced keys. A security-enforcing runtime must
 use S3 or an independently conformant implementation to validate the profile before admission.
 
@@ -38,7 +38,7 @@ Authoritative upstream references:
 - Preserve all unknown upstream/community metadata and tensor bytes during rewrite.
 - Add, replace, inspect, and remove only the `osaf.safety.*` profile as an atomic operation.
 - Compute a deterministic model payload digest that excludes the self-referential signature fields
-  while binding every non-AumOS metadata value, tensor descriptor, and tensor byte.
+  while binding every non-Warrantor metadata value, tensor descriptor, and tensor byte.
 - Sign and verify the canonical safety manifest through T1-owned Ed25519 primitives.
 - Reject duplicate keys, invalid UTF-8/ASCII metadata keys, unsupported nesting, size overflows,
   malformed alignment, overlapping tensor ranges, digest mismatch, and invalid signatures.
@@ -82,7 +82,7 @@ All stable profile keys are lowercase ASCII hierarchical keys:
 | `osaf.safety.expires_at` | uint64 | no | Unix epoch seconds; absence means policy decides maximum age. |
 
 Unknown `osaf.safety.*` keys are rejected for profile version 1 so a verifier cannot ignore a
-security-relevant extension. Non-AumOS unknown keys are preserved byte-for-byte at the semantic
+security-relevant extension. Non-Warrantor unknown keys are preserved byte-for-byte at the semantic
 value level.
 
 ### Normalized payload digest
@@ -174,7 +174,7 @@ The CLI exposes `gguf-ext inspect`, `gguf-ext digest`, `gguf-ext sign`, `gguf-ex
 - Property tests assert parse/write/parse semantic equivalence and unchanged tensor bytes.
 - Fuzz targets cover header/metadata parsing and complete-file verification with bounded memory.
 - Interoperability tests load rewritten fixtures with upstream llama.cpp/gguf tooling and ensure
-  non-AumOS metadata remains unchanged.
+  non-Warrantor metadata remains unchanged.
 - Performance evidence reports streaming throughput and peak memory on multi-gigabyte fixtures;
   implementation must not buffer tensor data in memory.
 

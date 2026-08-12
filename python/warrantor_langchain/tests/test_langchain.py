@@ -6,10 +6,10 @@ import pytest
 
 from warrantor_langchain import (
     AAR,
-    AumOSCallback,
-    AumOSTool,
     PermissionDenied,
     SecuredAgent,
+    WarrantorCallback,
+    WarrantorTool,
     has_langchain,
     scan_for_secrets,
     wrap_agent,
@@ -36,10 +36,10 @@ def test_scan_detects_multiple() -> None:
 
 
 # ---------------------------------------------------------------------------
-# AumOSCallback: LLM and tool recording
+# WarrantorCallback: LLM and tool recording
 # ---------------------------------------------------------------------------
 def test_callback_records_llm_start_end() -> None:
-    cb = AumOSCallback(identity="alice")
+    cb = WarrantorCallback(identity="alice")
     cb.on_llm_start(serialized={"name": "gpt-4"}, prompts=["hi"], run_id="r1")
     cb.on_llm_end({"generations": [[{"text": "hello"}]]}, run_id="r1")
     assert len(cb.aars) == 1
@@ -52,7 +52,7 @@ def test_callback_records_llm_start_end() -> None:
 
 
 def test_callback_records_tool_call() -> None:
-    cb = AumOSCallback(identity="bob")
+    cb = WarrantorCallback(identity="bob")
     cb.on_tool_start(serialized={"name": "calculator"}, input_str="2+2", run_id="t1")
     cb.on_tool_end("4", run_id="t1")
     assert len(cb.aars) == 1
@@ -63,7 +63,7 @@ def test_callback_records_tool_call() -> None:
 
 
 def test_callback_secret_in_output_recorded() -> None:
-    cb = AumOSCallback(identity="eve", kill_on_secret=False)
+    cb = WarrantorCallback(identity="eve", kill_on_secret=False)
     cb.on_llm_start(serialized={"name": "model"}, prompts=["x"], run_id="s1")
     cb.on_llm_end({"text": "leaked AKIAIOSFODNN7EXAMPLE"}, run_id="s1")
     aar = cb.aars[0]
@@ -73,7 +73,7 @@ def test_callback_secret_in_output_recorded() -> None:
 
 def test_callback_triggers_kill_switch_on_secret() -> None:
     triggered: list[AAR] = []
-    cb = AumOSCallback(
+    cb = WarrantorCallback(
         identity="eve",
         kill_switch=lambda aar: triggered.append(aar),
         kill_on_secret=True,
@@ -88,7 +88,7 @@ def test_callback_triggers_kill_switch_on_secret() -> None:
 
 def test_callback_sink_invoked_per_aar() -> None:
     sink: list[AAR] = []
-    cb = AumOSCallback(identity="x", sink=sink.append)
+    cb = WarrantorCallback(identity="x", sink=sink.append)
     cb.on_chain_start(serialized={"name": "agent"}, inputs={"q": "hi"}, run_id="c1")
     cb.on_chain_end({"output": "ok"}, run_id="c1")
     assert len(sink) == 1
@@ -96,7 +96,7 @@ def test_callback_sink_invoked_per_aar() -> None:
 
 
 def test_callback_error_path_records_error() -> None:
-    cb = AumOSCallback(identity="x")
+    cb = WarrantorCallback(identity="x")
     cb.on_llm_start(serialized={"name": "m"}, prompts=["x"], run_id="e1")
     cb.on_llm_error(ValueError("boom"), run_id="e1")
     aar = cb.aars[0]
@@ -106,17 +106,17 @@ def test_callback_error_path_records_error() -> None:
 
 def test_callback_handles_missing_run_id() -> None:
     """When LangChain doesn't pass run_id we should still match by recency."""
-    cb = AumOSCallback(identity="x")
+    cb = WarrantorCallback(identity="x")
     cb.on_tool_start(serialized={"name": "t"}, input_str="hi")
     cb.on_tool_end("bye")
     assert len(cb.aars) == 1
 
 
 # ---------------------------------------------------------------------------
-# AumOSTool: permission gating
+# WarrantorTool: permission gating
 # ---------------------------------------------------------------------------
 def test_tool_runs_when_permitted() -> None:
-    tool = AumOSTool(
+    tool = WarrantorTool(
         name="adder",
         description="adds",
         func=lambda x: x + 1,
@@ -128,7 +128,7 @@ def test_tool_runs_when_permitted() -> None:
 
 
 def test_tool_denied_without_permission() -> None:
-    tool = AumOSTool(
+    tool = WarrantorTool(
         name="danger",
         description="d",
         func=lambda: "ok",
@@ -143,7 +143,7 @@ def test_tool_denied_without_permission() -> None:
 
 
 def test_tool_runs_without_check_when_no_check_supplied() -> None:
-    tool = AumOSTool(
+    tool = WarrantorTool(
         name="t",
         description="d",
         func=lambda: 42,
@@ -156,7 +156,7 @@ def test_tool_runs_without_check_when_no_check_supplied() -> None:
 
 def test_tool_on_call_records_invocation() -> None:
     calls: list[tuple[str, dict, object]] = []
-    tool = AumOSTool(
+    tool = WarrantorTool(
         name="t",
         description="d",
         func=lambda x: x * 2,

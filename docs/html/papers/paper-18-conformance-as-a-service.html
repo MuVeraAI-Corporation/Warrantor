@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Research · Paper 18 of 24 · Thrust 5 — Evaluation &amp; Red Teaming</div>
+  <div class="article-eyebrow">Warrantor Research · Paper 18 of 24 · Thrust 5 — Evaluation &amp; Red Teaming</div>
   <h1>Conformance as a Service: Cross-Language Protocol Testing for AI Security</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS V2/V3 (conformance vectors), T1/T2</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor V2/V3 (conformance vectors), T1/T2</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">USENIX Security 2027</span></div>
     <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">V2, V3, T1, T2</span></div>
@@ -27,7 +27,7 @@
 
 <div class="abstract">
   <span class="abstract-label">Abstract</span>
-  <p>Project Wycheproof<sup><a href="#ref-wycheproof">[1]</a></sup> — Google's collection of cryptographic test vectors that detect known weaknesses across implementations — established that conformance test vectors are a first-class security artifact, not an afterthought. The differential-fuzzing tradition<sup><a href="#ref-diffuzz">[2]</a></sup> extends this by feeding random inputs across implementations and comparing outputs. We argue that AI-agent security protocols (the AAE of Paper 1, the AAR of Paper 3) require the same treatment: a <strong>Conformance-as-a-Service</strong> offering that runs a maintained corpus of cross-language conformance vectors against any claimed-conformant implementation and produces a verifiable conformance report. We present the design, the vector corpus (V2/V3), and the differential-Dolev-Yao fuzzing extension<sup><a href="#ref-dyfuzz">[3]</a></sup> that detects protocol vulnerabilities requiring symbolic-attacker reasoning. The service is the structural mechanism that makes an AumOS "compatible" claim verifiable rather than asserted.</p>
+  <p>Project Wycheproof<sup><a href="#ref-wycheproof">[1]</a></sup> — Google's collection of cryptographic test vectors that detect known weaknesses across implementations — established that conformance test vectors are a first-class security artifact, not an afterthought. The differential-fuzzing tradition<sup><a href="#ref-diffuzz">[2]</a></sup> extends this by feeding random inputs across implementations and comparing outputs. We argue that AI-agent security protocols (the AAE of Paper 1, the AAR of Paper 3) require the same treatment: a <strong>Conformance-as-a-Service</strong> offering that runs a maintained corpus of cross-language conformance vectors against any claimed-conformant implementation and produces a verifiable conformance report. We present the design, the vector corpus (V2/V3), and the differential-Dolev-Yao fuzzing extension<sup><a href="#ref-dyfuzz">[3]</a></sup> that detects protocol vulnerabilities requiring symbolic-attacker reasoning. The service is the structural mechanism that makes an Warrantor "compatible" claim verifiable rather than asserted.</p>
 </div>
 
 <div class="toc">
@@ -46,7 +46,7 @@
 </div>
 
 <h2 id="intro"><span class="anchor">§</span>1. Introduction: from assertion to verification</h2>
-<p>An implementer who claims "AumOS-compatible" or "AAE-conformant" makes an assertion. The relying party who needs to trust the claim has, today, no neutral way to verify it — they must either trust the implementer or reverse-engineer the test. This is the gap that conformance-as-a-service closes: a maintained, runnable corpus of vectors that any implementation can be tested against, producing a report a relying party can verify. The Wycheproof project<sup><a href="#ref-wycheproof">[1]</a></sup> proved the model for cryptographic primitives; we extend it to AI-agent protocols.</p>
+<p>An implementer who claims "Warrantor-compatible" or "AAE-conformant" makes an assertion. The relying party who needs to trust the claim has, today, no neutral way to verify it — they must either trust the implementer or reverse-engineer the test. This is the gap that conformance-as-a-service closes: a maintained, runnable corpus of vectors that any implementation can be tested against, producing a report a relying party can verify. The Wycheproof project<sup><a href="#ref-wycheproof">[1]</a></sup> proved the model for cryptographic primitives; we extend it to AI-agent protocols.</p>
 
 <h2 id="background"><span class="anchor">§</span>2. Background: Wycheproof and differential fuzzing</h2>
 <p>Wycheproof<sup><a href="#ref-wycheproof">[1]</a></sup> (originally Google, now community-maintained by C2SP) is a format-agnostic JSON collection of test vectors that detect known cryptographic weaknesses (invalid-curve, bias, truncation) across implementations in Java, Go, Rust, C, Python, JS. The Quarkslab differential-fuzzing survey<sup><a href="#ref-diffuzz">[2]</a></sup> catalogs tools (Cryptofuzz/CDF) that complement Wycheproof by generating random inputs and comparing outputs across implementations. The recent differential-Dolev-Yao fuzzing work<sup><a href="#ref-dyfuzz">[3]</a></sup> detects protocol vulnerabilities that require symbolic-attacker reasoning — beyond what state-of-the-art fuzzers catch. These three are the lineage; the service unifies and specializes them to agent protocols.</p>
@@ -79,7 +79,7 @@
 </ul>
 
 <h2 id="conclusion"><span class="anchor">§</span>8. Conclusion</h2>
-<p>Conformance-as-a-Service makes the "AumOS-compatible" claim verifiable rather than asserted, extending the Wycheproof model to agent protocols and adding differential Dolev-Yao fuzzing for novel-vulnerability discovery. It is the structural mechanism that underwrites the neutrality guarantee of the open defense stack.</p>
+<p>Conformance-as-a-Service makes the "Warrantor-compatible" claim verifiable rather than asserted, extending the Wycheproof model to agent protocols and adding differential Dolev-Yao fuzzing for novel-vulnerability discovery. It is the structural mechanism that underwrites the neutrality guarantee of the open defense stack.</p>
 
 <h2 id="refs"><span class="anchor">§</span>9. References</h2>
 <div class="references">
@@ -91,7 +91,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The service uses AumOS V2/V3 vectors; the corpus extends Paper 2's conformance gate. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The service uses Warrantor V2/V3 vectors; the corpus extends Paper 2's conformance gate. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-17-unified-adversarial-testing.html">Paper 17</a></span>
     <span class="small"><a href="paper-19-bias-copyright-auditing.html">Paper 19: Bias &amp; Copyright Auditing →</a></span>

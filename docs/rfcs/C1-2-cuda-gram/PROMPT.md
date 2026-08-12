@@ -4,11 +4,11 @@
 
 ---
 
-You are implementing **C1-2 cuda-gram** for AumOS. Language: Python (PyO3). Dependencies: C1-1.
+You are implementing **C1-2 cuda-gram** for Warrantor. Language: Python (PyO3). Dependencies: C1-1.
 
 ## Component context
 
-High-level GPU attestation SDK. Exposes AttestationReport, CCSession, AttestationVerifier. Consumes C1-1's Rust core via PyO3 (do not use ctypes — that's the DefStack original we are migrating away from).
+High-level GPU attestation SDK. Exposes AttestationReport, CCSession, AttestationVerifier. Consumes C1-1's Rust core via PyO3 (do not use ctypes — that's the Warrantor original we are migrating away from).
 
 ## Read first
 

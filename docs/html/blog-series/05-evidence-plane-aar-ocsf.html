@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Evidence Plane: Action Receipts, Provenance Graphs, and Incident Exchange · AumOS Blog Series</title>
+  <title>The Evidence Plane: Action Receipts, Provenance Graphs, and Incident Exchange · Warrantor Blog Series</title>
   <link rel="stylesheet" href="blog-series.css">
 </head>
 <body>
 <div class="container">
   <div class="series-bar">
     <a href="index.html">← Series index</a>
-    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span class="series-pill">Warrantor · Open Authority &amp; Evidence Stack</span>
     <span>Local technical essay · 2026</span>
   </div>
 
   <header class="article-header">
     <div class="article-eyebrow">Essay 5 of 8 · Evidence</div>
     <h1>The Evidence Plane: Action Receipts, Provenance Graphs, and Incident Exchange</h1>
-    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-authors">Warrantor Engineering Essays · Open Secure AI Alliance portfolio</p>
     <p class="article-affil">If you cannot produce a signed receipt for what the agent did, you do not have governance—you have vibes. AAR, OTel GenAI, OCSF, ATLAS.</p>
     <div class="article-meta">
       <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value"><span class="id-chip" data-aumos-id="E1">E1</span> <span class="id-chip" data-aumos-id="X9">X9</span> <span class="id-chip" data-aumos-id="X2">X2</span> <span class="id-chip protocol" data-aumos-id="P2">P2</span> <span class="id-chip protocol" data-aumos-id="P3">P3</span> <span class="id-chip protocol" data-aumos-id="P4">P4</span> <span class="id-chip protocol" data-aumos-id="P9">P9</span></span></div>
@@ -30,7 +30,7 @@
 
   <div class="abstract">
     <span class="abstract-label">Thesis</span>
-    <p>Logs are not evidence. Evidence is signed, audience-aware, retention-scoped, and mappable to incident taxonomies. AumOS evidence plane centers on <span class="id-chip">E1</span> flight-recorder emitting <span class="id-chip protocol">P2</span> AAR, with context/memory integrity (<span class="id-chip protocol">P3</span>/<span class="id-chip protocol">P4</span>) and incident exchange (<span class="id-chip protocol">P9</span> / <span class="id-chip">X9</span>).</p>
+    <p>Logs are not evidence. Evidence is signed, audience-aware, retention-scoped, and mappable to incident taxonomies. Warrantor evidence plane centers on <span class="id-chip">E1</span> flight-recorder emitting <span class="id-chip protocol">P2</span> AAR, with context/memory integrity (<span class="id-chip protocol">P3</span>/<span class="id-chip protocol">P4</span>) and incident exchange (<span class="id-chip protocol">P9</span> / <span class="id-chip">X9</span>).</p>
   </div>
   <div class="toc"><div class="toc-title">Contents</div>
   <ol>
@@ -42,7 +42,7 @@
   </ol></div>
 
   <h2 id="gap">1. From telemetry to evidence</h2>
-  <p>OpenTelemetry’s GenAI observability work standardizes spans for agents<sup><a href="#refs">[1]</a></sup>. OWASP AOS pushes agent-specific trace semantics and OCSF extensions<sup><a href="#refs">[2,3]</a></sup>. That is necessary transport. AumOS adds cryptographic receipts: COSE-signed action records<sup><a href="#refs">[7]</a></sup> with transparency-log DNA<sup><a href="#refs">[8]</a></sup>.</p>
+  <p>OpenTelemetry’s GenAI observability work standardizes spans for agents<sup><a href="#refs">[1]</a></sup>. OWASP AOS pushes agent-specific trace semantics and OCSF extensions<sup><a href="#refs">[2,3]</a></sup>. That is necessary transport. Warrantor adds cryptographic receipts: COSE-signed action records<sup><a href="#refs">[7]</a></sup> with transparency-log DNA<sup><a href="#refs">[8]</a></sup>.</p>
 
   <div class="visual" data-visual="evidence-flow">
     <div class="visual-caption">Figure 1 — Action → receipt → incident</div>
@@ -83,8 +83,8 @@
 
   <h2 id="prov">3. Context &amp; memory integrity</h2>
   <div class="callout warning">
-    <div class="callout-title">AumOS-native (P3 / P4)</div>
-    <p><span class="id-chip protocol">P3</span> CPE and <span class="id-chip protocol">P4</span> AMIL are AumOS compositions. Foundations: W3C PROV<sup><a href="#refs">[6]</a></sup> and Merkle transparency designs<sup><a href="#refs">[8]</a></sup>—not identical public standards under those names.</p>
+    <div class="callout-title">Warrantor-native (P3 / P4)</div>
+    <p><span class="id-chip protocol">P3</span> CPE and <span class="id-chip protocol">P4</span> AMIL are Warrantor compositions. Foundations: W3C PROV<sup><a href="#refs">[6]</a></sup> and Merkle transparency designs<sup><a href="#refs">[8]</a></sup>—not identical public standards under those names.</p>
   </div>
   <p><strong>CPE sketch:</strong> each retrieved chunk carries <code>source_uri</code>, content hash, ranker id, and policy tags (PII class). The agent’s context window is then a PROV-style derivation graph: query → retrieval set → prompt assembly → model call. Without CPE, RAG poisoning is untraceable.</p>
   <p><strong>AMIL sketch:</strong> memory write ops append <code>(prev_root, op_hash, ts, sig)</code>. Fork/merge of agent memory requires explicit root compare—silent overwrite is a deny. “Agent forgot” becomes a ledger question, not a vibe.</p>

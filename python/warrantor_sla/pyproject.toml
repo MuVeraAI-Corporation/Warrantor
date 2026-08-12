@@ -1,7 +1,7 @@
 [project]
 name = "warrantor-sla"
 version = "1.0.0"
-description = "AumOS SLA monitor — rolling-window SLA tracking and breach alerting"
+description = "Warrantor SLA monitor — rolling-window SLA tracking and breach alerting"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]

@@ -1,6 +1,6 @@
 # 02 — Architecture
 
-> **Naming:** the platform is now **Warrantor**; "AumOS" below is the historical name, retained in
+> **Naming:** the platform is now **Warrantor**; "Warrantor" below is the historical name, retained in
 > paths and package names. Read them as the same system.
 >
 > **Still authoritative:** the 12 planes and the 12 invariants I-01…I-12 survive v4 intact — the
@@ -17,11 +17,11 @@
 
 > The 12-plane pressure-tested architecture and the 12 formal invariants every component must
 > satisfy. Derived from the V3 authority pressure test, the polyglot stack pressure test, and the
-> DefStack component DAG.
+> Warrantor component DAG.
 
 ## 1. Architecture in one paragraph
 
-AumOS is a **contract-hub monorepo**. A normative, language-neutral contract plane (`specs/`,
+Warrantor is a **contract-hub monorepo**. A normative, language-neutral contract plane (`specs/`,
 `proto/`, `testvectors/`) is the spine. Per-language implementations hang off it: a **Rust trusted
 core** owns every security invariant; **Python** owns agents/evals/research outside the trust
 boundary; **TypeScript** owns developer surfaces; **Go** is phase-gated for Kubernetes control plane.
@@ -90,8 +90,8 @@ evidence field. A component that breaks an invariant fails CI.
 | Topology | Use case | Components active | Trust posture |
 |---|---|---|---|
 | **A · Local dev** | Developer machine | All Wave-1 components; mock I1 | Self-signed; no production data |
-| **B · Cloud-managed** | SMB | All components; AumOS Cloud (X11) hosts control plane | mTLS; SPIFFE; per-tenant isolation |
-| **C · Hybrid** | Enterprise | Customer VPC + AumOS SaaS sync; Helm chart | Customer-owned KMS; audit streaming out |
+| **B · Cloud-managed** | SMB | All components; Warrantor Cloud (X11) hosts control plane | mTLS; SPIFFE; per-tenant isolation |
+| **C · Hybrid** | Enterprise | Customer VPC + Warrantor SaaS sync; Helm chart | Customer-owned KMS; audit streaming out |
 | **D · Air-gapped sovereign** | Government / regulated | Appliance (X10); no external network | HSM/TPM-backed CA; annual sovereign license |
 
 ## 5. The Trusted Core Boundary (where Rust owns)
@@ -128,7 +128,7 @@ changes here break every implementation. `buf breaking` runs on every PR.
 
 ## 7. Reference Foundations (what we adopt, not reinvent)
 
-AumOS is built *on top of* mature OSS — we extend, we don't fork:
+Warrantor is built *on top of* mature OSS — we extend, we don't fork:
 
 | Foundation | Adopt for | Extend with |
 |---|---|---|

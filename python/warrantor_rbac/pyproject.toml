@@ -1,7 +1,7 @@
 [project]
 name = "warrantor-rbac"
 version = "1.0.0"
-description = "AumOS RBAC engine — role-based access control for the AAE permission gate"
+description = "Warrantor RBAC engine — role-based access control for the AAE permission gate"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]

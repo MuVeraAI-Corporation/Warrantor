@@ -1,7 +1,7 @@
 {
   "name": "warrantor",
-  "displayName": "AumOS",
-  "description": "Syntax highlighting and language support for AumOS configuration files (.complygate.yml, OPA Rego, CDDL)",
+  "displayName": "Warrantor",
+  "description": "Syntax highlighting and language support for Warrantor configuration files (.complygate.yml, OPA Rego, CDDL)",
   "version": "1.0.0",
   "publisher": "MuVeraAI",
   "license": "Apache-2.0",

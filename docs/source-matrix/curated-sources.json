@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "AumOS Curated Reading List — Highest-Quality Blogs, Specs & Deep Technical Articles",
+    "title": "Warrantor Curated Reading List — Highest-Quality Blogs, Specs & Deep Technical Articles",
     "version": "1.0.0",
     "generated": "2026-08-09",
     "portfolio_truth": [
@@ -338,7 +338,7 @@
       "title": "SPIFFE — Secure Production Identity Framework for Everyone",
       "author": "SPIFFE / CNCF",
       "url": "https://spiffe.io/",
-      "why": "Canonical primary standard for workload identity; AumOS I1/I2 profile SPIFFE IDs and SVIDs rather than inventing agent identity.",
+      "why": "Canonical primary standard for workload identity; Warrantor I1/I2 profile SPIFFE IDs and SVIDs rather than inventing agent identity.",
       "tags": [
         "SPIFFE",
         "SPIRE",
@@ -613,7 +613,7 @@
       "title": "Cedar Policy Language",
       "author": "AWS Open Source",
       "url": "https://www.cedarpolicy.com/",
-      "why": "Primary Cedar language home; AumOS compiles authority to Cedar/OPA/OpenShell equivalence.",
+      "why": "Primary Cedar language home; Warrantor compiles authority to Cedar/OPA/OpenShell equivalence.",
       "tags": [
         "Cedar",
         "policy-as-code"
@@ -1077,7 +1077,7 @@
       "title": "Open Cybersecurity Schema Framework (OCSF)",
       "author": "OCSF Project",
       "url": "https://schema.ocsf.io/",
-      "why": "Primary security event schema; AumOS profiles agent incidents as OCSF extensions rather than forking formats.",
+      "why": "Primary security event schema; Warrantor profiles agent incidents as OCSF extensions rather than forking formats.",
       "tags": [
         "OCSF",
         "schema",
@@ -1825,7 +1825,7 @@
       "title": "RFC 8949 — Concise Binary Object Representation (CBOR)",
       "author": "IETF",
       "url": "https://www.rfc-editor.org/rfc/rfc8949.html",
-      "why": "Binary encoding used by AumOS protocol CDDL schemas (P1–P12 machine-checkable forms).",
+      "why": "Binary encoding used by Warrantor protocol CDDL schemas (P1–P12 machine-checkable forms).",
       "tags": [
         "CBOR",
         "encoding",
@@ -1851,7 +1851,7 @@
       "title": "RFC 8610 — Concise Data Definition Language (CDDL)",
       "author": "IETF",
       "url": "https://www.rfc-editor.org/rfc/rfc8610.html",
-      "why": "Schema language for AumOS protocol CDDL files under specs/protocols/.",
+      "why": "Schema language for Warrantor protocol CDDL files under specs/protocols/.",
       "tags": [
         "CDDL",
         "schema",
@@ -2067,7 +2067,7 @@
       "title": "RFC 9396 — OAuth 2.0 Rich Authorization Requests (RAR)",
       "author": "IETF",
       "url": "https://www.rfc-editor.org/rfc/rfc9396.html",
-      "why": "Real RAR specification. AumOS T2 authority-spec / P1 AAE compose RAR authorization_details with SPIFFE principals and Cedar multi-agent least privilege (see also cedar-agentic-aws + SPIFFE entries).",
+      "why": "Real RAR specification. Warrantor T2 authority-spec / P1 AAE compose RAR authorization_details with SPIFFE principals and Cedar multi-agent least privilege (see also cedar-agentic-aws + SPIFFE entries).",
       "tags": [
         "AAE",
         "authority",
@@ -2083,7 +2083,7 @@
       "tier": "canonical",
       "date": "2023–2026",
       "cluster": "protocols",
-      "note": "AumOS composition (AAE envelope) is not this RFC alone — multi-source: RAR + SPIFFE + Cedar."
+      "note": "Warrantor composition (AAE envelope) is not this RFC alone — multi-source: RAR + SPIFFE + Cedar."
     },
     {
       "id": "p2-aar-receipts",
@@ -2105,7 +2105,7 @@
       "tier": "canonical",
       "date": "2025–2026",
       "cluster": "protocols",
-      "note": "AumOS AAR packaging is multi-source: OTel GenAI + Certificate Transparency log design + COSE signing."
+      "note": "Warrantor AAR packaging is multi-source: OTel GenAI + Certificate Transparency log design + COSE signing."
     },
     {
       "id": "p4-memory-integrity",
@@ -2126,7 +2126,7 @@
       "tier": "canonical",
       "date": "ongoing",
       "cluster": "protocols",
-      "note": "AumOS AMIL has no single public twin; compose PROV + Merkle transparency designs."
+      "note": "Warrantor AMIL has no single public twin; compose PROV + Merkle transparency designs."
     },
     {
       "id": "p8-veb",
@@ -2148,7 +2148,7 @@
       "tier": "canonical",
       "date": "ongoing",
       "cluster": "protocols",
-      "note": "AumOS VEB is a packaging/signing layer over HELM/Inspect/evals content — not a HELM feature."
+      "note": "Warrantor VEB is a packaging/signing layer over HELM/Inspect/evals content — not a HELM feature."
     },
     {
       "id": "cap-attestation",
@@ -2171,7 +2171,7 @@
       "tier": "canonical",
       "date": "ongoing",
       "cluster": "protocols",
-      "note": "AumOS CAP profile also draws Wasmtime capability models and NVIDIA CC attestation (separate entries)."
+      "note": "Warrantor CAP profile also draws Wasmtime capability models and NVIDIA CC attestation (separate entries)."
     },
     {
       "id": "kill-switch-patterns",
@@ -2193,14 +2193,14 @@
       "tier": "canonical",
       "date": "ongoing",
       "cluster": "runtime",
-      "note": "AumOS kill-switch policy/execution layer is additional; SSF provides the continuous-evaluation event model."
+      "note": "Warrantor kill-switch policy/execution layer is additional; SSF provides the continuous-evaluation event model."
     },
     {
       "id": "conformance-testing",
       "title": "RFC 8610 — Concise Data Definition Language (CDDL)",
       "author": "IETF",
       "url": "https://www.rfc-editor.org/rfc/rfc8610.html",
-      "why": "Real CDDL specification used by AumOS protocol schemas. A6 conformance suites pair CDDL schemas with multi-implementation adversarial vectors.",
+      "why": "Real CDDL specification used by Warrantor protocol schemas. A6 conformance suites pair CDDL schemas with multi-implementation adversarial vectors.",
       "tags": [
         "conformance",
         "CDDL",
@@ -2301,7 +2301,7 @@
       "tier": "canonical",
       "date": "2025–2026",
       "cluster": "crosscut",
-      "note": "AumOS OpenHarnessSpec is OSAF-proposed; not identical to MCP — multi-source with Inspect + NOOA."
+      "note": "Warrantor OpenHarnessSpec is OSAF-proposed; not identical to MCP — multi-source with Inspect + NOOA."
     },
     {
       "id": "p11-remediation",
@@ -2323,7 +2323,7 @@
       "tier": "canonical",
       "date": "ongoing",
       "cluster": "protocols",
-      "note": "AumOS PRB composition also uses in-toto + Sigstore (separate entries)."
+      "note": "Warrantor PRB composition also uses in-toto + Sigstore (separate entries)."
     },
     {
       "id": "p5-skills",
@@ -2345,7 +2345,7 @@
       "tier": "canonical",
       "date": "2025–2026",
       "cluster": "protocols",
-      "note": "AumOS Secure Skill Package signing/packaging is multi-source with Sigstore + JSON-LD."
+      "note": "Warrantor Secure Skill Package signing/packaging is multi-source with Sigstore + JSON-LD."
     },
     {
       "id": "aegis-incident",
@@ -2367,7 +2367,7 @@
       "tier": "canonical",
       "date": "ongoing",
       "cluster": "evidence",
-      "note": "AumOS AIX incident exchange also requires OCSF schema entries."
+      "note": "Warrantor AIX incident exchange also requires OCSF schema entries."
     },
     {
       "id": "nvidia-nooa",

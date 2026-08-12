@@ -1,10 +1,10 @@
 [project]
 name = "warrantor-agent"
 version = "1.0.0"
-description = "AumOS Agent SDK — unified Python SDK that gives coding agents AumOS security primitives as first-class objects"
+description = "Warrantor Agent SDK — unified Python SDK that gives coding agents Warrantor security primitives as first-class objects"
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 classifiers = [
   "Development Status :: 4 - Beta",

@@ -1,4 +1,4 @@
-//! `defstack` — unified AumOS installer/orchestrator CLI.
+//! `defstack` — unified Warrantor installer/orchestrator CLI.
 //!
 //! Subcommands: `install`, `verify`, `upgrade`, `compliance-report`, `privacy`, `list`.
 //! Wave-1: install/verify/compliance-report/list are wired against a real component registry
@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 #[command(
     name = "defstack",
     version,
-    about = "AumOS — open authority and evidence layer for autonomous systems",
+    about = "Warrantor — open authority and evidence layer for autonomous systems",
     long_about = None
 )]
 struct Cli {
@@ -22,7 +22,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// List all known AumOS components (the catalog from the reconciliation matrix).
+    /// List all known Warrantor components (the catalog from the reconciliation matrix).
     List,
     /// Install a component: `defstack install <name>`. Wave-1: prints the install plan.
     Install { name: String },
@@ -41,7 +41,7 @@ enum Commands {
         #[command(subcommand)]
         action: PrivacyAction,
     },
-    /// Initialize a new AumOS-secured project in the current directory.
+    /// Initialize a new Warrantor-secured project in the current directory.
     Init {
         /// Project name (defaults to directory name).
         #[arg(long)]
@@ -62,7 +62,7 @@ enum Commands {
         #[arg(long)]
         lang: Option<String>,
     },
-    /// Deploy AumOS to a cloud provider.
+    /// Deploy Warrantor to a cloud provider.
     Deploy {
         /// Cloud provider (azure, aws, local).
         #[arg(long)]
@@ -332,7 +332,7 @@ fn main() {
                     .and_then(|d| d.file_name().map(|n| n.to_string_lossy().into_owned()))
                     .unwrap_or_else(|| "warrantor-project".into())
             });
-            println!(" Initializing AumOS project: {project_name}");
+            println!(" Initializing Warrantor project: {project_name}");
             // Create .aumos/ directory
             let warrantor_dir = std::path::Path::new(".aumos");
             let _ = std::fs::create_dir_all(warrantor_dir);
@@ -357,11 +357,11 @@ kill_on_secret_exposure = true
             println!(" Created .aumos/config.toml");
             // Create CLAUDE.md if agent is claude_code
             if agent.as_deref() == Some("claude_code") {
-                std::fs::write("CLAUDE.md", "# AumOS Secured Project\n\n## Allowed Tools\ngit, npm, cargo, python\n\n## AumOS Integration\npip install warrantor-agent\n").ok();
+                std::fs::write("CLAUDE.md", "# Warrantor Secured Project\n\n## Allowed Tools\ngit, npm, cargo, python\n\n## Warrantor Integration\npip install warrantor-agent\n").ok();
                 println!(" Created CLAUDE.md");
             }
             // Create .complygate.yml
-            std::fs::write(".complygate.yml", "# AumOS Compliance Gates\ncoverage:\n  minimum: 85\nsbom:\n  required: true\neval:\n  required: false\n").ok();
+            std::fs::write(".complygate.yml", "# Warrantor Compliance Gates\ncoverage:\n  minimum: 85\nsbom:\n  required: true\neval:\n  required: false\n").ok();
             println!(" Created .complygate.yml");
             println!("\n Next steps:");
             println!("   defstack install trust-core agent-identity");
@@ -369,7 +369,7 @@ kill_on_secret_exposure = true
             println!("   defstack test");
         }
         Commands::Dev { only } => {
-            println!(" Starting AumOS development environment...");
+            println!(" Starting Warrantor development environment...");
             match &only {
                 Some(services) => println!("   services: {services}"),
                 None => println!("   services: all"),
@@ -408,7 +408,7 @@ kill_on_secret_exposure = true
             }
         }
         Commands::Test { lang } => {
-            println!(" Running AumOS test suite...");
+            println!(" Running Warrantor test suite...");
             if let Some(l) = &lang {
                 println!("   language: {l}");
                 match l.as_str() {
@@ -490,7 +490,7 @@ kill_on_secret_exposure = true
             println!(" Test suite complete.");
         }
         Commands::Deploy { cloud, config } => {
-            println!(" Deploying AumOS to {cloud}...");
+            println!(" Deploying Warrantor to {cloud}...");
             println!("   config: {config}");
             match cloud.as_str() {
                 "azure" => {

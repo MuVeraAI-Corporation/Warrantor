@@ -1,8 +1,8 @@
 # warrantor-vllm
 
-**Attested vLLM serving plugin** for AumOS. Wraps a
+**Attested vLLM serving plugin** for Warrantor. Wraps a
 [vLLM](https://github.com/vllm-project/vllm) OpenAI-compatible server with
-AumOS attestation checks so that downstream clients can refuse to talk to an
+Warrantor attestation checks so that downstream clients can refuse to talk to an
 un-attested serving instance.
 
 ## Run modes

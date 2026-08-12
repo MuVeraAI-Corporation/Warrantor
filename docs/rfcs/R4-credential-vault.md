@@ -1,6 +1,6 @@
 # R4 — `credential-vault` RFC
 
-> Agent-scoped credential brokering: 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates Vault/AWS Secrets Mgr/K8s Secrets. Revokes <1s on kill. AumOS moves from Go to Rust per trusted-core doctrine.
+> Agent-scoped credential brokering: 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates Vault/AWS Secrets Mgr/K8s Secrets. Revokes <1s on kill. Warrantor moves from Go to Rust per trusted-core doctrine.
 
 | Field | Value |
 |---|---|
@@ -8,7 +8,7 @@
 | **Name** | credential-vault |
 | **Wave** | 1 |
 | **Languages** | Rust |
-| **DefStack origin** | C7.4 CredentialVault |
+| **Warrantor origin** | C7.4 CredentialVault |
 | **AumSecure origin** | (none) |
 | **Sentinel origin** | (none) |
 | **Dependencies** | R3 (mock) |
@@ -17,13 +17,13 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack C7.4 CredentialVault; AumSecure (none); Sentinel (none). The full strategic rationale
+Warrantor C7.4 CredentialVault; AumSecure (none); Sentinel (none). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
 ## Goals and Non-Goals
 
-**Goals:** Agent-scoped credential brokering: 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates Vault/AWS Secrets Mgr/K8s Secrets. Revokes <1s on kill. AumOS moves from Go to Rust per trusted-core doctrine.
+**Goals:** Agent-scoped credential brokering: 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates Vault/AWS Secrets Mgr/K8s Secrets. Revokes <1s on kill. Warrantor moves from Go to Rust per trusted-core doctrine.
 
 **Non-Goals:**
 - Reinventing mature standards (SPIFFE, OCSF, OTel, CycloneDX) — we extend, not fork.
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** R3 (mock)
+- **Warrantor internal:** R3 (mock)
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

@@ -11,9 +11,8 @@
 #![forbid(unsafe_code)]
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use thiserror::Error;
 
 pub const DP_VERSION: &str = "warrantor-data-plane/1.0";
@@ -102,10 +101,10 @@ pub struct LifecycleConfig {
 impl Default for LifecycleConfig {
     fn default() -> Self {
         Self {
-            hot_duration_seconds: 86400 * 7,      // 7 days hot
-            warm_duration_seconds: 86400 * 90,     // 90 days warm
-            cold_duration_seconds: 86400 * 365 * 7,// 7 years cold
-            prune_after_cold: false,               // archive by default
+            hot_duration_seconds: 86400 * 7,        // 7 days hot
+            warm_duration_seconds: 86400 * 90,      // 90 days warm
+            cold_duration_seconds: 86400 * 365 * 7, // 7 years cold
+            prune_after_cold: false,                // archive by default
             max_entries_per_tenant: 1_000_000,
         }
     }
@@ -134,13 +133,21 @@ pub struct DataPlane {
 impl DataPlane {
     #[must_use]
     pub fn new(config: LifecycleConfig) -> Self {
-        Self { entries: HashMap::new(), redactions: vec![], config }
+        Self {
+            entries: HashMap::new(),
+            redactions: vec![],
+            config,
+        }
     }
 
     /// Append a new entry (the log is append-only).
     pub fn append(&mut self, entry: LogEntry) -> Result<(), DpError> {
         // Volume cap.
-        let tenant_count = self.entries.values().filter(|e| e.tenant_id == entry.tenant_id).count();
+        let tenant_count = self
+            .entries
+            .values()
+            .filter(|e| e.tenant_id == entry.tenant_id)
+            .count();
         if tenant_count as u64 >= self.config.max_entries_per_tenant {
             return Err(DpError::DpErr(format!(
                 "tenant {} exceeds max_entries_per_tenant ({})",
@@ -148,7 +155,10 @@ impl DataPlane {
             )));
         }
         if self.entries.contains_key(&entry.entry_id) {
-            return Err(DpError::DpErr(format!("duplicate entry_id: {}", entry.entry_id)));
+            return Err(DpError::DpErr(format!(
+                "duplicate entry_id: {}",
+                entry.entry_id
+            )));
         }
         self.entries.insert(entry.entry_id.clone(), entry);
         Ok(())
@@ -174,10 +184,15 @@ impl DataPlane {
     /// Apply a GDPR erasure: tombstone the entry + record a redaction record.
     /// The log entry stays (append-only); its payload becomes inaccessible via the read path.
     pub fn apply_erasure(&mut self, redaction: RedactionRecord) -> Result<(), DpError> {
-        let entry = self.entries.get_mut(&redaction.entry_id)
+        let entry = self
+            .entries
+            .get_mut(&redaction.entry_id)
             .ok_or_else(|| DpError::DpErr(format!("entry not found: {}", redaction.entry_id)))?;
         if entry.tombstoned {
-            return Err(DpError::DpErr(format!("entry already tombstoned: {}", redaction.entry_id)));
+            return Err(DpError::DpErr(format!(
+                "entry already tombstoned: {}",
+                redaction.entry_id
+            )));
         }
         entry.tombstoned = true;
         self.redactions.push(redaction);
@@ -202,7 +217,11 @@ impl DataPlane {
                 StorageTier::Hot
             } else if age <= config.hot_duration_seconds + config.warm_duration_seconds {
                 StorageTier::Warm
-            } else if age <= config.hot_duration_seconds + config.warm_duration_seconds + config.cold_duration_seconds {
+            } else if age
+                <= config.hot_duration_seconds
+                    + config.warm_duration_seconds
+                    + config.cold_duration_seconds
+            {
                 StorageTier::Cold
             } else if config.prune_after_cold {
                 entry.pruned = true;
@@ -245,7 +264,7 @@ impl DataPlane {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LifecycleReceiptBody {
-    pub action: String,           // "erasure" | "tier_transition" | "prune"
+    pub action: String, // "erasure" | "tier_transition" | "prune"
     pub entry_id: String,
     pub tenant_id: String,
     pub timestamp: u64,
@@ -314,8 +333,7 @@ pub fn verify_receipt(receipt: &LifecycleReceipt) -> Result<(), DpError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_body(&receipt.body);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| DpError::DpErr("Ed25519 signature does not verify".into()))
 }
 
@@ -325,7 +343,7 @@ pub fn verify_receipt(receipt: &LifecycleReceipt) -> Result<(), DpError> {
 
 #[must_use]
 pub fn generate_keypair() -> (SigningKey, VerifyingKey) {
-    let mut csprng = OsRng;
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing = SigningKey::generate(&mut csprng);
     let verifying = signing.verifying_key();
     (signing, verifying)
@@ -340,7 +358,7 @@ mod hex {
         s
     }
     pub fn decode(hex: &str) -> Result<Vec<u8>, String> {
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err("odd-length hex".into());
         }
         (0..hex.len())
@@ -436,17 +454,24 @@ mod tests {
             prune_after_cold: false,
             max_entries_per_tenant: 1000,
         });
-        dp.append(entry("hot", "t", "x", 950)).unwrap();   // age=50 → hot
-        dp.append(entry("warm", "t", "x", 750)).unwrap();   // age=250 → warm
-        dp.append(entry("cold", "t", "x", 400)).unwrap();   // age=600 → cold
-        dp.append(entry("arch", "t", "x", 0)).unwrap();     // age=1000 → archived
+        dp.append(entry("hot", "t", "x", 950)).unwrap(); // age=50 → hot
+        dp.append(entry("warm", "t", "x", 750)).unwrap(); // age=250 → warm
+        dp.append(entry("cold", "t", "x", 400)).unwrap(); // age=600 → cold
+        dp.append(entry("arch", "t", "x", 0)).unwrap(); // age=1000 → archived
 
         let (tiered, pruned) = dp.run_lifecycle(1000);
         assert!(tiered >= 3); // at least 3 moved from hot
         assert_eq!(pruned, 0); // prune_after_cold = false
 
         let counts = dp.tier_counts();
-        assert!(counts.get(&StorageTier::Hot).map_or(0, |c| *c) >= 0);
+        // `>= 0` on a usize count was always true and asserted nothing. The meaningful
+        // claim is that the lifecycle run MOVED entries out of Hot: three were archived
+        // above, so Hot must have shrunk below the number appended.
+        let hot = counts.get(&StorageTier::Hot).copied().unwrap_or(0);
+        assert!(
+            hot < tiered,
+            "lifecycle moved {tiered} entries out of Hot, so Hot should hold fewer than that; found {hot}"
+        );
     }
 
     #[test]
@@ -467,7 +492,10 @@ mod tests {
 
     #[test]
     fn volume_cap_enforced() {
-        let mut dp = DataPlane::new(LifecycleConfig { max_entries_per_tenant: 2, ..Default::default() });
+        let mut dp = DataPlane::new(LifecycleConfig {
+            max_entries_per_tenant: 2,
+            ..Default::default()
+        });
         dp.append(entry("e1", "t", "x", 1000)).unwrap();
         dp.append(entry("e2", "t", "x", 1000)).unwrap();
         assert!(dp.append(entry("e3", "t", "x", 1000)).is_err()); // exceeds cap
@@ -490,8 +518,12 @@ mod tests {
     #[test]
     fn tampered_receipt_fails() {
         let (sk, _) = generate_keypair();
-        let mut body = LifecycleReceiptBody {
-            action: "erasure".into(), entry_id: "e1".into(), tenant_id: "t".into(), timestamp: 1000, dp_version: DP_VERSION.into(),
+        let body = LifecycleReceiptBody {
+            action: "erasure".into(),
+            entry_id: "e1".into(),
+            tenant_id: "t".into(),
+            timestamp: 1000,
+            dp_version: DP_VERSION.into(),
         };
         let mut r = issue_receipt(body.clone(), &sk);
         r.body.entry_id = "evil".into();

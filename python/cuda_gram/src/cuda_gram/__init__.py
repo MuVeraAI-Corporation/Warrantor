@@ -1,4 +1,4 @@
-"""AumOS cuda-gram — high-level GPU attestation SDK (MOCK backend only in Wave-1).
+"""Warrantor cuda-gram — high-level GPU attestation SDK (MOCK backend only in Wave-1).
 
 This package contains no NVML, no ioctl and no device access. It cannot obtain a GPU
 attestation; it mirrors the wire types and returns mock reports. Any "attestation" it
@@ -8,7 +8,7 @@ Wave-1 v1.0 ships a pure-Python implementation that mirrors the proto types in
 ``proto/warrantor/attestation/v1/report.proto``. The PyO3 binding to C1-1's Rust core
 (``warrantor-nvtrust-bridge``) lands in task 02 — it replaces the pure-Python
 ``MockBackend`` with a call into the Rust trusted core via PyO3, NOT ctypes (that's
-the DefStack original we are migrating away from).
+the Warrantor original we are migrating away from).
 
 See ``docs/rfcs/C1-2-cuda-gram.md``.
 """
@@ -109,7 +109,7 @@ class AttestationReport:
 class AttestationVerifier:
     """Verifies attestation reports against a configured backend.
 
-    The high-level entrypoint for any AumOS component that needs to confirm it's
+    The high-level entrypoint for any Warrantor component that needs to confirm it's
     running in an attested confidential-compute environment (per RFC C1-2)."""
 
     def __init__(self, backend: AttestationBackend) -> None:

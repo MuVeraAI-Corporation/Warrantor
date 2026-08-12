@@ -1,4 +1,4 @@
-// Package identity implements I1 agent-identity — the AumOS identity and authority layer.
+// Package identity implements I1 agent-identity — the Warrantor identity and authority layer.
 //
 // This is the Go component that activates the Go activation gate (trigger #3: SPIRE registration
 // lifecycle). Wave-1 components integrated against the proto mock; this real implementation

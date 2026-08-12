@@ -1,14 +1,14 @@
-"""AumOS Kubernetes Admission Controller.
+"""Warrantor Kubernetes Admission Controller.
 
 A validating admission webhook that refuses to admit a Pod into a cluster
-unless it carries a valid **AumOS Attestation Envelope (AAE)** annotation.
+unless it carries a valid **Warrantor Attestation Envelope (AAE)** annotation.
 The AAE is the signed attestation produced when the workload image (and its
 runtime config) was measured; without it a pod cannot be trusted to be the
 thing it claims to be.
 
 The webhook is policy-light by design: it only enforces annotation presence
 and structural validity. The cryptographic verification of the AAE quote is
-delegated to the attestation verifier in the AumOS agent running on the node
+delegated to the attestation verifier in the Warrantor agent running on the node
 — the webhook is the *gate*, not the *verifier*.
 
 The package has no hard third-party dependencies. The HTTP server uses the
@@ -138,7 +138,9 @@ class AdmissionWebhook:
         if missing:
             return ValidationResult(
                 allowed=False,
-                reason=("missing required AumOS attestation annotation(s): " + ", ".join(missing)),
+                reason=(
+                    "missing required Warrantor attestation annotation(s): " + ", ".join(missing)
+                ),
                 annotations_required=sorted(self.required_annotations),
                 pod_name=name,
                 uid=uid,

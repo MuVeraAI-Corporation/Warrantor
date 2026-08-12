@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "X1 Plugin API — Python verify path for signed plugin manifests."
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 dependencies = ["cryptography>=42"]
 [project.optional-dependencies]

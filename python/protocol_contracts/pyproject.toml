@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "warrantor-protocol-contracts"
 version = "1.0.0"
-description = "Generated bindings and reference validator for AumOS P1-P12"
+description = "Generated bindings and reference validator for Warrantor P1-P12"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 dependencies = [

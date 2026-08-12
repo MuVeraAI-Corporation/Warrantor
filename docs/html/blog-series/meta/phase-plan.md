@@ -1,4 +1,4 @@
-# AumOS Technical Blog Series — Multi-Phase Production Plan
+# Warrantor Technical Blog Series — Multi-Phase Production Plan
 
 **Series title:** *The Open Authority & Evidence Stack*  
 **Location:** `aumos/docs/html/blog-series/`  
@@ -34,11 +34,11 @@ Every portfolio cluster and every protocol P1–P12 appears in the master index 
 
 ## Quality bar per article
 
-1. Long-form structure: problem → architecture/protocol mechanics → threat/failure modes → AumOS mapping → implications.
+1. Long-form structure: problem → architecture/protocol mechanics → threat/failure modes → Warrantor mapping → implications.
 2. ≥2 distinct visual blocks (not decorative: architecture SVG, flow diagram, coverage matrix, protocol field map, or comparison table).
 3. ≥3 external primary citations with real URLs (RFCs, first-party eng blogs, standards docs).
-4. Named AumOS component IDs and protocol IDs with concrete claims.
-5. Honest gap notes where surface is AumOS-native composition.
+4. Named Warrantor component IDs and protocol IDs with concrete claims.
+5. Honest gap notes where surface is Warrantor-native composition.
 
 ## Distinctness from existing `papers/`
 

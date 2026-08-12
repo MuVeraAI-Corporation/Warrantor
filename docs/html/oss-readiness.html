@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Open-Source Readiness Strategy — AumOS</title>
-  <meta name="description" content="The comprehensive open-source readiness strategy for AumOS: hybrid GitHub organization, pure Apache 2.0, OSAF protocol submission, governance, CI, security, and the launch checklist.">
+  <title>Open-Source Readiness Strategy — Warrantor</title>
+  <meta name="description" content="The comprehensive open-source readiness strategy for Warrantor: hybrid GitHub organization, pure Apache 2.0, OSAF protocol submission, governance, CI, security, and the launch checklist.">
   <style>
-/* AumOS Documentation — Anthropic-inspired Style System */
+/* Warrantor Documentation — Anthropic-inspired Style System */
 /* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
    serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
 
@@ -241,7 +241,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <div class="doc-header">
   <h1>Open-Source Readiness Strategy</h1>
-  <div class="subtitle">The concrete plan to take AumOS from internal repo to public, Apache 2.0, OSAF-submitted open source — hybrid GitHub organization, governance, CI, security, and the launch checklist.</div>
+  <div class="subtitle">The concrete plan to take Warrantor from internal repo to public, Apache 2.0, OSAF-submitted open source — hybrid GitHub organization, governance, CI, security, and the launch checklist.</div>
   <nav>
     <a href="index.html">&larr; Portal</a>
     <a href="components.html">Components</a>
@@ -273,13 +273,13 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <!-- ===================== 1. EXECUTIVE SUMMARY ===================== -->
 <h2 id="executive-summary"><span class="section-number">1.</span>Executive Summary</h2>
 
-<p>AumOS reconciles four source portfolios (DefStack 36-component, AumSecure 20+ protocols, AumSecure-V3 6-repo, PROJECT SENTINEL 10-framework) into one unified catalog of <strong>49 implementable components</strong> across four languages and <strong>12 spec-only protocols</strong>. The strategic question is no longer <em>whether</em> to open-source it — the OSAF (Open Secure AI Alliance) mandate requires verifiable, multi-vendor agent authority and evidence — but <em>how</em> and <em>when</em>.</p>
+<p>Warrantor reconciles four source portfolios (Warrantor 36-component, AumSecure 20+ protocols, AumSecure-V3 6-repo, PROJECT SENTINEL 10-framework) into one unified catalog of <strong>49 implementable components</strong> across four languages and <strong>12 spec-only protocols</strong>. The strategic question is no longer <em>whether</em> to open-source it — the OSAF (Open Secure AI Alliance) mandate requires verifiable, multi-vendor agent authority and evidence — but <em>how</em> and <em>when</em>.</p>
 
-<p><strong>Why now.</strong> The agent-security space is a land grab. EU AI Act Article 55 obligations land on GPAI providers in 2026-2027; vendors are racing to ship proprietary attestation layers; and the window to set the <em>open</em> standard for agent authority (the AAE), agent evidence (the AAR), and capability attestation (the CAP) is open for roughly 12-18 months before a closed incumbent locks it down. AumOS already has the most complete reference implementation. Open-sourcing it converts that lead into a defensible standard.</p>
+<p><strong>Why now.</strong> The agent-security space is a land grab. EU AI Act Article 55 obligations land on GPAI providers in 2026-2027; vendors are racing to ship proprietary attestation layers; and the window to set the <em>open</em> standard for agent authority (the AAE), agent evidence (the AAR), and capability attestation (the CAP) is open for roughly 12-18 months before a closed incumbent locks it down. Warrantor already has the most complete reference implementation. Open-sourcing it converts that lead into a defensible standard.</p>
 
 <div class="callout">
   <div class="callout-title">The Strategy in One Sentence</div>
-  <p>Publish AumOS as a <strong>hybrid GitHub organization</strong> under a single <strong>pure Apache 2.0</strong> license, governed BDFL &rarr; Steering Committee &rarr; Foundation, with the 12 protocols submitted to OSAF as the standard-bearing wedge and the cryptographic spine fixed before a single repo goes public.</p>
+  <p>Publish Warrantor as a <strong>hybrid GitHub organization</strong> under a single <strong>pure Apache 2.0</strong> license, governed BDFL &rarr; Steering Committee &rarr; Foundation, with the 12 protocols submitted to OSAF as the standard-bearing wedge and the cryptographic spine fixed before a single repo goes public.</p>
 </div>
 
 <p><strong>The strategy has three pillars:</strong></p>
@@ -292,7 +292,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <div class="callout danger">
   <div class="callout-title">Prerequisite — No Public Repo Until C1-C7 Are Fixed</div>
-  <p>The <a href="critical-analysis.html">critical analysis</a> found <strong>7 critical findings</strong> (C1-C7) in the cryptographic spine: non-deterministic canonical CBOR, signature-collision canonicalization in flight-recorder/provena-chain, eval-guard attestation not binding results, GPU attestation nonce replay, agent-identity audience no-op, AAE validator trusting caller-supplied bytes, and the kill-switch government API faking <code>confirmed: true</code>. Shipping these publicly under the AumOS banner would destroy credibility on day one. <strong>Fixing C1-C7 is a hard gate on launch.</strong></p>
+  <p>The <a href="critical-analysis.html">critical analysis</a> found <strong>7 critical findings</strong> (C1-C7) in the cryptographic spine: non-deterministic canonical CBOR, signature-collision canonicalization in flight-recorder/provena-chain, eval-guard attestation not binding results, GPU attestation nonce replay, agent-identity audience no-op, AAE validator trusting caller-supplied bytes, and the kill-switch government API faking <code>confirmed: true</code>. Shipping these publicly under the Warrantor banner would destroy credibility on day one. <strong>Fixing C1-C7 is a hard gate on launch.</strong></p>
 </div>
 
 <div class="stats-grid">
@@ -453,7 +453,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <div class="callout info">
   <div class="callout-title">Trademark</div>
-  <p>"AumOS", "DefStack", and the OSAF protocol names (AAE, AAR, CAP, etc.) are trademarks of the founding company, licensed freely to OSS projects that comply with the usage guidelines. Commercial products and derivative forks must use a distinct name (e.g., "Acme AumOS Fork"). Trademark policy lives at <code>github.com/MuVeraAI-Corporation/.github</code>.</p>
+  <p>"Warrantor", "Warrantor", and the OSAF protocol names (AAE, AAR, CAP, etc.) are trademarks of the founding company, licensed freely to OSS projects that comply with the usage guidelines. Commercial products and derivative forks must use a distinct name (e.g., "Acme Warrantor Fork"). Trademark policy lives at <code>github.com/MuVeraAI-Corporation/.github</code>.</p>
 </div>
 
 <hr>
@@ -466,7 +466,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <table class="meta-table">
   <tr><td>Phase 1 (M0-M12)</td><td><strong>BDFL</strong> — CEO/CTO decides, with maintainer input. Rationale: speed during the OSS land grab. The BDFL is the final reviewer on every protocol RFC.</td></tr>
   <tr><td>Phase 2 (M12-M24)</td><td><strong>Steering Committee</strong> — 5-7 members: founding team + key external contributors + 1 OSAF representative. Consensus where possible, 2/3 majority vote otherwise. Incorporates community input as adoption grows.</td></tr>
-  <tr><td>Phase 3 (M24+)</td><td><strong>Foundation Donation</strong> — Option A: Linux Foundation; Option B: a dedicated AumOS Foundation under OSAF; Option C: PyTorch-style governance. Maximizes neutrality for long-term adoption.</td></tr>
+  <tr><td>Phase 3 (M24+)</td><td><strong>Foundation Donation</strong> — Option A: Linux Foundation; Option B: a dedicated Warrantor Foundation under OSAF; Option C: PyTorch-style governance. Maximizes neutrality for long-term adoption.</td></tr>
 </table>
 
 <h3>Roles &amp; Promotion</h3>
@@ -502,7 +502,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <h3>Code of Conduct</h3>
 
-<p>AumOS adopts the <strong>Contributor Covenant 2.1</strong>, enforced by a rotating 3-person CoC team. Reports go to <code>conduct@MuVeraAI.org</code> (confidential, reviewed within 72 hours). The full text lives at <code>github.com/MuVeraAI-Corporation/.github/CODE_OF_CONDUCT.md</code> and is mirrored into every repo.</p>
+<p>Warrantor adopts the <strong>Contributor Covenant 2.1</strong>, enforced by a rotating 3-person CoC team. Reports go to <code>conduct@MuVeraAI.org</code> (confidential, reviewed within 72 hours). The full text lives at <code>github.com/MuVeraAI-Corporation/.github/CODE_OF_CONDUCT.md</code> and is mirrored into every repo.</p>
 
 <hr>
 
@@ -650,8 +650,8 @@ cargo test      # green — you're ready to contribute</code></pre>
 <h3>CVE Numbering Authority &amp; bug bounty</h3>
 
 <ul>
-  <li><strong>CNA candidate.</strong> AumOS applies to become a CVE Numbering Authority by M9. Until then, CVEs are requested through MITRE (<code>cveform.mitre.org</code>); critical issues get expedited assignment.</li>
-  <li><strong>Bug bounty (Q2 2027).</strong> A HackerOne program launches post-Series A. Until then, reporters are credited in release notes and receive AumOS swag.</li>
+  <li><strong>CNA candidate.</strong> Warrantor applies to become a CVE Numbering Authority by M9. Until then, CVEs are requested through MITRE (<code>cveform.mitre.org</code>); critical issues get expedited assignment.</li>
+  <li><strong>Bug bounty (Q2 2027).</strong> A HackerOne program launches post-Series A. Until then, reporters are credited in release notes and receive Warrantor swag.</li>
   <li><strong>Backporting.</strong> Current major (v1.x): all fixes. Previous major (v0.x): Critical/High only. Older: end of life, upgrade required.</li>
 </ul>
 
@@ -761,7 +761,7 @@ cargo test      # green — you're ready to contribute</code></pre>
 <h4>Block E — Launch day</h4>
 
 <ul class="checklist">
-  <li>Publish the launch blog post (the "why open-source AumOS now" + the hybrid-repo tour)</li>
+  <li>Publish the launch blog post (the "why open-source Warrantor now" + the hybrid-repo tour)</li>
   <li>Submit the 12 protocols to the OSAF working groups (AAE, AAR, CAP first)</li>
   <li>Submit to Awesome lists (awesome-rust, awesome-go, awesome-python, awesome-ai-agents, awesome-security)</li>
   <li>Announce on Hacker News, Reddit (r/rust, r/golang, r/MachineLearning, r/netsec), LinkedIn, X</li>
@@ -826,7 +826,7 @@ cargo test      # green — you're ready to contribute</code></pre>
 
 <div class="callout">
   <div class="callout-title">Bottom line</div>
-  <p>AumOS has the most complete reference implementation of verifiable agent authority and evidence in the ecosystem. The open-source strategy converts that lead into a defensible standard: a hybrid GitHub org under pure Apache 2.0, the 12 protocols submitted to OSAF, governance phasing from BDFL to a foundation, and a launch gated on fixing the 7 critical cryptographic findings. Execute the checklist and the window stays open.</p>
+  <p>Warrantor has the most complete reference implementation of verifiable agent authority and evidence in the ecosystem. The open-source strategy converts that lead into a defensible standard: a hybrid GitHub org under pure Apache 2.0, the 12 protocols submitted to OSAF, governance phasing from BDFL to a foundation, and a launch gated on fixing the 7 critical cryptographic findings. Execute the checklist and the window stays open.</p>
 </div>
 
 </div>

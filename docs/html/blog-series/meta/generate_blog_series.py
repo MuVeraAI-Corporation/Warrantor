@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the AumOS multi-phase technical blog series (index + 8 articles).
+"""Generate the Warrantor multi-phase technical blog series (index + 8 articles).
 
 Drives real on-disk HTML deliverables under docs/html/blog-series/.
 """
@@ -90,7 +90,7 @@ ARTICLES_META = [
         "file": "01-verifiable-agent-authority.html",
         "title": "Verifiable Agent Authority: Envelopes, Budgets, and Workload Identity",
         "eyebrow": "Essay 1 of 8 · Trust / Identity / Policy",
-        "lede": "Why agents need cryptographic delegation that SPIFFE + OAuth RAR + Cedar can compose—and how AumOS AAE (P1), ABS (P7), and CAP (P12) close the gap.",
+        "lede": "Why agents need cryptographic delegation that SPIFFE + OAuth RAR + Cedar can compose—and how Warrantor AAE (P1), ABS (P7), and CAP (P12) close the gap.",
         "ids": ["T1", "T2", "I1", "I2", "R4", "R5", "R6", "P1", "P7", "P12"],
         "cluster_keys": ["trust_identity"],
     },
@@ -174,21 +174,21 @@ def shell(title: str, eyebrow: str, lede: str, ids: list[str], body: str, prev_n
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{html.escape(title)} · AumOS Blog Series</title>
+  <title>{html.escape(title)} · Warrantor Blog Series</title>
   <link rel="stylesheet" href="blog-series.css">
 </head>
 <body>
 <div class="container">
   <div class="series-bar">
     <a href="index.html">← Series index</a>
-    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span class="series-pill">Warrantor · Open Authority &amp; Evidence Stack</span>
     <span>Local technical essay · 2026</span>
   </div>
 
   <header class="article-header">
     <div class="article-eyebrow">{html.escape(eyebrow)}</div>
     <h1>{html.escape(title)}</h1>
-    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-authors">Warrantor Engineering Essays · Open Secure AI Alliance portfolio</p>
     <p class="article-affil">{html.escape(lede)}</p>
     <div class="article-meta">
       <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value">{chips(ids)}</span></div>
@@ -258,7 +258,7 @@ def article_01() -> tuple[str, list[tuple[str, str, str]]]:
     body = r"""
   <div class="abstract">
     <span class="abstract-label">Thesis</span>
-    <p>Agent systems fail open on authority: platforms mint coarse bearer tokens, MCP tools inherit ambient privilege, and multi-agent hops launder intent. AumOS treats authority as a <strong>verifiable substrate</strong>—not a dashboard. This essay walks the composition of SPIFFE identity, OAuth RAR-structured scopes, DPoP-bound credentials, Cedar/OPA decision equivalence, and the AumOS envelopes <span class="id-chip protocol">P1</span> AAE, <span class="id-chip protocol">P7</span> ABS, and <span class="id-chip protocol">P12</span> CAP.</p>
+    <p>Agent systems fail open on authority: platforms mint coarse bearer tokens, MCP tools inherit ambient privilege, and multi-agent hops launder intent. Warrantor treats authority as a <strong>verifiable substrate</strong>—not a dashboard. This essay walks the composition of SPIFFE identity, OAuth RAR-structured scopes, DPoP-bound credentials, Cedar/OPA decision equivalence, and the Warrantor envelopes <span class="id-chip protocol">P1</span> AAE, <span class="id-chip protocol">P7</span> ABS, and <span class="id-chip protocol">P12</span> CAP.</p>
   </div>
 
   <div class="toc"><div class="toc-title">Contents</div>
@@ -267,13 +267,13 @@ def article_01() -> tuple[str, list[tuple[str, str, str]]]:
     <li><a href="#stack">The composition stack (not a fork)</a></li>
     <li><a href="#aae">Agent Authority Envelope mechanics</a></li>
     <li><a href="#threats">Threat &amp; failure modes</a></li>
-    <li><a href="#aumos">AumOS component mapping</a></li>
+    <li><a href="#aumos">Warrantor component mapping</a></li>
     <li><a href="#impl">Implications for implementers</a></li>
   </ol></div>
 
   <h2 id="problem">1. The authority gap in production agents</h2>
   <p>Every relying party that honors an agent request faces the same incomplete evidence package: a platform credential that says “this SaaS may call me,” not “this human delegated this agent, for this audience, for this budget, on this attested host, until this expiry, with this revocation channel.” SPIFFE solved workload identity for services<sup><a href="#refs">[1]</a></sup>; agents add dynamic human delegation, tool graphs, and multi-hop OBO (on-behalf-of) paths that classical mTLS never modeled.</p>
-  <p>OAuth’s answer is partial. Rich Authorization Requests (RAR) give structured <code>authorization_details</code><sup><a href="#refs">[3]</a></sup>; DPoP binds tokens to keys<sup><a href="#refs">[4]</a></sup>; Token Exchange scopes downstream hops<sup><a href="#refs">[5]</a></sup>. AWS’s three-layer Cedar model for multi-agent chains shows how policy can check capability, delegation path, and originating user together<sup><a href="#refs">[6]</a></sup>. None of these alone is an agent authority envelope. AumOS’s claim is that they must be composed into a single verifiable artifact with a fail-closed verification contract.</p>
+  <p>OAuth’s answer is partial. Rich Authorization Requests (RAR) give structured <code>authorization_details</code><sup><a href="#refs">[3]</a></sup>; DPoP binds tokens to keys<sup><a href="#refs">[4]</a></sup>; Token Exchange scopes downstream hops<sup><a href="#refs">[5]</a></sup>. AWS’s three-layer Cedar model for multi-agent chains shows how policy can check capability, delegation path, and originating user together<sup><a href="#refs">[6]</a></sup>. None of these alone is an agent authority envelope. Warrantor’s claim is that they must be composed into a single verifiable artifact with a fail-closed verification contract.</p>
 
   <div class="visual" data-visual="architecture-svg">
     <div class="visual-caption">Figure 1 — Authority composition plane</div>
@@ -310,7 +310,7 @@ def article_01() -> tuple[str, list[tuple[str, str, str]]]:
   </div>
 
   <h2 id="stack">2. The composition stack (not a fork)</h2>
-  <p>AumOS doctrine is explicit: do not reinvent SPIFFE, OAuth, or Cedar. Profile them. <span class="id-chip">I1</span> agent-identity and <span class="id-chip">I2</span> identity-bindings attach SPIRE attestation plugins so agent pods get short-lived SVIDs. <span class="id-chip">T1</span> trust-core verifies signatures with a single Rust authoritative implementation—no dual security invariants. <span class="id-chip">T2</span> authority-spec holds the normative AAE schema (CDDL/JSON) that every language package must pass before release.</p>
+  <p>Warrantor doctrine is explicit: do not reinvent SPIFFE, OAuth, or Cedar. Profile them. <span class="id-chip">I1</span> agent-identity and <span class="id-chip">I2</span> identity-bindings attach SPIRE attestation plugins so agent pods get short-lived SVIDs. <span class="id-chip">T1</span> trust-core verifies signatures with a single Rust authoritative implementation—no dual security invariants. <span class="id-chip">T2</span> authority-spec holds the normative AAE schema (CDDL/JSON) that every language package must pass before release.</p>
   <p>Policy compilation (<span class="id-chip">R5</span>) turns regulatory/NL intent into OpenShell + OPA/Cedar rules; <span class="id-chip">R6</span> policy-bridge runs decision-equivalence tests so engines cannot disagree silently. Credential brokering (<span class="id-chip">R4</span>) issues agent-scoped secrets under DPoP-style sender constraint—stolen tokens without the proof-of-possession key are inert.</p>
 
   <div class="visual" data-visual="protocol-field-map">
@@ -329,8 +329,8 @@ def article_01() -> tuple[str, list[tuple[str, str, str]]]:
   </div>
 
   <div class="callout warning">
-    <div class="callout-title">AumOS-native composition (not an IETF standard)</div>
-    <p><span class="id-chip protocol">P1</span> AAE, <span class="id-chip protocol">P7</span> ABS, and <span class="id-chip protocol">P12</span> CAP are <strong>AumOS protocol profiles</strong>. There is no single public “Agent Authority Envelope RFC.” The normative external pieces are SPIFFE, RAR, DPoP, Token Exchange, Cedar/OPA, and SSF/CAEP. AumOS composes them into one verification contract and ships CDDL under <code>specs/protocols/</code>.</p>
+    <div class="callout-title">Warrantor-native composition (not an IETF standard)</div>
+    <p><span class="id-chip protocol">P1</span> AAE, <span class="id-chip protocol">P7</span> ABS, and <span class="id-chip protocol">P12</span> CAP are <strong>Warrantor protocol profiles</strong>. There is no single public “Agent Authority Envelope RFC.” The normative external pieces are SPIFFE, RAR, DPoP, Token Exchange, Cedar/OPA, and SSF/CAEP. Warrantor composes them into one verification contract and ships CDDL under <code>specs/protocols/</code>.</p>
   </div>
 
   <h2 id="aae">3. Agent Authority Envelope mechanics</h2>
@@ -360,11 +360,11 @@ def article_01() -> tuple[str, list[tuple[str, str, str]]]:
     </table>
   </div>
 
-  <h2 id="aumos">5. AumOS component mapping</h2>
+  <h2 id="aumos">5. Warrantor component mapping</h2>
   <p>Wave-1 ships <span class="id-chip">T1</span> and mocked identity; Wave-2 activates real <span class="id-chip">I1</span> SPIRE integration. Protocol specs for P1/P7/P12 live under <code>specs/protocols/</code> with CDDL and conformance vectors. Cross-language packages do not release a protocol version until the conformance suite is green—invariant I-style discipline from the stack pressure test.</p>
 
   <h2 id="impl">6. Implications for implementers</h2>
-  <p>If you only adopt MCP without authority-aware admission, you standardized tool plugs into an ungoverned wall socket. Start with SPIFFE for the agent runtime, RAR-shaped scopes for tools, DPoP for vault egress, and a signed envelope your gateway verifies before any tool dispatch. AumOS is the reference composition—not a competing identity product.</p>
+  <p>If you only adopt MCP without authority-aware admission, you standardized tool plugs into an ungoverned wall socket. Start with SPIFFE for the agent runtime, RAR-shaped scopes for tools, DPoP for vault egress, and a signed envelope your gateway verifies before any tool dispatch. Warrantor is the reference composition—not a competing identity product.</p>
 """
     return body, refs
 
@@ -383,7 +383,7 @@ def article_02() -> tuple[str, list[tuple[str, str, str]]]:
     body = r"""
   <div class="abstract">
     <span class="abstract-label">Thesis</span>
-    <p>Authority without containment is paper security. After 2026 evaluation escapes and real-world unauthorized access during “simulated” cyber tests<sup><a href="#refs">[8]</a></sup>, the industry must treat sandboxes, kill switches, and egress filters as <em>load-bearing</em>. AumOS maps OpenShell-class runtimes to <span class="id-chip">R1</span>/<span class="id-chip">R8</span>, kill-switch to <span class="id-chip">R3</span>, eBPF enforcement to <span class="id-chip">R7</span>/<span class="id-chip">S6</span>, and NOOA extensions to <span class="id-chip">X2</span>.</p>
+    <p>Authority without containment is paper security. After 2026 evaluation escapes and real-world unauthorized access during “simulated” cyber tests<sup><a href="#refs">[8]</a></sup>, the industry must treat sandboxes, kill switches, and egress filters as <em>load-bearing</em>. Warrantor maps OpenShell-class runtimes to <span class="id-chip">R1</span>/<span class="id-chip">R8</span>, kill-switch to <span class="id-chip">R3</span>, eBPF enforcement to <span class="id-chip">R7</span>/<span class="id-chip">S6</span>, and NOOA extensions to <span class="id-chip">X2</span>.</p>
   </div>
   <div class="toc"><div class="toc-title">Contents</div>
   <ol>
@@ -391,7 +391,7 @@ def article_02() -> tuple[str, list[tuple[str, str, str]]]:
     <li><a href="#openshell">OpenShell architecture for agents</a></li>
     <li><a href="#kill">Kill switches and continuous evaluation</a></li>
     <li><a href="#ebpf">eBPF egress and exfil guards</a></li>
-    <li><a href="#map">AumOS runtime map</a></li>
+    <li><a href="#map">Warrantor runtime map</a></li>
   </ol></div>
 
   <h2 id="why">1. Why containment is the new perimeter</h2>
@@ -413,20 +413,20 @@ def article_02() -> tuple[str, list[tuple[str, str, str]]]:
 
   <h2 id="openshell">2. OpenShell architecture for agents</h2>
   <p>NVIDIA OpenShell is a secure agent runtime: out-of-process policy, sandboxes, filesystem/network/process controls, privacy routing, and audit trails—so a self-evolving agent cannot rewrite its own guardrails<sup><a href="#refs">[1]</a></sup>. The Open Secure AI Alliance (OSAF) launch introduces NOOA (NVIDIA Labs Object-Oriented Agents) as a <em>harness research</em> contribution for typed, testable agent structure—not as a containment product<sup><a href="#refs">[2]</a></sup>. Keep the distinction explicit: <strong>NOOA makes agents inspectable; OpenShell makes them containable.</strong></p>
-  <p>AumOS does not reimplement OpenShell. <span class="id-chip">R1</span> secure-workspace and <span class="id-chip">R8</span> sandbox-runtime <em>profile</em> OpenShell-class runtimes. Wasmtime<sup><a href="#refs">[7]</a></sup> is a separate portable capability plane for WASM-hosted tools—not a drop-in OpenShell equivalent. <span class="id-chip">R2</span> eval-guard attests that the configured boundary (seccomp/cgroup/OpenShell policy hash) matches CAP before high-risk tools run.</p>
+  <p>Warrantor does not reimplement OpenShell. <span class="id-chip">R1</span> secure-workspace and <span class="id-chip">R8</span> sandbox-runtime <em>profile</em> OpenShell-class runtimes. Wasmtime<sup><a href="#refs">[7]</a></sup> is a separate portable capability plane for WASM-hosted tools—not a drop-in OpenShell equivalent. <span class="id-chip">R2</span> eval-guard attests that the configured boundary (seccomp/cgroup/OpenShell policy hash) matches CAP before high-risk tools run.</p>
   <div class="callout warning">
     <div class="callout-title">CAEP gap note</div>
-    <p>OpenID CAEP final specs speak of humans <em>or robotic users</em>, not “AI agents” by name. Mapping agent sessions to robotic subjects + SSF streams is an AumOS composition, not a CAEP feature flag.</p>
+    <p>OpenID CAEP final specs speak of humans <em>or robotic users</em>, not “AI agents” by name. Mapping agent sessions to robotic subjects + SSF streams is an Warrantor composition, not a CAEP feature flag.</p>
   </div>
 
   <h2 id="kill">3. Kill switches and continuous evaluation</h2>
-  <p><span class="id-chip">R3</span> kill-switch is AumOS’s <strong>roadmap/reference design</strong> for emergency stop (Rust core + policy hooks)—not a claim that a universal statutory kill API already ships everywhere. OpenID Shared Signals / CAEP provide continuous access evaluation events<sup><a href="#refs">[3]</a></sup>: session-revoked, risk-level-change, credential-change. Autonomy budgets (<span class="id-chip protocol">P7</span>) feed the same path: budget exhaustion is a soft kill; security signal is a hard kill; eBPF deny is a network kill.</p>
+  <p><span class="id-chip">R3</span> kill-switch is Warrantor’s <strong>roadmap/reference design</strong> for emergency stop (Rust core + policy hooks)—not a claim that a universal statutory kill API already ships everywhere. OpenID Shared Signals / CAEP provide continuous access evaluation events<sup><a href="#refs">[3]</a></sup>: session-revoked, risk-level-change, credential-change. Autonomy budgets (<span class="id-chip protocol">P7</span>) feed the same path: budget exhaustion is a soft kill; security signal is a hard kill; eBPF deny is a network kill.</p>
   <p><strong>Sequencing that matters:</strong> (1) freeze new tool admits, (2) revoke AAE via rev_uri / SSF, (3) drain in-flight with timeout, (4) tear sandbox, (5) emit AAR stop receipts. Skipping (5) turns kills into un-auditable folklore—exactly the opposite of an evidence substrate.</p>
 
   <div class="visual" data-visual="kill-flow">
     <div class="visual-caption">Table 1 — Stop classes</div>
     <table>
-      <thead><tr><th>Class</th><th>Trigger</th><th>Plane</th><th>AumOS</th></tr></thead>
+      <thead><tr><th>Class</th><th>Trigger</th><th>Plane</th><th>Warrantor</th></tr></thead>
       <tbody>
         <tr><td>Soft stop</td><td>ABS budget exhausted</td><td>Policy</td><td>P7 + R3 policy</td></tr>
         <tr><td>Hard stop</td><td>CAEP risk / admin panic</td><td>Control</td><td>R3 + SSF</td></tr>
@@ -437,9 +437,9 @@ def article_02() -> tuple[str, list[tuple[str, str, str]]]:
   </div>
 
   <h2 id="ebpf">4. eBPF egress and exfil guards</h2>
-  <p>eBPF makes policy enforceable where agents cheat—raw sockets, unexpected DNS, data to unapproved destinations<sup><a href="#refs">[4]</a></sup>. Tetragon and Falco exemplify production patterns<sup><a href="#refs">[5,6]</a></sup>. AumOS splits <span class="id-chip">R7</span> (policy/decision for egress) from <span class="id-chip">S6</span> ExfilGuard (eBPF enforcement) per reconciliation matrix—same story, two layers, no dual authoritative crypto.</p>
+  <p>eBPF makes policy enforceable where agents cheat—raw sockets, unexpected DNS, data to unapproved destinations<sup><a href="#refs">[4]</a></sup>. Tetragon and Falco exemplify production patterns<sup><a href="#refs">[5,6]</a></sup>. Warrantor splits <span class="id-chip">R7</span> (policy/decision for egress) from <span class="id-chip">S6</span> ExfilGuard (eBPF enforcement) per reconciliation matrix—same story, two layers, no dual authoritative crypto.</p>
 
-  <h2 id="map">5. AumOS runtime map</h2>
+  <h2 id="map">5. Warrantor runtime map</h2>
   <p><span class="id-chip">X2</span> nooa-ext is planned production <em>adapters</em> (policy enforcer, audit streamer, identity binder, attestation hook) for NOOA-class harnesses—still not a substitute for OpenShell. Evidence of stops and boundary checks must flow to the flight recorder (Essay 5). Without that coupling, kill switches become un-auditable theater.</p>
   <p><strong>Implications:</strong> If your agent can open sockets your eBPF policy never sees, or your eval harness grants real internet “because the prompt said simulation,” you are replaying 2026 incident patterns. Containment is a product requirement, not a red-team footnote.</p>
   <div class="callout">
@@ -461,7 +461,7 @@ def article_03() -> tuple[str, list[tuple[str, str, str]]]:
     body = r"""
   <div class="abstract">
     <span class="abstract-label">Thesis</span>
-    <p>Confidential GPUs are useless as a marketing checkbox. What matters is a verifiable chain: device identity → attestation report → remote/local verification → policy-bound key release → serving path. AumOS <span class="id-chip">C1-1</span>…<span class="id-chip">C1-5</span> implement that chain; <span class="id-chip protocol">P12</span> CAP binds it to authority envelopes.</p>
+    <p>Confidential GPUs are useless as a marketing checkbox. What matters is a verifiable chain: device identity → attestation report → remote/local verification → policy-bound key release → serving path. Warrantor <span class="id-chip">C1-1</span>…<span class="id-chip">C1-5</span> implement that chain; <span class="id-chip protocol">P12</span> CAP binds it to authority envelopes.</p>
   </div>
   <div class="toc"><div class="toc-title">Contents</div>
   <ol>
@@ -550,7 +550,7 @@ def article_04() -> tuple[str, list[tuple[str, str, str]]]:
     body = r"""
   <div class="abstract">
     <span class="abstract-label">Thesis</span>
-    <p>Pickle taught us that model files can be code. Safetensors fixed load-time execution<sup><a href="#refs">[1,2]</a></sup>; conversion-service attacks showed provenance still matters<sup><a href="#refs">[3]</a></sup>. AumOS supply chain is Safetensors++ + Merkle provenance + ML-BOM + Sigstore + Lightwell-class remediation—protocols <span class="id-chip protocol">P5</span>, <span class="id-chip protocol">P6</span>, <span class="id-chip protocol">P11</span>.</p>
+    <p>Pickle taught us that model files can be code. Safetensors fixed load-time execution<sup><a href="#refs">[1,2]</a></sup>; conversion-service attacks showed provenance still matters<sup><a href="#refs">[3]</a></sup>. Warrantor supply chain is Safetensors++ + Merkle provenance + ML-BOM + Sigstore + Lightwell-class remediation—protocols <span class="id-chip protocol">P5</span>, <span class="id-chip protocol">P6</span>, <span class="id-chip protocol">P11</span>.</p>
   </div>
   <div class="toc"><div class="toc-title">Contents</div>
   <ol>
@@ -558,13 +558,13 @@ def article_04() -> tuple[str, list[tuple[str, str, str]]]:
     <li><a href="#bom">AI/ML BOM</a></li>
     <li><a href="#ledger">Provenance ledgers</a></li>
     <li><a href="#remed">Remediation bundles</a></li>
-    <li><a href="#map">AumOS map</a></li>
+    <li><a href="#map">Warrantor map</a></li>
   </ol></div>
 
   <h2 id="formats">1. Safe formats</h2>
   <div class="callout warning">
-    <div class="callout-title">AumOS-native extensions (not upstream standards)</div>
-    <p><span class="id-chip">S1</span> <strong>SafeTensors++</strong> (proposed <code>__provenance__</code> metadata) and <span class="id-chip">S3</span> <strong>GGUF-Ext</strong> (<code>osaf.safety</code> block) are AumOS portfolio proposals layered on real formats (Hugging Face Safetensors; ggml GGUF). They are not upstream HF or GGUF registry standards today.</p>
+    <div class="callout-title">Warrantor-native extensions (not upstream standards)</div>
+    <p><span class="id-chip">S1</span> <strong>SafeTensors++</strong> (proposed <code>__provenance__</code> metadata) and <span class="id-chip">S3</span> <strong>GGUF-Ext</strong> (<code>osaf.safety</code> block) are Warrantor portfolio proposals layered on real formats (Hugging Face Safetensors; ggml GGUF). They are not upstream HF or GGUF registry standards today.</p>
   </div>
   <p>Upstream Safetensors stores tensors + JSON header without pickle opcodes<sup><a href="#refs">[1,2]</a></sup>. Conversion-service attacks showed you can still poison distribution even when the format is safe<sup><a href="#refs">[3]</a></sup>. Format safety ≠ supply-chain safety—you still need signatures, lineage, and admission policy.</p>
 
@@ -601,7 +601,7 @@ def article_04() -> tuple[str, list[tuple[str, str, str]]]:
   <div class="visual" data-visual="bom-compare">
     <div class="visual-caption">Table 1 — BOM / ledger responsibilities</div>
     <table>
-      <thead><tr><th>Surface</th><th>Standard</th><th>AumOS</th></tr></thead>
+      <thead><tr><th>Surface</th><th>Standard</th><th>Warrantor</th></tr></thead>
       <tbody>
         <tr><td>ML-BOM inventory</td><td>CycloneDX / SPDX AI</td><td>S4, P6</td></tr>
         <tr><td>Transparency log</td><td>Rekor / CT design</td><td>S2, T1</td></tr>
@@ -629,10 +629,10 @@ def article_04() -> tuple[str, list[tuple[str, str, str]]]:
 
   <h2 id="remed">5. Remediation bundles vs Lightwell</h2>
   <p>IBM/Red Hat Lightwell commercializes a <strong>trusted clearinghouse for remediated open-source application dependencies</strong>—digitally signed packages, SBOMs, and coordination—not a public claim that Lightwell remediates foundation-model weights at scale<sup><a href="#refs">[8]</a></sup>. That distinction is load-bearing.</p>
-  <p><span class="id-chip">S9</span> lightwell-bridge and <span class="id-chip protocol">P11</span> PRB are <strong>AumOS-proposed extensions</strong>: apply the same signed-remediation + transparency pattern to AI artifacts (adapters, skill packs, eval corpora). PRB is “VEX-inspired” status + signatures—not a claim that CSAF/VEX already defines AI weight remediation. Do not cite Lightwell as if it already ships P11.</p>
+  <p><span class="id-chip">S9</span> lightwell-bridge and <span class="id-chip protocol">P11</span> PRB are <strong>Warrantor-proposed extensions</strong>: apply the same signed-remediation + transparency pattern to AI artifacts (adapters, skill packs, eval corpora). PRB is “VEX-inspired” status + signatures—not a claim that CSAF/VEX already defines AI weight remediation. Do not cite Lightwell as if it already ships P11.</p>
 
-  <h2 id="map">6. AumOS map</h2>
-  <p><span class="id-chip">T1</span> verifies artifact signatures. Skills enter the gateway only as signed <span class="id-chip protocol">P5</span> SSP packages (AumOS profile). Without this plane, eval scores and authority envelopes sit on untrusted weights. <strong>Implication:</strong> freeze a weight digest in AAE/VEB or you are authorizing ghosts.</p>
+  <h2 id="map">6. Warrantor map</h2>
+  <p><span class="id-chip">T1</span> verifies artifact signatures. Skills enter the gateway only as signed <span class="id-chip protocol">P5</span> SSP packages (Warrantor profile). Without this plane, eval scores and authority envelopes sit on untrusted weights. <strong>Implication:</strong> freeze a weight digest in AAE/VEB or you are authorizing ghosts.</p>
 """
     return body, refs
 
@@ -651,7 +651,7 @@ def article_05() -> tuple[str, list[tuple[str, str, str]]]:
     body = r"""
   <div class="abstract">
     <span class="abstract-label">Thesis</span>
-    <p>Logs are not evidence. Evidence is signed, audience-aware, retention-scoped, and mappable to incident taxonomies. AumOS evidence plane centers on <span class="id-chip">E1</span> flight-recorder emitting <span class="id-chip protocol">P2</span> AAR, with context/memory integrity (<span class="id-chip protocol">P3</span>/<span class="id-chip protocol">P4</span>) and incident exchange (<span class="id-chip protocol">P9</span> / <span class="id-chip">X9</span>).</p>
+    <p>Logs are not evidence. Evidence is signed, audience-aware, retention-scoped, and mappable to incident taxonomies. Warrantor evidence plane centers on <span class="id-chip">E1</span> flight-recorder emitting <span class="id-chip protocol">P2</span> AAR, with context/memory integrity (<span class="id-chip protocol">P3</span>/<span class="id-chip protocol">P4</span>) and incident exchange (<span class="id-chip protocol">P9</span> / <span class="id-chip">X9</span>).</p>
   </div>
   <div class="toc"><div class="toc-title">Contents</div>
   <ol>
@@ -663,7 +663,7 @@ def article_05() -> tuple[str, list[tuple[str, str, str]]]:
   </ol></div>
 
   <h2 id="gap">1. From telemetry to evidence</h2>
-  <p>OpenTelemetry’s GenAI observability work standardizes spans for agents<sup><a href="#refs">[1]</a></sup>. OWASP AOS pushes agent-specific trace semantics and OCSF extensions<sup><a href="#refs">[2,3]</a></sup>. That is necessary transport. AumOS adds cryptographic receipts: COSE-signed action records<sup><a href="#refs">[7]</a></sup> with transparency-log DNA<sup><a href="#refs">[8]</a></sup>.</p>
+  <p>OpenTelemetry’s GenAI observability work standardizes spans for agents<sup><a href="#refs">[1]</a></sup>. OWASP AOS pushes agent-specific trace semantics and OCSF extensions<sup><a href="#refs">[2,3]</a></sup>. That is necessary transport. Warrantor adds cryptographic receipts: COSE-signed action records<sup><a href="#refs">[7]</a></sup> with transparency-log DNA<sup><a href="#refs">[8]</a></sup>.</p>
 
   <div class="visual" data-visual="evidence-flow">
     <div class="visual-caption">Figure 1 — Action → receipt → incident</div>
@@ -704,8 +704,8 @@ def article_05() -> tuple[str, list[tuple[str, str, str]]]:
 
   <h2 id="prov">3. Context &amp; memory integrity</h2>
   <div class="callout warning">
-    <div class="callout-title">AumOS-native (P3 / P4)</div>
-    <p><span class="id-chip protocol">P3</span> CPE and <span class="id-chip protocol">P4</span> AMIL are AumOS compositions. Foundations: W3C PROV<sup><a href="#refs">[6]</a></sup> and Merkle transparency designs<sup><a href="#refs">[8]</a></sup>—not identical public standards under those names.</p>
+    <div class="callout-title">Warrantor-native (P3 / P4)</div>
+    <p><span class="id-chip protocol">P3</span> CPE and <span class="id-chip protocol">P4</span> AMIL are Warrantor compositions. Foundations: W3C PROV<sup><a href="#refs">[6]</a></sup> and Merkle transparency designs<sup><a href="#refs">[8]</a></sup>—not identical public standards under those names.</p>
   </div>
   <p><strong>CPE sketch:</strong> each retrieved chunk carries <code>source_uri</code>, content hash, ranker id, and policy tags (PII class). The agent’s context window is then a PROV-style derivation graph: query → retrieval set → prompt assembly → model call. Without CPE, RAG poisoning is untraceable.</p>
   <p><strong>AMIL sketch:</strong> memory write ops append <code>(prev_root, op_hash, ts, sig)</code>. Fork/merge of agent memory requires explicit root compare—silent overwrite is a deny. “Agent forgot” becomes a ledger question, not a vibe.</p>
@@ -747,7 +747,7 @@ def article_06() -> tuple[str, list[tuple[str, str, str]]]:
     body = r"""
   <div class="abstract">
     <span class="abstract-label">Thesis</span>
-    <p>Evaluation without packaging is a slide. AumOS treats eval as evidence: orchestrate garak/PyRIT/HELM/Inspect<sup><a href="#refs">[1–7]</a></sup>, seal results in <span class="id-chip protocol">P8</span> VEB, gate CI with <span class="id-chip">A4</span>/<span class="id-chip">A6</span>, and feed independent evaluators via <span class="id-chip">X6</span>.</p>
+    <p>Evaluation without packaging is a slide. Warrantor treats eval as evidence: orchestrate garak/PyRIT/HELM/Inspect<sup><a href="#refs">[1–7]</a></sup>, seal results in <span class="id-chip protocol">P8</span> VEB, gate CI with <span class="id-chip">A4</span>/<span class="id-chip">A6</span>, and feed independent evaluators via <span class="id-chip">X6</span>.</p>
   </div>
   <div class="toc"><div class="toc-title">Contents</div>
   <ol>
@@ -791,7 +791,7 @@ def article_06() -> tuple[str, list[tuple[str, str, str]]]:
   <p><span class="id-chip protocol">P8</span> VEB packages dataset pin, harness version, model digest, scores, judge prompts, and signatures. If the bundle cannot be reproduced, the number is not evidence. Anthropic’s 141k-run retrospective<sup><a href="#refs">[10]</a></sup> shows why <span class="id-chip">X5</span> RetroSpecKit must treat transcripts as first-class forensic objects.</p>
 
   <h2 id="conf">3. Conformance as a product</h2>
-  <p><span class="id-chip">A6</span> is cross-language conformance for AumOS protocols—not model safety alone. No language package ships a protocol version until vectors pass. That is how AAE/AAR avoid “JSON that kinda looks right.”</p>
+  <p><span class="id-chip">A6</span> is cross-language conformance for Warrantor protocols—not model safety alone. No language package ships a protocol version until vectors pass. That is how AAE/AAR avoid “JSON that kinda looks right.”</p>
 
   <div class="visual" data-visual="eval-components">
     <div class="visual-caption">Table 1 — Eval components</div>
@@ -834,7 +834,7 @@ def article_07() -> tuple[str, list[tuple[str, str, str]]]:
     body = r"""
   <div class="abstract">
     <span class="abstract-label">Thesis</span>
-    <p>MCP standardizes tools; A2A standardizes agent-to-agent messaging. Confusing them produces insecure gateways. AumOS <span class="id-chip">X8</span> is authority-aware MCP admission; <span class="id-chip protocol">P10</span> MADE profiles multi-agent delegation; <span class="id-chip">N1</span>–<span class="id-chip">N3</span> are the inference edge.</p>
+    <p>MCP standardizes tools; A2A standardizes agent-to-agent messaging. Confusing them produces insecure gateways. Warrantor <span class="id-chip">X8</span> is authority-aware MCP admission; <span class="id-chip protocol">P10</span> MADE profiles multi-agent delegation; <span class="id-chip">N1</span>–<span class="id-chip">N3</span> are the inference edge.</p>
   </div>
   <div class="toc"><div class="toc-title">Contents</div>
   <ol>
@@ -846,7 +846,7 @@ def article_07() -> tuple[str, list[tuple[str, str, str]]]:
   </ol></div>
 
   <h2 id="split">1. MCP vs A2A split</h2>
-  <p>MCP is USB-C for tools/resources/prompts<sup><a href="#refs">[1,2]</a></sup>. A2A is agent interoperability over HTTP/JSON with a formal spec and LF momentum<sup><a href="#refs">[3,4]</a></sup>. Official topic pages explain coexistence<sup><a href="#refs">[5]</a></sup>; Auth0 covers security framing<sup><a href="#refs">[6]</a></sup>. AumOS keeps both: tools go through X8; agent peers use MADE + AAE.</p>
+  <p>MCP is USB-C for tools/resources/prompts<sup><a href="#refs">[1,2]</a></sup>. A2A is agent interoperability over HTTP/JSON with a formal spec and LF momentum<sup><a href="#refs">[3,4]</a></sup>. Official topic pages explain coexistence<sup><a href="#refs">[5]</a></sup>; Auth0 covers security framing<sup><a href="#refs">[6]</a></sup>. Warrantor keeps both: tools go through X8; agent peers use MADE + AAE.</p>
 
   <div class="visual" data-visual="mcp-a2a">
     <div class="visual-caption">Figure 1 — Two planes, one authority core</div>
@@ -876,12 +876,12 @@ def article_07() -> tuple[str, list[tuple[str, str, str]]]:
     <li>Debit ABS budget for tool class; deny on exhaust.</li>
     <li>Dispatch tool; emit AAR (Essay 5) for allow <em>and</em> deny.</li>
   </ol>
-  <p>Unsigned community MCP servers are untrusted code—because they are. <span class="id-chip protocol">P5</span> is AumOS packaging, not a claim that MCP itself ships skill signatures.</p>
+  <p>Unsigned community MCP servers are untrusted code—because they are. <span class="id-chip protocol">P5</span> is Warrantor packaging, not a claim that MCP itself ships skill signatures.</p>
 
   <h2 id="made">3. MADE delegation exchange</h2>
   <div class="callout warning">
-    <div class="callout-title">AumOS-native (P10 MADE)</div>
-    <p>Multi-Agent Delegation Exchange is an AumOS profile for constrained inter-agent authority. It sits <em>on</em> A2A messaging and OAuth token exchange—it is not the A2A specification itself.</p>
+    <div class="callout-title">Warrantor-native (P10 MADE)</div>
+    <p>Multi-Agent Delegation Exchange is an Warrantor profile for constrained inter-agent authority. It sits <em>on</em> A2A messaging and OAuth token exchange—it is not the A2A specification itself.</p>
   </div>
   <p><strong>Sequence sketch:</strong> Agent A holds AAE<sub>A</sub>. A creates MADE with <code>parent_jti</code>, task hash, residual RAR details (strict subset), TTL, and signature. Agent B accepts only if residual ⊆ A’s grants and OBO token exchange succeeds. B’s tools at X8 use AAE<sub>B</sub> derived from MADE—not A’s full envelope. Confused-deputy fix: B cannot widen scope by asking A2A peers for “help with everything.”</p>
 
@@ -902,7 +902,7 @@ def article_07() -> tuple[str, list[tuple[str, str, str]]]:
   </div>
 
   <h2 id="threats">5. Implications</h2>
-  <p>Ship MCP for productivity, A2A for federation, and AumOS authority for both—or accept that interoperability multiplies blast radius. Prompt injection that fires tools is not a model-only bug; it is an admission-control bug at X8. Multi-agent OBO without residual scope is privilege laundering with better branding.</p>
+  <p>Ship MCP for productivity, A2A for federation, and Warrantor authority for both—or accept that interoperability multiplies blast radius. Prompt injection that fires tools is not a model-only bug; it is an admission-control bug at X8. Multi-agent OBO without residual scope is privilege laundering with better branding.</p>
   <div class="callout">
     <div class="callout-title">US / India note</div>
     <p>Tool logs and delegated actions often process personal or customer data. DPDP and US third-party / safety-and-soundness expectations both require knowing <em>which</em> agent acted under <em>which</em> residual authority—MADE + AAR, not chat screenshots.</p>
@@ -970,7 +970,7 @@ def article_08() -> tuple[str, list[tuple[str, str, str]]]:
   <p><span class="id-chip">X10</span> sovereign-stack packages air-gapped single-node deployment (Helm/Ansible patterns<sup><a href="#refs">[5]</a></sup>). Offline verification modes for nvtrust and Sigstore mirrors are mandatory—sovereign does not mean “skip crypto.”</p>
 
   <h2 id="x">4. Cross-cutting product surfaces</h2>
-  <p><span class="id-chip">X1</span> defstack-cli is the operator CLI for install/verify/compliance-report (Rust implementation language choice—not a claim that a CLI framework is the product). <span class="id-chip">X7</span> console is the enterprise policy/evidence UI (Wave 7). <span class="id-chip">X11</span> defstack-cloud is managed control. <span class="id-chip">X3</span> OpenHarnessSpec aims at vendor-neutral harness contracts (NOOA/MCP-informed, AumOS-proposed standard). <span class="id-chip">X4</span> CryptoAuditAI productizes AI-assisted cryptanalysis research directions<sup><a href="#refs">[8]</a></sup>—with the same dual-use caution Anthropic’s work implies.</p>
+  <p><span class="id-chip">X1</span> defstack-cli is the operator CLI for install/verify/compliance-report (Rust implementation language choice—not a claim that a CLI framework is the product). <span class="id-chip">X7</span> console is the enterprise policy/evidence UI (Wave 7). <span class="id-chip">X11</span> defstack-cloud is managed control. <span class="id-chip">X3</span> OpenHarnessSpec aims at vendor-neutral harness contracts (NOOA/MCP-informed, Warrantor-proposed standard). <span class="id-chip">X4</span> CryptoAuditAI productizes AI-assisted cryptanalysis research directions<sup><a href="#refs">[8]</a></sup>—with the same dual-use caution Anthropic’s work implies.</p>
 
   <div class="visual" data-visual="x-map">
     <div class="visual-caption">Table 1 — Cross-cutting IDs</div>
@@ -992,7 +992,7 @@ def article_08() -> tuple[str, list[tuple[str, str, str]]]:
   <p>India DPDP Act 2023 is the primary personal-data statute for Indian deployments and data residency choices in federated designs<sup><a href="#refs">[6]</a></sup>. US institutions track Fed SR 26-2 / OCC 2026-13 for model-risk posture<sup><a href="#refs">[7]</a></sup>. GCC sovereign AI programs care about air-gap and attestation—X10/C1-* become procurement language. EU AI Act is a secondary export concern, not the series spine.</p>
   <div class="callout success">
     <div class="callout-title">Series closure</div>
-    <p>Essays 1–8 cover every portfolio cluster and every protocol P1–P12 via dedicated sections or the master index matrix. Authority without evidence, evidence without supply-chain binding, and multi-agent interoperability without containment are incomplete systems. AumOS is the open composition layer that refuses those incompletenesses.</p>
+    <p>Essays 1–8 cover every portfolio cluster and every protocol P1–P12 via dedicated sections or the master index matrix. Authority without evidence, evidence without supply-chain binding, and multi-agent interoperability without containment are incomplete systems. Warrantor is the open composition layer that refuses those incompletenesses.</p>
   </div>
 """
     return body, refs
@@ -1054,13 +1054,13 @@ def build_index() -> str:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AumOS Blog Series — Open Authority &amp; Evidence Stack</title>
+  <title>Warrantor Blog Series — Open Authority &amp; Evidence Stack</title>
   <link rel="stylesheet" href="blog-series.css">
 </head>
 <body>
 <div class="container">
   <header class="index-hero">
-    <div class="article-eyebrow">AumOS · Multi-phase technical blog series · Local deliverable</div>
+    <div class="article-eyebrow">Warrantor · Multi-phase technical blog series · Local deliverable</div>
     <h1>The Open Authority &amp; Evidence Stack</h1>
     <p class="lead" style="font-size:1.1rem;color:var(--text-secondary);max-width:70ch;">
       Eight deep visual essays covering every portfolio cluster and protocols P1–P12.

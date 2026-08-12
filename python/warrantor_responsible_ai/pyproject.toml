@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "RA1 Responsible-AI receipt fields — Python verify path for bias-audit, explanation, carbon, consent blocks."
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 dependencies = ["cryptography>=42"]
 [project.optional-dependencies]

@@ -4,7 +4,7 @@
 
 ---
 
-You are implementing **C1-1 nvtrust-bridge** for AumOS. Language: Rust core + Python + Go bindings. Dependencies: none.
+You are implementing **C1-1 nvtrust-bridge** for Warrantor. Language: Rust core + Python + Go bindings. Dependencies: none.
 
 ## Component context
 

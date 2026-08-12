@@ -1,5 +1,5 @@
-// Package provider defines the AumOS Terraform provider.
-// This is a stub — the real provider wraps the AumOS HTTP/JSON APIs.
+// Package provider defines the Warrantor Terraform provider.
+// This is a stub — the real provider wraps the Warrantor HTTP/JSON APIs.
 package provider
 
 import (
@@ -18,7 +18,7 @@ var (
 	_ provider.Provider = &warrantorProvider{}
 )
 
-// NewProvider is a factory for the AumOS Terraform provider.
+// NewProvider is a factory for the Warrantor Terraform provider.
 func NewProvider() provider.Provider {
 	return &warrantorProvider{}
 }
@@ -39,10 +39,10 @@ func (p *warrantorProvider) Metadata(_ context.Context, _ provider.MetadataReque
 
 func (p *warrantorProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manage AumOS resources (components, identities, attestations, compliance reports).",
+		Description: "Manage Warrantor resources (components, identities, attestations, compliance reports).",
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
-				Description: "URL of the AumOS control plane (e.g. http://localhost:8441)",
+				Description: "URL of the Warrantor control plane (e.g. http://localhost:8441)",
 				Optional:    true,
 			},
 			"trust_domain": schema.StringAttribute{
@@ -95,7 +95,7 @@ func (r *componentResource) Metadata(_ context.Context, req resource.MetadataReq
 
 func (r *componentResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Install and verify an AumOS component.",
+		Description: "Install and verify an Warrantor component.",
 		Attributes: map[string]schema.Attribute{
 			"name":      schema.StringAttribute{Required: true, Description: "Component name (e.g. trust-core)"},
 			"version":   schema.StringAttribute{Optional: true, Description: "Component version"},
@@ -137,7 +137,7 @@ func (r *identityResource) Metadata(_ context.Context, req resource.MetadataRequ
 
 func (r *identityResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Issue an AumOS agent identity (SVID).",
+		Description: "Issue an Warrantor agent identity (SVID).",
 		Attributes: map[string]schema.Attribute{
 			"subject": schema.StringAttribute{Required: true, Description: "Agent SPIFFE SVID subject"},
 			"svid":    schema.StringAttribute{Computed: true, Description: "Issued SVID token"},
@@ -178,7 +178,7 @@ func (d *complianceReportDataSource) Metadata(_ context.Context, req datasource.
 
 func (d *complianceReportDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Generate an AumOS compliance report.",
+		Description: "Generate an Warrantor compliance report.",
 		Attributes: map[string]schema.Attribute{
 			"model":  schema.StringAttribute{Optional: true, Description: "Model to scope the report"},
 			"report": schema.StringAttribute{Computed: true, Description: "JSON compliance report"},

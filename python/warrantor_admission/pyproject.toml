@@ -1,7 +1,7 @@
 [project]
 name = "warrantor-admission"
 version = "1.0.0"
-description = "AumOS Kubernetes admission webhook — enforce AAE attestation annotations"
+description = "Warrantor Kubernetes admission webhook — enforce AAE attestation annotations"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]

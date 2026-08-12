@@ -1,6 +1,6 @@
 # X1 — `defstack-cli` RFC
 
-> Unified installer/orchestrator CLI: install/verify/upgrade/compliance-report. AumOS moves from Go/Cobra to Rust/clap per stack-test consolidation.
+> Unified installer/orchestrator CLI: install/verify/upgrade/compliance-report. Warrantor moves from Go/Cobra to Rust/clap per stack-test consolidation.
 
 | Field | Value |
 |---|---|
@@ -8,7 +8,7 @@
 | **Name** | defstack-cli |
 | **Wave** | 1 |
 | **Languages** | Rust (clap) |
-| **DefStack origin** | F4 DefStack CLI |
+| **Warrantor origin** | F4 Warrantor CLI |
 | **AumSecure origin** | (none) |
 | **Sentinel origin** | sentinelos-cli |
 | **Dependencies** | none |
@@ -17,13 +17,13 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack F4 DefStack CLI; AumSecure (none); Sentinel sentinelos-cli. The full strategic rationale
+Warrantor F4 Warrantor CLI; AumSecure (none); Sentinel sentinelos-cli. The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
 ## Goals and Non-Goals
 
-**Goals:** Unified installer/orchestrator CLI: install/verify/upgrade/compliance-report. AumOS moves from Go/Cobra to Rust/clap per stack-test consolidation.
+**Goals:** Unified installer/orchestrator CLI: install/verify/upgrade/compliance-report. Warrantor moves from Go/Cobra to Rust/clap per stack-test consolidation.
 
 **Non-Goals:**
 - Reinventing mature standards (SPIFFE, OCSF, OTel, CycloneDX) — we extend, not fork.
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** none
+- **Warrantor internal:** none
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

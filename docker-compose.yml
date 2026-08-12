@@ -1,6 +1,6 @@
-# AumOS Docker Compose — full local development environment.
+# Warrantor Docker Compose — full local development environment.
 #
-# Brings up all deployable AumOS services with mock backends for local development
+# Brings up all deployable Warrantor services with mock backends for local development
 # and testing. Each service runs in its own container with health checks.
 #
 # Usage:
@@ -187,7 +187,7 @@ services:
     ports:
       - "8452:8452"
 
-  # ─── DefStack Cloud (Go) ──────────────────────────────────────────────────
+  # ─── Warrantor Cloud (Go) ──────────────────────────────────────────────────
   # Managed SaaS control plane for tenant management.
   defstack-cloud:
     build:
@@ -206,7 +206,7 @@ services:
       - "8454:8454"
 
   # ─── MCP Server (TypeScript) ──────────────────────────────────────────────
-  # Exposes 15 AumOS tools to any MCP-compatible coding agent via stdio.
+  # Exposes 15 Warrantor tools to any MCP-compatible coding agent via stdio.
   # Not a network service — run interactively: docker compose run --rm aumos-mcp
   #
   # Runs CONNECTED, against the real services defined above. It used to default
@@ -265,7 +265,7 @@ services:
       agent-identity:
         condition: service_healthy
 
-  # ─── AumOS Console (TypeScript) ───────────────────────────────────────────
+  # ─── Warrantor Console (TypeScript) ───────────────────────────────────────────
   # The web dashboard for evidence, approvals, fleet, compliance, policies.
   # Development server on port 3000.
   console:

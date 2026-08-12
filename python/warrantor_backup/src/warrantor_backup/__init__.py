@@ -1,6 +1,6 @@
-"""AumOS Backup/DR Coordinator — file-based backup, restore, retention pruning.
+"""Warrantor Backup/DR Coordinator — file-based backup, restore, retention pruning.
 
-Coordinates file-level backups of AumOS state: signed evidence stores (E1),
+Coordinates file-level backups of Warrantor state: signed evidence stores (E1),
 attestation ledgers, AAE policy snapshots, RBAC role bindings, SLA target
 configs. Each ``BackupTarget`` names a source path, a destination directory, a
 retention horizon (in days) and an ideal backup frequency (in hours).

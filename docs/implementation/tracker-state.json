@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "objective": "Implement every pending AumOS item and prove closure without conflating source presence, local verification, integration evidence, or production readiness.",
+  "objective": "Implement every pending Warrantor item and prove closure without conflating source presence, local verification, integration evidence, or production readiness.",
   "status_definitions": {
     "open": "No implementation closure evidence has been accepted.",
     "in_progress": "Implementation work exists but acceptance evidence is incomplete.",

@@ -1,6 +1,6 @@
 # R3 — `kill-switch` RFC
 
-> Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 9917). AumOS moves execution layer to Rust trusted core.
+> Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 9917). Warrantor moves execution layer to Rust trusted core.
 
 | Field | Value |
 |---|---|
@@ -8,7 +8,7 @@
 | **Name** | kill-switch |
 | **Wave** | 1 |
 | **Languages** | Rust core + Python policy |
-| **DefStack origin** | C7.2 KillSwitchKit |
+| **Warrantor origin** | C7.2 KillSwitchKit |
 | **AumSecure origin** | (none) |
 | **Sentinel origin** | (none) |
 | **Dependencies** | I1 (mock) |
@@ -17,13 +17,13 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack C7.2 KillSwitchKit; AumSecure (none); Sentinel (none). The full strategic rationale
+Warrantor C7.2 KillSwitchKit; AumSecure (none); Sentinel (none). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
 ## Goals and Non-Goals
 
-**Goals:** Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 9917). AumOS moves execution layer to Rust trusted core.
+**Goals:** Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 9917). Warrantor moves execution layer to Rust trusted core.
 
 **Non-Goals:**
 - Reinventing mature standards (SPIFFE, OCSF, OTel, CycloneDX) — we extend, not fork.
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** I1 (mock)
+- **Warrantor internal:** I1 (mock)
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

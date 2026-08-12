@@ -17,11 +17,11 @@ Read it first.
 
 ## Component-specific context
 
-The unified installer/orchestrator. Subcommands: install/verify/upgrade/compliance-report. Reads from a single ~/.aumos/config.yaml. AumOS moved from Go/Cobra to Rust/clap per stack-test consolidation.
+The unified installer/orchestrator. Subcommands: install/verify/upgrade/compliance-report. Reads from a single ~/.aumos/config.yaml. Warrantor moved from Go/Cobra to Rust/clap per stack-test consolidation.
 
 ## Dependencies
 
-- **AumOS internal:** none
+- **Warrantor internal:** none
 - **External:** enumerated during MVP (task 02); record in the RFC.
 
 ## Build entrypoint

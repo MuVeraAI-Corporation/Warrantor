@@ -6,7 +6,7 @@
 
 ## Why this exists
 
-DefStack v1/v2 left inter-component protocols implicit. Without an explicit protocol:
+Warrantor v1/v2 left inter-component protocols implicit. Without an explicit protocol:
 - Components drift in wire format.
 - No type safety across language boundaries.
 - Breaking changes ship silently.
@@ -21,7 +21,7 @@ gated by Buf breaking-change detection.
 
 | Tier | Use case | Wire format | Defined in |
 |---|---|---|---|
-| **Internal (service-to-service)** | AumOS components talking to each other | **gRPC + protobuf** | `proto/warrantor/<service>/v1/*.proto` |
+| **Internal (service-to-service)** | Warrantor components talking to each other | **gRPC + protobuf** | `proto/warrantor/<service>/v1/*.proto` |
 | **External (client-facing)** | REST APIs, webhooks, third-party integrations | **REST + JSON** (HTTP/1.1 or HTTP/2) | `specs/rest/<service>/v1/*.yaml` (OpenAPI 3.1) |
 | **Async (event-driven)** | Audit events, action receipts, eval results, incident signals | **CloudEvents + Kafka** | `specs/events/<topic>/v1/*.yaml` + `proto/warrantor/events/v1/*.proto` |
 

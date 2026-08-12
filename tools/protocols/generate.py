@@ -211,7 +211,7 @@ def protocol_schema(registry: JsonObject, protocol: JsonObject) -> JsonObject:
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": f"https://muveraai.com/schemas/protocols/v1/{slug}.schema.json",
-        "title": f"AumOS P{identifier[1:]} {title} v1 envelope",
+        "title": f"Warrantor P{identifier[1:]} {title} v1 envelope",
         **common_schema,
         "$defs": {
             name: object_schema(require_object(shape, f"types.{name}"))

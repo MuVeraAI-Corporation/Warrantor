@@ -1,6 +1,6 @@
 # warrantor-langchain
 
-**LangChain / LangGraph harness adapter** for AumOS. Wraps a LangChain agent
+**LangChain / LangGraph harness adapter** for Warrantor. Wraps a LangChain agent
 so that:
 
 1. Every LLM and tool action is recorded as an **AAR** (Agent Action Record —
@@ -13,7 +13,7 @@ so that:
 
 The adapter is intentionally **zero-dependency**:
 
-- If LangChain is installed, `AumOSCallback` is *also* a real
+- If LangChain is installed, `WarrantorCallback` is *also* a real
   `langchain_core.callbacks.BaseCallbackHandler` subclass, so it can be passed
   to any LangChain runner.
 - If LangChain is **not** installed, the same class still works against any
@@ -26,22 +26,22 @@ Use `has_langchain()` to detect which mode you are in.
 
 ## Components
 
-- `AumOSCallback` — LangChain-compatible callback handler that records every
+- `WarrantorCallback` — LangChain-compatible callback handler that records every
   LLM / tool / chain action as an `AAR`, scans outputs for secrets, and
   invokes a configurable `kill_switch` when a secret is exposed.
-- `AumOSTool` — callable wrapper that duck-types as a LangChain `Tool` and
+- `WarrantorTool` — callable wrapper that duck-types as a LangChain `Tool` and
   refuses to run unless the configured permission check passes (raises
   `PermissionDenied`).
 - `wrap_agent(agent, identity, side_effect_class, ...)` — attaches an
-  `AumOSCallback` to a LangChain-style agent and returns a `SecuredAgent`.
+  `WarrantorCallback` to a LangChain-style agent and returns a `SecuredAgent`.
 - `scan_for_secrets(text)` — standalone secret scanner.
 
 ## Usage
 
 ```python
-from warrantor_langchain import AumOSCallback, AumOSTool, wrap_agent
+from warrantor_langchain import WarrantorCallback, WarrantorTool, wrap_agent
 
-callback = AumOSCallback(
+callback = WarrantorCallback(
     identity="alice",
     kill_switch=lambda aar: print(f"KILL: {aar.secret_findings}"),
 )
@@ -51,7 +51,7 @@ secured = wrap_agent(agent, identity="alice", side_effect_class="write")
 secured.run("hello")
 
 # Or gate a tool:
-tool = AumOSTool(
+tool = WarrantorTool(
     name="calc",
     description="calculator",
     func=lambda x: x + 1,

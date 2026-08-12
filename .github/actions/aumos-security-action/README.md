@@ -1,4 +1,4 @@
-# AumOS Security Action
+# Warrantor Security Action
 
 Drop-in GitHub Action for secret scanning, SBOM generation, and compliance gating.
 

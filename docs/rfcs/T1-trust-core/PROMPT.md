@@ -4,7 +4,7 @@
 
 ---
 
-You are implementing **T1 trust-core**, the Rust trusted core of AumOS. This is the single
+You are implementing **T1 trust-core**, the Rust trusted core of Warrantor. This is the single
 authoritative implementation of every security invariant in the system. *No security invariant may
 have two authoritative implementations.*
 

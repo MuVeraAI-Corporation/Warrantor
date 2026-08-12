@@ -1,4 +1,4 @@
-"""Narrative sections for the AumOS critical analysis. Imported by build_critical_analysis.py."""
+"""Narrative sections for the Warrantor critical analysis. Imported by build_critical_analysis.py."""
 from __future__ import annotations
 
 from build_critical_analysis import (AUDIT_DATE, BRANCH, COMMIT, COMPONENTS, CSS, FINDINGS, JS,
@@ -76,7 +76,7 @@ def sec_verdict():
 <h2>A specification of real quality wrapped around a substrate that does not hold</h2>
 <div class="verdictbox">
   <div class="vlbl">Overall &mdash; not deployable, and not safely demonstrable in its current state</div>
-  <div class="vtxt">AumOS is a genuinely good <em>protocol design</em> attached to an implementation that fails at the
+  <div class="vtxt">Warrantor is a genuinely good <em>protocol design</em> attached to an implementation that fails at the
   one thing it exists to guarantee. The trusted core contains a signature forgery I reproduced end to end: a signature
   issued over <code>side_effect_class:&nbsp;"read"</code> verifies successfully against
   <code>side_effect_class:&nbsp;"destructive"</code> &mdash; <em>latent today, and contained only because the repository
@@ -327,7 +327,7 @@ def sec_normative():
 <section id="normative">
 <div class="eyebrow">05 &middot; The normative layer</div>
 <h2>The best work in the repository, and the deepest structural defect</h2>
-{para("Everything AumOS is depends on `specs/protocols/registry.json`: one wire version, one signature profile, twelve "
+{para("Everything Warrantor is depends on `specs/protocols/registry.json`: one wire version, one signature profile, twelve "
       "payload schemas, seven shared types. It deserves to be read on its merits before the defects, because the "
       "merits are real and they are what makes the rest worth fixing.")}
 <div class="good"><div class="calltitle">What the schema design gets genuinely right</div>

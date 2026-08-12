@@ -24,13 +24,12 @@
 //! Given results, it fails closed: any false boundary yields [`EvalGuardError::CheckFailed`] and
 //! no attestation is produced (invariant I-09). The signature and canonical encoding are real.
 //!
-//! AumOS moved this from Go to Rust per the trusted-core doctrine (see RFC R2).
+//! Warrantor moved this from Go to Rust per the trusted-core doctrine (see RFC R2).
 
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
 use ed25519_dalek::{Signer, SigningKey};
-use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use warrantor_api::attestation::v1::SandboxAttestation as ProtoSandboxAttestation;
@@ -195,7 +194,7 @@ pub fn run_preflight(
         }
     }
     let mut nonce = [0u8; 16];
-    OsRng.fill_bytes(&mut nonce);
+    getrandom::fill(&mut nonce).expect("system entropy source");
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -250,7 +249,7 @@ mod tests {
     use super::*;
 
     fn test_key() -> SigningKey {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
         SigningKey::generate(&mut rng)
     }
 

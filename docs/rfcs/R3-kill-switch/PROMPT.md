@@ -4,7 +4,7 @@
 
 ---
 
-You are implementing **R3 kill-switch** for AumOS. Language: Rust core + Python policy. Dependencies: I1 (mock).
+You are implementing **R3 kill-switch** for Warrantor. Language: Rust core + Python policy. Dependencies: I1 (mock).
 
 ## Component context
 

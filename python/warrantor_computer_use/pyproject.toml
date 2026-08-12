@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "W8 Computer-use broker — Python verify path for screen-action decision receipts."
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 dependencies = ["cryptography>=42"]
 [project.optional-dependencies]

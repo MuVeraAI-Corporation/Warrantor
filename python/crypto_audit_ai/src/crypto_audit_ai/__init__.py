@@ -1,4 +1,4 @@
-"""AumOS crypto-audit-ai (X4) — AI-assisted cryptanalysis.
+"""Warrantor crypto-audit-ai (X4) — AI-assisted cryptanalysis.
 
 Three operating modes:
 

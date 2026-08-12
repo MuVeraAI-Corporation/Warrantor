@@ -1,8 +1,8 @@
-"""AumOS Jira/Linear incident forwarder.
+"""Warrantor Jira/Linear incident forwarder.
 
-Auto-creates tickets in Jira or Linear from AumOS agent incidents (P9 / X9).
+Auto-creates tickets in Jira or Linear from Warrantor agent incidents (P9 / X9).
 The forwarder consumes the normalised incident dict shape produced by
-``incident_exchange`` and maps AumOS incident types to ticket labels and
+``incident_exchange`` and maps Warrantor incident types to ticket labels and
 priorities.
 
 Three forwarders are provided with a common interface:
@@ -34,7 +34,7 @@ Incident dict shape (subset; extra keys are ignored)::
       "detected_at": 1700000000.0,
     }
 
-Incident-type → label / priority mapping (per AumOS X9):
+Incident-type → label / priority mapping (per Warrantor X9):
 
     goal_hijack           → security/critical
     exfiltration          → security/high
@@ -75,7 +75,7 @@ class IncidentForwarderError(Exception):
 # Default Jira project key. Override per-deployment via the constructor.
 DEFAULT_PROJECT_KEY = "AUMOS"
 
-# AumOS incident type → ticket label (X9 mapping). See docs/rfcs/X9.
+# Warrantor incident type → ticket label (X9 mapping). See docs/rfcs/X9.
 INCIDENT_LABELS: dict[str, str] = {
     "goal_hijack": "security/critical",
     "exfiltration": "security/high",
@@ -85,7 +85,7 @@ INCIDENT_LABELS: dict[str, str] = {
     "memory_poisoning": "security/medium",
 }
 
-# AumOS incident type → Jira priority name. Linear uses a separate priority
+# Warrantor incident type → Jira priority name. Linear uses a separate priority
 # mapping (Linear priorities are team-configured UUIDs); we send the severity
 # string and let the LinearForwarder translate.
 INCIDENT_PRIORITIES: dict[str, str] = {
@@ -97,7 +97,7 @@ INCIDENT_PRIORITIES: dict[str, str] = {
     "memory_poisoning": "Medium",
 }
 
-# AumOS severity (from the incident dict) → Jira priority. Used as a fallback
+# Warrantor severity (from the incident dict) → Jira priority. Used as a fallback
 # when incident_type is unknown.
 SEVERITY_TO_JIRA_PRIORITY: dict[str, str] = {
     "critical": "Highest",
@@ -108,7 +108,7 @@ SEVERITY_TO_JIRA_PRIORITY: dict[str, str] = {
 
 
 def label_for(incident_type: str | None) -> str:
-    """Return the Jira/Linear label for an AumOS incident type."""
+    """Return the Jira/Linear label for an Warrantor incident type."""
     if incident_type is None:
         return "security/low"
     return INCIDENT_LABELS.get(incident_type, "security/low")
@@ -125,7 +125,7 @@ def priority_for(incident_type: str | None, severity: str | None = None) -> str:
 
 @dataclass
 class IncidentTicket:
-    """A ticket created in the target system from an AumOS incident.
+    """A ticket created in the target system from an Warrantor incident.
 
     Attributes:
         ticket_id:    the remote system's identifier (Jira issue key like
@@ -133,10 +133,10 @@ class IncidentTicket:
                       MockForwarder).
         title:        one-line summary used as the ticket summary.
         description:  long-form description.
-        severity:     the AumOS severity that was forwarded (low/medium/high/critical).
+        severity:     the Warrantor severity that was forwarded (low/medium/high/critical).
         status:       current ticket status (open/in progress/resolved/closed...).
         labels:       list of labels applied (e.g. ``["security/critical"]``).
-        incident_id:  the originating AumOS incident id (for traceability).
+        incident_id:  the originating Warrantor incident id (for traceability).
         url:          optional link to the ticket in the target system.
         created_at:   POSIX timestamp the ticket was created.
     """
@@ -179,7 +179,7 @@ def _build_title(incident: dict[str, Any]) -> str:
         return str(summary)
     itype = incident.get("incident_type", "unknown")
     iid = incident.get("incident_id", "?")
-    return f"[AumOS] {itype} incident {iid}"
+    return f"[Warrantor] {itype} incident {iid}"
 
 
 def _build_description(incident: dict[str, Any]) -> str:
@@ -205,7 +205,7 @@ def _build_description(incident: dict[str, Any]) -> str:
 
 
 class JiraForwarder:
-    """Forward AumOS incidents to Jira Cloud.
+    """Forward Warrantor incidents to Jira Cloud.
 
     Two transports are supported, selected by constructor arguments:
 
@@ -363,14 +363,14 @@ class JiraForwarder:
 
 
 class LinearForwarder:
-    """Forward AumOS incidents to Linear via its GraphQL API.
+    """Forward Warrantor incidents to Linear via its GraphQL API.
 
     Uses a single Linear API key (``api_token``). ``create_ticket`` runs an
     ``issueCreate`` mutation. The HTTP layer is again stdlib ``urllib``,
     isolated in :meth:`_graphql` so tests can monkeypatch it.
 
     Linear priorities are team-configured UUIDs; this forwarder sends the
-    integer priority 0..4 derived from the AumOS severity (urgent=4 .. low=0)
+    integer priority 0..4 derived from the Warrantor severity (urgent=4 .. low=0)
     which is Linear's default schema.
     """
 

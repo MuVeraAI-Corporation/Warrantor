@@ -1,7 +1,7 @@
 # warrantor-backup
 
-File-level **backup and disaster-recovery coordinator** for AumOS. Coordinates
-backups of AumOS state: signed evidence stores (E1), attestation ledgers, AAE
+File-level **backup and disaster-recovery coordinator** for Warrantor. Coordinates
+backups of Warrantor state: signed evidence stores (E1), attestation ledgers, AAE
 policy snapshots, RBAC role bindings, SLA target configs.
 
 Each `BackupTarget` names:

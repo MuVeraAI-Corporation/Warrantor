@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Strict, cross-platform AumOS conformance orchestrator.
+"""Strict, cross-platform Warrantor conformance orchestrator.
 
 The runner is intentionally non-vacuous: every required language must be
 available, every lane must contain vectors, and every vector must run in every
@@ -761,7 +761,7 @@ def main() -> int:
         )
         return 2
 
-    print("AumOS strict cross-language conformance")
+    print("Warrantor strict cross-language conformance")
     print(f"  required: {', '.join(required_languages)}")
     print(f"  vectors:  {len(vectors)} T1 + {len(protocol_vectors)} protocol (P1-P12)")
     results: list[VerificationResult] = []

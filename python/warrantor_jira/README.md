@@ -1,9 +1,9 @@
 # warrantor-jira
 
-Auto-create Jira or Linear tickets from AumOS agent incidents (P9 / X9).
+Auto-create Jira or Linear tickets from Warrantor agent incidents (P9 / X9).
 
 Consumes the normalised incident dict produced by `incident_exchange` and maps
-each AumOS incident type to a ticket label and priority.
+each Warrantor incident type to a ticket label and priority.
 
 ## Forwarders
 
@@ -21,7 +21,7 @@ fwd.update_ticket(ticket.ticket_id, "in progress")
 fwd.close_ticket(ticket.ticket_id, "mitigated")
 ```
 
-## Incident-type mapping (per AumOS X9)
+## Incident-type mapping (per Warrantor X9)
 
 | incident_type         | label                  | Jira priority | Linear priority |
 | --------------------- | ---------------------- | ------------- | --------------- |
@@ -34,7 +34,7 @@ fwd.close_ticket(ticket.ticket_id, "mitigated")
 | `<unknown>`           | `security/low`         | (from severity)| (from severity)|
 
 Every ticket is tagged with `warrantor-incident/<incident_id>` so the originating
-AumOS incident is always traceable from the ticket.
+Warrantor incident is always traceable from the ticket.
 
 ## Usage
 
@@ -63,7 +63,7 @@ ticket = fwd.create_ticket(incident_dict)
 - **Fail-loud.** Network errors are wrapped in `IncidentForwarderError` so the
   caller's incident pipeline can retry or fall back (e.g. to the kill-switch).
 - **Traceability.** Every ticket carries the `incident_id` as both a label and
-  a custom field, so a JQL/Linear search can map tickets back to AumOS
+  a custom field, so a JQL/Linear search can map tickets back to Warrantor
   incidents.
 
 ## Running the tests

@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cloud Deployment Plan — AumOS</title>
+  <title>Cloud Deployment Plan — Warrantor</title>
   <style>
-/* AumOS Documentation — Anthropic-inspired Style System */
+/* Warrantor Documentation — Anthropic-inspired Style System */
 /* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
    serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
 
@@ -311,7 +311,7 @@ table.deploy td:first-child { white-space: nowrap; font-weight: 600; }
 <body>
 
 <div class="doc-header">
-  <h1>Cloud Deployment Plan — AumOS</h1>
+  <h1>Cloud Deployment Plan — Warrantor</h1>
   <div class="subtitle">The operationally precise, dollar-accounted, 90-day multi-cloud deployment of all 49 components and 12 protocols on Azure + AWS + Modal + NVIDIA Inception credits.</div>
   <nav>
     <a href="index.html">&larr; Portal</a>
@@ -349,7 +349,7 @@ table.deploy td:first-child { white-space: nowrap; font-weight: 600; }
 <!-- =================================================================== -->
 <h2 id="exec-summary"><span class="section-number">1</span>Executive Summary <a href="#exec-summary" class="anchor">&para;</a></h2>
 
-<p>This is the operational deployment plan for the AumOS platform (<a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>) &mdash; the reference implementation of the open authority and evidence layer for autonomous systems. It is the most operationally detailed document in the portal: every dollar of cloud credit is allocated to a phase and a component, every component gets a deploy command, and every phase ends with a concrete verification step an engineer can run. The goal is to turn the existing v1.0.0 codebase (49 components, 12 protocols, 691 tests) into a fully running cloud demonstration in 90 days.</p>
+<p>This is the operational deployment plan for the Warrantor platform (<a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a>) &mdash; the reference implementation of the open authority and evidence layer for autonomous systems. It is the most operationally detailed document in the portal: every dollar of cloud credit is allocated to a phase and a component, every component gets a deploy command, and every phase ends with a concrete verification step an engineer can run. The goal is to turn the existing v1.0.0 codebase (49 components, 12 protocols, 691 tests) into a fully running cloud demonstration in 90 days.</p>
 
 <div class="stats-grid">
   <div class="stat-card">
@@ -374,14 +374,14 @@ table.deploy td:first-child { white-space: nowrap; font-weight: 600; }
 <p>Three principles drive every allocation decision in this document:</p>
 <ul>
   <li><strong>Cloud-native.</strong> Every component runs as a managed service, container, or serverless function &mdash; no pet VMs, no manual configuration drift. AKS and EKS host the long-running services; Modal hosts the bursty workloads; confidential VMs host the trust boundary.</li>
-  <li><strong>Multi-cloud.</strong> No single cloud satisfies AumOS's confidentiality, GPU, and serverless requirements simultaneously. Azure is the only cloud with <strong>GPU-accelerated confidential VMs</strong> (NCCads H100 v5); AWS Nitro Enclaves are <strong>CPU-only</strong> (no GPU pass-through); Modal is the only per-second-billed serverless GPU. The deployment deliberately spans all three so each component runs where its constraint is best met.</li>
+  <li><strong>Multi-cloud.</strong> No single cloud satisfies Warrantor's confidentiality, GPU, and serverless requirements simultaneously. Azure is the only cloud with <strong>GPU-accelerated confidential VMs</strong> (NCCads H100 v5); AWS Nitro Enclaves are <strong>CPU-only</strong> (no GPU pass-through); Modal is the only per-second-billed serverless GPU. The deployment deliberately spans all three so each component runs where its constraint is best met.</li>
   <li><strong>Credit-optimized.</strong> Every dollar is assigned before it is spent. Spot/reserved pricing is used wherever the workload tolerates interruption; serverless is used wherever the workload is bursty; the cheapest confidential VM that satisfies the security boundary is chosen for each role.</li>
 </ul>
 
 <h3>Available budget</h3>
 <table>
   <thead>
-    <tr><th>Cloud / Source</th><th>Credit</th><th>Primary role in AumOS</th></tr>
+    <tr><th>Cloud / Source</th><th>Credit</th><th>Primary role in Warrantor</th></tr>
   </thead>
   <tbody>
     <tr><td><span class="chip azure">Azure</span></td><td><strong>$5,000 USD</strong></td><td>Primary cloud for confidential computing &mdash; NCCads H100 v5 confidential GPU VMs and DC-series CPU TEEs</td></tr>
@@ -410,7 +410,7 @@ table.deploy td:first-child { white-space: nowrap; font-weight: 600; }
 
 <div class="callout success">
   <div class="callout-title">Expected outcome at day 90</div>
-  <p>A fully operational AumOS cloud deployment demonstrating the 12-plane architecture with <strong>real GPU inference</strong> (Llama-3-8B behind an attestation envelope), <strong>real KMS signing</strong> (Azure Key Vault + AWS KMS), <strong>real attestation</strong> (NCCads H100 v5 confidential VM + cuda-gram on a real H100), and <strong>real evaluation pipelines</strong> (HELM on Modal, prompt-injection attacks, an EU AI Act Article 55 compliance report). Total spend equals the available budget with a deliberate ~0% slack &mdash; every dollar is the plan.</p>
+  <p>A fully operational Warrantor cloud deployment demonstrating the 12-plane architecture with <strong>real GPU inference</strong> (Llama-3-8B behind an attestation envelope), <strong>real KMS signing</strong> (Azure Key Vault + AWS KMS), <strong>real attestation</strong> (NCCads H100 v5 confidential VM + cuda-gram on a real H100), and <strong>real evaluation pipelines</strong> (HELM on Modal, prompt-injection attacks, an EU AI Act Article 55 compliance report). Total spend equals the available budget with a deliberate ~0% slack &mdash; every dollar is the plan.</p>
 </div>
 
 <div class="callout warning">
@@ -442,7 +442,7 @@ table.deploy td:first-child { white-space: nowrap; font-weight: 600; }
 
 <div class="callout danger">
   <div class="callout-title">Why Azure is primary &mdash; the GPU-in-TEE constraint</div>
-  <p>The single architectural fact that drives the entire allocation is this: <strong>only Azure offers a GPU inside a hardware confidential VM</strong> (NCCads H100 v5, AMD SEV-SNP based). AWS Nitro Enclaves explicitly do <em>not</em> support GPU pass-through (see <a href="https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html" target="_blank" rel="noopener">the Nitro Enclave docs</a>). Because AumOS's headline invariant is "attested inference on a real GPU," the H100 confidential VM <em>must</em> live on Azure. Everything else is placed to minimize cost around that fixed point.</p>
+  <p>The single architectural fact that drives the entire allocation is this: <strong>only Azure offers a GPU inside a hardware confidential VM</strong> (NCCads H100 v5, AMD SEV-SNP based). AWS Nitro Enclaves explicitly do <em>not</em> support GPU pass-through (see <a href="https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html" target="_blank" rel="noopener">the Nitro Enclave docs</a>). Because Warrantor's headline invariant is "attested inference on a real GPU," the H100 confidential VM <em>must</em> live on Azure. Everything else is placed to minimize cost around that fixed point.</p>
 </div>
 
 <h3>Per-cloud allocation &mdash; what each credit pool buys</h3>
@@ -764,7 +764,7 @@ defstack compliance-report --format json &gt; report-phase3.json</code></pre>
     <li>Deploy <strong>fed-core (F1)</strong> + <strong>dp-crate (F2)</strong>; run a 3-node demonstration federated training round with differential privacy.</li>
     <li>Deploy <strong>edge-sentinel (F3)</strong> as a simulated edge agent on the AWS G5.xlarge.</li>
     <li>Deploy the <strong>console (X7)</strong> as a web UI served from AKS, browser-accessible.</li>
-    <li>Deploy the <strong>MCP gateway (X8)</strong> with a sample MCP server exposing AumOS evidence as MCP resources.</li>
+    <li>Deploy the <strong>MCP gateway (X8)</strong> with a sample MCP server exposing Warrantor evidence as MCP resources.</li>
     <li>Wire <strong>incident-exchange (X9)</strong>, <strong>retro-spec-kit (X5)</strong>, and <strong>metr-bridge (X6)</strong>.</li>
     <li>Run the full incident simulation (see verification).</li>
   </ol>
@@ -800,7 +800,7 @@ defstack install incident-exchange retro-spec-kit metr-bridge</code></pre>
 
 <div class="callout info">
   <div class="callout-title">How to read the deploy commands</div>
-  <p><code>defstack install ...</code> is the AumOS CLI orchestrator (X1). <code>--backend</code> selects the real cloud backend. <code>terraform</code> and <code>kubectl</code> are used for raw infrastructure. <code>modal deploy</code> ships serverless functions. Every command is idempotent and safe to re-run.</p>
+  <p><code>defstack install ...</code> is the Warrantor CLI orchestrator (X1). <code>--backend</code> selects the real cloud backend. <code>terraform</code> and <code>kubectl</code> are used for raw infrastructure. <code>modal deploy</code> ships serverless functions. Every command is idempotent and safe to re-run.</p>
 </div>
 
 <h3 id="azure-components"><span class="chip azure">Azure</span> Azure-deployed components (16)</h3>
@@ -999,9 +999,9 @@ output "spiffe_bundle_url"   { value = module.spiffe.bundle_url }</code></pre>
   <tbody>
     <tr><td>Apply for / draw down GPU credits</td><td>Founders</td><td>Week 1 (in pipeline)</td><td>Extends Phase 2/3 H100 runway; enables TRT-LLM + vLLM comparison</td></tr>
     <tr><td>Schedule quarterly engineering sync with NVIDIA NOOA team</td><td>Tech lead</td><td>Month 1</td><td>Review cuda-gram attestation correctness + NVTrust integration; unblock any driver/TEE edge cases</td></tr>
-    <tr><td>Submit GTC 2027 talk proposal</td><td>Founders</td><td>Month 2</td><td>Title: <em>"Attested Inference with H100 Confidential Computing and AumOS"</em></td></tr>
+    <tr><td>Submit GTC 2027 talk proposal</td><td>Founders</td><td>Month 2</td><td>Title: <em>"Attested Inference with H100 Confidential Computing and Warrantor"</em></td></tr>
     <tr><td>Use DLI credits for team training</td><td>All engineers</td><td>Months 1&ndash;3</td><td>CUDA, Triton Inference Server, TensorRT-LLM, confidential-computing fundamentals</td></tr>
-    <tr><td>List AumOS on NVIDIA NGC catalog</td><td>Tech lead</td><td>After day 90 (once stable)</td><td>Distribution channel; NGC is where NVIDIA-aware customers search</td></tr>
+    <tr><td>List Warrantor on NVIDIA NGC catalog</td><td>Tech lead</td><td>After day 90 (once stable)</td><td>Distribution channel; NGC is where NVIDIA-aware customers search</td></tr>
     <tr><td>Pursue NVIDIA Innovation Lab access</td><td>Founders</td><td>Month 3</td><td>Benchmark testing on hardware not yet available in the cloud credits</td></tr>
     <tr><td>NVentures investor visibility</td><td>Founders</td><td>Passive</td><td>Fundraising pipeline exposure</td></tr>
   </tbody>
@@ -1137,10 +1137,10 @@ output "spiffe_bundle_url"   { value = module.spiffe.bundle_url }</code></pre>
 
 <div class="callout success">
   <div class="callout-title">Bottom line</div>
-  <p>$6,270 of cloud credits + the existing v1.0 codebase + 90 days = a fully operational, multi-cloud AumOS deployment demonstrating real GPU attestation, real model serving, real evaluation, real compliance, and real incident response. Every dollar is allocated, every component has a deploy command, every phase has a verification gate. The plan succeeds on the immediate budget alone; NVIDIA Inception credits extend the depth, not the feasibility.</p>
+  <p>$6,270 of cloud credits + the existing v1.0 codebase + 90 days = a fully operational, multi-cloud Warrantor deployment demonstrating real GPU attestation, real model serving, real evaluation, real compliance, and real incident response. Every dollar is allocated, every component has a deploy command, every phase has a verification gate. The plan succeeds on the immediate budget alone; NVIDIA Inception credits extend the depth, not the feasibility.</p>
 </div>
 
-<p style="text-align:center; color:var(--text-tertiary); font-size:0.85rem; margin-top:var(--space-2xl);">AumOS &mdash; <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a> &mdash; Open Authority and Evidence Layer for Autonomous Systems</p>
+<p style="text-align:center; color:var(--text-tertiary); font-size:0.85rem; margin-top:var(--space-2xl);">Warrantor &mdash; <a href="https://github.com/MuVeraAI" target="_blank" rel="noopener">github.com/MuVeraAI</a> &mdash; Open Authority and Evidence Layer for Autonomous Systems</p>
 
 </div>
 

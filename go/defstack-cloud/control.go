@@ -1,4 +1,4 @@
-// Package cloud implements X11 defstack-cloud — the managed SaaS control plane for AumOS Cloud.
+// Package cloud implements X11 defstack-cloud — the managed SaaS control plane for Warrantor Cloud.
 //
 // defstack-cloud is the multi-tenant control plane that fronts the sovereign-stack components
 // (X10) for customers who want a hosted experience. This package implements the control-plane

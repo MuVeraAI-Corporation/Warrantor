@@ -13,10 +13,10 @@
 <!-- ARTICLE HEADER -->
 <!-- ====================================================================== -->
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Research · Paper 1 of 24 · Thrust 1 — Cryptographic Authority for Autonomous Agents</div>
+  <div class="article-eyebrow">Warrantor Research · Paper 1 of 24 · Thrust 1 — Cryptographic Authority for Autonomous Agents</div>
   <h1>Verifiable Agent Authority: A Cryptographic Framework for Delegated AI Agent Permissions</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS <code>trust-core</code> (T1) and <code>authority-spec</code> (T2)</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor <code>trust-core</code> (T1) and <code>authority-spec</code> (T2)</div>
 
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">USENIX Security 2027</span></div>
@@ -36,7 +36,7 @@
 <!-- ====================================================================== -->
 <div class="abstract">
   <span class="abstract-label">Abstract</span>
-  <p>Autonomous AI agents increasingly act on behalf of human principals — reading mail, moving money, calling APIs — yet the relying parties that receive these agents' requests have no cryptographic mechanism to verify the scope, provenance, and freshness of the delegation that authorized the action. We present the <strong>Agent Authority Envelope (AAE)</strong>, a signed, audience-bound, time-scoped delegation token that binds a principal's identity to a constrained set of agent capabilities, attested host configurations, and revocation state. We formalize the AAE verification contract as an intersection of three permission sets — principal-granted, host-attested, and protocol-declared — and prove that the contract is sound under a Dolev–Yao attacker model extended with compromised-agent oracles. We show that the reference implementation in AumOS's <code>trust-core</code> and <code>authority-spec</code> components satisfies the contract across Rust, Go, Python, and TypeScript runtimes, producing byte-identical canonical encodings. We argue that AAE closes the gap identified by recent surveys — the <em>SoK on Agentic AI</em> (USENIX Security 2026) and the <em>Cryptographically Verifiable Authorization</em> preprint — which both note the absence of any deployed, standardized, cross-language delegation envelope for agents. We position AAE as the first contribution of a proposed OSAF working group on verifiable agent delegation.</p>
+  <p>Autonomous AI agents increasingly act on behalf of human principals — reading mail, moving money, calling APIs — yet the relying parties that receive these agents' requests have no cryptographic mechanism to verify the scope, provenance, and freshness of the delegation that authorized the action. We present the <strong>Agent Authority Envelope (AAE)</strong>, a signed, audience-bound, time-scoped delegation token that binds a principal's identity to a constrained set of agent capabilities, attested host configurations, and revocation state. We formalize the AAE verification contract as an intersection of three permission sets — principal-granted, host-attested, and protocol-declared — and prove that the contract is sound under a Dolev–Yao attacker model extended with compromised-agent oracles. We show that the reference implementation in Warrantor's <code>trust-core</code> and <code>authority-spec</code> components satisfies the contract across Rust, Go, Python, and TypeScript runtimes, producing byte-identical canonical encodings. We argue that AAE closes the gap identified by recent surveys — the <em>SoK on Agentic AI</em> (USENIX Security 2026) and the <em>Cryptographically Verifiable Authorization</em> preprint — which both note the absence of any deployed, standardized, cross-language delegation envelope for agents. We position AAE as the first contribution of a proposed OSAF working group on verifiable agent delegation.</p>
 </div>
 
 <!-- ====================================================================== -->
@@ -209,13 +209,13 @@
 <!-- ====================================================================== -->
 <h2 id="impl"><span class="anchor">§</span>5. Reference implementation across four runtimes</h2>
 
-<p>The AAE is implemented in AumOS's <code>trust-core</code> (T1, Rust) and <code>authority-spec</code> (T2, the canonicalization library) with bindings and native implementations in Go, Python, and TypeScript. The defining engineering challenge is <em>canonicalization</em>: the CBOR payload must encode byte-identically in all four runtimes so that the signature verifies everywhere. This is the C1 defect class identified in the project's critical analysis, and Paper 2 treats it in full depth; here we state the approach.</p>
+<p>The AAE is implemented in Warrantor's <code>trust-core</code> (T1, Rust) and <code>authority-spec</code> (T2, the canonicalization library) with bindings and native implementations in Go, Python, and TypeScript. The defining engineering challenge is <em>canonicalization</em>: the CBOR payload must encode byte-identically in all four runtimes so that the signature verifies everywhere. This is the C1 defect class identified in the project's critical analysis, and Paper 2 treats it in full depth; here we state the approach.</p>
 
 <h3>5.1 Canonical CBOR with explicit type tags</h3>
 <p>We use RFC 8949 deterministic CBOR<sup><a href="#ref-cbor">[55]</a></sup> with three additional constraints that the standard leaves to the implementation: (a) all map keys are sorted by length-first then lexicographically (not by encoded byte value, which differs across libraries); (b) all integers carry explicit type tags so that <code>1</code> (uint) and <code>1.0</code> (float) never collide; (c) all strings are normalized to UTF-8 NFC before encoding. These three rules, enforced in T2, eliminate the divergence classes we found in naive cross-library CBOR signing.</p>
 
 <h3>5.2 The conformance gate</h3>
-<p>Every runtime's AAE implementation must pass the conformance vector suite before claiming AumOS compatibility: for a fixed set of (principal, agent, capability, attestation) inputs, all four runtimes must produce bit-identical canonical encodings and signatures. The suite is run in CI on every change. This is the structural guarantee that makes the AAE a genuine cross-language standard rather than four incompatible single-language prototypes.</p>
+<p>Every runtime's AAE implementation must pass the conformance vector suite before claiming Warrantor compatibility: for a fixed set of (principal, agent, capability, attestation) inputs, all four runtimes must produce bit-identical canonical encodings and signatures. The suite is run in CI on every change. This is the structural guarantee that makes the AAE a genuine cross-language standard rather than four incompatible single-language prototypes.</p>
 
 <figure>
 <div class="diagram"><pre>
@@ -235,7 +235,7 @@
 <p>We evaluate the AAE reference implementation against three questions: (Q1) Does the conformance gate hold — do the four runtimes produce byte-identical artifacts? (Q2) What is the verification latency, and does it meet the sub-5 ms p99 target? (Q3) Does the implementation resist the DY-CA attack harness?</p>
 
 <h3>6.1 Methodology</h3>
-<p>We generate 10,000 synthetic delegation scenarios spanning single-hop (principal→agent→RP), multi-hop (principal→agent→sub-agent→RP), and revoked-delegation cases, using the AumOS <code>open-harness-spec</code> (X3) test harness. Scenarios are parameterized over capability-set size, delegation-chain depth, and attestation complexity. All measurements are on a commodity server (see artifact for full specs).</p>
+<p>We generate 10,000 synthetic delegation scenarios spanning single-hop (principal→agent→RP), multi-hop (principal→agent→sub-agent→RP), and revoked-delegation cases, using the Warrantor <code>open-harness-spec</code> (X3) test harness. Scenarios are parameterized over capability-set size, delegation-chain depth, and attestation complexity. All measurements are on a commodity server (see artifact for full specs).</p>
 
 <h3>6.2 Results (targets; see artifact for final numbers)</h3>
 <table>
@@ -315,7 +315,7 @@
 <!-- ====================================================================== -->
 <footer class="article-footer">
   <div class="provenance">
-    <strong>Provenance.</strong> This is a standalone research artifact derived from the AumOS research roadmap. The cited prior work is real and verifiable through the linked sources. The AAE contribution is the artifact the AumOS <code>trust-core</code> (T1) and <code>authority-spec</code> (T2) implementations are designed to enable. AumOS source: <code>github.com/MuVeraAI</code>.
+    <strong>Provenance.</strong> This is a standalone research artifact derived from the Warrantor research roadmap. The cited prior work is real and verifiable through the linked sources. The AAE contribution is the artifact the Warrantor <code>trust-core</code> (T1) and <code>authority-spec</code> (T2) implementations are designed to enable. Warrantor source: <code>github.com/MuVeraAI</code>.
   </div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="../research-papers.html">Research roadmap</a></span>

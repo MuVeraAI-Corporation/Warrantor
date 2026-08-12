@@ -1,7 +1,7 @@
 # Trust-domain configuration for the muveraai.com SPIFFE trust domain.
 #
 # This file declares the trust domain itself, the registration entries that map
-# AumOS workloads to SVID selectors, and (optionally) federation to peer trust
+# Warrantor workloads to SVID selectors, and (optionally) federation to peer trust
 # domains. It complements spire-server.yaml / spire-agent.yaml — those run the
 # SPIRE control plane; this defines the identity policy on top of it.
 #
@@ -31,7 +31,7 @@ data:
     # The JWKS (SPIFFE bundle) for trust domain muveraai.com is written here by
     # spire-server once it has bootstrapped its CA. See deploy/spire/README.md.
 ---
-# AumOS workload registration entries.
+# Warrantor workload registration entries.
 #
 # Each entry is applied with the SPIRE server CLI:
 #   spire-server entry create --spiffeID <id> --parentID <parent> \
@@ -119,8 +119,8 @@ spec:
   # Refresh the peer bundle every 5 minutes (SPIFFE bundle refresh hint).
   refreshHint: 300
 ---
-# mTLS policy: every AumOS service must present an SVID from muveraai.com to every
-# other AumOS service. This NetworkPolicy scopes the trust-core port to SVID-
+# mTLS policy: every Warrantor service must present an SVID from muveraai.com to every
+# other Warrantor service. This NetworkPolicy scopes the trust-core port to SVID-
 # presenting peers. (NetworkPolicy itself is L3/4; SPIRE enforces the L7 trust.
 # This is defense-in-depth — see deploy/helm/aumos/templates/deployments.yaml
 # for the mTLS sidecar that does the real workload-identity handshake.)

@@ -8,7 +8,7 @@
 | **Name** | confidential-fabric |
 | **Wave** | 5 |
 | **Languages** | Rust + Go control |
-| **DefStack origin** | (none) |
+| **Warrantor origin** | (none) |
 | **AumSecure origin** | Confidential AI Execution Fabric (V2 #14) |
 | **Sentinel origin** | Sentinel confidential arm |
 | **Dependencies** | C1-2, I1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack (none); AumSecure Confidential AI Execution Fabric (V2 #14); Sentinel Sentinel confidential arm. The full strategic rationale
+Warrantor (none); AumSecure Confidential AI Execution Fabric (V2 #14); Sentinel Sentinel confidential arm. The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** C1-2, I1
+- **Warrantor internal:** C1-2, I1
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

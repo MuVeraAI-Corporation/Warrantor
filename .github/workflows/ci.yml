@@ -1,4 +1,4 @@
-# AumOS strict CI: every language, every module, every contract lane.
+# Warrantor strict CI: every language, every module, every contract lane.
 name: CI
 
 on:

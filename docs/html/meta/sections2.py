@@ -1,4 +1,4 @@
-"""Remaining sections + document assembly for the AumOS critical analysis."""
+"""Remaining sections + document assembly for the Warrantor critical analysis."""
 from __future__ import annotations
 
 import pathlib
@@ -233,7 +233,7 @@ EXTRA_FINDINGS += [
              "research agenda, which is a legitimate and even admirable thing to publish. The exposure is narrower and "
              "specific: **every one names a “Reference platform”, and in several cases that platform does not "
              "implement the mechanism the paper is about.**",
-        scenario="`paper-15-ebpf-exfiltration-prevention` cites *“Reference platform: AumOS R-pillar (eBPF "
+        scenario="`paper-15-ebpf-exfiltration-prevention` cites *“Reference platform: Warrantor R-pillar (eBPF "
                  "enforcement), R2”* &mdash; a repo-wide grep for `aya|libbpf|redbpf|bcc|ebpf` across "
                  "`egress-filter` and `exfil-guard` returns **0**. `paper-14-ai-kill-switch` and "
                  "`wp4-ai-kill-switch-act` cite R3, which is a `Vec<String>` of action names. "
@@ -292,7 +292,7 @@ EXTRA_FINDINGS += [
                  "status report.",
         blast="The inverse is equally damaging: **`rust/protocol-contracts` (1,173 LOC) — the P1&ndash;P12 registry "
               "interpreter, the single most correct piece of code in the repository, enforcing 591 of 602 normative "
-              "constraints — also has no catalog entry.** So the governance artifact that defines what AumOS *is* "
+              "constraints — also has no catalog entry.** So the governance artifact that defines what Warrantor *is* "
               "simultaneously hides its worst liabilities and its best asset. Also untracked: `python/warrantor_rbac` (a "
               "second authorization engine that gates `TRIGGER_KILL_SWITCH`), `python/warrantor_admission` (the Kubernetes "
               "admission controller), `python/protocol_contracts` (the Python validator), and all four "
@@ -357,7 +357,7 @@ EXTRA_FINDINGS += [
         fix="Write one adversary model and one trust-boundary diagram before any further component work. Analyse the "
             "seven missing scenarios, starting with root-key compromise and log split-view, since both invalidate "
             "every downstream guarantee. Implement I-11 or withdraw it. Publish an explicit residual-risk statement — "
-            "what AumOS does **not** defend against — which currently exists nowhere.",
+            "what Warrantor does **not** defend against — which currently exists nowhere.",
         accept="An adversary model, a trust-boundary diagram, a residual-risk statement, and at least one adversarial "
                "test per invariant that currently has zero code.",
     ),
@@ -399,8 +399,8 @@ EXTRA_FINDINGS += [
                  "(`DCO:` rather than `Signed-off-by:`), contradicting the `git commit -s` instruction on the line "
                  "above. No DCO bot, no CLA document despite the CLA-bot claim, no `CODEOWNERS`, no PR or issue "
                  "templates, no `MAINTAINERS`, no `GOVERNANCE.md`. `git shortlog -sn` returns a single synthetic "
-                 "author, *AumOS Wave-1 &lt;aumos@local&gt;*, for all 27 commits. The governance document names zero "
-                 "humans and is branded for a different project — it governs and trademarks *“DefStack”*.",
+                 "author, *Warrantor Wave-1 &lt;aumos@local&gt;*, for all 27 commits. The governance document names zero "
+                 "humans and is branded for a different project — it governs and trademarks *“Warrantor”*.",
         blast="The BSL risk is **latent rather than realised**, and that is worse for credibility, not better: nothing "
               "is encumbered today, so whoever ships first must either retro-apply BSL to code already released under "
               "Apache-2.0 — **irrevocable for released versions** — or drop the BSL story. Decide before the first "
@@ -409,7 +409,7 @@ EXTRA_FINDINGS += [
         fix="Pick the licence model and apply it in files, not prose: SPDX headers everywhere, per-directory LICENSE "
             "for anything non-Apache, a `NOTICE`. Reconcile the CC-BY conflict. Add `CODEOWNERS`, PR/issue templates, "
             "a real CLA or drop the claim, and a DCO check that actually runs. Rebrand the governance document from "
-            "DefStack to AumOS and name people.",
+            "Warrantor to Warrantor and name people.",
         accept="Every file's licence is machine-determinable; DCO enforced in CI; the governance document names "
                "accountable humans.",
     ),
@@ -709,7 +709,7 @@ def sec_devfit():
       "hook, no example and no documentation**. `README.md:62` states TypeScript owns *“SDK ergonomics”*; there is no "
       "`@aumos/sdk`, no client library and no `AumosClient`. `python/warrantor_langchain` is a real LangChain callback "
       "adapter — the one genuine integration in the repo — but it depends on downstream components that are stubs. "
-      "The core integration question, *“I have an agent loop; how do I wrap it in AumOS authority and receipts without "
+      "The core integration question, *“I have an agent loop; how do I wrap it in Warrantor authority and receipts without "
       "forking my framework?”*, has no answer here.")}
 <h3>3. Serving and gateway layer &mdash; reinvention against a 56k-star incumbent</h3>
 {bullets([
@@ -719,7 +719,7 @@ def sec_devfit():
  "Its `DenyAllAuth` default is nonetheless **the one genuinely fail-closed default in the Rust workspace**, and "
  "deserves to be the template for the others.",
  "LiteLLM ships per-key and per-team budgets at 56k stars with Stripe and Netflix in production. This is not a "
- "winnable fight, and the policy hooks AumOS wants would be welcome contributions there. [EXTERNAL]",
+ "winnable fight, and the policy hooks Warrantor wants would be welcome contributions there. [EXTERNAL]",
 ])}
 <h3>4. Platform, Kubernetes and confidential compute &mdash; not deployable</h3>
 {bullets([

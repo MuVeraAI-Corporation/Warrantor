@@ -1,9 +1,9 @@
-"""AumOS model-sbom (S4) — Model SBOM generator with AI extensions.
+"""Warrantor model-sbom (S4) — Model SBOM generator with AI extensions.
 
 Generates CycloneDX and SPDX SBOMs with the AI-specific extensions defined in
 RFC S4: ``model.architecture``, ``model.parameters``, ``model.training_data``,
 ``model.base_model``, ``model.evaluations``, ``model.license``. Per
-``docs/cross-cutting/13-compliance-frameworks.md``, a GPAI model provider using AumOS can
+``docs/cross-cutting/13-compliance-frameworks.md``, a GPAI model provider using Warrantor can
 demonstrate EU AI Act Article 55 compliance with the SBOM this package emits.
 
 See ``docs/rfcs/S4-model-sbom.md``.
@@ -131,7 +131,7 @@ def to_cyclonedx(sbom: SbomInput) -> dict[str, Any]:
         "version": 1,
         "metadata": {
             "timestamp": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "tools": [{"vendor": "AumOS", "name": "model-sbom", "version": "1.0.0"}],
+            "tools": [{"vendor": "Warrantor", "name": "model-sbom", "version": "1.0.0"}],
             "supplier": {"name": sbom.supplier},
         },
         "components": [model_component, *dep_components],

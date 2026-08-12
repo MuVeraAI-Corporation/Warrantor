@@ -8,7 +8,7 @@
 | **Name** | conformance |
 | **Wave** | 2 |
 | **Languages** | Rust ref + CLI + GitHub Action |
-| **DefStack origin** | (none) |
+| **Warrantor origin** | (none) |
 | **AumSecure origin** | agent-conformance (V3 repo #5) |
 | **Sentinel origin** | (none) |
 | **Dependencies** | T1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack (none); AumSecure agent-conformance (V3 repo #5); Sentinel (none). The full strategic rationale
+Warrantor (none); AumSecure agent-conformance (V3 repo #5); Sentinel (none). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** T1
+- **Warrantor internal:** T1
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

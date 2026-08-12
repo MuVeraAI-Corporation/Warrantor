@@ -1,7 +1,7 @@
 [project]
 name = "warrantor-harness"
 version = "1.0.0"
-description = "Secure coding agent harness wrappers (Claude Code, Codex, Cursor) with AumOS"
+description = "Secure coding agent harness wrappers (Claude Code, Codex, Cursor) with Warrantor"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]

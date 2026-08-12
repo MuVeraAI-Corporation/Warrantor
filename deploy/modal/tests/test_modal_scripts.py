@@ -1,11 +1,11 @@
-"""Stub-based validation for the AumOS Modal scripts.
+"""Stub-based validation for the Warrantor Modal scripts.
 
 The Modal scripts (``safe_eval_modal.py`` / ``adversaria_modal.py``) run inside
 Modal's cloud and require the real ``modal`` and ``vllm`` packages, which are
 not available in CI / locally. This test fakes those two packages with minimal
 stubs that record the decorator calls and let the in-process runner functions
 execute against a fake model. The goal is to catch API drift between the scripts
-and the real AumOS ``safe_eval`` / ``adversaria`` packages *before* a deploy.
+and the real Warrantor ``safe_eval`` / ``adversaria`` packages *before* a deploy.
 
 What this validates:
   - the scripts import cleanly,

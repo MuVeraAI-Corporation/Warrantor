@@ -13,7 +13,7 @@ import {
   MCP_SERVER_VERSION,
   MCP_PROTOCOL_VERSION,
   MCP_SUPPORTED_PROTOCOL_VERSIONS,
-  type AumOSMcpConfig,
+  type WarrantorMcpConfig,
   type ExecResult,
 } from './index.js';
 
@@ -22,7 +22,7 @@ import {
 // ---------------------------------------------------------------------------
 
 /** Build an explicit standalone-mode config. Production defaults to connected mode. */
-function standalone(overrides: Partial<AumOSMcpConfig> = {}): AumOSMcpConfig {
+function standalone(overrides: Partial<WarrantorMcpConfig> = {}): WarrantorMcpConfig {
   return { mode: 'standalone', ...overrides };
 }
 

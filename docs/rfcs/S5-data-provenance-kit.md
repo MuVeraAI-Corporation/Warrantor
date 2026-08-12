@@ -8,7 +8,7 @@
 | **Name** | data-provenance-kit |
 | **Wave** | 3 |
 | **Languages** | Python |
-| **DefStack origin** | C4.2 DataProvenanceKit |
+| **Warrantor origin** | C4.2 DataProvenanceKit |
 | **AumSecure origin** | (none) |
 | **Sentinel origin** | (AGORA Catalog overlaps) |
 | **Dependencies** | S4 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack C4.2 DataProvenanceKit; AumSecure (none); Sentinel (AGORA Catalog overlaps). The full strategic rationale
+Warrantor C4.2 DataProvenanceKit; AumSecure (none); Sentinel (AGORA Catalog overlaps). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** S4
+- **Warrantor internal:** S4
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

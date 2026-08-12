@@ -1,4 +1,4 @@
-"""AumOS bridge-rt (N2) — unified inference backend abstraction.
+"""Warrantor bridge-rt (N2) — unified inference backend abstraction.
 
 Provides a single ``generate()`` API that auto-selects the best available backend
 (TensorRT-LLM > vLLM > Ollama) and handles the **TensorRT-LLM v0.16 breaking change**: the

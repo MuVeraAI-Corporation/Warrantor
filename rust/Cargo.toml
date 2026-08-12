@@ -48,9 +48,9 @@ exclude = [
 version = "1.0.0"
 edition = "2021"
 license = "Apache-2.0"
-authors = ["AumOS contributors"]
+authors = ["Warrantor contributors"]
 repository = "https://github.com/MuVeraAI-Corporation/Warrantor"
-description = "AumOS — Open authority and evidence layer for autonomous systems"
+description = "Warrantor — Open authority and evidence layer for autonomous systems"
 publish = false  # Local dev releases only during Wave-1 (per scope boundary)
 
 [workspace.dependencies]

@@ -1,4 +1,4 @@
-"""AumOS SLA Monitor — rolling-window SLA tracking and breach alerting.
+"""Warrantor SLA Monitor — rolling-window SLA tracking and breach alerting.
 
 Records metric samples and evaluates them against ``SLATarget`` definitions.
 Each target specifies a metric name, a numeric threshold, a comparison
@@ -6,7 +6,7 @@ operator (``lt``, ``gt``, ``eq``) and a rolling window in seconds. A target is
 *meeting* the SLA if **every** sample inside the rolling window satisfies the
 comparison, and *breaching* if **any** sample violates it.
 
-Typical AumOS metrics:
+Typical Warrantor metrics:
   - ``inference.p99_latency_ms``   threshold 500, comparison ``lt`` (latency SLA)
   - ``killswitch.trigger_to_kill_s`` threshold 5, comparison ``lt`` (R3)
   - ``evidence.commit_lag_s``      threshold 60, comparison ``lt`` (I-07)

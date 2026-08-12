@@ -10,9 +10,9 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow spec">AumOS Research · Paper 21 of 24 (Specification) · Thrust 6 — Standards &amp; Protocol Contributions</div>
+  <div class="article-eyebrow spec">Warrantor Research · Paper 21 of 24 (Specification) · Thrust 6 — Standards &amp; Protocol Contributions</div>
   <h1>The Agent Authority Envelope: An OSAF Standard for Verifiable Agent Delegation</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
   <div class="article-affil">Proposed OSAF / IETF standard; builds on Papers 1, 2, 4</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">OSAF specification (charter Q4 2026)</span></div>
@@ -26,7 +26,7 @@
 
 <div class="abstract spec">
   <span class="abstract-label">Specification Abstract</span>
-  <p>This document specifies the <strong>Agent Authority Envelope (AAE)</strong> as a proposed OSAF standard for verifiable agent delegation, generalizing the research artifact of Paper 1 into an interoperable, multi-vendor specification. The AAE is a signed, audience-bound, time-scoped delegation token that binds a principal's authority to an agent's capabilities and an attested host, with a verification contract (the intersection of Paper 4). The specification is built on established IETF standards — COSE (RFC 9052<sup><a href="#ref-cose">[1]</a></sup>) over deterministic CBOR (RFC 8949), with selective-disclosure options modeled on SD-JWT (RFC 9901<sup><a href="#ref-sdjwt">[2]</a></sup>) and SD-JWT VC<sup><a href="#ref-sdjwtvc">[3]</a></sup> — and aligns with the W3C VC-JOSE-COSE securing model<sup><a href="#ref-w3c">[4]</a></sup>. The normative sections define the envelope structure, the verification contract, the conformance requirements (Paper 2's CSF-v1), and the registry/interop story. The reference implementation is AumOS T1/T2; the conformance vectors are V2/V3.</p>
+  <p>This document specifies the <strong>Agent Authority Envelope (AAE)</strong> as a proposed OSAF standard for verifiable agent delegation, generalizing the research artifact of Paper 1 into an interoperable, multi-vendor specification. The AAE is a signed, audience-bound, time-scoped delegation token that binds a principal's authority to an agent's capabilities and an attested host, with a verification contract (the intersection of Paper 4). The specification is built on established IETF standards — COSE (RFC 9052<sup><a href="#ref-cose">[1]</a></sup>) over deterministic CBOR (RFC 8949), with selective-disclosure options modeled on SD-JWT (RFC 9901<sup><a href="#ref-sdjwt">[2]</a></sup>) and SD-JWT VC<sup><a href="#ref-sdjwtvc">[3]</a></sup> — and aligns with the W3C VC-JOSE-COSE securing model<sup><a href="#ref-w3c">[4]</a></sup>. The normative sections define the envelope structure, the verification contract, the conformance requirements (Paper 2's CSF-v1), and the registry/interop story. The reference implementation is Warrantor T1/T2; the conformance vectors are V2/V3.</p>
 </div>
 
 <div class="toc">
@@ -45,7 +45,7 @@
 </div>
 
 <h2 id="intro"><span class="anchor">§</span>1. Introduction and status</h2>
-<p>This document specifies the Agent Authority Envelope (AAE) for submission to the Open Secure AI Foundation (OSAF) and parallel consideration in the IETF. It generalizes the research contribution of Paper 1 (Verifiable Agent Authority) and the safety contract of Paper 4 (Delegation Intersection Semantics) into a normative, multi-vendor specification. The status is a first draft for working-group chartering; the reference implementation and conformance vectors exist today in AumOS, providing the basis for the standard's testability.</p>
+<p>This document specifies the Agent Authority Envelope (AAE) for submission to the Open Secure AI Foundation (OSAF) and parallel consideration in the IETF. It generalizes the research contribution of Paper 1 (Verifiable Agent Authority) and the safety contract of Paper 4 (Delegation Intersection Semantics) into a normative, multi-vendor specification. The status is a first draft for working-group chartering; the reference implementation and conformance vectors exist today in Warrantor, providing the basis for the standard's testability.</p>
 
 <h2 id="foundations"><span class="anchor">§</span>2. Foundational standards</h2>
 <p>The AAE is deliberately built on established IETF/W3C standards rather than inventing new infrastructure. <strong>COSE (RFC 9052)</strong><sup><a href="#ref-cose">[1]</a></sup> provides the signing structure; <strong>deterministic CBOR (RFC 8949)</strong> provides the canonical encoding; <strong>SD-JWT (RFC 9901)</strong><sup><a href="#ref-sdjwt">[2]</a></sup> inspires the selective-disclosure option (an agent may reveal only the capabilities a relying party needs to see); <strong>SD-JWT VC</strong><sup><a href="#ref-sdjwtvc">[3]</a></sup> and the <strong>W3C VC-JOSE-COSE</strong> securing model<sup><a href="#ref-w3c">[4]</a></sup> provide the verifiable-credential framing. AUCorrect: RFC 9901 is SD-JWT (selective disclosure), not RFC 9068 (which is the JWT Profile for OAuth 2.0 Access Tokens) — the specification uses the correct RFCs.</p>
@@ -79,7 +79,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Specification derived from Papers 1, 2, 4. Reference implementation: AumOS T1/T2. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Specification derived from Papers 1, 2, 4. Reference implementation: Warrantor T1/T2. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-20-elo-arena-ranking.html">Paper 20</a></span>
     <span class="small"><a href="paper-22-aar-osaf-standard.html">Paper 22: AAR OSAF Standard →</a></span>

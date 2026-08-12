@@ -8,7 +8,7 @@
 | **Name** | sandbox-runtime |
 | **Wave** | 4 |
 | **Languages** | Rust + WASM (Wasmtime) |
-| **DefStack origin** | (none) |
+| **Warrantor origin** | (none) |
 | **AumSecure origin** | Secure Agent Workspace runtime |
 | **Sentinel origin** | OpenShell adapter |
 | **Dependencies** | T1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack (none); AumSecure Secure Agent Workspace runtime; Sentinel OpenShell adapter. The full strategic rationale
+Warrantor (none); AumSecure Secure Agent Workspace runtime; Sentinel OpenShell adapter. The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -42,7 +42,7 @@ until the repository toolchain is deliberately upgraded.
 linear memory, table elements, readable resources, network origins, and commands. The locked-down
 constructor grants no host capability. Admission accepts binary WebAssembly only, verifies the
 subject and limits, rejects unknown/WASI imports, and requires a non-empty policy resource list for
-each declared AumOS host ABI import.
+each declared Warrantor host ABI import.
 
 Wasmtime is configured for fuel consumption, bounded stack, one memory/table/instance, no
 multi-memory, no memory64, and canonical NaNs. `StoreLimits` independently enforces guest memory
@@ -58,7 +58,7 @@ linked, so there is no ambient environment, filesystem, network, clock, or proce
 
 ## Dependencies
 
-- **AumOS internal:** T1 policy verification, E1-compatible audit sink, and optional R1 backend
+- **Warrantor internal:** T1 policy verification, E1-compatible audit sink, and optional R1 backend
   integration.
 - **External:** `wasmtime = 45.0.1`, pinned for MSRV compatibility. Upstream runtime:
   [Bytecode Alliance Wasmtime](https://github.com/bytecodealliance/wasmtime).

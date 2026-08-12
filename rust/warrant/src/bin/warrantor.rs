@@ -62,7 +62,8 @@ fn load_or_create_key(path: &Path, label: &str) -> Result<SigningKey, String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("create key dir: {e}"))?;
     }
-    let key = SigningKey::generate(&mut rand_core_compat::OsRng);
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
+    let key = SigningKey::generate(&mut csprng);
     std::fs::write(path, key.to_bytes()).map_err(|e| format!("write {label} key: {e}"))?;
     eprintln!(
         "warrantor: created a new {label} key at {}. Protect it: anyone holding the settle key \
@@ -70,12 +71,6 @@ fn load_or_create_key(path: &Path, label: &str) -> Result<SigningKey, String> {
         path.display()
     );
     Ok(key)
-}
-
-/// `ed25519-dalek` v2 wants an `OsRng` from `rand_core` 0.6; the workspace has `rand` 0.8, which
-/// re-exports exactly that. Aliased here so the dependency is obvious rather than mysterious.
-mod rand_core_compat {
-    pub use rand::rngs::OsRng;
 }
 
 // ── argument parsing ──────────────────────────────────────────────────────────────────

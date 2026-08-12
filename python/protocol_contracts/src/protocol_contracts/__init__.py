@@ -1,4 +1,4 @@
-"""AumOS P1-P12 generated bindings and reference validation."""
+"""Warrantor P1-P12 generated bindings and reference validation."""
 
 from protocol_contracts.generated import (
     AgentActionReceipt,

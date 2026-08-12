@@ -11,9 +11,7 @@
 #![forbid(unsafe_code)]
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use thiserror::Error;
 
 pub const PLANE_VERSION: &str = "warrantor-content-moderation/1.0";
@@ -83,12 +81,22 @@ pub struct MockScanner {
 impl MockScanner {
     #[must_use]
     pub fn safe(id: &str) -> Self {
-        Self { id: id.into(), harmful: false, confidence: 0.0, categories: vec![] }
+        Self {
+            id: id.into(),
+            harmful: false,
+            confidence: 0.0,
+            categories: vec![],
+        }
     }
 
     #[must_use]
     pub fn harmful(id: &str, categories: Vec<HarmCategory>) -> Self {
-        Self { id: id.into(), harmful: true, confidence: 0.95, categories }
+        Self {
+            id: id.into(),
+            harmful: true,
+            confidence: 0.95,
+            categories,
+        }
     }
 }
 
@@ -157,7 +165,10 @@ pub struct ModerationConfig {
 
 impl Default for ModerationConfig {
     fn default() -> Self {
-        Self { deny_threshold: 0.5, any_scanner_deny: true }
+        Self {
+            deny_threshold: 0.5,
+            any_scanner_deny: true,
+        }
     }
 }
 
@@ -171,7 +182,11 @@ impl Default for ModerationConfig {
 ///
 /// Advisory signals NEVER contribute to Allow. They may only cause Deny.
 #[must_use]
-pub fn decide(content: &str, scanners: &[Box<dyn ContentScanner>], config: &ModerationConfig) -> ModerationVerdict {
+pub fn decide(
+    content: &str,
+    scanners: &[Box<dyn ContentScanner>],
+    config: &ModerationConfig,
+) -> ModerationVerdict {
     // 1. All scanners unavailable.
     if scanners.is_empty() {
         return ModerationVerdict::Deny {
@@ -192,7 +207,10 @@ pub fn decide(content: &str, scanners: &[Box<dyn ContentScanner>], config: &Mode
     }
 
     // 3. Confidence threshold exceeded.
-    if results.iter().any(|r| r.confidence > config.deny_threshold && r.is_harmful) {
+    if results
+        .iter()
+        .any(|r| r.confidence > config.deny_threshold && r.is_harmful)
+    {
         return ModerationVerdict::Deny {
             reason: DenyReason::ConfidenceExceeded,
             scanner_results: results,
@@ -200,7 +218,9 @@ pub fn decide(content: &str, scanners: &[Box<dyn ContentScanner>], config: &Mode
     }
 
     // 4. Allow.
-    ModerationVerdict::Allow { scanner_results: results }
+    ModerationVerdict::Allow {
+        scanner_results: results,
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -255,7 +275,12 @@ fn canonicalize_value(v: &serde_json::Value) -> serde_json::Value {
     }
 }
 
-pub fn issue_receipt(verdict: &ModerationVerdict, content: &str, timestamp: u64, key: &SigningKey) -> ModerationReceipt {
+pub fn issue_receipt(
+    verdict: &ModerationVerdict,
+    content: &str,
+    timestamp: u64,
+    key: &SigningKey,
+) -> ModerationReceipt {
     let body = ModerationReceiptBody {
         verdict: verdict.clone(),
         content_digest: sha256_hex(content),
@@ -292,8 +317,7 @@ pub fn verify_receipt(receipt: &ModerationReceipt) -> Result<(), CmError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_body(&receipt.body);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| CmError::CmErr("Ed25519 signature does not verify".into()))
 }
 
@@ -303,7 +327,7 @@ pub fn verify_receipt(receipt: &ModerationReceipt) -> Result<(), CmError> {
 
 #[must_use]
 pub fn generate_keypair() -> (SigningKey, VerifyingKey) {
-    let mut csprng = OsRng;
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing = SigningKey::generate(&mut csprng);
     let verifying = signing.verifying_key();
     (signing, verifying)
@@ -318,7 +342,7 @@ mod hex {
         s
     }
     pub fn decode(hex: &str) -> Result<Vec<u8>, String> {
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err("odd-length hex".into());
         }
         (0..hex.len())
@@ -338,8 +362,13 @@ mod tests {
 
     #[test]
     fn clean_content_allowed() {
-        let scanners: Vec<Box<dyn ContentScanner>> = vec![Box::new(MockScanner::safe("llama-guard"))];
-        let v = decide("Hello, how can I help you today?", &scanners, &ModerationConfig::default());
+        let scanners: Vec<Box<dyn ContentScanner>> =
+            vec![Box::new(MockScanner::safe("llama-guard"))];
+        let v = decide(
+            "Hello, how can I help you today?",
+            &scanners,
+            &ModerationConfig::default(),
+        );
         assert!(matches!(v, ModerationVerdict::Allow { .. }));
     }
 
@@ -349,24 +378,49 @@ mod tests {
             "llama-guard",
             vec![HarmCategory::Violence],
         ))];
-        let v = decide("How to build a weapon", &scanners, &ModerationConfig::default());
-        assert!(matches!(v, ModerationVerdict::Deny { reason: DenyReason::HarmfulContent, .. }));
+        let v = decide(
+            "How to build a weapon",
+            &scanners,
+            &ModerationConfig::default(),
+        );
+        assert!(matches!(
+            v,
+            ModerationVerdict::Deny {
+                reason: DenyReason::HarmfulContent,
+                ..
+            }
+        ));
     }
 
     #[test]
     fn any_scanner_deny_blocks_even_if_others_pass() {
         let scanners: Vec<Box<dyn ContentScanner>> = vec![
             Box::new(MockScanner::safe("shieldgemma")),
-            Box::new(MockScanner::harmful("llama-guard", vec![HarmCategory::HateSpeech])),
+            Box::new(MockScanner::harmful(
+                "llama-guard",
+                vec![HarmCategory::HateSpeech],
+            )),
         ];
         let v = decide("some text", &scanners, &ModerationConfig::default());
-        assert!(matches!(v, ModerationVerdict::Deny { reason: DenyReason::HarmfulContent, .. }));
+        assert!(matches!(
+            v,
+            ModerationVerdict::Deny {
+                reason: DenyReason::HarmfulContent,
+                ..
+            }
+        ));
     }
 
     #[test]
     fn no_scanners_fail_closed() {
         let v = decide("content", &[], &ModerationConfig::default());
-        assert!(matches!(v, ModerationVerdict::Deny { reason: DenyReason::AllScannersUnavailable, .. }));
+        assert!(matches!(
+            v,
+            ModerationVerdict::Deny {
+                reason: DenyReason::AllScannersUnavailable,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -388,7 +442,10 @@ mod tests {
         // Even if one scanner says safe, any harmful flag → deny (advisory asymmetry).
         let scanners: Vec<Box<dyn ContentScanner>> = vec![
             Box::new(MockScanner::safe("safe-scanner")),
-            Box::new(MockScanner::harmful("strict-scanner", vec![HarmCategory::DangerousContent])),
+            Box::new(MockScanner::harmful(
+                "strict-scanner",
+                vec![HarmCategory::DangerousContent],
+            )),
         ];
         let v = decide("borderline", &scanners, &ModerationConfig::default());
         assert!(matches!(v, ModerationVerdict::Deny { .. }));

@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Research · Paper 10 of 24 · Thrust 3 — AI Supply Chain Integrity</div>
+  <div class="article-eyebrow">Warrantor Research · Paper 10 of 24 · Thrust 3 — AI Supply Chain Integrity</div>
   <h1>Tamper-Evident Model Lineage: Merkle Ledgers for EU AI Act Compliance</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS S2 (lineage ledger), S4</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor S2 (lineage ledger), S4</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">ACM CCS 2027</span></div>
     <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">S2, S4, T1</span></div>
@@ -77,7 +77,7 @@
 </table>
 
 <h2 id="impl"><span class="anchor">§</span>5. Implementation and anchoring</h2>
-<p>The ledger is implemented in AumOS S2, using the SCITT service model with anchoring to an external timestamp authority (RFC 3161) every 10 minutes (cost-sensitive default; 60s for high-assurance). Inclusion proofs let a regulator verify a specific entry's presence without downloading the entire ledger. The ledger composes with the AAR (Paper 3) for incident events and with Safetensors++ (Paper 9) for release events.</p>
+<p>The ledger is implemented in Warrantor S2, using the SCITT service model with anchoring to an external timestamp authority (RFC 3161) every 10 minutes (cost-sensitive default; 60s for high-assurance). Inclusion proofs let a regulator verify a specific entry's presence without downloading the entire ledger. The ledger composes with the AAR (Paper 3) for incident events and with Safetensors++ (Paper 9) for release events.</p>
 
 <h2 id="eval"><span class="anchor">§</span>6. Evaluation: multi-generation lineage</h2>
 <p>We construct a 15-generation lineage (base → 14 fine-tunes, with evaluations and releases interleaved) and verify (a) a regulator can re-walk the full graph from any release, (b) every tampering attempt (alter a historical entry, delete an evaluation, backdate a release) is detected via signature or anchor failure, and (c) graph-walk verification completes in under 50 ms for the 15-generation corpus.</p>
@@ -101,7 +101,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The ledger is AumOS S2; the obligation mapping informs WP2. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The ledger is Warrantor S2; the obligation mapping informs WP2. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-09-safetensors-plus-plus.html">Paper 9</a></span>
     <span class="small"><a href="paper-11-ai-bill-of-materials.html">Paper 11: AI Bill of Materials →</a></span>

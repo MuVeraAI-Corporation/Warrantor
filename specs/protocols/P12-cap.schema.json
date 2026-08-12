@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://muveraai.com/schemas/protocols/v1/cap.schema.json",
-  "title": "AumOS P12 Capability Attestation Profile v1 envelope",
+  "title": "Warrantor P12 Capability Attestation Profile v1 envelope",
   "type": "object",
   "additionalProperties": false,
   "required": [

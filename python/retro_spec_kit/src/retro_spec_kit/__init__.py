@@ -1,4 +1,4 @@
-"""AumOS retro-spec-kit (X5) — automated retrospective transcript review.
+"""Warrantor retro-spec-kit (X5) — automated retrospective transcript review.
 
 Ingests a transcript of agent behavior (a list of :class:`TranscriptEntry`)
 and runs six analyzers over it. Each analyzer returns zero or more

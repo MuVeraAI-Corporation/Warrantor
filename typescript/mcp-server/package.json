@@ -1,7 +1,7 @@
 {
   "name": "@warrantor/mcp-server",
   "version": "1.0.0",
-  "description": "MCP server exposing the 49 AumOS components as tools any MCP-compatible coding agent can call",
+  "description": "MCP server exposing the 49 Warrantor components as tools any MCP-compatible coding agent can call",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

@@ -8,7 +8,7 @@
 | **Name** | secure-workspace |
 | **Wave** | 1 |
 | **Languages** | Rust orchestration; injected R8/OpenShell/FORGE backend |
-| **DefStack origin** | (none) |
+| **Warrantor origin** | (none) |
 | **AumSecure origin** | Secure Agent Workspace (V2 #1) |
 | **Sentinel origin** | (uses OpenShell) |
 | **Dependencies** | T1, I1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack (none); AumSecure Secure Agent Workspace (V2 #1); Sentinel (uses OpenShell). The full strategic rationale
+Warrantor (none); AumSecure Secure Agent Workspace (V2 #1); Sentinel (uses OpenShell). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -59,7 +59,7 @@ serializable in its wire shape.
 
 ## Dependencies
 
-- **AumOS internal:** T1 signing, I1/I2 identity, R4 credential broker, R6 policy semantics, R8 or
+- **Warrantor internal:** T1 signing, I1/I2 identity, R4 credential broker, R6 policy semantics, R8 or
   an OpenShell/FORGE `SandboxBackend`, and E1 durable evidence.
 - **External:** none in the orchestration crate. Physical backends are injected adapters.
 

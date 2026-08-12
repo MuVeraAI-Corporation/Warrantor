@@ -1,7 +1,7 @@
 // Package sovereign implements X10 sovereign-stack — the air-gapped sovereign deployment
 // bundle manager.
 //
-// AumOS can be deployed fully air-gapped (no cloud dependencies) for sovereignty-sensitive
+// Warrantor can be deployed fully air-gapped (no cloud dependencies) for sovereignty-sensitive
 // environments. This package produces and validates a SovereignBundle: a self-contained
 // manifest that names every component required for a given deployment mode, plus a checksum
 // over the component set so the bundle's integrity can be verified at import time without

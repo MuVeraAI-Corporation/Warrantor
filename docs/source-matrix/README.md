@@ -1,22 +1,22 @@
 # Source Matrix — Original Strategy Documents
 
-This directory is a **read-only provenance index**. The original 20 strategy documents that AumOS
-reconciles live one level up in the project folder (`M:\Project AumOS - Open Secure AI Alliance\`).
+This directory is a **read-only provenance index**. The original 20 strategy documents that Warrantor
+reconciles live one level up in the project folder (`M:\Project Warrantor - Open Secure AI Alliance\`).
 They are **not** copied here — they remain the immutable source of truth for what each portfolio
-proposed. AumOS is the unified implementation derived from them.
+proposed. Warrantor is the unified implementation derived from them.
 
 ## Inventory (20 files, MD5-verified)
 
-### Markdown policy / cross-cutting docs (5 — adopted into AumOS `docs/cross-cutting/`)
-| File | AumOS location |
+### Markdown policy / cross-cutting docs (5 — adopted into Warrantor `docs/cross-cutting/`)
+| File | Warrantor location |
 |------|----------------|
 | `13-compliance-frameworks.md` | `docs/cross-cutting/13-compliance-frameworks.md` (adopted verbatim) |
 | `14-security-disclosure-policy.md` | `docs/cross-cutting/14-security-disclosure-policy.md` (adopted verbatim) |
 | `15-open-source-governance.md` | `docs/cross-cutting/15-open-source-governance.md` (adopted verbatim) |
 | `16-disaster-recovery.md` | `docs/cross-cutting/16-disaster-recovery.md` (adopted verbatim) |
-| `gap-analysis-v3.md` | `docs/cross-cutting/gap-analysis-v3.md` (adopted verbatim; the 3 "fixed" docs it references — 17/18/19 — were absent from the folder and are authored fresh in AumOS) |
+| `gap-analysis-v3.md` | `docs/cross-cutting/gap-analysis-v3.md` (adopted verbatim; the 3 "fixed" docs it references — 17/18/19 — were absent from the folder and are authored fresh in Warrantor) |
 
-### DefStack portfolio (2 PDFs — `DefStack_Implementation_Plan.pdf` is the master; `(1)` is an abridged 17-page subset)
+### Warrantor portfolio (2 PDFs — `DefStack_Implementation_Plan.pdf` is the master; `(1)` is an abridged 17-page subset)
 | File | Pages | Role |
 |------|-------|------|
 | `DefStack_Implementation_Plan.pdf` | 22 | **Master** — full plan, includes cross-cutting Ch.12 + Ch.13 |
@@ -47,7 +47,7 @@ proposed. AumOS is the unified implementation derived from them.
 ### Other
 | File | Role |
 |------|------|
-| `aumsecure_preview.png` | Preview render of the strategy page (not used by AumOS) |
+| `aumsecure_preview.png` | Preview render of the strategy page (not used by Warrantor) |
 
 ---
 
@@ -67,12 +67,12 @@ canonical component and protocol (full reconciliation inventory + P1–P12):
 Regenerate: `python aumos/docs/source-matrix/generate_reading_list.py`  
 Verify: `python aumos/docs/source-matrix/test_reading_list.py`
 
-## How the four portfolios map to AumOS
+## How the four portfolios map to Warrantor
 
 See [`../00-reconciliation-matrix.md`](../00-reconciliation-matrix.md) for the canonical mapping.
 The one-paragraph summary:
 
-- **DefStack (36-comp)** contributes the most detailed component RFCs, the 8-phase/21-month roadmap,
+- **Warrantor (36-comp)** contributes the most detailed component RFCs, the 8-phase/21-month roadmap,
   the per-component language assignments, and the 144 agent-handoff-file pattern.
 - **AumSecure V2 (20-comp + 12 protocols)** contributes the **normative protocol specs** (AAE, AAR,
   CPE, AMIL, SSP, AATM, ABS, VEB, AIX, MADE, PRB, CAP) and the 10-layer pressure-tested architecture.
@@ -83,5 +83,5 @@ The one-paragraph summary:
   co-development playbook with OSAF founders.
 - **Polyglot stack test** contributes the **language doctrine**: Rust = trusted core, Python = agents
   /evals, TypeScript = console/SDK/MCP, Go = phase-gated K8s control plane. This doctrine overrides
-  the per-component Go assignments in DefStack where they conflict (documented per-component in the
+  the per-component Go assignments in Warrantor where they conflict (documented per-component in the
   reconciliation matrix and each RFC).

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate AumOS curated reading list HTML + Markdown from curated-sources.json.
+"""Generate Warrantor curated reading list HTML + Markdown from curated-sources.json.
 
 This is the source-of-truth compiler for the deliverable; verification scripts
 import coverage helpers from this module.
@@ -157,7 +157,7 @@ def render_entry_card(entry: dict[str, Any]) -> str:
     if entry.get("gap") or entry.get("tier") == "adjacent-substitute":
         gap_note = (
             '<p class="gap-note"><strong>Coverage note:</strong> '
-            "Uses adjacent ecosystem primary sources where a single public twin of the AumOS "
+            "Uses adjacent ecosystem primary sources where a single public twin of the Warrantor "
             "surface is still thin.</p>"
         )
     extra = ""
@@ -422,9 +422,9 @@ def generate_html(data: dict[str, Any]) -> str:
 <body>
   <div class="page">
     <header class="hero">
-      <p style="font-size:0.85rem;color:var(--accent);font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin:0 0 0.5rem;">AumOS · Source Matrix · Local Deliverable</p>
+      <p style="font-size:0.85rem;color:var(--accent);font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin:0 0 0.5rem;">Warrantor · Source Matrix · Local Deliverable</p>
       <h1>{html.escape(data['meta']['title'])}</h1>
-      <p class="lead">Highest-quality primary standards, RFCs, vendor engineering blogs, and deep technical analyses mapped to every implementable component and every protocol in the AumOS portfolio. Depth over listicles. Visual coverage matrix + browsable cards.</p>
+      <p class="lead">Highest-quality primary standards, RFCs, vendor engineering blogs, and deep technical analyses mapped to every implementable component and every protocol in the Warrantor portfolio. Depth over listicles. Visual coverage matrix + browsable cards.</p>
       <div class="stats">
         <div class="stat"><div class="n">{stats['total_entries']}</div><div class="l">Curated entries</div></div>
         <div class="stat"><div class="n">{stats['unique_domain_count']}</div><div class="l">Unique domains</div></div>
@@ -473,7 +473,7 @@ def generate_html(data: dict[str, Any]) -> str:
       <ul>
         <li><strong>Canonical primary</strong> — standards bodies, RFCs, official project docs, first-party eng blogs that define the surface.</li>
         <li><strong>Deep secondary</strong> — rigorous security research, long-form technical analysis, conference/arXiv writeups that are definitive on a subtopic.</li>
-        <li><strong>Adjacent / gap substitute</strong> — honest note when AumOS owns a novel composition; multi-source ecosystem anchors stand in until a public twin exists.</li>
+        <li><strong>Adjacent / gap substitute</strong> — honest note when Warrantor owns a novel composition; multi-source ecosystem anchors stand in until a public twin exists.</li>
       </ul>
       <p>{html.escape(data['meta']['doctrine'])}</p>
       <p>Portfolio truth files: <code>{html.escape(', '.join(data['meta']['portfolio_truth']))}</code>. Generated {html.escape(data['meta']['generated'])} · v{html.escape(data['meta']['version'])}.</p>
@@ -500,7 +500,7 @@ def generate_html(data: dict[str, Any]) -> str:
       <h2>Explicit gaps &amp; substitutes</h2>
       <p><strong>Uncovered IDs (must be empty):</strong> {html.escape(uncovered)}</p>
       <p><strong>IDs relying only on adjacent substitutes:</strong> {html.escape(sub_only)}</p>
-      <p>Notable thin public surfaces called out in entries: OpenShell/NOOA deep eng docs, IBM/Red Hat Lightwell long-form, and several AumOS-native protocol envelopes (AAE/AAR/AMIL/etc.) which are composed from SPIFFE + OAuth RAR/DPoP + Cedar + OTel + OCSF + Sigstore rather than a single existing public twin.</p>
+      <p>Notable thin public surfaces called out in entries: OpenShell/NOOA deep eng docs, IBM/Red Hat Lightwell long-form, and several Warrantor-native protocol envelopes (AAE/AAR/AMIL/etc.) which are composed from SPIFFE + OAuth RAR/DPoP + Cedar + OTel + OCSF + Sigstore rather than a single existing public twin.</p>
     </section>
 
     <div id="clusters">
@@ -509,7 +509,7 @@ def generate_html(data: dict[str, Any]) -> str:
     </div>
 
     <footer class="page-foot">
-      <p>Local in-repo deliverable for Project AumOS — Open Secure AI Alliance. Not a hosted artifact.
+      <p>Local in-repo deliverable for Project Warrantor — Open Secure AI Alliance. Not a hosted artifact.
       Companion Markdown: <code>aumos/docs/curated-reading-list.md</code>. Data: <code>aumos/docs/source-matrix/curated-sources.json</code>.</p>
       <p>Unique domains: {html.escape(', '.join(stats['unique_domains']))}</p>
     </footer>

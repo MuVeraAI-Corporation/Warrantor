@@ -1,6 +1,6 @@
-# AumOS Modal GPU deployments
+# Warrantor Modal GPU deployments
 
-Real Modal scripts that deploy the AumOS safe-eval pipeline and the adversaria
+Real Modal scripts that deploy the Warrantor safe-eval pipeline and the adversaria
 attack suite against a vLLM-served model on an **A10G GPU** (24 GB). These are
 not mocks: the local `python/safe_eval` and `python/adversaria` packages are
 installed into the container image and run against a real vLLM engine.
@@ -26,7 +26,7 @@ installed into the container image and run against a real vLLM engine.
 
 Both scripts follow the same shape:
 
-- a CUDA base image with `vllm` + the local AumOS package installed,
+- a CUDA base image with `vllm` + the local Warrantor package installed,
 - a class-based GPU model server (`@app.cls(gpu="A10G")`) that loads the model
   once per container via `@modal.enter()` so cold starts amortise the weight
   download,

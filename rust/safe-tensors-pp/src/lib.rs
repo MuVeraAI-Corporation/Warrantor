@@ -483,7 +483,6 @@ pub fn verify(header: &serde_json::Value, data: &[u8]) -> Result<Provenance, Stp
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::OsRng;
 
     fn test_header() -> serde_json::Value {
         serde_json::json!({
@@ -501,7 +500,7 @@ mod tests {
     }
 
     fn test_key() -> SigningKey {
-        let mut rng = OsRng;
+        let mut rng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
         SigningKey::generate(&mut rng)
     }
 

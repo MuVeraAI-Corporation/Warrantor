@@ -46,9 +46,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: AumOS ${{ github.ref_name }}
+          name: Warrantor ${{ github.ref_name }}
           body: |
-            # AumOS ${{ github.ref_name }}
+            # Warrantor ${{ github.ref_name }}
 
             ## What's in this release
 

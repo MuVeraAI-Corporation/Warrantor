@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "A5 — adversarial benchmark framework for AI agents (rotating holdouts, maintainer-first disclosure)"
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 dependencies = []
 

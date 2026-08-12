@@ -1,6 +1,6 @@
 # warrantor-retention
 
-AumOS data retention policy engine and GDPR right-to-erasure (tombstone) support.
+Warrantor data retention policy engine and GDPR right-to-erasure (tombstone) support.
 
 This module implements the **M1 fix**: a declarative data-retention layer plus
 cryptographically-sound GDPR right-to-erasure that preserves the append-only
@@ -17,11 +17,11 @@ attestation ledger while rendering sensitive content permanently inaccessible.
   tamper-evident `_tombstone` marker (with an HMAC over the erased field names)
   is written into the record so the erasure is auditable.
 - **Cryptographic key shredding** — for records whose confidentiality depends on
-  a per-record encryption key (the recommended pattern for AumOS audit records
+  a per-record encryption key (the recommended pattern for Warrantor audit records
   and the `attestation_ledger`), delete the key. The ciphertext is left in
   place; only the key is gone. The data becomes cryptographically inaccessible
   without altering the append-only ledger — satisfying both GDPR's "put beyond
-  use" and AumOS's tamper-evidence invariant (I-07).
+  use" and Warrantor's tamper-evidence invariant (I-07).
 
 ## Default policies
 
