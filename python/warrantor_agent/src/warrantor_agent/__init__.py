@@ -1,14 +1,14 @@
-"""AumOS Agent SDK — unified Python SDK for coding agents.
+"""Warrantor Agent SDK — unified Python SDK for coding agents.
 
 This module gives any Python coding agent (Claude Code custom tools, OpenAI Codex scripts,
-Cursor rules, or a hand-rolled agent) the AumOS security primitives as first-class objects.
+Cursor rules, or a hand-rolled agent) the Warrantor security primitives as first-class objects.
 
 The headline feature is the ``@agent.action`` decorator, which wraps any function with the full
-AumOS security envelope:
+Warrantor security envelope:
 
-    from warrantor_agent import AumOS
+    from warrantor_agent import Warrantor
 
-    agent = AumOS(mode="standalone")  # or "connected" against running services
+    agent = Warrantor(mode="standalone")  # or "connected" against running services
 
     @agent.action(tool="github.create_pr", side_effect="write")
     def create_pull_request(repo: str, title: str, body: str):
@@ -25,7 +25,7 @@ A decorated action automatically:
 
 Design principles
 -----------------
-- **Zero-friction**: ``@agent.action`` wraps any function with full AumOS security.
+- **Zero-friction**: ``@agent.action`` wraps any function with full Warrantor security.
 - **Graceful degradation**: in ``"standalone"`` mode, uses local mock implementations; in
   ``"connected"`` mode, calls real services and falls back to mocks on connection failure.
 - **Coding-agent friendly**: importable from notebooks, scripts, or rules files.
@@ -57,14 +57,14 @@ __all__ = [
     "MOCK_SIGNATURE_PREFIX",
     "ActionBlocked",
     "ActionResult",
-    "AumOS",
-    "AumOSConfig",
     "ContainmentTriggered",
     "Finding",
     "Receipt",
     "SecurityError",
     "SideEffect",
     "SigningUnavailable",
+    "Warrantor",
+    "WarrantorConfig",
 ]
 
 __version__ = "1.0.0"
@@ -75,7 +75,7 @@ SIDE_EFFECTS: list[str] = ["read", "write", "financial", "destructive", "physica
 _SIDE_EFFECT_RANK: dict[str, int] = {s: i for i, s in enumerate(SIDE_EFFECTS)}
 CONSEQUENTIAL_CLASSES: frozenset[str] = frozenset({"financial", "destructive", "physical"})
 
-# Default service URLs (overridable via AumOSConfig). Match the MCP server defaults.
+# Default service URLs (overridable via WarrantorConfig). Match the MCP server defaults.
 _DEFAULTS = {
     "agent_identity_url": "http://localhost:8441",
     "trust_core_bin": "trust-core",
@@ -99,12 +99,12 @@ SideEffect = str  # one of SIDE_EFFECTS
 
 #: Marks a standalone-mode stand-in so it can never be confused with a real signature.
 #: A real Ed25519 signature is bare hex; anything carrying this prefix is a mock and any
-#: consumer can reject it on sight. See :meth:`AumOSAgent.sign` and AX-28.
+#: consumer can reject it on sight. See :meth:`WarrantorAgent.sign` and AX-28.
 MOCK_SIGNATURE_PREFIX = "mock-unverifiable:"
 
 
 class SecurityError(Exception):
-    """Base class for all AumOS SDK security errors."""
+    """Base class for all Warrantor SDK security errors."""
 
 
 class SigningUnavailable(SecurityError):
@@ -198,8 +198,8 @@ class ActionResult:
 
 
 @dataclass
-class AumOSConfig:
-    """Configuration for the AumOS SDK. All URL/bin fields default to localhost services.
+class WarrantorConfig:
+    """Configuration for the Warrantor SDK. All URL/bin fields default to localhost services.
 
     Attributes:
         mode: ``"standalone"`` (mock implementations) or ``"connected"`` (real services).
@@ -348,18 +348,18 @@ def _mask(value: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# The AumOS class.
+# The Warrantor class.
 # ---------------------------------------------------------------------------
 
 
-class AumOS:
-    """The AumOS Agent SDK entry point.
+class Warrantor:
+    """The Warrantor Agent SDK entry point.
 
-    Parameters mirror :class:`AumOSConfig`. ``mode`` selects between standalone (mock) and
-    connected (real services) operation; ``**kwargs`` accepts any :class:`AumOSConfig` field.
+    Parameters mirror :class:`WarrantorConfig`. ``mode`` selects between standalone (mock) and
+    connected (real services) operation; ``**kwargs`` accepts any :class:`WarrantorConfig` field.
 
     Example:
-        >>> agent = AumOS(mode="standalone")
+        >>> agent = Warrantor(mode="standalone")
         >>> agent.scan_secrets("token=ghp_" + "a"*36)
         [Finding(type='github_pat', ...)]
     """
@@ -387,7 +387,7 @@ class AumOS:
     ) -> None:
         if mode not in ("standalone", "connected"):
             raise ValueError(f"mode must be 'standalone' or 'connected', got {mode!r}")
-        self.config = AumOSConfig(
+        self.config = WarrantorConfig(
             mode=mode,
             agent_identity_url=agent_identity_url,
             flight_recorder_url=flight_recorder_url,
@@ -906,7 +906,7 @@ class AumOS:
         }
 
     def install(self, name: str, *, version: str = "latest") -> dict[str, Any]:
-        """Install an AumOS component via ``defstack install <name>``."""
+        """Install an Warrantor component via ``defstack install <name>``."""
         if not name:
             raise ValueError("name is required")
         if self.is_connected:
@@ -1015,7 +1015,7 @@ class AumOS:
         side_effect: SideEffect = "read",
         actor: str | None = None,
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        """Decorate a function with the full AumOS security envelope.
+        """Decorate a function with the full Warrantor security envelope.
 
         The wrapped function returns an :class:`ActionResult` whose ``.value`` is the original
         function's return value, alongside the SVID, preflight result, and receipt. To get the

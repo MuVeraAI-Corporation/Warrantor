@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AumOS — Gap Analysis & Feature Catalog | MuVera AI</title>
-<meta name="description" content="The definitive 'what do we have, what's missing, what's next' document for AumOS. Implementation gap analysis, full developer & enterprise feature catalog, and what MUST be added beyond the 49 components and 12 protocols.">
-<meta property="og:title" content="AumOS — Gap Analysis & Feature Catalog">
+<title>Warrantor — Gap Analysis & Feature Catalog | MuVera AI</title>
+<meta name="description" content="The definitive 'what do we have, what's missing, what's next' document for Warrantor. Implementation gap analysis, full developer & enterprise feature catalog, and what MUST be added beyond the 49 components and 12 protocols.">
+<meta property="og:title" content="Warrantor — Gap Analysis & Feature Catalog">
 <meta property="og:description" content="Did we miss anything? What are ALL the features? What MUST we add? The comprehensive catalog.">
 <meta property="og:type" content="website">
 <style>
@@ -14,7 +14,7 @@
    Source: docs/html/aumos-docs.css
    ============================================================================ */
 
-/* AumOS Documentation — Anthropic-inspired Style System */
+/* Warrantor Documentation — Anthropic-inspired Style System */
 /* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
    serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
 
@@ -483,7 +483,7 @@ li::marker { color: var(--accent); }
 <section class="mv-hero">
   <span class="mv-eyebrow">● MuVera AI · Gap Analysis &amp; Feature Catalog</span>
   <h1>What We Have. What's Missing. What's Next.</h1>
-  <p class="lead">The definitive catalog for AumOS &mdash; the open authority and evidence layer for autonomous systems. This document answers three load-bearing questions: <strong style="color:#fff">Did we miss anything in the implementation?</strong>, <strong style="color:#fff">What are ALL the developer-friendly and enterprise-friendly features?</strong>, and <strong style="color:#fff">What MUST we add beyond the 49 components and 12 protocols?</strong></p>
+  <p class="lead">The definitive catalog for Warrantor &mdash; the open authority and evidence layer for autonomous systems. This document answers three load-bearing questions: <strong style="color:#fff">Did we miss anything in the implementation?</strong>, <strong style="color:#fff">What are ALL the developer-friendly and enterprise-friendly features?</strong>, and <strong style="color:#fff">What MUST we add beyond the 49 components and 12 protocols?</strong></p>
   <div class="mv-kpi-row" style="margin:1.75rem 0 0;">
     <div class="mv-kpi"><div class="n">49</div><div class="l">Components shipped (v1.0.0)</div></div>
     <div class="mv-kpi"><div class="n">12</div><div class="l">Open protocols (P1–P12)</div></div>
@@ -520,13 +520,13 @@ li::marker { color: var(--accent); }
 
 <div class="callout danger mv-callout-tight">
   <div class="callout-title">Framing — read this first</div>
-  <p style="margin:0">The repo's own <code>docs/final-verification-report.md</code> claims "691 tests passing, feature-complete at v1.0.0". The brutally honest code-level audit (see <a href="critical-analysis.html">critical-analysis.html</a>) found that most "implementations" are documented stubs the report itself defers to "task 03". The 7 cryptographic-spine findings (C1–C7) are claimed-but-not-delivered security invariants. AumOS is best understood today as a <strong style="color:#fff">comprehensive architectural specification with reference-shape implementations</strong> &mdash; not deployable v1.0 software. This catalog is the roadmap to close that gap.</p>
+  <p style="margin:0">The repo's own <code>docs/final-verification-report.md</code> claims "691 tests passing, feature-complete at v1.0.0". The brutally honest code-level audit (see <a href="critical-analysis.html">critical-analysis.html</a>) found that most "implementations" are documented stubs the report itself defers to "task 03". The 7 cryptographic-spine findings (C1–C7) are claimed-but-not-delivered security invariants. Warrantor is best understood today as a <strong style="color:#fff">comprehensive architectural specification with reference-shape implementations</strong> &mdash; not deployable v1.0 software. This catalog is the roadmap to close that gap.</p>
 </div>
 
 <!-- ===================== 1A ===================== -->
 <section id="sec-1a" class="mv-section-card">
 <h2><span class="section-number">1A.</span>Components folded vs standalone</h2>
-<p>The reconciliation matrix (<code>docs/00-reconciliation-matrix.md</code>) is the single source of truth. It collapses 4 source portfolios (DefStack 36-plan, AumSecure V2/V3, PROJECT SENTINEL, original AumOS) into <strong>one canonical component per concern</strong>. Several matrix IDs were <em>folded</em> rather than shipped standalone &mdash; either because they describe the same concern as another component, or because their RFC is spec-only. This table is the authoritative accounting.</p>
+<p>The reconciliation matrix (<code>docs/00-reconciliation-matrix.md</code>) is the single source of truth. It collapses 4 source portfolios (Warrantor 36-plan, AumSecure V2/V3, PROJECT SENTINEL, original Warrantor) into <strong>one canonical component per concern</strong>. Several matrix IDs were <em>folded</em> rather than shipped standalone &mdash; either because they describe the same concern as another component, or because their RFC is spec-only. This table is the authoritative accounting.</p>
 
 <h3>Folded / deferred inventory</h3>
 <div class="mv-scroll">
@@ -670,7 +670,7 @@ li::marker { color: var(--accent); }
 <!-- ===================== 1C ===================== -->
 <section id="sec-1c" class="mv-section-card">
 <h2><span class="section-number">1C.</span>Missing cross-cutting infrastructure</h2>
-<p>These are not "missing components" — they are <strong>infrastructure every production system needs</strong> that no AumOS component provides today. The 49 components implement domain logic; nothing implements the platform substrate they run on. Each gap below is currently served by a stub, a hardcoded URL, or nothing at all.</p>
+<p>These are not "missing components" — they are <strong>infrastructure every production system needs</strong> that no Warrantor component provides today. The 49 components implement domain logic; nothing implements the platform substrate they run on. Each gap below is currently served by a stub, a hardcoded URL, or nothing at all.</p>
 
 <div class="card-grid">
   <div class="card">
@@ -696,7 +696,7 @@ li::marker { color: var(--accent); }
   <div class="card">
     <div class="card-id">GAP 5</div>
     <div class="card-title">Unified config management</div>
-    <div class="card-desc">No unified config system. Each component reads its own env vars; no schema, no validation, no layered config (file → env → flag). <strong>Fix:</strong> a typed config layer (e.g. <code>figment</code>/<code>config-rs</code>, <code>viper</code> in Go) with a shared <code>AumOSConfig</code> schema and fail-closed validation on startup.</div>
+    <div class="card-desc">No unified config system. Each component reads its own env vars; no schema, no validation, no layered config (file → env → flag). <strong>Fix:</strong> a typed config layer (e.g. <code>figment</code>/<code>config-rs</code>, <code>viper</code> in Go) with a shared <code>WarrantorConfig</code> schema and fail-closed validation on startup.</div>
   </div>
   <div class="card">
     <div class="card-id">GAP 6</div>
@@ -773,12 +773,12 @@ li::marker { color: var(--accent); }
 <div id="part2"></div>
 <div class="mv-rule">Part 2 · Developer-Friendly &amp; Enterprise-Friendly Features Catalog</div>
 
-<p>This part answers "What are ALL the features and workflows?" Every item below is either <strong>shipped</strong> in v1.0.0, <strong>specified</strong> in an RFC, or <strong>planned</strong> on the public roadmap. Use the status pills to distinguish. The goal is a single page an engineer or procurement lead can scan to know what AumOS does for them.</p>
+<p>This part answers "What are ALL the features and workflows?" Every item below is either <strong>shipped</strong> in v1.0.0, <strong>specified</strong> in an RFC, or <strong>planned</strong> on the public roadmap. Use the status pills to distinguish. The goal is a single page an engineer or procurement lead can scan to know what Warrantor does for them.</p>
 
 <!-- ===================== 2A ===================== -->
 <section id="sec-2a" class="mv-section-card">
 <h2><span class="section-number">2A.</span>Developer Experience (DX) Features</h2>
-<p>Thirty DX features that make AumOS the most usable secure-agent stack. Grouped into <strong>install &amp; onboarding</strong>, <strong>SDKs &amp; APIs</strong>, <strong>CI &amp; supply chain</strong>, and <strong>community &amp; governance</strong>.</p>
+<p>Thirty DX features that make Warrantor the most usable secure-agent stack. Grouped into <strong>install &amp; onboarding</strong>, <strong>SDKs &amp; APIs</strong>, <strong>CI &amp; supply chain</strong>, and <strong>community &amp; governance</strong>.</p>
 
 <div class="mv-pillbar">
   <span class="mv-pill">30 DX features</span>
@@ -799,7 +799,7 @@ li::marker { color: var(--accent); }
 
 <h4>SDKs &amp; APIs</h4>
 <div class="mv-grid-3">
-  <div class="mv-feature-card"><div class="num">DX-04</div><h4>MCP server (15 tools)</h4><p>Any agent can call AumOS via <code>npx @warrantor/mcp-server</code>. 15 tools span identity, authority, evidence, and kill-switch.</p></div>
+  <div class="mv-feature-card"><div class="num">DX-04</div><h4>MCP server (15 tools)</h4><p>Any agent can call Warrantor via <code>npx @warrantor/mcp-server</code>. 15 tools span identity, authority, evidence, and kill-switch.</p></div>
   <div class="mv-feature-card"><div class="num">DX-05</div><h4><code>@agent.action</code> decorator</h4><p>Wrap any function with authority, evidence, and kill-switch in one line. Security becomes opt-out, not opt-in.</p></div>
   <div class="mv-feature-card"><div class="num">DX-06</div><h4><code>secure_session()</code> context manager</h4><p>Wrap an entire agent session: identity issued, budget enforced, evidence streamed, credentials auto-revoked on exit.</p></div>
   <div class="mv-feature-card"><div class="num">DX-23</div><h4>TypeScript SDK</h4><p>First-class SDK for the console (X7) and MCP gateway (X8). Generated from the proto contract — no hand-maintained types.</p></div>
@@ -899,7 +899,7 @@ li::marker { color: var(--accent); }
   <div class="mv-feature-card"><div class="num">EN-21</div><h4>Incident response playbooks</h4><p>5 disaster-recovery scenarios documented: model compromise, agent escape, credential leak, key compromise, region loss.</p></div>
   <div class="mv-feature-card"><div class="num">EN-22</div><h4>Business continuity</h4><p>9-month runway minimum maintained; documented succession for the BDFL role; bus-factor &gt; 3 on every critical component.</p></div>
   <div class="mv-feature-card"><div class="num">EN-23</div><h4>Bug bounty</h4><p>HackerOne program launching Q2 2027. Severity-based payouts; critical-findings fast-track.</p></div>
-  <div class="mv-feature-card"><div class="num">EN-24</div><h4>CVE numbering authority candidate</h4><p>CNA candidacy on the roadmap so AumOS can assign CVEs for its own dependencies and downstream consumers.</p></div>
+  <div class="mv-feature-card"><div class="num">EN-24</div><h4>CVE numbering authority candidate</h4><p>CNA candidacy on the roadmap so Warrantor can assign CVEs for its own dependencies and downstream consumers.</p></div>
   <div class="mv-feature-card"><div class="num">EN-26</div><h4>Enterprise tier</h4><p>SSO/SAML, audit streaming (OCSF out), SLA-backed support, named technical account manager.</p></div>
   <div class="mv-feature-card"><div class="num">EN-27</div><h4>Mission-critical tier</h4><p>FedRAMP-authorized deployment, dedicated customer success engineer (CSE), 24/7 phone support, &lt;15-min incident page.</p></div>
 </div>
@@ -1056,12 +1056,12 @@ li::marker { color: var(--accent); }
 <div id="part3"></div>
 <div class="mv-rule">Part 3 · What MUST We Add Beyond the 49 Components &amp; 12 Protocols</div>
 
-<p>Components implement domain logic; protocols define the contract. Neither is a runnable platform. Part 3 catalogs the substrate AumOS depends on but does not own &mdash; the infrastructure services, the developer tooling, the enterprise capabilities, and the ecosystem integrations that MUST exist for a real deployment. These are not optional polish; they are the difference between a specification and a product.</p>
+<p>Components implement domain logic; protocols define the contract. Neither is a runnable platform. Part 3 catalogs the substrate Warrantor depends on but does not own &mdash; the infrastructure services, the developer tooling, the enterprise capabilities, and the ecosystem integrations that MUST exist for a real deployment. These are not optional polish; they are the difference between a specification and a product.</p>
 
 <!-- ===================== 3A ===================== -->
 <section id="sec-3a" class="mv-section-card">
 <h2><span class="section-number">3A.</span>Essential infrastructure services</h2>
-<p>Ten services the system cannot run without. AumOS adopts these rather than reinventing them (per 02-architecture.md §7). Each maps to at least one open High/Medium finding.</p>
+<p>Ten services the system cannot run without. Warrantor adopts these rather than reinventing them (per 02-architecture.md §7). Each maps to at least one open High/Medium finding.</p>
 
 <div class="mv-grid-2">
   <div class="mv-feature-card"><div class="num">INFRA-01</div><h4>SPIRE server cluster</h4><p>The identity root for all components. I1 agent-identity ships an in-process Ed25519 CA in v1.0 (final-verification-report task 03). A production deployment MUST front I1 with a SPIRE cluster that mints real SPIFFE SVIDs. Resolves H6 (plain HTTP) and the SVID lifecycle.</p></div>
@@ -1083,12 +1083,12 @@ li::marker { color: var(--accent); }
 <p>Eight tools that turn the component catalog into a usable platform. Today an integrator writes glue by hand; these tools remove that glue.</p>
 
 <div class="mv-grid-2">
-  <div class="mv-feature-card"><div class="num">TOOL-01</div><h4><code>aumos init</code></h4><p>Scaffolding command that creates a new AumOS-secured project: <code>@agent.action</code> template, <code>secure_session</code> wiring, MCP tool stubs, and a <code>make test</code> lane.</p></div>
+  <div class="mv-feature-card"><div class="num">TOOL-01</div><h4><code>aumos init</code></h4><p>Scaffolding command that creates a new Warrantor-secured project: <code>@agent.action</code> template, <code>secure_session</code> wiring, MCP tool stubs, and a <code>make test</code> lane.</p></div>
   <div class="mv-feature-card"><div class="num">TOOL-02</div><h4><code>aumos dev</code></h4><p>Local development server. Runs all 49 components with mock backends (mock SPIRE, mock Rekor, mock OPA, mock Vault) so an integrator can build without infrastructure.</p></div>
   <div class="mv-feature-card"><div class="num">TOOL-03</div><h4><code>aumos test</code></h4><p>Runs the cross-language conformance suite. Wraps <code>tools/conformance/run.sh</code> and adds the protocol-level vectors missing today (1D).</p></div>
   <div class="mv-feature-card"><div class="num">TOOL-04</div><h4><code>aumos deploy</code></h4><p>One-command cloud deployment. Terraform wrapper that provisions INFRA-01…10 and the requested components into AWS / Azure / GCP.</p></div>
   <div class="mv-feature-card"><div class="num">TOOL-05</div><h4>VS Code extension</h4><p>Syntax highlighting + linting for <code>.complygate.yml</code> (A4), OPA Rego, CDDL, and AAE/AAR JSON. Snippets for <code>@agent.action</code> and <code>secure_session()</code>.</p></div>
-  <div class="mv-feature-card"><div class="num">TOOL-06</div><h4>Reusable GitHub Actions</h4><p>Pre-built CI templates (<code>uses: muveraai/aumos-actions/...</code>) for conformance, SBOM, SLSA, compliance-report. Drop-in for any AumOS project.</p></div>
+  <div class="mv-feature-card"><div class="num">TOOL-06</div><h4>Reusable GitHub Actions</h4><p>Pre-built CI templates (<code>uses: muveraai/aumos-actions/...</code>) for conformance, SBOM, SLSA, compliance-report. Drop-in for any Warrantor project.</p></div>
   <div class="mv-feature-card"><div class="num">TOOL-07</div><h4>Docker Compose dev env</h4><p>All 49 components + INFRA-01…10 mock backends in one <code>docker compose up</code>. The 5-minute quickstart (DX-27) depends on this.</p></div>
   <div class="mv-feature-card"><div class="num">TOOL-08</div><h4>Helm chart registry</h4><p>Production-grade Helm chart per deployable component. Values files for the 4 topologies (A/B/C/D). <code>helm install aumos/trust-core</code>.</p></div>
 </div>
@@ -1102,7 +1102,7 @@ li::marker { color: var(--accent); }
 <div class="mv-grid-2">
   <div class="mv-feature-card"><div class="num">ENT-01</div><h4>SSO / SAML / OIDC</h4><p>Enterprise identity federation. Today the only identity is the SPIFFE workload identity (I1). Human-facing consoles (X7) and CI runners need SAML/OIDC federation to Okta, Entra ID, Ping.</p></div>
   <div class="mv-feature-card"><div class="num">ENT-02</div><h4>RBAC engine</h4><p>Fine-grained role-based access beyond the governance ladder (EN-17). Resource-level permissions: who can issue an AAE, who can revoke, who can read the ledger.</p></div>
-  <div class="mv-feature-card"><div class="num">ENT-03</div><h4>Multi-cluster management</h4><p>Fleet of AumOS deployments across regions. A control-plane that federates attestation roots, syncs policy bundles, and rolls up audit across clusters.</p></div>
+  <div class="mv-feature-card"><div class="num">ENT-03</div><h4>Multi-cluster management</h4><p>Fleet of Warrantor deployments across regions. A control-plane that federates attestation roots, syncs policy bundles, and rolls up audit across clusters.</p></div>
   <div class="mv-feature-card"><div class="num">ENT-04</div><h4>Data residency enforcement engine</h4><p>Automatic data routing by classification (EN-10/EN-12). A policy engine that refuses to route L3+ data across residency boundaries and emits a violation event on attempt.</p></div>
   <div class="mv-feature-card"><div class="num">ENT-05</div><h4>SLA monitoring</h4><p>Uptime, latency, and compliance SLAs with alerting. SLOs per plane (12 planes → 12 SLOs) wired into the Grafana stack (INFRA-08).</p></div>
   <div class="mv-feature-card"><div class="num">ENT-06</div><h4>Backup &amp; disaster recovery</h4><p>Automated backup of ledgers, keys, configs. Documented RPO/RTO per topology. Resolves the multi-region gap (1C GAP 8).</p></div>
@@ -1114,15 +1114,15 @@ li::marker { color: var(--accent); }
 <!-- ===================== 3D ===================== -->
 <section id="sec-3d" class="mv-section-card">
 <h2><span class="section-number">3D.</span>Essential ecosystem integrations</h2>
-<p>Eight integrations that make AumOS part of the stack an enterprise already runs. Each is a documented adapter; none requires forking the integrated system.</p>
+<p>Eight integrations that make Warrantor part of the stack an enterprise already runs. Each is a documented adapter; none requires forking the integrated system.</p>
 
 <div class="mv-grid-2">
-  <div class="mv-feature-card"><div class="num">INT-01</div><h4>HuggingFace Hub integration</h4><p>Sign models at upload time. A HuggingFace-side action that runs S1 sign + S4 SBOM + S2 lineage so every model on the Hub can carry an AumOS trust envelope.</p></div>
+  <div class="mv-feature-card"><div class="num">INT-01</div><h4>HuggingFace Hub integration</h4><p>Sign models at upload time. A HuggingFace-side action that runs S1 sign + S4 SBOM + S2 lineage so every model on the Hub can carry an Warrantor trust envelope.</p></div>
   <div class="mv-feature-card"><div class="num">INT-02</div><h4>vLLM integration</h4><p>Attested serving plugin. N1/N2 backend adapter for vLLM that refuses to serve a model whose attestation envelope fails C1-1/C1-2 verification.</p></div>
   <div class="mv-feature-card"><div class="num">INT-03</div><h4>LangChain / LangGraph</h4><p>NOOA-Ext (X2) harness adapter. Drop-in LangGraph checkpoint serializer that wraps every node in <code>@agent.action</code> automatically.</p></div>
   <div class="mv-feature-card"><div class="num">INT-04</div><h4>Kubernetes admission controller</h4><p>Validate AAEs at pod creation. A mutating+validating webhook that refuses to schedule a pod whose workload has no valid AAE (P1).</p></div>
   <div class="mv-feature-card"><div class="num">INT-05</div><h4>GitHub Actions security action</h4><p><code>.github/workflows/aumos.yml</code> for every repo: conformance, SBOM, SLSA, compliance-report. The DX-12 lane as a one-line include.</p></div>
-  <div class="mv-feature-card"><div class="num">INT-06</div><h4>Terraform provider</h4><p>Manage AumOS resources as IaC. <code>aumos_authority</code>, <code>aumos_policy</code>, <code>aumos_tenant</code> resources so a deployment is reproducible from code.</p></div>
+  <div class="mv-feature-card"><div class="num">INT-06</div><h4>Terraform provider</h4><p>Manage Warrantor resources as IaC. <code>aumos_authority</code>, <code>aumos_policy</code>, <code>aumos_tenant</code> resources so a deployment is reproducible from code.</p></div>
   <div class="mv-feature-card"><div class="num">INT-07</div><h4>Splunk / Elastic / Datadog</h4><p>OCSF event forwarding. X9 incident-exchange emits OCSF; this integration ships the connector packs for the three dominant SIEMs.</p></div>
   <div class="mv-feature-card"><div class="num">INT-08</div><h4>Jira / Linear integration</h4><p>Incident-to-ticket auto-creation. An X9 incident opens a tracked ticket with the full evidence bundle (E1 AARs) attached.</p></div>
 </div>
@@ -1160,7 +1160,7 @@ li::marker { color: var(--accent); }
 
 <div class="callout success mv-callout-tight">
   <div class="callout-title">The honest summary</div>
-  <p style="margin:0">AumOS today is the most thoroughly specified open secure-AI stack in the market: 49 components reconciled across 4 source portfolios, 12 protocols, 10 compliance frameworks, 12 formal invariants, 691 tests. The gap to "deployable v1.0 software" is real (28 audit findings, 10 infrastructure services, 34 must-add items) but it is <strong style="color:#fff">bounded, sequenced, and mostly documentation-and-integration work rather than novel research</strong>. Closing it is a matter of months, not years.</p>
+  <p style="margin:0">Warrantor today is the most thoroughly specified open secure-AI stack in the market: 49 components reconciled across 4 source portfolios, 12 protocols, 10 compliance frameworks, 12 formal invariants, 691 tests. The gap to "deployable v1.0 software" is real (28 audit findings, 10 infrastructure services, 34 must-add items) but it is <strong style="color:#fff">bounded, sequenced, and mostly documentation-and-integration work rather than novel research</strong>. Closing it is a matter of months, not years.</p>
 </div>
 </div>
 
@@ -1175,7 +1175,7 @@ li::marker { color: var(--accent); }
   <li><code>docs/02-architecture.md</code> &mdash; the 12-plane architecture and I-01…​I-12 invariants.</li>
   <li><code>docs/cross-cutting/13-compliance-frameworks.md</code> &mdash; regulatory mapping (2B).</li>
 </ul>
-<p style="margin-top:1rem"><span class="mv-brand-mark">MuVera AI</span> &middot; AumOS &mdash; the open authority and evidence layer for autonomous systems &middot; <span class="mv-tag">SENSE</span><span class="mv-tag">ACT</span><span class="mv-tag">SEAL</span><span class="mv-tag">IMPROVE ↺</span></p>
+<p style="margin-top:1rem"><span class="mv-brand-mark">MuVera AI</span> &middot; Warrantor &mdash; the open authority and evidence layer for autonomous systems &middot; <span class="mv-tag">SENSE</span><span class="mv-tag">ACT</span><span class="mv-tag">SEAL</span><span class="mv-tag">IMPROVE ↺</span></p>
 </div>
 
 </div><!-- /.mv-shell -->

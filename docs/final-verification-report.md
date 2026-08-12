@@ -6,7 +6,7 @@
 > [`implementation/catalog.json`](implementation/catalog.json); current readiness must be derived
 > from the implementation tracker and exact verification evidence for the target commit.
 
-> Historical claim retained for traceability: “The AumOS project is feature-complete with 49
+> Historical claim retained for traceability: “The Warrantor project is feature-complete with 49
 > components shipped at v1.0.0.” This claim is not currently substantiated.
 
 ## Grand totals

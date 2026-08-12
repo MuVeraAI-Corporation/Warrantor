@@ -1,6 +1,6 @@
-# AumOS Error Code Registry
+# Warrantor Error Code Registry
 
-> Centralized registry of error codes for all AumOS components.
+> Centralized registry of error codes for all Warrantor components.
 > Per cross-cutting 19 §6.1: every error uses the format `AUMOS.<COMPONENT>.<REASON>`.
 > This file is the single source of truth for error code strings.
 

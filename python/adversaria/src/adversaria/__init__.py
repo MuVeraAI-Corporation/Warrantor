@@ -1,4 +1,4 @@
-"""AumOS adversaria (A2) — unified adversarial testing framework.
+"""Warrantor adversaria (A2) — unified adversarial testing framework.
 
 A single API that wraps two external tools — **garak** (LLM vulnerability scanner) and **PyRIT**
 (Python Risk Identification Toolkit) — and adds five built-in attack generators covering the

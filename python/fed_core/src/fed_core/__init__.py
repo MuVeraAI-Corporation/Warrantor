@@ -1,4 +1,4 @@
-"""AumOS fed-core (F1) — attested federated training orchestration.
+"""Warrantor fed-core (F1) — attested federated training orchestration.
 
 Three roles collaborate:
 

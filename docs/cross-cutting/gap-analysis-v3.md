@@ -27,7 +27,7 @@ The v2 stress test (which added 12 cross-cutting standards) was re-tested agains
 
 | # | Gap | Impact | Fix |
 |---|-----|--------|-----|
-| 38 | No EU AI Act Article 55 mapping | GPAI model providers cannot demonstrate compliance | ✅ Documented in compliance frameworks — all 8 Art. 55 obligations mapped to DefStack components |
+| 38 | No EU AI Act Article 55 mapping | GPAI model providers cannot demonstrate compliance | ✅ Documented in compliance frameworks — all 8 Art. 55 obligations mapped to Warrantor components |
 | 39 | No NIST AI RMF function mapping | US government customers cannot assess | ✅ Documented — Govern/Map/Measure/Manage mapped to components |
 | 40 | No ISO 42001 certification plan | No path to AI management system certification | ✅ Documented — target M18 certification, clause mapping |
 | 41 | No FedRAMP authorization path | Cannot sell to US federal government | ✅ Documented — 4 paths, target components, M18 timeline |

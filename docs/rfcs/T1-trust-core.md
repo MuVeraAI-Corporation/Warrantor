@@ -10,7 +10,7 @@
 | **Name** | trust-core |
 | **Wave** | 1 (M0–M3) |
 | **Languages** | Rust (sole owner) + PyO3/napi-rs/FFI bindings |
-| **DefStack origin** | C2.2 ModelNotary + signing half of C4.4 |
+| **Warrantor origin** | C2.2 ModelNotary + signing half of C4.4 |
 | **AumSecure origin** | `agent-evidence` (V3 repo #2) + AATM signing |
 | **Sentinel origin** | atlas-sign + sentinel-artifact |
 | **Dependencies** | none (foundation) |
@@ -18,10 +18,10 @@
 
 ## Background
 
-The four source portfolios each named a "trusted core" differently: DefStack's `ModelNotary` (Rust
+The four source portfolios each named a "trusted core" differently: Warrantor's `ModelNotary` (Rust
 CLI for model signing), AumSecure's `agent-evidence` (Rust verifier + bindings), Sentinel's
 `atlas-sign` and `sentinel-artifact`. All describe the same thing — the single Rust crate that owns
-signing, verification, and canonicalization. AumOS collapses them into **one** component per the
+signing, verification, and canonicalization. Warrantor collapses them into **one** component per the
 polyglot stack pressure test's load-bearing rule.
 
 ## Goals
@@ -86,7 +86,7 @@ re-canonicalized in Python or Go. The golden vectors in `testvectors/trust-core/
 
 - **External:** `ed25519-dalek`, `p256` (for fallback ECDSA), `serde_cbor`, `sigstore` crate,
   `pkcs11` crate, `merkle_light`.
-- **AumOS:** none (this is the foundation).
+- **Warrantor:** none (this is the foundation).
 
 ## Threat Model (STRIDE — security-critical component, full)
 
@@ -97,7 +97,7 @@ re-canonicalized in Python or Go. The golden vectors in `testvectors/trust-core/
 | **Repudiation** | Signer denies signing | Sigstore Rekor transparency log entry returned with every signature |
 | **Information disclosure** | Private key leakage | Key never leaves KMS/HSM; in-memory zeroization |
 | **Denial of service** | Verify call slow | Batch verify; constant-time guarantees no timing oracle |
-| **Elevation of privilege** | Unauthorized signing | Key access gated by I1 AAE; KMS key policy scoped to AumOS service |
+| **Elevation of privilege** | Unauthorized signing | Key access gated by I1 AAE; KMS key policy scoped to Warrantor service |
 
 ## API / CLI
 

@@ -176,7 +176,7 @@ def sec_verdict_blockers():
       "tests. [EXTERNAL, verified via GitHub API]")}</div>
 {para("This inverts the objection you were expecting. The normal OSS problem is *entity risk* &mdash; who maintains "
       "this in eighteen months. A buyer can now get an open agent-governance substrate **with Microsoft behind it**, "
-      "so AumOS carries the entity risk *and* has to explain the overlap. Every partner conversation from now on "
+      "so Warrantor carries the entity risk *and* has to explain the overlap. Every partner conversation from now on "
       "opens with &ldquo;why not the Microsoft one?&rdquo;")}
 <div class="good"><div class="calltitle">And the answer already exists in your own audit</div>
 {para("Microsoft's toolkit is a **policy and identity runtime**. It enforces decisions. It does not produce "
@@ -233,7 +233,7 @@ def sec_gates():
  "outage is a mode that emits decisions without blocking. One false-positive block in a business-critical flow ends "
  "the pilot.",
  "**Latency is the make-or-break number.** Microsoft claims &lt;0.1&nbsp;ms p99 for the same interception point. "
- "AumOS has **eleven published latency budgets and zero benchmarks**. Silence is read as slow.",
+ "Warrantor has **eleven published latency budgets and zero benchmarks**. Silence is read as slow.",
  "**Sign-off is three signatures**: the engineering sponsor, the security architecture review board, and &mdash; in a "
  "regulated firm &mdash; model risk or internal audit. Legal/procurement runs in parallel.",
  "**The expensive failure mode** is the security review starting *after* the technical pilot succeeds, and a missing "

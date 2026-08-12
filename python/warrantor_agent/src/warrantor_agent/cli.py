@@ -11,13 +11,13 @@ import argparse
 import json
 import sys
 
-from . import AumOS, __version__
+from . import Warrantor, __version__
 
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="warrantor-agent",
-        description="AumOS Agent SDK — security primitives for coding agents.",
+        description="Warrantor Agent SDK — security primitives for coding agents.",
     )
     p.add_argument("--version", action="version", version=f"warrantor-agent {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
     if args.cmd == "status":
-        agent = AumOS(mode="standalone")
+        agent = Warrantor(mode="standalone")
         cfg = agent.config.resolved()
         print(
             json.dumps(
@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "scan-secrets":
         text = args.text if args.text is not None else sys.stdin.read()
-        agent = AumOS(mode=args.mode)
+        agent = Warrantor(mode=args.mode)
         findings = agent.scan_secrets(text)
         print(
             json.dumps(
@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "issue":
-        agent = AumOS(mode=args.mode)
+        agent = Warrantor(mode=args.mode)
         print(json.dumps(agent.issue_identity(args.subject), indent=2))
         return 0
 

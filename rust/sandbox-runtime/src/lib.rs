@@ -1,7 +1,7 @@
 //! # warrantor-sandbox-runtime (R8)
 //!
 //! A Wasmtime execution boundary with signed policy, deterministic fuel, guest-memory limits,
-//! an explicit AumOS host ABI, and durable audit-before-dispatch for every host capability call.
+//! an explicit Warrantor host ABI, and durable audit-before-dispatch for every host capability call.
 //! WASI and undeclared imports are not linked, so ambient filesystem, network, environment, and
 //! process authority do not exist.
 

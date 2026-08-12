@@ -1,7 +1,7 @@
 {
   "name": "@warrantor/arena",
   "version": "1.0.0",
-  "description": "A8 \u2014 A/B Elo ranking leaderboard for AumOS model/agent evaluation",
+  "description": "A8 \u2014 A/B Elo ranking leaderboard for Warrantor model/agent evaluation",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

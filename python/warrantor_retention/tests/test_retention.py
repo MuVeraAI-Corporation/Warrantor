@@ -1,4 +1,4 @@
-"""Tests for the AumOS data retention + GDPR tombstone engine."""
+"""Tests for the Warrantor data retention + GDPR tombstone engine."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""AumOS OCSF Forwarder.
+"""Warrantor OCSF Forwarder.
 
 Receives **AAR** (Agent Action Record) events from the E1 flight-recorder,
 converts them to the [OCSF](https://schema.ocsf.io/) (Open Cybersecurity
@@ -268,7 +268,7 @@ def convert_aar_to_ocsf(aar: dict[str, Any]) -> dict[str, Any]:
             # under product.version. Conflating them told consumers we spoke schema 1.0.0.
             "version": OCSF_VERSION,
             "product": {
-                "name": "AumOS",
+                "name": "Warrantor",
                 "vendor_name": "MuVera AI",
                 "version": PRODUCT_VERSION,
             },

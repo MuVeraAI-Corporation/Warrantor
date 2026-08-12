@@ -565,8 +565,7 @@ mod tests {
 
     #[test]
     fn receipt_round_trip_verifies() {
-        use rand::rngs::OsRng;
-        let mut csprng = OsRng;
+        let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
         let sk = SigningKey::generate(&mut csprng);
         let cat = test_catalog();
         let r = req(
@@ -581,8 +580,7 @@ mod tests {
 
     #[test]
     fn tampered_receipt_fails() {
-        use rand::rngs::OsRng;
-        let mut csprng = OsRng;
+        let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
         let sk = SigningKey::generate(&mut csprng);
         let cat = test_catalog();
         let r = req(

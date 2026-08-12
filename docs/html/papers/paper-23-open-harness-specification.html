@@ -10,9 +10,9 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow spec">AumOS Research · Paper 23 of 24 (Specification) · Thrust 6 — Standards &amp; Protocol Contributions</div>
+  <div class="article-eyebrow spec">Warrantor Research · Paper 23 of 24 (Specification) · Thrust 6 — Standards &amp; Protocol Contributions</div>
   <h1>Open Harness Specification: A Vendor-Neutral Agent Testing Framework</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
   <div class="article-affil">Proposed OSAF specification; builds on Paper 17</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">OSAF specification (charter Q1 2027)</span></div>
@@ -26,7 +26,7 @@
 
 <div class="abstract spec">
   <span class="abstract-label">Specification Abstract</span>
-  <p>This document specifies the <strong>Open Harness Specification (OHS)</strong>, built on AumOS's <code>open-harness-spec</code> (X3), as a vendor-neutral specification for agent testing harnesses — defining the canonical test-case schema, the agent-interface adapter, the verdict-reporting format, and the reproducibility-packaging requirements (Paper 17). The OHS lets a test authored for one agent framework run unchanged against any other, addressing the reproducibility crisis in agent evaluation where results reported for one framework do not transfer to another. The specification aligns with the Model Context Protocol (MCP)<sup><a href="#ref-mcp">[1]</a></sup> as the agent-tool protocol its adapters target, and adopts OpenSSF Model Signing's reproducibility-pack conventions. Reference adapters cover the major frameworks (LangChain, AutoGen, OpenAI Agents, MCP); a seed test corpus is contributed by the OSAF community.</p>
+  <p>This document specifies the <strong>Open Harness Specification (OHS)</strong>, built on Warrantor's <code>open-harness-spec</code> (X3), as a vendor-neutral specification for agent testing harnesses — defining the canonical test-case schema, the agent-interface adapter, the verdict-reporting format, and the reproducibility-packaging requirements (Paper 17). The OHS lets a test authored for one agent framework run unchanged against any other, addressing the reproducibility crisis in agent evaluation where results reported for one framework do not transfer to another. The specification aligns with the Model Context Protocol (MCP)<sup><a href="#ref-mcp">[1]</a></sup> as the agent-tool protocol its adapters target, and adopts OpenSSF Model Signing's reproducibility-pack conventions. Reference adapters cover the major frameworks (LangChain, AutoGen, OpenAI Agents, MCP); a seed test corpus is contributed by the OSAF community.</p>
 </div>
 
 <div class="toc">
@@ -62,7 +62,7 @@
 <p>A test run produces a reproducibility pack: the test case, the adapter version, the agent/model identifier and version, the verdict, and the full transcript — signed and archivable. The pack adopts OpenSSF Model Signing conventions so a published result is independently reproducible. This is what closes the reproducibility gap: a result claim is a pack, verifiable by re-running it.</p>
 
 <h2 id="path"><span class="anchor">§</span>7. Path to standardization</h2>
-<p>OSAF working-group charter Q1 2027; v1.0 specification Q1 2028, with reference adapters donated by the AumOS implementation and a community seed-corpus call for contributions. The standard ships with the cross-tool consistency harness (Paper 17, §6) as the conformance gate.</p>
+<p>OSAF working-group charter Q1 2027; v1.0 specification Q1 2028, with reference adapters donated by the Warrantor implementation and a community seed-corpus call for contributions. The standard ships with the cross-tool consistency harness (Paper 17, §6) as the conformance gate.</p>
 
 <h2 id="refs"><span class="anchor">§</span>8. Normative references</h2>
 <div class="references">
@@ -73,7 +73,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Specification derived from Paper 17. Reference implementation: AumOS X3. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Specification derived from Paper 17. Reference implementation: Warrantor X3. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-22-aar-osaf-standard.html">Paper 22</a></span>
     <span class="small"><a href="paper-24-ai-artifact-trust-manifest.html">Paper 24: AI Artifact Trust Manifest →</a></span>

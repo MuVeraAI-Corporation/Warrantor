@@ -1,4 +1,4 @@
-"""Modal deployment for AumOS safe-eval against a vLLM-served model on an A10G GPU.
+"""Modal deployment for Warrantor safe-eval against a vLLM-served model on an A10G GPU.
 
 Deploys a Modal function that:
 
@@ -6,12 +6,12 @@ Deploys a Modal function that:
      (``facebook/opt-1.3b`` by default — fits comfortably in 24 GB),
   2. loads the model once per container via ``@modal.enter()`` so cold starts
      amortize the weight download,
-  3. runs the AumOS safe-eval benchmark pipeline against it, and
+  3. runs the Warrantor safe-eval benchmark pipeline against it, and
   4. returns the results as a JSON-serialisable dict (a flat representation of
      ``safe_eval.PipelineResult``).
 
 The safe-eval package is installed into the container image from the local
-source tree, so the deployed function runs the *real* AumOS pipeline — not a
+source tree, so the deployed function runs the *real* Warrantor pipeline — not a
 mock. The model is addressed through the in-process ``vllm.LLM`` /
 ``llm.generate()`` API (no HTTP hop), which is the highest-throughput way to
 drive vLLM from a single client.
@@ -54,9 +54,9 @@ MODEL_NAME = os.environ.get("AUMOS_MODAL_MODEL", "facebook/opt-1.3b")
 GPU_SPEC = os.environ.get("AUMOS_MODAL_GPU", "A10G")
 MAX_TOKENS = int(os.environ.get("AUMOS_MODAL_MAX_TOKENS", "64"))
 
-# The container image: CUDA base + vLLM + the local AumOS safe-eval package.
+# The container image: CUDA base + vLLM + the local Warrantor safe-eval package.
 # We add the local python/safe_eval source so the deployed image runs the real
-# AumOS pipeline rather than a vendored copy.
+# Warrantor pipeline rather than a vendored copy.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SAFE_EVAL_SRC = _REPO_ROOT / "python" / "safe_eval"
 

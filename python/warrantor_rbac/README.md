@@ -1,7 +1,7 @@
 # warrantor-rbac
 
-Role-based access control engine for **AumOS**. This is the runtime permission
-engine behind the **AumOS Action Enforcer (AAE)**. Every privileged action
+Role-based access control engine for **Warrantor**. This is the runtime permission
+engine behind the **Warrantor Action Enforcer (AAE)**. Every privileged action
 (approve, install component, trigger kill-switch, manage tenants, view
 compliance reports, read signed evidence) must pass
 `RBACEngine.check_permission` before it executes.
@@ -40,7 +40,7 @@ except PermissionDenied:
 
 ## Design notes
 
-- **Least privilege by default** (AumOS invariant I-04). A subject with no
+- **Least privilege by default** (Warrantor invariant I-04). A subject with no
   roles has no permissions.
 - **Union resolution**: a subject holding several roles gets the union of
   those roles' permissions.

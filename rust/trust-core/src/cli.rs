@@ -6,15 +6,15 @@
 //! [`warrantor_trust_core::rekor::RekorClient`] (public Rekor by default).
 
 use clap::{Parser, Subcommand};
+use ed25519_dalek::{Digest, Sha512};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use sha2::{Digest, Sha512};
 use std::io::{self, Read};
 
 #[derive(Parser, Debug)]
 #[command(
     name = "trust-core",
     version,
-    about = "AumOS trusted core — sign and verify"
+    about = "Warrantor trusted core — sign and verify"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -87,7 +87,7 @@ fn main() {
     let cli = Cli::parse();
     match cli.command {
         Commands::KeyGen => {
-            let mut rng = rand::rngs::OsRng;
+            let mut rng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
             let sk = SigningKey::generate(&mut rng);
             let vk = sk.verifying_key();
             println!("verifying_key_hex={}", hex::encode(vk.to_bytes()));

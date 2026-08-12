@@ -1,4 +1,4 @@
-//! AumOS P1-P12 generated bindings and fail-closed protocol validation.
+//! Warrantor P1-P12 generated bindings and fail-closed protocol validation.
 
 mod generated;
 mod validation;

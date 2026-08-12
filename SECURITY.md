@@ -1,6 +1,6 @@
 # Security Policy
 
-> How AumOS handles vulnerability reports, CVEs, and coordinated disclosure.
+> How Warrantor handles vulnerability reports, CVEs, and coordinated disclosure.
 > Derived from `docs/cross-cutting/14-security-disclosure-policy.md`, which is the normative source.
 > This file is the GitHub-facing summary; where the two differ, the cross-cutting document governs.
 

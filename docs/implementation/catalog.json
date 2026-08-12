@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "title": "AumOS canonical implementation catalog",
+  "title": "Warrantor canonical implementation catalog",
   "status_semantics": {
     "reference_implementation": "Source and tests exist; this does not imply production readiness.",
     "unimplemented": "The canonical RFC exists but no matching implementation source exists.",

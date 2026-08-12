@@ -1,4 +1,4 @@
-"""AumOS agentsec-lab (A5) — adversarial benchmark framework for AI agents.
+"""Warrantor agentsec-lab (A5) — adversarial benchmark framework for AI agents.
 
 A scenario registry + runner that executes adversarial scenarios against a "target" (an agent
 or model callable) and aggregates results. The framework supports:

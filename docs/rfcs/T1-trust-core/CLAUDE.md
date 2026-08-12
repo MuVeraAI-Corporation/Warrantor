@@ -5,7 +5,7 @@
 ## What you are building
 
 The **Rust trusted core** — the single authoritative implementation of every security invariant in
-AumOS. You are implementing [`docs/rfcs/T1-trust-core.md`](../T1-trust-core.md). Read it first.
+Warrantor. You are implementing [`docs/rfcs/T1-trust-core.md`](../T1-trust-core.md). Read it first.
 
 ## Repo context (read these before coding)
 

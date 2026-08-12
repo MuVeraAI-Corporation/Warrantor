@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Research · Paper 12 of 24 · Thrust 3 — AI Supply Chain Integrity</div>
+  <div class="article-eyebrow">Warrantor Research · Paper 12 of 24 · Thrust 3 — AI Supply Chain Integrity</div>
   <h1>Training-Time Integrity Monitoring: Detecting Adversarial Model Poisoning</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS A-pillar, S2 (lineage), R-pillar</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor A-pillar, S2 (lineage), R-pillar</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">NeurIPS 2027</span></div>
     <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">A-pillar, S2, S4</span></div>
@@ -62,7 +62,7 @@
 </ul>
 
 <h2 id="impl"><span class="anchor">§</span>5. Implementation in the training pipeline</h2>
-<p>The monitor is instrumented into the training loop via the AumOS A-pillar, with canary evaluations and per-example loss tracking added at bounded cost (one forward pass per canary set per epoch; outlier detection vectorized over the batch). Detected anomalies emit an AAR (Paper 3) tagged as an integrity incident, which feeds the kill-switch and the lineage ledger — composing supply-chain integrity with incident response (Paper 14).</p>
+<p>The monitor is instrumented into the training loop via the Warrantor A-pillar, with canary evaluations and per-example loss tracking added at bounded cost (one forward pass per canary set per epoch; outlier detection vectorized over the batch). Detected anomalies emit an AAR (Paper 3) tagged as an integrity incident, which feeds the kill-switch and the lineage ledger — composing supply-chain integrity with incident response (Paper 14).</p>
 
 <h2 id="eval"><span class="anchor">§</span>6. Evaluation on poisoned-run corpus</h2>
 <p>We construct a corpus of poisoned training runs spanning the Goldblum taxonomy (clean-label, dirty-label, gradient-shaping, Sleeper-Agent-style) and measure detection rate and clean-training false-positive rate.</p>
@@ -95,7 +95,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The monitor is in the AumOS A-pillar; it composes with S2 (lineage) and the AAR (Paper 3). AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The monitor is in the Warrantor A-pillar; it composes with S2 (lineage) and the AAR (Paper 3). Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-11-ai-bill-of-materials.html">Paper 11</a></span>
     <span class="small"><a href="paper-13-sandbox-boundary-attestation.html">Paper 13: Sandbox Boundary Attestation →</a></span>

@@ -5,7 +5,7 @@
 
 ## Why this exists
 
-DefStack v1/v2 had inconsistent setup instructions per component. The polyglot stack pressure test
+Warrantor v1/v2 had inconsistent setup instructions per component. The polyglot stack pressure test
 made this a **kill criterion** (#7): "Monorepo cannot be built/tested with one top-level command."
 This standard defines the canonical setup, contribution workflow, debugging story, and documentation
 rules — the same across all 54 implementable components and 12 protocol specifications.

@@ -21,7 +21,7 @@ Three layers: Policy (OPA Rego, evaluated via regorus crate), Decision Engine, E
 
 ## Dependencies
 
-- **AumOS internal:** I1 (mock)
+- **Warrantor internal:** I1 (mock)
 - **External:** enumerated during MVP (task 02); record in the RFC.
 
 ## Build entrypoint

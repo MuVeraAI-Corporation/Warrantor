@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Component Reference — AumOS</title>
+  <title>Component Reference — Warrantor</title>
   <style>
-/* AumOS Documentation — Anthropic-inspired Style System */
+/* Warrantor Documentation — Anthropic-inspired Style System */
 /* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
    serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
 
@@ -235,7 +235,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <div class="doc-header">
   <h1>Component Reference</h1>
-  <div class="subtitle">Maximum-depth documentation for all 49 AumOS components — real public APIs extracted from source, usage examples, benefits, dependencies, and deferred work. Grouped by domain across Rust, Go, Python, and TypeScript.</div>
+  <div class="subtitle">Maximum-depth documentation for all 49 Warrantor components — real public APIs extracted from source, usage examples, benefits, dependencies, and deferred work. Grouped by domain across Rust, Go, Python, and TypeScript.</div>
   <nav>
     <a href="index.html">&larr; Portal</a>
     <a href="#group-trust">Trust Core</a>
@@ -252,13 +252,13 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <h2 id="intro">Introduction</h2>
 
-<p>This is the canonical reference for the AumOS component catalog. Every component has shipped
+<p>This is the canonical reference for the Warrantor component catalog. Every component has shipped
 real v1.0 code in this repository; every API surface, type signature, and usage snippet below is
 extracted directly from the source — <code>rust/&lt;crate&gt;/src/lib.rs</code>,
 <code>python/&lt;pkg&gt;/src/&lt;pkg&gt;/__init__.py</code>, <code>go/&lt;module&gt;/&lt;file&gt;.go</code>, and
 <code>typescript/&lt;pkg&gt;/src/index.ts</code>. Nothing here is invented.</p>
 
-<p>The catalog reconciles four source portfolios (DefStack 36-component plan, AumSecure V2/V3
+<p>The catalog reconciles four source portfolios (Warrantor 36-component plan, AumSecure V2/V3
 portfolios, PROJECT SENTINEL's 10 frameworks) into <strong>49 implementable components</strong>
 distributed across four languages following the polyglot stack pressure test: <strong>Rust</strong>
 owns every security invariant (sign / verify / enforce), <strong>Python</strong> owns agents,
@@ -302,7 +302,7 @@ component reasons about. T2 normative-validates the Agent Authority Envelope.</p
 <a href="#t1" class="card" style="text-decoration:none;border-bottom:none;">
   <div class="card-id">T1 &middot; <span class="badge rust">rust</span> <span class="badge wave-1">wave 1</span></div>
   <div class="card-title">trust-core</div>
-  <div class="card-desc">The single authoritative implementation of every security invariant in AumOS. Owns canonical CBOR, Merkle primitives, Ed25519 signing, and verification. No security invariant may have two authoritative implementations.</div>
+  <div class="card-desc">The single authoritative implementation of every security invariant in Warrantor. Owns canonical CBOR, Merkle primitives, Ed25519 signing, and verification. No security invariant may have two authoritative implementations.</div>
   <div class="card-meta"><span class="badge rust">14 tests</span> <span class="badge wave-1">infrastructure</span></div>
 </a>
 
@@ -385,7 +385,7 @@ the enclave; C1-5 composes the three streams and gates model-key release.</p>
 <a href="#c1-2" class="card" style="text-decoration:none;border-bottom:none;">
   <div class="card-id">C1-2 &middot; <span class="badge python">python</span> <span class="badge wave-1">wave 1</span></div>
   <div class="card-title">cuda-gram</div>
-  <div class="card-desc">High-level GPU attestation SDK. Pure-Python v1.0 mirrors the proto wire types; the PyO3 binding to C1-1's Rust core lands in task 02 (replacing ctypes per DefStack migration).</div>
+  <div class="card-desc">High-level GPU attestation SDK. Pure-Python v1.0 mirrors the proto wire types; the PyO3 binding to C1-1's Rust core lands in task 02 (replacing ctypes per Warrantor migration).</div>
   <div class="card-meta"><span class="badge python">9 tests</span> <span class="badge wave-1">PyO3 target</span></div>
 </a>
 
@@ -638,7 +638,7 @@ MCP gateway. X9 is incident exchange. X10 is the sovereign bundle. X11 is the Sa
 <a href="#x1" class="card" style="text-decoration:none;border-bottom:none;">
   <div class="card-id">X1 &middot; <span class="badge rust">rust</span> <span class="badge wave-1">wave 1</span></div>
   <div class="card-title">defstack-cli</div>
-  <div class="card-desc">Unified AumOS installer/orchestrator CLI (clap). Subcommands: <code>list</code>, <code>install</code>, <code>verify</code>, <code>upgrade</code>, <code>compliance-report</code>, <code>privacy export|erase</code>. Emits the 10-framework compliance matrix.</div>
+  <div class="card-desc">Unified Warrantor installer/orchestrator CLI (clap). Subcommands: <code>list</code>, <code>install</code>, <code>verify</code>, <code>upgrade</code>, <code>compliance-report</code>, <code>privacy export|erase</code>. Emits the 10-framework compliance matrix.</div>
   <div class="card-meta"><span class="badge rust">4 tests</span> <span class="badge wave-1">10 frameworks</span></div>
 </a>
 
@@ -708,7 +708,7 @@ MCP gateway. X9 is incident exchange. X10 is the sovereign bundle. X11 is the Sa
 <a href="#x11" class="card" style="text-decoration:none;border-bottom:none;">
   <div class="card-id">X11 &middot; <span class="badge go">go</span> <span class="badge wave-7">wave 7</span></div>
   <div class="card-title">defstack-cloud</div>
-  <div class="card-desc">Managed SaaS control plane for AumOS Cloud. Four plans (free / team / enterprise / mission_critical) with per-plan GPU quotas, SLA tiers, and mandatory attestation. Tenant lifecycle + GPU allocation.</div>
+  <div class="card-desc">Managed SaaS control plane for Warrantor Cloud. Four plans (free / team / enterprise / mission_critical) with per-plan GPU quotas, SLA tiers, and mandatory attestation. Tenant lifecycle + GPU allocation.</div>
   <div class="card-meta"><span class="badge go">17 tests</span> <span class="badge wave-7">multi-tenant</span></div>
 </a>
 
@@ -735,7 +735,7 @@ MCP gateway. X9 is incident exchange. X10 is the sovereign bundle. X11 is the Sa
 </div>
 
 <h4>Overview</h4>
-<p><code>warrantor-api</code> is the generated AumOS API types crate — the Rust view of the contract plane
+<p><code>warrantor-api</code> is the generated Warrantor API types crate — the Rust view of the contract plane
 (<code>proto/</code>). It is regenerated by <code>build.rs</code> (tonic-build) into Cargo's <code>OUT_DIR</code> on every
 <code>cargo build</code>; nothing is committed and there is no manual regeneration step. This crate is the single source of truth for wire types in Rust. Every Wave-1
 crate (<code>warrantor-trust-core</code>, <code>warrantor-eval-guard</code>, <code>warrantor-kill-switch</code>,
@@ -790,7 +790,7 @@ via <code>build.rs</code>; <code>buf.yaml</code> in the repo root configures <co
 
 <h4>Overview</h4>
 <p><code>warrantor-trust-core</code> is the single authoritative implementation of every security invariant
-in AumOS. Per the polyglot stack pressure-test kill criterion, <strong>no security invariant may
+in Warrantor. Per the polyglot stack pressure-test kill criterion, <strong>no security invariant may
 have two authoritative implementations</strong>. The crate is compiled with
 <code>#![forbid(unsafe_code)]</code> and <code>#![deny(missing_docs)]</code> — there is no <code>unsafe</code> anywhere
 in the trusted core, and every public item is documented. It owns four primitives: canonical CBOR
@@ -818,7 +818,7 @@ verification::verify(&amp;payload, &amp;signature, &amp;signer.verifying_key())
 <h4>Benefits</h4>
 <p>The kill criterion that motivated this crate: <em>"More than one language contains authoritative
 allow/deny logic &rarr; stop and consolidate."</em> By centralizing every cryptographic operation in one
-Rust crate consumed (via PyO3 / napi-rs / FFI) by Python, TypeScript, and Go, AumOS guarantees
+Rust crate consumed (via PyO3 / napi-rs / FFI) by Python, TypeScript, and Go, Warrantor guarantees
 that a receipt signed in Rust verifies identically when re-canonicalized in any other language.
 The golden vectors in <code>testvectors/T1/</code> lock this cross-language contract; CI fails if any
 language's re-canonicalization diverges. The crate underpins invariants I-06 (artifact identity is
@@ -1024,7 +1024,7 @@ R2 runs four pre-flight checks — <code>NetworkIsolation</code> (canary IPs: hu
 iptables rules, deny-all default). If all four pass, R2 emits a signed
 <code>SandboxAttestation</code> carrying the list of passed checks, a 16-byte nonce, the verifying key,
 and the Ed25519 signature. If any check fails, R2 returns <code>CheckFailed</code> and the caller
-<em>must not</em> start the agent — invariant I-09 (failure is safe = fail closed). AumOS moved this
+<em>must not</em> start the agent — invariant I-09 (failure is safe = fail closed). Warrantor moved this
 from Go to Rust per the trusted-core doctrine. The crate requires Linux 5.13+ for eBPF; CI runs
 the non-eBPF checks and gates the eBPF tests.</p>
 
@@ -1350,7 +1350,7 @@ function the eBPF programs consult on every outbound packet. The crate performs 
 eBPF syscalls itself; those live in task 03. The decision inputs are a domain blocklist
 (<code>pastebin.com</code>, <code>requestbin.com</code>, <code>webhook.site</code>, <code>ngrok.io</code>), a canary IP set
 (loopback, the AWS/GCP/Azure IMDS endpoint <code>169.254.169.254</code>, the Alibaba metadata endpoint,
-and an AumOS-internal canary), and optional allowlist overrides for break-glass. The
+and an Warrantor-internal canary), and optional allowlist overrides for break-glass. The
 <code>PolicyBuilder</code> assembles a <code>Policy</code> field-by-field, then the eBPF layer shares it read-only
 via a map. <code>decide_domain</code> matches case-insensitively with suffix semantics
 (<code>evil.ngrok.io</code> matches <code>ngrok.io</code>); TLD-only patterns are not matched to avoid false
@@ -1405,7 +1405,7 @@ assert_eq!(policy.decide_ip("169.254.169.254".parse().unwrap()).action, warranto
 use — untrusted context cannot silently egress) and is the primary defense against the IMDS
 metadata-theft attack class (the <code>169.254.169.254</code> canary). The allowlist override enables
 break-glass without disabling the filter. S6 exfil-guard is the eBPF enforcement that consults
-this core per packet; R7 is the policy/decision half (per DefStack spec).</p>
+this core per packet; R7 is the policy/decision half (per Warrantor spec).</p>
 
 <h4>Dependencies</h4>
 <p>Depends on: <code>serde</code>, <code>thiserror</code>. Depended on by: S6 exfil-guard (the enforcement arm).
@@ -1537,7 +1537,7 @@ ordering, not durability. Real OTLP export (versus JSON emission) is task 03.</p
 </div>
 
 <h4>Overview</h4>
-<p><code>warrantor-nvtrust-bridge</code> binds AumOS to NVIDIA NVTrust (GPU attestation), with a
+<p><code>warrantor-nvtrust-bridge</code> binds Warrantor to NVIDIA NVTrust (GPU attestation), with a
 <code>MockBackend</code> for CI. The real NVTrust SDK is NDA-gated and is <strong>not</strong> downloaded in this
 repo (per scope boundary) — instead, the <code>NvTrustBackend</code> trait abstracts the <code>Mock</code> and
 <code>Real</code> (FFI) implementations. Wave-1 ships with the <code>Mock</code> implementation, which always
@@ -1579,8 +1579,8 @@ backend.verify(&amp;report).expect("verify");</code></pre>
 
 <h4>Benefits</h4>
 <p>C1-1 is the foundation of plane 0 (hardware / GPU / confidential compute). Every attested claim
-in AumOS chains to a hardware root of trust through this crate. The trait abstraction lets
-AumOS develop and test the entire confidential-compute stack without the NDA-gated SDK, then swap
+in Warrantor chains to a hardware root of trust through this crate. The trait abstraction lets
+Warrantor develop and test the entire confidential-compute stack without the NDA-gated SDK, then swap
 in the <code>Real</code> backend when access is granted. C1-2 cuda-gram consumes this crate via PyO3;
 C1-5 confidential-fabric consumes the report as one of three leaves in the composite attestation.</p>
 
@@ -1617,8 +1617,8 @@ CI can exercise the verify path. The CLI (<code>nvtrust-verify</code>) wraps <co
 <p><code>cuda-gram</code> is the high-level GPU attestation SDK. The Wave-1 v1.0 ships a pure-Python
 implementation that mirrors the proto types in <code>proto/warrantor/attestation/v1/report.proto</code>. The
 PyO3 binding to C1-1's Rust core lands in task 02 — it replaces the pure-Python <code>MockBackend</code>
-with a call into the Rust trusted core via PyO3 (NOT ctypes, which is what the DefStack original
-used and what AumOS is migrating away from). The <code>AttestationBackend</code> protocol mirrors the
+with a call into the Rust trusted core via PyO3 (NOT ctypes, which is what the Warrantor original
+used and what Warrantor is migrating away from). The <code>AttestationBackend</code> protocol mirrors the
 Rust <code>NvTrustBackend</code> trait; <code>AttestationReport</code> mirrors the Rust struct byte-for-byte so a
 report issued by the Rust CLI verifies here and vice versa. The high-level convenience
 <code>establish_session</code> attests against a backend and returns a verified <code>CCSession</code>.</p>
@@ -1676,7 +1676,7 @@ Python without translation. The <code>CCSession</code> is the scope within which
 
 <h4>Limitations / Deferred work</h4>
 <p>v1.0 uses pure Python; the PyO3 binding to C1-1 is task 02. The migration away from ctypes
-(the DefStack original) is the explicit motivation for the Rust core + PyO3 architecture. The
+(the Warrantor original) is the explicit motivation for the Rust core + PyO3 architecture. The
 default <code>establish_session</code> nonce is 16 zero bytes (CI/dev only); real callers must pass an
 <code>OsRng</code> nonce.</p>
 
@@ -2178,8 +2178,8 @@ in RFC S4. The <code>ModelInfo</code> dataclass carries <code>name</code>, <code
 digests), <code>base_model</code> (parent URI for fine-tunes), <code>evaluations</code> (VEB / AAR references),
 <code>license</code> (SPDX identifier), and <code>digest</code> (content digest of the weights). CycloneDX
 emission places these in a <code>model.*</code> property block on the main component; SPDX emission uses
-the SPDX AI-BOM working-draft annotation fields. Per the AumOS compliance matrix
-(<code>docs/cross-cutting/13-compliance-frameworks.md</code>), a GPAI model provider using AumOS can
+the SPDX AI-BOM working-draft annotation fields. Per the Warrantor compliance matrix
+(<code>docs/cross-cutting/13-compliance-frameworks.md</code>), a GPAI model provider using Warrantor can
 demonstrate EU AI Act Article 55 §1 compliance with the SBOM this package emits.</p>
 
 <h4>Key APIs</h4>
@@ -2412,7 +2412,7 @@ non-monotonic timestamps (defensive against clock skew).</p>
 
 <h4>Cross-references</h4>
 <p>Paired with <a href="#r7">R7 egress-filter</a>; the pattern set is shared with
-<a href="#r4">R4 credential-vault</a>; aligned with DefStack F7 ExfilGuard.</p>
+<a href="#r4">R4 credential-vault</a>; aligned with Warrantor F7 ExfilGuard.</p>
 
 <!-- ----------------------------------------------------------------- S7 ----->
 <h3 id="s7"><span class="section-number">S7</span>tamper-scan <a href="#s7" class="anchor">&para;</a></h3>
@@ -2582,7 +2582,7 @@ production. The divergence patience thresholds (20 WARN, 100 FAIL) are conservat
 task 03 adds per-loss-policy overrides.</p>
 
 <h4>Cross-references</h4>
-<p>Consumed by <a href="#s4">S4</a>, <a href="#s2">S2</a>; aligned with DefStack C4.3 TrainGuard.</p>
+<p>Consumed by <a href="#s4">S4</a>, <a href="#s2">S2</a>; aligned with Warrantor C4.3 TrainGuard.</p>
 
 <!-- ----------------------------------------------------------------- S9 ----->
 <h3 id="s9"><span class="section-number">S9</span>lightwell-bridge <a href="#s9" class="anchor">&para;</a></h3>
@@ -3681,7 +3681,7 @@ fleet-marshal</a> (fleet-level scheduling).</p>
 
 <h4>Overview</h4>
 <p><code>fed-core</code> is the attested federated training orchestrator — the most complex component in
-AumOS. Three roles collaborate: the <strong>Aggregator</strong> (the coordinator, runs in a TEE) collects
+Warrantor. Three roles collaborate: the <strong>Aggregator</strong> (the coordinator, runs in a TEE) collects
 model updates from trainers, averages them with <code>FedAvg</code> (weighted by <code>num_examples</code>), runs
 the verifier over the aggregated delta, then publishes the new global model — it refuses to admit
 a trainer that does not present a valid TEE attestation bound to the round nonce; the
@@ -4047,13 +4047,13 @@ lightwell-bridge</a>; aligned with Sentinel's fleet management.</p>
     <code>rust/defstack-cli/</code>
   </div>
   <table class="meta-table">
-    <tr><td>Canonical ID</td><td>X1 (DefStack CLI — moved Go/Cobra &rarr; Rust/clap)</td></tr>
+    <tr><td>Canonical ID</td><td>X1 (Warrantor CLI — moved Go/Cobra &rarr; Rust/clap)</td></tr>
     <tr><td>Tests</td><td>4 (integration tests in <code>tests/catalog.rs</code>)</td></tr>
   </table>
 </div>
 
 <h4>Overview</h4>
-<p><code>defstack-cli</code> is the unified AumOS installer/orchestrator CLI. AumOS moved it from Go/Cobra
+<p><code>defstack-cli</code> is the unified Warrantor installer/orchestrator CLI. Warrantor moved it from Go/Cobra
 to Rust/clap per the stack-test consolidation doctrine. The CLI exposes six subcommands:
 <code>list</code> (every Wave-1 component, formatted as a fixed-width table), <code>install &lt;name&gt;</code>
 (resolves the package for the component's language, verifies the CycloneDX SBOM is present,
@@ -4104,9 +4104,9 @@ $ defstack privacy export alice@example.com
 { "action":"export","subject":"alice@example.com","status":"not-yet-implemented","sla_days":30 }</code></pre>
 
 <h4>Benefits</h4>
-<p>X1 is the developer's entry point to AumOS. The 10-framework compliance matrix means a GPAI
+<p>X1 is the developer's entry point to Warrantor. The 10-framework compliance matrix means a GPAI
 model provider can demonstrate EU AI Act Article 55, NIST AI RMF, ISO 42001, etc. compliance
-with a single command. The Rust/clap choice (replacing the DefStack original's Go/Cobra)
+with a single command. The Rust/clap choice (replacing the Warrantor original's Go/Cobra)
 consolidates the CLI into the trusted-core language. The Wave-1 catalog is the authoritative
 component list (mirrors the reconciliation matrix). The GDPR privacy subcommands close the
 data-subject-rights obligation.</p>
@@ -4240,7 +4240,7 @@ flow to <a href="#x9">X9 incident-exchange</a>.</p>
 
 <h4>Overview</h4>
 <p><code>open-harness-spec</code> defines the vendor-neutral agent harness specification — the five mandatory
-interfaces every AumOS-compatible agent harness must implement. The interfaces are intentionally
+interfaces every Warrantor-compatible agent harness must implement. The interfaces are intentionally
 minimal: they describe <em>what</em> a harness must expose, not <em>how</em>. Every external integration
 (SPIRE, OPA, Kafka, TPM, eval frameworks) is left to the harness implementer. The five
 <code>typing.Protocol</code> interfaces are <code>AgentIdentity</code> (who is running), <code>ToolPermission</code> (may
@@ -4297,7 +4297,7 @@ assert result.implements_all  # the harness conforms to OSAF v1.0.0</code></pre>
 (structural typing), a harness implementation conforms just by implementing the right methods —
 no inheritance, no decorator, no dependency. The <code>ConformanceChecker</code> gives OSAF a
 machine-checkable conformance criterion. This is the foundation for a competitive harness market
-where any vendor's harness interoperates with any AumOS component.</p>
+where any vendor's harness interoperates with any Warrantor component.</p>
 
 <h4>Dependencies</h4>
 <p>Depends on: Python stdlib. Depended on by: OSAF member harnesses (the conformance suite in
@@ -4496,8 +4496,8 @@ consumed by <a href="#a4">A4 comply-gate</a>; findings flow to <a href="#x9">X9 
 <p><code>metr-bridge</code> is the METR independent-evaluator integration. Four components collaborate: the
 <code>METREvalAdapter</code> translates a METR task spec (<code>task_id</code>, <code>max_steps</code>,
 <code>success_threshold</code>, <code>evaluations</code>) into a <code>SafeEvalPipeline</code> so METR tasks run under the
-AumOS evaluation harness; the <code>TranscriptExporter</code> exports an AumOS agent transcript into the
-METR JSONL transcript format; the <code>RiskReportBridge</code> translates an AumOS risk report into the
+Warrantor evaluation harness; the <code>TranscriptExporter</code> exports an Warrantor agent transcript into the
+METR JSONL transcript format; the <code>RiskReportBridge</code> translates an Warrantor risk report into the
 METR risk schema; and the <code>IndependentVerifier</code> is a second-source check that re-runs the eval
 with a different seed and confirms the score is reproducible. The METR wire formats are
 intentionally minimal: they cover the fields METR task scripts consume. The bridge is mockable
@@ -4518,11 +4518,11 @@ class TranscriptExporter:
     def export(self, steps: list[AgentStep]) -&gt; str: ...   # METR JSONL
 
 @dataclass
-class AumOSFinding: severity: str; category: str; detail: str
+class WarrantorFinding: severity: str; category: str; detail: str
 @dataclass
-class AumOSRiskReport: findings: list[AumOSFinding]; overall_risk: str
+class WarrantorRiskReport: findings: list[WarrantorFinding]; overall_risk: str
 class RiskReportBridge:
-    def translate(self, report: AumOSRiskReport) -&gt; dict: ...   # METR risk schema
+    def translate(self, report: WarrantorRiskReport) -&gt; dict: ...   # METR risk schema
 
 class EvalRunner(Protocol):
     def run(self, pipeline: SafeEvalPipeline, seed: int) -&gt; float: ...   # returns the score
@@ -4543,10 +4543,10 @@ assert result.reproducible  # second-source check passes</code></pre>
 
 <h4>Benefits</h4>
 <p>X6 is the verification plane (plane 12) applied to independent evaluation. METR is the canonical
-independent evaluator for agentic AI; this bridge lets a METR task run under the AumOS
+independent evaluator for agentic AI; this bridge lets a METR task run under the Warrantor
 evaluation harness without modification. The <code>IndependentVerifier</code> closes the
 "gaming-the-eval" attack: if a model has overfit to one eval seed, the second-source check with a
-different seed catches it. The transcript exporter lets METR review AumOS agent runs in METR's
+different seed catches it. The transcript exporter lets METR review Warrantor agent runs in METR's
 own tooling.</p>
 
 <h4>Dependencies</h4>
@@ -4619,7 +4619,7 @@ state = reducer(state, { type: 'SWITCH_VIEW', view: 'approvals' });
 const queue = consequentialPending(state);  // the I-08 approval queue</code></pre>
 
 <h4>Benefits</h4>
-<p>X7 is the human surface for operating AumOS. The five views map to the five operational
+<p>X7 is the human surface for operating Warrantor. The five views map to the five operational
 concerns: evidence (forensics), approvals (I-08 human authority), fleet (capacity), compliance
 (audit readiness), and policies (policy authoring). The reducer pattern means the console state
 is testable without a browser; the React layer (task 03) is a thin view over this library. The
@@ -4828,7 +4828,7 @@ consumes <a href="#e1">E1</a> AAR ids; aligned with AEGIS SOC and delta-notify (
 </div>
 
 <h4>Overview</h4>
-<p><code>sovereign-stack</code> is the air-gapped sovereign deployment bundle manager. AumOS can be deployed
+<p><code>sovereign-stack</code> is the air-gapped sovereign deployment bundle manager. Warrantor can be deployed
 fully air-gapped (no cloud dependencies) for sovereignty-sensitive environments. This package
 produces and validates a <code>SovereignBundle</code>: a self-contained manifest that names every
 component required for a given deployment mode, plus a checksum over the component set so the
@@ -4912,7 +4912,7 @@ enforcement is task 04.</p>
 </div>
 
 <h4>Overview</h4>
-<p><code>defstack-cloud</code> is the managed SaaS control plane for AumOS Cloud — the multi-tenant control
+<p><code>defstack-cloud</code> is the managed SaaS control plane for Warrantor Cloud — the multi-tenant control
 plane that fronts the sovereign-stack components (X10) for customers who want a hosted experience.
 This package implements the control-plane logic itself (tenant lifecycle, per-plan GPU quotas,
 GPU allocation), which is testable without a Kubernetes scheduler. The CRD-controller / API-server
@@ -4969,12 +4969,12 @@ cp.DeprovisionTenant("acme-corp")      // frees all 10 GPUs back to the pool</co
 <p>X11 is the commercial plane. The four-plan tiering (free / team / enterprise / mission_critical)
 maps to the canonical SaaS price ladder. The per-plan GPU quota enforces tenant isolation at the
 commercial layer (a free tenant cannot hoard GPUs). The mandatory attestation on every plan means
-even the free tier runs inside the AumOS trust boundary (no unattested inference on the SaaS).
+even the free tier runs inside the Warrantor trust boundary (no unattested inference on the SaaS).
 The deprovision flow frees all GPUs back to the pool, preventing leakage. The BSL / source-available
 license (task 04) protects the commercial surface while keeping the core open.</p>
 
 <h4>Dependencies</h4>
-<p>Depends on: Go stdlib. Depended on by: the AumOS Cloud SaaS offering. Real K8s scheduler
+<p>Depends on: Go stdlib. Depended on by: the Warrantor Cloud SaaS offering. Real K8s scheduler
 integration (task 03) brings <code>controller-runtime</code>; the CRD definitions land in <code>deploy/</code>.</p>
 
 <h4>Limitations / Deferred work</h4>

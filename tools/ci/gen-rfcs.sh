@@ -18,12 +18,12 @@ mkdir -p "$RFC_DIR"
 # Each entry: id|name|wave|languages|defstack_origin|aumsecure_origin|sentinel_origin|deps|purpose
 # (the metadata table; the body is templated)
 read -r -d '' COMPONENTS <<'EOF' || true
-X1|defstack-cli|1|Rust (clap)|F4 DefStack CLI|(none)|sentinelos-cli|none|Unified installer/orchestrator CLI: install/verify/upgrade/compliance-report. AumOS moves from Go/Cobra to Rust/clap per stack-test consolidation.
+X1|defstack-cli|1|Rust (clap)|F4 Warrantor CLI|(none)|sentinelos-cli|none|Unified installer/orchestrator CLI: install/verify/upgrade/compliance-report. Warrantor moves from Go/Cobra to Rust/clap per stack-test consolidation.
 C1-1|nvtrust-bridge|1|Rust core + Python + Go bindings|C1.4 NVTrustBridge|(none)|(none)|none|NVTrust FFI bindings + nvtrust-verify CLI. Offline/mock mode for CI; reference verifiers for H100/H200.
 C1-2|cuda-gram|1|Python (PyO3)|C1.1 CudaGram|(none)|(none)|C1-1|High-level GPU attestation SDK wrapping C1-1. Exposes AttestationReport, CCSession, AttestationVerifier. Moves from ctypes to safe Rust bindings.
-R2|eval-guard|1|Rust + eBPF (aya)|C7.1 EvalGuard|(Secure Agent Workspace arm)|(none)|C1-2|Sandbox boundary attestation. Four pre-flight checks (NetworkIsolation, FilesystemBoundary, ProcessIsolation, EgressAttestation). Emits signed SandboxAttestation. AumOS moves from Go to Rust per trusted-core doctrine.
-R3|kill-switch|1|Rust core + Python policy|C7.2 KillSwitchKit|(none)|(none)|I1 (mock)|Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 2026). AumOS moves execution layer to Rust trusted core.
-R4|credential-vault|1|Rust|C7.4 CredentialVault|(none)|(none)|R3 (mock)|Agent-scoped credential brokering: 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates Vault/AWS Secrets Mgr/K8s Secrets. Revokes <1s on kill. AumOS moves from Go to Rust per trusted-core doctrine.
+R2|eval-guard|1|Rust + eBPF (aya)|C7.1 EvalGuard|(Secure Agent Workspace arm)|(none)|C1-2|Sandbox boundary attestation. Four pre-flight checks (NetworkIsolation, FilesystemBoundary, ProcessIsolation, EgressAttestation). Emits signed SandboxAttestation. Warrantor moves from Go to Rust per trusted-core doctrine.
+R3|kill-switch|1|Rust core + Python policy|C7.2 KillSwitchKit|(none)|(none)|I1 (mock)|Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 2026). Warrantor moves execution layer to Rust trusted core.
+R4|credential-vault|1|Rust|C7.4 CredentialVault|(none)|(none)|R3 (mock)|Agent-scoped credential brokering: 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates Vault/AWS Secrets Mgr/K8s Secrets. Revokes <1s on kill. Warrantor moves from Go to Rust per trusted-core doctrine.
 T2|authority-spec|2|Spec (JSON-Schema/CBOR/CDDL) + Rust ref|(none)|agent-authority-spec (V3 repo #1)|(none)|none|Normative spec for the Agent Authority Envelope (P1 AAE). Issuer, subject, purpose, resources, tools, data classes, side-effect class, budget, geography, delegation depth, approvals, expiry, revocation.
 I2|identity-bindings|2|Rust + Go adapter|(folded into F2)|spiffe-agent-identity (V2 W0)|ztai-spiffe-bridge|T1, I1|SPIFFE/SPIRE binding layer. Rust signs; Go registers workloads via SPIRE WorkloadAPI.
 E1|flight-recorder|2|Rust core + TS viewer|(none)|Verifiable Agent Flight Recorder (V2 #3) + agent-evidence receipt half|(none)|T1, I1|Emits signed Agent Action Receipts (P2 AAR) before commit. Framework-neutral. Export OCSF + OpenTelemetry.
@@ -49,10 +49,10 @@ F2|dp-crate|5|Python|C3.4 DPCrate|(none)|(AGORA DP)|none|Differential privacy to
 F3|edge-sentinel|5|Go (<5MB)|C3.2 EdgeSentinel|(none)|(none)|T1, F4|Edge inference attestation agent. Jetson/EGX. systemd service. Kills inference on tamper; alerts F4.
 F4|fleet-marshal|5|Go (gated)|C3.3 FleetMarshal|(none)|(none)|T1|K8s operator. ModelFleet CRD. Canary/blue-green/all-at-once OTA. Auto-rollback at failure threshold. Go activation trigger #2.
 X2|nooa-ext|6|Python|F1 NOOA-Ext|nooa-aumsecure-adapter / nooa-evidence-adapter|NOOA-Forge|I1, E1|Production extensions to NVIDIA NOOA. PolicyEnforcer (OPA/Rego), AuditStreamer (Kafka/Kinesis/webhook), IdentityBinder (SPIFFE), AttestationHook.
-X3|open-harness-spec|6|Spec (Markdown) + Python conformance|F3 OpenHarnessSpec|(none)|(none)|X2|Vendor-neutral agent harness spec. 5 interfaces: AgentIdentity, ToolPermission, AuditEvent, AttestationEnvelope, EvaluationReport. Proposed OSAF standard; AumOS = reference implementation.
+X3|open-harness-spec|6|Spec (Markdown) + Python conformance|F3 OpenHarnessSpec|(none)|(none)|X2|Vendor-neutral agent harness spec. 5 interfaces: AgentIdentity, ToolPermission, AuditEvent, AttestationEnvelope, EvaluationReport. Proposed OSAF standard; Warrantor = reference implementation.
 X4|crypto-audit-ai|6|Rust (eBPF) + Python drivers|F5 CryptoAuditAI|(none)|(none)|T1, A1|AI-assisted cryptanalysis. Modes: IMPLEMENTATION_AUDIT, ALGORITHM_STRESS_TEST, DEPENDENCY_SCAN. Integrates Anthropic CryptanalysisBench. Productizes Anthropic's research.
 X5|retro-spec-kit|6|Python|F6 RetroSpecKit|(none)|(none)|T1, S4|Automated retrospective transcript review. Analyzers: network_access, real_system, behavioral_divergence, credential_exposure, supply_chain_attack, unauthorized_access. Anthropic reviewed 141,006 runs manually; this does it in hours.
-X6|metr-bridge|6|Python|F8 METRBridge|(none)|(none)|X2, A1|METR independent-evaluator integration. METREvalAdapter, TranscriptExporter, RiskReportBridge, IndependentVerifier. Lets METR verify AumOS attestation claims independently.
+X6|metr-bridge|6|Python|F8 METRBridge|(none)|(none)|X2, A1|METR independent-evaluator integration. METREvalAdapter, TranscriptExporter, RiskReportBridge, IndependentVerifier. Lets METR verify Warrantor attestation claims independently.
 X9|incident-exchange|6|Spec + Python|(none)|agent-incident-exchange (V2 W2) + AIX protocol|AEGIS SOC + delta-notify|R3, E1|Normalized agent incidents: goal hijack, memory poisoning, tool abuse, identity compromise, exfiltration, rogue delegation. OCSF extension + MITRE ATLAS mapping.
 A3|bias-sentinel|6|Python + TS dashboard|C5.3 BiasSentinel|(none)|(none)|A1|Combined bias + copyright auditing. Bias (BOLD, HONEST, CrowS-Pairs, WinoBias) + copyright (n-gram overlap, fuzzy). EU AI Act copyright compliance.
 A4|comply-gate|6|YAML + Python|C5.4 ComplyGate|(none)|(none)|A1, T1|CI/CD compliance gates for AI. GitHub Action + GitLab CI template. .complygate.yml. Break-glass overrides with 2 mandatory approvers.
@@ -91,7 +91,7 @@ while IFS='|' read -r id name wave langs defstack aumsecure sentinel deps purpos
 | **Name** | ${name} |
 | **Wave** | ${wave} |
 | **Languages** | ${langs} |
-| **DefStack origin** | ${defstack} |
+| **Warrantor origin** | ${defstack} |
 | **AumSecure origin** | ${aumsecure} |
 | **Sentinel origin** | ${sentinel} |
 | **Dependencies** | ${deps} |
@@ -100,7 +100,7 @@ while IFS='|' read -r id name wave langs defstack aumsecure sentinel deps purpos
 
 This component is reconciled from the source portfolios per
 [\`00-reconciliation-matrix.md\`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack ${defstack}; AumSecure ${aumsecure}; Sentinel ${sentinel}. The full strategic rationale
+Warrantor ${defstack}; AumSecure ${aumsecure}; Sentinel ${sentinel}. The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [\`source-matrix/README.md\`](../source-matrix/README.md)).
 
@@ -128,7 +128,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** ${deps}
+- **Warrantor internal:** ${deps}
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per \`docs/cross-cutting/19-inter-component-protocol.md\`).

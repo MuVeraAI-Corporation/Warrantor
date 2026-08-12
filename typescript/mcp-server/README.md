@@ -1,14 +1,14 @@
 # @warrantor/mcp-server
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server that exposes 15 security
-operations backed by the canonical AumOS component catalog to MCP-compatible coding agents.
+operations backed by the canonical Warrantor component catalog to MCP-compatible coding agents.
 
 Works with **Claude Code**, **OpenAI Codex**, **Cursor**, **Zed**, the **Claude Desktop** app,
 and any client that speaks MCP JSON-RPC over stdio.
 
 ## What it gives an agent
 
-An agent that connects to this server gains 15 first-class tools covering the AumOS security
+An agent that connects to this server gains 15 first-class tools covering the Warrantor security
 primitives — signing, identity, receipts, attestation, preflight, kill-switch, secret scanning,
 compliance, SBOM, and evaluation:
 
@@ -26,7 +26,7 @@ compliance, SBOM, and evaluation:
 | `warrantor_kill` | R3 kill-switch | Trigger containment |
 | `warrantor_scan_secrets` | R4 credential-vault | Scan text for exposed credentials |
 | `warrantor_compliance_report` | X1 defstack-cli | Generate a compliance report |
-| `warrantor_install` | X1 defstack-cli | Install an AumOS component |
+| `warrantor_install` | X1 defstack-cli | Install an Warrantor component |
 | `warrantor_generate_sbom` | S4 model-sbom | Generate a Model SBOM (CycloneDX) |
 | `warrantor_run_eval` | A1 safe-eval | Run an evaluation pipeline |
 
@@ -120,7 +120,7 @@ await new Server({ mode: 'standalone' }).run();
   plus the legacy `initialize` compatibility path.
 - **Error handling**: a tool failure is returned as `{ isError: true, data: { code,
   dependency, retryable, ... } }` — the server never claims that a control succeeded when its
-  dependency failed (AumOS invariant I-09: fail-closed, never silent).
+  dependency failed (Warrantor invariant I-09: fail-closed, never silent).
 
 ## Configuration reference
 

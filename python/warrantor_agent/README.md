@@ -1,11 +1,11 @@
 # warrantor-agent
 
 A unified Python SDK that gives any coding agent (Claude Code custom tools, OpenAI Codex
-scripts, Cursor rules, LangChain agents, or a hand-rolled script) the **AumOS security
+scripts, Cursor rules, LangChain agents, or a hand-rolled script) the **Warrantor security
 primitives** as first-class Python objects.
 
 The headline feature is the **`@agent.action` decorator**, which wraps any function with the
-full AumOS security envelope — identity, preflight, credential brokering, signed receipts, and
+full Warrantor security envelope — identity, preflight, credential brokering, signed receipts, and
 containment — in one line.
 
 ## Install
@@ -22,10 +22,10 @@ Requires Python 3.11+.
 ## Quick start
 
 ```python
-from warrantor_agent import AumOS
+from warrantor_agent import Warrantor
 
 # standalone = mock implementations, zero external services. Perfect for dev & dry-runs.
-agent = AumOS(
+agent = Warrantor(
     mode="standalone",
     agent_identity_url="http://localhost:8441",  # I1 agent-identity
     # trust_core_url=None  → uses the `trust-core` CLI subprocess
@@ -94,7 +94,7 @@ agent.run_eval("model://x", pipeline_yaml) → dict      # (A1) — results + VE
 | `connected` | Primitives issue real HTTP calls (I1, E1, C1-1, S4, A1, R2, R3, R4) and shell out to CLIs (`trust-core`, `defstack`). **On connection failure, each call degrades gracefully** to the mock and sets `degraded: True` — your agent always gets an answer. |
 
 ```python
-agent = AumOS(
+agent = Warrantor(
     mode="connected",
     agent_identity_url="http://localhost:8441",
     flight_recorder_url="http://localhost:8445",
@@ -105,7 +105,7 @@ agent = AumOS(
 ## Fail-closed behavior
 
 ```python
-agent = AumOS(fail_closed=True)   # default
+agent = Warrantor(fail_closed=True)   # default
 
 @agent.action(tool="db.drop_table", side_effect="destructive")
 def drop_table():
@@ -148,8 +148,8 @@ warrantor-agent --version
 
 ```python
 # .claude/tools/aumos.py
-from warrantor_agent import AumOS
-agent = AumOS(mode="standalone")
+from warrantor_agent import Warrantor
+agent = Warrantor(mode="standalone")
 
 def warrantor_scan(text: str) -> dict:
     findings = agent.scan_secrets(text)
@@ -159,8 +159,8 @@ def warrantor_scan(text: str) -> dict:
 ### OpenAI Codex script
 
 ```python
-from warrantor_agent import AumOS
-agent = AumOS(mode="connected", agent_identity_url="http://localhost:8441")
+from warrantor_agent import Warrantor
+agent = Warrantor(mode="connected", agent_identity_url="http://localhost:8441")
 
 @agent.action(tool="ci.deploy", side_effect="write")
 def deploy(service: str):
@@ -171,19 +171,19 @@ def deploy(service: str):
 
 ```python
 from langchain_core.tools import tool
-from warrantor_agent import AumOS
+from warrantor_agent import Warrantor
 
-aumos = AumOS(mode="standalone")
+aumos = Warrantor(mode="standalone")
 
 @tool
 def safe_sign(data: str) -> str:
-    """Sign data with the AumOS trust-core."""
+    """Sign data with the Warrantor trust-core."""
     return aumos.sign(data)
 ```
 
 ## Design principles
 
-- **Zero-friction**: `@agent.action` wraps any function with full AumOS security.
+- **Zero-friction**: `@agent.action` wraps any function with full Warrantor security.
 - **Graceful degradation**: standalone mocks; connected calls fall back to mocks on failure.
 - **Coding-agent friendly**: importable from notebooks, scripts, rules, or tool wrappers.
 - **Evidence-first**: every decorated action produces a verifiable receipt (P2 AAR).

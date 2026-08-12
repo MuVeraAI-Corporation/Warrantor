@@ -1,6 +1,6 @@
-# AumOS Terraform Provider
+# Warrantor Terraform Provider
 
-Manage AumOS resources as Infrastructure-as-Code.
+Manage Warrantor resources as Infrastructure-as-Code.
 
 ## Usage
 
@@ -42,8 +42,8 @@ output "compliance_report" {
 
 ## Resources
 
-- `warrantor_component` — Install and verify an AumOS component
-- `warrantor_identity` — Issue an AumOS agent identity (SVID)
+- `warrantor_component` — Install and verify an Warrantor component
+- `warrantor_identity` — Issue an Warrantor agent identity (SVID)
 
 ## Data Sources
 

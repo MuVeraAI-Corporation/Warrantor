@@ -9,7 +9,6 @@
 #![forbid(unsafe_code)]
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -306,7 +305,7 @@ pub fn verify_signed_report(signed: &SignedConformanceReport) -> Result<(), Conf
 
 #[must_use]
 pub fn generate_keypair() -> (SigningKey, VerifyingKey) {
-    let mut csprng = OsRng;
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing = SigningKey::generate(&mut csprng);
     let verifying = signing.verifying_key();
     (signing, verifying)

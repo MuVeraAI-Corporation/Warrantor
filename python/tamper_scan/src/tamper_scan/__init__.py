@@ -1,4 +1,4 @@
-"""AumOS tamper-scan (S7) — the AI equivalent of a virus scanner.
+"""Warrantor tamper-scan (S7) — the AI equivalent of a virus scanner.
 
 Detects tampering in model weights via four analyzers:
 

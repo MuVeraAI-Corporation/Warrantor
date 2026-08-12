@@ -1,5 +1,5 @@
 # SPIRE Agent — DaemonSet that runs one agent per node and exposes the SPIFFE
-# Workload API over a Unix socket that AumOS workloads mount.
+# Workload API over a Unix socket that Warrantor workloads mount.
 #
 # Aligns with deploy/helm/aumos/values.yaml:
 #     global.mtls.enabled + spire-init sidecar pattern in templates/deployments.yaml
@@ -92,7 +92,7 @@ data:
       }
 
       # Identify workloads by their pod / SA / node selectors so the Workload
-      # API only hands SVIDs to authorized AumOS services.
+      # API only hands SVIDs to authorized Warrantor services.
       WorkloadAttestor "kubernetes" {
         plugin_data {
           skip_kubelet_verification = true
@@ -227,7 +227,7 @@ spec:
         - name: spire-config
           configMap:
             name: spire-agent
-        # Shared hostPath socket: AumOS workloads mount the same path to reach
+        # Shared hostPath socket: Warrantor workloads mount the same path to reach
         # the Workload API. The hostPaths are scoped per-node by the DaemonSet.
         - name: spire-agent-socket
           hostPath:

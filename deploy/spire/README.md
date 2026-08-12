@@ -1,11 +1,11 @@
-# SPIRE mTLS deployment for the AumOS trust domain (`muveraai.com`)
+# SPIRE mTLS deployment for the Warrantor trust domain (`muveraai.com`)
 
 This directory deploys [SPIRE](https://github.com/spiffe/spire) — the reference
 implementation of the [SPIFFE](https://spiffe.io/) workload-identity standard —
-into a Kubernetes cluster and wires it to the AumOS services defined in
+into a Kubernetes cluster and wires it to the Warrantor services defined in
 `deploy/helm/aumos/`.
 
-Once SPIRE is running, every AumOS pod (trust-core, inference-proxy,
+Once SPIRE is running, every Warrantor pod (trust-core, inference-proxy,
 credential-vault, agent-identity, …) receives an **X.509 SVID** (SPIFFE
 Verifiable Identity Document) over the Workload API. Two pods then establish
 **mutual TLS** by presenting each other's SVIDs — no static certificates, no
@@ -36,7 +36,7 @@ The trust domain is `muveraai.com`, matching `global.trustDomain` in
    │  (NodeAttestor k8s_psat)            (CA, registration)
    │ /run/spire/sockets/agent.sock
    ▼
- AumOS pods (trust-core, inference-proxy, …)  → mTLS to each other using SVIDs
+ Warrantor pods (trust-core, inference-proxy, …)  → mTLS to each other using SVIDs
 ```
 
 ## Prerequisites
@@ -55,7 +55,7 @@ The trust domain is `muveraai.com`, matching `global.trustDomain` in
 # 1. Create the bootstrap root CA (dev only — keep this out of git in prod).
 openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
   -keyout root.key -out root.crt \
-  -subj "/O=AumOS — Open Secure AI Alliance/CN=muveraai.com SPIRE CA"
+  -subj "/O=Warrantor — Open Secure AI Alliance/CN=muveraai.com SPIRE CA"
 
 kubectl create namespace spire
 kubectl -n spire create secret generic spire-server-bootstrap \
@@ -78,9 +78,9 @@ kubectl apply -f deploy/spire/trust-domain-config.yaml
 > If you don't install the CRDs, use the equivalent `spire-server entry create`
 > CLI commands commented in `trust-domain-config.yaml`.
 
-## Wire it to an AumOS service
+## Wire it to an Warrantor service
 
-AumOS services are defined in `deploy/helm/aumos/templates/deployments.yaml`.
+Warrantor services are defined in `deploy/helm/aumos/templates/deployments.yaml`.
 Each pod that needs an SVID must (a) mount the agent socket and (b) declare the
 matching `SPIFFEEntry`. Example for `trust-core`:
 
@@ -172,4 +172,4 @@ To federate with a second region (e.g. `eu.muveraai.com`):
 - SPIFFE spec: <https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE.md>
 - SPIRE docs (configuring): <https://spiffe.io/docs/latest/deploying/configuring/>
 - SPIRE Helm chart (production): <https://github.com/spiffe/helm-charts-hardened>
-- AumOS trust-core (S1 provenance signing): `rust/trust-core/`, `rust/safe-tensors-pp/`
+- Warrantor trust-core (S1 provenance signing): `rust/trust-core/`, `rust/safe-tensors-pp/`

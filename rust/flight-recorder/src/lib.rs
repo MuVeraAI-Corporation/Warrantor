@@ -38,7 +38,6 @@ pub use evidence::{
 };
 
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -383,7 +382,7 @@ impl std::fmt::Debug for FlightRecorder {
 impl FlightRecorder {
     /// Construct a recorder with a freshly generated Ed25519 key pair.
     pub fn new() -> Self {
-        let mut rng = OsRng;
+        let mut rng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
         let sk = SigningKey::generate(&mut rng);
         let vk_hex = hex::encode(sk.verifying_key().to_bytes());
         Self {
@@ -517,7 +516,7 @@ impl FlightRecorder {
             "outcome": format!("{:?}", receipt.outcome).to_lowercase(),
             "metadata": {
                 "version": "1.0.0",
-                "product": { "name": "warrantor-flight-recorder", "vendor_name": "AumOS" },
+                "product": { "name": "warrantor-flight-recorder", "vendor_name": "Warrantor" },
                 "receipt_id": receipt.id,
                 "verifying_key": receipt.verifying_key_hex,
                 "signature": receipt.signature_hex

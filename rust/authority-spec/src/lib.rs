@@ -1,7 +1,7 @@
 //! # warrantor-authority-spec (T2)
 //!
 //! The normative reference for the **Agent Authority Envelope (AAE, P1)** — the signed
-//! task-specific delegation that authorizes an agent to act. AumOS components consume this
+//! task-specific delegation that authorizes an agent to act. Warrantor components consume this
 //! crate to validate an AAE's signature, expiry, and delegation constraints.
 //!
 //! Schema lives in `specs/protocols/P1-aae.{cddl,schema.json}`. Wire type in
@@ -281,7 +281,6 @@ pub fn validate(
 mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
-    use rand::rngs::OsRng;
     use warrantor_api::identity::v1::AgentAuthorityEnvelope;
 
     /// Build an unsigned envelope body (the JSON map the signature covers) for the given fields.
@@ -318,7 +317,7 @@ mod tests {
         approvals: Vec<&str>,
         delegation_depth: u32,
     ) -> (AgentAuthorityEnvelope, SigningKey) {
-        let mut rng = OsRng;
+        let mut rng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
         let sk = SigningKey::generate(&mut rng);
         let issuer = "spiffe://muveraai.com/agent-identity";
         let subject = "spiffe://muveraai.com/agent/coding-1";

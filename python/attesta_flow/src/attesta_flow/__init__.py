@@ -1,4 +1,4 @@
-"""AumOS attesta-flow (C1-3) — end-to-end attested inference pipeline.
+"""Warrantor attesta-flow (C1-3) — end-to-end attested inference pipeline.
 
 A Python orchestrator that runs *inside* a TEE (Azure DC-series, AWS Nitro Enclaves, GCP
 Confidential VMs + NVIDIA GPUs). Emits a signed ``PipelineAttestation`` per batch proving the

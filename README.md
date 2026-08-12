@@ -273,7 +273,7 @@ without a translation layer.
 ## A note on the name
 
 This project is consolidating under the name **Warrantor**. Older documents and code paths still say
-*AumOS* or *DefStack* — earlier names for the same work. They mean the same thing; the rename is in
+*Warrantor* or *Warrantor* — earlier names for the same work. They mean the same thing; the rename is in
 progress and tracked openly. Provenance for how four earlier strategy portfolios were reconciled into
 one component catalogue lives in
 [`docs/00-reconciliation-matrix.md`](docs/00-reconciliation-matrix.md), which is maintainer history

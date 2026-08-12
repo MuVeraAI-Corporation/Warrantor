@@ -14,7 +14,6 @@
 use std::collections::HashSet;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
@@ -568,7 +567,7 @@ pub fn verify(sm: &SignedManifest) -> Result<(), ManifestError> {
 /// Convenience: generate a keypair using the OS RNG. Intended for tests and the manifest-issuer
 /// bootstrap; production keys come from KMS/HSM.
 pub fn generate_keypair() -> (SigningKey, VerifyingKey) {
-    let mut csprng = OsRng;
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing = SigningKey::generate(&mut csprng);
     let verifying = signing.verifying_key();
     (signing, verifying)

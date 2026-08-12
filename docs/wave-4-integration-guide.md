@@ -1,7 +1,7 @@
 # Wave-4 Integration Guide — Inference Stack
 
 > N1 (proxy), N2 (backend bridge), N3 (gateway), N4 (multi-tenant GPU) compose into the
-> AumOS inference stack — OpenAI-compatible, backend-agnostic, multi-tenant, attested.
+> Warrantor inference stack — OpenAI-compatible, backend-agnostic, multi-tenant, attested.
 
 ## The inference request flow
 

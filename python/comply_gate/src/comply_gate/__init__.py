@@ -1,4 +1,4 @@
-"""AumOS comply-gate (A4) — CI/CD compliance gates.
+"""Warrantor comply-gate (A4) — CI/CD compliance gates.
 
 Parses a ``.complygate.yml`` config and enforces four gate types:
 

@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Industry Whitepaper · WP1 of 6 · For security architects &amp; platform engineering leadership</div>
+  <div class="article-eyebrow">Warrantor Industry Whitepaper · WP1 of 6 · For security architects &amp; platform engineering leadership</div>
   <h1>The Open Defense Stack for AI: Architecture and Implementation</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS — 49 components, 12 protocols, 7 pillars</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor — 49 components, 12 protocols, 7 pillars</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">OSDI / SOSP (system paper) or RSA 2027</span></div>
     <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">~18–24 pages, reference architecture + runbook</span></div>
@@ -26,7 +26,7 @@
 
 <div class="abstract">
   <span class="abstract-label">Executive Summary</span>
-  <p>The dominant model for securing AI today is point-product accumulation — an LLM firewall here, a prompt-injection detector there, an SBOM generator elsewhere — assembled into a brittle, vendor-locked perimeter that breaks the moment an agent changes framework, runtime, or cloud. This whitepaper presents <strong>AumOS as the reference <em>open defense stack</em> for AI</strong>: a single, coherent, vendor-neutral architecture that composes 49 components and 12 protocols across four runtimes (Rust, Go, Python, TypeScript) into a deployable platform covering the full agent-security lifecycle — identity, delegation, attestation, action evidence, supply-chain integrity, incident response, and evaluation. We argue that the open-stack pattern (Linux for operating systems, Kubernetes for container orchestration, OpenTelemetry for observability, SPIFFE for workload identity) is the only structurally viable answer to AI security, and that AumOS occupies that position for the agentic layer.</p>
+  <p>The dominant model for securing AI today is point-product accumulation — an LLM firewall here, a prompt-injection detector there, an SBOM generator elsewhere — assembled into a brittle, vendor-locked perimeter that breaks the moment an agent changes framework, runtime, or cloud. This whitepaper presents <strong>Warrantor as the reference <em>open defense stack</em> for AI</strong>: a single, coherent, vendor-neutral architecture that composes 49 components and 12 protocols across four runtimes (Rust, Go, Python, TypeScript) into a deployable platform covering the full agent-security lifecycle — identity, delegation, attestation, action evidence, supply-chain integrity, incident response, and evaluation. We argue that the open-stack pattern (Linux for operating systems, Kubernetes for container orchestration, OpenTelemetry for observability, SPIFFE for workload identity) is the only structurally viable answer to AI security, and that Warrantor occupies that position for the agentic layer.</p>
 </div>
 
 <div class="toc">
@@ -46,7 +46,7 @@
 <p>Security architects evaluating AI today face four structural failures of the point-product model. (1) <strong>Coverage gaps</strong>: no single commercial product spans identity, attestation, and supply chain, so the gaps between products become the attack surface. (2) <strong>Lock-in</strong>: proprietary agent-identity and model-signing schemes mean that a commitment to one vendor forecloses every other. (3) <strong>No composability</strong>: products do not interoperate, so evidence from one cannot be consumed by another. (4) <strong>No reference implementation</strong>: there is no neutral baseline against which commercial claims can be benchmarked, so buyers cannot tell marketing from substance. The open defense stack exists to correct all four.</p>
 
 <h2 id="architecture"><span class="anchor">§</span>2. Architecture: seven pillars and the protocol spine</h2>
-<p>AumOS organizes its 49 components into seven pillars that map one-to-one onto the security lifecycle, connected by a protocol spine of 12 cross-cutting protocols. Each pillar is independently deployable (a team can adopt supply-chain integrity without adopting confidential computing), but the pillars compose through shared protocols so that adopting more yields more than the sum of the parts.</p>
+<p>Warrantor organizes its 49 components into seven pillars that map one-to-one onto the security lifecycle, connected by a protocol spine of 12 cross-cutting protocols. Each pillar is independently deployable (a team can adopt supply-chain integrity without adopting confidential computing), but the pillars compose through shared protocols so that adopting more yields more than the sum of the parts.</p>
 <ul>
   <li><strong>Pillar T — Trust &amp; authority core</strong> (T1 trust-core, T2 authority-spec): the cryptographic primitives and the AAE canonicalization that every other pillar depends on.</li>
   <li><strong>Pillar I — Identity</strong> (I1 agent-identity, I2 federation): the SPIFFE-derived agent-identity document, trust-domain model, and cross-organization federation (WP3).</li>
@@ -59,7 +59,7 @@
 <p>The 12 protocols (P1 delegation, P2 action receipt, P3 attestation handshake, P4 model signing, P5 lineage, P6 kill switch, P7 federation, P8 audit export, P9 harness, P10 BOM, P11 trust manifest, P12 red-team report) are the contract layer: a component in any pillar speaking a protocol can interoperate with any other component speaking it, regardless of runtime.</p>
 
 <h2 id="methodology"><span class="anchor">§</span>3. Methodology: open-core with a conformance gate</h2>
-<p>The stack is delivered open-core under a permissive license, with a <strong>conformance program</strong> that is the structural answer to lock-in. Any implementation — AumOS's reference or a commercial fork — may claim conformance to a protocol only after passing the published conformance-vector suite (Paper 18) for that protocol in all four runtimes. The conformance gate is itself open: the vectors, the harness, and the CI pipeline are all in the repository. This means a buyer can verify a vendor's "AumOS-compatible" claim by running the same gate the vendor ran. It is the same structural mechanism that made Kubernetes' CNCF conformance program the credible neutrality guarantee for container orchestration. The NIST AI RMF<sup><a href="#ref-rmf">[1]</a></sup> provides the governance frame the lifecycle maps onto; the OWASP LLM Top 10<sup><a href="#ref-owasp">[2]</a></sup> the threat taxonomy; CoSAI<sup><a href="#ref-cosai">[3]</a></sup> the vendor-neutral venue; Google SAIF the defense-in-depth reference.</p>
+<p>The stack is delivered open-core under a permissive license, with a <strong>conformance program</strong> that is the structural answer to lock-in. Any implementation — Warrantor's reference or a commercial fork — may claim conformance to a protocol only after passing the published conformance-vector suite (Paper 18) for that protocol in all four runtimes. The conformance gate is itself open: the vectors, the harness, and the CI pipeline are all in the repository. This means a buyer can verify a vendor's "Warrantor-compatible" claim by running the same gate the vendor ran. It is the same structural mechanism that made Kubernetes' CNCF conformance program the credible neutrality guarantee for container orchestration. The NIST AI RMF<sup><a href="#ref-rmf">[1]</a></sup> provides the governance frame the lifecycle maps onto; the OWASP LLM Top 10<sup><a href="#ref-owasp">[2]</a></sup> the threat taxonomy; CoSAI<sup><a href="#ref-cosai">[3]</a></sup> the vendor-neutral venue; Google SAIF the defense-in-depth reference.</p>
 
 <h2 id="deployment"><span class="anchor">§</span>4. Deployment sequence (operator runbook)</h2>
 <ol class="wp-steps" style="list-style:none;margin-left:0;">
@@ -96,7 +96,7 @@
 </ul>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper derived from the AumOS research roadmap. All 7 pillars and 12 protocols are implemented in AumOS. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper derived from the Warrantor research roadmap. All 7 pillars and 12 protocols are implemented in Warrantor. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="../research-papers.html">Research roadmap</a></span>
     <span class="small"><a href="wp2-eu-ai-act-article-55.html">WP2: EU AI Act Compliance →</a></span>

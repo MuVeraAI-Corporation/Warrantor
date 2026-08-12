@@ -1,6 +1,6 @@
-"""AumOS open-harness-spec (X3) — vendor-neutral agent harness specification.
+"""Warrantor open-harness-spec (X3) — vendor-neutral agent harness specification.
 
-Defines the five mandatory interfaces every AumOS-compatible agent harness must
+Defines the five mandatory interfaces every Warrantor-compatible agent harness must
 implement. The interfaces are intentionally minimal: they describe ``what`` a
 harness must expose, not ``how``. Every external integration (SPIRE, OPA, Kafka,
 TPM, eval frameworks) is left to the harness implementer.

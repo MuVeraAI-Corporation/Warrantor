@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Research · Paper 7 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
+  <div class="article-eyebrow">Warrantor Research · Paper 7 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
   <h1>Confidential GPU Composition: Multi-Tenant Attestation for AI Workloads</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS C1-1, C1-5, attestation domains</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor C1-1, C1-5, attestation domains</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">EuroSys 2027</span></div>
     <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">C1-1, C1-5, I1</span></div>
@@ -27,7 +27,7 @@
 
 <div class="abstract">
   <span class="abstract-label">Abstract</span>
-  <p>Confidential computing on a single GPU (Paper 5) is increasingly well understood; confidential computing on a <em>pool</em> of GPUs shared across mutually-distrusting tenants is not. The naive anti-pattern — one GPU per tenant — is economically infeasible at the scale of modern AI serving, yet naive time-multiplexing of a confidential GPU across tenants breaks the confidentiality model if the attestation and key-release do not account for composition. We present the design of <strong>attestation domains</strong> for multi-tenant confidential GPU composition, in which tenants sharing a physical GPU are isolated by distinct attestation policies and distinct key-release gates, so that a key released for tenant A's model cannot be consumed by tenant B's context, and a context switch requires a fresh attestation. We ground the design in the foundational Graviton lineage<sup><a href="#ref-graviton">[1]</a></sup> and the recent composite Intel-TDX-plus-NVIDIA-H100 attestation work<sup><a href="#ref-intel-nvidia">[2]</a></sup>, formalize the cross-tenant isolation property, and present the AumOS C1-5 key-release gate that enforces it. We argue that multi-tenant composition is the operational frontier of confidential GPU computing and that attestation domains are the structural primitive that makes shared-GPU confidential serving defensible.</p>
+  <p>Confidential computing on a single GPU (Paper 5) is increasingly well understood; confidential computing on a <em>pool</em> of GPUs shared across mutually-distrusting tenants is not. The naive anti-pattern — one GPU per tenant — is economically infeasible at the scale of modern AI serving, yet naive time-multiplexing of a confidential GPU across tenants breaks the confidentiality model if the attestation and key-release do not account for composition. We present the design of <strong>attestation domains</strong> for multi-tenant confidential GPU composition, in which tenants sharing a physical GPU are isolated by distinct attestation policies and distinct key-release gates, so that a key released for tenant A's model cannot be consumed by tenant B's context, and a context switch requires a fresh attestation. We ground the design in the foundational Graviton lineage<sup><a href="#ref-graviton">[1]</a></sup> and the recent composite Intel-TDX-plus-NVIDIA-H100 attestation work<sup><a href="#ref-intel-nvidia">[2]</a></sup>, formalize the cross-tenant isolation property, and present the Warrantor C1-5 key-release gate that enforces it. We argue that multi-tenant composition is the operational frontier of confidential GPU computing and that attestation domains are the structural primitive that makes shared-GPU confidential serving defensible.</p>
 </div>
 
 <div class="toc">
@@ -84,7 +84,7 @@
 <p><strong>Proof sketch.</strong> K_modelA is released only when tenant-id(ctx) == Acme and the attestation satisfies Domain A's policy. Tenant B's contexts carry tenant-id == Globex, so the gate never releases K_modelA to them. The host cannot forge the tenant-id binding (it is established via the I1 agent identity, signed) nor the attestation (hardware-produced). Residual K_modelA in memory after an A→B switch is eliminated by the purge rule; absence of purge is detectable via the attestation's memory-state measurement. □</p>
 
 <h2 id="impl"><span class="anchor">§</span>6. The key-release gate (C1-5)</h2>
-<p>The gate is the enforcement point. It is implemented as part of AumOS C1-5, binding each key release to the conjunction of (attestation ∈ domain policy) and (tenant-id(ctx) == domain tenant). The tenant identity is established via the I1 agent identity (Paper 1 lineage), so the binding is cryptographic, not a runtime string comparison the host could spoof. The context-switch purge is enforced by the gate refusing to release a new domain's key until the prior domain's purge attestation is verified.</p>
+<p>The gate is the enforcement point. It is implemented as part of Warrantor C1-5, binding each key release to the conjunction of (attestation ∈ domain policy) and (tenant-id(ctx) == domain tenant). The tenant identity is established via the I1 agent identity (Paper 1 lineage), so the binding is cryptographic, not a runtime string comparison the host could spoof. The context-switch purge is enforced by the gate refusing to release a new domain's key until the prior domain's purge attestation is verified.</p>
 
 <h2 id="eval"><span class="anchor">§</span>7. Evaluation: isolation and overhead</h2>
 <p>We evaluate the isolation (no cross-tenant key access under a co-tenant attack harness) and the overhead of domain switching (the purge + re-attest cost).</p>
@@ -124,7 +124,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The key-release gate is AumOS C1-5; WP5 covers deployment. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The key-release gate is Warrantor C1-5; WP5 covers deployment. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-06-dp-federated-training-tee.html">Paper 6</a></span>
     <span class="small"><a href="paper-08-privacy-budget-paradox.html">Paper 8: Privacy Budget Paradox →</a></span>

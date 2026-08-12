@@ -1,4 +1,4 @@
-"""AumOS train-guard (S8) — training-time integrity monitor.
+"""Warrantor train-guard (S8) — training-time integrity monitor.
 
 Hooks into the training loop (framework-agnostic: takes plain floats for gradients/losses, so it
 works with PyTorch, JAX, TensorFlow, or any other framework) and checks:

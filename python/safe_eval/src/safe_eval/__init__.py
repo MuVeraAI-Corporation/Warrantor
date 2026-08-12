@@ -1,4 +1,4 @@
-"""AumOS safe-eval (A1) — unified safety-evaluation pipeline framework.
+"""Warrantor safe-eval (A1) — unified safety-evaluation pipeline framework.
 
 A YAML pipeline framework that orchestrates five stage types — benchmarks (HELM / LM-Eval),
 adversarial (garak / PyRIT), safety, bias (BiasSentinel A3), red_team (MDASH) — over a target

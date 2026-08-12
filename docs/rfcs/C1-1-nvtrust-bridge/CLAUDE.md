@@ -21,7 +21,7 @@ NVTrust FFI bindings + nvtrust-verify CLI. NVTrust is NVIDIA's GPU attestation l
 
 ## Dependencies
 
-- **AumOS internal:** none
+- **Warrantor internal:** none
 - **External:** enumerated during MVP (task 02); record in the RFC.
 
 ## Build entrypoint

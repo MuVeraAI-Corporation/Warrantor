@@ -1,4 +1,4 @@
-"""AumOS dp-crate (F2) — production-grade differential privacy toolkit.
+"""Warrantor dp-crate (F2) — production-grade differential privacy toolkit.
 
 Three building blocks, all framework-agnostic (operate on flat ``list[float]`` gradients so
 they work equally well with PyTorch, JAX, TensorFlow, or NeMo):

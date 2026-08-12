@@ -8,7 +8,7 @@
 | **Name** | safe-eval |
 | **Wave** | 3 |
 | **Languages** | Python |
-| **DefStack origin** | C5.1 SafeEval |
+| **Warrantor origin** | C5.1 SafeEval |
 | **AumSecure origin** | (none) |
 | **Sentinel origin** | COLOSSEUM bench |
 | **Dependencies** | I1, T1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack C5.1 SafeEval; AumSecure (none); Sentinel COLOSSEUM bench. The full strategic rationale
+Warrantor C5.1 SafeEval; AumSecure (none); Sentinel COLOSSEUM bench. The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** I1, T1
+- **Warrantor internal:** I1, T1
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

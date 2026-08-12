@@ -1,6 +1,6 @@
 apiVersion: v2
 name: aumos
-description: AumOS — Open Authority and Evidence Layer for Autonomous Systems. Full-stack deployment of all deployable AumOS components.
+description: Warrantor — Open Authority and Evidence Layer for Autonomous Systems. Full-stack deployment of all deployable Warrantor components.
 type: application
 version: 1.0.0
 appVersion: "1.0.0"

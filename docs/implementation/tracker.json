@@ -6,7 +6,7 @@
     "branch": "fix/critical-findings",
     "dirty": true
   },
-  "objective": "Implement every pending AumOS item and prove closure without conflating source presence, local verification, integration evidence, or production readiness.",
+  "objective": "Implement every pending Warrantor item and prove closure without conflating source presence, local verification, integration evidence, or production readiness.",
   "status_definitions": {
     "open": "No implementation closure evidence has been accepted.",
     "in_progress": "Implementation work exists but acceptance evidence is incomplete.",
@@ -1294,7 +1294,7 @@
         "path": "deploy/modal/tests/test_modal_scripts.py",
         "line": 1,
         "category": "stub",
-        "text": "\"\"\"Stub-based validation for the AumOS Modal scripts."
+        "text": "\"\"\"Stub-based validation for the Warrantor Modal scripts."
       },
       {
         "path": "deploy/modal/tests/test_modal_scripts.py",
@@ -2038,7 +2038,7 @@
         "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
         "line": 341,
         "category": "mock",
-        "text": "Parameters mirror :class:`AumOSConfig`. ``mode`` selects between standalone (mock) and"
+        "text": "Parameters mirror :class:`WarrantorConfig`. ``mode`` selects between standalone (mock) and"
       },
       {
         "path": "python/warrantor_agent/src/warrantor_agent/__init__.py",
@@ -3376,7 +3376,7 @@
         "path": "tools/ci/gen-handoffs.sh",
         "line": 19,
         "category": "mock",
-        "text": "R4|credential-vault|Rust|R3 (mock)|Agent-scoped credential brokering. 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates HashiCorp Vault, AWS Secrets Manager, K8s Secrets via trait CredentialBackend. Revokes all tokens <1s on kill-switch trigger. AumOS moved from Go to Rust."
+        "text": "R4|credential-vault|Rust|R3 (mock)|Agent-scoped credential brokering. 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates HashiCorp Vault, AWS Secrets Manager, K8s Secrets via trait CredentialBackend. Revokes all tokens <1s on kill-switch trigger. Warrantor moved from Go to Rust."
       },
       {
         "path": "tools/ci/gen-handoffs.sh",
@@ -3418,13 +3418,13 @@
         "path": "tools/ci/gen-rfcs.sh",
         "line": 25,
         "category": "mock",
-        "text": "R3|kill-switch|1|Rust core + Python policy|C7.2 KillSwitchKit|(none)|(none)|I1 (mock)|Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 2026). AumOS moves execution layer to Rust trusted core."
+        "text": "R3|kill-switch|1|Rust core + Python policy|C7.2 KillSwitchKit|(none)|(none)|I1 (mock)|Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 2026). Warrantor moves execution layer to Rust trusted core."
       },
       {
         "path": "tools/ci/gen-rfcs.sh",
         "line": 26,
         "category": "mock",
-        "text": "R4|credential-vault|1|Rust|C7.4 CredentialVault|(none)|(none)|R3 (mock)|Agent-scoped credential brokering: 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates Vault/AWS Secrets Mgr/K8s Secrets. Revokes <1s on kill. AumOS moves from Go to Rust per trusted-core doctrine."
+        "text": "R4|credential-vault|1|Rust|C7.4 CredentialVault|(none)|(none)|R3 (mock)|Agent-scoped credential brokering: 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates Vault/AWS Secrets Mgr/K8s Secrets. Revokes <1s on kill. Warrantor moves from Go to Rust per trusted-core doctrine."
       },
       {
         "path": "tools/ci/gen-rfcs.sh",
@@ -3478,7 +3478,7 @@
         "path": "tools/terraform-provider-warrantor/provider/provider.go",
         "line": 2,
         "category": "stub",
-        "text": "// This is a stub \u2014 the real provider wraps the AumOS HTTP/JSON APIs."
+        "text": "// This is a stub \u2014 the real provider wraps the Warrantor HTTP/JSON APIs."
       },
       {
         "path": "tools/terraform-provider-warrantor/provider/provider.go",

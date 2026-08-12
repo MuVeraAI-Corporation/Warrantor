@@ -1,6 +1,6 @@
-"""AumOS Harness — secure coding agent wrappers.
+"""Warrantor Harness — secure coding agent wrappers.
 
-Wraps coding agent sessions (Claude Code, OpenAI Codex, Cursor) with AumOS security:
+Wraps coding agent sessions (Claude Code, OpenAI Codex, Cursor) with Warrantor security:
   1. eval-guard pre-flight sandbox boundary checks (R2)
   2. Every file/command the agent touches is tracked
   3. Every significant action recorded as an AAR (E1, invariant I-07)
@@ -170,7 +170,7 @@ def _split_command(command: str) -> list[str]:
 
 
 class TrackedSession:
-    """A tracked coding agent session with AumOS security controls."""
+    """A tracked coding agent session with Warrantor security controls."""
 
     def __init__(self, config: HarnessConfig) -> None:
         self.config = config
@@ -357,7 +357,7 @@ class TrackedSession:
 
 @contextmanager
 def secure_session(config: HarnessConfig):
-    """Context manager that wraps a coding agent session with AumOS security.
+    """Context manager that wraps a coding agent session with Warrantor security.
 
     Usage:
         with secure_session(config) as session:

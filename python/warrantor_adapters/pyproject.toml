@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "D2 — Framework adapters for Warrantor. One-line drop-ins for LangChain, OpenAI Agents SDK, and Anthropic SDK that add verifiable authority + evidence to every agent action via the warrantor SDK."
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 dependencies = ["cryptography>=42"]
 

@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Research · Paper 14 of 24 · Thrust 4 — Agent Containment &amp; Incident Response</div>
+  <div class="article-eyebrow">Warrantor Research · Paper 14 of 24 · Thrust 4 — Agent Containment &amp; Incident Response</div>
   <h1>The AI Kill Switch: Emergency Containment for Autonomous Systems</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS R3 (kill switch), R-pillar, P2 (AAR)</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor R3 (kill switch), R-pillar, P2 (AAR)</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">USENIX Security 2027</span></div>
     <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">R3, R-pillar, P2, I1</span></div>
@@ -27,7 +27,7 @@
 
 <div class="abstract">
   <span class="abstract-label">Abstract</span>
-  <p>"Turn it off" is, in distributed autonomous-agent systems, not a single operation but a family of controls — halt the inference, revoke the credentials, quarantine the state, preserve the evidence — each with a different blast radius. The federal AI Kill Switch Act<sup><a href="#ref-bill">[1]</a></sup> (introduced July 2026) and the foundational interruptibility theory of Orseau &amp; Armstrong<sup><a href="#ref-orseau">[2]</a></sup> (UAI 2016) establish that the problem is both statutory and technical, and that a naive shutdown is either defeatable (an agent that learns to resist interruption) or destructive (a shutdown that destroys the forensic evidence). We present a <strong>five-control-objective kill-switch specification</strong> — Halt, Isolate, Preserve, Attest, Restore — implemented in AumOS R3, that is both safe (the agent cannot resist it, because it operates on the delegation-revocation layer, not the agent's learned policy) and forensic (it composes with the AAR's tamper-evident chain to seal evidence on trigger). We position the specification as the de-facto technical standard against which statutory kill-switch language should be interpreted, bridging the policy-engineering gap the AI Kill Switch Act exemplifies.</p>
+  <p>"Turn it off" is, in distributed autonomous-agent systems, not a single operation but a family of controls — halt the inference, revoke the credentials, quarantine the state, preserve the evidence — each with a different blast radius. The federal AI Kill Switch Act<sup><a href="#ref-bill">[1]</a></sup> (introduced July 2026) and the foundational interruptibility theory of Orseau &amp; Armstrong<sup><a href="#ref-orseau">[2]</a></sup> (UAI 2016) establish that the problem is both statutory and technical, and that a naive shutdown is either defeatable (an agent that learns to resist interruption) or destructive (a shutdown that destroys the forensic evidence). We present a <strong>five-control-objective kill-switch specification</strong> — Halt, Isolate, Preserve, Attest, Restore — implemented in Warrantor R3, that is both safe (the agent cannot resist it, because it operates on the delegation-revocation layer, not the agent's learned policy) and forensic (it composes with the AAR's tamper-evident chain to seal evidence on trigger). We position the specification as the de-facto technical standard against which statutory kill-switch language should be interpreted, bridging the policy-engineering gap the AI Kill Switch Act exemplifies.</p>
 </div>
 
 <div class="toc">
@@ -37,7 +37,7 @@
     <li><a href="#background">Background: interruptibility and the law</a></li>
     <li><a href="#naive">Why naive shutdown fails</a></li>
     <li><a href="#objectives">The five control objectives</a></li>
-    <li><a href="#impl">Implementation in AumOS R3</a></li>
+    <li><a href="#impl">Implementation in Warrantor R3</a></li>
     <li><a href="#eval">Evaluation: safety and forensics</a></li>
     <li><a href="#discussion">Discussion</a></li>
     <li><a href="#related">Related work</a></li>
@@ -68,7 +68,7 @@
 </table>
 <p>The five are necessary and jointly sufficient. Crucially, Halt operates on the delegation layer (revoking the AAE) — not on the agent's policy — so it is immune to the Orseau–Armstrong resistance result. The agent cannot prevent its own credential revocation because it does not control the revocation epoch.</p>
 
-<h2 id="impl"><span class="anchor">§</span>5. Implementation in AumOS R3</h2>
+<h2 id="impl"><span class="anchor">§</span>5. Implementation in Warrantor R3</h2>
 <p>R3 implements the five objectives as a coordinated trigger. The defining design choice is that Halt is a <em>revocation</em>, not a process signal: R3 advances the AAE revocation epoch (Paper 1, §3.3), and every relying party that re-checks freshness within the window rejects the agent. This is sub-second, distributed, and does not depend on reaching the agent process. Preserve composes with the AAR's forensic-freeze mode: the current receipt chain is sealed and anchored immediately, and the agent state is snapshotted into a hash-bound evidence bundle. The kill-switch receipt attests to all of it.</p>
 
 <h2 id="eval"><span class="anchor">§</span>6. Evaluation: safety and forensics</h2>
@@ -107,7 +107,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The kill switch is AumOS R3; WP4 develops the policy traceability. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The kill switch is Warrantor R3; WP4 develops the policy traceability. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-13-sandbox-boundary-attestation.html">Paper 13</a></span>
     <span class="small"><a href="paper-15-ebpf-exfiltration-prevention.html">Paper 15: eBPF Exfiltration Prevention →</a></span>

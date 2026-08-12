@@ -1,6 +1,6 @@
 # Security Disclosure Policy
 
-> How DefStack handles vulnerability reports, CVEs, and coordinated disclosure.
+> How Warrantor handles vulnerability reports, CVEs, and coordinated disclosure.
 
 ## Reporting a Vulnerability
 
@@ -27,7 +27,7 @@ Include:
 
 ### Bug Bounty (Planned Q2 2027)
 
-We plan to launch a bug bounty program on HackerOne by Q2 2027 (post-Series A). Until then, we credit reporters in release notes and provide DefStack swag.
+We plan to launch a bug bounty program on HackerOne by Q2 2027 (post-Series A). Until then, we credit reporters in release notes and provide Warrantor swag.
 
 ## Response SLAs
 
@@ -40,7 +40,7 @@ We plan to launch a bug bounty program on HackerOne by Q2 2027 (post-Series A). 
 
 ## CVE Assignment
 
-DefStack is a **CNA (CVE Numbering Authority)** candidate (apply by M9). Until then:
+Warrantor is a **CNA (CVE Numbering Authority)** candidate (apply by M9). Until then:
 - Request CVEs through MITRE: https://cveform.mitre.org
 - For critical issues, request expedited assignment
 

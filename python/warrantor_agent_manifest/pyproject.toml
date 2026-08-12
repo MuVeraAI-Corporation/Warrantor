@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Agent Manifest (agent.yaml) — the OpenAPI for agents. Parser, validator, canonical-JSON + Ed25519 signature envelope."
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 dependencies = ["cryptography>=42"]
 

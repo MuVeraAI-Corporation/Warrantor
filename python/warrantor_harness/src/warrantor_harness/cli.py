@@ -11,7 +11,7 @@ from warrantor_harness import AgentType, HarnessConfig, SideEffectClass, secure_
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        prog="warrantor-harness", description="Run a coding agent in a secured AumOS session."
+        prog="warrantor-harness", description="Run a coding agent in a secured Warrantor session."
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -74,7 +74,7 @@ def _generate_config(args: argparse.Namespace) -> None:
     d = args.dir
     if args.agent == "claude_code":
         path = os.path.join(d, "CLAUDE.md")
-        content = """# CLAUDE.md — AumOS Secured Agent
+        content = """# CLAUDE.md — Warrantor Secured Agent
 
 ## Allowed Tools
 git, npm, cargo, python, go, make
@@ -85,34 +85,34 @@ git, npm, cargo, python, go, make
 - File access is tracked and logged
 - Side-effect class: write
 
-## AumOS Integration
-This project uses AumOS security infrastructure:
+## Warrantor Integration
+This project uses Warrantor security infrastructure:
 - pip install warrantor-agent
 - npx @warrantor/mcp-server
 """
     elif args.agent == "codex":
         path = os.path.join(d, "AGENTS.md")
-        content = """# AGENTS.md — AumOS Secured Agent
+        content = """# AGENTS.md — Warrantor Secured Agent
 
 ## Tools
 git, npm, cargo, python, go, make
 
 ## Security
-- All actions recorded via AumOS flight-recorder (E1)
+- All actions recorded via Warrantor flight-recorder (E1)
 - Credential scanning via credential-vault (R4)
 - Kill-switch armed (R3)
 
-## AumOS
+## Warrantor
 pip install warrantor-agent
 """
     else:  # cursor
         path = os.path.join(d, ".cursorrules")
-        content = """# .cursorrules — AumOS Secured Agent
+        content = """# .cursorrules — Warrantor Secured Agent
 
-You are operating in an AumOS-secured session.
+You are operating in an Warrantor-secured session.
 - Every action is tracked and recorded
 - Secrets in output will trigger kill-switch
-- Use AumOS MCP tools for signing, identity, evidence
+- Use Warrantor MCP tools for signing, identity, evidence
 
 Allowed tools: git, npm, cargo, python, go, make
 """

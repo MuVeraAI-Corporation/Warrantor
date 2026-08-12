@@ -1,5 +1,5 @@
 // Package metrics provides a minimal Prometheus-compatible /metrics endpoint
-// for AumOS Go services. No external dependencies — uses only the standard
+// for Warrantor Go services. No external dependencies — uses only the standard
 // library so every Go binary stays small (critical for edge-sentinel <5MB).
 //
 // Usage:

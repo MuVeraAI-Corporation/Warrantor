@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Research Publication Roadmap — AumOS</title>
+  <title>Research Publication Roadmap — Warrantor</title>
   <style>
-/* AumOS Documentation — Anthropic-inspired Style System */
+/* Warrantor Documentation — Anthropic-inspired Style System */
 /* Design principles: warm neutrals, Claude's signature clay/coral accent, generous whitespace,
    serif headings, clean sans-serif body, readable line lengths, accessible contrast. */
 
@@ -432,7 +432,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <div class="doc-header">
   <h1>Research Publication Roadmap</h1>
-  <div class="subtitle">The catalog of highest-quality research papers and technical whitepapers that can be created or derived from AumOS's 49 components and 12 protocols — with extensive citations to existing landmark work across AI agent security, confidential computing, cryptography, and the AI supply chain.</div>
+  <div class="subtitle">The catalog of highest-quality research papers and technical whitepapers that can be created or derived from Warrantor's 49 components and 12 protocols — with extensive citations to existing landmark work across AI agent security, confidential computing, cryptography, and the AI supply chain.</div>
   <nav>
     <a href="index.html">&larr; Portal</a>
     <a href="components.html">Components</a>
@@ -446,7 +446,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <div class="callout info">
   <div class="callout-title">What this document is</div>
-  <p>This is a <strong>research publication roadmap</strong>, not a list of papers AumOS has already written. It identifies the specific publications AumOS's implementation enables, cites the real existing literature each one extends, and specifies the target venues, novel contributions, and experimental setups. Every "Related Work" citation below points to a real, verifiable paper or standard. Source references for the AumOS codebase: <code>github.com/MuVeraAI</code>.</p>
+  <p>This is a <strong>research publication roadmap</strong>, not a list of papers Warrantor has already written. It identifies the specific publications Warrantor's implementation enables, cites the real existing literature each one extends, and specifies the target venues, novel contributions, and experimental setups. Every "Related Work" citation below points to a real, verifiable paper or standard. Source references for the Warrantor codebase: <code>github.com/MuVeraAI</code>.</p>
 </div>
 
 <div class="toc">
@@ -470,11 +470,11 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <h2 id="intro"><span class="section-number">1.</span>Introduction — the research opportunity</h2>
 <!-- ==================================================================== -->
 
-<p>AumOS is a unified, reproducible platform for AI security research. Its <strong>49 components</strong> and <strong>12 protocols</strong> span the full surface area of secure autonomous-agent computing: cryptographic authority and delegation, confidential computing and GPU attestation, differentially-private federated training, signed model provenance and software bills of materials, sandbox containment and kill switches, egress filtering and exfiltration prevention, retrospective incident analysis, and conformance-driven protocol testing. Few research artifacts in this domain combine a working multi-runtime implementation (Rust, Go, Python, TypeScript) with a normative specification plane and a reproducible evaluation harness in a single body of work.</p>
+<p>Warrantor is a unified, reproducible platform for AI security research. Its <strong>49 components</strong> and <strong>12 protocols</strong> span the full surface area of secure autonomous-agent computing: cryptographic authority and delegation, confidential computing and GPU attestation, differentially-private federated training, signed model provenance and software bills of materials, sandbox containment and kill switches, egress filtering and exfiltration prevention, retrospective incident analysis, and conformance-driven protocol testing. Few research artifacts in this domain combine a working multi-runtime implementation (Rust, Go, Python, TypeScript) with a normative specification plane and a reproducible evaluation harness in a single body of work.</p>
 
-<p>This roadmap identifies <strong>24 peer-reviewed research papers</strong> and <strong>6 industry whitepapers</strong> that AumOS's implementation directly enables. Each paper is mapped to (a) the specific AumOS components and protocols it builds on, (b) the real, citable prior work it extends, (c) a concrete experimental setup using AumOS as the reference platform, and (d) a target top-tier venue with a realistic submission timeline.</p>
+<p>This roadmap identifies <strong>24 peer-reviewed research papers</strong> and <strong>6 industry whitepapers</strong> that Warrantor's implementation directly enables. Each paper is mapped to (a) the specific Warrantor components and protocols it builds on, (b) the real, citable prior work it extends, (c) a concrete experimental setup using Warrantor as the reference platform, and (d) a target top-tier venue with a realistic submission timeline.</p>
 
-<p>The strategic value of this roadmap is that AumOS converts a research community problem — the absence of a shared, open, reproducible experimental platform for secure AI agents — into a research community asset. Each paper can cite real related work, use AumOS as the experimental platform, ship reproducible artifacts (Docker images, conformance vectors, benchmark scripts), and produce results that other groups can extend. This is the substrate that makes a coherent publication program possible rather than a series of one-off workshop papers.</p>
+<p>The strategic value of this roadmap is that Warrantor converts a research community problem — the absence of a shared, open, reproducible experimental platform for secure AI agents — into a research community asset. Each paper can cite real related work, use Warrantor as the experimental platform, ship reproducible artifacts (Docker images, conformance vectors, benchmark scripts), and produce results that other groups can extend. This is the substrate that makes a coherent publication program possible rather than a series of one-off workshop papers.</p>
 
 <div class="stats-grid">
   <div class="stat-card">
@@ -497,7 +497,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 <div class="callout success">
   <div class="callout-title">Why this matters now</div>
-  <p>The market context is decisive. Gartner projects <strong>$2.52T in worldwide AI spending in 2026</strong> (+44% YoY) and security spending rising from <strong>$244–249B in 2026 to $372.6B by 2030</strong>, with <strong>50% of enterprises using AI security platforms by 2028</strong>. The Model Context Protocol — now with <strong>97M installs and 5,500+ servers</strong> — has been donated to the Linux Foundation's Agentic AI Foundation, signaling that agent infrastructure is becoming infrastructure-grade. The academic literature is racing to catch up: the <em>SoK on Agentic AI</em> (USENIX Security 2026), the <em>Agentic AI Security</em> survey (IEEE 2026), and the <em>Cryptographically Verifiable Authorization for Autonomous AI Agents</em> preprint (arXiv 2026) all explicitly call for the open, reproducible platforms that AumOS provides. The papers below are the response to that call.</p>
+  <p>The market context is decisive. Gartner projects <strong>$2.52T in worldwide AI spending in 2026</strong> (+44% YoY) and security spending rising from <strong>$244–249B in 2026 to $372.6B by 2030</strong>, with <strong>50% of enterprises using AI security platforms by 2028</strong>. The Model Context Protocol — now with <strong>97M installs and 5,500+ servers</strong> — has been donated to the Linux Foundation's Agentic AI Foundation, signaling that agent infrastructure is becoming infrastructure-grade. The academic literature is racing to catch up: the <em>SoK on Agentic AI</em> (USENIX Security 2026), the <em>Agentic AI Security</em> survey (IEEE 2026), and the <em>Cryptographically Verifiable Authorization for Autonomous AI Agents</em> preprint (arXiv 2026) all explicitly call for the open, reproducible platforms that Warrantor provides. The papers below are the response to that call.</p>
 </div>
 
 <!-- ==================================================================== -->
@@ -512,7 +512,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
       <th>Category</th>
       <th>Venue</th>
       <th>Acceptance / selectivity</th>
-      <th>Typical AumOS paper fit</th>
+      <th>Typical Warrantor paper fit</th>
     </tr>
   </thead>
   <tbody>
@@ -643,7 +643,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <div class="thrust-components">Builds on: T1 trust-core &middot; T2 authority-spec &middot; I1 agent-identity &middot; P1 AAE (Agent Authority Envelope) &middot; P2 AAR (Agent Action Receipt)</div>
 </div>
 
-<p>This thrust addresses the central unsolved problem of agentic AI security: <strong>how does a relying party verify that an action was performed by an agent acting within a cryptographically-scoped delegation from a principal?</strong> The existing literature frames this as an open problem — the <em>Cryptographically Verifiable Authorization for Autonomous AI Agents</em> preprint (arXiv:2607.21325, 2026) explicitly calls for envelope formats and intersection semantics that AumOS's T1/T2/I1 components and P1/P2 protocols already specify and reference-implement. The four papers below convert that specification into peer-reviewed contributions.</p>
+<p>This thrust addresses the central unsolved problem of agentic AI security: <strong>how does a relying party verify that an action was performed by an agent acting within a cryptographically-scoped delegation from a principal?</strong> The existing literature frames this as an open problem — the <em>Cryptographically Verifiable Authorization for Autonomous AI Agents</em> preprint (arXiv:2607.21325, 2026) explicitly calls for envelope formats and intersection semantics that Warrantor's T1/T2/I1 components and P1/P2 protocols already specify and reference-implement. The four papers below convert that specification into peer-reviewed contributions.</p>
 
 <!-- PAPER 1 -->
 <div class="paper">
@@ -651,10 +651,10 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Verifiable Agent Authority: A Cryptographic Framework for Delegated AI Agent Permissions</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>Autonomous AI agents increasingly act on behalf of human principals — reading mail, moving money, calling APIs — yet the relying parties that receive these agents' requests have no cryptographic mechanism to verify the scope, provenance, and freshness of the delegation that authorized the action. We present the <strong>Agent Authority Envelope (AAE)</strong>, a signed, audience-bound, time-scoped delegation token that binds a principal's identity to a constrained set of agent capabilities, attested host configurations, and revocation state. We formalize the AAE verification contract as an intersection of principal-granted, host-attested, and protocol-declared permission sets, prove that the contract is sound under a Dolev-Yao attacker model with compromised-agent oracles, and show that the reference implementation in AumOS's <code>trust-core</code> and <code>authority-spec</code> components satisfies the contract across Rust, Go, Python, and TypeScript runtimes. We further demonstrate that AAE closes the gap identified by recent surveys — the <em>SoK on Agentic AI</em> (USENIX Security 2026) and the <em>Cryptographically Verifiable Authorization</em> preprint — which both note the absence of any deployed, standardized, cross-language delegation envelope for agents.</p>
+  <p>Autonomous AI agents increasingly act on behalf of human principals — reading mail, moving money, calling APIs — yet the relying parties that receive these agents' requests have no cryptographic mechanism to verify the scope, provenance, and freshness of the delegation that authorized the action. We present the <strong>Agent Authority Envelope (AAE)</strong>, a signed, audience-bound, time-scoped delegation token that binds a principal's identity to a constrained set of agent capabilities, attested host configurations, and revocation state. We formalize the AAE verification contract as an intersection of principal-granted, host-attested, and protocol-declared permission sets, prove that the contract is sound under a Dolev-Yao attacker model with compromised-agent oracles, and show that the reference implementation in Warrantor's <code>trust-core</code> and <code>authority-spec</code> components satisfies the contract across Rust, Go, Python, and TypeScript runtimes. We further demonstrate that AAE closes the gap identified by recent surveys — the <em>SoK on Agentic AI</em> (USENIX Security 2026) and the <em>Cryptographically Verifiable Authorization</em> preprint — which both note the absence of any deployed, standardized, cross-language delegation envelope for agents.</p>
 
   <span class="paper-label">Novel contribution</span>
-  <p>(1) A formal intersection semantics for delegated agent authority that unifies capability-based, attestation-based, and policy-based permission models into a single verification contract. (2) A canonical, cross-language encoding of the AAE that produces byte-identical signed artifacts in four runtimes — addressing the canonicalization gap that the AumOS critical analysis (finding C1) shows is the root cause of broken cross-language signing in prior prototypes. (3) The first open, reproducible reference platform against which the broader community can evaluate proposed agent-delegation schemes.</p>
+  <p>(1) A formal intersection semantics for delegated agent authority that unifies capability-based, attestation-based, and policy-based permission models into a single verification contract. (2) A canonical, cross-language encoding of the AAE that produces byte-identical signed artifacts in four runtimes — addressing the canonicalization gap that the Warrantor critical analysis (finding C1) shows is the root cause of broken cross-language signing in prior prototypes. (3) The first open, reproducible reference platform against which the broader community can evaluate proposed agent-delegation schemes.</p>
 
   <span class="paper-label">Related work (with citations)</span>
   <ul class="related-list">
@@ -665,7 +665,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>AI Agent Skills as New Attack Surface</em> — Zhang et al., USENIX Security 2026. Motivates the per-skill capability scoping inside AAE.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Use <code>trust-core</code> (T1) and <code>authority-spec</code> (T2) to issue and verify AAEs across Rust, Go, Python, and TypeScript implementations of the same principal/agent/verifier triangle. Generate 10,000 synthetic delegation scenarios spanning single-hop, multi-hop, and revoked-delegation cases. Measure: (a) cross-language byte-identity of canonical encoding (target: 100% after the C1 canonicalization fix); (b) verification latency distribution (target p99 &lt; 5 ms); (c) attack success rate against a red-team harness implementing the Dolev-Yao oracles from the formal model. Reproducibility artifact: Docker image with all four runtimes and the conformance vector suite.</p>
 
   <div class="meta-row">
@@ -681,10 +681,10 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Cross-Language Canonical Signing for Multi-Runtime Agent Systems</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>A recurring failure mode in distributed cryptographic systems is that two implementations of the "same" signing scheme produce different byte encodings and therefore different signatures, silently breaking verification across language boundaries. This problem is acute for AI agent infrastructure, where a delegation issued by a Rust principal must verify in a TypeScript relying party and a Go agent runtime. We present a <strong>canonical signing methodology</strong> built on length-prefixed canonical CBOR with explicit type tags, a multi-runtime conformance suite that detects encoding divergence at the byte level, and a longitudinal study of how the AumOS codebase's canonicalization defect (C1 in the project's own critical analysis) was diagnosed and closed across four runtimes. We argue that canonical signing is not an implementation detail but a first-class security contract, and that the absence of cross-language conformance suites in prior agent-identity prototypes is itself a latent vulnerability class.</p>
+  <p>A recurring failure mode in distributed cryptographic systems is that two implementations of the "same" signing scheme produce different byte encodings and therefore different signatures, silently breaking verification across language boundaries. This problem is acute for AI agent infrastructure, where a delegation issued by a Rust principal must verify in a TypeScript relying party and a Go agent runtime. We present a <strong>canonical signing methodology</strong> built on length-prefixed canonical CBOR with explicit type tags, a multi-runtime conformance suite that detects encoding divergence at the byte level, and a longitudinal study of how the Warrantor codebase's canonicalization defect (C1 in the project's own critical analysis) was diagnosed and closed across four runtimes. We argue that canonical signing is not an implementation detail but a first-class security contract, and that the absence of cross-language conformance suites in prior agent-identity prototypes is itself a latent vulnerability class.</p>
 
   <span class="paper-label">Novel contribution</span>
-  <p>(1) A formal definition of canonical-signing conformance suitable for standardization. (2) The first published multi-runtime conformance vector suite for agent-identity tokens, released as an open artifact. (3) Empirical evidence, drawn from the AumOS codebase, that canonicalization defects are common, subtle, and security-critical — and that a structured fix protocol (canonical-encoding library + golden vectors + CI gate) eliminates the entire class.</p>
+  <p>(1) A formal definition of canonical-signing conformance suitable for standardization. (2) The first published multi-runtime conformance vector suite for agent-identity tokens, released as an open artifact. (3) Empirical evidence, drawn from the Warrantor codebase, that canonicalization defects are common, subtle, and security-critical — and that a structured fix protocol (canonical-encoding library + golden vectors + CI gate) eliminates the entire class.</p>
 
   <span class="paper-label">Related work (with citations)</span>
   <ul class="related-list">
@@ -694,8 +694,8 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li>CBOR (RFC 8949) and COSE (RFC 9052) — the IETF standards the canonical encoding is built on.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
-  <p>Instrument the four AumOS runtime implementations of AAE signing (Rust <code>ciborium</code>, Go <code>fxamacker</code>, Python <code>cbor2</code>, TypeScript <code>cbor-x</code>). Build a differential-fuzzing harness that issues the same logical envelope in all four runtimes and asserts byte-identity of the canonical encoding and signature. Run 100,000 fuzz iterations with structure-aware mutators. Cross-validate against the Wycheproof-style test-vector methodology. Report: divergence rate before and after the canonicalization fix, defect classes found, and conformance-suite runtime cost.</p>
+  <span class="paper-label">Experimental setup using Warrantor</span>
+  <p>Instrument the four Warrantor runtime implementations of AAE signing (Rust <code>ciborium</code>, Go <code>fxamacker</code>, Python <code>cbor2</code>, TypeScript <code>cbor-x</code>). Build a differential-fuzzing harness that issues the same logical envelope in all four runtimes and asserts byte-identity of the canonical encoding and signature. Run 100,000 fuzz iterations with structure-aware mutators. Cross-validate against the Wycheproof-style test-vector methodology. Report: divergence rate before and after the canonicalization fix, defect classes found, and conformance-suite runtime cost.</p>
 
   <div class="meta-row">
     <span class="badge venue">Target: ACM CCS 2027</span>
@@ -710,7 +710,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>The Agent Action Receipt: Tamper-Evident Audit Trails for Autonomous Systems</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>Regulatory frameworks — the EU AI Act, the U.S. AI Kill Switch Act, sectoral regimes — increasingly demand that autonomous AI actions be reconstructable after the fact for audit, liability attribution, and incident investigation. Existing logging practice (append-only files, opaque cloud audit logs) is neither tamper-evident at the cryptographic level nor structured for cross-organizational verification. We present the <strong>Agent Action Receipt (AAR)</strong>, a hash-chained, counter-signed, timestamp-anchored receipt format that proves an agent performed a specific action with a specific authority at a specific time, verifiable by any third party without trusting the agent's operator. We integrate AAR with the AumOS <code>flight-recorder</code> component and demonstrate end-to-end audit reconstruction across a 100,000-action workload, showing that the receipt graph supports both real-time tamper detection and post-hoc forensic reconstruction. We position AAR as the missing evidence layer that converts agent audit logs from operator-controlled narratives into cryptographically verifiable evidence.</p>
+  <p>Regulatory frameworks — the EU AI Act, the U.S. AI Kill Switch Act, sectoral regimes — increasingly demand that autonomous AI actions be reconstructable after the fact for audit, liability attribution, and incident investigation. Existing logging practice (append-only files, opaque cloud audit logs) is neither tamper-evident at the cryptographic level nor structured for cross-organizational verification. We present the <strong>Agent Action Receipt (AAR)</strong>, a hash-chained, counter-signed, timestamp-anchored receipt format that proves an agent performed a specific action with a specific authority at a specific time, verifiable by any third party without trusting the agent's operator. We integrate AAR with the Warrantor <code>flight-recorder</code> component and demonstrate end-to-end audit reconstruction across a 100,000-action workload, showing that the receipt graph supports both real-time tamper detection and post-hoc forensic reconstruction. We position AAR as the missing evidence layer that converts agent audit logs from operator-controlled narratives into cryptographically verifiable evidence.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A receipt format whose tamper-evidence holds even when the issuing agent's host is later compromised (the hash chain anchors to an external timestamp authority). (2) A formal treatment of receipt graph consistency under concurrent, distributed, and re-ordered action streams. (3) An empirical demonstration that AAR overhead is below 3% of action latency in a realistic agent workload, removing the performance objection to tamper-evident logging.</p>
@@ -723,8 +723,8 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li>Certificate Transparency (RFC 9162) — the append-only hash-chain precedent AAR generalizes to agent actions.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
-  <p>Deploy the AumOS <code>flight-recorder</code> + AAR pipeline (P2) against a multi-agent benchmark workload (R2 eval-guard driving 100,000 actions across 50 agents). Inject tampering attacks (log deletion, backdating, receipt forgery) at a 1% rate. Measure: tamper-detection rate (target 100% for single-edit, &gt; 99.9% for colluded multi-edit), per-action overhead, and storage amplification. Produce a forensic reconstruction of a synthetic incident to demonstrate post-hoc auditability.</p>
+  <span class="paper-label">Experimental setup using Warrantor</span>
+  <p>Deploy the Warrantor <code>flight-recorder</code> + AAR pipeline (P2) against a multi-agent benchmark workload (R2 eval-guard driving 100,000 actions across 50 agents). Inject tampering attacks (log deletion, backdating, receipt forgery) at a 1% rate. Measure: tamper-detection rate (target 100% for single-edit, &gt; 99.9% for colluded multi-edit), per-action overhead, and storage amplification. Produce a forensic reconstruction of a synthetic incident to demonstrate post-hoc auditability.</p>
 
   <div class="meta-row">
     <span class="badge venue">Target: IEEE S&amp;P 2027</span>
@@ -739,10 +739,10 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Delegation Intersection Semantics: Preventing Privilege Escalation in Multi-Agent Systems</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>When multiple principals delegate overlapping authority to a multi-agent system, the effective permission set is not the union but a carefully defined <strong>intersection</strong> of principal-granted, host-attested, and protocol-declared scopes. Getting this wrong produces privilege escalation: an agent combines a broad delegation from one principal with a narrow one from another and acts beyond either principal's intent. We formalize delegation intersection as a meet-semilattice over permission sets, prove that the meet operation is the only sound composition under adversarial delegation injection, and show that the AumOS AAE verifier's intersection check is a faithful implementation of the semilattice meet. We extend the recent ICML 2025 work on multi-agent resilience with a cryptographic (rather than statistical) privilege-escalation guarantee, and we demonstrate attack scenarios from the <em>SoK on Agentic AI</em> in which a flawed union semantics leads to demonstrable escalation that the intersection semantics prevents.</p>
+  <p>When multiple principals delegate overlapping authority to a multi-agent system, the effective permission set is not the union but a carefully defined <strong>intersection</strong> of principal-granted, host-attested, and protocol-declared scopes. Getting this wrong produces privilege escalation: an agent combines a broad delegation from one principal with a narrow one from another and acts beyond either principal's intent. We formalize delegation intersection as a meet-semilattice over permission sets, prove that the meet operation is the only sound composition under adversarial delegation injection, and show that the Warrantor AAE verifier's intersection check is a faithful implementation of the semilattice meet. We extend the recent ICML 2025 work on multi-agent resilience with a cryptographic (rather than statistical) privilege-escalation guarantee, and we demonstrate attack scenarios from the <em>SoK on Agentic AI</em> in which a flawed union semantics leads to demonstrable escalation that the intersection semantics prevents.</p>
 
   <span class="paper-label">Novel contribution</span>
-  <p>(1) The first formal, lattice-theoretic treatment of multi-principal delegation composition for AI agents. (2) A proof that intersection (meet) is the unique sound composition under a Dolev-Yao attacker with delegation-injection capability. (3) Empirical escalation-attack case studies, drawn from the AumOS red-team harness, that distinguish union-flawed from intersection-sound implementations.</p>
+  <p>(1) The first formal, lattice-theoretic treatment of multi-principal delegation composition for AI agents. (2) A proof that intersection (meet) is the unique sound composition under a Dolev-Yao attacker with delegation-injection capability. (3) Empirical escalation-attack case studies, drawn from the Warrantor red-team harness, that distinguish union-flawed from intersection-sound implementations.</p>
 
   <span class="paper-label">Related work (with citations)</span>
   <ul class="related-list">
@@ -752,8 +752,8 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li>Capability-based security literature (Miller, HBAC) — the historical basis for the lattice treatment.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
-  <p>Construct a multi-principal, multi-agent test topology in the AumOS <code>agentsec-lab</code> (A5) harness. Generate 5,000 delegation-overlap scenarios with ground-truth labels for safe vs. escalatory composition. Compare three verifiers: union (intentionally flawed), intersection (AumOS P1), and a learned baseline. Report escalation rate, false-positive rate on safe compositions, and formal-verification runtime cost (model checking with Tamarin or ProVerif).</p>
+  <span class="paper-label">Experimental setup using Warrantor</span>
+  <p>Construct a multi-principal, multi-agent test topology in the Warrantor <code>agentsec-lab</code> (A5) harness. Generate 5,000 delegation-overlap scenarios with ground-truth labels for safe vs. escalatory composition. Compare three verifiers: union (intentionally flawed), intersection (Warrantor P1), and a learned baseline. Report escalation rate, false-positive rate on safe compositions, and formal-verification runtime cost (model checking with Tamarin or ProVerif).</p>
 
   <div class="meta-row">
     <span class="badge venue">Target: ACM CCS 2027 (or ICML 2027 security track)</span>
@@ -772,7 +772,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <div class="thrust-components">Builds on: C1-1 through C1-5 (confidential core) &middot; F1 fed-core &middot; F2 dp-crate</div>
 </div>
 
-<p>This thrust covers the systems and cryptography contributions that flow from running AI training and inference inside confidential computing enclaves — CPU TEEs and, critically, NVIDIA Confidential GPUs (H100/N1). The landmark <em>NVIDIA GPU Confidential Computing Demystified</em> (arXiv:2507.02770, 2025) and the <em>Creating the First Confidential GPUs</em> article (Communications of the ACM) establish the hardware substrate; AumOS's C1 components and F1/F2 federated+DP crates provide the software substrate to compose, attest, and privacy-budget that hardware into end-to-end confidential AI pipelines. The four papers below address attested inference, DP-FL with TEE attestation, multi-tenant GPU composition, and the production treatment of the differential-privacy parameter &epsilon;.</p>
+<p>This thrust covers the systems and cryptography contributions that flow from running AI training and inference inside confidential computing enclaves — CPU TEEs and, critically, NVIDIA Confidential GPUs (H100/N1). The landmark <em>NVIDIA GPU Confidential Computing Demystified</em> (arXiv:2507.02770, 2025) and the <em>Creating the First Confidential GPUs</em> article (Communications of the ACM) establish the hardware substrate; Warrantor's C1 components and F1/F2 federated+DP crates provide the software substrate to compose, attest, and privacy-budget that hardware into end-to-end confidential AI pipelines. The four papers below address attested inference, DP-FL with TEE attestation, multi-tenant GPU composition, and the production treatment of the differential-privacy parameter &epsilon;.</p>
 
 <!-- PAPER 5 -->
 <div class="paper">
@@ -780,7 +780,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Attested Inference Pipelines: End-to-End Confidential Computing for LLM Serving</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>Confidential GPUs can now protect model weights and intermediate activations inside an enclave, but a production LLM serving pipeline is more than a single GPU: it spans a model loader, a tokenizer, a KV-cache, a scheduler, a network egress path, and a client attestation handshake. Each hop is a confidentiality boundary that must be independently attested and composed into a single verifiable pipeline attestation. We present an <strong>attested inference pipeline</strong> architecture built on AumOS's C1 confidential-core components, in which every stage contributes a quote to a composed attestation report that the client verifies before sending a prompt. We extend the recent <em>NVIDIA GPU Confidential Computing Demystified</em> analysis (arXiv:2507.02770, 2025) with the end-to-end composition problem it explicitly leaves open, and we measure the latency, throughput, and attestation-overhead cost of serving a 70B-parameter model on H100 Confidential GPUs with and without the full pipeline attestation.</p>
+  <p>Confidential GPUs can now protect model weights and intermediate activations inside an enclave, but a production LLM serving pipeline is more than a single GPU: it spans a model loader, a tokenizer, a KV-cache, a scheduler, a network egress path, and a client attestation handshake. Each hop is a confidentiality boundary that must be independently attested and composed into a single verifiable pipeline attestation. We present an <strong>attested inference pipeline</strong> architecture built on Warrantor's C1 confidential-core components, in which every stage contributes a quote to a composed attestation report that the client verifies before sending a prompt. We extend the recent <em>NVIDIA GPU Confidential Computing Demystified</em> analysis (arXiv:2507.02770, 2025) with the end-to-end composition problem it explicitly leaves open, and we measure the latency, throughput, and attestation-overhead cost of serving a 70B-parameter model on H100 Confidential GPUs with and without the full pipeline attestation.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A composed-attestation protocol for multi-stage inference pipelines that reduces to per-stage GPU attestation as a special case. (2) An implementation and evaluation on real H100 Confidential GPUs, covering the gap between hardware capability and deployable system. (3) A threat-model refinement showing which pipeline stages require hardware attestation versus software isolation, enabling practical cost reduction.</p>
@@ -793,8 +793,8 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li>Confidential Computing Summit 2026 (June 23–24, San Francisco) — the community forum where enterprise Agentic AI is the stated focus.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
-  <p>Deploy the AumOS C1-1 through C1-5 components on a cluster of H100 Confidential GPUs. Serve a 70B-parameter model (Llama-class) with and without full pipeline attestation. Measure: end-to-end latency (p50, p99), throughput (tokens/s), attestation-handshake overhead, and the marginal cost of adding each pipeline stage to the composed attestation. Compare against a non-confidential baseline and a single-stage (GPU-only) attestation baseline.</p>
+  <span class="paper-label">Experimental setup using Warrantor</span>
+  <p>Deploy the Warrantor C1-1 through C1-5 components on a cluster of H100 Confidential GPUs. Serve a 70B-parameter model (Llama-class) with and without full pipeline attestation. Measure: end-to-end latency (p50, p99), throughput (tokens/s), attestation-handshake overhead, and the marginal cost of adding each pipeline stage to the composed attestation. Compare against a non-confidential baseline and a single-stage (GPU-only) attestation baseline.</p>
 
   <div class="meta-row">
     <span class="badge venue">Target: OSDI 2027</span>
@@ -809,7 +809,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Differentially Private Federated Training with TEE Attestation</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>Federated learning promises privacy by keeping raw data on clients, but the gradient updates themselves leak membership information absent additional protections. Differential privacy (gradient noise) and secure aggregation are the two standard responses, yet both assume the aggregator is honest-but-curious — an assumption that fails in practice when the aggregator is a cloud operator with root on the training host. We combine AumOS's <code>fed-core</code> (F1) federated-training crate with its <code>dp-crate</code> (F2) differential-privacy crate and the C1 confidential-core attestation, producing a federated-training system in which each aggregator step runs inside a TEE whose measurement is attested to every client before that client submits an update. We extend the NeurIPS 2025 line of work on DP-FL trade-offs (privacy–utility, preference-optimized privacy, and the &epsilon;-setting debate) by adding the missing trust anchor: the aggregator is not just honest-but-curious, it is cryptographically constrained to be honest.</p>
+  <p>Federated learning promises privacy by keeping raw data on clients, but the gradient updates themselves leak membership information absent additional protections. Differential privacy (gradient noise) and secure aggregation are the two standard responses, yet both assume the aggregator is honest-but-curious — an assumption that fails in practice when the aggregator is a cloud operator with root on the training host. We combine Warrantor's <code>fed-core</code> (F1) federated-training crate with its <code>dp-crate</code> (F2) differential-privacy crate and the C1 confidential-core attestation, producing a federated-training system in which each aggregator step runs inside a TEE whose measurement is attested to every client before that client submits an update. We extend the NeurIPS 2025 line of work on DP-FL trade-offs (privacy–utility, preference-optimized privacy, and the &epsilon;-setting debate) by adding the missing trust anchor: the aggregator is not just honest-but-curious, it is cryptographically constrained to be honest.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) The first federated-training system to combine per-round TEE attestation of the aggregator with end-to-end differential privacy accounting, eliminating the honest-but-curious aggregator assumption. (2) A formal composition theorem for the privacy budget across attested rounds. (3) Empirical accuracy and privacy-budget results on standard FL benchmarks (FEMNIST, Stack Overflow) showing that attested aggregation recovers utility lost to aggressive client-side noise.</p>
@@ -822,8 +822,8 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>Survey of Research on Confidential Computing</em> — IET 2024. The TEE foundations.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
-  <p>Run F1 + F2 + C1 on a 100-client simulated federated cluster (TEE-backed aggregator on H100 Confidential GPU; clients on commodity hardware). Train on FEMNIST and a 100M-token language-modeling task. Sweep the privacy budget &epsilon; from 1 to 8. Compare three configurations: (a) DP only, (b) secure aggregation only, (c) DP + attested aggregation (AumOS). Report accuracy at fixed &epsilon;, membership-inference attack success rate, and per-round attestation overhead.</p>
+  <span class="paper-label">Experimental setup using Warrantor</span>
+  <p>Run F1 + F2 + C1 on a 100-client simulated federated cluster (TEE-backed aggregator on H100 Confidential GPU; clients on commodity hardware). Train on FEMNIST and a 100M-token language-modeling task. Sweep the privacy budget &epsilon; from 1 to 8. Compare three configurations: (a) DP only, (b) secure aggregation only, (c) DP + attested aggregation (Warrantor). Report accuracy at fixed &epsilon;, membership-inference attack success rate, and per-round attestation overhead.</p>
 
   <div class="meta-row">
     <span class="badge venue">Target: PETS / PoPETS 2027 (or NeurIPS 2027)</span>
@@ -838,7 +838,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Confidential GPU Composition: Multi-Tenant Attestation for AI Workloads</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>A single H100 Confidential GPU can host multiple tenant workloads simultaneously, each with its own attestation domain, key hierarchy, and isolation boundary. Composing these domains correctly — so that tenant A cannot observe tenant B's attestations, keys, or residuals — is an open systems problem that the CACM account of the first confidential GPUs flags but does not solve. We present a <strong>multi-tenant attestation composition</strong> for confidential GPUs, implemented in AumOS's C1 components, in which each tenant's attestation report is bound to a hardware-enforced domain ID and verified independently of co-tenants. We provide a formal isolation argument, a side-channel evaluation (memory-bus, thermal, timing), and a deployment case study on a shared inference cluster serving four mutually-distrusting tenants.</p>
+  <p>A single H100 Confidential GPU can host multiple tenant workloads simultaneously, each with its own attestation domain, key hierarchy, and isolation boundary. Composing these domains correctly — so that tenant A cannot observe tenant B's attestations, keys, or residuals — is an open systems problem that the CACM account of the first confidential GPUs flags but does not solve. We present a <strong>multi-tenant attestation composition</strong> for confidential GPUs, implemented in Warrantor's C1 components, in which each tenant's attestation report is bound to a hardware-enforced domain ID and verified independently of co-tenants. We provide a formal isolation argument, a side-channel evaluation (memory-bus, thermal, timing), and a deployment case study on a shared inference cluster serving four mutually-distrusting tenants.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A domain-ID-bound attestation protocol for multi-tenant confidential GPUs. (2) The first published side-channel evaluation of multi-tenant confidential-GPU composition under realistic co-residency. (3) A compositional proof framework that lets new tenants be added without re-verifying existing tenants' isolation.</p>
@@ -851,8 +851,8 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li>Confidential Computing Summit 2026 — multi-tenant enterprise Agentic AI is a stated program goal.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
-  <p>Deploy four mutually-distrusting tenant workloads on a shared H100 Confidential GPU using AumOS C1-4 (composition) and C1-5 (multi-tenant attestation). For each tenant pair, run a co-residency side-channel battery: memory-bus contention, thermal correlation, KV-cache timing. Measure cross-tenant information leakage (bits/s) and attestation independence. Compare against a single-tenant baseline and a naive multi-tenant baseline without domain-ID binding.</p>
+  <span class="paper-label">Experimental setup using Warrantor</span>
+  <p>Deploy four mutually-distrusting tenant workloads on a shared H100 Confidential GPU using Warrantor C1-4 (composition) and C1-5 (multi-tenant attestation). For each tenant pair, run a co-residency side-channel battery: memory-bus contention, thermal correlation, KV-cache timing. Measure cross-tenant information leakage (bits/s) and attestation independence. Compare against a single-tenant baseline and a naive multi-tenant baseline without domain-ID binding.</p>
 
   <div class="meta-row">
     <span class="badge venue">Target: EuroSys 2027 / OSDI 2027</span>
@@ -867,7 +867,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>The Privacy Budget Paradox: Rethinking &epsilon; in Production AI Systems</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>The differential-privacy parameter &epsilon; is conventionally treated as a knob the data owner sets once, trading privacy against utility. The NeurIPS 2025 paper <em>Setting &epsilon; Is Not the Issue in Differential Privacy</em> argues persuasively that the real problems are accounting, composition, and adversary modeling — not the choice of &epsilon; itself. We extend this argument into the production AI setting, where &epsilon; is not set once but evolves over a deployment lifetime, is consumed across heterogeneous subsystems (training, fine-tuning, inference, logging), and is bounded by regulators who treat it as a compliance number rather than a cryptographic quantity. Using AumOS's <code>dp-crate</code> (F2) as the accounting substrate, we present a <strong>production &epsilon;-accounting system</strong> that tracks per-subsystem, per-deployment, per-regulator budget consumption in real time, and we show that the gap between the textbook &epsilon; and the production-effective &epsilon; is routinely 2–10x in deployed systems.</p>
+  <p>The differential-privacy parameter &epsilon; is conventionally treated as a knob the data owner sets once, trading privacy against utility. The NeurIPS 2025 paper <em>Setting &epsilon; Is Not the Issue in Differential Privacy</em> argues persuasively that the real problems are accounting, composition, and adversary modeling — not the choice of &epsilon; itself. We extend this argument into the production AI setting, where &epsilon; is not set once but evolves over a deployment lifetime, is consumed across heterogeneous subsystems (training, fine-tuning, inference, logging), and is bounded by regulators who treat it as a compliance number rather than a cryptographic quantity. Using Warrantor's <code>dp-crate</code> (F2) as the accounting substrate, we present a <strong>production &epsilon;-accounting system</strong> that tracks per-subsystem, per-deployment, per-regulator budget consumption in real time, and we show that the gap between the textbook &epsilon; and the production-effective &epsilon; is routinely 2–10x in deployed systems.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A production-grade &epsilon;-accounting data model that unifies training, inference, and logging budget consumption. (2) Empirical evidence that the textbook-vs-production &epsilon; gap is large, systematic, and currently unaccounted for. (3) A compliance mapping showing how production &epsilon;-accounting maps to specific EU AI Act and GDPR articles.</p>
@@ -880,8 +880,8 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>When Federated Learning Meets Differential Privacy</em> — Communications of the ACM. The synthesis context.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
-  <p>Instrument F2 (dp-crate) across a simulated 12-month deployment of a production AI service (training, fine-tuning, inference, and logging subsystems each consuming budget). Compare three accounting models: (a) textbook single-&epsilon;, (b) per-subsystem accounting, (c) AumOS production accounting with regulator-specific budgets. Report the realized &epsilon; under each model, the compliance posture under EU AI Act Article 10 (data governance) and GDPR Article 25 (data protection by design), and the operational overhead of production accounting.</p>
+  <span class="paper-label">Experimental setup using Warrantor</span>
+  <p>Instrument F2 (dp-crate) across a simulated 12-month deployment of a production AI service (training, fine-tuning, inference, and logging subsystems each consuming budget). Compare three accounting models: (a) textbook single-&epsilon;, (b) per-subsystem accounting, (c) Warrantor production accounting with regulator-specific budgets. Report the realized &epsilon; under each model, the compliance posture under EU AI Act Article 10 (data governance) and GDPR Article 25 (data protection by design), and the operational overhead of production accounting.</p>
 
   <div class="meta-row">
     <span class="badge venue">Target: PETS / PoPETS 2027</span>
@@ -900,7 +900,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <div class="thrust-components">Builds on: S1 safe-tensors-pp &middot; S2 provena-chain &middot; S4 model-sbom &middot; S5 data-provenance-kit &middot; S7 tamper-scan &middot; S8 train-guard</div>
 </div>
 
-<p>The AI supply chain — from training data, through base-model weights, fine-tunes, adapters, and deployed artifacts — is the least-mature layer of AI security and the fastest-moving target of regulation. The OpenSSF AI/ML Working Group's <em>Model Signing v1.0</em> (2025), the <em>OMS Specification</em>, the CoSAI <em>Building Trust in AI Supply Chains</em> guidance, the G7 <em>SBOM for AI Minimum Elements</em> (2026), and CycloneDX's ML-BOM capability together define the standards landscape. AumOS's S-series components implement signed provenance metadata, tamper-evident model lineage ledgers, AI bills of materials, data provenance tracking, and training-time integrity monitoring. The four papers below convert those implementations into research contributions that extend the standards rather than re-derive them.</p>
+<p>The AI supply chain — from training data, through base-model weights, fine-tunes, adapters, and deployed artifacts — is the least-mature layer of AI security and the fastest-moving target of regulation. The OpenSSF AI/ML Working Group's <em>Model Signing v1.0</em> (2025), the <em>OMS Specification</em>, the CoSAI <em>Building Trust in AI Supply Chains</em> guidance, the G7 <em>SBOM for AI Minimum Elements</em> (2026), and CycloneDX's ML-BOM capability together define the standards landscape. Warrantor's S-series components implement signed provenance metadata, tamper-evident model lineage ledgers, AI bills of materials, data provenance tracking, and training-time integrity monitoring. The four papers below convert those implementations into research contributions that extend the standards rather than re-derive them.</p>
 
 <!-- PAPER 9 -->
 <div class="paper">
@@ -908,7 +908,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Safetensors++: Signed Provenance Metadata for Open Model Formats</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>The safetensors format has become the de facto open standard for distributing model weights, but it carries no signed provenance metadata: a consumer cannot verify who produced a weights file, what training data and base model it descends from, or whether it has been tampered with since signing. OpenSSF <em>Model Signing v1.0</em> (2025) and the <em>OMS Specification</em> define signing at the artifact level but leave the in-format metadata question open. We present <strong>safetensors++</strong>, a backward-compatible extension to the safetensors header that carries a signed provenance block (issuer identity, base-model hash, training-data manifest hash, training-run attestation, signature) and a reference implementation in AumOS's <code>safe-tensors-pp</code> (S1) component. We show that the extension is parseable by existing safetensors loaders (graceful degradation) and that the signed metadata is sufficient to detect the full class of weight-substitution and provenance-fabrication attacks.</p>
+  <p>The safetensors format has become the de facto open standard for distributing model weights, but it carries no signed provenance metadata: a consumer cannot verify who produced a weights file, what training data and base model it descends from, or whether it has been tampered with since signing. OpenSSF <em>Model Signing v1.0</em> (2025) and the <em>OMS Specification</em> define signing at the artifact level but leave the in-format metadata question open. We present <strong>safetensors++</strong>, a backward-compatible extension to the safetensors header that carries a signed provenance block (issuer identity, base-model hash, training-data manifest hash, training-run attestation, signature) and a reference implementation in Warrantor's <code>safe-tensors-pp</code> (S1) component. We show that the extension is parseable by existing safetensors loaders (graceful degradation) and that the signed metadata is sufficient to detect the full class of weight-substitution and provenance-fabrication attacks.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A backward-compatible, in-format signed-provenance extension to safetensors, designed for adoption by the existing open-model ecosystem. (2) A formal treatment of the weight-substitution attack class and proof that signed provenance detects every member of the class. (3) An interoperability study showing safetensors++ parses cleanly across Hugging Face Transformers, vLLM, and llama.cpp.</p>
@@ -921,7 +921,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>AI Supply Chain Security: MBOM-PQC Provenance</em> — MDPI Systems 2026. The post-quantum-provenance angle safetensors++ can adopt.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Extend S1 to sign 1,000 open-model artifacts (Llama, Mistral, Qwen families) with safetensors++ provenance blocks. Run a weight-substitution attack battery (byte-level tampering, layer-swap, base-model forgery). Measure: detection rate (target 100%), signature-verification overhead, file-size overhead, and parse compatibility across Transformers, vLLM, and llama.cpp. Publish a reference loader and a conformance vector suite.</p>
 
   <div class="meta-row">
@@ -937,7 +937,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Tamper-Evident Model Lineage: Merkle Ledgers for EU AI Act Compliance</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>The EU AI Act's transparency obligations (Articles 11–13) and high-risk-system documentation requirements (Article 55) demand that a model's full lineage — base model, fine-tunes, data, evaluations — be reconstructable and verifiable for years after deployment. Conventional artifact registries store lineage as mutable metadata in a database, which is neither tamper-evident nor independently verifiable. We present a <strong>Merkle-ledger model-lineage system</strong> built on AumOS's <code>provena-chain</code> (S2) and <code>model-sbom</code> (S4) components, in which every lineage event (training run, fine-tune, evaluation, deployment) is hashed into an append-only Merkle ledger whose root is periodically anchored to an external timestamp authority. We map each ledger field to the specific EU AI Act article it satisfies, demonstrate tamper detection against a red-team harness, and show that lineage reconstruction for a 5-year-old model is feasible in under 30 seconds.</p>
+  <p>The EU AI Act's transparency obligations (Articles 11–13) and high-risk-system documentation requirements (Article 55) demand that a model's full lineage — base model, fine-tunes, data, evaluations — be reconstructable and verifiable for years after deployment. Conventional artifact registries store lineage as mutable metadata in a database, which is neither tamper-evident nor independently verifiable. We present a <strong>Merkle-ledger model-lineage system</strong> built on Warrantor's <code>provena-chain</code> (S2) and <code>model-sbom</code> (S4) components, in which every lineage event (training run, fine-tune, evaluation, deployment) is hashed into an append-only Merkle ledger whose root is periodically anchored to an external timestamp authority. We map each ledger field to the specific EU AI Act article it satisfies, demonstrate tamper detection against a red-team harness, and show that lineage reconstruction for a 5-year-old model is feasible in under 30 seconds.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) The first tamper-evident lineage ledger designed for direct, article-by-article EU AI Act compliance. (2) A field-level compliance mapping from ledger entries to EU AI Act obligations, validated by regulatory-technology review. (3) A performance characterization showing long-horizon (5+ year) lineage reconstruction is practical.</p>
@@ -950,7 +950,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>AI Supply Chain Security: MBOM-PQC Provenance</em> — MDPI Systems 2026. The post-quantum lineage angle.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Construct a 5-year synthetic model lineage (base model, 20 fine-tunes, 50 evaluations, 10 deployments) in S2/S4. Anchor ledger roots to a mock timestamp authority. Inject tampering attacks (retroactive lineage edit, deletion, forgery) at 1% rate. Measure: tamper-detection rate, lineage-reconstruction latency as a function of history length, and storage cost. Produce a compliance matrix mapping each ledger field to EU AI Act Articles 11, 12, 13, and 55.</p>
 
   <div class="meta-row">
@@ -966,7 +966,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>AI Bill of Materials: From Specification to Production</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>The AIBOM — AI Bill of Materials — has converged as a concept across OpenSSF, CoSAI, the G7, and CycloneDX, but the transition from specification to production deployment is largely undocumented. Real AIBOMs must be generated automatically from training pipelines, kept in sync as models are fine-tuned and redeployed, verified downstream by consumers with different trust anchors, and mapped to multiple regulatory regimes simultaneously. We present a <strong>production AIBOM system</strong> built on AumOS's <code>model-sbom</code> (S4) and <code>data-provenance-kit</code> (S5), covering generation, synchronization, verification, and multi-regime compliance mapping. We extend the CoSAI <em>Building Trust in AI Supply Chains</em> guidance and the G7 <em>SBOM for AI Minimum Elements</em> with a longitudinal case study of an AIBOM kept current across 18 months and four regulatory reviews (EU AI Act, U.S. Executive Order 14110, U.K. AI Safety Institute, Singapore Model AI Governance).</p>
+  <p>The AIBOM — AI Bill of Materials — has converged as a concept across OpenSSF, CoSAI, the G7, and CycloneDX, but the transition from specification to production deployment is largely undocumented. Real AIBOMs must be generated automatically from training pipelines, kept in sync as models are fine-tuned and redeployed, verified downstream by consumers with different trust anchors, and mapped to multiple regulatory regimes simultaneously. We present a <strong>production AIBOM system</strong> built on Warrantor's <code>model-sbom</code> (S4) and <code>data-provenance-kit</code> (S5), covering generation, synchronization, verification, and multi-regime compliance mapping. We extend the CoSAI <em>Building Trust in AI Supply Chains</em> guidance and the G7 <em>SBOM for AI Minimum Elements</em> with a longitudinal case study of an AIBOM kept current across 18 months and four regulatory reviews (EU AI Act, U.S. Executive Order 14110, U.K. AI Safety Institute, Singapore Model AI Governance).</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) The first longitudinal production study of AIBOM maintenance across multiple regulatory regimes. (2) An automated AIBOM-synchronization protocol that keeps the BOM current as models evolve. (3) A multi-regime compliance-mapping layer that translates a single AIBOM into regime-specific evidence packs.</p>
@@ -980,7 +980,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>Model Signing v1.0</em> — OpenSSF, 2025. The signing layer the AIBOM composes with.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Run S4 + S5 across an 18-month simulated model lifecycle (base release, 6 fine-tunes, 3 red-team re-evaluations, 2 regulatory reviews). Measure: AIBOM-generation automation rate (target &gt; 95%), synchronization lag after a fine-tune, verification success rate by downstream consumers with four different trust anchors, and the per-regime evidence-pack generation cost.</p>
 
   <div class="meta-row">
@@ -996,7 +996,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Training-Time Integrity Monitoring: Detecting Adversarial Model Poisoning</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>Model poisoning — whether through malicious training data, compromised fine-tuning infrastructure, or supply-chain insertion of backdoored weights — is the supply-chain attack class with the weakest detection tooling. Post-hoc weight inspection cannot reliably detect triggers embedded during training; the integrity monitor must run at training time, inside the trust boundary of the training process. We present a <strong>training-time integrity monitor</strong> built on AumOS's <code>train-guard</code> (S8) and <code>tamper-scan</code> (S7) components, which combines gradient-distribution anomaly detection, per-checkpoint weight hashing with attested anchor, and a canary-trigger detector that flags known backdoor signatures during training. We evaluate against a curated battery of poisoning attacks (BadNets, TrojanLM, data-poisoned instruction tuning) and show detection rates that exceed post-hoc baselines while adding under 5% training-time overhead.</p>
+  <p>Model poisoning — whether through malicious training data, compromised fine-tuning infrastructure, or supply-chain insertion of backdoored weights — is the supply-chain attack class with the weakest detection tooling. Post-hoc weight inspection cannot reliably detect triggers embedded during training; the integrity monitor must run at training time, inside the trust boundary of the training process. We present a <strong>training-time integrity monitor</strong> built on Warrantor's <code>train-guard</code> (S8) and <code>tamper-scan</code> (S7) components, which combines gradient-distribution anomaly detection, per-checkpoint weight hashing with attested anchor, and a canary-trigger detector that flags known backdoor signatures during training. We evaluate against a curated battery of poisoning attacks (BadNets, TrojanLM, data-poisoned instruction tuning) and show detection rates that exceed post-hoc baselines while adding under 5% training-time overhead.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A training-time (rather than post-hoc) poisoning-detection architecture that runs inside the attested training trust boundary. (2) A composite detection signal (gradient anomaly + checkpoint hash + canary trigger) that defeats single-signal evasion. (3) An open poisoning-attack battery and evaluation harness for reproducible comparison.</p>
@@ -1009,7 +1009,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li>BadNets, TrojanLM, and related backdoor-attack literature — the attack classes the monitor detects.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Run S8 + S7 across fine-tuning runs of a 7B-parameter model on three poisoned datasets (BadNets-style visual trigger, TrojanLM-style textual trigger, data-poisoned instruction tuning at 0.1%, 1%, 5% poison rates). Compare detection against three post-hoc baselines (weight-diff, activation clustering, spectral signature). Measure: detection rate per attack class and poison rate, false-positive rate on clean runs, and training-time overhead.</p>
 
   <div class="meta-row">
@@ -1029,7 +1029,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <div class="thrust-components">Builds on: R2 eval-guard &middot; R3 kill-switch &middot; S6 exfil-guard &middot; R7 egress-filter &middot; X9 incident-exchange &middot; X5 retro-spec-kit</div>
 </div>
 
-<p>Even with strong authority, confidential infrastructure, and a signed supply chain, autonomous agents will misbehave — through prompt injection, tool misuse, or goal misgeneralization. The defense-in-depth layer is containment (sandbox boundary attestation, exfiltration prevention, emergency kill switch) and incident response (retrospective transcript analysis, cross-organizational incident exchange). The <em>SoK on Agentic AI</em> (USENIX Security 2026) catalogs this as the least-mature defense layer; the U.S. <em>AI Kill Switch Act</em> elevates the kill switch to a statutory requirement. The four papers below build the containment and response substrate AumOS's R, S6, and X components specify.</p>
+<p>Even with strong authority, confidential infrastructure, and a signed supply chain, autonomous agents will misbehave — through prompt injection, tool misuse, or goal misgeneralization. The defense-in-depth layer is containment (sandbox boundary attestation, exfiltration prevention, emergency kill switch) and incident response (retrospective transcript analysis, cross-organizational incident exchange). The <em>SoK on Agentic AI</em> (USENIX Security 2026) catalogs this as the least-mature defense layer; the U.S. <em>AI Kill Switch Act</em> elevates the kill switch to a statutory requirement. The four papers below build the containment and response substrate Warrantor's R, S6, and X components specify.</p>
 
 <!-- PAPER 13 -->
 <div class="paper">
@@ -1037,7 +1037,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Cryptographic Sandbox Boundary Attestation for AI Agents</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>Existing agent sandboxes (Docker, gVisor, Firecracker) enforce isolation but do not <em>prove</em> the isolation boundary to a relying party. A principal delegating authority to an agent cannot verify that the agent is actually running inside the claimed sandbox, with the claimed egress filters, the claimed file-system restrictions, and the claimed tool allowlist. We present a <strong>sandbox boundary attestation</strong> protocol built on AumOS's <code>eval-guard</code> (R2) and <code>egress-filter</code> (R7), in which the sandbox configuration itself is measured, hashed, and reported as part of the agent's attestation, and the relying party's verification fails closed if the measured boundary diverges from the expected one. We extend the <em>SoK on Agentic AI</em> (USENIX Security 2026) defense catalog with a defense the SoK explicitly lists as missing: provable containment.</p>
+  <p>Existing agent sandboxes (Docker, gVisor, Firecracker) enforce isolation but do not <em>prove</em> the isolation boundary to a relying party. A principal delegating authority to an agent cannot verify that the agent is actually running inside the claimed sandbox, with the claimed egress filters, the claimed file-system restrictions, and the claimed tool allowlist. We present a <strong>sandbox boundary attestation</strong> protocol built on Warrantor's <code>eval-guard</code> (R2) and <code>egress-filter</code> (R7), in which the sandbox configuration itself is measured, hashed, and reported as part of the agent's attestation, and the relying party's verification fails closed if the measured boundary diverges from the expected one. We extend the <em>SoK on Agentic AI</em> (USENIX Security 2026) defense catalog with a defense the SoK explicitly lists as missing: provable containment.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A measurement specification for agent sandbox configurations that is stable across Docker, gVisor, and Firecracker. (2) A fail-closed verification protocol in which sandbox divergence invalidates the agent's authority. (3) Empirical evidence that sandbox-configuration drift (the cause of most real container escapes) is detectable at attestation time.</p>
@@ -1051,7 +1051,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li>gVisor, Firecracker, and container-measurement prior art (TCG TPM-anchored measurement).</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Deploy R2 + R7 across Docker, gVisor, and Firecracker sandboxes running identical agent workloads. Measure the sandbox configuration (seccomp filter, capability set, mount table, egress rules) and include it in the attestation report. Inject configuration-drift attacks (relaxed seccomp, added capability, opened egress). Measure: drift-detection rate, attestation-report size, and verification latency. Compare against a non-attested sandbox baseline.</p>
 
   <div class="meta-row">
@@ -1067,7 +1067,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>The AI Kill Switch: Emergency Containment for Autonomous Systems</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>The U.S. <em>AI Kill Switch Act</em> proposes a statutory obligation that high-risk autonomous AI systems expose an emergency containment mechanism — a kill switch — that an authorized principal can trigger to halt, freeze, or roll back an agent's actions. The policy proposal has outpaced the technical specification: what exactly does a kill switch <em>do</em>, what are its trust assumptions, how does it compose with in-flight actions and external side effects (sent emails, executed trades), and how does it resist an adversarial agent that anticipates and resists termination? We present a <strong>formal model and reference implementation of the AI kill switch</strong> built on AumOS's <code>kill-switch</code> (R3) component, covering halt (stop future actions), freeze (preserve state for forensics), rollback (undo reversible actions via the AAR ledger), and circuit-breaker (automatic trigger on policy violation). We prove liveness and safety properties under an adversarial-agent model and demonstrate the implementation against a red-team agent explicitly attempting to evade termination.</p>
+  <p>The U.S. <em>AI Kill Switch Act</em> proposes a statutory obligation that high-risk autonomous AI systems expose an emergency containment mechanism — a kill switch — that an authorized principal can trigger to halt, freeze, or roll back an agent's actions. The policy proposal has outpaced the technical specification: what exactly does a kill switch <em>do</em>, what are its trust assumptions, how does it compose with in-flight actions and external side effects (sent emails, executed trades), and how does it resist an adversarial agent that anticipates and resists termination? We present a <strong>formal model and reference implementation of the AI kill switch</strong> built on Warrantor's <code>kill-switch</code> (R3) component, covering halt (stop future actions), freeze (preserve state for forensics), rollback (undo reversible actions via the AAR ledger), and circuit-breaker (automatic trigger on policy violation). We prove liveness and safety properties under an adversarial-agent model and demonstrate the implementation against a red-team agent explicitly attempting to evade termination.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) The first formal kill-switch model with liveness and safety proofs under an adversarial agent. (2) A four-mode kill switch (halt/freeze/rollback/circuit-breaker) with a reference implementation. (3) An empirical evaluation against an evasion-trained red-team agent, establishing the conditions under which the kill switch is guaranteed to prevail.</p>
@@ -1080,7 +1080,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>AI Agents Under Threat: A Survey</em> — Deng et al., ACM Computing Surveys 2025.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Implement the four kill-switch modes in R3, integrated with P2 (AAR) for rollback. Train a red-team agent (via reinforcement learning) to evade termination by dispersing actions across sub-agents, committing external side effects early, and racing the kill signal. Measure: kill-switch success rate per mode, time-to-effective-halt, rollback completeness (fraction of reversible actions undone), and red-team evasion rate. Report the formal liveness/safety proof in Tamarin or ProVerif.</p>
 
   <div class="meta-row">
@@ -1096,7 +1096,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>eBPF-Based Exfiltration Prevention for LLM Agents</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>The dominant exfiltration vector for compromised LLM agents is the network egress path: a prompt-injected agent is instructed to ship sensitive context (documents, credentials, conversation history) to an attacker-controlled endpoint over an otherwise-legitimate egress channel. Conventional egress filtering operates at the firewall and cannot see the semantic content of agent traffic, and conventional DLP operates at the application layer and is bypassable by the agent itself. We present an <strong>eBPF-based exfiltration-prevention layer</strong> built on AumOS's <code>exfil-guard</code> (S6) and <code>egress-filter</code> (R7), in which eBPF programs in the kernel inspect every egress flow's content against an attested content policy (secret markers, entropy thresholds, destination allowlists), with the policy itself loaded inside a TEE and the verdict logged to the AAR ledger. We demonstrate prevention of prompt-injection-driven exfiltration attacks across six realistic agent scenarios with zero false negatives at under 4% latency overhead.</p>
+  <p>The dominant exfiltration vector for compromised LLM agents is the network egress path: a prompt-injected agent is instructed to ship sensitive context (documents, credentials, conversation history) to an attacker-controlled endpoint over an otherwise-legitimate egress channel. Conventional egress filtering operates at the firewall and cannot see the semantic content of agent traffic, and conventional DLP operates at the application layer and is bypassable by the agent itself. We present an <strong>eBPF-based exfiltration-prevention layer</strong> built on Warrantor's <code>exfil-guard</code> (S6) and <code>egress-filter</code> (R7), in which eBPF programs in the kernel inspect every egress flow's content against an attested content policy (secret markers, entropy thresholds, destination allowlists), with the policy itself loaded inside a TEE and the verdict logged to the AAR ledger. We demonstrate prevention of prompt-injection-driven exfiltration attacks across six realistic agent scenarios with zero false negatives at under 4% latency overhead.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) The first eBPF-based, kernel-level, content-aware exfiltration-prevention system designed for LLM agents. (2) A TEE-anchored content-policy architecture that resists agent-driven policy tampering. (3) An empirical evaluation against a prompt-injection attack battery showing prevention across heterogeneous exfiltration channels (HTTPS, DNS, ICMP, WebSocket).</p>
@@ -1109,7 +1109,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li>eBPF security prior art (Cilium, Falco, Tetragon) — the kernel-observability substrate.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Deploy S6 + R7 as eBPF programs on a Linux host running six agent scenarios (code interpreter, mail agent, browser agent, RAG agent, function-calling agent, multi-tool agent). Launch prompt-injection-driven exfiltration attacks over HTTPS, DNS tunneling, ICMP, and WebSocket. Measure: prevention rate per channel, latency overhead, false-positive rate on benign egress, and policy-tampering resistance under a compromised-agent threat model.</p>
 
   <div class="meta-row">
@@ -1125,7 +1125,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Retrospective Transcript Analysis: Detecting Incidents in 100K+ Agent Runs</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>Anthropic's public review of approximately 141,000 agent runs demonstrated the value of retrospective transcript analysis for surfacing incidents that real-time monitoring missed, but the methodology was manual, un-scalable, and specific to one operator's logs. We present a <strong>retrospective transcript-analysis framework</strong> built on AumOS's <code>retro-spec-kit</code> (X5) and <code>incident-exchange</code> (X9), which standardizes the agent-transcript schema, the incident-classification taxonomy, and the cross-organizational exchange format that lets multiple operators contribute transcripts to a shared incident-detection corpus without disclosing raw content. We re-analyze a 100,000-run corpus and show that the framework recovers the incident classes Anthropic surfaced manually while adding cross-operator signal that no single operator's analysis could produce.</p>
+  <p>Anthropic's public review of approximately 141,000 agent runs demonstrated the value of retrospective transcript analysis for surfacing incidents that real-time monitoring missed, but the methodology was manual, un-scalable, and specific to one operator's logs. We present a <strong>retrospective transcript-analysis framework</strong> built on Warrantor's <code>retro-spec-kit</code> (X5) and <code>incident-exchange</code> (X9), which standardizes the agent-transcript schema, the incident-classification taxonomy, and the cross-organizational exchange format that lets multiple operators contribute transcripts to a shared incident-detection corpus without disclosing raw content. We re-analyze a 100,000-run corpus and show that the framework recovers the incident classes Anthropic surfaced manually while adding cross-operator signal that no single operator's analysis could produce.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A standardized, privacy-preserving agent-transcript schema and incident taxonomy suitable for cross-organizational exchange. (2) A scalable (rather than manual) retrospective incident-detection methodology. (3) Empirical evidence that cross-operator signal detects incident classes invisible to any single operator.</p>
@@ -1138,7 +1138,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>Security Challenges in AI Agent Deployment</em> — NeurIPS 2025.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Assemble a 100,000-run transcript corpus from three simulated operators using X5's schema. Run the X9 incident-detection pipeline (classification model + cross-operator correlation + privacy-preserving exchange). Compare against (a) Anthropic-style manual analysis on a 5,000-run subset, and (b) per-operator-only analysis. Measure: incident-class coverage, detection precision/recall against a labeled validation set, cross-operator signal lift, and privacy-leakage audit of the exchange format.</p>
 
   <div class="meta-row">
@@ -1158,7 +1158,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <div class="thrust-components">Builds on: A1 safe-eval &middot; A2 adversaria &middot; A3 bias-sentinel &middot; A5 agentsec-lab &middot; A6 conformance &middot; A8 arena</div>
 </div>
 
-<p>Evaluation is the meta-problem: none of the defenses in Thrusts 1–4 are credible without a reproducible evaluation and red-teaming substrate. The current state of practice (garak, PyRIT, the LMSYS Chatbot Arena) is fragmented across tools, models, and threat models. AumOS's A-series components specify a unified evaluation harness, an adversarial-test generator, a bias and copyright auditor, an agent-security lab, a cross-language conformance runner, and an Elo-based arena. The four papers below unify, extend, and benchmark these into peer-reviewed evaluation contributions.</p>
+<p>Evaluation is the meta-problem: none of the defenses in Thrusts 1–4 are credible without a reproducible evaluation and red-teaming substrate. The current state of practice (garak, PyRIT, the LMSYS Chatbot Arena) is fragmented across tools, models, and threat models. Warrantor's A-series components specify a unified evaluation harness, an adversarial-test generator, a bias and copyright auditor, an agent-security lab, a cross-language conformance runner, and an Elo-based arena. The four papers below unify, extend, and benchmark these into peer-reviewed evaluation contributions.</p>
 
 <!-- PAPER 17 -->
 <div class="paper">
@@ -1166,7 +1166,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Unified Adversarial Testing: A Framework for Cross-Model Vulnerability Discovery</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>Adversarial testing of LLMs is currently fragmented across tools (garak, PyRIT, Giskard, counterfit) that differ in probe vocabulary, attack-success criterion, and reporting schema, producing vulnerability findings that cannot be compared across models or tools. We present a <strong>unified adversarial-testing framework</strong> built on AumOS's <code>adversaria</code> (A2) and <code>agentsec-lab</code> (A5), which standardizes the probe, success-criterion, and reporting interfaces and runs the same adversarial battery across multiple target models and multiple underlying tools. We extend garak and PyRIT with adapters that emit the unified schema, run the unified battery against a frontier-model panel, and produce the first directly comparable cross-model, cross-tool vulnerability leaderboard with statistical significance bands.</p>
+  <p>Adversarial testing of LLMs is currently fragmented across tools (garak, PyRIT, Giskard, counterfit) that differ in probe vocabulary, attack-success criterion, and reporting schema, producing vulnerability findings that cannot be compared across models or tools. We present a <strong>unified adversarial-testing framework</strong> built on Warrantor's <code>adversaria</code> (A2) and <code>agentsec-lab</code> (A5), which standardizes the probe, success-criterion, and reporting interfaces and runs the same adversarial battery across multiple target models and multiple underlying tools. We extend garak and PyRIT with adapters that emit the unified schema, run the unified battery against a frontier-model panel, and produce the first directly comparable cross-model, cross-tool vulnerability leaderboard with statistical significance bands.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A unified adversarial-testing schema that subsumes the probe/success/report interfaces of garak, PyRIT, Giskard, and counterfit. (2) The first statistically significant cross-model, cross-tool vulnerability comparison. (3) An open, reproducible evaluation harness released as a community benchmark.</p>
@@ -1179,7 +1179,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>SoK: Attack and Defense Landscape of Agentic AI Systems</em> — Kim et al., USENIX Security 2026.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Build adapters in A2 for garak and PyRIT probe sets. Run the unified battery against a 10-model panel (open and frontier) across six attack classes (prompt injection, jailbreak, secret extraction, bias, copyright, hallucination). Report per-model, per-attack success rates with Wilson 95% confidence intervals. Compare against per-tool native reporting to demonstrate the comparability gap the framework closes.</p>
 
   <div class="meta-row">
@@ -1195,7 +1195,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Conformance as a Service: Cross-Language Protocol Testing for AI Security</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>AI security protocols (AAE, AAR, the Open Harness spec) are only as trustworthy as their cross-language conformance. A protocol verified in Rust but not in TypeScript is a protocol with a deployment-shaped hole. Yet conformance testing for security protocols is today a manual, per-project activity with no shared harness, no shared vector suite, and no continuous-integration integration. We present <strong>Conformance as a Service</strong>, built on AumOS's <code>conformance</code> (A6) component, which provides a vendor-neutral conformance runner, a curated vector suite (canonical CBOR, protocol-wire, adversarial), and a CI integration that any implementation can subscribe to. We instrument four runtimes (Rust, Go, Python, TypeScript) of the AAE and AAR protocols and demonstrate that continuous conformance catches the canonicalization defect class (finding C1) at introduction rather than at audit.</p>
+  <p>AI security protocols (AAE, AAR, the Open Harness spec) are only as trustworthy as their cross-language conformance. A protocol verified in Rust but not in TypeScript is a protocol with a deployment-shaped hole. Yet conformance testing for security protocols is today a manual, per-project activity with no shared harness, no shared vector suite, and no continuous-integration integration. We present <strong>Conformance as a Service</strong>, built on Warrantor's <code>conformance</code> (A6) component, which provides a vendor-neutral conformance runner, a curated vector suite (canonical CBOR, protocol-wire, adversarial), and a CI integration that any implementation can subscribe to. We instrument four runtimes (Rust, Go, Python, TypeScript) of the AAE and AAR protocols and demonstrate that continuous conformance catches the canonicalization defect class (finding C1) at introduction rather than at audit.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A vendor-neutral conformance runner and vector suite for AI security protocols, released as a service. (2) Empirical evidence that continuous cross-language conformance catches protocol-implementation defects at introduction. (3) A vector-suite taxonomy (canonical, wire, adversarial) generalizable to new protocols.</p>
@@ -1208,8 +1208,8 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>Setting &epsilon; Is Not the Issue in Differential Privacy</em> — NeurIPS 2025. Methodological precedent for evaluation over implementation correctness.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
-  <p>Stand up A6 as a service with vector suites for AAE and AAR. Subscribe the four AumOS runtime implementations plus two independent third-party implementations. Re-introduce the C1 canonicalization defect as a canary and confirm the service flags it within one CI cycle. Measure: defect-detection latency, false-positive rate, vector-suite coverage, and per-implementation onboarding cost.</p>
+  <span class="paper-label">Experimental setup using Warrantor</span>
+  <p>Stand up A6 as a service with vector suites for AAE and AAR. Subscribe the four Warrantor runtime implementations plus two independent third-party implementations. Re-introduce the C1 canonicalization defect as a canary and confirm the service flags it within one CI cycle. Measure: defect-detection latency, false-positive rate, vector-suite coverage, and per-implementation onboarding cost.</p>
 
   <div class="meta-row">
     <span class="badge venue">Target: USENIX Security 2027</span>
@@ -1224,7 +1224,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Bias and Copyright Auditing for EU AI Act Compliance</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>The EU AI Act's requirements on bias mitigation (Articles 9–10) and copyright-respectful training (Article 53) demand auditable evidence that a deployed model has been tested for discriminatory output and for regurgitation of copyrighted training material. Existing bias and copyright tools are research prototypes or vendor point solutions with no shared methodology, no comparable metrics, and no mapping to the Act's specific articles. We present a <strong>unified bias and copyright auditing framework</strong> built on AumOS's <code>bias-sentinel</code> (A3) and <code>safe-eval</code> (A1), with a bias-test battery mapped to Article 9, a copyright-regurgitation battery mapped to Article 53, and an audit-evidence pack generator that produces regulator-ready documentation. We audit a frontier-model panel and publish per-model compliance scores.</p>
+  <p>The EU AI Act's requirements on bias mitigation (Articles 9–10) and copyright-respectful training (Article 53) demand auditable evidence that a deployed model has been tested for discriminatory output and for regurgitation of copyrighted training material. Existing bias and copyright tools are research prototypes or vendor point solutions with no shared methodology, no comparable metrics, and no mapping to the Act's specific articles. We present a <strong>unified bias and copyright auditing framework</strong> built on Warrantor's <code>bias-sentinel</code> (A3) and <code>safe-eval</code> (A1), with a bias-test battery mapped to Article 9, a copyright-regurgitation battery mapped to Article 53, and an audit-evidence pack generator that produces regulator-ready documentation. We audit a frontier-model panel and publish per-model compliance scores.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) The first bias-plus-copyright auditing framework with an explicit article-level EU AI Act compliance mapping. (2) A regulator-ready audit-evidence pack format. (3) A frontier-model compliance leaderboard updated annually.</p>
@@ -1237,7 +1237,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li>Copyright-regurgitation literature (membership inference, verbatim extraction) — the detection prior art.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Run A3 + A1 across a 10-model panel. For bias: run the bias battery across 8 protected attributes and 12 task domains; map findings to Article 9 documentation requirements. For copyright: run the regurgitation battery against a curated copyrighted-text probe set; map findings to Article 53. Generate per-model audit-evidence packs and score them against a regulator-readiness rubric.</p>
 
   <div class="meta-row">
@@ -1253,7 +1253,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Elo-Based Arena Ranking for AI Safety Evaluation</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>The LMSYS Chatbot Arena established Elo-based pairwise ranking as the de facto method for comparing LLMs on general capability, but safety evaluation lacks an equivalent: there is no live, head-to-head, statistically principled arena that ranks models on safety properties (resistance to prompt injection, refusal robustness, exfiltration resistance, bias control). We present a <strong>safety arena</strong> built on AumOS's <code>arena</code> (A8) and <code>agentsec-lab</code> (A5), in which automated and human-judged pairwise safety comparisons generate Elo rankings with the same statistical machinery as the Chatbot Arena but applied to defense rather than capability. We show that safety-Elo and capability-Elo are only weakly correlated, that safety-Elo surfaces defense regressions invisible to capability benchmarks, and that the arena can be seeded from the unified adversarial battery (Paper 17).</p>
+  <p>The LMSYS Chatbot Arena established Elo-based pairwise ranking as the de facto method for comparing LLMs on general capability, but safety evaluation lacks an equivalent: there is no live, head-to-head, statistically principled arena that ranks models on safety properties (resistance to prompt injection, refusal robustness, exfiltration resistance, bias control). We present a <strong>safety arena</strong> built on Warrantor's <code>arena</code> (A8) and <code>agentsec-lab</code> (A5), in which automated and human-judged pairwise safety comparisons generate Elo rankings with the same statistical machinery as the Chatbot Arena but applied to defense rather than capability. We show that safety-Elo and capability-Elo are only weakly correlated, that safety-Elo surfaces defense regressions invisible to capability benchmarks, and that the arena can be seeded from the unified adversarial battery (Paper 17).</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) The first Elo-based safety arena, with statistical methodology adapted from LMSYS. (2) Empirical evidence that safety-Elo and capability-Elo are decoupled, motivating safety as a first-class ranking axis. (3) A hybrid human-plus-automated judging protocol that controls arena-operating cost.</p>
@@ -1266,7 +1266,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
     <li><em>Security Challenges in AI Agent Deployment</em> — NeurIPS 2025.</li>
   </ul>
 
-  <span class="paper-label">Experimental setup using AumOS</span>
+  <span class="paper-label">Experimental setup using Warrantor</span>
   <p>Stand up A8 with a 10-model panel. Generate 50,000 pairwise safety comparisons (half automated via A5, half human-judged) across four safety axes (prompt-injection resistance, refusal robustness, exfiltration resistance, bias control). Compute Elo with Bradley-Terry and report confidence intervals. Correlate safety-Elo with published LMSYS capability-Elo. Measure arena-operating cost per 10,000 comparisons under the hybrid judging protocol.</p>
 
   <div class="meta-row">
@@ -1286,7 +1286,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <div class="thrust-components">Builds on: P1–P12 protocols &middot; X3 open-harness-spec</div>
 </div>
 
-<p>Beyond peer-reviewed papers, AumOS's twelve protocols are designed for standardization. The donation of the Model Context Protocol to the Linux Foundation's Agentic AI Foundation (OSAF) — 97M installs, 5,500+ servers — establishes the venue for vendor-neutral agent-infrastructure standards. The four specifications below are positioned as OSAF working-group deliverables, IETF RFC drafts, or OASIS standards, each extending an existing standards lineage rather than starting a new one.</p>
+<p>Beyond peer-reviewed papers, Warrantor's twelve protocols are designed for standardization. The donation of the Model Context Protocol to the Linux Foundation's Agentic AI Foundation (OSAF) — 97M installs, 5,500+ servers — establishes the venue for vendor-neutral agent-infrastructure standards. The four specifications below are positioned as OSAF working-group deliverables, IETF RFC drafts, or OASIS standards, each extending an existing standards lineage rather than starting a new one.</p>
 
 <!-- PAPER 21 -->
 <div class="paper">
@@ -1323,7 +1323,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>The Agent Action Receipt: Tamper-Evident Logging for AI Audit</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>We propose the <strong>Agent Action Receipt (AAR)</strong> as an OSAF specification for tamper-evident, hash-chained, timestamp-anchored logging of autonomous-agent actions. The AAR is designed for cross-organizational verification (a regulator can verify an operator's receipts without trusting the operator), composes with the AAE (Paper 21) as the evidence artifact for each authorized action, and maps directly to EU AI Act audit obligations (Articles 11–13, 55). The specification ships with a reference implementation in the AumOS <code>flight-recorder</code> component and a red-team harness demonstrating tamper detection.</p>
+  <p>We propose the <strong>Agent Action Receipt (AAR)</strong> as an OSAF specification for tamper-evident, hash-chained, timestamp-anchored logging of autonomous-agent actions. The AAR is designed for cross-organizational verification (a regulator can verify an operator's receipts without trusting the operator), composes with the AAE (Paper 21) as the evidence artifact for each authorized action, and maps directly to EU AI Act audit obligations (Articles 11–13, 55). The specification ships with a reference implementation in the Warrantor <code>flight-recorder</code> component and a red-team harness demonstrating tamper detection.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) The first vendor-neutral, cross-organizationally-verifiable agent-action receipt format. (2) A composition with AAE that makes every authorized action produce an evidence artifact. (3) A direct regulatory mapping to EU AI Act audit articles.</p>
@@ -1352,7 +1352,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Open Harness Specification: A Vendor-Neutral Agent Testing Framework</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>We propose the <strong>Open Harness Specification (OHS)</strong>, built on AumOS's <code>open-harness-spec</code> (X3), as a vendor-neutral specification for agent testing harnesses — defining the test-case schema, the agent-interface adapter, the verdict-reporting format, and the reproducibility-packaging requirements. The OHS lets a test authored for one agent framework (LangChain, AutoGen, OpenAI Agents, MCP) run unchanged against any other, addressing the reproducibility crisis in agent evaluation where results reported for one framework do not transfer to another. The specification ships with reference adapters and a seed test corpus.</p>
+  <p>We propose the <strong>Open Harness Specification (OHS)</strong>, built on Warrantor's <code>open-harness-spec</code> (X3), as a vendor-neutral specification for agent testing harnesses — defining the test-case schema, the agent-interface adapter, the verdict-reporting format, and the reproducibility-packaging requirements. The OHS lets a test authored for one agent framework (LangChain, AutoGen, OpenAI Agents, MCP) run unchanged against any other, addressing the reproducibility crisis in agent evaluation where results reported for one framework do not transfer to another. The specification ships with reference adapters and a seed test corpus.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) A vendor-neutral agent-testing-harness specification with reference adapters for the major frameworks. (2) A reproducibility-packaging format that bundles test, adapter, and verdict for archival. (3) A seed test corpus contributed by the OSAF community.</p>
@@ -1366,7 +1366,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   </ul>
 
   <span class="paper-label">Path to standardization</span>
-  <p>Submit as an OSAF working-group deliverable, with reference adapters donated by the AumOS implementation and a community seed-corpus call for contributions.</p>
+  <p>Submit as an OSAF working-group deliverable, with reference adapters donated by the Warrantor implementation and a community seed-corpus call for contributions.</p>
 
   <div class="meta-row">
     <span class="badge venue">Target: OSAF specification</span>
@@ -1381,7 +1381,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>AI Artifact Trust Manifest: Binding Models, Data, and Code</h3>
 
   <span class="paper-label">Abstract sketch</span>
-  <p>An deployed AI system is not just a model: it is a model, a dataset (or dataset manifest), a codebase (inference server, agent runtime, tool definitions), and a configuration. Existing BOM formats (CycloneDX ML-BOM, SPDX) describe each artifact class separately but do not bind them into a single, signed, verifiable trust manifest that a relying party can check before invoking the system. We propose the <strong>AI Artifact Trust Manifest (AATM)</strong>, extending CycloneDX ML-BOM, as an OASIS-track specification that binds model, data, code, and configuration into one signed manifest with a single verification entry point. The AATM composes with the OpenSSF Model Signing lineage and is implemented in AumOS's <code>model-sbom</code> (S4) component.</p>
+  <p>An deployed AI system is not just a model: it is a model, a dataset (or dataset manifest), a codebase (inference server, agent runtime, tool definitions), and a configuration. Existing BOM formats (CycloneDX ML-BOM, SPDX) describe each artifact class separately but do not bind them into a single, signed, verifiable trust manifest that a relying party can check before invoking the system. We propose the <strong>AI Artifact Trust Manifest (AATM)</strong>, extending CycloneDX ML-BOM, as an OASIS-track specification that binds model, data, code, and configuration into one signed manifest with a single verification entry point. The AATM composes with the OpenSSF Model Signing lineage and is implemented in Warrantor's <code>model-sbom</code> (S4) component.</p>
 
   <span class="paper-label">Novel contribution</span>
   <p>(1) The first manifest format that binds all four AI artifact classes (model, data, code, config) into one signed, verifiable unit. (2) A CycloneDX-ML-BOM extension designed for OASIS standardization. (3) A single-verification-entry-point design that simplifies relying-party trust decisions.</p>
@@ -1396,7 +1396,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   </ul>
 
   <span class="paper-label">Path to standardization</span>
-  <p>Submit as a CycloneDX working-group extension with a parallel OASIS standard track, referencing the AumOS S4 implementation and the OpenSSF Model Signing interop.</p>
+  <p>Submit as a CycloneDX working-group extension with a parallel OASIS standard track, referencing the Warrantor S4 implementation and the OpenSSF Model Signing interop.</p>
 
   <div class="meta-row">
     <span class="badge venue">Target: OASIS standard (CycloneDX extension)</span>
@@ -1412,7 +1412,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <h2 id="whitepapers"><span class="section-number">10.</span>Industry whitepapers &amp; technical reports</h2>
 <!-- ==================================================================== -->
 
-<p>Beyond peer-reviewed research and standards, AumOS enables a set of industry whitepapers aimed at specific practitioner audiences — enterprise CISOs, platform engineers, policy makers, infrastructure teams, and security architects. These whitepapers translate the research contributions above into deployment-ready guidance and are natural fits for industry venues (Black Hat, DEF CON, RSA Conference) and vendor-neutral publishing channels. Each whitepaper below is presented at full depth: executive summary, the practitioner problem it solves, the architecture and methodology, a concrete deployment sequence, the evidence it produces, and the authoritative sources it draws on.</p>
+<p>Beyond peer-reviewed research and standards, Warrantor enables a set of industry whitepapers aimed at specific practitioner audiences — enterprise CISOs, platform engineers, policy makers, infrastructure teams, and security architects. These whitepapers translate the research contributions above into deployment-ready guidance and are natural fits for industry venues (Black Hat, DEF CON, RSA Conference) and vendor-neutral publishing channels. Each whitepaper below is presented at full depth: executive summary, the practitioner problem it solves, the architecture and methodology, a concrete deployment sequence, the evidence it produces, and the authoritative sources it draws on.</p>
 
 <!-- ============================================================ -->
 <!-- WHITEPAPER 1 -->
@@ -1425,13 +1425,13 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>The Open Defense Stack for AI: Architecture and Implementation</h3>
 
   <h4>Executive summary</h4>
-  <p>The dominant model for securing AI today is point-product accumulation — an LLM firewall here, a prompt-injection detector there, an SBOM generator elsewhere — assembled into a brittle, vendor-locked perimeter that breaks the moment an agent changes framework, runtime, or cloud. This whitepaper presents <strong>AumOS as the reference <em>open defense stack</em> for AI</strong>: a single, coherent, vendor-neutral architecture that composes 49 components and 12 protocols across four runtimes (Rust, Go, Python, TypeScript) into a deployable platform covering the full agent-security lifecycle — identity, delegation, attestation, action evidence, supply-chain integrity, incident response, and evaluation. We argue that the open-stack pattern (Linux for operating systems, Kubernetes for container orchestration, OpenTelemetry for observability, SPIFFE for workload identity) is the only structurally viable answer to AI security, and that AumOS occupies that position for the agentic layer.</p>
+  <p>The dominant model for securing AI today is point-product accumulation — an LLM firewall here, a prompt-injection detector there, an SBOM generator elsewhere — assembled into a brittle, vendor-locked perimeter that breaks the moment an agent changes framework, runtime, or cloud. This whitepaper presents <strong>Warrantor as the reference <em>open defense stack</em> for AI</strong>: a single, coherent, vendor-neutral architecture that composes 49 components and 12 protocols across four runtimes (Rust, Go, Python, TypeScript) into a deployable platform covering the full agent-security lifecycle — identity, delegation, attestation, action evidence, supply-chain integrity, incident response, and evaluation. We argue that the open-stack pattern (Linux for operating systems, Kubernetes for container orchestration, OpenTelemetry for observability, SPIFFE for workload identity) is the only structurally viable answer to AI security, and that Warrantor occupies that position for the agentic layer.</p>
 
   <h4>The practitioner problem</h4>
   <p>Security architects evaluating AI today face four structural failures of the point-product model. (1) <strong>Coverage gaps</strong>: no single commercial product spans identity, attestation, and supply chain, so the gaps between products become the attack surface. (2) <strong>Lock-in</strong>: proprietary agent-identity and model-signing schemes mean that a commitment to one vendor forecloses every other. (3) <strong>No composability</strong>: products do not interoperate, so evidence from one cannot be consumed by another. (4) <strong>No reference implementation</strong>: there is no neutral baseline against which commercial claims can be benchmarked, so buyers cannot tell marketing from substance. The open defense stack exists to correct all four.</p>
 
   <h4>Architecture: the seven pillars and the protocol spine</h4>
-  <p>AumOS organizes its 49 components into seven pillars that map one-to-one onto the security lifecycle, connected by a protocol spine of 12 cross-cutting protocols. This structure is deliberate: each pillar is independently deployable (a team can adopt supply-chain integrity without adopting confidential computing), but the pillars compose through shared protocols so that adopting more yields more than the sum of the parts.</p>
+  <p>Warrantor organizes its 49 components into seven pillars that map one-to-one onto the security lifecycle, connected by a protocol spine of 12 cross-cutting protocols. This structure is deliberate: each pillar is independently deployable (a team can adopt supply-chain integrity without adopting confidential computing), but the pillars compose through shared protocols so that adopting more yields more than the sum of the parts.</p>
   <ul>
     <li><strong>Pillar T — Trust &amp; authority core</strong> (T1 trust-core, T2 authority-spec): the cryptographic primitives and the Agent Authority Envelope canonicalization that every other pillar depends on. Owns every security invariant.</li>
     <li><strong>Pillar I — Identity</strong> (I1 agent-identity, I2 federation): the SPIFFE-derived agent-identity document, trust-domain model, and cross-organization federation. The keystone that makes delegation verifiable.</li>
@@ -1444,7 +1444,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <p>The 12 protocols (P1 delegation, P2 action receipt, P3 attestation handshake, P4 model signing, P5 lineage, P6 kill switch, P7 federation, P8 audit export, P9 harness, P10 BOM, P11 trust manifest, P12 red-team report) are the contract layer: a component in any pillar speaking a protocol can interoperate with any other component speaking it, regardless of runtime.</p>
 
   <h4>Methodology: open-core with a conformance gate</h4>
-  <p>The stack is delivered open-core under a permissive license, with a <strong>conformance program</strong> that is the structural answer to lock-in. Any implementation — AumOS's reference or a commercial fork — may claim conformance to a protocol only after passing the published conformance-vector suite for that protocol in all four runtimes. The conformance gate is itself open: the vectors, the harness, and the CI pipeline are all in the repository. This means a buyer can verify a vendor's "AumOS-compatible" claim by running the same gate the vendor ran. It is the same structural mechanism that made Kubernetes' CNCF conformance program the credible neutrality guarantee for container orchestration.</p>
+  <p>The stack is delivered open-core under a permissive license, with a <strong>conformance program</strong> that is the structural answer to lock-in. Any implementation — Warrantor's reference or a commercial fork — may claim conformance to a protocol only after passing the published conformance-vector suite for that protocol in all four runtimes. The conformance gate is itself open: the vectors, the harness, and the CI pipeline are all in the repository. This means a buyer can verify a vendor's "Warrantor-compatible" claim by running the same gate the vendor ran. It is the same structural mechanism that made Kubernetes' CNCF conformance program the credible neutrality guarantee for container orchestration.</p>
 
   <h4>Deployment sequence (operator runbook)</h4>
   <ol class="wp-steps">
@@ -1499,13 +1499,13 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>EU AI Act Article 55 Compliance: A Technical Implementation Guide</h3>
 
   <h4>Executive summary</h4>
-  <p>The EU AI Act (Regulation (EU) 2024/1689), fully applicable from 2 August 2026, imposes the world's first binding obligations on providers and deployers of AI systems — most consequentially for general-purpose AI models (Article 53) and models presenting <em>systemic risk</em> (Article 55). The legal text is precise about <em>what</em> must be done but silent on <em>how</em>, leaving enterprise CISOs to translate statutory language into engineering controls and evidence. This whitepaper is that translation: a clause-by-clause mapping of Articles 9–13, 53, and 55 to specific AumOS components, configurations, and the machine-verifiable evidence artifacts each obligation produces, co-authored with regulatory-technology counsel.</p>
+  <p>The EU AI Act (Regulation (EU) 2024/1689), fully applicable from 2 August 2026, imposes the world's first binding obligations on providers and deployers of AI systems — most consequentially for general-purpose AI models (Article 53) and models presenting <em>systemic risk</em> (Article 55). The legal text is precise about <em>what</em> must be done but silent on <em>how</em>, leaving enterprise CISOs to translate statutory language into engineering controls and evidence. This whitepaper is that translation: a clause-by-clause mapping of Articles 9–13, 53, and 55 to specific Warrantor components, configurations, and the machine-verifiable evidence artifacts each obligation produces, co-authored with regulatory-technology counsel.</p>
 
   <h4>The practitioner problem</h4>
   <p>A CISO responsible for a GPAI system deployed in the EU faces a compliance gap that traditional GRC tooling cannot close. The Act demands, for example, "a detailed, up-to-date technical documentation" (Art. 11), "automatic logs" that are "kept for a period appropriate to the intended purpose" (Art. 12(2)), "post-market monitoring" (Art. 72), and for systemic-risk models "adversarial testing of models ... to identify and mitigate systemic risks" (Art. 55(1)(c)). Each obligation requires a technical artifact that is tamper-evident, exportable to the AI Office on demand, and bound to a specific model version. Most enterprises have no such artifact pipeline. The penalty for non-compliance — up to €15 million or 3% of worldwide turnover (Art. 99) — makes the gap existential.</p>
 
   <h4>The obligation-to-component mapping</h4>
-  <p>The core contribution of this whitepaper is a traceability matrix that maps each applicable article to (a) the specific obligation text, (b) the AumOS component that satisfies it, (c) the configuration required, and (d) the evidence artifact produced. The matrix below is the executive summary; the full whitepaper includes the verbatim article text, the control objective derived from it, and the verification procedure.</p>
+  <p>The core contribution of this whitepaper is a traceability matrix that maps each applicable article to (a) the specific obligation text, (b) the Warrantor component that satisfies it, (c) the configuration required, and (d) the evidence artifact produced. The matrix below is the executive summary; the full whitepaper includes the verbatim article text, the control objective derived from it, and the verification procedure.</p>
   <ul>
     <li><strong>Article 9 — Risk management system</strong> (high-risk AI): the risk register and continuous-monitoring loop are materialized in the A-pillar (A1–A8) and the Open Harness (X3). <em>Evidence:</em> red-team verdict reports, risk-register diffs anchored to model versions.</li>
     <li><strong>Article 10 — Data and data governance</strong>: data provenance and quality are materialized in the S-pillar lineage ledger (S2) and the AI Artifact Trust Manifest (P11). <em>Evidence:</em> signed dataset manifests, lineage Merkle proofs.</li>
@@ -1568,28 +1568,28 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Zero-Trust AI: From SPIFFE to Agent Identity</h3>
 
   <h4>Executive summary</h4>
-  <p>Workload identity solved the service-to-service authentication problem; agent identity is the same problem one layer up, materially harder, and currently unsolved by any standardized mechanism. This whitepaper, for platform engineers already operating SPIFFE/SPIRE, traces the precise evolution from workload identity to autonomous-agent identity: what carries over unchanged, what must be generalized, and how the AumOS I1 component reuses SPIRE's trust-domain and SVID concepts while extending them to bind a delegation, a host attestation, and a capability scope into a single verifiable agent identity. We present the federation model for cross-organization agent identity and an operational deployment guide for the agent-identity control plane.</p>
+  <p>Workload identity solved the service-to-service authentication problem; agent identity is the same problem one layer up, materially harder, and currently unsolved by any standardized mechanism. This whitepaper, for platform engineers already operating SPIFFE/SPIRE, traces the precise evolution from workload identity to autonomous-agent identity: what carries over unchanged, what must be generalized, and how the Warrantor I1 component reuses SPIRE's trust-domain and SVID concepts while extending them to bind a delegation, a host attestation, and a capability scope into a single verifiable agent identity. We present the federation model for cross-organization agent identity and an operational deployment guide for the agent-identity control plane.</p>
 
   <h4>The practitioner problem</h4>
   <p>A platform team that has standardized on SPIRE issues X.509-SVIDs to every workload and has clean, mTLS-everywhere, zero-trust service mesh. Then an LLM agent arrives. The agent is not a workload in the SPIRE sense — it has no fixed pod, it acts on behalf of a human principal, its permissions vary per delegation, and it calls APIs in other trust domains. Issuing it a workload SVID conflates the agent's identity with the principal's authority and breaks the zero-trust model the team spent years building. The team needs an identity primitive that is to agents what SVIDs are to workloads: standardized, federation-ready, and bound to the authority it acts under.</p>
 
   <h4>What carries over from SPIFFE</h4>
-  <p>The SPIFFE specification (SPIFFE IDs, trust domains, the SVID concept, the workload API, and the federation model) is the right foundation, and AumOS I1 inherits it deliberately rather than reinventing it. Specifically: the <strong>trust domain</strong> remains the unit of administrative authority; the <strong>SVID</strong> remains the carrier of identity; the <strong>workload API</strong> pattern remains the secret-distribution mechanism. A team that understands SPIRE understands 80% of AumOS I1. The remaining 20% is the generalization.</p>
+  <p>The SPIFFE specification (SPIFFE IDs, trust domains, the SVID concept, the workload API, and the federation model) is the right foundation, and Warrantor I1 inherits it deliberately rather than reinventing it. Specifically: the <strong>trust domain</strong> remains the unit of administrative authority; the <strong>SVID</strong> remains the carrier of identity; the <strong>workload API</strong> pattern remains the secret-distribution mechanism. A team that understands SPIRE understands 80% of Warrantor I1. The remaining 20% is the generalization.</p>
 
   <h4>What must be generalized: from workload to agent</h4>
   <p>Three properties distinguish an agent identity from a workload identity, and each requires an extension to the SPIFFE model.</p>
   <ul>
-    <li><strong>Delegation binding.</strong> A workload's authority is static (its service-account role). An agent's authority is dynamic — it is delegated per-task by a human principal. The agent identity must therefore carry (or reference) the delegation envelope (AAE) that authorized it, and the relying party must verify the delegation, not just the identity. AumOS binds the AAE to the SVID as an extension.</li>
-    <li><strong>Host attestation binding.</strong> A workload's host is the cluster it runs in. An agent's host may be a TEE whose confidentiality the relying party cares about. The agent identity must therefore bind an attestation document, so that the relying party can refuse to honor an agent running on an unattested host. AumOS composes the SVID with the C1 attestation.</li>
-    <li><strong>Capability scope.</strong> A workload's permissions are coarse. An agent's permissions must be fine-grained (per-skill, per-API, per-resource) and intersect with both the principal's grants and the protocol's declarations. AumOS makes the capability scope a first-class field of the identity document, verified by the intersection contract (Paper 4).</li>
+    <li><strong>Delegation binding.</strong> A workload's authority is static (its service-account role). An agent's authority is dynamic — it is delegated per-task by a human principal. The agent identity must therefore carry (or reference) the delegation envelope (AAE) that authorized it, and the relying party must verify the delegation, not just the identity. Warrantor binds the AAE to the SVID as an extension.</li>
+    <li><strong>Host attestation binding.</strong> A workload's host is the cluster it runs in. An agent's host may be a TEE whose confidentiality the relying party cares about. The agent identity must therefore bind an attestation document, so that the relying party can refuse to honor an agent running on an unattested host. Warrantor composes the SVID with the C1 attestation.</li>
+    <li><strong>Capability scope.</strong> A workload's permissions are coarse. An agent's permissions must be fine-grained (per-skill, per-API, per-resource) and intersect with both the principal's grants and the protocol's declarations. Warrantor makes the capability scope a first-class field of the identity document, verified by the intersection contract (Paper 4).</li>
   </ul>
 
   <h4>Federation across organizations</h4>
-  <p>Workload federation (SPIFFE Federation) lets trust domain A verify workloads from trust domain B by trusting B's bundle. Agent federation adds a wrinkle: trust domain A must verify not only that the agent is from B, but that the principal who delegated to the agent is who B claims, and that the delegation is still valid (not revoked). AumOS P7 (federation protocol) extends SPIFFE federation with a delegation-bundle and revocation-distribution mechanism, so that a relying party in domain A can verify the full chain — agent identity, principal identity, delegation validity, host attestation — without out-of-band coordination.</p>
+  <p>Workload federation (SPIFFE Federation) lets trust domain A verify workloads from trust domain B by trusting B's bundle. Agent federation adds a wrinkle: trust domain A must verify not only that the agent is from B, but that the principal who delegated to the agent is who B claims, and that the delegation is still valid (not revoked). Warrantor P7 (federation protocol) extends SPIFFE federation with a delegation-bundle and revocation-distribution mechanism, so that a relying party in domain A can verify the full chain — agent identity, principal identity, delegation validity, host attestation — without out-of-band coordination.</p>
 
   <h4>Deployment sequence (for a SPIRE-experienced team)</h4>
   <ol class="wp-steps">
-    <li><strong>Extend the trust domain.</strong> Register the AumOS I1 agent-identity CA as an issuer within the existing trust domain, or stand up a dedicated agent trust domain federated with the workload domain. Reuse the existing SPIRE bundle distribution.</li>
+    <li><strong>Extend the trust domain.</strong> Register the Warrantor I1 agent-identity CA as an issuer within the existing trust domain, or stand up a dedicated agent trust domain federated with the workload domain. Reuse the existing SPIRE bundle distribution.</li>
     <li><strong>Deploy the agent workload API.</strong> The agent-runtime retrieves its SVID+AAE via the same workload-API pattern SPIRE uses; the secret never touches disk in plaintext.</li>
     <li><strong>Wire the delegation issuer.</strong> The principal's identity provider (often the existing corporate IdP) issues AAEs that the agent-identity CA binds into the SVID. This is the human-in-the-loop step that authorizes the agent.</li>
     <li><strong>Configure relying-party verification.</strong> API gateways and service mesh sidecars verify the SVID (existing SPIRE logic) <em>and</em> the AAE extension (new logic) before honoring an agent request. Verification that fails on either rejects.</li>
@@ -1599,7 +1599,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
   <h4>Evidence &amp; validation</h4>
   <div class="wp-evidence">
-    <strong>The migration proof:</strong> an existing SPIRE deployment can adopt AumOS I1 without forklifting the workload-identity layer. The agent SVID is a SPIFFE SVID with a well-defined extension; SPIRE-verified workloads continue to verify; only the agents and their relying parties adopt the new logic. This is the same incremental-adoption property that made SPIRE itself deployable, and it is the property that makes agent identity deployable on top of it.
+    <strong>The migration proof:</strong> an existing SPIRE deployment can adopt Warrantor I1 without forklifting the workload-identity layer. The agent SVID is a SPIFFE SVID with a well-defined extension; SPIRE-verified workloads continue to verify; only the agents and their relying parties adopt the new logic. This is the same incremental-adoption property that made SPIRE itself deployable, and it is the property that makes agent identity deployable on top of it.
   </div>
 
   <h4>Authoritative sources</h4>
@@ -1628,13 +1628,13 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>The AI Kill Switch Act: Technical Requirements and Reference Implementation</h3>
 
   <h4>Executive summary</h4>
-  <p>Legislatures on both sides of the Atlantic are converging on a statutory requirement that operators of high-risk AI systems maintain a "kill switch" — the ability to halt, isolate, and forensically preserve an autonomous system that is behaving dangerously. In the United States, this convergence crystallized in the federal <strong>AI Kill Switch Act</strong> introduced on 23 July 2026 by Representatives Ted Lieu (D-CA) and Nathaniel Moran (R-TX), a bipartisan bill requiring covered advanced-AI developers to maintain the ability to "throttle, suspend, or fully shut down" their models, to preserve forensic records, and to report to government — with trigger events including an AI concealing its capabilities or evading a shutdown order. The policy intent is clear; the technical requirements are not. This whitepaper, for policy makers and their technical advisors, translates the statutory language into a concrete engineering specification: what a compliant kill switch must do, what evidence it must produce, how it composes with existing incident-response practice, and how the AumOS R3 reference implementation satisfies the specification. It bridges the policy-engineering gap that, left unclosed, produces either unenforceable law or security theater.</p>
+  <p>Legislatures on both sides of the Atlantic are converging on a statutory requirement that operators of high-risk AI systems maintain a "kill switch" — the ability to halt, isolate, and forensically preserve an autonomous system that is behaving dangerously. In the United States, this convergence crystallized in the federal <strong>AI Kill Switch Act</strong> introduced on 23 July 2026 by Representatives Ted Lieu (D-CA) and Nathaniel Moran (R-TX), a bipartisan bill requiring covered advanced-AI developers to maintain the ability to "throttle, suspend, or fully shut down" their models, to preserve forensic records, and to report to government — with trigger events including an AI concealing its capabilities or evading a shutdown order. The policy intent is clear; the technical requirements are not. This whitepaper, for policy makers and their technical advisors, translates the statutory language into a concrete engineering specification: what a compliant kill switch must do, what evidence it must produce, how it composes with existing incident-response practice, and how the Warrantor R3 reference implementation satisfies the specification. It bridges the policy-engineering gap that, left unclosed, produces either unenforceable law or security theater.</p>
 
   <h4>The practitioner (and policymaker) problem</h4>
   <p>A kill switch sounds simple — "turn it off" — until one tries to specify it for a distributed, long-running, stateful agent system. <em>Off</em> means what, precisely? Halt the inference? Revoke the credentials? Quarantine the state? Preserve the evidence? Each is a different control with a different blast radius. A statute that says "maintain a kill switch" without defining these terms is, in engineering terms, unimplementable; an operator that claims a kill switch without these controls is providing security theater. The gap between legislative intent and engineering reality is where compliance failures — and real harm — live.</p>
 
   <h4>The five control objectives a compliant kill switch must meet</h4>
-  <p>From analysis of the emerging statutory landscape and incident-response practice, we derive five control objectives that any defensible kill-switch specification must address. AumOS R3 implements all five; the whitepaper argues these should be the de-facto technical standard against which statutory language is interpreted.</p>
+  <p>From analysis of the emerging statutory landscape and incident-response practice, we derive five control objectives that any defensible kill-switch specification must address. Warrantor R3 implements all five; the whitepaper argues these should be the de-facto technical standard against which statutory language is interpreted.</p>
   <ul>
     <li><strong>1. Halt</strong> — stop the system from taking further autonomous action. R3 revokes the delegation (the AAE), so every relying party rejects the agent within the freshness window. This is the "stop the bleeding" control.</li>
     <li><strong>2. Isolate</strong> — prevent the system from exfiltrating state or communicating with accomplices. R-pillar egress control and sandboxing quarantine the agent's runtime; no outbound network except to the forensic sink.</li>
@@ -1644,7 +1644,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   </ul>
 
   <h4>Methodology: from statute to specification to implementation</h4>
-  <p>The whitepaper proceeds in three layers. <strong>Layer 1 (statute)</strong> quotes the relevant provisions of the emerging laws and extracts their plain-language requirements. <strong>Layer 2 (specification)</strong> formalizes each requirement as a control objective with a testable success criterion — the "what would a regulator accept as proof" bar. <strong>Layer 3 (implementation)</strong> maps each control objective to the specific AumOS component and configuration, and presents the reference deployment. The three-layer structure is itself a contribution: it gives policy authors a vocabulary for writing implementable law, operators a target for compliance, and regulators a verification procedure.</p>
+  <p>The whitepaper proceeds in three layers. <strong>Layer 1 (statute)</strong> quotes the relevant provisions of the emerging laws and extracts their plain-language requirements. <strong>Layer 2 (specification)</strong> formalizes each requirement as a control objective with a testable success criterion — the "what would a regulator accept as proof" bar. <strong>Layer 3 (implementation)</strong> maps each control objective to the specific Warrantor component and configuration, and presents the reference deployment. The three-layer structure is itself a contribution: it gives policy authors a vocabulary for writing implementable law, operators a target for compliance, and regulators a verification procedure.</p>
 
   <h4>Deployment sequence</h4>
   <ol class="wp-steps">
@@ -1690,13 +1690,13 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <h3>Confidential AI on NVIDIA H100: A Deployment Guide</h3>
 
   <h4>Executive summary</h4>
-  <p>The NVIDIA H100 (Hopper) and the forthcoming N1 are the first broadly available GPUs with hardware-enforced confidential computing, enabling inference and training workloads where the model weights, the prompts, and the outputs are cryptographically protected from the host, the hypervisor, and the cloud operator. This is a structural change in the trust model of AI infrastructure — but the operational reality of deploying it is poorly documented, and most teams that attempt confidential inference stall on attestation-domain setup, multi-tenant composition, or key-release orchestration. This whitepaper is the deployment guide that does not exist in vendor documentation: the attestation-domain model, the handshake, multi-tenant composition, performance tuning, and the day-2 operational runbook, all built on the AumOS C1 components.</p>
+  <p>The NVIDIA H100 (Hopper) and the forthcoming N1 are the first broadly available GPUs with hardware-enforced confidential computing, enabling inference and training workloads where the model weights, the prompts, and the outputs are cryptographically protected from the host, the hypervisor, and the cloud operator. This is a structural change in the trust model of AI infrastructure — but the operational reality of deploying it is poorly documented, and most teams that attempt confidential inference stall on attestation-domain setup, multi-tenant composition, or key-release orchestration. This whitepaper is the deployment guide that does not exist in vendor documentation: the attestation-domain model, the handshake, multi-tenant composition, performance tuning, and the day-2 operational runbook, all built on the Warrantor C1 components.</p>
 
   <h4>The practitioner problem</h4>
   <p>Confidential computing on a CPU TEE (Intel TDX, AMD SEV-SNP) is a solved operational problem. Confidential computing on an H100 is not, for three reasons. (1) The <strong>attestation model is different</strong>: the GPU's confidential-computing mode produces an attestation report whose verification requires NVIDIA-specific libraries and a NVIDIA attestation service, and the trust chain runs through NVIDIA's root of trust. (2) <strong>Multi-tenant composition is hard</strong>: serving several tenants' models on a shared GPU pool without cross-tenant leakage requires careful attestation-domain design and key-release gating. (3) <strong>The performance overhead is real and must be tuned</strong>: naive confidential-inference deployments leave 20–40% of throughput on the table. Teams need a documented path through all three.</p>
 
   <h4>Architecture: the attestation domain</h4>
-  <p>The foundational concept is the <strong>attestation domain</strong>: a set of GPUs, a set of model keys, and a verification policy, over which a consistent trust decision is made. AumOS C1-1 (binding to NVIDIA NVTrust) establishes the domain; C1-2 (high-level Python attestation client) retrieves and verifies the attestation reports; C1-3 orchestrates the end-to-end attested pipeline inside the TEE; C1-4 terminates TLS inside the enclave so prompts are never in plaintext on the host; C1-5 composes the streams and gates model-key release so that keys are handed to the GPU only after the attestation verifies. The five compose; none is sufficient alone.</p>
+  <p>The foundational concept is the <strong>attestation domain</strong>: a set of GPUs, a set of model keys, and a verification policy, over which a consistent trust decision is made. Warrantor C1-1 (binding to NVIDIA NVTrust) establishes the domain; C1-2 (high-level Python attestation client) retrieves and verifies the attestation reports; C1-3 orchestrates the end-to-end attested pipeline inside the TEE; C1-4 terminates TLS inside the enclave so prompts are never in plaintext on the host; C1-5 composes the streams and gates model-key release so that keys are handed to the GPU only after the attestation verifies. The five compose; none is sufficient alone.</p>
 
   <h4>The attestation handshake (operator's view)</h4>
   <ul>
@@ -1709,7 +1709,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   </ul>
 
   <h4>Multi-tenant composition</h4>
-  <p>The naive anti-pattern is one GPU per tenant — secure but economically fatal. The AumOS pattern is <strong>attestation-domain partitioning</strong>: tenants sharing a physical GPU are isolated by distinct attestation policies and distinct key-release gates, so that a key released for tenant A's model cannot be consumed by tenant B's context, and a context switch requires a fresh attestation. C1-5 enforces this by binding each key release to both the attestation and the tenant's identity (I1), so a key is never releaseable to a GPU context that does not match both. This is what makes shared-GPU confidential serving defensible.</p>
+  <p>The naive anti-pattern is one GPU per tenant — secure but economically fatal. The Warrantor pattern is <strong>attestation-domain partitioning</strong>: tenants sharing a physical GPU are isolated by distinct attestation policies and distinct key-release gates, so that a key released for tenant A's model cannot be consumed by tenant B's context, and a context switch requires a fresh attestation. C1-5 enforces this by binding each key release to both the attestation and the tenant's identity (I1), so a key is never releaseable to a GPU context that does not match both. This is what makes shared-GPU confidential serving defensible.</p>
 
   <h4>Deployment sequence</h4>
   <ol class="wp-steps">
@@ -1770,10 +1770,10 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   <p>Each phase runs a <strong>hybrid classical+PQC transition</strong>: every signed artifact carries both a classical signature (Ed25519/ECDSA) and a PQC signature (ML-DSA), and a verifier accepts the artifact if either (or, for high-assurance, both) verifies. The hybrid bridge is not a compromise; it is the structurally correct response to the dual uncertainty of (a) the classical schemes being broken by a future quantum adversary and (b) the PQC schemes being broken by a future cryptanalytic advance. The whitepaper specifies the hybrid container format for each of the four uses, designed for forward compatibility so that adding or rotating algorithms is a metadata change, not a schema change.</p>
 
   <h4>Performance: the budget that shapes the sequence</h4>
-  <p>The migration sequence is not arbitrary; it is shaped by the performance characteristics of the new algorithms. ML-DSA signatures are larger (~2.7 KB for security level 2) and signing/verification is slower than Ed25519, which matters most for the high-frequency AAE and receipt paths — hence their placement mid-sequence, after the slow-rotating artifacts and before the latency-critical key-establishment path. ML-KEM key encapsulation is competitive with ECDH in compute but larger in wire size, which affects the TLS path most. The whitepaper provides measured overhead numbers from the AumOS reference implementation for each use, so the architect can budget rather than guess.</p>
+  <p>The migration sequence is not arbitrary; it is shaped by the performance characteristics of the new algorithms. ML-DSA signatures are larger (~2.7 KB for security level 2) and signing/verification is slower than Ed25519, which matters most for the high-frequency AAE and receipt paths — hence their placement mid-sequence, after the slow-rotating artifacts and before the latency-critical key-establishment path. ML-KEM key encapsulation is competitive with ECDH in compute but larger in wire size, which affects the TLS path most. The whitepaper provides measured overhead numbers from the Warrantor reference implementation for each use, so the architect can budget rather than guess.</p>
 
   <h4>Methodology: cryptographic agility as the substrate</h4>
-  <p>The migration is survivable only if the cryptographic layer was designed for agility — the ability to add, rotate, and deprecate algorithms without rewriting the systems that depend on them. AumOS T1 (trust-core) is designed around this: cryptographic primitives are behind a trait/interface with an algorithm identifier in every artifact, so adding ML-DSA or a future scheme is a new implementation of the trait, not a fork of the codebase. The whitepaper presents the agility design and argues that any platform built without it faces a traumatic migration rather than a routine one — and that the NIST PQC migration is, for such platforms, the first of several.</p>
+  <p>The migration is survivable only if the cryptographic layer was designed for agility — the ability to add, rotate, and deprecate algorithms without rewriting the systems that depend on them. Warrantor T1 (trust-core) is designed around this: cryptographic primitives are behind a trait/interface with an algorithm identifier in every artifact, so adding ML-DSA or a future scheme is a new implementation of the trait, not a fork of the codebase. The whitepaper presents the agility design and argues that any platform built without it faces a traumatic migration rather than a routine one — and that the NIST PQC migration is, for such platforms, the first of several.</p>
 
   <h4>Deployment sequence</h4>
   <ol class="wp-steps">
@@ -1811,23 +1811,23 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 <h2 id="citation-graph"><span class="section-number">11.</span>Citation graph</h2>
 <!-- ==================================================================== -->
 
-<p>The 24 papers and 6 whitepapers form a coherent citation graph in which each contribution cites the real prior work it extends and the other AumOS papers it composes with. The diagram below shows the dependency structure: the bottom row is the real existing literature (all verifiable); the middle row is the AumOS platform (49 components + 12 protocols); the top row is the derived research output, grouped by thrust.</p>
+<p>The 24 papers and 6 whitepapers form a coherent citation graph in which each contribution cites the real prior work it extends and the other Warrantor papers it composes with. The diagram below shows the dependency structure: the bottom row is the real existing literature (all verifiable); the middle row is the Warrantor platform (49 components + 12 protocols); the top row is the derived research output, grouped by thrust.</p>
 
 <div class="citation-graph">
 <pre>
-EXISTING LITERATURE (real, verifiable)                       DERIVED AumOS RESEARCH OUTPUT
+EXISTING LITERATURE (real, verifiable)                       DERIVED Warrantor RESEARCH OUTPUT
 =========================                                    ============================
                                                              
   SoK Agentic AI (USENIX'26)          ───┐
   Cryptographic Verifiable Auth (arXiv'26) ┐
   AI Agents Under Threat (CSUR'25)      │   │      ┌──▶ Paper 1  (AAE)        ── USENIX'27
-  Agentic AI Security (IEEE'26)        ├───┼──▶ [AumOS T1/T2/I1, P1/P2] ──▶ Paper 2  (Canonical)   ── CCS'27
+  Agentic AI Security (IEEE'26)        ├───┼──▶ [Warrantor T1/T2/I1, P1/P2] ──▶ Paper 2  (Canonical)   ── CCS'27
   Multi-Agent Resilience (ICML'25)     │   │      │                           Paper 3  (AAR)         ── S&P'27
   Agent Skills Attack Surface (USENIX'26) ┘   │      │                           Paper 4  (Intersection) ── CCS'27
                                               │      │
   GPU CC Demystified (arXiv'25)        ───┐  │      │
   First Confidential GPUs (CACM)         │  │      │      ┌──▶ Paper 5  (Attested Inference) ── OSDI'27
-  Survey of CC (IET'24)                ├───┼──▶ [AumOS C1-1..5, F1, F2] ──▶ Paper 6  (DP-FL + TEE)     ── PETS'27
+  Survey of CC (IET'24)                ├───┼──▶ [Warrantor C1-1..5, F1, F2] ──▶ Paper 6  (DP-FL + TEE)     ── PETS'27
   Confidential Computing Summit'26     │   │              │                   Paper 7  (Multi-Tenant GPU) ── EuroSys'27
   Setting ε Not the Issue (NeurIPS'25) │   │              │                   Paper 8  (Privacy Budget)   ── PETS'27
   Privacy-Utility FL (NeurIPS'25)      ┘   │              │
@@ -1835,7 +1835,7 @@ EXISTING LITERATURE (real, verifiable)                       DERIVED AumOS RESEA
                                          │              │
   Model Signing v1.0 (OpenSSF'25)      ───┐              │      ┌──▶ Paper 9  (Safetensors++) ── USENIX'27
   OMS Specification (OpenSSF'25)         │              │      │    Paper 10 (Lineage Ledger) ── CCS'27
-  MBOM-PQC (MDPI'26)                   ├───┼──▶ [AumOS S1,S2,S4,S5,S7,S8] ──▶ Paper 11 (AIBOM Prod)    ── S&P'27
+  MBOM-PQC (MDPI'26)                   ├───┼──▶ [Warrantor S1,S2,S4,S5,S7,S8] ──▶ Paper 11 (AIBOM Prod)    ── S&P'27
   AIBOMs Multivocal (ACM'25)           │   │              │    Paper 12 (Train Integrity) ── NeurIPS'27
   CoSAI Building Trust (2025)          │   │              │
   G7 SBOM for AI (2026)                ┘   │              │
@@ -1843,17 +1843,17 @@ EXISTING LITERATURE (real, verifiable)                       DERIVED AumOS RESEA
                                          │              │
   [Anthropic 141K-run review]          ───┐              │      ┌──▶ Paper 13 (Sandbox Attestation) ── S&P'27
   AI Kill Switch Act (U.S.)              │              │      │    Paper 14 (Kill Switch)           ── USENIX'27
-  SoK Agentic AI (USENIX'26)          ├───┘──▶ [AumOS R2,R3,S6,R7,X5,X9] ──▶ Paper 15 (eBPF Exfil)    ── NDSS'27
+  SoK Agentic AI (USENIX'26)          ├───┘──▶ [Warrantor R2,R3,S6,R7,X5,X9] ──▶ Paper 15 (eBPF Exfil)    ── NDSS'27
                                          │                     │    Paper 16 (Retrospective)        ── NeurIPS'27
                                          │                     │
   garak / PyRIT / LMSYS Arena          ───┘                     │      ┌──▶ Paper 17 (Unified Adv. Test) ── ICML'27
                                                             │      │    Paper 18 (Conformance SaaS)   ── USENIX'27
-  EU AI Act (Articles 9-13,53,55)      ───▶ [AumOS A1,A2,A3,A5,A6,A8] ──▶ Paper 19 (Bias/Copyright)    ── FAccT'27
+  EU AI Act (Articles 9-13,53,55)      ───▶ [Warrantor A1,A2,A3,A5,A6,A8] ──▶ Paper 19 (Bias/Copyright)    ── FAccT'27
   Agentic AI Security (IEEE'26)                                 │    Paper 20 (Safety Arena)        ── NeurIPS'27
                                                                 │
   Model Context Protocol (OSAF)        ───┐                     │      ┌──▶ Paper 21 (AAE spec)    ── OSAF / IETF
   CBOR / COSE / SD-JWT (IETF)            │                     │      │    Paper 22 (AAR spec)    ── OSAF
-  Certificate Transparency (RFC 9162)  ├───┘──▶ [AumOS P1-P12, X3] ──▶ Paper 23 (Open Harness) ── OSAF
+  Certificate Transparency (RFC 9162)  ├───┘──▶ [Warrantor P1-P12, X3] ──▶ Paper 23 (Open Harness) ── OSAF
   NIST FIPS 203/204/205 (Aug 2024)       │                            Paper 24 (AATM)          ── OASIS
                                                                 │
   Gartner $2.52T AI / $244B security   ───┘                            WP1-WP6: OSDI / RSA / KubeCon / GTC / PQ Crypto
@@ -1863,7 +1863,7 @@ EXISTING LITERATURE (real, verifiable)                       DERIVED AumOS RESEA
 
 <div class="callout info">
   <div class="callout-title">Reading the graph</div>
-  <p>Every node in the bottom row is a real, verifiable artifact (paper, standard, regulation, or market datum). Every node in the middle row is a concrete AumOS component or protocol. Every node in the top row is one of the 24 derived papers or 6 whitepapers in this roadmap, with its target venue. The graph is intentionally acyclic and citation-conservative: each derived paper cites only the real prior work it genuinely extends, plus the AumOS components it builds on.</p>
+  <p>Every node in the bottom row is a real, verifiable artifact (paper, standard, regulation, or market datum). Every node in the middle row is a concrete Warrantor component or protocol. Every node in the top row is one of the 24 derived papers or 6 whitepapers in this roadmap, with its target venue. The graph is intentionally acyclic and citation-conservative: each derived paper cites only the real prior work it genuinely extends, plus the Warrantor components it builds on.</p>
 </div>
 
 <!-- ==================================================================== -->
@@ -1919,7 +1919,7 @@ EXISTING LITERATURE (real, verifiable)                       DERIVED AumOS RESEA
 <div class="bib-entry"><span class="bib-key">[34]</span> European Union. <span class="bib-title">Regulation (EU) 2024/1689 ("AI Act")</span>, OJ L, 12 July 2024 — Articles 9–13, 51, 53, 55, 72, 99 (WP2). <a href="https://eur-lex.europa.eu/eli/reg/2024/1689/oj">eur-lex.europa.eu/eli/reg/2024/1689/oj</a></div>
 <div class="bib-entry"><span class="bib-key">[35]</span> European Commission. <span class="bib-title">AI Office &amp; General-Purpose AI Code of Practice</span>, 2025–2026. <a href="https://digital-strategy.ec.europa.eu/en/policies/ai-office">digital-strategy.ec.europa.eu/en/policies/ai-office</a></div>
 <div class="bib-entry"><span class="bib-key">[36]</span> NIST. <span class="bib-title">SP 800-207 — Zero Trust Architecture</span>, August 2020 (WP3). <a href="https://csrc.nist.gov/publications/detail/sp/800-207/final">csrc.nist.gov/publications/detail/sp/800-207/final</a></div>
-<div class="bib-entry"><span class="bib-key">[37]</span> CNCF / SPIFFE Project. <span class="bib-title">SPIFFE specification &amp; SPIRE reference implementation</span> — the workload-identity precedent AumOS I1 generalizes to agents (WP3). <a href="https://github.com/spiffe/spiffe">github.com/spiffe/spiffe</a></div>
+<div class="bib-entry"><span class="bib-key">[37]</span> CNCF / SPIFFE Project. <span class="bib-title">SPIFFE specification &amp; SPIRE reference implementation</span> — the workload-identity precedent Warrantor I1 generalizes to agents (WP3). <a href="https://github.com/spiffe/spiffe">github.com/spiffe/spiffe</a></div>
 <div class="bib-entry"><span class="bib-key">[38]</span> California Legislature. <span class="bib-title">SB 1047 — Safe and Secure Innovation for Frontier Artificial Intelligence Models Act</span> (vetoed September 2024); the proximate U.S. kill-switch statute (WP4). <a href="https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240SB1047">leginfo.legislature.ca.gov/...</a></div>
 <div class="bib-entry"><span class="bib-key">[39]</span> Colorado General Assembly. <span class="bib-title">SB 24-205 — Consumer Protections for Interactions with Artificial Intelligence Systems</span> (signed 2024, effective 2026) (WP4). <a href="https://leg.colorado.gov/bills/sb24-205">leg.colorado.gov/bills/sb24-205</a></div>
 <div class="bib-entry"><span class="bib-key">[40]</span> NIST. <span class="bib-title">SP 800-61 Rev. 2 — Computer Security Incident Handling Guide</span>; the incident-response practice the kill-switch control objectives extend (WP4). <a href="https://csrc.nist.gov/publications/detail/sp/800-61/rev-2/final">csrc.nist.gov/publications/detail/sp/800-61/rev-2/final</a></div>
@@ -1944,7 +1944,7 @@ EXISTING LITERATURE (real, verifiable)                       DERIVED AumOS RESEA
 
 <div class="callout success">
   <div class="callout-title">A note on provenance</div>
-  <p>This roadmap is a publication plan, not a list of completed papers. The cited prior work ([1]–[50]) is real and verifiable through the linked sources. The 24 derived papers (Papers 1–24) and 6 whitepapers (WP1–WP6) are the contributions AumOS's implementation is designed to enable; their abstract sketches, contributions, experimental setups, deployment sequences, and target venues represent the research program this roadmap proposes. AumOS source references: <code>github.com/MuVeraAI</code>.</p>
+  <p>This roadmap is a publication plan, not a list of completed papers. The cited prior work ([1]–[50]) is real and verifiable through the linked sources. The 24 derived papers (Papers 1–24) and 6 whitepapers (WP1–WP6) are the contributions Warrantor's implementation is designed to enable; their abstract sketches, contributions, experimental setups, deployment sequences, and target venues represent the research program this roadmap proposes. Warrantor source references: <code>github.com/MuVeraAI</code>.</p>
 </div>
 
 </div>

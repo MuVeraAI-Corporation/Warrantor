@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * @warrantor/mcp-server — Model Context Protocol (MCP) server exposing AumOS components.
+ * @warrantor/mcp-server — Model Context Protocol (MCP) server exposing Warrantor components.
  *
- * This server exposes 15 operations backed by the canonical AumOS security stack to any
+ * This server exposes 15 operations backed by the canonical Warrantor security stack to any
  * MCP-compatible coding agent (Claude Code, OpenAI Codex, Cursor, Zed, …). An agent discovers
  * the tools via `tools/list` and invokes them via `tools/call`.
  *
@@ -34,10 +34,10 @@ import type { IncomingMessage } from 'node:http';
 // Modes and configuration.
 // ---------------------------------------------------------------------------
 
-export type AumOSMode = 'standalone' | 'connected';
+export type WarrantorMode = 'standalone' | 'connected';
 
-export interface AumOSMcpConfig {
-  mode: AumOSMode;
+export interface WarrantorMcpConfig {
+  mode: WarrantorMode;
   /** Base URL of the I1 agent-identity HTTP gateway (e.g. "http://localhost:8441"). */
   agentIdentityUrl?: string;
   /** Base URL of the E1 flight-recorder service. */
@@ -72,7 +72,7 @@ export interface ExecResult {
   code: number;
 }
 
-const DEFAULT_CONFIG: Required<Omit<AumOSMcpConfig, 'fetchImpl' | 'execImpl'>> = {
+const DEFAULT_CONFIG: Required<Omit<WarrantorMcpConfig, 'fetchImpl' | 'execImpl'>> = {
   mode: 'connected',
   agentIdentityUrl: 'http://localhost:8441',
   flightRecorderUrl: 'http://localhost:8445',
@@ -104,7 +104,7 @@ export interface ToolDescriptor {
 }
 
 /**
- * The 15 AumOS tools exposed by this server, each backed by a real implementation below.
+ * The 15 Warrantor tools exposed by this server, each backed by a real implementation below.
  * Order matches the deliverable spec and is stable for snapshots.
  */
 export const TOOLS: ToolDescriptor[] = [
@@ -307,7 +307,7 @@ export const TOOLS: ToolDescriptor[] = [
   {
     name: 'warrantor_install',
     description:
-      'Install an AumOS component via `defstack install <name>`. Returns {installed, version}.',
+      'Install an Warrantor component via `defstack install <name>`. Returns {installed, version}.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -597,12 +597,12 @@ function parseTrustCoreSignOutput(stdout: string): { signatureHex: string; verif
 }
 
 /** Resolve the effective config (defaults + overrides). */
-function resolveConfig(partial?: AumOSMcpConfig): {
-  cfg: Required<Omit<AumOSMcpConfig, 'fetchImpl' | 'execImpl'>>;
+function resolveConfig(partial?: WarrantorMcpConfig): {
+  cfg: Required<Omit<WarrantorMcpConfig, 'fetchImpl' | 'execImpl'>>;
   fetchImpl: typeof fetch;
   exec: (cmd: string, args: string[], stdin?: string) => Promise<ExecResult>;
 } {
-  const cfg = { ...DEFAULT_CONFIG, ...partial } as Required<Omit<AumOSMcpConfig, 'fetchImpl' | 'execImpl'>>;
+  const cfg = { ...DEFAULT_CONFIG, ...partial } as Required<Omit<WarrantorMcpConfig, 'fetchImpl' | 'execImpl'>>;
   const fetchImpl = partial?.fetchImpl ?? globalThis.fetch;
   const exec = partial?.execImpl ?? defaultExec;
   return { cfg, fetchImpl, exec };
@@ -617,7 +617,7 @@ function resolveConfig(partial?: AumOSMcpConfig): {
 export async function CallTool(
   name: string,
   args: Record<string, unknown>,
-  config?: AumOSMcpConfig
+  config?: WarrantorMcpConfig
 ): Promise<ToolResult> {
   const { cfg, fetchImpl, exec } = resolveConfig(config);
   const isStandalone = cfg.mode === 'standalone';
@@ -1180,7 +1180,7 @@ function discoverResult(): unknown {
       },
     },
     instructions:
-      'AumOS security controls. Connected mode is fail-closed; inspect isError before using a result.',
+      'Warrantor security controls. Connected mode is fail-closed; inspect isError before using a result.',
     ttlMs: 300_000,
     cacheScope: 'public',
   };
@@ -1258,11 +1258,11 @@ const RPC_NOT_INITIALIZED = -32002;
 
 /**
  * Server wraps the dispatch logic and owns the stdio transport loop. Constructed with an
- * AumOSMcpConfig; `.run()` reads JSON-RPC requests line-by-line from stdin and writes
+ * WarrantorMcpConfig; `.run()` reads JSON-RPC requests line-by-line from stdin and writes
  * responses to stdout (logs to stderr — stdout is reserved for protocol frames).
  */
 export class Server {
-  readonly config: AumOSMcpConfig;
+  readonly config: WarrantorMcpConfig;
   /** Negotiated legacy version, if a handshake-era client initialized this process. */
   private legacyProtocolVersion: string | undefined;
   /** True once at least one current stateless request passed metadata validation. */
@@ -1275,7 +1275,7 @@ export class Server {
     return this.modernRequestObserved || this.legacyProtocolVersion !== undefined;
   }
 
-  constructor(config: AumOSMcpConfig = { mode: 'connected' }) {
+  constructor(config: WarrantorMcpConfig = { mode: 'connected' }) {
     this.config = config;
   }
 
@@ -1443,8 +1443,8 @@ export class Server {
 // CLI entrypoint — only when run as a binary (`aumos-mcp` or `node dist/index.js`).
 // ---------------------------------------------------------------------------
 
-/** Parse process.argv into an AumOSMcpConfig. */
-export function configFromEnv(env: NodeJS.ProcessEnv = process.env, argv: string[] = process.argv.slice(2)): AumOSMcpConfig {
+/** Parse process.argv into an WarrantorMcpConfig. */
+export function configFromEnv(env: NodeJS.ProcessEnv = process.env, argv: string[] = process.argv.slice(2)): WarrantorMcpConfig {
   const hasStandaloneFlag = argv.includes('--standalone');
   const hasConnectedFlag = argv.includes('--connected');
   if (hasStandaloneFlag && hasConnectedFlag) {
@@ -1454,7 +1454,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env, argv: string
   if (envMode !== undefined && envMode !== 'connected' && envMode !== 'standalone') {
     throw new Error('AUMOS_MODE must be "connected" or "standalone"');
   }
-  const mode: AumOSMode = envMode ?? (hasStandaloneFlag ? 'standalone' : 'connected');
+  const mode: WarrantorMode = envMode ?? (hasStandaloneFlag ? 'standalone' : 'connected');
   return {
     mode,
     agentIdentityUrl: env.AUMOS_AGENT_IDENTITY_URL || undefined,
@@ -1471,7 +1471,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env, argv: string
     // `The "file" argument must be of type string. Received undefined`. Because `connected` is
     // the DEFAULT mode, every CLI-backed tool -- sign, verify, receipts, SBOM -- failed on first
     // use for anyone who had not set these env vars, with an error naming neither the tool nor
-    // the missing binary. The doc comments on AumOSMcpConfig already promised these defaults;
+    // the missing binary. The doc comments on WarrantorMcpConfig already promised these defaults;
     // only the code was missing them.
     trustCoreBin: env.AUMOS_TRUST_CORE_BIN || DEFAULT_TRUST_CORE_BIN,
     defstackBin: env.AUMOS_DEFSTACK_BIN || DEFAULT_DEFSTACK_BIN,

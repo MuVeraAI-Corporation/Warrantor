@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the AumOS Implementation & Protocol Critical Analysis (single self-contained HTML).
+"""Generate the Warrantor Implementation & Protocol Critical Analysis (single self-contained HTML).
 
 Deliverable: docs/html/aumos-critical-analysis-2026-08-09.html
 
@@ -545,7 +545,7 @@ PROTOCOLS = [
                  "Separately, Claude Managed Agents ship an append-only event log stored **outside** the container. "
                  "[EXTERNAL]",
         verdict="A published RFC pair already owns this ground, an individual I-D already applies it to agents, and the "
-                "AumOS implementation fabricates the policy field, never persists, and never reaches a real "
+                "Warrantor implementation fabricates the policy field, never persists, and never reaches a real "
                 "transparency log. P2 must become a SCITT/COSE profile or be withdrawn.",
     ),
     dict(
@@ -568,7 +568,7 @@ PROTOCOLS = [
                  "media and, via the collection data hash assertion, training datasets — but nothing covers "
                  "per-retrieval runtime context with consent, taint and allowed-use. `consent` / `sensitivity` / "
                  "`allowed_uses` / `derived_from` map unusually cleanly onto **India's DPDP purpose-limitation and "
-                 "consent-manager regime** (Rules in force 14 May 2027). AumOS claims this nowhere. [EXTERNAL]",
+                 "consent-manager regime** (Rules in force 14 May 2027). Warrantor claims this nowhere. [EXTERNAL]",
         verdict="Under-claimed rather than over-claimed. The schema is sound, the design decisions are deliberate, and "
                 "the regulatory fit is the strongest of any protocol here. It is simply not wired to anything that "
                 "retrieves context.",
@@ -616,7 +616,7 @@ PROTOCOLS = [
                  "Microsoft, OpenAI and Cloudflare as platinum sponsors, and closing this hole is on their roadmap. "
                  "Sigstore + OCI 1.1 referrers is the obvious substrate. [EXTERNAL]",
         verdict="Correct problem, correct shape, and a closing window. This should be an MCP extension proposed into "
-                "AAIF, not a twelfth AumOS protocol.",
+                "AAIF, not a twelfth Warrantor protocol.",
     ),
     dict(
         pid="P6", slug="aatm", name="AI Artifact Trust Manifest", grade="D+",
@@ -691,7 +691,7 @@ PROTOCOLS = [
                  "(ipd, 2026-01-30) enumerates exactly what belongs in such a bundle, names grader gaming as a live "
                  "threat, says an interoperable schema “may improve clarity and ease of replication” — "
                  "and names no candidate.** [EXTERNAL]",
-        verdict="Move this to Wave 1. It is the only protocol where AumOS is ahead of the field rather than behind it, "
+        verdict="Move this to Wave 1. It is the only protocol where Warrantor is ahead of the field rather than behind it, "
                 "the regulatory pull is explicit and dated, and the shortest credible path is a DSSE/in-toto envelope "
                 "over an Inspect `.eval` digest — build on Inspect, do not compete with it.",
     ),
@@ -792,7 +792,7 @@ PROTOCOLS = [
                  "verdict** — eight attested-inference providers, eight incompatible verifiers. CoRIM is still "
                  "`draft-ietf-rats-corim-11`. Veraison, CoCo Trustee and Google's GA Prompt Encryption SDK are all "
                  "racing for this slot: **~12-month half-life.** [EXTERNAL]",
-        verdict="AumOS's second-strongest claim — but only *above* the attestation primitives, never at them. "
+        verdict="Warrantor's second-strongest claim — but only *above* the attestation primitives, never at them. "
                 "`nvtrust-bridge` is pure reinvention; composite AI-aware attestation policy is not. The signed "
                 "counterpart to MCP's self-admittedly untrusted `ToolAnnotations` is the defensible framing.",
     ),
@@ -1022,7 +1022,7 @@ FINDINGS = [
              "outside the signing path. `testvectors/protocols/manifest.json:4` quietly downgrades the claim to "
              "`\"RFC8785-compatible integer-only profile\"`.",
         scenario="An independent implementer builds to the registry, implements full RFC 8785 and COSE_Sign1, and "
-                 "cannot interoperate with any AumOS implementation.",
+                 "cannot interoperate with any Warrantor implementation.",
         blast="Also a documentation defect in the *strengthening* direction: the integer-only restriction is genuinely "
               "good design — every numeric payload field is deliberately an integer (`confidence_micros`, "
               "`money_minor`, `expected_risk_micros`), which sidesteps RFC 8785's hardest part. The registry simply "
@@ -1126,7 +1126,7 @@ FINDINGS = [
         what="`README.md:62` states TypeScript \"owns … SDK ergonomics\". There is no `@aumos/sdk`, no client "
              "library, no `AumosClient`. For Claude Agent SDK, OpenAI Agents SDK, LangGraph, CrewAI or AutoGen there "
              "is **no adapter, no middleware, no hook, no example and no documentation**.",
-        scenario="The integration question — \"I have an agent loop; how do I wrap it in AumOS authority and receipts "
+        scenario="The integration question — \"I have an agent loop; how do I wrap it in Warrantor authority and receipts "
                  "without forking my framework?\" — has no answer in the repository.",
         blast="This is the difference between a specification and an adoptable product. Every one of the four "
               "integration targets requires a tool-call interceptor; none is provided.",
@@ -1240,7 +1240,7 @@ FINDINGS = [
              "`OCSF_VERSION` is pinned to **1.1.0** (current **1.9.0**, 2026-08-03). `OCSF_CLASS_UID = 3003` is "
              "commented \"Incident class\" — **3003 is Authorize Session, in the IAM category**. The ATLAS mapping uses "
              "the 2023 technique set and misses `AML.T0086` and `AML.T0098`, the agentic techniques that actually "
-             "describe AumOS's threat model.",
+             "describe Warrantor's threat model.",
         scenario="No downstream tool will parse these as the artifacts they claim to be.",
         blast="Undermines exactly the interoperability that justifies the evidence layer's existence.",
         fix="Regenerate against current schema versions; emit `machine-learning-model` + `modelCard`; adopt OCSF 1.9's "
@@ -1740,7 +1740,7 @@ COMPONENTS = [
     C("X10", "sovereign-stack", "Extensions", "Go", "go/sovereign-stack", "reference_implementation", "PARTIAL", "C", "255+270",
       "Sovereign deployment packaging.",
       ["More test lines than source — unusual and good.",
-       "Sovereignty and portability are, per the competitive analysis, AumOS's **only durable non-technical "
+       "Sovereignty and portability are, per the competitive analysis, Warrantor's **only durable non-technical "
        "advantage**. This component is under-invested relative to that. [EXTERNAL]"],
       ["Invest here. Air-gap, data-residency and in-country log retention (CERT-In requires 180 days of ICT logs held "
        "**inside Indian jurisdiction**) are concrete, defensible requirements."]),

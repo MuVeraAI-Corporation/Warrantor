@@ -1,4 +1,4 @@
-// Canonical JSON serialisation for the AumOS P1-P12 signing profile.
+// Canonical JSON serialisation for the Warrantor P1-P12 signing profile.
 //
 // The signing form is the RFC 8785-compatible integer-only profile: object keys
 // sorted lexicographically by their UTF-8 byte sequence, no insignificant

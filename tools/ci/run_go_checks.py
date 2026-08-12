@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a required check against every Go module in the AumOS monorepo."""
+"""Run a required check against every Go module in the Warrantor monorepo."""
 
 from __future__ import annotations
 

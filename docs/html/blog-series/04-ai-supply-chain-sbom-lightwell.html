@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Supply Chain Integrity: Safetensors++, ML-BOM, Sigstore, Lightwell · AumOS Blog Series</title>
+  <title>AI Supply Chain Integrity: Safetensors++, ML-BOM, Sigstore, Lightwell · Warrantor Blog Series</title>
   <link rel="stylesheet" href="blog-series.css">
 </head>
 <body>
 <div class="container">
   <div class="series-bar">
     <a href="index.html">← Series index</a>
-    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span class="series-pill">Warrantor · Open Authority &amp; Evidence Stack</span>
     <span>Local technical essay · 2026</span>
   </div>
 
   <header class="article-header">
     <div class="article-eyebrow">Essay 4 of 8 · Supply Chain</div>
     <h1>AI Supply Chain Integrity: Safetensors++, ML-BOM, Sigstore, Lightwell</h1>
-    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-authors">Warrantor Engineering Essays · Open Secure AI Alliance portfolio</p>
     <p class="article-affil">Weights are not “just data.” Provenance, SBOM, transparency logs, and signed remediation bundles are the control plane for model artifacts.</p>
     <div class="article-meta">
       <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value"><span class="id-chip" data-aumos-id="S1">S1</span> <span class="id-chip" data-aumos-id="S2">S2</span> <span class="id-chip" data-aumos-id="S3">S3</span> <span class="id-chip" data-aumos-id="S4">S4</span> <span class="id-chip" data-aumos-id="S5">S5</span> <span class="id-chip" data-aumos-id="S7">S7</span> <span class="id-chip" data-aumos-id="S8">S8</span> <span class="id-chip" data-aumos-id="S9">S9</span> <span class="id-chip" data-aumos-id="T1">T1</span> <span class="id-chip protocol" data-aumos-id="P5">P5</span> <span class="id-chip protocol" data-aumos-id="P6">P6</span> <span class="id-chip protocol" data-aumos-id="P11">P11</span></span></div>
@@ -30,7 +30,7 @@
 
   <div class="abstract">
     <span class="abstract-label">Thesis</span>
-    <p>Pickle taught us that model files can be code. Safetensors fixed load-time execution<sup><a href="#refs">[1,2]</a></sup>; conversion-service attacks showed provenance still matters<sup><a href="#refs">[3]</a></sup>. AumOS supply chain is Safetensors++ + Merkle provenance + ML-BOM + Sigstore + Lightwell-class remediation—protocols <span class="id-chip protocol">P5</span>, <span class="id-chip protocol">P6</span>, <span class="id-chip protocol">P11</span>.</p>
+    <p>Pickle taught us that model files can be code. Safetensors fixed load-time execution<sup><a href="#refs">[1,2]</a></sup>; conversion-service attacks showed provenance still matters<sup><a href="#refs">[3]</a></sup>. Warrantor supply chain is Safetensors++ + Merkle provenance + ML-BOM + Sigstore + Lightwell-class remediation—protocols <span class="id-chip protocol">P5</span>, <span class="id-chip protocol">P6</span>, <span class="id-chip protocol">P11</span>.</p>
   </div>
   <div class="toc"><div class="toc-title">Contents</div>
   <ol>
@@ -38,13 +38,13 @@
     <li><a href="#bom">AI/ML BOM</a></li>
     <li><a href="#ledger">Provenance ledgers</a></li>
     <li><a href="#remed">Remediation bundles</a></li>
-    <li><a href="#map">AumOS map</a></li>
+    <li><a href="#map">Warrantor map</a></li>
   </ol></div>
 
   <h2 id="formats">1. Safe formats</h2>
   <div class="callout warning">
-    <div class="callout-title">AumOS-native extensions (not upstream standards)</div>
-    <p><span class="id-chip">S1</span> <strong>SafeTensors++</strong> (proposed <code>__provenance__</code> metadata) and <span class="id-chip">S3</span> <strong>GGUF-Ext</strong> (<code>osaf.safety</code> block) are AumOS portfolio proposals layered on real formats (Hugging Face Safetensors; ggml GGUF). They are not upstream HF or GGUF registry standards today.</p>
+    <div class="callout-title">Warrantor-native extensions (not upstream standards)</div>
+    <p><span class="id-chip">S1</span> <strong>SafeTensors++</strong> (proposed <code>__provenance__</code> metadata) and <span class="id-chip">S3</span> <strong>GGUF-Ext</strong> (<code>osaf.safety</code> block) are Warrantor portfolio proposals layered on real formats (Hugging Face Safetensors; ggml GGUF). They are not upstream HF or GGUF registry standards today.</p>
   </div>
   <p>Upstream Safetensors stores tensors + JSON header without pickle opcodes<sup><a href="#refs">[1,2]</a></sup>. Conversion-service attacks showed you can still poison distribution even when the format is safe<sup><a href="#refs">[3]</a></sup>. Format safety ≠ supply-chain safety—you still need signatures, lineage, and admission policy.</p>
 
@@ -81,7 +81,7 @@
   <div class="visual" data-visual="bom-compare">
     <div class="visual-caption">Table 1 — BOM / ledger responsibilities</div>
     <table>
-      <thead><tr><th>Surface</th><th>Standard</th><th>AumOS</th></tr></thead>
+      <thead><tr><th>Surface</th><th>Standard</th><th>Warrantor</th></tr></thead>
       <tbody>
         <tr><td>ML-BOM inventory</td><td>CycloneDX / SPDX AI</td><td>S4, P6</td></tr>
         <tr><td>Transparency log</td><td>Rekor / CT design</td><td>S2, T1</td></tr>
@@ -109,10 +109,10 @@
 
   <h2 id="remed">5. Remediation bundles vs Lightwell</h2>
   <p>IBM/Red Hat Lightwell commercializes a <strong>trusted clearinghouse for remediated open-source application dependencies</strong>—digitally signed packages, SBOMs, and coordination—not a public claim that Lightwell remediates foundation-model weights at scale<sup><a href="#refs">[8]</a></sup>. That distinction is load-bearing.</p>
-  <p><span class="id-chip">S9</span> lightwell-bridge and <span class="id-chip protocol">P11</span> PRB are <strong>AumOS-proposed extensions</strong>: apply the same signed-remediation + transparency pattern to AI artifacts (adapters, skill packs, eval corpora). PRB is “VEX-inspired” status + signatures—not a claim that CSAF/VEX already defines AI weight remediation. Do not cite Lightwell as if it already ships P11.</p>
+  <p><span class="id-chip">S9</span> lightwell-bridge and <span class="id-chip protocol">P11</span> PRB are <strong>Warrantor-proposed extensions</strong>: apply the same signed-remediation + transparency pattern to AI artifacts (adapters, skill packs, eval corpora). PRB is “VEX-inspired” status + signatures—not a claim that CSAF/VEX already defines AI weight remediation. Do not cite Lightwell as if it already ships P11.</p>
 
-  <h2 id="map">6. AumOS map</h2>
-  <p><span class="id-chip">T1</span> verifies artifact signatures. Skills enter the gateway only as signed <span class="id-chip protocol">P5</span> SSP packages (AumOS profile). Without this plane, eval scores and authority envelopes sit on untrusted weights. <strong>Implication:</strong> freeze a weight digest in AAE/VEB or you are authorizing ghosts.</p>
+  <h2 id="map">6. Warrantor map</h2>
+  <p><span class="id-chip">T1</span> verifies artifact signatures. Skills enter the gateway only as signed <span class="id-chip protocol">P5</span> SSP packages (Warrantor profile). Without this plane, eval scores and authority envelopes sit on untrusted weights. <strong>Implication:</strong> freeze a weight digest in AAE/VEB or you are authorizing ghosts.</p>
 
 
   <section class="refs" id="refs">

@@ -2,7 +2,6 @@
 
 use clap::Parser;
 use ed25519_dalek::SigningKey;
-use rand::rngs::OsRng;
 use warrantor_eval_guard::{run_preflight, CheckResults};
 
 #[derive(Parser, Debug)]
@@ -36,7 +35,7 @@ fn main() {
         None => {}
     }
 
-    let mut rng = OsRng;
+    let mut rng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing_key = SigningKey::generate(&mut rng);
 
     match run_preflight(&results, &signing_key) {

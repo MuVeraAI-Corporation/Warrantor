@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "The single authoritative implementation of every security invariant in AumOS"
+description = "The single authoritative implementation of every security invariant in Warrantor"
 
 [lib]
 name = "warrantor_trust_core"
@@ -25,8 +25,8 @@ clap.workspace = true
 # "digest" enables sign_prehashed/verify_prehashed -- Ed25519ph (RFC 8032 5.1),
 # which is what Rekor uses for hashedrekord entries. Plain Ed25519 over a digest
 # is a DIFFERENT algorithm and Rekor rejects it.
-ed25519-dalek = { version = "2", features = ["rand_core", "zeroize", "digest"] }
-rand = "0.8"
+ed25519-dalek = { version = "3", features = ["rand_core", "zeroize", "digest"] }
+getrandom = { version = "0.4", features = ["sys_rng"] }
 sha2 = "0.10"
 hex = "0.4"
 base64 = "0.22"

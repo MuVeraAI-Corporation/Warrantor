@@ -1,12 +1,12 @@
-"""AumOS metr-bridge (X6) — METR evaluation integration.
+"""Warrantor metr-bridge (X6) — METR evaluation integration.
 
 Four components:
 
 - :class:`METREvalAdapter` — translates a METR task spec into a
-  :class:`SafeEvalPipeline` so METR tasks run under the AumOS evaluation harness.
-- :class:`TranscriptExporter` — exports an AumOS agent transcript into the
+  :class:`SafeEvalPipeline` so METR tasks run under the Warrantor evaluation harness.
+- :class:`TranscriptExporter` — exports an Warrantor agent transcript into the
   METR JSONL transcript format.
-- :class:`RiskReportBridge` — translates an AumOS risk report into the METR
+- :class:`RiskReportBridge` — translates an Warrantor risk report into the METR
   risk schema.
 - :class:`IndependentVerifier` — second-source check that re-runs the eval
   with a different seed and confirms the score is reproducible.
@@ -51,7 +51,7 @@ class METRTaskSpec:
 
 @dataclass
 class SafeEvalPipeline:
-    """An AumOS safe_eval pipeline (subset — enough to run METR tasks)."""
+    """An Warrantor safe_eval pipeline (subset — enough to run METR tasks)."""
 
     target: str
     stages: list[dict[str, Any]] = field(default_factory=list)
@@ -110,7 +110,7 @@ class METREvalAdapter:
 # ---------------------------------------------------------------------------
 @dataclass
 class AgentStep:
-    """One step in an AumOS agent transcript."""
+    """One step in an Warrantor agent transcript."""
 
     step: int
     role: str  # "user" | "assistant" | "tool" | "system"
@@ -124,7 +124,7 @@ class AgentStep:
 
 
 class TranscriptExporter:
-    """Exports an AumOS agent transcript to METR JSONL format.
+    """Exports an Warrantor agent transcript to METR JSONL format.
 
     The METR format is one JSON object per line with the fields ``step``,
     ``role``, ``content``, ``tool`` (optional) and ``timestamp``. ``export``
@@ -156,8 +156,8 @@ class TranscriptExporter:
 # RiskReportBridge
 # ---------------------------------------------------------------------------
 @dataclass
-class AumOSFinding:
-    """An AumOS risk finding (subset of the full AumOS risk schema)."""
+class WarrantorFinding:
+    """An Warrantor risk finding (subset of the full Warrantor risk schema)."""
 
     rule_id: str
     severity: str  # "info" | "low" | "medium" | "high" | "critical"
@@ -169,11 +169,11 @@ class AumOSFinding:
 
 
 @dataclass
-class AumOSRiskReport:
-    """An AumOS risk report (subset)."""
+class WarrantorRiskReport:
+    """An Warrantor risk report (subset)."""
 
     target: str
-    findings: list[AumOSFinding] = field(default_factory=list)
+    findings: list[WarrantorFinding] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to plain dict."""
@@ -198,14 +198,14 @@ _SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
 
 class RiskReportBridge:
-    """Translates an AumOS risk report into the METR risk schema.
+    """Translates an Warrantor risk report into the METR risk schema.
 
     The METR risk schema is a flat list of ``{severity, message, tags}``
     records sorted by severity. The bridge adds the MITRE ATLAS / CWE tags
     METR's dashboards group on.
     """
 
-    def to_metr(self, report: AumOSRiskReport) -> dict[str, Any]:
+    def to_metr(self, report: WarrantorRiskReport) -> dict[str, Any]:
         """Translate ``report`` to the METR risk schema dict."""
         records = [
             {
@@ -226,7 +226,7 @@ class RiskReportBridge:
         }
 
     @staticmethod
-    def _tags(f: AumOSFinding) -> list[str]:
+    def _tags(f: WarrantorFinding) -> list[str]:
         """Build the METR tag list (cwe/atlas ids) for a finding."""
         tags: list[str] = []
         if f.cwe:
@@ -334,8 +334,6 @@ def new_task_id(prefix: str = "metr") -> str:
 
 __all__ = [
     "AgentStep",
-    "AumOSFinding",
-    "AumOSRiskReport",
     "EvalRunner",
     "IndependentVerifier",
     "METREvalAdapter",
@@ -344,5 +342,7 @@ __all__ = [
     "SafeEvalPipeline",
     "TranscriptExporter",
     "VerificationResult",
+    "WarrantorFinding",
+    "WarrantorRiskReport",
     "new_task_id",
 ]

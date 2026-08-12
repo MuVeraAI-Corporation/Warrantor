@@ -1,13 +1,13 @@
-// terraform-provider-warrantor — manage AumOS resources as Infrastructure-as-Code.
+// terraform-provider-warrantor — manage Warrantor resources as Infrastructure-as-Code.
 //
 // Resources:
-//   - warrantor_component: install/verify an AumOS component
+//   - warrantor_component: install/verify an Warrantor component
 //   - warrantor_identity: issue an agent identity (SVID)
 //   - warrantor_attestation: request and verify a GPU attestation
 //   - warrantor_compliance_report: generate a compliance report
 //
 // This is a stub provider using the Terraform Plugin Framework.
-// The real provider wraps the AumOS HTTP/JSON APIs.
+// The real provider wraps the Warrantor HTTP/JSON APIs.
 package main
 
 import (

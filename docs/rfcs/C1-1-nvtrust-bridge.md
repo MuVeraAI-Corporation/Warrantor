@@ -8,7 +8,7 @@
 | **Name** | nvtrust-bridge |
 | **Wave** | 1 |
 | **Languages** | Rust core + Python + Go bindings |
-| **DefStack origin** | C1.4 NVTrustBridge |
+| **Warrantor origin** | C1.4 NVTrustBridge |
 | **AumSecure origin** | (none) |
 | **Sentinel origin** | (none) |
 | **Dependencies** | none |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack C1.4 NVTrustBridge; AumSecure (none); Sentinel (none). The full strategic rationale
+Warrantor C1.4 NVTrustBridge; AumSecure (none); Sentinel (none). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** none
+- **Warrantor internal:** none
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

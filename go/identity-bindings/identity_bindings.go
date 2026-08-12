@@ -1,4 +1,4 @@
-// Package identitybindings binds AumOS agent identities to SPIFFE/SPIRE workload identities.
+// Package identitybindings binds Warrantor agent identities to SPIFFE/SPIRE workload identities.
 package identitybindings
 
 import (

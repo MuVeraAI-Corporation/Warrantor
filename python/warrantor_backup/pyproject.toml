@@ -1,7 +1,7 @@
 [project]
 name = "warrantor-backup"
 version = "1.0.0"
-description = "AumOS Backup/DR coordinator — file-based backup, restore, retention pruning"
+description = "Warrantor Backup/DR coordinator — file-based backup, restore, retention pruning"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]

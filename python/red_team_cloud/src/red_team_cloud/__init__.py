@@ -1,4 +1,4 @@
-"""AumOS red-team-cloud (A7) — continuous adversarial simulation service.
+"""Warrantor red-team-cloud (A7) — continuous adversarial simulation service.
 
 Wraps the A2 ``adversaria`` package's :class:`AttackSuite` into a scheduled
 job runner that fires attack suites on a configurable cadence and aggregates

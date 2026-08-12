@@ -65,7 +65,7 @@ S5 input →  │ S5 data-provenance   │    │  S2 provena-chain             
 
 ## The EU AI Act Article 55 story (now complete for §1, §2, §7, §8)
 
-| Article 55 obligation | AumOS components |
+| Article 55 obligation | Warrantor components |
 |---|---|
 | §1 Model documentation | S4 model-sbom (CycloneDX/SPDX with AI extensions) |
 | §2 Training-data summary | S5 data-provenance-kit (signed JSON-LD lineage) |

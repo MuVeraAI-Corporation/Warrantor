@@ -2,7 +2,7 @@
   "name": "warrantor-typescript",
   "private": true,
   "version": "1.0.0",
-  "description": "AumOS TypeScript workspace \u2014 console, MCP gateway, arena, AumOS MCP server",
+  "description": "Warrantor TypeScript workspace \u2014 console, MCP gateway, arena, Warrantor MCP server",
   "license": "Apache-2.0",
   "workspaces": [
     "console",

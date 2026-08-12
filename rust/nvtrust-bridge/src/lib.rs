@@ -16,7 +16,7 @@ use thiserror::Error;
 use warrantor_api::attestation::v1::GpuAttestationReport;
 
 /// A GPU attestation report. The proto-canonical view (warrantor_api::attestation::v1::GpuAttestationReport)
-/// is the wire type; this is the AumOS-side ergonomic wrapper.
+/// is the wire type; this is the Warrantor-side ergonomic wrapper.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AttestationReport {
     /// GPU model (e.g. "H100", "H200").

@@ -16,9 +16,8 @@
 #![forbid(unsafe_code)]
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use thiserror::Error;
 
 pub const PLANE_VERSION: &str = "warrantor-misinformation-defense/1.0";
@@ -47,9 +46,9 @@ pub enum CibIndicator {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentAction {
     pub agent_id: String,
-    pub action_type: String,   // "post", "share", "amplify", "comment"
-    pub target: String,        // the target of the action (topic, URL, user)
-    pub content_hash: String,  // hash of the content produced/shared
+    pub action_type: String,        // "post", "share", "amplify", "comment"
+    pub target: String,             // the target of the action (topic, URL, user)
+    pub content_hash: String,       // hash of the content produced/shared
     pub source_ref: Option<String>, // upstream source cited (if any)
     pub timestamp: u64,
 }
@@ -64,9 +63,15 @@ pub enum CibVerdict {
     /// No CIB detected; the action is allowed.
     Clear,
     /// CIB indicators found but below threshold — flagged for monitoring.
-    Flagged { indicators: Vec<CibIndicator>, score: u32 },
+    Flagged {
+        indicators: Vec<CibIndicator>,
+        score: u32,
+    },
     /// CIB detected above threshold — deny the action.
-    Deny { indicators: Vec<CibIndicator>, score: u32 },
+    Deny {
+        indicators: Vec<CibIndicator>,
+        score: u32,
+    },
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -118,8 +123,14 @@ pub enum CibDetectError {
 /// Each indicator contributes 1 to the score. Score ≥ deny_score_threshold → Deny.
 /// Score > 0 but < threshold → Flagged. Score = 0 → Clear.
 #[must_use]
-pub fn detect(actions: &[AgentAction], current_action: &AgentAction, config: &CibConfig) -> CibVerdict {
-    let window_start = current_action.timestamp.saturating_sub(config.clustering_window_seconds);
+pub fn detect(
+    actions: &[AgentAction],
+    current_action: &AgentAction,
+    config: &CibConfig,
+) -> CibVerdict {
+    let window_start = current_action
+        .timestamp
+        .saturating_sub(config.clustering_window_seconds);
     let recent: Vec<&AgentAction> = actions
         .iter()
         .filter(|a| a.timestamp >= window_start && a.timestamp <= current_action.timestamp)
@@ -253,8 +264,7 @@ pub fn verify_receipt(receipt: &CibReceipt) -> Result<(), CibDetectError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_body(&receipt.body);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| CibDetectError::Err("Ed25519 signature does not verify".into()))
 }
 
@@ -264,7 +274,7 @@ pub fn verify_receipt(receipt: &CibReceipt) -> Result<(), CibDetectError> {
 
 #[must_use]
 pub fn generate_keypair() -> (SigningKey, VerifyingKey) {
-    let mut csprng = OsRng;
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing = SigningKey::generate(&mut csprng);
     let verifying = signing.verifying_key();
     (signing, verifying)
@@ -279,7 +289,7 @@ mod hex {
         s
     }
     pub fn decode(hex: &str) -> Result<Vec<u8>, String> {
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err("odd-length hex".into());
         }
         (0..hex.len())
@@ -319,11 +329,21 @@ mod tests {
     #[test]
     fn temporal_clustering_detected() {
         let history: Vec<AgentAction> = (1..=5)
-            .map(|i| action(&format!("bot-{i}"), "topic-a", &format!("hash-{i}"), 990 + i))
+            .map(|i| {
+                action(
+                    &format!("bot-{i}"),
+                    "topic-a",
+                    &format!("hash-{i}"),
+                    990 + i,
+                )
+            })
             .collect();
         let current = action("bot-6", "topic-a", "hash-6", 1000);
         let v = detect(&history, &current, &CibConfig::default());
-        assert!(matches!(v, CibVerdict::Flagged { .. } | CibVerdict::Deny { .. }));
+        assert!(matches!(
+            v,
+            CibVerdict::Flagged { .. } | CibVerdict::Deny { .. }
+        ));
     }
 
     #[test]
@@ -344,9 +364,14 @@ mod tests {
 
     #[test]
     fn source_convergence_detected() {
-        let mut history: Vec<AgentAction> = (1..=5)
+        let history: Vec<AgentAction> = (1..=5)
             .map(|i| {
-                let mut a = action(&format!("bot-{i}"), &format!("topic-{i}"), &format!("hash-{i}"), 990 + i);
+                let mut a = action(
+                    &format!("bot-{i}"),
+                    &format!("topic-{i}"),
+                    &format!("hash-{i}"),
+                    990 + i,
+                );
                 a.source_ref = Some("malicious-source.io".into());
                 a
             })
@@ -367,7 +392,12 @@ mod tests {
         // 6 agents, same target, same content, same source → all 3 indicators → score=3 ≥ threshold=3.
         let history: Vec<AgentAction> = (1..=6)
             .map(|i| {
-                let mut a = action(&format!("bot-{i}"), "coordinated-topic", "same-hash", 990 + i);
+                let mut a = action(
+                    &format!("bot-{i}"),
+                    "coordinated-topic",
+                    "same-hash",
+                    990 + i,
+                );
                 a.source_ref = Some("same-source.io".into());
                 a
             })
@@ -400,7 +430,14 @@ mod tests {
     #[test]
     fn different_targets_no_clustering() {
         let history: Vec<AgentAction> = (1..=10)
-            .map(|i| action(&format!("bot-{i}"), &format!("different-{i}"), &format!("h{i}"), 990 + i))
+            .map(|i| {
+                action(
+                    &format!("bot-{i}"),
+                    &format!("different-{i}"),
+                    &format!("h{i}"),
+                    990 + i,
+                )
+            })
             .collect();
         let current = action("bot-11", "unique-target", "h11", 1000);
         let v = detect(&history, &current, &CibConfig::default());
@@ -430,10 +467,17 @@ mod tests {
     fn advisory_never_allows_when_flagged() {
         // A Flagged verdict is NOT Clear — it's an advisory that MAY contribute to deny.
         let history: Vec<AgentAction> = (1..=3)
-            .map(|i| action(&format!("bot-{i}"), "same-target", &format!("h{i}"), 990 + i))
+            .map(|i| {
+                action(
+                    &format!("bot-{i}"),
+                    "same-target",
+                    &format!("h{i}"),
+                    990 + i,
+                )
+            })
             .collect();
         let current = action("bot-4", "same-target", "h4", 1000);
-        let v = detect(&history, &current, &CibConfig::default());
+        let _v = detect(&history, &current, &CibConfig::default());
         // With 4 agents on the same target (threshold=5), it's NOT temporal clustering.
         // But if similarity_threshold=3 and all have different hashes, no similarity either.
         // So this should be Clear (different content hashes).

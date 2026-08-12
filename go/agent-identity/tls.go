@@ -29,7 +29,7 @@ import (
 )
 
 // DefaultSelfSignedCertOrg is the organization baked into the ephemeral self-signed certificate.
-const DefaultSelfSignedCertOrg = "AumOS"
+const DefaultSelfSignedCertOrg = "Warrantor"
 
 // MinRSACertValidity is the minimum validity period for a self-signed cert. We default to one year
 // (365 days) to avoid the cert expiring between releases.

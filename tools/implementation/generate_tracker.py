@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the exhaustive AumOS implementation tracker from canonical state."""
+"""Generate the exhaustive Warrantor implementation tracker from canonical state."""
 
 from __future__ import annotations
 

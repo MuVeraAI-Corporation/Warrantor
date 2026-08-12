@@ -1,5 +1,5 @@
 /**
- * @warrantor/console (X7) — AumOS enterprise policy/evidence console.
+ * @warrantor/console (X7) — Warrantor enterprise policy/evidence console.
  *
  * The data model, API client, and view logic for the enterprise console. The console provides:
  *   - Evidence viewer (browse AARs from E1 flight-recorder)

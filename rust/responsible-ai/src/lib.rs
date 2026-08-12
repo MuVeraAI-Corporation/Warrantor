@@ -13,7 +13,6 @@
 #![forbid(unsafe_code)]
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -39,7 +38,12 @@ pub struct BiasAudit {
 
 impl Default for BiasAudit {
     fn default() -> Self {
-        Self { checked: false, score: 0.0, protected_classes: vec![], checker_model_digest: None }
+        Self {
+            checked: false,
+            score: 0.0,
+            protected_classes: vec![],
+            checker_model_digest: None,
+        }
     }
 }
 
@@ -85,7 +89,12 @@ pub struct CarbonFootprint {
 
 impl Default for CarbonFootprint {
     fn default() -> Self {
-        Self { energy_wh: 0.0, co2_grams: 0.0, region: "unknown".into(), model_efficiency_wh_per_1k: None }
+        Self {
+            energy_wh: 0.0,
+            co2_grams: 0.0,
+            region: "unknown".into(),
+            model_efficiency_wh_per_1k: None,
+        }
     }
 }
 
@@ -118,7 +127,7 @@ impl DynamicConsent {
     #[must_use]
     pub fn is_current(&self, action_timestamp: u64) -> bool {
         match self.state {
-            ConsentState::Granted => self.granted_at.map_or(false, |g| g <= action_timestamp),
+            ConsentState::Granted => self.granted_at.is_some_and(|g| g <= action_timestamp),
             _ => false,
         }
     }
@@ -159,7 +168,7 @@ impl Default for ResponsibleAiBlock {
 /// - A bias score exceeding threshold MAY contribute to a Deny, NEVER to an Allow.
 /// - A missing explanation is flagged but does not block.
 /// - Consent not current is flagged for review.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]  // no Eq: BiasExceedsThreshold carries f64
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)] // no Eq: BiasExceedsThreshold carries f64
 #[serde(rename_all = "snake_case")]
 pub enum RaValidationResult {
     Valid,
@@ -169,21 +178,31 @@ pub enum RaValidationResult {
 }
 
 #[must_use]
-pub fn validate_ra_block(block: &ResponsibleAiBlock, action_timestamp: u64, bias_threshold: f64) -> Vec<RaValidationResult> {
+pub fn validate_ra_block(
+    block: &ResponsibleAiBlock,
+    action_timestamp: u64,
+    bias_threshold: f64,
+) -> Vec<RaValidationResult> {
     let mut findings: Vec<RaValidationResult> = vec![RaValidationResult::Valid];
 
     // Advisory asymmetry: bias exceeding threshold is a finding (may contribute to deny).
     if block.bias_audit.exceeds_threshold(bias_threshold) {
-        findings.push(RaValidationResult::BiasExceedsThreshold { score: block.bias_audit.score });
+        findings.push(RaValidationResult::BiasExceedsThreshold {
+            score: block.bias_audit.score,
+        });
     }
 
     // Consent not current.
-    if !block.dynamic_consent.is_current(action_timestamp) && block.dynamic_consent.state != ConsentState::Unknown {
+    if !block.dynamic_consent.is_current(action_timestamp)
+        && block.dynamic_consent.state != ConsentState::Unknown
+    {
         findings.push(RaValidationResult::ConsentNotCurrent);
     }
 
     // Missing explanation.
-    if block.right_to_explanation.explanation.is_empty() || block.right_to_explanation.explanation == "No explanation provided" {
+    if block.right_to_explanation.explanation.is_empty()
+        || block.right_to_explanation.explanation == "No explanation provided"
+    {
         findings.push(RaValidationResult::MissingExplanation);
     }
 
@@ -233,7 +252,11 @@ fn canonicalize_value(v: &serde_json::Value) -> serde_json::Value {
     }
 }
 
-pub fn sign_ra_block(block: ResponsibleAiBlock, action_id: &str, key: &SigningKey) -> SignedRaBlock {
+pub fn sign_ra_block(
+    block: ResponsibleAiBlock,
+    action_id: &str,
+    key: &SigningKey,
+) -> SignedRaBlock {
     let canonical = canonical_block(&block, action_id);
     let sig: Signature = key.sign(canonical.as_bytes());
     let verifying = key.verifying_key();
@@ -265,8 +288,7 @@ pub fn verify_ra_block(signed: &SignedRaBlock) -> Result<(), RaError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_block(&signed.block, &signed.action_id);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| RaError::RaErr("Ed25519 signature does not verify".into()))
 }
 
@@ -276,7 +298,7 @@ pub fn verify_ra_block(signed: &SignedRaBlock) -> Result<(), RaError> {
 
 #[must_use]
 pub fn generate_keypair() -> (SigningKey, VerifyingKey) {
-    let mut csprng = OsRng;
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing = SigningKey::generate(&mut csprng);
     let verifying = signing.verifying_key();
     (signing, verifying)
@@ -291,7 +313,7 @@ mod hex {
         s
     }
     pub fn decode(hex: &str) -> Result<Vec<u8>, String> {
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err("odd-length hex".into());
         }
         (0..hex.len())
@@ -311,10 +333,28 @@ mod tests {
 
     fn clean_block() -> ResponsibleAiBlock {
         ResponsibleAiBlock {
-            bias_audit: BiasAudit { checked: true, score: 0.1, protected_classes: vec!["gender".into()], checker_model_digest: Some("sha256:checker".into()) },
-            right_to_explanation: RightToExplanation { explanation: "The action was authorized because policy P42 permits it.".into(), key_factors: vec!["policy_p42".into()], human_review_available: true },
-            carbon_footprint: CarbonFootprint { energy_wh: 0.5, co2_grams: 0.2, region: "us-west-2".into(), model_efficiency_wh_per_1k: Some(0.01) },
-            dynamic_consent: DynamicConsent { state: ConsentState::Granted, granted_at: Some(1000), scope: "data-processing".into() },
+            bias_audit: BiasAudit {
+                checked: true,
+                score: 0.1,
+                protected_classes: vec!["gender".into()],
+                checker_model_digest: Some("sha256:checker".into()),
+            },
+            right_to_explanation: RightToExplanation {
+                explanation: "The action was authorized because policy P42 permits it.".into(),
+                key_factors: vec!["policy_p42".into()],
+                human_review_available: true,
+            },
+            carbon_footprint: CarbonFootprint {
+                energy_wh: 0.5,
+                co2_grams: 0.2,
+                region: "us-west-2".into(),
+                model_efficiency_wh_per_1k: Some(0.01),
+            },
+            dynamic_consent: DynamicConsent {
+                state: ConsentState::Granted,
+                granted_at: Some(1000),
+                scope: "data-processing".into(),
+            },
         }
     }
 
@@ -329,7 +369,9 @@ mod tests {
         let mut b = clean_block();
         b.bias_audit.score = 0.8;
         let findings = validate_ra_block(&b, 1500, 0.5);
-        assert!(findings.iter().any(|f| matches!(f, RaValidationResult::BiasExceedsThreshold { .. })));
+        assert!(findings
+            .iter()
+            .any(|f| matches!(f, RaValidationResult::BiasExceedsThreshold { .. })));
     }
 
     #[test]
@@ -338,15 +380,21 @@ mod tests {
         b.bias_audit.score = 0.3;
         b.bias_audit.checked = true;
         let findings = validate_ra_block(&b, 1500, 0.5);
-        assert!(!findings.iter().any(|f| matches!(f, RaValidationResult::BiasExceedsThreshold { .. })));
+        assert!(!findings
+            .iter()
+            .any(|f| matches!(f, RaValidationResult::BiasExceedsThreshold { .. })));
     }
 
     #[test]
     fn consent_not_current_flagged() {
         let mut b = clean_block();
-        b.dynamic_consent = DynamicConsent { state: ConsentState::Withdrawn, granted_at: Some(500), scope: "x".into() };
+        b.dynamic_consent = DynamicConsent {
+            state: ConsentState::Withdrawn,
+            granted_at: Some(500),
+            scope: "x".into(),
+        };
         let findings = validate_ra_block(&b, 1500, 0.5);
-        assert!(findings.iter().any(|f| *f == RaValidationResult::ConsentNotCurrent));
+        assert!(findings.contains(&RaValidationResult::ConsentNotCurrent));
     }
 
     #[test]
@@ -354,12 +402,16 @@ mod tests {
         let mut b = clean_block();
         b.right_to_explanation.explanation = "No explanation provided".into();
         let findings = validate_ra_block(&b, 1500, 0.5);
-        assert!(findings.iter().any(|f| *f == RaValidationResult::MissingExplanation));
+        assert!(findings.contains(&RaValidationResult::MissingExplanation));
     }
 
     #[test]
     fn consent_is_current() {
-        let c = DynamicConsent { state: ConsentState::Granted, granted_at: Some(1000), scope: "x".into() };
+        let c = DynamicConsent {
+            state: ConsentState::Granted,
+            granted_at: Some(1000),
+            scope: "x".into(),
+        };
         assert!(c.is_current(1500));
         assert!(!c.is_current(500)); // action before consent granted
     }
@@ -389,7 +441,12 @@ mod tests {
 
     #[test]
     fn bias_exceeds_threshold_method() {
-        let b = BiasAudit { checked: true, score: 0.7, protected_classes: vec![], checker_model_digest: None };
+        let b = BiasAudit {
+            checked: true,
+            score: 0.7,
+            protected_classes: vec![],
+            checker_model_digest: None,
+        };
         assert!(b.exceeds_threshold(0.5));
         assert!(!b.exceeds_threshold(0.8));
     }

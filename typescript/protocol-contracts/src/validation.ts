@@ -1,6 +1,6 @@
 /**
  * Independent registry-driven structural, semantic, temporal, extension, and
- * signature validation for the AumOS P1-P12 wire protocols.
+ * signature validation for the Warrantor P1-P12 wire protocols.
  *
  * This module is a generic interpreter over `specs/protocols/registry.json`.
  * It never hardcodes per-protocol structure, and it mirrors the check order,

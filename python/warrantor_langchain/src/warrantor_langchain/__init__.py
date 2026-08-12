@@ -1,4 +1,4 @@
-"""AumOS LangChain/LangGraph harness adapter.
+"""Warrantor LangChain/LangGraph harness adapter.
 
 Wraps a LangChain agent so that:
 
@@ -10,7 +10,7 @@ Wraps a LangChain agent so that:
      a tool can only run if the calling identity has the required permission.
 
 The adapter is intentionally **zero-dependency**: if LangChain is installed,
-``AumOSCallback`` is also a real ``BaseCallbackHandler`` subclass. If
+``WarrantorCallback`` is also a real ``BaseCallbackHandler`` subclass. If
 LangChain is **not** installed, the same class still works against any caller
 that respects the LangChain callback handler shape (``on_llm_start``,
 ``on_tool_start``, ``on_tool_end``, etc.). This keeps the adapter useful in
@@ -18,9 +18,9 @@ constrained environments and makes it unit-testable without the heavy
 ``langchain`` dependency.
 
 Usage:
-    from warrantor_langchain import AumOSCallback, AumOSTool, wrap_agent
+    from warrantor_langchain import WarrantorCallback, WarrantorTool, wrap_agent
 
-    callback = AumOSCallback(identity="alice", permission_check=my_check)
+    callback = WarrantorCallback(identity="alice", permission_check=my_check)
     secured = wrap_agent(agent, identity="alice",
                          side_effect_class="write", callbacks=[callback])
 """
@@ -117,11 +117,11 @@ class AAR:
 # Callback handler
 # ---------------------------------------------------------------------------
 PermissionCheck = Callable[[str, str], bool]
-"""``(identity, permission_name) -> bool``. Used by ``AumOSTool``."""
+"""``(identity, permission_name) -> bool``. Used by ``WarrantorTool``."""
 
 
 @dataclass
-class AumOSCallback(_LCBase):
+class WarrantorCallback(_LCBase):
     """LangChain-compatible callback handler that records AARs and scans secrets.
 
     The handler stores every AAR in ``self.aars`` so a caller (or a wrapping
@@ -323,10 +323,10 @@ class AumOSCallback(_LCBase):
 
 
 # ---------------------------------------------------------------------------
-# AumOSTool — wraps a callable so it can only run with AAE permission
+# WarrantorTool — wraps a callable so it can only run with AAE permission
 # ---------------------------------------------------------------------------
 class PermissionDenied(Exception):
-    """Raised by ``AumOSTool`` when the AAE permission check fails."""
+    """Raised by ``WarrantorTool`` when the AAE permission check fails."""
 
     def __init__(self, identity: str, permission: str) -> None:
         self.identity = identity
@@ -335,7 +335,7 @@ class PermissionDenied(Exception):
 
 
 @dataclass
-class AumOSTool:
+class WarrantorTool:
     """Callable wrapper that gates execution behind an AAE permission check.
 
     The wrapper duck-types as a LangChain ``Tool``-ish object (``name``,
@@ -373,7 +373,7 @@ class AumOSTool:
 
 
 # ---------------------------------------------------------------------------
-# wrap_agent — wrap a LangChain-style agent with AumOS security
+# wrap_agent — wrap a LangChain-style agent with Warrantor security
 # ---------------------------------------------------------------------------
 @dataclass
 class SecuredAgent:
@@ -385,7 +385,7 @@ class SecuredAgent:
     """
 
     agent: Any
-    callback: AumOSCallback
+    callback: WarrantorCallback
     identity: str
     side_effect_class: str
 
@@ -406,14 +406,14 @@ def wrap_agent(
     sink: Callable[[AAR], None] | None = None,
     extra_callbacks: list[Any] | None = None,
 ) -> SecuredAgent:
-    """Wrap a LangChain agent with an ``AumOSCallback`` and return a container.
+    """Wrap a LangChain agent with an ``WarrantorCallback`` and return a container.
 
     The callback is attached to the agent by setting
     ``agent.callbacks`` (creating the list if needed). When ``langchain`` is
     absent this still works for any duck-typed object exposing a ``callbacks``
     attribute or accepting callbacks via ``agent.run(..., callbacks=[...])``.
     """
-    callback = AumOSCallback(
+    callback = WarrantorCallback(
         identity=identity,
         side_effect_class=side_effect_class,
         permission_check=permission_check,
@@ -445,11 +445,11 @@ def has_langchain() -> bool:
 
 __all__ = [
     "AAR",
-    "AumOSCallback",
-    "AumOSTool",
     "PermissionCheck",
     "PermissionDenied",
     "SecuredAgent",
+    "WarrantorCallback",
+    "WarrantorTool",
     "has_langchain",
     "scan_for_secrets",
     "wrap_agent",

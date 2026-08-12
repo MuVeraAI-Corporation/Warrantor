@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verification suite for AumOS multi-phase blog series.
+"""Verification suite for Warrantor multi-phase blog series.
 
 Drives generate_blog_series (real entry point) and inspects shipped HTML.
 """
@@ -64,7 +64,7 @@ def test_article_depth_and_visuals() -> None:
         assert art["body_chars"] >= 5500, art
         assert text.count("data-visual=") >= 2
         assert text.count('class="cite"') >= 3 or text.count("data-cite-url=") >= 3
-        # AumOS IDs present
+        # Warrantor IDs present
         for iid in art["ids"][:3]:
             assert iid in text, f"{art['file']} missing {iid}"
         # Structure sections
@@ -86,7 +86,7 @@ def test_phase_plan_and_dual_pass_meta() -> None:
 
 
 def fetch(url: str, timeout: float = 25.0) -> tuple[int, str]:
-    req = urllib.request.Request(url, headers={"User-Agent": "AumOS-blog-series-verifier/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Warrantor-blog-series-verifier/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, resp.read(100000).decode("utf-8", errors="replace")

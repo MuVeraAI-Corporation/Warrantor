@@ -1,4 +1,4 @@
-# AumOS Reusable CI Workflow — drop this into any repo that uses AumOS components.
+# Warrantor Reusable CI Workflow — drop this into any repo that uses Warrantor components.
 #
 # Usage in your repo's .github/workflows/ci.yml:
 #   jobs:
@@ -7,7 +7,7 @@
 #       with:
 #         language: rust  # or python, go, typescript
 #         run-conformance: true
-name: AumOS Security Checks
+name: Warrantor Security Checks
 
 on:
   workflow_call:
@@ -90,9 +90,9 @@ jobs:
           npm run lint
           npm test
 
-  # ─── AumOS Compliance Gate ─────────────────────────────────────────────────
+  # ─── Warrantor Compliance Gate ─────────────────────────────────────────────────
   compliance:
-    name: AumOS Compliance Gate
+    name: Warrantor Compliance Gate
     runs-on: ubuntu-latest
     needs: lint-test
     steps:

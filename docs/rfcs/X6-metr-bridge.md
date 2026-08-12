@@ -1,6 +1,6 @@
 # X6 — `metr-bridge` RFC
 
-> METR independent-evaluator integration. METREvalAdapter, TranscriptExporter, RiskReportBridge, IndependentVerifier. Lets METR verify AumOS attestation claims independently.
+> METR independent-evaluator integration. METREvalAdapter, TranscriptExporter, RiskReportBridge, IndependentVerifier. Lets METR verify Warrantor attestation claims independently.
 
 | Field | Value |
 |---|---|
@@ -8,7 +8,7 @@
 | **Name** | metr-bridge |
 | **Wave** | 6 |
 | **Languages** | Python |
-| **DefStack origin** | F8 METRBridge |
+| **Warrantor origin** | F8 METRBridge |
 | **AumSecure origin** | (none) |
 | **Sentinel origin** | (none) |
 | **Dependencies** | X2, A1 |
@@ -17,13 +17,13 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack F8 METRBridge; AumSecure (none); Sentinel (none). The full strategic rationale
+Warrantor F8 METRBridge; AumSecure (none); Sentinel (none). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
 ## Goals and Non-Goals
 
-**Goals:** METR independent-evaluator integration. METREvalAdapter, TranscriptExporter, RiskReportBridge, IndependentVerifier. Lets METR verify AumOS attestation claims independently.
+**Goals:** METR independent-evaluator integration. METREvalAdapter, TranscriptExporter, RiskReportBridge, IndependentVerifier. Lets METR verify Warrantor attestation claims independently.
 
 **Non-Goals:**
 - Reinventing mature standards (SPIFFE, OCSF, OTel, CycloneDX) — we extend, not fork.
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** X2, A1
+- **Warrantor internal:** X2, A1
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

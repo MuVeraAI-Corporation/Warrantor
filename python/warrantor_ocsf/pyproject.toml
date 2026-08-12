@@ -1,7 +1,7 @@
 [project]
 name = "warrantor-ocsf"
 version = "1.0.0"
-description = "AumOS OCSF forwarder — convert AAR events to OCSF and ship to SIEM sinks"
+description = "Warrantor OCSF forwarder — convert AAR events to OCSF and ship to SIEM sinks"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]

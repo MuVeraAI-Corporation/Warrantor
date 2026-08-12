@@ -36,7 +36,6 @@
 #![deny(missing_docs)]
 
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -260,7 +259,7 @@ pub struct Ledger {
 impl Ledger {
     /// Construct a new empty ledger with a freshly generated Ed25519 key pair.
     pub fn new() -> Self {
-        let mut rng = OsRng;
+        let mut rng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
         Self {
             entries: Vec::new(),
             by_id: std::collections::HashMap::new(),

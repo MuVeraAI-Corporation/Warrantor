@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Research · Paper 8 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
+  <div class="article-eyebrow">Warrantor Research · Paper 8 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
   <h1>The Privacy Budget Paradox: Rethinking ε in Production AI Systems</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS A-pillar (audit), C1 (attestation)</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor A-pillar (audit), C1 (attestation)</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">PETS 2027</span></div>
     <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Position + framework</span></div>
@@ -26,7 +26,7 @@
 
 <div class="abstract">
   <span class="abstract-label">Abstract</span>
-  <p>Differential privacy's privacy-loss parameter ε is presented as the dial a practitioner turns to trade privacy against utility. In production AI systems, this framing breaks down: ε is not a single dial but a budget consumed across an unbounded sequence of queries, training runs, and model releases, and its "correct" value depends on the trust model, the composition regime, and the adversary — none of which the isolated ε-setting literature captures. We articulate the <strong>privacy budget paradox</strong>: the parameter that matters most in production is precisely the one the per-analysis ε-setting debate treats in isolation, and the real engineering question is not "what ε?" but "how is the budget allocated, accounted, and audited over the system's lifetime?" Drawing on the recent reframings of Cyffers et al.<sup><a href="#ref-eps">[1]</a></sup> ("Setting ε is not the Issue," NeurIPS 2025) and the NIST open-challenges analysis<sup><a href="#ref-nist">[2]</a></sup>, we propose a <strong>budget-accounting framework</strong> in which ε is a continuously-tracked, attested, auditable resource managed by the AumOS A-pillar and composed with the TEE-attested noising of Paper 6. The contribution is the shift from "choose ε" to "operate a budget" — the engineering framing that makes DP deployable in production AI rather than merely analyzable in a single experiment.</p>
+  <p>Differential privacy's privacy-loss parameter ε is presented as the dial a practitioner turns to trade privacy against utility. In production AI systems, this framing breaks down: ε is not a single dial but a budget consumed across an unbounded sequence of queries, training runs, and model releases, and its "correct" value depends on the trust model, the composition regime, and the adversary — none of which the isolated ε-setting literature captures. We articulate the <strong>privacy budget paradox</strong>: the parameter that matters most in production is precisely the one the per-analysis ε-setting debate treats in isolation, and the real engineering question is not "what ε?" but "how is the budget allocated, accounted, and audited over the system's lifetime?" Drawing on the recent reframings of Cyffers et al.<sup><a href="#ref-eps">[1]</a></sup> ("Setting ε is not the Issue," NeurIPS 2025) and the NIST open-challenges analysis<sup><a href="#ref-nist">[2]</a></sup>, we propose a <strong>budget-accounting framework</strong> in which ε is a continuously-tracked, attested, auditable resource managed by the Warrantor A-pillar and composed with the TEE-attested noising of Paper 6. The contribution is the shift from "choose ε" to "operate a budget" — the engineering framing that makes DP deployable in production AI rather than merely analyzable in a single experiment.</p>
 </div>
 
 <div class="toc">
@@ -59,7 +59,7 @@
 <p>We reframe the production question from "choose ε" to "operate a budget." A privacy budget is a scarce, consumable resource: each analysis spends some, the total spend is bounded, and the spend must be accounted. This reframing has three consequences. (1) The unit of decision is not "ε for this run" but "the budget envelope for this system over its lifetime, allocated across runs." (2) The accounting is continuous and must survive the system's full history — a moment-in-time ε is meaningless without the cumulative ledger. (3) The budget is a governance object: who is authorized to spend it, on what, and who audits the spend.</p>
 
 <h2 id="framework"><span class="anchor">§</span>4. The budget-accounting framework</h2>
-<p>We implement the reframing as a framework in the AumOS A-pillar. A <strong>budget ledger</strong> records every privacy-spending event (the analysis, the (ε, δ) consumed, the moments-accountant method, the timestamp). A <strong>budget policy</strong> defines the total envelope and the per-category allocations (training, evaluation, release). A <strong>budget gate</strong> refuses any analysis whose spend would exceed the policy. The ledger is itself tamper-evident (the AAR of Paper 3), so the cumulative spend is auditable, not merely asserted.</p>
+<p>We implement the reframing as a framework in the Warrantor A-pillar. A <strong>budget ledger</strong> records every privacy-spending event (the analysis, the (ε, δ) consumed, the moments-accountant method, the timestamp). A <strong>budget policy</strong> defines the total envelope and the per-category allocations (training, evaluation, release). A <strong>budget gate</strong> refuses any analysis whose spend would exceed the policy. The ledger is itself tamper-evident (the AAR of Paper 3), so the cumulative spend is auditable, not merely asserted.</p>
 <div class="diagram"><pre>
    analysis request ──▶ budget gate ──▶ moments accountant ──▶ ledger entry
         │                   │                                       │
@@ -98,7 +98,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The budget framework is in the AumOS A-pillar, composed with C1 attestation (Paper 6) and AAR audit (Paper 3). AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The budget framework is in the Warrantor A-pillar, composed with C1 attestation (Paper 6) and AAR audit (Paper 3). Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-07-confidential-gpu-composition.html">Paper 7</a></span>
     <span class="small"><a href="paper-09-safetensors-plus-plus.html">Paper 9: Safetensors++ →</a></span>

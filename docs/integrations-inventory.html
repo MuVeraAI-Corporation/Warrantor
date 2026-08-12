@@ -95,7 +95,7 @@
 
 <p>The repository contains two distinct bodies of integration work, and conflating them produces a misleading picture in either direction.</p>
 
-<p><strong>Generation 1 — broad and wired.</strong> The AumOS component surface: an MCP server exposing 15 tools to any MCP-speaking coding agent, a session harness for Claude Code / Codex / Cursor, framework adapters for LangChain and vLLM and Hugging Face, incident forwarding to Jira and Linear, SIEM export in OCSF 1.9.0, a Kubernetes admission webhook, and twelve Go services orchestrated by a single <code>docker-compose.yml</code>. This layer is genuinely reachable. A developer can install it and use it today.</p>
+<p><strong>Generation 1 — broad and wired.</strong> The Warrantor component surface: an MCP server exposing 15 tools to any MCP-speaking coding agent, a session harness for Claude Code / Codex / Cursor, framework adapters for LangChain and vLLM and Hugging Face, incident forwarding to Jira and Linear, SIEM export in OCSF 1.9.0, a Kubernetes admission webhook, and twelve Go services orchestrated by a single <code>docker-compose.yml</code>. This layer is genuinely reachable. A developer can install it and use it today.</p>
 
 <p><strong>Generation 2 — deep, and now reachable.</strong> The Warrant primitive: <code>grant → run → status → report → settle / void</code>, with staged effects, git-worktree isolation, OS-enforced process supervision, and a detached daemon. When this inventory was first written, a search for any reference to it outside its own crate returned nothing. It now has its own MCP transport and two endpoints, so any MCP-speaking agent reaches it natively. It is still absent from the LangChain and Python SDK surfaces, which remain Generation 1 receipts-only.</p>
 
@@ -187,9 +187,9 @@
 
 <p>For developers writing their own agent rather than driving a vendor's. The headline is a decorator that wraps any function in the full security envelope:</p>
 
-<pre><code>from warrantor_agent import AumOS
+<pre><code>from warrantor_agent import Warrantor
 
-agent = AumOS(mode="standalone")   # or "connected" against running services
+agent = Warrantor(mode="standalone")   # or "connected" against running services
 
 @agent.action(tool="github.create_pr", side_effect="write")
 def create_pull_request(repo: str, title: str, body: str):
@@ -270,7 +270,7 @@ warrantor void   &lt;id&gt;            # discard the worktree and branch; keep t
 
 <p><span class="tag t-wired">wired</span> &nbsp; 456 lines &middot; 17 tests</p>
 
-<p>Provides <code>AumOSCallback</code> (a <code>BaseCallbackHandler</code> that records receipts and scans for secrets), <code>AumOSTool</code>, <code>SecuredAgent</code>, and a <code>wrap_agent()</code> helper. The notable engineering decision is the optional import: if <code>langchain_core</code> is absent the base class degrades to <code>object</code> and <code>has_langchain()</code> reports false, so the package installs and imports cleanly in an environment with no LangChain at all.</p>
+<p>Provides <code>WarrantorCallback</code> (a <code>BaseCallbackHandler</code> that records receipts and scans for secrets), <code>WarrantorTool</code>, <code>SecuredAgent</code>, and a <code>wrap_agent()</code> helper. The notable engineering decision is the optional import: if <code>langchain_core</code> is absent the base class degrades to <code>object</code> and <code>has_langchain()</code> reports false, so the package installs and imports cleanly in an environment with no LangChain at all.</p>
 
 <hr>
 

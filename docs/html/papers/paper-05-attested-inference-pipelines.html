@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Research · Paper 5 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
+  <div class="article-eyebrow">Warrantor Research · Paper 5 of 24 · Thrust 2 — Confidential AI Infrastructure</div>
   <h1>Attested Inference Pipelines: End-to-End Confidential Computing for LLM Serving</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS C1-1…C1-5 (confidential computing pillar)</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor C1-1…C1-5 (confidential computing pillar)</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">OSDI 2027</span></div>
     <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">C1-1, C1-2, C1-3, C1-4, C1-5</span></div>
@@ -28,7 +28,7 @@
 
 <div class="abstract">
   <span class="abstract-label">Abstract</span>
-  <p>Serving a large language model is, today, an act of wholesale trust: the model owner hands weights to the serving operator, the user hands prompts to the same operator, and both must trust that the operator will not exfiltrate, leak, or repurpose either. Confidential computing on the NVIDIA H100 (Hopper) GPU — with its hardware-enforced confidential-computing mode and remote attestation — offers the structural alternative: serve inference inside a TEE whose confidentiality is guaranteed by the hardware, not the operator. We present the design and reference implementation of an <strong>end-to-end attested inference pipeline</strong> built on AumOS's C1 components, in which model weights are encrypted to a policy only an attested GPU can satisfy, prompts traverse the host only as ciphertext, and the attestation handshake gates model-key release. We measure the overhead of the full confidential path versus a non-confidential baseline on the H100, characterize where the overhead arises (PCIe encryption dominates, per prior work<sup><a href="#ref-perf">[4]</a></sup>), and document the operational properties that distinguish a defensible confidential-serving deployment from a superficial one. We position the pipeline as the reference implementation that makes "confidential AI" a verifiable property rather than a marketing claim.</p>
+  <p>Serving a large language model is, today, an act of wholesale trust: the model owner hands weights to the serving operator, the user hands prompts to the same operator, and both must trust that the operator will not exfiltrate, leak, or repurpose either. Confidential computing on the NVIDIA H100 (Hopper) GPU — with its hardware-enforced confidential-computing mode and remote attestation — offers the structural alternative: serve inference inside a TEE whose confidentiality is guaranteed by the hardware, not the operator. We present the design and reference implementation of an <strong>end-to-end attested inference pipeline</strong> built on Warrantor's C1 components, in which model weights are encrypted to a policy only an attested GPU can satisfy, prompts traverse the host only as ciphertext, and the attestation handshake gates model-key release. We measure the overhead of the full confidential path versus a non-confidential baseline on the H100, characterize where the overhead arises (PCIe encryption dominates, per prior work<sup><a href="#ref-perf">[4]</a></sup>), and document the operational properties that distinguish a defensible confidential-serving deployment from a superficial one. We position the pipeline as the reference implementation that makes "confidential AI" a verifiable property rather than a marketing claim.</p>
 </div>
 
 <div class="toc">
@@ -58,7 +58,7 @@
 <p>The foundational lineage is Graviton<sup><a href="#ref-graviton">[3]</a></sup> (OSDI 2018), which introduced GPU TEEs with remote attestation; Hopper CC is the production descendant. The performance characterization of Chrapek et al.<sup><a href="#ref-perf">[4]</a></sup> establishes that the dominant overhead in confidential LLM inference on H100 is the CPU–GPU encrypted transfer (PCIe encryption), not GPU compute — a finding our measurements reproduce and that shapes our tuning recommendations.</p>
 
 <h2 id="design"><span class="anchor">§</span>3. End-to-end attested pipeline design</h2>
-<p>The pipeline composes five AumOS C1 sub-components, each addressing a distinct trust boundary.</p>
+<p>The pipeline composes five Warrantor C1 sub-components, each addressing a distinct trust boundary.</p>
 <div class="diagram"><pre>
    Model Owner              Serving Operator                    User
    ────────────             ────────────────                    ────
@@ -105,7 +105,7 @@
 </div>
 
 <h2 id="impl"><span class="anchor">§</span>5. Reference implementation on H100</h2>
-<p>We implement the pipeline on an NVIDIA H100 cluster using the NVIDIA Attestation SDK (NRAS / LocalVerify) for report retrieval and verification, the Gramine LibOS to run an unmodified inference server inside a TEE without application changes (per the Chrapek et al. finding<sup><a href="#ref-perf">[4]</a></sup> that LibOS approaches avoid the application modifications FHE requires), and the AumOS C1 components as the orchestration and key-release layer. The implementation is the artifact a platform team deploys to make confidential inference operational.</p>
+<p>We implement the pipeline on an NVIDIA H100 cluster using the NVIDIA Attestation SDK (NRAS / LocalVerify) for report retrieval and verification, the Gramine LibOS to run an unmodified inference server inside a TEE without application changes (per the Chrapek et al. finding<sup><a href="#ref-perf">[4]</a></sup> that LibOS approaches avoid the application modifications FHE requires), and the Warrantor C1 components as the orchestration and key-release layer. The implementation is the artifact a platform team deploys to make confidential inference operational.</p>
 
 <h2 id="eval"><span class="anchor">§</span>6. Evaluation: overhead and the confidentiality boundary</h2>
 <p>We measure throughput and latency of the full confidential path versus a non-confidential baseline on a representative LLM inference workload, and we verify the confidentiality boundary by inspection (no plaintext weights or prompts on host disk; no plaintext on the PCIe bus outside the encrypted channel).</p>
@@ -146,7 +146,7 @@
 </div>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The pipeline is implemented in AumOS C1-1…C1-5; WP5 is the deployment guide. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Standalone research artifact. The pipeline is implemented in Warrantor C1-1…C1-5; WP5 is the deployment guide. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-04-delegation-intersection-semantics.html">Paper 4</a></span>
     <span class="small"><a href="paper-06-dp-federated-training-tee.html">Paper 6: DP Federated Training →</a></span>

@@ -65,7 +65,7 @@ def test_entry_schema() -> None:
     data = grl.load_data()
     required = {"id", "title", "author", "url", "why", "tags", "maps", "tier"}
     tiers = {"canonical", "deep-secondary", "adjacent-substitute"}
-    # Titles must not invent "AumOS composite" publication names over real URLs
+    # Titles must not invent "Warrantor composite" publication names over real URLs
     banned_title_prefixes = (
         "authority envelopes for agents",
         "verifiable action receipts",
@@ -183,7 +183,7 @@ def test_sample_entries_have_fields() -> None:
 def fetch_url(url: str, timeout: float = 25.0) -> tuple[int, str]:
     req = urllib.request.Request(
         url,
-        headers={"User-Agent": "AumOS-reading-list-verifier/1.0"},
+        headers={"User-Agent": "Warrantor-reading-list-verifier/1.0"},
         method="GET",
     )
     try:

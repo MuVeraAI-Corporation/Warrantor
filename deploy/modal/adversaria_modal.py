@@ -1,4 +1,4 @@
-"""Modal deployment for AumOS adversaria attacks against a vLLM-served model.
+"""Modal deployment for Warrantor adversaria attacks against a vLLM-served model.
 
 Deploys a Modal function that runs the five built-in adversaria attack
 generators (``PromptInjection``, ``Jailbreak``, ``EncodingAttack``,
@@ -6,7 +6,7 @@ generators (``PromptInjection``, ``Jailbreak``, ``EncodingAttack``,
 on Modal via vLLM, and reports per-attack-type success rates.
 
 The adversaria package is installed into the container image from the local
-source tree, so the deployed function runs the *real* AumOS attack suite — not
+source tree, so the deployed function runs the *real* Warrantor attack suite — not
 a mock. The model is wrapped in a small ``Target`` adapter (implementing
 adversaria's ``Target.respond(prompt) -> str`` protocol) that drives the
 in-process ``vllm.LLM`` engine, so attacks exercise the real model rather than

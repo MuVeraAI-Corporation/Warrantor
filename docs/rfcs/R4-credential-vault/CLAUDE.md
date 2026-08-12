@@ -17,11 +17,11 @@ Read it first.
 
 ## Component-specific context
 
-Agent-scoped credential brokering. 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates HashiCorp Vault, AWS Secrets Manager, K8s Secrets via trait CredentialBackend. Revokes all tokens <1s on kill-switch trigger. AumOS moved from Go to Rust.
+Agent-scoped credential brokering. 15-min TTL scoped tokens bound to SPIFFE identity + task + IP. Integrates HashiCorp Vault, AWS Secrets Manager, K8s Secrets via trait CredentialBackend. Revokes all tokens <1s on kill-switch trigger. Warrantor moved from Go to Rust.
 
 ## Dependencies
 
-- **AumOS internal:** R3 (mock)
+- **Warrantor internal:** R3 (mock)
 - **External:** enumerated during MVP (task 02); record in the RFC.
 
 ## Build entrypoint

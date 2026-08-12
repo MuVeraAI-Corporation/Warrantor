@@ -1,7 +1,7 @@
 [project]
 name = "warrantor-langchain"
 version = "1.0.0"
-description = "AumOS LangChain/LangGraph harness adapter — record AARs, scan secrets, enforce AAE"
+description = "Warrantor LangChain/LangGraph harness adapter — record AARs, scan secrets, enforce AAE"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]

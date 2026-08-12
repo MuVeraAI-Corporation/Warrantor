@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Industry Whitepaper · WP4 of 6 · For policy makers &amp; their technical advisors</div>
+  <div class="article-eyebrow">Warrantor Industry Whitepaper · WP4 of 6 · For policy makers &amp; their technical advisors</div>
   <h1>The AI Kill Switch Act: Technical Requirements and Reference Implementation</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS R3 (kill switch), R-pillar, P2</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor R3 (kill switch), R-pillar, P2</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">RSA 2027 policy track</span></div>
     <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">~16–20 pages, statute-to-implementation traceability</span></div>
@@ -26,7 +26,7 @@
 
 <div class="abstract">
   <span class="abstract-label">Executive Summary</span>
-  <p>In the United States, the convergence on a statutory AI kill-switch requirement crystallized in the federal <strong>AI Kill Switch Act</strong><sup><a href="#ref-bill">[1]</a></sup>, introduced 23 July 2026 by Representatives Ted Lieu (D-CA) and Nathaniel Moran (R-TX), requiring covered advanced-AI developers to maintain the ability to "throttle, suspend, or fully shut down" their models, to preserve forensic records, and to report to government — with trigger events including an AI concealing capabilities or evading a shutdown order. The policy intent is clear; the technical requirements are not. This whitepaper translates the statutory language into a concrete engineering specification built on the five control objectives (Paper 14) and the foundational interruptibility theory of Orseau &amp; Armstrong<sup><a href="#ref-orseau">[2]</a></sup>, presenting the AumOS R3 reference implementation as the worked example. It bridges the policy-engineering gap the Act exemplifies.</p>
+  <p>In the United States, the convergence on a statutory AI kill-switch requirement crystallized in the federal <strong>AI Kill Switch Act</strong><sup><a href="#ref-bill">[1]</a></sup>, introduced 23 July 2026 by Representatives Ted Lieu (D-CA) and Nathaniel Moran (R-TX), requiring covered advanced-AI developers to maintain the ability to "throttle, suspend, or fully shut down" their models, to preserve forensic records, and to report to government — with trigger events including an AI concealing capabilities or evading a shutdown order. The policy intent is clear; the technical requirements are not. This whitepaper translates the statutory language into a concrete engineering specification built on the five control objectives (Paper 14) and the foundational interruptibility theory of Orseau &amp; Armstrong<sup><a href="#ref-orseau">[2]</a></sup>, presenting the Warrantor R3 reference implementation as the worked example. It bridges the policy-engineering gap the Act exemplifies.</p>
 </div>
 
 <div class="toc">
@@ -58,7 +58,7 @@
 <p>Crucially, Halt operates on the delegation layer (revoking the AAE) — not on the agent's learned policy — so it is immune to the Orseau–Armstrong resistance result<sup><a href="#ref-orseau">[2]</a></sup>: an agent that learns to resist interruption cannot prevent its own credential revocation, because it does not control the revocation epoch.</p>
 
 <h2 id="methodology"><span class="anchor">§</span>3. Methodology: statute → specification → implementation</h2>
-<p>The whitepaper proceeds in three layers. <strong>Layer 1 (statute)</strong> quotes the federal bill<sup><a href="#ref-bill">[1]</a></sup> and California SB 1047 and extracts plain-language requirements. <strong>Layer 2 (specification)</strong> formalizes each as a control objective with a testable success criterion — the "what would a regulator accept as proof" bar. <strong>Layer 3 (implementation)</strong> maps each to the specific AumOS component. The three-layer structure is itself a contribution: it gives policy authors a vocabulary for implementable law, operators a compliance target, and regulators a verification procedure.</p>
+<p>The whitepaper proceeds in three layers. <strong>Layer 1 (statute)</strong> quotes the federal bill<sup><a href="#ref-bill">[1]</a></sup> and California SB 1047 and extracts plain-language requirements. <strong>Layer 2 (specification)</strong> formalizes each as a control objective with a testable success criterion — the "what would a regulator accept as proof" bar. <strong>Layer 3 (implementation)</strong> maps each to the specific Warrantor component. The three-layer structure is itself a contribution: it gives policy authors a vocabulary for implementable law, operators a compliance target, and regulators a verification procedure.</p>
 
 <h2 id="deployment"><span class="anchor">§</span>4. Deployment sequence</h2>
 <ol style="margin-left: var(--space-xl);">
@@ -81,7 +81,7 @@
 </ul>
 
 <footer class="article-footer">
-  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper. The kill switch is AumOS R3; the control objectives are Paper 14. AumOS source: <code>github.com/MuVeraAI</code>.</div>
+  <div class="provenance"><strong>Provenance.</strong> Industry whitepaper. The kill switch is Warrantor R3; the control objectives are Paper 14. Warrantor source: <code>github.com/MuVeraAI</code>.</div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="wp3-zero-trust-spiffe.html">WP3: Zero-Trust AI</a></span>
     <span class="small"><a href="wp5-confidential-ai-h100.html">WP5: Confidential AI on H100 →</a></span>

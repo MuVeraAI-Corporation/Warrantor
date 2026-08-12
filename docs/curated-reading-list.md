@@ -1,4 +1,4 @@
-# AumOS Curated Reading List — Highest-Quality Blogs, Specs & Deep Technical Articles
+# Warrantor Curated Reading List — Highest-Quality Blogs, Specs & Deep Technical Articles
 
 > Generated 2026-08-09 · v1.0.0
 
@@ -94,7 +94,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Date/recency:** ongoing
 - **Maps to:** `I1`, `I2`, `P1`, `P12`, `R4`
 - **Tags:** SPIFFE, SPIRE, zero-trust, workload-identity
-- **Why it matters:** Canonical primary standard for workload identity; AumOS I1/I2 profile SPIFFE IDs and SVIDs rather than inventing agent identity.
+- **Why it matters:** Canonical primary standard for workload identity; Warrantor I1/I2 profile SPIFFE IDs and SVIDs rather than inventing agent identity.
 
 ### SPIRE Concepts — Attestation, Agents, and Trust Domains
 
@@ -224,7 +224,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Date/recency:** ongoing
 - **Maps to:** `R5`, `R6`, `P1`, `P7`
 - **Tags:** Cedar, policy-as-code
-- **Why it matters:** Primary Cedar language home; AumOS compiles authority to Cedar/OPA/OpenShell equivalence.
+- **Why it matters:** Primary Cedar language home; Warrantor compiles authority to Cedar/OPA/OpenShell equivalence.
 
 ### Open Policy Agent Documentation
 
@@ -444,7 +444,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Date/recency:** ongoing
 - **Maps to:** `X9`, `P9`, `E1`
 - **Tags:** OCSF, schema, SIEM
-- **Why it matters:** Primary security event schema; AumOS profiles agent incidents as OCSF extensions rather than forking formats.
+- **Why it matters:** Primary security event schema; Warrantor profiles agent incidents as OCSF extensions rather than forking formats.
 
 ### Announcing Microsoft’s Open Automation Framework to Red Team Generative AI Systems (PyRIT)
 
@@ -806,7 +806,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Date/recency:** 2020
 - **Maps to:** `P1`, `P2`, `P3`, `P4`, `P7`, `P8`, `P10`, `P12`, `T2`
 - **Tags:** CBOR, encoding, RFC
-- **Why it matters:** Binary encoding used by AumOS protocol CDDL schemas (P1–P12 machine-checkable forms).
+- **Why it matters:** Binary encoding used by Warrantor protocol CDDL schemas (P1–P12 machine-checkable forms).
 
 ### RFC 8610 — Concise Data Definition Language (CDDL)
 
@@ -816,7 +816,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Date/recency:** 2019
 - **Maps to:** `T2`, `P1`, `P2`, `P3`, `P4`, `P5`, `P7`, `P8`, `P10`, `P11`, `P12`, `A6`
 - **Tags:** CDDL, schema, RFC
-- **Why it matters:** Schema language for AumOS protocol CDDL files under specs/protocols/.
+- **Why it matters:** Schema language for Warrantor protocol CDDL files under specs/protocols/.
 
 ### RFC 9052 — CBOR Object Signing and Encryption (COSE)
 
@@ -918,9 +918,9 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Date/recency:** 2023–2026
 - **Maps to:** `T2`, `P1`, `P7`, `I1`
 - **Tags:** AAE, authority, RAR, SPIFFE
-- **Why it matters:** Real RAR specification. AumOS T2 authority-spec / P1 AAE compose RAR authorization_details with SPIFFE principals and Cedar multi-agent least privilege (see also cedar-agentic-aws + SPIFFE entries).
+- **Why it matters:** Real RAR specification. Warrantor T2 authority-spec / P1 AAE compose RAR authorization_details with SPIFFE principals and Cedar multi-agent least privilege (see also cedar-agentic-aws + SPIFFE entries).
 
-- **Note:** AumOS composition (AAE envelope) is not this RFC alone — multi-source: RAR + SPIFFE + Cedar.
+- **Note:** Warrantor composition (AAE envelope) is not this RFC alone — multi-source: RAR + SPIFFE + Cedar.
 
 ### AI Agent Observability — Evolving Standards and Best Practices
 
@@ -932,7 +932,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Tags:** AAR, receipts, evidence
 - **Why it matters:** Real OTel GenAI agent observability writeup. P2 AAR / E1 flight-recorder compose signed action receipts from GenAI span semantics + transparency-log thinking (RFC 6962) + COSE (RFC 9052).
 
-- **Note:** AumOS AAR packaging is multi-source: OTel GenAI + Certificate Transparency log design + COSE signing.
+- **Note:** Warrantor AAR packaging is multi-source: OTel GenAI + Certificate Transparency log design + COSE signing.
 
 ### PROV-Overview: An Overview of the PROV Family of Documents
 
@@ -944,7 +944,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Tags:** AMIL, memory, integrity
 - **Why it matters:** Real W3C PROV overview. P4 AMIL models agent memory integrity as provenance graphs with hash-chained integrity (PROV + Merkle CT patterns).
 
-- **Note:** AumOS AMIL has no single public twin; compose PROV + Merkle transparency designs.
+- **Note:** Warrantor AMIL has no single public twin; compose PROV + Merkle transparency designs.
 
 ### HELM — Holistic Evaluation of Language Models
 
@@ -956,7 +956,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Tags:** VEB, evaluation, bundles
 - **Why it matters:** Real HELM evaluation framework. P8 VEB packages signed evaluation artifacts using HELM/Inspect-style content standards bound with COSE/Sigstore.
 
-- **Note:** AumOS VEB is a packaging/signing layer over HELM/Inspect/evals content — not a HELM feature.
+- **Note:** Warrantor VEB is a packaging/signing layer over HELM/Inspect/evals content — not a HELM feature.
 
 ### SPIRE Concepts — Attestation, Agents, and Trust Domains
 
@@ -968,7 +968,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Tags:** CAP, attestation, capabilities
 - **Why it matters:** Real SPIRE concepts page. P12 CAP binds runtime capabilities to attested environments (SPIFFE selectors + sandbox + GPU CC quotes).
 
-- **Note:** AumOS CAP profile also draws Wasmtime capability models and NVIDIA CC attestation (separate entries).
+- **Note:** Warrantor CAP profile also draws Wasmtime capability models and NVIDIA CC attestation (separate entries).
 
 ### OpenID Shared Signals Framework Working Group
 
@@ -980,7 +980,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Tags:** kill-switch, revocation, CAEP
 - **Why it matters:** Real OpenID Shared Signals / CAEP home. R3 KillSwitchKit maps continuous access evaluation and emergency revoke events to this signal plane.
 
-- **Note:** AumOS kill-switch policy/execution layer is additional; SSF provides the continuous-evaluation event model.
+- **Note:** Warrantor kill-switch policy/execution layer is additional; SSF provides the continuous-evaluation event model.
 
 ### RFC 8610 — Concise Data Definition Language (CDDL)
 
@@ -990,7 +990,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Date/recency:** ongoing
 - **Maps to:** `A6`, `T2`, `P1`, `P2`
 - **Tags:** conformance, CDDL, testing
-- **Why it matters:** Real CDDL specification used by AumOS protocol schemas. A6 conformance suites pair CDDL schemas with multi-implementation adversarial vectors.
+- **Why it matters:** Real CDDL specification used by Warrantor protocol schemas. A6 conformance suites pair CDDL schemas with multi-implementation adversarial vectors.
 
 - **Note:** Conformance culture also follows SPIFFE multi-impl discipline; CDDL is the schema primary.
 
@@ -1040,7 +1040,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Tags:** harness, OSAF, agents
 - **Why it matters:** Real MCP specification. X3 OpenHarnessSpec aims at vendor-neutral harness contracts; closest live tool/harness wire standard is MCP, with Inspect/evals as eval harness counterparts.
 
-- **Note:** AumOS OpenHarnessSpec is OSAF-proposed; not identical to MCP — multi-source with Inspect + NOOA.
+- **Note:** Warrantor OpenHarnessSpec is OSAF-proposed; not identical to MCP — multi-source with Inspect + NOOA.
 
 ### CycloneDX Bill of Materials Standard (ECMA-424)
 
@@ -1052,7 +1052,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Tags:** remediation, VEX, PRB
 - **Why it matters:** Real CycloneDX standard (incl. VEX capabilities). P11 PRB packages signed remediation proofs using VEX-style status + in-toto steps + transparency logs.
 
-- **Note:** AumOS PRB composition also uses in-toto + Sigstore (separate entries).
+- **Note:** Warrantor PRB composition also uses in-toto + Sigstore (separate entries).
 
 ### Model Context Protocol Specification (latest)
 
@@ -1064,7 +1064,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Tags:** skills, MCP, SSP
 - **Why it matters:** Real MCP specification for tool schemas. P5 SSP wraps tools/skills as signed packages for X8 admission — MCP tool contracts + Cosign/JSON-LD manifests.
 
-- **Note:** AumOS Secure Skill Package signing/packaging is multi-source with Sigstore + JSON-LD.
+- **Note:** Warrantor Secure Skill Package signing/packaging is multi-source with Sigstore + JSON-LD.
 
 ### MITRE ATLAS — Adversarial Threat Landscape for AI Systems
 
@@ -1076,7 +1076,7 @@ Primary standards/RFCs first; vendor eng blogs; security/AI research depth; not 
 - **Tags:** incidents, ATLAS, OCSF
 - **Why it matters:** Real MITRE ATLAS knowledge base. X9/P9 normalize agent incidents using ATLAS techniques plus OCSF event classes.
 
-- **Note:** AumOS AIX incident exchange also requires OCSF schema entries.
+- **Note:** Warrantor AIX incident exchange also requires OCSF schema entries.
 
 ### Industry Leaders Join Open Secure AI Alliance for AI Safety (NOOA + OpenShell)
 

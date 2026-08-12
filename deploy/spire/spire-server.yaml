@@ -1,4 +1,4 @@
-# SPIRE Server — Kubernetes manifests for the AumOS trust domain (muveraai.com).
+# SPIRE Server — Kubernetes manifests for the Warrantor trust domain (muveraai.com).
 #
 # Deploys:
 #   - Namespace + service account
@@ -96,14 +96,14 @@ data:
       data_dir     = "/run/spire/data"
       log_level    = "INFO"
 
-      # SVID lifetimes — AumOS workloads rotate via the SPIFFE CSI driver.
+      # SVID lifetimes — Warrantor workloads rotate via the SPIFFE CSI driver.
       ca_ttl          = "24h"
       default_svid_ttl = "1h"
 
       # CA subject embedded in the leaf SVIDs (EU AI Act §68 chain-of-custody).
       ca_subject = {
         country      = ["US"]
-        organization = ["AumOS — Open Secure AI Alliance"]
+        organization = ["Warrantor — Open Secure AI Alliance"]
         common_name  = "muveraai.com SPIRE CA"
       }
 
@@ -249,7 +249,7 @@ spec:
             - name: metrics
               containerPort: 9988
           env:
-            # Consumed by AumOS workloads via the bundle endpoint discovery.
+            # Consumed by Warrantor workloads via the bundle endpoint discovery.
             - name: AUMOS_TRUST_DOMAIN
               value: "muveraai.com"
           readinessProbe:

@@ -1,6 +1,6 @@
-# rust/ — AumOS trusted core workspace
+# rust/ — Warrantor trusted core workspace
 
-The Rust workspace owns every security invariant in AumOS (per the polyglot stack pressure test:
+The Rust workspace owns every security invariant in Warrantor (per the polyglot stack pressure test:
 *"no security invariant may have two authoritative implementations"*). Wave-1 members:
 
 | Crate | Canonical ID | Purpose |

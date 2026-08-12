@@ -1,4 +1,4 @@
-"""AumOS policy-compiler (R5) — compile NL intent + enterprise rules into policy.
+"""Warrantor policy-compiler (R5) — compile NL intent + enterprise rules into policy.
 
 Compiles a small declarative rule DSL plus a natural-language intent string
 into three artifacts:

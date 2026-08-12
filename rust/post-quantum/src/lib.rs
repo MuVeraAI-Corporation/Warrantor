@@ -16,9 +16,7 @@
 #![forbid(unsafe_code)]
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -157,7 +155,7 @@ impl ArchivalMetadata {
     #[must_use]
     pub fn key_was_valid(&self, key_id: &str, at: u64) -> bool {
         self.key_history.iter().any(|k| {
-            k.key_id == key_id && k.valid_from <= at && k.valid_until.map_or(true, |u| at < u)
+            k.key_id == key_id && k.valid_from <= at && k.valid_until.is_none_or(|u| at < u)
         })
     }
 }
@@ -246,7 +244,11 @@ pub enum DuError {
 
 /// Assess whether a dual-signed payload + archival metadata will remain verifiable.
 #[must_use]
-pub fn assess_durability(payload: &DualSignedPayload, metadata: &ArchivalMetadata, continuity: Option<&ExitContinuityPlan>) -> DurabilityVerdict {
+pub fn assess_durability(
+    payload: &DualSignedPayload,
+    metadata: &ArchivalMetadata,
+    continuity: Option<&ExitContinuityPlan>,
+) -> DurabilityVerdict {
     // 1. Continuity check.
     if let Some(ec) = continuity {
         if !ec.is_sufficient() {
@@ -256,12 +258,14 @@ pub fn assess_durability(payload: &DualSignedPayload, metadata: &ArchivalMetadat
 
     // 2. PQ migration check: if the receipt must verify past ~2035 and has no PQ signature.
     if !payload.is_dual_signed() && metadata.must_verify_until > 2036 {
-        return DurabilityVerdict::NeedsPqMigration { deadline_year: 2035 };
+        return DurabilityVerdict::NeedsPqMigration {
+            deadline_year: 2035,
+        };
     }
 
     // 3. Re-anchoring check: if the last re-anchoring was >10 years ago and must_verify_until is far.
-    let needs_reanchor = metadata.must_verify_until > 2040
-        && metadata.reanchoring_history.is_empty();
+    let needs_reanchor =
+        metadata.must_verify_until > 2040 && metadata.reanchoring_history.is_empty();
     if needs_reanchor {
         return DurabilityVerdict::NeedsReanchoring;
     }
@@ -276,7 +280,11 @@ pub fn assess_durability(payload: &DualSignedPayload, metadata: &ArchivalMetadat
 /// Create a dual-signed payload with Ed25519 now + a PQ slot ready for ML-DSA.
 /// The PQ slot is None until PQ key generation is wired (the migration window).
 #[must_use]
-pub fn dual_sign(payload: &serde_json::Value, signing_key: &SigningKey, key_id: &str) -> DualSignedPayload {
+pub fn dual_sign(
+    payload: &serde_json::Value,
+    signing_key: &SigningKey,
+    key_id: &str,
+) -> DualSignedPayload {
     let canonical = canonical_json(payload);
     let sig: Signature = signing_key.sign(canonical.as_bytes());
     let verifying = signing_key.verifying_key();
@@ -301,8 +309,8 @@ pub fn verify_classical(payload: &DualSignedPayload) -> Result<(), DuError> {
     }
     let mut pk_arr = [0u8; 32];
     pk_arr.copy_from_slice(&pk_bytes);
-    let vkey = VerifyingKey::from_bytes(&pk_arr)
-        .map_err(|e| DuError::Du(format!("public_key: {e}")))?;
+    let vkey =
+        VerifyingKey::from_bytes(&pk_arr).map_err(|e| DuError::Du(format!("public_key: {e}")))?;
     let sig_bytes = hex::decode(&payload.classical.signature_hex)
         .map_err(|e| DuError::Du(format!("signature hex: {e}")))?;
     if sig_bytes.len() != 64 {
@@ -312,8 +320,7 @@ pub fn verify_classical(payload: &DualSignedPayload) -> Result<(), DuError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_json(&payload.payload);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| DuError::Du("Ed25519 signature does not verify".into()))
 }
 
@@ -346,14 +353,20 @@ fn canonicalize_value(v: &serde_json::Value) -> serde_json::Value {
 
 #[must_use]
 pub fn generate_keypair() -> (SigningKey, VerifyingKey) {
-    let mut csprng = OsRng;
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing = SigningKey::generate(&mut csprng);
     let verifying = signing.verifying_key();
     (signing, verifying)
 }
 
 /// Add a key to the archival metadata's history.
-pub fn add_key_to_history(metadata: &mut ArchivalMetadata, key_id: &str, algorithm: SignatureAlgorithm, public_key_hex: &str, valid_from: u64) {
+pub fn add_key_to_history(
+    metadata: &mut ArchivalMetadata,
+    key_id: &str,
+    algorithm: SignatureAlgorithm,
+    public_key_hex: &str,
+    valid_from: u64,
+) {
     metadata.key_history.push(KeyRotationEntry {
         key_id: key_id.to_string(),
         algorithm,
@@ -373,7 +386,7 @@ mod hex {
         s
     }
     pub fn decode(hex: &str) -> Result<Vec<u8>, String> {
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err("odd-length hex".into());
         }
         (0..hex.len())
@@ -474,8 +487,20 @@ mod tests {
     #[test]
     fn archival_metadata_key_history() {
         let mut meta = ArchivalMetadata::new(2026, 2056);
-        add_key_to_history(&mut meta, "key-2026", SignatureAlgorithm::Ed25519, "abcd", 2026);
-        add_key_to_history(&mut meta, "key-2035", SignatureAlgorithm::MlDsa, "ef01", 2035);
+        add_key_to_history(
+            &mut meta,
+            "key-2026",
+            SignatureAlgorithm::Ed25519,
+            "abcd",
+            2026,
+        );
+        add_key_to_history(
+            &mut meta,
+            "key-2035",
+            SignatureAlgorithm::MlDsa,
+            "ef01",
+            2035,
+        );
         assert!(meta.key_was_valid("key-2026", 2027));
         assert!(!meta.key_was_valid("key-2035", 2030)); // not yet valid
         assert!(meta.key_was_valid("key-2035", 2040));
@@ -523,7 +548,7 @@ mod tests {
         let (sk, _) = generate_keypair();
         let payload = serde_json::json!({"x": 1});
         let dual = dual_sign(&payload, &sk, "k");
-        let meta = ArchivalMetadata::new(2026, 2056);
+        let _meta = ArchivalMetadata::new(2026, 2056);
         // No re-anchoring history + must verify past 2040 → needs reanchoring.
         // But also needs PQ migration (checked first) → the PQ check fires.
         // To isolate: set must_verify_until to 2038 (past PQ deadline but past 2040 reanchor too).

@@ -8,7 +8,6 @@
 #![forbid(unsafe_code)]
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -35,7 +34,12 @@ pub enum PluginType {
 impl PluginType {
     #[must_use]
     pub fn all() -> [PluginType; 4] {
-        [PluginType::VerdictPlugin, PluginType::PolicyPlugin, PluginType::ReceiptProfile, PluginType::EnforcementBackend]
+        [
+            PluginType::VerdictPlugin,
+            PluginType::PolicyPlugin,
+            PluginType::ReceiptProfile,
+            PluginType::EnforcementBackend,
+        ]
     }
 
     #[must_use]
@@ -58,7 +62,7 @@ pub struct PluginManifest {
     pub plugin_id: String,
     pub plugin_type: PluginType,
     pub name: String,
-    pub version: String,        // Semver
+    pub version: String, // Semver
     pub author: String,
     pub description: String,
     /// The API version this plugin targets (compatibility contract).
@@ -118,17 +122,28 @@ pub struct PluginRegistry {
 impl PluginRegistry {
     #[must_use]
     pub fn new_curated() -> Self {
-        Self { plugins: HashMap::new(), trusted_author_keys: vec![], community_submissions: false }
+        Self {
+            plugins: HashMap::new(),
+            trusted_author_keys: vec![],
+            community_submissions: false,
+        }
     }
 
     /// Register a plugin. Validates: signature, API compatibility, I-11 (governance plugins
     /// cannot modify self-governance), and the registry's trust policy.
-    pub fn register(&mut self, plugin: SignedPlugin, host_api_version: &str) -> Result<(), PluginError> {
+    pub fn register(
+        &mut self,
+        plugin: SignedPlugin,
+        host_api_version: &str,
+    ) -> Result<(), PluginError> {
         // 1. API compatibility.
         if !plugin.manifest.is_compatible(host_api_version) {
             return Err(PluginError::PError(format!(
                 "plugin {} v{} targets API {} but host is {}",
-                plugin.manifest.plugin_id, plugin.manifest.version, plugin.manifest.api_version, host_api_version
+                plugin.manifest.plugin_id,
+                plugin.manifest.version,
+                plugin.manifest.api_version,
+                host_api_version
             )));
         }
 
@@ -141,7 +156,10 @@ impl PluginRegistry {
 
         // 3. Trust: if not community, the signing key must be in the trusted set.
         if !self.community_submissions {
-            let is_trusted = self.trusted_author_keys.iter().any(|k| k == &plugin.signature_public_key);
+            let is_trusted = self
+                .trusted_author_keys
+                .iter()
+                .any(|k| k == &plugin.signature_public_key);
             if !is_trusted {
                 return Err(PluginError::PError(format!(
                     "plugin {} signed by untrusted key in curated registry (not in trusted_author_keys)",
@@ -176,7 +194,9 @@ impl PluginRegistry {
 
     /// Remove a plugin (uninstall).
     pub fn remove(&mut self, plugin_id: &str, version: &str) -> Option<SignedPlugin> {
-        self.plugins.get_mut(plugin_id).and_then(|v| v.remove(version))
+        self.plugins
+            .get_mut(plugin_id)
+            .and_then(|v| v.remove(version))
     }
 }
 
@@ -251,8 +271,7 @@ pub fn verify_plugin(plugin: &SignedPlugin) -> Result<(), PluginError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_manifest(&plugin.manifest, &plugin.artifact_digest);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| PluginError::PError("Ed25519 signature does not verify".into()))
 }
 
@@ -262,7 +281,7 @@ pub fn verify_plugin(plugin: &SignedPlugin) -> Result<(), PluginError> {
 
 #[must_use]
 pub fn generate_keypair() -> (SigningKey, VerifyingKey) {
-    let mut csprng = OsRng;
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing = SigningKey::generate(&mut csprng);
     let verifying = signing.verifying_key();
     (signing, verifying)
@@ -293,7 +312,7 @@ mod hex {
         s
     }
     pub fn decode(hex: &str) -> Result<Vec<u8>, String> {
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err("odd-length hex".into());
         }
         (0..hex.len())
@@ -323,7 +342,12 @@ mod tests {
     #[test]
     fn sign_and_verify_plugin() {
         let (sk, _) = generate_keypair();
-        let p = signed("custom-verdict-gate", PluginType::VerdictPlugin, &sk, "author-1");
+        let p = signed(
+            "custom-verdict-gate",
+            PluginType::VerdictPlugin,
+            &sk,
+            "author-1",
+        );
         verify_plugin(&p).expect("plugin verifies");
     }
 
@@ -341,7 +365,12 @@ mod tests {
         let pub_hex = hex_pubkey(&sk);
         let mut reg = PluginRegistry::new_curated();
         reg.trusted_author_keys.push(pub_hex);
-        let p = signed("custom-receipt-profile", PluginType::ReceiptProfile, &sk, "author-1");
+        let p = signed(
+            "custom-receipt-profile",
+            PluginType::ReceiptProfile,
+            &sk,
+            "author-1",
+        );
         reg.register(p.clone(), API_VERSION).expect("registers");
         assert!(reg.find("custom-receipt-profile", "1.0.0").is_some());
     }
@@ -383,8 +412,14 @@ mod tests {
         let (sk, _) = generate_keypair();
         let mut reg = PluginRegistry::new_curated();
         reg.community_submissions = true;
-        let p = signed("community-plugin", PluginType::ReceiptProfile, &sk, "community-dev");
-        reg.register(p.clone(), API_VERSION).expect("community plugin registers");
+        let p = signed(
+            "community-plugin",
+            PluginType::ReceiptProfile,
+            &sk,
+            "community-dev",
+        );
+        reg.register(p.clone(), API_VERSION)
+            .expect("community plugin registers");
         assert!(reg.find("community-plugin", "1.0.0").is_some());
     }
 
@@ -394,9 +429,21 @@ mod tests {
         let pub_hex = hex_pubkey(&sk);
         let mut reg = PluginRegistry::new_curated();
         reg.trusted_author_keys.push(pub_hex);
-        reg.register(signed("vp-1", PluginType::VerdictPlugin, &sk, "a"), API_VERSION).unwrap();
-        reg.register(signed("pp-1", PluginType::PolicyPlugin, &sk, "a"), API_VERSION).unwrap();
-        reg.register(signed("vp-2", PluginType::VerdictPlugin, &sk, "a"), API_VERSION).unwrap();
+        reg.register(
+            signed("vp-1", PluginType::VerdictPlugin, &sk, "a"),
+            API_VERSION,
+        )
+        .unwrap();
+        reg.register(
+            signed("pp-1", PluginType::PolicyPlugin, &sk, "a"),
+            API_VERSION,
+        )
+        .unwrap();
+        reg.register(
+            signed("vp-2", PluginType::VerdictPlugin, &sk, "a"),
+            API_VERSION,
+        )
+        .unwrap();
         assert_eq!(reg.list_by_type(PluginType::VerdictPlugin).len(), 2);
         assert_eq!(reg.list_by_type(PluginType::PolicyPlugin).len(), 1);
     }
@@ -407,7 +454,11 @@ mod tests {
         let pub_hex = hex_pubkey(&sk);
         let mut reg = PluginRegistry::new_curated();
         reg.trusted_author_keys.push(pub_hex);
-        reg.register(signed("removable", PluginType::EnforcementBackend, &sk, "a"), API_VERSION).unwrap();
+        reg.register(
+            signed("removable", PluginType::EnforcementBackend, &sk, "a"),
+            API_VERSION,
+        )
+        .unwrap();
         assert!(reg.remove("removable", "1.0.0").is_some());
         assert!(reg.find("removable", "1.0.0").is_none());
     }

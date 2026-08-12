@@ -1,4 +1,4 @@
-"""AumOS incident-exchange (X9) — normalized agent incidents.
+"""Warrantor incident-exchange (X9) — normalized agent incidents.
 
 Six incident types, an OCSF extension mapping, a MITRE ATLAS technique
 mapping per incident type, and an :class:`IncidentRegistry` for dedup,

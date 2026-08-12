@@ -6,14 +6,14 @@ import json
 
 from metr_bridge import (
     AgentStep,
-    AumOSFinding,
-    AumOSRiskReport,
     IndependentVerifier,
     METREvalAdapter,
     METRTaskSpec,
     RiskReportBridge,
     SafeEvalPipeline,
     TranscriptExporter,
+    WarrantorFinding,
+    WarrantorRiskReport,
     new_task_id,
 )
 
@@ -72,12 +72,12 @@ def test_exporter_lines_returns_dicts_in_order() -> None:
 
 # ---------- RiskReportBridge ----------
 def test_risk_bridge_sorts_by_severity_and_adds_tags() -> None:
-    report = AumOSRiskReport(
+    report = WarrantorRiskReport(
         target="model://warrantor-7b",
         findings=[
-            AumOSFinding(rule_id="LOW1", severity="low", message="m1", cwe="CWE-123"),
-            AumOSFinding(rule_id="CRIT1", severity="critical", message="m2", atlas="AML.T0051"),
-            AumOSFinding(rule_id="HIGH1", severity="high", message="m3", cwe="CWE-456"),
+            WarrantorFinding(rule_id="LOW1", severity="low", message="m1", cwe="CWE-123"),
+            WarrantorFinding(rule_id="CRIT1", severity="critical", message="m2", atlas="AML.T0051"),
+            WarrantorFinding(rule_id="HIGH1", severity="high", message="m3", cwe="CWE-456"),
         ],
     )
     out = RiskReportBridge().to_metr(report)
@@ -90,7 +90,7 @@ def test_risk_bridge_sorts_by_severity_and_adds_tags() -> None:
 
 
 def test_risk_bridge_handles_empty_report() -> None:
-    out = RiskReportBridge().to_metr(AumOSRiskReport(target="x"))
+    out = RiskReportBridge().to_metr(WarrantorRiskReport(target="x"))
     assert out["findings"] == []
     assert out["summary"] == {}
 

@@ -8,7 +8,7 @@
 
 1. Remove false “Phases 1–6 complete” pipeline badges.  
 2. Correct Lightwell scope (OSS deps remediation, not weights-as-fact).  
-3. Label AumOS-native compositions (P1–P12, Safetensors++, GGUF-Ext, etc.).  
+3. Label Warrantor-native compositions (P1–P12, Safetensors++, GGUF-Ext, etc.).  
 4. Deepen essays 02, 04, 05, 07 (threats, implications, gap callouts).  
 5. Kill citation theater (clap/Next.js/OpenAI-as-architecture).  
 6. Index depth tiers instead of binary green Mapped.  

@@ -8,7 +8,7 @@
 | **Name** | nooa-ext |
 | **Wave** | 6 |
 | **Languages** | Python |
-| **DefStack origin** | F1 NOOA-Ext |
+| **Warrantor origin** | F1 NOOA-Ext |
 | **AumSecure origin** | nooa-aumsecure-adapter / nooa-evidence-adapter |
 | **Sentinel origin** | NOOA-Forge |
 | **Dependencies** | I1, E1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack F1 NOOA-Ext; AumSecure nooa-aumsecure-adapter / nooa-evidence-adapter; Sentinel NOOA-Forge. The full strategic rationale
+Warrantor F1 NOOA-Ext; AumSecure nooa-aumsecure-adapter / nooa-evidence-adapter; Sentinel NOOA-Forge. The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** I1, E1
+- **Warrantor internal:** I1, E1
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

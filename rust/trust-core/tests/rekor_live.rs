@@ -22,8 +22,8 @@
 //! A mock transport cannot catch any of them: every one produces a perfectly well-formed
 //! request that only a server rejects. That is the whole argument for this file.
 
+use ed25519_dalek::{Digest, Sha512};
 use ed25519_dalek::{Signature, SigningKey};
-use sha2::{Digest, Sha512};
 use warrantor_trust_core::rekor::RekorClient;
 
 #[test]

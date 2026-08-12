@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "R5 — compile NL intent + enterprise rules into OpenShell policy + OPA Rego + Cedar rules"
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 dependencies = []
 

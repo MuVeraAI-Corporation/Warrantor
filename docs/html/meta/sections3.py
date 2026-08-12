@@ -13,7 +13,7 @@ def sec_regulatory():
     return f"""
 <section id="regulatory">
 <div class="eyebrow">12 &middot; Regulatory</div>
-<h2>The evidence regulators actually demand &mdash; and how little of it AumOS can produce</h2>
+<h2>The evidence regulators actually demand &mdash; and how little of it Warrantor can produce</h2>
 {para("The compliance matrix in `docs/cross-cutting/13-compliance-frameworks.md` leads with the EU AI Act, DORA and "
       "NIS2, and contains **no entry** for US model-risk supervision, RBI, DPDP, CERT-In, SDAIA, NCA, CBUAE or DIFC. "
       "That is precisely inverted relative to the stated primary markets. What follows is what those regulators "
@@ -25,7 +25,7 @@ def sec_regulatory():
       "the same footnote continues: *“a banking organization's risk management and governance practices should guide "
       "the determination of appropriate governance and controls for any tools, processes, or systems not covered in "
       "this document.”* That is supervisors telling banks **you own this gap** — a much stronger pitch than the "
-      "exclusion sentence alone, and the half AumOS's positioning currently does not use. Note also a new **$30bn "
+      "exclusion sentence alone, and the half Warrantor's positioning currently does not use. Note also a new **$30bn "
       "materiality threshold** that did not exist under SR 11-7. [EXTERNAL]")}
 <h3>India &mdash; one obligation is already live, and the governance blueprint is public</h3>
 {bullets([
@@ -64,9 +64,9 @@ def sec_regulatory():
       "validation outcomes. **Saudi SDAIA** operates a mandatory National Register of Controllers issuing a "
       "five-year, QR-coded, publicly verifiable certificate, with 72-hour breach filing. **NCA ECC-2:2024** contains "
       "**no AI-specific subdomain** — verified against the document. [EXTERNAL]")}
-<h3>How AumOS's artifacts map</h3>
+<h3>How Warrantor's artifacts map</h3>
 <div class="tw"><table data-sortable>
-<thead><tr><th>Evidence demanded</th><th>AumOS artifact</th><th>Fit</th></tr></thead><tbody>
+<thead><tr><th>Evidence demanded</th><th>Warrantor artifact</th><th>Fit</th></tr></thead><tbody>
 <tr><td>Model inventory with risk tiering (RBI, CBUAE, OCC)</td><td>P6 AATM</td><td><strong>Partial</strong> &mdash; has the binding graph, lacks materiality, exposure and intended-use fields, which are the axes regulators tier on.</td></tr>
 <tr><td>Independent validation / effective challenge</td><td>P8 VEB, X6 metr-bridge</td><td><strong>Good shape, no implementation.</strong> P8 pins the judge; nothing encodes validator <em>independence</em> or organisational standing.</td></tr>
 <tr><td>Red-teaming and adversarial test records (RBI)</td><td>A2 adversaria, A7 red-team-cloud</td><td><strong>Weak</strong> &mdash; corpus not mapped to ATLAS v5.4.0 or OWASP ASI01&ndash;10; no published attack-success numbers.</td></tr>
@@ -144,7 +144,7 @@ five venues &mdash; IETF OAuth, IETF SCITT/COSE, IETF WIMSE, OIDF AuthZEN, W3C V
 any venue reads as a vendor framework rather than a standard. The Agentic AI Foundation governs MCP with AWS,
 Anthropic, Google, Microsoft, OpenAI and Cloudflare as platinum sponsors; CoSAI has already published agent IAM and AI
 incident response; CSA has published delegation with attenuation and revocation. <strong>The &ldquo;open authority
-layer&rdquo; chair is occupied by four organisations, and AumOS is in the room at none of them.</strong></li>
+layer&rdquo; chair is occupied by four organisations, and Warrantor is in the room at none of them.</strong></li>
 </ol></div>
 <div class="good"><div class="calltitle">Where the ground is genuinely open</div>
 {bullets([
@@ -194,7 +194,7 @@ def sec_competitive():
 {para("`sandbox-runtime` against Firecracker (36k stars) and gVisor (19k). `inference-proxy` against LiteLLM (56k, "
       "Stripe and Netflix in production). `policy-bridge` against OPA (CNCF graduated) and Cedar (formally verified, "
       "AWS-backed). `safe-tensors-pp` against OpenSSF Model Signing, which signs models **without modifying the "
-      "file** — directly contradicting AumOS's own stated non-goal of forking mature standards. `nvtrust-bridge` "
+      "file** — directly contradicting Warrantor's own stated non-goal of forking mature standards. `nvtrust-bridge` "
       "against NVIDIA's own Apache-2.0 verifier and a free Intel Trust Authority. `credential-vault` against "
       "HashiCorp Vault, which shipped a SPIFFE secrets engine. `kill-switch` against a ServiceNow product feature. "
       "**Roughly 35–40 of the 54 components are commodity, maintained by a single-digit team.** The strategic error is "
@@ -205,7 +205,7 @@ def sec_competitive():
       "(the logger is the logged), operational burden across 54 components, no third-party audit of the trusted core, "
       "no published red-team numbers, no reference customers, the confidential-compute latency cost (measured at "
       "17.7% token-throughput drop and 20–30% higher latency for H100 under TDX), project longevity, and *what do I "
-      "remove if I adopt this*. **AumOS has credible answers to about two of the twelve** — and the strongest "
+      "remove if I adopt this*. **Warrantor has credible answers to about two of the twelve** — and the strongest "
       "available answer to most of the rest is portability, which is real for perhaps a fifth of buyers and evaporates "
       "the moment the Agentic AI Foundation publishes a portable spec with hyperscaler signatures on it.")}
 <div class="good"><div class="calltitle">The honest strategic read</div>
@@ -329,7 +329,7 @@ def sec_blueprint():
         ("Concentrate on what is actually differentiated", "ongoing", "good", [
          "**Move P8 to the front.** Emit a DSSE/in-toto envelope over an Inspect `.eval` digest, pinning corpus, "
          "environment, model, harness, policy, seeds, traces and **judge**. Build on Inspect; do not compete with it. "
-         "This is the only place AumOS is ahead of the field, and NIST AI 800-2 has already described the artifact "
+         "This is the only place Warrantor is ahead of the field, and NIST AI 800-2 has already described the artifact "
          "without naming a candidate. &mdash; **L**",
          "**Reframe P12 as composite attestation policy** above NVIDIA NRAS and Intel Trust Authority — never at the "
          "primitives — and position it as the *signed counterpart to MCP's self-admittedly untrusted "
@@ -350,7 +350,7 @@ def sec_blueprint():
          "**Fix governance before the first tag.** Apply the licence model in files rather than prose (0 of 160 source "
          "files carry SPDX; `LICENSE` is pure Apache-2.0 while four components are announced as BSL). Apache-2.0 is "
          "irrevocable once released, so this decision has a deadline. Enforce DCO (0 of 27 commits comply), add "
-         "`CODEOWNERS`, name humans, and rebrand the governance document from *DefStack* to AumOS. "
+         "`CODEOWNERS`, name humans, and rebrand the governance document from *Warrantor* to Warrantor. "
          "(AX-41) &mdash; **M**",
          "**Decide what &ldquo;cannot bypass&rdquo; actually means, and rewrite the claim to match.** Today enforcement "
          "is a library an agent can decline to call (AX-15). There are only three places it can genuinely live: a "
@@ -523,8 +523,8 @@ def build():
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AumOS &mdash; Implementation &amp; Protocol Critical Analysis</title>
-<meta name="description" content="Executed, source-level critical analysis of all 54 AumOS components and 12 protocols for developer and enterprise adoption in native and agentic AI environments, with an exhaustive gap and remediation register.">
+<title>Warrantor &mdash; Implementation &amp; Protocol Critical Analysis</title>
+<meta name="description" content="Executed, source-level critical analysis of all 54 Warrantor components and 12 protocols for developer and enterprise adoption in native and agentic AI environments, with an exhaustive gap and remediation register.">
 <style>{CSS}</style>
 </head>
 <body>
@@ -535,14 +535,14 @@ def build():
 </div>
 <div class="shell">
 <aside class="side">
-  <div class="brand">AumOS &mdash; Critical Analysis</div>
+  <div class="brand">Warrantor &mdash; Critical Analysis</div>
   <div class="brandsub">Implementation &amp; protocols &middot; {AUDIT_DATE}</div>
   <nav>{nav_html}</nav>
 </aside>
 <main class="main">
 <div class="hero">
   <div class="eyebrow">Internal &middot; brutally honest &middot; supersedes prior audits</div>
-  <h1>AumOS: implementation and protocol critical analysis</h1>
+  <h1>Warrantor: implementation and protocol critical analysis</h1>
   <p class="lede">An executed, source-level examination of all 54 components and 12 protocols &mdash; assessed for
   whether developers and enterprises can actually use them in native and agentic AI environments &mdash; with an
   exhaustive register of gaps, limitations, challenges and pending work, and the remediation plan that closes them.</p>

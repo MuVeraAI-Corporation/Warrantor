@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "W1 Notary — third-party Verify path for WAR receipts. The verdict function is implemented once in Rust (spec 11 §1); this package verifies the receipts the Rust notary issues, with no privileged access."
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 dependencies = ["cryptography>=42"]
 

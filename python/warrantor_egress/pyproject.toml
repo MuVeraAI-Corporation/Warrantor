@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "W5 Egress broker — Python verify path for egress decision receipts. The decision engine is Rust-only; this package verifies receipts with no privileged access."
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 dependencies = ["cryptography>=42"]
 

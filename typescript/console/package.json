@@ -1,7 +1,7 @@
 {
   "name": "@warrantor/console",
   "version": "1.0.0",
-  "description": "X7 \u2014 AumOS enterprise policy/evidence console",
+  "description": "X7 \u2014 Warrantor enterprise policy/evidence console",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

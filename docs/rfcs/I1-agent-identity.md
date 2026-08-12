@@ -10,7 +10,7 @@
 | **Name** | agent-identity |
 | **Wave** | 2 (M3–M6) — Wave-1 uses the **mock** defined in `proto/warrantor/identity/v1/agent.proto` |
 | **Languages** | **Go** (gated — clears activation trigger #3: SPIRE registration lifecycle) + Rust verify calls |
-| **DefStack origin** | F2 AgentVault |
+| **Warrantor origin** | F2 AgentVault |
 | **AumSecure origin** | "Agent Identity & Authority Fabric" (V2 #2) |
 | **Sentinel origin** | ZTAI |
 | **Dependencies** | T1 trust-core (signs/verifies SVIDs) |
@@ -18,7 +18,7 @@
 
 ## Background
 
-All four source portfolios converge on the same component: DefStack's `AgentVault` (Go, wraps
+All four source portfolios converge on the same component: Warrantor's `AgentVault` (Go, wraps
 SPIFFE/SPIRE), AumSecure's "Agent Identity & Authority Fabric," and Sentinel's `ZTAI`. All extend
 SPIFFE/SPIRE with agent-specific claims (publisher, model, version, rules-of-engagement, parent) and
 issue short-lived (5–60s) scoped capability tokens. This is the keystone — every dependent component
@@ -109,7 +109,7 @@ lifecycle management, and trigger #1: production K8s operator required for the i
 
 - **External:** `spire-api-sdk` (Go), OPA/Rego, gRPC-Go, Kafka client (for revocation fan-out
   events).
-- **AumOS:** T1 trust-core (signs SVIDs and capability tokens).
+- **Warrantor:** T1 trust-core (signs SVIDs and capability tokens).
 
 ## Threat Model (STRIDE — security-critical, full)
 

@@ -1,7 +1,7 @@
 # 00 — Reconciliation Matrix
 
 > **The single source of truth.** Every component, protocol, and framework named across the four
-> source portfolios is mapped here to **one canonical AumOS component**. Every RFC, scaffolding
+> source portfolios is mapped here to **one canonical Warrantor component**. Every RFC, scaffolding
 > directory, and cross-reference in this repo defers to this table.
 >
 > **Methodology:** balanced merge — collapse names where the four source documents describe the same
@@ -10,14 +10,14 @@
 
 ## How to read this table
 
-- **Canonical ID** — the AumOS identifier (stable, used in RFC filenames and code paths). Prefix
+- **Canonical ID** — the Warrantor identifier (stable, used in RFC filenames and code paths). Prefix
   groups: `T` = trust core · `I` = identity & authority · `R` = runtime & enforcement · `C` = context
   & memory · `A` = assurance/eval · `S` = supply chain · `E` = evidence · `N` = inference · `F` =
   federated/edge · `G` = governance/response · `P` = protocol (spec-only) · `X` = cross-cutting/CLI.
-- **DefStack** — component ID(s) from the 36-component plan (e.g. `C2.2`, `F2`).
+- **Warrantor** — component ID(s) from the 36-component plan (e.g. `C2.2`, `F2`).
 - **AumSecure** — component name from the V2/V3 portfolios (or `—` if no mapping).
 - **Sentinel** — framework from PROJECT SENTINEL (or `—`).
-- **Languages** — *AumOS decision* (stack-test doctrine applied to DefStack's per-component
+- **Languages** — *Warrantor decision* (stack-test doctrine applied to Warrantor's per-component
   assignments). `Rust`/`Python`/`TypeScript`/`Go`. Go entries are flagged **(gated)** when they only
   clear the Go activation gate at a later wave.
 - **Wave** — which delivery wave ships real code (Wave 1 = 90-day sprint). `docs` = spec/RFC only
@@ -28,26 +28,26 @@
 
 ## 1. Trust Core, Identity & Authority (pillars: T / I / R)
 
-| Canonical ID | Canonical Name | DefStack | AumSecure | Sentinel | Languages | Wave | Notes |
+| Canonical ID | Canonical Name | Warrantor | AumSecure | Sentinel | Languages | Wave | Notes |
 |---|---|---|---|---|---|---|---|
 | **T1** | `trust-core` | C2.2 ModelNotary + C4.4(signing half) | `agent-evidence` (V3 repo #2) + AATM signing | atlas-sign + sentinel-artifact | **Rust** | **1** | Merge: ModelNotary + agent-evidence verifier + atlas-sign + sentinel-artifact = **one** Rust trusted-core crate. "No security invariant may have two authoritative implementations." See RFC T-CORE-1. |
 | **T2** | `authority-spec` | — | `agent-authority-spec` (V3 repo #1) | — | Spec (JSON-Schema/CBOR/CDDL) + **Rust** ref | docs → 2 | The normative spec for the Agent Authority Envelope (AAE). Spans all languages. |
-| **I1** | `agent-identity` | F2 AgentVault | "Agent Identity & Authority Fabric" (V2 #2) | ZTAI | **Go (gated → Wave 2)** | 2 (Wave-1 uses mock) | The keystone: 12 components depend on it. DefStack wraps SPIFFE/SPIRE; V2/Sentinel do the same. Go activated here because real K8s-operator identity lifecycle is the Go activation gate trigger #3. |
+| **I1** | `agent-identity` | F2 AgentVault | "Agent Identity & Authority Fabric" (V2 #2) | ZTAI | **Go (gated → Wave 2)** | 2 (Wave-1 uses mock) | The keystone: 12 components depend on it. Warrantor wraps SPIFFE/SPIRE; V2/Sentinel do the same. Go activated here because real K8s-operator identity lifecycle is the Go activation gate trigger #3. |
 | **I2** | `identity-bindings` | (folded into F2) | `spiffe-agent-identity` (V2 W0 adapter) | ztai-spiffe-bridge | **Rust** + Go adapter | docs → 2 | The SPIFFE/SPIRE binding layer; trusted-core signs, Go registers. |
 | **R1** | `secure-workspace` | (none direct) | "Secure Agent Workspace" (V2 #1) | (uses OpenShell) | **Rust** + eBPF | docs → 1 | The OpenShell-based isolated agent runtime. EvalGuard (C7.1) is the attestation arm of this. |
-| **R2** | `eval-guard` | C7.1 EvalGuard | (folded into "Secure Agent Workspace") | — | **Rust** + eBPF (aya) | **1** | Sandbox boundary attestation. DefStack said Go; **AumOS moves to Rust** per stack-test trusted-core doctrine. |
+| **R2** | `eval-guard` | C7.1 EvalGuard | (folded into "Secure Agent Workspace") | — | **Rust** + eBPF (aya) | **1** | Sandbox boundary attestation. Warrantor said Go; **Warrantor moves to Rust** per stack-test trusted-core doctrine. |
 | **R3** | `kill-switch` | C7.2 KillSwitchKit | (none — V2 has no direct equiv) | (none direct) | **Rust core** + Python policy | **1** | Execution layer = trusted core; OPA Rego policy via Rust bindings. AI Kill Switch Act reference impl. |
 | **R4** | `credential-vault` | C7.4 CredentialVault | (none direct) | — | **Rust** | **1** | Agent-scoped credential brokering = trusted core. Multi-language Vault SDKs. |
 | **R5** | `policy-compiler` | (none direct) | "Agent Policy Compiler" (V2 #8) | — | **Rust core** + TS UI | docs → 6 | Compiles NL/regulatory intent → OpenShell policy + OPA/Cedar rules. |
 | **R6** | `policy-bridge` | (none direct) | `agent-policy-bridge` (V3 repo #4) | — | Rust ref + multi-engine adapters | docs → 2 | Fail-closed reference adapters; OPA/Cedar/OpenShell decision-equivalence tests. |
-| **R7** | `egress-filter` | (none direct) | (none direct) | (none direct) | **Rust** eBPF | docs → 6 | eBPF egress enforcement (DefStack's ExfilGuard overlaps — see S6). |
+| **R7** | `egress-filter` | (none direct) | (none direct) | (none direct) | **Rust** eBPF | docs → 6 | eBPF egress enforcement (Warrantor's ExfilGuard overlaps — see S6). |
 | **R8** | `sandbox-runtime` | (none direct) | "Secure Agent Workspace" runtime | OpenShell adapter | **Rust** + WASM (Wasmtime) | docs → 4 | The actual sandbox (FORGE sandbox + OpenShell). Capability-scoped. |
 
 ---
 
 ## 2. Confidential Compute & GPU Attestation (pillar: C1)
 
-| Canonical ID | Canonical Name | DefStack | AumSecure | Sentinel | Languages | Wave | Notes |
+| Canonical ID | Canonical Name | Warrantor | AumSecure | Sentinel | Languages | Wave | Notes |
 |---|---|---|---|---|---|---|---|
 | **C1-1** | `nvtrust-bridge` | C1.4 NVTrustBridge | (none direct) | — | **Rust core** + Python + Go bindings | **1** | NVTrust FFI bindings + `nvtrust-verify` CLI. Offline/mock mode for CI. |
 | **C1-2** | `cuda-gram` | C1.1 CudaGram | (none direct) | — | **Python** (PyO3 → C1-1) | **1** | High-level GPU attestation SDK. Moves from ctypes to safe Rust bindings. |
@@ -59,14 +59,14 @@
 
 ## 3. Safe Model Formats & Supply Chain (pillars: C2 / S)
 
-| Canonical ID | Canonical Name | DefStack | AumSecure | Sentinel | Languages | Wave | Notes |
+| Canonical ID | Canonical Name | Warrantor | AumSecure | Sentinel | Languages | Wave | Notes |
 |---|---|---|---|---|---|---|---|
 | **S1** | `safe-tensors-pp` | C2.1 SafeTensors++ | (extends Safetensors) | ATLAS format | Python + **Rust** core | 2 | Drop-in Safetensors ext with `__provenance__`. ATLAS's sidecar `.atlas` is the same idea in Sentinel. |
 | **S2** | `provena-chain` | C2.3 ProvenaChain | (none direct) | ATLAS ledger | **Rust** (Merkle) + Python API | 3 | Tamper-evident provenance ledger; Merkle root → Sigstore Rekor. |
 | **S3** | `gguf-ext` | C2.4 GGUF-Ext | (none direct) | — | **Rust** | docs → 3 | `osaf.safety` metadata block in GGUF for llama.cpp/Ollama/LM Studio. |
 | **S4** | `model-sbom` | C4.1 ModelSBOM | `agent-bom-tools` (V3 ext #6) + AI Artifact Trust Hub (V2 #7) | (Sentinel FORGE-SBOM overlaps) | **Python** CLI | 2 | CycloneDX/SPDX with AI extensions. Merge with AATM/agent-BOM. |
 | **S5** | `data-provenance-kit` | C4.2 DataProvenanceKit | (none direct) | (AGORA Catalog overlaps) | **Python** | 3 | Dataset lineage; signed JSON-LD export. |
-| **S6** | `exfil-guard` | F7 ExfilGuard | (none direct) | — | **Rust** eBPF (Falco+Tetragon) | 6 | eBPF exfil prevention. Overlaps with R7 egress-filter — R7 is the policy/decision, S6 is the eBPF enforcement. Kept separate per DefStack spec. |
+| **S6** | `exfil-guard` | F7 ExfilGuard | (none direct) | — | **Rust** eBPF (Falco+Tetragon) | 6 | eBPF exfil prevention. Overlaps with R7 egress-filter — R7 is the policy/decision, S6 is the eBPF enforcement. Kept separate per Warrantor spec. |
 | **S7** | `tamper-scan` | C4.4 TamperScan | (none direct) | — | **Python** | 3 | Weight distribution / backdoor / pruning / fine-tune detection. |
 | **S8** | `train-guard` | C4.3 TrainGuard | (none direct) | — | **Python** | 3 | Training-loop integrity hooks; signed training attestation. |
 | **S9** | `lightwell-bridge` | (none direct) | (none direct) | delta-patch (extends Lightwell) | Go + Rust | docs → 6 | AI-artifact patch distribution extending IBM/Red Hat Lightwell. |
@@ -75,7 +75,7 @@
 
 ## 4. Evaluation & Red-Teaming (pillar: A)
 
-| Canonical ID | Canonical Name | DefStack | AumSecure | Sentinel | Languages | Wave | Notes |
+| Canonical ID | Canonical Name | Warrantor | AumSecure | Sentinel | Languages | Wave | Notes |
 |---|---|---|---|---|---|---|---|
 | **A1** | `safe-eval` | C5.1 SafeEval | (none direct) | COLOSSEUM bench | **Python** | 3 | YAML pipeline orchestrating HELM/garak/PyRIT/MDASH. |
 | **A2** | `adversaria` | C5.2 Adversaria | (none direct) | HYDRA heads | **Python** + Rust orchestrator | 3 | Unified adversarial test framework. HYDRA's multi-model debate is a superset; A2 is the core. |
@@ -90,7 +90,7 @@
 
 ## 5. Inference Stack (pillar: N)
 
-| Canonical ID | Canonical Name | DefStack | AumSecure | Sentinel | Languages | Wave | Notes |
+| Canonical ID | Canonical Name | Warrantor | AumSecure | Sentinel | Languages | Wave | Notes |
 |---|---|---|---|---|---|---|---|
 | **N1** | `open-serve-kit` | C6.1 OpenServeKit | (none direct) | (Sentinel inference via NIM/TRT) | **Go** (gated → Wave 4) | 4 | OpenAI-compatible proxy; backend-agnostic. Go cleared (real serving service). |
 | **N2** | `bridge-rt` | C6.2 BridgeRT | (none direct) | — | **Python** + Go | 4 | Unified backend abstraction; handles TRT-LLM v0.16 `sampler_type`. |
@@ -101,7 +101,7 @@
 
 ## 6. Federated & Edge (pillar: F)
 
-| Canonical ID | Canonical Name | DefStack | AumSecure | Sentinel | Languages | Wave | Notes |
+| Canonical ID | Canonical Name | Warrantor | AumSecure | Sentinel | Languages | Wave | Notes |
 |---|---|---|---|---|---|---|---|
 | **F1** | `fed-core` | C3.1 FedCore | (none direct) | AGORA federation | **Python** | 5 | Attested federated training (PyTorch + NeMo + DP via F3). Most complex component. |
 | **F2** | `dp-crate` | C3.4 DPCrate | (none direct) | (AGORA DP) | **Python** | 5 | Differential privacy toolkit + dashboard. |
@@ -112,9 +112,9 @@
 
 ## 7. Cross-Cutting / Aggregation (pillar: X)
 
-| Canonical ID | Canonical Name | DefStack | AumSecure | Sentinel | Languages | Wave | Notes |
+| Canonical ID | Canonical Name | Warrantor | AumSecure | Sentinel | Languages | Wave | Notes |
 |---|---|---|---|---|---|---|---|
-| **X1** | `defstack-cli` | F4 DefStack CLI | (none direct) | sentinelos-cli | **Rust (clap)** | **1** | AumOS moves CLI from Go/Cobra to Rust/clap per stack-test consolidation doctrine. Subcommands: install/verify/upgrade/compliance-report. |
+| **X1** | `defstack-cli` | F4 Warrantor CLI | (none direct) | sentinelos-cli | **Rust (clap)** | **1** | Warrantor moves CLI from Go/Cobra to Rust/clap per stack-test consolidation doctrine. Subcommands: install/verify/upgrade/compliance-report. |
 | **X2** | `nooa-ext` | F1 NOOA-Ext | `nooa-aumsecure-adapter` / `nooa-evidence-adapter` | NOOA-Forge | **Python** | 6 | Production extensions to NVIDIA NOOA (PolicyEnforcer, AuditStreamer, IdentityBinder, AttestationHook). |
 | **X3** | `open-harness-spec` | F3 OpenHarnessSpec | (none direct) | (none direct) | Spec (Markdown) + **Python** conformance | docs → 6 | Vendor-neutral agent harness spec → proposed OSAF standard. |
 | **X4** | `crypto-audit-ai` | F5 CryptoAuditAI | (none direct) | — | **Rust** (eBPF) + Python drivers | 6 | AI-assisted cryptanalysis (productizes Anthropic CryptanalysisBench). |
@@ -133,7 +133,7 @@
 PROJECT SENTINEL named 10 frameworks. **None survive as standalone** — every one maps to a canonical
 component above:
 
-| Sentinel framework | Maps to AumOS canonical(s) |
+| Sentinel framework | Maps to Warrantor canonical(s) |
 |---|---|
 | AEGIS | X9 incident-exchange + A5 agentsec-lab (defensive-agent layer is future work, not Wave-1) |
 | NOOA-Forge | X2 nooa-ext |
@@ -172,7 +172,7 @@ single language implementation; every relevant component consumes them.
 
 ## 10. Evidence plane (the E canonical)
 
-| Canonical ID | Canonical Name | DefStack | AumSecure | Sentinel | Languages | Wave | Notes |
+| Canonical ID | Canonical Name | Warrantor | AumSecure | Sentinel | Languages | Wave | Notes |
 |---|---|---|---|---|---|---|---|
 | **E1** | `flight-recorder` | (none direct) | "Verifiable Agent Flight Recorder" (V2 #3) + `agent-evidence` receipt half | (Sentinel observability) | **Rust** core + TS viewer | docs → 2 | Emits signed AAR (P2). The evidence half of T1 trust-core. |
 
@@ -213,9 +213,9 @@ single language implementation; every relevant component consumes them.
 | **R2** | `eval-guard` | Rust + eBPF | C1-2 (mock initially) |
 | **R4** | `credential-vault` | Rust | R3 (mock initially) |
 | **R3** | `kill-switch` | Rust core + Python policy | I1 (mock AgentVault) |
-| (deferred to Wave-1.5) | `sentinel-trace` (DefStack C7.3) | Python | I1 (standalone audit hook initially) |
+| (deferred to Wave-1.5) | `sentinel-trace` (Warrantor C7.3) | Python | I1 (standalone audit hook initially) |
 
-> **Note on SentinelTrace:** DefStack Phase 7 lists 4 components (EvalGuard, KillSwitchKit,
+> **Note on SentinelTrace:** Warrantor Phase 7 lists 4 components (EvalGuard, KillSwitchKit,
 > SentinelTrace, CredentialVault). The first 3 of our Wave-1 + R4 = 4 components. SentinelTrace (the
 > behavioral-divergence monitor) is deferred to Wave-1.5 (M2.5) because it depends on NOOA-Ext
 > (Wave 6) for its action stream; a standalone-audit-hook MVP can ship earlier if capacity allows.

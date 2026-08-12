@@ -8,7 +8,7 @@
 | **Name** | provena-chain |
 | **Wave** | 3 |
 | **Languages** | Rust (Merkle) + Python API |
-| **DefStack origin** | C2.3 ProvenaChain |
+| **Warrantor origin** | C2.3 ProvenaChain |
 | **AumSecure origin** | (none) |
 | **Sentinel origin** | atlas-ledger |
 | **Dependencies** | T1, S1 |
@@ -17,7 +17,7 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack C2.3 ProvenaChain; AumSecure (none); Sentinel atlas-ledger. The full strategic rationale
+Warrantor C2.3 ProvenaChain; AumSecure (none); Sentinel atlas-ledger. The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** T1, S1
+- **Warrantor internal:** T1, S1
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

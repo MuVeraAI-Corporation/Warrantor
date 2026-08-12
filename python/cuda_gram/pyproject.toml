@@ -1,10 +1,10 @@
 [project]
 name = "warrantor-cuda-gram"
 version = "1.0.0"
-description = "High-level GPU attestation SDK (AumOS C1-2 cuda-gram)"
+description = "High-level GPU attestation SDK (Warrantor C1-2 cuda-gram)"
 readme = "README.md"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AumOS contributors" }]
+authors = [{ name = "Warrantor contributors" }]
 requires-python = ">=3.11"
 dependencies = [
     # No ctypes — C1-2 calls the C1-1 Rust core via PyO3 in task 02.

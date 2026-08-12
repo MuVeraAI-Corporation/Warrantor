@@ -13,7 +13,6 @@
 #![forbid(unsafe_code)]
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use thiserror::Error;
@@ -70,8 +69,8 @@ pub struct ClassifierResult {
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum CsamVerdict {
     Allow {
-        hash_check: String,   // detector_id that cleared
-        classifier: String,   // classifier_id that cleared
+        hash_check: String, // detector_id that cleared
+        classifier: String, // classifier_id that cleared
     },
     Deny {
         reason: DenyReason,
@@ -122,7 +121,10 @@ pub struct MockHashChecker {
 impl MockHashChecker {
     #[must_use]
     pub fn new(id: &str, blocklist: &[&str]) -> Self {
-        Self { id: id.into(), blocklist: blocklist.iter().map(|s| (*s).to_string()).collect() }
+        Self {
+            id: id.into(),
+            blocklist: blocklist.iter().map(|s| (*s).to_string()).collect(),
+        }
     }
 }
 
@@ -131,11 +133,17 @@ impl HashChecker for MockHashChecker {
         let matched = self.blocklist.contains(content_hash);
         HashCheckResult {
             matched,
-            matched_hash_id: if matched { Some(format!("blocklist-{}", content_hash)) } else { None },
+            matched_hash_id: if matched {
+                Some(format!("blocklist-{}", content_hash))
+            } else {
+                None
+            },
             detector_id: self.id.clone(),
         }
     }
-    fn id(&self) -> &str { &self.id }
+    fn id(&self) -> &str {
+        &self.id
+    }
 }
 
 pub struct MockClassifier {
@@ -147,7 +155,10 @@ impl MockClassifier {
     /// Creates a classifier that flags when the content contains the given marker.
     #[must_use]
     pub fn always_safe(id: &str) -> Self {
-        Self { id: id.into(), flag_marker: "\0CSAM_MARKER\0".to_string() }
+        Self {
+            id: id.into(),
+            flag_marker: "\0CSAM_MARKER\0".to_string(),
+        }
     }
 }
 
@@ -161,7 +172,9 @@ impl CsamClassifier for MockClassifier {
             confidence: if flagged { 0.97 } else { 0.01 },
         }
     }
-    fn id(&self) -> &str { &self.id }
+    fn id(&self) -> &str {
+        &self.id
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -192,24 +205,36 @@ pub fn decide(
 ) -> CsamVerdict {
     // 1. Fail-closed: both detectors must be present.
     let hash_checker = match hash_checker {
-        None => return CsamVerdict::Deny { reason: DenyReason::AllDetectorsUnavailable },
+        None => {
+            return CsamVerdict::Deny {
+                reason: DenyReason::AllDetectorsUnavailable,
+            }
+        }
         Some(h) => h,
     };
     let classifier = match classifier {
-        None => return CsamVerdict::Deny { reason: DenyReason::AllDetectorsUnavailable },
+        None => {
+            return CsamVerdict::Deny {
+                reason: DenyReason::AllDetectorsUnavailable,
+            }
+        }
         Some(c) => c,
     };
 
     // 2. Hash blocklist — ANY match is ALWAYS denied (no threshold, no override).
     let hash_result = hash_checker.check(content_hash);
     if hash_result.matched {
-        return CsamVerdict::Deny { reason: DenyReason::HashBlocklistMatch };
+        return CsamVerdict::Deny {
+            reason: DenyReason::HashBlocklistMatch,
+        };
     }
 
     // 3. Classifier — flagged above threshold → Deny.
     let cls_result = classifier.classify(content);
     if cls_result.flagged && cls_result.confidence >= classifier_threshold {
-        return CsamVerdict::Deny { reason: DenyReason::ClassifierFlagged };
+        return CsamVerdict::Deny {
+            reason: DenyReason::ClassifierFlagged,
+        };
     }
 
     // 4. Allow.
@@ -278,7 +303,13 @@ fn canonicalize_value(v: &serde_json::Value) -> serde_json::Value {
     }
 }
 
-pub fn issue_receipt(verdict: &CsamVerdict, content_hash: &str, timestamp: u64, report: Option<MandatoryReport>, key: &SigningKey) -> CsamReceipt {
+pub fn issue_receipt(
+    verdict: &CsamVerdict,
+    content_hash: &str,
+    timestamp: u64,
+    report: Option<MandatoryReport>,
+    key: &SigningKey,
+) -> CsamReceipt {
     let body = CsamReceiptBody {
         verdict: verdict.clone(),
         content_hash: content_hash.to_string(),
@@ -316,8 +347,7 @@ pub fn verify_receipt(receipt: &CsamReceipt) -> Result<(), CsamError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_body(&receipt.body);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| CsamError::Err("Ed25519 signature does not verify".into()))
 }
 
@@ -327,7 +357,7 @@ pub fn verify_receipt(receipt: &CsamReceipt) -> Result<(), CsamError> {
 
 #[must_use]
 pub fn generate_keypair() -> (SigningKey, VerifyingKey) {
-    let mut csprng = OsRng;
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let signing = SigningKey::generate(&mut csprng);
     let verifying = signing.verifying_key();
     (signing, verifying)
@@ -342,7 +372,7 @@ mod hex {
         s
     }
     pub fn decode(hex: &str) -> Result<Vec<u8>, String> {
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err("odd-length hex".into());
         }
         (0..hex.len())
@@ -373,27 +403,47 @@ mod tests {
         let hc = MockHashChecker::new("photo-dna", &["hash-bad"]);
         let cls = MockClassifier::always_safe("cls");
         let v = decide("content", "hash-bad", Some(&hc), Some(&cls), 0.5);
-        assert_eq!(v, CsamVerdict::Deny { reason: DenyReason::HashBlocklistMatch });
+        assert_eq!(
+            v,
+            CsamVerdict::Deny {
+                reason: DenyReason::HashBlocklistMatch
+            }
+        );
     }
 
     #[test]
     fn missing_hash_checker_fail_closed() {
         let cls = MockClassifier::always_safe("cls");
         let v = decide("content", "hash", None, Some(&cls), 0.5);
-        assert_eq!(v, CsamVerdict::Deny { reason: DenyReason::AllDetectorsUnavailable });
+        assert_eq!(
+            v,
+            CsamVerdict::Deny {
+                reason: DenyReason::AllDetectorsUnavailable
+            }
+        );
     }
 
     #[test]
     fn missing_classifier_fail_closed() {
         let hc = MockHashChecker::new("photo-dna", &[]);
         let v = decide("content", "hash", Some(&hc), None, 0.5);
-        assert_eq!(v, CsamVerdict::Deny { reason: DenyReason::AllDetectorsUnavailable });
+        assert_eq!(
+            v,
+            CsamVerdict::Deny {
+                reason: DenyReason::AllDetectorsUnavailable
+            }
+        );
     }
 
     #[test]
     fn both_missing_fail_closed() {
         let v = decide("content", "hash", None, None, 0.5);
-        assert_eq!(v, CsamVerdict::Deny { reason: DenyReason::AllDetectorsUnavailable });
+        assert_eq!(
+            v,
+            CsamVerdict::Deny {
+                reason: DenyReason::AllDetectorsUnavailable
+            }
+        );
     }
 
     #[test]
@@ -402,7 +452,12 @@ mod tests {
         let hc = MockHashChecker::new("photo-dna", &["hash-known-csam"]);
         let cls = MockClassifier::always_safe("cls");
         let v = decide("content", "hash-known-csam", Some(&hc), Some(&cls), 0.5);
-        assert_eq!(v, CsamVerdict::Deny { reason: DenyReason::HashBlocklistMatch });
+        assert_eq!(
+            v,
+            CsamVerdict::Deny {
+                reason: DenyReason::HashBlocklistMatch
+            }
+        );
     }
 
     #[test]
@@ -454,6 +509,11 @@ mod tests {
         let cls = MockClassifier::always_safe("cls");
         // Even with threshold 1.0 (very strict classifier), hash match still denies.
         let v = decide("content", "known", Some(&hc), Some(&cls), 1.0);
-        assert_eq!(v, CsamVerdict::Deny { reason: DenyReason::HashBlocklistMatch });
+        assert_eq!(
+            v,
+            CsamVerdict::Deny {
+                reason: DenyReason::HashBlocklistMatch
+            }
+        );
     }
 }

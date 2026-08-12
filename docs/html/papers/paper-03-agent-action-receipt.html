@@ -10,10 +10,10 @@
 <div class="container">
 
 <header class="article-header">
-  <div class="article-eyebrow">AumOS Research · Paper 3 of 24 · Thrust 1 — Cryptographic Authority for Autonomous Agents</div>
+  <div class="article-eyebrow">Warrantor Research · Paper 3 of 24 · Thrust 1 — Cryptographic Authority for Autonomous Agents</div>
   <h1>The Agent Action Receipt: Tamper-Evident Audit Trails for Autonomous Systems</h1>
-  <div class="article-authors">The AumOS Research Group · Open Secure AI Alliance</div>
-  <div class="article-affil">Reference platform: AumOS <code>flight-recorder</code>, T1, protocol P2</div>
+  <div class="article-authors">The Warrantor Research Group · Open Secure AI Alliance</div>
+  <div class="article-affil">Reference platform: Warrantor <code>flight-recorder</code>, T1, protocol P2</div>
   <div class="article-meta">
     <div class="meta-item"><span class="meta-label">Target venue</span><span class="meta-value">IEEE S&amp;P 2027</span></div>
     <div class="meta-item"><span class="meta-label">Components</span><span class="meta-value">T1, flight-recorder, I1</span></div>
@@ -28,7 +28,7 @@
 
 <div class="abstract">
   <span class="abstract-label">Abstract</span>
-  <p>Autonomous AI agents take actions — calling APIs, moving money, sending messages — that have real-world consequences, yet the prevailing audit practice for these actions is append-only logging in a log file the operator fully controls. An operator who wishes to conceal a misbehaving agent can simply edit the log; a regulator who distrusts the operator has no independent basis for verification. We present the <strong>Agent Action Receipt (AAR)</strong>, a tamper-evident, hash-chained, timestamp-anchored record of every authorized agent action. Each receipt binds the action to the delegation envelope (Paper 1) that authorized it, is hash-chained to the prior receipt, and is periodically anchored to an external timestamp authority, producing an audit trail that an operator cannot silently alter. We prove that the AAR satisfies a tamper-detection property against an operator adversary, show that the reference implementation in AumOS's <code>flight-recorder</code> composes with the AAE so that every authorized action produces a receipt, and demonstrate a red-team harness that detects every tampering attempt in our test corpus. The AAR is the evidence substrate that makes EU AI Act audit obligations (Articles 12, 55) verifiable rather than merely asserted.</p>
+  <p>Autonomous AI agents take actions — calling APIs, moving money, sending messages — that have real-world consequences, yet the prevailing audit practice for these actions is append-only logging in a log file the operator fully controls. An operator who wishes to conceal a misbehaving agent can simply edit the log; a regulator who distrusts the operator has no independent basis for verification. We present the <strong>Agent Action Receipt (AAR)</strong>, a tamper-evident, hash-chained, timestamp-anchored record of every authorized agent action. Each receipt binds the action to the delegation envelope (Paper 1) that authorized it, is hash-chained to the prior receipt, and is periodically anchored to an external timestamp authority, producing an audit trail that an operator cannot silently alter. We prove that the AAR satisfies a tamper-detection property against an operator adversary, show that the reference implementation in Warrantor's <code>flight-recorder</code> composes with the AAE so that every authorized action produces a receipt, and demonstrate a red-team harness that detects every tampering attempt in our test corpus. The AAR is the evidence substrate that makes EU AI Act audit obligations (Articles 12, 55) verifiable rather than merely asserted.</p>
 </div>
 
 <div class="toc">
@@ -112,7 +112,7 @@
 
 <!-- 5. IMPL -->
 <h2 id="impl"><span class="anchor">§</span>5. Implementation and composition with AAE</h2>
-<p>The AAR is implemented in AumOS's <code>flight-recorder</code> component. The defining design property is that receipt emission is <em>by construction</em>: the AAE verification contract (Paper 1, §4) is instrumented so that every honored action emits an AAR before returning to the agent. An action that does not produce a receipt is, by construction, an action that was not honored. This closes the gap between "what the agent requested" and "what was recorded" — there is no honored action without a receipt.</p>
+<p>The AAR is implemented in Warrantor's <code>flight-recorder</code> component. The defining design property is that receipt emission is <em>by construction</em>: the AAE verification contract (Paper 1, §4) is instrumented so that every honored action emits an AAR before returning to the agent. An action that does not produce a receipt is, by construction, an action that was not honored. This closes the gap between "what the agent requested" and "what was recorded" — there is no honored action without a receipt.</p>
 
 <p>The composition is the system's contribution: the AAE (authority) and AAR (evidence) are not separate systems bolted together but a single protocol in which authorization produces evidence as a side effect. This is what makes the EU AI Act's "automatic logs" obligation (Article 12<sup><a href="#ref-aiact">[3]</a></sup>) satisfiable by construction rather than by after-the-fact log scraping.</p>
 
@@ -166,7 +166,7 @@
 
 <footer class="article-footer">
   <div class="provenance">
-    <strong>Provenance.</strong> Standalone research artifact derived from the AumOS research roadmap. The AAR is implemented in AumOS <code>flight-recorder</code>; the AAE↔AAR composition is protocol P2. AumOS source: <code>github.com/MuVeraAI</code>.
+    <strong>Provenance.</strong> Standalone research artifact derived from the Warrantor research roadmap. The AAR is implemented in Warrantor <code>flight-recorder</code>; the AAE↔AAR composition is protocol P2. Warrantor source: <code>github.com/MuVeraAI</code>.
   </div>
   <div class="article-nav" style="margin-top: var(--space-lg);">
     <span class="small">← <a href="paper-02-cross-language-canonical-signing.html">Paper 2: Canonical Signing</a></span>

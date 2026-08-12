@@ -1,6 +1,6 @@
 # X3 — `open-harness-spec` RFC
 
-> Vendor-neutral agent harness spec. 5 interfaces: AgentIdentity, ToolPermission, AuditEvent, AttestationEnvelope, EvaluationReport. Proposed OSAF standard; AumOS = reference implementation.
+> Vendor-neutral agent harness spec. 5 interfaces: AgentIdentity, ToolPermission, AuditEvent, AttestationEnvelope, EvaluationReport. Proposed OSAF standard; Warrantor = reference implementation.
 
 | Field | Value |
 |---|---|
@@ -8,7 +8,7 @@
 | **Name** | open-harness-spec |
 | **Wave** | 6 |
 | **Languages** | Spec (Markdown) + Python conformance |
-| **DefStack origin** | F3 OpenHarnessSpec |
+| **Warrantor origin** | F3 OpenHarnessSpec |
 | **AumSecure origin** | (none) |
 | **Sentinel origin** | (none) |
 | **Dependencies** | X2 |
@@ -17,13 +17,13 @@
 
 This component is reconciled from the source portfolios per
 [`00-reconciliation-matrix.md`](../00-reconciliation-matrix.md). Origin mapping:
-DefStack F3 OpenHarnessSpec; AumSecure (none); Sentinel (none). The full strategic rationale
+Warrantor F3 OpenHarnessSpec; AumSecure (none); Sentinel (none). The full strategic rationale
 appears in the matrix entry and the originating source document (see
 [`source-matrix/README.md`](../source-matrix/README.md)).
 
 ## Goals and Non-Goals
 
-**Goals:** Vendor-neutral agent harness spec. 5 interfaces: AgentIdentity, ToolPermission, AuditEvent, AttestationEnvelope, EvaluationReport. Proposed OSAF standard; AumOS = reference implementation.
+**Goals:** Vendor-neutral agent harness spec. 5 interfaces: AgentIdentity, ToolPermission, AuditEvent, AttestationEnvelope, EvaluationReport. Proposed OSAF standard; Warrantor = reference implementation.
 
 **Non-Goals:**
 - Reinventing mature standards (SPIFFE, OCSF, OTel, CycloneDX) — we extend, not fork.
@@ -45,7 +45,7 @@ file. The mock-to-real migration is a tracked task in the component's tasks/ dir
 
 ## Dependencies
 
-- **AumOS internal:** X2
+- **Warrantor internal:** X2
 - **External:** enumerated during the component's MVP sprint (week 2) and recorded in the RFC.
 - **Standards adopted:** SPIFFE/SPIRE, OCSF, OpenTelemetry, CycloneDX/SPDX, CloudEvents, gRPC,
   OpenSSF Model Signing (per `docs/cross-cutting/19-inter-component-protocol.md`).

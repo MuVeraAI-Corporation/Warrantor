@@ -1,6 +1,6 @@
 # Compliance Frameworks Matrix
 
-> Every DefStack component maps to one or more regulatory/compliance frameworks. This is non-negotiable for enterprise and government adoption.
+> Every Warrantor component maps to one or more regulatory/compliance frameworks. This is non-negotiable for enterprise and government adoption.
 >
 > **Ordering is deliberate.** The platform's primary markets are US/North America, GCC, and India, so
 > those anchors lead. EU frameworks are tracked because they are factually load-bearing for some
@@ -10,7 +10,7 @@
 
 ### United States
 
-| Framework | Status (Aug 2026) | DefStack Impact |
+| Framework | Status (Aug 2026) | Warrantor Impact |
 |-----------|-------------------|-----------------|
 | **Interagency Model Risk Management — OCC Bulletin 2026-13 / Fed SR 26-2** | Issued 17 Apr 2026; **supersedes SR 11-7 and SR 21-8** (never cite those as current). States generative and agentic AI are *"not within the scope of this guidance"* and that it *"does not set forth enforceable standards"*. The agencies plan an **RFI specifically on banks' use of AI, including agentic AI** | Read as a **deferral, not an exemption**: obligations on the underlying action (safety & soundness, consumer protection, third-party risk) are untouched — only the control *specification* was withdrawn. The eventual guidance will be written against what industry can already demonstrate. Warrant bounds + signed receipts + approval records are exactly that demonstration. Contributing evidence to the RFI is a live opportunity |
 | **NIST AI RMF 1.0** | Released Jan 2023; revision concept note published 7 Apr 2026 | All components map to Govern/Map/Measure/Manage functions (see mapping below) |
@@ -19,7 +19,7 @@
 
 ### India
 
-| Framework | Status (Aug 2026) | DefStack Impact |
+| Framework | Status (Aug 2026) | Warrantor Impact |
 |-----------|-------------------|-----------------|
 | **RBI FREE-AI** | Framework for Responsible and Ethical Enablement of AI in the Financial Sector; committee report published Aug 2025 with **seven guiding sutras** and practical implementation guidance for regulated entities | Principle-based — so compliance is an *evidentiary* claim: "human oversight was maintained" must be demonstrated, not asserted. Staged effects + approval records + refusal logs are that demonstration. Warrant register serves the AI-inventory expectation |
 | **India AI Governance Guidelines** | Released Feb 2026 (AI Impact Summit); principle-based techno-legal approach anchored in seven sutras | Same evidentiary posture as FREE-AI; applies beyond financial sector |
@@ -27,7 +27,7 @@
 
 ### GCC
 
-| Framework | Status (Aug 2026) | DefStack Impact |
+| Framework | Status (Aug 2026) | Warrantor Impact |
 |-----------|-------------------|-----------------|
 | **SDAIA national AI risk management framework** (Saudi Arabia) | Launched **14 Jul 2026**: unified methodology for identifying, assessing, treating and **continuously monitoring** AI risks, for government and private sector. Sits alongside PDPL (in force Sep 2023) and the AI Adoption Framework (4 maturity levels, Sep 2024) | "Continuously" is the differentiator: point-in-time attestations don't satisfy it. Reconciliation timer + live run state + refusal trends are continuous by construction |
 | **DIFC Regulation 10** (UAE) | In force; regulates autonomous and semi-autonomous systems directly — requires privacy impact assessments and **risk-based audits of automated decision-making**. The most AI-specific provision in the Gulf | Warrant bounds are a machine-readable answer to "what may this autonomous system do"; evidence packs serve the audit requirement |
@@ -38,14 +38,14 @@
 
 ### International & industry
 
-| Framework | Jurisdiction | Status (Aug 2026) | DefStack Impact |
+| Framework | Jurisdiction | Status (Aug 2026) | Warrantor Impact |
 |-----------|-------------|-------------------|-----------------|
-| **ISO/IEC 42001:2023** | International | Published Dec 2023; certification available | DefStack org should pursue ISO 42001 certification by M18 |
+| **ISO/IEC 42001:2023** | International | Published Dec 2023; certification available | Warrantor org should pursue ISO 42001 certification by M18 |
 | **OpenSSF SLSA v1.0** | Industry | Released Apr 2023; widely adopted by 2026 | All components target SLSA Level 3+ |
 
 ### EU & other (tracked where factually required)
 
-| Framework | Jurisdiction | Status (Aug 2026) | DefStack Impact |
+| Framework | Jurisdiction | Status (Aug 2026) | Warrantor Impact |
 |-----------|-------------|-------------------|-----------------|
 | **EU AI Act** | EU | Entered force 1 Aug 2024; applies from 2 Aug 2026; GPAI providers by 2 Aug 2027 | SafeTensors++, ModelNotary, ModelSBOM, DataProvenanceKit (provenance), ComplyGate (deployment gates) |
 | **EU DORA** | EU (financial) | Applies from 17 Jan 2025; enforcement active | OpenServeKit, InferenceProxy, TenantGuard for financial-sector customers |
@@ -93,7 +93,7 @@ Article 55 (entered force 2 Aug 2025; providers must comply by 2 Aug 2027) requi
 7. **Adversarial testing** — Adversaria (C5.2)
 8. **Serious incident reporting** — RetroSpecKit (F6) + ComplyGate (C5.4)
 
-**DefStack advantage:** A GPAI model provider using the full DefStack stack can demonstrate Article 55 compliance with a single `defstack compliance-report` command.
+**Warrantor advantage:** A GPAI model provider using the full Warrantor stack can demonstrate Article 55 compliance with a single `defstack compliance-report` command.
 
 ## NIST AI RMF Mapping
 
@@ -108,7 +108,7 @@ NIST AI RMF 1.0 (revision concept note published April 7, 2026) has four functio
 
 ## ISO/IEC 42001:2023 — AI Management System
 
-ISO 42001 is the AI management system standard (published Dec 2023). DefStack should pursue organizational certification by M18. Components that support ISO 42001 controls:
+ISO 42001 is the AI management system standard (published Dec 2023). Warrantor should pursue organizational certification by M18. Components that support ISO 42001 controls:
 
 - **Clause 6 (Planning):** ModelSBOM, ProvenaChain (document AI systems)
 - **Clause 7 (Support):** SafeTensors++, ModelNotary (documentation and records)
@@ -124,13 +124,13 @@ FedRAMP completed its AI Prioritization Initiative in April 2026. Four authoriza
 3. **Accelerators** (agency-specific)
 4. **20x** (new, faster)
 
-DefStack target: KillSwitchKit, AgentVault, AttestaFlow achieve FedRAMP authorization by M18 (Horizon 2). Use the "20x" path if available; otherwise Rev 5 + GRC tooling.
+Warrantor target: KillSwitchKit, AgentVault, AttestaFlow achieve FedRAMP authorization by M18 (Horizon 2). Use the "20x" path if available; otherwise Rev 5 + GRC tooling.
 
 ## OpenSSF SLSA v1.0
 
 SLSA (Supply-chain Levels for Software Artifacts) v1.0 defines build integrity levels:
 
-| Level | Requirement | DefStack Status |
+| Level | Requirement | Warrantor Status |
 |-------|-------------|-----------------|
 | L1 | Build process documented | ✅ All components (CI) |
 | L2 | Hosted build service, provenance generated | ✅ All components (GitHub Actions) |
@@ -139,7 +139,7 @@ SLSA (Supply-chain Levels for Software Artifacts) v1.0 defines build integrity l
 
 ## EU DORA (Digital Operational Resilience Act)
 
-DORA (applies from Jan 17, 2025; enforcement active 2026) requires financial institutions to manage ICT risks. DefStack components for financial customers:
+DORA (applies from Jan 17, 2025; enforcement active 2026) requires financial institutions to manage ICT risks. Warrantor components for financial customers:
 
 - **OpenServeKit, InferenceProxy** — high availability inference
 - **TenantGuard** — multi-tenant isolation

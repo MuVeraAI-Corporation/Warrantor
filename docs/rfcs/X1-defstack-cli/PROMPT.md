@@ -4,11 +4,11 @@
 
 ---
 
-You are implementing **X1 defstack-cli** for AumOS. Language: Rust (clap). Dependencies: none.
+You are implementing **X1 defstack-cli** for Warrantor. Language: Rust (clap). Dependencies: none.
 
 ## Component context
 
-The unified installer/orchestrator. Subcommands: install/verify/upgrade/compliance-report. Reads from a single ~/.aumos/config.yaml. AumOS moved from Go/Cobra to Rust/clap per stack-test consolidation.
+The unified installer/orchestrator. Subcommands: install/verify/upgrade/compliance-report. Reads from a single ~/.aumos/config.yaml. Warrantor moved from Go/Cobra to Rust/clap per stack-test consolidation.
 
 ## Read first
 

@@ -1,7 +1,7 @@
 [project]
 name = "warrantor-vllm"
 version = "1.0.0"
-description = "AumOS vLLM integration — attested LLM serving plugin"
+description = "Warrantor vLLM integration — attested LLM serving plugin"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]

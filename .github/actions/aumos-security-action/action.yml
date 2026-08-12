@@ -1,5 +1,5 @@
-name: "AumOS Security"
-description: "Run AumOS security checks: secret scanning, SBOM generation, and optional compliance gate"
+name: "Warrantor Security"
+description: "Run Warrantor security checks: secret scanning, SBOM generation, and optional compliance gate"
 author: "MuVera AI"
 branding:
   icon: "shield"
@@ -15,7 +15,7 @@ inputs:
     required: false
     default: "true"
   run-compliance:
-    description: "Run the AumOS compliance gate if .complygate.yml exists"
+    description: "Run the Warrantor compliance gate if .complygate.yml exists"
     required: false
     default: "false"
   fail-on-secret:
@@ -149,7 +149,7 @@ runs:
       if: inputs.run-compliance == 'true' && hashFiles('.complygate.yml') != ''
       shell: bash
       run: |
-        echo "::group::AumOS Compliance Gate"
+        echo "::group::Warrantor Compliance Gate"
         echo "Found .complygate.yml — running compliance checks"
         if command -v defstack &>/dev/null; then
           defstack compliance-report || echo "⚠️ Compliance report generated (informational)"
