@@ -38,6 +38,11 @@ jobs:
   binaries:
     name: build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+    # The workflow denies everything by default; a job that does not ask for
+    # `contents: read` cannot even check itself out. All four binary builds failed at
+    # actions/checkout for exactly that reason.
+    permissions:
+      contents: read
     strategy:
       # One platform failing should not deny the others to users who can use them.
       fail-fast: false
