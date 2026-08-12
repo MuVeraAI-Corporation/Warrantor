@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.MuVeraAI-Corporation/warrantor",
+  "name": "io.github.invincible-jha/warrantor",
   "description": "Bounded authority for coding agents: irreversible actions staged for approval, not performed.",
   "version": "1.0.0",
   "websiteUrl": "https://github.com/MuVeraAI-Corporation/Warrantor",
