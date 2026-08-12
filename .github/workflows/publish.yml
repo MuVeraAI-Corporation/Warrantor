@@ -50,6 +50,10 @@ jobs:
   build-python:
     name: build python distributions
     runs-on: ubuntu-latest
+    # The workflow denies everything by default, so a job that does not ask for
+    # `contents: read` cannot check itself out. Same bug as release-artifacts.yml had.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -141,7 +145,8 @@ jobs:
       name: ${{ matrix.env }}
       url: https://pypi.org/project/${{ matrix.project }}/
     permissions:
-      id-token: write  # mint the OIDC token; nothing else is needed
+      id-token: write  # mint the OIDC token
+      contents: read
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -180,6 +185,7 @@ jobs:
     environment: crates-io
     permissions:
       id-token: write
+      contents: read   # without this, actions/checkout cannot clone
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -206,6 +212,7 @@ jobs:
     environment: crates-io
     permissions:
       id-token: write
+      contents: read   # without this, actions/checkout cannot clone
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -237,11 +244,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           registry-url: https://registry.npmjs.org
 
-      # Trusted publishing needs a recent CLI; older npm silently falls back to
-      # looking for a token and fails with a confusing auth error.
+      # Trusted publishing needs a recent npm; older versions silently fall back to
+      # looking for a token and fail with a confusing auth error.
+      #
+      # Node 22, not 20: npm@latest is now v12, which requires node >=22 and refuses
+      # to install on 20 with EBADENGINE. Pinning the runtime a major behind the tool
+      # that must be current is a slow-motion breakage -- npm moved and the pin did not.
       - run: npm install -g npm@latest
 
       - name: Publish each public package
