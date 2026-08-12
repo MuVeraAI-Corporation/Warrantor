@@ -1,0 +1,176 @@
+{
+  "schema": "warrantor.notary.v1",
+  "description": "Conformance vectors for the W1 Notary verdict function (spec 11). The Rust implementation (warrantor-notary) MUST produce the expected verdict for each. The Python implementation (warrantor_notary) does NOT re-implement the verdict (spec 11 §1: one authoritative implementation); it Verifies the receipts the Rust notary issues over these vectors, proving the decision is reproducible + the proof is third-party-verifiable.",
+  "note_on_authoritative_implementation": "Unlike the M1 agent-manifest vectors (where both languages implement the same parser), the W1 verdict function is implemented ONCE in Rust. Python's contract is Verify-only. The vectors below are consumed by Rust to assert decisions; the interop check (Rust issues a receipt per vector → Python verifies it) is the cross-language proof.",
+  "base_request": {
+    "actor": {
+      "svid": "spiffe://yourcorp/agents/bot-1",
+      "svid_not_after": 18446744073709551615,
+      "own_capabilities": ["read", "write"],
+      "delegation_chain": []
+    },
+    "operation": {
+      "class": "query",
+      "capabilities_requested": ["read"],
+      "consequence_tier": "routine",
+      "scope": "prod"
+    },
+    "artifacts": [],
+    "nonce": "nonce-1",
+    "timestamp": 1000,
+    "approval": null
+  },
+  "base_context": {
+    "now": 1000,
+    "contained_scopes": [],
+    "revoked_svids": [],
+    "seen_nonces": [],
+    "freshness_window_seconds": 60,
+    "verified_artifacts": [],
+    "budget_remaining": 100,
+    "policy_decision": true
+  },
+  "vectors": [
+    {
+      "name": "all_pass_allow",
+      "description": "Every gate passes; the verdict is Allow with the actor's own capabilities (sorted).",
+      "request_overrides": {},
+      "context_overrides": {},
+      "expected": { "outcome": "allow", "effective_capabilities": ["read", "write"] }
+    },
+    {
+      "name": "gate1_containment",
+      "description": "A kill-switch is active for the 'prod' scope → Deny at Containment, before any other gate.",
+      "request_overrides": {},
+      "context_overrides": { "contained_scopes": ["prod"] },
+      "expected": { "outcome": "deny", "gate": "containment" }
+    },
+    {
+      "name": "gate2_identity_revoked",
+      "description": "The actor's SVID is revoked → Deny at Identity.",
+      "request_overrides": {},
+      "context_overrides": { "revoked_svids": ["spiffe://yourcorp/agents/bot-1"] },
+      "expected": { "outcome": "deny", "gate": "identity" }
+    },
+    {
+      "name": "gate2_identity_expired",
+      "description": "The SVID expired before ctx.now → Deny at Identity.",
+      "request_overrides": { "actor": { "svid_not_after": 500 } },
+      "context_overrides": {},
+      "expected": { "outcome": "deny", "gate": "identity" }
+    },
+    {
+      "name": "gate3_freshness_replay",
+      "description": "Nonce already seen → Deny at Freshness (replay protection).",
+      "request_overrides": {},
+      "context_overrides": { "seen_nonces": ["nonce-1"] },
+      "expected": { "outcome": "deny", "gate": "freshness" }
+    },
+    {
+      "name": "gate3_freshness_stale",
+      "description": "Timestamp is outside the freshness window → Deny at Freshness.",
+      "request_overrides": { "timestamp": 1120 },
+      "context_overrides": {},
+      "expected": { "outcome": "deny", "gate": "freshness" }
+    },
+    {
+      "name": "gate4_chain_broken_signature",
+      "description": "A delegation link's signature does not verify → Deny at Chain.",
+      "request_overrides": {
+        "actor": {
+          "delegation_chain": [
+            { "delegatee_svid": "spiffe://yourcorp/agents/bot-1", "capabilities": ["read", "write"], "not_before": 0, "not_after": 18446744073709551615, "signature_verified": false }
+          ]
+        }
+      },
+      "context_overrides": {},
+      "expected": { "outcome": "deny", "gate": "chain" }
+    },
+    {
+      "name": "gate5_authority_outside_intersection",
+      "description": "Requested 'financial' is not in the actor's capabilities → Deny at Authority.",
+      "request_overrides": { "operation": { "capabilities_requested": ["financial"] } },
+      "context_overrides": {},
+      "expected": { "outcome": "deny", "gate": "authority" }
+    },
+    {
+      "name": "gate5_authority_union_trap",
+      "description": "The union trap (spec 12): a chain link that drops 'write' removes it from the intersection.",
+      "request_overrides": {
+        "actor": {
+          "delegation_chain": [
+            { "delegatee_svid": "spiffe://yourcorp/agents/bot-1", "capabilities": ["read"], "not_before": 0, "not_after": 18446744073709551615, "signature_verified": true }
+          ]
+        },
+        "operation": { "capabilities_requested": ["write"] }
+      },
+      "context_overrides": {},
+      "expected": { "outcome": "deny", "gate": "authority" }
+    },
+    {
+      "name": "gate6_artifacts_unverified",
+      "description": "An artifact digest is not verified → Deny at Artifacts.",
+      "request_overrides": { "artifacts": [{ "digest": "sha256:abc", "verified": false }] },
+      "context_overrides": {},
+      "expected": { "outcome": "deny", "gate": "artifacts" }
+    },
+    {
+      "name": "gate7_budget_exhausted",
+      "description": "Autonomy budget is zero → Deny at Budget.",
+      "request_overrides": {},
+      "context_overrides": { "budget_remaining": 0 },
+      "expected": { "outcome": "deny", "gate": "budget" }
+    },
+    {
+      "name": "gate8_policy_denied",
+      "description": "The policy engine returns deny → Deny at Policy.",
+      "request_overrides": {},
+      "context_overrides": { "policy_decision": false },
+      "expected": { "outcome": "deny", "gate": "policy" }
+    },
+    {
+      "name": "gate9_approval_missing_for_critical",
+      "description": "A critical action with no human approval → Deny at Approval.",
+      "request_overrides": { "operation": { "consequence_tier": "critical" }, "approval": null },
+      "context_overrides": {},
+      "expected": { "outcome": "deny", "gate": "approval" }
+    },
+    {
+      "name": "gate9_approval_delegable_for_critical",
+      "description": "A critical action with a delegable approval (not non-delegable) → still Deny at Approval.",
+      "request_overrides": {
+        "operation": { "consequence_tier": "critical" },
+        "approval": { "valid": true, "non_delegable": false }
+      },
+      "context_overrides": {},
+      "expected": { "outcome": "deny", "gate": "approval" }
+    },
+    {
+      "name": "gate9_approval_valid_non_delegable_allows",
+      "description": "A critical action with a valid, non-delegable human approval → Allow.",
+      "request_overrides": {
+        "operation": { "consequence_tier": "critical" },
+        "approval": { "valid": true, "non_delegable": true }
+      },
+      "context_overrides": {},
+      "expected": { "outcome": "allow", "effective_capabilities": ["read", "write"] }
+    },
+    {
+      "name": "ordering_containment_short_circuits_before_all_others",
+      "description": "Every gate would fail, but Containment (gate 1) must win — proving normative order.",
+      "request_overrides": {
+        "actor": { "svid": "" },
+        "operation": { "capabilities_requested": ["impossible"], "consequence_tier": "critical" },
+        "approval": null
+      },
+      "context_overrides": {
+        "contained_scopes": ["prod"],
+        "revoked_svids": ["x"],
+        "seen_nonces": ["nonce-1"],
+        "policy_decision": false,
+        "budget_remaining": 0
+      },
+      "expected": { "outcome": "deny", "gate": "containment" }
+    }
+  ]
+}

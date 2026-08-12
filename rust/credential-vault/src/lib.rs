@@ -82,6 +82,13 @@ pub enum CredentialError {
     /// The backend was unavailable.
     #[error("backend unavailable: {0}")]
     BackendUnavailable(String),
+    /// The caller-supplied secret key is malformed or would escape its mount.
+    ///
+    /// Distinct from [`Self::BackendUnavailable`] on purpose: a rejected key is the
+    /// caller's fault and is deterministic, while an unavailable backend is transient and
+    /// may warrant a retry. Conflating them means a traversal attempt looks like an outage.
+    #[error("invalid secret key: {0}")]
+    InvalidKey(String),
     /// Revocation budget exceeded (invariant I-05 violation).
     #[error("revocation budget exceeded: {elapsed:?} > {budget:?}")]
     RevocationBudgetExceeded {
@@ -177,6 +184,38 @@ pub struct HashiCorpVaultBackend {
     /// KV v2 mount point. Defaults to `secret`.
     pub mount: String,
     token: String,
+    /// Pre-configured agent carrying the redirect and timeout policy. Every request goes through
+    /// it, so neither policy can be bypassed by reaching for a bare `ureq::get`.
+    agent: ureq::Agent,
+}
+
+/// Total budget for a single Vault read. Deliberately short: this call sits on the hot path of
+/// every credential resolution, and a broker that hangs is indistinguishable from one that is
+/// down -- except that it also holds the caller's thread.
+pub const DEFAULT_VAULT_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Time allowed to establish the TCP/TLS connection, within [`DEFAULT_VAULT_TIMEOUT`].
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Build the agent used for every Vault request.
+///
+/// Two policies live here, both of which the previous bare `ureq::get` left at ureq's defaults:
+///
+/// * `redirects(0)`. The default agent follows up to five redirects AND replays headers set with
+///   `.set()`, so a single injected `302` sent the raw `X-Vault-Token` to an attacker-chosen
+///   origin, and the redirect target's response body was then accepted as the brokered secret.
+///   Vault has no legitimate reason to redirect a KV read.
+/// * Read/write/overall timeouts. ureq's default agent sets only a connect timeout, so a server
+///   that accepted the connection and never answered hung `resolve()` indefinitely -- observed
+///   still blocked after 120 seconds.
+fn build_agent(timeout: Duration) -> ureq::Agent {
+    ureq::AgentBuilder::new()
+        .redirects(0)
+        .timeout_connect(CONNECT_TIMEOUT.min(timeout))
+        .timeout_read(timeout)
+        .timeout_write(timeout)
+        .timeout(timeout)
+        .build()
 }
 
 impl HashiCorpVaultBackend {
@@ -189,7 +228,15 @@ impl HashiCorpVaultBackend {
             address: address.into(),
             mount: "secret".to_string(),
             token: token.into(),
+            agent: build_agent(DEFAULT_VAULT_TIMEOUT),
         }
+    }
+
+    /// Override the per-request timeout budget.
+    #[must_use]
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.agent = build_agent(timeout);
+        self
     }
 
     /// Override the KV v2 mount point.
@@ -216,20 +263,74 @@ impl HashiCorpVaultBackend {
     }
 }
 
+/// Characters that may appear unescaped in a URL path segment (RFC 3986 `pchar`, minus
+/// the sub-delims we have no reason to allow). Everything else is percent-encoded.
+fn encode_path_segment(segment: &str) -> String {
+    let mut out = String::with_capacity(segment.len());
+    for byte in segment.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// Turn a caller-supplied secret path into a safe, confined URL path.
+///
+/// # Errors
+/// Returns [`CredentialError::InvalidKey`] for any path that could leave the mount.
+///
+/// The previous implementation interpolated the key straight into the URL with only
+/// `trim_start_matches('/')`. That let `../../prod/data/db` escape the configured mount
+/// entirely, and `../../auth/token/lookup-self` reach arbitrary Vault API endpoints --
+/// which returned the backend's own root token metadata. A caller who controls a secret
+/// key could therefore read any path in Vault and identify the token being used.
+///
+/// Rejecting rather than normalising is deliberate: silently rewriting `a/../b` to `b`
+/// would resolve a key the caller did not ask for, and a credential broker should never
+/// guess at intent.
+fn safe_secret_path(path: &str) -> Result<String, CredentialError> {
+    let trimmed = path.trim_start_matches('/');
+    if trimmed.is_empty() {
+        return Err(CredentialError::InvalidKey("secret path is empty".into()));
+    }
+    let mut segments = Vec::new();
+    for segment in trimmed.split('/') {
+        if segment.is_empty() {
+            return Err(CredentialError::InvalidKey(
+                "secret path contains an empty segment (`//`)".into(),
+            ));
+        }
+        if segment == "." || segment == ".." {
+            return Err(CredentialError::InvalidKey(format!(
+                "secret path segment {segment:?} would traverse outside the mount"
+            )));
+        }
+        segments.push(encode_path_segment(segment));
+    }
+    Ok(segments.join("/"))
+}
+
 impl CredentialBackend for HashiCorpVaultBackend {
     fn resolve(&self, key: &str) -> Result<String, CredentialError> {
         let (path, field) = match key.split_once('#') {
             Some((p, f)) => (p, f),
             None => (key, "value"),
         };
+        let safe_path = safe_secret_path(path)?;
         let url = format!(
             "{}/v1/{}/data/{}",
             self.address.trim_end_matches('/'),
-            self.mount,
-            path.trim_start_matches('/')
+            encode_path_segment(&self.mount),
+            safe_path
         );
 
-        let response = ureq::get(&url)
+        let response = self
+            .agent
+            .get(&url)
             .set("X-Vault-Token", &self.token)
             .call()
             .map_err(|error| match error {
@@ -242,6 +343,17 @@ impl CredentialBackend for HashiCorpVaultBackend {
                     "vault transport error: {transport}"
                 )),
             })?;
+
+        // Belt-and-braces on top of `redirects(0)`: depending on the ureq version, an exhausted
+        // redirect budget can surface the 3xx as a successful response rather than an error.
+        // Never parse a redirect body as a secret -- that body is attacker-chosen.
+        if (300..400).contains(&response.status()) {
+            return Err(CredentialError::BackendUnavailable(format!(
+                "vault returned redirect HTTP {} for {path}; refusing to follow \
+                 (a redirected read would leak the Vault token to the target host)",
+                response.status()
+            )));
+        }
 
         let body: serde_json::Value = response
             .into_json()
@@ -1216,5 +1328,65 @@ mod tests {
             raw,
             "the torn bytes must have been truncated away"
         );
+    }
+}
+
+#[cfg(test)]
+mod vault_path_confinement {
+    use super::*;
+
+    /// The exact escape proven against a live Vault: `../../prod/data/db` read a secret
+    /// from a DIFFERENT mount, and `../../auth/token/lookup-self` returned the backend's
+    /// own root-token metadata.
+    #[test]
+    fn traversal_out_of_the_mount_is_rejected() {
+        for key in [
+            "../../prod/data/db",
+            "../../auth/token/lookup-self",
+            "a/../../b",
+            "..",
+            "./x",
+            "sub/./x",
+        ] {
+            assert!(
+                safe_secret_path(key).is_err(),
+                "must reject traversal key {key:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn empty_and_double_slash_are_rejected() {
+        for key in ["", "/", "a//b", "//"] {
+            assert!(safe_secret_path(key).is_err(), "must reject {key:?}");
+        }
+    }
+
+    #[test]
+    fn a_rejected_key_is_not_reported_as_an_outage() {
+        // A traversal attempt must be distinguishable from a Vault that is down, or an
+        // operator investigating an "outage" will never see the attack.
+        match safe_secret_path("../../prod/data/db") {
+            Err(CredentialError::InvalidKey(_)) => {}
+            other => panic!("expected InvalidKey, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ordinary_keys_still_resolve_unchanged() {
+        assert_eq!(safe_secret_path("agents/coding").unwrap(), "agents/coding");
+        assert_eq!(safe_secret_path("/agents/coding").unwrap(), "agents/coding");
+        // A dot inside a segment is legal -- only a whole segment of "." or ".." traverses.
+        assert_eq!(safe_secret_path("agents/v1.2").unwrap(), "agents/v1.2");
+    }
+
+    #[test]
+    fn characters_that_could_alter_the_url_are_encoded() {
+        // Query and fragment introducers must not survive into the path, or a key could
+        // append parameters to the Vault request.
+        let encoded = safe_secret_path("a?b=1").unwrap();
+        assert!(!encoded.contains('?'), "got {encoded}");
+        let encoded = safe_secret_path("a b").unwrap();
+        assert_eq!(encoded, "a%20b");
     }
 }

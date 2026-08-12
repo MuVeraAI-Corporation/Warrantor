@@ -1,0 +1,227 @@
+// Warrantor Notary API v1
+//
+// Normative specification: specs/warrantor-v4/02-notary-api.md
+// Receipt structure:      specs/warrantor-v4/01-war-receipt.md
+//
+// This service is the ONLY place an allow/deny verdict is produced. It is implemented once, in
+// Rust; other languages call it through generated bindings and MUST NOT re-implement its semantics.
+//
+// NOTE ON SOURCE OF TRUTH: the receipt's canonical form for SIGNING and VERIFICATION is
+// JCS-canonical JSON (RFC 8785) inside a DSSE envelope, per 01-war-receipt.schema.json. The
+// `war_receipt_json` fields below carry that exact serialized form as bytes. This proto defines the
+// TRANSPORT, not a second encoding of the receipt — re-serializing a receipt from proto fields
+// would break signature verification and is prohibited.
+
+syntax = "proto3";
+
+package warrantor.notary.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/warrantor/warrantor/gen/go/warrantor/notary/v1;notaryv1";
+
+service NotaryService {
+  // Pre-commit gate. Runs the nine ordered gates (11-verdict-function.md).
+  // The caller MUST NOT allow the effect to become visible before this returns
+  // successfully with a durable receipt.
+  rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
+
+  // Post-commit receipt. MUST present the commit_token from Authorize.
+  // A post_commit receipt with no durable pre_commit parent MUST be rejected.
+  rpc Attest(AttestRequest) returns (AttestResponse);
+
+  // Bounded revocation. Semantics are execution-count / release-consistency,
+  // NOT TTL expiry: a revoked authority denies the next action regardless of
+  // remaining token lifetime.
+  rpc Revoke(RevokeRequest) returns (RevokeResponse);
+
+  // Kill-switch to a declared safe state. Scopes mirror the four capabilities
+  // named in H.R. 9917.
+  rpc Contain(ContainRequest) returns (ContainResponse);
+
+  // The read path. MUST be implementable by a third party with no privileged
+  // access and no shared secret — verification that requires the issuer's
+  // cooperation is not verification.
+  rpc Verify(VerifyRequest) returns (VerifyResponse);
+}
+
+// ---------------------------------------------------------------- enums
+
+enum Verdict {
+  VERDICT_UNSPECIFIED = 0;  // MUST be treated as DENY — indeterminate is denial
+  VERDICT_ALLOW       = 1;
+  VERDICT_DENY        = 2;
+}
+
+// Coarse by design. A denial reason identifies the failing GATE, never the
+// specific missing capability, matching policy rule, or mismatched digest —
+// a detailed denial oracle lets a patient agent map the authority surface.
+enum DenyReason {
+  DENY_REASON_UNSPECIFIED   = 0;
+  DENY_REASON_CONTAINED     = 1;  // gate 1  · I-12
+  DENY_REASON_IDENTITY      = 2;  // gate 2  · I-01
+  DENY_REASON_FRESHNESS     = 3;  // gate 3  · I-10
+  DENY_REASON_CHAIN         = 4;  // gate 4  · I-02
+  DENY_REASON_AUTHORITY     = 5;  // gate 5  · I-02
+  DENY_REASON_ARTIFACT      = 6;  // gate 6  · I-06
+  DENY_REASON_BUDGET        = 7;  // gate 7
+  DENY_REASON_POLICY        = 8;  // gate 8  · I-04
+  DENY_REASON_APPROVAL      = 9;  // gate 9  · I-08
+  DENY_REASON_EVIDENCE      = 10; // receipt could not be made durable · I-07
+  DENY_REASON_UNAVAILABLE   = 11; // a dependency was unreachable → deny · I-09
+}
+
+enum EnforcementMode {
+  ENFORCEMENT_MODE_UNSPECIFIED = 0;  // MUST be treated as ADVISORY
+  ENFORCEMENT_MODE_MEDIATED    = 1;  // decision sits IN the enforcement path
+  ENFORCEMENT_MODE_ADVISORY    = 2;  // host may ignore the verdict
+}
+
+enum ConsequenceTier {
+  CONSEQUENCE_TIER_UNSPECIFIED = 0;
+  CONSEQUENCE_TIER_ROUTINE     = 1;  // batchable
+  CONSEQUENCE_TIER_ELEVATED    = 2;  // own receipt, never batched
+  CONSEQUENCE_TIER_CRITICAL    = 3;  // own receipt + human approval (I-08)
+}
+
+enum ContainScope {
+  CONTAIN_SCOPE_UNSPECIFIED     = 0;
+  CONTAIN_SCOPE_STOP_INFERENCE  = 1;
+  CONTAIN_SCOPE_TERMINATE_ACCESS= 2;
+  CONTAIN_SCOPE_SUSPEND_PATTERN = 3;
+  CONTAIN_SCOPE_FULL_SHUTDOWN   = 4;
+}
+
+// ---------------------------------------------------------------- messages
+
+message Actor {
+  string principal   = 1;  // accountable human or governed autonomous principal
+  string workload_id = 2;  // SPIFFE ID; MUST be live and unrevoked
+  bytes  svid        = 3;  // presented SVID, verified in-core
+}
+
+// A delegation token in its NATIVE format. The engine verifies each format in
+// its own terms and normalizes losslessly; a token carrying a constraint the
+// internal form cannot express MUST be rejected, never normalized away.
+message DelegationToken {
+  enum Format {
+    FORMAT_UNSPECIFIED  = 0;
+    FORMAT_ID_JAG       = 1;  // Okta Cross App Access
+    FORMAT_OAUTH_RFC8693= 2;  // token exchange, on-behalf-of
+    FORMAT_AAE          = 3;  // Warrantor-native
+  }
+  Format format = 1;
+  bytes  token  = 2;
+}
+
+message Operation {
+  string          op_class          = 1;  // e.g. tool.invoke, net.egress
+  string          target            = 2;
+  string          method            = 3;
+  string          parameters_digest = 4;  // algorithm-prefixed content digest
+  bool            reversible        = 5;
+  ConsequenceTier consequence_tier  = 6;
+}
+
+message ArtifactRef {
+  string kind                  = 1;  // model | skill | tool | dataset | policy
+  string digest                = 2;  // identity IS the digest (I-06)
+  string canonical_resource_id = 3;  // provider-resolved; never caller-supplied
+}
+
+// Guardrail / classifier output. ADVISORY ONLY: may contribute to DENY,
+// MUST NEVER contribute to ALLOW.
+message AdvisorySignal {
+  string source       = 1;
+  string signal       = 2;
+  double score        = 3;
+  string model_digest = 4;
+}
+
+// ---------------------------------------------------------------- RPC types
+
+message AuthorizeRequest {
+  Actor                    actor             = 1;
+  repeated DelegationToken tokens            = 2;
+  Operation                operation         = 3;
+  repeated ArtifactRef     artifacts         = 4;
+  repeated AdvisorySignal  advisory_signals  = 5;
+  google.protobuf.Timestamp requested_at     = 6;  // time is an explicit input:
+                                                   // the verdict function reads no clock
+}
+
+message AuthorizeResponse {
+  Verdict         verdict          = 1;
+  DenyReason      deny_reason      = 2;  // set iff verdict = DENY
+  bytes           war_receipt_json = 3;  // DSSE-wrapped, JCS-canonical. Signed form — do not re-serialize
+  string          commit_token     = 4;  // presented to Attest
+  EnforcementMode enforcement_mode = 5;
+  bool            degraded         = 6;  // ran in a degraded mode (see 02 §5)
+}
+
+message AttestRequest {
+  string commit_token   = 1;
+  string status         = 2;  // success | failure | aborted | denied
+  string outcome_digest = 3;
+  repeated string effects = 4;
+  string error          = 5;
+}
+
+message AttestResponse {
+  bytes  war_receipt_json = 1;
+  string anchor_status    = 2;  // pending | included | failed — batched anchoring
+}
+
+message RevokeRequest {
+  oneof subject {
+    string principal       = 1;
+    string workload_id     = 2;
+    string delegation_link = 3;
+    string artifact_digest = 4;
+    string receipt_lineage = 5;
+  }
+  string reason = 6;
+}
+
+message RevokeResponse {
+  // MEASURED, never a constant. Targets: identity <5s, credentials <1s (I-05).
+  uint64 propagation_latency_ms = 1;
+  uint32 affected_count         = 2;
+  bytes  war_receipt_json       = 3;
+}
+
+message ContainRequest {
+  ContainScope scope           = 1;
+  string       target          = 2;
+  string       safe_state_ref  = 3;  // the declared SafeStateDefinition
+  string       reason          = 4;
+}
+
+message ContainResponse {
+  bool   safe_state_reached      = 1;
+  uint64 trigger_to_quiescence_ms= 2;
+  bool   assertions_held         = 3;
+  uint32 unpermitted_residue     = 4;
+  bytes  war_receipt_json        = 5;  // suitable for a conformance report
+}
+
+message VerifyRequest {
+  bytes war_receipt_json = 1;
+}
+
+message VerifyResponse {
+  bool   valid                    = 1;
+  // Recomputed independently from the chain — the issuer's claimed effective
+  // set is a convenience for readers, never a source of truth.
+  repeated string recomputed_capabilities = 2;
+  bool   intersection_matches     = 3;
+  bool   signature_valid          = 4;
+  bool   canonical_form_valid     = 5;
+  bool   commit_order_valid       = 6;
+  string anchor_status            = 7;
+  EnforcementMode enforcement_mode= 8;
+  // (Authorised, Contested): logbook clean, sealed recorder disagrees.
+  // MUST be surfaced distinctly and MUST NOT be treated as a pass.
+  bool   platform_contested       = 9;
+  repeated string failures        = 10;
+}

@@ -532,7 +532,7 @@ shown what uncontrolled agents do:</p>
 </div>
 
 <h3>The AI Kill Switch Act</h3>
-<p>The US Congress has introduced <strong>H.R. 2026, the AI Kill Switch Act</strong>, which would require
+<p>The US Congress has introduced <strong>H.R. 9917, the AI Kill Switch Act</strong>, which would require
 deployers of certain AI systems to maintain a functional kill mechanism — a way to halt an AI's operation
 immediately and verifiably. AumOS's <strong>R3 kill-switch</strong> component is the reference
 implementation of exactly this requirement: a single, signed command that revokes an agent's authority and
@@ -649,7 +649,7 @@ it solves, and each component by what it is, why you need it, and what happens i
   <div class="field"><span class="field-label">What problem it solves</span> When an AI agent goes wrong — escape attempt, runaway loop, prompt injection — you need to stop it now, not after a ticket reaches an engineer. There is no manual "off switch" for distributed AI today.</div>
   <div class="field"><span class="field-label risk">What happens without it</span> You file a ticket, page someone, wait. The agent keeps running, keeps spending, keeps emailing. The July 2026 OpenAI sandbox escape is the textbook example of what happens when there is no instantaneous kill.</div>
   <div class="field"><span class="field-label scenario">Real-world scenario</span> At 2 AM your monitoring detects an agent behaving erratically. A duty officer hits kill-switch. Within seconds — not minutes — every instance of that agent across every region has its authority revoked and cannot act further. Incident contained before the markets open.</div>
-  <div class="field"><span class="field-label compliance">Regulatory compliance</span> US AI Kill Switch Act (H.R. 2026) — R3 is the reference implementation; EU AI Act Art. 55 (human oversight, stop button); NIST AI RMF "Manage"; DORA Art. 11 (ICT-related incident management).</div>
+  <div class="field"><span class="field-label compliance">Regulatory compliance</span> US AI Kill Switch Act (H.R. 9917) — R3 is the reference implementation; EU AI Act Art. 55 (human oversight, stop button); NIST AI RMF "Manage"; DORA Art. 11 (ICT-related incident management).</div>
   <div class="field"><span class="field-label bottomline">Bottom line</span> If a regulator, a board member, or an insurer asks "can you stop your AI in an emergency?", this is the component that makes the answer "yes, provably, in seconds."</div>
 </div>
 

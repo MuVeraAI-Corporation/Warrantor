@@ -34,7 +34,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
 /// The side-effect classes an AAE may authorize. Mirrors the JSON-Schema enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+// Ord is derived so callers can hold these in a BTreeSet: a HashSet would serialise in
+// nondeterministic order, and anything that ends up inside a signed payload must encode
+// identically every time or the signature is not reproducible.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SideEffectClass {
     /// Read-only access.

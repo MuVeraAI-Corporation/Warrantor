@@ -1,0 +1,221 @@
+{
+  "protocol": "P2",
+  "version": "2.0",
+  "name": "Warrantor Action Receipt (WAR)",
+  "schema": "../../../specs/warrantor-v4/01-war-receipt.schema.json",
+  "spec": "../../../specs/warrantor-v4/01-war-receipt.md",
+  "note": "Golden vectors for the v4 contract freeze. Schema-level cases below are machine-verified against Draft 2020-12 and MUST all produce the stated result. Semantic cases require a verifier implementation and cannot be caught by schema validation alone — they are listed here as normative requirements for the conformance harness.",
+  "constants": {
+    "D": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "D2": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+
+  "baseline": {
+    "id": "P2v2-positive-001",
+    "expect": "valid",
+    "description": "Minimal well-formed pre_commit receipt, mediated mode, routine tier.",
+    "receipt": {
+      "binding": {
+        "receipt_id": "0190a745-fab5-7f1e-bbb0-dcadf70a4ea1",
+        "phase": "pre_commit",
+        "nonce": "AAAAAAAAAAAAAAAAAAAAAA==",
+        "issued_at": "2026-08-11T00:00:00Z",
+        "expires_at": "2026-08-11T00:05:00Z",
+        "enforcement_mode": "mediated"
+      },
+      "actor": {
+        "principal": "operator@example",
+        "workload_id": "spiffe://warrantor.example/agent/1",
+        "svid_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "authority": {
+        "chain": [
+          {
+            "issuer": "root",
+            "subject": "agent",
+            "capabilities": ["tool:read"],
+            "not_before": "2026-08-11T00:00:00Z",
+            "not_after": "2026-08-11T01:00:00Z",
+            "token_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "token_format": "id_jag"
+          }
+        ],
+        "effective_capabilities": ["tool:read"],
+        "intersection_proof": {
+          "algorithm": "warrantor-intersect-v1",
+          "links_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "result_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "decision": {
+        "verdict": "allow",
+        "engine": "cedar@4",
+        "policy_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "inputs_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "evaluated_at": "2026-08-11T00:00:00Z"
+      },
+      "operation": {
+        "class": "tool.invoke",
+        "target": "db",
+        "method": "select",
+        "parameters_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reversible": true,
+        "consequence_tier": "routine"
+      },
+      "artifacts": {
+        "model": {
+          "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "format": "safetensors"
+        }
+      }
+    }
+  },
+
+  "schema_cases": [
+    {
+      "id": "P2v2-negative-commit-order-001",
+      "expect": "invalid",
+      "invariant": "I-07",
+      "mutation": "binding.phase = post_commit, outcome omitted",
+      "reason": "A post_commit receipt with no outcome cannot establish that evidence preceded the effect.",
+      "verified": true
+    },
+    {
+      "id": "P2v2-positive-post-commit-002",
+      "expect": "valid",
+      "invariant": "I-07",
+      "mutation": "binding.phase = post_commit, outcome present",
+      "verified": true
+    },
+    {
+      "id": "P2v2-negative-approval-003",
+      "expect": "invalid",
+      "invariant": "I-08",
+      "mutation": "operation.consequence_tier = critical, human_approval omitted",
+      "reason": "Critical actions require non-delegable human authority in the chain.",
+      "verified": true
+    },
+    {
+      "id": "P2v2-positive-approval-004",
+      "expect": "valid",
+      "invariant": "I-08",
+      "mutation": "operation.consequence_tier = critical, human_approval present",
+      "verified": true
+    },
+    {
+      "id": "P2v2-negative-atomic-irreversible-005",
+      "expect": "invalid",
+      "invariant": "I-07",
+      "mutation": "binding.phase = atomic, operation.reversible = false",
+      "reason": "The atomic phase collapses the commit gate and is permitted only for reversible, routine operations.",
+      "verified": true
+    },
+    {
+      "id": "P2v2-negative-mode-missing-006",
+      "expect": "invalid",
+      "mutation": "binding.enforcement_mode omitted",
+      "reason": "A receipt that does not declare its enforcement mode cannot be bounded in what it claims.",
+      "verified": true
+    },
+    {
+      "id": "P2v2-negative-digest-form-007",
+      "expect": "invalid",
+      "invariant": "I-06",
+      "mutation": "artifacts.model.digest = 'notadigest'",
+      "reason": "Artifact identity is an algorithm-prefixed content digest; names and free strings are not identity.",
+      "verified": true
+    },
+    {
+      "id": "P2v2-negative-token-format-008",
+      "expect": "invalid",
+      "mutation": "authority.chain[0].token_format = 'homegrown'",
+      "reason": "Warrantor verifies established delegation token formats; it does not accept bespoke ones. Prevents silent re-invention of identity standards.",
+      "verified": true
+    }
+  ],
+
+  "semantic_cases": [
+    {
+      "id": "P2v2-adversarial-authority-expansion-101",
+      "expect": "reject",
+      "invariant": "I-02",
+      "setup": "chain has two links: link A capabilities ['tool:read','tool:write'], link B capabilities ['tool:read']; effective_capabilities claims ['tool:read','tool:write']",
+      "requirement": "The verifier MUST recompute the intersection (['tool:read']) and reject on mismatch. Authority is the intersection, never the union.",
+      "verified_by": "verifier implementation, not schema"
+    },
+    {
+      "id": "P2v2-adversarial-forged-intersection-102",
+      "expect": "reject",
+      "invariant": "I-02",
+      "setup": "effective_capabilities is correct but intersection_proof.result_digest does not correspond to the chain",
+      "requirement": "The verifier MUST recompute links_digest and result_digest from chain[] and reject on mismatch.",
+      "verified_by": "verifier implementation"
+    },
+    {
+      "id": "P2v2-adversarial-replay-103",
+      "expect": "reject",
+      "invariant": "I-10",
+      "setup": "a valid receipt is re-presented after expires_at, and separately re-presented within a different task context",
+      "requirement": "Reject on expiry without further checks; reject on nonce + receipt_id uniqueness across contexts.",
+      "verified_by": "verifier implementation"
+    },
+    {
+      "id": "P2v2-adversarial-confused-deputy-104",
+      "expect": "reject",
+      "setup": "artifacts.tools[0].canonical_resource_id is a caller-supplied string rather than the provider-resolved identifier",
+      "requirement": "Policy MUST key off provider-resolved identifiers only.",
+      "verified_by": "verifier implementation"
+    },
+    {
+      "id": "P2v2-adversarial-mode-escalation-105",
+      "expect": "reject",
+      "setup": "a receipt with enforcement_mode = advisory is presented as evidence of containment",
+      "requirement": "The verifier MUST refuse any non-bypassability or containment claim from an advisory receipt.",
+      "verified_by": "verifier implementation"
+    },
+    {
+      "id": "P2v2-adversarial-contested-platform-106",
+      "expect": "alarm",
+      "setup": "platform_verdict = { authorization: 'Authorised', platform: 'Contested' }",
+      "requirement": "MUST NOT pass silently. The logbook reads clean while the sealed recorder disagrees — the signature of a swapped model artifact. Surface as a distinct alarm state.",
+      "verified_by": "verifier implementation"
+    },
+    {
+      "id": "P2v2-adversarial-artifact-substitution-107",
+      "expect": "reject",
+      "invariant": "I-06",
+      "setup": "same model name and version, different digest from the one attested",
+      "requirement": "Reject. Identity is the digest.",
+      "verified_by": "verifier implementation"
+    },
+    {
+      "id": "P2v2-adversarial-alg-confusion-108",
+      "expect": "reject",
+      "setup": "DSSE signature alg does not match the key type",
+      "requirement": "Reject. Algorithm is explicit in every receipt and MUST be checked, never inferred.",
+      "verified_by": "verifier implementation"
+    },
+    {
+      "id": "P2v2-adversarial-root-compromise-109",
+      "expect": "reject",
+      "setup": "the delegation chain verifies correctly, but the root key appears on the revocation list",
+      "requirement": "Reject and invoke the containment path. Intersection is sound only while the root is honest; this is the failure mode the spec names explicitly.",
+      "verified_by": "verifier implementation"
+    },
+    {
+      "id": "P2v2-adversarial-downgrade-110",
+      "expect": "reject",
+      "setup": "a receipt asserting v1.0 semantics is presented to a v2.0 verifier",
+      "requirement": "Reject. Version downgrade must not silently drop the authority-intersection and enforcement-mode requirements introduced in v2.0.",
+      "verified_by": "verifier implementation"
+    },
+    {
+      "id": "P2v2-adversarial-unknown-critical-extension-111",
+      "expect": "reject",
+      "invariant": "I-09",
+      "setup": "receipt carries a critical extension the verifier does not understand",
+      "requirement": "Fail closed. An unrecognized critical extension is a denial, not a warning.",
+      "verified_by": "verifier implementation"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ name = "warrantor-authority-spec"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 authors.workspace = true
 description = "T2 — normative Agent Authority Envelope (AAE, P1) schema + Rust reference validator"
 
@@ -18,7 +19,7 @@ serde_json = "1"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand = "0.8"
 prost-types = "0.13"
-warrantor-api = { path = "../warrantor-api" }
+warrantor-api = { path = "../warrantor-api", version = "1.0.0" }
 
 [dev-dependencies]
 proptest = "1"

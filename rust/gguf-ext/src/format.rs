@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use thiserror::Error;
 
 pub(crate) const GGUF_MAGIC: &[u8; 4] = b"GGUF";
@@ -284,8 +284,27 @@ impl AllocationBudget {
     }
 }
 
+/// Buffer size for metadata decoding.
+///
+/// The decoder reads one scalar at a time -- a u32 here, a u64 there -- because that is the shape
+/// of the GGUF metadata format. Against an in-memory `Cursor` that is free, which is why every
+/// test looked fine. Against a real `File` each of those became its own `read` syscall, and a
+/// normally-shaped 3.2 MB GGUF with a llama-3 sized 128k-token tokenizer array took **4.05s to
+/// parse instead of 35ms** -- 116x, rising to 291x on array-heavy files.
+///
+/// 64 KiB removes roughly three orders of magnitude of syscalls and is small enough to stay well
+/// inside the allocation budget the limits already enforce.
+const DECODE_BUFFER_BYTES: usize = 64 * 1024;
+
 struct Decoder<'a, R> {
-    reader: &'a mut R,
+    /// Buffered so the per-scalar reads above do not become per-scalar syscalls.
+    ///
+    /// Safe despite the outer `Seek`: the decoder seeks only in [`Decoder::new`], *before* this
+    /// wrapper exists, and reads strictly sequentially afterwards. Both callers that reuse the
+    /// underlying reader (`hash_file` and `rewrite_metadata`) issue an absolute
+    /// `seek(SeekFrom::Start(..))` before touching it again, so the bytes this buffer consumed
+    /// ahead of the logical position cannot desynchronise them.
+    reader: BufReader<&'a mut R>,
     limits: &'a GgufLimits,
     position: u64,
     file_length: u64,
@@ -304,7 +323,7 @@ impl<'a, R: Read + Seek> Decoder<'a, R> {
         }
         reader.seek(SeekFrom::Start(0))?;
         Ok(Self {
-            reader,
+            reader: BufReader::with_capacity(DECODE_BUFFER_BYTES, reader),
             limits,
             position: 0,
             file_length,

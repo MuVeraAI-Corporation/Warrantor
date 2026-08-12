@@ -59,4 +59,13 @@ htmlcov/
 
 # Transient audit virtualenv
 .auditvenv/
-evidence/
+# Anchored to the repository root on purpose. Unanchored, `evidence/` matches at ANY
+# depth -- it silently swallowed rust/evidence/, a real workspace member, so every
+# `cargo metadata` in CI failed with 'no such file or directory' and took rustfmt,
+# clippy and the conformance matrix down with it.
+/evidence/
+
+# Agent hook state -- per-session scratch containing local absolute paths.
+# Never useful to a contributor and noise in a public repo.
+.mimosa/
+**/.mimosa/

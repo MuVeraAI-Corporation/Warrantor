@@ -38,8 +38,9 @@
 //! record anywhere else is a hard [`RecorderError::ChainCorrupt`] — that is tampering, not a
 //! crash.
 
+use fs4::FileExt;
 use std::fs::{File, OpenOptions};
-use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
+use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -124,9 +125,67 @@ pub struct FileEvidenceStore {
     file: File,
     next_seq: u64,
     head: [u8; 32],
+    /// Held for the store's lifetime purely for its lock; dropping it releases the lock.
+    _lock_file: File,
 }
 
+/// Suffix of the sidecar lock file that guards an evidence log.
+const LOCK_SUFFIX: &str = ".lock";
+
 impl FileEvidenceStore {
+    /// Take the exclusive lock that makes this store the log's only writer.
+    ///
+    /// Without it, two recorders over one path each cached their own `next_seq` and `head` at
+    /// open time, so both assigned the SAME seq to different records and both returned a
+    /// durability proof. Each caller then committed its side effect believing the record was
+    /// durable, while the log ended up with a duplicated sequence number -- after which every
+    /// subsequent read failed with `ChainCorrupt`, including for the record that had been written
+    /// correctly. An evidence log that acknowledges a write and then destroys itself is worse
+    /// than one that refuses to open.
+    ///
+    /// The lock lives in a sidecar `<path>.lock` rather than on the log itself, because Windows
+    /// file locks are mandatory: locking the log would block this process's own readers
+    /// (`records()` opens its own handle) as well as any external auditor running `jq` over the
+    /// file. The evidence log must stay readable by anyone at any time -- that is the point of it.
+    ///
+    /// The OS holds the lock against the open file description, so this also catches two stores
+    /// in the same process, not just two processes. Dropping the store closes the handle and
+    /// releases the lock.
+    fn acquire_lock(path: &Path) -> Result<File, RecorderError> {
+        let mut lock_path = path.as_os_str().to_os_string();
+        lock_path.push(LOCK_SUFFIX);
+        let lock_path = PathBuf::from(lock_path);
+
+        let lock_file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&lock_path)
+            .map_err(|source| RecorderError::Io {
+                path: lock_path.display().to_string(),
+                source,
+            })?;
+
+        lock_file
+            .try_lock_exclusive()
+            .map_err(|source| RecorderError::Io {
+                path: path.display().to_string(),
+                source: std::io::Error::new(
+                    std::io::ErrorKind::WouldBlock,
+                    format!(
+                        "evidence log {} is already open by another flight recorder \
+                         (lock held on {}); two recorders sharing one log assign the same \
+                         sequence number to different records and corrupt the chain: {source}",
+                        path.display(),
+                        lock_path.display()
+                    ),
+                ),
+            })?;
+
+        Ok(lock_file)
+    }
+
     /// Open (or create) the evidence log at `path`, replaying and verifying the existing chain.
     ///
     /// A torn final record left by a crash is truncated (with a warning on stderr). Any other
@@ -185,6 +244,9 @@ impl FileEvidenceStore {
                 path: path.display().to_string(),
                 source,
             })?;
+
+        let lock_file = Self::acquire_lock(&path)?;
+
         file.seek(SeekFrom::End(0))
             .map_err(|source| RecorderError::Io {
                 path: path.display().to_string(),
@@ -196,6 +258,7 @@ impl FileEvidenceStore {
             file,
             next_seq,
             head,
+            _lock_file: lock_file,
         })
     }
 
@@ -256,7 +319,7 @@ impl FileEvidenceStore {
                 source,
             })?
             .len();
-        let reader = BufReader::new(file);
+        let mut reader = BufReader::new(file);
 
         let mut records: Vec<EvidenceRecord> = Vec::new();
         let mut good_bytes: u64 = 0;
@@ -264,19 +327,83 @@ impl FileEvidenceStore {
         let mut expected_seq: u64 = 0;
         let mut raw_lines: Vec<(String, u64)> = Vec::new();
 
-        for line in reader.lines() {
-            let line = line.map_err(|source| RecorderError::Io {
-                path: path.display().to_string(),
-                source,
-            })?;
+        // Read as BYTES and decode each line individually.
+        //
+        // `reader.lines()` fails the whole read with io::ErrorKind::InvalidData the moment any
+        // byte sequence is not valid UTF-8, which surfaced as RecorderError::Io -- the variant
+        // reserved for device and permission failures. But a flipped byte in an append-only
+        // evidence log is not an I/O fault, it is tampering or corruption, and reporting it as
+        // Io meant the one signal this component exists to raise was indistinguishable from a
+        // failing disk. Decoding per line lets a bad line be reported as ChainCorrupt, with the
+        // sequence number of the record it belongs to.
+        let mut raw = Vec::new();
+        std::io::Read::read_to_end(&mut reader, &mut raw).map_err(|source| RecorderError::Io {
+            path: path.display().to_string(),
+            source,
+        })?;
+
+        for (index, chunk) in raw.split(|byte| *byte == b'\n').enumerate() {
+            // `split` yields a trailing empty chunk when the data ends with a newline; the
+            // torn-tail check below is what distinguishes "ended cleanly" from "was truncated".
+            if chunk.is_empty() && index == raw.split(|b| *b == b'\n').count() - 1 {
+                continue;
+            }
+            let line = match std::str::from_utf8(chunk) {
+                Ok(text) => text.to_string(),
+                Err(error) => {
+                    return Err(RecorderError::ChainCorrupt {
+                        seq: index as u64,
+                        detail: format!(
+                            "record is not valid UTF-8 at byte {} of the line: {error}",
+                            error.valid_up_to()
+                        ),
+                    });
+                }
+            };
             // +1 for the newline the writer always appends.
             let consumed = line.len() as u64 + 1;
             raw_lines.push((line, consumed));
         }
 
+        // Does the file end with the newline the writer always emits?
+        //
+        // This is the only reliable torn-tail signal, and byte arithmetic cannot substitute
+        // for it: `consumed` above adds 1 for a newline unconditionally, so a file missing
+        // its final newline yields good_bytes == the length it WOULD have had. Comparing
+        // good_bytes to total_len therefore either matches (hiding the tear) or overshoots
+        // (making the truncation target longer than the file).
+        //
+        // Previously the torn-tail check lived only inside the JSON-parse-failure arm, so a
+        // final record that parsed cleanly but lost its newline was accepted -- and the next
+        // append concatenated onto it, producing `}{` on one line. The chain then broke at a
+        // record the writer had never touched, blaming the wrong one.
+        let ends_with_newline = total_len == 0 || {
+            let mut f = File::open(path).map_err(|source| RecorderError::Io {
+                path: path.display().to_string(),
+                source,
+            })?;
+            f.seek(SeekFrom::End(-1))
+                .map_err(|source| RecorderError::Io {
+                    path: path.display().to_string(),
+                    source,
+                })?;
+            let mut last = [0u8; 1];
+            std::io::Read::read_exact(&mut f, &mut last).map_err(|source| RecorderError::Io {
+                path: path.display().to_string(),
+                source,
+            })?;
+            last[0] == b'\n'
+        };
+
         let line_count = raw_lines.len();
         for (idx, (line, consumed)) in raw_lines.into_iter().enumerate() {
             let is_last = idx + 1 == line_count;
+            // A final line with no terminating newline is a partial write, whatever it
+            // parses as. Stop here: `good_bytes` is the offset of the last COMPLETE record,
+            // which is exactly what open() truncates to.
+            if is_last && !ends_with_newline {
+                return Ok((records, good_bytes, true));
+            }
             if line.trim().is_empty() {
                 good_bytes += consumed;
                 continue;
@@ -330,6 +457,7 @@ impl FileEvidenceStore {
             good_bytes += consumed;
             records.push(record);
         }
+
         Ok((records, good_bytes, false))
     }
 }
@@ -415,5 +543,84 @@ impl EvidenceStore for NonDurableMemoryEvidenceStore {
 
     fn head_digest_hex(&self) -> String {
         hex::encode(self.head)
+    }
+}
+
+#[cfg(test)]
+mod torn_tail {
+    use super::*;
+    use crate::{FlightRecorder, ReceiptInput};
+
+    fn input(n: u8) -> ReceiptInput {
+        ReceiptInput {
+            actor: format!("spiffe://muveraai.com/agent/{n}"),
+            authority_hash_hex: "ab".repeat(32),
+            tool_or_api_op: "deploy".into(),
+            context_commitment_hex: "cd".repeat(32),
+        }
+    }
+
+    /// A last record that PARSES but lost its terminating newline is a partial write.
+    ///
+    /// Accepting it meant the next append concatenated onto it (`}{` on one line), which
+    /// corrupted the chain permanently -- and the error surfaced later at a record the
+    /// writer had not touched, blaming the wrong one.
+    #[test]
+    fn a_log_missing_its_final_newline_is_treated_as_torn() {
+        let dir = std::env::temp_dir().join(format!("warrantor-torn-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let path = dir.join("evidence.jsonl");
+        let _ = std::fs::remove_file(&path);
+
+        let mut recorder = FlightRecorder::new();
+        {
+            let mut store = FileEvidenceStore::open(&path).expect("open");
+            for n in 0..3u8 {
+                let receipt = recorder.emit_pending(input(n)).expect("emit");
+                store.append(&receipt).expect("append");
+            }
+        }
+
+        // Simulate the interrupted write: drop the trailing newline only.
+        let bytes = std::fs::read(&path).expect("read");
+        assert_eq!(
+            bytes.last(),
+            Some(&b'\n'),
+            "writer should terminate records"
+        );
+        std::fs::write(&path, &bytes[..bytes.len() - 1]).expect("truncate newline");
+
+        // Reopening must NOT silently accept the tail; it is a partial record.
+        let store = FileEvidenceStore::open(&path).expect("reopen");
+        assert_eq!(
+            store.len(),
+            2,
+            "the unterminated final record must be treated as torn and dropped, \
+             leaving 2 whole records -- accepting it corrupts the next append"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The ordinary case must be unaffected: a properly terminated log keeps every record.
+    #[test]
+    fn a_well_formed_log_keeps_every_record() {
+        let dir = std::env::temp_dir().join(format!("warrantor-whole-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let path = dir.join("evidence.jsonl");
+        let _ = std::fs::remove_file(&path);
+
+        let mut recorder = FlightRecorder::new();
+        {
+            let mut store = FileEvidenceStore::open(&path).expect("open");
+            for n in 0..3u8 {
+                let receipt = recorder.emit_pending(input(n)).expect("emit");
+                store.append(&receipt).expect("append");
+            }
+        }
+        let store = FileEvidenceStore::open(&path).expect("reopen");
+        assert_eq!(store.len(), 3, "a complete log must keep all records");
+
+        let _ = std::fs::remove_file(&path);
     }
 }

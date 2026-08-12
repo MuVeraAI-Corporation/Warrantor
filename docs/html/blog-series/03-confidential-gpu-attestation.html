@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confidential GPUs: Attestation, NRAS, and Composite TEE Pipelines · AumOS Blog Series</title>
+  <link rel="stylesheet" href="blog-series.css">
+</head>
+<body>
+<div class="container">
+  <div class="series-bar">
+    <a href="index.html">← Series index</a>
+    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span>Local technical essay · 2026</span>
+  </div>
+
+  <header class="article-header">
+    <div class="article-eyebrow">Essay 3 of 8 · Confidential Compute</div>
+    <h1>Confidential GPUs: Attestation, NRAS, and Composite TEE Pipelines</h1>
+    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-affil">H100/B200 confidential computing only matters if attestation is verifiable offline and online—nvtrust, NRAS, and multi-cloud CC fabrics.</p>
+    <div class="article-meta">
+      <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value"><span class="id-chip" data-aumos-id="C1-1">C1-1</span> <span class="id-chip" data-aumos-id="C1-2">C1-2</span> <span class="id-chip" data-aumos-id="C1-3">C1-3</span> <span class="id-chip" data-aumos-id="C1-4">C1-4</span> <span class="id-chip" data-aumos-id="C1-5">C1-5</span> <span class="id-chip" data-aumos-id="N4">N4</span> <span class="id-chip protocol" data-aumos-id="P12">P12</span></span></div>
+      <div class="meta-item"><span class="meta-label">Pipeline</span><span class="meta-value">Research → draft → visuals → adversarial review → fix</span></div>
+      <div class="meta-item"><span class="meta-label">Citations</span><span class="meta-value">Primary RFCs / eng blogs / standards</span></div>
+    </div>
+    <nav class="article-nav"><a href="02-runtime-containment-kill-switch.html">← Essay 02</a><span></span><a href="04-ai-supply-chain-sbom-lightwell.html">Essay 04 →</a></nav>
+  </header>
+
+
+  <div class="abstract">
+    <span class="abstract-label">Thesis</span>
+    <p>Confidential GPUs are useless as a marketing checkbox. What matters is a verifiable chain: device identity → attestation report → remote/local verification → policy-bound key release → serving path. AumOS <span class="id-chip">C1-1</span>…<span class="id-chip">C1-5</span> implement that chain; <span class="id-chip protocol">P12</span> CAP binds it to authority envelopes.</p>
+  </div>
+  <div class="toc"><div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#why">Why GPU attestation is different</a></li>
+    <li><a href="#chain">The attestation chain</a></li>
+    <li><a href="#multi">Multi-cloud composite pipelines</a></li>
+    <li><a href="#threats">Threats unique to CC inference</a></li>
+    <li><a href="#map">Component map</a></li>
+  </ol></div>
+
+  <h2 id="why">1. Why GPU attestation is different</h2>
+  <p>CPU TEEs (SEV-SNP, TDX, Nitro) do not automatically cover accelerator memory. Hopper-class confidential computing adds VRAM encryption and device attestation reports verified via NVIDIA Remote Attestation Service (NRAS) or local verifiers<sup><a href="#refs">[1,2]</a></sup>. Multi-tenant inference without MIG/attestation is shared fate<sup><a href="#refs">[5]</a></sup>.</p>
+
+  <div class="visual" data-visual="attest-flow">
+    <div class="visual-caption">Figure 1 — Attestation → key release → serve</div>
+    <svg viewBox="0 0 820 200" xmlns="http://www.w3.org/2000/svg">
+      <rect width="820" height="200" fill="#f8f6f2"/>
+      <rect x="20" y="60" width="140" height="70" rx="8" fill="#fff" stroke="#d97757" stroke-width="2"/>
+      <text x="90" y="95" text-anchor="middle" font-size="12" font-family="Georgia,serif">GPU evidence</text>
+      <text x="90" y="112" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">C1-1 / C1-2</text>
+      <path d="M160 95 H200" stroke="#d97757" stroke-width="2"/>
+      <rect x="200" y="60" width="150" height="70" rx="8" fill="#fff" stroke="#555188" stroke-width="2"/>
+      <text x="275" y="95" text-anchor="middle" font-size="12" font-family="Georgia,serif">NRAS / local</text>
+      <text x="275" y="112" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">verify quote</text>
+      <path d="M350 95 H390" stroke="#555188" stroke-width="2"/>
+      <rect x="390" y="60" width="150" height="70" rx="8" fill="#fff" stroke="#4a6fa5" stroke-width="2"/>
+      <text x="465" y="95" text-anchor="middle" font-size="12" font-family="Georgia,serif">Policy gate</text>
+      <text x="465" y="112" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">CAP + AAE</text>
+      <path d="M540 95 H580" stroke="#4a6fa5" stroke-width="2"/>
+      <rect x="580" y="60" width="150" height="70" rx="8" fill="#fff" stroke="#5a8055" stroke-width="2"/>
+      <text x="655" y="95" text-anchor="middle" font-size="12" font-family="Georgia,serif">Key release</text>
+      <text x="655" y="112" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">C1-5 fabric</text>
+      <path d="M730 95 H760" stroke="#5a8055" stroke-width="2"/>
+      <rect x="760" y="70" width="40" height="50" rx="6" fill="#edf5ed" stroke="#5a8055"/>
+      <text x="780" y="100" text-anchor="middle" font-size="11" font-family="monospace">serve</text>
+    </svg>
+  </div>
+
+  <h2 id="chain">2. The attestation chain</h2>
+  <p><span class="id-chip">C1-1</span> nvtrust-bridge wraps nvtrust FFI and offline/mock modes for CI. <span class="id-chip">C1-2</span> cuda-gram is the high-level Python SDK. <span class="id-chip">C1-4</span> tee-serve is TEE-backed model serving (Go sidecar). Community Go verifiers (go-nvtrust) show multi-language demand<sup><a href="#refs">[4]</a></sup>.</p>
+
+  <h2 id="multi">3. Multi-cloud composite pipelines</h2>
+  <p><span class="id-chip">C1-3</span> AttestaFlow targets end-to-end attested inference across Azure DC, AWS Nitro, GCP CC + NVIDIA GPUs. Intel Trust Authority documents composite TEE+GPU workflows<sup><a href="#refs">[3]</a></sup>. <span class="id-chip">C1-5</span> confidential-fabric is the policy-bound key release and confidential container orchestration layer.</p>
+
+  <div class="visual" data-visual="cc-matrix">
+    <div class="visual-caption">Table 1 — Component responsibilities</div>
+    <table>
+      <thead><tr><th>ID</th><th>Role</th><th>Wave</th></tr></thead>
+      <tbody>
+        <tr><td><code>C1-1</code></td><td>nvtrust verify CLI / FFI</td><td>1</td></tr>
+        <tr><td><code>C1-2</code></td><td>Python attestation SDK</td><td>1</td></tr>
+        <tr><td><code>C1-3</code></td><td>E2E multi-cloud pipeline</td><td>5</td></tr>
+        <tr><td><code>C1-4</code></td><td>TEE model serve sidecar</td><td>5</td></tr>
+        <tr><td><code>C1-5</code></td><td>Fabric + key release</td><td>5</td></tr>
+        <tr><td><code>N4</code></td><td>MIG/MPS multi-tenant GPU</td><td>4</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="threats">4. Threats unique to CC inference</h2>
+  <p>Stale measurements after firmware update, NRAS dependency without local fallback, accepting quotes from non-CC mode, and multi-GPU NVLink trust boundary mistakes. Policy must pin expected measurements and fail closed on mismatch—same discipline as SPIRE selectors.</p>
+
+  <h2 id="map">5. Component map</h2>
+  <p>CAP (<span class="id-chip protocol">P12</span>) is how inference proxies and kill switches learn that “this request runs on attested H100/Blackwell CC.” Without CAP bind on AAE, confidential compute is an island. Prefer local verifiers for air-gap (X10) and pin expected measurements after firmware updates—stale golden measurements are a silent fail-open.</p>
+  <div class="callout">
+    <div class="callout-title">GCC / sovereign deployments</div>
+    <p>Sovereign AI programs care about attestation and offline verification. C1-* mock/offline modes for CI must never be confused with production accept paths: production denies when evidence is missing.</p>
+  </div>
+
+
+  <section class="refs" id="refs">
+    <h2>References (primary sources)</h2>
+    <ol>
+      <li class="cite" data-cite-url="https://docs.nvidia.com/nvtrust/index.html"><strong>NVIDIA Trusted Computing / nvtrust Documentation</strong> — NVIDIA. <a href="https://docs.nvidia.com/nvtrust/index.html" rel="noopener noreferrer" target="_blank">https://docs.nvidia.com/nvtrust/index.html</a></li>
+      <li class="cite" data-cite-url="https://developer.nvidia.com/blog/confidential-computing-on-h100-gpus-for-secure-and-trustworthy-ai/"><strong>Confidential Computing on NVIDIA H100 GPUs</strong> — NVIDIA Technical Blog. <a href="https://developer.nvidia.com/blog/confidential-computing-on-h100-gpus-for-secure-and-trustworthy-ai/" rel="noopener noreferrer" target="_blank">https://developer.nvidia.com/blog/confidential-computing-on-h100-gpus-for-secure-and-trustworthy-ai/</a></li>
+      <li class="cite" data-cite-url="https://docs.trustauthority.intel.com/main/articles/articles/ita/concept-gpu-attestation.html"><strong>GPU Remote Attestation With Intel Trust Authority</strong> — Intel. <a href="https://docs.trustauthority.intel.com/main/articles/articles/ita/concept-gpu-attestation.html" rel="noopener noreferrer" target="_blank">https://docs.trustauthority.intel.com/main/articles/articles/ita/concept-gpu-attestation.html</a></li>
+      <li class="cite" data-cite-url="https://github.com/confidentsecurity/go-nvtrust"><strong>go-nvtrust</strong> — Confident Security. <a href="https://github.com/confidentsecurity/go-nvtrust" rel="noopener noreferrer" target="_blank">https://github.com/confidentsecurity/go-nvtrust</a></li>
+      <li class="cite" data-cite-url="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/"><strong>NVIDIA MIG User Guide</strong> — NVIDIA. <a href="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/" rel="noopener noreferrer" target="_blank">https://docs.nvidia.com/datacenter/tesla/mig-user-guide/</a></li>
+    </ol>
+  </section>
+
+  <footer style="margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);font-size:0.85rem;color:var(--text-tertiary);">
+    <p>Local in-repo deliverable. Not a hosted artifact. Series plan: <code>meta/phase-plan.md</code>.</p>
+    <p><a href="02-runtime-containment-kill-switch.html">← Essay 02</a><span></span><a href="04-ai-supply-chain-sbom-lightwell.html">Essay 04 →</a></p>
+  </footer>
+</div>
+</body>
+</html>

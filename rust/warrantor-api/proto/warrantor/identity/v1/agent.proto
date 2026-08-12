@@ -1,0 +1,110 @@
+// AumOS identity contracts — the mock AgentVault interface Wave-1 components integrate against.
+// The real I1 agent-identity (Wave-2) replaces this with SPIFFE/SPIRE-backed issuance.
+//
+// Per docs/cross-cutting/19-inter-component-protocol.md: gRPC + protobuf for internal RPCs.
+syntax = "proto3";
+
+package warrantor.identity.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// AgentIdentityService is the service every Wave-1 component calls (via mock in Wave-1).
+// Real implementation lands in Wave-2 (RFC I1).
+service AgentIdentityService {
+  // Issue an identity for an agent under a given authority envelope (AAE, P1).
+  rpc IssueIdentity(IssueIdentityRequest) returns (IssueIdentityResponse);
+  // Verify an identity token / SVID.
+  rpc VerifyIdentity(VerifyIdentityRequest) returns (VerifyIdentityResponse);
+  // Revoke an identity. Propagates fleet-wide in <5s (invariant I-05).
+  rpc Revoke(RevokeRequest) returns (RevokeResponse);
+}
+
+// An Agent Authority Envelope (P1) — the signed delegation that authorizes an agent to act.
+// See specs/protocols/P1-aae.md. Trust-core (T1) signs/verifies this.
+message AgentAuthorityEnvelope {
+  // The SPIFFE ID of the issuer (e.g. "spiffe://muveraai.com/agent-identity").
+  string issuer = 1;
+  // The SPIFFE ID of the subject agent.
+  string subject = 2;
+  // The human-readable purpose of this delegation (e.g. "open a pull request").
+  string purpose = 3;
+  // Resources the agent may touch (URIs).
+  repeated string resources = 4;
+  // Tools the agent may invoke (SPIFFE IDs of tool servers).
+  repeated string tools = 5;
+  // Data classification levels the agent may read (L0..L4 per cross-cutting 17).
+  repeated string data_classes = 6;
+  // Side-effect class: "read", "write", "financial", "destructive", "physical".
+  string side_effect_class = 7;
+  // Spend budget in minor currency units (e.g. cents).
+  int64 spend_budget = 8;
+  // Wall-clock time budget in seconds.
+  int64 time_budget_seconds = 9;
+  // Token-count budget for inference calls.
+  int64 token_budget = 10;
+  // Geographic constraint (ISO-3166 alpha-2; empty = unrestricted).
+  string geography = 11;
+  // Maximum delegation depth (0 = no further delegation).
+  uint32 delegation_depth = 12;
+  // Required approver SPIFFE IDs (for consequential actions; invariant I-08).
+  repeated string approvals = 13;
+  // Expiry timestamp. After this, the envelope is invalid.
+  google.protobuf.Timestamp expiry = 14;
+  // Revocation handle (opaque); published to revoke this envelope.
+  string revocation_handle = 15;
+  // Canonical-CBOR bytes of the envelope, signed by the issuer via trust-core (T1).
+  bytes signature = 16;
+}
+
+message IssueIdentityRequest {
+  // The AAE that authorizes this identity.
+  AgentAuthorityEnvelope envelope = 1;
+  // The agent's runtime attributes (model, version, parent SVID).
+  AgentAttributes attributes = 2;
+  // Idempotency key.
+  string request_id = 3;
+}
+
+// Runtime attributes bound to the agent's SVID (extends SPIFFE per RFC I1).
+message AgentAttributes {
+  string publisher = 1;          // e.g. "muveraai.com/coding-agent"
+  string model = 2;              // e.g. "claude-opus-4.5"
+  string version = 3;            // agent software version
+  string rules_of_engagement = 4; // path or hash of the ROE document
+  string parent_svid = 5;        // parent agent's SVID, if delegated
+}
+
+message IssueIdentityResponse {
+  // The issued SVID (serialized JWT in Wave-2; opaque token in Wave-1 mock).
+  string svid = 1;
+  // The short-lived capability token (TTL 5..60s) bound to this identity.
+  string capability_token = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message VerifyIdentityRequest {
+  string svid = 1;
+  // The audience the caller expects (confused-deputy defense).
+  string audience = 2;
+}
+
+message VerifyIdentityResponse {
+  bool valid = 1;
+  // The AAE that authorized this identity, if valid.
+  AgentAuthorityEnvelope envelope = 2;
+  // The resolved attributes.
+  AgentAttributes attributes = 3;
+  // Reason for invalidity, if invalid.
+  string reason = 4;
+}
+
+message RevokeRequest {
+  string svid = 1;
+  string reason = 2;
+  string request_id = 3;
+}
+
+message RevokeResponse {
+  bool revoked = 1;
+  google.protobuf.Timestamp revoked_at = 2;
+}

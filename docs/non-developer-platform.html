@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warrantor — The Non-Developer Platform</title>
+<style>
+  :root {
+    --bg:#fbfaf8; --fg:#23201c; --muted:#6b645c; --rule:#e2ddd5; --card:#fff;
+    --accent:#8a4b2a; --ok:#2f6b45; --warn:#8a6a1f; --bad:#8f3232; --code-bg:#f4f1ec;
+    --band:#f0ebe3;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --bg:#16140f; --fg:#ece7df; --muted:#a49c90; --rule:#322d26; --card:#1e1b16;
+    --accent:#d99a6c; --ok:#7dc79b; --warn:#d9bb6c; --bad:#e08c8c; --code-bg:#241f19;
+    --band:#1c1913;}}
+  :root[data-theme="dark"]{--bg:#16140f;--fg:#ece7df;--muted:#a49c90;--rule:#322d26;--card:#1e1b16;
+    --accent:#d99a6c;--ok:#7dc79b;--warn:#d9bb6c;--bad:#e08c8c;--code-bg:#241f19;--band:#1c1913;}
+  :root[data-theme="light"]{--bg:#fbfaf8;--fg:#23201c;--muted:#6b645c;--rule:#e2ddd5;--card:#fff;
+    --accent:#8a4b2a;--ok:#2f6b45;--warn:#8a6a1f;--bad:#8f3232;--code-bg:#f4f1ec;--band:#f0ebe3;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.65 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:64rem;margin:0 auto;padding:3rem 1.5rem 6rem}
+  header{border-bottom:2px solid var(--fg);padding-bottom:1.5rem;margin-bottom:2.5rem}
+  h1{font-size:clamp(1.9rem,4vw,2.8rem);line-height:1.12;margin:0 0 .4rem;letter-spacing:-.015em}
+  .sub{color:var(--muted);font-size:1.05rem;margin:0}
+  .meta{color:var(--muted);font-size:.84rem;margin-top:.9rem;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  h2{font-size:1.5rem;margin:3.4rem 0 .3rem;letter-spacing:-.01em;padding-bottom:.35rem;
+    border-bottom:1px solid var(--rule)}
+  h3{font-size:1.14rem;margin:2.1rem 0 .5rem}
+  h4{font-size:.98rem;margin:1.4rem 0 .35rem;color:var(--accent)}
+  p{margin:.7rem 0}
+  .lede{font-size:1.09rem}
+  code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.87em;
+    background:var(--code-bg);padding:.1em .35em;border-radius:3px}
+  pre{background:var(--code-bg);border:1px solid var(--rule);border-radius:6px;padding:.9rem 1rem;
+    overflow-x:auto;font-size:.84rem;line-height:1.5}
+  pre code{background:none;padding:0}
+  .scroll{overflow-x:auto;margin:1rem 0;border:1px solid var(--rule);border-radius:6px}
+  table{border-collapse:collapse;width:100%;font-size:.87rem;
+    font-family:system-ui,-apple-system,sans-serif}
+  th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{background:var(--code-bg);font-weight:600}
+  tbody tr:last-child td{border-bottom:none}
+  .card{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);
+    border-radius:6px;padding:1rem 1.2rem;margin:1.2rem 0}
+  .card.ok{border-left-color:var(--ok)} .card.warn{border-left-color:var(--warn)}
+  .card.bad{border-left-color:var(--bad)}
+  .card h4{margin-top:0}
+  .tag{display:inline-block;font-family:system-ui,sans-serif;font-size:.7rem;font-weight:600;
+    letter-spacing:.04em;text-transform:uppercase;padding:.16em .5em;border-radius:3px;
+    border:1px solid currentColor;white-space:nowrap}
+  .t-have{color:var(--ok)} .t-part{color:var(--warn)} .t-new{color:var(--bad)}
+  ul,ol{padding-left:1.3rem} li{margin:.32rem 0}
+  .muted{color:var(--muted)}
+  hr{border:none;border-top:1px solid var(--rule);margin:2.5rem 0}
+  .footnote{font-size:.87rem;color:var(--muted)}
+  .mock{background:var(--band);border:1px solid var(--rule);border-radius:8px;padding:1.1rem 1.3rem;
+    margin:1rem 0;font-family:system-ui,-apple-system,sans-serif;font-size:.9rem;line-height:1.5}
+  .mock .ttl{font-weight:700;font-size:1rem;margin-bottom:.5rem}
+  .mock .row{padding:.4rem 0;border-bottom:1px solid var(--rule)}
+  .mock .row:last-child{border-bottom:none}
+  .pill{display:inline-block;font-size:.72rem;font-weight:600;padding:.12em .5em;border-radius:10px;
+    border:1px solid currentColor}
+  .p-ok{color:var(--ok)} .p-warn{color:var(--warn)} .p-bad{color:var(--bad)} .p-mut{color:var(--muted)}
+  .legend{display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;font-size:.85rem;
+    font-family:system-ui,sans-serif;margin:1rem 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>The Non-Developer Platform</h1>
+  <p class="sub">Can Warrantor serve the people who oversee agents and the people who want to use them — without a terminal? Yes. This is the feature, functionality and workflow catalogue, grounded in what exists and in what the markets we sell into are actually asking for.</p>
+  <p class="meta">aumos @ integration/end-to-end &middot; 11 August 2026 &middot; research-backed design, measured against source</p>
+</header>
+
+<p class="lede">The short answer is yes, and the starting position is more favourable than it looks. The hard part of a governance console — deciding <em>what a non-technical person needs to see, and what they are allowed to decide</em> — is largely done and sitting in the codebase. What is missing is the rendering.</p>
+
+<div class="card bad">
+  <h4>The honest starting position: the non-developer surface is 0% built</h4>
+  <p>Before any design, the measurement. There is <strong>no user interface anywhere in this repository</strong> — no <code>.tsx</code>, no <code>next.config</code>, no <code>.jsx</code>. Every surface is a CLI, an SDK, an MCP server, or a library.</p>
+  <p><code>@warrantor/console</code> is a headless TypeScript library: data model, view reducers, API client, 263 lines, 12 tests. Its own docstring says <em>"The React/Next.js component layer is task 03"</em> — never built. The <code>console</code> service in <code>docker-compose.yml</code> publishes port 3000 and serves a placeholder page that says so in its health response (<code>mode: "placeholder (X7 library built)"</code>). It is labelled, so it is not deceptive; it is simply not a product yet. <code>arena</code> is in the same state.</p>
+  <p>This matters for planning: the work below is genuinely greenfield UI, not a refactor. It is also why the estimate is smaller than it sounds — the data model, the state reducers, the approval semantics, and the API client already exist and are tested.</p>
+</div>
+
+<h2>What the markets we sell into are actually asking for</h2>
+
+<p>The design below is not derived from what a console usually contains. It is derived from what supervisors in our three lead markets — <strong>US/North America, GCC, and India</strong> — have said organisations must be able to produce. Those requirements turn out to name a feature list almost directly.</p>
+
+<h3>United States — there is no specification, and that is the argument</h3>
+
+<p>On 17 April 2026 the OCC, Federal Reserve and FDIC issued revised interagency model risk management guidance (<a href="https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html">OCC Bulletin 2026-13</a>, <a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.pdf">Fed SR 26-2</a>), superseding SR 11-7 and SR 21-8. It says plainly that <em>generative AI and agentic AI models are novel and rapidly evolving, and as such are not within the scope of this guidance</em>.</p>
+
+<p>The tempting reading is that agents are therefore unregulated. That is wrong, and getting it wrong is expensive. What was withdrawn is the framework that would have <em>specified</em> the controls. Every obligation attached to the underlying action — safety and soundness, consumer protection, sectoral duties, third-party risk — is untouched. The guidance is explicit about the consequence: an organisation's own <em>"risk management and governance practices should guide the determination of appropriate governance and controls for any tools, processes, or systems not covered in this document."</em></p>
+
+<div class="card">
+  <h4>The part that changes the roadmap</h4>
+  <p>The agencies have stated they plan to issue a <strong>request for information</strong> addressing model risk management generally and <em>specifically</em> banks' use of AI including generative and agentic AI.</p>
+  <p>An RFI is a comment window. The eventual specification will be written against what the industry can already demonstrate. An organisation that can produce a complete, signed record of how its agents were bounded and who approved what is not merely compliant early — it is in the room while the rule is drafted. That is a materially stronger reason to build the evidence layer now than "a rule is coming."</p>
+</div>
+
+<h3>GCC — the requirement is written almost as a feature list</h3>
+
+<p>Saudi Arabia designated 2026 the Year of Artificial Intelligence, and on <strong>14 July 2026 SDAIA launched a national AI risk management framework</strong> giving government and private-sector entities a unified methodology for identifying, assessing, treating and <em>continuously monitoring</em> AI risks. It sits alongside the PDPL, SDAIA's AI Ethics Principles, and an AI Adoption Framework with four maturity levels.</p>
+
+<p>In the UAE, <strong>DIFC Regulation 10 specifically regulates autonomous and semi-autonomous systems</strong>, requiring privacy impact assessments and risk-based audits for automated decision-making — the most specific AI governance provision in the Gulf. And on <strong>23 April 2026 the UAE announced plans to move 50% of federal government sectors, services and operations to agentic AI within two years.</strong></p>
+
+<p>The guidance to organisations is unusually concrete. They are told to prepare <em>AI inventories, use-case ownership, testing controls, risk classification, monitoring processes, and evidence of accountability.</em> Read that list again as a product backlog:</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>What supervisors name</th><th>What it is in Warrantor terms</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>AI inventory</td><td>Every warrant ever granted, with its bounds</td><td><span class="tag t-have">data exists</span></td></tr>
+    <tr><td>Use-case ownership</td><td>Warrant goal + a named owner</td><td><span class="tag t-part">goal exists, owner field new</span></td></tr>
+    <tr><td>Risk classification</td><td><code>SideEffectClass</code>: read / write / financial / destructive / physical</td><td><span class="tag t-have">exists</span></td></tr>
+    <tr><td>Testing controls</td><td>Pre-flight via <code>eval-guard</code>; staged effects as a test that never commits</td><td><span class="tag t-have">exists</span></td></tr>
+    <tr><td>Monitoring — <em>continuous</em></td><td>Reconciliation timer + live run state + denial trends</td><td><span class="tag t-part">reconcile exists, trending new</span></td></tr>
+    <tr><td>Evidence of accountability</td><td>Signed receipts + who settled or voided, and when</td><td><span class="tag t-have">exists</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>The word doing the most work is <strong>continuously</strong>. A point-in-time attestation is what most governance tooling produces. An agent that ran unattended at 3am and was refused eleven times is not a point-in-time fact, and that gap is where this product's evidence is differentiated rather than merely present.</p>
+
+<h3>India — a principle-based framework, which needs artefacts to be met with</h3>
+
+<p>The RBI's <a href="https://rbidocs.rbi.org.in/rdocs/PublicationReport/Pdfs/FREEAIR130820250A24FF2D4578453F824C72ED9F5D5851.PDF">FREE-AI framework</a> (Framework for Responsible and Ethical Enablement of AI in the Financial Sector) sets out seven guiding <em>sutras</em> with practical guidance for institutions developing or deploying AI. The <a href="https://static.pib.gov.in/WriteReadData/specificdocs/documents/2026/feb/doc2026215790801.pdf">India AI Governance Guidelines</a> take the same principle-based, techno-legal approach, and DPDP governs the personal data an agent touches while working.</p>
+
+<p>A principle-based regime is harder to satisfy than a checklist, not easier: it asks an institution to demonstrate that a principle <em>held</em>, which is an evidentiary claim. "Human oversight was maintained" is a sentence; "here are 340 consequential actions, each of which a named person approved before it committed, with signatures" is proof of it.</p>
+
+<div class="card ok">
+  <h4>A gap in our own materials, found while researching this — since fixed</h4>
+  <p>When first written, the platform's compliance matrix tracked ten frameworks of which four were EU, and <strong>RBI/FREE-AI, DPDP, SDAIA and DIFC Regulation 10 did not appear at all</strong> — backwards relative to where we sell.</p>
+  <p>The matrix (<code>docs/cross-cutting/13-compliance-frameworks.md</code>) has been re-cut: US interagency MRM (OCC 2026-13 / Fed SR 26-2, with the deferral-not-exemption reading), RBI FREE-AI, the India AI Governance Guidelines and DPDP, SDAIA's risk framework and DIFC Reg 10 now lead, with an evidence table mapping what each supervisor asks for to the primitive that produces it. EU frameworks remain tracked where factually required. GCC entries carry an explicit primary-text-confirmation caveat.</p>
+</div>
+
+<hr>
+
+<h2>Who the non-developers actually are</h2>
+
+<p>"Non-technical" hides two populations with opposite needs. Conflating them produces a console that serves neither.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Persona</th><th>Wants</th><th>Decides</th><th>Fails if…</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Approver</strong><br><span class="muted">eng manager, product lead</span></td><td>To say yes or no to what an agent did overnight, in two minutes</td><td>Settle / void / settle-some</td><td>Shown a raw diff and asked to judge it</td></tr>
+    <tr><td><strong>Business operator</strong><br><span class="muted">ops, support, marketing</span></td><td>To <em>run</em> a routine agent task without a terminal</td><td>Which template, which inputs</td><td>Asked to author tool allowlists or path globs</td></tr>
+    <tr><td><strong>Risk &amp; compliance</strong></td><td>Inventory, classification, ownership, continuous monitoring</td><td>Which classes need approval; who may approve</td><td>Given logs instead of a register</td></tr>
+    <tr><td><strong>Internal audit</strong></td><td>An immutable, samplable, exportable trail</td><td>Whether control operated effectively over a period</td><td>Evidence is mutable, or assembled by hand</td></tr>
+    <tr><td><strong>Security operations</strong></td><td>What was attempted and refused; a stop button</td><td>Contain or allow</td><td>Only sees successes, never attempts</td></tr>
+    <tr><td><strong>Procurement / vendor risk</strong></td><td>To assess an agent <em>before</em> it is permitted</td><td>Approve for use, with bounds</td><td>Assessment is a questionnaire, not a live scope</td></tr>
+    <tr><td><strong>Executive</strong></td><td>Aggregate: what agents did, what it cost, what nearly went wrong</td><td>Where to expand or pull back</td><td>Given activity volume as if it were value</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Two of these want to <strong>operate</strong>; five want to <strong>govern</strong>. The catalogue is organised accordingly, because a single "dashboard" that tries to do both is how governance tools end up unused by operators and untrusted by auditors.</p>
+
+<hr>
+
+<h2>Family A — Operate: running an agent without a terminal</h2>
+
+<p>The central design move, and the reason this is tractable at all:</p>
+
+<div class="card ok">
+  <h4>Non-developers never author bounds. They launch pre-bounded work.</h4>
+  <p>Asking an operations manager to specify a tool allowlist, write-path globs and egress hosts is asking them to do security engineering. They will either refuse or approve whatever is suggested, and the second is worse.</p>
+  <p>So an engineer authors a <strong>template</strong> once — a frozen <code>WarrantBounds</code> shape with a goal, a deadline and a set of parameters — and anyone may launch it. The warrant is not a form the operator fills in; it is the thing the template <em>is</em>. This keeps the security decision with the person qualified to make it while putting the capability in everyone's hands.</p>
+</div>
+
+<h3>A1 — Job templates <span class="tag t-new">new</span></h3>
+<p>A named, reusable piece of pre-scoped work: <em>Update dependency versions</em>, <em>Triage new bug reports</em>, <em>Draft the release notes</em>, <em>Reconcile last month's invoices</em>. Each template is a `WarrantBounds` with declared parameters (a repo, a date range, a ticket ID) and a fixed everything-else.</p>
+<p><strong>Builds on:</strong> <code>WarrantBounds</code>, <code>Warrant::grant</code>. <strong>New:</strong> a template store, parameter substitution, and a review step so a template change is itself an approved event — a template is standing authority, and editing one silently would be a privilege escalation.</p>
+
+<h3>A2 — Plain-language scope preview <span class="tag t-part">half exists</span></h3>
+<p>Before anything runs, in prose, both halves:</p>
+
+<div class="mock">
+  <div class="ttl">Update dependency versions — what this can and cannot do</div>
+  <div class="row"><strong>It will be able to:</strong> read this repository · edit files under <code>src/</code> and <code>Cargo.toml</code> · run <code>cargo</code> and <code>git</code> · reach <code>crates.io</code> · open one pull request <span class="pill p-warn">staged — you approve it first</span></div>
+  <div class="row"><strong>It cannot:</strong> reach any other site · send email or messages · spend money · delete anything · touch your working copy <span class="pill p-mut">it works in an isolated checkout</span></div>
+  <div class="row"><strong>It stops:</strong> after 4 hours, automatically <span class="pill p-ok">enforced by the operating system</span></div>
+</div>
+
+<p>The "cannot" list is not a promise written by a marketer — it is <em>derivable</em>, because an absent bound in this system means <em>none</em> rather than <em>unlimited</em>. Empty egress hosts means no network. That design decision is what makes an honest negative statement possible at all, and the negative half is the half a non-technical person actually needs.</p>
+<p><strong>Builds on:</strong> <code>WarrantBounds</code>, <code>bound_strengths()</code>. <strong>New:</strong> the prose renderer.</p>
+
+<h3>A3 — Enforcement-strength badges <span class="tag t-have">already in code</span></h3>
+<p>Every bound is shown with whether it is <strong>enforced</strong> (the system refuses the action) or <strong>observed</strong> (the system measures and reports, but cannot prevent). <code>BoundStrength</code> already exists in the Rust crate and already marks budget as the one Observed bound — because model API calls do not pass through us, so a spend ceiling is a measurement, not a wall.</p>
+
+<div class="card">
+  <h4>Why this is the single most important honesty feature</h4>
+  <p>A non-technical user reading "budget: $50" will believe $50 is a limit. If it is really a measurement, that belief is a liability we manufactured. Showing <span class="pill p-ok">enforced</span> and <span class="pill p-warn">measured only</span> as distinct, unmissable states is the difference between a governance tool and a comfort blanket.</p>
+  <p>It is also a competitive asset that costs nothing to ship: most tooling presents all its controls with equal visual confidence.</p>
+</div>
+
+<h3>A4 — Live run view <span class="tag t-part">state exists</span></h3>
+<p>What is running, started when, how long remains, what it has staged so far, what it has been refused. Not a log tail — a status a manager can read.</p>
+<p><strong>Builds on:</strong> <code>warrantor status</code>, <code>DaemonState::reconcile</code>, <code>Reconciliation</code>. <strong>New:</strong> streaming, and a run-timeline rendering.</p>
+
+<h3>A5 — The morning review <span class="tag t-part">core exists</span></h3>
+<p>The workflow the whole product exists to make possible. One screen, three questions.</p>
+
+<div class="mock">
+  <div class="ttl">Overnight run — “fix the flaky auth test” <span class="pill p-mut">ran 6h 12m, finished 04:41</span></div>
+  <div class="row"><strong>1. What changed</strong> — 3 files in the authentication module. Added a retry when the token refresh fails. <span class="pill p-mut">summary · view the exact changes</span></div>
+  <div class="row"><strong>2. What it wants to do</strong> — nothing has happened yet:<br>
+    &nbsp;&nbsp;① open a pull request “Retry token refresh on 401”<br>
+    &nbsp;&nbsp;② post a comment explaining the change <span class="pill p-mut">attaches to ①</span><br>
+    &nbsp;&nbsp;③ add the label <code>security</code> <span class="pill p-mut">attaches to ①</span></div>
+  <div class="row"><strong>3. What it was refused</strong> — asked to run <code>curl</code> 11 times <span class="pill p-warn">outside its allowed tools</span>. Eleven attempts suggests the bounds are wrong, not that the agent misbehaved.</div>
+  <div class="row"><strong>Decide:</strong> <span class="pill p-ok">Approve all three</span> &nbsp; <span class="pill p-warn">Approve some</span> &nbsp; <span class="pill p-bad">Discard everything</span></div>
+</div>
+
+<p><strong>Builds on:</strong> <code>warrantor report</code>, <code>StagingQueue::release_order()</code>, <code>Proxy::authority_requests()</code>, <code>settle()</code> / <code>void()</code>. <strong>New:</strong> the change summariser and the layout.</p>
+
+<div class="card warn">
+  <h4>Where this feature can hurt someone, and the mitigation</h4>
+  <p>"What changed", rendered in prose for a non-coder, is a <em>summary</em> — and a summary of a code change can be wrong or incomplete in ways the reader cannot detect. Someone approving a database migration on the strength of a sentence that omitted the destructive part is a failure mode we would have introduced.</p>
+  <p>So: summaries are labelled as summaries, the exact change is always one click away and never collapsed behind a paywall of clicks, and any staged effect in the <code>destructive</code> or <code>financial</code> class refuses to render a prose-only approval path. For those, the reviewer sees the literal operation. Convenience is not extended to the classes where being wrong is unrecoverable.</p>
+</div>
+
+<h3>A6 — Dependency-aware partial approval <span class="tag t-have">semantics exist</span></h3>
+<p>Staged effects release in topological order, so a reviewer cannot approve the comment while rejecting the pull request it attaches to. The interface should express that as a structural fact — greying the dependent, not erroring after the fact.</p>
+<p><strong>Builds on:</strong> <code>release_order()</code>, which already computes it.</p>
+
+<h3>A7 — "It stopped halfway" explained <span class="tag t-have">semantics exist</span></h3>
+<p>When a settle fails partway, the warrant goes to <strong>Held</strong>, not Settled, and stops at the boundary rather than compensating. For a non-developer that needs saying plainly:</p>
+<div class="mock">
+  <div class="row"><strong>3 of 5 completed.</strong> The pull request is real and open. It stopped at the comment because GitHub rejected it. <strong>Nothing after that point was attempted.</strong> The remaining two are still waiting on you.</div>
+</div>
+<p>"Stop and report" rather than "roll back" is the right behaviour — you cannot un-send an email — but it is only <em>safe</em> if the person reading understands exactly where the line fell.</p>
+
+<hr>
+
+<h2>Family B — Govern: overseeing agents other people run</h2>
+
+<h3>B1 — Agent &amp; authority register <span class="tag t-part">data exists</span></h3>
+<p>The inventory supervisors ask for, and the answer to "what can our agents currently do?" — every warrant, its owner, its bounds, its state, its history. Live, not a quarterly spreadsheet.</p>
+<p><strong>Builds on:</strong> <code>WarrantStore::list()</code>. <strong>New:</strong> an owner field, and a register view.</p>
+
+<h3>B2 — Risk classification <span class="tag t-have">exists</span></h3>
+<p><code>SideEffectClass</code> already partitions actions into read / write / financial / destructive / physical. For a compliance officer that becomes a single readable statement: <em>"Three agents can spend money. None can delete production data. Fourteen can only read."</em> Policy then attaches to the class rather than to individual tools, which is the level a non-engineer can actually reason about.</p>
+
+<h3>B3 — Approval policy &amp; segregation of duties <span class="tag t-part">primitive exists</span></h3>
+<p>Which classes require human approval, and who may give it. The underlying separation is already structural rather than configured: the agent holds an act-scoped capability token with no settle field, and the settle key is separate. The console turns that into a role a compliance officer can administer — including the rule that the person who launched a run may not be the person who approves it.</p>
+<p><strong>Builds on:</strong> settle-key separation, <code>warrantor-rbac</code>, the console's existing <code>ApprovalRequest</code> model.</p>
+
+<h3>B4 — The refused-request report <span class="tag t-have">exists, and is genuinely differentiated</span></h3>
+<p>Every wall an agent hit, deduplicated with counts. Most platforms can tell you what an agent <em>did</em>. This tells you what it <em>tried and was stopped from doing</em> — which is the more interesting question for both security and scoping.</p>
+<p>And the count is the signal. One refusal of a tool is an agent reaching for something it should not have. Twenty refusals of the same tool is a bound that was drawn wrong, and a person wasting their morning. The same data answers a security question and a usability one.</p>
+<p><strong>Builds on:</strong> <code>AuthorityRequest { tool, bound, reason, count }</code>, already deduplicated and sorted by frequency.</p>
+
+<h3>B5 — Evidence pack export <span class="tag t-part">plumbing exists</span></h3>
+<p>One action produces everything an auditor needs for a period: warrants granted with their bounds, receipts, approval decisions with approvers, refusals, and the settle/void outcome — signed, hash-chained, and exportable.</p>
+<p><strong>Builds on:</strong> OCSF 1.9.0 export (<code>class_uid 6003</code>), the append-only hash-chained queue, <code>warrantor-retention</code>. <strong>New:</strong> period selection, packaging, and a rendered cover sheet.</p>
+
+<h3>B6 — Continuous monitoring &amp; drift <span class="tag t-new">new</span></h3>
+<p>SDAIA's framework asks for continuous monitoring, not an annual attestation. The question that matters: <em>are agents asking for more than they used to?</em> A steady rise in refusals against one bound, or in the number of warrants requesting a financial class, is the leading indicator — visible well before an incident.</p>
+<p><strong>Builds on:</strong> the reconciliation timer and refusal history. <strong>New:</strong> the trend model.</p>
+
+<h3>B7 — Framework mapping, with the gaps shown <span class="tag t-part">matrix exists, wrong markets</span></h3>
+<p>Map collected evidence to NIST AI RMF, ISO/IEC 42001, RBI FREE-AI's sutras, SDAIA's risk framework and DIFC Regulation 10 — and show what is <em>not</em> covered as prominently as what is. A compliance view that only shows green is a liability, because someone will rely on it.</p>
+<p><strong>Unblocked:</strong> the matrix now carries the India and GCC frameworks with an evidence mapping, so this view is a rendering task rather than a research task.</p>
+
+<h3>B8 — Stop everything <span class="tag t-part">mechanism exists</span></h3>
+<p>One control, reachable by someone who has never used a terminal, that halts every running agent — with a confirmation naming exactly what will be killed, and a receipt afterwards recording who stopped it and why.</p>
+<p><strong>Builds on:</strong> <code>kill-switch</code>, <code>Supervisor::terminate()</code>, <code>terminate_group()</code>, which already kill the whole process tree including grandchildren.</p>
+
+<h3>B9 — Spend visibility, labelled honestly <span class="tag t-part">measured only</span></h3>
+<p>What agent activity cost. Shown with the <span class="pill p-warn">measured only</span> badge throughout, because model API calls do not traverse our proxy and so the figure is an observation rather than a ceiling. Presenting it as a limit would be the exact failure A3 exists to prevent.</p>
+
+<h3>B10 — Pre-authorisation review for procurement <span class="tag t-new">new</span></h3>
+<p>Before a new agent or template is permitted, a reviewer sees its proposed scope in the same plain language as A2 and approves the <em>bounds</em>, not a questionnaire. Vendor risk assessment becomes a live artefact that stays true, rather than a PDF that was accurate on the day it was signed.</p>
+
+<hr>
+
+<h2>What has to be built, in what order</h2>
+
+<p>Sequenced by whether it unblocks the others, not by size.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Phase</th><th>Delivers</th><th>Why here</th></tr></thead>
+  <tbody>
+    <tr><td><strong>0 — Read API</strong></td><td>An HTTP surface over the warrant store: list, report, status, refusals</td><td>Everything below reads from it. The console library's API client already expects one; nothing serves it yet.</td></tr>
+    <tr><td><strong>1 — The morning review</strong></td><td>A5, A6, A7, A3</td><td>The single workflow that makes the product usable by a non-developer. If only one thing ships, this is it — and it needs the enforcement badges from day one, not retrofitted.</td></tr>
+    <tr><td><strong>2 — Govern</strong></td><td>B1, B2, B4, B8</td><td>Register, classification, refusals, stop. This is the compliance officer's minimum, and it is mostly rendering data that already exists.</td></tr>
+    <tr><td><strong>3 — Operate</strong></td><td>A1, A2, A4</td><td>Templates and launch. Deliberately after governance: giving non-developers the ability to start agents before anyone can oversee them is the wrong order.</td></tr>
+    <tr><td><strong>4 — Evidence</strong></td><td>B5, B7, B3</td><td>Export, framework mapping, approval policy. Needs the market-correct framework matrix first.</td></tr>
+    <tr><td><strong>5 — Signal</strong></td><td>B6, B9, B10</td><td>Drift, spend, pre-authorisation. Valuable, but each needs a history to be meaningful.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="card">
+  <h4>One decision to make before Phase 0</h4>
+  <p>The read API needs an owner. Today the warrant store is a directory of JSON files under <code>~/.warrantor</code> on one developer's machine — correct for a CLI, insufficient for a console that several people read and two of them approve from. Multi-user means a service, which means identity, which is where <code>agent-identity</code> and the SPIFFE work already in the repo become load-bearing rather than adjacent.</p>
+  <p>That is the real architectural fork, and it is worth deciding deliberately rather than discovering halfway through Phase 1.</p>
+</div>
+
+<hr>
+
+<h2>Answering the question directly</h2>
+
+<p><strong>Can we add a comprehensive non-developer surface? Yes</strong> — and the reason it is tractable is that the difficult decisions are already made and already in the code. Warrantor is unusually well positioned for this because the primitives a governance console needs are not bolt-ons here; they are the design:</p>
+
+<ul>
+  <li><strong>Staged effects</strong> give a non-developer something to approve that has not happened yet. Without them, "human oversight" is a person being told about something after it committed.</li>
+  <li><strong>Absent bound = none</strong> makes an honest "it cannot do X" list derivable rather than aspirational.</li>
+  <li><strong>Enforced vs Observed</strong> already exists, so the console can be truthful about which controls are walls and which are measurements.</li>
+  <li><strong>Settle-key separation</strong> makes segregation of duties structural, so a compliance officer is administering a real boundary rather than a UI convention.</li>
+  <li><strong>Refusal records with counts</strong> produce a governance artefact most platforms cannot: what was attempted and stopped.</li>
+</ul>
+
+<p>The two things standing between here and there are honest and unglamorous: <strong>there is no UI at all</strong>, and <strong>there is no service to read from</strong>. Neither is a research problem.</p>
+
+<p class="footnote">Regulatory positions summarised above were verified against primary sources on 11 August 2026: <a href="https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html">OCC Bulletin 2026-13</a> · <a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.pdf">Fed SR 26-2</a> · <a href="https://rbidocs.rbi.org.in/rdocs/PublicationReport/Pdfs/FREEAIR130820250A24FF2D4578453F824C72ED9F5D5851.PDF">RBI FREE-AI</a> · <a href="https://static.pib.gov.in/WriteReadData/specificdocs/documents/2026/feb/doc2026215790801.pdf">India AI Governance Guidelines</a>. GCC positions (SDAIA national AI risk management framework, 14 July 2026; DIFC Regulation 10; the UAE's April 2026 agentic-AI commitment) are drawn from secondary analyses and should be confirmed against SDAIA and DIFC primary texts before they appear in customer-facing material.</p>
+
+</div>
+</body>
+</html>

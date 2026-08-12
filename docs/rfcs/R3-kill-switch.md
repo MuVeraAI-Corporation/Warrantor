@@ -1,6 +1,6 @@
 # R3 — `kill-switch` RFC
 
-> Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 2026). AumOS moves execution layer to Rust trusted core.
+> Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 9917). AumOS moves execution layer to Rust trusted core.
 
 | Field | Value |
 |---|---|
@@ -23,7 +23,7 @@ appears in the matrix entry and the originating source document (see
 
 ## Goals and Non-Goals
 
-**Goals:** Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 2026). AumOS moves execution layer to Rust trusted core.
+**Goals:** Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 9917). AumOS moves execution layer to Rust trusted core.
 
 **Non-Goals:**
 - Reinventing mature standards (SPIFFE, OCSF, OTel, CycloneDX) — we extend, not fork.

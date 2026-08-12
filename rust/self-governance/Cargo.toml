@@ -1,0 +1,18 @@
+[package]
+name = "warrantor-self-governance"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "SG1 Self-governance keystone — the conformance checker that proves the platform's own AI (NL console, policy compiler, risk scorer, audit fleet) is governed by Warrantor itself. The integrity keystone: 'Warrantor governs Warrantor.'"
+
+[lib]
+name = "warrantor_self_governance"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"

@@ -2,22 +2,58 @@
 
 AumOS **OCSF event forwarder**. Receives **AAR** (Agent Action Record) events
 from the E1 flight-recorder, converts them to the
-[OCSF](https://schema.ocsf.io/) v1.1.0 schema, and ships them to one or more
+[OCSF](https://schema.ocsf.io/) v1.9.0 schema, and ships them to one or more
 SIEM sinks (Splunk HEC, Elastic, Datadog, or a local JSONL file).
 
 ## Mapping rules
 
-| AAR shape                          | OCSF class_uid | activity_id | severity    |
-| ---------------------------------- | -------------- | ----------- | ----------- |
-| Generic agent activity             | `6003` (API Activity)        | `1` (Access)         | Info        |
-| Attestation verification           | `6003` (API Activity)        | `5` (Authenticate)   | Info        |
-| AAR with secret finding            | `6003` (API Activity)        | `1` (Access)         | High (`3`)  |
-| Kill-switch trigger                | `6007` (Security Response)   | `6` (Detect)         | Critical (`5`) |
-| AAR with error                     | `6003` (API Activity)        | `1` (Access)         | Medium (`3`) |
+Every event is class `6003` (API Activity) in category `6` (Application
+Activity). The class carries the payload; **significance is carried by
+`severity_id`, not by the class**.
 
-The full event includes `actor.user`, `api.request` / `api.response`,
-`resources` (one entry per secret finding), `metadata.product` (AumOS / MuVera AI)
-and a human-readable `message` line.
+`activity_id` is derived from the AAR's `side_effect_class`, and must be one of
+the six values OCSF defines for class 6003 — there is no "Access", no
+"Authenticate" and no "Detect" activity on this class:
+
+| `side_effect_class`      | `activity_id`  |
+| ------------------------ | -------------- |
+| `read`, `none`           | `2` (Read)     |
+| `write`, `create`, `append` | `1` (Create)  |
+| `update`, `modify`       | `3` (Update)   |
+| `delete`, `destroy`      | `4` (Delete)   |
+| present but unrecognised | `99` (Other)   |
+| absent                   | `0` (Unknown)  |
+
+Attestation verification maps to `99` (Other). OCSF 6003 has no Authenticate
+activity; class `3002` (Authentication) is the correct long-term home.
+
+`severity_id` uses the OCSF enum (`1` Informational, `2` Low, `3` Medium,
+`4` High, `5` Critical):
+
+| AAR shape               | `severity_id`    |
+| ----------------------- | ---------------- |
+| Kill-switch trigger     | `5` (Critical)   |
+| Secret finding          | `4` (High)       |
+| Tool error              | `3` (Medium)     |
+| Everything else         | `1` (Informational) |
+
+The full event includes `actor.user`, `actor.application`, `src_endpoint`,
+`api.request` / `api.response`, `resources` (one entry per secret finding),
+`metadata.product` (AumOS / MuVera AI) and a human-readable `message` line.
+`metadata.version` is the **OCSF schema** version; this package's own version is
+`metadata.product.version`.
+
+`time` is milliseconds since the epoch, per OCSF `timestamp_t`.
+
+### Validating
+
+`tests/test_ocsf_schema.py` pins these rules offline, so CI enforces them without
+a network call. To re-check them against the published schema — do this when
+bumping `OCSF_VERSION` — run:
+
+```bash
+python tools/audit/ocsf_validate.py
+```
 
 ## Sinks
 

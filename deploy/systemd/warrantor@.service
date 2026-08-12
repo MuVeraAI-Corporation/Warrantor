@@ -1,0 +1,114 @@
+# warrantor@.service — supervise one warrant as a systemd user service.
+#
+# Instance name is the warrant id:
+#
+#   systemctl --user start warrantor@wrt_0bf079be9e95b7e5
+#
+# ── Why this is a USER unit, and must stay one ───────────────────────────────
+#
+# The warrant store is ~/.warrantor. The issuer and settle keys are the
+# developer's, the git worktree is in the developer's checkout, and the settle
+# authority is the developer personally. A system unit would run all of that as
+# root, in the wrong home directory, with the wrong keys — and would quietly
+# grant the agent whatever root can reach. There is no correct system-scope
+# version of this file.
+#
+# ── Why it calls `supervise` and not `run` ───────────────────────────────────
+#
+# `warrantor run` detaches from the terminal and spawns a supervisor of its own,
+# because a terminal is not a supervisor. systemd *is* one. Calling `run` here
+# would fork a daemon out from under systemd, which would then see the launching
+# process exit and consider the unit dead while the agent was still going —
+# precisely the orphan the design forbids. `supervise` is the daemon body: it
+# stays in the foreground and holds the agent under the OS lifetime link.
+#
+# ── Why Restart=no ───────────────────────────────────────────────────────────
+#
+# This is a deliberate refusal, not an oversight. An agent interrupted mid-task
+# has unknown state: it may have half-applied an edit, or staged three effects
+# of a five-effect sequence. Restarting it would re-run work that may already be
+# done, against a worktree in a state nobody has inspected. Warrantor's
+# reconciliation reports an interrupted warrant and asks a human to settle or
+# void it; a Restart= line here would silently override that judgement.
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp warrantor@.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#
+# Keep the supervisor alive after you log out (otherwise systemd stops user
+# services at logout, which would kill the run this exists to protect):
+#   sudo loginctl enable-linger "$USER"
+
+[Unit]
+Description=Warrantor supervisor for warrant %i
+Documentation=https://github.com/MuVeraAI/aumos
+# The agent usually needs the network; starting before it is up produces
+# failures that look like policy denials.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# The agent command for this warrant. Written by whoever starts the unit:
+#
+#   mkdir -p ~/.warrantor/run
+#   echo 'WARRANTOR_AGENT_COMMAND=claude -p "fix the flaky auth test"' \
+#     > ~/.warrantor/run/wrt_0bf079be9e95b7e5.env
+#
+# The dash makes it non-fatal to systemd if absent, so the failure surfaces as
+# warrantor's own error message rather than an opaque unit-load failure.
+EnvironmentFile=-%h/.warrantor/run/%i.env
+
+# Unquoted $VAR is word-split by systemd, which is what we want: the value is a
+# command line, not a single argument. ${VAR} would pass it as one string and
+# the agent would be exec'd with a name containing spaces.
+ExecStart=/usr/local/bin/warrantor supervise %i -- $WARRANTOR_AGENT_COMMAND
+
+# See the header. Do not add Restart=on-failure here.
+Restart=no
+
+# Kill the whole control group on stop. The agent spawns children — build tools,
+# language servers, test runners — and KillMode=process would leave them behind,
+# which is the same orphan the job object exists to prevent.
+KillMode=control-group
+
+# Give the supervisor room to terminate the agent tree and write its final
+# report before systemd escalates to SIGKILL.
+TimeoutStopSec=30
+
+# These bound what the *supervisor* can reach, so a compromise of the supervisor
+# is not a compromise of the machine. What the AGENT may do is the warrant's job,
+# not systemd's — the two are different boundaries and conflating them produces
+# failures that read as agent misbehaviour.
+#
+# Note what is deliberately ABSENT: ProtectHome. The agent works in a git
+# worktree under the repository being fixed, which is somewhere in $HOME and
+# whose path is not known when this unit is written. ProtectHome=read-only would
+# make every write the agent legitimately performs fail, and the symptom would
+# look like a broken agent rather than a sandbox denial.
+#
+# To tighten it for one specific repo, add a drop-in rather than editing this
+# file — systemd does not expand variables in these directives, so the path must
+# be literal:
+#
+#   systemctl --user edit warrantor@wrt_abc123
+#   [Service]
+#   ProtectHome=read-only
+#   ReadWritePaths=%h/.warrantor %h/src/your-repo
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=%h/.warrantor
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+# stdout/stderr to the journal: journalctl --user -u warrantor@%i
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

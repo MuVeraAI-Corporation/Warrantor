@@ -1,0 +1,20 @@
+[package]
+name = "warrantor-notary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "W1 Notary core — the narrowed trust-core decision+proof hot path. The 9-gate composite verdict function (spec 11) + WAR receipt emission (spec 01/02). Implemented once, in Rust."
+
+[lib]
+name = "warrantor_notary"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+# Pure-Rust Ed25519, no async runtime — the notary is the p99 < 1ms hot path (spec 02 §1.2).
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+sha2 = "0.10"

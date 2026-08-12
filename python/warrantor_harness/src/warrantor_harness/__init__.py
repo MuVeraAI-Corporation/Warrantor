@@ -13,7 +13,6 @@ from __future__ import annotations
 import os
 import re
 import shlex
-import subprocess
 import time
 import uuid
 from contextlib import contextmanager
@@ -21,6 +20,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+
+from ._lifetime import ProcessSupervisor
 
 
 class AgentType(str, Enum):
@@ -184,6 +185,10 @@ class TrackedSession:
         )
         self._start_time = time.monotonic()
         self._killed = False
+        # W0: OS-enforced lifetime linkage. Without it a command spawned here outlives the
+        # harness -- unsupervised, unbounded, with nothing scanning its output. See _lifetime.
+        self._supervisor = ProcessSupervisor().__enter__()
+        self.lifetime_linkage = self._supervisor.linkage
 
     def _resolve_argv(self, command: str) -> list[str] | None:
         """Parse ``command`` into argv, or return None if it is not allowed (AX-30).
@@ -284,23 +289,18 @@ class TrackedSession:
         # unchecked (AX-30).
         try:
             effective_timeout = timeout or self.config.max_duration_seconds
-            proc = subprocess.run(
+            # Supervised: the whole process TREE is bounded by the deadline, and the tree is
+            # lifetime-linked to this harness. A plain subprocess.run bounded only the direct
+            # child, so anything the command forked survived both the timeout and the harness.
+            proc = self._supervisor.run(
                 argv,
-                shell=False,
-                capture_output=True,
-                text=True,
-                timeout=effective_timeout,
                 cwd=self.config.working_dir,
+                timeout=effective_timeout,
             )
             stdout = proc.stdout
             stderr = proc.stderr
             exit_code = proc.returncode
-            outcome = "committed" if exit_code == 0 else "failed"
-        except subprocess.TimeoutExpired:
-            stdout = ""
-            stderr = f"command timed out after {effective_timeout}s"
-            exit_code = -1
-            outcome = "failed"
+            outcome = "failed" if (proc.timed_out or exit_code != 0) else "committed"
         except Exception as e:
             stdout = ""
             stderr = str(e)
@@ -337,6 +337,10 @@ class TrackedSession:
             self.status = SessionStatus.KILLED
             self.result.status = SessionStatus.KILLED
             self.result.kill_reason = reason
+            # Stop the agent, do not merely record that we decided to. Before this, kill() set
+            # a flag that was checked on the NEXT run_agent call -- so a long-running command
+            # already in flight kept going after a secret was detected in its own output.
+            self._supervisor.terminate_all()
             self._emit_receipt(tool="kill_switch", command=f"kill: {reason}", outcome="killed")
 
     def close(self) -> SessionResult:
@@ -346,6 +350,8 @@ class TrackedSession:
             self.result.status = SessionStatus.COMPLETED
         self.result.ended_at = _utcnow()
         self.result.duration_seconds = time.monotonic() - self._start_time
+        # Releases the job object on Windows, killing anything still in it.
+        self._supervisor.__exit__(None, None, None)
         return self.result
 
 

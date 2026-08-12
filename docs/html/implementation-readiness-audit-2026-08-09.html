@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Evidence-backed implementation, protocol, developer-experience, security, and enterprise-readiness audit of AumOS, dated 9 August 2026.">
+  <link rel="icon" href="data:,">
+  <title>AumOS implementation readiness audit — 9 August 2026</title>
+  <style>
+    :root {
+      --paper: #f6f1e8;
+      --paper-deep: #ece4d7;
+      --surface: #fffdf8;
+      --ink: #1f1d1a;
+      --muted: #625e57;
+      --faint: #8b857c;
+      --line: #d9d0c3;
+      --line-dark: #bcb1a3;
+      --clay: #c76547;
+      --clay-dark: #94442f;
+      --clay-pale: #f4ded4;
+      --green: #356b52;
+      --green-pale: #e2eee6;
+      --amber: #8b621b;
+      --amber-pale: #f5e8c9;
+      --red: #9d3f3a;
+      --red-pale: #f4dedd;
+      --blue: #315e75;
+      --blue-pale: #deebef;
+      --violet: #665286;
+      --violet-pale: #eae4f1;
+      --shadow: 0 18px 60px rgba(49, 41, 31, 0.08);
+      --serif: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      --sans: "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      --measure: 78rem;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 84% 3%, rgba(199, 101, 71, 0.11), transparent 25rem),
+        linear-gradient(180deg, #fbf8f2 0, var(--paper) 36rem, var(--paper) 100%);
+      font: 16px/1.65 var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--clay-dark); text-decoration-thickness: 1px; text-underline-offset: 0.17em; }
+    a:hover { color: var(--clay); }
+    a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+      outline: 3px solid rgba(49, 94, 117, 0.35);
+      outline-offset: 3px;
+    }
+    button, input, select { font: inherit; }
+    code, kbd { font-family: var(--mono); font-size: 0.88em; }
+    code { padding: 0.12rem 0.32rem; border: 1px solid #dfd6c9; border-radius: 0.26rem; background: #f1ebe1; overflow-wrap: anywhere; }
+    pre { overflow: auto; padding: 1rem; border: 1px solid var(--line); border-radius: 0.6rem; background: #26231f; color: #f8f2e8; }
+    pre code { padding: 0; border: 0; background: transparent; color: inherit; }
+    h1, h2, h3, h4 { font-family: var(--serif); line-height: 1.12; text-wrap: balance; }
+    h1 { max-width: 15ch; margin: 0.35rem 0 1.25rem; font-size: clamp(3rem, 8vw, 6.8rem); font-weight: 500; letter-spacing: -0.055em; }
+    h2 { margin: 0 0 1rem; font-size: clamp(2rem, 4vw, 3.55rem); font-weight: 500; letter-spacing: -0.035em; }
+    h3 { margin: 2rem 0 0.65rem; font-size: clamp(1.35rem, 2vw, 1.85rem); font-weight: 600; }
+    h4 { margin: 1.3rem 0 0.45rem; font-size: 1.12rem; }
+    p { max-width: 76ch; margin: 0 0 1rem; }
+    ul, ol { max-width: 78ch; }
+    li + li { margin-top: 0.35rem; }
+    small { color: var(--muted); }
+    blockquote { max-width: 72ch; margin: 1.25rem 0; padding: 0.5rem 0 0.5rem 1.2rem; border-left: 3px solid var(--clay); color: var(--muted); font-family: var(--serif); font-size: 1.12rem; }
+    [hidden] { display: none !important; }
+
+    .progress { position: fixed; inset: 0 auto auto 0; z-index: 50; width: 0; height: 3px; background: var(--clay); }
+    .skip-link { position: fixed; z-index: 100; top: 0.5rem; left: 0.5rem; transform: translateY(-180%); padding: 0.55rem 0.8rem; border-radius: 0.4rem; background: var(--ink); color: white; }
+    .skip-link:focus { transform: translateY(0); }
+
+    .masthead { min-height: 86vh; display: grid; place-items: end start; padding: clamp(2rem, 6vw, 6.5rem); border-bottom: 1px solid var(--line); }
+    .masthead-inner { width: min(100%, 92rem); margin-inline: auto; }
+    .eyebrow { display: flex; gap: 0.65rem; align-items: center; color: var(--clay-dark); font-size: 0.77rem; font-weight: 750; letter-spacing: 0.13em; text-transform: uppercase; }
+    .eyebrow::before { width: 2.8rem; height: 1px; content: ""; background: currentColor; }
+    .dek { max-width: 62ch; margin: 0 0 2rem; color: var(--muted); font-family: var(--serif); font-size: clamp(1.16rem, 2vw, 1.55rem); }
+    .meta-line { display: flex; flex-wrap: wrap; gap: 0.65rem 1.4rem; color: var(--muted); font-size: 0.86rem; }
+    .meta-line strong { color: var(--ink); }
+    .verdict-ribbon { display: grid; grid-template-columns: minmax(12rem, 0.7fr) minmax(16rem, 1.3fr); max-width: 70rem; margin-top: 3rem; border: 1px solid #b85a42; border-radius: 0.75rem; overflow: hidden; box-shadow: var(--shadow); }
+    .verdict-label { display: grid; place-content: center start; padding: 1.35rem 1.5rem; background: var(--clay); color: #fffaf5; }
+    .verdict-label span { font-size: 0.72rem; font-weight: 750; letter-spacing: 0.12em; text-transform: uppercase; }
+    .verdict-label strong { font: 600 clamp(1.5rem, 4vw, 2.7rem)/1 var(--serif); }
+    .verdict-text { padding: 1.35rem 1.5rem; background: rgba(255, 253, 248, 0.94); }
+    .verdict-text p { margin: 0; }
+
+    .shell { width: min(calc(100% - 2rem), 96rem); margin: 0 auto; }
+    .sticky-nav { position: sticky; top: 0; z-index: 40; border-bottom: 1px solid var(--line); background: rgba(246, 241, 232, 0.94); backdrop-filter: blur(14px); }
+    .nav-inner { display: flex; gap: 0.38rem; align-items: center; overflow-x: auto; padding: 0.7rem max(1rem, calc((100vw - 96rem) / 2)); scrollbar-width: none; }
+    .nav-inner::-webkit-scrollbar { display: none; }
+    .nav-inner a { flex: 0 0 auto; padding: 0.35rem 0.42rem; border-radius: 0.35rem; color: var(--muted); font-size: 0.73rem; font-weight: 700; text-decoration: none; }
+    .nav-inner a:hover, .nav-inner a[aria-current="true"] { background: var(--clay-pale); color: var(--clay-dark); }
+    .nav-spacer { flex: 1 0 1rem; }
+    .print-button { position: sticky; right: 0.6rem; flex: 0 0 auto; padding: 0.38rem 0.72rem; border: 1px solid var(--line-dark); border-radius: 999px; color: var(--ink); background: var(--surface); box-shadow: -0.8rem 0 1rem var(--paper); cursor: pointer; }
+    .print-button:hover { border-color: var(--clay); }
+
+    main { padding-bottom: 7rem; }
+    section { padding: clamp(4.5rem, 9vw, 8rem) 0; border-bottom: 1px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(15rem, 0.75fr); gap: 2rem; align-items: end; margin-bottom: 2.2rem; }
+    .section-number { margin-bottom: 0.7rem; color: var(--clay-dark); font: 700 0.75rem/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; }
+    .section-note { color: var(--muted); font-size: 0.92rem; }
+    .lede { max-width: 66ch; color: var(--muted); font: 1.2rem/1.55 var(--serif); }
+    .grid-2, .grid-3, .grid-4 { display: grid; gap: 1rem; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card { padding: 1.25rem; border: 1px solid var(--line); border-radius: 0.7rem; background: rgba(255, 253, 248, 0.76); }
+    .card h3, .card h4 { margin-top: 0; }
+    .card p:last-child { margin-bottom: 0; }
+    .metric { min-height: 10rem; display: flex; flex-direction: column; justify-content: space-between; }
+    .metric-value { font: 500 clamp(2.4rem, 5vw, 4.5rem)/1 var(--serif); letter-spacing: -0.05em; }
+    .metric-label { max-width: 22ch; color: var(--muted); font-size: 0.83rem; }
+
+    .badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.55rem; border: 1px solid transparent; border-radius: 999px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.045em; line-height: 1.45; text-transform: uppercase; white-space: nowrap; }
+    .badge::before { width: 0.42rem; height: 0.42rem; border-radius: 50%; content: ""; background: currentColor; }
+    .critical { color: var(--red); background: var(--red-pale); border-color: #dfbab7; }
+    .high { color: #8a4c18; background: #f7e5d3; border-color: #e7c49f; }
+    .medium, .conditional { color: var(--amber); background: var(--amber-pale); border-color: #dbc78f; }
+    .low, .documented { color: var(--blue); background: var(--blue-pale); border-color: #b9d1da; }
+    .pass, .implemented { color: var(--green); background: var(--green-pale); border-color: #b9d5c2; }
+    .stub, .missing { color: var(--violet); background: var(--violet-pale); border-color: #cfc2dd; }
+    .neutral { color: var(--muted); background: #eee9e1; border-color: var(--line); }
+
+    .callout { margin: 1.25rem 0; padding: 1rem 1.2rem; border-left: 4px solid var(--clay); border-radius: 0 0.55rem 0.55rem 0; background: var(--clay-pale); }
+    .callout strong:first-child { display: block; margin-bottom: 0.2rem; font-family: var(--serif); font-size: 1.05rem; }
+    .callout p:last-child { margin-bottom: 0; }
+    .callout.danger { border-color: var(--red); background: var(--red-pale); }
+    .callout.success { border-color: var(--green); background: var(--green-pale); }
+    .callout.info { border-color: var(--blue); background: var(--blue-pale); }
+
+    .table-wrap { margin: 1.4rem 0 2.2rem; overflow-x: auto; border: 1px solid var(--line); border-radius: 0.7rem; background: rgba(255, 253, 248, 0.72); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    caption { padding: 0.9rem 1rem; color: var(--muted); text-align: left; font-size: 0.78rem; }
+    th { position: sticky; top: 0; z-index: 2; padding: 0.75rem; border-bottom: 1px solid var(--line-dark); background: #eee7dc; color: #504b44; font-size: 0.68rem; letter-spacing: 0.075em; text-align: left; text-transform: uppercase; }
+    td { padding: 0.78rem 0.75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: rgba(244, 222, 212, 0.34); }
+    .row-id { color: var(--clay-dark); font-family: var(--mono); font-weight: 750; white-space: nowrap; }
+    .path { color: var(--muted); font: 0.76rem/1.45 var(--mono); overflow-wrap: anywhere; }
+    .nowrap { white-space: nowrap; }
+    .table-note { display: block; margin-top: 0.25rem; color: var(--muted); }
+    .empty-state { padding: 1rem; color: var(--muted); text-align: center; }
+
+    .filters { display: grid; grid-template-columns: minmax(14rem, 1fr) repeat(2, minmax(10rem, 0.35fr)); gap: 0.7rem; margin: 1.2rem 0; }
+    .field label { display: block; margin-bottom: 0.25rem; color: var(--muted); font-size: 0.73rem; font-weight: 750; letter-spacing: 0.055em; text-transform: uppercase; }
+    .field input, .field select { width: 100%; min-height: 2.7rem; padding: 0.55rem 0.7rem; border: 1px solid var(--line-dark); border-radius: 0.45rem; background: var(--surface); color: var(--ink); }
+    .result-count { margin: -0.35rem 0 0.6rem; color: var(--muted); font-size: 0.8rem; }
+
+    .architecture { display: grid; grid-template-columns: repeat(5, minmax(9rem, 1fr)); gap: 0.6rem; margin: 1.5rem 0; }
+    .layer { min-height: 10.5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 0.65rem; background: var(--surface); }
+    .layer:nth-child(1) { border-top: 5px solid var(--blue); }
+    .layer:nth-child(2) { border-top: 5px solid var(--violet); }
+    .layer:nth-child(3) { border-top: 5px solid var(--clay); }
+    .layer:nth-child(4) { border-top: 5px solid var(--green); }
+    .layer:nth-child(5) { border-top: 5px solid var(--amber); }
+    .layer h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+    .layer p { color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+
+    details { margin: 0.75rem 0; border: 1px solid var(--line); border-radius: 0.6rem; background: rgba(255, 253, 248, 0.75); }
+    summary { padding: 0.85rem 1rem; cursor: pointer; font-weight: 750; }
+    details > div { padding: 0 1rem 1rem; }
+    .finding { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 1rem; padding: 1.25rem 0; border-top: 1px solid var(--line); }
+    .finding:first-child { border-top: 0; }
+    .finding-id { color: var(--muted); font: 0.73rem/1.5 var(--mono); }
+    .finding h3 { margin: 0 0 0.45rem; }
+    .finding p { margin-bottom: 0.55rem; }
+    .evidence { color: var(--muted); font-size: 0.82rem; }
+    .evidence strong { color: var(--ink); }
+
+    .timeline { position: relative; margin: 1.5rem 0 0.5rem 1rem; padding-left: 1.5rem; border-left: 1px solid var(--line-dark); }
+    .timeline-item { position: relative; padding: 0 0 1.7rem 0.4rem; }
+    .timeline-item::before { position: absolute; top: 0.35rem; left: -2.02rem; width: 0.72rem; height: 0.72rem; border: 3px solid var(--paper); border-radius: 50%; content: ""; background: var(--clay); box-shadow: 0 0 0 1px var(--clay); }
+    .timeline-item h3 { margin: 0 0 0.35rem; font-size: 1.25rem; }
+    .timeline-item p { margin-bottom: 0.4rem; }
+
+    .source-list { columns: 2; column-gap: 2.5rem; padding-left: 1.2rem; }
+    .source-list li { break-inside: avoid; margin-bottom: 0.7rem; }
+    .source-list span { display: block; color: var(--muted); font-size: 0.82rem; }
+    footer { padding: 3rem 0 5rem; color: var(--muted); font-size: 0.82rem; }
+
+    @media (max-width: 960px) {
+      .section-head, .verdict-ribbon { grid-template-columns: 1fr; }
+      .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-3 { grid-template-columns: 1fr; }
+      .architecture { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      th { top: 0; }
+    }
+    @media (max-width: 680px) {
+      body { font-size: 15px; }
+      .masthead { min-height: auto; padding: 5.5rem 1.2rem 3rem; }
+      .grid-2, .grid-4, .architecture, .filters { grid-template-columns: 1fr; }
+      .finding { grid-template-columns: 1fr; gap: 0.45rem; }
+      .source-list { columns: 1; }
+      section { padding-block: 4rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+    @media print {
+      :root { --paper: #fff; --surface: #fff; }
+      body { background: #fff; font-size: 10pt; }
+      .sticky-nav, .progress, .print-button, .filters, .result-count { display: none !important; }
+      .masthead { min-height: auto; padding: 1cm 0; }
+      .shell, .masthead-inner { width: 100%; }
+      section { padding: 1cm 0; break-before: page; }
+      .card, .table-wrap, details { break-inside: avoid; box-shadow: none; }
+      th { position: static; }
+      a { color: inherit; text-decoration: none; }
+      a[href^="http"]::after { content: " (" attr(href) ")"; overflow-wrap: anywhere; font-size: 0.72em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress" aria-hidden="true"></div>
+  <a class="skip-link" href="#main">Skip to audit</a>
+
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div class="eyebrow">Independent implementation audit · evidence cut 2026-08-09</div>
+      <h1>AumOS, examined end to end.</h1>
+      <p class="dek">A source-level and executable review of the Open Secure AI Alliance repository: every catalogued component, every protocol, the developer surface, enterprise controls, deployment claims, conformance gates, and the distance between a compelling architecture and a trustworthy native agent platform.</p>
+      <div class="meta-line">
+        <span><strong>Repository:</strong> <code>aumos/</code> on local <code>main</code></span>
+        <span><strong>Scope:</strong> 54 canonical component identifiers, 49 claimed implementations, 12 protocols</span>
+        <span><strong>Method:</strong> source inspection + live local verification + primary-source standards review</span>
+      </div>
+      <div class="verdict-ribbon" role="note" aria-label="Overall verdict">
+        <div class="verdict-label"><span>Production decision</span><strong>No-go</strong></div>
+        <div class="verdict-text"><p><strong>Conditional go as a research and reference implementation.</strong> AumOS contains real, tested libraries and a serious authority/evidence model. It does not yet provide a coherent, fail-closed, deployable enterprise platform. Production adapters, protocol interoperability, durable control-plane behavior, release artifacts, and truthful gates remain incomplete.</p></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="sticky-nav" aria-label="Audit sections">
+    <div class="nav-inner">
+      <a href="#verdict">Verdict</a><a href="#method">Method</a><a href="#evidence">Live evidence</a><a href="#architecture">Architecture</a><a href="#components">49 components</a><a href="#missing">Missing five</a><a href="#protocols">12 protocols</a><a href="#developer">Developer fit</a><a href="#enterprise">Enterprise fit</a><a href="#findings">Findings</a><a href="#standards">Current standards</a><a href="#roadmap">Roadmap</a><a href="#gates">Release gates</a><a href="#sources">Sources</a>
+      <span class="nav-spacer"></span><button class="print-button" type="button" id="printButton">Print / save PDF</button>
+    </div>
+  </nav>
+
+  <main id="main">
+    <section id="verdict">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">01 · Executive verdict</div><h2>Broad implementation. Narrow proof.</h2></div><p class="section-note">“Implemented” in this report means source exists and behaves under at least some tests. It never means the component is integrated, hardened, operated, or production-proven unless separate evidence says so.</p></div>
+        <p class="lede">AumOS is best understood as a monorepo of security-oriented reference libraries, schemas, CLIs, and demonstrations—not yet as one installable authority plane. The design is unusually comprehensive; the runtime story is fragmented. That distinction explains why the repository can contain substantial code and hundreds of tests while the production verdict remains no-go.</p>
+        <div class="grid-4">
+          <article class="card metric"><span class="metric-value">49</span><span class="metric-label">catalogue entries with a mapped source implementation</span></article>
+          <article class="card metric"><span class="metric-value">5</span><span class="metric-label">canonical entries still absent as implementations: I2, R1, R6, R8, S3</span></article>
+          <article class="card metric"><span class="metric-value">12</span><span class="metric-label">protocol documents and CDDL schemas; only P1 also has JSON Schema</span></article>
+          <article class="card metric"><span class="metric-value">2</span><span class="metric-label">failing Rust tests in the current full workspace run</span></article>
+        </div>
+        <div class="grid-2">
+          <article class="card">
+            <span class="badge implemented">Architecture verdict</span>
+            <h3>Substantive and differentiated</h3>
+            <p>The trust-core, authority envelopes, signed evidence, policy/evaluation, containment, provenance, confidential-compute, federated-learning, incident, and observability concepts form a coherent north star. Source is not merely empty scaffolding: all four languages contain meaningful behavior and tests.</p>
+          </article>
+          <article class="card">
+            <span class="badge critical">Operations verdict</span>
+            <h3>Not enterprise ready</h3>
+            <p>Core workflows frequently stop at in-memory, mock, synthetic, or health-only boundaries. The primary MCP bridge can convert downstream failures into successful mock results. CI and conformance contain skip/suppress paths. Helm appears structurally invalid before cluster testing.</p>
+          </article>
+        </div>
+        <div class="callout danger"><strong>Completion boundary</strong><p>This audit establishes repository state on one Windows/WSL/Docker development host. It is not evidence of GPU/TEE attestation, SPIRE federation, Kubernetes enforcement, cloud KMS/HSM operation, Rekor transparency, multi-region durability, published packages, signed images, or adversarial resilience. Those require dedicated environments and retained evidence.</p></div>
+        <h3>What can be said with confidence</h3>
+        <div class="table-wrap"><table><thead><tr><th>Claim</th><th>Verdict</th><th>Why</th></tr></thead><tbody>
+          <tr><td>AumOS has a serious security architecture.</td><td><span class="badge pass">Supported</span></td><td>Trust, authority, evidence, policy, attestation, containment, provenance, tenancy, federated, incident, and observability concerns are explicitly decomposed.</td></tr>
+          <tr><td>All 49 claimed components have real source.</td><td><span class="badge conditional">Qualified</span></td><td>Mapped source exists, but implementation depth ranges from substantive library to health-only container or explicitly stubbed transport. “Real source” is not “production behavior.”</td></tr>
+          <tr><td>The repository is feature complete.</td><td><span class="badge critical">Contradicted</span></td><td>Five canonical components are not implemented; current tests and lint are not fully green; multiple production integrations remain task-marked or mocked.</td></tr>
+          <tr><td>AumOS is deployable through Docker Compose.</td><td><span class="badge critical">Misleading</span></td><td>Compose resolves, but defaults include mock backends and many images expose generated health servers rather than the component’s actual functional API.</td></tr>
+          <tr><td>AumOS has cross-language conformance.</td><td><span class="badge critical">Not proven</span></td><td>The runner succeeded with only Python available and explicitly accepts “no verifiers available.” Its vectors cover T1 only, not the protocol catalogue.</td></tr>
+          <tr><td>AumOS is ready for native agent environments.</td><td><span class="badge high">Not yet</span></td><td>The MCP server targets the retired 2024 handshake/session model; the gateway transport returns synthetic acknowledgements; no working A2A runtime was found.</td></tr>
+        </tbody></table></div>
+      </div>
+    </section>
+
+    <section id="method">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">02 · Scope and method</div><h2>Claims were graded by evidence tier.</h2></div><p class="section-note">The audit deliberately separates documentation coverage, source presence, local execution, integration proof, and production evidence. Passing a lower tier cannot satisfy a higher one.</p></div>
+        <div class="grid-3">
+          <article class="card"><h3>Tier 1 · Declared</h3><p>Roadmaps, reconciliation tables, RFCs, README statements, task markers, manifests, and release claims. Useful for intent; insufficient for behavior.</p></article>
+          <article class="card"><h3>Tier 2 · Implemented</h3><p>Source-level paths, validation, cryptography, error handling, tests, service wiring, and defaults. Demonstrates code; not a deployed system.</p></article>
+          <article class="card"><h3>Tier 3 · Executed</h3><p>Commands run from the repository on the evidence date, including Rust, Python, Go, TypeScript, Buf, Docker Compose, conformance, and documentation gates.</p></article>
+          <article class="card"><h3>Tier 4 · Integrated</h3><p>Multiple real components exchange authenticated data, exercise failure semantics, persist state, and enforce policy in a representative environment.</p></article>
+          <article class="card"><h3>Tier 5 · Operated</h3><p>Load, upgrade, rollback, backup/restore, HA, observability, SLO, incident, tenancy, and disaster-recovery evidence from a durable deployment.</p></article>
+          <article class="card"><h3>Tier 6 · Assured</h3><p>Threat-led adversarial testing, independent cryptographic and isolation review, reproducible signed releases, and control-to-evidence traceability.</p></article>
+        </div>
+        <h3>Scope covered</h3>
+        <ul>
+          <li>Repository catalogue, reconciliation arithmetic, source layout, build metadata, test declarations, task/deferred markers, Dockerfiles, Compose, Helm, workflows, Make targets, specifications, schemas, vectors, SDKs, CLIs, and UI workspaces.</li>
+          <li>All 49 entries claimed as shipped, the five other implementable canonical IDs, and P1–P12.</li>
+          <li>Developer onboarding, packaging, API consistency, language parity, local workflow, error semantics, framework integration, and test ergonomics.</li>
+          <li>Enterprise identity, tenancy, least privilege, cryptographic key custody, policy enforcement, audit durability, observability, availability, compliance, supply chain, deployment safety, and operations.</li>
+          <li>Current official signals for MCP, A2A, OWASP agentic security, NIST AI RMF, EU AI Act, OpenTelemetry, SLSA, Sigstore, SPIFFE/SPIRE, C2PA, and CycloneDX.</li>
+        </ul>
+        <h3>Limitations</h3>
+        <p>No external registry, remote Git host, cloud account, production cluster, confidential GPU, TEE hardware, HSM/KMS, enterprise identity provider, SIEM, or Rekor deployment was supplied. Helm was statically inspected because the Helm CLI was not installed. Network-facing penetration testing, performance benchmarking, formal verification, dependency-CVE scanning, and legal certification were outside this evidence run.</p>
+      </div>
+    </section>
+
+    <section id="evidence">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">03 · Live evidence ledger</div><h2>The current checkout is not green.</h2></div><p class="section-note">Executed 9 August 2026. Counts below describe this evidence run, not the older “691 tests” narrative in <code>docs/final-verification-report.md</code>.</p></div>
+        <div class="table-wrap"><table><thead><tr><th>Surface</th><th>Command / inspection</th><th>Observed result</th><th>Interpretation</th></tr></thead><tbody>
+          <tr><td>Rust tests</td><td><code>cargo test --workspace --no-fail-fast</code></td><td><span class="badge critical">192 pass · 2 fail</span><br><span class="table-note"><code>exfil-guard::entropy_flags_high_entropy_blob</code>; <code>trust-core::three_leaves_promotes_orphan</code></span></td><td>The workspace’s required correctness gate is red. The failures touch exfiltration detection and Merkle behavior, both security/evidence paths.</td></tr>
+          <tr><td>Rust lint</td><td><code>cargo clippy --workspace --all-targets -- -D warnings</code></td><td><span class="badge critical">Fail</span><br><span class="table-note">two <code>type_complexity</code> errors in <code>trust-core/src/rekor.rs</code></span></td><td>The repository is not currently “clippy clean” under Rust 1.93.0.</td></tr>
+          <tr><td>Python suites</td><td>each of 34 projects with its <code>src</code> on <code>PYTHONPATH</code></td><td><span class="badge high">33 suites pass · 1 fails</span><br><span class="table-note"><code>aumos_harness</code> timeout test uses <code>sleep 10</code>, not portable to Windows shell behavior</span></td><td>Package-local tests are broadly healthy, but the repository lacks one hermetic root test procedure and one cross-platform case is red.</td></tr>
+          <tr><td>Python root</td><td><code>python -m pytest -q</code></td><td><span class="badge critical">Collection fails</span></td><td>Duplicate module names collide; importlib mode then cannot resolve 34 src-layout packages without installation/path orchestration.</td></tr>
+          <tr><td>Go tests</td><td><code>go test ./...</code> in each module with local cache</td><td><span class="badge pass">10 / 10 modules pass</span></td><td>Strongest fully green language lane in this environment.</td></tr>
+          <tr><td>Go vet</td><td><code>go vet ./...</code> in each module</td><td><span class="badge pass">10 / 10 modules pass</span></td><td>Static checks are clean for the present Go modules.</td></tr>
+          <tr><td>TypeScript tests</td><td><code>npm test</code></td><td><span class="badge pass">111 tests pass</span></td><td>All four workspace test files pass.</td></tr>
+          <tr><td>TypeScript build</td><td><code>npm run build</code></td><td><span class="badge pass">Pass</span></td><td>Strict TypeScript compilation succeeds across the workspace.</td></tr>
+          <tr><td>TypeScript lint</td><td><code>npm run lint</code></td><td><span class="badge critical">Cannot run</span><br><span class="table-note"><code>eslint</code> is scripted but not installed</span></td><td>A declared quality gate is non-reproducible from the locked workspace.</td></tr>
+          <tr><td>Protobuf</td><td><code>buf lint</code></td><td><span class="badge pass">Pass</span></td><td>The four existing protobuf files lint; this does not cover the eight protocols without protobuf definitions.</td></tr>
+          <tr><td>Conformance</td><td><code>bash tools/conformance/run.sh</code></td><td><span class="badge high">Exit 0 · Python only</span></td><td>Rust and Go were absent from the WSL PATH, yet the runner declared success. All five vectors are T1; no P1–P12 vector suite exists.</td></tr>
+          <tr><td>Docs gate</td><td><code>bash tools/ci/check-docs.sh</code></td><td><span class="badge conditional">Pass · structural only</span></td><td>Checks required files and section headings in 53 RFCs. It does not validate links, catalogue arithmetic, current claims, examples, or implementation parity.</td></tr>
+          <tr><td>Compose</td><td><code>docker compose config --quiet</code></td><td><span class="badge conditional">Parses with warning</span></td><td>Seventeen services resolve; the obsolete <code>version</code> field warns. Configuration validity does not establish functional services.</td></tr>
+          <tr><td>Helm</td><td>static template inspection</td><td><span class="badge critical">Probable render defect</span></td><td>The templates range over an alternating <code>list</code> of names and maps as if it were a key/value map. Helm was unavailable to execute lint.</td></tr>
+        </tbody></table></div>
+        <div class="callout info"><strong>Static test inventory</strong><p>Repository search found 194 Rust <code>#[test]</code> attributes, 164 Go <code>Test*</code> functions, 526 Python <code>test_*</code> functions, and 111 TypeScript test cases: 995 declarations in total. This is a useful coverage indicator, not a claim that 995 tests passed.</p></div>
+        <h3>Documentation contradictions</h3>
+        <div class="grid-3">
+          <article class="card"><h4><code>README.md</code></h4><p>Says Phase 0 is still in progress and no Wave-1 component has shipped v1.0.</p></article>
+          <article class="card"><h4><code>final-verification-report.md</code></h4><p>Says all 49 components are feature complete, all tests pass, and no stubs remain.</p></article>
+          <article class="card"><h4><code>00-reconciliation-matrix.md</code></h4><p>Calls the catalogue 38 canonical, then reports totals of 56 and 44 implementable + 12 protocols. The enumerated tables actually contain 54 implementable IDs + 12 protocols.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">04 · System model</div><h2>A persuasive control-plane decomposition.</h2></div><p class="section-note">The conceptual layering is one of the repository’s strongest assets. The weakness is not the taxonomy; it is the lack of a single enforced runtime path through it.</p></div>
+        <div class="architecture" role="img" aria-label="AumOS conceptual architecture from agent interfaces through operations">
+          <article class="layer"><h3>Agent interface</h3><p>MCP server, MCP gateway, console, arena, SDKs, agent wrapper, CLI.</p><p><strong>Problem:</strong> outdated MCP lifecycle and synthetic fallbacks.</p></article>
+          <article class="layer"><h3>Authority &amp; policy</h3><p>Trust core, authority spec, identity, policy compiler, eval guard, kill switch, vault, egress.</p><p><strong>Problem:</strong> enforcement and key custody stop at adapters.</p></article>
+          <article class="layer"><h3>Evidence &amp; assurance</h3><p>Flight recorder, provenance, SBOM, tamper scan, training guard, safe eval, adversarial and compliance suites.</p><p><strong>Problem:</strong> durable append-before-execute path is not integrated.</p></article>
+          <article class="layer"><h3>Execution &amp; confidentiality</h3><p>Open serve, runtime bridge, proxy, tenant guard, GPU/TEE attestation, confidential fabric.</p><p><strong>Problem:</strong> production backends and attesters are mostly pending.</p></article>
+          <article class="layer"><h3>Operations &amp; federation</h3><p>Federated learning, DP, edge/fleet controls, metrics, incidents, sovereign stack, cloud plane.</p><p><strong>Problem:</strong> health containers do not form an operated platform.</p></article>
+        </div>
+        <h3>The required native-agent request path</h3>
+        <ol>
+          <li><strong>Authenticate the caller and workload</strong> with an enterprise identity mapped to a SPIFFE workload identity and tenant.</li>
+          <li><strong>Resolve delegated authority</strong> from a signed, audience-bound, time-bound grant with revocation and replay protection.</li>
+          <li><strong>Validate the tool/agent contract</strong> using versioned schemas and negotiated capabilities.</li>
+          <li><strong>Evaluate policy and budgets</strong> against the requested tool, data classification, egress destination, cost, and risk.</li>
+          <li><strong>Precommit durable evidence</strong> before side effects, then execute through a real enforcement point.</li>
+          <li><strong>Attest the execution environment</strong> where required and bind evidence to workload, model, code, and artifact identities.</li>
+          <li><strong>Observe, revoke, and recover</strong> with traces, signed incident events, kill propagation, idempotency, and rollback.</li>
+        </ol>
+        <p>AumOS has components corresponding to nearly every box. It does not yet demonstrate this chain as one fail-closed transaction. Today a developer can call libraries independently, while the MCP façade may return plausible success when the underlying control is unreachable.</p>
+      </div>
+    </section>
+
+    <section id="components">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">05 · Component closure</div><h2>All 49 claimed implementations, individually assessed.</h2></div><p class="section-note">Status describes the production boundary, not code volume. “Adapter gap” means useful core logic exists but the real platform/hardware/control integration does not.</p></div>
+        <div class="filters" aria-label="Component table filters">
+          <div class="field"><label for="componentSearch">Search components</label><input id="componentSearch" type="search" placeholder="ID, name, path, gap…" autocomplete="off"></div>
+          <div class="field"><label for="componentDomain">Domain</label><select id="componentDomain"><option value="all">All domains</option><option>Trust &amp; authority</option><option>Confidential compute</option><option>Supply chain</option><option>Assurance</option><option>Inference</option><option>Federation</option><option>Extensions</option><option>Evidence</option></select></div>
+          <div class="field"><label for="componentStatus">Boundary status</label><select id="componentStatus"><option value="all">All statuses</option><option>Substantive library</option><option>Adapter gap</option><option>Mock path</option><option>Stub transport</option><option>Current test failure</option></select></div>
+        </div>
+        <p class="result-count" id="componentCount" aria-live="polite">49 components shown</p>
+        <div class="table-wrap"><table id="componentTable"><caption>Source mapping and present production boundary for the 49 entries identified as complete by the repository’s final verification report.</caption><thead><tr><th>ID · component</th><th>Domain / language</th><th>What exists</th><th>Current boundary</th><th>Source path</th></tr></thead><tbody>
+          <tr data-domain="Trust &amp; authority" data-status="Current test failure"><td><span class="row-id">T1</span><br><strong>trust-core</strong></td><td>Trust &amp; authority<br>Rust</td><td>Canonical CBOR, Ed25519 envelopes, Merkle and Rekor-related primitives, CLI/tests.</td><td><span class="badge critical">Current test failure</span><span class="table-note">Merkle orphan promotion test fails; production KMS/HSM signing remains deferred.</span></td><td class="path">rust/trust-core</td></tr>
+          <tr data-domain="Trust &amp; authority" data-status="Substantive library"><td><span class="row-id">T2</span><br><strong>authority-spec</strong></td><td>Trust &amp; authority<br>Rust</td><td>Signed authority envelopes, validator and audience/time constraints.</td><td><span class="badge implemented">Substantive library</span><span class="table-note">Source-level signature binding was repaired; distributed revocation/issuer operations are not proven.</span></td><td class="path">rust/authority-spec</td></tr>
+          <tr data-domain="Trust &amp; authority" data-status="Adapter gap"><td><span class="row-id">I1</span><br><strong>agent-identity</strong></td><td>Trust &amp; authority<br>Go</td><td>Agent identity service primitives and SPIFFE-oriented model.</td><td><span class="badge high">Adapter gap</span><span class="table-note">Real SPIRE integration and enterprise identity lifecycle remain task-marked.</span></td><td class="path">go/agent-identity</td></tr>
+          <tr data-domain="Trust &amp; authority" data-status="Substantive library"><td><span class="row-id">R2</span><br><strong>eval-guard</strong></td><td>Trust &amp; authority<br>Rust</td><td>Signed evaluation gates binding actual result bytes to decisions.</td><td><span class="badge implemented">Substantive library</span><span class="table-note">Useful primitive; no platform-wide mandatory admission hook is demonstrated.</span></td><td class="path">rust/eval-guard</td></tr>
+          <tr data-domain="Trust &amp; authority" data-status="Adapter gap"><td><span class="row-id">R3</span><br><strong>kill-switch</strong></td><td>Trust &amp; authority<br>Rust</td><td>Kill request/record logic, acknowledgement state, tests.</td><td><span class="badge high">Adapter gap</span><span class="table-note">Actions are recorded rather than executed; Government API is explicitly stubbed.</span></td><td class="path">rust/kill-switch</td></tr>
+          <tr data-domain="Trust &amp; authority" data-status="Adapter gap"><td><span class="row-id">R4</span><br><strong>credential-vault</strong></td><td>Trust &amp; authority<br>Rust</td><td>Credential storage/access primitives and service scaffolding.</td><td><span class="badge high">Adapter gap</span><span class="table-note">Production HSM/KMS custody, rotation, break-glass, and HA are not evidenced.</span></td><td class="path">rust/credential-vault</td></tr>
+          <tr data-domain="Trust &amp; authority" data-status="Substantive library"><td><span class="row-id">R5</span><br><strong>policy-compiler</strong></td><td>Trust &amp; authority<br>Python</td><td>Policy compilation/validation behavior with tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No signed policy registry, rollout, conflict analysis, or universal enforcement integration.</span></td><td class="path">python/policy_compiler</td></tr>
+          <tr data-domain="Trust &amp; authority" data-status="Adapter gap"><td><span class="row-id">R7</span><br><strong>egress-filter</strong></td><td>Trust &amp; authority<br>Rust</td><td>Egress decision primitives and policy-oriented tests.</td><td><span class="badge high">Adapter gap</span><span class="table-note">No proven kernel, mesh, proxy, DNS, or cloud-network enforcement path.</span></td><td class="path">rust/egress-filter</td></tr>
+
+          <tr data-domain="Confidential compute" data-status="Mock path"><td><span class="row-id">C1-1</span><br><strong>nvtrust-bridge</strong></td><td>Confidential compute<br>Rust</td><td>Attestation report model and backend abstraction.</td><td><span class="badge stub">Mock path</span><span class="table-note">CLI instantiates <code>MockBackend</code>; no NVIDIA production attestation demonstrated.</span></td><td class="path">rust/nvtrust-bridge</td></tr>
+          <tr data-domain="Confidential compute" data-status="Mock path"><td><span class="row-id">C1-2</span><br><strong>cuda-gram</strong></td><td>Confidential compute<br>Python</td><td>GPU attestation SDK shape, compatible deterministic mock, tests.</td><td><span class="badge stub">Mock path</span><span class="table-note">README calls the real Rust/PyO3 trusted bridge future work.</span></td><td class="path">python/cuda_gram</td></tr>
+          <tr data-domain="Confidential compute" data-status="Adapter gap"><td><span class="row-id">C1-3</span><br><strong>attesta-flow</strong></td><td>Confidential compute<br>Python</td><td>Attestation workflow/orchestration logic and report handling.</td><td><span class="badge high">Adapter gap</span><span class="table-note">No multi-vendor attester, verifier policy service, freshness authority, or hardware evidence.</span></td><td class="path">python/attesta_flow</td></tr>
+          <tr data-domain="Confidential compute" data-status="Mock path"><td><span class="row-id">C1-4</span><br><strong>tee-serve</strong></td><td>Confidential compute<br>Go</td><td>TEE-serving interface, API/tests, local mode.</td><td><span class="badge stub">Mock path</span><span class="table-note">SEV-SNP, TDX, and Nitro adapters plus production mTLS remain deferred.</span></td><td class="path">go/tee-serve</td></tr>
+          <tr data-domain="Confidential compute" data-status="Adapter gap"><td><span class="row-id">C1-5</span><br><strong>confidential-fabric</strong></td><td>Confidential compute<br>Rust</td><td>Confidential execution fabric abstractions and tests.</td><td><span class="badge high">Adapter gap</span><span class="table-note">No live attested cluster, encrypted scheduling plane, or key release integration.</span></td><td class="path">rust/confidential-fabric</td></tr>
+
+          <tr data-domain="Supply chain" data-status="Substantive library"><td><span class="row-id">S1</span><br><strong>safe-tensors-pp</strong></td><td>Supply chain<br>Rust</td><td>Safer tensor parsing/handling primitives and tests.</td><td><span class="badge implemented">Substantive library</span><span class="table-note">Needs fuzz evidence, format-compatibility corpus, distribution, and downstream adoption proof.</span></td><td class="path">rust/safe-tensors-pp</td></tr>
+          <tr data-domain="Supply chain" data-status="Substantive library"><td><span class="row-id">S2</span><br><strong>provena-chain</strong></td><td>Supply chain<br>Rust</td><td>Hash-linked provenance records and verification behavior.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">Durable store, transparency monitoring, scale, key custody, and recovery are not integrated.</span></td><td class="path">rust/provena-chain</td></tr>
+          <tr data-domain="Supply chain" data-status="Adapter gap"><td><span class="row-id">S4</span><br><strong>model-sbom</strong></td><td>Supply chain<br>Python</td><td>CycloneDX/SPDX-style model inventory generator and tests.</td><td><span class="badge high">Adapter gap</span><span class="table-note">Emits CycloneDX 1.5 while 1.7 is current; AI properties need schema/interoperability validation and signing.</span></td><td class="path">python/model_sbom</td></tr>
+          <tr data-domain="Supply chain" data-status="Substantive library"><td><span class="row-id">S5</span><br><strong>data-provenance-kit</strong></td><td>Supply chain<br>Python</td><td>Dataset lineage and provenance data structures/tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No connected catalogue, storage guarantees, consent deletion, or enterprise lineage integration.</span></td><td class="path">python/data_provenance_kit</td></tr>
+          <tr data-domain="Supply chain" data-status="Current test failure"><td><span class="row-id">S6</span><br><strong>exfil-guard</strong></td><td>Supply chain<br>Rust</td><td>Secret/high-entropy exfiltration scanning and tests.</td><td><span class="badge critical">Current test failure</span><span class="table-note">High-entropy blob test returns 24 findings where one is expected; tuning/dedup semantics are unstable.</span></td><td class="path">rust/exfil-guard</td></tr>
+          <tr data-domain="Supply chain" data-status="Substantive library"><td><span class="row-id">S7</span><br><strong>tamper-scan</strong></td><td>Supply chain<br>Python</td><td>Artifact/model tamper detection utilities and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No signed baseline service, fleet scan, quarantine enforcement, or measured performance corpus.</span></td><td class="path">python/tamper_scan</td></tr>
+          <tr data-domain="Supply chain" data-status="Substantive library"><td><span class="row-id">S8</span><br><strong>train-guard</strong></td><td>Supply chain<br>Python</td><td>Training guardrails/checks and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No end-to-end framework hooks, distributed-training behavior, model registry gate, or operational policy rollout.</span></td><td class="path">python/train_guard</td></tr>
+          <tr data-domain="Supply chain" data-status="Adapter gap"><td><span class="row-id">S9</span><br><strong>lightwell-bridge</strong></td><td>Supply chain<br>Go</td><td>Bridge types and service/build assets.</td><td><span class="badge high">Adapter gap</span><span class="table-note">Container path is health-oriented; external integration and trust contract are not proven.</span></td><td class="path">go/lightwell-bridge</td></tr>
+
+          <tr data-domain="Assurance" data-status="Substantive library"><td><span class="row-id">A1</span><br><strong>safe-eval</strong></td><td>Assurance<br>Python</td><td>Evaluation isolation/validation APIs and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No hostile workload escape test, hardened sandbox deployment, resource metering, or tenant-isolation proof.</span></td><td class="path">python/safe_eval</td></tr>
+          <tr data-domain="Assurance" data-status="Substantive library"><td><span class="row-id">A2</span><br><strong>adversaria</strong></td><td>Assurance<br>Python</td><td>Adversarial test primitives and suite behavior.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No current threat-corpus governance, reproducible model fixtures, coverage thresholds, or release-blocking integration.</span></td><td class="path">python/adversaria</td></tr>
+          <tr data-domain="Assurance" data-status="Substantive library"><td><span class="row-id">A3</span><br><strong>bias-sentinel</strong></td><td>Assurance<br>Python</td><td>Bias/fairness measurement utilities and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No use-case-specific thresholds, population governance, drift loop, or decision-accountability workflow.</span></td><td class="path">python/bias_sentinel</td></tr>
+          <tr data-domain="Assurance" data-status="Substantive library"><td><span class="row-id">A4</span><br><strong>comply-gate</strong></td><td>Assurance<br>Python</td><td>Compliance checks/report structures and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">Evidence is not mapped to a validated control system with owners, exceptions, freshness, and auditor traceability.</span></td><td class="path">python/comply_gate</td></tr>
+          <tr data-domain="Assurance" data-status="Substantive library"><td><span class="row-id">A5</span><br><strong>agentsec-lab</strong></td><td>Assurance<br>Python</td><td>Agent-security lab/test primitives and test cases.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">Not demonstrated against production agents, tools, memory, browsers, or the OWASP Agentic Top 10 corpus.</span></td><td class="path">python/agentsec_lab</td></tr>
+          <tr data-domain="Assurance" data-status="Adapter gap"><td><span class="row-id">A6</span><br><strong>conformance</strong></td><td>Assurance<br>Shell/tools</td><td>T1 signature and Merkle vector runner for Rust/Python/Go discovery.</td><td><span class="badge high">Adapter gap</span><span class="table-note">Vacuous success allowed; TypeScript absent; only five T1 vectors; no protocol vectors.</span></td><td class="path">tools/conformance</td></tr>
+          <tr data-domain="Assurance" data-status="Substantive library"><td><span class="row-id">A7</span><br><strong>red-team-cloud</strong></td><td>Assurance<br>Python</td><td>Red-team orchestration primitives and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No safe production boundary, cloud-account integration, experiment approvals, retained evidence, or current attack corpus.</span></td><td class="path">python/red_team_cloud</td></tr>
+          <tr data-domain="Assurance" data-status="Substantive library"><td><span class="row-id">A8</span><br><strong>arena</strong></td><td>Assurance<br>TypeScript</td><td>Strict TypeScript arena logic/UI surface and passing tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No deployed auth, tenant/data boundary, durable experiment store, or production model-provider integration.</span></td><td class="path">typescript/arena</td></tr>
+
+          <tr data-domain="Inference" data-status="Mock path"><td><span class="row-id">N1</span><br><strong>open-serve-kit</strong></td><td>Inference<br>Go</td><td>OpenAI-style proxy/router behavior and tests.</td><td><span class="badge stub">Mock path</span><span class="table-note">Compose defaults <code>BACKEND=mock</code>; no hardened provider credentials, streaming parity, quotas, or production backend proof.</span></td><td class="path">go/open-serve-kit</td></tr>
+          <tr data-domain="Inference" data-status="Mock path"><td><span class="row-id">N2</span><br><strong>bridge-rt</strong></td><td>Inference<br>Python</td><td>Backend abstraction and request adaptation.</td><td><span class="badge stub">Mock path</span><span class="table-note">Mock backend is the universally available path; TensorRT/other runtime adapters are not system-tested here.</span></td><td class="path">python/bridge_rt</td></tr>
+          <tr data-domain="Inference" data-status="Adapter gap"><td><span class="row-id">N3</span><br><strong>inference-proxy</strong></td><td>Inference<br>Rust</td><td>Proxy request/control structures and tests.</td><td><span class="badge high">Adapter gap</span><span class="table-note">No demonstrated streaming, cancellation, backpressure, tool-call semantics, policy chain, HA, or provider matrix.</span></td><td class="path">rust/inference-proxy</td></tr>
+          <tr data-domain="Inference" data-status="Adapter gap"><td><span class="row-id">N4</span><br><strong>tenant-guard</strong></td><td>Inference<br>Go</td><td>Tenant policy/isolation logic and testable primitives.</td><td><span class="badge high">Adapter gap</span><span class="table-note">Kubernetes controller is deferred; no end-to-end namespace, network, storage, GPU, identity, and quota isolation proof.</span></td><td class="path">go/tenant-guard</td></tr>
+
+          <tr data-domain="Federation" data-status="Substantive library"><td><span class="row-id">F1</span><br><strong>fed-core</strong></td><td>Federation<br>Python</td><td>Federated learning coordination/math primitives and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No durable coordinator, participant identity, Byzantine defense, transport, dropout recovery, or scale test.</span></td><td class="path">python/fed_core</td></tr>
+          <tr data-domain="Federation" data-status="Substantive library"><td><span class="row-id">F2</span><br><strong>dp-crate</strong></td><td>Federation<br>Python</td><td>Differential-privacy accounting/noise utilities and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No release accountant, dataset/user contribution bounds, composition policy, or misuse-resistant API proof.</span></td><td class="path">python/dp_crate</td></tr>
+          <tr data-domain="Federation" data-status="Mock path"><td><span class="row-id">F3</span><br><strong>edge-sentinel</strong></td><td>Federation<br>Go</td><td>Edge control loop structures and tests.</td><td><span class="badge stub">Mock path</span><span class="table-note">Attestation is mocked and kill behavior is logged rather than enforced on devices.</span></td><td class="path">go/edge-sentinel</td></tr>
+          <tr data-domain="Federation" data-status="Adapter gap"><td><span class="row-id">F4</span><br><strong>fleet-marshal</strong></td><td>Federation<br>Go</td><td>Fleet orchestration logic and tests.</td><td><span class="badge high">Adapter gap</span><span class="table-note">Production Kubernetes CRD/controller wiring and real edge lifecycle are deferred.</span></td><td class="path">go/fleet-marshal</td></tr>
+
+          <tr data-domain="Extensions" data-status="Substantive library"><td><span class="row-id">X1</span><br><strong>defstack-cli</strong></td><td>Extensions<br>Rust</td><td>CLI surface over core concepts, command parsing, tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No coherent installed control plane for the CLI to operate; distribution and credential UX are unproven.</span></td><td class="path">rust/defstack-cli</td></tr>
+          <tr data-domain="Extensions" data-status="Substantive library"><td><span class="row-id">X2</span><br><strong>nooa-ext</strong></td><td>Extensions<br>Python</td><td>Extension package surface and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">Extension governance, signing, compatibility, sandboxing, publishing, and lifecycle are not demonstrated.</span></td><td class="path">python/nooa_ext</td></tr>
+          <tr data-domain="Extensions" data-status="Substantive library"><td><span class="row-id">X3</span><br><strong>open-harness-spec</strong></td><td>Extensions<br>Python</td><td>Harness specification utilities and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">Harness interchange and cross-runtime reproducibility are not proven against external implementations.</span></td><td class="path">python/open_harness_spec</td></tr>
+          <tr data-domain="Extensions" data-status="Substantive library"><td><span class="row-id">X4</span><br><strong>crypto-audit-ai</strong></td><td>Extensions<br>Python</td><td>Cryptographic audit checks/reporting and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">Not a substitute for expert cryptographic review, validated primitives, constant-time analysis, or dependency provenance.</span></td><td class="path">python/crypto_audit_ai</td></tr>
+          <tr data-domain="Extensions" data-status="Substantive library"><td><span class="row-id">X5</span><br><strong>retro-spec-kit</strong></td><td>Extensions<br>Python</td><td>Specification recovery/analysis utilities and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">Generated specifications require review, ownership, versioning, traceability, and conformance linkage.</span></td><td class="path">python/retro_spec_kit</td></tr>
+          <tr data-domain="Extensions" data-status="Adapter gap"><td><span class="row-id">X6</span><br><strong>metr-bridge</strong></td><td>Extensions<br>Python</td><td>METR-oriented bridge structures and tests.</td><td><span class="badge high">Adapter gap</span><span class="table-note">External service contract, auth, rate behavior, evidence retention, and compatibility are not live-tested.</span></td><td class="path">python/metr_bridge</td></tr>
+          <tr data-domain="Extensions" data-status="Substantive library"><td><span class="row-id">X7</span><br><strong>console</strong></td><td>Extensions<br>TypeScript</td><td>Console data/UI logic, strict build, passing tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No authenticated deployed console, API integration, tenancy, audit UX, or operator workflow proof.</span></td><td class="path">typescript/console</td></tr>
+          <tr data-domain="Extensions" data-status="Stub transport"><td><span class="row-id">X8</span><br><strong>mcp-gateway</strong></td><td>Extensions<br>TypeScript</td><td>Authorization/routing model and tests around gateway behavior.</td><td><span class="badge critical">Stub transport</span><span class="table-note"><code>forward()</code> returns a synthetic acknowledgement with <code>stubbed: true</code>.</span></td><td class="path">typescript/mcp-gateway</td></tr>
+          <tr data-domain="Extensions" data-status="Substantive library"><td><span class="row-id">X9</span><br><strong>incident-exchange</strong></td><td>Extensions<br>Python</td><td>Incident exchange data structures/logic and tests.</td><td><span class="badge conditional">Substantive library</span><span class="table-note">No authenticated federation, schema registry, deduplication, trust community, STIX/TAXII/OCSF validation, or SOC integration.</span></td><td class="path">python/incident_exchange</td></tr>
+          <tr data-domain="Extensions" data-status="Adapter gap"><td><span class="row-id">X10</span><br><strong>sovereign-stack</strong></td><td>Extensions<br>Go</td><td>Stack configuration/types and build/deploy assets.</td><td><span class="badge high">Adapter gap</span><span class="table-note">Container behavior is health-oriented; sovereignty, disconnected operation, key ownership, update, and recovery are unproven.</span></td><td class="path">go/sovereign-stack</td></tr>
+          <tr data-domain="Extensions" data-status="Adapter gap"><td><span class="row-id">X11</span><br><strong>defstack-cloud</strong></td><td>Extensions<br>Go</td><td>Cloud-plane types/service scaffolding and tests.</td><td><span class="badge high">Adapter gap</span><span class="table-note">No provider control-plane integration, API durability, auth, tenancy, billing, SLO, or upgrade evidence.</span></td><td class="path">go/defstack-cloud</td></tr>
+
+          <tr data-domain="Evidence" data-status="Adapter gap"><td><span class="row-id">E1</span><br><strong>flight-recorder</strong></td><td>Evidence<br>Rust</td><td>Signed event recording primitives, precommit concepts, OTLP-shaped conversion.</td><td><span class="badge high">Adapter gap</span><span class="table-note">Real OTLP export is deferred; no durable append-before-execute service, backpressure, retention, or tamper-monitor proof.</span></td><td class="path">rust/flight-recorder</td></tr>
+        </tbody></table></div>
+        <div class="empty-state" id="componentEmpty" hidden>No components match these filters.</div>
+        <div class="callout"><strong>Cross-cutting observation</strong><p>The repository’s breadth is real: approximately 25,744 implementation lines were found across 20 Go, 42 Python, 30 Rust, and 4 TypeScript source files after excluding tests, targets, and generated dependency trees. The central risk is not “there is no code”; it is inconsistent depth, weak integration, and claims that collapse library readiness into platform readiness.</p></div>
+      </div>
+    </section>
+
+    <section id="missing">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">06 · Catalogue closure</div><h2>Five canonical components remain unimplemented.</h2></div><p class="section-note">These identifiers appear in the reconciliation catalogue but are excluded from the 49-component “feature complete” tally. Their absence is material to the native agent and enterprise story.</p></div>
+        <div class="table-wrap"><table><thead><tr><th>ID</th><th>Canonical capability</th><th>Why it matters</th><th>Minimum credible implementation</th></tr></thead><tbody>
+          <tr><td class="row-id">I2</td><td><strong>SPIFFE identity bindings</strong></td><td>I1 identity primitives need a concrete, verifiable binding to SPIRE workload registration and SVID lifecycle.</td><td>Rust signing boundary plus Go SPIRE Workload API adapter, workload selectors, trust-domain/audience binding, registration, rotation, revocation, and cross-language vectors.</td></tr>
+          <tr><td class="row-id">R1</td><td><strong>Secure agent workspace</strong></td><td>The platform lacks the composed, isolated workspace through which agent side effects must pass.</td><td>OpenShell-oriented workspace with signed policy, credential brokering, network allowlists, controlled inference, approval gates, action evidence, and R2 attestation integration.</td></tr>
+          <tr><td class="row-id">R6</td><td><strong>Policy bridge</strong></td><td>Compiled policy cannot be trusted across runtimes without fail-closed adapters and decision equivalence.</td><td>Rust reference evaluator plus OPA, Cedar, and OpenShell adapters; typed obligations/errors; timeout/cache semantics; and adversarial decision-equivalence tests.</td></tr>
+          <tr><td class="row-id">R8</td><td><strong>Sandbox runtime</strong></td><td>A workspace policy is not a sandbox; untrusted agent code still needs capability-scoped process, filesystem, and network enforcement.</td><td>Rust/Wasmtime runtime, deny-by-default process spawning, scoped filesystem/network capabilities, resource ceilings, syscall evidence, escape tests, and R1 integration.</td></tr>
+          <tr><td class="row-id">S3</td><td><strong>GGUF safety extension</strong></td><td>GGUF deployments have no AumOS-native, signed safety/provenance metadata profile or admission verifier.</td><td>Bounded GGUF v3 parser/rewriter, namespaced <code>osaf.safety.*</code> profile, normalized payload digest, T1 signature verification, adversarial fixtures, and llama.cpp round-trip proof.</td></tr>
+        </tbody></table></div>
+        <p>The reconciliation document’s arithmetic must be corrected at the same time: the enumerated implementable catalogue has <strong>54</strong> IDs, not 38 or 44. With 12 protocol specifications, the auditable portfolio is 66 distinct rows—not a blended total that changes by section.</p>
+      </div>
+    </section>
+
+    <section id="protocols">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">07 · Protocol review</div><h2>Twelve promising schemas; no interoperable protocol suite yet.</h2></div><p class="section-note">Each P1–P12 has Markdown and CDDL. Only P1 adds JSON Schema; only P2 has a matching protobuf. CDDL validation is not in CI, and no P1–P12 conformance-vector directories exist.</p></div>
+        <div class="table-wrap"><table><thead><tr><th>Protocol</th><th>Assets found</th><th>Critical semantic gap</th><th>Implementation / interop state</th></tr></thead><tbody>
+          <tr><td><span class="row-id">P1</span><br><strong>Agent Authority Envelope</strong></td><td>Markdown · CDDL · JSON Schema</td><td>CDDL does not encode protocol version, token ID, or audience despite downgrade/replay claims; signature/canonicalization and algorithm agility need normative test vectors.</td><td><span class="badge high">No protocol runtime</span><br>Docs reference a protobuf path that does not exist. T2 is adjacent, not demonstrated as wire-compatible P1.</td></tr>
+          <tr><td><span class="row-id">P2</span><br><strong>Agent Audit Record</strong></td><td>Markdown · CDDL · protobuf</td><td>Append-before-execute, crash consistency, idempotency, receipt/finality, hash-chain segmentation, retention, and privacy deletion semantics require normative definition.</td><td><span class="badge conditional">Partial library</span><br>E1 provides in-process primitives; durable service and P2 vectors are absent.</td></tr>
+          <tr><td><span class="row-id">P3</span><br><strong>Context Provenance Envelope</strong></td><td>Markdown · CDDL</td><td>No version/token identity, issuer/audience, normative signature envelope, transformation vocabulary, purpose-enforcement result, conflict behavior, or canonical test vectors.</td><td><span class="badge missing">Schema only</span><br>No context provenance runtime, SDK binding, admission validator, or dedicated vector suite found.</td></tr>
+          <tr><td><span class="row-id">P4</span><br><strong>Memory Exchange</strong></td><td>Markdown · CDDL</td><td>No record identity/version, provenance chain, confidentiality label, consent/retention policy, deletion tombstone, signature, poisoning score, or conflict semantics.</td><td><span class="badge missing">Schema only</span><br>No memory component or cross-agent store found.</td></tr>
+          <tr><td><span class="row-id">P5</span><br><strong>Executable Skill Package</strong></td><td>Markdown · CDDL</td><td>Raw code bytes are insufficient: needs content-addressed file tree, runtime/ABI, dependencies, permissions, build provenance, entrypoint, isolation profile, signer identity, and revocation.</td><td><span class="badge missing">Schema only</span><br>No packager, registry, verifier, sandbox loader, or lifecycle implementation.</td></tr>
+          <tr><td><span class="row-id">P6</span><br><strong>AI Artifact Manifest</strong></td><td>Markdown · CDDL</td><td>Manifest-level identity/version/signature and canonicalization are incomplete; model/data/prompt/policy relationships need current CycloneDX ML-BOM/C2PA/SLSA alignment.</td><td><span class="badge high">Generator adjacent</span><br>S4 emits CycloneDX 1.5-like output but no proven P6 bundle/verifier.</td></tr>
+          <tr><td><span class="row-id">P7</span><br><strong>Resource Budget</strong></td><td>Markdown · CDDL</td><td>Needs subject, currency/unit registry, reservation/commit/refund, time window, refill, hierarchy, atomicity, race behavior, enforcement result, and signature/replay semantics.</td><td><span class="badge missing">Schema only</span><br>Corresponding canonical R6 service is absent.</td></tr>
+          <tr><td><span class="row-id">P8</span><br><strong>Evaluation Result</strong></td><td>Markdown · CDDL</td><td>Reproduction requires evaluator artifact identity, dataset/version, environment lock, sampling, seeds, metric definitions, raw evidence digest, signing, and result invalidation.</td><td><span class="badge conditional">Libraries adjacent</span><br>A1/A2/R2 exist, but no P8 conformance envelope or registry.</td></tr>
+          <tr><td><span class="row-id">P9</span><br><strong>Incident Exchange</strong></td><td>Markdown · CDDL</td><td>Needs registered schema/profile, transport/auth federation, trust communities, update/supersession, dedupe, sensitivity/TLP, acknowledgements, and compatibility semantics.</td><td><span class="badge conditional">Partial library</span><br>X9 exists in Python; no federated SOC interop or P9 vectors.</td></tr>
+          <tr><td><span class="row-id">P10</span><br><strong>Agent-to-Agent</strong></td><td>Markdown · CDDL</td><td>No alignment to current A2A Agent Cards, tasks/state, messages/artifacts, streaming, multiple bindings, version negotiation, security schemes, or compatibility/TCK behavior. Delegation is a list of strings; result is text.</td><td><span class="badge critical">Schema only</span><br>No runnable A2A endpoint/client found.</td></tr>
+          <tr><td><span class="row-id">P11</span><br><strong>Proof-Carrying Remediation Bundle</strong></td><td>Markdown · CDDL</td><td>The bundle lacks a normative signer/signature, canonical digest, content-addressed reproducer/patch/evidence references, target compatibility, embargo authorization, application/rollback semantics, and revocation.</td><td><span class="badge missing">Schema only</span><br>S9 and X9 are adjacent; no remediation packager, verifier, distribution runtime, or vector suite exists.</td></tr>
+          <tr><td><span class="row-id">P12</span><br><strong>Capability Attestation Profile</strong></td><td>Markdown · CDDL</td><td>Needs issuer/subject, challenge/freshness, runtime/tool/policy/artifact identity, evidence registry, verifier policy/result, cryptographic envelope, version negotiation, and trust-root rotation.</td><td><span class="badge high">Mocks adjacent</span><br>R1/R2/I1 concepts exist or are planned, but no interoperable capability-attestation runtime is proven.</td></tr>
+        </tbody></table></div>
+        <h3>Protocol engineering gaps common to P1–P12</h3>
+        <div class="grid-3">
+          <article class="card"><h4>Normative wire behavior</h4><p>Version negotiation, canonical encoding, cryptographic algorithm identifiers, extension rules, unknown-field behavior, maximum sizes, error codes, time/replay semantics, and downgrade resistance.</p></article>
+          <article class="card"><h4>Executable conformance</h4><p>Positive, negative, adversarial, boundary, canonicalization, compatibility, and multi-language vectors; validators that fail when a required implementation is unavailable.</p></article>
+          <article class="card"><h4>Lifecycle governance</h4><p>Schema registry, semantic versioning, compatibility policy, change-control body, security disclosure, deprecation window, IANA-style registries, reference implementations, and independent TCK results.</p></article>
+        </div>
+        <div class="callout danger"><strong>Broken documentation link</strong><p>The protocol README points to <code>proto/aumos/protocols/v1/aae.proto</code>; that file does not exist. The protobuf README also describes evidence/protocol layouts that are absent, while <code>buf.gen.yaml</code> generates Rust only despite cross-language claims.</p></div>
+      </div>
+    </section>
+
+    <section id="developer">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">08 · Developer experience</div><h2>Rich primitives, high integration tax.</h2></div><p class="section-note">A developer-native platform should make the safe, real path the easiest path. Here the easiest path is often a mock, and each language/package expects its own local choreography.</p></div>
+        <div class="table-wrap"><table><thead><tr><th>Developer concern</th><th>Current strength</th><th>Blocking gap</th><th>Target experience</th></tr></thead><tbody>
+          <tr><td>Repository discovery</td><td>Strong RFC/catalogue coverage and clear domain IDs.</td><td>Conflicting phase/completion claims and catalogue totals undermine trust.</td><td>One generated component registry as the source for docs, builds, owners, status, and release evidence.</td></tr>
+          <tr><td>One-command setup</td><td>Make targets and language-local manifests exist.</td><td>Root tests do not execute hermetically; Make suppresses failures and skips missing toolchains.</td><td>Version-pinned devcontainer/Nix/asdf image; one bootstrap; one strict test target; explicit platform matrix.</td></tr>
+          <tr><td>Packaging</td><td>Cargo, pyproject, Go modules, npm workspace structures exist.</td><td>No Git remote/tags in checkout, Rust workspace is <code>publish=false</code>, no Python lock, no verified package registry/release artifacts.</td><td>Versioned, signed, reproducible packages/images with SBOM, provenance, checksums, compatibility matrix, and upgrade notes.</td></tr>
+          <tr><td>API consistency</td><td>Domain concepts are repeated across languages.</td><td>Only four protobuf files; most protocol bindings are manual or absent; error/idempotency/auth semantics differ.</td><td>Schema-first generated clients/servers, shared error model, pagination, retries, cancellation, deadlines, and compatibility tests.</td></tr>
+          <tr><td>Configuration</td><td>Local environment variables make demos accessible.</td><td>Mock defaults, <code>latest</code> images, placeholder mTLS, and no typed central config validation.</td><td>Explicit <code>development</code>/<code>production</code> profiles; production refuses mocks, missing trust roots, default credentials, and mutable tags.</td></tr>
+          <tr><td>Agent frameworks</td><td>MCP façade exposes AumOS concepts as tools.</td><td>Old MCP lifecycle; failure-to-mock behavior; gateway forwarding stub; no A2A implementation or first-class SDK adapters.</td><td>Current MCP server plus A2A v1.0, official SDK integration examples, structured errors, streaming/tasks, trace propagation, and capability discovery.</td></tr>
+          <tr><td>Testing</td><td>995 static test declarations and green Go/TypeScript lanes.</td><td>Rust/Python failures, missing ESLint, T1-only vectors, no true integration/E2E/chaos/performance/upgrade suites.</td><td>Hermetic unit → contract → integration → E2E → adversarial → performance ladder with retained machine-readable evidence.</td></tr>
+          <tr><td>Debuggability</td><td>E1 and X6 establish an observability direction.</td><td>OTLP export is deferred; agent/tool semantic conventions and correlation are not integrated.</td><td>One trace across caller → agent → policy → tool → model → evidence with redaction, cost/tokens, decision reason, and tenant-safe logs.</td></tr>
+          <tr><td>Examples</td><td>Many READMEs and package tests demonstrate local calls.</td><td>No canonical, non-mock golden path showing an enterprise agent action from identity through evidence and revocation.</td><td>Three maintained reference apps: local developer, Kubernetes enterprise, and disconnected/sovereign—each run in CI.</td></tr>
+        </tbody></table></div>
+        <h3>Native agent environment fit</h3>
+        <div class="grid-2">
+          <article class="card"><span class="badge critical">MCP</span><h3>Immediate modernization required</h3><p>The server advertises <code>2024-11-05</code> and implements initialize/session state. The official MCP 2026-07-28 revision moved to a stateless core, header-based routing, <code>server/discover</code>, MRTR resilience, and extension-based Tasks/authorization. Migration must also remove every “successful mock on downstream failure” path.</p></article>
+          <article class="card"><span class="badge missing">A2A</span><h3>Specification is not implementation</h3><p>P10 does not implement the current A2A v1.0 semantic model, Agent Cards, tasks, messages/artifacts, multiple bindings, or version negotiation. AumOS should complement MCP tool access with a real A2A client/server and map authority/evidence into A2A extensions.</p></article>
+          <article class="card"><span class="badge high">Agent SDKs</span><h3>No native adapters found</h3><p>No first-class adapter was found for OpenAI Agents SDK, Google ADK, Microsoft Agent Framework, LangGraph/LangChain, or similar orchestrators. Generic HTTP/MCP access is valuable, but enterprises need maintained middleware for identity, policy, traces, approvals, and evidence.</p></article>
+          <article class="card"><span class="badge conditional">Provider switching</span><h3>Abstractions exist; parity does not</h3><p><code>open-serve-kit</code> and <code>bridge-rt</code> model provider/runtime switching, but the integrated environment defaults to mock. Streaming, tool calls, multimodal content, structured output, usage accounting, cancellation, and error parity need a provider conformance suite.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="enterprise">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">09 · Enterprise readiness</div><h2>The control catalogue is ahead of the operating model.</h2></div><p class="section-note">Enterprise readiness is a system property: identity, isolation, availability, evidence, operations, and governance must hold together under failure and change.</p></div>
+        <div class="table-wrap"><table><thead><tr><th>Control plane</th><th>Repository evidence</th><th>Readiness</th><th>What remains</th></tr></thead><tbody>
+          <tr><td>Identity &amp; access</td><td>I1, T2, R4; SPIFFE-oriented docs.</td><td><span class="badge high">Low</span></td><td>Real SPIRE, OIDC workforce bridge, I2 delegation, workload registration, trust-domain federation, least privilege, rotation, compromise/revocation drills.</td></tr>
+          <tr><td>Policy &amp; approvals</td><td>R2, R5, P1, P11.</td><td><span class="badge high">Low</span></td><td>R1 and R8; universal enforcement, signed distribution, explainable decisions, staged rollout, separation of duties, exception lifecycle.</td></tr>
+          <tr><td>Secrets &amp; keys</td><td>R4 and cryptographic libraries.</td><td><span class="badge high">Low</span></td><td>HSM/KMS, envelope encryption, tenant keys, rotation, zeroization, backup, quorum recovery, FIPS strategy, audit and compromise response.</td></tr>
+          <tr><td>Tenancy &amp; isolation</td><td>N4 and tenant-aware concepts.</td><td><span class="badge high">Low</span></td><td>End-to-end tenant propagation, namespaces, network policies, storage/RLS, GPU isolation, quotas, noisy-neighbor tests, admin boundaries, deletion/export.</td></tr>
+          <tr><td>Evidence &amp; non-repudiation</td><td>T1, E1, S2, P2.</td><td><span class="badge conditional">Medium-low</span></td><td>Durable append-before-execute store, receipt/finality, HA, retention, privacy, time authority, key custody, transparency inclusion/consistency proofs, monitoring.</td></tr>
+          <tr><td>Containment &amp; response</td><td>R3, R7, F3, X9.</td><td><span class="badge high">Low</span></td><td>Actual kill/egress enforcement, bounded propagation SLO, isolation/quarantine, safe retries, incident federation, drills, forensic bundles, rollback.</td></tr>
+          <tr><td>Availability &amp; resilience</td><td>Compose, Helm values, health endpoints.</td><td><span class="badge critical">Very low</span></td><td>Functional services, valid charts, PDB/RBAC/NetworkPolicy/storage, readiness semantics, leader election, backup/restore, DR, multi-region, chaos/load/upgrade evidence.</td></tr>
+          <tr><td>Observability</td><td>E1 conversion, X6 bridge, OTel doctrine.</td><td><span class="badge high">Low</span></td><td>Real exporters, current GenAI/agent conventions, trace propagation, policy/tool/model correlation, redaction, cardinality/cost controls, SLO dashboards, alert ownership.</td></tr>
+          <tr><td>Supply chain</td><td>Workflows for SBOM/provenance/release; S1/S2/S4/S7.</td><td><span class="badge high">Low</span></td><td>Executed signed releases, immutable tags/digests, pinned actions, dependency locks, SLSA provenance, Sigstore verification, artifact admission, CVE response and patch SLA.</td></tr>
+          <tr><td>Compliance &amp; governance</td><td>A3/A4, extensive RFCs, EU/NIST references.</td><td><span class="badge conditional">Medium-low</span></td><td>Control owners, evidence freshness, legal/use-case classification, DPIA/FRIA workflows, model inventory, risk acceptance, human oversight, retention, audit export.</td></tr>
+        </tbody></table></div>
+        <h3>Deployment plane findings</h3>
+        <div class="grid-3">
+          <article class="card"><h4>Docker Compose</h4><p>Seventeen services parse. Defaults include mock inference and standalone/mock MCP behavior. Multiple Dockerfiles compile a library then create a tiny inline health server; a healthy container can therefore say nothing about the advertised component function.</p></article>
+          <article class="card"><h4>Helm</h4><p>The shared templates treat an alternating Helm <code>list</code> as a map, likely failing render. Empty registry values can produce leading-slash image names. Probe ports do not reliably match generated health servers. There are no NetworkPolicy, RBAC/service-account, Secret, PVC, Ingress, StatefulSet, or usable PDB templates.</p></article>
+          <article class="card"><h4>Configuration safety</h4><p>mTLS and persistence default off, <code>open-serve-kit</code> defaults to mock, and some infrastructure uses mutable <code>latest</code> tags. A production profile must be explicit and reject these states before startup.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="findings">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">10 · Prioritized findings</div><h2>What blocks a truthful production claim.</h2></div><p class="section-note">Severity reflects the combination of exploit/assurance impact, likelihood, and how directly the condition invalidates platform claims. IDs are local to this audit.</p></div>
+        <div class="finding"><div><span class="badge critical">Critical</span><div class="finding-id">AUD-001</div></div><div><h3>MCP returns success-shaped mocks when controls fail</h3><p>Connected-mode handlers catch downstream errors and return plausible data for identity, flight recorder, attestation, evaluation, credential, SBOM, and related tools. The kill-switch fallback can report <code>triggered: true</code>. A network outage or broken control service can therefore look like a successful security decision.</p><p class="evidence"><strong>Evidence:</strong> <code>typescript/aumos-mcp-server/src/index.ts</code>, fallback blocks around identity, evidence, attestation, eval, kill, vault, installation, SBOM, and evaluation handlers.</p><p><strong>Fix:</strong> Separate explicit demo adapters from production adapters at construction time; production must fail closed with typed JSON-RPC errors, no fabricated IDs/evidence, and an audit event for control unavailability. Add fault-injection tests asserting zero success responses.</p></div></div>
+        <div class="finding"><div><span class="badge critical">Critical</span><div class="finding-id">AUD-002</div></div><div><h3>Green gates can mean “nothing meaningful ran”</h3><p>The conformance runner succeeds when no verifiers are available. Make targets suppress failing Rust, Go, npm, docs, and conformance commands. CI’s protobuf-breaking check is warning-only. The main workflow omits Go and TypeScript and tests only one Python project.</p><p class="evidence"><strong>Evidence:</strong> <code>tools/conformance/run.sh</code>, root <code>Makefile</code>, <code>.github/workflows/ci.yml</code>.</p><p><strong>Fix:</strong> Define required lane/tool matrices, fail on missing executors or zero discovered tests/vectors, remove <code>|| echo</code> from required gates, and publish signed machine-readable results.</p></div></div>
+        <div class="finding"><div><span class="badge critical">Critical</span><div class="finding-id">AUD-003</div></div><div><h3>Deployment health is decoupled from functional behavior</h3><p>Several Docker images are library builds with an inline health-only server. Compose can become green without authority, evidence, tenant, sovereign, or cloud functionality being callable. This creates a false readiness signal at the exact boundary operators rely on.</p><p class="evidence"><strong>Evidence:</strong> 16 Dockerfiles and 17-service <code>docker-compose.yml</code>; generated health-server patterns in multiple Rust/Go images.</p><p><strong>Fix:</strong> Build real service binaries with authenticated readiness probes that validate required dependencies. Add an E2E transaction that traverses identity → authority → policy → evidence → execution → revocation.</p></div></div>
+        <div class="finding"><div><span class="badge high">High</span><div class="finding-id">AUD-004</div></div><div><h3>The current correctness baseline is red</h3><p>Two Rust tests fail, strict Clippy fails, one Python project suite fails, the root Python command cannot collect, and TypeScript lint cannot launch. Security-sensitive failures cannot be normalized as documentation drift.</p><p class="evidence"><strong>Evidence:</strong> live ledger in §03.</p><p><strong>Fix:</strong> Repair semantics, not just assertions; lock the expected Merkle construction against vectors, define exfil-finding aggregation, make harness commands platform-neutral, install/configure ESLint, and enforce one hermetic root test command.</p></div></div>
+        <div class="finding"><div><span class="badge high">High</span><div class="finding-id">AUD-005</div></div><div><h3>MCP and A2A interoperability are behind the current ecosystem</h3><p>MCP is fixed to the 2024 lifecycle; the gateway forwarding path is explicitly synthetic. P10 is a local CDDL record, not an A2A v1.0 implementation. Current agent runtimes cannot rely on discovery, negotiated capabilities, tasks, streaming, auth, or standard state behavior.</p><p class="evidence"><strong>Evidence:</strong> <code>MCP_PROTOCOL_VERSION = '2024-11-05'</code>; <code>mcp-gateway</code> sets <code>stubbed: true</code>; P10 assets.</p><p><strong>Fix:</strong> Implement current official SDKs/protocols, preserve AumOS authority/evidence via extensions, and test against independent clients/servers and official compatibility suites.</p></div></div>
+        <div class="finding"><div><span class="badge high">High</span><div class="finding-id">AUD-006</div></div><div><h3>Protocol documentation exceeds wire-level reality</h3><p>Twelve protocols have CDDL, but CDDL is not validated; most lack bindings and all lack dedicated conformance vectors. Several schemas omit versioning, signer identity, audience/freshness, canonical signing rules, lifecycle, and error behavior.</p><p class="evidence"><strong>Evidence:</strong> <code>specs/protocols</code>, <code>proto</code>, <code>testvectors</code>, <code>buf.gen.yaml</code>.</p><p><strong>Fix:</strong> Establish a protocol working group, freeze shared envelope primitives, generate four-language bindings, add adversarial vectors for every protocol, and require two independent implementations before stable status.</p></div></div>
+        <div class="finding"><div><span class="badge high">High</span><div class="finding-id">AUD-007</div></div><div><h3>Control components do not yet enforce the physical side effect</h3><p>Kill, egress, tenant isolation, fleet enforcement, attestation, vault custody, and policy distribution stop before real infrastructure. Recording intent is valuable, but cannot contain a rogue or compromised agent.</p><p class="evidence"><strong>Evidence:</strong> R3/R7/N4/F3/F4/C1/R4 task markers and mock adapters.</p><p><strong>Fix:</strong> Prioritize one reference enforcement stack—Kubernetes + SPIRE + service mesh/CNI + cloud KMS—then measure fail-closed behavior and kill propagation under partition and compromise.</p></div></div>
+        <div class="finding"><div><span class="badge high">High</span><div class="finding-id">AUD-008</div></div><div><h3>Helm is not a credible production installer</h3><p>The templates likely cannot render correctly due to list/range construction, and the chart lacks fundamental security/state/availability resources. Helm lint itself could not be run in this environment.</p><p class="evidence"><strong>Evidence:</strong> <code>deploy/helm/aumos/templates/{deployments,services,hpa}.yaml</code> and <code>values.yaml</code>.</p><p><strong>Fix:</strong> Replace the component list with a values map or named templates; add schema validation, chart tests, kind-based E2E, RBAC, NetworkPolicy, secrets, security contexts, storage, PDB, upgrade and rollback tests.</p></div></div>
+        <div class="finding"><div><span class="badge high">High</span><div class="finding-id">AUD-009</div></div><div><h3>Supply-chain claims lack published, verifiable outputs</h3><p>Workflows describe SBOM, provenance, and release behavior, but the checkout has no remotes/tags and no retained signature, in-toto, or SBOM artifacts. Actions are tag-pinned rather than commit-SHA pinned; several workflow steps ignore failure.</p><p class="evidence"><strong>Evidence:</strong> <code>.github/workflows</code>, Git metadata, absent release artifacts.</p><p><strong>Fix:</strong> Pin actions by digest/SHA, lock all ecosystems, generate CycloneDX 1.7 ML-BOMs and SLSA v1.2 provenance, sign with Sigstore, verify before deploy, and retain a public verification bundle.</p></div></div>
+        <div class="finding"><div><span class="badge high">High</span><div class="finding-id">AUD-010</div></div><div><h3>No durable, available evidence and control-plane data layer</h3><p>Core assurance depends on keys, policies, revocations, budgets, audit records, provenance, incidents, and tenancy state. The repository does not define an operational data architecture with consistency, backup/restore, retention, migration, HA, and disaster recovery.</p><p class="evidence"><strong>Evidence:</strong> in-memory/library implementations, persistence disabled by default, no PVC/StatefulSet/database migrations in the deploy plane.</p><p><strong>Fix:</strong> Publish data contracts and consistency requirements per service; implement encrypted stores, transactional outbox/idempotency, migrations, backup/restore drills, tenant deletion/export, and recovery objectives.</p></div></div>
+        <div class="finding"><div><span class="badge medium">Medium</span><div class="finding-id">AUD-011</div></div><div><h3>Model SBOM output trails the current format</h3><p>S4 and MCP mocks emit CycloneDX 1.5. CycloneDX 1.7 and its ML-BOM capability are current, and AumOS’s custom AI properties are not shown to validate or interoperate.</p><p class="evidence"><strong>Evidence:</strong> <code>python/model_sbom</code> and <code>typescript/aumos-mcp-server</code>.</p><p><strong>Fix:</strong> Upgrade to validated 1.7, map model/dataset/prompt dependencies to the ML-BOM model, attach hashes/licenses/provenance, sign the BOM, and add external-tool round trips.</p></div></div>
+        <div class="finding"><div><span class="badge medium">Medium</span><div class="finding-id">AUD-012</div></div><div><h3>Status documents are not generated from evidence</h3><p>Phase, catalogue totals, test counts, release status, and “no stubs” claims conflict. Stale critical-analysis findings also predate later source fixes.</p><p class="evidence"><strong>Evidence:</strong> README, reconciliation matrix, final verification report, changelog, current source/tests.</p><p><strong>Fix:</strong> Create a machine-readable component registry and evidence manifest. Generate status pages from it; attach command, commit, toolchain, timestamp, environment, result, and artifact digest to every readiness claim.</p></div></div>
+
+        <h3>Historical critical findings: source-level closure, not production proof</h3>
+        <p>The 6 August critical analysis predates the later <code>C1–C7</code> repair commit. Current source reflects repairs for deterministic/canonical signing, length-delimited hashing, evaluation-result binding, nonce validation, audience enforcement, signed-envelope validation, and conservative government acknowledgement. These should be retained as regression tests and independently reviewed; they should not remain listed as open current defects, nor be upgraded to production assurance without integration evidence.</p>
+      </div>
+    </section>
+
+    <section id="standards">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">11 · Current external signals</div><h2>The ecosystem moved while the repository was being built.</h2></div><p class="section-note">Only official/primary sources are used for time-sensitive claims. The links are the live source ledger for this section.</p></div>
+        <div class="table-wrap"><table><thead><tr><th>Signal as of 2026-08-09</th><th>Why it changes AumOS</th><th>Required response</th></tr></thead><tbody>
+          <tr><td><a href="https://blog.modelcontextprotocol.io/posts/2026-07-28/">MCP 2026-07-28</a><br><span class="table-note">Stateless core, header routing, <code>server/discover</code>, MRTR, Tasks and auth-related extensions.</span></td><td>AumOS advertises <code>2024-11-05</code> and session/initialize behavior. It is now two architectural generations behind.</td><td>Rebuild on the current official SDK/spec, publish migration behavior, remove fail-open mocks, and interop-test discovery, resumability, tasks, and auth.</td></tr>
+          <tr><td><a href="https://a2a-protocol.org/latest/announcing-1.0/">A2A v1.0</a> and <a href="https://a2a-protocol.org/latest/specification/">specification</a><br><span class="table-note">Stable production protocol with Agent Cards, tasks, messages/artifacts, multiple bindings and version negotiation.</span></td><td>P10 is not semantically or operationally compatible with the emerging production baseline.</td><td>Adopt A2A as the agent-to-agent transport and carry AumOS authority, evidence, budget, and attestation as specified extensions.</td></tr>
+          <tr><td><a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a></td><td>Goal hijack, tool misuse, identity abuse, agentic supply chain, code execution, memory poisoning, insecure inter-agent communication, cascading failures, trust exploitation, and rogue agents give AumOS a concrete adversarial acceptance model.</td><td>Map A1/A2/A5/R controls to all ten categories; create maintained attack vectors and fail-closed E2E tests for each.</td></tr>
+          <tr><td><a href="https://www.nist.gov/itl/ai-risk-management-framework">NIST AI RMF</a> and <a href="https://csrc.nist.gov/pubs/ai/100/2/e2025/final">NIST AI 100-2e2025</a></td><td>AumOS’s control catalogue aligns conceptually, but organizations need Govern/Map/Measure/Manage traceability and GenAI attack mitigations, not component names alone.</td><td>Ship a control/evidence profile with accountable owners, risk statements, test evidence, exceptions, and continuous measurement.</td></tr>
+          <tr><td><a href="https://digital-strategy.ec.europa.eu/en/policies/guidelines-gpai-providers">EU GPAI guidance</a> and <a href="https://digital-strategy.ec.europa.eu/en/library/guidelines-transparency-obligations-providers-and-deployers-ai-systems">Article 50 transparency guidance</a></td><td>GPAI obligations have applied since 2 August 2025; Commission enforcement powers and Article 50 transparency obligations apply from 2 August 2026.</td><td>Connect inventory, documentation, copyright, systemic-risk, incident, logging, content disclosure, and deployer workflows to verifiable evidence—not generic compliance output.</td></tr>
+          <tr><td><a href="https://opentelemetry.io/docs/specs/semconv/">OpenTelemetry semantic conventions</a> and <a href="https://opentelemetry.io/blog/2026/genai-observability/">2026 GenAI observability guidance</a></td><td>GenAI conventions have moved to a dedicated repository and agent spans remain developmental. AumOS needs explicit versioning and correlation across model, agent, and tool calls.</td><td>Implement OTLP, record semantic-convention version, protect prompts/content, propagate trace and authority IDs, and test cost/token/tool span completeness.</td></tr>
+          <tr><td><a href="https://slsa.dev/spec/v1.2/">SLSA v1.2</a> and <a href="https://docs.sigstore.dev/logging/overview/">Sigstore Rekor</a></td><td>Repository workflow files are not release evidence. Transparency logging also requires proof verification and monitoring, not just submitting entries.</td><td>Produce and verify provenance for every package/image/artifact; retain inclusion/consistency evidence and alert on unexpected identities/artifacts.</td></tr>
+          <tr><td><a href="https://spiffe.io/docs/latest/deploying/install-server/">SPIFFE/SPIRE production guidance</a></td><td>I1’s direction is right, but a real deployment needs node/workload attestation, registration, trust-domain/federation policy, rotation, HA, and operational recovery.</td><td>Build a reference SPIRE deployment with pinned images/charts, workload registration automation, federation tests, and compromise/revocation drills.</td></tr>
+          <tr><td><a href="https://spec.c2pa.org/about/charter/">C2PA 2.4</a>, <a href="https://cyclonedx.org/specification/overview/">CycloneDX 1.7</a>, and <a href="https://cyclonedx.org/capabilities/mlbom/">CycloneDX ML-BOM</a></td><td>P6/S4 should compose with current content provenance and ML supply-chain standards rather than inventing isolated AI fields.</td><td>Define profiles, validate schemas, sign artifacts, round-trip with external tooling, and state precisely where C2PA, CycloneDX, OCI, and SLSA responsibilities meet.</td></tr>
+          <tr><td><a href="https://openai.github.io/openai-agents-python/">OpenAI Agents SDK</a></td><td>Mainstream agent SDKs now expose tools, handoffs, guardrails, MCP, sessions, human-in-the-loop, and tracing. AumOS should be pluggable at those control points.</td><td>Publish an adapter that adds workload identity, authority/policy middleware, approval, evidence, kill cancellation, and OTel propagation without hardcoding a model.</td></tr>
+        </tbody></table></div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">12 · Remediation roadmap</div><h2>Concentrate breadth into one trusted path.</h2></div><p class="section-note">The fastest route to credibility is not implementing more catalogue entries in isolation. It is making one vertical slice real, fail-closed, observable, and reproducible—then expanding.</p></div>
+        <div class="timeline">
+          <article class="timeline-item"><span class="badge critical">P0 · 0–14 days</span><h3>Restore truth and deterministic gates</h3><p>Fix Rust, Python, and TypeScript quality failures. Make root test orchestration hermetic. Delete failure suppression from required gates. Require non-zero verifier/language/vector counts. Correct the catalogue to 54 + 12 and generate status from an evidence manifest.</p><p><strong>Exit:</strong> clean checkout; one command produces zero failures; machine-readable evidence lists exact tests/tools/commit; documentation claims match it.</p></article>
+          <article class="timeline-item"><span class="badge critical">P0 · 0–21 days</span><h3>Remove false-success security behavior</h3><p>Split demo and production dependency graphs. Production MCP/gateway paths return typed failures when identity, policy, evidence, attestation, kill, vault, or evaluation controls are unavailable. Remove synthetic forwarding. Add outage, timeout, partial-write, and replay tests.</p><p><strong>Exit:</strong> fault injection proves no fabricated success, ID, audit receipt, attestation, credential, or kill acknowledgement.</p></article>
+          <article class="timeline-item"><span class="badge high">P1 · 2–6 weeks</span><h3>Build one functional control-plane slice</h3><p>Choose Kubernetes + SPIRE + a durable SQL/event store + cloud KMS as the reference. Implement I2, R1, R8, real E1 precommit, real R3/R7/N4 enforcement, and one non-mock inference backend. Ship real services, not health wrappers.</p><p><strong>Exit:</strong> an authenticated agent tool call is delegated, policy/budget approved, durably precommitted, executed, traced, and revocable under network faults.</p></article>
+          <article class="timeline-item"><span class="badge high">P1 · 3–8 weeks</span><h3>Modernize agent interoperability</h3><p>Implement MCP 2026-07-28 and A2A v1.0 using official SDKs. Define AumOS extensions for authority, evidence, budget, and attestation. Publish OpenAI Agents SDK and at least one other ecosystem adapter.</p><p><strong>Exit:</strong> independent current clients pass discovery/auth/task/streaming/resume/error tests; A2A interop works across two independent implementations.</p></article>
+          <article class="timeline-item"><span class="badge high">P1 · 4–10 weeks</span><h3>Turn protocols into products</h3><p>Repair P1–P12 semantics, shared envelope, registries, errors, and versioning. Validate CDDL in CI. Generate Rust/Python/Go/TypeScript bindings. Add positive/negative/adversarial vectors and two-implementation compatibility gates.</p><p><strong>Exit:</strong> every protocol has normative schemas, vectors, generated bindings, reference implementation, compatibility policy, and a non-vacuous TCK.</p></article>
+          <article class="timeline-item"><span class="badge medium">P2 · 6–12 weeks</span><h3>Make deployment an enforceable product boundary</h3><p>Repair/refactor Helm, add Kubernetes security/state/availability resources, pin images, require mTLS and persistence, build readiness against real dependencies, and add kind-based install/upgrade/rollback/backup tests.</p><p><strong>Exit:</strong> clean-cluster install and upgrade survive pod/node/database faults; tenant isolation and kill/egress enforcement are measured.</p></article>
+          <article class="timeline-item"><span class="badge medium">P2 · 8–16 weeks</span><h3>Produce verifiable releases</h3><p>Lock dependencies, pin CI actions, build reproducibly, generate CycloneDX 1.7 ML-BOMs, SLSA v1.2 provenance, signatures and transparency proofs. Add artifact admission and revocation.</p><p><strong>Exit:</strong> a third party can verify source → builder → package/image → deployment with offline instructions and negative tamper tests.</p></article>
+          <article class="timeline-item"><span class="badge low">P3 · 12–24 weeks</span><h3>Prove enterprise operation</h3><p>Load/soak/chaos, multi-region/sovereign modes, SLOs, capacity/cost model, DR, incident drills, independent security/crypto/isolation audits, EU/NIST evidence packs, and customer reference deployments.</p><p><strong>Exit:</strong> retained operational evidence supports bounded production claims for named configurations—not a blanket “feature complete” label.</p></article>
+        </div>
+        <h3>Workstream ownership model</h3>
+        <div class="table-wrap"><table><thead><tr><th>Workstream</th><th>Single accountable outcome</th><th>Dependencies</th><th>Evidence owner must retain</th></tr></thead><tbody>
+          <tr><td>Core trust</td><td>Stable signed envelope, Merkle/evidence semantics and real key custody.</td><td>T1, T2, R4, P1/P2/P11/P12.</td><td>Vectors, crypto review, KMS/HSM tests, rotation/revocation drills.</td></tr>
+          <tr><td>Enforcement</td><td>Every side effect is fail-closed under policy, budget, tenant and kill controls.</td><td>I1/I2, R1/R2/R3/R6/R7/R8, N4.</td><td>Fault-injection, latency/SLO, bypass tests, policy decision logs.</td></tr>
+          <tr><td>Agent interoperability</td><td>Current MCP/A2A and SDK adapters preserve authority/evidence semantics.</td><td>X8, P3/P4/P5/P7/P10, SDK layer.</td><td>Independent interop matrix, protocol/TCK results, compatibility releases.</td></tr>
+          <tr><td>Platform/SRE</td><td>Install, upgrade, observe, back up, restore and contain a real platform.</td><td>Services, Helm, stores, SPIRE, OTel, CI/CD.</td><td>Runbooks, dashboards, chaos/DR evidence, signed deploy manifests.</td></tr>
+          <tr><td>Assurance/governance</td><td>Risks and obligations resolve to owned, fresh, tamper-evident evidence.</td><td>A1–A8, S1–S9, X9, standards profiles.</td><td>Threat/control matrix, exceptions, red-team results, audit packages.</td></tr>
+        </tbody></table></div>
+      </div>
+    </section>
+
+    <section id="gates">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">13 · Release gates</div><h2>A production claim needs all gates, not an average.</h2></div><p class="section-note">A single red mandatory gate blocks the production verdict. “Not applicable” requires a documented risk decision and named approver; “tool unavailable” is a failure of the evidence environment.</p></div>
+        <div class="table-wrap"><table><thead><tr><th>Gate</th><th>Minimum acceptance evidence</th><th>Current state</th></tr></thead><tbody>
+          <tr><td>G1 · Catalogue integrity</td><td>Machine-readable 54-component + 12-protocol registry; owner, status, version, dependencies, evidence and deprecation for every row.</td><td><span class="badge critical">Fail</span> contradictory totals/status.</td></tr>
+          <tr><td>G2 · Reproducible build</td><td>Pinned toolchains/dependencies/actions; clean offline-capable build; deterministic outputs where supported.</td><td><span class="badge high">Fail</span> incomplete locks, mutable tags, no release proof.</td></tr>
+          <tr><td>G3 · Correctness</td><td>All required unit/static/type/lint gates pass in every supported platform lane.</td><td><span class="badge critical">Fail</span> Rust/Python/lint red.</td></tr>
+          <tr><td>G4 · Protocol conformance</td><td>All P1–P12 vectors pass in four languages; missing verifier is fatal; independent implementation interoperability.</td><td><span class="badge critical">Fail</span> T1-only, Python-only successful run.</td></tr>
+          <tr><td>G5 · Fail-closed controls</td><td>Outage/timeout/replay/bypass tests prove no action or success response without identity, authority, policy, budget, evidence and required attestation.</td><td><span class="badge critical">Fail</span> MCP success fallbacks.</td></tr>
+          <tr><td>G6 · Functional deployment</td><td>Real service endpoints, valid hardened Helm, non-mock production profile, install/upgrade/rollback on a clean cluster.</td><td><span class="badge critical">Fail</span> health-only and chart defects.</td></tr>
+          <tr><td>G7 · Tenant isolation</td><td>Cross-tenant negative tests across identity, network, compute/GPU, storage, secrets, logs, metrics and admin planes.</td><td><span class="badge high">No proof</span></td></tr>
+          <tr><td>G8 · Durable evidence</td><td>Crash-consistent precommit, signed receipts, HA, backup/restore, retention/privacy, transparency verification and monitoring.</td><td><span class="badge high">No proof</span></td></tr>
+          <tr><td>G9 · Containment</td><td>Measured kill and egress enforcement under partition, overload and compromised-agent scenarios; bounded propagation SLO.</td><td><span class="badge high">No proof</span></td></tr>
+          <tr><td>G10 · Security assurance</td><td>Threat model mapped to OWASP Agentic Top 10/NIST; SAST/SCA/secrets/IaC/container/fuzz/adversarial tests; independent critical-path review.</td><td><span class="badge high">Partial</span></td></tr>
+          <tr><td>G11 · Supply-chain verification</td><td>Signed packages/images, CycloneDX 1.7 ML-BOM, SLSA v1.2 provenance, Sigstore verification and artifact admission/revocation.</td><td><span class="badge high">No retained proof</span></td></tr>
+          <tr><td>G12 · Reliability &amp; operations</td><td>SLOs, load/soak/chaos, scaling/capacity, observability, runbooks, incident and DR exercises, upgrade support matrix.</td><td><span class="badge high">No proof</span></td></tr>
+          <tr><td>G13 · Regulatory evidence</td><td>Use-case classification, inventory, human oversight, transparency, risk/control mapping, evidence ownership/freshness, exception and incident workflows.</td><td><span class="badge conditional">Documentation only</span></td></tr>
+          <tr><td>G14 · Release usability</td><td>Fresh developer and operator complete documented non-mock golden paths from signed artifacts within defined time/error budgets.</td><td><span class="badge high">No proof</span></td></tr>
+        </tbody></table></div>
+        <div class="callout success"><strong>Recommended near-term release label</strong><p><strong>“AumOS pre-1.0 research preview: reference implementations and draft protocols; not for production security enforcement.”</strong> This label is accurate, protects adopters from false assurance, and leaves room to promote named components as their gates clear.</p></div>
+      </div>
+    </section>
+
+    <section id="sources">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-number">14 · Evidence and source ledger</div><h2>Traceable by design.</h2></div><p class="section-note">Local paths are relative to the repository root. External claims use primary publishers. A source link supports the nearby standard claim, not AumOS readiness.</p></div>
+        <h3>Primary local evidence</h3>
+        <ul class="source-list">
+          <li><code>README.md</code><span>Phase status, quick start, standards and component narrative.</span></li>
+          <li><code>docs/00-reconciliation-matrix.md</code><span>Canonical IDs, waves, ownership and contradictory arithmetic.</span></li>
+          <li><code>docs/final-verification-report.md</code><span>49-component completeness and historical test claims.</span></li>
+          <li><code>docs/html/critical-analysis.html</code><span>Prior findings baseline, now partially superseded.</span></li>
+          <li><code>specs/protocols/</code><span>P1–P12 Markdown and CDDL; P1 JSON Schema.</span></li>
+          <li><code>proto/</code> and <code>buf*.yaml</code><span>Four protobuf files, lint/generation coverage.</span></li>
+          <li><code>testvectors/</code><span>Five T1 sign/verify and Merkle vectors.</span></li>
+          <li><code>tools/conformance/run.sh</code><span>Language discovery and vacuous-success behavior.</span></li>
+          <li><code>tools/ci/check-docs.sh</code><span>Structural documentation gate.</span></li>
+          <li><code>Makefile</code><span>Root developer workflow and suppressed failures.</span></li>
+          <li><code>.github/workflows/</code><span>CI, security, SBOM, provenance and release intent.</span></li>
+          <li><code>docker-compose.yml</code> and 16 Dockerfiles<span>Seventeen-service development topology and health-only patterns.</span></li>
+          <li><code>deploy/helm/aumos/</code><span>Chart templates, defaults and missing production controls.</span></li>
+          <li><code>rust/</code>, <code>python/</code>, <code>go/</code>, <code>typescript/</code><span>Implementation and test source for all mapped components.</span></li>
+          <li><code>typescript/aumos-mcp-server/src/index.ts</code><span>MCP version, tools and downstream fallbacks.</span></li>
+          <li><code>typescript/mcp-gateway/src/index.ts</code><span>Authorization model and synthetic forward acknowledgement.</span></li>
+        </ul>
+        <h3>Current external primary sources</h3>
+        <ul class="source-list">
+          <li><a href="https://blog.modelcontextprotocol.io/posts/2026-07-28/">Model Context Protocol — 2026-07-28 revision</a><span>Current lifecycle, routing, discovery, resilience and extensions.</span></li>
+          <li><a href="https://a2a-protocol.org/latest/announcing-1.0/">A2A v1.0 announcement</a> and <a href="https://a2a-protocol.org/latest/specification/">specification</a><span>Current interoperable agent-to-agent baseline.</span></li>
+          <li><a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Agentic Top 10 2026</a><span>Agentic threat taxonomy.</span></li>
+          <li><a href="https://www.nist.gov/itl/ai-risk-management-framework">NIST AI RMF</a><span>Risk-management functions and resources.</span></li>
+          <li><a href="https://csrc.nist.gov/pubs/ai/100/2/e2025/final">NIST AI 100-2e2025</a><span>Generative AI adversarial attacks and mitigations.</span></li>
+          <li><a href="https://digital-strategy.ec.europa.eu/en/policies/guidelines-gpai-providers">EU GPAI guidelines</a><span>Provider obligations and enforcement timeline.</span></li>
+          <li><a href="https://digital-strategy.ec.europa.eu/en/library/guidelines-transparency-obligations-providers-and-deployers-ai-systems">EU Article 50 transparency guidance</a><span>Transparency obligations applying from August 2026.</span></li>
+          <li><a href="https://opentelemetry.io/docs/specs/semconv/">OpenTelemetry semantic conventions</a><span>Current convention stability and GenAI repository status.</span></li>
+          <li><a href="https://slsa.dev/spec/v1.2/">SLSA v1.2</a><span>Current supply-chain provenance specification.</span></li>
+          <li><a href="https://docs.sigstore.dev/logging/overview/">Sigstore Rekor overview</a><span>Transparency log, inclusion and monitoring concepts.</span></li>
+          <li><a href="https://spiffe.io/docs/latest/deploying/install-server/">SPIFFE/SPIRE production installation</a><span>Current workload identity deployment guidance.</span></li>
+          <li><a href="https://spec.c2pa.org/about/charter/">C2PA 2.4</a><span>Content provenance standard.</span></li>
+          <li><a href="https://cyclonedx.org/specification/overview/">CycloneDX 1.7</a> and <a href="https://cyclonedx.org/capabilities/mlbom/">ML-BOM</a><span>Current BOM and machine-learning inventory capabilities.</span></li>
+          <li><a href="https://openai.github.io/openai-agents-python/">OpenAI Agents SDK</a><span>Representative native agent integration surface.</span></li>
+        </ul>
+        <h3>Reproduction notes</h3>
+        <pre><code># Representative evidence commands
+cargo test --workspace --no-fail-fast
+cargo clippy --workspace --all-targets -- -D warnings
+# Python suites require per-project src path/install orchestration
+go test ./...        # executed in each of 10 modules
+go vet ./...         # executed in each of 10 modules
+npm test
+npm run build
+npm run lint
+buf lint
+bash tools/conformance/run.sh
+bash tools/ci/check-docs.sh
+docker compose config --quiet</code></pre>
+        <p><strong>Evidence timestamp:</strong> 9 August 2026, America/Los_Angeles. <strong>Environment:</strong> Windows PowerShell host with WSL Bash available; Docker/Buf/Rust/Python/Go/Node available to differing degrees; Helm CLI unavailable. <strong>Repository state:</strong> local <code>main</code>, with no configured Git remote or tags visible during the audit.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="shell"><p><strong>AumOS implementation readiness audit</strong> · evidence cut 2026-08-09 · standalone HTML artifact.</p><p>This document is an engineering assessment, not legal advice, certification, penetration-test attestation, or warranty. Re-run every live gate against the exact release commit and target environment before changing the verdict.</p></div></footer>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const progress = document.getElementById('progress');
+      const printButton = document.getElementById('printButton');
+      const componentSearch = document.getElementById('componentSearch');
+      const componentDomain = document.getElementById('componentDomain');
+      const componentStatus = document.getElementById('componentStatus');
+      const componentTable = document.getElementById('componentTable');
+      const componentCount = document.getElementById('componentCount');
+      const componentEmpty = document.getElementById('componentEmpty');
+      const navigationLinks = [...document.querySelectorAll('.nav-inner a[href^="#"]')];
+      const observedSections = [...document.querySelectorAll('main > section[id]')];
+
+      const updateProgress = () => {
+        if (!progress) return;
+        const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const ratio = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
+        progress.style.width = `${Math.min(100, Math.max(0, ratio * 100))}%`;
+      };
+
+      const normalize = (value) => value.trim().toLocaleLowerCase();
+
+      const filterComponents = () => {
+        if (!componentTable || !componentSearch || !componentDomain || !componentStatus || !componentCount || !componentEmpty) return;
+        const query = normalize(componentSearch.value);
+        const selectedDomain = componentDomain.value;
+        const selectedStatus = componentStatus.value;
+        const rows = [...componentTable.tBodies[0].rows];
+        let visibleCount = 0;
+
+        for (const row of rows) {
+          const matchesQuery = query.length === 0 || normalize(row.textContent ?? '').includes(query);
+          const matchesDomain = selectedDomain === 'all' || row.dataset.domain === selectedDomain;
+          const matchesStatus = selectedStatus === 'all' || row.dataset.status === selectedStatus;
+          const visible = matchesQuery && matchesDomain && matchesStatus;
+          row.hidden = !visible;
+          if (visible) visibleCount += 1;
+        }
+
+        componentCount.textContent = `${visibleCount} component${visibleCount === 1 ? '' : 's'} shown`;
+        componentEmpty.hidden = visibleCount !== 0;
+      };
+
+      const updateActiveSection = (entries) => {
+        const visibleEntries = entries.filter((entry) => entry.isIntersecting).sort((left, right) => right.intersectionRatio - left.intersectionRatio);
+        if (visibleEntries.length === 0) return;
+        const activeId = visibleEntries[0].target.id;
+        for (const link of navigationLinks) {
+          if (link.getAttribute('href') === `#${activeId}`) link.setAttribute('aria-current', 'true');
+          else link.removeAttribute('aria-current');
+        }
+      };
+
+      window.addEventListener('scroll', updateProgress, { passive: true });
+      updateProgress();
+      printButton?.addEventListener('click', () => window.print());
+      componentSearch?.addEventListener('input', filterComponents);
+      componentDomain?.addEventListener('change', filterComponents);
+      componentStatus?.addEventListener('change', filterComponents);
+
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(updateActiveSection, { rootMargin: '-15% 0px -72% 0px', threshold: [0, 0.1, 0.3] });
+        for (const section of observedSections) observer.observe(section);
+      }
+    })();
+  </script>
+</body>
+</html>

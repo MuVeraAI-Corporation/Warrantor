@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Federated Training, Edge Attestation, and the Sovereign Bundle · AumOS Blog Series</title>
+  <link rel="stylesheet" href="blog-series.css">
+</head>
+<body>
+<div class="container">
+  <div class="series-bar">
+    <a href="index.html">← Series index</a>
+    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span>Local technical essay · 2026</span>
+  </div>
+
+  <header class="article-header">
+    <div class="article-eyebrow">Essay 8 of 8 · Federated / Cross-Cutting</div>
+    <h1>Federated Training, Edge Attestation, and the Sovereign Bundle</h1>
+    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-affil">DP budgets, Jetson-class edge agents, fleet operators, and air-gapped sovereign stacks complete the authority/evidence substrate.</p>
+    <div class="article-meta">
+      <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value"><span class="id-chip" data-aumos-id="F1">F1</span> <span class="id-chip" data-aumos-id="F2">F2</span> <span class="id-chip" data-aumos-id="F3">F3</span> <span class="id-chip" data-aumos-id="F4">F4</span> <span class="id-chip" data-aumos-id="X1">X1</span> <span class="id-chip" data-aumos-id="X3">X3</span> <span class="id-chip" data-aumos-id="X4">X4</span> <span class="id-chip" data-aumos-id="X7">X7</span> <span class="id-chip" data-aumos-id="X10">X10</span> <span class="id-chip" data-aumos-id="X11">X11</span> <span class="id-chip protocol" data-aumos-id="P3">P3</span> <span class="id-chip protocol" data-aumos-id="P11">P11</span></span></div>
+      <div class="meta-item"><span class="meta-label">Pipeline</span><span class="meta-value">Research → draft → visuals → adversarial review → fix</span></div>
+      <div class="meta-item"><span class="meta-label">Citations</span><span class="meta-value">Primary RFCs / eng blogs / standards</span></div>
+    </div>
+    <nav class="article-nav"><a href="07-inference-mcp-a2a-delegation.html">← Essay 07</a><span></span><a href="index.html">Index →</a></nav>
+  </header>
+
+
+  <div class="abstract">
+    <span class="abstract-label">Thesis</span>
+    <p>Authority and evidence must travel to the edge and into air gaps. Federated training with DP (<span class="id-chip">F1</span>/<span class="id-chip">F2</span>), edge attestation agents (<span class="id-chip">F3</span>), fleet operators (<span class="id-chip">F4</span>), CLI/console/cloud (<span class="id-chip">X1</span>/<span class="id-chip">X7</span>/<span class="id-chip">X11</span>), and sovereign bundles (<span class="id-chip">X10</span>) complete the stack—with India DPDP and US model-risk anchors where data and banks meet AI.</p>
+  </div>
+  <div class="toc"><div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#fed">Federated + DP</a></li>
+    <li><a href="#edge">Edge sentinel &amp; fleet</a></li>
+    <li><a href="#sov">Sovereign / air-gapped</a></li>
+    <li><a href="#x">Cross-cutting product surfaces</a></li>
+    <li><a href="#reg">Regional anchors</a></li>
+  </ol></div>
+
+  <h2 id="fed">1. Federated + DP</h2>
+  <p><span class="id-chip">F1</span> FedCore is attested federated training (PyTorch/NeMo class workloads). <span class="id-chip">F2</span> DPCrate wraps differential privacy tooling (Opacus-class)<sup><a href="#refs">[1]</a></sup> with budget dashboards. Flower-style orchestration patterns inform multi-party control planes<sup><a href="#refs">[2]</a></sup>. Context provenance (<span class="id-chip protocol">P3</span>) records which partitions contributed without leaking raw data.</p>
+
+  <div class="visual" data-visual="fed-edge">
+    <div class="visual-caption">Figure 1 — Center ↔ edge authority</div>
+    <svg viewBox="0 0 820 220" xmlns="http://www.w3.org/2000/svg">
+      <rect width="820" height="220" fill="#f8f6f2"/>
+      <rect x="310" y="70" width="200" height="80" rx="10" fill="#fff" stroke="#d97757" stroke-width="2"/>
+      <text x="410" y="105" text-anchor="middle" font-family="Georgia,serif" font-size="14">Control plane</text>
+      <text x="410" y="125" text-anchor="middle" font-family="monospace" font-size="11" fill="#737373">F4 FleetMarshal · X11</text>
+      <rect x="40" y="40" width="160" height="70" rx="8" fill="#fff" stroke="#555188" stroke-width="2"/>
+      <text x="120" y="70" text-anchor="middle" font-size="12" font-family="Georgia,serif">Site A · F1/F2</text>
+      <text x="120" y="90" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">DP + attest</text>
+      <rect x="40" y="130" width="160" height="70" rx="8" fill="#fff" stroke="#555188" stroke-width="2"/>
+      <text x="120" y="160" text-anchor="middle" font-size="12" font-family="Georgia,serif">Site B · F1</text>
+      <text x="120" y="180" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">local data</text>
+      <rect x="620" y="70" width="160" height="80" rx="8" fill="#fff" stroke="#5a8055" stroke-width="2"/>
+      <text x="700" y="105" text-anchor="middle" font-size="12" font-family="Georgia,serif">Edge F3</text>
+      <text x="700" y="125" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">Jetson / EGX</text>
+      <path d="M200 75 H310" stroke="#555188" stroke-width="1.5"/>
+      <path d="M200 165 H310" stroke="#555188" stroke-width="1.5"/>
+      <path d="M510 110 H620" stroke="#5a8055" stroke-width="1.5"/>
+    </svg>
+  </div>
+
+  <h2 id="edge">2. Edge sentinel &amp; fleet</h2>
+  <p><span class="id-chip">F3</span> EdgeSentinel is a small Go agent for Jetson/EGX-class devices<sup><a href="#refs">[3]</a></sup>—attestation heartbeats and local policy cache. <span class="id-chip">F4</span> FleetMarshal is the K8s operator (<code>ModelFleet</code> CRD) for canary/blue-green<sup><a href="#refs">[4]</a></sup>. Edge without CAP is just remote root.</p>
+
+  <h2 id="sov">3. Sovereign / air-gapped</h2>
+  <p><span class="id-chip">X10</span> sovereign-stack packages air-gapped single-node deployment (Helm/Ansible patterns<sup><a href="#refs">[5]</a></sup>). Offline verification modes for nvtrust and Sigstore mirrors are mandatory—sovereign does not mean “skip crypto.”</p>
+
+  <h2 id="x">4. Cross-cutting product surfaces</h2>
+  <p><span class="id-chip">X1</span> defstack-cli is the operator CLI for install/verify/compliance-report (Rust implementation language choice—not a claim that a CLI framework is the product). <span class="id-chip">X7</span> console is the enterprise policy/evidence UI (Wave 7). <span class="id-chip">X11</span> defstack-cloud is managed control. <span class="id-chip">X3</span> OpenHarnessSpec aims at vendor-neutral harness contracts (NOOA/MCP-informed, AumOS-proposed standard). <span class="id-chip">X4</span> CryptoAuditAI productizes AI-assisted cryptanalysis research directions<sup><a href="#refs">[8]</a></sup>—with the same dual-use caution Anthropic’s work implies.</p>
+
+  <div class="visual" data-visual="x-map">
+    <div class="visual-caption">Table 1 — Cross-cutting IDs</div>
+    <table>
+      <thead><tr><th>ID</th><th>Surface</th></tr></thead>
+      <tbody>
+        <tr><td>X1</td><td>CLI (clap)</td></tr>
+        <tr><td>X3</td><td>Open harness spec</td></tr>
+        <tr><td>X4</td><td>Crypto audit AI</td></tr>
+        <tr><td>X7</td><td>Enterprise console</td></tr>
+        <tr><td>X10</td><td>Sovereign air-gap bundle</td></tr>
+        <tr><td>X11</td><td>Managed cloud control</td></tr>
+        <tr><td>P11</td><td>Remediation into fleets</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="reg">5. Regional anchors</h2>
+  <p>India DPDP Act 2023 is the primary personal-data statute for Indian deployments and data residency choices in federated designs<sup><a href="#refs">[6]</a></sup>. US institutions track Fed SR 26-2 / OCC 2026-13 for model-risk posture<sup><a href="#refs">[7]</a></sup>. GCC sovereign AI programs care about air-gap and attestation—X10/C1-* become procurement language. EU AI Act is a secondary export concern, not the series spine.</p>
+  <div class="callout success">
+    <div class="callout-title">Series closure</div>
+    <p>Essays 1–8 cover every portfolio cluster and every protocol P1–P12 via dedicated sections or the master index matrix. Authority without evidence, evidence without supply-chain binding, and multi-agent interoperability without containment are incomplete systems. AumOS is the open composition layer that refuses those incompletenesses.</p>
+  </div>
+
+
+  <section class="refs" id="refs">
+    <h2>References (primary sources)</h2>
+    <ol>
+      <li class="cite" data-cite-url="https://opacus.ai/"><strong>Opacus</strong> — Meta. <a href="https://opacus.ai/" rel="noopener noreferrer" target="_blank">https://opacus.ai/</a></li>
+      <li class="cite" data-cite-url="https://flower.ai/"><strong>Flower Federated Learning</strong> — Flower Labs. <a href="https://flower.ai/" rel="noopener noreferrer" target="_blank">https://flower.ai/</a></li>
+      <li class="cite" data-cite-url="https://developer.nvidia.com/embedded-computing"><strong>NVIDIA Jetson / embedded</strong> — NVIDIA. <a href="https://developer.nvidia.com/embedded-computing" rel="noopener noreferrer" target="_blank">https://developer.nvidia.com/embedded-computing</a></li>
+      <li class="cite" data-cite-url="https://kubernetes.io/docs/concepts/extend-kubernetes/operator/"><strong>Kubernetes Operators</strong> — Kubernetes. <a href="https://kubernetes.io/docs/concepts/extend-kubernetes/operator/" rel="noopener noreferrer" target="_blank">https://kubernetes.io/docs/concepts/extend-kubernetes/operator/</a></li>
+      <li class="cite" data-cite-url="https://helm.sh/docs/"><strong>Helm Docs</strong> — CNCF Helm. <a href="https://helm.sh/docs/" rel="noopener noreferrer" target="_blank">https://helm.sh/docs/</a></li>
+      <li class="cite" data-cite-url="https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf"><strong>Digital Personal Data Protection Act 2023 (PDF)</strong> — MeitY / Gazette of India. <a href="https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf" rel="noopener noreferrer" target="_blank">https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf</a></li>
+      <li class="cite" data-cite-url="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm"><strong>Fed SR 26-2 Model Risk Management</strong> — Federal Reserve. <a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm" rel="noopener noreferrer" target="_blank">https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm</a></li>
+      <li class="cite" data-cite-url="https://www.anthropic.com/research/discovering-cryptographic-weaknesses"><strong>Discovering cryptographic weaknesses with Claude</strong> — Anthropic. <a href="https://www.anthropic.com/research/discovering-cryptographic-weaknesses" rel="noopener noreferrer" target="_blank">https://www.anthropic.com/research/discovering-cryptographic-weaknesses</a></li>
+      <li class="cite" data-cite-url="https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html"><strong>OCC Bulletin 2026-13 Model Risk Management</strong> — OCC. <a href="https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html" rel="noopener noreferrer" target="_blank">https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html</a></li>
+      <li class="cite" data-cite-url="https://spiffe.io/"><strong>SPIFFE</strong> — CNCF. <a href="https://spiffe.io/" rel="noopener noreferrer" target="_blank">https://spiffe.io/</a></li>
+    </ol>
+  </section>
+
+  <footer style="margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);font-size:0.85rem;color:var(--text-tertiary);">
+    <p>Local in-repo deliverable. Not a hosted artifact. Series plan: <code>meta/phase-plan.md</code>.</p>
+    <p><a href="07-inference-mcp-a2a-delegation.html">← Essay 07</a><span></span><a href="index.html">Index →</a></p>
+  </footer>
+</div>
+</body>
+</html>

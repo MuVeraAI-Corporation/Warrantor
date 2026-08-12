@@ -9,11 +9,18 @@ SHELL := /bin/bash
 
 PYTHON ?= python3
 
+demo: ## Show the system working end to end: sign an action, log it, verify the proof
+	@$(PYTHON) tools/demo/evidence_demo.py
+
+sigstore-up: ## Start the local transparency log (MySQL + Trillian + Rekor)
+	@docker compose -f deploy/local-sigstore/docker-compose.yml up -d
+	@echo "then: ./deploy/local-sigstore/bootstrap.sh"
+
 .PHONY: help setup require-tools verify build lint test fmt fmt-check tracker \
 	build-rust build-ts lint-rust lint-python lint-ts lint-go \
 	test-rust test-python test-ts test-go fmt-rust fmt-python fmt-go \
 	fmt-check-rust fmt-check-python fmt-check-go check-proto check-protocols conformance \
-	check-docs docs clean
+	check-docs docs clean demo sigstore-up
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"; printf "AumOS strict targets:\n\n"} \

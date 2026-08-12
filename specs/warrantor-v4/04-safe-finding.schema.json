@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openssecureai.org/schemas/safe/v0.1/safe-finding.schema.json",
+  "title": "SAFE Finding v0.1 (proposed)",
+  "description": "Proposed fielded data model for the Shared AI Findings Exchange. Offered to github.com/OpenSecureAIAlliance/RFCs. Narrative spec: specs/warrantor-v4/04-safe-finding.md. Designed so any member can emit one, with or without a signing substrate.",
+  "type": "object",
+  "required": ["finding_id", "schema_version", "disclosure_state", "timestamps", "reporter", "condition", "review_layers", "impact", "verification"],
+  "additionalProperties": false,
+
+  "properties": {
+    "finding_id": { "type": "string", "format": "uuid" },
+    "schema_version": { "const": "0.1" },
+
+    "disclosure_state": {
+      "enum": ["draft", "confidential", "notified", "advisory", "public", "superseded"]
+    },
+
+    "timestamps": {
+      "type": "object",
+      "required": ["discovered_at", "reported_at"],
+      "additionalProperties": false,
+      "properties": {
+        "incident_start": { "type": ["string", "null"], "format": "date-time" },
+        "discovered_at": { "type": "string", "format": "date-time" },
+        "contained_at": { "type": ["string", "null"], "format": "date-time" },
+        "reported_at": { "type": "string", "format": "date-time" },
+        "customer_notified_at": { "type": ["string", "null"], "format": "date-time", "description": "RFC compact: within 72h of credible data exposure" },
+        "exchange_filed_at": { "type": ["string", "null"], "format": "date-time", "description": "RFC compact: within 4 business days" },
+        "advisory_at": { "type": ["string", "null"], "format": "date-time" },
+        "preliminary_report_at": { "type": ["string", "null"], "format": "date-time" },
+        "remediation_status_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+
+    "reporter": {
+      "type": "object",
+      "required": ["organization_class", "confidentiality_tier"],
+      "additionalProperties": false,
+      "properties": {
+        "organization_class": { "enum": ["model_provider", "platform", "enterprise_operator", "security_vendor", "research", "other"] },
+        "organization_id": { "type": ["string", "null"], "description": "Elided in public disclosure states" },
+        "contact_ref": { "type": ["string", "null"] },
+        "confidentiality_tier": { "enum": ["restricted", "member_only", "public"] }
+      }
+    },
+
+    "condition": {
+      "enum": [
+        "third_party_compromise",
+        "boundary_escape_with_third_party_impact",
+        "unauthorized_confidential_access",
+        "continued_probing_after_discovery"
+      ],
+      "description": "The four reportable conditions of the SAFE Reporting Compact, as an enum."
+    },
+
+    "review_layers": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The eight-layer Review Framework, structured. Distinguishes a control that FAILED from one never IMPLEMENTED.",
+      "items": {
+        "type": "object",
+        "required": ["layer", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "layer": { "enum": ["model", "instructions", "safeguards", "tools", "environment", "monitoring", "human_operations", "supply_chain"] },
+          "status": { "enum": ["failed", "contained", "not_implicated"] },
+          "control_existed": { "type": ["boolean", "null"] },
+          "control_ref": { "type": ["string", "null"] },
+          "notes": { "type": ["string", "null"] }
+        }
+      }
+    },
+
+    "impact": {
+      "type": "object",
+      "description": "Severity vocabulary that does not assume CVSS — this failure class has no meaningful CVSS vector.",
+      "required": ["blast_radius", "reversibility", "data_exposure", "autonomy_level"],
+      "additionalProperties": false,
+      "properties": {
+        "blast_radius": { "enum": ["self", "tenant", "organization", "third_party", "ecosystem"] },
+        "reversibility": { "enum": ["reversible", "partially_reversible", "irreversible"] },
+        "data_exposure": { "enum": ["none", "suspected", "confirmed"] },
+        "autonomy_level": {
+          "enum": ["human_directed", "human_supervised", "autonomous"],
+          "description": "The distinguishing property of this incident class; no existing severity scheme captures it."
+        },
+        "dwell_seconds": { "type": ["integer", "null"], "minimum": 0 },
+        "unauthorized_action_count": { "type": ["integer", "null"], "minimum": 0 },
+        "third_parties_affected": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+
+    "authority_evidence": {
+      "type": ["object", "null"],
+      "description": "Answers RFC issue #1 (temporal authority + self-extension denial).",
+      "additionalProperties": false,
+      "properties": {
+        "authority_at_incident": { "type": "array", "items": { "type": "string" } },
+        "authority_expected": { "type": "array", "items": { "type": "string" } },
+        "expansion_detected": { "type": ["boolean", "null"] },
+        "self_extension_attempted": { "type": ["boolean", "null"] },
+        "self_extension_denied": { "type": ["boolean", "null"] },
+        "revocation_latency_observed_ms": { "type": ["integer", "null"], "minimum": 0, "description": "Measured, not targeted. Aggregating this across members yields the first real distribution of containment time." },
+        "credential_lifetime_seconds": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+
+    "verification": {
+      "type": "object",
+      "description": "Answers RFC issue #4 (declare failure modes and noise floors).",
+      "required": ["method"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "enum": ["reproduced", "log_derived", "inferred", "reported_only"] },
+        "failure_modes": { "type": "array", "items": { "type": "string" }, "description": "What this method can miss." },
+        "noise_floor": { "type": ["string", "null"], "description": "Detection threshold below which this finding would not have been observed." },
+        "reproducible": { "type": ["boolean", "null"] },
+        "reproduction_ref": { "type": ["string", "null"] },
+        "eval_awareness_markers": {
+          "type": ["object", "null"],
+          "description": "Where the finding derives from an evaluation: situational-awareness signals that discount the result.",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "causal_graph": {
+      "type": ["object", "null"],
+      "description": "Answers RFC issue #7 (reconstructable, mechanically verifiable findings).",
+      "required": ["nodes", "edges"],
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["node_id", "type"],
+            "additionalProperties": false,
+            "properties": {
+              "node_id": { "type": "string" },
+              "type": { "enum": ["action", "decision", "artifact", "identity", "boundary"] },
+              "at": { "type": ["string", "null"], "format": "date-time" },
+              "receipt_ref": { "type": ["string", "null"], "description": "Where present for every node, the graph is verifiable end to end." },
+              "summary": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "relation"],
+            "additionalProperties": false,
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "relation": { "enum": ["enabled", "authorized", "escalated", "contained"] }
+            }
+          }
+        }
+      }
+    },
+
+    "artifacts": {
+      "type": "array",
+      "description": "Content-digest identity for everything involved — names and versions are not identity.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "digest"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "enum": ["model", "skill", "tool", "dataset", "package", "policy", "container"] },
+          "digest": { "type": "string", "pattern": "^(sha256|sha384|sha512|blake3):[0-9a-f]{32,128}$" },
+          "identifier": { "type": ["string", "null"] },
+          "signed": { "type": ["boolean", "null"] },
+          "signature_ref": { "type": ["string", "null"] }
+        }
+      }
+    },
+
+    "crosswalk": {
+      "type": ["object", "null"],
+      "description": "Mappings the RFC omits. All optional and additive — consumable by existing tooling without subordinating SAFE to any one taxonomy.",
+      "additionalProperties": false,
+      "properties": {
+        "mitre_atlas": { "type": "array", "items": { "type": "string" }, "examples": [["AML.T0051", "AML.T0080"]] },
+        "owasp_agentic": { "type": "array", "items": { "type": "string" } },
+        "owasp_llm": { "type": "array", "items": { "type": "string" } },
+        "ocsf_class_uid": { "type": ["integer", "null"] },
+        "ocsf_activity_id": { "type": ["integer", "null"] },
+        "stix_bundle_ref": { "type": ["string", "null"] },
+        "otel_trace_id": { "type": ["string", "null"], "description": "OpenTelemetry GenAI semantic conventions — the de facto interop anchor in issues #5/#6." },
+        "otel_span_id": { "type": ["string", "null"] },
+        "cve_ids": { "type": "array", "items": { "type": "string" }, "description": "Usually empty by design: this failure class has no CVE." }
+      }
+    },
+
+    "controls": {
+      "type": "array",
+      "description": "From lessons to controls. The RFC promises these deliverables and specifies no format; these are the proposed formats.",
+      "items": {
+        "type": "object",
+        "required": ["control_type", "format"],
+        "additionalProperties": false,
+        "properties": {
+          "control_type": { "enum": ["reusable_test", "machine_readable_policy", "detection_rule", "reference_configuration", "response_guidance"] },
+          "format": {
+            "enum": ["cedar", "rego", "sigma", "yara", "opentelemetry", "garak_probe", "inspect_eval", "prose"],
+            "description": "Proposed concrete formats for each promised SAFE deliverable."
+          },
+          "ref": { "type": ["string", "null"] },
+          "digest": { "type": ["string", "null"] },
+          "addresses_layer": { "enum": ["model", "instructions", "safeguards", "tools", "environment", "monitoring", "human_operations", "supply_chain"] }
+        }
+      }
+    },
+
+    "integrity": {
+      "type": ["object", "null"],
+      "description": "OPTIONAL — a finding must be producible by members without a signing substrate. Where present, the finding is independently verifiable rather than narrated.",
+      "additionalProperties": false,
+      "properties": {
+        "signature": { "type": "string", "description": "DSSE envelope over the JCS-canonical finding" },
+        "signer": { "type": "string" },
+        "transparency_anchor": { "type": ["string", "null"] },
+        "receipt_lineage": { "type": "array", "items": { "type": "string" } },
+        "aibom_ref": { "type": ["string", "null"] }
+      }
+    },
+
+    "supersedes": { "type": ["string", "null"], "format": "uuid" },
+    "narrative": { "type": ["string", "null"], "description": "Human-readable account. Never the authoritative source for any structured field above." }
+  }
+}

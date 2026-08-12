@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Supply Chain Integrity: Safetensors++, ML-BOM, Sigstore, Lightwell · AumOS Blog Series</title>
+  <link rel="stylesheet" href="blog-series.css">
+</head>
+<body>
+<div class="container">
+  <div class="series-bar">
+    <a href="index.html">← Series index</a>
+    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span>Local technical essay · 2026</span>
+  </div>
+
+  <header class="article-header">
+    <div class="article-eyebrow">Essay 4 of 8 · Supply Chain</div>
+    <h1>AI Supply Chain Integrity: Safetensors++, ML-BOM, Sigstore, Lightwell</h1>
+    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-affil">Weights are not “just data.” Provenance, SBOM, transparency logs, and signed remediation bundles are the control plane for model artifacts.</p>
+    <div class="article-meta">
+      <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value"><span class="id-chip" data-aumos-id="S1">S1</span> <span class="id-chip" data-aumos-id="S2">S2</span> <span class="id-chip" data-aumos-id="S3">S3</span> <span class="id-chip" data-aumos-id="S4">S4</span> <span class="id-chip" data-aumos-id="S5">S5</span> <span class="id-chip" data-aumos-id="S7">S7</span> <span class="id-chip" data-aumos-id="S8">S8</span> <span class="id-chip" data-aumos-id="S9">S9</span> <span class="id-chip" data-aumos-id="T1">T1</span> <span class="id-chip protocol" data-aumos-id="P5">P5</span> <span class="id-chip protocol" data-aumos-id="P6">P6</span> <span class="id-chip protocol" data-aumos-id="P11">P11</span></span></div>
+      <div class="meta-item"><span class="meta-label">Pipeline</span><span class="meta-value">Research → draft → visuals → adversarial review → fix</span></div>
+      <div class="meta-item"><span class="meta-label">Citations</span><span class="meta-value">Primary RFCs / eng blogs / standards</span></div>
+    </div>
+    <nav class="article-nav"><a href="03-confidential-gpu-attestation.html">← Essay 03</a><span></span><a href="05-evidence-plane-aar-ocsf.html">Essay 05 →</a></nav>
+  </header>
+
+
+  <div class="abstract">
+    <span class="abstract-label">Thesis</span>
+    <p>Pickle taught us that model files can be code. Safetensors fixed load-time execution<sup><a href="#refs">[1,2]</a></sup>; conversion-service attacks showed provenance still matters<sup><a href="#refs">[3]</a></sup>. AumOS supply chain is Safetensors++ + Merkle provenance + ML-BOM + Sigstore + Lightwell-class remediation—protocols <span class="id-chip protocol">P5</span>, <span class="id-chip protocol">P6</span>, <span class="id-chip protocol">P11</span>.</p>
+  </div>
+  <div class="toc"><div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#formats">Safe formats</a></li>
+    <li><a href="#bom">AI/ML BOM</a></li>
+    <li><a href="#ledger">Provenance ledgers</a></li>
+    <li><a href="#remed">Remediation bundles</a></li>
+    <li><a href="#map">AumOS map</a></li>
+  </ol></div>
+
+  <h2 id="formats">1. Safe formats</h2>
+  <div class="callout warning">
+    <div class="callout-title">AumOS-native extensions (not upstream standards)</div>
+    <p><span class="id-chip">S1</span> <strong>SafeTensors++</strong> (proposed <code>__provenance__</code> metadata) and <span class="id-chip">S3</span> <strong>GGUF-Ext</strong> (<code>osaf.safety</code> block) are AumOS portfolio proposals layered on real formats (Hugging Face Safetensors; ggml GGUF). They are not upstream HF or GGUF registry standards today.</p>
+  </div>
+  <p>Upstream Safetensors stores tensors + JSON header without pickle opcodes<sup><a href="#refs">[1,2]</a></sup>. Conversion-service attacks showed you can still poison distribution even when the format is safe<sup><a href="#refs">[3]</a></sup>. Format safety ≠ supply-chain safety—you still need signatures, lineage, and admission policy.</p>
+
+  <div class="visual" data-visual="supply-pipeline">
+    <div class="visual-caption">Figure 1 — Artifact trust pipeline</div>
+    <svg viewBox="0 0 840 180" xmlns="http://www.w3.org/2000/svg">
+      <rect width="840" height="180" fill="#f8f6f2"/>
+      <rect x="15" y="50" width="130" height="60" rx="8" fill="#fff" stroke="#d97757" stroke-width="2"/>
+      <text x="80" y="85" text-anchor="middle" font-size="12" font-family="Georgia,serif">Train / fine-tune</text>
+      <path d="M145 80 H175" stroke="#d97757" stroke-width="2"/>
+      <rect x="175" y="50" width="120" height="60" rx="8" fill="#fff" stroke="#555188" stroke-width="2"/>
+      <text x="235" y="85" text-anchor="middle" font-size="12" font-family="Georgia,serif">S8 attest</text>
+      <path d="M295 80 H325" stroke="#555188" stroke-width="2"/>
+      <rect x="325" y="50" width="120" height="60" rx="8" fill="#fff" stroke="#4a6fa5" stroke-width="2"/>
+      <text x="385" y="85" text-anchor="middle" font-size="12" font-family="Georgia,serif">S1 / S3 pack</text>
+      <path d="M445 80 H475" stroke="#4a6fa5" stroke-width="2"/>
+      <rect x="475" y="50" width="120" height="60" rx="8" fill="#fff" stroke="#5a8055" stroke-width="2"/>
+      <text x="535" y="85" text-anchor="middle" font-size="12" font-family="Georgia,serif">S4 BOM + P6</text>
+      <path d="M595 80 H625" stroke="#5a8055" stroke-width="2"/>
+      <rect x="625" y="50" width="100" height="60" rx="8" fill="#fff" stroke="#b8860b" stroke-width="2"/>
+      <text x="675" y="85" text-anchor="middle" font-size="12" font-family="Georgia,serif">S2 Rekor</text>
+      <path d="M725 80 H755" stroke="#b8860b" stroke-width="2"/>
+      <rect x="755" y="50" width="70" height="60" rx="8" fill="#edf5ed" stroke="#5a8055" stroke-width="2"/>
+      <text x="790" y="85" text-anchor="middle" font-size="11" font-family="monospace">serve</text>
+    </svg>
+  </div>
+
+  <h2 id="bom">2. AI/ML BOM</h2>
+  <p>CycloneDX ML-BOM and SPDX AI/Dataset profiles are the dual standards for model+dataset inventory<sup><a href="#refs">[4,5]</a></sup>. <span class="id-chip">S4</span> ModelSBOM and <span class="id-chip protocol">P6</span> AATM align fields (architecture, datasets, licenses, hashes). <span class="id-chip">S5</span> DataProvenanceKit exports signed JSON-LD lineage (model cards / datasheets culture).</p>
+
+  <h2 id="ledger">3. Provenance ledgers</h2>
+  <p><span class="id-chip">S2</span> ProvenaChain builds tamper-evident Merkle history with roots in Sigstore Rekor<sup><a href="#refs">[6,7]</a></sup>. SLSA levels and in-toto steps frame training integrity for <span class="id-chip">S8</span><sup><a href="#refs">[9,10]</a></sup>. <span class="id-chip">S7</span> TamperScan hunts weight-level backdoors and silent fine-tunes.</p>
+
+  <div class="visual" data-visual="bom-compare">
+    <div class="visual-caption">Table 1 — BOM / ledger responsibilities</div>
+    <table>
+      <thead><tr><th>Surface</th><th>Standard</th><th>AumOS</th></tr></thead>
+      <tbody>
+        <tr><td>ML-BOM inventory</td><td>CycloneDX / SPDX AI</td><td>S4, P6</td></tr>
+        <tr><td>Transparency log</td><td>Rekor / CT design</td><td>S2, T1</td></tr>
+        <tr><td>Training steps</td><td>SLSA + in-toto</td><td>S8</td></tr>
+        <tr><td>Signed skills/tools</td><td>MCP + Cosign</td><td>P5, X8</td></tr>
+        <tr><td>Patched deps / models</td><td>Lightwell-class</td><td>S9, P11</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="threats">4. Supply-chain threat model (explicit)</h2>
+  <div class="visual" data-visual="supply-threats">
+    <div class="visual-caption">Table 2 — Threats vs controls</div>
+    <table>
+      <thead><tr><th>Threat</th><th>Control</th></tr></thead>
+      <tbody>
+        <tr><td>Pickle / code-exec weights</td><td>Safetensors-only admit; block risky formats</td></tr>
+        <tr><td>Conversion-bot / publish poison</td><td>Publisher attest + S2 ledger + S7 scans</td></tr>
+        <tr><td>Silent fine-tune / backdoor weights</td><td>S7 TamperScan + digest pin in VEB</td></tr>
+        <tr><td>Training-data exfil / poison</td><td>S5 lineage + S8 training attest (SLSA targets explicit)</td></tr>
+        <tr><td>Unsigned MCP skill</td><td>P5 reject at X8</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="remed">5. Remediation bundles vs Lightwell</h2>
+  <p>IBM/Red Hat Lightwell commercializes a <strong>trusted clearinghouse for remediated open-source application dependencies</strong>—digitally signed packages, SBOMs, and coordination—not a public claim that Lightwell remediates foundation-model weights at scale<sup><a href="#refs">[8]</a></sup>. That distinction is load-bearing.</p>
+  <p><span class="id-chip">S9</span> lightwell-bridge and <span class="id-chip protocol">P11</span> PRB are <strong>AumOS-proposed extensions</strong>: apply the same signed-remediation + transparency pattern to AI artifacts (adapters, skill packs, eval corpora). PRB is “VEX-inspired” status + signatures—not a claim that CSAF/VEX already defines AI weight remediation. Do not cite Lightwell as if it already ships P11.</p>
+
+  <h2 id="map">6. AumOS map</h2>
+  <p><span class="id-chip">T1</span> verifies artifact signatures. Skills enter the gateway only as signed <span class="id-chip protocol">P5</span> SSP packages (AumOS profile). Without this plane, eval scores and authority envelopes sit on untrusted weights. <strong>Implication:</strong> freeze a weight digest in AAE/VEB or you are authorizing ghosts.</p>
+
+
+  <section class="refs" id="refs">
+    <h2>References (primary sources)</h2>
+    <ol>
+      <li class="cite" data-cite-url="https://huggingface.co/docs/safetensors/en/index"><strong>Safetensors documentation</strong> — Hugging Face. <a href="https://huggingface.co/docs/safetensors/en/index" rel="noopener noreferrer" target="_blank">https://huggingface.co/docs/safetensors/en/index</a></li>
+      <li class="cite" data-cite-url="https://huggingface.co/blog/safetensors-security-audit"><strong>Safetensors security audit blog</strong> — Hugging Face. <a href="https://huggingface.co/blog/safetensors-security-audit" rel="noopener noreferrer" target="_blank">https://huggingface.co/blog/safetensors-security-audit</a></li>
+      <li class="cite" data-cite-url="https://www.hiddenlayer.com/research/silent-sabotage"><strong>Hijacking Safetensors Conversion on Hugging Face</strong> — HiddenLayer. <a href="https://www.hiddenlayer.com/research/silent-sabotage" rel="noopener noreferrer" target="_blank">https://www.hiddenlayer.com/research/silent-sabotage</a></li>
+      <li class="cite" data-cite-url="https://cyclonedx.org/capabilities/mlbom/"><strong>CycloneDX ML-BOM</strong> — OWASP CycloneDX. <a href="https://cyclonedx.org/capabilities/mlbom/" rel="noopener noreferrer" target="_blank">https://cyclonedx.org/capabilities/mlbom/</a></li>
+      <li class="cite" data-cite-url="https://spdx.dev/use/specifications/"><strong>SPDX Specifications</strong> — Linux Foundation. <a href="https://spdx.dev/use/specifications/" rel="noopener noreferrer" target="_blank">https://spdx.dev/use/specifications/</a></li>
+      <li class="cite" data-cite-url="https://www.sigstore.dev/"><strong>Sigstore</strong> — OpenSSF. <a href="https://www.sigstore.dev/" rel="noopener noreferrer" target="_blank">https://www.sigstore.dev/</a></li>
+      <li class="cite" data-cite-url="https://docs.sigstore.dev/logging/overview/"><strong>Rekor overview</strong> — Sigstore Docs. <a href="https://docs.sigstore.dev/logging/overview/" rel="noopener noreferrer" target="_blank">https://docs.sigstore.dev/logging/overview/</a></li>
+      <li class="cite" data-cite-url="https://newsroom.ibm.com/2026-07-08-ibm-and-red-hat-expand-lightwell-with-new-commercial-offerings-to-build-the-trust-infrastructure-for-ai-era-open-source"><strong>IBM and Red Hat Expand Lightwell</strong> — IBM Newsroom. <a href="https://newsroom.ibm.com/2026-07-08-ibm-and-red-hat-expand-lightwell-with-new-commercial-offerings-to-build-the-trust-infrastructure-for-ai-era-open-source" rel="noopener noreferrer" target="_blank">https://newsroom.ibm.com/2026-07-08-ibm-and-red-hat-expand-lightwell-with-new-commercial-offerings-to-build-the-trust-infrastructure-for-ai-era-open-source</a></li>
+      <li class="cite" data-cite-url="https://slsa.dev/"><strong>SLSA</strong> — OpenSSF. <a href="https://slsa.dev/" rel="noopener noreferrer" target="_blank">https://slsa.dev/</a></li>
+      <li class="cite" data-cite-url="https://in-toto.io/"><strong>in-toto</strong> — CNCF. <a href="https://in-toto.io/" rel="noopener noreferrer" target="_blank">https://in-toto.io/</a></li>
+    </ol>
+  </section>
+
+  <footer style="margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);font-size:0.85rem;color:var(--text-tertiary);">
+    <p>Local in-repo deliverable. Not a hosted artifact. Series plan: <code>meta/phase-plan.md</code>.</p>
+    <p><a href="03-confidential-gpu-attestation.html">← Essay 03</a><span></span><a href="05-evidence-plane-aar-ocsf.html">Essay 05 →</a></p>
+  </footer>
+</div>
+</body>
+</html>

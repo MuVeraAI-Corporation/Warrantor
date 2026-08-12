@@ -1,5 +1,20 @@
 # 02 — Architecture
 
+> **Naming:** the platform is now **Warrantor**; "AumOS" below is the historical name, retained in
+> paths and package names. Read them as the same system.
+>
+> **Still authoritative:** the 12 planes and the 12 invariants I-01…I-12 survive v4 intact — the
+> research sweep vindicated them, and the alliance's own SAFE issue tracker is requesting several of
+> them by other names.
+>
+> **Amended by v4:** eight of the twelve invariants now cite external validation (HCP's
+> execution-control invariants, arXiv 2606.29073); the trusted core is narrowed to the
+> decision-plus-proof hot path with enforcement mediation delegated to the kernel and gateways; the
+> protocol layer P1–P12 is demoted to *profiles* of one evidence envelope; and Plane 5 (context
+> rights) is filled by adopted work rather than new invention. The normative specifications are in
+> [`../specs/warrantor-v4/`](../specs/warrantor-v4/); scope and tiering in
+> [`03-portfolio-recut-v4.md`](03-portfolio-recut-v4.md).
+
 > The 12-plane pressure-tested architecture and the 12 formal invariants every component must
 > satisfy. Derived from the V3 authority pressure test, the polyglot stack pressure test, and the
 > DefStack component DAG.

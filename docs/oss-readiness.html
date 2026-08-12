@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warrantor — Open-Source Readiness Stress Test</title>
+<style>
+  :root{--bg:#fbfaf8;--fg:#23201c;--muted:#6b645c;--rule:#e2ddd5;--card:#fff;--accent:#8a4b2a;
+    --ok:#2f6b45;--warn:#8a6a1f;--bad:#8f3232;--code-bg:#f4f1ec}
+  @media (prefers-color-scheme:dark){:root{--bg:#16140f;--fg:#ece7df;--muted:#a49c90;--rule:#322d26;
+    --card:#1e1b16;--accent:#d99a6c;--ok:#7dc79b;--warn:#d9bb6c;--bad:#e08c8c;--code-bg:#241f19}}
+  :root[data-theme="dark"]{--bg:#16140f;--fg:#ece7df;--muted:#a49c90;--rule:#322d26;--card:#1e1b16;
+    --accent:#d99a6c;--ok:#7dc79b;--warn:#d9bb6c;--bad:#e08c8c;--code-bg:#241f19}
+  :root[data-theme="light"]{--bg:#fbfaf8;--fg:#23201c;--muted:#6b645c;--rule:#e2ddd5;--card:#fff;
+    --accent:#8a4b2a;--ok:#2f6b45;--warn:#8a6a1f;--bad:#8f3232;--code-bg:#f4f1ec}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.65 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .wrap{max-width:64rem;margin:0 auto;padding:3rem 1.5rem 6rem}
+  header{border-bottom:2px solid var(--fg);padding-bottom:1.5rem;margin-bottom:2.5rem}
+  h1{font-size:clamp(1.9rem,4vw,2.7rem);line-height:1.13;margin:0 0 .4rem;letter-spacing:-.015em}
+  .sub{color:var(--muted);font-size:1.03rem;margin:0}
+  .meta{color:var(--muted);font-size:.84rem;margin-top:.9rem;
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  h2{font-size:1.45rem;margin:3.2rem 0 .3rem;padding-bottom:.35rem;border-bottom:1px solid var(--rule)}
+  h3{font-size:1.12rem;margin:2rem 0 .5rem}
+  h4{font-size:.97rem;margin:1.3rem 0 .35rem;color:var(--accent)}
+  p{margin:.7rem 0}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.87em;background:var(--code-bg);
+    padding:.1em .35em;border-radius:3px}
+  pre{background:var(--code-bg);border:1px solid var(--rule);border-radius:6px;padding:.9rem 1rem;
+    overflow-x:auto;font-size:.83rem}
+  .scroll{overflow-x:auto;margin:1rem 0;border:1px solid var(--rule);border-radius:6px}
+  table{border-collapse:collapse;width:100%;font-size:.87rem;font-family:system-ui,sans-serif}
+  th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{background:var(--code-bg);font-weight:600}
+  tbody tr:last-child td{border-bottom:none}
+  .card{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);
+    border-radius:6px;padding:1rem 1.2rem;margin:1.2rem 0}
+  .card.ok{border-left-color:var(--ok)}.card.warn{border-left-color:var(--warn)}
+  .card.bad{border-left-color:var(--bad)}
+  .card h4{margin-top:0}
+  .tag{display:inline-block;font-family:system-ui,sans-serif;font-size:.7rem;font-weight:600;
+    letter-spacing:.04em;text-transform:uppercase;padding:.16em .5em;border-radius:3px;
+    border:1px solid currentColor;white-space:nowrap}
+  .t-fixed{color:var(--ok)}.t-open{color:var(--bad)}.t-part{color:var(--warn)}.t-you{color:var(--accent)}
+  ul,ol{padding-left:1.3rem}li{margin:.32rem 0}
+  .muted{color:var(--muted)}
+  hr{border:none;border-top:1px solid var(--rule);margin:2.5rem 0}
+  .footnote{font-size:.87rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Open-Source Readiness</h1>
+  <p class="sub">An adversarial pass over the repository, asking what would embarrass us on launch day and what would make a capable stranger give up. Findings are measured, not asserted — including the ones I introduced myself.</p>
+  <p class="meta">aumos @ integration/end-to-end &middot; 11 August 2026</p>
+</header>
+
+<p>Open-sourcing changes who the audience is. Internally, a half-wired component is a known
+to-do. Publicly, it is a stranger's first impression, and they have no way to tell a deliberate stub
+from an abandoned one. Everything below is judged by that standard.</p>
+
+<div class="card ok">
+  <h4>Fixed during this pass</h4>
+  <p>py.typed markers on all 12 Python packages · README rewritten as a front door · docs index for
+  200+ files · <code>SUPPORT.md</code>, <code>GOVERNANCE.md</code>, <code>MAINTAINERS.md</code>,
+  <code>NOTICE</code> created.</p>
+</div>
+
+<h2>1. A defect I introduced an hour earlier <span class="tag t-fixed">fixed</span></h2>
+
+<p>While preparing the packages for release I added the <code>Typing :: Typed</code> classifier to all
+twelve Python packages. None of them had a <code>py.typed</code> marker.</p>
+
+<p>Under PEP 561, a package without that marker is treated by type checkers as untyped — its inline
+annotations are ignored entirely. So the classifier was advertising a capability the package did not
+deliver: someone would install it, expect their type checker to see the types, and get nothing, with
+no error explaining why.</p>
+
+<p>Fixed by adding the marker <em>and</em> the <code>[tool.setuptools.package-data]</code> entry, then
+verifying the marker actually appears inside the built wheel rather than only on disk. The second
+step matters: without it the file exists in the source tree, is absent from the artifact, and the
+claim stays false in exactly the place it is read.</p>
+
+<div class="card">
+  <h4>Worth naming as a pattern</h4>
+  <p>The defect was created by a step whose whole purpose was to improve quality. Metadata additions
+  are unusually prone to this because they are assertions <em>about</em> the code that nothing
+  compiles or tests. A classifier is a promise with no enforcement behind it.</p>
+</div>
+
+<h2>2. The README was a maintainer memo, not a front door <span class="tag t-fixed">fixed</span></h2>
+
+<p>The single most-read file in any open-source project opened like this:</p>
+
+<pre><code># AumOS — Open Defense Stack for AI (Unified)
+
+AumOS is the unified implementation ... It reconciles four source portfolios
+that previously lived as separate strategy documents in this project folder:
+
+| Source portfolio | Originating documents |
+| DefStack (36-component, 8-phase) | DefStack_Implementation_Plan.pdf, ...</code></pre>
+
+<p>Twenty-five lines in, a visitor had learned how four internal strategy portfolios were merged,
+been pointed at PDFs they do not have, and been told there are "54 implementable components" — and
+still did not know what the software does or whether it would help them.</p>
+
+<p>Rewritten to answer, in order: what it does, why the design is shaped that way, where to go for
+your specific role, how to run it, and what does not work yet. The reconciliation history is still
+available, relabelled as maintainer history rather than the opening argument.</p>
+
+<h2>3. About a third of the repository is not wired to anything <span class="tag t-open">open</span></h2>
+
+<p>Measured across all 74 component directories: how many files outside a component reference it, in
+code rather than documentation.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Category</th><th>Count</th><th>Verdict</th></tr></thead>
+  <tbody>
+    <tr><td>Components with zero external code references</td><td><strong>26 of 74</strong></td><td>—</td></tr>
+    <tr><td>&nbsp;&nbsp;…of which are published SDKs and integrations (<code>warrantor_*</code>)</td><td>9</td><td><span class="tag t-fixed">correct</span> — leaf libraries are meant to be imported by users, not by us</td></tr>
+    <tr><td>&nbsp;&nbsp;…of which are neither wired nor in the release pipeline</td><td><strong>17</strong></td><td><span class="tag t-open">the real finding</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>The seventeen: <code>agentsec_lab</code>, <code>attesta_flow</code>, <code>bias_sentinel</code>,
+<code>bridge_rt</code>, <code>comply_gate</code>, <code>crypto_audit_ai</code>,
+<code>data_provenance_kit</code>, <code>dp_crate</code>, <code>fed_core</code>,
+<code>metr_bridge</code>, <code>nooa_ext</code>, <code>open_harness_spec</code>,
+<code>policy_compiler</code>, <code>red_team_cloud</code>, <code>retro_spec_kit</code>,
+<code>tamper_scan</code>, <code>train_guard</code>. Together roughly 6,600 lines. Each has a
+<code>pyproject.toml</code>, so each was intended to be a package. Six have no README at all.</p>
+
+<p>At least one is load-bearing by implication rather than by wiring: the console's own docstring
+refers to "OPA Rego policies compiled by R5 policy-compiler", and <code>policy_compiler</code> is in
+this list — so a component the design depends on is invoked by nothing.</p>
+
+<div class="card bad">
+  <h4>Why this matters more publicly than internally</h4>
+  <p>A stranger cannot distinguish "deliberate standalone library" from "abandoned". Seventeen
+  packages that nothing calls and nothing ships reads as a project that started many things and
+  finished few — which is a harsher judgement than the code deserves, and entirely avoidable.</p>
+  <p>Each one needs a decision, and only three are available: <strong>wire it</strong> (it is a
+  component and something should call it), <strong>ship it</strong> (it is a product — give it a
+  README and put it in the release pipeline), or <strong>move it</strong> to a clearly-labelled
+  <code>research/</code> or <code>incubator/</code> directory that sets the expectation honestly.
+  Leaving them where they are is the only option that misleads.</p>
+</div>
+
+<h2>4. The project has three names <span class="tag t-part">flagged</span></h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Name</th><th>Files mentioning it</th></tr></thead>
+  <tbody>
+    <tr><td><code>AumOS</code> / <code>aumos</code></td><td>242 / 87</td></tr>
+    <tr><td><code>DefStack</code> / <code>defstack</code></td><td>73 / 57</td></tr>
+    <tr><td><code>Warrantor</code> / <code>warrantor</code></td><td>41 / 323</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>The decision was Warrantor everywhere. The repository root directory is <code>aumos</code>, the
+README title was AumOS, the compose service is <code>aumos-mcp</code>, the CI workflow is
+<code>aumos-security.yml</code>, and the packages are <code>warrantor-*</code>.</p>
+
+<p>I have not done the sweep. It touches build identifiers, Docker image names, CI workflow names,
+Go module paths (<code>muveraai.com/go/*</code>) and published package names, and doing it
+incrementally is worse than doing it once — a half-renamed project is more confusing than a
+consistently misnamed one. It needs to be a single deliberate change with the repository name
+settled first. In the meantime the README states plainly that the three names mean the same thing,
+which costs nothing and removes the confusion for a reader.</p>
+
+<h2>5. Two hundred documents with no index <span class="tag t-fixed">fixed</span></h2>
+
+<p>161 Markdown files and 65 HTML files under <code>docs/</code>, no <code>docs/README.md</code>,
+and no statement of which are current. A newcomer had no way to tell a live architecture document
+from a wave-3 verification report written months ago.</p>
+
+<p>Added an index organised by task, which names the four documents that matter, explains what each
+remaining directory is <em>for</em>, and states three things plainly: the RFCs describe intended
+designs and some were never built, where docs and code disagree the code wins, and
+<code>decisions/</code> is empty because the ADRs were planned and never written.</p>
+
+<h2>6. Missing files that consumers look for <span class="tag t-fixed">fixed</span></h2>
+
+<p><code>README</code>, <code>CONTRIBUTING</code>, <code>CODE_OF_CONDUCT</code>,
+<code>SECURITY</code>, <code>LICENSE</code>, <code>CHANGELOG</code> and <code>RELEASING</code> were
+all present and substantial. Absent: <code>GOVERNANCE.md</code>, <code>MAINTAINERS.md</code>,
+<code>SUPPORT.md</code>, <code>NOTICE</code>.</p>
+
+<p>Now written. Two deliberate choices in them:</p>
+
+<ul>
+  <li><strong>GOVERNANCE names the areas requiring two reviewers</strong> — authority semantics,
+  cryptographic code, the staging engine, process supervision — because those are where a
+  plausible-looking change can be wrong while tests still pass. It also encodes the test discipline
+  used throughout this work: delete the mechanism, confirm the test goes red, put it back. A test
+  that passes without the thing it tests is worse than no test, because it manufactures confidence.</li>
+  <li><strong>MAINTAINERS lists the areas with <em>no</em> maintainer</strong> — frontend, Go
+  services, Python SDKs, security response. Pretending coverage exists is how a contribution sits
+  unreviewed for three weeks and the contributor never returns.</li>
+</ul>
+
+<div class="card warn">
+  <h4>Needs you before launch</h4>
+  <p><code>MAINTAINERS.md</code> contains a placeholder instead of a GitHub handle. A maintainers
+  file that names nobody is worse than none — it tells a prospective contributor there is nobody to
+  talk to.</p>
+</div>
+
+<h2>7. Blockers carried forward <span class="tag t-you">needs you</span></h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Blocker</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr><td><strong>The repository is private, not absent</strong> <span class="tag t-fixed">corrected</span></td><td>An earlier version of this document said the repository did not exist. Wrong: <code>MuVeraAI-Corporation/Warrantor</code> exists and is <strong>private</strong>, with <code>main</code> as default. The 404 came from checking with unauthenticated <code>curl</code>, which is what GitHub returns for a private repo to anonymous callers. Trusted publishing therefore <em>can</em> be configured now. What remains: package-metadata URLs 404 for installers until the repo is public, and <code>MuVeraAI/aumos</code> in the Action instructions is still a genuinely dead reference.</td></tr>
+    <tr><td><strong>Names unclaimed on all three registries</strong></td><td>Documentation tells developers to install names nobody owns. A PyPI pending publisher does <em>not</em> reserve a name — only publishing does.</td></tr>
+    <tr><td><strong>No web UI at all</strong></td><td>No <code>.tsx</code>, no <code>next.config</code>, anywhere. Every non-developer workflow is currently a CLI.</td></tr>
+    <tr><td><strong>Three compose "services" are not services</strong></td><td><code>flight-recorder</code>'s container is a health stub answering every path identically; <code>kill-switch</code> and <code>credential-vault</code> are one-shot CLIs. Now documented in the README rather than discovered.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>What I checked that was fine</h2>
+
+<p>Recording these so the list above reads as a survey rather than a complaint:</p>
+
+<ul>
+  <li><strong>CI is real.</strong> DCO enforcement, protobuf lint plus breaking-change rejection
+  against main, <code>cargo fmt</code>, clippy with warnings denied, tests across all four languages.
+  Plus separate coverage, fuzz, SBOM and provenance workflows. This is stronger than most projects
+  at this stage.</li>
+  <li><strong><code>.gitignore</code> is thorough and commented</strong>, including a reasoned note on
+  why <code>Cargo.lock</code> is committed and nested ones are not. No cache directories are tracked.</li>
+  <li><strong>Zero runtime dependencies</strong> across all twelve Python packages, with optional
+  imports where a third-party library is involved. For a security tool this is a real asset.</li>
+  <li><strong>Cross-language conformance</strong> is enforced by <code>make check-protocols</code>
+  and <code>make conformance</code>, not merely intended.</li>
+  <li><strong>SECURITY.md exists and is substantial</strong> — 3.4 KB with an actual process.</li>
+</ul>
+
+<h2>A correction</h2>
+
+<div class="card">
+  <p>An earlier pass in this session reported that <code>attesta_flow</code> shipped a
+  <code>pyproject.toml</code> with zero lines of Python. That was wrong. The package has 156 lines;
+  my file-count command excluded the directory because the glob <code>*test*</code> matches
+  "at<strong>test</strong>a". The measurement was broken, not the package.</p>
+  <p>Noted rather than quietly dropped, because a readiness audit that silently revises its own
+  findings is not one you can rely on. The other counts in this document were re-derived after
+  finding that bug.</p>
+</div>
+
+<h2>What to do next, in order</h2>
+
+<ol>
+  <li><strong>Make the repository public</strong> once MAINTAINERS and the rename are settled. It exists and is private; the org question is already settled by the configured git remote (<code>MuVeraAI-Corporation</code>). Publishing does not wait on this, but working metadata links do.</li>
+  <li><strong>Fill in <code>MAINTAINERS.md</code></strong>. One line.</li>
+  <li><strong>Decide the seventeen.</strong> Wire, ship or move to <code>research/</code>. This is the
+  finding most likely to shape a stranger's opinion of the project.</li>
+  <li><strong>Claim the registry names</strong>, which requires 1 and closes a real
+  dependency-confusion window.</li>
+  <li><strong>Do the rename in one pass</strong>, after the repository name is settled.</li>
+  <li><strong>Then the console</strong>, which is the largest remaining gap and the only one that is
+  purely additive work rather than a decision.</li>
+</ol>
+
+<p class="footnote">Every count in this document was produced by measuring the repository at the
+commit named in the header. Where a number is a judgement rather than a measurement — such as which
+orphans are legitimately standalone — it is labelled as one.</p>
+
+</div>
+</body>
+</html>

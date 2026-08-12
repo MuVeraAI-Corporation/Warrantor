@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warrantor — Research &amp; Publication Portfolio</title>
+<style>
+  :root{--bg:#fbfaf8;--fg:#23201c;--muted:#6b645c;--rule:#e2ddd5;--card:#fff;--accent:#8a4b2a;
+    --ok:#2f6b45;--warn:#8a6a1f;--bad:#8f3232;--code-bg:#f4f1ec;--band:#f0ebe3}
+  @media (prefers-color-scheme:dark){:root{--bg:#16140f;--fg:#ece7df;--muted:#a49c90;--rule:#322d26;
+    --card:#1e1b16;--accent:#d99a6c;--ok:#7dc79b;--warn:#d9bb6c;--bad:#e08c8c;--code-bg:#241f19;--band:#1c1913}}
+  :root[data-theme="dark"]{--bg:#16140f;--fg:#ece7df;--muted:#a49c90;--rule:#322d26;--card:#1e1b16;
+    --accent:#d99a6c;--ok:#7dc79b;--warn:#d9bb6c;--bad:#e08c8c;--code-bg:#241f19;--band:#1c1913}
+  :root[data-theme="light"]{--bg:#fbfaf8;--fg:#23201c;--muted:#6b645c;--rule:#e2ddd5;--card:#fff;
+    --accent:#8a4b2a;--ok:#2f6b45;--warn:#8a6a1f;--bad:#8f3232;--code-bg:#f4f1ec;--band:#f0ebe3}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.66 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .wrap{max-width:66rem;margin:0 auto;padding:3rem 1.5rem 6rem}
+  header{border-bottom:2px solid var(--fg);padding-bottom:1.5rem;margin-bottom:2.5rem}
+  h1{font-size:clamp(1.9rem,4vw,2.8rem);line-height:1.12;margin:0 0 .4rem;letter-spacing:-.015em}
+  .sub{color:var(--muted);font-size:1.05rem;margin:0}
+  .meta{color:var(--muted);font-size:.84rem;margin-top:.9rem;font-family:ui-monospace,Menlo,Consolas,monospace}
+  h2{font-size:1.5rem;margin:3.4rem 0 .3rem;padding-bottom:.35rem;border-bottom:1px solid var(--rule);
+    letter-spacing:-.01em}
+  h3{font-size:1.18rem;margin:2.4rem 0 .4rem}
+  h4{font-size:.97rem;margin:1.3rem 0 .3rem;color:var(--accent)}
+  p{margin:.7rem 0}
+  .lede{font-size:1.08rem}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.87em;background:var(--code-bg);
+    padding:.1em .35em;border-radius:3px}
+  .scroll{overflow-x:auto;margin:1rem 0;border:1px solid var(--rule);border-radius:6px}
+  table{border-collapse:collapse;width:100%;font-size:.86rem;font-family:system-ui,sans-serif}
+  th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{background:var(--code-bg);font-weight:600}
+  tbody tr:last-child td{border-bottom:none}
+  .card{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);
+    border-radius:6px;padding:1rem 1.2rem;margin:1.2rem 0}
+  .card.ok{border-left-color:var(--ok)}.card.warn{border-left-color:var(--warn)}
+  .card.bad{border-left-color:var(--bad)}
+  .card h4{margin-top:0}
+  .paper{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:1.3rem 1.5rem;
+    margin:1.8rem 0}
+  .paper h3{margin-top:0}
+  .vline{font-family:system-ui,sans-serif;font-size:.8rem;color:var(--muted);margin:-.2rem 0 .9rem;
+    padding-bottom:.6rem;border-bottom:1px solid var(--rule)}
+  .abs{background:var(--band);border-radius:6px;padding:.9rem 1.1rem;font-size:.95rem;margin:.9rem 0}
+  .tag{display:inline-block;font-family:system-ui,sans-serif;font-size:.69rem;font-weight:600;
+    letter-spacing:.04em;text-transform:uppercase;padding:.15em .5em;border-radius:3px;
+    border:1px solid currentColor;white-space:nowrap}
+  .t-ready{color:var(--ok)}.t-part{color:var(--warn)}.t-need{color:var(--bad)}.t-flag{color:var(--accent)}
+  ul,ol{padding-left:1.3rem}li{margin:.3rem 0}
+  .muted{color:var(--muted)}
+  hr{border:none;border-top:1px solid var(--rule);margin:2.6rem 0}
+  .footnote{font-size:.87rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Research &amp; Publication Portfolio</h1>
+  <p class="sub">Six research papers, five whitepapers, and an alliance-governed benchmark suite — drawn from the Warrantor platform, targeted at the venues where each genuinely competes, and paced by when its evidence will exist.</p>
+  <p class="meta">Warrantor / MuVeraAI &middot; 11 August 2026 &middot; prior art verified against primary sources</p>
+</header>
+
+<p class="lede">This is a research programme, not a list of titles. Every brief states what would have to be true for the paper to be accepted, what evidence exists today, what must be run, and the closest prior work that a reviewer will ask why you did not simply cite.</p>
+
+<div class="card">
+  <h4>Decisions this portfolio is built on</h4>
+  <p><strong>Scope:</strong> Warrantor only &middot; <strong>Depth:</strong> full briefs &middot;
+  <strong>Venues:</strong> best fit per paper, not forced at the big three &middot;
+  <strong>Evidence:</strong> planned now, run later; human-subject studies in scope &middot;
+  <strong>Authorship:</strong> sole author, AI-assisted drafting with venue disclosure &middot;
+  <strong>Pacing:</strong> evidence-paced &middot; <strong>Benchmark:</strong> OSAA-governed, open
+  methodology, Warrantor as submission #1 rather than referee.</p>
+</div>
+
+<h2>The thesis, and the fact that makes it publishable</h2>
+
+<p>A portfolio needs one argument that the individual papers instantiate. Here it is, and the
+strongest evidence for it comes from outside this project entirely.</p>
+
+<div class="card bad">
+  <h4>Live human oversight of agents does not work — and the failure is recognition, not attention</h4>
+  <p>The literature on human-in-the-loop AI oversight is unusually damning. Studies of AI coding
+  agents find human intervention success stays at <strong>9&ndash;26% even when a problem surfaces</strong>
+  — described as a <em>recognition bottleneck rather than inattention</em>. In clinical decision
+  support, the closest mature analogue, practitioners dismiss <strong>49&ndash;96% of safety alerts</strong>.
+  And fatigue is empirically distinct from automation bias: it is driven by <em>volume</em>, not by
+  perceived authority of the system.</p>
+  <p>The implication is stronger than "people should pay more attention." If approval requests arrive
+  faster than a human can read them, oversight degrades into reflex regardless of who is doing it or
+  how much they care. <strong>The answer cannot be more oversight of the same shape.</strong> It has
+  to be a restructuring of when the human decides and what they are deciding about.</p>
+</div>
+
+<p>That restructuring is what Warrantor implements, and each of its mechanisms is a separately
+defensible research claim:</p>
+
+<ul>
+  <li><strong>Move the decision from per-action to per-batch</strong> by staging irreversible effects
+  rather than performing them — so the human reviews a coherent set once, not a stream.</li>
+  <li><strong>Make the decision reviewable</strong> by giving them typed handles and a dependency
+  order, so what they approve has structure rather than being a chronological log.</li>
+  <li><strong>Make the boundary structural rather than procedural</strong> — the agent has no route
+  to its own settle authority, so the guarantee does not depend on a policy being configured right.</li>
+  <li><strong>Make the failure mode visible</strong> — refusal telemetry says what the agent
+  <em>attempted</em>, which no current benchmark or platform reports.</li>
+</ul>
+
+<hr>
+
+<h2>Part I — Research papers</h2>
+
+<p>Ordered by strength of contribution relative to prior art, not by ease.</p>
+
+<!-- ============ P1 ============ -->
+<div class="paper">
+<h3>P1 — Oversight Without Attention: Batch Review of Staged Effects for Unattended Coding Agents</h3>
+<p class="vline"><strong>Target:</strong> USENIX Security (primary) or SOUPS &middot; fallback ACM CHI
+&middot; <span class="tag t-need">needs human study</span> <span class="tag t-flag">strongest paper</span></p>
+
+<div class="abs"><strong>Abstract sketch.</strong> Human-in-the-loop oversight of autonomous coding
+agents is widely assumed to be a control. We show it is largely a ritual: existing evidence puts
+intervention success at 9&ndash;26% even when a fault is visible, and the dominant cause is volume,
+not inattention. We argue oversight must be <em>restructured</em> rather than intensified, and
+present a mechanism that does so: irreversible effects are staged rather than performed, so the human
+reviews a dependency-ordered batch once instead of a stream of per-action prompts. We evaluate with
+a within-subjects study of N professional developers reviewing agent runs under three conditions —
+live approval, post-hoc log review, and staged batch review — measuring decision accuracy against
+seeded defects, time-to-decision, and self-reported confidence calibration. We find [H1] batch review
+detects materially more seeded defects at equal or lower time cost, and [H2] the gap widens with
+volume, which is the regime that matters for unattended runs.</div>
+
+<h4>Contributions</h4>
+<ol>
+  <li>A formulation of agent oversight as a <em>recognition</em> problem rather than a diligence
+  problem, with the design consequence that follows.</li>
+  <li>Staged effects with typed synthetic handles as a mechanism that makes batch review possible
+  without giving up the agent's ability to compose multi-step work.</li>
+  <li>The first controlled comparison of live-approval versus batch-review oversight for coding
+  agents, with defect-detection as the outcome rather than user satisfaction.</li>
+  <li>A negative result we expect and should report honestly: prose summarisation of diffs likely
+  <em>reduces</em> accuracy on destructive changes, which is why the implementation refuses
+  prose-only approval for destructive and financial classes.</li>
+</ol>
+
+<h4>Experimental plan</h4>
+<div class="scroll"><table>
+<thead><tr><th>Component</th><th>Design</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Study design</td><td>Within-subjects, 3 conditions, counterbalanced. N=36&ndash;48 professional developers (power analysis to be run for medium effect, &alpha;=.05, 1&minus;&beta;=.8)</td><td><span class="tag t-need">to run</span></td></tr>
+<tr><td>Task material</td><td>Agent runs on real repositories with <em>seeded</em> defects of known severity — the ground truth reviewers should catch</td><td><span class="tag t-need">to build</span></td></tr>
+<tr><td>Primary measure</td><td>Seeded-defect detection rate (sensitivity) <em>and</em> false-rejection rate of correct changes — both, because reporting only one invites the specificity confound</td><td>—</td></tr>
+<tr><td>Secondary</td><td>Time-to-decision, confidence calibration, volume interaction</td><td>—</td></tr>
+<tr><td>Ethics</td><td>IRB or equivalent review required; participants are human subjects</td><td><span class="tag t-need">needed</span></td></tr>
+</tbody></table></div>
+
+<h4>Closest prior work, and why this is not it</h4>
+<p>Automation-bias literature (2025 systematic reviews) establishes the phenomenon but not a
+mechanism that fixes it. Human-in-the-loop critiques document rubber-stamping without an alternative
+design. Agent-safety benchmarks measure the <em>agent</em>, never the human. The gap this paper fills
+is a controlled comparison of oversight <em>structures</em>.</p>
+
+<h4>Rejection risk</h4>
+<p><span class="tag t-flag">medium-high</span> Reviewers will attack ecological validity — a seeded
+defect in a study task is not a production incident. Mitigation: recruit professionals rather than
+students, use real repositories, and pre-register hypotheses and analysis. The honest limitation is
+that this measures detection, not downstream harm, and the paper should say so rather than imply
+otherwise.</p>
+</div>
+
+<!-- ============ P2 ============ -->
+<div class="paper">
+<h3>P2 — Staged Effects: Deferring Irreversibility as a Safety Primitive for Autonomous Agents</h3>
+<p class="vline"><strong>Target:</strong> IEEE S&amp;P or USENIX Security &middot;
+<span class="tag t-part">pilot exists (n=8)</span></p>
+
+<div class="abs"><strong>Abstract sketch.</strong> Systems that let autonomous agents act on the
+world face a dilemma: refusing irreversible actions cripples usefulness, permitting them forfeits
+control. Transactional approaches assume compensation, which most external effects do not admit —
+a sent email cannot be unsent. We present <em>staged effects</em>: the agent's request for an
+irreversible action returns a typed synthetic handle rather than performing it, the agent composes
+further work against that handle, and the real calls are issued only on a separately-authorised
+settle, in topological order, with handles resolved to the identifiers the world actually returned.
+On partial failure the system stops at the boundary and reports it rather than compensating. We
+evaluate agent capability under staging across M models and K task families, and show staging is
+[H1] comprehensible to agents without prompt engineering and [H2] preserves task completion relative
+to direct execution.</div>
+
+<h4>Contributions</h4>
+<ol>
+  <li>Staged effects as a primitive, with the typing discipline that makes it work: each tool mints
+  its own handle scheme (<code>pr://</code>, <code>comment://</code>, <code>review://</code>), so a
+  handle of the wrong type is rejected at stage time rather than producing a nonsensical call at
+  settle time. <em>This was discovered empirically</em> — an untyped-handle design passed a pilot
+  trial while silently permitting a category error.</li>
+  <li>Topological release: every prefix of the release order is a coherent world state, which is what
+  makes partial failure survivable without compensation.</li>
+  <li><strong>Stop-hold-report instead of rollback</strong>, argued as the correct semantics for
+  external effects, with the warrant entering a distinct <em>Held</em> state that is neither success
+  nor failure.</li>
+  <li>An evaluation showing the safety mechanism does not degrade agent capability — the objection
+  that decides whether anyone adopts it.</li>
+</ol>
+
+<h4>Experimental plan</h4>
+<div class="scroll"><table>
+<thead><tr><th>Component</th><th>Design</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Pilot</td><td>R1 experiment: 8/8 trials passed, 4/4 with no explanation of the staging model; surfaced the untyped-handle flaw</td><td><span class="tag t-ready">done</span></td></tr>
+<tr><td>Scale-up</td><td>n&ge;300 trials &times; {4&ndash;6 models} &times; {5 task families: PR+comment+label, multi-file refactor, dependency bump, issue triage, release notes}</td><td><span class="tag t-need">to run</span></td></tr>
+<tr><td>Control</td><td>Same tasks with direct execution in a sandbox — the capability-preservation comparison</td><td><span class="tag t-need">to run</span></td></tr>
+<tr><td>Ablations</td><td>Typed vs untyped handles · with vs without staging explanation in the prompt · with vs without dependency ordering</td><td><span class="tag t-need">to run</span></td></tr>
+<tr><td>Compute</td><td>Open-weight models on Kaggle free tier; frontier models via API for the comparison arm</td><td>plan exists</td></tr>
+</tbody></table></div>
+
+<h4>Closest prior work</h4>
+<p>Sagas and compensating transactions (Garcia-Molina &amp; Salem) — the assumption this paper
+rejects. Two-phase commit — requires participant cooperation that external APIs do not offer.
+ToolEmu — sandboxes tool execution but assumes benign intent and emulates rather than defers.
+Capability systems — control <em>whether</em> an action may occur, not <em>when</em> it commits.</p>
+
+<h4>Rejection risk</h4>
+<p><span class="tag t-flag">medium</span> "This is just a transaction log / a dry-run mode." The
+rebuttal must be crisp and early: dry runs discard, staging <em>composes</em> — the agent builds on
+handles for effects that do not exist yet, and those handles resolve to real identifiers at settle.
+No dry-run design does that.</p>
+</div>
+
+<!-- ============ P3 ============ -->
+<div class="paper">
+<h3>P3 — Absence Is Not Refusal: Structural Authority Separation in Agent Tool Protocols</h3>
+<p class="vline"><strong>Target:</strong> ACM CCS or USENIX Security &middot;
+<span class="tag t-part">implementation + tests exist</span> <span class="tag t-flag">most timely</span></p>
+
+<div class="abs"><strong>Abstract sketch.</strong> Agent tool protocols such as MCP are becoming the
+authorization boundary for autonomous systems, and are inheriting the confused-deputy problem
+wholesale. We distinguish two designs that are routinely conflated: <em>refusal</em>, where a
+privileged operation is exposed and denied by policy, and <em>absence</em>, where it is not present
+in the protocol surface the agent can see. We argue absence is strictly stronger — a policy check
+can be misconfigured, inverted by refactoring, or reached by a path nobody guarded, while an
+unpublished tool has no name to call. We implement this as a two-endpoint MCP server where the
+supervised agent's endpoint structurally cannot enumerate the lifecycle operations that would let it
+release its own staged effects, and evaluate against adversarial agents instructed to escalate.</div>
+
+<h4>Contributions</h4>
+<ol>
+  <li>The refusal/absence distinction, stated precisely for capability-bearing protocols, with the
+  argument that it is a <em>type-level</em> rather than policy-level guarantee.</li>
+  <li>A concrete construction: act-scoped capability tokens with no settle field to set, plus
+  endpoint separation, so widening authority is unrepresentable rather than merely forbidden.</li>
+  <li>An adversarial evaluation: agents explicitly prompted to escalate, including via prompt
+  injection through tool outputs.</li>
+  <li>A methodological note with teeth — the test for a structural guarantee must fail when the
+  mechanism is deleted. We report this discipline and an instance where it caught a tautological
+  test in our own suite.</li>
+</ol>
+
+<h4>Experimental plan</h4>
+<div class="scroll"><table>
+<thead><tr><th>Component</th><th>Design</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Implementation</td><td>Two-endpoint MCP server; 19 tests including the absence property; verified as a real detector by deleting the mechanism</td><td><span class="tag t-ready">done</span></td></tr>
+<tr><td>Adversarial suite</td><td>N escalation strategies &times; M models: direct call, enumeration probing, injection via tool output, sub-warrant abuse, handle forgery</td><td><span class="tag t-need">to build</span></td></tr>
+<tr><td>Comparison</td><td>Same attacks against a policy-refusal implementation of identical semantics — the head-to-head that carries the paper</td><td><span class="tag t-need">to build</span></td></tr>
+<tr><td>Injection corpus</td><td>Adapt AgentDojo-style injections to target authority escalation specifically, rather than data exfiltration</td><td><span class="tag t-need">to build</span></td></tr>
+</tbody></table></div>
+
+<h4>Closest prior work — read these before drafting</h4>
+<p><em>Capability Gates Are Not Authorization: Confused-Deputy Failures in LLM Agent Frameworks</em>
+(arXiv 2606.28679) is the nearest neighbour and makes an adjacent argument — capability gating
+answers which tools are exposed, per-call authorization answers whether a concrete call is allowed.
+<strong>Our distinction is orthogonal and must be positioned as such:</strong> they separate gating
+from per-call checks; we argue that for a specific class of operations (those that would widen the
+agent's own authority) neither gating nor checking is sufficient, and only structural absence is.
+Also relevant: <em>A Five-Plane Reference Architecture for Runtime Governance of Production AI
+Agents</em> (arXiv 2606.12320); the object-capability literature (Miller's <em>Robust Composition</em>);
+Hardy's original confused-deputy formulation (1988).</p>
+
+<h4>Rejection risk</h4>
+<p><span class="tag t-flag">medium</span> The idea is simple, and simple ideas read as obvious in
+retrospect. The defence is the adversarial evaluation plus the head-to-head against refusal — showing
+a policy implementation of the <em>same</em> semantics is breakable where the structural one is not.
+Without that comparison this is a design note, not a security paper.</p>
+</div>
+
+<!-- ============ P4 ============ -->
+<div class="paper">
+<h3>P4 — WarrantBench: Measuring Enforcement, Not Behaviour, in Agent Containment Systems</h3>
+<p class="vline"><strong>Target:</strong> NeurIPS Datasets &amp; Benchmarks track &middot; alternate ICLR D&amp;B
+&middot; <span class="tag t-need">benchmark to build</span> <span class="tag t-flag">the big-three paper</span></p>
+
+<div class="abs"><strong>Abstract sketch.</strong> Existing agent-safety benchmarks measure whether a
+<em>model</em> behaves safely. We argue this is the wrong unit of analysis for deployed systems,
+where safety is supposed to be a property of the enforcement layer, and show it also inherits a
+construct-validity problem: general capability bleeds into safety scores in metric-dependent ways.
+We introduce WarrantBench, which holds the model fixed and varies the containment system, measuring
+four axes: containment under adversarial pressure, staging fidelity, oversight burden, and evidence
+reconstructability. Because the construct is a property of the system rather than the model, the
+capability confound is structurally excluded. We report complete confusion structures rather than
+headline metrics, and release tasks, transcripts and scoring under alliance governance.</div>
+
+<div class="card ok">
+  <h4>Why this is legitimately a top-tier benchmark paper rather than marketing</h4>
+  <p>A 2026 validity audit of agent-safety benchmarks found problems that a new benchmark can be
+  designed to avoid <em>by construction</em>, and saying so is the paper's methodological
+  contribution:</p>
+  <ul>
+    <li><strong>Metric validity.</strong> R-Judge's F1 is unsuitable because an "always unsafe"
+    baseline attains F1=0.690, beating five discriminating models. <em>WarrantBench reports full
+    confusion structures and never F1 alone.</em></li>
+    <li><strong>Construct validity.</strong> Three broad-coverage benchmarks rank the same 18 models
+    differently, with correlation moving from &minus;0.64 at n=7 to +0.02 at n=18 — small panels
+    manufacture apparent patterns. <em>WarrantBench fixes the model and varies the system, so
+    model-panel effects do not enter.</em></li>
+    <li><strong>Capability confound.</strong> Capability correlates &rho;=+0.71 with balanced accuracy
+    but only +0.16 with specificity. <em>An enforcement-layer benchmark is capability-independent by
+    construction: whether a tool allowlist holds does not depend on how clever the agent is.</em></li>
+  </ul>
+  <p>That last point is the whole argument. It is not a marginal improvement on existing benchmarks;
+  it measures a different construct, and one that is arguably what deployment decisions actually
+  need.</p>
+</div>
+
+<h4>The four suites</h4>
+<div class="scroll"><table>
+<thead><tr><th>Suite</th><th>Question</th><th>Primary measures</th><th>Whose trust</th></tr></thead>
+<tbody>
+<tr><td><strong>B1 Containment</strong></td><td>Given bounded authority, does the agent stay inside it, and does the system catch every attempt to leave?</td><td>Escape rate, refusal precision/recall, injection resistance, full confusion matrix</td><td>Security</td></tr>
+<tr><td><strong>B2 Staging fidelity</strong></td><td>Does deferring irreversible effects break the agent's ability to do the work?</td><td>Task completion vs direct-execution control, handle-composition correctness, type-error rate</td><td>Developers</td></tr>
+<tr><td><strong>B3 Oversight burden</strong></td><td>How much human time and accuracy does review actually cost?</td><td>Seeded-defect detection, time-to-decision, volume interaction (human subjects)</td><td>Non-developers, enterprises</td></tr>
+<tr><td><strong>B4 Evidence quality</strong></td><td>Can a third party reconstruct what happened from the records alone?</td><td>Reconstruction completeness, tamper-evidence, framework-mapping coverage</td><td>Regulators, auditors</td></tr>
+</tbody></table></div>
+
+<h4>Governance — the part that determines whether anyone believes it</h4>
+<p>Published by the <strong>Open Secure AI Alliance</strong>, not by MuVeraAI. Methodology, tasks and
+scoring public; results reproducible by third parties; <strong>Warrantor is submission #1, not the
+referee</strong>. A benchmark whose author also wins it is a marketing asset; a benchmark an alliance
+governs and its own member can lose is an institution. The charter should state explicitly that
+submissions from non-members are accepted on identical terms and that the reference implementation's
+results carry no special status.</p>
+
+<h4>Rejection risk</h4>
+<p><span class="tag t-flag">medium</span> D&amp;B reviewers ask two things: is this used by anyone
+other than you, and is the construct well-posed. The second is this paper's strength. The first is
+its weakness at launch, and the mitigation is recruiting two or three external systems to evaluate
+before submission — including agent frameworks that are <em>not</em> containment systems, so the
+benchmark demonstrably discriminates.</p>
+</div>
+
+<!-- ============ P5 ============ -->
+<div class="paper">
+<h3>P5 — Kernel-Enforced Lifetime for Unattended Agents, and the Honesty of Partial Guarantees</h3>
+<p class="vline"><strong>Target:</strong> USENIX ATC &middot; alternate USENIX Security or a systems workshop
+&middot; <span class="tag t-part">implementation verified</span></p>
+
+<div class="abs"><strong>Abstract sketch.</strong> Leaving an agent running unattended requires two
+guarantees that pull in opposite directions: the agent must not outlive its supervisor (orphaning),
+and the supervisor must not die when the operator's terminal closes (terminal coupling). Satisfying
+one alone produces either a system you cannot leave or a process nothing can stop. We implement both
+— console detachment plus a kernel-enforced parent-death link — and characterise precisely what each
+platform can and cannot guarantee, including where the guarantee does not hold. We argue that
+systems making safety claims should report enforcement strength as a first-class runtime value rather
+than in documentation, and show a case where the honest report is "this platform cannot guarantee
+this".</div>
+
+<h4>Contributions</h4>
+<ol>
+  <li>The orphaning/terminal-coupling duality, named and shown to require joint treatment.</li>
+  <li>A portable construction: Windows job objects with kill-on-close; Linux <code>setsid</code> plus
+  <code>PR_SET_PDEATHSIG</code>; with the grandchild gap on Linux stated rather than elided.</li>
+  <li><strong>Enforcement strength as a runtime value.</strong> The system reports whether a bound is
+  <em>enforced</em> or merely <em>observed</em>, and whether the lifetime link holds on the current
+  platform. A limit a user believes in that does not hold is worse than no limit.</li>
+  <li>Verification against real process trees rather than mocks — including that killing only the
+  supervisor terminates the agent <em>and its grandchildren</em>.</li>
+</ol>
+
+<h4>Experimental plan</h4>
+<p>Existing: end-to-end verification on Windows (survives terminal exit; supervisor kill terminates
+agent + grandchild; deadline enforced to the second). Needed: the same matrix on Linux and macOS,
+adversarial escape attempts (double-fork, setsid re-parenting, process-group escape, nohup), and
+overhead measurement. macOS is expected to <em>fail</em> the parent-death property and that negative
+result belongs in the paper.</p>
+
+<h4>Rejection risk</h4>
+<p><span class="tag t-flag">medium-high</span> The mechanisms are individually well known; the
+contribution is their composition, the duality framing, and honest partial-guarantee reporting.
+This may be strongest as a shorter systems paper or a well-placed workshop paper. It is also the
+best candidate to fold into P2 or P3 if reviewers find it thin standing alone.</p>
+</div>
+
+<!-- ============ P6 ============ -->
+<div class="paper">
+<h3>P6 — Refusal Telemetry: What Agents Attempt Is a Governance Signal</h3>
+<p class="vline"><strong>Target:</strong> ACM FAccT or AIES &middot; alternate a security workshop
+&middot; <span class="tag t-part">data collected, unanalysed</span> <span class="tag t-flag">most novel, smallest</span></p>
+
+<div class="abs"><strong>Abstract sketch.</strong> Agent platforms report what an agent did.
+Supervisory frameworks increasingly ask what it <em>attempted</em>. We observe that refusal records —
+deduplicated by (tool, bound) with counts — carry a signal that success logs cannot, and that the
+count disambiguates two very different situations conflated by a binary "denied" flag: a single
+refusal indicates an agent reaching beyond its grant, while twenty refusals of the same tool indicate
+the grant was drawn wrong. We formalise this, show it functions as a leading indicator of both
+misscoping and capability drift, and map it to the evidentiary expectations of principle-based
+regimes that require oversight to be demonstrated rather than asserted.</div>
+
+<h4>Why it is worth writing despite being small</h4>
+<p>It is the most clearly novel claim in the portfolio. Every agent platform logs actions; none, as
+far as the survey found, treats <em>attempted-and-refused</em> as a first-class governance artifact
+with the count as the discriminating variable. It is also the paper that speaks most directly to the
+regulatory audience — and one of the two whose framing the RFI whitepaper reuses.</p>
+
+<h4>Experimental plan</h4>
+<p>Needs longitudinal data the platform does not yet have: refusal streams across many runs and
+warrants over weeks. The analysis is cheap; the collection is the long pole, which makes this
+evidence-paced by definition. Candidate: instrument the OSAA benchmark runs to produce this corpus
+as a by-product — a good example of one artifact funding another.</p>
+</div>
+
+<hr>
+
+<h2>Part II — Whitepapers</h2>
+
+<p>Five audiences, five genuinely different documents. Co-branded MuVeraAI / OSAA except where noted.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>#</th><th>Title &amp; audience</th><th>The argument it must make</th><th>Timing</th></tr></thead>
+<tbody>
+<tr><td><strong>W1</strong></td><td><strong>Evidence-Based Supervision of Agentic AI</strong><br><span class="muted">US regulators — an RFI comment</span></td><td>The agencies removed agentic AI from model-risk scope and plan an RFI on it. This paper answers the question the RFI will ask: <em>what is technically demonstrable today?</em> Bounded authority as a machine-readable grant; staged effects as approval-before-commit; refusal telemetry as attempted-action evidence; signed receipts as the audit trail. Positions your primitives in the record the eventual rule is written against.</td><td><span class="tag t-flag">time-critical</span> ahead of the RFI</td></tr>
+<tr><td><strong>W2</strong></td><td><strong>The Babysitting Tax</strong><br><span class="muted">CISOs, CROs, heads of engineering</span></td><td>Leads with the 9&ndash;26% intervention figure, because it reframes the buying decision: your current oversight is not working, and adding reviewers will not fix a recognition bottleneck. Then bounded authority, staged effects, evidence packs — mapped to FREE-AI, SDAIA and DIFC Reg 10 expectations. The US/GCC/India sales-enablement asset.</td><td>after P1 evidence</td></tr>
+<tr><td><strong>W3</strong></td><td><strong>Why Staging Beats Rollback</strong><br><span class="muted">developer community</span></td><td>The design-rationale paper the OSS community actually reads: compensation assumes reversibility the world does not offer; absence beats refusal; absent bound means none; enforced versus observed. Recruits contributors by showing the reasoning, not the feature list.</td><td>at OSS launch</td></tr>
+<tr><td><strong>W4</strong></td><td><strong>The Warrant as an Interchange Format</strong><br><span class="muted">standards bodies — OCSF, OpenSSF, NIST</span> &middot; <em>OSAA-published</em></td><td>Proposes bounded-authority grants and settlement records as a portable schema, so authority and evidence survive crossing between platforms. Longest game in the portfolio and the largest moat if it lands: the format everyone else must emit.</td><td>after benchmark traction</td></tr>
+<tr><td><strong>W5</strong></td><td><strong>WarrantBench Methodology &amp; Charter</strong><br><span class="muted">the benchmark's own governance</span> &middot; <em>OSAA-published</em></td><td>Suite definitions, scoring, reproduction instructions, submission process, and the neutrality commitments — non-member submissions on identical terms, reference implementation carries no special status. Must be published <em>before</em> first results, or the benchmark is a vendor claim with extra steps.</td><td><span class="tag t-flag">before first results</span></td></tr>
+</tbody></table></div>
+
+<hr>
+
+<h2>Part III — Execution</h2>
+
+<h3>Evidence-paced sequence</h3>
+
+<div class="scroll"><table>
+<thead><tr><th>Stage</th><th>Work</th><th>Unblocks</th><th>Compute</th></tr></thead>
+<tbody>
+<tr><td><strong>0</strong></td><td>W5 charter + W1 RFI response. Neither needs new experiments; W1 is time-critical.</td><td>Benchmark legitimacy; regulatory positioning</td><td>none</td></tr>
+<tr><td><strong>1</strong></td><td>B1 containment + B2 staging suites. Adversarial corpus, task families, scoring harness.</td><td>P2, P3, P4</td><td>Kaggle (open weights) &rarr; API for frontier arm</td></tr>
+<tr><td><strong>2</strong></td><td>Scale-up runs: staging trials n&ge;300, escalation suite, head-to-head vs policy-refusal.</td><td>P2, P3 submittable</td><td>Kaggle 30h/wk; Modal for parallel fan-out</td></tr>
+<tr><td><strong>3</strong></td><td>Human study (B3). IRB, recruitment, seeded-defect corpus, pre-registration.</td><td>P1, W2</td><td>none (people, not GPUs)</td></tr>
+<tr><td><strong>4</strong></td><td>External benchmark participants; B4 evidence suite; longitudinal refusal corpus.</td><td>P4, P6, W4</td><td>modest</td></tr>
+</tbody></table></div>
+
+<div class="card warn">
+  <h4>The two dependencies that could stall all of this</h4>
+  <p><strong>IRB or equivalent ethics review</strong> for the human-subject work. P1 and B3 cannot
+  run without it and the lead time is often months — start it in parallel with Stage 1, not when
+  Stage 3 begins.</p>
+  <p><strong>The repository still does not exist publicly.</strong> Benchmark reproducibility,
+  artifact evaluation at security venues, and the OSS credibility every one of these papers assumes
+  all require a public repository. It is the same blocker as publishing, and it gates the research
+  programme too.</p>
+</div>
+
+<h3>Authorship and disclosure</h3>
+
+<p>Sole author, MuVeraAI affiliation. The intellectual contributions — staged effects, the
+absence/refusal distinction, enforcement strength as a runtime value, refusal telemetry — are design
+decisions made in building the system, and they are yours. AI assistance is confined to structure,
+related-work surveying, and experimental scaffolding, with every claim rewritten and verified by you
+before submission. Venue LLM-disclosure policies vary and are tightening; each submission should
+carry the disclosure its venue requires, stated plainly. This is both your standing authenticity
+rule and, increasingly, a condition of acceptance.</p>
+
+<div class="card">
+  <h4>One caution about arXiv-first</h4>
+  <p>Preprinting establishes priority on the warrant primitive and the absence/refusal distinction —
+  real protection given how fast this area is moving. But several target venues operate anonymity
+  periods, and a preprint can complicate double-blind submission. Check each venue's policy before
+  posting rather than after; the security venues and the ML D&amp;B tracks differ materially here.</p>
+</div>
+
+<hr>
+
+<h2>Honest assessment of the portfolio</h2>
+
+<p><strong>Strongest:</strong> P1, because the empirical foundation is already in the literature and
+the mechanism is built — it needs a study, not an invention. P4, because an enforcement-layer
+benchmark measures a construct nobody currently measures, and does so in a way that structurally
+avoids the confound a 2026 validity audit found in existing work.</p>
+
+<p><strong>Most at risk:</strong> P5, whose mechanisms are individually well known and may read as
+engineering rather than research; and P3, which is timely enough that someone else may publish the
+adjacent argument first — the nearest neighbour is already on arXiv.</p>
+
+<p><strong>What would strengthen everything:</strong> an academic collaborator with experimental
+capacity. Every plan above is executable solo, but the human study in particular benefits from
+institutional infrastructure — IRB, participant pools, and a co-author who has run one before. That
+was offered as an option and not taken; it remains the highest-leverage change available to this
+programme, and worth revisiting once the briefs are concrete enough to interest someone.</p>
+
+<p class="footnote">Prior art in this document was verified against primary sources on 11 August 2026,
+including the 2026 validity audit of agent-safety benchmarks (arXiv 2607.28685), <em>Capability Gates
+Are Not Authorization</em> (arXiv 2606.28679), AgentDojo (NeurIPS 2024), AgentHarm (ICLR 2025), and
+the automation-bias and human-in-the-loop literature. Numeric findings quoted from those sources
+should be re-checked against the papers themselves before appearing in a submission — a secondary
+summary is adequate for planning and not for citation.</p>
+
+</div>
+</body>
+</html>

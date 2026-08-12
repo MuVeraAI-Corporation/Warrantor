@@ -1,0 +1,47 @@
+# Build context exclusions.
+#
+# The mcp-server image uses the repository root as its context so it can reach
+# both rust/ and typescript/. Without this file that means shipping EVERYTHING to
+# the daemon -- a local test build transferred 14 GB before it got to the first
+# instruction, nearly all of it rust/target and node_modules. In CI that is a
+# slow job at best and a failed one at worst.
+
+# Build outputs — regenerated inside the image, never wanted from the host
+**/target/
+**/node_modules/
+**/dist/
+**/build/
+**/*.tsbuildinfo
+
+# Caches
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/__pycache__/
+**/*.pyc
+**/.cargo/
+**/.venv/
+**/venv/
+
+# Agent + editor scratch
+**/.mimosa/
+.claude/
+.vscode/
+.idea/
+
+# VCS and CI metadata: the build does not read them, and .git alone is large
+.git/
+.github/
+.gitignore
+
+# Docs and analysis — none of it is needed to build a binary or an image
+docs/
+evidence/
+testvectors/
+**/*.md
+!README.md
+
+# Local state that must never end up in an image
+.auditvenv/
+**/.env
+**/*.log

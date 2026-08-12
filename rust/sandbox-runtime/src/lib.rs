@@ -16,8 +16,8 @@ use std::sync::Arc;
 use thiserror::Error;
 use warrantor_trust_core::verification;
 use wasmtime::{
-    format_err, Caller, Config, Engine, ExternType, Linker, Module, Result as WasmtimeResult,
-    Store, StoreLimits, StoreLimitsBuilder, Trap,
+    format_err, Caller, Config, Engine, Error as WasmtimeError, ExternType, Linker, Module,
+    Result as WasmtimeResult, Store, StoreLimits, StoreLimitsBuilder, Trap,
 };
 
 /// Signed sandbox policy wire format.
@@ -66,6 +66,22 @@ pub struct SandboxPolicy {
     pub max_module_bytes: u64,
     /// Fuel assigned to one execution.
     pub max_fuel: u64,
+    /// Hard wall-clock ceiling for one execution, in milliseconds.
+    ///
+    /// **Fuel is not a time bound and cannot be made into one.** Fuel counts instructions;
+    /// the wall-clock cost of an instruction is not constant. A guest doing bulk memory
+    /// work consumes fuel slowly and time quickly, so a zero-capability module under the
+    /// default 1,000,000-fuel policy was measured blocking `execute()` for 25 minutes on a
+    /// release build (41 on debug) before "sandbox fuel exhausted" was finally returned.
+    ///
+    /// A caller who set a fuel budget believing it bounded execution had no such bound. This
+    /// is enforced separately via Wasmtime epoch interruption.
+    ///
+    /// `#[serde(default = ...)]` so policies signed before this field existed still
+    /// deserialize -- but they deserialize with a real deadline, not an absent one, because
+    /// an old policy is exactly the case that has no protection today.
+    #[serde(default = "default_max_wall_clock_ms")]
+    pub max_wall_clock_ms: u64,
     /// Maximum bytes of guest linear memory.
     pub max_memory_bytes: u64,
     /// Maximum elements across each guest table.
@@ -78,6 +94,22 @@ pub struct SandboxPolicy {
     pub allowed_commands: Vec<String>,
 }
 
+/// Default wall-clock ceiling for one guest execution (5 seconds).
+///
+/// Chosen to be generous for legitimate work while bounding the pathological case by three
+/// orders of magnitude: the measured worst case under the default fuel budget alone was 25
+/// minutes.
+#[must_use]
+pub const fn default_max_wall_clock_ms() -> u64 {
+    5_000
+}
+
+/// How often the epoch ticker advances the engine epoch.
+///
+/// Deadline resolution is one tick, so this bounds overshoot. 10ms costs one cheap atomic
+/// increment per tick on a single shared thread.
+const EPOCH_TICK: std::time::Duration = std::time::Duration::from_millis(10);
+
 impl SandboxPolicy {
     /// Construct a zero-host-authority policy with bounded compute and memory.
     #[must_use]
@@ -89,6 +121,7 @@ impl SandboxPolicy {
             expires_at,
             max_module_bytes: 4 * 1024 * 1024,
             max_fuel: 1_000_000,
+            max_wall_clock_ms: default_max_wall_clock_ms(),
             max_memory_bytes: 64 * 1024 * 1024,
             max_table_elements: 1_024,
             readable_files: vec![],
@@ -365,12 +398,36 @@ impl SandboxRuntime {
         let mut config = Config::new();
         config
             .consume_fuel(true)
+            // Fuel bounds instructions, not time. Epoch interruption is what makes a
+            // wall-clock deadline enforceable; without it a slow-but-frugal guest runs for
+            // as long as it likes inside its fuel budget.
+            .epoch_interruption(true)
             .max_wasm_stack(512 * 1024)
             .wasm_multi_memory(false)
             .wasm_memory64(false)
             .cranelift_nan_canonicalization(true);
         let engine = Engine::new(&config)
             .map_err(|error| SandboxError::RuntimeUnavailable(error.to_string()))?;
+
+        // One detached ticker per engine advances the epoch so deadlines can fire.
+        //
+        // It holds a Weak reference: when the engine is dropped the upgrade fails and the
+        // thread exits, so a long-lived process that creates runtimes does not accumulate
+        // threads. A strong reference here would keep every engine alive forever.
+        {
+            let weak = engine.weak();
+            std::thread::Builder::new()
+                .name("warrantor-sandbox-epoch".into())
+                .spawn(move || {
+                    while let Some(engine) = weak.upgrade() {
+                        std::thread::sleep(EPOCH_TICK);
+                        engine.increment_epoch();
+                    }
+                })
+                .map_err(|error| {
+                    SandboxError::RuntimeUnavailable(format!("epoch ticker: {error}"))
+                })?;
+        }
         Ok(Self {
             engine,
             policy_verifier,
@@ -472,6 +529,13 @@ impl SandboxRuntime {
         store
             .set_fuel(policy.max_fuel)
             .map_err(|error| SandboxError::RuntimeUnavailable(error.to_string()))?;
+        // Wall-clock deadline, in ticks. Rounded UP so a sub-tick budget still yields at
+        // least one tick rather than a deadline of zero, which would trap immediately.
+        let ticks = policy
+            .max_wall_clock_ms
+            .div_ceil(EPOCH_TICK.as_millis().max(1) as u64)
+            .max(1);
+        store.set_epoch_deadline(ticks);
         let mut linker = Linker::new(&self.engine);
         define_host_abi(&mut linker)?;
         let execution = (|| -> WasmtimeResult<i32> {
@@ -486,7 +550,16 @@ impl SandboxRuntime {
             Err(error) if error.downcast_ref::<Trap>() == Some(&Trap::OutOfFuel) => {
                 ("failed", Some("fuel_exhausted".to_string()))
             }
-            Err(_) => ("failed", Some("guest_trap".to_string())),
+            // Distinct from fuel_exhausted on purpose. "Ran too long" and "executed too many
+            // instructions" are different guest behaviours and want different operator
+            // responses -- one raises the time budget, the other the fuel budget.
+            Err(error) if error.downcast_ref::<Trap>() == Some(&Trap::Interrupt) => {
+                ("failed", Some("deadline_exceeded".to_string()))
+            }
+            Err(error) => (
+                "failed",
+                Some(classify_execution_failure(error).to_string()),
+            ),
         };
         let final_sequence = self.append(AuditEvent {
             kind: AuditKind::ExecutionFinal,
@@ -647,7 +720,7 @@ fn dispatch_capability(
 ) -> WasmtimeResult<i32> {
     let state = caller.data();
     let resources = capability_resources(&state.policy, capability)
-        .ok_or_else(|| format_err!("capability has no resource mapping"))?;
+        .ok_or_else(|| format_err!("{CAPABILITY_UNMAPPED_MARKER}"))?;
     let resource = usize::try_from(index)
         .ok()
         .and_then(|index| resources.get(index))
@@ -675,13 +748,61 @@ fn dispatch_capability(
             failure_class,
         })
         .map_err(|message| format_err!("capability audit unavailable: {message}"))?;
-    let resource = resource.ok_or_else(|| format_err!("capability resource index denied"))?;
+    let resource = resource.ok_or_else(|| format_err!("{CAPABILITY_DENIED_MARKER}"))?;
     match capability {
         Capability::FilesystemRead => state.host_backend.filesystem_read(&resource),
         Capability::NetworkConnect => state.host_backend.network_connect(&resource),
         Capability::ProcessSpawn => state.host_backend.process_spawn(&resource),
     }
-    .map_err(|message| format_err!("host capability denied: {message}"))
+    .map_err(|message| format_err!("{BACKEND_DENIED_MARKER}: {message}"))
+}
+
+/// Marker in the error raised when a capability's resource index is not in the granted list.
+/// Shared with [`classify_execution_failure`] so the producer and the classifier cannot drift.
+const CAPABILITY_DENIED_MARKER: &str = "capability resource index denied";
+/// Marker for a capability whose policy carries no resource mapping at all.
+const CAPABILITY_UNMAPPED_MARKER: &str = "capability has no resource mapping";
+/// Marker for a denial that came from the host backend rather than from policy.
+const BACKEND_DENIED_MARKER: &str = "host capability denied";
+
+/// Classify why an execution failed, for the `failure_class` on the final audit event.
+///
+/// Every non-fuel, non-deadline failure was previously recorded as `guest_trap`, which told an
+/// operator the guest had a bug. That was wrong for most of them, and wrong in the direction that
+/// matters: a module rejected because it declared more memory than policy allows, or asked for a
+/// capability it was not granted, is the sandbox *working*. Filing those as guest bugs means the
+/// audit log cannot answer "did policy stop anything today", which is the question this component
+/// exists to answer.
+///
+/// The wasmtime cases are matched on message text because wasmtime raises them as opaque
+/// `anyhow` errors with no typed variant to match on; the capability cases use the shared markers
+/// above, which we raise ourselves. Anything genuinely unrecognised stays `guest_trap`.
+fn classify_execution_failure(error: &WasmtimeError) -> &'static str {
+    for cause in error.chain() {
+        let message: String = cause.to_string();
+        // Our own host-function denials. Checked first: they are exact and we own the wording.
+        if message.contains(CAPABILITY_DENIED_MARKER)
+            || message.contains(CAPABILITY_UNMAPPED_MARKER)
+        {
+            return "capability_denied";
+        }
+        if message.contains(BACKEND_DENIED_MARKER) {
+            return "backend_denied";
+        }
+        // Resource limits the store's limiter refused -- policy enforcement, not a guest fault.
+        if message.contains("exceeds memory limits") || message.contains("exceeds table limits") {
+            return "resource_limit_denied";
+        }
+        // The guest asked for a host function whose signature does not match the one we expose.
+        if message.contains("incompatible import type") {
+            return "import_type_mismatch";
+        }
+        // A host function the policy never granted, so the linker has nothing to satisfy it with.
+        if message.contains("unknown import") || message.contains("unknown func") {
+            return "import_denied";
+        }
+    }
+    "guest_trap"
 }
 
 /// Fail-closed sandbox runtime errors.
@@ -1010,5 +1131,140 @@ mod tests {
         assert_eq!(events[0].kind, AuditKind::ExecutionIntent);
         assert_eq!(events[1].kind, AuditKind::ExecutionFinal);
         assert_eq!(events[1].failure_class.as_deref(), Some("module_rejected"));
+    }
+
+    /// Fuel is not a time bound.
+    ///
+    /// A guest that loops consumes fuel slowly relative to wall-clock, so under the default
+    /// 1,000,000-fuel policy `execute()` was measured blocking for 25 MINUTES on a release
+    /// build before reporting "sandbox fuel exhausted". A caller who set a fuel budget
+    /// believing it bounded execution had no such bound.
+    #[test]
+    fn a_spinning_guest_is_stopped_by_the_deadline_not_by_fuel() {
+        let mut deadline_policy = policy();
+        deadline_policy.max_wall_clock_ms = 200;
+        // Fuel so high that reaching it would take far longer than the deadline, proving
+        // it is the deadline and not fuel that stops the guest.
+        deadline_policy.max_fuel = u64::MAX / 2;
+
+        let started = std::time::Instant::now();
+        let result = runtime(
+            Arc::new(RecordingAudit::default()),
+            Arc::new(RecordingBackend::default()),
+        )
+        .execute(
+            &signed(deadline_policy),
+            &request(
+                "(module (func (export \"run\") (result i32) (loop $again br $again) i32.const 0))",
+            ),
+        );
+        let elapsed = started.elapsed();
+
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "execute() must return on the deadline; took {elapsed:?}"
+        );
+        assert!(
+            result.is_err(),
+            "a spinning guest must not succeed, got {result:?}"
+        );
+        assert_ne!(
+            result,
+            Err(SandboxError::FuelExhausted),
+            "must be stopped by the DEADLINE, not by fuel"
+        );
+    }
+
+    /// A sub-tick budget must round up to one tick, not a zero deadline that traps before
+    /// the guest runs at all.
+    #[test]
+    fn a_tiny_deadline_still_lets_a_trivial_guest_finish() {
+        let mut tiny = policy();
+        tiny.max_wall_clock_ms = 1; // below one 10ms tick
+        let result = runtime(
+            Arc::new(RecordingAudit::default()),
+            Arc::new(RecordingBackend::default()),
+        )
+        .execute(
+            &signed(tiny),
+            &request("(module (func (export \"run\") (result i32) i32.const 7))"),
+        )
+        .expect("a trivial guest must complete under a sub-tick budget");
+        assert_eq!(result.value, 7);
+    }
+
+    /// Pull the failure_class off the ExecutionFinal audit event.
+    fn final_failure_class(audit: &RecordingAudit) -> Option<String> {
+        audit
+            .events
+            .lock()
+            .expect("events lock")
+            .iter()
+            .find(|event| event.kind == AuditKind::ExecutionFinal)
+            .and_then(|event| event.failure_class.clone())
+    }
+
+    fn run_and_classify(wat_source: &str) -> Option<String> {
+        let audit = Arc::new(RecordingAudit::default());
+        let mut policy = policy();
+        // One page, so a module declaring two is refused by the limiter.
+        policy.max_memory_bytes = 65_536;
+        policy.max_table_elements = 8;
+        let _ = runtime(Arc::clone(&audit), Arc::new(RecordingBackend::default()))
+            .execute(&signed(policy), &request(wat_source));
+        final_failure_class(&audit)
+    }
+
+    /// A module declaring more memory than policy permits is the SANDBOX WORKING. Recording it as
+    /// `guest_trap` told the operator the guest had a bug and left the audit log unable to answer
+    /// "did policy stop anything today".
+    #[test]
+    fn exceeding_the_memory_limit_is_a_policy_denial_not_a_guest_trap() {
+        let class = run_and_classify(
+            "(module (memory 2) (func (export \"run\") (result i32) i32.const 1))",
+        );
+        assert_eq!(class.as_deref(), Some("resource_limit_denied"));
+    }
+
+    #[test]
+    fn exceeding_the_table_limit_is_a_policy_denial_not_a_guest_trap() {
+        let class = run_and_classify(
+            "(module (table 1000 funcref) (func (export \"run\") (result i32) i32.const 1))",
+        );
+        assert_eq!(class.as_deref(), Some("resource_limit_denied"));
+    }
+
+    /// A genuine guest fault must still read as one, or the classification is just noise.
+    #[test]
+    fn a_real_guest_fault_is_still_a_guest_trap() {
+        let class = run_and_classify("(module (func (export \"run\") (result i32) unreachable))");
+        assert_eq!(class.as_deref(), Some("guest_trap"));
+    }
+
+    #[test]
+    fn a_divide_by_zero_is_a_guest_trap() {
+        let class = run_and_classify(
+            "(module (func (export \"run\") (result i32) i32.const 1 i32.const 0 i32.div_s))",
+        );
+        assert_eq!(class.as_deref(), Some("guest_trap"));
+    }
+
+    /// The classifier's markers must stay tied to the strings the host functions actually raise.
+    #[test]
+    fn capability_markers_classify_to_their_own_classes() {
+        let denied = format_err!("{CAPABILITY_DENIED_MARKER}");
+        assert_eq!(classify_execution_failure(&denied), "capability_denied");
+
+        let unmapped = format_err!("{CAPABILITY_UNMAPPED_MARKER}");
+        assert_eq!(classify_execution_failure(&unmapped), "capability_denied");
+
+        let backend = format_err!("{BACKEND_DENIED_MARKER}: path not permitted");
+        assert_eq!(classify_execution_failure(&backend), "backend_denied");
+    }
+
+    #[test]
+    fn an_unrecognised_error_falls_back_to_guest_trap() {
+        let other = format_err!("something nobody anticipated");
+        assert_eq!(classify_execution_failure(&other), "guest_trap");
     }
 }

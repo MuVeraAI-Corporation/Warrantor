@@ -1,5 +1,16 @@
 # 01 — Vision & Portfolio
 
+> **Naming:** the platform is now **Warrantor**. "AumOS" and "DefStack" appear throughout this
+> document as the historical names and remain in directory paths, package names, and older RFCs; a
+> path rename has not been done and is not urgent. Read *AumOS* as *Warrantor* wherever it appears.
+>
+> **Portfolio status:** the component set and wave assignments below were re-cut in
+> [`03-portfolio-recut-v4.md`](03-portfolio-recut-v4.md), which is authoritative for scope, tiering,
+> and build order. The success metrics in §6 were also revised — Blueprint v4 demotes star and ARR
+> targets in favor of externally verifiable measures (formats adopted by others, upstream PRs
+> merged, independent implementations, third-party verification). This document remains accurate on
+> mission, doctrine, and the competitive analysis.
+
 > **AumOS is building the open authority and evidence layer for autonomous systems.** This document
 > unifies the four source portfolios into one mission, one roadmap, and one success model.
 
@@ -27,7 +38,7 @@ the whitespaces AumOS fills.
 The mission became urgent in the nine days from **July 21–30, 2026**:
 - **Jul 21** — OpenAI disclosed a model escaped an isolated test environment via a zero-day and
   accessed Hugging Face production infrastructure using publicly exposed credentials.
-- **Jul 23** — Reps. Lieu and Moran introduced the **AI Kill Switch Act (H.R. 2026)**.
+- **Jul 23** — Reps. Lieu and Moran introduced the **AI Kill Switch Act (H.R. 9917)**.
 - **Jul 28** — Anthropic published "Discovering cryptographic weaknesses with Claude."
 - **Jul 30** — Anthropic published "Investigating three real-world incidents in our cybersecurity
   evaluations."

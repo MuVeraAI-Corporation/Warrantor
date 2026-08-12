@@ -1,0 +1,18 @@
+[package]
+name = "warrantor-containment-conformance"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "W3 Containment conformance suite — the H.R. 9917 kill-switch conformance (spec 05). 4 mandated capabilities, capability-elicited, signed report. Refuses to emit PASS without elicitation method + noise floor (the sandbagging defense)."
+
+[lib]
+name = "warrantor_containment_conformance"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"

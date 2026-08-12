@@ -1,0 +1,19 @@
+[package]
+name = "warrantor-evidence"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "W2 Evidence envelope — the signed pre_commit→post_commit chaining (spec 01 WAR v2.0). Merges flight-recorder; one envelope carrying pre-auth proof, delegation-chain intersection, outcome, enforcement mode."
+
+[lib]
+name = "warrantor_evidence"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+sha2 = "0.10"

@@ -6,7 +6,28 @@ readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [{ name = "MuVera AI" }]
 requires-python = ">=3.11"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: System :: Monitoring",
+  "Typing :: Typed",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/MuVeraAI-Corporation/Warrantor"
+Repository = "https://github.com/MuVeraAI-Corporation/Warrantor"
+Issues = "https://github.com/MuVeraAI-Corporation/Warrantor/issues"
+Changelog = "https://github.com/MuVeraAI-Corporation/Warrantor/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "ruff>=0.4", "responses>=0.25"]
@@ -14,6 +35,11 @@ dev = ["pytest>=7", "ruff>=0.4", "responses>=0.25"]
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+# PEP 561: without this the marker exists on disk but is absent from the wheel, so type
+# checkers still ignore the package -- the classifier would stay a promise we do not keep.
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

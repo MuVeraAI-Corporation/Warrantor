@@ -1,0 +1,244 @@
+# Publish to PyPI, npm and crates.io — with no API token anywhere.
+#
+# ── Why there is no token in this file ───────────────────────────────────────
+#
+# All three registries now support Trusted Publishing: GitHub Actions mints a
+# short-lived OIDC token proving *which workflow, in which repository, in which
+# environment* is asking, and the registry exchanges it for credentials that
+# expire in minutes. Nothing long-lived is created, so nothing can be leaked,
+# committed, or exfiltrated by a compromised dependency at publish time.
+#
+# For a project whose entire thesis is bounded authority granted in advance and
+# answerable afterwards, publishing it with a permanent credential pasted into a
+# secret would be an odd way to start. This is the same shape as a warrant: a
+# narrow grant, scoped to one actor, that expires on its own.
+#
+# npm goes further and is why the `id-token: write` permission matters twice:
+# trusted publishing emits a provenance attestation automatically, so anyone can
+# verify which commit and workflow produced a given tarball.
+#
+# ── One-time setup, in each registry's web UI ────────────────────────────────
+#
+# You do this part; it is the only part that needs a human. See
+# docs/publishing-runbook.md for the exact click paths and the values to enter.
+#
+# ── Order matters ────────────────────────────────────────────────────────────
+#
+# crates.io rejects a crate whose dependencies are not yet published, so
+# warrantor-trust-core and warrantor-authority-spec must land before
+# warrantor-warrant. That is expressed as job dependencies below rather than
+# left to chance.
+
+name: publish
+
+on:
+  # Tag-triggered, not push-to-main: publishing is irreversible (a version can be
+  # yanked but never replaced), so it needs a deliberate act, not a merge.
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build and validate without publishing"
+        type: boolean
+        default: true
+
+permissions: {}
+
+jobs:
+  # ── Python ────────────────────────────────────────────────────────────────
+  build-python:
+    name: build python distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # An EXPLICIT list, not a glob. `python/warrantor_*/` matched 22 directories
+      # while only 12 had PyPI publishers configured -- the first twelve would have
+      # published and the rest failed, leaving a half-released version that cannot
+      # be replaced. A glob means "whatever happens to be in the directory today",
+      # which is precisely how a package nobody intended to ship gets published.
+      # Adding a package here is a deliberate act; that is the point.
+      - name: Build the released packages
+        run: |
+          python -m pip install --upgrade build twine
+          PACKAGES="
+            warrantor_admission
+            warrantor_agent
+            warrantor_backup
+            warrantor_harness
+            warrantor_hf_plugin
+            warrantor_jira
+            warrantor_langchain
+            warrantor_ocsf
+            warrantor_rbac
+            warrantor_retention
+            warrantor_sla
+            warrantor_vllm
+          "
+          for pkg in $PACKAGES; do
+            test -f "python/$pkg/pyproject.toml" || { echo "::error::python/$pkg has no pyproject.toml"; exit 1; }
+            echo "::group::$pkg"
+            python -m build --outdir dist/ "python/$pkg"
+            echo "::endgroup::"
+          done
+          echo "built $(ls dist/*.whl | wc -l) wheels"
+
+      # Fail before the irreversible step if the count is not what we expect.
+      - name: Assert exactly 12 packages
+        run: |
+          n=$(ls dist/*.whl | wc -l)
+          [ "$n" -eq 12 ] || { echo "::error::expected 12 wheels, built $n"; exit 1; }
+
+      # Catches broken READMEs and bad metadata BEFORE the irreversible step.
+      # A malformed long_description is rejected by PyPI at upload, which on a
+      # 12-package release means a partial publish.
+      - name: Validate metadata
+        run: twine check --strict dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-dists
+          path: dist/
+
+  # PyPI's pending-publisher uniqueness constraint is on
+  # (owner, repository, workflow, environment) -- so twelve packages sharing one
+  # environment cannot each have a pending publisher. Registering the second
+  # fails with "already been registered for a different project name".
+  # See https://github.com/pypi/warehouse/issues/16920.
+  #
+  # The fix is one environment per package, which makes each tuple unique. It
+  # also happens to be better practice: a publish to warrantor-agent can be
+  # approved independently of a publish to warrantor-vllm.
+  publish-python:
+    name: publish ${{ matrix.project }}
+    needs: build-python
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    strategy:
+      # Do NOT stop other packages when one fails. A half-published release is
+      # already the bad outcome; cancelling the rest makes it worse and less
+      # legible, and PyPI versions cannot be replaced.
+      fail-fast: false
+      matrix:
+        include:
+          - { dir: warrantor_admission,  project: warrantor-admission,  env: pypi-warrantor-admission }
+          - { dir: warrantor_agent,      project: warrantor-agent,      env: pypi-warrantor-agent }
+          - { dir: warrantor_backup,     project: warrantor-backup,     env: pypi-warrantor-backup }
+          - { dir: warrantor_harness,    project: warrantor-harness,    env: pypi-warrantor-harness }
+          - { dir: warrantor_hf_plugin,  project: warrantor-hf-plugin,  env: pypi-warrantor-hf-plugin }
+          - { dir: warrantor_jira,       project: warrantor-jira,       env: pypi-warrantor-jira }
+          - { dir: warrantor_langchain,  project: warrantor-langchain,  env: pypi-warrantor-langchain }
+          - { dir: warrantor_ocsf,       project: warrantor-ocsf,       env: pypi-warrantor-ocsf }
+          - { dir: warrantor_rbac,       project: warrantor-rbac,       env: pypi-warrantor-rbac }
+          - { dir: warrantor_retention,  project: warrantor-retention,  env: pypi-warrantor-retention }
+          - { dir: warrantor_sla,        project: warrantor-sla,        env: pypi-warrantor-sla }
+          - { dir: warrantor_vllm,       project: warrantor-vllm,       env: pypi-warrantor-vllm }
+    environment:
+      name: ${{ matrix.env }}
+      url: https://pypi.org/project/${{ matrix.project }}/
+    permissions:
+      id-token: write  # mint the OIDC token; nothing else is needed
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-dists
+          path: all-dists/
+
+      # Each job uploads ONLY its own package. The artifact holds all twelve, and
+      # pointing pypi-publish at the whole directory would make every job try to
+      # upload every package -- eleven of which its publisher is not valid for.
+      - name: Select this package's artifacts
+        run: |
+          mkdir -p dist
+          # Wheel and sdist use the underscore form of the name.
+          cp all-dists/${{ matrix.dir }}-*.whl dist/ 2>/dev/null || true
+          cp all-dists/${{ matrix.dir }}-*.tar.gz dist/ 2>/dev/null || true
+          n=$(ls dist/ | wc -l)
+          [ "$n" -eq 2 ] || { echo "::error::expected 2 artifacts for ${{ matrix.project }}, found $n"; ls -la all-dists/; exit 1; }
+          ls -la dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        # No `password:` key. That absence is the point.
+
+  # ── Rust ──────────────────────────────────────────────────────────────────
+  # Split by dependency order: crates.io will reject warrantor-warrant if the
+  # crates it depends on are not already there.
+  publish-crate-deps:
+    name: publish crate dependencies
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: crates-io
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - name: Publish dependencies first
+        working-directory: rust
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        # FOUR crates deep, not two: warrantor-api is a path dependency of both
+        # trust-core and authority-spec. Publishing trust-core first fails, and by
+        # then nothing can be taken back. `--no-verify` is deliberately NOT used;
+        # let cargo confirm each crate builds from its own packaged form.
+        run: |
+          cargo publish -p warrantor-api
+          cargo publish -p warrantor-trust-core
+          cargo publish -p warrantor-authority-spec
+
+  publish-crate:
+    name: publish warrantor-warrant
+    needs: publish-crate-deps
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: crates-io
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - name: Publish
+        working-directory: rust
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        # The token this action produces lives ~30 minutes and is revoked in the
+        # action's post step when the job ends.
+        run: cargo publish -p warrantor-warrant
+
+  # ── npm ───────────────────────────────────────────────────────────────────
+  publish-npm:
+    name: publish npm packages
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write   # OIDC auth AND the provenance attestation
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs a recent CLI; older npm silently falls back to
+      # looking for a token and fails with a confusing auth error.
+      - run: npm install -g npm@latest
+
+      - name: Publish each public package
+        run: |
+          for pkg in mcp-server mcp-gateway protocol-contracts; do
+            echo "::group::@warrantor/$pkg"
+            ( cd "typescript/$pkg" && npm install --no-audit --no-fund && npm run build && npm publish --access public )
+            echo "::endgroup::"
+          done
+        # No NODE_AUTH_TOKEN. npm detects the OIDC environment on its own, and
+        # publishes provenance by default when it does.

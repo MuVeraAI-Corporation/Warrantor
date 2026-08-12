@@ -1,0 +1,171 @@
+# Prebuilt binaries and container images.
+#
+# ── Why this exists ──────────────────────────────────────────────────────────
+#
+# `cargo install warrantor-warrant` requires a Rust toolchain. The people most
+# likely to want a CLI that supervises their coding agent are not necessarily
+# Rust developers, and asking them to install a compiler first loses most of
+# them before the first command. A downloadable binary removes that.
+#
+# It also unblocks three other channels that all read from GitHub Releases:
+# Homebrew, Scoop, and `cargo binstall` (which needs the conventional
+# `<name>-<version>-<target>` artifact naming used below).
+#
+# ── Why the images are built here rather than pushed from a laptop ───────────
+#
+# Pushing to ghcr.io from a workstation needs a personal access token with
+# `write:packages`, which is a long-lived credential someone has to hold. In
+# Actions, `GITHUB_TOKEN` carries that permission for the duration of the job
+# and expires with it. Same reasoning as the trusted publishing in publish.yml:
+# a narrow grant that ends on its own beats a permanent one.
+
+name: release-artifacts
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build everything, publish nothing"
+        type: boolean
+        default: true
+
+permissions: {}
+
+jobs:
+  # ── Cross-platform binaries ───────────────────────────────────────────────
+  binaries:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing should not deny the others to users who can use them.
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu,  ext: ""     }
+          - { os: macos-latest,   target: aarch64-apple-darwin,      ext: ""     }
+          - { os: macos-13,       target: x86_64-apple-darwin,       ext: ""     }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc,    ext: ".exe" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # warrantor-api's build script needs protoc, and the whole workspace
+      # depends on it transitively.
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the CLI
+        working-directory: rust
+        run: cargo build --release --target ${{ matrix.target }} --bin warrantor
+
+      # Naming matters: `cargo binstall` infers the URL from this shape, so a
+      # different convention silently costs us that channel.
+      - name: Package
+        shell: bash
+        run: |
+          NAME="warrantor-${GITHUB_REF_NAME:-dev}-${{ matrix.target }}"
+          mkdir -p "dist/$NAME"
+          cp "rust/target/${{ matrix.target }}/release/warrantor${{ matrix.ext }}" "dist/$NAME/"
+          cp LICENSE README.md "dist/$NAME/" 2>/dev/null || true
+          cd dist
+          if [ "${{ matrix.ext }}" = ".exe" ]; then
+            7z a "$NAME.zip" "$NAME" >/dev/null
+          else
+            tar -czf "$NAME.tar.gz" "$NAME"
+          fi
+          ls -la
+
+      # Prove the binary runs on the machine that built it. A release artifact
+      # that was never executed is a guess.
+      - name: Smoke-test the binary
+        if: matrix.target != 'aarch64-apple-darwin'   # cross-arch on x86 runner
+        shell: bash
+        run: |
+          "rust/target/${{ matrix.target }}/release/warrantor${{ matrix.ext }}" --help \
+            | head -5
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.target }}
+          # Block scalar, not a folded string: upload-artifact splits on
+          # newlines, so `a\n  b` folds to "a b" and matches nothing.
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+          if-no-files-found: error
+
+  # ── Container images ──────────────────────────────────────────────────────
+  images:
+    name: image ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # this is what replaces a personal access token
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: warrantor-mcp,    context: ".",     dockerfile: "typescript/mcp-server/Dockerfile" }
+          - { image: trust-core,       context: "rust",  dockerfile: "rust/Dockerfile.trust-core" }
+          - { image: agent-identity,   context: "go/agent-identity", dockerfile: "go/agent-identity/Dockerfile" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          # workflow_dispatch builds but does not push, so the image can be
+          # rehearsed without publishing anything.
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Attach binaries to the GitHub Release ─────────────────────────────────
+  release:
+    name: attach binaries to the release
+    needs: [binaries]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # creating a release is a write to the repository
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: binaries-*
+          merge-multiple: true
+          path: dist/
+      - run: ls -la dist/
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true

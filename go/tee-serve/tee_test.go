@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -376,9 +377,12 @@ func TestMockProviderDefaults(t *testing.T) {
 
 // 21. End-to-end against a real HTTP server as the upstream (via SocketUpstream).
 func TestEndToEndOverUnixSocket(t *testing.T) {
+	requireUnixSocketDial(t)
 	// Spin up an HTTP server speaking HTTP over a Unix socket, then point SocketUpstream at it.
 	dir := t.TempDir()
-	sockPath := dir + "/upstream.sock"
+	// filepath.Join, not string concatenation: mixing separators produces paths some platforms
+	// reject outright.
+	sockPath := filepath.Join(dir, "upstream.sock")
 	ln, err := listenUnix(sockPath)
 	if err != nil {
 		t.Fatalf("listen: %v", err)

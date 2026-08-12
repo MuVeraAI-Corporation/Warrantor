@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://warrantor.dev/schemas/ActionReceipt/v2/war-receipt.schema.json",
+  "title": "Warrantor Action Receipt (WAR) v2.0 — in-toto predicate",
+  "description": "The predicate of an in-toto Statement carried inside a DSSE envelope. Normative spec: specs/warrantor-v4/01-war-receipt.md. Payload MUST be JCS-canonical (RFC 8785) JSON.",
+  "type": "object",
+  "required": ["binding", "actor", "authority", "decision", "operation", "artifacts"],
+  "additionalProperties": false,
+
+  "properties": {
+    "binding": {
+      "type": "object",
+      "required": ["receipt_id", "phase", "nonce", "issued_at", "expires_at", "enforcement_mode"],
+      "additionalProperties": false,
+      "properties": {
+        "receipt_id": { "type": "string", "format": "uuid", "description": "UUIDv7, time-ordered" },
+        "phase": { "enum": ["pre_commit", "post_commit", "atomic"] },
+        "parent_receipt": { "type": ["string", "null"], "format": "uuid" },
+        "nonce": { "type": "string", "contentEncoding": "base64", "minLength": 22 },
+        "issued_at": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "enforcement_mode": {
+          "enum": ["mediated", "advisory"],
+          "description": "MANDATORY. 'advisory' receipts MUST NOT be accepted as evidence of non-bypassability."
+        }
+      }
+    },
+
+    "actor": {
+      "type": "object",
+      "required": ["principal", "workload_id", "svid_digest"],
+      "additionalProperties": false,
+      "properties": {
+        "principal": { "type": "string", "description": "Accountable human or governed autonomous principal (Plane 1)" },
+        "workload_id": { "type": "string", "pattern": "^spiffe://", "description": "SPIFFE ID; MUST be live and unrevoked at issuance (I-01)" },
+        "svid_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+
+    "authority": {
+      "type": "object",
+      "description": "Enforces I-02. Verifiers MUST recompute effective_capabilities from chain[] and reject on mismatch.",
+      "required": ["chain", "effective_capabilities", "intersection_proof"],
+      "additionalProperties": false,
+      "properties": {
+        "chain": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Ordered root-first delegation links",
+          "items": {
+            "type": "object",
+            "required": ["issuer", "subject", "capabilities", "not_before", "not_after", "token_digest", "token_format"],
+            "additionalProperties": false,
+            "properties": {
+              "issuer": { "type": "string" },
+              "subject": { "type": "string" },
+              "capabilities": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+              "not_before": { "type": "string", "format": "date-time" },
+              "not_after": { "type": "string", "format": "date-time" },
+              "token_digest": { "$ref": "#/$defs/digest" },
+              "token_format": {
+                "enum": ["id_jag", "oauth_rfc8693", "aae"],
+                "description": "Warrantor verifies these formats; it does not define new ones."
+              }
+            }
+          }
+        },
+        "effective_capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The INTERSECTION across all links. Never the union."
+        },
+        "intersection_proof": {
+          "type": "object",
+          "required": ["algorithm", "links_digest", "result_digest"],
+          "additionalProperties": false,
+          "properties": {
+            "algorithm": { "type": "string", "examples": ["warrantor-intersect-v1"] },
+            "links_digest": { "$ref": "#/$defs/digest" },
+            "result_digest": { "$ref": "#/$defs/digest" }
+          }
+        },
+        "budget": {
+          "type": ["object", "null"],
+          "description": "Remaining autonomy budget at issuance (P7/ABS)",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "decision": {
+      "type": "object",
+      "required": ["verdict", "engine", "policy_digest", "inputs_digest", "evaluated_at"],
+      "additionalProperties": false,
+      "properties": {
+        "verdict": { "enum": ["allow", "deny"] },
+        "engine": { "type": "string", "examples": ["cedar@4", "opa@1"], "description": "Warrantor embeds a policy engine; it does not replace one." },
+        "policy_digest": { "$ref": "#/$defs/digest" },
+        "inputs_digest": { "$ref": "#/$defs/digest" },
+        "evaluated_at": { "type": "string", "format": "date-time", "description": "MUST be commit time, not session start (I-04)" },
+        "advisory_signals": {
+          "type": "array",
+          "description": "Guardrail/classifier outputs. Advisory only — they inform, never decide.",
+          "items": {
+            "type": "object",
+            "required": ["source", "signal", "score"],
+            "additionalProperties": false,
+            "properties": {
+              "source": { "type": "string", "examples": ["nemo-guardrails", "shieldstral-3b", "garak"] },
+              "signal": { "type": "string" },
+              "score": { "type": "number" },
+              "model_digest": { "$ref": "#/$defs/digest" }
+            }
+          }
+        }
+      }
+    },
+
+    "operation": {
+      "type": "object",
+      "required": ["class", "target", "method", "parameters_digest", "reversible", "consequence_tier"],
+      "additionalProperties": false,
+      "properties": {
+        "class": { "type": "string", "examples": ["tool.invoke", "network.egress", "artifact.publish", "credential.issue"] },
+        "target": { "type": "string" },
+        "method": { "type": "string" },
+        "parameters_digest": { "$ref": "#/$defs/digest" },
+        "reversible": { "type": "boolean" },
+        "consequence_tier": {
+          "enum": ["routine", "elevated", "critical"],
+          "description": "Selects anchoring policy (spec §7) and human-approval requirement (I-08)."
+        },
+        "human_approval": {
+          "type": ["object", "null"],
+          "description": "REQUIRED when consequence_tier = critical (I-08). Non-delegable.",
+          "required": ["approver", "approved_at", "approval_digest"],
+          "additionalProperties": false,
+          "properties": {
+            "approver": { "type": "string" },
+            "approved_at": { "type": "string", "format": "date-time" },
+            "approval_digest": { "$ref": "#/$defs/digest" }
+          }
+        }
+      }
+    },
+
+    "artifacts": {
+      "type": "object",
+      "description": "Enforces I-06: identity is the content digest, never a name, tag, or URI.",
+      "required": ["model"],
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "object",
+          "required": ["digest", "format"],
+          "additionalProperties": false,
+          "properties": {
+            "digest": { "$ref": "#/$defs/digest" },
+            "format": { "type": "string", "examples": ["safetensors", "gguf"] },
+            "oms_signature_ref": { "type": "string", "description": "Reference to the OpenSSF Model Signing detached signature" }
+          }
+        },
+        "runtime_aibom": {
+          "type": ["object", "null"],
+          "description": "CycloneDX ML-BOM bound to the RUNTIME-attested digest that actually served this action.",
+          "required": ["bom_ref", "bom_digest", "bound_at"],
+          "additionalProperties": false,
+          "properties": {
+            "bom_ref": { "type": "string" },
+            "bom_digest": { "$ref": "#/$defs/digest" },
+            "bound_at": { "type": "string", "format": "date-time" }
+          }
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["digest"],
+            "additionalProperties": false,
+            "properties": {
+              "digest": { "$ref": "#/$defs/digest" },
+              "skill_card_ref": { "type": "string" },
+              "signature_ref": { "type": "string", "description": "e.g. skill.oms.sig" }
+            }
+          }
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["identifier", "canonical_resource_id"],
+            "additionalProperties": false,
+            "properties": {
+              "identifier": { "type": "string" },
+              "canonical_resource_id": {
+                "type": "string",
+                "description": "MUST be the provider-resolved identifier, never a caller-supplied string. Closes the confused-deputy class."
+              },
+              "digest": { "$ref": "#/$defs/digest" }
+            }
+          }
+        }
+      }
+    },
+
+    "platform_verdict": {
+      "type": ["object", "null"],
+      "description": "OPTIONAL high-assurance tier. Absent = the receipt makes NO hardware claim; verifiers MUST NOT infer one.",
+      "required": ["authorization", "platform", "ar4si_tier", "verifier", "appraised_at"],
+      "additionalProperties": false,
+      "properties": {
+        "authorization": { "enum": ["Authorised", "Unauthorised", "Indeterminate"] },
+        "platform": { "enum": ["Attested", "Contested", "Expired"] },
+        "ar4si_tier": { "enum": ["None", "Affirming", "Warning", "Contraindicated"] },
+        "evidence_ref": { "type": "string" },
+        "verifier": { "type": "string", "examples": ["veraison", "nras", "intel-trust-authority"] },
+        "appraised_at": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "outcome": {
+      "type": ["object", "null"],
+      "description": "MANDATORY when phase is post_commit or atomic. Establishes provenance of the output, NOT re-derivability.",
+      "required": ["status", "outcome_digest"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["success", "failure", "aborted", "denied"] },
+        "outcome_digest": { "$ref": "#/$defs/digest" },
+        "effects": { "type": "array", "items": { "type": "string" } },
+        "error": { "type": ["string", "null"] },
+        "rollback_pointer": { "type": ["string", "null"] }
+      }
+    },
+
+    "anchor": {
+      "type": ["object", "null"],
+      "description": "Transparency-log anchoring state. Tiered: inline sign, batched anchor (spec §7).",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["pending", "included", "failed"] },
+        "log": { "type": "string", "examples": ["rekor-v2"] },
+        "batch_root": { "$ref": "#/$defs/digest" },
+        "inclusion_proof": { "type": "string" },
+        "anchored_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "binding": { "properties": { "phase": { "const": "post_commit" } } } } },
+      "then": { "required": ["outcome"] }
+    },
+    {
+      "if": { "properties": { "binding": { "properties": { "phase": { "const": "atomic" } } } } },
+      "then": {
+        "required": ["outcome"],
+        "properties": { "operation": { "properties": { "reversible": { "const": true }, "consequence_tier": { "const": "routine" } } } }
+      }
+    },
+    {
+      "if": { "properties": { "operation": { "properties": { "consequence_tier": { "const": "critical" } } } } },
+      "then": { "properties": { "operation": { "required": ["human_approval"] } } }
+    }
+  ],
+
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^(sha256|sha384|sha512|blake3):[0-9a-f]{32,128}$",
+      "description": "Algorithm-prefixed content digest. Crypto-agility is mandatory: implementations MUST NOT hardcode a single algorithm."
+    }
+  }
+}

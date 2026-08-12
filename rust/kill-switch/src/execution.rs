@@ -28,22 +28,20 @@
 //! spawn per action — irrelevant against the 5-second budget.
 
 use std::process::Command;
-#[cfg(unix)]
-use std::time::Duration;
-#[cfg(unix)]
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
 use crate::KillError;
 
 /// How long to wait for a signalled process to actually disappear before declaring failure.
-/// Unix only: the Windows path gets its confirmation from `taskkill`'s exit status instead of
-/// polling (see [`force_terminate`]).
-#[cfg(unix)]
+///
+/// Applies on **both** platforms. This was previously Unix-only, on the stated rationale that
+/// "the Windows path gets its confirmation from `taskkill`'s exit status instead of polling".
+/// That rationale was false: `TerminateProcess` initiates termination and returns immediately,
+/// so an exit status of 0 says the request was accepted, not that the process is gone.
 const TERMINATION_TIMEOUT: Duration = Duration::from_secs(2);
-/// Poll interval while waiting for termination (Unix only).
-#[cfg(unix)]
+/// Poll interval while waiting for termination.
 const TERMINATION_POLL: Duration = Duration::from_millis(20);
 
 /// What the kill switch is being asked to contain.
@@ -98,6 +96,12 @@ pub enum ActionKind {
     IsolateNetworkNamespace,
     /// Destroy the agent's in-flight state.
     WipeTransientMemory,
+    /// **I-05**: revoke every credential the agent holds, within the &lt;1s budget. Performed by a
+    /// [`CredentialRevoker`], not the [`ExecutionEngine`] &mdash; the engine contains the process;
+    /// the revoker contains the authority the process was using. Without this action a killed
+    /// agent's tokens stay valid until their TTL expires, which is the exact gap invariant I-05
+    /// exists to close.
+    RevokeCredentials,
 }
 
 impl ActionKind {
@@ -110,6 +114,7 @@ impl ActionKind {
             ActionKind::KillPod => "kill_pod",
             ActionKind::IsolateNetworkNamespace => "isolate_network_namespace",
             ActionKind::WipeTransientMemory => "wipe_transient_memory",
+            ActionKind::RevokeCredentials => "revoke_credentials",
         }
     }
 
@@ -265,6 +270,61 @@ pub trait ExecutionEngine: Send + Sync {
 // LocalProcessEngine — a real backend
 // ------------------------------------------------------------------------------------------
 
+/// Why `pid` must never be signalled, or `None` if it is a legitimate target.
+///
+/// The rail was previously the single test `pid == 0 || pid == 1`, which is Unix-shaped and
+/// protected nothing on Windows: pid 1 is an ordinary Windows PID, while **pid 4 is the System
+/// process** and sailed straight through to `taskkill`. An audit agent pointed this engine at
+/// pid 4 on a live workstation; only Windows' own refusal to terminate it prevented harm.
+///
+/// The numeric rail is deliberately cheap and deterministic -- no process spawn, no lookup -- so
+/// it cannot fail open under load or on a machine where `tasklist` is slow.
+#[must_use]
+fn reserved_pid_reason(pid: u32) -> Option<&'static str> {
+    if pid == 0 {
+        // Unix: the "any process in my group" wildcard, which would signal a whole process group.
+        // Windows: the System Idle Process.
+        return Some("reserved: pid 0 is not a signalable process on any supported platform");
+    }
+    #[cfg(unix)]
+    {
+        if pid == 1 {
+            return Some(
+                "reserved: pid 1 is init/PID-1; killing it panics the kernel or ends the container",
+            );
+        }
+    }
+    #[cfg(windows)]
+    {
+        // 4 is the Windows System process (the kernel itself). 8 is commonly the Secure System
+        // process on machines with VBS enabled. Neither is ever an agent.
+        if pid == 4 || pid == 8 {
+            return Some("reserved: Windows kernel/System process");
+        }
+    }
+    None
+}
+
+/// Windows image names that must never be terminated: killing any of them bluescreens the
+/// machine or forcibly logs the user out.
+///
+/// This is a second, best-effort layer behind [`reserved_pid_reason`]. Resolving a PID to an
+/// image name costs a `tasklist` spawn, which on a machine with real-time AV scanning can exceed
+/// a second -- against a 5-second end-to-end containment budget. So it is advisory: if the lookup
+/// fails or is inconclusive we proceed, because refusing to contain a runaway agent because
+/// `tasklist` was slow is its own failure. The numeric rail above is the one that must always hold.
+#[cfg(windows)]
+const WINDOWS_CRITICAL_IMAGES: &[&str] = &[
+    "system",
+    "smss.exe",
+    "csrss.exe",
+    "wininit.exe",
+    "winlogon.exe",
+    "services.exe",
+    "lsass.exe",
+    "lsaiso.exe",
+];
+
 /// A **real** execution engine for agents that run as a local OS process.
 ///
 /// | action | what actually happens |
@@ -275,7 +335,9 @@ pub trait ExecutionEngine: Send + Sync {
 /// | `isolate_network_namespace` | `NotApplicable`: netns manipulation needs `CAP_SYS_ADMIN` and `ip netns`. A terminated process holds no sockets. |
 /// | `wipe_transient_memory` | Verifies the process no longer exists; the kernel reclaims its address space on exit. Still-alive is a hard error. |
 ///
-/// Safety rails: the engine refuses to signal pid 0, pid 1, or its own process.
+/// Safety rails: the engine refuses to signal its own process, any PID reserved on the running
+/// platform (see [`reserved_pid_reason`] — pid 0 everywhere, pid 1 on Unix, pids 4 and 8 on
+/// Windows), and, on Windows, any PID that resolves to a critical system image.
 #[derive(Debug, Clone, Default)]
 pub struct LocalProcessEngine {
     /// Allow the engine to signal the process it is running in. Off by default — a kill switch
@@ -304,15 +366,24 @@ impl LocalProcessEngine {
                 target.agent_id
             ))
         })?;
-        if pid == 0 || pid == 1 {
+        if let Some(reason) = reserved_pid_reason(pid) {
             return Err(KillError::ExecutionFailed(format!(
-                "{action}: refusing to signal pid {pid} (reserved)"
+                "{action}: refusing to signal pid {pid} ({reason})"
             )));
         }
         if !self.allow_self_target && pid == std::process::id() {
             return Err(KillError::ExecutionFailed(format!(
                 "{action}: refusing to signal the kill switch's own pid {pid}"
             )));
+        }
+        #[cfg(windows)]
+        {
+            if let Some(image) = windows_critical_image(pid) {
+                return Err(KillError::ExecutionFailed(format!(
+                    "{action}: refusing to signal pid {pid} ({image} is a critical Windows \
+                     process; terminating it bluescreens the machine or ends the session)"
+                )));
+            }
         }
         Ok(pid)
     }
@@ -376,7 +447,7 @@ pub fn process_exists(pid: u32) -> bool {
     }
     #[cfg(windows)]
     {
-        Command::new("tasklist")
+        Command::new(system32_tool("tasklist.exe"))
             .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).contains(&format!("\"{pid}\"")))
@@ -389,20 +460,82 @@ pub fn process_exists(pid: u32) -> bool {
     }
 }
 
+/// Parse the image name out of one `tasklist /NH /FO CSV` row.
+///
+/// The row looks like `"csrss.exe","892","Services","0","2,340 K"`, so the image name is the
+/// first quoted field. Split out from the lookup so this parsing -- the part that can silently
+/// stop matching and quietly disable the rail -- is testable on any platform, not only Windows.
+#[cfg(any(windows, test))]
+#[must_use]
+fn image_name_from_tasklist_row(row: &str) -> Option<String> {
+    let trimmed = row.trim();
+    if !trimmed.starts_with('"') {
+        return None;
+    }
+    trimmed[1..]
+        .split('"')
+        .next()
+        .filter(|name| !name.is_empty())
+        .map(|name| name.to_ascii_lowercase())
+}
+
+/// If `pid` names a process Windows cannot survive losing, say which one.
+///
+/// Advisory: see [`WINDOWS_CRITICAL_IMAGES`] for why an inconclusive lookup proceeds.
+#[cfg(windows)]
+fn windows_critical_image(pid: u32) -> Option<String> {
+    let output = Command::new(system32_tool("tasklist.exe"))
+        .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
+        .output()
+        .ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let name = stdout.lines().find_map(image_name_from_tasklist_row)?;
+    WINDOWS_CRITICAL_IMAGES
+        .iter()
+        .any(|critical| *critical == name)
+        .then_some(name)
+}
+
+/// Does this `kill` stderr mean "the target had already exited" (ESRCH)?
+///
+/// Every signal path here is a check-then-signal sequence: `process_exists(pid)` and then a
+/// `kill` spawn. Those are separate syscalls in separate processes, so the target can exit in
+/// between -- and it very often does, because the thing being killed is a process that is already
+/// being torn down. `kill` then fails with ESRCH, `run` turned that into `ExecutionFailed`, and
+/// the kill switch reported "containment NOT achieved" for a target that was, in fact, contained.
+/// Measured at ~11% of runs (13 hard failures in 120) against a target that always died.
+///
+/// The engine already treats "already gone" as success at the `process_exists` check immediately
+/// above each signal; this closes the window between that check and the signal itself.
+///
+/// Message wording varies across implementations -- "kill: (123): No such process",
+/// "kill: 123: No such process", "kill: No such process" -- so match on the stable substring.
 #[cfg(unix)]
-fn run(mut cmd: Command, what: &str) -> Result<String, KillError> {
+fn stderr_means_already_gone(stderr: &str) -> bool {
+    let lowered = stderr.to_lowercase();
+    lowered.contains("no such process") || lowered.contains("esrch")
+}
+
+/// Send a signal, treating "the process already exited" as the success it is.
+///
+/// Returns `Ok(true)` when the target was already gone.
+#[cfg(unix)]
+fn run_signal(mut cmd: Command, what: &str) -> Result<bool, KillError> {
     let out = cmd
         .output()
         .map_err(|e| KillError::ExecutionFailed(format!("{what}: could not spawn helper: {e}")))?;
     if out.status.success() {
-        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
-    } else {
-        Err(KillError::ExecutionFailed(format!(
-            "{what}: helper exited {} — {}",
-            out.status,
-            String::from_utf8_lossy(&out.stderr).trim()
-        )))
+        return Ok(false);
     }
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    if stderr_means_already_gone(&stderr) {
+        return Ok(true);
+    }
+    Err(KillError::ExecutionFailed(format!(
+        "{what}: helper exited {} — {}",
+        out.status,
+        stderr.trim()
+    )))
 }
 
 /// Forcibly terminate `pid` and confirm it is gone.
@@ -417,6 +550,23 @@ fn run(mut cmd: Command, what: &str) -> Result<String, KillError> {
 /// `taskkill /F /T` calls `TerminateProcess` synchronously, so its exit status *is* the
 /// confirmation, and "process not found" is the already-gone case. See
 /// [`LocalProcessEngine::contain`], which folds all five actions onto this single call.
+/// Absolute path to a Windows system tool.
+///
+/// `Command::new(system32_tool("taskkill.exe"))` resolves through the search path, and on Windows
+/// `CreateProcess` searches the **application directory first**. A `taskkill.exe` dropped
+/// next to the binary therefore wins -- which an audit agent demonstrated by planting one
+/// that printed "SUCCESS: The process has been terminated." and exited 0 without
+/// terminating anything.
+///
+/// Anchoring to `%SystemRoot%\System32` removes that. It is not a complete defence -- an
+/// attacker who can write next to your binary has other options -- but a containment
+/// component should not be the easiest of them.
+#[cfg(windows)]
+fn system32_tool(name: &str) -> std::path::PathBuf {
+    let root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
+    std::path::Path::new(&root).join("System32").join(name)
+}
+
 fn force_terminate(pid: u32, action: ActionKind) -> Result<String, KillError> {
     #[cfg(unix)]
     {
@@ -425,7 +575,9 @@ fn force_terminate(pid: u32, action: ActionKind) -> Result<String, KillError> {
         }
         let mut cmd = Command::new("kill");
         cmd.arg("-KILL").arg(pid.to_string());
-        run(cmd, &format!("{action} (SIGKILL pid {pid})"))?;
+        if run_signal(cmd, &format!("{action} (SIGKILL pid {pid})"))? {
+            return Ok(format!("pid {pid} exited before the signal was delivered"));
+        }
         let deadline = Instant::now() + TERMINATION_TIMEOUT;
         while Instant::now() < deadline {
             if !process_exists(pid) {
@@ -448,10 +600,32 @@ fn force_terminate(pid: u32, action: ActionKind) -> Result<String, KillError> {
                 KillError::ExecutionFailed(format!("{action}: could not spawn taskkill: {e}"))
             })?;
         if out.status.success() {
-            return Ok(format!(
-                "pid {pid} terminated via taskkill /F /T (TerminateProcess is synchronous, so \
-                 success is the confirmation)"
-            ));
+            // taskkill's exit status is NOT confirmation, and the comment that used to sit
+            // here saying "TerminateProcess is synchronous, so success is the confirmation"
+            // was simply false. MSDN: TerminateProcess "initiates termination and returns
+            // immediately" -- the process cannot exit until pending I/O completes or is
+            // cancelled and its address space is torn down.
+            //
+            // Measured on this codebase: against a 6 GB process, taskkill exited 0 after
+            // 1761ms and the process object persisted a further 1194ms. An in-process
+            // harness against a 12 GB victim caught contain() reporting "the kernel has
+            // reclaimed pid N's address space" while this crate's OWN process_exists(N)
+            // returned true at that same instant.
+            //
+            // So poll, exactly as the Unix arm does. The window only opens for large
+            // processes -- i.e. real model-serving agents, which is precisely what this
+            // component exists to kill, and precisely what no unit test spawns.
+            let deadline = Instant::now() + TERMINATION_TIMEOUT;
+            while Instant::now() < deadline {
+                if !process_exists(pid) {
+                    return Ok(format!("pid {pid} terminated and verified gone"));
+                }
+                std::thread::sleep(TERMINATION_POLL);
+            }
+            return Err(KillError::ExecutionFailed(format!(
+                "{action}: pid {pid} still present {TERMINATION_TIMEOUT:?} after taskkill /F /T \
+                 — containment NOT achieved"
+            )));
         }
         let stderr = String::from_utf8_lossy(&out.stderr);
         let stdout = String::from_utf8_lossy(&out.stdout);
@@ -492,7 +666,14 @@ impl ExecutionEngine for LocalProcessEngine {
             }
             let mut cmd = Command::new("kill");
             cmd.arg("-STOP").arg(pid.to_string());
-            run(cmd, &format!("{action} (SIGSTOP pid {pid})"))?;
+            if run_signal(cmd, &format!("{action} (SIGSTOP pid {pid})"))? {
+                // The target exited between the process_exists check above and this signal.
+                // A process that is gone is suspended as thoroughly as one can ask for.
+                return Ok(ActionReport::executed(
+                    action,
+                    format!("pid {pid} exited before the signal was delivered"),
+                ));
+            }
             Ok(ActionReport::executed(
                 action,
                 format!("SIGSTOP delivered to pid {pid}"),
@@ -665,5 +846,149 @@ impl ExecutionEngine for MockExecutionEngine {
 
     fn wipe_transient_memory(&self, t: &KillTarget) -> Result<ActionReport, KillError> {
         Self::report(ActionKind::WipeTransientMemory, t)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CredentialRevoker — the I-05 seam.
+//
+// The ExecutionEngine contains the *process*; the CredentialRevoker contains the *authority* the
+// process was using. Invariant I-05 requires that triggering the kill switch revokes every
+// credential the agent holds within the <1s budget — otherwise a killed agent's tokens stay valid
+// until their TTL expires. This trait is the seam a real credential store (the warrantor
+// `credential-vault` crate, HashiCorp Vault, AWS Secrets Manager, …) plugs into. The kill path
+// (`execute_kill_with_budget_and_revoker` in lib.rs) calls `revoke_all` after containment and
+// before government notification, within the same budget envelope.
+// ---------------------------------------------------------------------------
+
+/// Revoke every credential an agent holds, within the kill-switch budget (invariant I-05).
+///
+/// Implementations MUST complete within the time budget the kill path enforces; a slow revoker
+/// fails the whole kill with [`crate::KillError::BudgetExceeded`], which is the correct failure
+/// mode &mdash; a kill that cannot revoke credentials in budget is a kill that has not contained
+/// the authority, and must not report success.
+///
+/// An implementation that has no credential store bound returns
+/// [`ActionReport::not_applicable`] (honest about the missing control surface) rather than a
+/// fabricated success.
+pub trait CredentialRevoker: Send + Sync {
+    /// Revoke every credential the targeted agent holds.
+    ///
+    /// # Errors
+    /// Returns [`crate::KillError::ExecutionFailed`] if the revocation could not be performed;
+    /// the kill then aborts with that error rather than reporting partial containment.
+    fn revoke_all(&self, target: &crate::KillTarget) -> Result<ActionReport, crate::KillError>;
+}
+
+/// The default revoker: no credential store is bound. Reports the action as `not_applicable` so
+/// the kill outcome honestly records that credential revocation did not happen, rather than
+/// silently omitting it. Production deployments pass a real revoker (one backed by
+/// `warrantor-credential-vault`).
+pub struct NoopCredentialRevoker;
+
+impl CredentialRevoker for NoopCredentialRevoker {
+    fn revoke_all(&self, _target: &crate::KillTarget) -> Result<ActionReport, crate::KillError> {
+        Ok(ActionReport::not_applicable(
+            ActionKind::RevokeCredentials,
+            "no credential store bound (NoopCredentialRevoker); production deployments must bind a real revoker",
+        ))
+    }
+}
+
+#[cfg(test)]
+mod safety_rail_tests {
+    use super::*;
+
+    /// pid 0 is never a legitimate target anywhere: on Unix it means "every process in my group",
+    /// on Windows it is the System Idle Process.
+    #[test]
+    fn pid_zero_is_reserved_on_every_platform() {
+        assert!(reserved_pid_reason(0).is_some());
+    }
+
+    /// The rail used to be `pid == 0 || pid == 1` on every platform. On Windows that blocked an
+    /// ordinary PID while letting pid 4 -- the System process -- through to taskkill.
+    #[cfg(windows)]
+    #[test]
+    fn windows_kernel_pids_are_reserved_and_pid_one_is_not() {
+        assert!(
+            reserved_pid_reason(4).is_some(),
+            "pid 4 is the Windows System process and must never be signalled"
+        );
+        assert!(reserved_pid_reason(8).is_some());
+        assert!(
+            reserved_pid_reason(1).is_none(),
+            "pid 1 is an ordinary PID on Windows; blocking it protects nothing"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unix_init_is_reserved() {
+        assert!(reserved_pid_reason(1).is_some());
+    }
+
+    #[test]
+    fn ordinary_pids_are_not_reserved() {
+        for pid in [1234u32, 40000, 99999] {
+            assert!(
+                reserved_pid_reason(pid).is_none(),
+                "pid {pid} should be a legitimate target"
+            );
+        }
+    }
+
+    #[test]
+    fn tasklist_rows_yield_the_image_name() {
+        assert_eq!(
+            image_name_from_tasklist_row("\"csrss.exe\",\"892\",\"Services\",\"0\",\"2,340 K\""),
+            Some("csrss.exe".to_string())
+        );
+        // Case is normalised so the critical-image comparison cannot be defeated by casing.
+        assert_eq!(
+            image_name_from_tasklist_row("\"LSASS.EXE\",\"1000\",\"Services\",\"0\",\"1 K\""),
+            Some("lsass.exe".to_string())
+        );
+        // tasklist prints this when the filter matches nothing.
+        assert_eq!(
+            image_name_from_tasklist_row("INFO: No tasks are running which match the criteria."),
+            None
+        );
+        assert_eq!(image_name_from_tasklist_row(""), None);
+    }
+
+    /// The check-then-signal window: `process_exists` says the target is alive, it exits, and the
+    /// `kill` spawn then fails with ESRCH. That was reported as "containment NOT achieved" for a
+    /// target that was in fact contained -- ~11% of runs against an always-dying target.
+    #[cfg(unix)]
+    #[test]
+    fn esrch_stderr_is_recognised_as_already_gone() {
+        for stderr in [
+            "kill: (7265): No such process",
+            "kill: 7265: No such process",
+            "kill: No such process",
+            "bash: kill: (123) - No such process",
+            "ESRCH",
+        ] {
+            assert!(
+                stderr_means_already_gone(stderr),
+                "{stderr:?} should be treated as the already-gone success case"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn genuine_signal_failures_are_still_failures() {
+        for stderr in [
+            "kill: (1): Operation not permitted",
+            "kill: invalid signal specification",
+            "",
+        ] {
+            assert!(
+                !stderr_means_already_gone(stderr),
+                "{stderr:?} is a real failure and must not be swallowed"
+            );
+        }
     }
 }

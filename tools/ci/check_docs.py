@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -67,7 +68,42 @@ def markdown_files() -> list[Path]:
             files.add(root)
         elif root.is_dir():
             files.update(path for path in root.rglob("*.md") if path.is_file())
+
+    # Restrict to TRACKED files so this gate agrees with CI.
+    #
+    # Walking the filesystem makes the verdict depend on untracked working-directory
+    # contents, and it fails in both directions. Committed docs once referenced files
+    # that existed only locally: this check passed and CI failed. Untracked docs later
+    # referenced paths outside the repository: this check failed and CI passed. Neither
+    # is a useful signal, and a gate that disagrees with the one that blocks a merge
+    # teaches people to ignore it.
+    tracked = tracked_markdown()
+    if tracked is not None:
+        files &= tracked
     return sorted(files, key=relative_path)
+
+
+def tracked_markdown() -> set[Path] | None:
+    """Every Markdown file git is tracking, or None if git is unavailable.
+
+    Returning None (rather than an empty set) on failure keeps this check working in a
+    source tarball with no .git directory -- it falls back to the filesystem walk rather
+    than silently reporting zero documents, which would look like a pass.
+    """
+
+    try:
+        completed = subprocess.run(
+            ["git", "ls-files", "-z", "*.md"],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            check=False,
+        )
+    except (OSError, ValueError):
+        return None
+    if completed.returncode != 0:
+        return None
+    names = completed.stdout.decode("utf-8", "replace").split("\0")
+    return {REPOSITORY_ROOT / name for name in names if name}
 
 
 def destination_path(source_path: Path, raw_destination: str) -> Path | None:

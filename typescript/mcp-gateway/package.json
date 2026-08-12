@@ -1,8 +1,17 @@
 {
   "name": "@warrantor/mcp-gateway",
   "version": "1.0.0",
-  "description": "X8 — authority-aware Model Context Protocol (MCP) middleware gateway",
+  "description": "X8 \u2014 authority-aware Model Context Protocol (MCP) middleware gateway",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MuVeraAI-Corporation/Warrantor.git",
+    "directory": "typescript/mcp-gateway"
+  },
+  "homepage": "https://github.com/MuVeraAI-Corporation/Warrantor#readme",
+  "bugs": {
+    "url": "https://github.com/MuVeraAI-Corporation/Warrantor/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

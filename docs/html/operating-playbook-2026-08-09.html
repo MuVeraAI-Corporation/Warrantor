@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operating playbook</title><style>
+:root{
+  --bg:#faf9f7; --bg-2:#f5f3ef; --card:#fff; --code-bg:#1e1e2e;
+  --fg:#1a1a1a; --fg-2:#525252; --fg-3:#737373; --fg-code:#c8c8d8;
+  --accent:#d97757; --accent-h:#c4623d; --accent-lt:#f4e6df; --accent-sub:#faf0eb;
+  --line:#e5e2dc; --line-2:#d1ccc3;
+  --green:#3f6b3a; --green-bg:#edf5ed;
+  --amber:#7a5405; --amber-bg:#fdf6e8;
+  --red:#a32f29;   --red-bg:#fdf1ef;
+  --blue:#385781;  --blue-bg:#eef3fa;
+  --purple:#5d4682; --purple-bg:#f2eef8;
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,Charter,Cambria,serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  --mono:'JetBrains Mono','SF Mono',Menlo,Consolas,'Liberation Mono',monospace;
+  --wrap:1180px; --measure:74ch; --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#16151a; --bg-2:#1d1c22; --card:#201f26; --code-bg:#121118;
+    --fg:#ece9e4; --fg-2:#b4afa8; --fg-3:#8b867f; --fg-code:#d3d0e0;
+    --accent:#e59176; --accent-h:#f0a68e; --accent-lt:#3a2a24; --accent-sub:#2a2220;
+    --line:#312f38; --line-2:#413e4a;
+    --green:#8fc088; --green-bg:#1f2b1e;
+    --amber:#dcb265; --amber-bg:#2e2718;
+    --red:#e58a80;   --red-bg:#31201e;
+    --blue:#8fb0e0;  --blue-bg:#1c242f;
+    --purple:#b9a3dd; --purple-bg:#252030;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16151a; --bg-2:#1d1c22; --card:#201f26; --code-bg:#121118;
+  --fg:#ece9e4; --fg-2:#b4afa8; --fg-3:#8b867f; --fg-code:#d3d0e0;
+  --accent:#e59176; --accent-h:#f0a68e; --accent-lt:#3a2a24; --accent-sub:#2a2220;
+  --line:#312f38; --line-2:#413e4a;
+  --green:#8fc088; --green-bg:#1f2b1e; --amber:#dcb265; --amber-bg:#2e2718;
+  --red:#e58a80; --red-bg:#31201e; --blue:#8fb0e0; --blue-bg:#1c242f;
+  --purple:#b9a3dd; --purple-bg:#252030;
+}
+:root[data-theme="light"]{
+  --bg:#faf9f7; --bg-2:#f5f3ef; --card:#fff; --code-bg:#1e1e2e;
+  --fg:#1a1a1a; --fg-2:#525252; --fg-3:#737373; --fg-code:#c8c8d8;
+  --accent:#d97757; --accent-h:#c4623d; --accent-lt:#f4e6df; --accent-sub:#faf0eb;
+  --line:#e5e2dc; --line-2:#d1ccc3;
+  --green:#3f6b3a; --green-bg:#edf5ed; --amber:#7a5405; --amber-bg:#fdf6e8;
+  --red:#a32f29; --red-bg:#fdf1ef; --blue:#385781; --blue-bg:#eef3fa;
+  --purple:#5d4682; --purple-bg:#f2eef8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:1.5rem}
+body{font-family:var(--sans);background:var(--bg);color:var(--fg);line-height:1.68;font-size:16.5px;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:600;line-height:1.25;letter-spacing:-.012em}
+h1{font-size:2.45rem;margin-bottom:.6rem}
+h2{font-size:1.72rem;margin:0 0 .9rem}
+h3{font-size:1.22rem;margin:2rem 0 .6rem}
+h4{font-size:1.03rem;margin:1.4rem 0 .45rem;font-family:var(--sans);font-weight:650;letter-spacing:0}
+p{margin:0 0 .85rem;max-width:var(--measure)}
+ul,ol{margin:0 0 .9rem 1.15rem;max-width:var(--measure)}
+li{margin-bottom:.3rem}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+a:hover{color:var(--accent-h);border-bottom-color:currentColor}
+code{font-family:var(--mono);font-size:.855em;background:var(--bg-2);padding:.11em .38em;
+  border-radius:4px;border:1px solid var(--line);word-break:break-word}
+pre{background:var(--code-bg);color:var(--fg-code);padding:1rem 1.15rem;border-radius:var(--r);
+  overflow-x:auto;margin:0 0 1rem;font-size:.83rem;line-height:1.6;border:1px solid var(--line)}
+pre code{background:none;border:none;padding:0;color:inherit;font-size:1em}
+hr{border:none;border-top:1px solid var(--line);margin:2.2rem 0}
+
+/* ---- shell ---- */
+.shell{display:grid;grid-template-columns:290px minmax(0,1fr);gap:0;max-width:var(--wrap);margin:0 auto}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:1.6rem 1.1rem 3rem;
+  border-right:1px solid var(--line);font-size:.83rem;background:var(--bg)}
+.side::-webkit-scrollbar{width:7px}
+.side::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:4px}
+.side .brand{font-family:var(--serif);font-size:1.02rem;font-weight:600;margin-bottom:.15rem;line-height:1.3}
+.side .brandsub{color:var(--fg-3);font-size:.73rem;margin-bottom:1.1rem;letter-spacing:.02em}
+.side nav a{display:block;padding:.29rem .6rem;color:var(--fg-2);border-radius:6px;
+  border:none;line-height:1.38;border-left:2px solid transparent}
+.side nav a:hover{background:var(--bg-2);color:var(--fg)}
+.side nav a.on{color:var(--accent);background:var(--accent-sub);border-left-color:var(--accent);font-weight:550}
+.side nav .grp{margin:.95rem 0 .3rem;padding-left:.6rem;font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--fg-3);font-weight:650}
+.main{padding:2.4rem 2.6rem 6rem;min-width:0}
+.prog{position:fixed;top:0;left:0;height:2px;background:var(--accent);z-index:99;width:0;transition:width .08s linear}
+.tools{position:fixed;top:.9rem;right:1.1rem;z-index:100;display:flex;gap:.4rem}
+.tools button{font-family:var(--sans);font-size:.74rem;padding:.36rem .68rem;border-radius:20px;
+  border:1px solid var(--line-2);background:var(--card);color:var(--fg-2);cursor:pointer;line-height:1}
+.tools button:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ---- section ---- */
+section{margin-bottom:3.6rem;scroll-margin-top:1.2rem}
+.eyebrow{font-size:.69rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);
+  font-weight:700;margin-bottom:.4rem}
+.lede{font-size:1.07rem;color:var(--fg-2);max-width:var(--measure);margin-bottom:1.4rem}
+
+/* ---- cards / callouts ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:1.15rem 1.3rem;margin:0 0 1.1rem}
+.note{border-left:3px solid var(--accent);background:var(--accent-sub);padding:.9rem 1.15rem;
+  border-radius:0 8px 8px 0;margin:0 0 1.1rem}
+.warn{border-left:3px solid var(--amber);background:var(--amber-bg);padding:.9rem 1.15rem;border-radius:0 8px 8px 0;margin:0 0 1.1rem}
+.danger{border-left:3px solid var(--red);background:var(--red-bg);padding:.9rem 1.15rem;border-radius:0 8px 8px 0;margin:0 0 1.1rem}
+.good{border-left:3px solid var(--green);background:var(--green-bg);padding:.9rem 1.15rem;border-radius:0 8px 8px 0;margin:0 0 1.1rem}
+.note p:last-child,.warn p:last-child,.danger p:last-child,.good p:last-child,.card p:last-child{margin-bottom:0}
+.calltitle{font-weight:700;font-size:.78rem;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.4rem}
+.note .calltitle{color:var(--accent)} .warn .calltitle{color:var(--amber)}
+.danger .calltitle{color:var(--red)} .good .calltitle{color:var(--green)}
+
+/* ---- pills ---- */
+.tag{display:inline-block;font-family:var(--mono);font-size:.63rem;letter-spacing:.06em;
+  padding:.14em .48em;border-radius:4px;border:1px solid;vertical-align:middle;white-space:nowrap}
+.tag-executed{color:var(--green);border-color:var(--green);background:var(--green-bg)}
+.tag-read{color:var(--blue);border-color:var(--blue);background:var(--blue-bg)}
+.tag-external{color:var(--purple);border-color:var(--purple);background:var(--purple-bg)}
+.tag-inferred{color:var(--amber);border-color:var(--amber);background:var(--amber-bg)}
+.tag-unverifiable{color:var(--fg-2);border-color:var(--line-2);background:var(--bg-2)}
+.sev{display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  padding:.16em .55em;border-radius:4px;white-space:nowrap}
+.sev-critical{background:var(--red);color:#fff}
+.sev-high{background:var(--amber);color:#fff}
+.sev-medium{background:var(--blue);color:#fff}
+.sev-low{background:var(--bg-2);color:var(--fg-2);border:1px solid var(--line-2)}
+.grade{display:inline-flex;align-items:center;justify-content:center;min-width:2.3rem;height:1.55rem;
+  border-radius:5px;font-family:var(--mono);font-size:.78rem;font-weight:700;padding:0 .35rem}
+.grade-a{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.grade-b{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)}
+.grade-c{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber)}
+.grade-d{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
+.grade-f{background:var(--red);color:#fff;border:1px solid var(--red)}
+/* Dark theme inverts the solid-fill pills: the palette's dark-mode reds/ambers are light
+   pastels, so white-on-pastel drops to ~2:1. Use a near-black foreground instead. */
+@media (prefers-color-scheme: dark){
+  .sev-critical,.sev-high,.sev-medium,.grade-f{color:#16151a}
+}
+:root[data-theme="dark"] .sev-critical,:root[data-theme="dark"] .sev-high,
+:root[data-theme="dark"] .sev-medium,:root[data-theme="dark"] .grade-f{color:#16151a}
+:root[data-theme="light"] .sev-critical,:root[data-theme="light"] .sev-high,
+:root[data-theme="light"] .sev-medium,:root[data-theme="light"] .grade-f{color:#fff}
+
+/* ---- tables ---- */
+.tw{overflow-x:auto;margin:0 0 1.2rem;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:.845rem}
+th{text-align:left;padding:.62rem .8rem;background:var(--bg-2);color:var(--fg-2);font-weight:650;
+  font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--line);
+  position:sticky;top:0;white-space:nowrap}
+td{padding:.6rem .8rem;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--bg-2)}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--accent)}
+th.sortable::after{content:'\2195';opacity:.32;margin-left:.3em;font-size:.9em}
+
+/* ---- filter bar ---- */
+.filters{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;margin:0 0 .85rem}
+.filters input[type=search]{font-family:var(--sans);font-size:.82rem;padding:.42rem .75rem;border-radius:20px;
+  border:1px solid var(--line-2);background:var(--card);color:var(--fg);min-width:230px;flex:1 1 230px}
+.filters input[type=search]:focus{outline:none;border-color:var(--accent)}
+.chip{font-size:.74rem;padding:.32rem .68rem;border-radius:20px;border:1px solid var(--line-2);
+  background:var(--card);color:var(--fg-2);cursor:pointer;line-height:1;white-space:nowrap;font-family:var(--sans)}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.count{font-size:.76rem;color:var(--fg-3);margin-left:auto;white-space:nowrap}
+
+/* ---- dossier ---- */
+details.dos{border:1px solid var(--line);border-radius:var(--r);margin:0 0 .55rem;background:var(--card);overflow:hidden}
+details.dos[open]{border-color:var(--line-2)}
+details.dos>summary{cursor:pointer;padding:.72rem .95rem;display:grid;
+  grid-template-columns:3.4rem 1fr auto auto;gap:.7rem;align-items:center;list-style:none;font-size:.88rem}
+details.dos>summary::-webkit-details-marker{display:none}
+details.dos>summary:hover{background:var(--bg-2)}
+details.dos[open]>summary{border-bottom:1px solid var(--line);background:var(--bg-2)}
+.dos .did{font-family:var(--mono);font-size:.76rem;color:var(--accent);font-weight:700}
+.dos .dname{font-weight:600}
+.dos .dpath{font-family:var(--mono);font-size:.7rem;color:var(--fg-3);display:block;font-weight:400;margin-top:.1rem}
+.dos .body{padding:1.05rem 1.15rem 1.2rem}
+.dos .body h4:first-child{margin-top:0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:.28rem .85rem;font-size:.83rem;margin:0 0 1rem}
+.kv dt{color:var(--fg-3);font-size:.71rem;text-transform:uppercase;letter-spacing:.06em;
+  font-weight:650;padding-top:.16rem;white-space:nowrap}
+.kv dd{margin:0}
+
+/* ---- scorecard ---- */
+.score{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:.7rem;margin:0 0 1.3rem}
+.sc{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:.85rem .9rem}
+.sc .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--fg-3);
+  font-weight:650;margin-bottom:.42rem;line-height:1.3}
+.sc .val{display:flex;align-items:center;gap:.5rem}
+.sc .cmt{font-size:.75rem;color:var(--fg-2);margin-top:.42rem;line-height:1.45}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:.7rem;margin:0 0 1.4rem}
+.st{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:.85rem .9rem;text-align:center}
+.st .n{font-family:var(--serif);font-size:1.72rem;font-weight:600;color:var(--accent);line-height:1.1}
+.st .l{font-size:.71rem;color:var(--fg-3);text-transform:uppercase;letter-spacing:.06em;
+  margin-top:.28rem;font-weight:650;line-height:1.3}
+
+/* ---- misc ---- */
+.hero{border-bottom:1px solid var(--line);padding-bottom:1.8rem;margin-bottom:2.6rem}
+.meta{display:flex;flex-wrap:wrap;gap:.35rem .9rem;font-size:.79rem;color:var(--fg-3);margin-top:1rem}
+.meta span{white-space:nowrap}
+.verdictbox{background:var(--card);border:2px solid var(--accent);border-radius:var(--r);
+  padding:1.35rem 1.5rem;margin:0 0 1.5rem}
+.verdictbox .vlbl{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);
+  font-weight:700;margin-bottom:.55rem}
+.verdictbox .vtxt{font-family:var(--serif);font-size:1.2rem;line-height:1.52;max-width:66ch}
+.annex{border:2px dashed var(--red);border-radius:var(--r);padding:1.2rem 1.35rem;background:var(--red-bg);margin:0 0 1.3rem}
+.annex .alabel{font-size:.71rem;letter-spacing:.12em;text-transform:uppercase;color:var(--red);
+  font-weight:700;margin-bottom:.55rem}
+.fp{font-family:var(--mono);font-size:.76rem;color:var(--fg-2);word-break:break-all}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1rem;margin-bottom:1.1rem}
+.two p,.two ul{max-width:none}
+.card p,.note p,.warn p,.danger p,.good p,.dos .body p{max-width:none}
+
+@media (max-width:1000px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);padding-bottom:1rem}
+  .side nav{column-count:2;column-gap:1rem}
+  .main{padding:1.6rem 1.15rem 4rem}
+  details.dos>summary{grid-template-columns:3rem 1fr;row-gap:.3rem}
+}
+@media print{
+  .side,.tools,.prog,.filters{display:none!important}
+  .shell{display:block;max-width:none}
+  .main{padding:0}
+  body{font-size:10.5pt;background:#fff;color:#000}
+  details.dos{break-inside:avoid;border-color:#bbb}
+  details.dos>summary{background:#f4f4f4}
+  section{break-before:auto;margin-bottom:1.4rem}
+  pre{white-space:pre-wrap;word-break:break-word;background:#f6f6f6;color:#111;border:1px solid #ccc}
+  a{color:#000;border:none}
+  .verdictbox,.annex{break-inside:avoid}
+}
+</style></head><body>
+<div class="prog" id="prog"></div>
+<div class="tools"><button id="expandBtn" type="button">Expand all</button>
+<button id="themeBtn" type="button">Theme</button></div>
+<div class="shell">
+<aside class="side"><div class="brand">Operating playbook</div>
+<div class="brandsub">The sequenced runbook &amp;mdash; what I do, and exactly what I need from you at each step.</div><nav><div class="grp">Plan</div><a href="#playbook">The six phases</a><div class="grp">You</div><a href="#decisions">Decision log</a><a href="#watch">Standing risks</a></nav></aside>
+<main class="main">
+<div class="hero"><div class="eyebrow">Process document &middot; for Vikram</div>
+<h1>Operating playbook</h1><p class="lede">The sequenced runbook &mdash; what I do, and exactly what I need from you at each step.</p>
+<div class="meta"><span><strong>Evidence cut:</strong> 9 August 2026</span>
+<span><strong>Namespace:</strong> <code>warrantor</code></span>
+<span><strong>Licence:</strong> Apache-2.0 throughout</span>
+<span><strong>Scope:</strong> ~25 components</span></div></div>
+
+<section id="playbook">
+<div class="eyebrow">02 &middot; The sequence</div>
+<h2>Six phases, dependency-ordered</h2>
+<p>No calendar deadline, so this is sequenced by leverage and dependency. Each phase names exactly what I need from you before it can start &amp;mdash; those are the real critical path, not the engineering.</p>
+
+<div class="danger" style="margin-bottom:1.4rem">
+<div class="calltitle">Phase 0 &middot; Unblock &middot; hours, and everything waits on it</div>
+<p>Nothing else on this list can proceed. The repository has <strong>no git remote</strong>, which is why CI has never executed once in 29 commits. Nothing is published, so no developer can install anything. This phase is almost entirely your inputs and almost none of my work &amp;mdash; which is exactly why it is first.</p>
+<h4>What I do</h4><ul><li>Add the remote, push both commits, and watch the first CI run in this project's history actually execute.</li><li>Fix or delete <code>npx aumos-mcp --standalone</code> &amp;mdash; the silent no-op. <strong>This ships before anything is published</strong>, because for a security project a lying quickstart ends the evaluation permanently.</li><li>Execute the <code>warrantor</code> namespace migration across <code>package.json</code>, <code>pyproject.toml</code>, <code>Cargo.toml</code> and the docs, resolving the <code>@aumos</code> / <code>@muveraai</code> collision.</li><li>Add <code>SECURITY.md</code> with a 24h/72h/90-day SLA, <code>MAINTAINERS.md</code>, <code>GOVERNANCE.md</code>, <code>SUPPORT.md</code>, <code>CODEOWNERS</code> &amp;mdash; these directly answer the bus-factor question and cost hours.</li></ul>
+<h4 style="color:var(--accent)">What I need from you</h4><ul><li><strong>The GitHub org and repo name</strong>, and push access. One command from you unblocks six CI workflows.</li><li><strong>Registry claims</strong>: the <code>warrantor</code> npm org, PyPI project names, crates.io names &amp;mdash; plus publish tokens as repository secrets (<code>NPM_TOKEN</code>, <code>PYPI_API_TOKEN</code>, <code>CARGO_REGISTRY_TOKEN</code>).</li><li><strong>Confirm the domain</strong> for <code>security.txt</code>, the PGP key and the issuer identity the specs reference.</li><li><strong>Decide the git identity question</strong>: whether to drop the local <code>aumos@local</code> override so future commits carry your real identity, as the two DCO-signed commits now do.</li></ul>
+<h4>Done when</h4><ul><li>A green CI run is visible on a real remote.</li><li><code>npm view @warrantor/…</code> resolves. <code>pip install warrantor-…</code> works.</li><li>No documented command produces silence.</li></ul>
+</div>
+
+<div class="warn" style="margin-bottom:1.4rem">
+<div class="calltitle">Phase 1 &middot; One command that works &middot; 1–2 weeks</div>
+<p>The measured bar is one to two commands, under five minutes, no account, fully local, with visible output. cloudflare-os took 7,123 stars in four days on exactly that. This phase is worth more than any six components.</p>
+<h4>What I do</h4><ul><li>Build the single-command local demo: <code>npx @warrantor/quickstart</code> or <code>uvx warrantor</code> &amp;mdash; starts the gateway, wraps a sample agent, emits a real signed receipt, prints a URL.</li><li>Rewrite the README with <strong>Quick Start as section #2</strong>, above the architecture prose (the promptfoo ordering).</li><li>Ship the LiteLLM <code>CustomGuardrail</code> adapter &amp;mdash; 708M downloads/month, six lines of YAML to adopt.</li><li>Ship the Claude Agent SDK <code>PreToolUse</code> hook adapter &amp;mdash; the closest structural fit to agent authority.</li><li>Publish <code>llms.txt</code> and <code>llms-full.txt</code>. garak, PyRIT and Guardrails AI all 404 on this; it costs an afternoon and nobody in your tier has it.</li></ul>
+<h4 style="color:var(--accent)">What I need from you</h4><ul><li><strong>Nothing.</strong> This phase is mine, provided Phase 0 is done.</li><li>Optionally: tell me which agent framework your design partners actually run, so the third adapter is the right one rather than a guess.</li></ul>
+<h4>Done when</h4><ul><li>A developer with no context runs one command and sees a signed receipt in under five minutes.</li><li>The README's first code block works verbatim.</li></ul>
+</div>
+
+<div class="warn" style="margin-bottom:1.4rem">
+<div class="calltitle">Phase 2 &middot; The minimum credible package &middot; 2–4 weeks</div>
+<p>This is the artifact set an enterprise security review demands. Almost all of it is cheap, and the expensive failure mode is discovering it is missing <em>after</em> a technical pilot has already succeeded.</p>
+<h4>What I do</h4><ul><li>Signed releases via <code>actions/attest-build-provenance</code> &amp;mdash; free, gives Scorecard <code>Signed-Releases: 10</code>, and makes <code>gh attestation verify</code> work. <strong>OPA and SPIRE both score 0 here</strong>; it is cheap differentiation.</li><li>CycloneDX 1.6 SBOM per release satisfying <strong>CISA's 2026 Minimum Elements</strong> (29 July 2026) including the new SBOM Author Signature. Rewrite <code>model-sbom</code> to emit a real ML-BOM while here.</li><li>Publish the <strong>conformance suite results, dated</strong>, on the sigstore model &amp;mdash; and badge it. You are at 220/220 across four languages and have not told anyone.</li><li>Publish <strong>measured p50/p95/p99</strong> for the policy decision path. Microsoft claims &amp;lt;0.1&amp;nbsp;ms p99; silence is read as slow. You have eleven published budgets and zero benchmarks.</li><li>Complete the CSA AI-CAIQ against AICM v1.1 and commit it &amp;mdash; converts three weeks of questionnaire ping-pong into a link.</li><li>Ship an <strong>observe-only mode</strong>. For an authority substrate this is the difference between a pilot and an outage.</li></ul>
+<h4 style="color:var(--accent)">What I need from you</h4><ul><li><strong>Apply to OSTIF for a free third-party audit</strong> &amp;mdash; funded by OpenSSF Alpha-Omega, at no cost to the project, and they have run a programme covering 25 AI/LLM projects. Long lead time, so apply now. This converts the hardest enterprise gate into a cited artifact. <strong>Only you can submit this.</strong></li><li><strong>Decide on the legal entity.</strong> Qatar QCB &amp;sect;10.7.5 requires the provider's LEI and country of registration &amp;mdash; an unincorporated project cannot be deployed there at all. If Qatar is a target market this moves ahead of everything else on this list.</li></ul>
+<h4>Done when</h4><ul><li>A security architect can be handed a link and stops asking questions.</li><li><code>gh attestation verify</code> succeeds against a published release.</li></ul>
+</div>
+
+<div class="good" style="margin-bottom:1.4rem">
+<div class="calltitle">Phase 3 &middot; The evidence bet &middot; 4–8 weeks</div>
+<p>This is where the differentiation actually lives. Everything before it exists to make this credible.</p>
+<h4>What I do</h4><ul><li><strong>P8 as a DSSE/in-toto envelope over an Inspect <code>.eval</code> digest</strong> &amp;mdash; build on Inspect, do not compete with it. Pin corpus, environment, model, harness, policy, seeds, traces <strong>and the judge</strong>, which nothing else does.</li><li><strong>The per-jurisdiction evidence-pack mapping</strong> &amp;mdash; one table: telemetry field &amp;rarr; QCB AI Register &amp;sect;10.7 field / CBUAE MMS &amp;sect;10.6.1 validation component / SAMA CSF subdomain / DIFC &amp;sect;4.3.6 item. <strong>This is the artifact that wins a Gulf design partner and it is roughly a day of work.</strong></li><li>OCSF 1.9 export using the native <code>ai_agent</code> and <code>delegation</code> objects &amp;mdash; lands in Splunk, Sentinel, Elastic and Security Lake with no parser project.</li><li>Re-express P2 as a <strong>SCITT profile</strong> (RFC 9942 / RFC 9943) rather than a parallel receipt format.</li></ul>
+<h4 style="color:var(--accent)">What I need from you</h4><ul><li><strong>Which design partner goes first, and which of the four use cases they care about.</strong> This decides whether P8 or the jurisdiction mapping leads.</li><li>An intro to whoever signs off on evidence at that partner &amp;mdash; internal audit or model risk, not just engineering. They will tell you in one conversation what three months of guessing will not.</li></ul>
+<h4>Done when</h4><ul><li>A partner's auditor accepts a signed bundle as evidence of something.</li><li>One jurisdiction's evidence pack emits end-to-end from real telemetry.</li></ul>
+</div>
+
+<div class="note" style="margin-bottom:1.4rem">
+<div class="calltitle">Phase 4 &middot; De-mock the hard dependencies &middot; 6–10 weeks</div>
+<p>Two things cannot be de-mocked without physical resources. Everything else in the audit can be fixed with code.</p>
+<h4>What I do</h4><ul><li>Bind real NVIDIA nvTrust/NRAS attestation and verify EAT tokens with cert-chain validation against pinned reference values &amp;mdash; replacing <code>MockBackend</code>.</li><li>Stand up SPIRE and make <code>identity-bindings</code> (the real SPIFFE module, currently with zero importers) the shipped path, retiring <code>agent-identity</code>.</li><li>Prove containment against a real workload on a real cluster &amp;mdash; the Unix <code>SIGSTOP</code>/<code>SIGKILL</code> paths in the new <code>ExecutionEngine</code> compile but have never run.</li></ul>
+<h4 style="color:var(--accent)">What I need from you</h4><ul><li><strong>A confidential-compute VM.</strong> Azure NCCadsH100v5 is GA in East US 2 and West Europe &amp;mdash; you have Azure credit, and this is the single blocker on the attested-inference use case.</li><li><strong>A Kubernetes cluster</strong> with a SPIRE deployment for integration testing.</li><li>Confirmation of which cloud the design partners actually run on, so attestation targets the right platform.</li></ul>
+<h4>Done when</h4><ul><li>An attestation from real hardware verifies, and a token from a different platform is rejected.</li><li>A real process is killed by the kill switch on Linux, in CI.</li></ul>
+</div>
+
+<div class="note" style="margin-bottom:1.4rem">
+<div class="calltitle">Phase 5 &middot; Standards position &middot; ongoing</div>
+<p>The goal you named includes a standards position. This is how it is actually won, and it is cheap relative to its value.</p>
+<h4>What I do</h4><ul><li>Draft the P8 contribution as an in-toto predicate or a SCITT profile rather than a competing format.</li><li>Engage the open in-toto RFC #554 <code>agent-decision</code> thread &amp;mdash; P12 and P2 are the incumbents-in-waiting for that predicate and the registry is where it gets decided.</li><li>Publish the conformance suite as the neutral arbiter for anyone implementing P8 or P12.</li></ul>
+<h4 style="color:var(--accent)">What I need from you</h4><ul><li><strong>A decision on venue</strong>: CoSAI, IETF SCITT, or the Agentic AI Foundation. Each has a different cost and a different audience, and only you can decide where MuVeraAI's name should appear.</li><li>Time on a working-group call. Standards are won by showing up, and that is not something I can do for you.</li></ul>
+<h4>Done when</h4><ul><li>A P8 draft exists in a venue with a document number.</li><li>Someone outside the project implements against the conformance suite.</li></ul>
+</div>
+</section>
+<section id="decisions">
+<div class="eyebrow">03 &middot; Decision log</div>
+<h2>Open decisions only you can make</h2>
+<p>Ordered by how much downstream work each unblocks. Everything else in the playbook is engineering; these are not.</p>
+<div class="tw"><table data-sortable>
+<thead><tr><th>#</th><th>Decision</th><th>Why it cannot wait</th><th>My recommendation</th></tr></thead><tbody>
+<tr><td>1</td><td><strong>GitHub org + push access</strong></td><td>Six CI workflows, all release automation, and every trust signal are blocked on this. 29 commits, zero CI runs.</td><td>Do it today. It is one command and it unblocks more than any engineering task on this list.</td></tr>
+<tr><td>2</td><td><strong>Registry orgs + publish tokens</strong></td><td>Without these there is no install path, so &ldquo;developer adoption&rdquo; is structurally impossible regardless of code quality.</td><td>Claim <code>warrantor</code> on npm, PyPI and crates.io this week, before someone else does.</td></tr>
+<tr><td>3</td><td><strong>Legal entity &mdash; and when</strong></td><td><strong>Qatar QCB &sect;10.7.5 requires the provider's LEI and country of registration.</strong> An unincorporated project cannot be entered in the AI Register at all.</td><td>If Qatar or the UAE is a target, this moves ahead of ISO 27001 and probably ahead of the audit.</td></tr>
+<tr><td>4</td><td><strong>Which design partner is first, and which use case</strong></td><td>Decides whether Phase 3 leads with P8 or with the jurisdiction mapping &mdash; a materially different eight weeks.</td><td>Pick the one whose auditor will talk to you. The evidence use case is the defensible one.</td></tr>
+<tr><td>5</td><td><strong>OSTIF audit application</strong></td><td>Long lead time; it is the hardest enterprise gate and it is free. Only you can submit.</td><td>Apply now, regardless of readiness. The queue is the constraint, not the code.</td></tr>
+<tr><td>6</td><td><strong>Confidential-compute hardware</strong></td><td>The attested-inference use case cannot stop being simulated without it. You have Azure credit.</td><td>Spin up one NCCadsH100v5 in East US 2. One instance, a few days, closes a whole category of finding.</td></tr>
+<tr><td>7</td><td><strong>Standards venue</strong></td><td>CoSAI, IETF SCITT and AAIF have different costs and audiences, and the in-toto <code>agent-decision</code> RFC thread is open <em>now</em>.</td><td>IETF SCITT for P2, in-toto for P8. Contribute rather than compete &mdash; you cannot out-govern a foundation.</td></tr>
+<tr><td>8</td><td><strong>Git identity override</strong></td><td>Every future commit is authored as <code>AumOS Wave-1 &lt;aumos@local&gt;</code> unless the local config override is removed. DCO sign-off under a synthetic identity is not a meaningful attestation.</td><td>Drop the override. The two commits I made already use your real identity.</td></tr>
+<tr><td>9</td><td><strong>Which ~25 components survive</strong></td><td>Maintenance burden is the most likely cause of project death; three comparable projects died exactly this way.</td><td>The KEEP/THIN/CUT verdicts in the companion analysis are my recommendation. Confirm or override each.</td></tr>
+</tbody></table></div>
+<div class="note"><div class="calltitle">What I do not need from you</div>
+<p>Worth stating explicitly, because it is most of the work: <strong>the entire remaining engineering backlog</strong> &amp;mdash; 36 open findings, the SDK, the adapters, the benchmarks, the SBOM, the evidence mapping, the conformance publication, the docs rewrite. None of that is blocked on you. Phase 0 and the nine decisions above are the only real critical path; everything else I can run with a small team and Claude Code.</p></div>
+</section>
+<section id="watch">
+<div class="eyebrow">04 &middot; Standing risks</div>
+<h2>What to watch, and what would change the plan</h2>
+<ul><li><strong>The Agentic AI Foundation closing the MCP security gap.</strong> MCP's 2026-07-28 spec explicitly lacks server signing, tool integrity and registry trust &amp;mdash; and AAIF's platinum sponsors are AWS, Anthropic, Google, Microsoft, OpenAI and Cloudflare. When they fill it, P5 and parts of P1 become MCP extensions co-signed by every model provider. <strong>Mitigation: be in that conversation rather than parallel to it.</strong></li><li><strong>Microsoft AGT adding evidence.</strong> Today it is a policy and identity runtime with no signed-evidence story. If that changes, the differentiation narrows sharply. Watch its release notes monthly.</li><li><strong>A regulator publishing an actual template.</strong> The moment QCB or CBUAE ships a fillable form, the multi-jurisdiction emission wedge shrinks to a formatting exercise. Currently they prescribe contents and no container &amp;mdash; that is the window.</li><li><strong>Someone else signing evals.</strong> promptfoo, Inspect or an eval vendor adding attestation would close the single most defensible slot. It is cheap for them to do and nobody has.</li><li><strong>Project decay through scope.</strong> Three comparable projects died exactly this way &amp;mdash; and one of them had 72,027 stars, a gutted default branch, 5,659 forks pointing at deleted code, and 440 permanently unanswerable issues. <strong>Archive or EOL-label anything you cut, explicitly.</strong> Research shows downstream migration is measurably faster when a project states end-of-life status rather than going quiet.</li></ul>
+<div class="warn"><div class="calltitle">The honest summary</div>
+<p>You have genuinely good protocol design, one excellent parser, a real sandbox, a real SPIFFE integration, and <strong>a four-language conformance suite that almost nobody else in this space has</strong>. You also have zero distribution, a competitor with Microsoft's name on it, and a quickstart that lies. <strong>The gap between those two lists is smaller than it looks and is almost entirely unblocked by Phase 0.</strong></p></div>
+</section>
+<hr><p style="font-size:.8rem;color:var(--fg-3);max-width:none">
+Generated by <code>docs/html/meta/build_adoption.py</code>. Companion to
+<a href="aumos-critical-analysis-2026-08-09.html">the implementation &amp; protocol critical analysis</a>.
+Evidence tags: <span class="tag tag-executed">EXECUTED</span> <span class="tag tag-read">READ</span> <span class="tag tag-external">EXTERNAL</span> <span class="tag tag-inferred">INFERRED</span> <span class="tag tag-unverifiable">UNVERIFIABLE</span>.</p>
+</main></div><script>
+(function(){
+  // theme toggle
+  var root=document.documentElement, tbtn=document.getElementById('themeBtn');
+  tbtn && tbtn.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    if(!cur){cur=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+    root.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  });
+  // expand / collapse all
+  var ebtn=document.getElementById('expandBtn');
+  ebtn && ebtn.addEventListener('click',function(){
+    var ds=document.querySelectorAll('details.dos'), any=false;
+    ds.forEach(function(d){ if(!d.open) any=true; });
+    ds.forEach(function(d){ d.open=any; });
+    ebtn.textContent = any ? 'Collapse all' : 'Expand all';
+  });
+  // Print/PDF must contain the substance, not 100 collapsed summaries. Open every dossier
+  // (and un-hide any filtered-out rows) before printing, then restore the reading state.
+  var printState=null;
+  window.addEventListener('beforeprint',function(){
+    var ds=[].slice.call(document.querySelectorAll('details.dos'));
+    var hidden=[].slice.call(document.querySelectorAll('[data-facets]')).filter(function(e){
+      return e.style.display==='none'; });
+    printState={open:ds.map(function(d){return d.open;}),hidden:hidden};
+    ds.forEach(function(d){ d.open=true; });
+    hidden.forEach(function(e){ e.style.display=''; });
+  });
+  window.addEventListener('afterprint',function(){
+    if(!printState) return;
+    var ds=[].slice.call(document.querySelectorAll('details.dos'));
+    ds.forEach(function(d,i){ d.open=printState.open[i]; });
+    printState.hidden.forEach(function(e){ e.style.display='none'; });
+    printState=null;
+  });
+  // reading progress
+  var bar=document.getElementById('prog');
+  function onScroll(){
+    var h=document.documentElement.scrollHeight-window.innerHeight;
+    if(bar) bar.style.width = (h>0 ? (window.scrollY/h*100) : 0)+'%';
+  }
+  window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+  // active nav
+  var links=[].slice.call(document.querySelectorAll('.side nav a[href^="#"]'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));});
+  var obs=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting) return;
+      links.forEach(function(l){l.classList.remove('on');});
+      var i=secs.indexOf(e.target);
+      if(i>=0) links[i].classList.add('on');
+    });
+  },{rootMargin:'-8% 0px -80% 0px',threshold:0});
+  secs.forEach(function(s){ if(s) obs.observe(s); });
+
+  // ---- filterable collections ----
+  document.querySelectorAll('[data-filter-scope]').forEach(function(scope){
+    var q=scope.querySelector('input[type=search]');
+    var chips=[].slice.call(scope.querySelectorAll('.chip'));
+    var items=[].slice.call(scope.querySelectorAll('[data-facets]'));
+    var counter=scope.querySelector('.count');
+    var active={};
+    function apply(){
+      var term=(q&&q.value||'').toLowerCase().trim();
+      var shown=0;
+      items.forEach(function(it){
+        var facets=(it.getAttribute('data-facets')||'').toLowerCase();
+        var text=(it.getAttribute('data-text')||it.textContent||'').toLowerCase();
+        var ok=true;
+        for(var g in active){
+          if(active[g] && facets.indexOf(g+':'+active[g])<0){ ok=false; break; }
+        }
+        if(ok && term && text.indexOf(term)<0) ok=false;
+        it.style.display = ok ? '' : 'none';
+        if(ok) shown++;
+      });
+      if(counter) counter.textContent = shown+' of '+items.length+' shown';
+    }
+    chips.forEach(function(c){
+      c.addEventListener('click',function(){
+        var g=c.getAttribute('data-group'), v=c.getAttribute('data-val');
+        if(active[g]===v){ active[g]=null; c.classList.remove('on'); }
+        else{
+          chips.forEach(function(o){ if(o.getAttribute('data-group')===g) o.classList.remove('on'); });
+          active[g]=v; c.classList.add('on');
+        }
+        apply();
+      });
+    });
+    q && q.addEventListener('input',apply);
+    apply();
+  });
+
+  // ---- sortable tables ----
+  document.querySelectorAll('table[data-sortable]').forEach(function(tb){
+    tb.querySelectorAll('th').forEach(function(th,idx){
+      th.classList.add('sortable');
+      th.setAttribute('tabindex','0');
+      th.setAttribute('role','columnheader');
+      th.setAttribute('aria-sort','none');
+      var dir=1;
+      th.addEventListener('keydown',function(e){
+        if(e.key==='Enter'||e.key===' '){ e.preventDefault(); th.click(); }
+      });
+      th.addEventListener('click',function(){
+        tb.querySelectorAll('th').forEach(function(o){ o.setAttribute('aria-sort','none'); });
+        th.setAttribute('aria-sort', dir===1?'ascending':'descending');
+        var body=tb.tBodies[0];
+        var rows=[].slice.call(body.rows);
+        rows.sort(function(a,b){
+          var x=(a.cells[idx].getAttribute('data-sort')||a.cells[idx].textContent).trim();
+          var y=(b.cells[idx].getAttribute('data-sort')||b.cells[idx].textContent).trim();
+          var nx=parseFloat(x), ny=parseFloat(y);
+          if(!isNaN(nx)&&!isNaN(ny)) return (nx-ny)*dir;
+          return x.localeCompare(y)*dir;
+        });
+        rows.forEach(function(r){ body.appendChild(r); });
+        dir=-dir;
+      });
+    });
+  });
+})();
+</script></body></html>

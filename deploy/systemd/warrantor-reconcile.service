@@ -1,0 +1,44 @@
+# warrantor-reconcile.service — surface warrants nothing is supervising.
+#
+# A reboot kills every supervisor, and every supervisor takes its agent with it.
+# That part is correct and by design. What is NOT acceptable is the silence
+# afterwards: warrants left Open, staged effects nobody has decided about, and a
+# developer who believes work is still progressing.
+#
+# This unit runs `warrantor status`, which reconciles as a side effect: live
+# supervisors are confirmed, dead ones are cleared, and anything interrupted is
+# reported with the decision it needs.
+#
+# It does NOT resume anything. An agent interrupted mid-task has unknown state,
+# and continuing it would be guessing about work that may be half-done. The
+# whole value here is turning a silent interruption into a visible one.
+#
+# Install:
+#   cp warrantor-reconcile.{service,timer} ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now warrantor-reconcile.timer
+#
+# Read what it found:
+#   journalctl --user -u warrantor-reconcile
+
+[Unit]
+Description=Reconcile Warrantor warrants against their supervisors
+Documentation=https://github.com/MuVeraAI/aumos
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/warrantor status
+
+# Reconciliation is a read plus a stale-record cleanup. It writes only inside
+# the warrant store.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.warrantor
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

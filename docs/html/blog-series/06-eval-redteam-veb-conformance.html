@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evaluation as Evidence: garak, PyRIT, VEB, and Conformance Suites · AumOS Blog Series</title>
+  <link rel="stylesheet" href="blog-series.css">
+</head>
+<body>
+<div class="container">
+  <div class="series-bar">
+    <a href="index.html">← Series index</a>
+    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span>Local technical essay · 2026</span>
+  </div>
+
+  <header class="article-header">
+    <div class="article-eyebrow">Essay 6 of 8 · Eval / Red-Team</div>
+    <h1>Evaluation as Evidence: garak, PyRIT, VEB, and Conformance Suites</h1>
+    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-affil">Evals that cannot be packaged, signed, and replayed are theater. Verifiable evaluation bundles and multi-language conformance.</p>
+    <div class="article-meta">
+      <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value"><span class="id-chip" data-aumos-id="A1">A1</span> <span class="id-chip" data-aumos-id="A2">A2</span> <span class="id-chip" data-aumos-id="A3">A3</span> <span class="id-chip" data-aumos-id="A4">A4</span> <span class="id-chip" data-aumos-id="A5">A5</span> <span class="id-chip" data-aumos-id="A6">A6</span> <span class="id-chip" data-aumos-id="A7">A7</span> <span class="id-chip" data-aumos-id="A8">A8</span> <span class="id-chip" data-aumos-id="X5">X5</span> <span class="id-chip" data-aumos-id="X6">X6</span> <span class="id-chip protocol" data-aumos-id="P8">P8</span></span></div>
+      <div class="meta-item"><span class="meta-label">Pipeline</span><span class="meta-value">Research → draft → visuals → adversarial review → fix</span></div>
+      <div class="meta-item"><span class="meta-label">Citations</span><span class="meta-value">Primary RFCs / eng blogs / standards</span></div>
+    </div>
+    <nav class="article-nav"><a href="05-evidence-plane-aar-ocsf.html">← Essay 05</a><span></span><a href="07-inference-mcp-a2a-delegation.html">Essay 07 →</a></nav>
+  </header>
+
+
+  <div class="abstract">
+    <span class="abstract-label">Thesis</span>
+    <p>Evaluation without packaging is a slide. AumOS treats eval as evidence: orchestrate garak/PyRIT/HELM/Inspect<sup><a href="#refs">[1–7]</a></sup>, seal results in <span class="id-chip protocol">P8</span> VEB, gate CI with <span class="id-chip">A4</span>/<span class="id-chip">A6</span>, and feed independent evaluators via <span class="id-chip">X6</span>.</p>
+  </div>
+  <div class="toc"><div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#stack">The eval tool stack</a></li>
+    <li><a href="#veb">Verifiable Evaluation Bundles</a></li>
+    <li><a href="#conf">Conformance as a product</a></li>
+    <li><a href="#reg">US / India risk anchors</a></li>
+    <li><a href="#map">Component map</a></li>
+  </ol></div>
+
+  <h2 id="stack">1. The eval tool stack</h2>
+  <p>garak is breadth scanning; PyRIT is multi-turn adversarial orchestration; HELM is multi-metric baselining; AgentDojo attacks tool-using agents; Inspect is a modern harness<sup><a href="#refs">[3–7]</a></sup>. <span class="id-chip">A1</span> SafeEval YAML-orchestrates them; <span class="id-chip">A2</span> Adversaria unifies; <span class="id-chip">A5</span> agentsec-lab holds rotating adversarial benchmarks; <span class="id-chip">A7</span> is continuous red-team cloud; <span class="id-chip">A8</span> arena ranks with Elo methodology.</p>
+
+  <div class="visual" data-visual="eval-stack">
+    <div class="visual-caption">Figure 1 — From probes to sealed bundle</div>
+    <svg viewBox="0 0 820 200" xmlns="http://www.w3.org/2000/svg">
+      <rect width="820" height="200" fill="#f8f6f2"/>
+      <rect x="20" y="50" width="120" height="90" rx="8" fill="#fff" stroke="#d97757" stroke-width="2"/>
+      <text x="80" y="90" text-anchor="middle" font-size="12" font-family="Georgia,serif">Probes</text>
+      <text x="80" y="110" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">garak / PyRIT</text>
+      <path d="M140 95 H175" stroke="#d97757" stroke-width="2"/>
+      <rect x="175" y="50" width="120" height="90" rx="8" fill="#fff" stroke="#555188" stroke-width="2"/>
+      <text x="235" y="90" text-anchor="middle" font-size="12" font-family="Georgia,serif">Orchestrate</text>
+      <text x="235" y="110" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">A1 / A2</text>
+      <path d="M295 95 H330" stroke="#555188" stroke-width="2"/>
+      <rect x="330" y="50" width="120" height="90" rx="8" fill="#fff" stroke="#4a6fa5" stroke-width="2"/>
+      <text x="390" y="90" text-anchor="middle" font-size="12" font-family="Georgia,serif">Score</text>
+      <text x="390" y="110" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">HELM / judges</text>
+      <path d="M450 95 H485" stroke="#4a6fa5" stroke-width="2"/>
+      <rect x="485" y="50" width="130" height="90" rx="8" fill="#fff" stroke="#5a8055" stroke-width="2"/>
+      <text x="550" y="90" text-anchor="middle" font-size="12" font-family="Georgia,serif">Seal VEB</text>
+      <text x="550" y="110" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">P8 + T1</text>
+      <path d="M615 95 H650" stroke="#5a8055" stroke-width="2"/>
+      <rect x="650" y="50" width="140" height="90" rx="8" fill="#fff" stroke="#b8860b" stroke-width="2"/>
+      <text x="720" y="90" text-anchor="middle" font-size="12" font-family="Georgia,serif">Gate / share</text>
+      <text x="720" y="110" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">A4 / A6 / X6</text>
+    </svg>
+  </div>
+
+  <h2 id="veb">2. Verifiable Evaluation Bundles</h2>
+  <p><span class="id-chip protocol">P8</span> VEB packages dataset pin, harness version, model digest, scores, judge prompts, and signatures. If the bundle cannot be reproduced, the number is not evidence. Anthropic’s 141k-run retrospective<sup><a href="#refs">[10]</a></sup> shows why <span class="id-chip">X5</span> RetroSpecKit must treat transcripts as first-class forensic objects.</p>
+
+  <h2 id="conf">3. Conformance as a product</h2>
+  <p><span class="id-chip">A6</span> is cross-language conformance for AumOS protocols—not model safety alone. No language package ships a protocol version until vectors pass. That is how AAE/AAR avoid “JSON that kinda looks right.”</p>
+
+  <div class="visual" data-visual="eval-components">
+    <div class="visual-caption">Table 1 — Eval components</div>
+    <table>
+      <thead><tr><th>ID</th><th>Name</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>A1</td><td>safe-eval</td><td>YAML multi-tool orchestration</td></tr>
+        <tr><td>A2</td><td>adversaria</td><td>Unified adversarial core</td></tr>
+        <tr><td>A3</td><td>bias-sentinel</td><td>Bias / copyright audit</td></tr>
+        <tr><td>A4</td><td>comply-gate</td><td>CI compliance gates</td></tr>
+        <tr><td>A5</td><td>agentsec-lab</td><td>Holdout adversarial benches</td></tr>
+        <tr><td>A6</td><td>conformance</td><td>Protocol multi-lang suite</td></tr>
+        <tr><td>A7</td><td>red-team-cloud</td><td>Continuous adversarial SaaS</td></tr>
+        <tr><td>A8</td><td>arena</td><td>Elo ranking service</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="reg">4. US / India risk anchors</h2>
+  <p>US banking model-risk supervision now points to OCC Bulletin 2026-13 / Fed SR 26-2—not obsolete SR 11-7<sup><a href="#refs">[9]</a></sup>. NIST AI RMF remains the general US risk framing<sup><a href="#refs">[8]</a></sup>. India DPDP governs personal data in eval corpora (Essay 8). EU AI Act appears only as a passing export concern—not the spine.</p>
+
+  <h2 id="map">5. Component map</h2>
+  <p>VEB links to model digests from Essay 4 and AAE from Essay 1: you cannot claim “safe on version X” without binding weights and authority. Separate <strong>model safety eval</strong> (garak/PyRIT/HELM) from <strong>protocol conformance</strong> (A6): both produce evidence, different claim types. <span class="id-chip">X5</span> retrospective transcript review is how you discover eval-environment escapes after the fact—pair with containment (Essay 2), do not replace it.</p>
+
+
+  <section class="refs" id="refs">
+    <h2>References (primary sources)</h2>
+    <ol>
+      <li class="cite" data-cite-url="https://www.microsoft.com/en-us/security/blog/2024/02/22/announcing-microsofts-open-automation-framework-to-red-team-generative-ai-systems/"><strong>Announcing PyRIT</strong> — Microsoft Security Blog. <a href="https://www.microsoft.com/en-us/security/blog/2024/02/22/announcing-microsofts-open-automation-framework-to-red-team-generative-ai-systems/" rel="noopener noreferrer" target="_blank">https://www.microsoft.com/en-us/security/blog/2024/02/22/announcing-microsofts-open-automation-framework-to-red-team-generative-ai-systems/</a></li>
+      <li class="cite" data-cite-url="https://github.com/Azure/PyRIT"><strong>Azure/PyRIT</strong> — Microsoft. <a href="https://github.com/Azure/PyRIT" rel="noopener noreferrer" target="_blank">https://github.com/Azure/PyRIT</a></li>
+      <li class="cite" data-cite-url="https://github.com/NVIDIA/garak"><strong>NVIDIA/garak</strong> — NVIDIA. <a href="https://github.com/NVIDIA/garak" rel="noopener noreferrer" target="_blank">https://github.com/NVIDIA/garak</a></li>
+      <li class="cite" data-cite-url="https://crfm.stanford.edu/helm/"><strong>HELM</strong> — Stanford CRFM. <a href="https://crfm.stanford.edu/helm/" rel="noopener noreferrer" target="_blank">https://crfm.stanford.edu/helm/</a></li>
+      <li class="cite" data-cite-url="https://github.com/ethz-spylab/agentdojo"><strong>AgentDojo</strong> — ETH Zurich. <a href="https://github.com/ethz-spylab/agentdojo" rel="noopener noreferrer" target="_blank">https://github.com/ethz-spylab/agentdojo</a></li>
+      <li class="cite" data-cite-url="https://metr.org/"><strong>METR</strong> — METR. <a href="https://metr.org/" rel="noopener noreferrer" target="_blank">https://metr.org/</a></li>
+      <li class="cite" data-cite-url="https://inspect.aisi.org.uk/"><strong>UK AISI Inspect</strong> — UK AISI. <a href="https://inspect.aisi.org.uk/" rel="noopener noreferrer" target="_blank">https://inspect.aisi.org.uk/</a></li>
+      <li class="cite" data-cite-url="https://www.nist.gov/itl/ai-risk-management-framework"><strong>NIST AI RMF</strong> — NIST. <a href="https://www.nist.gov/itl/ai-risk-management-framework" rel="noopener noreferrer" target="_blank">https://www.nist.gov/itl/ai-risk-management-framework</a></li>
+      <li class="cite" data-cite-url="https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html"><strong>OCC Bulletin 2026-13 Model Risk Management</strong> — OCC. <a href="https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html" rel="noopener noreferrer" target="_blank">https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html</a></li>
+      <li class="cite" data-cite-url="https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals"><strong>Investigating three real-world incidents…</strong> — Anthropic. <a href="https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals" rel="noopener noreferrer" target="_blank">https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals</a></li>
+    </ol>
+  </section>
+
+  <footer style="margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);font-size:0.85rem;color:var(--text-tertiary);">
+    <p>Local in-repo deliverable. Not a hosted artifact. Series plan: <code>meta/phase-plan.md</code>.</p>
+    <p><a href="05-evidence-plane-aar-ocsf.html">← Essay 05</a><span></span><a href="07-inference-mcp-a2a-delegation.html">Essay 07 →</a></p>
+  </footer>
+</div>
+</body>
+</html>

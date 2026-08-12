@@ -3,6 +3,15 @@
   "version": "1.0.0",
   "description": "MCP server exposing the 49 AumOS components as tools any MCP-compatible coding agent can call",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MuVeraAI-Corporation/Warrantor.git",
+    "directory": "typescript/mcp-server"
+  },
+  "homepage": "https://github.com/MuVeraAI-Corporation/Warrantor#readme",
+  "bugs": {
+    "url": "https://github.com/MuVeraAI-Corporation/Warrantor/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

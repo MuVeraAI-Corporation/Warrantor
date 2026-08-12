@@ -5,15 +5,20 @@
 # Build context MUST be `go/agent-identity/` (see docker-compose.yml).
 
 # ── Stage 1: build the static binary ─────────────────────────────────────────
-FROM golang:1.22 AS builder
+# Must be >= the `go` directive in go.mod. Adding github.com/spiffe/go-spiffe/v2
+# (for real SPIFFE ID validation) raised that to 1.24.0, and the base image was
+# left at 1.22 -- so `go mod download` failed with
+# "go.mod requires go >= 1.24.0 (running go 1.22.12)" and this image could not be
+# built at all. Nothing caught it because no CI job builds these images.
+FROM golang:1.24 AS builder
 
 # CGO disabled → fully static binary that runs on alpine/musl.
 ENV CGO_ENABLED=0 GOOS=linux GOFLAGS=-trimpath
 
 WORKDIR /src
-COPY go.mod ./
-# This module has no external dependencies, so `go mod download` is a no-op,
-# but we keep it so future deps benefit from layer caching.
+# go.sum is required now that the module has a real dependency: without it
+# `go mod download` cannot verify module checksums.
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .

@@ -302,8 +302,26 @@ impl Receipt {
             write_len_prefixed(&mut out, a.as_bytes());
         }
         out.extend_from_slice(&self.outcome.to_proto().to_le_bytes());
+        // rollback_pointer was omitted here, so it was covered by neither the Ed25519
+        // signature nor the hash chain: an attacker could rewrite it on a persisted record
+        // and both `verify` and the chain still validated, byte-identical digest and all.
+        // On a receipt whose whole purpose is to say what an agent did, "this action was
+        // rolled back, see <url>" was freely forgeable.
+        //
+        // The discriminant byte is load-bearing: without it `None` and `Some("")` would
+        // both encode as a zero-length field and alias to the same bytes, so "never rolled
+        // back" and "rolled back to nowhere" would share a signature.
+        match &self.rollback_pointer {
+            None => out.push(0u8),
+            Some(pointer) => {
+                out.push(1u8);
+                write_len_prefixed(&mut out, pointer.as_bytes());
+            }
+        }
         out.extend_from_slice(&self.emitted_at.to_le_bytes());
         write_len_prefixed(&mut out, self.verifying_key_hex.as_bytes());
+        // NOTE: `signature_hex` is deliberately absent -- a signature cannot cover itself.
+        // Every other field of Receipt is included; see the coverage test below.
         out
     }
 }
@@ -911,6 +929,104 @@ mod tests {
     impl Drop for Scratch {
         fn drop(&mut self) {
             let _ = std::fs::remove_file(&self.0);
+            // The store keeps a sidecar lock file next to the log; clean it up too.
+            let mut lock = self.0.as_os_str().to_os_string();
+            lock.push(".lock");
+            let _ = std::fs::remove_file(std::path::PathBuf::from(lock));
+        }
+    }
+
+    /// Two recorders over one log each cached their own next_seq at open time, so both handed out
+    /// a durability proof for the SAME sequence number. Both callers committed their side effects;
+    /// the log was then permanently unreadable, including the record that had been written
+    /// correctly. Opening the second recorder has to fail instead.
+    #[test]
+    fn two_recorders_cannot_share_one_evidence_log_ax40() {
+        let scratch = Scratch(scratch_path("double-open"));
+        let mut first = DurableFlightRecorder::open(&scratch.0).expect("first open");
+
+        let second = DurableFlightRecorder::open(&scratch.0);
+        match second {
+            Ok(_) => panic!(
+                "a second recorder opened the same evidence log; both would assign the same \
+                 seq and corrupt the chain"
+            ),
+            Err(RecorderError::Io { source, .. }) => {
+                let message = source.to_string();
+                assert!(
+                    message.contains("already open"),
+                    "the error should explain the conflict, got: {message}"
+                );
+            }
+            Err(other) => panic!("unexpected error variant: {other:?}"),
+        }
+
+        // The holder is unaffected and the log stays consistent.
+        first
+            .emit_pending(sample_input())
+            .expect("first still works");
+        let records = first.store().records().expect("replay");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].seq, 0);
+    }
+
+    #[test]
+    fn dropping_a_recorder_releases_the_log_for_the_next_one_ax40() {
+        let scratch = Scratch(scratch_path("lock-release"));
+        {
+            let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+            rec.emit_pending(sample_input()).expect("emit");
+        }
+        // A normal restart must still work -- the lock is a concurrency guard, not a tombstone.
+        let mut reopened = DurableFlightRecorder::open(&scratch.0).expect("reopen after drop");
+        let pending = reopened.emit_pending(sample_input()).expect("emit again");
+        assert_eq!(pending.seq(), 1, "the chain continues where it left off");
+    }
+
+    /// The lock must not make the log unreadable: an external auditor with `jq` and no access to
+    /// this crate is the whole reason the evidence format is plain JSONL.
+    #[test]
+    fn the_evidence_log_stays_readable_while_a_recorder_holds_it_ax40() {
+        let scratch = Scratch(scratch_path("readable-while-locked"));
+        let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+        rec.emit_pending(sample_input()).expect("emit");
+
+        let contents = std::fs::read_to_string(&scratch.0).expect("read the log while locked");
+        assert!(
+            contents.contains("\"seq\":0"),
+            "the log must be readable by an outside reader while held"
+        );
+    }
+
+    /// A flipped byte that breaks UTF-8 is tampering, not a device fault. Reporting it as
+    /// RecorderError::Io made the one signal this component exists to raise indistinguishable
+    /// from a failing disk.
+    #[test]
+    fn non_utf8_corruption_is_reported_as_chain_corruption_not_io_ax40() {
+        let scratch = Scratch(scratch_path("utf8-corrupt"));
+        {
+            let mut rec = DurableFlightRecorder::open(&scratch.0).expect("open");
+            rec.emit_pending(sample_input()).expect("emit");
+        }
+
+        // Flip a byte in the middle of the record to something that cannot be UTF-8.
+        let mut bytes = std::fs::read(&scratch.0).expect("read log");
+        let midpoint = bytes.len() / 2;
+        bytes[midpoint] = 0xFF;
+        std::fs::write(&scratch.0, &bytes).expect("write corrupted log");
+
+        match DurableFlightRecorder::open(&scratch.0) {
+            Err(RecorderError::ChainCorrupt { detail, .. }) => {
+                assert!(
+                    detail.contains("UTF-8"),
+                    "the detail should name the corruption, got: {detail}"
+                );
+            }
+            Err(RecorderError::Io { source, .. }) => panic!(
+                "byte corruption was reported as an I/O fault, hiding the tamper signal: {source}"
+            ),
+            Err(other) => panic!("unexpected error variant: {other:?}"),
+            Ok(_) => panic!("corrupted log opened successfully"),
         }
     }
 
@@ -1175,5 +1291,82 @@ mod tests {
         assert_eq!(proto.actor, receipt.actor);
         assert!(!proto.signature.is_empty());
         assert!(!proto.authority_hash.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod signature_coverage {
+    use super::*;
+
+    fn sample_input() -> ReceiptInput {
+        ReceiptInput {
+            actor: "spiffe://muveraai.com/agent/coverage".into(),
+            authority_hash_hex: "ab".repeat(32),
+            tool_or_api_op: "deploy".into(),
+            context_commitment_hex: "cd".repeat(32),
+        }
+    }
+
+    /// The reported defect: rewriting rollback_pointer on a signed receipt left the
+    /// signature valid, so "this action was rolled back, see <url>" was forgeable.
+    #[test]
+    fn tampering_with_rollback_pointer_invalidates_the_signature() {
+        let mut recorder = FlightRecorder::new();
+        let receipt = recorder.emit_pending(sample_input()).expect("emit");
+        FlightRecorder::verify(&receipt).expect("clean receipt verifies");
+
+        let mut forged = receipt.clone();
+        forged.rollback_pointer = Some("https://evil.example/forged-rollback".into());
+        assert!(
+            FlightRecorder::verify(&forged).is_err(),
+            "a forged rollback_pointer MUST invalidate the signature"
+        );
+    }
+
+    /// None and Some("") must not share an encoding, or "never rolled back" and "rolled
+    /// back to nowhere" would be interchangeable under one signature.
+    #[test]
+    fn none_and_empty_pointer_do_not_alias() {
+        let mut recorder = FlightRecorder::new();
+        let receipt = recorder.emit_pending(sample_input()).expect("emit");
+        let mut a = receipt.clone();
+        let mut b = receipt;
+        a.rollback_pointer = None;
+        b.rollback_pointer = Some(String::new());
+        assert_ne!(
+            a.canonical_bytes(),
+            b.canonical_bytes(),
+            "None and Some(\"\") must encode differently"
+        );
+    }
+
+    /// Guards the general failure, not just this instance: a field added to Receipt and
+    /// forgotten in canonical_bytes is silently unsigned.
+    #[test]
+    fn every_field_except_the_signature_is_covered() {
+        let mut recorder = FlightRecorder::new();
+        let receipt = recorder.emit_pending(sample_input()).expect("emit");
+        let base = receipt.canonical_bytes();
+
+        let mut m = receipt.clone();
+        m.rollback_pointer = Some("x".into());
+        assert_ne!(base, m.canonical_bytes(), "rollback_pointer uncovered");
+
+        let mut m = receipt.clone();
+        m.actor = "other".into();
+        assert_ne!(base, m.canonical_bytes(), "actor uncovered");
+
+        let mut m = receipt.clone();
+        m.emitted_at += 1;
+        assert_ne!(base, m.canonical_bytes(), "emitted_at uncovered");
+
+        // signature_hex is the one field that must NOT be covered.
+        let mut m = receipt.clone();
+        m.signature_hex = "ff".repeat(64);
+        assert_eq!(
+            base,
+            m.canonical_bytes(),
+            "signature_hex must be excluded -- a signature cannot sign itself"
+        );
     }
 }

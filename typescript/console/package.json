@@ -1,8 +1,17 @@
 {
   "name": "@warrantor/console",
   "version": "1.0.0",
-  "description": "X7 — AumOS enterprise policy/evidence console",
+  "description": "X7 \u2014 AumOS enterprise policy/evidence console",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MuVeraAI-Corporation/Warrantor.git",
+    "directory": "typescript/console"
+  },
+  "homepage": "https://github.com/MuVeraAI-Corporation/Warrantor#readme",
+  "bugs": {
+    "url": "https://github.com/MuVeraAI-Corporation/Warrantor/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
