@@ -1,0 +1,34 @@
+# warrantor-reconcile.timer — run reconciliation at boot and periodically.
+#
+# Two triggers, for two different failures:
+#
+#   OnStartupSec  — the reboot case. Every supervisor died with the machine;
+#                   this is what turns that from silence into a report.
+#   OnUnitActiveSec — the crash case. A supervisor can die without the machine
+#                   going down, and the developer may not look at a terminal for
+#                   hours.
+#
+# Thirty minutes, not thirty seconds. Reconciliation is cheap, but a warrant
+# that stopped is not an emergency — the agent is already dead, so nothing is
+# running unsupervised. What is being fixed is the delay before a human knows,
+# and half an hour is well inside the window that matters for overnight work.
+
+[Unit]
+Description=Periodic Warrantor reconciliation
+Documentation=https://github.com/MuVeraAI/aumos
+
+[Timer]
+# Two minutes after the user session starts, so the check does not compete with
+# login and the rest of startup.
+OnStartupSec=2min
+OnUnitActiveSec=30min
+
+# Do not stack up missed runs after a suspend or a long shutdown; one report of
+# the current state is what is wanted, not one per interval elapsed.
+Persistent=false
+AccuracySec=1min
+
+Unit=warrantor-reconcile.service
+
+[Install]
+WantedBy=timers.target

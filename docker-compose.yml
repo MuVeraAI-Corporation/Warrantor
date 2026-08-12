@@ -207,14 +207,63 @@ services:
 
   # ─── MCP Server (TypeScript) ──────────────────────────────────────────────
   # Exposes 15 AumOS tools to any MCP-compatible coding agent via stdio.
-  # Not a network service — run interactively: docker-compose run mcp-server
+  # Not a network service — run interactively: docker compose run --rm aumos-mcp
+  #
+  # Runs CONNECTED, against the real services defined above. It used to default
+  # to `standalone`, which answers with responses tagged `source: "mock"` — so
+  # the first thing anyone saw after `docker compose up` was a demo, while the
+  # services it should have been talking to sat healthy in this same file.
+  #
+  # For a deliberate zero-dependency dry run, override it explicitly:
+  #   docker compose run --rm -e AUMOS_MODE=standalone aumos-mcp
+  # The mock is worth keeping; it just should not be what you get by accident.
+  #
+  # The build context is the repo root because the image carries `trust-core`
+  # and `defstack` — connected mode shells out to them, and a Node-only image
+  # could not run those tools at all. See typescript/mcp-server/Dockerfile.
   aumos-mcp:
     build:
-      context: ./typescript/mcp-server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: typescript/mcp-server/Dockerfile
     stdin_open: true
     environment:
-      AUMOS_MODE: standalone
+      AUMOS_MODE: connected
+      # Only agent-identity is wired, and the omissions are deliberate.
+      #
+      # agent-identity is a real HTTP server (Go, with /healthz). The compose
+      # DNS name is used rather than localhost, because inside the network
+      # `localhost` is this container — a localhost URL would fail in a way that
+      # reads as the service being down.
+      AUMOS_AGENT_IDENTITY_URL: http://agent-identity:8441
+      #
+      # flight-recorder, kill-switch and credential-vault are NOT wired, because
+      # their compose containers are not those services:
+      #
+      #   flight-recorder  — its container runs a hand-written TCP stub that
+      #                      answers EVERY path with
+      #                      {"service":"flight-recorder","status":"ok",
+      #                       "mode":"library-only (E1)"}.
+      #                      Pointing the emit/verify tools at it would return
+      #                      HTTP 200 and be reported as `source:
+      #                      "flight-recorder"` over a body that is not a
+      #                      receipt — a success-shaped mock claiming a real
+      #                      source, which is worse than the labelled one and is
+      #                      exactly the AUD-001 failure.
+      #   kill-switch      — ENTRYPOINT ["kill-switch"] CMD ["status"]: a
+      #   credential-vault — one-shot CLI that exits. Nothing ever listens.
+      #
+      # Left unset they fall back to the localhost default, which refuses the
+      # connection and surfaces a named dependency failure. An honest error
+      # beats a convincing lie, so these stay unset until the services exist.
+      AUMOS_TRUST_CORE_BIN: /usr/local/bin/trust-core
+      AUMOS_DEFSTACK_BIN: /usr/local/bin/defstack
+    depends_on:
+      # Only on what genuinely reports health. `condition: service_healthy`
+      # against a container with no HEALTHCHECK is a hard error at `up` time,
+      # and kill-switch and credential-vault have none — correctly, since they
+      # exit rather than serve.
+      agent-identity:
+        condition: service_healthy
 
   # ─── AumOS Console (TypeScript) ───────────────────────────────────────────
   # The web dashboard for evidence, approvals, fleet, compliance, policies.
