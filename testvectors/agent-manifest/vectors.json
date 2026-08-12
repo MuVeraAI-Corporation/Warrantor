@@ -1,0 +1,198 @@
+{
+  "schema": "agent.warrantor.io/v1",
+  "description": "Conformance vectors for the Agent Manifest (spec 16). Every implementation MUST parse each manifest, validate against the schema, and assert both the valid/invalid outcome AND, on failure, the specific error_code. Signature round-trip + tamper tests are per-language (see rust/agent-manifest and python/warrantor_agent_manifest test suites).",
+  "vectors": [
+    {
+      "name": "minimal_valid",
+      "description": "Smallest valid manifest: only the seven required fields.",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "research-bot-1",
+        "identity": "spiffe://yourcorp/agents/research-bot-1",
+        "capabilities": ["read"],
+        "policy_refs": ["pol_default"],
+        "enforcement_mode": "observed"
+      },
+      "expected": { "valid": true }
+    },
+    {
+      "name": "full_valid",
+      "description": "All eleven fields populated, mediated mode, attestations, dependencies.",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "payments-bot-3",
+        "identity": "spiffe://yourcorp/agents/payments-bot-3",
+        "capabilities": ["read", "write", "financial"],
+        "policy_refs": ["pol_44", "pol_88"],
+        "dependencies": {
+          "model": "sha256:1a2b3c4d5e6f",
+          "tools": ["spiffe://yourcorp/tools/stripe-charge"],
+          "data": ["spiffe://yourcorp/data/customer-db:read-only"]
+        },
+        "attestation": ["tee:sev-snp", "gpu:nras"],
+        "enforcement_mode": "mediated",
+        "description": "Handles customer refund requests up to $500.",
+        "version": "1.2.0"
+      },
+      "expected": { "valid": true }
+    },
+    {
+      "name": "invalid_missing_identity",
+      "description": "Required field 'identity' removed.",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "x",
+        "capabilities": ["read"],
+        "policy_refs": ["pol"],
+        "enforcement_mode": "observed"
+      },
+      "expected": { "valid": false, "error_code": "MISSING_REQUIRED_FIELD", "error_field": "identity" }
+    },
+    {
+      "name": "invalid_bad_api_version",
+      "description": "apiVersion is not the required constant.",
+      "manifest": {
+        "apiVersion": "v2",
+        "kind": "AgentManifest",
+        "name": "x",
+        "identity": "spiffe://yourcorp/agents/x",
+        "capabilities": ["read"],
+        "policy_refs": ["pol"],
+        "enforcement_mode": "observed"
+      },
+      "expected": { "valid": false, "error_code": "INVALID_API_VERSION" }
+    },
+    {
+      "name": "invalid_identity_not_spiffe",
+      "description": "identity is not a spiffe:// URI.",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "x",
+        "identity": "https://yourcorp/agents/x",
+        "capabilities": ["read"],
+        "policy_refs": ["pol"],
+        "enforcement_mode": "observed"
+      },
+      "expected": { "valid": false, "error_code": "INVALID_IDENTITY", "error_field": "identity" }
+    },
+    {
+      "name": "invalid_empty_capabilities",
+      "description": "capabilities is an empty array (must be non-empty).",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "x",
+        "identity": "spiffe://yourcorp/agents/x",
+        "capabilities": [],
+        "policy_refs": ["pol"],
+        "enforcement_mode": "observed"
+      },
+      "expected": { "valid": false, "error_code": "EMPTY_CAPABILITIES", "error_field": "capabilities" }
+    },
+    {
+      "name": "invalid_capability_enum",
+      "description": "capabilities contains a value not on the I-08 ladder.",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "x",
+        "identity": "spiffe://yourcorp/agents/x",
+        "capabilities": ["read", "deploy"],
+        "policy_refs": ["pol"],
+        "enforcement_mode": "observed"
+      },
+      "expected": { "valid": false, "error_code": "INVALID_CAPABILITY", "error_field": "capabilities" }
+    },
+    {
+      "name": "invalid_empty_policy_refs",
+      "description": "policy_refs is empty (must be non-empty).",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "x",
+        "identity": "spiffe://yourcorp/agents/x",
+        "capabilities": ["read"],
+        "policy_refs": [],
+        "enforcement_mode": "observed"
+      },
+      "expected": { "valid": false, "error_code": "EMPTY_POLICY_REFS", "error_field": "policy_refs" }
+    },
+    {
+      "name": "invalid_enforcement_mode",
+      "description": "enforcement_mode is not one of the allowed enum values.",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "x",
+        "identity": "spiffe://yourcorp/agents/x",
+        "capabilities": ["read"],
+        "policy_refs": ["pol"],
+        "enforcement_mode": "contained"
+      },
+      "expected": { "valid": false, "error_code": "INVALID_ENFORCEMENT_MODE", "error_field": "enforcement_mode" }
+    },
+    {
+      "name": "invalid_additional_property",
+      "description": "Unknown top-level property (additionalProperties: false).",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "x",
+        "identity": "spiffe://yourcorp/agents/x",
+        "capabilities": ["read"],
+        "policy_refs": ["pol"],
+        "enforcement_mode": "observed",
+        "rogue_field": "should be rejected"
+      },
+      "expected": { "valid": false, "error_code": "UNEXPECTED_FIELD", "error_field": "rogue_field" }
+    },
+    {
+      "name": "invalid_bad_semver",
+      "description": "version is present but not a valid semver.",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "x",
+        "identity": "spiffe://yourcorp/agents/x",
+        "capabilities": ["read"],
+        "policy_refs": ["pol"],
+        "enforcement_mode": "observed",
+        "version": "1.2"
+      },
+      "expected": { "valid": false, "error_code": "INVALID_VERSION", "error_field": "version" }
+    },
+    {
+      "name": "invalid_bad_model_digest",
+      "description": "dependencies.model does not match the digest pattern.",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "AgentManifest",
+        "name": "x",
+        "identity": "spiffe://yourcorp/agents/x",
+        "capabilities": ["read"],
+        "policy_refs": ["pol"],
+        "enforcement_mode": "observed",
+        "dependencies": { "model": "not-a-digest" }
+      },
+      "expected": { "valid": false, "error_code": "INVALID_MODEL_DIGEST", "error_field": "dependencies.model" }
+    },
+    {
+      "name": "invalid_kind",
+      "description": "kind is not AgentManifest.",
+      "manifest": {
+        "apiVersion": "agent.warrantor.io/v1",
+        "kind": "Agent",
+        "name": "x",
+        "identity": "spiffe://yourcorp/agents/x",
+        "capabilities": ["read"],
+        "policy_refs": ["pol"],
+        "enforcement_mode": "observed"
+      },
+      "expected": { "valid": false, "error_code": "INVALID_KIND" }
+    }
+  ]
+}

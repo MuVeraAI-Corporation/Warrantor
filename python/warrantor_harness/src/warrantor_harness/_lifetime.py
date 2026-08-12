@@ -47,6 +47,7 @@ minute even when nothing kills it. Belt and braces, failing differently, is the 
 
 from __future__ import annotations
 
+import contextlib
 import os
 import signal
 import subprocess
@@ -382,13 +383,11 @@ class ProcessSupervisor:
         #
         # Windows returns above and needs none of this: there is no zombie state to clear,
         # which is why this was invisible until the tests ran on Linux.
-        try:
+        # Unreapable within the window almost always means uninterruptible sleep in a
+        # syscall. Nothing further we can do, and blocking the supervisor forever would be
+        # worse than leaving one zombie behind.
+        with contextlib.suppress(subprocess.TimeoutExpired):
             process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            # Unreapable within the window almost always means uninterruptible sleep in a
-            # syscall. Nothing further we can do here, and blocking the supervisor forever
-            # would be worse than leaving one zombie behind.
-            pass
 
     def terminate_all(self) -> None:
         """Terminate every command still running under this supervisor."""
@@ -398,8 +397,6 @@ class ProcessSupervisor:
             else:
                 # Already exited, but possibly never waited on. Reap it so it does not sit
                 # in the table as a zombie for the life of the supervisor.
-                try:
+                with contextlib.suppress(subprocess.TimeoutExpired):
                     process.wait(timeout=1)
-                except subprocess.TimeoutExpired:
-                    pass
         self._children.clear()

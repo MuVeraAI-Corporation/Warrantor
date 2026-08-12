@@ -1,0 +1,30 @@
+[project]
+name = "warrantor-agent-manifest"
+version = "1.0.0"
+description = "Agent Manifest (agent.yaml) — the OpenAPI for agents. Parser, validator, canonical-JSON + Ed25519 signature envelope."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "AumOS contributors" }]
+requires-python = ">=3.11"
+dependencies = ["cryptography>=42"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.4"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
