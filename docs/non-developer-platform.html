@@ -134,10 +134,10 @@
 
 <p>A principle-based regime is harder to satisfy than a checklist, not easier: it asks an institution to demonstrate that a principle <em>held</em>, which is an evidentiary claim. "Human oversight was maintained" is a sentence; "here are 340 consequential actions, each of which a named person approved before it committed, with signatures" is proof of it.</p>
 
-<div class="card warn">
-  <h4>A gap in our own materials, found while researching this</h4>
-  <p>The platform's compliance matrix (<code>docs/cross-cutting/13-compliance-frameworks.md</code>) tracks ten frameworks. Four are EU — AI Act, DORA, NIS2 — plus the UK. <strong>RBI/FREE-AI, DPDP, SDAIA and DIFC Regulation 10 do not appear at all.</strong></p>
-  <p>That is backwards relative to where we sell. The console's framework view should lead with US supervisory expectations, India and the GCC, with the EU present only where a customer genuinely operates there. Worth fixing in the matrix itself, not just in the UI that reads from it.</p>
+<div class="card ok">
+  <h4>A gap in our own materials, found while researching this — since fixed</h4>
+  <p>When first written, the platform's compliance matrix tracked ten frameworks of which four were EU, and <strong>RBI/FREE-AI, DPDP, SDAIA and DIFC Regulation 10 did not appear at all</strong> — backwards relative to where we sell.</p>
+  <p>The matrix (<code>docs/cross-cutting/13-compliance-frameworks.md</code>) has been re-cut: US interagency MRM (OCC 2026-13 / Fed SR 26-2, with the deferral-not-exemption reading), RBI FREE-AI, the India AI Governance Guidelines and DPDP, SDAIA's risk framework and DIFC Reg 10 now lead, with an evidence table mapping what each supervisor asks for to the primitive that produces it. EU frameworks remain tracked where factually required. GCC entries carry an explicit primary-text-confirmation caveat.</p>
 </div>
 
 <hr>
@@ -268,7 +268,7 @@
 
 <h3>B7 — Framework mapping, with the gaps shown <span class="tag t-part">matrix exists, wrong markets</span></h3>
 <p>Map collected evidence to NIST AI RMF, ISO/IEC 42001, RBI FREE-AI's sutras, SDAIA's risk framework and DIFC Regulation 10 — and show what is <em>not</em> covered as prominently as what is. A compliance view that only shows green is a liability, because someone will rely on it.</p>
-<p><strong>Requires first:</strong> adding the India and GCC frameworks to the matrix, which currently has neither.</p>
+<p><strong>Unblocked:</strong> the matrix now carries the India and GCC frameworks with an evidence mapping, so this view is a rendering task rather than a research task.</p>
 
 <h3>B8 — Stop everything <span class="tag t-part">mechanism exists</span></h3>
 <p>One control, reachable by someone who has never used a terminal, that halts every running agent — with a confirmation naming exactly what will be killed, and a receipt afterwards recording who stopped it and why.</p>

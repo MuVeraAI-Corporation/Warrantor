@@ -28,9 +28,9 @@ less than one we told first.
 - The two-reviewer rule for these areas is in [GOVERNANCE.md](../GOVERNANCE.md)
 
 **Compliance, audit and risk**
-- [cross-cutting/13-compliance-frameworks.md](cross-cutting/13-compliance-frameworks.md) — framework mapping.
-  Note the known gap recorded in the non-developer document: it currently tracks four EU frameworks
-  and none of RBI/FREE-AI, DPDP, SDAIA or DIFC, which is backwards relative to where this is deployed.
+- [cross-cutting/13-compliance-frameworks.md](cross-cutting/13-compliance-frameworks.md) — framework
+  mapping, ordered by primary market: US interagency MRM (OCC 2026-13 / Fed SR 26-2), RBI FREE-AI and
+  DPDP, SDAIA and DIFC Reg 10, then international and EU. GCC entries await primary-text confirmation.
 - [non-developer-platform.html](non-developer-platform.html) — the roles, workflows and evidence
 
 **Contributing**

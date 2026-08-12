@@ -1,20 +1,56 @@
 # Compliance Frameworks Matrix
 
 > Every DefStack component maps to one or more regulatory/compliance frameworks. This is non-negotiable for enterprise and government adoption.
+>
+> **Ordering is deliberate.** The platform's primary markets are US/North America, GCC, and India, so
+> those anchors lead. EU frameworks are tracked because they are factually load-bearing for some
+> customers, not because they lead the positioning.
 
 ## Frameworks Tracked (August 2026)
 
+### United States
+
+| Framework | Status (Aug 2026) | DefStack Impact |
+|-----------|-------------------|-----------------|
+| **Interagency Model Risk Management — OCC Bulletin 2026-13 / Fed SR 26-2** | Issued 17 Apr 2026; **supersedes SR 11-7 and SR 21-8** (never cite those as current). States generative and agentic AI are *"not within the scope of this guidance"* and that it *"does not set forth enforceable standards"*. The agencies plan an **RFI specifically on banks' use of AI, including agentic AI** | Read as a **deferral, not an exemption**: obligations on the underlying action (safety & soundness, consumer protection, third-party risk) are untouched — only the control *specification* was withdrawn. The eventual guidance will be written against what industry can already demonstrate. Warrant bounds + signed receipts + approval records are exactly that demonstration. Contributing evidence to the RFI is a live opportunity |
+| **NIST AI RMF 1.0** | Released Jan 2023; revision concept note published 7 Apr 2026 | All components map to Govern/Map/Measure/Manage functions (see mapping below) |
+| **FedRAMP AI** | 2025 AI Prioritization Initiative completed Apr 2026; 4 authorization paths | KillSwitchKit, AgentVault, AttestaFlow target FedRAMP authorization |
+| **AI Kill Switch Act (H.R. 9917)** | Introduced 23 Jul 2026 (Reps. Lieu/Moran); pending | KillSwitchKit is the reference implementation |
+
+### India
+
+| Framework | Status (Aug 2026) | DefStack Impact |
+|-----------|-------------------|-----------------|
+| **RBI FREE-AI** | Framework for Responsible and Ethical Enablement of AI in the Financial Sector; committee report published Aug 2025 with **seven guiding sutras** and practical implementation guidance for regulated entities | Principle-based — so compliance is an *evidentiary* claim: "human oversight was maintained" must be demonstrated, not asserted. Staged effects + approval records + refusal logs are that demonstration. Warrant register serves the AI-inventory expectation |
+| **India AI Governance Guidelines** | Released Feb 2026 (AI Impact Summit); principle-based techno-legal approach anchored in seven sutras | Same evidentiary posture as FREE-AI; applies beyond financial sector |
+| **DPDP Act 2023** | In force; implementing rules progressing through 2026 (verify current rules status before customer-facing claims) | Data an agent touches while working is in scope: write-path bounds + egress allowlists limit exposure; receipts record what was accessed. Also drives the data-residency case for local/sovereign deployment |
+
+### GCC
+
+| Framework | Status (Aug 2026) | DefStack Impact |
+|-----------|-------------------|-----------------|
+| **SDAIA national AI risk management framework** (Saudi Arabia) | Launched **14 Jul 2026**: unified methodology for identifying, assessing, treating and **continuously monitoring** AI risks, for government and private sector. Sits alongside PDPL (in force Sep 2023) and the AI Adoption Framework (4 maturity levels, Sep 2024) | "Continuously" is the differentiator: point-in-time attestations don't satisfy it. Reconciliation timer + live run state + refusal trends are continuous by construction |
+| **DIFC Regulation 10** (UAE) | In force; regulates autonomous and semi-autonomous systems directly — requires privacy impact assessments and **risk-based audits of automated decision-making**. The most AI-specific provision in the Gulf | Warrant bounds are a machine-readable answer to "what may this autonomous system do"; evidence packs serve the audit requirement |
+| **UAE federal agentic-AI programme** | 23 Apr 2026: 50% of federal sectors/services/operations to agentic AI within two years | Demand signal, not an obligation — the buyer explicitly needs agent governance at sovereign scale |
+
+> GCC entries above are drawn from secondary analyses; confirm against SDAIA/DIFC primary texts
+> before they appear in customer-facing material.
+
+### International & industry
+
 | Framework | Jurisdiction | Status (Aug 2026) | DefStack Impact |
 |-----------|-------------|-------------------|-----------------|
-| **EU AI Act** | EU | Entered force 1 Aug 2024; applies from 2 Aug 2026; GPAI model providers must comply by 2 Aug 2027 | SafeTensors++, ModelNotary, ModelSBOM, DataProvenanceKit (provenance), ComplyGate (deployment gates) |
-| **NIST AI RMF 1.0** | US (voluntary) | Released Jan 2023; revision concept note published April 7, 2026 | All components map to Govern/Map/Measure/Manage functions |
-| **ISO/IEC 42001:2023** | International | Published Dec 2023; certification available 2024-2026 | DefStack org should pursue ISO 42001 certification by M18 |
-| **FedRAMP AI** | US Government | 2025 AI Prioritization Initiative completed April 2026; 4 authorization paths in 2026 | KillSwitchKit, AgentVault, AttestaFlow target FedRAMP authorization |
-| **OpenSSF SLSA v1.0** | Industry | Released April 2023; widely adopted by 2026 | All components target SLSA Level 3+ |
-| **EU DORA** | EU (financial) | Applies from Jan 17, 2025; enforcement active 2026 | OpenServeKit, InferenceProxy, TenantGuard for financial sector customers |
-| **AI Kill Switch Act (H.R. 2026)** | US (pending) | Introduced July 23, 2026 (Reps. Lieu/Moran) | KillSwitchKit is the reference implementation |
-| **EU NIS2** | EU (cyber) | Applies from Oct 2024; transposition ongoing 2026 | AgentVault, audit logging for critical infrastructure |
-| **UK AI Safety Bill** | UK (proposed) | In consultation 2026 | Mirror EU AI Act requirements |
+| **ISO/IEC 42001:2023** | International | Published Dec 2023; certification available | DefStack org should pursue ISO 42001 certification by M18 |
+| **OpenSSF SLSA v1.0** | Industry | Released Apr 2023; widely adopted by 2026 | All components target SLSA Level 3+ |
+
+### EU & other (tracked where factually required)
+
+| Framework | Jurisdiction | Status (Aug 2026) | DefStack Impact |
+|-----------|-------------|-------------------|-----------------|
+| **EU AI Act** | EU | Entered force 1 Aug 2024; applies from 2 Aug 2026; GPAI providers by 2 Aug 2027 | SafeTensors++, ModelNotary, ModelSBOM, DataProvenanceKit (provenance), ComplyGate (deployment gates) |
+| **EU DORA** | EU (financial) | Applies from 17 Jan 2025; enforcement active | OpenServeKit, InferenceProxy, TenantGuard for financial-sector customers |
+| **EU NIS2** | EU (cyber) | Applies from Oct 2024; transposition ongoing | AgentVault, audit logging for critical infrastructure |
+| **UK AI Safety Bill** | UK (proposed) | In consultation 2026 | Mirrors EU AI Act requirements |
 | **China Generative AI Measures** | China | In force 2023; updated 2025 | Out of scope for v1 (no China deployment) |
 
 ## Component → Framework Mapping
@@ -109,6 +145,37 @@ DORA (applies from Jan 17, 2025; enforcement active 2026) requires financial ins
 - **TenantGuard** — multi-tenant isolation
 - **KillSwitchKit, SentinelTrace** — incident response
 - **AgentVault** — audit trail for regulatory reporting
+
+## US / India / GCC — what supervisors ask for, and what answers it
+
+The primary-market frameworks are principle- and evidence-based rather than checklist-based, so the
+mapping is from *asked-for artefact* to *producing primitive* rather than component-by-component:
+
+| Supervisors ask for | Producing primitive | Where it lives |
+|---|---|---|
+| AI inventory | Every warrant ever granted, with bounds and state | `WarrantStore::list()` |
+| Use-case ownership | Warrant `goal` + owner (owner field pending) | warrant claims |
+| Risk classification | `SideEffectClass`: read / write / financial / destructive / physical | authority spec |
+| Testing controls | Pre-flight (eval-guard); staged effects as a dry-run that never commits | staging queue |
+| **Continuous** monitoring (SDAIA) | Reconciliation timer + live run state + refusal counts | daemon + proxy |
+| Evidence of accountability | Signed receipts; who settled/voided, when; hash-chained log | flight-recorder, settle |
+| Human oversight demonstrated (FREE-AI) | Approval-before-commit on consequential classes; settle-key separation | staged effects + settle authority |
+| Risk-based audit of automated decisions (DIFC Reg 10) | Evidence pack export: bounds + receipts + approvals + refusals per period | OCSF export + retention |
+
+Two properties do disproportionate work here:
+
+1. **Refusal records.** Most platforms can show what an agent did; supervisors increasingly ask what
+   it *attempted*. `AuthorityRequest {tool, bound, reason, count}` answers that directly.
+2. **Enforced vs Observed labelling** (`BoundStrength`). Presenting a measured bound as an enforced
+   one to a regulator is a misrepresentation; the platform distinguishes them in the type system.
+
+## Primary sources (verified 11 Aug 2026)
+
+- OCC Bulletin 2026-13: <https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html>
+- Fed SR 26-2: <https://www.federalreserve.gov/supervisionreg/srletters/SR2602.pdf>
+- RBI FREE-AI report: <https://rbidocs.rbi.org.in/rdocs/PublicationReport/Pdfs/FREEAIR130820250A24FF2D4578453F824C72ED9F5D5851.PDF>
+- India AI Governance Guidelines: <https://static.pib.gov.in/WriteReadData/specificdocs/documents/2026/feb/doc2026215790801.pdf>
+- SDAIA / DIFC entries: secondary analyses pending primary-text confirmation (see note above)
 
 ## Compliance Reporting
 
