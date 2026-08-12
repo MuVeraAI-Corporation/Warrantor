@@ -3,6 +3,7 @@ name = "warrantor-authority-spec"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 authors.workspace = true
 description = "T2 — normative Agent Authority Envelope (AAE, P1) schema + Rust reference validator"
 

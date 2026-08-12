@@ -1,0 +1,18 @@
+[package]
+name = "warrantor-computer-use"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "W8 Computer-use broker — the MCP gateway generalized to the GUI. Every screen action is AAE-scoped to specific DOM/URL, carries a pre-commit receipt with screenshot hash, and is independently kill-switchable."
+
+[lib]
+name = "warrantor_computer_use"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"

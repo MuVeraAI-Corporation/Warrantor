@@ -26,8 +26,8 @@
 pub mod execution;
 
 pub use execution::{
-    process_exists, ActionKind, ActionReport, ActionStatus, CredentialRevoker, ExecutionEngine,
-    KillTarget, LocalProcessEngine, MockExecutionEngine, NoopCredentialRevoker,
+    process_exists, ActionKind, ActionReport, ActionStatus, ExecutionEngine, KillTarget,
+    LocalProcessEngine, MockExecutionEngine,
 };
 
 use serde::{Deserialize, Serialize};
@@ -332,11 +332,6 @@ pub fn execute_kill_with(
 /// tests pass a tiny budget plus a slow policy engine to exercise the early-bail path without
 /// sleeping for seconds.
 ///
-/// Delegates to [`execute_kill_with_budget_and_revoker`] with a [`NoopCredentialRevoker`].
-/// Production callers that want invariant I-05 enforced (credentials revoked on kill) MUST call
-/// [`execute_kill_with_budget_and_revoker`] with a real [`CredentialRevoker`] bound to their
-/// credential store.
-///
 /// # Errors
 /// Returns [`KillError::BudgetExceeded`] as soon as a pre-step deadline check fails (with the
 /// elapsed time at that point), [`KillError::PolicyDenied`] if the trigger does not satisfy the
@@ -344,32 +339,6 @@ pub fn execute_kill_with(
 pub fn execute_kill_with_budget(
     policy: &dyn PolicyEngine,
     engine: &dyn ExecutionEngine,
-    target: &KillTarget,
-    trigger: KillTrigger,
-    budget: Duration,
-) -> Result<KillOutcome, KillError> {
-    execute_kill_with_budget_and_revoker(policy, engine, &NoopCredentialRevoker, target, trigger, budget)
-}
-
-/// Execute a kill with a custom policy engine, budget, AND a [`CredentialRevoker`] (invariant I-05).
-///
-/// This is the entrypoint that closes I-05: after the execution engine contains the process, and
-/// before any government notification, the revoker's `revoke_all` runs so every credential the
-/// agent holds is invalidated within the kill budget. Without this, a killed agent's tokens stay
-/// valid until their TTL expires — the exact gap I-05 exists to close. A budget check precedes
-/// the revocation (H8: bail early if we already cannot finish in budget).
-///
-/// Use [`NoopCredentialRevoker`] for tests / dev where no credential store is bound; the outcome
-/// will honestly record `revoke_credentials:not_applicable`. Use a real revoker (backed by
-/// `warrantor-credential-vault`) in production.
-///
-/// # Errors
-/// See [`execute_kill_with_budget`]; additionally propagates any
-/// [`KillError::ExecutionFailed`] from the revoker.
-pub fn execute_kill_with_budget_and_revoker(
-    policy: &dyn PolicyEngine,
-    engine: &dyn ExecutionEngine,
-    revoker: &dyn CredentialRevoker,
     target: &KillTarget,
     trigger: KillTrigger,
     budget: Duration,
@@ -387,15 +356,7 @@ pub fn execute_kill_with_budget_and_revoker(
 
     // AX-05: real execution through the caller-selected engine. Any action failure aborts the
     // kill with `ExecutionFailed` — a kill that cannot complete must not report success.
-    let mut reports = engine.contain(target)?;
-
-    // I-05: revoke every credential the agent holds, within the budget. This is the cross-component
-    // wiring the 11-Aug status doc flagged as missing: both kill-switch and credential-vault worked
-    // in isolation, but the kill path never called revoke_all. Now it does, behind the
-    // CredentialRevoker trait so the kill-switch crate need not depend on credential-vault directly.
-    check_budget(start, budget)?;
-    let revocation = revoker.revoke_all(target)?;
-    reports.push(revocation);
+    let reports = engine.contain(target)?;
     let mut actions: Vec<String> = reports.iter().map(ActionReport::label).collect();
 
     let mut government_ack = None;
@@ -516,8 +477,7 @@ mod tests {
         )
         .expect("kill executes");
         assert!(outcome.elapsed <= KILL_BUDGET);
-        // 5 canonical + 1 I-05 credential revocation + 1 government notify.
-        assert_eq!(outcome.actions_taken.len(), 7);
+        assert_eq!(outcome.actions_taken.len(), 6); // 5 canonical + 1 government notify
         assert!(outcome.government_ack.is_some());
         // C7: the stub must NOT claim the government confirmed — no HTTP call is made.
         let ack = outcome.government_ack.as_ref().unwrap();
@@ -571,8 +531,7 @@ mod tests {
         )
         .expect("kill");
         assert!(outcome.government_ack.is_none());
-        // 5 canonical engine actions + 1 I-05 credential revocation (noop reports not_applicable).
-        assert_eq!(outcome.actions_taken.len(), 6);
+        assert_eq!(outcome.actions_taken.len(), 5);
     }
 
     #[test]
@@ -939,15 +898,12 @@ mod tests {
             outcome
                 .action_reports
                 .iter()
-                .all(|r| r.status == ActionStatus::Simulated
-                    || r.action == ActionKind::RevokeCredentials),
-            "every mock-engine action must be labelled Simulated; the I-05 revoker action is exempt (it comes from the revoker, not the engine)"
+                .all(|r| r.status == ActionStatus::Simulated),
+            "every mock action must be labelled Simulated"
         );
         for label in &outcome.actions_taken {
             assert!(
-                label.ends_with(":simulated")
-                    || label.starts_with("notify_government_api")
-                    || label.starts_with("revoke_credentials"),
+                label.ends_with(":simulated") || label.starts_with("notify_government_api"),
                 "simulated actions must be labelled in actions_taken, got {label}"
             );
         }
@@ -1001,132 +957,5 @@ mod tests {
         for expected in ActionKind::all() {
             assert!(seen.contains(&expected), "missing action {expected}");
         }
-    }
-
-    // -----------------------------------------------------------------------
-    // I-05: triggering the kill switch MUST revoke every credential the agent
-    // holds, within the budget. These tests prove the cross-component wiring
-    // the 11-Aug status doc flagged as missing.
-    // -----------------------------------------------------------------------
-
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::Mutex;
-
-    /// A revoker that records every call so a test can prove the kill path actually invoked it.
-    /// `Send + Sync` via atomics + a Mutex, satisfying the CredentialRevoker supertrait.
-    struct CountingCredentialRevoker {
-        calls: AtomicUsize,
-        last_target: Mutex<Option<String>>,
-        fail: bool,
-    }
-
-    impl CountingCredentialRevoker {
-        fn new() -> Self {
-            Self { calls: AtomicUsize::new(0), last_target: Mutex::new(None), fail: false }
-        }
-        fn failing() -> Self {
-            Self { calls: AtomicUsize::new(0), last_target: Mutex::new(None), fail: true }
-        }
-    }
-
-    impl CredentialRevoker for CountingCredentialRevoker {
-        fn revoke_all(&self, target: &KillTarget) -> Result<ActionReport, KillError> {
-            self.calls.fetch_add(1, Ordering::SeqCst);
-            *self.last_target.lock().unwrap() = Some(format!("{:?}", target));
-            if self.fail {
-                return Err(KillError::ExecutionFailed(
-                    "revoke_credentials: test-injected revoker failure".into(),
-                ));
-            }
-            Ok(ActionReport::executed(
-                ActionKind::RevokeCredentials,
-                "test revoker revoked all credentials",
-            ))
-        }
-    }
-
-    #[test]
-    fn i05_kill_revokes_credentials_exactly_once() {
-        let revoker = CountingCredentialRevoker::new();
-        let outcome = execute_kill_with_budget_and_revoker(
-            &MockPolicyEngine,
-            &MockExecutionEngine::new(),
-            &revoker,
-            &mock_target(),
-            KillTrigger::SandboxEscape { confidence: 0.95 },
-            KILL_BUDGET,
-        )
-        .expect("kill succeeds");
-        assert_eq!(revoker.calls.load(Ordering::SeqCst), 1, "revoke_all must be called exactly once");
-        // The revocation action is recorded in the outcome, honestly labelled.
-        assert!(
-            outcome.actions_taken.iter().any(|a| a == "revoke_credentials"),
-            "revoke_credentials action must appear in actions_taken: {:?}",
-            outcome.actions_taken
-        );
-        assert!(
-            outcome.actions_taken.iter().any(|a| a.starts_with("revoke_credentials")),
-            "the revocation report must be present"
-        );
-    }
-
-    #[test]
-    fn i05_noop_revoker_reports_not_applicable_honestly() {
-        // The default path (no credential store bound) must NOT fabricate success — it records
-        // not_applicable so a consumer reading the kill report knows revocation did not happen.
-        let outcome = execute_kill(
-            &MockExecutionEngine::new(),
-            &mock_target(),
-            KillTrigger::SandboxEscape { confidence: 0.95 },
-        )
-        .expect("kill");
-        assert!(
-            outcome.actions_taken.iter().any(|a| a == "revoke_credentials:not_applicable"),
-            "noop revoker must report not_applicable, not fabricate success: {:?}",
-            outcome.actions_taken
-        );
-    }
-
-    #[test]
-    fn i05_failing_revoker_aborts_the_kill_fail_closed() {
-        // A revoker that cannot revoke is a kill that has not contained the authority — it MUST
-        // abort with ExecutionFailed rather than report partial success.
-        let revoker = CountingCredentialRevoker::failing();
-        let err = execute_kill_with_budget_and_revoker(
-            &MockPolicyEngine,
-            &MockExecutionEngine::new(),
-            &revoker,
-            &mock_target(),
-            KillTrigger::SandboxEscape { confidence: 0.95 },
-            KILL_BUDGET,
-        )
-        .unwrap_err();
-        match err {
-            KillError::ExecutionFailed(msg) => {
-                assert!(
-                    msg.contains("revoke_credentials"),
-                    "failure must be attributed to revocation, got: {msg}"
-                );
-            }
-            other => panic!("failing revoker must abort with ExecutionFailed, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn i05_revocation_runs_within_the_kill_budget() {
-        // The revocation is inside the same H8 budget envelope as containment + government notify.
-        // A kill at the standard 5s budget that also revokes must still finish in budget.
-        let revoker = CountingCredentialRevoker::new();
-        let outcome = execute_kill_with_budget_and_revoker(
-            &MockPolicyEngine,
-            &MockExecutionEngine::new(),
-            &revoker,
-            &mock_target(),
-            KillTrigger::SandboxEscape { confidence: 0.95 },
-            KILL_BUDGET,
-        )
-        .expect("kill");
-        assert!(outcome.elapsed <= KILL_BUDGET, "revocation must not blow the budget");
-        assert_eq!(revoker.calls.load(Ordering::SeqCst), 1);
     }
 }

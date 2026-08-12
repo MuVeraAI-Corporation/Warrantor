@@ -2371,6 +2371,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "warrantor-agent-manifest"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "warrantor-api"
 version = "1.0.0"
 dependencies = [
@@ -2397,6 +2409,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "warrantor-computer-use"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "warrantor-confidential-fabric"
 version = "1.0.0"
 dependencies = [
@@ -2405,6 +2428,17 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "warrantor-containment-conformance"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
  "thiserror 1.0.69",
 ]
 
@@ -2418,6 +2452,18 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "ureq",
+]
+
+[[package]]
+name = "warrantor-egress"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2442,6 +2488,18 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "warrantor-api",
+]
+
+[[package]]
+name = "warrantor-evidence"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2515,6 +2573,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "warrantor-notary"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "warrantor-nvtrust-bridge"
 version = "1.0.0"
 dependencies = [
@@ -2566,6 +2636,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "warrantor-retrieval"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "warrantor-safe-tensors-pp"
 version = "1.0.0"
 dependencies = [
@@ -2605,6 +2687,29 @@ dependencies = [
  "sha2",
  "thiserror 1.0.69",
  "warrantor-trust-core",
+]
+
+[[package]]
+name = "warrantor-self-governance"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "warrantor-spend"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

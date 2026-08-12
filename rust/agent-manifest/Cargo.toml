@@ -1,0 +1,21 @@
+[package]
+name = "warrantor-agent-manifest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Agent Manifest (agent.yaml) — the OpenAPI for agents. Parser, validator, canonical-JSON + Ed25519 signature envelope."
+
+[lib]
+name = "warrantor_agent_manifest"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+# Pure-Rust Ed25519, no async runtime, no system crypto — keeps the trusted-core
+# dependency surface minimal. Used only for the manifest signature envelope.
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+sha2 = "0.10"

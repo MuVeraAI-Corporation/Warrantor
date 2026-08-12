@@ -96,12 +96,6 @@ pub enum ActionKind {
     IsolateNetworkNamespace,
     /// Destroy the agent's in-flight state.
     WipeTransientMemory,
-    /// **I-05**: revoke every credential the agent holds, within the &lt;1s budget. Performed by a
-    /// [`CredentialRevoker`], not the [`ExecutionEngine`] &mdash; the engine contains the process;
-    /// the revoker contains the authority the process was using. Without this action a killed
-    /// agent's tokens stay valid until their TTL expires, which is the exact gap invariant I-05
-    /// exists to close.
-    RevokeCredentials,
 }
 
 impl ActionKind {
@@ -114,7 +108,6 @@ impl ActionKind {
             ActionKind::KillPod => "kill_pod",
             ActionKind::IsolateNetworkNamespace => "isolate_network_namespace",
             ActionKind::WipeTransientMemory => "wipe_transient_memory",
-            ActionKind::RevokeCredentials => "revoke_credentials",
         }
     }
 
@@ -846,52 +839,6 @@ impl ExecutionEngine for MockExecutionEngine {
 
     fn wipe_transient_memory(&self, t: &KillTarget) -> Result<ActionReport, KillError> {
         Self::report(ActionKind::WipeTransientMemory, t)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// CredentialRevoker — the I-05 seam.
-//
-// The ExecutionEngine contains the *process*; the CredentialRevoker contains the *authority* the
-// process was using. Invariant I-05 requires that triggering the kill switch revokes every
-// credential the agent holds within the <1s budget — otherwise a killed agent's tokens stay valid
-// until their TTL expires. This trait is the seam a real credential store (the warrantor
-// `credential-vault` crate, HashiCorp Vault, AWS Secrets Manager, …) plugs into. The kill path
-// (`execute_kill_with_budget_and_revoker` in lib.rs) calls `revoke_all` after containment and
-// before government notification, within the same budget envelope.
-// ---------------------------------------------------------------------------
-
-/// Revoke every credential an agent holds, within the kill-switch budget (invariant I-05).
-///
-/// Implementations MUST complete within the time budget the kill path enforces; a slow revoker
-/// fails the whole kill with [`crate::KillError::BudgetExceeded`], which is the correct failure
-/// mode &mdash; a kill that cannot revoke credentials in budget is a kill that has not contained
-/// the authority, and must not report success.
-///
-/// An implementation that has no credential store bound returns
-/// [`ActionReport::not_applicable`] (honest about the missing control surface) rather than a
-/// fabricated success.
-pub trait CredentialRevoker: Send + Sync {
-    /// Revoke every credential the targeted agent holds.
-    ///
-    /// # Errors
-    /// Returns [`crate::KillError::ExecutionFailed`] if the revocation could not be performed;
-    /// the kill then aborts with that error rather than reporting partial containment.
-    fn revoke_all(&self, target: &crate::KillTarget) -> Result<ActionReport, crate::KillError>;
-}
-
-/// The default revoker: no credential store is bound. Reports the action as `not_applicable` so
-/// the kill outcome honestly records that credential revocation did not happen, rather than
-/// silently omitting it. Production deployments pass a real revoker (one backed by
-/// `warrantor-credential-vault`).
-pub struct NoopCredentialRevoker;
-
-impl CredentialRevoker for NoopCredentialRevoker {
-    fn revoke_all(&self, _target: &crate::KillTarget) -> Result<ActionReport, crate::KillError> {
-        Ok(ActionReport::not_applicable(
-            ActionKind::RevokeCredentials,
-            "no credential store bound (NoopCredentialRevoker); production deployments must bind a real revoker",
-        ))
     }
 }
 

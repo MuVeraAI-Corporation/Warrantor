@@ -1,0 +1,18 @@
+[package]
+name = "warrantor-egress"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "W5 Egress broker — model-belief-independent, default-deny network enforcement (spec 08). The agent never supplies a destination; the broker resolves a capability via a signed catalog."
+
+[lib]
+name = "warrantor_egress"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+sha2 = "0.10"

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "mimosa-hook-status/v1",
+  "recordedAt": "2026-08-12T15:02:28.791Z",
+  "sessionId": "sess_df8752b3-3a80-44d3-80d6-2ee480d8dc86",
+  "event": "PostToolUse",
+  "toolName": "Write",
+  "file": "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\python\\warrantor_containment_conformance\\README.md",
+  "outcome": "clear",
+  "coverage": "complete",
+  "findingCount": 0,
+  "durationMs": 13,
+  "hostState": "hook_complete",
+  "reportHint": ".mimosa/reports/"
+}
