@@ -25,7 +25,7 @@ clap.workspace = true
 # "digest" enables sign_prehashed/verify_prehashed -- Ed25519ph (RFC 8032 5.1),
 # which is what Rekor uses for hashedrekord entries. Plain Ed25519 over a digest
 # is a DIFFERENT algorithm and Rekor rejects it.
-ed25519-dalek = { version = "2", features = ["rand_core", "zeroize", "digest"] }
+ed25519-dalek = { version = "3", features = ["rand_core", "zeroize", "digest"] }
 rand = "0.8"
 sha2 = "0.10"
 hex = "0.4"
