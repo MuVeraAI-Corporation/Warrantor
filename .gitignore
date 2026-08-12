@@ -60,3 +60,8 @@ htmlcov/
 # Transient audit virtualenv
 .auditvenv/
 evidence/
+
+# Agent hook state -- per-session scratch containing local absolute paths.
+# Never useful to a contributor and noise in a public repo.
+.mimosa/
+**/.mimosa/
