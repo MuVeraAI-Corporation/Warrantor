@@ -162,6 +162,12 @@ jobs:
           ls -la dist/
 
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # A re-run must not fail on versions that are already there. PyPI refuses
+          # duplicate uploads by design (a version can be yanked, never replaced), so
+          # without this every re-tag turns the whole job red and buries the failures
+          # that actually mean something.
+          skip-existing: true
         # No `password:` key. That absence is the point.
 
   # ── Rust ──────────────────────────────────────────────────────────────────
@@ -211,7 +217,12 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         # The token this action produces lives ~30 minutes and is revoked in the
         # action's post step when the job ends.
-        run: cargo publish -p warrantor-warrant
+        run: |
+          if curl -sf -A "warrantor-release" "https://crates.io/api/v1/crates/warrantor-warrant/1.0.0" >/dev/null 2>&1; then
+            echo "::notice::warrantor-warrant 1.0.0 already on crates.io - skipping"
+          else
+            cargo publish -p warrantor-warrant
+          fi
 
   # ── npm ───────────────────────────────────────────────────────────────────
   publish-npm:
@@ -237,7 +248,12 @@ jobs:
         run: |
           for pkg in mcp-server mcp-gateway protocol-contracts; do
             echo "::group::@warrantor/$pkg"
-            ( cd "typescript/$pkg" && npm install --no-audit --no-fund && npm run build && npm publish --access public )
+            v=$(node -p "require('./typescript/$pkg/package.json').version")
+            if npm view "@warrantor/$pkg@$v" version >/dev/null 2>&1; then
+              echo "::notice::@warrantor/$pkg@$v already on npm - skipping"
+            else
+              ( cd "typescript/$pkg" && npm install --no-audit --no-fund && npm run build && npm publish --access public )
+            fi
             echo "::endgroup::"
           done
         # No NODE_AUTH_TOKEN. npm detects the OIDC environment on its own, and
