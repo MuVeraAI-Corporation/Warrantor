@@ -524,7 +524,7 @@ mod hex {
         s
     }
     pub fn decode(hex: &str) -> Result<Vec<u8>, String> {
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err("odd-length hex".to_string());
         }
         (0..hex.len())
@@ -752,7 +752,10 @@ mod tests {
         // Construction-time invariant: pre_commit must not carry an outcome.
         let (sk, _) = generate_keypair();
         let result = std::panic::catch_unwind(|| {
-            issue_pre_commit(
+            // Discarding the receipt is the point: this asserts the call PANICS, so any
+            // value it might return is irrelevant. `let _` says that deliberately, which
+            // is what #[must_use] is asking for.
+            let _ = issue_pre_commit(
                 sample_predicate(Phase::PreCommit, Some(sample_outcome())),
                 &sk,
                 "k",

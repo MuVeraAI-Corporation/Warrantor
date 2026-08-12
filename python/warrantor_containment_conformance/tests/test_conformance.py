@@ -1,4 +1,5 @@
 """Tests for the W3 containment conformance verify path."""
+
 from __future__ import annotations
 
 import pytest

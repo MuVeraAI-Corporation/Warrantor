@@ -364,7 +364,7 @@ mod hex {
         s
     }
     pub fn decode(hex: &str) -> Result<Vec<u8>, String> {
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err("odd-length hex".into());
         }
         (0..hex.len())
@@ -546,7 +546,17 @@ mod tests {
         let _ = decide(&req(1000, 500, 2), &mut ab, &mut tb, &backends());
         assert_eq!(tb.tokens_used, 1500);
         assert_eq!(tb.tool_calls_used, 2);
-        assert!(ab.usd_spent_micros >= 0); // cost was computed
+        // `>= 0` on a u64 was always true and asserted nothing -- the test would have
+        // passed with spend accounting removed entirely. Clippy caught it.
+        //
+        // Zero IS the right answer here: `backends()` offers a free self-hosted model
+        // and the selector takes it, so an allowed request costs nothing. Asserting the
+        // exact figure rather than a tautology means the test now fails if a free
+        // backend is ever wrongly charged for.
+        assert_eq!(
+            ab.usd_spent_micros, 0,
+            "the free local backend was selected, so nothing should have been charged"
+        );
     }
 
     #[test]

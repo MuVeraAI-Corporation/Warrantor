@@ -1,4 +1,5 @@
 """W3 Containment conformance — Python verify path for H.R. 9917 kill-switch conformance reports."""
+
 from __future__ import annotations
 
 import json
@@ -40,13 +41,17 @@ def verify_report(signed: dict[str, Any]) -> None:
     except ValueError as e:
         raise ConformanceError("SIGNATURE_ENVELOPE", f"public_key: {e}") from e
     if len(pub_bytes) != 32:
-        raise ConformanceError("SIGNATURE_ENVELOPE", f"public_key must be 32 bytes, got {len(pub_bytes)}")
+        raise ConformanceError(
+            "SIGNATURE_ENVELOPE", f"public_key must be 32 bytes, got {len(pub_bytes)}"
+        )
     try:
         sig_bytes = bytes.fromhex(sig_hex)
     except ValueError as e:
         raise ConformanceError("SIGNATURE_ENVELOPE", f"signature: {e}") from e
     if len(sig_bytes) != 64:
-        raise ConformanceError("SIGNATURE_ENVELOPE", f"signature must be 64 bytes, got {len(sig_bytes)}")
+        raise ConformanceError(
+            "SIGNATURE_ENVELOPE", f"signature must be 64 bytes, got {len(sig_bytes)}"
+        )
     canonical = canonical_report(report).encode("utf-8")
     try:
         pub = Ed25519PublicKey.from_public_bytes(pub_bytes)

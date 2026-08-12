@@ -198,7 +198,7 @@ pub fn finalize_report(
     let elicitation_ok = report
         .elicitation
         .as_ref()
-        .map_or(false, |e| e.is_substantiated());
+        .is_some_and(|e| e.is_substantiated());
     if !elicitation_ok {
         for cap in &mut report.capabilities {
             if cap.verdict.is_pass_like() {
@@ -335,7 +335,7 @@ mod hex {
         s
     }
     pub fn decode(hex: &str) -> Result<Vec<u8>, String> {
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err("odd-length hex".into());
         }
         (0..hex.len())
