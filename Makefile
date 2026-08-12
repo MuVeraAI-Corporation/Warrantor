@@ -1,4 +1,4 @@
-# AumOS strict, one-command development and verification entry point.
+# Warrantor strict, one-command development and verification entry point.
 #
 # Every target is fail-closed: a missing toolchain, empty project set, failed
 # check, or broken conformance vector returns a non-zero status.
@@ -23,7 +23,7 @@ sigstore-up: ## Start the local transparency log (MySQL + Trillian + Rekor)
 	check-docs docs clean demo sigstore-up
 
 help: ## Show available targets
-	@awk 'BEGIN {FS = ":.*##"; printf "AumOS strict targets:\n\n"} \
+	@awk 'BEGIN {FS = ":.*##"; printf "Warrantor strict targets:\n\n"} \
 	  /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 require-tools: ## Fail unless every required toolchain is available

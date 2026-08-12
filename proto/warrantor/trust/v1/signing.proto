@@ -1,4 +1,4 @@
-// AumOS trust-core (T1) wire contracts.
+// Warrantor trust-core (T1) wire contracts.
 // The Rust crate `warrantor-trust-core` is the single authoritative implementation of every
 // sign/verify operation. Other languages call it via these RPCs or via in-process bindings.
 syntax = "proto3";

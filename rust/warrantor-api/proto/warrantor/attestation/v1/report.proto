@@ -1,4 +1,4 @@
-// AumOS attestation contracts — GPU/runtime attestation reports consumed by C1-1 nvtrust-bridge,
+// Warrantor attestation contracts — GPU/runtime attestation reports consumed by C1-1 nvtrust-bridge,
 // C1-2 cuda-gram, and the composite attestation layer (P12 CAP, plane 9).
 syntax = "proto3";
 

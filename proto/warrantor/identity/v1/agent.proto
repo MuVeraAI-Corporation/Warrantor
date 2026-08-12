@@ -1,4 +1,4 @@
-// AumOS identity contracts — the mock AgentVault interface Wave-1 components integrate against.
+// Warrantor identity contracts — the mock AgentVault interface Wave-1 components integrate against.
 // The real I1 agent-identity (Wave-2) replaces this with SPIFFE/SPIRE-backed issuance.
 //
 // Per docs/cross-cutting/19-inter-component-protocol.md: gRPC + protobuf for internal RPCs.
