@@ -27,7 +27,10 @@
 # this Dockerfile reaches into both `rust/` and `typescript/`.
 
 # ── Stage 1: build the Rust binaries the connected-mode tools shell out to ───
-FROM rust:1.80-slim AS rust-builder
+# Pinned to a current toolchain rather than 1.80: dependencies in the lockfile now carry
+# manifests 1.80 cannot parse, so the build failed with 'failed to parse manifest'. A base
+# image pin is a floor that silently expires as the dependency tree moves.
+FROM rust:1.85-slim AS rust-builder
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends pkg-config libssl-dev \
