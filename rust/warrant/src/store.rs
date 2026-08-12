@@ -153,7 +153,9 @@ impl WarrantStore {
                 }
             }
         }
-        out.sort_by(|a, b| b.warrant.claims.issued_at.cmp(&a.warrant.claims.issued_at));
+        // Newest first. Expressed with `Reverse` rather than a hand-written comparator so the
+        // ordering is stated once instead of depending on argument order being read correctly.
+        out.sort_by_key(|s| std::cmp::Reverse(s.warrant.claims.issued_at));
         Ok(out)
     }
 
