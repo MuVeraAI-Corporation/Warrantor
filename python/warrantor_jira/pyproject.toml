@@ -36,6 +36,11 @@ dev = ["pytest>=7", "ruff>=0.4", "responses>=0.25"]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
+# PEP 561: without this the marker exists on disk but is absent from the wheel, so type
+# checkers still ignore the package -- the classifier would stay a promise we do not keep.
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
