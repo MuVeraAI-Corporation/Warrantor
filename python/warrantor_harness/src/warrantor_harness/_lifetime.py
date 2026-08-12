@@ -374,9 +374,32 @@ class ProcessSupervisor:
         except (ProcessLookupError, PermissionError, OSError):
             process.kill()
 
+        # Reap it. SIGKILL ends the process, but on POSIX the pid stays in the table as a
+        # zombie until its parent waits on it -- and we are the parent. An unreaped child
+        # still answers `kill(pid, 0)`, so anything checking whether the agent is gone is
+        # told it is still running, and a long-lived supervisor accumulates one zombie per
+        # run it terminates.
+        #
+        # Windows returns above and needs none of this: there is no zombie state to clear,
+        # which is why this was invisible until the tests ran on Linux.
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            # Unreapable within the window almost always means uninterruptible sleep in a
+            # syscall. Nothing further we can do here, and blocking the supervisor forever
+            # would be worse than leaving one zombie behind.
+            pass
+
     def terminate_all(self) -> None:
         """Terminate every command still running under this supervisor."""
         for process in list(self._children):
             if process.poll() is None:
                 self._terminate_tree(process)
+            else:
+                # Already exited, but possibly never waited on. Reap it so it does not sit
+                # in the table as a zombie for the life of the supervisor.
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    pass
         self._children.clear()
