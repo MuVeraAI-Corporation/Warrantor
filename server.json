@@ -1,0 +1,40 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.MuVeraAI-Corporation/warrantor",
+  "description": "Bounded authority for coding agents: irreversible actions staged for approval, not performed.",
+  "version": "1.0.0",
+  "websiteUrl": "https://github.com/MuVeraAI-Corporation/Warrantor",
+  "repository": {
+    "url": "https://github.com/MuVeraAI-Corporation/Warrantor",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@warrantor/mcp-server",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "AUMOS_MODE",
+          "description": "connected (default) shells out to the real trust-core and defstack binaries and reaches the running services; standalone returns deterministic stand-ins tagged source: \"mock\" so they can never be mistaken for enforcement.",
+          "isRequired": false,
+          "default": "connected"
+        },
+        {
+          "name": "AUMOS_AGENT_IDENTITY_URL",
+          "description": "Base URL of a running agent-identity service. Only needed in connected mode; unset, identity tools report the missing dependency by name rather than failing silently.",
+          "isRequired": false
+        },
+        {
+          "name": "AUMOS_TRUST_CORE_BIN",
+          "description": "Path to the trust-core binary used by the sign and verify tools. Defaults to trust-core on PATH.",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

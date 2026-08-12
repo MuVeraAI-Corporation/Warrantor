@@ -3,7 +3,7 @@
 There are over 200 files here. Most of them are design history, and you almost certainly do not need
 them. This page exists so you can find the handful that matter to you and ignore the rest.
 
-## Start with these five
+## Start with these six
 
 | Document | What it answers |
 |---|---|
@@ -11,6 +11,7 @@ them. This page exists so you can find the handful that matter to you and ignore
 | [**OSS readiness**](oss-readiness.html) | Where this repository is not yet ready to be depended on, and what is being done about it |
 | [**Non-developer platform**](non-developer-platform.html) | What people who *oversee* agents need, and what exists for them today |
 | [**Publishing runbook**](publishing-runbook.md) | How releases work, and what is still blocked |
+| [**Distribution channels**](distribution-channels.md) | Where Warrantor is published, and what channels are worth adding next |
 | [**Research portfolio**](research-portfolio.html) | Six paper briefs, five whitepapers, and the OSAA benchmark suite — with the experiments each still needs |
 
 The first two are deliberately unflattering. A newcomer who finds a gap themselves trusts the project
