@@ -50,7 +50,11 @@ jobs:
         include:
           - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu,  ext: ""     }
           - { os: macos-latest,   target: aarch64-apple-darwin,      ext: ""     }
-          - { os: macos-13,       target: x86_64-apple-darwin,       ext: ""     }
+          # Cross-compiled from the arm64 runner rather than scheduled on macos-13: that
+          # image has been retired, so the label sits queued indefinitely instead of
+          # failing -- every other job finished while this one waited. Apple's toolchain
+          # targets both architectures from either host.
+          - { os: macos-latest,   target: x86_64-apple-darwin,       ext: ""     }
           - { os: windows-latest, target: x86_64-pc-windows-msvc,    ext: ".exe" }
     steps:
       - uses: actions/checkout@v4
@@ -89,7 +93,9 @@ jobs:
       # Prove the binary runs on the machine that built it. A release artifact
       # that was never executed is a guess.
       - name: Smoke-test the binary
-        if: matrix.target != 'aarch64-apple-darwin'   # cross-arch on x86 runner
+        # Skip where the built binary's architecture differs from the runner's: a
+        # cross-compiled artifact cannot be executed to prove itself here.
+        if: matrix.target != 'x86_64-apple-darwin'
         shell: bash
         run: |
           "rust/target/${{ matrix.target }}/release/warrantor${{ matrix.ext }}" --help \
