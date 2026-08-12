@@ -120,8 +120,23 @@ which would have failed on the third command. `warrantor-api` is a path dependen
 paths before `cargo publish` would accept them:
 
 ```bash
-cd rust
 cargo login            # paste your crates.io token at the prompt
+npm login              # browser-based
+
+./tools/release/publish-registries.sh              # dry run — publishes nothing
+./tools/release/publish-registries.sh --execute    # the real thing
+```
+
+The script does both registries in one pass, in dependency order, and waits for crates.io to index
+between each publish. It never sees a token: you authenticate first, it uses the session, and it
+refuses to start if you are not already logged in — an unauthenticated run would fail halfway, which
+for a sequential publish is the worst possible moment. Already-published packages are skipped, so a
+re-run after a partial failure resumes rather than colliding.
+
+If you would rather run the commands yourself:
+
+```bash
+cd rust
 cargo publish -p warrantor-api
 cargo publish -p warrantor-trust-core        # depends on warrantor-api
 cargo publish -p warrantor-authority-spec    # depends on warrantor-api
