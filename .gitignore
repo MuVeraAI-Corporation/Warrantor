@@ -69,3 +69,6 @@ htmlcov/
 # Never useful to a contributor and noise in a public repo.
 .mimosa/
 **/.mimosa/
+
+# TypeScript incremental build info
+*.tsbuildinfo
