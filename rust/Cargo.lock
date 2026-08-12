@@ -2443,6 +2443,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "warrantor-content-moderation"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "warrantor-credential-vault"
 version = "1.0.0"
 dependencies = [
@@ -2452,6 +2463,28 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "ureq",
+]
+
+[[package]]
+name = "warrantor-csam-defense"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "warrantor-data-plane"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2573,6 +2606,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "warrantor-misinformation-defense"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "warrantor-notary"
 version = "1.0.0"
 dependencies = [
@@ -2598,10 +2642,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "warrantor-plugin-api"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "warrantor-policy-bridge"
 version = "1.0.0"
 dependencies = [
  "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "warrantor-post-quantum"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
  "serde",
  "serde_json",
  "sha2",
@@ -2633,6 +2700,17 @@ dependencies = [
  "sha2",
  "thiserror 1.0.69",
  "uuid",
+]
+
+[[package]]
+name = "warrantor-responsible-ai"
+version = "1.0.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

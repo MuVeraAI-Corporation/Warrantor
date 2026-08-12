@@ -1,0 +1,18 @@
+[package]
+name = "warrantor-responsible-ai"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "RA1 Responsible-AI receipt fields — bias-audit, right-to-explanation, carbon/energy per action, dynamic consent. The receipt becomes a responsible-AI record, not just an authority record."
+
+[lib]
+name = "warrantor_responsible_ai"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"

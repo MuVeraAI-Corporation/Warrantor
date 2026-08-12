@@ -1,0 +1,19 @@
+[package]
+name = "warrantor-post-quantum"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "DU1 Post-quantum durability — dual-sign (Ed25519 + ML-DSA), archival-grade receipts, agent retirement/EOL, exit/continuity. A 2026 receipt must verify in 2056 against quantum, key rotation, and org succession."
+
+[lib]
+name = "warrantor_post_quantum"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+sha2 = "0.10"

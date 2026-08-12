@@ -1,0 +1,18 @@
+[package]
+name = "warrantor-misinformation-defense"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "W12 Misinformation/CIB defense plane — coordinated inauthentic behavior detection at agent scale. Multi-agent campaign detection across the receipt graph."
+
+[lib]
+name = "warrantor_misinformation_defense"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"

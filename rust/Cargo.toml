@@ -31,6 +31,13 @@ members = [
     "computer-use",
     "self-governance",
     "containment-conformance",
+    "post-quantum",
+    "plugin-api",
+    "responsible-ai",
+    "data-plane",
+    "content-moderation",
+    "csam-defense",
+    "misinformation-defense",
 ]
 exclude = [
     "trust-core/fuzz",  # nested cargo-fuzz workspace (own [workspace] table)
