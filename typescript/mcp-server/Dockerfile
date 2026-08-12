@@ -61,8 +61,16 @@ COPY typescript/mcp-server/package.json ./
 COPY typescript/mcp-server/package-lock.json* ./
 RUN npm install --no-audit --no-fund --ignore-scripts
 
+# tsconfig.json extends ../tsconfig.base.json, so the base must come too -- and it must
+# land one level ABOVE the app dir for the relative `extends` to resolve. Copying only the
+# app's own tsconfig gave `tsc` exit 2 with a config it could not resolve, which is easy to
+# mistake for a compile error in the source.
+COPY typescript/tsconfig.base.json /tsconfig.base.json
 COPY typescript/mcp-server/tsconfig.json ./
 COPY typescript/mcp-server/src/ ./src/
+
+# Point the extends at where the base actually is in this image.
+RUN sed -i 's|"extends": "../tsconfig.base.json"|"extends": "/tsconfig.base.json"|' tsconfig.json
 RUN npm run build
 
 # Prune to production deps for the runtime image (here: effectively none).
