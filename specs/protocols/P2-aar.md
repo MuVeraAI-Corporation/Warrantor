@@ -1,4 +1,23 @@
-# P2 — Agent Action Receipt
+# P2 — Agent Action Receipt (v1.0)
+
+> ## ⚠ SUPERSEDED by WAR v2.0
+>
+> **This document describes protocol version 1.0 and is retained for history only.**
+> The current normative specification is the **Warrantor Action Receipt (WAR) v2.0** at
+> [`../warrantor-v4/01-war-receipt.md`](../warrantor-v4/01-war-receipt.md).
+>
+> What changed, and why:
+> - **Signing:** v1.0 signed canonical CBOR. v2.0 uses a **DSSE envelope wrapping an in-toto
+>   Statement over JCS-canonical JSON**, for interoperability with the OpenSSF Model Signing,
+>   Sigstore, and SLSA tooling the alliance already uses.
+> - **Authority:** v1.0 carried `authority_digest` — a pointer, not a proof — which left invariant
+>   I-02 unfalsifiable from the receipt alone. v2.0 carries the full delegation chain and a
+>   **recomputable intersection proof**.
+> - **Added in v2.0:** runtime-bound AIBOM, optional composite attestation verdict, and a mandatory
+>   **`enforcement_mode`** field so a receipt cannot claim more than its deployment earned.
+>
+> Do not implement against this document. See also
+> [`../warrantor-v4/README.md`](../warrantor-v4/README.md) for the full contract pack.
 
 > Tamper-evident receipt per material action. The receipt is signed BEFORE the action's effect is visible; the action commits only once the receipt is durable (invariant I-07).
 
