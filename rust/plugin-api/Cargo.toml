@@ -1,0 +1,18 @@
+[package]
+name = "warrantor-plugin-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "X1 Plugin API + registry — the extension-dev surface. VerdictPlugin, PolicyPlugin, ReceiptProfile, EnforcementBackend. Signed plugins, Semver stability contract, curated registry."
+
+[lib]
+name = "warrantor_plugin_api"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"

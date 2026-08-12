@@ -1,0 +1,18 @@
+[package]
+name = "warrantor-content-moderation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "W10 Content moderation plane — harmful-output defense at the substrate. Consumes NeMo Guardrails/Llama Guard/ShieldGemma via a scanner adapter trait. Model-belief-independent: advisory signals may deny, never allow."
+
+[lib]
+name = "warrantor_content_moderation"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
