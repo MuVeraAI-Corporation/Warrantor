@@ -104,24 +104,63 @@ jobs:
           name: python-dists
           path: dist/
 
+  # PyPI's pending-publisher uniqueness constraint is on
+  # (owner, repository, workflow, environment) -- so twelve packages sharing one
+  # environment cannot each have a pending publisher. Registering the second
+  # fails with "already been registered for a different project name".
+  # See https://github.com/pypi/warehouse/issues/16920.
+  #
+  # The fix is one environment per package, which makes each tuple unique. It
+  # also happens to be better practice: a publish to warrantor-agent can be
+  # approved independently of a publish to warrantor-vllm.
   publish-python:
-    name: publish to PyPI
+    name: publish ${{ matrix.project }}
     needs: build-python
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    # The environment is half the security of trusted publishing: PyPI's
-    # publisher config names it, so a workflow run outside this environment
-    # cannot publish even from this repository.
+    strategy:
+      # Do NOT stop other packages when one fails. A half-published release is
+      # already the bad outcome; cancelling the rest makes it worse and less
+      # legible, and PyPI versions cannot be replaced.
+      fail-fast: false
+      matrix:
+        include:
+          - { dir: warrantor_admission,  project: warrantor-admission,  env: pypi-warrantor-admission }
+          - { dir: warrantor_agent,      project: warrantor-agent,      env: pypi-warrantor-agent }
+          - { dir: warrantor_backup,     project: warrantor-backup,     env: pypi-warrantor-backup }
+          - { dir: warrantor_harness,    project: warrantor-harness,    env: pypi-warrantor-harness }
+          - { dir: warrantor_hf_plugin,  project: warrantor-hf-plugin,  env: pypi-warrantor-hf-plugin }
+          - { dir: warrantor_jira,       project: warrantor-jira,       env: pypi-warrantor-jira }
+          - { dir: warrantor_langchain,  project: warrantor-langchain,  env: pypi-warrantor-langchain }
+          - { dir: warrantor_ocsf,       project: warrantor-ocsf,       env: pypi-warrantor-ocsf }
+          - { dir: warrantor_rbac,       project: warrantor-rbac,       env: pypi-warrantor-rbac }
+          - { dir: warrantor_retention,  project: warrantor-retention,  env: pypi-warrantor-retention }
+          - { dir: warrantor_sla,        project: warrantor-sla,        env: pypi-warrantor-sla }
+          - { dir: warrantor_vllm,       project: warrantor-vllm,       env: pypi-warrantor-vllm }
     environment:
-      name: pypi
-      url: https://pypi.org/project/warrantor-agent/
+      name: ${{ matrix.env }}
+      url: https://pypi.org/project/${{ matrix.project }}/
     permissions:
       id-token: write  # mint the OIDC token; nothing else is needed
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: python-dists
-          path: dist/
+          path: all-dists/
+
+      # Each job uploads ONLY its own package. The artifact holds all twelve, and
+      # pointing pypi-publish at the whole directory would make every job try to
+      # upload every package -- eleven of which its publisher is not valid for.
+      - name: Select this package's artifacts
+        run: |
+          mkdir -p dist
+          # Wheel and sdist use the underscore form of the name.
+          cp all-dists/${{ matrix.dir }}-*.whl dist/ 2>/dev/null || true
+          cp all-dists/${{ matrix.dir }}-*.tar.gz dist/ 2>/dev/null || true
+          n=$(ls dist/ | wc -l)
+          [ "$n" -eq 2 ] || { echo "::error::expected 2 artifacts for ${{ matrix.project }}, found $n"; ls -la all-dists/; exit 1; }
+          ls -la dist/
+
       - uses: pypa/gh-action-pypi-publish@release/v1
         # No `password:` key. That absence is the point.
 

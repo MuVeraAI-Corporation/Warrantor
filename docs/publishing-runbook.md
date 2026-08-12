@@ -92,21 +92,45 @@ So the sequence that closes the window is: configure trusted publishing → get 
 
 ## The part only you can do
 
-### 1. PyPI — twelve pending publishers
+### 1. PyPI — twelve pending publishers, each with its OWN environment
 
-At <https://pypi.org/manage/account/publishing/>, add a **pending publisher** for each package:
+At <https://pypi.org/manage/account/publishing/> (left sidebar → **Publishing** — *not* Organizations;
+a PyPI organization is a different feature and is not needed for this).
+
+**The environment name must differ per package.** PyPI enforces uniqueness on
+(owner, repository, workflow, environment), so twelve publishers sharing one environment fail with
+*"A pending trusted publisher matching this configuration has already been registered for a
+different project name"*. This is a known monorepo limitation:
+<https://github.com/pypi/warehouse/issues/16920>.
+
+These three are the same every time:
 
 | Field | Value |
 |---|---|
-| PyPI Project Name | `warrantor-agent` (then repeat for the other 11) |
-| Owner | `MuVeraAI-Corporation` *(or whichever org you chose)* |
+| Owner | `MuVeraAI-Corporation` — the **GitHub** org |
 | Repository name | `Warrantor` |
 | Workflow name | `publish.yml` |
-| Environment name | `pypi` |
 
-The twelve names: `warrantor-admission`, `warrantor-agent`, `warrantor-backup`,
-`warrantor-harness`, `warrantor-hf-plugin`, `warrantor-jira`, `warrantor-langchain`,
-`warrantor-ocsf`, `warrantor-rbac`, `warrantor-retention`, `warrantor-sla`, `warrantor-vllm`.
+These two vary together:
+
+| PyPI Project Name | Environment name |
+|---|---|
+| `warrantor-admission` | `pypi-warrantor-admission` |
+| `warrantor-agent` | `pypi-warrantor-agent` |
+| `warrantor-backup` | `pypi-warrantor-backup` |
+| `warrantor-harness` | `pypi-warrantor-harness` |
+| `warrantor-hf-plugin` | `pypi-warrantor-hf-plugin` |
+| `warrantor-jira` | `pypi-warrantor-jira` |
+| `warrantor-langchain` | `pypi-warrantor-langchain` |
+| `warrantor-ocsf` | `pypi-warrantor-ocsf` |
+| `warrantor-rbac` | `pypi-warrantor-rbac` |
+| `warrantor-retention` | `pypi-warrantor-retention` |
+| `warrantor-sla` | `pypi-warrantor-sla` |
+| `warrantor-vllm` | `pypi-warrantor-vllm` |
+
+The matching GitHub environments already exist. The workflow publishes each package in its own job
+bound to its own environment, so a failure on one does not cancel the others — a half-published
+release is bad enough without losing the rest of the run to `fail-fast`.
 
 ### 2. crates.io — four crates, in dependency order
 
