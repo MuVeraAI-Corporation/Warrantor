@@ -215,5 +215,5 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
   tasks (addressed in 1.5 above).
 - Real KMS/HSM, Rekor, OPA Rego, Vault/AWS/K8s, eBPF — Wave-1 task 03/04 work; traits + stubs in place.
 
-[Unreleased]: https://github.com/aumos/aumos/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/aumos/aumos/releases/tag/v1.0.0
+[Unreleased]: https://github.com/MuVeraAI-Corporation/Warrantor/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/MuVeraAI-Corporation/Warrantor/releases/tag/v1.0.0
