@@ -61,7 +61,8 @@ pub fn describe_linkage() -> Linkage {
         Linkage {
             mechanism: "setsid+pdeathsig",
             survives_supervisor_death: true,
-            detail: "the agent runs in its own session with PR_SET_PDEATHSIG, so the kernel signals \
+            detail:
+                "the agent runs in its own session with PR_SET_PDEATHSIG, so the kernel signals \
                      it when the supervisor dies. Grandchildren are not individually signalled; \
                      the session id lets one kill reach the group.",
         }
@@ -149,7 +150,9 @@ impl Supervisor {
             });
         }
 
-        let child = command.spawn().map_err(|e| format!("spawn {program}: {e}"))?;
+        let child = command
+            .spawn()
+            .map_err(|e| format!("spawn {program}: {e}"))?;
         let pid = child.id();
 
         #[cfg(windows)]
@@ -246,11 +249,7 @@ pub fn terminate_group(pid: u32) {
 /// # Errors
 /// A string if the log cannot be opened or the process cannot be spawned.
 #[allow(unsafe_code)] // same: `pre_exec` on the Unix path.
-pub fn spawn_detached(
-    program: &str,
-    args: &[String],
-    log: &Path,
-) -> Result<u32, String> {
+pub fn spawn_detached(program: &str, args: &[String], log: &Path) -> Result<u32, String> {
     if let Some(parent) = log.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("create log dir: {e}"))?;
     }
@@ -259,7 +258,9 @@ pub fn spawn_detached(
         .append(true)
         .open(log)
         .map_err(|e| format!("open {}: {e}", log.display()))?;
-    let err = out.try_clone().map_err(|e| format!("clone log handle: {e}"))?;
+    let err = out
+        .try_clone()
+        .map_err(|e| format!("clone log handle: {e}"))?;
 
     let mut command = Command::new(program);
     command

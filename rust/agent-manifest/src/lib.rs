@@ -129,9 +129,9 @@ pub struct SignedManifest {
     pub manifest: AgentManifest,
     pub signature: SignatureEnvelope,
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub issued_at: Option<String>,  // RFC 3339
+    pub issued_at: Option<String>, // RFC 3339
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub issuer: Option<String>,     // SPIFFE ID of the issuer
+    pub issuer: Option<String>, // SPIFFE ID of the issuer
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub expires_at: Option<String>, // RFC 3339
 }
@@ -143,7 +143,8 @@ pub struct SignedManifest {
 /// Parse a JSON string into a validated [`AgentManifest`], producing the exact error code for any
 /// rule violation. This is the entry point a gateway / SDK calls.
 pub fn parse_and_validate(json: &str) -> Result<AgentManifest, ManifestError> {
-    let value: Value = serde_json::from_str(json).map_err(|e| ManifestError::MalformedJson(e.to_string()))?;
+    let value: Value =
+        serde_json::from_str(json).map_err(|e| ManifestError::MalformedJson(e.to_string()))?;
     let obj = value.as_object().ok_or(ManifestError::NotAnObject)?;
     validate_object(obj)
 }
@@ -153,9 +154,20 @@ pub fn parse_and_validate(json: &str) -> Result<AgentManifest, ManifestError> {
 pub fn validate_object(obj: &Map<String, Value>) -> Result<AgentManifest, ManifestError> {
     // 1. Reject unexpected fields (additionalProperties: false).
     let allowed: HashSet<&str> = [
-        "apiVersion", "kind", "name", "identity", "capabilities", "policy_refs",
-        "dependencies", "attestation", "enforcement_mode", "description", "version",
-    ].into_iter().collect();
+        "apiVersion",
+        "kind",
+        "name",
+        "identity",
+        "capabilities",
+        "policy_refs",
+        "dependencies",
+        "attestation",
+        "enforcement_mode",
+        "description",
+        "version",
+    ]
+    .into_iter()
+    .collect();
     for key in obj.keys() {
         if !allowed.contains(key.as_str()) {
             return Err(ManifestError::UnexpectedField { field: key.clone() });
@@ -165,9 +177,13 @@ pub fn validate_object(obj: &Map<String, Value>) -> Result<AgentManifest, Manife
     // 2. Required fields.
     let require_str = |field: &str| -> Result<String, ManifestError> {
         match obj.get(field) {
-            None => Err(ManifestError::MissingRequiredField { field: field.to_string() }),
+            None => Err(ManifestError::MissingRequiredField {
+                field: field.to_string(),
+            }),
             Some(Value::String(s)) => Ok(s.clone()),
-            Some(_) => Err(ManifestError::MissingRequiredField { field: field.to_string() }),
+            Some(_) => Err(ManifestError::MissingRequiredField {
+                field: field.to_string(),
+            }),
         }
     };
     let api_version = require_str("apiVersion")?;
@@ -183,24 +199,40 @@ pub fn validate_object(obj: &Map<String, Value>) -> Result<AgentManifest, Manife
         return Err(ManifestError::InvalidKind);
     }
     if name.is_empty() {
-        return Err(ManifestError::MissingRequiredField { field: "name".to_string() });
+        return Err(ManifestError::MissingRequiredField {
+            field: "name".to_string(),
+        });
     }
     if !identity.starts_with("spiffe://") {
-        return Err(ManifestError::InvalidIdentity { field: "identity".to_string() });
+        return Err(ManifestError::InvalidIdentity {
+            field: "identity".to_string(),
+        });
     }
 
     // capabilities — non-empty, all on the ladder.
     let capabilities: Vec<String> = match obj.get("capabilities") {
-        None => return Err(ManifestError::MissingRequiredField { field: "capabilities".to_string() }),
+        None => {
+            return Err(ManifestError::MissingRequiredField {
+                field: "capabilities".to_string(),
+            })
+        }
         Some(Value::Array(a)) => a
             .iter()
             .map(|v| v.as_str().map(String::from))
             .collect::<Option<Vec<_>>>()
-            .ok_or_else(|| ManifestError::EmptyCapabilities { field: "capabilities".to_string() })?,
-        Some(_) => return Err(ManifestError::EmptyCapabilities { field: "capabilities".to_string() }),
+            .ok_or_else(|| ManifestError::EmptyCapabilities {
+                field: "capabilities".to_string(),
+            })?,
+        Some(_) => {
+            return Err(ManifestError::EmptyCapabilities {
+                field: "capabilities".to_string(),
+            })
+        }
     };
     if capabilities.is_empty() {
-        return Err(ManifestError::EmptyCapabilities { field: "capabilities".to_string() });
+        return Err(ManifestError::EmptyCapabilities {
+            field: "capabilities".to_string(),
+        });
     }
     for c in &capabilities {
         if !CAPABILITY_LADDER.contains(&c.as_str()) {
@@ -214,16 +246,28 @@ pub fn validate_object(obj: &Map<String, Value>) -> Result<AgentManifest, Manife
 
     // policy_refs — non-empty.
     let policy_refs: Vec<String> = match obj.get("policy_refs") {
-        None => return Err(ManifestError::MissingRequiredField { field: "policy_refs".to_string() }),
+        None => {
+            return Err(ManifestError::MissingRequiredField {
+                field: "policy_refs".to_string(),
+            })
+        }
         Some(Value::Array(a)) => a
             .iter()
             .map(|v| v.as_str().map(String::from))
             .collect::<Option<Vec<_>>>()
-            .ok_or_else(|| ManifestError::EmptyPolicyRefs { field: "policy_refs".to_string() })?,
-        Some(_) => return Err(ManifestError::EmptyPolicyRefs { field: "policy_refs".to_string() }),
+            .ok_or_else(|| ManifestError::EmptyPolicyRefs {
+                field: "policy_refs".to_string(),
+            })?,
+        Some(_) => {
+            return Err(ManifestError::EmptyPolicyRefs {
+                field: "policy_refs".to_string(),
+            })
+        }
     };
     if policy_refs.is_empty() {
-        return Err(ManifestError::EmptyPolicyRefs { field: "policy_refs".to_string() });
+        return Err(ManifestError::EmptyPolicyRefs {
+            field: "policy_refs".to_string(),
+        });
     }
 
     // enforcement_mode enum.
@@ -247,10 +291,12 @@ pub fn validate_object(obj: &Map<String, Value>) -> Result<AgentManifest, Manife
             }
             Some(s.clone())
         }
-        Some(_) => return Err(ManifestError::InvalidVersion {
-            field: "version".to_string(),
-            bad: "<non-string>".to_string(),
-        }),
+        Some(_) => {
+            return Err(ManifestError::InvalidVersion {
+                field: "version".to_string(),
+                bad: "<non-string>".to_string(),
+            })
+        }
     };
 
     // optional dependencies.
@@ -260,10 +306,12 @@ pub fn validate_object(obj: &Map<String, Value>) -> Result<AgentManifest, Manife
             let dep = parse_dependencies(d)?;
             Some(dep)
         }
-        Some(_) => return Err(ManifestError::InvalidModelDigest {
-            field: "dependencies".to_string(),
-            bad: "<non-object>".to_string(),
-        }),
+        Some(_) => {
+            return Err(ManifestError::InvalidModelDigest {
+                field: "dependencies".to_string(),
+                bad: "<non-object>".to_string(),
+            })
+        }
     };
     // dependencies.model digest pattern, if present.
     if let Some(Dependencies { model: Some(m), .. }) = &dependencies {
@@ -281,15 +329,25 @@ pub fn validate_object(obj: &Map<String, Value>) -> Result<AgentManifest, Manife
             a.iter()
                 .map(|v| v.as_str().map(String::from))
                 .collect::<Option<Vec<_>>>()
-                .ok_or_else(|| ManifestError::UnexpectedField { field: "attestation".to_string() })?,
+                .ok_or_else(|| ManifestError::UnexpectedField {
+                    field: "attestation".to_string(),
+                })?,
         ),
-        Some(_) => return Err(ManifestError::UnexpectedField { field: "attestation".to_string() }),
+        Some(_) => {
+            return Err(ManifestError::UnexpectedField {
+                field: "attestation".to_string(),
+            })
+        }
     };
 
     let description = match obj.get("description") {
         None => None,
         Some(Value::String(s)) => Some(s.clone()),
-        Some(_) => return Err(ManifestError::UnexpectedField { field: "description".to_string() }),
+        Some(_) => {
+            return Err(ManifestError::UnexpectedField {
+                field: "description".to_string(),
+            })
+        }
     };
 
     Ok(AgentManifest {
@@ -311,16 +369,20 @@ fn parse_dependencies(d: &Map<String, Value>) -> Result<Dependencies, ManifestEr
     let allowed: HashSet<&str> = ["model", "tools", "data"].into_iter().collect();
     for k in d.keys() {
         if !allowed.contains(k.as_str()) {
-            return Err(ManifestError::UnexpectedField { field: format!("dependencies.{}", k) });
+            return Err(ManifestError::UnexpectedField {
+                field: format!("dependencies.{}", k),
+            });
         }
     }
     let model = match d.get("model") {
         None => None,
         Some(Value::String(s)) => Some(s.clone()),
-        Some(_) => return Err(ManifestError::InvalidModelDigest {
-            field: "dependencies.model".to_string(),
-            bad: "<non-string>".to_string(),
-        }),
+        Some(_) => {
+            return Err(ManifestError::InvalidModelDigest {
+                field: "dependencies.model".to_string(),
+                bad: "<non-string>".to_string(),
+            })
+        }
     };
     let tools = match d.get("tools") {
         None => None,
@@ -328,9 +390,15 @@ fn parse_dependencies(d: &Map<String, Value>) -> Result<Dependencies, ManifestEr
             a.iter()
                 .map(|v| v.as_str().map(String::from))
                 .collect::<Option<Vec<_>>>()
-                .ok_or_else(|| ManifestError::UnexpectedField { field: "dependencies.tools".to_string() })?,
+                .ok_or_else(|| ManifestError::UnexpectedField {
+                    field: "dependencies.tools".to_string(),
+                })?,
         ),
-        Some(_) => return Err(ManifestError::UnexpectedField { field: "dependencies.tools".to_string() }),
+        Some(_) => {
+            return Err(ManifestError::UnexpectedField {
+                field: "dependencies.tools".to_string(),
+            })
+        }
     };
     let data = match d.get("data") {
         None => None,
@@ -338,16 +406,25 @@ fn parse_dependencies(d: &Map<String, Value>) -> Result<Dependencies, ManifestEr
             a.iter()
                 .map(|v| v.as_str().map(String::from))
                 .collect::<Option<Vec<_>>>()
-                .ok_or_else(|| ManifestError::UnexpectedField { field: "dependencies.data".to_string() })?,
+                .ok_or_else(|| ManifestError::UnexpectedField {
+                    field: "dependencies.data".to_string(),
+                })?,
         ),
-        Some(_) => return Err(ManifestError::UnexpectedField { field: "dependencies.data".to_string() }),
+        Some(_) => {
+            return Err(ManifestError::UnexpectedField {
+                field: "dependencies.data".to_string(),
+            })
+        }
     };
     Ok(Dependencies { model, tools, data })
 }
 
 fn is_semver(s: &str) -> bool {
     let parts: Vec<&str> = s.split('.').collect();
-    parts.len() == 3 && parts.iter().all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+    parts.len() == 3
+        && parts
+            .iter()
+            .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
 }
 
 fn is_digest(s: &str) -> bool {
@@ -480,8 +557,7 @@ pub fn verify(sm: &SignedManifest) -> Result<(), ManifestError> {
     let sig = Signature::from_bytes(&sig_arr);
 
     let canonical = canonical_json(&sm.manifest);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| ManifestError::Signature("Ed25519 signature does not verify".to_string()))
 }
 
@@ -557,7 +633,11 @@ mod tests {
         let enf = a.find("\"enforcement_mode\"").unwrap();
         let id = a.find("\"identity\"").unwrap();
         let kind = a.find("\"kind\"").unwrap();
-        assert!(api < caps && caps < enf && enf < id && id < kind, "keys must be sorted: {}", a);
+        assert!(
+            api < caps && caps < enf && enf < id && id < kind,
+            "keys must be sorted: {}",
+            a
+        );
     }
 
     #[test]
@@ -585,7 +665,10 @@ mod tests {
         // tamper: change the name AFTER signing
         signed.manifest.name = "evil-twin".to_string();
         let err = verify(&signed).unwrap_err();
-        assert!(matches!(err, ManifestError::Signature(_)), "tamper must be detected");
+        assert!(
+            matches!(err, ManifestError::Signature(_)),
+            "tamper must be detected"
+        );
     }
 
     #[test]

@@ -187,7 +187,10 @@ fn a_staged_write_returns_a_handle_and_says_it_has_not_happened() {
         &args(&[("title", json!("Fix token refresh"))]),
     );
 
-    assert!(!result.is_error, "staging is success, not failure: {result:?}");
+    assert!(
+        !result.is_error,
+        "staging is success, not failure: {result:?}"
+    );
     assert!(
         result.text.contains("pr://staged/"),
         "the agent needs the handle to reference later: {}",
@@ -210,7 +213,10 @@ fn a_forwardable_tool_with_no_upstream_reports_the_missing_upstream() {
         .expect("endpoint");
 
     let result = agent.call("git", &args(&[("args", json!("status"))]));
-    assert!(result.is_error, "no upstream means no result, and that must not read as success");
+    assert!(
+        result.is_error,
+        "no upstream means no result, and that must not read as success"
+    );
     assert!(
         result.text.contains("--upstream"),
         "say how to fix it: {}",
@@ -302,7 +308,10 @@ fn settling_over_mcp_without_an_adapter_says_so() {
 #[test]
 fn reporting_an_unknown_warrant_fails_rather_than_inventing_one() {
     let dir = tempdir("unknown");
-    let result = control(&dir).call("warrant_report", &args(&[("warrant_id", json!("wrt_nope"))]));
+    let result = control(&dir).call(
+        "warrant_report",
+        &args(&[("warrant_id", json!("wrt_nope"))]),
+    );
     assert!(result.is_error);
 }
 
@@ -366,7 +375,8 @@ fn a_malformed_message_is_reported_and_the_session_continues() {
     assert_eq!(responses.len(), 2);
     assert_eq!(responses[0]["error"]["code"], -32700);
     assert_eq!(
-        responses[1]["result"], json!({}),
+        responses[1]["result"],
+        json!({}),
         "the session must survive the bad message"
     );
 }

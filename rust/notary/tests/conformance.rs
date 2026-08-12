@@ -33,12 +33,19 @@ fn run_vectors() -> Vec<(String, bool, String)> {
     let root: Value = serde_json::from_str(&raw).expect("vectors.json is valid JSON");
     let base_req = root.get("base_request").cloned().expect("base_request");
     let base_ctx = root.get("base_context").cloned().expect("base_context");
-    let vectors = root.get("vectors").and_then(|v| v.as_array()).expect("vectors array");
+    let vectors = root
+        .get("vectors")
+        .and_then(|v| v.as_array())
+        .expect("vectors array");
 
     vectors
         .iter()
         .map(|v| {
-            let name = v.get("name").and_then(|n| n.as_str()).unwrap_or("<unnamed>").to_string();
+            let name = v
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("<unnamed>")
+                .to_string();
             let mut req_value = base_req.clone();
             if let Some(o) = v.get("request_overrides") {
                 deep_merge(&mut req_value, o);
@@ -55,10 +62,18 @@ fn run_vectors() -> Vec<(String, bool, String)> {
 
             let got = verdict(&req, &ctx);
             let expected = v.get("expected").expect("expected");
-            let expected_outcome = expected.get("outcome").and_then(|o| o.as_str()).unwrap_or("");
+            let expected_outcome = expected
+                .get("outcome")
+                .and_then(|o| o.as_str())
+                .unwrap_or("");
 
             let (passed, detail) = match (&got, expected_outcome) {
-                (Verdict::Allow { effective_capabilities }, "allow") => {
+                (
+                    Verdict::Allow {
+                        effective_capabilities,
+                    },
+                    "allow",
+                ) => {
                     let want_caps: Vec<String> = expected
                         .get("effective_capabilities")
                         .and_then(|c| c.as_array())
@@ -74,7 +89,9 @@ fn run_vectors() -> Vec<(String, bool, String)> {
                         if ok {
                             "allow with correct effective_capabilities".to_string()
                         } else {
-                            format!("allow but caps want={want_caps:?} got={effective_capabilities:?}")
+                            format!(
+                                "allow but caps want={want_caps:?} got={effective_capabilities:?}"
+                            )
                         },
                     )
                 }
@@ -91,9 +108,7 @@ fn run_vectors() -> Vec<(String, bool, String)> {
                         },
                     )
                 }
-                (got_v, expected_o) => {
-                    (false, format!("outcome want={expected_o} got={got_v:?}"))
-                }
+                (got_v, expected_o) => (false, format!("outcome want={expected_o} got={got_v:?}")),
             };
             (name, passed, detail)
         })
@@ -132,5 +147,10 @@ fn all_conformance_vectors_pass() {
 #[test]
 fn vector_count_is_expected() {
     let results = run_vectors();
-    assert_eq!(results.len(), 16, "expected 16 notary vectors; got {}", results.len());
+    assert_eq!(
+        results.len(),
+        16,
+        "expected 16 notary vectors; got {}",
+        results.len()
+    );
 }

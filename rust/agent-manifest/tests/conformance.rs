@@ -29,18 +29,32 @@ fn run_vectors() -> Vec<VectorResult> {
 
     let mut results = Vec::with_capacity(vectors.len());
     for v in vectors {
-        let name = v.get("name").and_then(|n| n.as_str()).unwrap_or("<unnamed>").to_string();
+        let name = v
+            .get("name")
+            .and_then(|n| n.as_str())
+            .unwrap_or("<unnamed>")
+            .to_string();
         let manifest_value = v.get("manifest").expect("vector has a manifest");
         let manifest_json = serde_json::to_string(manifest_value).expect("manifest serializes");
         let expected = v.get("expected").expect("vector has an expected");
-        let expected_valid = expected.get("valid").and_then(|x| x.as_bool()).unwrap_or(false);
+        let expected_valid = expected
+            .get("valid")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
 
         let result = match parse_and_validate(&manifest_json) {
             Ok(_) => {
                 if expected_valid {
-                    VectorResult { name, passed: true, detail: "valid as expected".to_string() }
+                    VectorResult {
+                        name,
+                        passed: true,
+                        detail: "valid as expected".to_string(),
+                    }
                 } else {
-                    let want_code = expected.get("error_code").and_then(|c| c.as_str()).unwrap_or("?");
+                    let want_code = expected
+                        .get("error_code")
+                        .and_then(|c| c.as_str())
+                        .unwrap_or("?");
                     VectorResult {
                         name,
                         passed: false,
@@ -50,7 +64,10 @@ fn run_vectors() -> Vec<VectorResult> {
             }
             Err(err) => {
                 if !expected_valid {
-                    let want_code = expected.get("error_code").and_then(|c| c.as_str()).unwrap_or("?");
+                    let want_code = expected
+                        .get("error_code")
+                        .and_then(|c| c.as_str())
+                        .unwrap_or("?");
                     let want_field = expected.get("error_field").and_then(|f| f.as_str());
                     let got_code = error_code(&err);
                     let got_field = error_field(&err);
@@ -64,8 +81,11 @@ fn run_vectors() -> Vec<VectorResult> {
                         passed: code_ok && field_ok,
                         detail: format!(
                             "code want={} got={} ({}); field want={:?} got={:?}",
-                            want_code, got_code, if code_ok { "OK" } else { "MISMATCH" },
-                            want_field, got_field
+                            want_code,
+                            got_code,
+                            if code_ok { "OK" } else { "MISMATCH" },
+                            want_field,
+                            got_field
                         ),
                     }
                 } else {
@@ -143,5 +163,10 @@ fn all_conformance_vectors_pass() {
 fn vector_count_is_expected() {
     // Guards against a silently-shrinking corpus.
     let results = run_vectors();
-    assert_eq!(results.len(), 13, "expected 13 manifest vectors; got {}", results.len());
+    assert_eq!(
+        results.len(),
+        13,
+        "expected 13 manifest vectors; got {}",
+        results.len()
+    );
 }

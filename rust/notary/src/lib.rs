@@ -202,7 +202,9 @@ pub struct VerdictContext {
 pub fn verdict(req: &VerdictRequest, ctx: &VerdictContext) -> Verdict {
     // Gate 1 — Containment (I-12). A contained system must not spend effort adjudicating.
     if ctx.contained_scopes.contains(&req.operation.scope) {
-        return Verdict::Deny { gate: Gate::Containment };
+        return Verdict::Deny {
+            gate: Gate::Containment,
+        };
     }
 
     // Gate 2 — Identity (I-01). No active identity, no action.
@@ -210,16 +212,25 @@ pub fn verdict(req: &VerdictRequest, ctx: &VerdictContext) -> Verdict {
         || ctx.revoked_svids.contains(&req.actor.svid)
         || req.actor.svid_not_after <= ctx.now
     {
-        return Verdict::Deny { gate: Gate::Identity };
+        return Verdict::Deny {
+            gate: Gate::Identity,
+        };
     }
 
     // Gate 3 — Freshness (I-10). Replay + staleness protection.
     if ctx.seen_nonces.contains(&req.nonce) {
-        return Verdict::Deny { gate: Gate::Freshness };
+        return Verdict::Deny {
+            gate: Gate::Freshness,
+        };
     }
-    let skew = req.timestamp.saturating_sub(ctx.now).max(ctx.now.saturating_sub(req.timestamp));
+    let skew = req
+        .timestamp
+        .saturating_sub(ctx.now)
+        .max(ctx.now.saturating_sub(req.timestamp));
     if skew > ctx.freshness_window_seconds {
-        return Verdict::Deny { gate: Gate::Freshness };
+        return Verdict::Deny {
+            gate: Gate::Freshness,
+        };
     }
 
     // Gate 4 — Chain (I-02). Every delegation link's signature + validity window.
@@ -233,14 +244,18 @@ pub fn verdict(req: &VerdictRequest, ctx: &VerdictContext) -> Verdict {
     let effective = effective_capabilities(&req.actor);
     for cap in &req.operation.capabilities_requested {
         if !effective.contains(cap) {
-            return Verdict::Deny { gate: Gate::Authority };
+            return Verdict::Deny {
+                gate: Gate::Authority,
+            };
         }
     }
 
     // Gate 6 — Artifacts (I-06). Every digest verified + provider-resolved.
     for artifact in &req.artifacts {
         if !artifact.verified || !ctx.verified_artifacts.contains(&artifact.digest) {
-            return Verdict::Deny { gate: Gate::Artifacts };
+            return Verdict::Deny {
+                gate: Gate::Artifacts,
+            };
         }
     }
 
@@ -258,11 +273,17 @@ pub fn verdict(req: &VerdictRequest, ctx: &VerdictContext) -> Verdict {
     if req.operation.consequence_tier == ConsequenceTier::Critical {
         match &req.approval {
             Some(a) if a.valid && a.non_delegable => {}
-            _ => return Verdict::Deny { gate: Gate::Approval },
+            _ => {
+                return Verdict::Deny {
+                    gate: Gate::Approval,
+                }
+            }
         }
     }
 
-    Verdict::Allow { effective_capabilities: effective }
+    Verdict::Allow {
+        effective_capabilities: effective,
+    }
 }
 
 /// The capability intersection across the actor's own capabilities and the full delegation chain
@@ -404,8 +425,7 @@ pub fn verify_receipt(receipt: &WarReceipt) -> Result<(), NotaryError> {
     let sig = Signature::from_bytes(&sig_arr);
 
     let canonical = canonical_receipt_body(&receipt.body);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| NotaryError::InvalidSignature)
 }
 
@@ -536,7 +556,12 @@ mod tests {
     #[test]
     fn all_pass_yields_allow() {
         let v = verdict(&base_request(), &base_context());
-        assert_eq!(v, Verdict::Allow { effective_capabilities: vec!["read".to_string(), "write".to_string()] });
+        assert_eq!(
+            v,
+            Verdict::Allow {
+                effective_capabilities: vec!["read".to_string(), "write".to_string()]
+            }
+        );
     }
 
     // --- each gate fires correctly (in order) ---
@@ -546,35 +571,60 @@ mod tests {
         let mut ctx = base_context();
         ctx.contained_scopes = vec!["prod".to_string()];
         let v = verdict(&base_request(), &ctx);
-        assert_eq!(v, Verdict::Deny { gate: Gate::Containment });
+        assert_eq!(
+            v,
+            Verdict::Deny {
+                gate: Gate::Containment
+            }
+        );
     }
 
     #[test]
     fn gate2_identity_revoked_svid_denies() {
         let mut ctx = base_context();
         ctx.revoked_svids = vec!["spiffe://yourcorp/agents/bot-1".to_string()];
-        assert_eq!(verdict(&base_request(), &ctx), Verdict::Deny { gate: Gate::Identity });
+        assert_eq!(
+            verdict(&base_request(), &ctx),
+            Verdict::Deny {
+                gate: Gate::Identity
+            }
+        );
     }
 
     #[test]
     fn gate2_identity_expired_svid_denies() {
         let mut req = base_request();
         req.actor.svid_not_after = 500; // expired before ctx.now=1000
-        assert_eq!(verdict(&req, &base_context()), Verdict::Deny { gate: Gate::Identity });
+        assert_eq!(
+            verdict(&req, &base_context()),
+            Verdict::Deny {
+                gate: Gate::Identity
+            }
+        );
     }
 
     #[test]
     fn gate3_freshness_replayed_nonce_denies() {
         let mut ctx = base_context();
         ctx.seen_nonces = vec!["nonce-1".to_string()];
-        assert_eq!(verdict(&base_request(), &ctx), Verdict::Deny { gate: Gate::Freshness });
+        assert_eq!(
+            verdict(&base_request(), &ctx),
+            Verdict::Deny {
+                gate: Gate::Freshness
+            }
+        );
     }
 
     #[test]
     fn gate3_freshness_stale_timestamp_denies() {
         let mut req = base_request();
         req.timestamp = 1000 + 120; // outside the 60s window
-        assert_eq!(verdict(&req, &base_context()), Verdict::Deny { gate: Gate::Freshness });
+        assert_eq!(
+            verdict(&req, &base_context()),
+            Verdict::Deny {
+                gate: Gate::Freshness
+            }
+        );
     }
 
     #[test]
@@ -587,14 +637,22 @@ mod tests {
             not_after: u64::MAX,
             signature_verified: false, // broken
         });
-        assert_eq!(verdict(&req, &base_context()), Verdict::Deny { gate: Gate::Chain });
+        assert_eq!(
+            verdict(&req, &base_context()),
+            Verdict::Deny { gate: Gate::Chain }
+        );
     }
 
     #[test]
     fn gate5_authority_outside_intersection_denies() {
         let mut req = base_request();
         req.operation.capabilities_requested = vec!["financial".to_string()]; // not in actor's set
-        assert_eq!(verdict(&req, &base_context()), Verdict::Deny { gate: Gate::Authority });
+        assert_eq!(
+            verdict(&req, &base_context()),
+            Verdict::Deny {
+                gate: Gate::Authority
+            }
+        );
     }
 
     #[test]
@@ -612,33 +670,54 @@ mod tests {
         req.operation.capabilities_requested = vec!["write".to_string()];
         assert_eq!(
             verdict(&req, &base_context()),
-            Verdict::Deny { gate: Gate::Authority },
+            Verdict::Deny {
+                gate: Gate::Authority
+            },
             "write was dropped by the chain intersection"
         );
         // And read still passes the authority gate (proves it's the intersection, not a blanket deny).
         req.operation.capabilities_requested = vec!["read".to_string()];
-        assert_eq!(verdict(&req, &base_context()), Verdict::Allow { effective_capabilities: vec!["read".to_string()] });
+        assert_eq!(
+            verdict(&req, &base_context()),
+            Verdict::Allow {
+                effective_capabilities: vec!["read".to_string()]
+            }
+        );
     }
 
     #[test]
     fn gate6_artifacts_unverified_digest_denies() {
         let mut req = base_request();
-        req.artifacts = vec![ArtifactDigest { digest: "sha256:abc".to_string(), verified: false }];
-        assert_eq!(verdict(&req, &base_context()), Verdict::Deny { gate: Gate::Artifacts });
+        req.artifacts = vec![ArtifactDigest {
+            digest: "sha256:abc".to_string(),
+            verified: false,
+        }];
+        assert_eq!(
+            verdict(&req, &base_context()),
+            Verdict::Deny {
+                gate: Gate::Artifacts
+            }
+        );
     }
 
     #[test]
     fn gate7_budget_exhausted_denies() {
         let mut ctx = base_context();
         ctx.budget_remaining = 0;
-        assert_eq!(verdict(&base_request(), &ctx), Verdict::Deny { gate: Gate::Budget });
+        assert_eq!(
+            verdict(&base_request(), &ctx),
+            Verdict::Deny { gate: Gate::Budget }
+        );
     }
 
     #[test]
     fn gate8_policy_denied_denies() {
         let mut ctx = base_context();
         ctx.policy_decision = false;
-        assert_eq!(verdict(&base_request(), &ctx), Verdict::Deny { gate: Gate::Policy });
+        assert_eq!(
+            verdict(&base_request(), &ctx),
+            Verdict::Deny { gate: Gate::Policy }
+        );
     }
 
     #[test]
@@ -646,22 +725,38 @@ mod tests {
         let mut req = base_request();
         req.operation.consequence_tier = ConsequenceTier::Critical;
         req.approval = None;
-        assert_eq!(verdict(&req, &base_context()), Verdict::Deny { gate: Gate::Approval });
+        assert_eq!(
+            verdict(&req, &base_context()),
+            Verdict::Deny {
+                gate: Gate::Approval
+            }
+        );
     }
 
     #[test]
     fn gate9_approval_critical_with_delegable_approval_still_denies() {
         let mut req = base_request();
         req.operation.consequence_tier = ConsequenceTier::Critical;
-        req.approval = Some(Approval { valid: true, non_delegable: false }); // delegable → invalid for critical
-        assert_eq!(verdict(&req, &base_context()), Verdict::Deny { gate: Gate::Approval });
+        req.approval = Some(Approval {
+            valid: true,
+            non_delegable: false,
+        }); // delegable → invalid for critical
+        assert_eq!(
+            verdict(&req, &base_context()),
+            Verdict::Deny {
+                gate: Gate::Approval
+            }
+        );
     }
 
     #[test]
     fn gate9_approval_critical_with_valid_non_delegable_approval_allows() {
         let mut req = base_request();
         req.operation.consequence_tier = ConsequenceTier::Critical;
-        req.approval = Some(Approval { valid: true, non_delegable: true });
+        req.approval = Some(Approval {
+            valid: true,
+            non_delegable: true,
+        });
         assert!(verdict(&req, &base_context()).is_allow());
     }
 
@@ -672,7 +767,7 @@ mod tests {
         // Fail ALL gates at once; the first one (Containment) must win.
         let mut req = base_request();
         req.actor.svid = String::new(); // gate 2 would fail
-        req.nonce = ctx_seen_nonce();   // gate 3 would fail
+        req.nonce = ctx_seen_nonce(); // gate 3 would fail
         req.operation.capabilities_requested = vec!["impossible".to_string()]; // gate 5
         req.operation.consequence_tier = ConsequenceTier::Critical; // gate 9
         let mut ctx = base_context();
@@ -683,7 +778,9 @@ mod tests {
         ctx.budget_remaining = 0;
         assert_eq!(
             verdict(&req, &ctx),
-            Verdict::Deny { gate: Gate::Containment },
+            Verdict::Deny {
+                gate: Gate::Containment
+            },
             "gate 1 (Containment) must short-circuit before all others"
         );
     }
@@ -726,7 +823,13 @@ mod tests {
     fn receipt_round_trip_verifies() {
         let (sk, _) = generate_keypair();
         let v = verdict(&base_request(), &base_context());
-        let receipt = issue_receipt(&v, &base_request(), EnforcementMode::Mediated, &sk, "notary-1");
+        let receipt = issue_receipt(
+            &v,
+            &base_request(),
+            EnforcementMode::Mediated,
+            &sk,
+            "notary-1",
+        );
         verify_receipt(&receipt).expect("freshly issued receipt verifies");
     }
 
@@ -734,16 +837,31 @@ mod tests {
     fn tampered_receipt_body_fails_verification() {
         let (sk, _) = generate_keypair();
         let v = verdict(&base_request(), &base_context());
-        let mut receipt = issue_receipt(&v, &base_request(), EnforcementMode::Mediated, &sk, "notary-1");
+        let mut receipt = issue_receipt(
+            &v,
+            &base_request(),
+            EnforcementMode::Mediated,
+            &sk,
+            "notary-1",
+        );
         receipt.body.actor_svid = "spiffe://evil".to_string(); // tamper AFTER signing
-        assert!(matches!(verify_receipt(&receipt), Err(NotaryError::InvalidSignature)));
+        assert!(matches!(
+            verify_receipt(&receipt),
+            Err(NotaryError::InvalidSignature)
+        ));
     }
 
     #[test]
     fn receipt_carries_the_verdict_and_enforcement_mode() {
         let (sk, _) = generate_keypair();
         let v = verdict(&base_request(), &base_context());
-        let receipt = issue_receipt(&v, &base_request(), EnforcementMode::Observed, &sk, "notary-1");
+        let receipt = issue_receipt(
+            &v,
+            &base_request(),
+            EnforcementMode::Observed,
+            &sk,
+            "notary-1",
+        );
         assert_eq!(receipt.body.verdict, v);
         assert_eq!(receipt.body.enforcement_mode, EnforcementMode::Observed);
         assert_eq!(receipt.body.notary_version, NOTARY_VERSION);
@@ -758,7 +876,10 @@ mod tests {
             delegation_chain: vec![],
         };
         let caps = effective_capabilities(&actor);
-        assert_eq!(caps, vec!["audit".to_string(), "read".to_string(), "write".to_string()]);
+        assert_eq!(
+            caps,
+            vec!["audit".to_string(), "read".to_string(), "write".to_string()]
+        );
     }
 
     #[test]
@@ -766,8 +887,15 @@ mod tests {
         assert_eq!(
             Gate::in_order(),
             [
-                Gate::Containment, Gate::Identity, Gate::Freshness, Gate::Chain, Gate::Authority,
-                Gate::Artifacts, Gate::Budget, Gate::Policy, Gate::Approval,
+                Gate::Containment,
+                Gate::Identity,
+                Gate::Freshness,
+                Gate::Chain,
+                Gate::Authority,
+                Gate::Artifacts,
+                Gate::Budget,
+                Gate::Policy,
+                Gate::Approval,
             ]
         );
     }

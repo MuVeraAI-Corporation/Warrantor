@@ -96,7 +96,9 @@ impl DestinationCatalog {
 
     /// Find an entry by logical endpoint.
     pub fn find(&self, logical_endpoint: &str) -> Option<&CatalogEntry> {
-        self.entries.iter().find(|e| e.logical_endpoint == logical_endpoint)
+        self.entries
+            .iter()
+            .find(|e| e.logical_endpoint == logical_endpoint)
     }
 }
 
@@ -154,38 +156,58 @@ pub enum EgressError {
 pub fn decide(request: &EgressRequest, catalog: Option<&DestinationCatalog>) -> EgressVerdict {
     // 0. Discovery requests require approval (spec §5).
     if request.is_discovery && !request.has_approval {
-        return EgressVerdict::Deny { reason: DenyReason::DiscoveryRequiresApproval };
+        return EgressVerdict::Deny {
+            reason: DenyReason::DiscoveryRequiresApproval,
+        };
     }
 
     // 1. The request must be a capability, not a hostname/IP.
     //    Heuristic: if the capability looks like a raw IP or URL, reject it.
     if looks_like_address(&request.capability) {
-        return EgressVerdict::Deny { reason: DenyReason::NotACapability };
+        return EgressVerdict::Deny {
+            reason: DenyReason::NotACapability,
+        };
     }
 
     // 2. Catalog must be available (spec §7).
     let catalog = match catalog {
-        None => return EgressVerdict::Deny { reason: DenyReason::CatalogUnavailable },
+        None => {
+            return EgressVerdict::Deny {
+                reason: DenyReason::CatalogUnavailable,
+            }
+        }
         Some(c) => c,
     };
 
     // 3. The logical endpoint must be in the catalog.
     let entry = match catalog.find(&request.logical_endpoint) {
-        None => return EgressVerdict::Deny { reason: DenyReason::NotInCatalog },
+        None => {
+            return EgressVerdict::Deny {
+                reason: DenyReason::NotInCatalog,
+            }
+        }
         Some(e) => e,
     };
 
     // 4. Capability meet: the endpoint must be reachable under the chain's capabilities.
     //    The chain can only narrow reachability (spec §2).
-    let chain_set: HashSet<&str> = request.chain_capabilities.iter().map(|s| s.as_str()).collect();
+    let chain_set: HashSet<&str> = request
+        .chain_capabilities
+        .iter()
+        .map(|s| s.as_str())
+        .collect();
     if !chain_set.contains(request.capability.as_str()) && !chain_set.contains("net.egress") {
-        return EgressVerdict::Deny { reason: DenyReason::NotInChainIntersection };
+        return EgressVerdict::Deny {
+            reason: DenyReason::NotInChainIntersection,
+        };
     }
 
     // 5. Address checks: metadata ranges ALWAYS denied; private ranges denied unless catalogued.
     for addr in &entry.addresses {
         if is_metadata_range(addr) {
-            return EgressVerdict::Deny { reason: DenyReason::MetadataRange };
+            return EgressVerdict::Deny {
+                reason: DenyReason::MetadataRange,
+            };
         }
         if is_private_range(addr) {
             // Private ranges are allowed ONLY if explicitly in the catalog — which it is, since we
@@ -206,13 +228,17 @@ pub fn decide(request: &EgressRequest, catalog: Option<&DestinationCatalog>) -> 
 
 /// Check whether a raw IP is in a metadata range.
 fn is_metadata_range(addr: &str) -> bool {
-    let clean = addr.trim_start_matches("https://").trim_start_matches("http://");
+    let clean = addr
+        .trim_start_matches("https://")
+        .trim_start_matches("http://");
     METADATA_RANGES.iter().any(|r| clean.starts_with(r))
 }
 
 /// Check whether a raw IP is in a private range.
 fn is_private_range(addr: &str) -> bool {
-    let clean = addr.trim_start_matches("https://").trim_start_matches("http://");
+    let clean = addr
+        .trim_start_matches("https://")
+        .trim_start_matches("http://");
     PRIVATE_RANGES.iter().any(|r| clean.starts_with(r))
 }
 
@@ -328,8 +354,7 @@ pub fn verify_receipt(receipt: &EgressReceipt) -> Result<(), EgressError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_body(&receipt.body);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| EgressError::Broker("Ed25519 signature does not verify".into()))
 }
 
@@ -398,7 +423,11 @@ mod tests {
     #[test]
     fn valid_capability_resolves_to_allow() {
         let cat = test_catalog();
-        let r = req("net.egress:db:prod.customers", "db:prod.customers", &["net.egress:db:prod.customers"]);
+        let r = req(
+            "net.egress:db:prod.customers",
+            "db:prod.customers",
+            &["net.egress:db:prod.customers"],
+        );
         let v = decide(&r, Some(&cat));
         assert!(matches!(v, EgressVerdict::Allow { .. }));
     }
@@ -408,15 +437,29 @@ mod tests {
         let cat = test_catalog();
         let r = req("203.0.113.9", "203.0.113.9", &["net.egress"]);
         let v = decide(&r, Some(&cat));
-        assert_eq!(v, EgressVerdict::Deny { reason: DenyReason::NotACapability });
+        assert_eq!(
+            v,
+            EgressVerdict::Deny {
+                reason: DenyReason::NotACapability
+            }
+        );
     }
 
     #[test]
     fn agent_supplies_url_rejected() {
         let cat = test_catalog();
-        let r = req("https://evil.example.com", "evil.example.com", &["net.egress"]);
+        let r = req(
+            "https://evil.example.com",
+            "evil.example.com",
+            &["net.egress"],
+        );
         let v = decide(&r, Some(&cat));
-        assert_eq!(v, EgressVerdict::Deny { reason: DenyReason::NotACapability });
+        assert_eq!(
+            v,
+            EgressVerdict::Deny {
+                reason: DenyReason::NotACapability
+            }
+        );
     }
 
     #[test]
@@ -424,16 +467,30 @@ mod tests {
         let cat = test_catalog();
         let r = req("net.egress:unknown", "unknown", &["net.egress"]);
         let v = decide(&r, Some(&cat));
-        assert_eq!(v, EgressVerdict::Deny { reason: DenyReason::NotInCatalog });
+        assert_eq!(
+            v,
+            EgressVerdict::Deny {
+                reason: DenyReason::NotInCatalog
+            }
+        );
     }
 
     #[test]
     fn not_in_chain_intersection_rejected() {
         let cat = test_catalog();
         // The chain doesn't include the capability or net.egress.
-        let r = req("net.egress:db:prod.customers", "db:prod.customers", &["read"]);
+        let r = req(
+            "net.egress:db:prod.customers",
+            "db:prod.customers",
+            &["read"],
+        );
         let v = decide(&r, Some(&cat));
-        assert_eq!(v, EgressVerdict::Deny { reason: DenyReason::NotInChainIntersection });
+        assert_eq!(
+            v,
+            EgressVerdict::Deny {
+                reason: DenyReason::NotInChainIntersection
+            }
+        );
     }
 
     #[test]
@@ -449,14 +506,28 @@ mod tests {
         cat.digest = cat.compute_digest();
         let r = req("net.egress:metadata", "metadata", &["net.egress"]);
         let v = decide(&r, Some(&cat));
-        assert_eq!(v, EgressVerdict::Deny { reason: DenyReason::MetadataRange });
+        assert_eq!(
+            v,
+            EgressVerdict::Deny {
+                reason: DenyReason::MetadataRange
+            }
+        );
     }
 
     #[test]
     fn catalog_unavailable_denies() {
-        let r = req("net.egress:db:prod.customers", "db:prod.customers", &["net.egress"]);
+        let r = req(
+            "net.egress:db:prod.customers",
+            "db:prod.customers",
+            &["net.egress"],
+        );
         let v = decide(&r, None);
-        assert_eq!(v, EgressVerdict::Deny { reason: DenyReason::CatalogUnavailable });
+        assert_eq!(
+            v,
+            EgressVerdict::Deny {
+                reason: DenyReason::CatalogUnavailable
+            }
+        );
     }
 
     #[test]
@@ -466,7 +537,12 @@ mod tests {
         r.is_discovery = true;
         r.has_approval = false;
         let v = decide(&r, Some(&cat));
-        assert_eq!(v, EgressVerdict::Deny { reason: DenyReason::DiscoveryRequiresApproval });
+        assert_eq!(
+            v,
+            EgressVerdict::Deny {
+                reason: DenyReason::DiscoveryRequiresApproval
+            }
+        );
     }
 
     #[test]
@@ -493,7 +569,11 @@ mod tests {
         let mut csprng = OsRng;
         let sk = SigningKey::generate(&mut csprng);
         let cat = test_catalog();
-        let r = req("net.egress:db:prod.customers", "db:prod.customers", &["net.egress"]);
+        let r = req(
+            "net.egress:db:prod.customers",
+            "db:prod.customers",
+            &["net.egress"],
+        );
         let v = decide(&r, Some(&cat));
         let receipt = issue_receipt(&v, &r, 1000, &sk, "egress-1");
         verify_receipt(&receipt).expect("receipt verifies");
@@ -505,7 +585,11 @@ mod tests {
         let mut csprng = OsRng;
         let sk = SigningKey::generate(&mut csprng);
         let cat = test_catalog();
-        let r = req("net.egress:db:prod.customers", "db:prod.customers", &["net.egress"]);
+        let r = req(
+            "net.egress:db:prod.customers",
+            "db:prod.customers",
+            &["net.egress"],
+        );
         let v = decide(&r, Some(&cat));
         let mut receipt = issue_receipt(&v, &r, 1000, &sk, "egress-1");
         receipt.body.capability = "evil".to_string();
@@ -516,7 +600,11 @@ mod tests {
     fn net_egress_wildcard_allows() {
         let cat = test_catalog();
         // "net.egress" as a chain capability should allow any catalogued endpoint.
-        let r = req("net.egress:db:prod.customers", "db:prod.customers", &["net.egress"]);
+        let r = req(
+            "net.egress:db:prod.customers",
+            "db:prod.customers",
+            &["net.egress"],
+        );
         let v = decide(&r, Some(&cat));
         assert!(matches!(v, EgressVerdict::Allow { .. }));
     }

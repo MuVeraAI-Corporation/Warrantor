@@ -181,12 +181,16 @@ pub fn decide(
     if task_budget.tokens_used + request.estimated_input_tokens + request.estimated_output_tokens
         > task_budget.max_tokens
     {
-        return SpendVerdict::Deny { reason: DenyReason::TokenBudgetExhausted };
+        return SpendVerdict::Deny {
+            reason: DenyReason::TokenBudgetExhausted,
+        };
     }
 
     // 2. Tool-call budget.
     if task_budget.tool_calls_used + request.tool_calls > task_budget.max_tool_calls {
-        return SpendVerdict::Deny { reason: DenyReason::ToolCallBudgetExhausted };
+        return SpendVerdict::Deny {
+            reason: DenyReason::ToolCallBudgetExhausted,
+        };
     }
 
     // 3. Model backend selection.
@@ -196,13 +200,21 @@ pub fn decide(
     };
 
     // 4. Cost computation + USD cap.
-    let cost = chosen.cost_micros(request.estimated_input_tokens, request.estimated_output_tokens);
+    let cost = chosen.cost_micros(
+        request.estimated_input_tokens,
+        request.estimated_output_tokens,
+    );
     if agent_budget.usd_spent_micros + cost > agent_budget.usd_cap_micros {
-        return SpendVerdict::Deny { reason: DenyReason::UsdCapExceeded };
+        return SpendVerdict::Deny {
+            reason: DenyReason::UsdCapExceeded,
+        };
     }
 
     // All checks pass — consume budgets and allow.
-    let _ = task_budget.consume(request.estimated_input_tokens + request.estimated_output_tokens, request.tool_calls);
+    let _ = task_budget.consume(
+        request.estimated_input_tokens + request.estimated_output_tokens,
+        request.tool_calls,
+    );
     let _ = agent_budget.spend(cost);
 
     SpendVerdict::Allow {
@@ -327,8 +339,7 @@ pub fn verify_receipt(receipt: &CostReceipt) -> Result<(), SpendError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_body(&receipt.body);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| SpendError::Engine("Ed25519 signature does not verify".into()))
 }
 
@@ -375,7 +386,7 @@ mod tests {
         vec![
             ModelBackend {
                 id: "gpt-4o".to_string(),
-                price_per_1k_input_micros: 2500,  // $0.0025/1k
+                price_per_1k_input_micros: 2500,   // $0.0025/1k
                 price_per_1k_output_micros: 10000, // $0.01/1k
                 safe: true,
             },
@@ -395,11 +406,21 @@ mod tests {
     }
 
     fn agent(cap: u64) -> AgentBudget {
-        AgentBudget { agent_id: "bot-1".into(), usd_cap_micros: cap, usd_spent_micros: 0 }
+        AgentBudget {
+            agent_id: "bot-1".into(),
+            usd_cap_micros: cap,
+            usd_spent_micros: 0,
+        }
     }
 
     fn task(max_tokens: u64, max_calls: u64) -> TaskBudget {
-        TaskBudget { task_id: "task-1".into(), max_tokens, tokens_used: 0, max_tool_calls: max_calls, tool_calls_used: 0 }
+        TaskBudget {
+            task_id: "task-1".into(),
+            max_tokens,
+            tokens_used: 0,
+            max_tool_calls: max_calls,
+            tool_calls_used: 0,
+        }
     }
 
     fn req(input: u64, output: u64, tool_calls: u64) -> SpendRequest {
@@ -432,7 +453,12 @@ mod tests {
         let mut r = req(1000, 500, 1);
         r.requested_backend = Some("gpt-4o".into()); // force a paid backend → cost exceeds cap
         let v = decide(&r, &mut ab, &mut tb, &backends());
-        assert_eq!(v, SpendVerdict::Deny { reason: DenyReason::UsdCapExceeded });
+        assert_eq!(
+            v,
+            SpendVerdict::Deny {
+                reason: DenyReason::UsdCapExceeded
+            }
+        );
     }
 
     #[test]
@@ -440,7 +466,12 @@ mod tests {
         let mut ab = agent(10 * MICROS_PER_DOLLAR);
         let mut tb = task(100, 50); // only 100 tokens
         let v = decide(&req(1000, 500, 1), &mut ab, &mut tb, &backends());
-        assert_eq!(v, SpendVerdict::Deny { reason: DenyReason::TokenBudgetExhausted });
+        assert_eq!(
+            v,
+            SpendVerdict::Deny {
+                reason: DenyReason::TokenBudgetExhausted
+            }
+        );
     }
 
     #[test]
@@ -448,7 +479,12 @@ mod tests {
         let mut ab = agent(10 * MICROS_PER_DOLLAR);
         let mut tb = task(1_000_000, 0); // no tool calls allowed
         let v = decide(&req(100, 50, 1), &mut ab, &mut tb, &backends());
-        assert_eq!(v, SpendVerdict::Deny { reason: DenyReason::ToolCallBudgetExhausted });
+        assert_eq!(
+            v,
+            SpendVerdict::Deny {
+                reason: DenyReason::ToolCallBudgetExhausted
+            }
+        );
     }
 
     #[test]
@@ -458,7 +494,12 @@ mod tests {
         let mut r = req(1000, 500, 1);
         r.requested_backend = Some("evil-model".into());
         let v = decide(&r, &mut ab, &mut tb, &backends());
-        assert_eq!(v, SpendVerdict::Deny { reason: DenyReason::BackendNotApproved });
+        assert_eq!(
+            v,
+            SpendVerdict::Deny {
+                reason: DenyReason::BackendNotApproved
+            }
+        );
     }
 
     #[test]
@@ -490,7 +531,12 @@ mod tests {
         let mut ab = agent(10 * MICROS_PER_DOLLAR);
         let mut tb = task(1_000_000, 100);
         let v = decide(&req(100, 50, 1), &mut ab, &mut tb, &[]); // no backends
-        assert_eq!(v, SpendVerdict::Deny { reason: DenyReason::NoSafeBackend });
+        assert_eq!(
+            v,
+            SpendVerdict::Deny {
+                reason: DenyReason::NoSafeBackend
+            }
+        );
     }
 
     #[test]
@@ -547,12 +593,17 @@ mod tests {
         let mut ab = agent(13_000); // $0.013 cap
         let mut tb = task(1_000_000, 100);
         let b = vec![backends()[0].clone()]; // only gpt-4o
-        // First call: 1000 in + 500 out = 2500 + 5000 = 7500 micros. Remaining: 5500.
+                                             // First call: 1000 in + 500 out = 2500 + 5000 = 7500 micros. Remaining: 5500.
         let v1 = decide(&req_with_backend(1000, 500), &mut ab, &mut tb, &b);
         assert!(matches!(v1, SpendVerdict::Allow { .. }));
         // Second call: same cost = 7500. 5500 < 7500 → deny.
         let v2 = decide(&req_with_backend(1000, 500), &mut ab, &mut tb, &b);
-        assert_eq!(v2, SpendVerdict::Deny { reason: DenyReason::UsdCapExceeded });
+        assert_eq!(
+            v2,
+            SpendVerdict::Deny {
+                reason: DenyReason::UsdCapExceeded
+            }
+        );
     }
 
     fn req_with_backend(input: u64, output: u64) -> SpendRequest {

@@ -306,7 +306,9 @@ pub fn process_is_alive(pid: u32) -> bool {
     #[cfg(windows)]
     {
         let root = std::env::var("SYSTEMROOT").unwrap_or_else(|_| r"C:\Windows".to_string());
-        let tasklist = std::path::Path::new(&root).join("System32").join("tasklist.exe");
+        let tasklist = std::path::Path::new(&root)
+            .join("System32")
+            .join("tasklist.exe");
         std::process::Command::new(tasklist)
             .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
             .output()

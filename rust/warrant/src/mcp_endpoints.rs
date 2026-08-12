@@ -232,8 +232,11 @@ impl ControlEndpoint {
             Err(e) => out.push(format!("  staged effects: {e}")),
         }
         out.push(String::new());
-        out.push("Then: warrant_settle to perform the staged effects, or warrant_void to discard \
-                  the work and keep the log.".to_string());
+        out.push(
+            "Then: warrant_settle to perform the staged effects, or warrant_void to discard \
+                  the work and keep the log."
+                .to_string(),
+        );
         ToolResult::ok(out.join("\n"))
     }
 
@@ -385,10 +388,7 @@ impl Endpoint for ControlEndpoint {
                 description: "What an agent changed and what it staged but did not do. Read this \
                               before settling."
                     .to_string(),
-                input_schema: schema(
-                    json!({"warrant_id": {"type": "string"}}),
-                    &["warrant_id"],
-                ),
+                input_schema: schema(json!({"warrant_id": {"type": "string"}}), &["warrant_id"]),
             },
             ToolSpec {
                 name: "warrant_settle".to_string(),
@@ -396,20 +396,14 @@ impl Endpoint for ControlEndpoint {
                               irreversible actions actually happen — read warrant_report first. \
                               Requires settle authority, which a supervised agent does not have."
                     .to_string(),
-                input_schema: schema(
-                    json!({"warrant_id": {"type": "string"}}),
-                    &["warrant_id"],
-                ),
+                input_schema: schema(json!({"warrant_id": {"type": "string"}}), &["warrant_id"]),
             },
             ToolSpec {
                 name: "warrant_void".to_string(),
                 description: "Discard the work. No staged effect is performed; the staged log is \
                               kept as the record of what the agent intended."
                     .to_string(),
-                input_schema: schema(
-                    json!({"warrant_id": {"type": "string"}}),
-                    &["warrant_id"],
-                ),
+                input_schema: schema(json!({"warrant_id": {"type": "string"}}), &["warrant_id"]),
             },
         ]
     }
@@ -445,7 +439,13 @@ pub struct AgentEndpoint {
 impl AgentEndpoint {
     /// Build the agent endpoint from a warrant's bounds.
     #[must_use]
-    pub fn new(warrant_id: String, proxy: Proxy, queue: StagingQueue, allowed: Vec<String>, now: fn() -> u64) -> Self {
+    pub fn new(
+        warrant_id: String,
+        proxy: Proxy,
+        queue: StagingQueue,
+        allowed: Vec<String>,
+        now: fn() -> u64,
+    ) -> Self {
         Self {
             warrant_id,
             proxy,
@@ -509,15 +509,17 @@ impl Endpoint for AgentEndpoint {
             Decision::Deny { reason, bound } => {
                 ToolResult::error(format!("refused by the warrant's {bound} bound: {reason}"))
             }
-            Decision::Stage { .. } => match self.proxy.apply(&call, &mut self.queue, (self.now)()) {
-                Ok(effect) => ToolResult::ok(format!(
-                    "Staged as {}. This has NOT happened yet — it will be performed only if a \
+            Decision::Stage { .. } => {
+                match self.proxy.apply(&call, &mut self.queue, (self.now)()) {
+                    Ok(effect) => ToolResult::ok(format!(
+                        "Staged as {}. This has NOT happened yet — it will be performed only if a \
                      human settles warrant {}. Use this handle wherever you would use the real \
                      result; it will be resolved to the real identifier at settle time.",
-                    effect.handle, self.warrant_id
-                )),
-                Err(e) => ToolResult::error(format!("could not stage: {e}")),
-            },
+                        effect.handle, self.warrant_id
+                    )),
+                    Err(e) => ToolResult::error(format!("could not stage: {e}")),
+                }
+            }
             // A forwarded call needs an upstream MCP server to forward to. Until that is wired,
             // saying so is the only honest answer -- returning success would be the exact
             // success-shaped-mock failure this codebase already fixed once.

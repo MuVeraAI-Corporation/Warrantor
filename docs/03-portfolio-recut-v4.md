@@ -142,8 +142,10 @@ Stating this plainly is not modesty — it is what makes the six additions credi
 
 ## 9. Cross-references
 
-- Blueprint v4 (strategy, bets, playbook): [`../../warrantor_blueprint_v4.html`](../../warrantor_blueprint_v4.html)
-- Research dossier (the evidence base): [`../../warrantor_research_dossier.html`](../../warrantor_research_dossier.html)
+- Blueprint v4 (strategy, bets, playbook) — `warrantor_blueprint_v4.html`, kept outside this
+  repository. Not linked, because a link that escapes the repository resolves for nobody who clones
+  it, and CI rejects such links for that reason.
+- Research dossier (the evidence base) — `warrantor_research_dossier.html`, same.
 - Contract pack (frozen candidates): [`../specs/warrantor-v4/`](../specs/warrantor-v4/)
 - Historical catalog: [`00-reconciliation-matrix.md`](00-reconciliation-matrix.md)
 - Architecture, invariants I-01…I-12: [`02-architecture.md`](02-architecture.md)

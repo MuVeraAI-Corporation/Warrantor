@@ -348,7 +348,14 @@ pub fn execute_kill_with_budget(
     trigger: KillTrigger,
     budget: Duration,
 ) -> Result<KillOutcome, KillError> {
-    execute_kill_with_budget_and_revoker(policy, engine, &NoopCredentialRevoker, target, trigger, budget)
+    execute_kill_with_budget_and_revoker(
+        policy,
+        engine,
+        &NoopCredentialRevoker,
+        target,
+        trigger,
+        budget,
+    )
 }
 
 /// Execute a kill with a custom policy engine, budget, AND a [`CredentialRevoker`] (invariant I-05).
@@ -1022,10 +1029,18 @@ mod tests {
 
     impl CountingCredentialRevoker {
         fn new() -> Self {
-            Self { calls: AtomicUsize::new(0), last_target: Mutex::new(None), fail: false }
+            Self {
+                calls: AtomicUsize::new(0),
+                last_target: Mutex::new(None),
+                fail: false,
+            }
         }
         fn failing() -> Self {
-            Self { calls: AtomicUsize::new(0), last_target: Mutex::new(None), fail: true }
+            Self {
+                calls: AtomicUsize::new(0),
+                last_target: Mutex::new(None),
+                fail: true,
+            }
         }
     }
 
@@ -1057,15 +1072,25 @@ mod tests {
             KILL_BUDGET,
         )
         .expect("kill succeeds");
-        assert_eq!(revoker.calls.load(Ordering::SeqCst), 1, "revoke_all must be called exactly once");
+        assert_eq!(
+            revoker.calls.load(Ordering::SeqCst),
+            1,
+            "revoke_all must be called exactly once"
+        );
         // The revocation action is recorded in the outcome, honestly labelled.
         assert!(
-            outcome.actions_taken.iter().any(|a| a == "revoke_credentials"),
+            outcome
+                .actions_taken
+                .iter()
+                .any(|a| a == "revoke_credentials"),
             "revoke_credentials action must appear in actions_taken: {:?}",
             outcome.actions_taken
         );
         assert!(
-            outcome.actions_taken.iter().any(|a| a.starts_with("revoke_credentials")),
+            outcome
+                .actions_taken
+                .iter()
+                .any(|a| a.starts_with("revoke_credentials")),
             "the revocation report must be present"
         );
     }
@@ -1081,7 +1106,10 @@ mod tests {
         )
         .expect("kill");
         assert!(
-            outcome.actions_taken.iter().any(|a| a == "revoke_credentials:not_applicable"),
+            outcome
+                .actions_taken
+                .iter()
+                .any(|a| a == "revoke_credentials:not_applicable"),
             "noop revoker must report not_applicable, not fabricate success: {:?}",
             outcome.actions_taken
         );
@@ -1108,7 +1136,10 @@ mod tests {
                     "failure must be attributed to revocation, got: {msg}"
                 );
             }
-            other => panic!("failing revoker must abort with ExecutionFailed, got {:?}", other),
+            other => panic!(
+                "failing revoker must abort with ExecutionFailed, got {:?}",
+                other
+            ),
         }
     }
 
@@ -1126,7 +1157,10 @@ mod tests {
             KILL_BUDGET,
         )
         .expect("kill");
-        assert!(outcome.elapsed <= KILL_BUDGET, "revocation must not blow the budget");
+        assert!(
+            outcome.elapsed <= KILL_BUDGET,
+            "revocation must not blow the budget"
+        );
         assert_eq!(revoker.calls.load(Ordering::SeqCst), 1);
     }
 }

@@ -13,7 +13,9 @@ use warrantor_agent_manifest::{verify, SignedManifest};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let path = args.get(1).expect("usage: interop_verify <path-to-signed.json>");
+    let path = args
+        .get(1)
+        .expect("usage: interop_verify <path-to-signed.json>");
     let raw = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {}", path, e));
     let signed: SignedManifest = serde_json::from_str(&raw).expect("deserialize SignedManifest");
 

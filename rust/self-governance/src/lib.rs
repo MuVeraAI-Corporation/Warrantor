@@ -43,7 +43,12 @@ pub enum PlatformComponent {
 impl PlatformComponent {
     #[must_use]
     pub fn all() -> [PlatformComponent; 4] {
-        [PlatformComponent::NlConsole, PlatformComponent::PolicyCompiler, PlatformComponent::RiskScorer, PlatformComponent::AuditFleet]
+        [
+            PlatformComponent::NlConsole,
+            PlatformComponent::PolicyCompiler,
+            PlatformComponent::RiskScorer,
+            PlatformComponent::AuditFleet,
+        ]
     }
 
     #[must_use]
@@ -191,7 +196,11 @@ pub fn check_agent(agent: &PlatformAgent) -> AgentConformanceStatus {
         .iter()
         .any(|prefix| agent.svid.starts_with(prefix));
 
-    let conformant = has_identity && has_capabilities && receipting && agent.kill_switchable && !self_change_protected;
+    let conformant = has_identity
+        && has_capabilities
+        && receipting
+        && agent.kill_switchable
+        && !self_change_protected;
 
     if self_change_protected {
         failures.push("SVID is in the self-change-protected set (I-11 violation: the AI must not be its own authority)".to_string());
@@ -215,7 +224,8 @@ pub fn check_agent(agent: &PlatformAgent) -> AgentConformanceStatus {
 pub fn check_all(agents: &[PlatformAgent]) -> SelfGovernanceReport {
     let agent_statuses: Vec<AgentConformanceStatus> = agents.iter().map(check_agent).collect();
     let overall_conformant = agent_statuses.iter().all(|s| s.conformant);
-    let checked_components: HashSet<PlatformComponent> = agents.iter().map(|a| a.component).collect();
+    let checked_components: HashSet<PlatformComponent> =
+        agents.iter().map(|a| a.component).collect();
     let mut components: Vec<PlatformComponent> = checked_components.into_iter().collect();
     components.sort_by_key(|c| *c as u8);
 
@@ -233,7 +243,10 @@ pub fn check_all(agents: &[PlatformAgent]) -> SelfGovernanceReport {
 #[must_use]
 pub fn missing_components(agents: &[PlatformAgent]) -> Vec<PlatformComponent> {
     let present: HashSet<PlatformComponent> = agents.iter().map(|a| a.component).collect();
-    PlatformComponent::all().into_iter().filter(|c| !present.contains(c)).collect()
+    PlatformComponent::all()
+        .into_iter()
+        .filter(|c| !present.contains(c))
+        .collect()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -283,8 +296,8 @@ pub fn verify_report(signed: &SignedReport) -> Result<(), SgError> {
     }
     let mut pk_arr = [0u8; 32];
     pk_arr.copy_from_slice(&pk_bytes);
-    let vkey = VerifyingKey::from_bytes(&pk_arr)
-        .map_err(|e| SgError::Sg(format!("public_key: {e}")))?;
+    let vkey =
+        VerifyingKey::from_bytes(&pk_arr).map_err(|e| SgError::Sg(format!("public_key: {e}")))?;
     let sig_bytes = hex::decode(&signed.signature_value)
         .map_err(|e| SgError::Sg(format!("signature hex: {e}")))?;
     if sig_bytes.len() != 64 {
@@ -294,8 +307,7 @@ pub fn verify_report(signed: &SignedReport) -> Result<(), SgError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_report(&signed.report);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| SgError::Sg("Ed25519 signature does not verify".into()))
 }
 
@@ -385,17 +397,27 @@ mod tests {
     fn all_test_agents_conformant() {
         let agents = test_agents();
         let report = check_all(&agents);
-        assert!(report.overall_conformant, "all test agents should be conformant");
+        assert!(
+            report.overall_conformant,
+            "all test agents should be conformant"
+        );
         assert_eq!(report.agent_statuses.len(), 4);
         for status in &report.agent_statuses {
-            assert!(status.conformant, "{} not conformant: {:?}", status.agent_id, status.failures);
+            assert!(
+                status.conformant,
+                "{} not conformant: {:?}",
+                status.agent_id, status.failures
+            );
         }
     }
 
     #[test]
     fn no_missing_components() {
         let agents = test_agents();
-        assert!(missing_components(&agents).is_empty(), "all 4 components should be registered");
+        assert!(
+            missing_components(&agents).is_empty(),
+            "all 4 components should be registered"
+        );
     }
 
     #[test]
@@ -475,7 +497,9 @@ mod tests {
         let surfaces = ["trust-core", "authority", "policy", "self-governance"];
         for surface in surfaces {
             assert!(
-                SELF_CHANGE_PROTECTED_PREFIXES.iter().any(|p| p.contains(surface)),
+                SELF_CHANGE_PROTECTED_PREFIXES
+                    .iter()
+                    .any(|p| p.contains(surface)),
                 "self-change-protected set must cover '{surface}'"
             );
         }

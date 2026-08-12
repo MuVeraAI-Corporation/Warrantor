@@ -651,7 +651,10 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(pid) => {
             let linkage = describe_linkage();
             println!("warrantor: supervisor started as pid {pid}, detached from this terminal.");
-            println!("  lifetime link : {} — {}", linkage.mechanism, linkage.detail);
+            println!(
+                "  lifetime link : {} — {}",
+                linkage.mechanism, linkage.detail
+            );
             println!("  log           : {}", log.display());
             println!("  check on it   : warrantor status");
             if !linkage.survives_supervisor_death {
@@ -770,11 +773,10 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
         } else {
             ProxyMode::Enforce
         };
-        let mut endpoint =
-            match agent_endpoint_for(&stored, store.staged_path(id), mode, now) {
-                Ok(e) => e,
-                Err(e) => return fail(&e.to_string()),
-            };
+        let mut endpoint = match agent_endpoint_for(&stored, store.staged_path(id), mode, now) {
+            Ok(e) => e,
+            Err(e) => return fail(&e.to_string()),
+        };
         // stderr, not stdout: stdout is the JSON-RPC channel and a stray line there desynchronises
         // every client reading it line by line.
         eprintln!(

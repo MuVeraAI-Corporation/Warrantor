@@ -79,7 +79,9 @@ impl ActionScope {
         if self.allowed_url_patterns.is_empty() {
             return false; // default-deny when no patterns
         }
-        self.allowed_url_patterns.iter().any(|pat| url_matches(url, pat))
+        self.allowed_url_patterns
+            .iter()
+            .any(|pat| url_matches(url, pat))
     }
 
     /// Check whether a DOM selector is within the allowed set.
@@ -88,9 +90,9 @@ impl ActionScope {
             return true; // if no selector restrictions, allow all (URL scoping is the primary control)
         }
         // Exact match or prefix match (e.g. "#search" matches "#search-button").
-        self.allowed_dom_selectors.iter().any(|allowed| {
-            selector == allowed || selector.starts_with(allowed)
-        })
+        self.allowed_dom_selectors
+            .iter()
+            .any(|allowed| selector == allowed || selector.starts_with(allowed))
     }
 
     fn action_type_allowed(&self, action_type: ActionType) -> bool {
@@ -180,35 +182,59 @@ pub enum BrokerError {
 ///
 /// All checks are model-belief-independent: the agent's belief about what's on screen is irrelevant.
 #[must_use]
-pub fn decide(request: &BrokerRequest, scope: &ActionScope, kill_switch: &KillSwitchState) -> BrokerVerdict {
+pub fn decide(
+    request: &BrokerRequest,
+    scope: &ActionScope,
+    kill_switch: &KillSwitchState,
+) -> BrokerVerdict {
     // 1. Kill switch.
     if kill_switch.is_active(&request.agent_id) {
-        return BrokerVerdict::Deny { reason: DenyReason::KillSwitchActive };
+        return BrokerVerdict::Deny {
+            reason: DenyReason::KillSwitchActive,
+        };
     }
 
     // 2. Network access.
-    if matches!(request.action.action_type, ActionType::Navigate | ActionType::Scrape) && !scope.network_allowed {
-        return BrokerVerdict::Deny { reason: DenyReason::NetworkNotAllowed };
+    if matches!(
+        request.action.action_type,
+        ActionType::Navigate | ActionType::Scrape
+    ) && !scope.network_allowed
+    {
+        return BrokerVerdict::Deny {
+            reason: DenyReason::NetworkNotAllowed,
+        };
     }
 
     // 3. Action type.
     if !scope.action_type_allowed(request.action.action_type) {
-        return BrokerVerdict::Deny { reason: DenyReason::ActionTypeNotPermitted };
+        return BrokerVerdict::Deny {
+            reason: DenyReason::ActionTypeNotPermitted,
+        };
     }
 
     // 4. URL scope.
     if !scope.url_allowed(&request.action.target_url) {
         // Distinguish deny-list from not-in-allow-list for the receipt.
-        if scope.denied_url_patterns.iter().any(|p| url_matches(&request.action.target_url, p)) {
-            return BrokerVerdict::Deny { reason: DenyReason::UrlInDenyList };
+        if scope
+            .denied_url_patterns
+            .iter()
+            .any(|p| url_matches(&request.action.target_url, p))
+        {
+            return BrokerVerdict::Deny {
+                reason: DenyReason::UrlInDenyList,
+            };
         }
-        return BrokerVerdict::Deny { reason: DenyReason::UrlNotInScope };
+        return BrokerVerdict::Deny {
+            reason: DenyReason::UrlNotInScope,
+        };
     }
 
     // 5. DOM selector scope.
     if let Some(ref selector) = request.action.dom_selector {
         if !scope.dom_allowed(selector) {
-            return BrokerVerdict::Deny { reason: DenyReason::DomSelectorNotInScope };
+            return BrokerVerdict::Deny {
+                reason: DenyReason::DomSelectorNotInScope,
+            };
         }
     }
 
@@ -306,8 +332,7 @@ pub fn verify_receipt(receipt: &ScreenReceipt) -> Result<(), BrokerError> {
     sig_arr.copy_from_slice(&sig_bytes);
     let sig = Signature::from_bytes(&sig_arr);
     let canonical = canonical_body(&receipt.body);
-    vkey
-        .verify(canonical.as_bytes(), &sig)
+    vkey.verify(canonical.as_bytes(), &sig)
         .map_err(|_| BrokerError::Broker("Ed25519 signature does not verify".into()))
 }
 
@@ -376,7 +401,11 @@ mod tests {
     #[test]
     fn allow_click_on_authorized_url_and_dom() {
         let v = decide(
-            &req(ActionType::Click, "https://app.example.com/dashboard", Some("#search")),
+            &req(
+                ActionType::Click,
+                "https://app.example.com/dashboard",
+                Some("#search"),
+            ),
             &scope(),
             &KillSwitchState::default(),
         );
@@ -386,32 +415,61 @@ mod tests {
     #[test]
     fn deny_url_not_in_scope() {
         let v = decide(
-            &req(ActionType::Click, "https://other.example.com/page", Some("#search")),
+            &req(
+                ActionType::Click,
+                "https://other.example.com/page",
+                Some("#search"),
+            ),
             &scope(),
             &KillSwitchState::default(),
         );
-        assert_eq!(v, BrokerVerdict::Deny { reason: DenyReason::UrlNotInScope });
+        assert_eq!(
+            v,
+            BrokerVerdict::Deny {
+                reason: DenyReason::UrlNotInScope
+            }
+        );
     }
 
     #[test]
     fn deny_url_in_deny_list() {
         let v = decide(
-            &req(ActionType::Click, "https://evil.example.com/exploit", Some("#search")),
+            &req(
+                ActionType::Click,
+                "https://evil.example.com/exploit",
+                Some("#search"),
+            ),
             &scope(),
             &KillSwitchState::default(),
         );
-        assert_eq!(v, BrokerVerdict::Deny { reason: DenyReason::UrlInDenyList });
+        assert_eq!(
+            v,
+            BrokerVerdict::Deny {
+                reason: DenyReason::UrlInDenyList
+            }
+        );
     }
 
     #[test]
     fn deny_kill_switch_active() {
-        let ks = KillSwitchState { active_agents: vec!["bot-1".to_string()] };
+        let ks = KillSwitchState {
+            active_agents: vec!["bot-1".to_string()],
+        };
         let v = decide(
-            &req(ActionType::Click, "https://app.example.com/dashboard", Some("#search")),
+            &req(
+                ActionType::Click,
+                "https://app.example.com/dashboard",
+                Some("#search"),
+            ),
             &scope(),
             &ks,
         );
-        assert_eq!(v, BrokerVerdict::Deny { reason: DenyReason::KillSwitchActive });
+        assert_eq!(
+            v,
+            BrokerVerdict::Deny {
+                reason: DenyReason::KillSwitchActive
+            }
+        );
     }
 
     #[test]
@@ -422,7 +480,12 @@ mod tests {
             &scope(),
             &KillSwitchState::default(),
         );
-        assert_eq!(v, BrokerVerdict::Deny { reason: DenyReason::ActionTypeNotPermitted });
+        assert_eq!(
+            v,
+            BrokerVerdict::Deny {
+                reason: DenyReason::ActionTypeNotPermitted
+            }
+        );
     }
 
     #[test]
@@ -434,24 +497,47 @@ mod tests {
             &s,
             &KillSwitchState::default(),
         );
-        assert_eq!(v, BrokerVerdict::Deny { reason: DenyReason::NetworkNotAllowed });
+        assert_eq!(
+            v,
+            BrokerVerdict::Deny {
+                reason: DenyReason::NetworkNotAllowed
+            }
+        );
     }
 
     #[test]
     fn deny_dom_selector_not_in_scope() {
         let v = decide(
-            &req(ActionType::Click, "https://app.example.com/dashboard", Some("#admin-panel")),
+            &req(
+                ActionType::Click,
+                "https://app.example.com/dashboard",
+                Some("#admin-panel"),
+            ),
             &scope(),
             &KillSwitchState::default(),
         );
-        assert_eq!(v, BrokerVerdict::Deny { reason: DenyReason::DomSelectorNotInScope });
+        assert_eq!(
+            v,
+            BrokerVerdict::Deny {
+                reason: DenyReason::DomSelectorNotInScope
+            }
+        );
     }
 
     #[test]
     fn url_wildcard_matching() {
-        assert!(url_matches("https://app.example.com/page", "https://app.example.com/*"));
-        assert!(url_matches("https://app.example.com/a/b/c", "https://app.example.com/*"));
-        assert!(!url_matches("https://other.com/page", "https://app.example.com/*"));
+        assert!(url_matches(
+            "https://app.example.com/page",
+            "https://app.example.com/*"
+        ));
+        assert!(url_matches(
+            "https://app.example.com/a/b/c",
+            "https://app.example.com/*"
+        ));
+        assert!(!url_matches(
+            "https://other.com/page",
+            "https://app.example.com/*"
+        ));
         assert!(url_matches("https://exact.com", "https://exact.com"));
     }
 
@@ -459,11 +545,19 @@ mod tests {
     fn receipt_round_trip_verifies() {
         let (sk, _) = generate_keypair();
         let v = decide(
-            &req(ActionType::Click, "https://app.example.com/dashboard", Some("#search")),
+            &req(
+                ActionType::Click,
+                "https://app.example.com/dashboard",
+                Some("#search"),
+            ),
             &scope(),
             &KillSwitchState::default(),
         );
-        let r = req(ActionType::Click, "https://app.example.com/dashboard", Some("#search"));
+        let r = req(
+            ActionType::Click,
+            "https://app.example.com/dashboard",
+            Some("#search"),
+        );
         let receipt = issue_receipt(&v, &r, 1000, &sk, "cu-1");
         verify_receipt(&receipt).expect("receipt verifies");
     }
@@ -472,11 +566,19 @@ mod tests {
     fn tampered_receipt_fails() {
         let (sk, _) = generate_keypair();
         let v = decide(
-            &req(ActionType::Click, "https://app.example.com/dashboard", Some("#search")),
+            &req(
+                ActionType::Click,
+                "https://app.example.com/dashboard",
+                Some("#search"),
+            ),
             &scope(),
             &KillSwitchState::default(),
         );
-        let r = req(ActionType::Click, "https://app.example.com/dashboard", Some("#search"));
+        let r = req(
+            ActionType::Click,
+            "https://app.example.com/dashboard",
+            Some("#search"),
+        );
         let mut receipt = issue_receipt(&v, &r, 1000, &sk, "cu-1");
         receipt.body.agent_id = "evil".to_string();
         assert!(verify_receipt(&receipt).is_err());
@@ -485,21 +587,38 @@ mod tests {
     #[test]
     fn deny_overrides_allow_when_url_in_both_lists() {
         let mut s = scope();
-        s.allowed_url_patterns.push("https://dual.example.com/*".to_string());
-        s.denied_url_patterns.push("https://dual.example.com/*".to_string());
+        s.allowed_url_patterns
+            .push("https://dual.example.com/*".to_string());
+        s.denied_url_patterns
+            .push("https://dual.example.com/*".to_string());
         let v = decide(
-            &req(ActionType::Click, "https://dual.example.com/page", Some("#search")),
+            &req(
+                ActionType::Click,
+                "https://dual.example.com/page",
+                Some("#search"),
+            ),
             &s,
             &KillSwitchState::default(),
         );
-        assert_eq!(v, BrokerVerdict::Deny { reason: DenyReason::UrlInDenyList });
+        assert_eq!(
+            v,
+            BrokerVerdict::Deny {
+                reason: DenyReason::UrlInDenyList
+            }
+        );
     }
 
     #[test]
     fn kill_switch_for_different_agent_does_not_block() {
-        let ks = KillSwitchState { active_agents: vec!["other-bot".to_string()] };
+        let ks = KillSwitchState {
+            active_agents: vec!["other-bot".to_string()],
+        };
         let v = decide(
-            &req(ActionType::Click, "https://app.example.com/dashboard", Some("#search")),
+            &req(
+                ActionType::Click,
+                "https://app.example.com/dashboard",
+                Some("#search"),
+            ),
             &scope(),
             &ks,
         );

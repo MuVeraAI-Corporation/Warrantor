@@ -165,7 +165,12 @@ pub fn serve<E: Endpoint, R: BufRead, W: Write>(
         let request: Request = match serde_json::from_str(&line) {
             Ok(r) => r,
             Err(e) => {
-                write_error(output, None, codes::PARSE_ERROR, &format!("invalid JSON: {e}"))?;
+                write_error(
+                    output,
+                    None,
+                    codes::PARSE_ERROR,
+                    &format!("invalid JSON: {e}"),
+                )?;
                 continue;
             }
         };

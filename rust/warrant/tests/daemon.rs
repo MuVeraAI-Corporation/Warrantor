@@ -94,8 +94,12 @@ fn a_live_daemon_reports_supervised() {
     let dir = tempdir("live");
     let store = WarrantStore::open(&dir).expect("store");
     let state = DaemonState::open(&dir).expect("state");
-    store.save(&stored("wrt_live", WarrantState::Open)).expect("save");
-    state.register(&record("wrt_live", 1234, &dir)).expect("register");
+    store
+        .save(&stored("wrt_live", WarrantState::Open))
+        .expect("save");
+    state
+        .register(&record("wrt_live", 1234, &dir))
+        .expect("register");
 
     let found = state
         .reconcile(&store, &|pid| pid == 1234)
@@ -113,12 +117,14 @@ fn a_dead_daemon_reports_the_warrant_as_interrupted() {
     let dir = tempdir("dead");
     let store = WarrantStore::open(&dir).expect("store");
     let state = DaemonState::open(&dir).expect("state");
-    store.save(&stored("wrt_dead", WarrantState::Open)).expect("save");
-    state.register(&record("wrt_dead", 9999, &dir)).expect("register");
+    store
+        .save(&stored("wrt_dead", WarrantState::Open))
+        .expect("save");
+    state
+        .register(&record("wrt_dead", 9999, &dir))
+        .expect("register");
 
-    let found = state
-        .reconcile(&store, &|_| false)
-        .expect("reconcile");
+    let found = state.reconcile(&store, &|_| false).expect("reconcile");
 
     match found.get("wrt_dead") {
         Some(Reconciliation::Interrupted { detail }) => {
@@ -146,8 +152,12 @@ fn reconciling_clears_the_stale_record() {
     let dir = tempdir("clears");
     let store = WarrantStore::open(&dir).expect("store");
     let state = DaemonState::open(&dir).expect("state");
-    store.save(&stored("wrt_stale", WarrantState::Open)).expect("save");
-    state.register(&record("wrt_stale", 9999, &dir)).expect("register");
+    store
+        .save(&stored("wrt_stale", WarrantState::Open))
+        .expect("save");
+    state
+        .register(&record("wrt_stale", 9999, &dir))
+        .expect("register");
 
     state.reconcile(&store, &|_| false).expect("reconcile");
     assert_eq!(state.get("wrt_stale"), None);
@@ -161,7 +171,9 @@ fn an_open_warrant_with_no_daemon_is_reported_honestly() {
     let dir = tempdir("norecord");
     let store = WarrantStore::open(&dir).expect("store");
     let state = DaemonState::open(&dir).expect("state");
-    store.save(&stored("wrt_never", WarrantState::Open)).expect("save");
+    store
+        .save(&stored("wrt_never", WarrantState::Open))
+        .expect("save");
 
     let found = state.reconcile(&store, &|_| true).expect("reconcile");
     match found.get("wrt_never") {
@@ -203,10 +215,7 @@ fn terminal_warrants_need_no_reconciliation() {
 #[test]
 fn liveness_detection_is_correct_on_this_host() {
     let me = std::process::id();
-    assert!(
-        process_is_alive(me),
-        "this process is definitionally alive"
-    );
+    assert!(process_is_alive(me), "this process is definitionally alive");
     // A pid this large is not in use on any normal system.
     assert!(!process_is_alive(4_294_967_294));
 }
@@ -219,7 +228,10 @@ fn the_socket_lives_under_the_store_not_in_shared_temp() {
     let path = socket_path(&dir, "wrt_x");
     let text = path.to_string_lossy();
     if cfg!(windows) {
-        assert!(text.starts_with(r"\\.\pipe\"), "expected a named pipe: {text}");
+        assert!(
+            text.starts_with(r"\\.\pipe\"),
+            "expected a named pipe: {text}"
+        );
         assert!(text.contains("wrt_x"));
     } else {
         assert!(

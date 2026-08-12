@@ -37,7 +37,10 @@ fn main() {
     let root: Value = serde_json::from_str(&raw).expect("vectors json");
     let base_req = root.get("base_request").cloned().expect("base_request");
     let base_ctx = root.get("base_context").cloned().expect("base_context");
-    let vectors = root.get("vectors").and_then(|v| v.as_array()).expect("vectors");
+    let vectors = root
+        .get("vectors")
+        .and_then(|v| v.as_array())
+        .expect("vectors");
 
     let (signing_key, verifying_key) = generate_keypair();
     let pub_hex = hex::encode(&verifying_key.to_bytes());
@@ -60,8 +63,13 @@ fn main() {
             .unwrap_or_else(|e| panic!("vector {name}: context deserialize: {e}"));
 
         let verdict_result = verdict(&req, &ctx);
-        let receipt =
-            issue_receipt(&verdict_result, &req, EnforcementMode::Mediated, &signing_key, "interop-notary");
+        let receipt = issue_receipt(
+            &verdict_result,
+            &req,
+            EnforcementMode::Mediated,
+            &signing_key,
+            "interop-notary",
+        );
 
         entries.push(serde_json::json!({
             "name": name,
