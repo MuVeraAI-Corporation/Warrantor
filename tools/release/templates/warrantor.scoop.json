@@ -1,5 +1,5 @@
 {
-  "$comment": "Scoop manifest for the warrantor CLI (Windows). Lives in a self-serve bucket -- MuVeraAI-Corporation/scoop-bucket -- which needs no approval. The 'hash' is filled in from the release artifact after a run: (Get-FileHash warrantor-v1.0.0-x86_64-pc-windows-msvc.zip).Hash",
+  "$comment": "BLOCKED WHILE THE REPO IS PRIVATE: Scoop fetches release assets anonymously and GitHub 404s them for private repos. Scoop manifest for the warrantor CLI (Windows). Lives in a self-serve bucket -- MuVeraAI-Corporation/scoop-bucket -- which needs no approval. The 'hash' is filled in from the release artifact after a run: (Get-FileHash warrantor-v1.0.0-x86_64-pc-windows-msvc.zip).Hash",
   "version": "1.0.0",
   "description": "Bounded authority for coding agents: irreversible actions staged for approval, not performed.",
   "homepage": "https://github.com/MuVeraAI-Corporation/Warrantor",
@@ -7,7 +7,7 @@
   "architecture": {
     "64bit": {
       "url": "https://github.com/MuVeraAI-Corporation/Warrantor/releases/download/v1.0.0/warrantor-v1.0.0-x86_64-pc-windows-msvc.zip",
-      "hash": "REPLACE_WITH_SHA256",
+      "hash": "51d91de2521241a9af7e951da66e25eaf94dda494fbfd4b54ff6b71a3d6cfcb0",
       "extract_dir": "warrantor-v1.0.0-x86_64-pc-windows-msvc"
     }
   },
