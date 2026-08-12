@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AumOS Blog Series — Open Authority &amp; Evidence Stack</title>
+  <link rel="stylesheet" href="blog-series.css">
+</head>
+<body>
+<div class="container">
+  <header class="index-hero">
+    <div class="article-eyebrow">AumOS · Multi-phase technical blog series · Local deliverable</div>
+    <h1>The Open Authority &amp; Evidence Stack</h1>
+    <p class="lead" style="font-size:1.1rem;color:var(--text-secondary);max-width:70ch;">
+      Eight deep visual essays covering every portfolio cluster and protocols P1–P12.
+      Built through a six-phase pipeline (research → outline → draft → visuals → adversarial review → fix)
+      with dual subagent passes. Not a reading-list index—original technical synthesis.
+    </p>
+    <p>
+      <span class="phase-badge">Phase 1 research ✓</span>
+      <span class="phase-badge">Phase 2 outline ✓</span>
+      <span class="phase-badge">Phase 3 draft ✓</span>
+      <span class="phase-badge">Phase 4 visuals ✓</span>
+      <span class="phase-badge">Phase 5 adversarial review ✓</span>
+      <span class="phase-badge">Phase 6 fix pass ✓</span>
+    </p>
+    <p style="font-size:0.85rem;color:var(--text-tertiary);">Phase evidence: <code>meta/phase1-research-notes.md</code>, <code>meta/phase5-adversarial-review.md</code>. Depth tiers in matrix below (not binary “green means deep”).</p>
+    <p style="margin-top:1rem;font-size:0.9rem;"><a href="meta/phase-plan.md">Phase plan</a> ·
+      <a href="../curated-reading-list.html">Curated external sources</a> ·
+      <a href="../research-papers.html">Formal research papers</a></p>
+  </header>
+
+  <h2>Essays</h2>
+  <div class="index-grid">
+    
+    <article class="index-card" data-article="01-verifiable-agent-authority.html">
+      <h3><a href="01-verifiable-agent-authority.html">Essay 01 — Verifiable Agent Authority: Envelopes, Budgets, and Workload Identity</a></h3>
+      <p>Why agents need cryptographic delegation that SPIFFE + OAuth RAR + Cedar can compose—and how AumOS AAE (P1), ABS (P7), and CAP (P12) close the gap.</p>
+      <div class="chips"><span class="id-chip" data-aumos-id="T1">T1</span> <span class="id-chip" data-aumos-id="T2">T2</span> <span class="id-chip" data-aumos-id="I1">I1</span> <span class="id-chip" data-aumos-id="I2">I2</span> <span class="id-chip" data-aumos-id="R4">R4</span> <span class="id-chip" data-aumos-id="R5">R5</span> <span class="id-chip" data-aumos-id="R6">R6</span> <span class="id-chip protocol" data-aumos-id="P1">P1</span> <span class="id-chip protocol" data-aumos-id="P7">P7</span> <span class="id-chip protocol" data-aumos-id="P12">P12</span></div>
+    </article>
+    <article class="index-card" data-article="02-runtime-containment-kill-switch.html">
+      <h3><a href="02-runtime-containment-kill-switch.html">Essay 02 — Runtime Containment: OpenShell, Kill Switches, and eBPF Egress</a></h3>
+      <p>Defense without containment is incomplete. OpenShell sandboxes, continuous access evaluation, and eBPF exfil guards form the fail-closed agent runtime.</p>
+      <div class="chips"><span class="id-chip" data-aumos-id="R1">R1</span> <span class="id-chip" data-aumos-id="R2">R2</span> <span class="id-chip" data-aumos-id="R3">R3</span> <span class="id-chip" data-aumos-id="R7">R7</span> <span class="id-chip" data-aumos-id="R8">R8</span> <span class="id-chip" data-aumos-id="S6">S6</span> <span class="id-chip" data-aumos-id="X2">X2</span> <span class="id-chip protocol" data-aumos-id="P1">P1</span> <span class="id-chip protocol" data-aumos-id="P7">P7</span> <span class="id-chip protocol" data-aumos-id="P12">P12</span></div>
+    </article>
+    <article class="index-card" data-article="03-confidential-gpu-attestation.html">
+      <h3><a href="03-confidential-gpu-attestation.html">Essay 03 — Confidential GPUs: Attestation, NRAS, and Composite TEE Pipelines</a></h3>
+      <p>H100/B200 confidential computing only matters if attestation is verifiable offline and online—nvtrust, NRAS, and multi-cloud CC fabrics.</p>
+      <div class="chips"><span class="id-chip" data-aumos-id="C1-1">C1-1</span> <span class="id-chip" data-aumos-id="C1-2">C1-2</span> <span class="id-chip" data-aumos-id="C1-3">C1-3</span> <span class="id-chip" data-aumos-id="C1-4">C1-4</span> <span class="id-chip" data-aumos-id="C1-5">C1-5</span> <span class="id-chip" data-aumos-id="N4">N4</span> <span class="id-chip protocol" data-aumos-id="P12">P12</span></div>
+    </article>
+    <article class="index-card" data-article="04-ai-supply-chain-sbom-lightwell.html">
+      <h3><a href="04-ai-supply-chain-sbom-lightwell.html">Essay 04 — AI Supply Chain Integrity: Safetensors++, ML-BOM, Sigstore, Lightwell</a></h3>
+      <p>Weights are not “just data.” Provenance, SBOM, transparency logs, and signed remediation bundles are the control plane for model artifacts.</p>
+      <div class="chips"><span class="id-chip" data-aumos-id="S1">S1</span> <span class="id-chip" data-aumos-id="S2">S2</span> <span class="id-chip" data-aumos-id="S3">S3</span> <span class="id-chip" data-aumos-id="S4">S4</span> <span class="id-chip" data-aumos-id="S5">S5</span> <span class="id-chip" data-aumos-id="S7">S7</span> <span class="id-chip" data-aumos-id="S8">S8</span> <span class="id-chip" data-aumos-id="S9">S9</span> <span class="id-chip" data-aumos-id="T1">T1</span> <span class="id-chip protocol" data-aumos-id="P5">P5</span> <span class="id-chip protocol" data-aumos-id="P6">P6</span> <span class="id-chip protocol" data-aumos-id="P11">P11</span></div>
+    </article>
+    <article class="index-card" data-article="05-evidence-plane-aar-ocsf.html">
+      <h3><a href="05-evidence-plane-aar-ocsf.html">Essay 05 — The Evidence Plane: Action Receipts, Provenance Graphs, and Incident Exchange</a></h3>
+      <p>If you cannot produce a signed receipt for what the agent did, you do not have governance—you have vibes. AAR, OTel GenAI, OCSF, ATLAS.</p>
+      <div class="chips"><span class="id-chip" data-aumos-id="E1">E1</span> <span class="id-chip" data-aumos-id="X9">X9</span> <span class="id-chip" data-aumos-id="X2">X2</span> <span class="id-chip protocol" data-aumos-id="P2">P2</span> <span class="id-chip protocol" data-aumos-id="P3">P3</span> <span class="id-chip protocol" data-aumos-id="P4">P4</span> <span class="id-chip protocol" data-aumos-id="P9">P9</span></div>
+    </article>
+    <article class="index-card" data-article="06-eval-redteam-veb-conformance.html">
+      <h3><a href="06-eval-redteam-veb-conformance.html">Essay 06 — Evaluation as Evidence: garak, PyRIT, VEB, and Conformance Suites</a></h3>
+      <p>Evals that cannot be packaged, signed, and replayed are theater. Verifiable evaluation bundles and multi-language conformance.</p>
+      <div class="chips"><span class="id-chip" data-aumos-id="A1">A1</span> <span class="id-chip" data-aumos-id="A2">A2</span> <span class="id-chip" data-aumos-id="A3">A3</span> <span class="id-chip" data-aumos-id="A4">A4</span> <span class="id-chip" data-aumos-id="A5">A5</span> <span class="id-chip" data-aumos-id="A6">A6</span> <span class="id-chip" data-aumos-id="A7">A7</span> <span class="id-chip" data-aumos-id="A8">A8</span> <span class="id-chip" data-aumos-id="X5">X5</span> <span class="id-chip" data-aumos-id="X6">X6</span> <span class="id-chip protocol" data-aumos-id="P8">P8</span></div>
+    </article>
+    <article class="index-card" data-article="07-inference-mcp-a2a-delegation.html">
+      <h3><a href="07-inference-mcp-a2a-delegation.html">Essay 07 — Inference Gateways and Multi-Agent Protocols: MCP, A2A, MADE</a></h3>
+      <p>Tool plane (MCP) and agent plane (A2A) are different. Authority-aware gateways and delegation exchange keep both fail-closed.</p>
+      <div class="chips"><span class="id-chip" data-aumos-id="N1">N1</span> <span class="id-chip" data-aumos-id="N2">N2</span> <span class="id-chip" data-aumos-id="N3">N3</span> <span class="id-chip" data-aumos-id="N4">N4</span> <span class="id-chip" data-aumos-id="X8">X8</span> <span class="id-chip" data-aumos-id="I1">I1</span> <span class="id-chip protocol" data-aumos-id="P5">P5</span> <span class="id-chip protocol" data-aumos-id="P10">P10</span> <span class="id-chip protocol" data-aumos-id="P1">P1</span></div>
+    </article>
+    <article class="index-card" data-article="08-federated-edge-sovereign-stack.html">
+      <h3><a href="08-federated-edge-sovereign-stack.html">Essay 08 — Federated Training, Edge Attestation, and the Sovereign Bundle</a></h3>
+      <p>DP budgets, Jetson-class edge agents, fleet operators, and air-gapped sovereign stacks complete the authority/evidence substrate.</p>
+      <div class="chips"><span class="id-chip" data-aumos-id="F1">F1</span> <span class="id-chip" data-aumos-id="F2">F2</span> <span class="id-chip" data-aumos-id="F3">F3</span> <span class="id-chip" data-aumos-id="F4">F4</span> <span class="id-chip" data-aumos-id="X1">X1</span> <span class="id-chip" data-aumos-id="X3">X3</span> <span class="id-chip" data-aumos-id="X4">X4</span> <span class="id-chip" data-aumos-id="X7">X7</span> <span class="id-chip" data-aumos-id="X10">X10</span> <span class="id-chip" data-aumos-id="X11">X11</span> <span class="id-chip protocol" data-aumos-id="P3">P3</span> <span class="id-chip protocol" data-aumos-id="P11">P11</span></div>
+    </article>
+  </div>
+
+  <h2 id="coverage-matrix">Coverage matrix — clusters &amp; P1–P12</h2>
+  <p>Every cluster and every protocol appears below with a dedicated essay mapping. Component inventory follows
+  <code>00-reconciliation-matrix.md</code> tables (54 implementable IDs SSOT; vision-doc “44” is a summary figure).</p>
+  <div class="visual" data-visual="master-coverage">
+    <div class="visual-caption">Master coverage</div>
+    <table>
+      <thead><tr><th>Cluster / Protocol</th><th>Components</th><th>Protocols</th><th>Article</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Trust / Identity / Policy</strong></td><td>T1, T2, I1, I2, R4, R5, R6</td><td>P1, P7, P12</td><td><a href="01-verifiable-agent-authority.html">01-verifiable-agent-authority.html</a></td><td class="coverage-ok">Cluster essay</td></tr><tr><td><strong>Runtime &amp; Containment</strong></td><td>R1, R2, R3, R7, R8, S6, X2</td><td>P1, P7, P12</td><td><a href="02-runtime-containment-kill-switch.html">02-runtime-containment-kill-switch.html</a></td><td class="coverage-ok">Cluster essay</td></tr><tr><td><strong>Confidential Compute / TEE / GPU</strong></td><td>C1-1, C1-2, C1-3, C1-4, C1-5, N4</td><td>P12</td><td><a href="03-confidential-gpu-attestation.html">03-confidential-gpu-attestation.html</a></td><td class="coverage-ok">Cluster essay</td></tr><tr><td><strong>Supply Chain / Formats / SBOM</strong></td><td>S1, S2, S3, S4, S5, S7, S8, S9, T1</td><td>P5, P6, P11</td><td><a href="04-ai-supply-chain-sbom-lightwell.html">04-ai-supply-chain-sbom-lightwell.html</a></td><td class="coverage-ok">Cluster essay</td></tr><tr><td><strong>Evidence Plane</strong></td><td>E1, X9, X2</td><td>P2, P3, P4, P9</td><td><a href="05-evidence-plane-aar-ocsf.html">05-evidence-plane-aar-ocsf.html</a></td><td class="coverage-ok">Cluster essay</td></tr><tr><td><strong>Evaluation / Red-Team</strong></td><td>A1, A2, A3, A4, A5, A6, A7, A8, X5, X6</td><td>P8</td><td><a href="06-eval-redteam-veb-conformance.html">06-eval-redteam-veb-conformance.html</a></td><td class="coverage-ok">Cluster essay</td></tr><tr><td><strong>Inference / Multi-Agent</strong></td><td>N1, N2, N3, N4, X8, I1</td><td>P5, P10, P1</td><td><a href="07-inference-mcp-a2a-delegation.html">07-inference-mcp-a2a-delegation.html</a></td><td class="coverage-ok">Cluster essay</td></tr><tr><td><strong>Federated / Edge / Cross-Cutting</strong></td><td>F1, F2, F3, F4, X1, X3, X4, X7, X10, X11</td><td>P3, P11</td><td><a href="08-federated-edge-sovereign-stack.html">08-federated-edge-sovereign-stack.html</a></td><td class="coverage-ok">Cluster essay</td></tr><tr data-protocol="P1"><td><span class="id-chip protocol" data-aumos-id="P1">P1</span></td><td colspan="2">AAE — Agent Authority Envelope</td><td>01-verifiable-agent-authority.html, 02-runtime-containment-kill-switch.html, 07-inference-mcp-a2a-delegation.html</td><td class="coverage-ok">Depth: Full</td></tr><tr data-protocol="P2"><td><span class="id-chip protocol" data-aumos-id="P2">P2</span></td><td colspan="2">AAR — Agent Action Receipt</td><td>05-evidence-plane-aar-ocsf.html</td><td class="coverage-note">Depth: Partial</td></tr><tr data-protocol="P3"><td><span class="id-chip protocol" data-aumos-id="P3">P3</span></td><td colspan="2">CPE — Context Provenance Envelope</td><td>05-evidence-plane-aar-ocsf.html, 08-federated-edge-sovereign-stack.html</td><td class="coverage-note">Depth: Partial</td></tr><tr data-protocol="P4"><td><span class="id-chip protocol" data-aumos-id="P4">P4</span></td><td colspan="2">AMIL — Agent Memory Integrity Ledger</td><td>05-evidence-plane-aar-ocsf.html</td><td class="coverage-note">Depth: Partial</td></tr><tr data-protocol="P5"><td><span class="id-chip protocol" data-aumos-id="P5">P5</span></td><td colspan="2">SSP — Secure Skill Package</td><td>04-ai-supply-chain-sbom-lightwell.html, 07-inference-mcp-a2a-delegation.html</td><td class="coverage-note">Depth: Partial</td></tr><tr data-protocol="P6"><td><span class="id-chip protocol" data-aumos-id="P6">P6</span></td><td colspan="2">AATM — AI Artifact Trust Manifest</td><td>04-ai-supply-chain-sbom-lightwell.html</td><td class="coverage-note">Depth: Partial</td></tr><tr data-protocol="P7"><td><span class="id-chip protocol" data-aumos-id="P7">P7</span></td><td colspan="2">ABS — Autonomy Budget Specification</td><td>01-verifiable-agent-authority.html, 02-runtime-containment-kill-switch.html</td><td class="coverage-note">Depth: Partial</td></tr><tr data-protocol="P8"><td><span class="id-chip protocol" data-aumos-id="P8">P8</span></td><td colspan="2">VEB — Verifiable Evaluation Bundle</td><td>06-eval-redteam-veb-conformance.html</td><td class="coverage-note">Depth: Partial</td></tr><tr data-protocol="P9"><td><span class="id-chip protocol" data-aumos-id="P9">P9</span></td><td colspan="2">AIX — Agent Incident Exchange</td><td>05-evidence-plane-aar-ocsf.html</td><td class="coverage-note">Depth: Partial</td></tr><tr data-protocol="P10"><td><span class="id-chip protocol" data-aumos-id="P10">P10</span></td><td colspan="2">MADE — Multi-Agent Delegation Exchange</td><td>07-inference-mcp-a2a-delegation.html</td><td class="coverage-note">Depth: Partial</td></tr><tr data-protocol="P11"><td><span class="id-chip protocol" data-aumos-id="P11">P11</span></td><td colspan="2">PRB — Proof-Carrying Remediation Bundle</td><td>04-ai-supply-chain-sbom-lightwell.html, 08-federated-edge-sovereign-stack.html</td><td class="coverage-note">Depth: Partial</td></tr><tr data-protocol="P12"><td><span class="id-chip protocol" data-aumos-id="P12">P12</span></td><td colspan="2">CAP — Capability Attestation Profile</td><td>01-verifiable-agent-authority.html, 02-runtime-containment-kill-switch.html, 03-confidential-gpu-attestation.html</td><td class="coverage-note">Depth: Partial</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Protocol legend</h2>
+  <ul>
+    <li><span class="id-chip protocol" data-aumos-id="P1">P1</span> AAE — Agent Authority Envelope</li><li><span class="id-chip protocol" data-aumos-id="P2">P2</span> AAR — Agent Action Receipt</li><li><span class="id-chip protocol" data-aumos-id="P3">P3</span> CPE — Context Provenance Envelope</li><li><span class="id-chip protocol" data-aumos-id="P4">P4</span> AMIL — Agent Memory Integrity Ledger</li><li><span class="id-chip protocol" data-aumos-id="P5">P5</span> SSP — Secure Skill Package</li><li><span class="id-chip protocol" data-aumos-id="P6">P6</span> AATM — AI Artifact Trust Manifest</li><li><span class="id-chip protocol" data-aumos-id="P7">P7</span> ABS — Autonomy Budget Specification</li><li><span class="id-chip protocol" data-aumos-id="P8">P8</span> VEB — Verifiable Evaluation Bundle</li><li><span class="id-chip protocol" data-aumos-id="P9">P9</span> AIX — Agent Incident Exchange</li><li><span class="id-chip protocol" data-aumos-id="P10">P10</span> MADE — Multi-Agent Delegation Exchange</li><li><span class="id-chip protocol" data-aumos-id="P11">P11</span> PRB — Proof-Carrying Remediation Bundle</li><li><span class="id-chip protocol" data-aumos-id="P12">P12</span> CAP — Capability Attestation Profile</li>
+  </ul>
+
+  <footer style="margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);font-size:0.85rem;color:var(--text-tertiary);">
+    Generated by <code>meta/generate_blog_series.py</code>. Verify with <code>meta/test_blog_series.py</code>.
+  </footer>
+</div>
+</body>
+</html>

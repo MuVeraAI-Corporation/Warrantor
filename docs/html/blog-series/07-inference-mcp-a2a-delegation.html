@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inference Gateways and Multi-Agent Protocols: MCP, A2A, MADE · AumOS Blog Series</title>
+  <link rel="stylesheet" href="blog-series.css">
+</head>
+<body>
+<div class="container">
+  <div class="series-bar">
+    <a href="index.html">← Series index</a>
+    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span>Local technical essay · 2026</span>
+  </div>
+
+  <header class="article-header">
+    <div class="article-eyebrow">Essay 7 of 8 · Inference / Multi-Agent</div>
+    <h1>Inference Gateways and Multi-Agent Protocols: MCP, A2A, MADE</h1>
+    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-affil">Tool plane (MCP) and agent plane (A2A) are different. Authority-aware gateways and delegation exchange keep both fail-closed.</p>
+    <div class="article-meta">
+      <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value"><span class="id-chip" data-aumos-id="N1">N1</span> <span class="id-chip" data-aumos-id="N2">N2</span> <span class="id-chip" data-aumos-id="N3">N3</span> <span class="id-chip" data-aumos-id="N4">N4</span> <span class="id-chip" data-aumos-id="X8">X8</span> <span class="id-chip" data-aumos-id="I1">I1</span> <span class="id-chip protocol" data-aumos-id="P5">P5</span> <span class="id-chip protocol" data-aumos-id="P10">P10</span> <span class="id-chip protocol" data-aumos-id="P1">P1</span></span></div>
+      <div class="meta-item"><span class="meta-label">Pipeline</span><span class="meta-value">Research → draft → visuals → adversarial review → fix</span></div>
+      <div class="meta-item"><span class="meta-label">Citations</span><span class="meta-value">Primary RFCs / eng blogs / standards</span></div>
+    </div>
+    <nav class="article-nav"><a href="06-eval-redteam-veb-conformance.html">← Essay 06</a><span></span><a href="08-federated-edge-sovereign-stack.html">Essay 08 →</a></nav>
+  </header>
+
+
+  <div class="abstract">
+    <span class="abstract-label">Thesis</span>
+    <p>MCP standardizes tools; A2A standardizes agent-to-agent messaging. Confusing them produces insecure gateways. AumOS <span class="id-chip">X8</span> is authority-aware MCP admission; <span class="id-chip protocol">P10</span> MADE profiles multi-agent delegation; <span class="id-chip">N1</span>–<span class="id-chip">N3</span> are the inference edge.</p>
+  </div>
+  <div class="toc"><div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#split">MCP vs A2A split</a></li>
+    <li><a href="#gateway">Authority-aware MCP gateway</a></li>
+    <li><a href="#made">MADE delegation exchange</a></li>
+    <li><a href="#infer">Inference stack</a></li>
+    <li><a href="#threats">Threat table</a></li>
+  </ol></div>
+
+  <h2 id="split">1. MCP vs A2A split</h2>
+  <p>MCP is USB-C for tools/resources/prompts<sup><a href="#refs">[1,2]</a></sup>. A2A is agent interoperability over HTTP/JSON with a formal spec and LF momentum<sup><a href="#refs">[3,4]</a></sup>. Official topic pages explain coexistence<sup><a href="#refs">[5]</a></sup>; Auth0 covers security framing<sup><a href="#refs">[6]</a></sup>. AumOS keeps both: tools go through X8; agent peers use MADE + AAE.</p>
+
+  <div class="visual" data-visual="mcp-a2a">
+    <div class="visual-caption">Figure 1 — Two planes, one authority core</div>
+    <svg viewBox="0 0 820 240" xmlns="http://www.w3.org/2000/svg">
+      <rect width="820" height="240" fill="#f8f6f2"/>
+      <rect x="40" y="40" width="300" height="160" rx="12" fill="#fff" stroke="#d97757" stroke-width="2"/>
+      <text x="190" y="75" text-anchor="middle" font-family="Georgia,serif" font-size="16">Tool plane (MCP)</text>
+      <text x="190" y="110" text-anchor="middle" font-family="monospace" font-size="12" fill="#737373">X8 mcp-gateway</text>
+      <text x="190" y="135" text-anchor="middle" font-family="monospace" font-size="12" fill="#737373">P5 Secure Skill Package</text>
+      <text x="190" y="160" text-anchor="middle" font-family="monospace" font-size="12" fill="#737373">AAE check before tools</text>
+      <rect x="480" y="40" width="300" height="160" rx="12" fill="#fff" stroke="#555188" stroke-width="2"/>
+      <text x="630" y="75" text-anchor="middle" font-family="Georgia,serif" font-size="16">Agent plane (A2A)</text>
+      <text x="630" y="110" text-anchor="middle" font-family="monospace" font-size="12" fill="#737373">P10 MADE</text>
+      <text x="630" y="135" text-anchor="middle" font-family="monospace" font-size="12" fill="#737373">OBO token exchange</text>
+      <text x="630" y="160" text-anchor="middle" font-family="monospace" font-size="12" fill="#737373">I1 multi-agent identity</text>
+      <rect x="340" y="90" width="140" height="60" rx="8" fill="#faf0eb" stroke="#d97757" stroke-width="2"/>
+      <text x="410" y="125" text-anchor="middle" font-family="Georgia,serif" font-size="13">T1 / P1 AAE</text>
+    </svg>
+  </div>
+
+  <h2 id="gateway">2. Authority-aware MCP gateway</h2>
+  <p><span class="id-chip">X8</span> admission algorithm (fail-closed):</p>
+  <ol>
+    <li>Resolve skill package → verify <span class="id-chip protocol">P5</span> SSP signature (T1).</li>
+    <li>Load AAE → check <code>aud</code>, <code>exp</code>, revocation, tool allow class.</li>
+    <li>Intersect CAP: runtime measurement matches envelope bind.</li>
+    <li>Debit ABS budget for tool class; deny on exhaust.</li>
+    <li>Dispatch tool; emit AAR (Essay 5) for allow <em>and</em> deny.</li>
+  </ol>
+  <p>Unsigned community MCP servers are untrusted code—because they are. <span class="id-chip protocol">P5</span> is AumOS packaging, not a claim that MCP itself ships skill signatures.</p>
+
+  <h2 id="made">3. MADE delegation exchange</h2>
+  <div class="callout warning">
+    <div class="callout-title">AumOS-native (P10 MADE)</div>
+    <p>Multi-Agent Delegation Exchange is an AumOS profile for constrained inter-agent authority. It sits <em>on</em> A2A messaging and OAuth token exchange—it is not the A2A specification itself.</p>
+  </div>
+  <p><strong>Sequence sketch:</strong> Agent A holds AAE<sub>A</sub>. A creates MADE with <code>parent_jti</code>, task hash, residual RAR details (strict subset), TTL, and signature. Agent B accepts only if residual ⊆ A’s grants and OBO token exchange succeeds. B’s tools at X8 use AAE<sub>B</sub> derived from MADE—not A’s full envelope. Confused-deputy fix: B cannot widen scope by asking A2A peers for “help with everything.”</p>
+
+  <h2 id="infer">4. Inference stack</h2>
+  <p><span class="id-chip">N1</span> OpenServeKit targets an OpenAI-compatible wire surface for backend-agnostic serving (ecosystem pattern; not “the OpenAI product”). <span class="id-chip">N2</span> BridgeRT abstracts vLLM/TRT-LLM<sup><a href="#refs">[7,8]</a></sup>; <span class="id-chip">N3</span> InferenceProxy adds auth, rate limits, prompt filters, semantic cache; <span class="id-chip">N4</span> TenantGuard owns MIG multi-tenancy. Authority checks belong in N3/X8—not only inside the model server process.</p>
+
+  <div class="visual" data-visual="threats">
+    <div class="visual-caption">Table 1 — Multi-agent / tool threats</div>
+    <table>
+      <thead><tr><th>Threat</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>Malicious MCP server</td><td>P5 signed skills + X8 admit</td></tr>
+        <tr><td>Confused deputy via A2A</td><td>MADE residual scope + OBO</td></tr>
+        <tr><td>Prompt injection → tool fire</td><td>AAE tool allowlist + N3 filters</td></tr>
+        <tr><td>Cross-tenant GPU leak</td><td>N4 MIG + CAP</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="threats">5. Implications</h2>
+  <p>Ship MCP for productivity, A2A for federation, and AumOS authority for both—or accept that interoperability multiplies blast radius. Prompt injection that fires tools is not a model-only bug; it is an admission-control bug at X8. Multi-agent OBO without residual scope is privilege laundering with better branding.</p>
+  <div class="callout">
+    <div class="callout-title">US / India note</div>
+    <p>Tool logs and delegated actions often process personal or customer data. DPDP and US third-party / safety-and-soundness expectations both require knowing <em>which</em> agent acted under <em>which</em> residual authority—MADE + AAR, not chat screenshots.</p>
+  </div>
+
+
+  <section class="refs" id="refs">
+    <h2>References (primary sources)</h2>
+    <ol>
+      <li class="cite" data-cite-url="https://www.anthropic.com/news/model-context-protocol"><strong>Introducing the Model Context Protocol</strong> — Anthropic. <a href="https://www.anthropic.com/news/model-context-protocol" rel="noopener noreferrer" target="_blank">https://www.anthropic.com/news/model-context-protocol</a></li>
+      <li class="cite" data-cite-url="https://modelcontextprotocol.io/specification/latest"><strong>MCP Specification (latest)</strong> — MCP Project. <a href="https://modelcontextprotocol.io/specification/latest" rel="noopener noreferrer" target="_blank">https://modelcontextprotocol.io/specification/latest</a></li>
+      <li class="cite" data-cite-url="https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/"><strong>Announcing Agent2Agent Protocol (A2A)</strong> — Google Developers Blog. <a href="https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/" rel="noopener noreferrer" target="_blank">https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/</a></li>
+      <li class="cite" data-cite-url="https://a2a-protocol.org/latest/specification/"><strong>A2A Protocol Specification</strong> — A2A Project. <a href="https://a2a-protocol.org/latest/specification/" rel="noopener noreferrer" target="_blank">https://a2a-protocol.org/latest/specification/</a></li>
+      <li class="cite" data-cite-url="https://a2a-protocol.org/latest/topics/a2a-and-mcp/"><strong>A2A and MCP topics</strong> — A2A Docs. <a href="https://a2a-protocol.org/latest/topics/a2a-and-mcp/" rel="noopener noreferrer" target="_blank">https://a2a-protocol.org/latest/topics/a2a-and-mcp/</a></li>
+      <li class="cite" data-cite-url="https://auth0.com/blog/mcp-vs-a2a/"><strong>MCP vs A2A</strong> — Auth0. <a href="https://auth0.com/blog/mcp-vs-a2a/" rel="noopener noreferrer" target="_blank">https://auth0.com/blog/mcp-vs-a2a/</a></li>
+      <li class="cite" data-cite-url="https://docs.vllm.ai/"><strong>vLLM Documentation</strong> — vLLM Project. <a href="https://docs.vllm.ai/" rel="noopener noreferrer" target="_blank">https://docs.vllm.ai/</a></li>
+      <li class="cite" data-cite-url="https://nvidia.github.io/TensorRT-LLM/"><strong>TensorRT-LLM Docs</strong> — NVIDIA. <a href="https://nvidia.github.io/TensorRT-LLM/" rel="noopener noreferrer" target="_blank">https://nvidia.github.io/TensorRT-LLM/</a></li>
+      <li class="cite" data-cite-url="https://www.rfc-editor.org/rfc/rfc8693.html"><strong>RFC 8693 — OAuth 2.0 Token Exchange</strong> — IETF. <a href="https://www.rfc-editor.org/rfc/rfc8693.html" rel="noopener noreferrer" target="_blank">https://www.rfc-editor.org/rfc/rfc8693.html</a></li>
+    </ol>
+  </section>
+
+  <footer style="margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);font-size:0.85rem;color:var(--text-tertiary);">
+    <p>Local in-repo deliverable. Not a hosted artifact. Series plan: <code>meta/phase-plan.md</code>.</p>
+    <p><a href="06-eval-redteam-veb-conformance.html">← Essay 06</a><span></span><a href="08-federated-edge-sovereign-stack.html">Essay 08 →</a></p>
+  </footer>
+</div>
+</body>
+</html>

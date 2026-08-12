@@ -330,7 +330,7 @@ component reasons about. T2 normative-validates the Agent Authority Envelope.</p
 <a href="#r3" class="card" style="text-decoration:none;border-bottom:none;">
   <div class="card-id">R3 &middot; <span class="badge rust">rust</span> <span class="badge wave-1">wave 1</span></div>
   <div class="card-title">kill-switch</div>
-  <div class="card-desc">Three-layer (policy / decision / execution) agent termination pipeline that completes in under 5 seconds. Includes the Government Compliance API stub for the AI Kill Switch Act (H.R. 2026).</div>
+  <div class="card-desc">Three-layer (policy / decision / execution) agent termination pipeline that completes in under 5 seconds. Includes the Government Compliance API stub for the AI Kill Switch Act (H.R. 9917).</div>
   <div class="card-meta"><span class="badge rust">9 tests</span> <span class="badge wave-1">5s budget</span></div>
 </a>
 
@@ -1089,7 +1089,7 @@ trust-core signing primitives in production.</p>
     <code>rust/kill-switch/</code>
   </div>
   <table class="meta-table">
-    <tr><td>Canonical ID</td><td>R3 (reference impl for the AI Kill Switch Act, H.R. 2026)</td></tr>
+    <tr><td>Canonical ID</td><td>R3 (reference impl for the AI Kill Switch Act, H.R. 9917)</td></tr>
     <tr><td>Tests</td><td>9 (thresholds, regulatory order, manual clearance, budget, custom policy, serialization)</td></tr>
   </table>
 </div>
@@ -1148,7 +1148,7 @@ consequential action without current policy — the policy engine runs at decisi
 start), I-08 (critical actions require non-delegable human authority — <code>Manual</code> requires
 clearance &gt;= 3), and I-12 (physical systems can reach a safe state — the kill path always
 exists). The 5-second budget matches the AI Kill Switch Act expectation; CI benchmarks enforce
-it. The Government Compliance API stub is the reference implementation for H.R. 2026
+it. The Government Compliance API stub is the reference implementation for H.R. 9917
 (Reps. Lieu/Moran).</p>
 
 <h4>Dependencies</h4>
@@ -1164,7 +1164,7 @@ agent-identity.</p>
 
 <h4>Cross-references</h4>
 <p>Protocols <strong>P7 (ABS — Autonomy Budget)</strong>, <strong>P9 (AIX — Agent Incident Exchange)</strong>;
-consumed by F3; references the AI Kill Switch Act (H.R. 2026).</p>
+consumed by F3; references the AI Kill Switch Act (H.R. 9917).</p>
 
 <!-- ----------------------------------------------------------------- R4 ----->
 <h3 id="r4"><span class="section-number">R4</span>credential-vault <a href="#r4" class="anchor">&para;</a></h3>

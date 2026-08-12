@@ -26,30 +26,30 @@ credential pasted into a secret would undercut the thesis on the first line of t
 
 ---
 
-## Blocker 0 — the repository does not exist
+## Correction — the repository DOES exist
 
-This has to be settled before anything else, because trusted publishing binds to a repository.
+An earlier version of this runbook stated as its first blocker that the repository did not exist.
+**That was wrong.** `MuVeraAI-Corporation/Warrantor` exists, is **private**, has `main` as its default
+branch, and was pushed to today. The error came from checking with unauthenticated `curl`: GitHub
+returns 404 for a private repository to anonymous requests, precisely so it does not leak the
+existence of private repos. An authenticated `gh repo view` shows it immediately.
 
-The codebase currently disagrees with itself about its own identity:
+The consequence is good news — **trusted publishing can be configured right now.** OIDC works fine
+from a private repository, and PyPI pending publishers can be registered for projects that do not
+exist yet.
 
-| Reference | Where | Status |
-|---|---|---|
-| `MuVeraAI-Corporation/Warrantor` | Rust workspace `repository`, 8 references | org exists (200), **repo 404** |
-| `MuVeraAI/aumos` | GitHub Action README, reusable workflow | org exists (200), **repo 404** |
-| `registry.terraform.io/MuVeraAI/warrantor` | Terraform provider README | — |
+Two real prerequisites remain, and neither is a blocker so much as a step:
 
-Both orgs are real. Neither repo is. So today:
+- **`publish.yml` is not yet on remote `main`.** Only the seven older workflows are there. Tag-triggered
+  publishing needs it reachable on the repo.
+- **The three GitHub environments do not exist.** `pypi`, `crates-io` and `npm` must be created in
+  repo Settings → Environments. They need no secrets; they exist so the trusted-publisher config has
+  an environment name to bind to.
 
-- The published GitHub Action instructions (`uses: MuVeraAI/aumos/...`) resolve to nothing.
-- Every `Homepage`/`Repository` URL in the Python metadata I just added points at a 404.
-- Trusted publishing cannot be configured at all, since there is no repository to name.
-
-**Decide which org is canonical**, create the repo there, push, and make the other set of
-references agree. I used `MuVeraAI-Corporation/Warrantor` in the package metadata because it is
-what the Rust workspace already declared and it has the most references — change it if that is the
-wrong one. It is a one-line sweep either way.
-
----
+The canonical org question is also settled: the git remote is already
+`https://github.com/MuVeraAI-Corporation/Warrantor.git`, so `MuVeraAI-Corporation` is the answer and
+the package metadata already points at it. What remains is that the repo is private, so those URLs
+404 for anyone who installs a package until it is made public.
 
 ## Blocker 1 — the names are unclaimed, and that is a live risk
 
@@ -70,8 +70,8 @@ until a publish actually happens, and if someone else registers the name first, 
 publisher is invalidated. Configuring trusted publishing is necessary but not sufficient; only an
 actual first publish claims the name.
 
-So the sequence that closes the window is: create the repo → configure trusted publishing → tag a
-release. Not: configure and come back to it later.
+So the sequence that closes the window is: configure trusted publishing → get `publish.yml` onto
+`main` → tag a release. Not: configure and come back to it later.
 
 ---
 
@@ -108,22 +108,57 @@ The twelve names: `warrantor-admission`, `warrantor-agent`, `warrantor-backup`,
 `warrantor-harness`, `warrantor-hf-plugin`, `warrantor-jira`, `warrantor-langchain`,
 `warrantor-ocsf`, `warrantor-rbac`, `warrantor-retention`, `warrantor-sla`, `warrantor-vllm`.
 
-### 2. crates.io — trusted publishing on three crates
+### 2. crates.io — four crates, in dependency order
 
-crates.io requires the crate to exist before you can configure trusted publishing, which is a
-chicken-and-egg you resolve by publishing the first version manually from your own machine
-(`cargo login` in your terminal, then `cargo publish`), then configuring OIDC for every release
-after. Do that for `warrantor-trust-core` and `warrantor-authority-spec` first — `cargo publish`
-will reject `warrantor-warrant` until they are on the registry.
+crates.io requires a crate to exist before trusted publishing can be attached to it, so the first
+version of each is published manually from your terminal. You hold the token; it never passes
+through anything else.
+
+The dependency chain is **four crates deep, not two** — an earlier version of this runbook said two,
+which would have failed on the third command. `warrantor-api` is a path dependency of both
+`trust-core` and `authority-spec`, and all three had to be given explicit versions alongside their
+paths before `cargo publish` would accept them:
+
+```bash
+cd rust
+cargo login            # paste your crates.io token at the prompt
+cargo publish -p warrantor-api
+cargo publish -p warrantor-trust-core        # depends on warrantor-api
+cargo publish -p warrantor-authority-spec    # depends on warrantor-api
+cargo publish -p warrantor-warrant           # depends on both of the above
+```
+
+Wait for each to appear on the registry before running the next — crates.io indexes asynchronously,
+and the following command will fail if its dependency is not yet visible. `cargo publish --dry-run`
+first if you want to rehearse without committing; a published version can be yanked but never
+replaced.
 
 Then, per crate, under Settings → Trusted Publishing: repository `MuVeraAI-Corporation/Warrantor`,
 workflow `publish.yml`, environment `crates-io`.
 
-### 3. npm — the `@warrantor` scope
+### 3. npm — create the scope, publish once, then attach
 
-Create the org/scope at <https://www.npmjs.com/org/create>, then configure trusted publishing per
-package (`npm trust` can now do this in bulk across packages rather than one at a time):
-repository, workflow `publish.yml`, environment `npm`.
+npm also requires the package to exist before a trusted publisher can be attached, so the first
+release is manual here too.
+
+1. Create the org/scope at <https://www.npmjs.com/org/create> — name it `warrantor`.
+2. Publish each package once from your terminal:
+
+```bash
+npm login              # browser-based; no token to paste
+for pkg in mcp-server mcp-gateway protocol-contracts; do
+  ( cd typescript/$pkg && npm install --no-audit --no-fund && npm run build && npm publish --access public )
+done
+```
+
+`--access public` is required: scoped packages default to private, and the publish fails without a
+paid account.
+
+3. Then attach trusted publishing per package — `npm trust` can now do this in bulk rather than one
+   at a time: repository `MuVeraAI-Corporation/Warrantor`, workflow `publish.yml`, environment `npm`.
+
+All five TypeScript packages were missing `repository` metadata, which npm provenance verifies
+against; that has been added along with `homepage` and `bugs`.
 
 ### 4. GitHub environments
 

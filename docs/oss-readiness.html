@@ -220,7 +220,7 @@ all present and substantial. Absent: <code>GOVERNANCE.md</code>, <code>MAINTAINE
 <table>
   <thead><tr><th>Blocker</th><th>Detail</th></tr></thead>
   <tbody>
-    <tr><td><strong>The repository does not exist</strong></td><td><code>MuVeraAI-Corporation/Warrantor</code> and <code>MuVeraAI/aumos</code> both 404, while both orgs exist. Every URL in the package metadata points at a 404, the published GitHub Action instructions resolve to nothing, and trusted publishing cannot be configured because it binds to a repository.</td></tr>
+    <tr><td><strong>The repository is private, not absent</strong> <span class="tag t-fixed">corrected</span></td><td>An earlier version of this document said the repository did not exist. Wrong: <code>MuVeraAI-Corporation/Warrantor</code> exists and is <strong>private</strong>, with <code>main</code> as default. The 404 came from checking with unauthenticated <code>curl</code>, which is what GitHub returns for a private repo to anonymous callers. Trusted publishing therefore <em>can</em> be configured now. What remains: package-metadata URLs 404 for installers until the repo is public, and <code>MuVeraAI/aumos</code> in the Action instructions is still a genuinely dead reference.</td></tr>
     <tr><td><strong>Names unclaimed on all three registries</strong></td><td>Documentation tells developers to install names nobody owns. A PyPI pending publisher does <em>not</em> reserve a name — only publishing does.</td></tr>
     <tr><td><strong>No web UI at all</strong></td><td>No <code>.tsx</code>, no <code>next.config</code>, anywhere. Every non-developer workflow is currently a CLI.</td></tr>
     <tr><td><strong>Three compose "services" are not services</strong></td><td><code>flight-recorder</code>'s container is a health stub answering every path identically; <code>kill-switch</code> and <code>credential-vault</code> are one-shot CLIs. Now documented in the README rather than discovered.</td></tr>
@@ -261,8 +261,7 @@ all present and substantial. Absent: <code>GOVERNANCE.md</code>, <code>MAINTAINE
 <h2>What to do next, in order</h2>
 
 <ol>
-  <li><strong>Create the repository</strong> and settle which org is canonical. Everything else is
-  downstream of this — publishing, the metadata URLs, the CI action instructions.</li>
+  <li><strong>Make the repository public</strong> once MAINTAINERS and the rename are settled. It exists and is private; the org question is already settled by the configured git remote (<code>MuVeraAI-Corporation</code>). Publishing does not wait on this, but working metadata links do.</li>
   <li><strong>Fill in <code>MAINTAINERS.md</code></strong>. One line.</li>
   <li><strong>Decide the seventeen.</strong> Wire, ship or move to <code>research/</code>. This is the
   finding most likely to shape a stranger's opinion of the project.</li>

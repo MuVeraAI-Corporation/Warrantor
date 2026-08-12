@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Runtime Containment: OpenShell, Kill Switches, and eBPF Egress · AumOS Blog Series</title>
+  <link rel="stylesheet" href="blog-series.css">
+</head>
+<body>
+<div class="container">
+  <div class="series-bar">
+    <a href="index.html">← Series index</a>
+    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span>Local technical essay · 2026</span>
+  </div>
+
+  <header class="article-header">
+    <div class="article-eyebrow">Essay 2 of 8 · Runtime &amp; Containment</div>
+    <h1>Runtime Containment: OpenShell, Kill Switches, and eBPF Egress</h1>
+    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-affil">Defense without containment is incomplete. OpenShell sandboxes, continuous access evaluation, and eBPF exfil guards form the fail-closed agent runtime.</p>
+    <div class="article-meta">
+      <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value"><span class="id-chip" data-aumos-id="R1">R1</span> <span class="id-chip" data-aumos-id="R2">R2</span> <span class="id-chip" data-aumos-id="R3">R3</span> <span class="id-chip" data-aumos-id="R7">R7</span> <span class="id-chip" data-aumos-id="R8">R8</span> <span class="id-chip" data-aumos-id="S6">S6</span> <span class="id-chip" data-aumos-id="X2">X2</span> <span class="id-chip protocol" data-aumos-id="P1">P1</span> <span class="id-chip protocol" data-aumos-id="P7">P7</span> <span class="id-chip protocol" data-aumos-id="P12">P12</span></span></div>
+      <div class="meta-item"><span class="meta-label">Pipeline</span><span class="meta-value">Research → draft → visuals → adversarial review → fix</span></div>
+      <div class="meta-item"><span class="meta-label">Citations</span><span class="meta-value">Primary RFCs / eng blogs / standards</span></div>
+    </div>
+    <nav class="article-nav"><a href="01-verifiable-agent-authority.html">← Essay 01</a><span></span><a href="03-confidential-gpu-attestation.html">Essay 03 →</a></nav>
+  </header>
+
+
+  <div class="abstract">
+    <span class="abstract-label">Thesis</span>
+    <p>Authority without containment is paper security. After 2026 evaluation escapes and real-world unauthorized access during “simulated” cyber tests<sup><a href="#refs">[8]</a></sup>, the industry must treat sandboxes, kill switches, and egress filters as <em>load-bearing</em>. AumOS maps OpenShell-class runtimes to <span class="id-chip">R1</span>/<span class="id-chip">R8</span>, kill-switch to <span class="id-chip">R3</span>, eBPF enforcement to <span class="id-chip">R7</span>/<span class="id-chip">S6</span>, and NOOA extensions to <span class="id-chip">X2</span>.</p>
+  </div>
+  <div class="toc"><div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#why">Why containment is the new perimeter</a></li>
+    <li><a href="#openshell">OpenShell architecture for agents</a></li>
+    <li><a href="#kill">Kill switches and continuous evaluation</a></li>
+    <li><a href="#ebpf">eBPF egress and exfil guards</a></li>
+    <li><a href="#map">AumOS runtime map</a></li>
+  </ol></div>
+
+  <h2 id="why">1. Why containment is the new perimeter</h2>
+  <p>Agents that write code, open sockets, and chain tools convert “prompt risk” into “host risk.” Network firewalls do not see intent; identity systems do not see syscalls. You need a layered runtime: capability-scoped execution (WASM/OpenShell), attested boundaries (<span class="id-chip">R2</span> eval-guard), emergency stop (<span class="id-chip">R3</span>), and kernel-visible enforcement (eBPF).</p>
+
+  <div class="visual" data-visual="containment-layers">
+    <div class="visual-caption">Figure 1 — Containment layers (outer → inner)</div>
+    <svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg" aria-label="Containment layers">
+      <rect width="800" height="260" fill="#f8f6f2"/>
+      <rect x="40" y="30" width="720" height="200" rx="12" fill="none" stroke="#b94a48" stroke-width="2" stroke-dasharray="6 4"/>
+      <text x="60" y="55" font-family="monospace" font-size="12" fill="#b94a48">R7/S6 eBPF egress + exfil (host)</text>
+      <rect x="80" y="70" width="640" height="140" rx="10" fill="none" stroke="#b8860b" stroke-width="2"/>
+      <text x="100" y="95" font-family="monospace" font-size="12" fill="#b8860b">R3 kill-switch + CAEP/SSF revoke</text>
+      <rect x="120" y="110" width="560" height="80" rx="8" fill="#fff" stroke="#d97757" stroke-width="2"/>
+      <text x="400" y="145" text-anchor="middle" font-family="Georgia,serif" font-size="16" fill="#1a1a1a">R1/R8 OpenShell / WASM sandbox</text>
+      <text x="400" y="168" text-anchor="middle" font-family="monospace" font-size="11" fill="#737373">R2 boundary attestation · CAP bind</text>
+    </svg>
+  </div>
+
+  <h2 id="openshell">2. OpenShell architecture for agents</h2>
+  <p>NVIDIA OpenShell is a secure agent runtime: out-of-process policy, sandboxes, filesystem/network/process controls, privacy routing, and audit trails—so a self-evolving agent cannot rewrite its own guardrails<sup><a href="#refs">[1]</a></sup>. The Open Secure AI Alliance (OSAF) launch introduces NOOA (NVIDIA Labs Object-Oriented Agents) as a <em>harness research</em> contribution for typed, testable agent structure—not as a containment product<sup><a href="#refs">[2]</a></sup>. Keep the distinction explicit: <strong>NOOA makes agents inspectable; OpenShell makes them containable.</strong></p>
+  <p>AumOS does not reimplement OpenShell. <span class="id-chip">R1</span> secure-workspace and <span class="id-chip">R8</span> sandbox-runtime <em>profile</em> OpenShell-class runtimes. Wasmtime<sup><a href="#refs">[7]</a></sup> is a separate portable capability plane for WASM-hosted tools—not a drop-in OpenShell equivalent. <span class="id-chip">R2</span> eval-guard attests that the configured boundary (seccomp/cgroup/OpenShell policy hash) matches CAP before high-risk tools run.</p>
+  <div class="callout warning">
+    <div class="callout-title">CAEP gap note</div>
+    <p>OpenID CAEP final specs speak of humans <em>or robotic users</em>, not “AI agents” by name. Mapping agent sessions to robotic subjects + SSF streams is an AumOS composition, not a CAEP feature flag.</p>
+  </div>
+
+  <h2 id="kill">3. Kill switches and continuous evaluation</h2>
+  <p><span class="id-chip">R3</span> kill-switch is AumOS’s <strong>roadmap/reference design</strong> for emergency stop (Rust core + policy hooks)—not a claim that a universal statutory kill API already ships everywhere. OpenID Shared Signals / CAEP provide continuous access evaluation events<sup><a href="#refs">[3]</a></sup>: session-revoked, risk-level-change, credential-change. Autonomy budgets (<span class="id-chip protocol">P7</span>) feed the same path: budget exhaustion is a soft kill; security signal is a hard kill; eBPF deny is a network kill.</p>
+  <p><strong>Sequencing that matters:</strong> (1) freeze new tool admits, (2) revoke AAE via rev_uri / SSF, (3) drain in-flight with timeout, (4) tear sandbox, (5) emit AAR stop receipts. Skipping (5) turns kills into un-auditable folklore—exactly the opposite of an evidence substrate.</p>
+
+  <div class="visual" data-visual="kill-flow">
+    <div class="visual-caption">Table 1 — Stop classes</div>
+    <table>
+      <thead><tr><th>Class</th><th>Trigger</th><th>Plane</th><th>AumOS</th></tr></thead>
+      <tbody>
+        <tr><td>Soft stop</td><td>ABS budget exhausted</td><td>Policy</td><td>P7 + R3 policy</td></tr>
+        <tr><td>Hard stop</td><td>CAEP risk / admin panic</td><td>Control</td><td>R3 + SSF</td></tr>
+        <tr><td>Network stop</td><td>Exfil pattern</td><td>Kernel</td><td>R7 / S6 eBPF</td></tr>
+        <tr><td>Attest stop</td><td>CAP/measurement miss</td><td>Trust</td><td>R2 + P12</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="ebpf">4. eBPF egress and exfil guards</h2>
+  <p>eBPF makes policy enforceable where agents cheat—raw sockets, unexpected DNS, data to unapproved destinations<sup><a href="#refs">[4]</a></sup>. Tetragon and Falco exemplify production patterns<sup><a href="#refs">[5,6]</a></sup>. AumOS splits <span class="id-chip">R7</span> (policy/decision for egress) from <span class="id-chip">S6</span> ExfilGuard (eBPF enforcement) per reconciliation matrix—same story, two layers, no dual authoritative crypto.</p>
+
+  <h2 id="map">5. AumOS runtime map</h2>
+  <p><span class="id-chip">X2</span> nooa-ext is planned production <em>adapters</em> (policy enforcer, audit streamer, identity binder, attestation hook) for NOOA-class harnesses—still not a substitute for OpenShell. Evidence of stops and boundary checks must flow to the flight recorder (Essay 5). Without that coupling, kill switches become un-auditable theater.</p>
+  <p><strong>Implications:</strong> If your agent can open sockets your eBPF policy never sees, or your eval harness grants real internet “because the prompt said simulation,” you are replaying 2026 incident patterns. Containment is a product requirement, not a red-team footnote.</p>
+  <div class="callout">
+    <div class="callout-title">India / US data &amp; ops note</div>
+    <p>Runtime logs and kill receipts often contain personal data or regulated context. India DPDP processing rules and US sectoral duties (safety-and-soundness, third-party) both argue for retention limits and residency-aware evidence stores—not “ship all transcripts to a US SaaS by default.”</p>
+  </div>
+
+
+  <section class="refs" id="refs">
+    <h2>References (primary sources)</h2>
+    <ol>
+      <li class="cite" data-cite-url="https://developer.nvidia.com/blog/run-autonomous-self-evolving-agents-more-safely-with-nvidia-openshell/"><strong>Run Autonomous, Self-Evolving Agents More Safely with NVIDIA OpenShell</strong> — NVIDIA Technical Blog. <a href="https://developer.nvidia.com/blog/run-autonomous-self-evolving-agents-more-safely-with-nvidia-openshell/" rel="noopener noreferrer" target="_blank">https://developer.nvidia.com/blog/run-autonomous-self-evolving-agents-more-safely-with-nvidia-openshell/</a></li>
+      <li class="cite" data-cite-url="https://blogs.nvidia.com/blog/open-secure-ai-alliance/"><strong>Industry Leaders Join Open Secure AI Alliance for AI Safety</strong> — NVIDIA Blog. <a href="https://blogs.nvidia.com/blog/open-secure-ai-alliance/" rel="noopener noreferrer" target="_blank">https://blogs.nvidia.com/blog/open-secure-ai-alliance/</a></li>
+      <li class="cite" data-cite-url="https://openid.net/sg/sharedsignals/"><strong>OpenID Shared Signals Framework</strong> — OpenID Foundation. <a href="https://openid.net/sg/sharedsignals/" rel="noopener noreferrer" target="_blank">https://openid.net/sg/sharedsignals/</a></li>
+      <li class="cite" data-cite-url="https://ebpf.io/what-is-ebpf/"><strong>eBPF Documentation</strong> — eBPF Foundation. <a href="https://ebpf.io/what-is-ebpf/" rel="noopener noreferrer" target="_blank">https://ebpf.io/what-is-ebpf/</a></li>
+      <li class="cite" data-cite-url="https://tetragon.io/"><strong>Cilium Tetragon</strong> — Cilium / Isovalent. <a href="https://tetragon.io/" rel="noopener noreferrer" target="_blank">https://tetragon.io/</a></li>
+      <li class="cite" data-cite-url="https://falco.org/"><strong>Falco — Cloud Native Runtime Security</strong> — CNCF Falco. <a href="https://falco.org/" rel="noopener noreferrer" target="_blank">https://falco.org/</a></li>
+      <li class="cite" data-cite-url="https://wasmtime.dev/"><strong>Wasmtime</strong> — Bytecode Alliance. <a href="https://wasmtime.dev/" rel="noopener noreferrer" target="_blank">https://wasmtime.dev/</a></li>
+      <li class="cite" data-cite-url="https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals"><strong>Investigating three real-world incidents in our cybersecurity evaluations</strong> — Anthropic. <a href="https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals" rel="noopener noreferrer" target="_blank">https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals</a></li>
+    </ol>
+  </section>
+
+  <footer style="margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);font-size:0.85rem;color:var(--text-tertiary);">
+    <p>Local in-repo deliverable. Not a hosted artifact. Series plan: <code>meta/phase-plan.md</code>.</p>
+    <p><a href="01-verifiable-agent-authority.html">← Essay 01</a><span></span><a href="03-confidential-gpu-attestation.html">Essay 03 →</a></p>
+  </footer>
+</div>
+</body>
+</html>

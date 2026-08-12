@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adoption blockers</title><style>
+:root{
+  --bg:#faf9f7; --bg-2:#f5f3ef; --card:#fff; --code-bg:#1e1e2e;
+  --fg:#1a1a1a; --fg-2:#525252; --fg-3:#737373; --fg-code:#c8c8d8;
+  --accent:#d97757; --accent-h:#c4623d; --accent-lt:#f4e6df; --accent-sub:#faf0eb;
+  --line:#e5e2dc; --line-2:#d1ccc3;
+  --green:#3f6b3a; --green-bg:#edf5ed;
+  --amber:#7a5405; --amber-bg:#fdf6e8;
+  --red:#a32f29;   --red-bg:#fdf1ef;
+  --blue:#385781;  --blue-bg:#eef3fa;
+  --purple:#5d4682; --purple-bg:#f2eef8;
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,Charter,Cambria,serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  --mono:'JetBrains Mono','SF Mono',Menlo,Consolas,'Liberation Mono',monospace;
+  --wrap:1180px; --measure:74ch; --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#16151a; --bg-2:#1d1c22; --card:#201f26; --code-bg:#121118;
+    --fg:#ece9e4; --fg-2:#b4afa8; --fg-3:#8b867f; --fg-code:#d3d0e0;
+    --accent:#e59176; --accent-h:#f0a68e; --accent-lt:#3a2a24; --accent-sub:#2a2220;
+    --line:#312f38; --line-2:#413e4a;
+    --green:#8fc088; --green-bg:#1f2b1e;
+    --amber:#dcb265; --amber-bg:#2e2718;
+    --red:#e58a80;   --red-bg:#31201e;
+    --blue:#8fb0e0;  --blue-bg:#1c242f;
+    --purple:#b9a3dd; --purple-bg:#252030;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16151a; --bg-2:#1d1c22; --card:#201f26; --code-bg:#121118;
+  --fg:#ece9e4; --fg-2:#b4afa8; --fg-3:#8b867f; --fg-code:#d3d0e0;
+  --accent:#e59176; --accent-h:#f0a68e; --accent-lt:#3a2a24; --accent-sub:#2a2220;
+  --line:#312f38; --line-2:#413e4a;
+  --green:#8fc088; --green-bg:#1f2b1e; --amber:#dcb265; --amber-bg:#2e2718;
+  --red:#e58a80; --red-bg:#31201e; --blue:#8fb0e0; --blue-bg:#1c242f;
+  --purple:#b9a3dd; --purple-bg:#252030;
+}
+:root[data-theme="light"]{
+  --bg:#faf9f7; --bg-2:#f5f3ef; --card:#fff; --code-bg:#1e1e2e;
+  --fg:#1a1a1a; --fg-2:#525252; --fg-3:#737373; --fg-code:#c8c8d8;
+  --accent:#d97757; --accent-h:#c4623d; --accent-lt:#f4e6df; --accent-sub:#faf0eb;
+  --line:#e5e2dc; --line-2:#d1ccc3;
+  --green:#3f6b3a; --green-bg:#edf5ed; --amber:#7a5405; --amber-bg:#fdf6e8;
+  --red:#a32f29; --red-bg:#fdf1ef; --blue:#385781; --blue-bg:#eef3fa;
+  --purple:#5d4682; --purple-bg:#f2eef8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:1.5rem}
+body{font-family:var(--sans);background:var(--bg);color:var(--fg);line-height:1.68;font-size:16.5px;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:600;line-height:1.25;letter-spacing:-.012em}
+h1{font-size:2.45rem;margin-bottom:.6rem}
+h2{font-size:1.72rem;margin:0 0 .9rem}
+h3{font-size:1.22rem;margin:2rem 0 .6rem}
+h4{font-size:1.03rem;margin:1.4rem 0 .45rem;font-family:var(--sans);font-weight:650;letter-spacing:0}
+p{margin:0 0 .85rem;max-width:var(--measure)}
+ul,ol{margin:0 0 .9rem 1.15rem;max-width:var(--measure)}
+li{margin-bottom:.3rem}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+a:hover{color:var(--accent-h);border-bottom-color:currentColor}
+code{font-family:var(--mono);font-size:.855em;background:var(--bg-2);padding:.11em .38em;
+  border-radius:4px;border:1px solid var(--line);word-break:break-word}
+pre{background:var(--code-bg);color:var(--fg-code);padding:1rem 1.15rem;border-radius:var(--r);
+  overflow-x:auto;margin:0 0 1rem;font-size:.83rem;line-height:1.6;border:1px solid var(--line)}
+pre code{background:none;border:none;padding:0;color:inherit;font-size:1em}
+hr{border:none;border-top:1px solid var(--line);margin:2.2rem 0}
+
+/* ---- shell ---- */
+.shell{display:grid;grid-template-columns:290px minmax(0,1fr);gap:0;max-width:var(--wrap);margin:0 auto}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:1.6rem 1.1rem 3rem;
+  border-right:1px solid var(--line);font-size:.83rem;background:var(--bg)}
+.side::-webkit-scrollbar{width:7px}
+.side::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:4px}
+.side .brand{font-family:var(--serif);font-size:1.02rem;font-weight:600;margin-bottom:.15rem;line-height:1.3}
+.side .brandsub{color:var(--fg-3);font-size:.73rem;margin-bottom:1.1rem;letter-spacing:.02em}
+.side nav a{display:block;padding:.29rem .6rem;color:var(--fg-2);border-radius:6px;
+  border:none;line-height:1.38;border-left:2px solid transparent}
+.side nav a:hover{background:var(--bg-2);color:var(--fg)}
+.side nav a.on{color:var(--accent);background:var(--accent-sub);border-left-color:var(--accent);font-weight:550}
+.side nav .grp{margin:.95rem 0 .3rem;padding-left:.6rem;font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--fg-3);font-weight:650}
+.main{padding:2.4rem 2.6rem 6rem;min-width:0}
+.prog{position:fixed;top:0;left:0;height:2px;background:var(--accent);z-index:99;width:0;transition:width .08s linear}
+.tools{position:fixed;top:.9rem;right:1.1rem;z-index:100;display:flex;gap:.4rem}
+.tools button{font-family:var(--sans);font-size:.74rem;padding:.36rem .68rem;border-radius:20px;
+  border:1px solid var(--line-2);background:var(--card);color:var(--fg-2);cursor:pointer;line-height:1}
+.tools button:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ---- section ---- */
+section{margin-bottom:3.6rem;scroll-margin-top:1.2rem}
+.eyebrow{font-size:.69rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);
+  font-weight:700;margin-bottom:.4rem}
+.lede{font-size:1.07rem;color:var(--fg-2);max-width:var(--measure);margin-bottom:1.4rem}
+
+/* ---- cards / callouts ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:1.15rem 1.3rem;margin:0 0 1.1rem}
+.note{border-left:3px solid var(--accent);background:var(--accent-sub);padding:.9rem 1.15rem;
+  border-radius:0 8px 8px 0;margin:0 0 1.1rem}
+.warn{border-left:3px solid var(--amber);background:var(--amber-bg);padding:.9rem 1.15rem;border-radius:0 8px 8px 0;margin:0 0 1.1rem}
+.danger{border-left:3px solid var(--red);background:var(--red-bg);padding:.9rem 1.15rem;border-radius:0 8px 8px 0;margin:0 0 1.1rem}
+.good{border-left:3px solid var(--green);background:var(--green-bg);padding:.9rem 1.15rem;border-radius:0 8px 8px 0;margin:0 0 1.1rem}
+.note p:last-child,.warn p:last-child,.danger p:last-child,.good p:last-child,.card p:last-child{margin-bottom:0}
+.calltitle{font-weight:700;font-size:.78rem;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.4rem}
+.note .calltitle{color:var(--accent)} .warn .calltitle{color:var(--amber)}
+.danger .calltitle{color:var(--red)} .good .calltitle{color:var(--green)}
+
+/* ---- pills ---- */
+.tag{display:inline-block;font-family:var(--mono);font-size:.63rem;letter-spacing:.06em;
+  padding:.14em .48em;border-radius:4px;border:1px solid;vertical-align:middle;white-space:nowrap}
+.tag-executed{color:var(--green);border-color:var(--green);background:var(--green-bg)}
+.tag-read{color:var(--blue);border-color:var(--blue);background:var(--blue-bg)}
+.tag-external{color:var(--purple);border-color:var(--purple);background:var(--purple-bg)}
+.tag-inferred{color:var(--amber);border-color:var(--amber);background:var(--amber-bg)}
+.tag-unverifiable{color:var(--fg-2);border-color:var(--line-2);background:var(--bg-2)}
+.sev{display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  padding:.16em .55em;border-radius:4px;white-space:nowrap}
+.sev-critical{background:var(--red);color:#fff}
+.sev-high{background:var(--amber);color:#fff}
+.sev-medium{background:var(--blue);color:#fff}
+.sev-low{background:var(--bg-2);color:var(--fg-2);border:1px solid var(--line-2)}
+.grade{display:inline-flex;align-items:center;justify-content:center;min-width:2.3rem;height:1.55rem;
+  border-radius:5px;font-family:var(--mono);font-size:.78rem;font-weight:700;padding:0 .35rem}
+.grade-a{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.grade-b{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue)}
+.grade-c{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber)}
+.grade-d{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
+.grade-f{background:var(--red);color:#fff;border:1px solid var(--red)}
+/* Dark theme inverts the solid-fill pills: the palette's dark-mode reds/ambers are light
+   pastels, so white-on-pastel drops to ~2:1. Use a near-black foreground instead. */
+@media (prefers-color-scheme: dark){
+  .sev-critical,.sev-high,.sev-medium,.grade-f{color:#16151a}
+}
+:root[data-theme="dark"] .sev-critical,:root[data-theme="dark"] .sev-high,
+:root[data-theme="dark"] .sev-medium,:root[data-theme="dark"] .grade-f{color:#16151a}
+:root[data-theme="light"] .sev-critical,:root[data-theme="light"] .sev-high,
+:root[data-theme="light"] .sev-medium,:root[data-theme="light"] .grade-f{color:#fff}
+
+/* ---- tables ---- */
+.tw{overflow-x:auto;margin:0 0 1.2rem;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:.845rem}
+th{text-align:left;padding:.62rem .8rem;background:var(--bg-2);color:var(--fg-2);font-weight:650;
+  font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--line);
+  position:sticky;top:0;white-space:nowrap}
+td{padding:.6rem .8rem;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--bg-2)}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--accent)}
+th.sortable::after{content:'\2195';opacity:.32;margin-left:.3em;font-size:.9em}
+
+/* ---- filter bar ---- */
+.filters{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;margin:0 0 .85rem}
+.filters input[type=search]{font-family:var(--sans);font-size:.82rem;padding:.42rem .75rem;border-radius:20px;
+  border:1px solid var(--line-2);background:var(--card);color:var(--fg);min-width:230px;flex:1 1 230px}
+.filters input[type=search]:focus{outline:none;border-color:var(--accent)}
+.chip{font-size:.74rem;padding:.32rem .68rem;border-radius:20px;border:1px solid var(--line-2);
+  background:var(--card);color:var(--fg-2);cursor:pointer;line-height:1;white-space:nowrap;font-family:var(--sans)}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.count{font-size:.76rem;color:var(--fg-3);margin-left:auto;white-space:nowrap}
+
+/* ---- dossier ---- */
+details.dos{border:1px solid var(--line);border-radius:var(--r);margin:0 0 .55rem;background:var(--card);overflow:hidden}
+details.dos[open]{border-color:var(--line-2)}
+details.dos>summary{cursor:pointer;padding:.72rem .95rem;display:grid;
+  grid-template-columns:3.4rem 1fr auto auto;gap:.7rem;align-items:center;list-style:none;font-size:.88rem}
+details.dos>summary::-webkit-details-marker{display:none}
+details.dos>summary:hover{background:var(--bg-2)}
+details.dos[open]>summary{border-bottom:1px solid var(--line);background:var(--bg-2)}
+.dos .did{font-family:var(--mono);font-size:.76rem;color:var(--accent);font-weight:700}
+.dos .dname{font-weight:600}
+.dos .dpath{font-family:var(--mono);font-size:.7rem;color:var(--fg-3);display:block;font-weight:400;margin-top:.1rem}
+.dos .body{padding:1.05rem 1.15rem 1.2rem}
+.dos .body h4:first-child{margin-top:0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:.28rem .85rem;font-size:.83rem;margin:0 0 1rem}
+.kv dt{color:var(--fg-3);font-size:.71rem;text-transform:uppercase;letter-spacing:.06em;
+  font-weight:650;padding-top:.16rem;white-space:nowrap}
+.kv dd{margin:0}
+
+/* ---- scorecard ---- */
+.score{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:.7rem;margin:0 0 1.3rem}
+.sc{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:.85rem .9rem}
+.sc .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--fg-3);
+  font-weight:650;margin-bottom:.42rem;line-height:1.3}
+.sc .val{display:flex;align-items:center;gap:.5rem}
+.sc .cmt{font-size:.75rem;color:var(--fg-2);margin-top:.42rem;line-height:1.45}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:.7rem;margin:0 0 1.4rem}
+.st{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:.85rem .9rem;text-align:center}
+.st .n{font-family:var(--serif);font-size:1.72rem;font-weight:600;color:var(--accent);line-height:1.1}
+.st .l{font-size:.71rem;color:var(--fg-3);text-transform:uppercase;letter-spacing:.06em;
+  margin-top:.28rem;font-weight:650;line-height:1.3}
+
+/* ---- misc ---- */
+.hero{border-bottom:1px solid var(--line);padding-bottom:1.8rem;margin-bottom:2.6rem}
+.meta{display:flex;flex-wrap:wrap;gap:.35rem .9rem;font-size:.79rem;color:var(--fg-3);margin-top:1rem}
+.meta span{white-space:nowrap}
+.verdictbox{background:var(--card);border:2px solid var(--accent);border-radius:var(--r);
+  padding:1.35rem 1.5rem;margin:0 0 1.5rem}
+.verdictbox .vlbl{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);
+  font-weight:700;margin-bottom:.55rem}
+.verdictbox .vtxt{font-family:var(--serif);font-size:1.2rem;line-height:1.52;max-width:66ch}
+.annex{border:2px dashed var(--red);border-radius:var(--r);padding:1.2rem 1.35rem;background:var(--red-bg);margin:0 0 1.3rem}
+.annex .alabel{font-size:.71rem;letter-spacing:.12em;text-transform:uppercase;color:var(--red);
+  font-weight:700;margin-bottom:.55rem}
+.fp{font-family:var(--mono);font-size:.76rem;color:var(--fg-2);word-break:break-all}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1rem;margin-bottom:1.1rem}
+.two p,.two ul{max-width:none}
+.card p,.note p,.warn p,.danger p,.good p,.dos .body p{max-width:none}
+
+@media (max-width:1000px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);padding-bottom:1rem}
+  .side nav{column-count:2;column-gap:1rem}
+  .main{padding:1.6rem 1.15rem 4rem}
+  details.dos>summary{grid-template-columns:3rem 1fr;row-gap:.3rem}
+}
+@media print{
+  .side,.tools,.prog,.filters{display:none!important}
+  .shell{display:block;max-width:none}
+  .main{padding:0}
+  body{font-size:10.5pt;background:#fff;color:#000}
+  details.dos{break-inside:avoid;border-color:#bbb}
+  details.dos>summary{background:#f4f4f4}
+  section{break-before:auto;margin-bottom:1.4rem}
+  pre{white-space:pre-wrap;word-break:break-word;background:#f6f6f6;color:#111;border:1px solid #ccc}
+  a{color:#000;border:none}
+  .verdictbox,.annex{break-inside:avoid}
+}
+</style></head><body>
+<div class="prog" id="prog"></div>
+<div class="tools"><button id="expandBtn" type="button">Expand all</button>
+<button id="themeBtn" type="button">Theme</button></div>
+<div class="shell">
+<aside class="side"><div class="brand">Adoption blockers</div>
+<div class="brandsub">Every pending item, challenge and limitation that stops a developer or an enterprise using this &amp;mdash; and where the exponential value actually is.</div><nav><div class="grp">Position</div><a href="#verdict">The reframe</a><a href="#gates">The enterprise gate</a><a href="#ossgate">The developer gate</a><div class="grp">Portfolio</div><a href="#components">Component value</a><a href="#surface">Capability surface</a><a href="#devblockers">Why devs can't start</a><div class="grp">Strategy</div><a href="#gcc">The regulatory wedge</a><a href="#thesis">Where the exponential is</a></nav></aside>
+<main class="main">
+<div class="hero"><div class="eyebrow">Internal &middot; brutally honest &middot; companion to the critical analysis</div>
+<h1>Adoption blockers</h1><p class="lede">Every pending item, challenge and limitation that stops a developer or an enterprise using this &mdash; and where the exponential value actually is.</p>
+<div class="meta"><span><strong>Evidence cut:</strong> 9 August 2026</span>
+<span><strong>Namespace:</strong> <code>warrantor</code></span>
+<span><strong>Licence:</strong> Apache-2.0 throughout</span>
+<span><strong>Scope:</strong> ~25 components</span></div></div>
+
+<section id="verdict">
+<div class="eyebrow">01 &middot; The reframe</div>
+<h2>Microsoft shipped your product in April, and that changes the question</h2>
+<div class="danger"><div class="calltitle">Verified independently, 2026-08-09</div>
+<p><strong><code>microsoft/agent-governance-toolkit</code></strong> &amp;mdash; MIT-licensed, open source, created 2026-03-02, <strong>5,840 stars, 1,008 forks</strong>, last push <em>yesterday</em>. Its own description: <em>&amp;ldquo;Policy enforcement, zero-trust identity, execution sandboxing, and reliability engineering for autonomous AI agents.&amp;rdquo;</em> Seven packages across Python, TypeScript, <strong>Rust, Go</strong> and .NET. Claims <strong>&amp;lt;0.1&amp;nbsp;ms p99</strong> policy enforcement and 10/10 OWASP Agentic Top 10 coverage. Ships SECURITY.md with a 24h/72h/90-day SLA, GOVERNANCE.md, MAINTAINERS.md, CodeQL, Gitleaks, ClusterFuzzLite, OpenSSF Scorecard and 992 conformance tests. [EXTERNAL, verified via GitHub API]</p></div>
+<p>This inverts the objection you were expecting. The normal OSS problem is <em>entity risk</em> &amp;mdash; who maintains this in eighteen months. A buyer can now get an open agent-governance substrate <strong>with Microsoft behind it</strong>, so AumOS carries the entity risk <em>and</em> has to explain the overlap. Every partner conversation from now on opens with &amp;ldquo;why not the Microsoft one?&amp;rdquo;</p>
+<div class="good"><div class="calltitle">And the answer already exists in your own audit</div>
+<p>Microsoft's toolkit is a <strong>policy and identity runtime</strong>. It enforces decisions. It does not produce <strong>signed, independently verifiable evidence</strong> &amp;mdash; an artifact a third party can check <em>without trusting the runner</em>. That is precisely the slot the competitive sweep found unoccupied by anyone: promptfoo, Inspect, HELM and lm-eval-harness all market reproducibility and <strong>none of them signs anything or pins the grader</strong>.</p>
+<p>So the defensible line is not &amp;ldquo;we govern agents better.&amp;rdquo; It is: <strong>enforcement is commodity; verifiable evidence is not.</strong> Let Microsoft, AWS Cedar and Envoy do enforcement. Be the layer that makes what happened <em>provable to someone who was not there</em> &amp;mdash; and portable across clouds, which a US-hosted control plane structurally cannot be for an Indian or Gulf regulator.</p></div>
+<h3>What this means for the four use cases you named</h3>
+<div class="tw"><table data-sortable>
+<thead><tr><th>Partner use case</th><th>Competitive position</th><th>Honest read</th></tr></thead><tbody>
+<tr><td><strong>Govern agents they already run</strong></td><td>Contested &mdash; Microsoft AGT, AWS AgentCore Policy (GA, 13 regions), Envoy AI Gateway v1.0</td><td>Fastest path to a pilot, weakest moat. Win it on <em>integration breadth</em> and portability, not on the policy engine.</td></tr>
+<tr><td><strong>Prove compliance to a regulator</strong></td><td><strong>Open</strong> &mdash; no regulator in the US, India or GCC prescribes an evidence format</td><td>Strongest commercial wedge. The vacuum is the opportunity: whoever hands an examiner a coherent bundle first defines what one looks like.</td></tr>
+<tr><td><strong>Attested / sovereign inference</strong></td><td>Primitives free (NVIDIA NRAS, Intel Trust Authority); <strong>composition open</strong></td><td>Real, ~12-month window. Requires real TEE hardware to stop being simulated &mdash; this is the one use case blocked on a physical dependency.</td></tr>
+<tr><td><strong>Evaluate / red-team before shipping</strong></td><td><strong>Open</strong> &mdash; nobody signs an eval or pins the grader</td><td>The single most defensible bet. Also the cheapest to prove: a DSSE envelope over an Inspect <code>.eval</code> digest is weeks, not quarters.</td></tr>
+</tbody></table></div>
+</section>
+<section id="gates">
+<div class="eyebrow">02 &middot; The enterprise gate</div>
+<h2>What actually blocks a regulated buyer &mdash; and what does not</h2>
+<p>These are the gates a security architecture review board applies in 2026, ranked. Sources are primary where cited. The useful surprise is how much of this is cheap for a small AI-assisted team and how little of it is about code quality.</p>
+<h3>Hard gates &mdash; genuinely block adoption</h3>
+<div class="tw"><table data-sortable>
+<thead><tr><th>Gate</th><th>The actual requirement</th><th>Your state</th></tr></thead><tbody>
+<tr><td><strong>&ldquo;Why not the Microsoft one?&rdquo;</strong></td><td>Not a checklist item &mdash; it precedes every other gate. Must be answered as a capability they lack, not as quality.</td><td><span class="sev sev-critical">UNANSWERED</span> Answer is verifiable evidence + sovereignty.</td></tr>
+<tr><td><strong>Signed releases + provenance</strong></td><td>OpenSSF OSPS-BR-06.01: releases MUST be signed or in a signed manifest with per-asset hashes. MVSP 3.5: SLSA Build L1 provenance. Plus verification <em>instructions</em>.</td><td><span class="sev sev-critical">NONE</span> Nothing published, no releases, no tags.</td></tr>
+<tr><td><strong>SBOM, CISA 2026 elements</strong></td><td>CISA/NSA/FBI <strong>2026 Minimum Elements</strong> (29 Jul 2026) supersede the 2021 NTIA set. Seven new fields incl. <strong>SBOM Author Signature</strong>, component hash + licence. CycloneDX 1.6 carries the signature in-document; SPDX needs an external envelope.</td><td><span class="sev sev-high">STALE</span> Emits CycloneDX 1.5, not an ML-BOM, and the CI step ends in <code>|| true</code>.</td></tr>
+<tr><td><strong>Disclosure policy + private channel</strong></td><td>OSPS-VM-01/03/04 and MVSP 1.1/3.4: published CVD policy with a stated timeframe, private reporting, 90-day patch clock. GHSA suffices &mdash; <strong>CNA status is not required</strong>.</td><td><span class="sev sev-medium">PARTIAL</span> SECURITY.md exists but drops the CVE plan, and its PGP key does not exist.</td></tr>
+<tr><td><strong>Third-party security audit</strong></td><td>CNCF makes this explicit for graduation. <strong>OSTIF, funded by OpenSSF Alpha-Omega, audits OSS at no cost to the project</strong> &mdash; including a programme covering 25 AI/LLM projects.</td><td><span class="sev sev-high">NONE</span> And the audit found a forgery in the trusted core, so this is not cosmetic.</td></tr>
+<tr><td><strong>MCP 2026-07-28 + OAuth 2.1</strong></td><td>Server MUST be an OAuth 2.1 resource server, MUST implement RFC 9728, MUST validate token audience, MUST NOT pass tokens through. DCR is deprecated in favour of Client ID Metadata Documents.</td><td><span class="sev sev-high">PARTIAL</span> Correct revision, <strong>zero authorization</strong>, and it rejects the two most-deployed revisions.</td></tr>
+<tr><td><strong>Export control</strong></td><td>Non-issue <em>if</em> crypto is standard. Since 2021 the ECCN 5D002 BIS/NSA notification applies only to <strong>non-standard cryptography</strong>.</td><td><span class="sev sev-low">CHECK</span> Ed25519/SHA-256 are standard. Verify nothing novel crept into the evidence layer.</td></tr>
+</tbody></table></div>
+<div class="good"><div class="calltitle">And the one everybody wastes months on</div>
+<p><strong>Do not chase SOC 2 Type II.</strong> It attests a <em>service organization</em>. A self-hosted OSS component has no service to attest, and the tooling is built for cloud-hosted companies. Saying that confidently &amp;mdash; then handing over signed releases, an SBOM, a disclosure policy and a completed CSA AI-CAIQ &amp;mdash; is a stronger answer than a certification that does not fit. It becomes a real gate only if you ever operate a hosted control plane or evidence store.</p></div>
+<h3>The pilot bar, and the base rates you are fighting</h3>
+<ul><li><strong>IDC/Lenovo: 88% of AI agent PoCs never reach broad production</strong> &amp;mdash; for every 33 pilots, four go live. Attributed to organisational readiness in data, process and infrastructure, <strong>not model quality</strong>. [EXTERNAL]</li><li><strong>Gartner: over 40% of agentic AI projects cancelled by end-2027</strong> &amp;mdash; escalating cost, unclear business value, or <strong>inadequate risk controls</strong>. Note what is <em>not</em> on that list: technical capability. [EXTERNAL]</li><li><strong>Phase 1 must be observe-only.</strong> For an authority and containment substrate, the difference between a pilot and an outage is a mode that emits decisions without blocking. One false-positive block in a business-critical flow ends the pilot.</li><li><strong>Latency is the make-or-break number.</strong> Microsoft claims &amp;lt;0.1&amp;nbsp;ms p99 for the same interception point. AumOS has <strong>eleven published latency budgets and zero benchmarks</strong>. Silence is read as slow.</li><li><strong>Sign-off is three signatures</strong>: the engineering sponsor, the security architecture review board, and &amp;mdash; in a regulated firm &amp;mdash; model risk or internal audit. Legal/procurement runs in parallel.</li><li><strong>The expensive failure mode</strong> is the security review starting <em>after</em> the technical pilot succeeds, and a missing SBOM or unsigned release killing a deal that had already won on merit.</li></ul>
+</section>
+<section id="ossgate">
+<div class="eyebrow">06 &middot; The developer gate</div>
+<h2>The measured bar, and the one asset you already own</h2>
+<p>Pulled first-hand from the GitHub, npm and PyPI APIs on 2026-08-09, not from secondary reporting. [EXTERNAL]</p>
+<div class="tw"><table data-sortable>
+<thead><tr><th>Project</th><th>Commands to first success</th><th>Account or key?</th><th>Runs locally?</th></tr></thead><tbody>
+<tr><td><strong>cloudflare-os</strong></td><td><strong>1</strong> &mdash; <code>pnpm run-local</code></td><td>No</td><td>Yes, whole stack</td></tr>
+<tr><td><strong>agentgateway</strong></td><td>2 &mdash; install script, then run</td><td>No, auto-bootstraps config</td><td>Yes</td></tr>
+<tr><td><strong>OPA</strong></td><td>2 &mdash; <code>brew install opa</code>, <code>opa eval "1*2+3"</code></td><td>No</td><td>Yes, offline</td></tr>
+<tr><td>promptfoo</td><td>2 to start, 5 to a result</td><td>Provider key</td><td>Evals run locally</td></tr>
+<tr><td>E2B</td><td>1 install &mdash; but <strong>cannot run without an API key</strong></td><td>Yes, hard gate</td><td>Terraform self-host only</td></tr>
+<tr><td>SPIRE</td><td><strong>No one-command start</strong> &mdash; docs say learn the architecture first</td><td>No</td><td>Yes</td></tr>
+<tr><td><strong>AumOS today</strong></td><td><strong>&infin;</strong> &mdash; nothing published; the documented command exits 0 silently</td><td>&mdash;</td><td>&mdash;</td></tr>
+</tbody></table></div>
+<p><strong>cloudflare-os took 7,123 stars and 704 forks in four days</strong> (open-sourced 2026-08-05, Apache-2.0) on one command and no account &amp;mdash; with <strong>Quick Start as README section #2, above the architecture prose</strong>. promptfoo uses the same ordering. LiteLLM is the counterexample: its Get Started is section #6, and it won on provider breadth rather than onboarding. Copy promptfoo, not LiteLLM.</p>
+<div class="good"><div class="calltitle">The asset you already own and have not claimed</div>
+<p>What separates credible multi-language projects from ones that quietly lose trust is <strong>a public, dated, executable conformance suite</strong>. Sigstore publishes theirs daily &amp;mdash; cosign, sigstore-js and sigstore-rust at 100%, python 96%, java 95% &amp;mdash; which is why <code>sigstore-go</code> can call itself production-ready <em>at 90 stars</em>. MCP has ten official SDKs, no conformance suite, and visible drift as a result.</p>
+<p><strong>AumOS's conformance runner is already at 220/220 across four languages and is genuinely fail-closed</strong> &amp;mdash; removing a verifier yields FAIL, never a skip. That is the parity claim and the assurance story in one artifact. <strong>Publish it, date it, badge it in the README.</strong> Almost nobody in this space has one.</p></div>
+<h3>Distribution: what is table stakes, and what is folklore</h3>
+<ul><li><strong>Registry presence in every language you claim.</strong> Downloads are the only unfakeable adoption number. Measured: <code>litellm</code> 708.5M/month on PyPI; <code>mcp</code> (Python) 324M; <code>@modelcontextprotocol/sdk</code> 200M npm; <code>rmcp</code> (Rust) ~3.2M. <strong>The Python-to-Rust ratio for the same protocol is roughly 100:1</strong> &amp;mdash; tier languages by that, not by symmetry.</li><li><strong>A one-liner that is not a language package manager</strong> &amp;mdash; <code>curl|bash</code>, <code>npx</code> or <code>uvx</code> &amp;mdash; plus a single static binary on Releases and a container on ghcr.io.</li><li><strong>Homebrew is folklore.</strong> cosign gets 4,501 brew installs per 30 days; OPA 1,149. Against 708M/month on PyPI that is rounding error. Ship it, do not prioritise it.</li><li><strong>Signed releases are NOT table stakes &amp;mdash; which is precisely your opening.</strong> OpenSSF Scorecard <code>Signed-Releases</code>: <strong>OPA 0, SPIRE 0</strong>, cosign 8. Adoption is demonstrably not gated on it. But for an <em>agent-security</em> substrate it is the cheapest differentiation available: <code>actions/attest-build-provenance</code> is free and makes <code>gh attestation verify</code> work out of the box.</li><li><strong><code>llms.txt</code> is an open gap in exactly your tier.</strong> Anthropic, Cloudflare, Stripe, LangChain, Vercel, Snyk, Daytona and E2B all serve one. <strong>garak, PyRIT and Guardrails AI all 404.</strong> The security-tooling tier has not shipped agent-facing docs, and it costs an afternoon.</li></ul>
+<h3>The two integrations worth more than the other seven</h3>
+<div class="two">
+<div class="card"><h4>LiteLLM <code>CustomGuardrail</code></h4>
+<p><strong>708 million downloads a month.</strong> Subclass <code>CustomGuardrail</code>, implement <code>async_pre_call_hook</code> and <code>async_post_call_success_hook</code>, and a user adopts you with a pip install and <strong>six lines of YAML</strong>. Highest leverage single integration available to this project, by a wide margin.</p></div>
+<div class="card"><h4>Claude Agent SDK <code>PreToolUse</code></h4>
+<p>Structurally the closest fit to agent authority and containment of any surface examined: a native <code>permissionDecision: allow | deny | ask | defer</code> with <code>permissionDecisionReason</code>, plus <code>updatedInput</code> to rewrite tool arguments. <code>PostToolUse</code> gives evidence capture on the same seam.</p></div>
+</div>
+<div class="danger"><div class="calltitle">The anti-pattern you are sitting in right now</div>
+<p>Unpublished packages is a named failure mode; a documented-but-non-functional command is worse. For a <em>security</em> project the documentation <strong>is</strong> the security claim &amp;mdash; and <code>npx aumos-mcp --standalone</code> printing nothing and exiting 0 will be found inside ninety seconds. Stars are recoverable; <em>&amp;ldquo;their docs lied about what runs&amp;rdquo;</em> is not. <strong>Fix or delete that command before anything is published.</strong></p></div>
+</section>
+<section id="components">
+<div class="eyebrow">03 &middot; Portfolio</div>
+<h2>Which components create exponential value, and which are borrowed time</h2>
+<p>You asked for the honest verdict rather than the best available framing, so that is what this is. A component earns KEEP only if it does something a developer or an enterprise cannot get more cheaply elsewhere. The test is not &amp;ldquo;is this good code&amp;rdquo; &amp;mdash; several CUT components are good code. The test is whether a security architect, asked why you built it instead of adopting the incumbent, would accept the answer.</p>
+<div class="note"><p>Shown here are the components where the verdict is decisive in either direction. The full 54-entry treatment is in the <a href="aumos-critical-analysis-2026-08-09.html" rel="noopener">critical analysis</a>. Roughly 35&amp;ndash;40 of the original 54 are commodity; this is the spine that survives the cut to ~25 plus the clearest deletions.</p></div>
+<div data-filter-scope="components"><div class="filters"><input type="search" placeholder="Search components…" aria-label="Search components…"><button class="chip" data-group="keep" data-val="keep">KEEP</button><button class="chip" data-group="keep" data-val="thin">THIN</button><button class="chip" data-group="keep" data-val="cut">CUT</button><span class="count"></span></div><details class="dos" data-facets="keep:keep" data-text="S3 gguf-ext &lt;strong&gt;The strongest single artifact in the repo.&lt;/strong&gt; Bounded parsing, checked arithmetic, tensor-overlap detection, real RFC 8785, domain separation, 2 fuzz targets, zero &lt;code&gt;unwrap&lt;/code&gt; in non-test code. Ship it as a standalone crate this month."><summary><span class="did">S3</span><span class="dname">gguf-ext<span class="dpath">Rust</span></span><span class="grade grade-a">KEEP</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>A hardened GGUF parser with fuzz targets and fallible allocation. Publishable on its own merits &mdash; developers loading untrusted model files have no safe option today.</p><h4>Value to an enterprise buyer</h4><p>Directly mitigates a live CVE class (CVE-2026-5760, CVSS 9.8, SSTI&rarr;RCE via a GGUF chat-template field). Buys a concrete answer to &ldquo;what stops a poisoned model file?&rdquo;</p><div class="good"><div class="calltitle">Verdict</div><p><strong>The strongest single artifact in the repo.</strong> Bounded parsing, checked arithmetic, tensor-overlap detection, real RFC 8785, domain separation, 2 fuzz targets, zero <code>unwrap</code> in non-test code. Ship it as a standalone crate this month.</p></div></div></details><details class="dos" data-facets="keep:keep" data-text="P8 verifiable-evaluation-bundle &lt;strong&gt;This is the bet.&lt;/strong&gt; Unoccupied by Microsoft's toolkit, unoccupied by the vendors, and the one place a small team can define the standard rather than chase it. Shortest path: a DSSE/in-toto envelope over an Inspect &lt;code&gt;.eval&lt;/code&gt; digest."><summary><span class="did">P8</span><span class="dname">verifiable-evaluation-bundle<span class="dpath">Spec</span></span><span class="grade grade-a">KEEP</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>The only signed, independently verifiable eval format. promptfoo, Inspect, HELM and lm-eval-harness all market reproducibility; none signs, and <strong>none pins the grader</strong>.</p><h4>Value to an enterprise buyer</h4><p>The artifact a regulator will eventually demand and nobody can currently produce. NIST AI 800-2 enumerates exactly what belongs in such a bundle and names no candidate.</p><div class="good"><div class="calltitle">Verdict</div><p><strong>This is the bet.</strong> Unoccupied by Microsoft's toolkit, unoccupied by the vendors, and the one place a small team can define the standard rather than chase it. Shortest path: a DSSE/in-toto envelope over an Inspect <code>.eval</code> digest.</p></div></div></details><details class="dos" data-facets="keep:keep" data-text="P12 capability-attestation-profile Real whitespace &lt;em&gt;above&lt;/em&gt; the primitives, never at them. NVIDIA NRAS and Intel Trust Authority are free; composition is not. Roughly a 12-month window before Veraison or CoCo close it."><summary><span class="did">P12</span><span class="dname">capability-attestation-profile<span class="dpath">Spec</span></span><span class="grade grade-a">KEEP</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>The signed counterpart to MCP's self-admittedly untrusted <code>ToolAnnotations</code>. MCP's own spec says annotations are untrusted hints and its registry signs nothing.</p><h4>Value to an enterprise buyer</h4><p>Composite attestation &mdash; CPU quote + GPU EAT + container measurement + <strong>model-weight hash + serving-stack version</strong> in one verdict. Eight attested-inference providers, eight incompatible verifiers.</p><div class="good"><div class="calltitle">Verdict</div><p>Real whitespace <em>above</em> the primitives, never at them. NVIDIA NRAS and Intel Trust Authority are free; composition is not. Roughly a 12-month window before Veraison or CoCo close it.</p></div></div></details><details class="dos" data-facets="keep:keep" data-text="R8 sandbox-runtime Careful, adversarially-minded code. Its problem is that the catalogue said it did not exist. Wire it to P5's &lt;code&gt;runtime&lt;/code&gt; enum and it becomes the containment story."><summary><span class="did">R8</span><span class="dname">sandbox-runtime<span class="dpath">Rust</span></span><span class="grade grade-a">KEEP</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>Genuine Wasmtime isolation: fuel metering enforced, WASI deliberately unlinked, imports admitted against a signed policy, capabilities index-addressed not string-addressed.</p><h4>Value to an enterprise buyer</h4><p>A real enforcement primitive rather than a policy opinion. Audit-before-dispatch is fatal on failure.</p><div class="good"><div class="calltitle">Verdict</div><p>Careful, adversarially-minded code. Its problem is that the catalogue said it did not exist. Wire it to P5's <code>runtime</code> enum and it becomes the containment story.</p></div></div></details><details class="dos" data-facets="keep:keep" data-text="F2 dp-crate Solid work. Publish the privacy-accounting proofs and state the composition model explicitly &amp;mdash; that is what turns a library into evidence."><summary><span class="did">F2</span><span class="dname">dp-crate<span class="dpath">Python</span></span><span class="grade grade-a">KEEP</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>DPSGD with clipping, Gaussian noise and an RDP accountant. Best test-to-source ratio in the repository (458 test lines to 531).</p><h4>Value to an enterprise buyer</h4><p>Differential privacy is a named control in RBI FREE-AI and DPDP conversations, and correctness here is provable.</p><div class="good"><div class="calltitle">Verdict</div><p>Solid work. Publish the privacy-accounting proofs and state the composition model explicitly &mdash; that is what turns a library into evidence.</p></div></div></details><details class="dos" data-facets="keep:keep" data-text="I2 identity-bindings &lt;strong&gt;Ship this and retire &lt;code&gt;agent-identity&lt;/code&gt;.&lt;/strong&gt; The real module has zero importers while the one that formats &lt;code&gt;spiffe://&lt;/code&gt; strings is what the Dockerfile deploys."><summary><span class="did">I2</span><span class="dname">identity-bindings<span class="dpath">Go</span></span><span class="grade grade-a">KEEP</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>Real SPIFFE: <code>workloadapi.NewX509Source</code>, validity windows, <code>x509svid.IDFromCert</code> cross-validated against the URI SAN, selector-injection defence.</p><h4>Value to an enterprise buyer</h4><p>SPIFFE is the de-facto workload identity standard and this is a correct integration.</p><div class="good"><div class="calltitle">Verdict</div><p><strong>Ship this and retire <code>agent-identity</code>.</strong> The real module has zero importers while the one that formats <code>spiffe://</code> strings is what the Dockerfile deploys.</p></div></div></details><details class="dos" data-facets="keep:keep" data-text="X8 mcp-gateway Post-AX-02 this is real. Remaining gaps are OAuth 2.1 resource-server behaviour and accepting the two most-deployed MCP revisions &amp;mdash; both required, both bounded."><summary><span class="did">X8</span><span class="dname">mcp-gateway<span class="dpath">TypeScript</span></span><span class="grade grade-a">KEEP</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>Targets MCP <code>2026-07-28</code> &mdash; ahead of the official SDK. Now verifies envelope signatures, binds keyId&rarr;issuer, enforces budgets, and implements I-11 self-change protection.</p><h4>Value to an enterprise buyer</h4><p>The primary integration surface. Everything a partner touches goes through here.</p><div class="good"><div class="calltitle">Verdict</div><p>Post-AX-02 this is real. Remaining gaps are OAuth 2.1 resource-server behaviour and accepting the two most-deployed MCP revisions &mdash; both required, both bounded.</p></div></div></details><details class="dos" data-facets="keep:thin" data-text="P2 agent-action-receipt &lt;strong&gt;Re-express as a SCITT profile or withdraw.&lt;/strong&gt; Defining a parallel receipt format against a published RFC pair is the fastest way to lose a standards conversation. The genuinely novel part &amp;mdash; joining receipts to a verifiable delegation chain &amp;mdash; survives as a profile."><summary><span class="did">P2</span><span class="dname">agent-action-receipt<span class="dpath">Spec</span></span><span class="grade grade-c">THIN</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>Signed action evidence. But RFC 9942 (COSE Receipts) and RFC 9943 (SCITT) are published Standards-Track RFCs as of June 2026.</p><h4>Value to an enterprise buyer</h4><p>Enterprises want an audit trail; SIEMs want OCSF. Both exist.</p><div class="warn"><div class="calltitle">Verdict</div><p><strong>Re-express as a SCITT profile or withdraw.</strong> Defining a parallel receipt format against a published RFC pair is the fastest way to lose a standards conversation. The genuinely novel part &mdash; joining receipts to a verifiable delegation chain &mdash; survives as a profile.</p></div></div></details><details class="dos" data-facets="keep:keep" data-text="E1 flight-recorder Fixed under AX-40. Its remaining defect is that it fabricates the policy decision it signs &amp;mdash; close that and it is the most enterprise-legible component here."><summary><span class="did">E1</span><span class="dname">flight-recorder<span class="dpath">Rust</span></span><span class="grade grade-a">KEEP</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>Now an <code>fsync</code>'d hash-chained append-only log where <code>PendingAction</code> cannot reach commit without durable evidence &mdash; I-07 in the type system.</p><h4>Value to an enterprise buyer</h4><p>The evidence plane. Export to OCSF 1.9 <code>ai_agent</code> + <code>delegation</code> and it lands in Splunk, Sentinel, Elastic and Security Lake with no parser project.</p><div class="good"><div class="calltitle">Verdict</div><p>Fixed under AX-40. Its remaining defect is that it fabricates the policy decision it signs &mdash; close that and it is the most enterprise-legible component here.</p></div></div></details><details class="dos" data-facets="keep:thin" data-text="A2 adversaria Map the corpus to ATLAS v5.4.0 and OWASP ASI01&amp;ndash;10 and publish attack-success rates the way LlamaFirewall did (17.6%&amp;rarr;1.7%). Unmeasured red-teaming is not evidence."><summary><span class="did">A2</span><span class="dname">adversaria<span class="dpath">Python</span></span><span class="grade grade-c">THIN</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>Adversarial corpus generation. Real code, but the detector scores success on response length.</p><h4>Value to an enterprise buyer</h4><p>Red-teaming evidence is explicitly demanded by RBI's draft MRM guidance.</p><div class="warn"><div class="calltitle">Verdict</div><p>Map the corpus to ATLAS v5.4.0 and OWASP ASI01&ndash;10 and publish attack-success rates the way LlamaFirewall did (17.6%&rarr;1.7%). Unmeasured red-teaming is not evidence.</p></div></div></details><details class="dos" data-facets="keep:keep" data-text="X10 sovereign-stack Invest here. Sovereignty is the argument that survives &amp;ldquo;why not the Microsoft one?&amp;rdquo; in India and the Gulf, and it is not a technology claim Microsoft can match with a US-hosted control plane."><summary><span class="did">X10</span><span class="dname">sovereign-stack<span class="dpath">Go</span></span><span class="grade grade-a">KEEP</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>Air-gap and residency packaging. Under-invested relative to its strategic weight.</p><h4>Value to an enterprise buyer</h4><p><strong>The one durable advantage.</strong> Portability across AWS/Azure/GCP/on-prem, and AWS has no confidential GPU at all. CERT-In requires 180 days of ICT logs held inside India.</p><div class="good"><div class="calltitle">Verdict</div><p>Invest here. Sovereignty is the argument that survives &ldquo;why not the Microsoft one?&rdquo; in India and the Gulf, and it is not a technology claim Microsoft can match with a US-hosted control plane.</p></div></div></details><details class="dos" data-facets="keep:cut" data-text="N3 inference-proxy LiteLLM has 56k stars with Stripe and Netflix in production. This is not a proxy (no tokio/hyper/axum) and carries a cross-tenant cache leak. &lt;strong&gt;Adopt LiteLLM; contribute policy hooks.&lt;/strong&gt;"><summary><span class="did">N3</span><span class="dname">inference-proxy<span class="dpath">Rust</span></span><span class="grade grade-f">CUT</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>&mdash;</p><h4>Value to an enterprise buyer</h4><p>&mdash;</p><div class="danger"><div class="calltitle">Verdict</div><p>LiteLLM has 56k stars with Stripe and Netflix in production. This is not a proxy (no tokio/hyper/axum) and carries a cross-tenant cache leak. <strong>Adopt LiteLLM; contribute policy hooks.</strong></p></div></div></details><details class="dos" data-facets="keep:cut" data-text="R6 policy-bridge OPA is CNCF-graduated, Cedar is formally verified and AWS-backed, and AWS Dogwood already extends Cedar temporally. Zero &lt;code&gt;EngineClient&lt;/code&gt; implementations exist. &lt;strong&gt;Adopt OPA + Cedar.&lt;/strong&gt;"><summary><span class="did">R6</span><span class="dname">policy-bridge<span class="dpath">Rust</span></span><span class="grade grade-f">CUT</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>&mdash;</p><h4>Value to an enterprise buyer</h4><p>&mdash;</p><div class="danger"><div class="calltitle">Verdict</div><p>OPA is CNCF-graduated, Cedar is formally verified and AWS-backed, and AWS Dogwood already extends Cedar temporally. Zero <code>EngineClient</code> implementations exist. <strong>Adopt OPA + Cedar.</strong></p></div></div></details><details class="dos" data-facets="keep:cut" data-text="S1 safe-tensors-pp OpenSSF Model Signing signs models &lt;em&gt;without modifying the file&lt;/em&gt;, with NVIDIA NGC and Kaggle adopting. An in-file provenance block forks the format and breaks digest stability &amp;mdash; violating the project's own stated non-goal. &lt;strong&gt;Adopt OMS.&lt;/strong&gt;"><summary><span class="did">S1</span><span class="dname">safe-tensors-pp<span class="dpath">Rust</span></span><span class="grade grade-f">CUT</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>&mdash;</p><h4>Value to an enterprise buyer</h4><p>&mdash;</p><div class="danger"><div class="calltitle">Verdict</div><p>OpenSSF Model Signing signs models <em>without modifying the file</em>, with NVIDIA NGC and Kaggle adopting. An in-file provenance block forks the format and breaks digest stability &mdash; violating the project's own stated non-goal. <strong>Adopt OMS.</strong></p></div></div></details><details class="dos" data-facets="keep:cut" data-text="C1-1 nvtrust-bridge NVIDIA gives away NRAS, the local verifier and &lt;code&gt;nvattest&lt;/code&gt; under Apache-2.0; Intel Trust Authority verifies free on three clouds. &lt;strong&gt;Consume them directly&lt;/strong&gt; and keep only the composition layer (P12)."><summary><span class="did">C1-1</span><span class="dname">nvtrust-bridge<span class="dpath">Rust</span></span><span class="grade grade-f">CUT</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>&mdash;</p><h4>Value to an enterprise buyer</h4><p>&mdash;</p><div class="danger"><div class="calltitle">Verdict</div><p>NVIDIA gives away NRAS, the local verifier and <code>nvattest</code> under Apache-2.0; Intel Trust Authority verifies free on three clouds. <strong>Consume them directly</strong> and keep only the composition layer (P12).</p></div></div></details><details class="dos" data-facets="keep:cut" data-text="R4 credential-vault HashiCorp Vault shipped a SPIFFE secrets engine. All three backends here return &lt;code&gt;BackendUnavailable&lt;/code&gt;. &lt;strong&gt;Adopt Vault.&lt;/strong&gt;"><summary><span class="did">R4</span><span class="dname">credential-vault<span class="dpath">Rust</span></span><span class="grade grade-f">CUT</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>&mdash;</p><h4>Value to an enterprise buyer</h4><p>&mdash;</p><div class="danger"><div class="calltitle">Verdict</div><p>HashiCorp Vault shipped a SPIFFE secrets engine. All three backends here return <code>BackendUnavailable</code>. <strong>Adopt Vault.</strong></p></div></div></details><details class="dos" data-facets="keep:thin" data-text="R3 kill-switch Now has a real &lt;code&gt;ExecutionEngine&lt;/code&gt;, but ServiceNow ships this as a product feature and every platform has agent revocation. Keep it as a thin wrapper over the platform's own primitive rather than a component."><summary><span class="did">R3</span><span class="dname">kill-switch<span class="dpath">Rust</span></span><span class="grade grade-c">THIN</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>&mdash;</p><h4>Value to an enterprise buyer</h4><p>RBI's draft MRM guidance explicitly demands a kill switch, so the <em>capability</em> is procurement-relevant.</p><div class="warn"><div class="calltitle">Verdict</div><p>Now has a real <code>ExecutionEngine</code>, but ServiceNow ships this as a product feature and every platform has agent revocation. Keep it as a thin wrapper over the platform's own primitive rather than a component.</p></div></div></details><details class="dos" data-facets="keep:thin" data-text="R7 egress-filter Now default-deny, which was the critical fix. But Anthropic's sandbox-runtime does this at the OS boundary and four gateways do it at the network boundary. Keep only if the eBPF path is actually built."><summary><span class="did">R7</span><span class="dname">egress-filter<span class="dpath">Rust</span></span><span class="grade grade-c">THIN</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>&mdash;</p><h4>Value to an enterprise buyer</h4><p>&mdash;</p><div class="warn"><div class="calltitle">Verdict</div><p>Now default-deny, which was the critical fix. But Anthropic's sandbox-runtime does this at the OS boundary and four gateways do it at the network boundary. Keep only if the eBPF path is actually built.</p></div></div></details><details class="dos" data-facets="keep:thin" data-text="S4 model-sbom Currently emits CycloneDX 1.5 with &lt;code&gt;type: library&lt;/code&gt; &amp;mdash; not an ML-BOM in any version. Rewrite against CycloneDX 1.6 and it becomes a hard-gate artifact rather than a liability."><summary><span class="did">S4</span><span class="dname">model-sbom<span class="dpath">Python</span></span><span class="grade grade-c">THIN</span></summary><div class="body"><h4>Value to the OSS / developer community</h4><p>&mdash;</p><h4>Value to an enterprise buyer</h4><p>CISA's 2026 Minimum Elements (29 July 2026) now require an SBOM Author Signature &mdash; and CycloneDX carries it in-document while SPDX needs an external envelope.</p><div class="warn"><div class="calltitle">Verdict</div><p>Currently emits CycloneDX 1.5 with <code>type: library</code> &mdash; not an ML-BOM in any version. Rewrite against CycloneDX 1.6 and it becomes a hard-gate artifact rather than a liability.</p></div></div></details></div>
+<div class="warn"><div class="calltitle">The pattern worth naming</div>
+<p>Every CUT component fails the same way: it reimplements something a well-funded incumbent gives away, and the reimplementation is a fraction as complete. Every KEEP component either (a) does something genuinely nobody does &amp;mdash; P8, P12, composite attestation &amp;mdash; or (b) is <em>unusually careful systems code</em> whose value is the care itself, like <code>gguf-ext</code> and <code>sandbox-runtime</code>. <strong>Nothing in the middle survives contact with a buyer.</strong></p></div>
+</section>
+<section id="surface">
+<div class="eyebrow">04 &middot; Capability surface</div>
+<h2>What else the portfolio can credibly offer beyond the four use cases</h2>
+<p>You asked what else these components can provide. Each of these is reachable from work that already exists, and each maps to a buyer who is not currently in your four use cases. They are ordered by distance from what is already built.</p>
+<div class="two">
+<div class="card"><h4>1. Model-file safety as a standalone product</h4>
+<p><code>gguf-ext</code> already does bounded parsing with fuzz targets against a format with a live CVSS 9.8 CVE. Every team that loads community model files has this exposure and no safe option. <strong>Shippable as an independent crate/CLI in weeks</strong>, with its own audience, and it needs none of the rest of the stack.</p></div>
+<div class="card"><h4>2. Grader attestation for AI evaluation vendors</h4>
+<p>Nobody pins the grader. Eval platforms, benchmark maintainers and AI-assurance firms all have the same credibility problem: the entity producing the evidence is the entity being evaluated. A signed judge-and-corpus attestation is a <strong>product for the eval ecosystem itself</strong>, not just for end users.</p></div>
+<div class="card"><h4>3. Sovereign evidence retention</h4>
+<p>CERT-In requires <strong>180 days of ICT logs held inside Indian jurisdiction</strong>; DPDP adds a one-year processing-log requirement. An evidence plane that is portable, air-gappable and residency-aware is a compliance product for India and the Gulf that a US-hosted control plane structurally cannot match.</p></div>
+<div class="card"><h4>4. Agent incident exchange for CERTs and ISACs</h4>
+<p>CERT-In Annexure I item (xx) already makes attacks on AI/ML systems reportable <strong>within 6 hours</strong>. Nobody has tooling that produces that report. OCSF 1.9 shipped the <code>ai_agent</code> and <code>delegation</code> objects to carry it. This is a narrow, unglamorous, genuinely unserved need.</p></div>
+<div class="card"><h4>5. Differential-privacy accounting as a service</h4>
+<p><code>dp-crate</code> is the best-tested package in the repo. DP accounting appears in RBI FREE-AI and DPDP conversations, and most teams implement it wrong. A correct, provable accountant with published proofs is defensible on its own.</p></div>
+<div class="card"><h4>6. Conformance-as-a-service for the protocol suite</h4>
+<p>The conformance runner now executes <strong>220 verifications across four languages</strong> and is genuinely fail-closed. If P8 or P12 gain any adoption, the conformance suite becomes the neutral arbiter &amp;mdash; which is how standards bodies fund themselves and how a specification becomes load-bearing rather than aspirational.</p></div>
+</div>
+<div class="note"><div class="calltitle">The through-line</div>
+<p>Five of those six are <strong>evidence products, not enforcement products</strong>. That is not a coincidence &amp;mdash; it is the same conclusion the competitive analysis reaches from the other direction. The portfolio's centre of gravity should move from <em>stopping agents</em> to <em>proving what agents did</em>, because the first is commodity and the second is not.</p></div>
+</section>
+<section id="devblockers">
+<div class="eyebrow">05 &middot; Developer adoption</div>
+<h2>Why a developer cannot start today &mdash; seven concrete blockers</h2>
+<p>These are ordered by how early a developer hits them. The first three are fatal within sixty seconds of arriving, and none of them is about code quality.</p>
+<ul><li><strong>Nothing is published.</strong> All four npm packages 404. There is no PyPI project, no crate, no container image, no release binary. A developer's first action &amp;mdash; <code>npm install</code> or <code>pip install</code> &amp;mdash; fails. Everything else on this list is downstream of that. [EXECUTED]</li><li><strong>There is no git remote.</strong> The repository has never been pushed, so there is no README to land on, no issues, no stars, no releases page. It is invisible.</li><li><strong>The documented run command is a silent no-op.</strong> <code>npx aumos-mcp --standalone</code> prints nothing and exits 0 on every platform, because the main-module check compares an npm symlink against a resolved realpath. The one command in the README produces silence. [EXECUTED]</li><li><strong>There is no SDK.</strong> For Claude Agent SDK, OpenAI Agents SDK, LangGraph, CrewAI, Pydantic AI or Vercel AI SDK there is no adapter, no middleware, no hook, no example. The core question &amp;mdash; <em>how do I wrap my existing agent loop?</em> &amp;mdash; has no answer in the repository. <code>aumos_langchain</code> is the single genuine adapter and it is not even a catalogued component.</li><li><strong>The README's copy-paste config is dead on arrival.</strong> It ships <code>"command": "npx", "args": ["-y", "@muveraai/aumos-mcp-server"]</code> &amp;mdash; a 404 &amp;mdash; and sets <code>AUMOS_MODE: standalone</code>, which is the mode that returns hardcoded security <em>passes</em>. A developer who gets past the registry error lands on a control plane that always says yes.</li><li><strong>Two competing namespaces.</strong> <code>@aumos/<em></code> and <code>@muveraai/</em></code> both appear in the tree, and the MCP server and gateway are split across them. Resolved by the move to <code>warrantor</code>, but it must actually be executed.</li><li><strong>No trust signals.</strong> No audit, no fuzzing badge, no provenance attestation, no maintainer roster, no release cadence, no reference user. A developer evaluating a <em>security</em> library checks these before reading a line of code.</li></ul>
+<div class="danger"><div class="calltitle">The blunt version</div>
+<p>The repository contains 287 passing Rust tests, 227 TypeScript tests, a four-language conformance suite at 220/220, and genuinely excellent parser work &amp;mdash; <strong>and a developer cannot execute a single line of it.</strong> The gap between engineering quality and adoption readiness is the largest single finding in this document, and it is entirely fixable with work that requires no cleverness at all.</p></div>
+</section>
+<section id="gcc">
+<div class="eyebrow">07 &middot; The regulatory wedge</div>
+<h2>The Gulf is four years ahead of the US, and nobody serves it</h2>
+<div class="good"><div class="calltitle">The finding that should reshape your positioning</div>
+<p><strong>CBUAE Model Management Standards (Nov 2022) &amp;sect;2.4.1 Table 1 lists &amp;ldquo;Artificial Intelligence&amp;rdquo; as an in-scope model type</strong>, binding on all licensed UAE banks including Islamic institutions and foreign branches. UAE banks have owed model-risk artifacts on AI models <strong>since 2022</strong>. The US carved generative and agentic AI <em>out</em> of scope in April 2026. <strong>The Gulf is ahead of the US on binding AI model governance, and has been for four years.</strong> [EXTERNAL, primary]</p></div>
+<p>The corrected picture is narrower and far more useful than &amp;ldquo;no format exists anywhere&amp;rdquo;: **no GCC regulator publishes a fillable template &amp;mdash; but three of four prescribe the <em>contents</em>.** Contents without a container is exactly what a substrate can emit.</p>
+<div class="tw"><table data-sortable>
+<thead><tr><th>Jurisdiction</th><th>Instrument</th><th>What it prescribes</th></tr></thead><tbody>
+<tr><td><strong>Qatar (QCB)</strong></td><td>AI Guideline, in force 4 Sept 2024 &mdash; mandatory &ldquo;must&rdquo; language</td><td><strong>The only field-level AI Register schema in the region.</strong> Per system: risk class, role, use category, human-oversight protocol. For third-party systems: provider LEI, country of registration, governing law, parent company, contract dates &mdash; plus <strong>substitutability rated easy/difficult/impossible and a named alternate provider</strong>. Prior QCB approval before launch. &sect;17.7 explicitly requires protection against <strong>prompt injection leading to data poisoning</strong>.</td></tr>
+<tr><td><strong>UAE (CBUAE)</strong></td><td>MMS (Nov 2022, binding) + AI Guidance Note (11 Feb 2026)</td><td>Model inventory with unique ID per calibration, lifecycle dates, Tier 1/2 risk tiering. <strong>Independent validation report with nine mandatory components.</strong> Model Oversight Committee minutes, quarterly, majority non-business-line. High-severity findings closed in 12 months; anything open past 6 months reported <strong>to CBUAE</strong>.</td></tr>
+<tr><td><strong>Saudi (SAMA)</strong></td><td>Cyber Security Framework, Circular 381000091275</td><td><strong>No AI framework and no MRM framework exist.</strong> The &ldquo;SAMA AI Principles 2023&rdquo; cited in vendor blogs <strong>does not survive contact with the Rulebook &mdash; do not cite it</strong>. What exists is a <strong>0&ndash;5 maturity scale</strong> across 4 domains and 32 subdomains, target &ge;&nbsp;3 &mdash; the container Saudi supervisors are trained to read.</td></tr>
+<tr><td><strong>DIFC</strong></td><td>Regulation 10 under DP Law No. 5 of 2020</td><td>Deployer / Operator / Provider roles; a Deployer is liable for the System <em>&ldquo;as it may be liable for an employee's actions&rdquo;</em>. Requires an <strong>Autonomous Systems Officer</strong> and &sect;4.3.6 lists the evidence: AI DPIA, risk register, <strong>algorithmic audits, processing-purpose logs</strong>, code-review records showing absence of self-defined purposes. <em>Caveat: whether an Accredited Certification Body actually exists in 2026 is UNVERIFIED.</em></td></tr>
+</tbody></table></div>
+<h3>Data residency &mdash; the hard, examinable anchor for attested inference</h3>
+<ul><li><strong>UAE Outsourcing Regulation, Circular 14/2021, Art 6.1</strong> &amp;mdash; <em>&amp;ldquo;Banks must ensure that the Master System of Record, which includes all Confidential Data, is continuously maintained and stored within the UAE.&amp;rdquo;</em> No export without CBUAE approval <strong>plus</strong> written customer consent <strong>plus</strong> acknowledgement of foreign legal access. <strong>Art 8.2: CBUAE generally will not permit outsourcing of risk management, compliance, internal audit or risk-taking</strong> &amp;mdash; read that against agentic systems that take actions.</li><li><strong>Saudi CSF &amp;sect;3.4.3</strong> &amp;mdash; <em>&amp;ldquo;in principle only cloud services should be used that are located in Saudi Arabia,&amp;rdquo;</em> with <strong>SAMA approval required before signing the contract</strong>, not after.</li><li><strong>No hosting-attestation form exists in either jurisdiction.</strong> The bank assembles the register entry, the non-objection letter and the contract clauses itself. <strong>A substrate that emits a hardware-rooted attestation of where inference actually executed fills a gap the regulators created and did not fill.</strong></li></ul>
+<h3>India moves the opposite way from the US, eight weeks later</h3>
+<p><strong>RBI's Draft Guidance on Regulatory Principles for Model Risk Management, 24 June 2026</strong> (consultation closed 24 July) defines <em>model</em> expansively &amp;mdash; &amp;para;7(3) covers <em>&amp;ldquo;algorithms, analytics, interfaces, applications, decision-based rules and other computational tools&amp;hellip; <strong>irrespective of whether such tools are recognised as models by the RE</strong>&amp;rdquo;</em> &amp;mdash; explicitly scopes <strong>foundational and frontier AI models</strong> (&amp;para;49), and adds <em>&amp;ldquo;level of autonomy placed on model outputs&amp;rdquo;</em> to risk tiering (&amp;para;52). <strong>The US carved agentic AI out on 17 April 2026; India scoped it in on 24 June 2026.</strong> That is the cleanest dated regulatory contrast available anywhere. [EXTERNAL, primary]</p>
+<p>Build against paragraph numbers, because these are what get quoted back in an inspection: <strong>&amp;para;22</strong> model inventory with upstream/downstream dependencies and <em>&amp;ldquo;no model is used&amp;hellip; unless it is part of inventory&amp;rdquo;</em> &amp;middot; <strong>&amp;para;23</strong> decommissioned-model records retained <strong>&amp;ge;10 years</strong> &amp;middot; <strong>&amp;para;33</strong> validation report to the board risk committee within 3 months &amp;middot; <strong>&amp;para;57</strong> enhanced AI documentation for traceability, reproducibility and auditability &amp;middot; <strong>&amp;para;59(i)</strong> prompt-injection and adversarial-input controls &amp;middot; <strong>&amp;para;60(ii)</strong> kill switch / override / suspension &amp;middot; <strong>&amp;para;63</strong> a record of <em>&amp;ldquo;decisions, interventions, overrides, incidents and near misses&amp;rdquo;</em> &amp;mdash; the closest thing to an agent audit-trail requirement in Indian regulation.</p>
+<p>Worth quoting to any Indian partner: RBI's own survey of 127 AI-using regulated entities found only <strong>18% maintained audit logs</strong>, 21% monitored drift, and 14% did regular audits. The gap is not theoretical.</p>
+<div class="tw"><table data-sortable>
+<thead><tr><th>Region</th><th>Contents specified?</th><th>Format prescribed?</th><th>Binding on AI today?</th></tr></thead><tbody>
+<tr><td>US</td><td>Principles only</td><td><strong>None</strong></td><td><strong>No</strong> &mdash; genAI/agentic explicitly out of scope</td></tr>
+<tr><td>India</td><td>Twice &mdash; FREE-AI &para;4.4.68, draft MRM &para;22</td><td><strong>None</strong></td><td>No &mdash; draft only; binding rules contain zero AI content</td></tr>
+<tr><td>UAE</td><td>Yes &mdash; MMS &sect;4.4, &sect;10.6.1</td><td>None</td><td><strong>Yes, since Nov 2022</strong></td></tr>
+<tr><td>Qatar</td><td>Yes &mdash; AI Register &sect;10.7, 14+ fields</td><td>Field-level schema</td><td><strong>Yes, since Sept 2024</strong></td></tr>
+<tr><td>Saudi</td><td>CSF 0&ndash;5 maturity, 32 subdomains</td><td>Nearest to a format</td><td>No AI framework at all</td></tr>
+<tr><td>DIFC</td><td>Yes &mdash; &sect;4.3.6 evidence list</td><td>Unpublished</td><td>Regime possibly not live</td></tr>
+</tbody></table></div>
+<div class="danger"><div class="calltitle">Two architectural requirements that are cheap now and expensive later</div>
+<p><strong>1. The evidence store must be independently locatable per tenant.</strong> CERT-In requires 180 days of logs held <strong>inside Indian jurisdiction</strong>; CBUAE requires the Master System of Record in the UAE; SAMA requires In-Kingdom by default. RBI &amp;para;23 wants decommissioned-model records for <strong>10 years</strong>. <strong>If the architecture assumes one global evidence store, that is a blocker in three of four target jurisdictions</strong> &amp;mdash; and it is far cheaper to fix before a pilot than after.</p>
+<p><strong>2. Timestamps need a recorded, traceable time source.</strong> CERT-In direction (i) requires clock synchronisation to <strong>NIC or NPL</strong> servers. Evidence whose timestamps are not traceable to those sources is weak under that regime. Make the time source configurable and record which source signed the timestamp &amp;mdash; a small change in the evidence record format, and a retrofit if left.</p></div>
+<div class="note"><div class="calltitle">The commercial wedge, stated plainly</div>
+<p>Four jurisdictions want <strong>structurally different evidence packs from the same underlying system</strong> &amp;mdash; Qatar wants register fields, the UAE wants nine-component validation reports and committee minutes, Saudi wants a 0&amp;ndash;5 maturity score, DIFC wants processing-purpose logs and algorithmic audits. <strong>Nobody has solved emitting all of them from one telemetry layer</strong> &amp;mdash; not the regulators, and not Microsoft, whose compliance mapping targets EU AI Act, HIPAA and SOC 2.</p>
+<p>This is a better positioning than anything else in this document. It is defensible <strong>without claiming novel enforcement technology</strong>, it is a problem the incumbent does not address, and it turns the multi-region requirement from a burden into the product.</p></div>
+<div class="danger"><div class="calltitle">And one hard blocker you need to act on</div>
+<p><strong>Qatar QCB &amp;sect;10.7.5 requires the AI provider's LEI, country of registration, local corporate registration number, registered address, parent company and the governing law of the licensing arrangement</strong> &amp;mdash; plus a named alternate provider and a substitutability rating for high-risk systems. <strong>An unincorporated open-source project cannot populate that register.</strong> For Qatar, a legal entity is a <em>precondition of deployment</em>, not a production nice-to-have. This is the clearest instance found anywhere of the &amp;ldquo;no vendor entity&amp;rdquo; risk becoming a hard regulatory blocker rather than a soft procurement preference.</p></div>
+</section>
+<section id="thesis">
+<div class="eyebrow">08 &middot; The thesis</div>
+<h2>Where the exponential actually is</h2>
+<p>Exponential value does not come from covering more surface than Microsoft. It comes from owning a primitive that becomes load-bearing for other people's systems. Three candidates survive scrutiny, and they compound.</p>
+<div class="card"><h3>1. Be the evidence layer, not the enforcement layer</h3>
+<p>Enforcement is commodity and getting more so &amp;mdash; Microsoft AGT, AWS AgentCore Policy at GA in 13 regions, Envoy AI Gateway v1.0, Cedar, OPA. <strong>Verifiable evidence is not.</strong> Nobody signs an eval. Nobody pins the grader. OCC 2026-13 explicitly puts generative and agentic AI out of scope while telling banks their own governance <em>&amp;ldquo;should guide the determination of appropriate controls&amp;rdquo;</em> &amp;mdash; a supervisor saying <strong>you own this gap</strong>.</p>
+<p>The compounding move: <strong>P8 bundles become the thing an auditor asks for by name.</strong> Once one institution accepts a signed eval bundle as evidence, the format has a reference &amp;mdash; and references are how formats become standards.</p></div>
+<div class="card"><h3>2. Be the conformance authority for the protocols you define</h3>
+<p>You already run 220 cross-language verifications, fail-closed. Sigstore proves the pattern: a public dated conformance suite lets a 90-star library credibly call itself production-ready, and makes the <em>suite</em> the neutral arbiter. If P8 or P12 gain adoption, whoever runs the conformance suite defines what compliance means &amp;mdash; a durable position no amount of Microsoft engineering displaces.</p></div>
+<div class="card"><h3>3. Be the sovereign, multi-jurisdiction evidence emitter</h3>
+<p>The one advantage a US-hosted control plane structurally cannot match, and now the best-evidenced. CERT-In requires <strong>180 days of ICT logs inside Indian jurisdiction</strong> and makes AI/ML attacks reportable within <strong>six hours</strong> &amp;mdash; today. CBUAE requires the Master System of Record inside the UAE. SAMA requires in-Kingdom cloud by default with approval <em>before</em> contract signature. And the four Gulf jurisdictions each demand a different evidence pack from the same system.</p>
+<p><strong>Portability plus multi-jurisdiction emission is the product.</strong> <code>sovereign-stack</code> is currently the least-invested component relative to its strategic weight &amp;mdash; the clearest misallocation in the portfolio.</p></div>
+<div class="note"><div class="calltitle">What to say when a partner asks &ldquo;why not the Microsoft one?&rdquo;</div>
+<p><em>&amp;ldquo;Use it &amp;mdash; for enforcement. It is good, it is free, and we interoperate with it. What it does not give you is an artifact your auditor can verify without trusting your runtime, or a deployment your regulator will accept inside national boundaries, or one telemetry layer that emits a QCB AI Register entry, a CBUAE nine-component validation report and a DIFC processing-purpose log from the same run. That is what we do.&amp;rdquo;</em> True, checkable, and it converts the competitor into a dependency rather than a rival.</p></div>
+</section>
+<hr><p style="font-size:.8rem;color:var(--fg-3);max-width:none">
+Generated by <code>docs/html/meta/build_adoption.py</code>. Companion to
+<a href="aumos-critical-analysis-2026-08-09.html">the implementation &amp; protocol critical analysis</a>.
+Evidence tags: <span class="tag tag-executed">EXECUTED</span> <span class="tag tag-read">READ</span> <span class="tag tag-external">EXTERNAL</span> <span class="tag tag-inferred">INFERRED</span> <span class="tag tag-unverifiable">UNVERIFIABLE</span>.</p>
+</main></div><script>
+(function(){
+  // theme toggle
+  var root=document.documentElement, tbtn=document.getElementById('themeBtn');
+  tbtn && tbtn.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    if(!cur){cur=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+    root.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  });
+  // expand / collapse all
+  var ebtn=document.getElementById('expandBtn');
+  ebtn && ebtn.addEventListener('click',function(){
+    var ds=document.querySelectorAll('details.dos'), any=false;
+    ds.forEach(function(d){ if(!d.open) any=true; });
+    ds.forEach(function(d){ d.open=any; });
+    ebtn.textContent = any ? 'Collapse all' : 'Expand all';
+  });
+  // Print/PDF must contain the substance, not 100 collapsed summaries. Open every dossier
+  // (and un-hide any filtered-out rows) before printing, then restore the reading state.
+  var printState=null;
+  window.addEventListener('beforeprint',function(){
+    var ds=[].slice.call(document.querySelectorAll('details.dos'));
+    var hidden=[].slice.call(document.querySelectorAll('[data-facets]')).filter(function(e){
+      return e.style.display==='none'; });
+    printState={open:ds.map(function(d){return d.open;}),hidden:hidden};
+    ds.forEach(function(d){ d.open=true; });
+    hidden.forEach(function(e){ e.style.display=''; });
+  });
+  window.addEventListener('afterprint',function(){
+    if(!printState) return;
+    var ds=[].slice.call(document.querySelectorAll('details.dos'));
+    ds.forEach(function(d,i){ d.open=printState.open[i]; });
+    printState.hidden.forEach(function(e){ e.style.display='none'; });
+    printState=null;
+  });
+  // reading progress
+  var bar=document.getElementById('prog');
+  function onScroll(){
+    var h=document.documentElement.scrollHeight-window.innerHeight;
+    if(bar) bar.style.width = (h>0 ? (window.scrollY/h*100) : 0)+'%';
+  }
+  window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+  // active nav
+  var links=[].slice.call(document.querySelectorAll('.side nav a[href^="#"]'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));});
+  var obs=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting) return;
+      links.forEach(function(l){l.classList.remove('on');});
+      var i=secs.indexOf(e.target);
+      if(i>=0) links[i].classList.add('on');
+    });
+  },{rootMargin:'-8% 0px -80% 0px',threshold:0});
+  secs.forEach(function(s){ if(s) obs.observe(s); });
+
+  // ---- filterable collections ----
+  document.querySelectorAll('[data-filter-scope]').forEach(function(scope){
+    var q=scope.querySelector('input[type=search]');
+    var chips=[].slice.call(scope.querySelectorAll('.chip'));
+    var items=[].slice.call(scope.querySelectorAll('[data-facets]'));
+    var counter=scope.querySelector('.count');
+    var active={};
+    function apply(){
+      var term=(q&&q.value||'').toLowerCase().trim();
+      var shown=0;
+      items.forEach(function(it){
+        var facets=(it.getAttribute('data-facets')||'').toLowerCase();
+        var text=(it.getAttribute('data-text')||it.textContent||'').toLowerCase();
+        var ok=true;
+        for(var g in active){
+          if(active[g] && facets.indexOf(g+':'+active[g])<0){ ok=false; break; }
+        }
+        if(ok && term && text.indexOf(term)<0) ok=false;
+        it.style.display = ok ? '' : 'none';
+        if(ok) shown++;
+      });
+      if(counter) counter.textContent = shown+' of '+items.length+' shown';
+    }
+    chips.forEach(function(c){
+      c.addEventListener('click',function(){
+        var g=c.getAttribute('data-group'), v=c.getAttribute('data-val');
+        if(active[g]===v){ active[g]=null; c.classList.remove('on'); }
+        else{
+          chips.forEach(function(o){ if(o.getAttribute('data-group')===g) o.classList.remove('on'); });
+          active[g]=v; c.classList.add('on');
+        }
+        apply();
+      });
+    });
+    q && q.addEventListener('input',apply);
+    apply();
+  });
+
+  // ---- sortable tables ----
+  document.querySelectorAll('table[data-sortable]').forEach(function(tb){
+    tb.querySelectorAll('th').forEach(function(th,idx){
+      th.classList.add('sortable');
+      th.setAttribute('tabindex','0');
+      th.setAttribute('role','columnheader');
+      th.setAttribute('aria-sort','none');
+      var dir=1;
+      th.addEventListener('keydown',function(e){
+        if(e.key==='Enter'||e.key===' '){ e.preventDefault(); th.click(); }
+      });
+      th.addEventListener('click',function(){
+        tb.querySelectorAll('th').forEach(function(o){ o.setAttribute('aria-sort','none'); });
+        th.setAttribute('aria-sort', dir===1?'ascending':'descending');
+        var body=tb.tBodies[0];
+        var rows=[].slice.call(body.rows);
+        rows.sort(function(a,b){
+          var x=(a.cells[idx].getAttribute('data-sort')||a.cells[idx].textContent).trim();
+          var y=(b.cells[idx].getAttribute('data-sort')||b.cells[idx].textContent).trim();
+          var nx=parseFloat(x), ny=parseFloat(y);
+          if(!isNaN(nx)&&!isNaN(ny)) return (nx-ny)*dir;
+          return x.localeCompare(y)*dir;
+        });
+        rows.forEach(function(r){ body.appendChild(r); });
+        dir=-dir;
+      });
+    });
+  });
+})();
+</script></body></html>

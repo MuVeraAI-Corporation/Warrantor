@@ -1,0 +1,199 @@
+{
+  "paths": [
+    "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\html\\blog-series\\index.html",
+    "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\html\\blog-series\\01-verifiable-agent-authority.html",
+    "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\html\\blog-series\\02-runtime-containment-kill-switch.html",
+    "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\html\\blog-series\\03-confidential-gpu-attestation.html",
+    "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\html\\blog-series\\04-ai-supply-chain-sbom-lightwell.html",
+    "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\html\\blog-series\\05-evidence-plane-aar-ocsf.html",
+    "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\html\\blog-series\\06-eval-redteam-veb-conformance.html",
+    "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\html\\blog-series\\07-inference-mcp-a2a-delegation.html",
+    "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\html\\blog-series\\08-federated-edge-sovereign-stack.html"
+  ],
+  "articles": [
+    {
+      "file": "01-verifiable-agent-authority.html",
+      "title": "Verifiable Agent Authority: Envelopes, Budgets, and Workload Identity",
+      "visuals": 3,
+      "citations": 8,
+      "ids": [
+        "T1",
+        "T2",
+        "I1",
+        "I2",
+        "R4",
+        "R5",
+        "R6",
+        "P1",
+        "P7",
+        "P12"
+      ],
+      "bytes": 17511,
+      "body_chars": 12016
+    },
+    {
+      "file": "02-runtime-containment-kill-switch.html",
+      "title": "Runtime Containment: OpenShell, Kill Switches, and eBPF Egress",
+      "visuals": 2,
+      "citations": 8,
+      "ids": [
+        "R1",
+        "R2",
+        "R3",
+        "R7",
+        "R8",
+        "S6",
+        "X2",
+        "P1",
+        "P7",
+        "P12"
+      ],
+      "bytes": 12795,
+      "body_chars": 7376
+    },
+    {
+      "file": "03-confidential-gpu-attestation.html",
+      "title": "Confidential GPUs: Attestation, NRAS, and Composite TEE Pipelines",
+      "visuals": 2,
+      "citations": 5,
+      "ids": [
+        "C1-1",
+        "C1-2",
+        "C1-3",
+        "C1-4",
+        "C1-5",
+        "N4",
+        "P12"
+      ],
+      "bytes": 10623,
+      "body_chars": 6015
+    },
+    {
+      "file": "04-ai-supply-chain-sbom-lightwell.html",
+      "title": "AI Supply Chain Integrity: Safetensors++, ML-BOM, Sigstore, Lightwell",
+      "visuals": 3,
+      "citations": 10,
+      "ids": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S7",
+        "S8",
+        "S9",
+        "T1",
+        "P5",
+        "P6",
+        "P11"
+      ],
+      "bytes": 13255,
+      "body_chars": 7216
+    },
+    {
+      "file": "05-evidence-plane-aar-ocsf.html",
+      "title": "The Evidence Plane: Action Receipts, Provenance Graphs, and Incident Exchange",
+      "visuals": 3,
+      "citations": 8,
+      "ids": [
+        "E1",
+        "X9",
+        "X2",
+        "P2",
+        "P3",
+        "P4",
+        "P9"
+      ],
+      "bytes": 12107,
+      "body_chars": 6901
+    },
+    {
+      "file": "06-eval-redteam-veb-conformance.html",
+      "title": "Evaluation as Evidence: garak, PyRIT, VEB, and Conformance Suites",
+      "visuals": 2,
+      "citations": 10,
+      "ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "X5",
+        "X6",
+        "P8"
+      ],
+      "bytes": 12101,
+      "body_chars": 6152
+    },
+    {
+      "file": "07-inference-mcp-a2a-delegation.html",
+      "title": "Inference Gateways and Multi-Agent Protocols: MCP, A2A, MADE",
+      "visuals": 2,
+      "citations": 9,
+      "ids": [
+        "N1",
+        "N2",
+        "N3",
+        "N4",
+        "X8",
+        "I1",
+        "P5",
+        "P10",
+        "P1"
+      ],
+      "bytes": 11880,
+      "body_chars": 6348
+    },
+    {
+      "file": "08-federated-edge-sovereign-stack.html",
+      "title": "Federated Training, Edge Attestation, and the Sovereign Bundle",
+      "visuals": 2,
+      "citations": 10,
+      "ids": [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "X1",
+        "X3",
+        "X4",
+        "X7",
+        "X10",
+        "X11",
+        "P3",
+        "P11"
+      ],
+      "bytes": 12332,
+      "body_chars": 6365
+    }
+  ],
+  "protocols_mapped": [
+    "P1",
+    "P10",
+    "P11",
+    "P12",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "P7",
+    "P8",
+    "P9"
+  ],
+  "clusters_mapped": [
+    "confidential",
+    "eval",
+    "evidence",
+    "federated_crosscut",
+    "inference_multiagent",
+    "runtime",
+    "supply",
+    "trust_identity"
+  ],
+  "protocol_count": 12,
+  "cluster_count": 8
+}

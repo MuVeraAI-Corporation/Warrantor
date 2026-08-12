@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Evidence Plane: Action Receipts, Provenance Graphs, and Incident Exchange · AumOS Blog Series</title>
+  <link rel="stylesheet" href="blog-series.css">
+</head>
+<body>
+<div class="container">
+  <div class="series-bar">
+    <a href="index.html">← Series index</a>
+    <span class="series-pill">AumOS · Open Authority &amp; Evidence Stack</span>
+    <span>Local technical essay · 2026</span>
+  </div>
+
+  <header class="article-header">
+    <div class="article-eyebrow">Essay 5 of 8 · Evidence</div>
+    <h1>The Evidence Plane: Action Receipts, Provenance Graphs, and Incident Exchange</h1>
+    <p class="article-authors">AumOS Engineering Essays · Open Secure AI Alliance portfolio</p>
+    <p class="article-affil">If you cannot produce a signed receipt for what the agent did, you do not have governance—you have vibes. AAR, OTel GenAI, OCSF, ATLAS.</p>
+    <div class="article-meta">
+      <div class="meta-item"><span class="meta-label">Maps to</span><span class="meta-value"><span class="id-chip" data-aumos-id="E1">E1</span> <span class="id-chip" data-aumos-id="X9">X9</span> <span class="id-chip" data-aumos-id="X2">X2</span> <span class="id-chip protocol" data-aumos-id="P2">P2</span> <span class="id-chip protocol" data-aumos-id="P3">P3</span> <span class="id-chip protocol" data-aumos-id="P4">P4</span> <span class="id-chip protocol" data-aumos-id="P9">P9</span></span></div>
+      <div class="meta-item"><span class="meta-label">Pipeline</span><span class="meta-value">Research → draft → visuals → adversarial review → fix</span></div>
+      <div class="meta-item"><span class="meta-label">Citations</span><span class="meta-value">Primary RFCs / eng blogs / standards</span></div>
+    </div>
+    <nav class="article-nav"><a href="04-ai-supply-chain-sbom-lightwell.html">← Essay 04</a><span></span><a href="06-eval-redteam-veb-conformance.html">Essay 06 →</a></nav>
+  </header>
+
+
+  <div class="abstract">
+    <span class="abstract-label">Thesis</span>
+    <p>Logs are not evidence. Evidence is signed, audience-aware, retention-scoped, and mappable to incident taxonomies. AumOS evidence plane centers on <span class="id-chip">E1</span> flight-recorder emitting <span class="id-chip protocol">P2</span> AAR, with context/memory integrity (<span class="id-chip protocol">P3</span>/<span class="id-chip protocol">P4</span>) and incident exchange (<span class="id-chip protocol">P9</span> / <span class="id-chip">X9</span>).</p>
+  </div>
+  <div class="toc"><div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#gap">From telemetry to evidence</a></li>
+    <li><a href="#aar">Agent Action Receipt</a></li>
+    <li><a href="#prov">Context &amp; memory integrity</a></li>
+    <li><a href="#inc">Incident exchange</a></li>
+    <li><a href="#map">Mapping table</a></li>
+  </ol></div>
+
+  <h2 id="gap">1. From telemetry to evidence</h2>
+  <p>OpenTelemetry’s GenAI observability work standardizes spans for agents<sup><a href="#refs">[1]</a></sup>. OWASP AOS pushes agent-specific trace semantics and OCSF extensions<sup><a href="#refs">[2,3]</a></sup>. That is necessary transport. AumOS adds cryptographic receipts: COSE-signed action records<sup><a href="#refs">[7]</a></sup> with transparency-log DNA<sup><a href="#refs">[8]</a></sup>.</p>
+
+  <div class="visual" data-visual="evidence-flow">
+    <div class="visual-caption">Figure 1 — Action → receipt → incident</div>
+    <svg viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
+      <rect width="800" height="200" fill="#f8f6f2"/>
+      <rect x="30" y="60" width="150" height="70" rx="8" fill="#fff" stroke="#d97757" stroke-width="2"/>
+      <text x="105" y="95" text-anchor="middle" font-size="13" font-family="Georgia,serif">Agent action</text>
+      <text x="105" y="112" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">tool / model I/O</text>
+      <path d="M180 95 H220" stroke="#d97757" stroke-width="2"/>
+      <rect x="220" y="60" width="150" height="70" rx="8" fill="#fff" stroke="#555188" stroke-width="2"/>
+      <text x="295" y="95" text-anchor="middle" font-size="13" font-family="Georgia,serif">E1 recorder</text>
+      <text x="295" y="112" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">sign AAR (P2)</text>
+      <path d="M370 95 H410" stroke="#555188" stroke-width="2"/>
+      <rect x="410" y="60" width="150" height="70" rx="8" fill="#fff" stroke="#4a6fa5" stroke-width="2"/>
+      <text x="485" y="95" text-anchor="middle" font-size="13" font-family="Georgia,serif">OTel + store</text>
+      <text x="485" y="112" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">spans + receipt</text>
+      <path d="M560 95 H600" stroke="#4a6fa5" stroke-width="2"/>
+      <rect x="600" y="60" width="170" height="70" rx="8" fill="#fff" stroke="#b94a48" stroke-width="2"/>
+      <text x="685" y="95" text-anchor="middle" font-size="13" font-family="Georgia,serif">X9 / P9 AIX</text>
+      <text x="685" y="112" text-anchor="middle" font-size="10" font-family="monospace" fill="#737373">OCSF + ATLAS</text>
+    </svg>
+  </div>
+
+  <h2 id="aar">2. Agent Action Receipt</h2>
+  <p><span class="id-chip protocol">P2</span> AAR binds: who (AAE ref), what (tool/args hash), when, decision (allow/deny), policy version, and CAP snapshot. <span class="id-chip">E1</span> flight-recorder is the emitter; NOOA audit streamers (<span class="id-chip">X2</span>) can forward without becoming dual verifiers—T1 remains signature authority.</p>
+
+  <div class="visual" data-visual="aar-fields">
+    <div class="visual-caption">Figure 2 — AAR field map</div>
+    <div class="field-map">
+      <div class="field"><div class="fname">aae_jti</div><div class="fdesc">Link to authority envelope</div></div>
+      <div class="field"><div class="fname">action</div><div class="fdesc">Normalized tool/API name</div></div>
+      <div class="field"><div class="fname">input_hash</div><div class="fdesc">Hash of args (no raw secrets)</div></div>
+      <div class="field"><div class="fname">outcome</div><div class="fdesc">allow / deny / error</div></div>
+      <div class="field"><div class="fname">policy_id</div><div class="fdesc">Cedar/OPA policy version</div></div>
+      <div class="field"><div class="fname">ts / sig</div><div class="fdesc">Timestamp + COSE sig</div></div>
+    </div>
+  </div>
+
+  <h2 id="prov">3. Context &amp; memory integrity</h2>
+  <div class="callout warning">
+    <div class="callout-title">AumOS-native (P3 / P4)</div>
+    <p><span class="id-chip protocol">P3</span> CPE and <span class="id-chip protocol">P4</span> AMIL are AumOS compositions. Foundations: W3C PROV<sup><a href="#refs">[6]</a></sup> and Merkle transparency designs<sup><a href="#refs">[8]</a></sup>—not identical public standards under those names.</p>
+  </div>
+  <p><strong>CPE sketch:</strong> each retrieved chunk carries <code>source_uri</code>, content hash, ranker id, and policy tags (PII class). The agent’s context window is then a PROV-style derivation graph: query → retrieval set → prompt assembly → model call. Without CPE, RAG poisoning is untraceable.</p>
+  <p><strong>AMIL sketch:</strong> memory write ops append <code>(prev_root, op_hash, ts, sig)</code>. Fork/merge of agent memory requires explicit root compare—silent overwrite is a deny. “Agent forgot” becomes a ledger question, not a vibe.</p>
+
+  <h2 id="inc">4. Incident exchange</h2>
+  <p><span class="id-chip">X9</span> + <span class="id-chip protocol">P9</span> normalize agent incidents onto OCSF classes<sup><a href="#refs">[4]</a></sup> with MITRE ATLAS technique tags<sup><a href="#refs">[5]</a></sup>. That enables SIEM federation without inventing a proprietary JSON every vendor ignores. Minimum AIX fields: severity, technique ids, linked AAR jtis, affected tenants, and share boundary (internal vs ISA). Retention and redaction are first-class—DPDP and sectoral rules will punish “store full prompts forever.”</p>
+
+  <h2 id="map">5. Mapping table</h2>
+  <div class="visual" data-visual="map-table">
+    <div class="visual-caption">Table 1 — Evidence surfaces</div>
+    <table>
+      <thead><tr><th>Protocol</th><th>Purpose</th><th>Primary consumers</th></tr></thead>
+      <tbody>
+        <tr><td>P2 AAR</td><td>Signed action receipt</td><td>E1, X2, auditors</td></tr>
+        <tr><td>P3 CPE</td><td>Context provenance</td><td>RAG / memory systems</td></tr>
+        <tr><td>P4 AMIL</td><td>Memory integrity ledger</td><td>Long-running agents</td></tr>
+        <tr><td>P9 AIX</td><td>Incident exchange</td><td>X9, SOC, R3</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>Implications:</strong> Instrument with OTel GenAI conventions, seal with AAR, normalize incidents with OCSF+ATLAS, and refuse dashboards that cannot show a signed receipt for a denied tool call.</p>
+
+
+  <section class="refs" id="refs">
+    <h2>References (primary sources)</h2>
+    <ol>
+      <li class="cite" data-cite-url="https://opentelemetry.io/blog/2025/ai-agent-observability/"><strong>AI Agent Observability — OpenTelemetry Blog</strong> — OpenTelemetry. <a href="https://opentelemetry.io/blog/2025/ai-agent-observability/" rel="noopener noreferrer" target="_blank">https://opentelemetry.io/blog/2025/ai-agent-observability/</a></li>
+      <li class="cite" data-cite-url="https://owasp.github.io/www-project-agent-observability-standard/spec/trace/"><strong>OWASP Agent Observability Standard — Trace</strong> — OWASP. <a href="https://owasp.github.io/www-project-agent-observability-standard/spec/trace/" rel="noopener noreferrer" target="_blank">https://owasp.github.io/www-project-agent-observability-standard/spec/trace/</a></li>
+      <li class="cite" data-cite-url="https://owasp.github.io/www-project-agent-observability-standard/spec/trace/extend_ocsf/"><strong>AOS Trace extend OCSF</strong> — OWASP. <a href="https://owasp.github.io/www-project-agent-observability-standard/spec/trace/extend_ocsf/" rel="noopener noreferrer" target="_blank">https://owasp.github.io/www-project-agent-observability-standard/spec/trace/extend_ocsf/</a></li>
+      <li class="cite" data-cite-url="https://schema.ocsf.io/"><strong>OCSF Schema</strong> — OCSF Project. <a href="https://schema.ocsf.io/" rel="noopener noreferrer" target="_blank">https://schema.ocsf.io/</a></li>
+      <li class="cite" data-cite-url="https://atlas.mitre.org/"><strong>MITRE ATLAS</strong> — MITRE. <a href="https://atlas.mitre.org/" rel="noopener noreferrer" target="_blank">https://atlas.mitre.org/</a></li>
+      <li class="cite" data-cite-url="https://www.w3.org/TR/prov-overview/"><strong>W3C PROV Overview</strong> — W3C. <a href="https://www.w3.org/TR/prov-overview/" rel="noopener noreferrer" target="_blank">https://www.w3.org/TR/prov-overview/</a></li>
+      <li class="cite" data-cite-url="https://www.rfc-editor.org/rfc/rfc9052.html"><strong>RFC 9052 — COSE</strong> — IETF. <a href="https://www.rfc-editor.org/rfc/rfc9052.html" rel="noopener noreferrer" target="_blank">https://www.rfc-editor.org/rfc/rfc9052.html</a></li>
+      <li class="cite" data-cite-url="https://www.rfc-editor.org/rfc/rfc6962.html"><strong>RFC 6962 — Certificate Transparency</strong> — IETF. <a href="https://www.rfc-editor.org/rfc/rfc6962.html" rel="noopener noreferrer" target="_blank">https://www.rfc-editor.org/rfc/rfc6962.html</a></li>
+    </ol>
+  </section>
+
+  <footer style="margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);font-size:0.85rem;color:var(--text-tertiary);">
+    <p>Local in-repo deliverable. Not a hosted artifact. Series plan: <code>meta/phase-plan.md</code>.</p>
+    <p><a href="04-ai-supply-chain-sbom-lightwell.html">← Essay 04</a><span></span><a href="06-eval-redteam-veb-conformance.html">Essay 06 →</a></p>
+  </footer>
+</div>
+</body>
+</html>

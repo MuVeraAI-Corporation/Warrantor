@@ -500,7 +500,7 @@ table.contrib .effort-high { color: var(--red); font-weight: 600; }
   <div class="rm-title">kill-switch</div>
   <div class="rm-path">rust/kill-switch/</div>
   <div class="rm-status"><span class="pill v1">v1.0 shipped</span><span class="pill critfix">compliance fix pending (C7)</span><span class="pill critfix">high fix pending (H8)</span></div>
-  <p>Three-layer (policy / decision / execution) agent termination pipeline that completes in under 5 seconds. Includes the Government Compliance API surface for the AI Kill Switch Act (H.R. 2026).</p>
+  <p>Three-layer (policy / decision / execution) agent termination pipeline that completes in under 5 seconds. Includes the Government Compliance API surface for the AI Kill Switch Act (H.R. 9917).</p>
   <div class="rm-milestones">
     <div class="rm-q">Q3 2026</div><div class="rm-body">Shipped at v1.0 with 9 tests. <span class="crit">Compliance break C7:</span> <code>notify_government_api</code> returns <code>confirmed: true</code> without making any HTTP call &mdash; the worst possible stub, because it reports compliance that did not happen. <span class="crit">H8:</span> the &lt;5s budget is enforced <em>after</em> work completes, not as a deadline &mdash; a runaway handler can overrun.</div>
     <div class="rm-q">Q4 2026</div><div class="rm-body"><strong>v1.1.</strong> Return <code>confirmed: false</code> (or a <code>NotImplemented</code> error) until the real government endpoint exists. Convert the budget into a hard <code>tokio::time::deadline</code> that cancels downstream work at 5s. Add a chaos test that injects a 10s handler and asserts the switch still completes in &lt;5s.</div>

@@ -18,7 +18,7 @@ serde_json = "1"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand = "0.8"
 prost-types = "0.13"
-warrantor-api = { path = "../warrantor-api" }
+warrantor-api = { path = "../warrantor-api", version = "1.0.0" }
 
 [dev-dependencies]
 proptest = "1"
