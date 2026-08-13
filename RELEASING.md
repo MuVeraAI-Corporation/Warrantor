@@ -184,10 +184,17 @@ produces a Windows NSIS installer, a macOS dmg for arm64 and x64, and a Linux Ap
 **unsigned**. Nothing here is irreversible the way a registry publish is, but a tag burns a version
 number in the artifact names, so rehearse first.
 
-1. **Run the workflow by `workflow_dispatch` with `dry_run` left true, on the branch, before
-   tagging.** This is the only place `npm ci` in `desktop/` ever runs, and neither the workflow YAML
-   nor the regenerated lockfile is exercised anywhere else — CI's `desktop` job deliberately
-   installs nothing. Confirm all four legs upload artifacts.
+1. **Run the workflow by `workflow_dispatch` with `dry_run` left true, before tagging.** This is the
+   only place `npm ci` in `desktop/` ever runs, and neither the workflow YAML nor the regenerated
+   lockfile is exercised anywhere else — CI's `desktop` job deliberately installs nothing. Confirm
+   all four legs upload artifacts, and read the "Confirm the agent is inside the app" step: the
+   macOS and Linux legs are where an `extraResources` pattern that does not expand would first
+   show up.
+
+   Note the ordering constraint GitHub imposes: **`workflow_dispatch` is only available once the
+   workflow file is on the default branch.** A dispatch against a feature branch returns 404 until
+   then, so the first real exercise of this workflow necessarily happens after the merge and before
+   the tag — which is exactly why it must happen before the tag.
 2. **Confirm `npm audit` was clean in every leg.** RFC W1 makes it a release gate and it is a step
    in the job. If an advisory appears, the fixes are a newer `electron-builder` or a scoped
    `overrides` entry — never `npm audit fix --force`, which moves Electron off the audited pin, and
