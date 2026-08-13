@@ -54,6 +54,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ._canonical import sha256_file
 from .benchmark_wildguard import PARSE_FAILURE_MARKER, slice_summary
 from .evaluate import (
     DEFAULT_OLLAMA_ENDPOINT,
@@ -74,6 +75,7 @@ __all__ = [
     "EXPGUARD_TEST_FILE",
     "EXPGUARD_TEST_REPO",
     "ExpGuardRow",
+    "build_eval_set_descriptor",
     "build_parser",
     "describe_corpus",
     "domain_comparison",
@@ -564,6 +566,41 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def build_eval_set_descriptor(
+    path: Path,
+    rows: Sequence[ExpGuardRow],
+    selected: Sequence[ExpGuardRow],
+    dropped: Sequence[str],
+    sample_size: int | None,
+    seed: int,
+) -> dict[str, Any]:
+    """The ``eval_set`` block written into the result document.
+
+    Same contract as ``benchmark_wildguard.build_eval_set_descriptor``, and it matters more here.
+    ``source`` is the only thing that tells the parity gate this document was scored on
+    ExpGuardTest -- every guard recipe declares the WildGuardTest baseline, and without the
+    binding an ExpGuard recall figure was compared against WildGuard numbers and promoted.
+    ``digest`` is the SHA-256 of the split file, so the decision can be re-audited against the
+    exact bytes it was scored on.
+    """
+
+    return {
+        "source": f"{EXPGUARD_TEST_REPO}:{EXPGUARD_TEST_FILE}",
+        "digest": sha256_file(path),
+        "local_path": str(path),
+        "task": "prompt_label (prompt harmfulness)",
+        "rows_in_split": len(rows),
+        "rows_selected": len(selected),
+        "rows_dropped_unlabelled": len(dropped),
+        "dropped_ids": list(dropped),
+        "sampling": (
+            f"deterministic stratified by (domain, prompt_label), size={sample_size}, seed={seed}"
+            if sample_size
+            else "full split, no sampling"
+        ),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point: inspect the schema, evaluate, break down by domain, report."""
 
@@ -601,21 +638,9 @@ def main(argv: list[str] | None = None) -> int:
         backend,
         seed=arguments.seed,
         fail_closed=True,
-        eval_set_descriptor={
-            "source": f"{EXPGUARD_TEST_REPO}:{EXPGUARD_TEST_FILE}",
-            "local_path": str(path),
-            "task": "prompt_label (prompt harmfulness)",
-            "rows_in_split": len(rows),
-            "rows_selected": len(selected),
-            "rows_dropped_unlabelled": len(dropped),
-            "dropped_ids": list(dropped),
-            "sampling": (
-                f"deterministic stratified by (domain, prompt_label), size="
-                f"{arguments.sample_size}, seed={arguments.seed}"
-                if arguments.sample_size
-                else "full split, no sampling"
-            ),
-        },
+        eval_set_descriptor=build_eval_set_descriptor(
+            path, rows, selected, dropped, arguments.sample_size, arguments.seed
+        ),
     )
     breakdowns = _breakdowns(result, rows_by_id)
     header = {

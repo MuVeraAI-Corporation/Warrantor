@@ -7,8 +7,13 @@ testable on the CI box exactly as it runs on the eval box.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from warrantor_ml import benchmark_wildguard as bw
+from warrantor_ml._canonical import is_wellformed_digest, sha256_file
+from warrantor_ml.baselines import get_baseline
 from warrantor_ml.evaluate import SampleOutcome
+from warrantor_ml.parity import corpus_digest_of
 
 
 def _row(
@@ -289,3 +294,40 @@ class _FakeResult:
 
     def __init__(self, outcomes: tuple[SampleOutcome, ...]) -> None:
         self.outcomes = outcomes
+
+
+# ── the eval-set descriptor is what pins a decision to its evidence ─────────────────────
+
+
+def test_the_eval_set_descriptor_carries_a_digest_of_the_split_it_scored(tmp_path: Path) -> None:
+    """`parity.load_candidate_result` reads `eval_set.digest`, and this module never wrote it.
+
+    Only the generic `evaluate.py` CLI added the key, so every document this benchmark produced
+    left it absent and every parity decision recorded `eval_set_digest: ""` -- the field sold as
+    pinning a promotion to the evidence behind it.
+    """
+
+    parquet = tmp_path / "wildguard_test.parquet"
+    parquet.write_bytes(b"bytes are enough to have a digest")
+    descriptor = bw.build_eval_set_descriptor(parquet, range(1725), range(1699), ["a", "b"])
+
+    assert descriptor["digest"] == sha256_file(parquet)
+    assert is_wellformed_digest(descriptor["digest"])
+    assert descriptor["rows_in_split"] == 1725
+    assert descriptor["rows_dropped_null_label"] == 2
+
+
+def test_the_eval_set_descriptor_names_the_corpus_the_parity_gate_binds_against(
+    tmp_path: Path,
+) -> None:
+    """`source` is what stops an ExpGuardTest result being scored against this baseline."""
+
+    parquet = tmp_path / "wildguard_test.parquet"
+    parquet.write_bytes(b"x")
+    descriptor = bw.build_eval_set_descriptor(parquet, [], [], [])
+
+    assert descriptor["source"] == f"{bw.WILDGUARD_TEST_REPO}:{bw.WILDGUARD_TEST_FILE}"
+    assert (
+        corpus_digest_of(descriptor["source"])
+        == get_baseline("wildguardtest-qwen3guard-gen-4b").corpus_digest
+    )

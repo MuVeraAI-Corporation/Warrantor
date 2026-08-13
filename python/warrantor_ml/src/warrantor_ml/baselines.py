@@ -30,8 +30,41 @@ __all__ = [
     "BASELINES",
     "BaselineSlice",
     "MeasuredBaseline",
+    "eval_corpus_digest",
     "get_baseline",
+    "normalise_category",
 ]
+
+
+def eval_corpus_digest(corpus: str, split: str) -> str:
+    """Digest over the IDENTITY of an eval corpus: which dataset, which split file.
+
+    This is what binds a candidate result document to the baseline it is compared against. It is
+    an identity digest, not a content digest, because these baselines were transcribed from a
+    published report rather than recomputed from a file we hold -- there is no parquet checksum
+    to compare against. The content digest of the actual file lives in the result document's
+    ``eval_set.digest`` and is carried into the decision record separately.
+
+    The failure it prevents is concrete: every guard recipe declares the WildGuardTest baseline,
+    while the parity CLI's ``--breakdown-key`` will happily read an ExpGuardTest result
+    document. Without this, ExpGuard recall gets scored against the WildGuard baseline and the
+    decision record names the wrong corpus on its own face.
+    """
+
+    return sha256_text(canonical_json({"corpus": corpus.strip(), "split": split.strip()}))
+
+
+def normalise_category(name: str) -> str:
+    """Fold a harm-category spelling to the form two vocabularies can be compared in.
+
+    The WildGuard subcategory vocabulary uses lowercase underscores
+    (``fraud_assisting_illegal_activities``) and the ExpGuard prompt-category vocabulary uses
+    spaced title case (``Unqualified Professional Advice``). Both are load-bearing spellings of
+    a measured weakness. An exact dict lookup across them finds nothing, and "found nothing"
+    reads exactly like "the floor was cleared" to a gate that does not distinguish them.
+    """
+
+    return " ".join(name.strip().lower().replace("_", " ").split())
 
 
 @dataclass(frozen=True)
@@ -99,6 +132,32 @@ class MeasuredBaseline:
     per_category_recall: dict[str, float] = field(default_factory=dict)
     source: str = "ml/README.md"
     notes: tuple[str, ...] = ()
+    #: Set when a promotion against this baseline is a quality verdict only. Carried as DATA
+    #: rather than inferred from the baseline id, because a prefix test on an identifier is a
+    #: guess about a licence, and a licence constraint that depends on a naming convention stops
+    #: holding the moment somebody adds a second ExpGuard-derived baseline under another name.
+    commercial_clearance: str = ""
+
+    @property
+    def corpus_digest(self) -> str:
+        """Identity digest of the corpus and split these numbers were measured on."""
+
+        return eval_corpus_digest(self.corpus, self.split)
+
+    @property
+    def normalised_per_category_recall(self) -> dict[str, float]:
+        """The per-category floors keyed on :func:`normalise_category`.
+
+        On a spelling collision the HIGHEST floor wins. A floor is a refusal threshold, so the
+        stricter of two readings is the one that cannot let a regression through as a side effect
+        of folding two vocabularies together.
+        """
+
+        folded: dict[str, float] = {}
+        for name, floor in self.per_category_recall.items():
+            key = normalise_category(name)
+            folded[key] = max(folded[key], floor) if key in folded else floor
+        return folded
 
     def slice(self, name: str) -> BaselineSlice:
         """One slice by name, or a failure naming the slices that exist."""
@@ -121,6 +180,8 @@ class MeasuredBaseline:
             "policy": self.policy,
             "slices": [item.to_dict() for item in self.slices],
             "per_category_recall": dict(sorted(self.per_category_recall.items())),
+            "corpus_digest": self.corpus_digest,
+            "commercial_clearance": self.commercial_clearance,
             "source": self.source,
             "notes": list(self.notes),
         }
@@ -260,6 +321,11 @@ _EXPGUARD = MeasuredBaseline(
         "has no denominator and must return insufficient_evidence rather than a number.",
         "COMMERCIAL USE IS NOT CLEARED. The CC-BY-4.0 licence and the research-only gate form "
         "disagree, and the corpus was GPT-4o-generated upstream.",
+    ),
+    commercial_clearance=(
+        "NOT CLEARED. This baseline is ExpGuardMix-derived: its click-through is narrower "
+        "than its licence and its corpus was frontier-generated upstream. Promotion here "
+        "is a quality verdict only and does not clear the artifact for a shipped pack."
     ),
 )
 

@@ -214,20 +214,30 @@ def parity_main(argv: list[str] | None = None) -> int:
         "--breakdown-key",
         default="wildguard_breakdowns",
         choices=("wildguard_breakdowns", "expguard_breakdowns"),
+        help="which benchmark module produced the result document. Naming the wrong one does "
+        "not silently compare across corpora: the gate binds the document's eval_set.source to "
+        "the baseline's corpus by digest and returns insufficient_evidence when they differ",
     )
     parser.add_argument("--out", type=Path, help="write the decision document here")
     arguments = parser.parse_args(argv)
 
     recipe = get_recipe(arguments.recipe)
-    candidate = load_candidate_result(
-        arguments.result,
-        candidate_id=recipe.recipe_id,
-        baseline_id=recipe.baseline_id,
-        lane=arguments.lane,
-        precision=arguments.precision,
-        manifest_digest=arguments.manifest_digest,
-        breakdown_key=arguments.breakdown_key,
-    )
+    try:
+        candidate = load_candidate_result(
+            arguments.result,
+            candidate_id=recipe.recipe_id,
+            baseline_id=recipe.baseline_id,
+            lane=arguments.lane,
+            precision=arguments.precision,
+            manifest_digest=arguments.manifest_digest,
+            breakdown_key=arguments.breakdown_key,
+        )
+    except ValueError as error:
+        # A document the gate cannot read is evidence it could not evaluate, not a candidate it
+        # rejected. Exit 3, because 1 is reserved for `reject` and a CI job that conflates them
+        # retries the wrong one. The usual cause is --breakdown-key naming the other benchmark.
+        print(f"INSUFFICIENT EVIDENCE\n{error}")
+        return 3
 
     if arguments.training_corpus and arguments.eval_corpus:
         leakage = leakage_report(

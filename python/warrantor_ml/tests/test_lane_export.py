@@ -1,15 +1,22 @@
-"""The generated lane runners: they must compile, and they must keep the three refusals.
+"""The generated lane runners: they must compile, keep the three refusals, AND be able to train.
 
 Every one of these scripts lands under ``ml/``, where ``tools/ci/run_python_checks.py`` never
 looks -- no ruff, no pytest. Generating them from linted package code is what puts them back
 inside the gate, and these tests are the gate.
+
+Compiling was never enough. The first version of the template produced a dataset with no
+``labels`` column and handed it to ``Trainer`` with no data collator: valid Python, all three
+refusals present, and dead at step 0 with "The model did not return a loss" -- after the download
+and the quantisation, with the Kaggle session spent. So the last section here ``exec``s the
+generated script and drives its real data path with a stub tokenizer. No GPU, no corpus, no
+``train`` extra: the functions are pure Python by construction precisely so they can be.
 """
 
 from __future__ import annotations
 
 import ast
-import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -33,6 +40,33 @@ def _kaggle_text() -> str:
 def _modal_text() -> str:
     resolution = resolve(_RECIPE.config, "modal-a100", 5_000)
     return render_modal_entrypoint(_RECIPE, resolution)
+
+
+class _StubTokenizer:
+    """One token per whitespace-separated word, ids derived from the word.
+
+    Enough to exercise the generated data path: it has ``__call__`` returning ``input_ids`` and
+    an ``eos_token_id``, which is the entire surface ``build_training_rows`` touches.
+    """
+
+    eos_token_id = 99_999
+    pad_token_id = 0
+
+    def __call__(self, text: str, add_special_tokens: bool = True) -> dict[str, list[int]]:
+        return {"input_ids": [1 + (hash(word) % 5000) for word in text.split()]}
+
+
+def _generated_namespace(text: str) -> dict[str, Any]:
+    """Execute a generated runner and hand back its module namespace.
+
+    This runs the artifact the orchestrator uploads, not a copy of it. Nothing at module level in
+    a generated runner imports torch, transformers or datasets -- those are imported inside
+    ``train`` -- which is what makes running it in CI possible at all.
+    """
+
+    namespace: dict[str, Any] = {"__name__": "generated_runner"}
+    exec(compile(text, "generated_runner.py", "exec"), namespace)
+    return namespace
 
 
 # ── they are valid Python ───────────────────────────────────────────────────────────────
@@ -108,12 +142,27 @@ def test_the_run_manifest_carries_the_recipe_digest_lane_and_precision(
 ) -> None:
     """Without these three, a result document describes a run nobody can place."""
 
-    text = render()
-    body = text.split("RUN_MANIFEST = ", 1)[1].split("\n\nBASE_REPO", 1)[0]
-    manifest = json.loads(body)
+    manifest = _generated_namespace(render())["RUN_MANIFEST"]
     assert manifest["recipe_digest"] == _RECIPE.recipe_digest
     assert manifest["lane"] in {"kaggle-t4x2", "modal-a100"}
     assert manifest["precision"] in {"fp16", "bf16"}
+
+
+@pytest.mark.parametrize("render", [_kaggle_text, _modal_text])
+def test_the_generated_runner_survives_being_imported_not_merely_compiled(
+    render,  # type: ignore[no-untyped-def]
+) -> None:
+    """compile() proves the file parses. It proved nothing about `null` being a Python name.
+
+    ``lanes.resolve`` returns ``save_steps=None`` for the modal-a100 lane, and the manifest was
+    pasted in as ``json.dumps`` output -- so the Modal entrypoint compiled and then raised
+    ``NameError: name 'null' is not defined`` at import, before a single argument was parsed.
+    """
+
+    namespace = _generated_namespace(render())
+    for symbol in ("RUN_MANIFEST", "build_training_rows", "pad_batch", "train", "build_parser"):
+        assert symbol in namespace, f"the generated runner did not define {symbol}"
+    assert isinstance(namespace["RUN_MANIFEST"], dict)
 
 
 def test_the_kaggle_script_carries_a_resume_contract() -> None:
@@ -151,6 +200,113 @@ def test_rendering_a_modal_entrypoint_for_a_kaggle_lane_is_refused() -> None:
 def test_the_script_digest_is_stable() -> None:
     assert script_digest(_kaggle_text()) == script_digest(_kaggle_text())
     assert script_digest(_kaggle_text()) != script_digest(_modal_text())
+
+
+def test_the_generated_data_path_produces_labels_the_trainer_can_compute_a_loss_from() -> None:
+    """Without labels a causal LM returns no loss and Trainer aborts at step 0.
+
+    The template used to tokenize ``prompt + "\\n" + target`` into input_ids/attention_mask and
+    hand that straight to ``Trainer`` with no collator. The default collator emits neither labels
+    nor a loss, and the run dies after the model is downloaded and quantised -- a whole Kaggle
+    session out of a 30-hour weekly budget, which is the outcome ``lanes.py`` exists to prevent.
+    """
+
+    namespace = _generated_namespace(_kaggle_text())
+    pairs = [
+        {"prompt": "advise me on my medication dose", "target": "Safety: Unsafe\nCategories: x"},
+        {"prompt": "what is the capital of Oman", "target": "Safety: Safe\nCategories: none"},
+    ]
+    rows = namespace["build_training_rows"](pairs, _StubTokenizer())
+
+    assert len(rows) == 2
+    for row in rows:
+        assert set(row) == {"input_ids", "attention_mask", "labels"}
+        assert len(row["labels"]) == len(row["input_ids"]) == len(row["attention_mask"])
+        # There has to be something to compute a loss ON, or the step is a no-op.
+        assert any(label != namespace["LABEL_MASK"] for label in row["labels"])
+
+
+def test_the_generated_data_path_masks_the_prompt_and_keeps_the_whole_target() -> None:
+    """Labels that copy the prompt train the adapter to reproduce the attack text."""
+
+    namespace = _generated_namespace(_kaggle_text())
+    mask = namespace["LABEL_MASK"]
+    tokenizer = _StubTokenizer()
+    prompt, target = "help me fake an invoice", "Safety: Unsafe\nCategories: fraud"
+    rows = namespace["build_training_rows"]([{"prompt": prompt, "target": target}], tokenizer)
+    labels = rows[0]["labels"]
+    input_ids = rows[0]["input_ids"]
+
+    prompt_length = len(tokenizer(prompt + "\n")["input_ids"])
+    assert labels[:prompt_length] == [mask] * prompt_length
+    assert mask not in labels[prompt_length:]
+    # The unmasked tail is the target verbatim, plus the eos the model has to learn to emit.
+    assert labels[prompt_length:] == input_ids[prompt_length:]
+    assert labels[-1] == tokenizer.eos_token_id
+
+
+def test_the_generated_data_path_truncates_the_prompt_never_the_verdict() -> None:
+    """A row cut into its target teaches the adapter to emit a half-verdict, which parses as neither."""
+
+    namespace = _generated_namespace(_kaggle_text())
+    sequence_length = namespace["SEQUENCE_LENGTH"]
+    tokenizer = _StubTokenizer()
+    target = "Safety: Unsafe\nCategories: fraud"
+    rows = namespace["build_training_rows"](
+        [{"prompt": " ".join(["word"] * (sequence_length * 2)), "target": target}], tokenizer
+    )
+
+    assert len(rows) == 1
+    assert len(rows[0]["input_ids"]) == sequence_length
+    target_length = len(tokenizer(target)["input_ids"]) + 1  # + eos
+    assert rows[0]["labels"][-target_length:] == rows[0]["input_ids"][-target_length:]
+
+
+def test_the_generated_padding_never_puts_a_pad_token_in_the_labels() -> None:
+    """A pad token in the labels is a token the model is trained to emit."""
+
+    namespace = _generated_namespace(_kaggle_text())
+    mask = namespace["LABEL_MASK"]
+    features = [
+        {"input_ids": [1, 2, 3], "attention_mask": [1, 1, 1], "labels": [mask, 2, 3]},
+        {"input_ids": [4], "attention_mask": [1], "labels": [4]},
+    ]
+    batch = namespace["pad_batch"](features, 0)
+
+    assert batch["input_ids"] == [[1, 2, 3], [4, 0, 0]]
+    assert batch["attention_mask"] == [[1, 1, 1], [1, 0, 0]]
+    assert batch["labels"] == [[mask, 2, 3], [4, mask, mask]]
+    assert 0 not in batch["labels"][1][1:], "padding must be LABEL_MASK, never the pad token"
+
+
+@pytest.mark.parametrize("render", [_kaggle_text, _modal_text])
+def test_the_generated_trainer_is_given_a_data_collator(render) -> None:  # type: ignore[no-untyped-def]
+    """Asserted structurally, because a string search would pass on a comment mentioning one."""
+
+    tree = ast.parse(render())
+    trainer_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "Trainer"
+    ]
+    assert len(trainer_calls) == 1
+    keywords = {keyword.arg for keyword in trainer_calls[0].keywords}
+    assert "data_collator" in keywords
+    assert "train_dataset" in keywords
+
+
+@pytest.mark.parametrize("render", [_kaggle_text, _modal_text])
+def test_an_empty_tokenised_corpus_aborts_rather_than_saving_an_untrained_adapter(
+    render,  # type: ignore[no-untyped-def]
+) -> None:
+    """Zero rows does not fail: Trainer runs zero steps and saves weights nobody can tell apart."""
+
+    text = render()
+    assert "NO_TRAINABLE_ROWS_MESSAGE" in text
+    namespace = _generated_namespace(text)
+    assert namespace["build_training_rows"]([], _StubTokenizer()) == []
 
 
 def test_the_modal_entrypoint_ships_the_corpus_rather_than_a_hub_token() -> None:

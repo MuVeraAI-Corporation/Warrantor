@@ -453,7 +453,7 @@ python ml/parity.py --result results/candidate.json --recipe guard-4b-adversaria
     --training-corpus corpora/weak.jsonl --eval-corpus eval/wildguard_test.jsonl
 ```
 
-Four things worth knowing before running any of it.
+Six things worth knowing before running any of it.
 
 **`--describe-only` is not a convenience.** The measured weak-class names come from the *test*
 splits. A train split is not obliged to spell them the same way, and a selector written against
@@ -461,9 +461,12 @@ the wrong spelling selects nothing — which looks exactly like a corpus that ha
 The selectors refuse by name rather than returning an empty set, and `--describe-only` is how you
 find out first.
 
-**`--benign-ratio` has no default.** An adapter trained only on the rows the baseline missed buys
-recall with the false-positive rate measured above, and the gate is two-sided precisely so that
-trade is refused. Zero is a legitimate choice; it just has to be written down.
+**`--benign-ratio` has no default, and it is not silently approximated either.** An adapter
+trained only on the rows the baseline missed buys recall with the false-positive rate measured
+above, and the gate is two-sided precisely so that trade is refused. Zero is a legitimate choice;
+it just has to be written down. If the unselected pool cannot supply the benign rows the ratio
+asks for, the build **raises** — it used to return whatever was available, which honoured the
+ratio in the summary JSON and not in the corpus.
 
 **The lane router refuses.** `ml/lanes.py` will not resolve a recipe that does not fit the lane's
 VRAM, or whose estimated wall clock exceeds Kaggle's 12-hour session cap without a
@@ -473,9 +476,22 @@ VRAM, or whose estimated wall clock exceeds Kaggle's 12-hour session cap without
 adapter inherits fp16 loss scaling — and a guard model's product is a calibrated logit. The gate
 records lane and precision on both arms and returns `insufficient_evidence` rather than a delta.
 
+**A cross-*corpus* comparison is refused too.** All four guard recipes name the WildGuardTest
+baseline, and `--breakdown-key` will happily read an ExpGuardTest document — lane and precision
+matching cannot tell the two corpora apart. The gate parses `eval_set.source` back into the
+`(corpus, split)` pair the baseline stores and compares them by digest. Mismatch, or a document
+that does not say, is `insufficient_evidence`.
+
+**A condition the gate cannot evaluate is never a condition it reports as passed.** Two cases,
+both of which used to end in `promote`: a slice with no negatives on either arm cannot support
+the false-positive test (all three ExpGuard per-domain slices are recorded with `negatives=0`, so
+gating on `healthcare` degraded to a one-sided recall gate), and a per-category floor the
+candidate does not report is not a floor that was cleared. Both return `insufficient_evidence`.
+
 `ml/parity.py` exits 0 on `promote`, 1 on `reject` and **3** on `insufficient_evidence`. The
 third is not 1 on purpose: "we could not tell" and "it did not work" call for different next
-actions.
+actions. A recipe with no measured baseline — the four substrate models declare none — exits 3,
+and so does a result document the gate cannot read.
 
 ---
 
@@ -486,7 +502,7 @@ cd python/warrantor_ml && PYTHONPATH=src python -m pytest tests -q
 python tools/ci/run_python_checks.py lint     # 54/54 projects
 ```
 
-528 tests, none of which need a GPU, a download, a Hugging Face token or a running Ollama
+562 tests, none of which need a GPU, a download, a Hugging Face token or a running Ollama
 daemon. The ones that carry the most weight:
 
 - every required AIBOM field is deleted in turn and the builder must name it and refuse;
@@ -498,5 +514,15 @@ daemon. The ones that carry the most weight:
   when its fixture is missing;
 - a candidate with genuinely better recall and a significantly worse false-positive rate is
   **rejected**, because a one-sided gate promotes an adapter that refuses everything;
+- a candidate flagging 900 of 1,000 benign prompts on a slice whose baseline has no negatives is
+  `insufficient_evidence`, not `promote` — the gate refuses to decide rather than answering the
+  weaker question it *can* answer;
+- an ExpGuardTest result document scored against the WildGuardTest baseline every guard recipe
+  declares is refused by corpus digest, through the documented CLI, on its exit code;
+- the generated Kaggle and Modal runners are **executed**, not merely `compile()`d, and their
+  data path is driven with a stub tokenizer: labels exist, the prompt is masked, truncation never
+  cuts the verdict. `compile()` passed on a script that died at step 0 with "The model did not
+  return a loss", and on a Modal entrypoint that raised `NameError: name 'null' is not defined`
+  the moment it was imported;
 - the report summariser refuses a `failed` bundle and an `unknown` one with *different*
   messages, and the `unknown` message contains no accusation.

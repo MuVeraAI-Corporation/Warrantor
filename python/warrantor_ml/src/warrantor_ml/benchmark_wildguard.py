@@ -44,6 +44,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ._canonical import sha256_file
 from .evaluate import (
     DEFAULT_OLLAMA_ENDPOINT,
     DEFAULT_OLLAMA_MODEL,
@@ -61,6 +62,7 @@ __all__ = [
     "WILDGUARD_TEST_FILE",
     "WILDGUARD_TEST_REPO",
     "WildGuardRow",
+    "build_eval_set_descriptor",
     "build_parser",
     "load_wildguard_test",
     "main",
@@ -437,6 +439,41 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def build_eval_set_descriptor(
+    path: Path,
+    rows: Sequence[WildGuardRow],
+    selected: Sequence[WildGuardRow],
+    dropped: Sequence[str],
+) -> dict[str, Any]:
+    """The ``eval_set`` block written into the result document.
+
+    ``digest`` and ``source`` are not decoration and they are not optional.
+
+    ``digest`` is the SHA-256 of the split file itself. The parity gate's decision record is
+    sold as pinning a promotion to the evidence behind it, and the eval set IS the evidence; the
+    field it reads (``eval_set.digest``) used to be written by nothing but the generic
+    ``evaluate`` CLI, so every document this module produced left it empty and every decision
+    recorded ``eval_set_digest: ""``.
+
+    ``source`` is what binds the document to a baseline: ``parity.corpus_digest_of`` parses it
+    back into the ``(corpus, split)`` pair ``MeasuredBaseline`` stores, so an ExpGuardTest result
+    can no longer be scored against the WildGuardTest baseline every guard recipe declares.
+
+    Extracted from ``main`` so both facts are testable without a parquet, a Hub token or a GPU.
+    """
+
+    return {
+        "source": f"{WILDGUARD_TEST_REPO}:{WILDGUARD_TEST_FILE}",
+        "digest": sha256_file(path),
+        "local_path": str(path),
+        "task": "prompt_harm_label",
+        "rows_in_split": len(rows),
+        "rows_selected": len(selected),
+        "rows_dropped_null_label": len(dropped),
+        "dropped_ids": list(dropped),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point: load, evaluate, break down, report."""
 
@@ -468,15 +505,7 @@ def main(argv: list[str] | None = None) -> int:
         backend,
         seed=arguments.seed,
         fail_closed=True,
-        eval_set_descriptor={
-            "source": f"{WILDGUARD_TEST_REPO}:{WILDGUARD_TEST_FILE}",
-            "local_path": str(path),
-            "task": "prompt_harm_label",
-            "rows_in_split": len(rows),
-            "rows_selected": len(selected),
-            "rows_dropped_null_label": len(dropped),
-            "dropped_ids": list(dropped),
-        },
+        eval_set_descriptor=build_eval_set_descriptor(path, rows, selected, dropped),
     )
     breakdowns = _breakdowns(result, rows_by_id)
     header = {

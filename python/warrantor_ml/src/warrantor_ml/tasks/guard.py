@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import Any
 
 from .._canonical import canonical_json, sha256_text
+from ..baselines import normalise_category
 from ..evaluate import parse_guard_response
 
 __all__ = [
@@ -280,12 +281,14 @@ def _matches_category(row: GuardCorpusRow, category: str) -> bool:
     (``fraud_assisting_illegal_activities``) and the ExpGuard prompt-category vocabulary uses
     spaces and title case (``Unqualified Professional Advice``). Both are load-bearing spellings
     of a measured weakness, so the match normalises rather than picking one.
+
+    The rule lives in :func:`warrantor_ml.baselines.normalise_category` and is imported rather
+    than restated. The parity gate had its own exact-match lookup over the same two vocabularies,
+    which meant the floor protecting the single measured weak class never matched anything --
+    two normalisations that can disagree are worse than one in the wrong place.
     """
 
-    def normalise(value: str) -> str:
-        return value.strip().lower().replace("_", " ")
-
-    return normalise(row.subcategory) == normalise(category)
+    return normalise_category(row.subcategory) == normalise_category(category)
 
 
 def build_guard_pairs(
@@ -338,6 +341,16 @@ def _counterweight(
     from the same corpus rather than a re-labelling of the positives. Seeded and sorted so the
     same ``(seed, ratio)`` always yields the same corpus, which is what makes a recipe digest
     mean anything.
+
+    Raises:
+        MissingCorpusFieldError: the pool cannot supply the requested benign rows. It used to
+            return whatever was available -- including nothing -- and the shortfall was visible
+            only as a smaller ``benign_counterweight`` number in ``build_corpus``'s summary JSON.
+            ``benign_ratio`` is given no default across two selectors and a CLI flag precisely so
+            it cannot be forgotten; a ratio that is silently not honoured is the same outcome
+            reached by a different route. This is the one control standing between the
+            weak-category adapter and the false-positive blow-up the parity gate is two-sided to
+            refuse, and every other unmet precondition in this module raises.
     """
 
     import random
@@ -348,8 +361,17 @@ def _counterweight(
     if wanted == 0:
         return ()
     benign = sorted((row for row in pool if row.unsafe is False), key=lambda row: row.row_id)
+    if len(benign) < wanted:
+        raise MissingCorpusFieldError(
+            f"the benign counterweight cannot be honoured: benign_ratio={benign_ratio} over "
+            f"{len(positives)} selected positives needs {wanted} benign rows, and the "
+            f"unselected pool holds {len(benign)}. Drawing {len(benign)} instead would report a "
+            f"ratio of {len(benign) / len(positives):.4f} as if it were {benign_ratio}, and the "
+            "counterweight is what keeps a weak-category adapter from buying recall with false "
+            "positives. Lower the ratio deliberately, or widen the split"
+        )
     rng = random.Random(f"{seed}:counterweight")
-    return tuple(rng.sample(benign, min(wanted, len(benign))))
+    return tuple(rng.sample(benign, wanted))
 
 
 def weak_category_subset(

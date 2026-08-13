@@ -191,8 +191,10 @@ Verdicts: `promote`, `reject`, `insufficient_evidence`. Preconditions it refuses
 guesses about: the eval split must not appear in the training corpus (checked by normalised
 content digest, because teacher augmentation over a train split is the real leak path, not the
 published split boundary); the positive count must clear a floor; the backend error rate must be
-under a ceiling (fail-closed scores an error as HARMFUL, which *inflates* recall); and lane and
-precision must match the baseline's.
+under a ceiling (fail-closed scores an error as HARMFUL, which *inflates* recall); lane and
+precision must match the baseline's; the candidate's result document must name the **corpus** it
+was scored on and that corpus must be the one the baseline was measured on; and the document must
+carry a content digest of the eval set.
 
 Promotion requires all three of: recall improves beyond sampling noise; the false-positive rate
 does not significantly regress; and no per-category recall falls below its measured floor. A
@@ -201,9 +203,32 @@ the operationally expensive number. Scoring is performed by calling the existing
 modules and reading their result documents — never by re-deriving predictions, which would
 produce slices that disagree with the published baselines for reasons other than arithmetic.
 
+**A condition that cannot be evaluated is never a condition that passed.** Each of the three can
+be untestable on a given slice, and every such case resolves to `insufficient_evidence` rather
+than falling through to the weaker test that would pass:
+
+- The false-positive test needs negatives on **both** arms. Every ExpGuard per-domain slice is
+  recorded with `negatives=0`, because the published report breaks the rate down overall only.
+  `significant_improvement` answers `within_noise` for an empty arm — correct for a statistic and
+  wrong for a gate, because condition (2) then reads as "did not significantly regress" when no
+  test was run at all, and the gate silently becomes the one-sided recall gate it exists to
+  refuse.
+- A per-category floor the candidate does not report is not a floor that was cleared. Floors and
+  observed numbers are matched under one normalisation (`baselines.normalise_category`), because
+  WildGuard spells classes `fraud_assisting_illegal_activities` while ExpGuard spells the same
+  kind of thing `Unqualified Professional Advice`. The promotion reason states how many floors
+  were actually checked and never asserts a check that did not run.
+
+**Corpus binding.** All four guard recipes declare the WildGuardTest baseline, while the CLI's
+`--breakdown-key` will read an ExpGuardTest document, and lane/precision matching cannot see the
+difference. The result document's `eval_set.source` is therefore parsed back into the
+`(corpus, split)` pair the baseline stores and compared by digest; a mismatch — or a document
+that does not say — is refused. A promotion record that compares two corpora while naming the
+wrong baseline on its own face is worse than no record.
+
 The decision is emitted as a document digested over its canonical form, carrying the baseline
-digest, the candidate result digest, the eval-set digest, the manifest digest, the lane and the
-precision.
+digest, the baseline's corpus digest, the candidate result digest, the candidate's corpus digest,
+the eval-set digest, the manifest digest, the lane and the precision.
 
 ## Dependencies
 
@@ -228,9 +253,14 @@ precision.
 | Frontier model generates training data | `generate()` refuses any id not in `TEACHERS`, before the backend is touched; `JudgeScore` is not a row type |
 | An eval set that stopped being held out | Normalised-content leakage check; teacher-generated rows are refused in any eval split |
 | A promotion bought with false positives | Two-sided gate; FPR regression blocks promotion independently of recall |
+| The two-sided gate degrading to a one-sided one | A slice whose baseline or candidate arm has no negatives cannot support the FPR test; the gate returns `insufficient_evidence` instead of falling through to the recall test alone |
 | A promotion on too little evidence | Positive-count floor; `insufficient_evidence` verdict quoting the minimum detectable delta |
 | A confounded cross-lane comparison | Lane and precision recorded and compared; mismatch is a refusal, not a delta |
-| Unlinted code shipped under `ml/` | Lane runners are generated from linted package code; tests compile the output and assert its refusals survive |
+| A comparison across two different corpora | `eval_set.source` is bound to the baseline's `(corpus, split)` by digest; a mismatch, or a document that does not say, is refused |
+| A promotion that cannot be re-audited | A result document with no `eval_set.digest` is refused; both benchmark modules emit the SHA-256 of the split they scored |
+| A per-category floor silently not enforced | Floors and observed recall are matched under one normalisation; an unreported floor is `insufficient_evidence`, never a pass, and the promotion reason names the count actually checked |
+| A benign counterweight silently not honoured | `_counterweight` raises when the unselected pool cannot supply the requested rows, rather than returning what it has |
+| Unlinted code shipped under `ml/` | Lane runners are generated from linted package code; tests **execute** the generated runner and drive its real data path with a stub tokenizer, because `compile()` passes on a script that dies at step 0 |
 | Gated-corpus rows committed or redistributed | Built corpora and benchmark result directories are gitignored |
 
 ## API
@@ -267,7 +297,14 @@ The tests that carry the most weight:
 - **The summariser's structural constraint.** One constructor; `failed` and `unknown` refused
   with distinct messages; no crypto import, checked against the AST rather than the text.
 - **The two-sided gate.** A candidate with genuinely better recall and a significantly worse
-  false-positive rate is rejected, and the reason names the trade.
+  false-positive rate is rejected, and the reason names the trade. Separately: a candidate with
+  900 false positives out of 1,000 negatives on a slice whose baseline has **no** negatives is
+  `insufficient_evidence`, not `promote` — the gate refuses to decide rather than answering the
+  weaker question it can answer.
+- **The generated runners' data path.** The tests `exec` the generated Kaggle and Modal scripts
+  and call `build_training_rows` / `pad_batch` with a stub tokenizer: labels exist, the prompt is
+  masked, truncation never cuts the verdict, and label padding is never the pad token. Asserting
+  that the text `compile()`s proved the file parsed and nothing about whether it could train.
 - **Baseline internal consistency.** The positive/negative splits are solved from the published
   rates; tests assert the adversarial arms sum to the overall arm and that the solved counts
   reproduce the published precision.
@@ -297,7 +334,9 @@ Nothing here deploys. The intended sequence, performed by an orchestrator:
 ## Milestones
 
 - **M1 — done.** Corpus builders, manifests, teacher/judge separation, eight recipes, three
-  lanes, the parity gate, the generated runners, and the cross-language bounds fixture.
+  lanes, the parity gate, the generated runners, and the cross-language bounds fixture. None of
+  it has been exercised against a real corpus or a real GPU; "done" here means built and tested,
+  not measured.
 - **M2 — blocked on data.** Exercise models 1–4 end to end. Requires accepted gates and a train
   split; the weak-category selector must be validated against the real train vocabulary first.
 - **M3 — blocked on the substrate.** Models 5–7 need a corpus of real warrants, refusal logs and

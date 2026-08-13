@@ -12,6 +12,20 @@ orchestrator uploads. Tests ``compile()`` the generated text and assert it retai
 behaviours that must survive any edit to the template: no CPU fallback, the fp16 calibration
 warning on the Kaggle lanes, and the gated-data message.
 
+Compiling is not running, and that gap cost a session
+-----------------------------------------------------
+Putting the generator inside the gate says nothing about whether its output works. The first
+version of this template tokenised prompt+target into a dataset with no ``labels`` column and
+handed it to ``Trainer`` with no data collator: valid Python, three refusals intact, and dead at
+step 0 with *"The model did not return a loss"* -- after the download and the quantisation, with
+the Kaggle session already spent. That is precisely the wasted session ``lanes.py`` exists to
+prevent, arriving through the one part of the runner nothing asserted anything about.
+
+The data path is therefore written as pure functions -- :func:`build_training_rows` and
+:func:`pad_batch` in the generated text -- that take and return plain Python. The test suite
+``exec``s the generated script and calls them with a stub tokenizer, so the code that will run on
+the lane is exercised in CI without a GPU, without a corpus and without the ``train`` extra.
+
 **Nothing here executes or dispatches anything.** :func:`render_modal_entrypoint` produces text
 containing Modal decorators; it does not import ``modal``, does not authenticate, and does not
 submit a job. Running it is the orchestrator's decision, not this module's.
@@ -29,6 +43,7 @@ from .recipes import Recipe
 __all__ = [
     "GATED_DATA_MESSAGE",
     "NO_CPU_FALLBACK_MESSAGE",
+    "NO_TRAINABLE_ROWS_MESSAGE",
     "render_kaggle_script",
     "render_modal_entrypoint",
 ]
@@ -49,6 +64,19 @@ NO_CPU_FALLBACK_MESSAGE = (
 GATED_DATA_MESSAGE = (
     "WildGuardMix and ExpGuardMix are GATED. Accept the form on the Hub and set HF_TOKEN, or "
     "attach the parquet as a dataset input. There is no anonymous download path."
+)
+
+#: Emitted when tokenisation leaves nothing to train on -- every row's target overflowed
+#: SEQUENCE_LENGTH, or the corpus is not in the prompt/target shape the recipe was built for.
+#: An empty training set does not fail; Trainer runs zero steps and saves an untrained adapter
+#: that is indistinguishable from a trained one until it is in front of a deny gate. That is the
+#: same failure NO_CPU_FALLBACK_MESSAGE exists to prevent, arriving through the data path.
+NO_TRAINABLE_ROWS_MESSAGE = (
+    "FATAL: tokenising the corpus produced no trainable rows.\\n\\n"
+    "Every row was dropped -- either the corpus is not in the {prompt, target} shape this recipe "
+    "was built for, or every target overflowed SEQUENCE_LENGTH. Training zero rows would save an "
+    "UNTRAINED adapter that looks exactly like a trained one. Check the corpus with "
+    "`warrantor-ml-build-corpus --describe-only` before spending the session again."
 )
 
 #: Emitted on lanes with no bf16. A guard model's product is a calibrated logit and fp16 loss
@@ -108,7 +136,14 @@ import json
 import sys
 from pathlib import Path
 
-RUN_MANIFEST = {manifest}
+# Embedded as JSON and parsed at import rather than pasted in as a Python literal. `json.dumps`
+# emits `null`, `true` and `false`, which are not Python names: the modal-a100 lane resolves
+# save_steps to None, so the template that inlined this produced an entrypoint that compile()d
+# cleanly and then died with `NameError: name 'null' is not defined` the moment it was imported.
+# A test that only compiles the text cannot see that; one that executes it can.
+RUN_MANIFEST = json.loads(
+    """{manifest}"""
+)
 
 BASE_REPO = "{recipe.config.profile().repo_id}"
 TARGET_MODULES = {list(recipe.config.profile().target_modules)!r}
@@ -126,6 +161,8 @@ PRECISION = "{resolution.precision}"
 NO_GPU_MESSAGE = """{NO_CPU_FALLBACK_MESSAGE}"""
 
 GATED_DATA_MESSAGE = """{GATED_DATA_MESSAGE}"""
+
+NO_TRAINABLE_ROWS_MESSAGE = """{NO_TRAINABLE_ROWS_MESSAGE}"""
 
 
 def require_cuda() -> None:
@@ -160,9 +197,102 @@ def load_pairs(path: Path) -> list[dict]:
 
 
 def _training_body() -> str:
-    """The training call, identical on both lanes so a lane cannot change the arithmetic."""
+    """The training call, identical on both lanes so a lane cannot change the arithmetic.
+
+    The data path is deliberately split into two pure functions -- ``build_training_rows`` and
+    ``pad_batch`` -- that take plain Python and return plain Python. Neither imports torch,
+    transformers or datasets, so ``test_lane_export`` can execute the GENERATED script and
+    exercise the exact code that will run on the lane, without a GPU and without the ``train``
+    extra installed. Asserting that the text ``compile()``s proves the file parses; it proves
+    nothing about whether the dataset it builds can be trained on, and the first version of this
+    template died at step 0 with "The model did not return a loss" for exactly that reason.
+    """
 
     return '''
+#: Positions the loss ignores. Any value torch's cross-entropy treats as "skip"; -100 is the
+#: convention every transformers example uses and the one the Trainer expects.
+LABEL_MASK = -100
+
+
+def build_training_rows(pairs: list[dict], tokenizer) -> list[dict]:
+    """Tokenize prompt+target into input_ids / attention_mask / LABELS.
+
+    Three failures this prevents, in the order they used to bite:
+
+    1. **No labels at all.** Handing `Trainer` a dataset of input_ids and attention_mask with no
+       `labels` column and no data collator makes a causal LM return no loss, and Trainer aborts
+       with "The model did not return a loss" -- at step 0, after the model has been downloaded
+       and quantised. On Kaggle that is a session out of a 30-hour weekly budget for nothing.
+    2. **Training on the prompt.** Labels that copy the whole sequence teach the adapter to
+       reproduce the attack text as well as the verdict. The prompt is masked with LABEL_MASK so
+       the loss is computed on the `Safety:` / `Categories:` answer only, which is the thing the
+       benchmark parser reads.
+    3. **Truncating into the verdict.** A row longer than SEQUENCE_LENGTH is trimmed from the
+       LEFT of the prompt, never the right of the target. Cutting the target teaches the adapter
+       to emit a half-verdict, and a half-verdict parses as neither safe nor unsafe.
+
+    Padding is NOT done here. Every row keeps its own length and `pad_batch` pads each batch to
+    its own longest row: padding every row to 2048 would spend most of the session's compute on
+    pad tokens.
+    """
+
+    eos = getattr(tokenizer, "eos_token_id", None)
+    rows = []
+    for pair in pairs:
+        prompt_ids = list(tokenizer(pair["prompt"] + "\\n", add_special_tokens=False)["input_ids"])
+        target_ids = list(tokenizer(pair["target"], add_special_tokens=False)["input_ids"])
+        if eos is not None:
+            target_ids = target_ids + [eos]
+        if not target_ids:
+            continue
+        overflow = len(prompt_ids) + len(target_ids) - SEQUENCE_LENGTH
+        if overflow > 0:
+            if overflow >= len(prompt_ids):
+                # The target alone does not fit. Drop the row rather than train on a fragment of
+                # a verdict -- a corpus is allowed to lose a row, a label format is not.
+                continue
+            prompt_ids = prompt_ids[overflow:]
+        input_ids = prompt_ids + target_ids
+        rows.append(
+            {
+                "input_ids": input_ids,
+                "attention_mask": [1] * len(input_ids),
+                "labels": [LABEL_MASK] * len(prompt_ids) + target_ids,
+            }
+        )
+    return rows
+
+
+def pad_batch(features: list[dict], pad_token_id: int) -> dict:
+    """Right-pad one batch to its longest row. Pure Python; returns lists, not tensors.
+
+    Label padding is LABEL_MASK and never `pad_token_id`: a pad token in the labels is a token
+    the model is trained to emit, and the model would learn to end every verdict in padding.
+    Attention-mask padding is 0 so the padded positions are not attended to either.
+    """
+
+    width = max(len(feature["input_ids"]) for feature in features)
+    batch = {"input_ids": [], "attention_mask": [], "labels": []}
+    for feature in features:
+        gap = width - len(feature["input_ids"])
+        batch["input_ids"].append(list(feature["input_ids"]) + [pad_token_id] * gap)
+        batch["attention_mask"].append(list(feature["attention_mask"]) + [0] * gap)
+        batch["labels"].append(list(feature["labels"]) + [LABEL_MASK] * gap)
+    return batch
+
+
+def make_collator(pad_token_id: int):
+    """The Trainer data collator. Tensor conversion is the only torch in the data path."""
+
+    def collate(features: list[dict]) -> dict:
+        import torch
+
+        padded = pad_batch(features, pad_token_id)
+        return {key: torch.tensor(value, dtype=torch.long) for key, value in padded.items()}
+
+    return collate
+
+
 def train(corpus: Path, output_dir: Path, resume_from: str | None) -> Path:
     """Run the fine-tune. Requires CUDA; writes the adapter, tokenizer and run record."""
 
@@ -210,16 +340,11 @@ def train(corpus: Path, output_dir: Path, resume_from: str | None) -> Path:
     model.gradient_checkpointing_enable()
 
     pairs = load_pairs(corpus)
-    dataset = Dataset.from_list(
-        [{"text": row["prompt"] + "\\n" + row["target"]} for row in pairs]
-    )
-    tokenized = dataset.map(
-        lambda batch: tokenizer(
-            batch["text"], truncation=True, max_length=SEQUENCE_LENGTH, padding="max_length"
-        ),
-        batched=True,
-        remove_columns=["text"],
-    )
+    rows = build_training_rows(pairs, tokenizer)
+    if not rows:
+        print(NO_TRAINABLE_ROWS_MESSAGE, file=sys.stderr)
+        raise SystemExit(2)
+    dataset = Dataset.from_list(rows)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     arguments = TrainingArguments(
@@ -240,12 +365,26 @@ def train(corpus: Path, output_dir: Path, resume_from: str | None) -> Path:
         gradient_checkpointing=True,
         report_to=[],
     )
-    trainer = Trainer(model=model, args=arguments, train_dataset=tokenized)
+    # data_collator is not optional. Without one the default collator emits input_ids and
+    # attention_mask only, a causal LM returns no loss, and Trainer raises "The model did not
+    # return a loss" at step 0 -- after the download and the quantisation, with the session
+    # already spent. The hand-written ml/kaggle/train_guard_lora.py passes a collator for this
+    # exact reason; the generated template used to be the one that did not.
+    pad_token_id = tokenizer.pad_token_id
+    if pad_token_id is None:
+        pad_token_id = tokenizer.eos_token_id
+    trainer = Trainer(
+        model=model,
+        args=arguments,
+        train_dataset=dataset,
+        data_collator=make_collator(pad_token_id),
+    )
     trainer.train(resume_from_checkpoint=resume_from)
     model.save_pretrained(output_dir)
     tokenizer.save_pretrained(output_dir)
     record = dict(RUN_MANIFEST)
-    record["rows_trained"] = len(pairs)
+    record["rows_read"] = len(pairs)
+    record["rows_trained"] = len(rows)
     (output_dir / "run_record.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
     return output_dir
 

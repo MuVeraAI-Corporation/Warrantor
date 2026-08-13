@@ -22,15 +22,36 @@ operator's willingness to read the alerts at all. So promotion requires **all th
 2. the false-positive rate does not significantly regress;
 3. no per-category recall falls below its baseline floor.
 
+A condition that cannot be evaluated is never a condition that passed
+---------------------------------------------------------------------
+Each of the three is separately capable of being *untestable* on a given slice, and the failure
+mode is the same every time: the weaker test quietly answers in place of the stronger one and
+the answer it gives is the permissive one.
+
+* ``significant_improvement`` returns ``within_noise`` when an arm has no trials. That is the
+  correct answer for a statistic and the wrong one for a gate: on the ExpGuard per-domain slices,
+  which are recorded with ``negatives=0`` because the published report breaks the false-positive
+  rate down overall only, condition (2) then passes by ABSENCE of evidence. The gate degrades to
+  the one-sided recall test its docstring says it exists to refuse, and promotes an adapter that
+  flags 90% of benign traffic while printing the 0.90 false-positive rate as evidence that it
+  did not regress.
+* A per-category floor the candidate does not report is not a floor that was cleared.
+
+Both are reported as ``insufficient_evidence``. ``unknown`` is a different claim from ``pass``
+and the gate never renders one as the other -- the same rule the verification envelope follows.
+
 What the gate refuses to guess about
 ------------------------------------
-It refuses rather than assumes on four preconditions, all checked before any comparison:
-the eval split must not appear in the training corpus; the positive count must clear a floor;
-the backend error count must be under a threshold (fail-closed errors are scored HARMFUL, which
-*inflates* recall -- ``_breakdowns`` already exposes ``excluding_all_backend_errors`` for
-exactly this reason); and the candidate's lane and precision must match the baseline's, because
-a fp16 Kaggle adapter compared against a bf16 local baseline is a confounded comparison and the
-honest output is a refusal, not a delta.
+It refuses rather than assumes on six preconditions, all checked before any comparison: the eval
+split must not appear in the training corpus; the positive count must clear a floor; the backend
+error count must be under a threshold (fail-closed errors are scored HARMFUL, which *inflates*
+recall -- ``_breakdowns`` already exposes ``excluding_all_backend_errors`` for exactly this
+reason); the candidate's lane and precision must match the baseline's, because a fp16 Kaggle
+adapter compared against a bf16 local baseline is a confounded comparison and the honest output
+is a refusal, not a delta; the candidate's result document must name the CORPUS it was scored on
+and that corpus must be the one the baseline was measured on; and it must carry a content digest
+of the eval set, because a decision that cannot be re-audited against the evidence behind it is
+not auditable evidence.
 
 Scoring is not re-implemented here. :func:`score_candidate` CALLS
 ``benchmark_wildguard.main`` / ``benchmark_expguard.main`` and reads their result documents.
@@ -49,7 +70,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from ._canonical import canonical_json, sha256_text
-from .baselines import MeasuredBaseline, get_baseline
+from .baselines import MeasuredBaseline, eval_corpus_digest, get_baseline, normalise_category
 from .leakage import LeakageReport
 from .stats import minimum_detectable_delta, significant_improvement, wilson_interval
 
@@ -59,6 +80,7 @@ __all__ = [
     "CandidateResult",
     "ParityDecision",
     "Verdict",
+    "corpus_digest_of",
     "load_candidate_result",
     "parity_gate",
     "score_candidate",
@@ -82,9 +104,11 @@ MAXIMUM_BACKEND_ERROR_RATE = 0.02
 class CandidateResult:
     """A candidate's measured numbers, read from a benchmark result document.
 
-    ``lane`` and ``precision`` are required and are not defaulted. A result document that does
-    not say where it was produced cannot be compared with one that does, and defaulting them to
-    the local lane would make the most dangerous comparison the silent one.
+    ``lane``, ``precision`` and ``eval_corpus_digest`` are required and are not defaulted. A
+    result document that does not say where it was produced, or what it was scored on, cannot be
+    compared with one that does -- and defaulting any of them would make the most dangerous
+    comparison the silent one. ``eval_corpus_digest`` in particular is what stops an ExpGuardTest
+    result being scored against the WildGuardTest baseline every guard recipe declares.
     """
 
     candidate_id: str
@@ -93,6 +117,10 @@ class CandidateResult:
     precision: str
     result_digest: str
     eval_set_digest: str
+    #: Identity digest of the corpus and split this candidate was scored on, computed by
+    #: :func:`warrantor_ml.baselines.eval_corpus_digest`. Empty means the document did not say,
+    #: which the gate treats as a refusal and never as a match.
+    eval_corpus_digest: str
     manifest_digest: str
     slices: Mapping[str, Mapping[str, Any]]
     per_category_recall: Mapping[str, float]
@@ -120,6 +148,22 @@ class CandidateResult:
         return caught, positives, false_positives, negatives
 
 
+def corpus_digest_of(source: str) -> str:
+    """Identity digest for a benchmark document's ``eval_set.source``, or ``""`` if unusable.
+
+    Both benchmark modules write ``source`` as ``"<repo>:<split file>"`` -- the same two facts
+    ``MeasuredBaseline`` stores as ``corpus`` and ``split``. Returning ``""`` rather than
+    digesting a half-parsed string is deliberate: the gate must be able to tell "this document
+    does not say what it was scored on" apart from "it says something that does not match", and
+    a digest over an empty split would answer neither question honestly.
+    """
+
+    repo, separator, split = source.partition(":")
+    if not separator or not repo.strip() or not split.strip():
+        return ""
+    return eval_corpus_digest(repo, split)
+
+
 def load_candidate_result(
     path: Path,
     candidate_id: str,
@@ -133,7 +177,9 @@ def load_candidate_result(
 
     ``breakdown_key`` selects which module produced it -- ``wildguard_breakdowns`` or
     ``expguard_breakdowns``. Both write the same slice shape via ``slice_summary``, which is
-    what makes one gate able to read either.
+    what makes one gate able to read either. It is also why the corpus binding below is not
+    optional: one gate that can read either document will read the wrong one against the wrong
+    baseline unless something refuses.
     """
 
     document = json.loads(path.read_text(encoding="utf-8"))
@@ -149,13 +195,17 @@ def load_candidate_result(
         for name, payload in breakdowns.items()
         if isinstance(payload, Mapping) and "confusion_matrix" in payload
     }
+    eval_set = document.get("eval_set", {})
+    if not isinstance(eval_set, Mapping):
+        eval_set = {}
     return CandidateResult(
         candidate_id=candidate_id,
         baseline_id=baseline_id,
         lane=lane,
         precision=precision,
         result_digest=str(document.get("result_digest", "")),
-        eval_set_digest=str(document.get("eval_set", {}).get("digest", "")),
+        eval_set_digest=str(eval_set.get("digest", "")),
+        eval_corpus_digest=corpus_digest_of(str(eval_set.get("source", ""))),
         manifest_digest=manifest_digest,
         slices=slices,
         per_category_recall={
@@ -267,14 +317,14 @@ def parity_gate(
         candidate did not clear all three conditions; ``promote`` only when it cleared them all.
     """
 
-    baseline = get_baseline(baseline_id or candidate.baseline_id)
+    requested_baseline = baseline_id if baseline_id is not None else candidate.baseline_id
     reasons: list[str] = []
     evidence: dict[str, Any] = {
         "candidate_id": candidate.candidate_id,
-        "baseline_id": baseline.baseline_id,
-        "baseline_digest": baseline.baseline_digest,
+        "baseline_id": requested_baseline,
         "candidate_result_digest": candidate.result_digest,
         "eval_set_digest": candidate.eval_set_digest,
+        "candidate_eval_corpus_digest": candidate.eval_corpus_digest,
         "manifest_digest": candidate.manifest_digest,
         "lane": candidate.lane,
         "precision": candidate.precision,
@@ -283,8 +333,62 @@ def parity_gate(
         "leakage": dict(leakage),
     }
 
+    # No measured baseline is not a rejection. The four substrate recipes declare `baseline_id`
+    # as "" on purpose -- there is no corpus of real warrants to measure one from -- and an
+    # uncaught KeyError here exits 1, which the CLI's own docstring assigns to `reject`. The two
+    # statuses are separated precisely so a CI job does not retry the wrong one.
+    try:
+        baseline = get_baseline(requested_baseline)
+    except KeyError as error:
+        missing = (
+            "this recipe declares no measured baseline, so there is nothing to compare against. "
+            "That is the honest state for the substrate models until real warrant history "
+            "accumulates, not a rejection of the candidate."
+            if not requested_baseline
+            else str(error.args[0])
+        )
+        return ParityDecision(
+            verdict="insufficient_evidence",
+            reasons=(missing,),
+            evidence=evidence,
+        )
+
+    evidence["baseline_digest"] = baseline.baseline_digest
+    evidence["baseline_corpus"] = f"{baseline.corpus}:{baseline.split}"
+    evidence["baseline_corpus_digest"] = baseline.corpus_digest
+
     # ── preconditions: refuse rather than guess ────────────────────────────────────────
     blocking: list[str] = []
+
+    # The corpus binding. Nothing else in this gate notices that WildGuardTest and ExpGuardTest
+    # are different corpora: `_lane_matches` checks only lane and precision, every guard recipe
+    # declares the WildGuard baseline, and `--breakdown-key` is a free CLI choice that will read
+    # an ExpGuard document. Scoring ExpGuard recall against the WildGuard baseline produces a
+    # promotion record that is digested, archived, and names the wrong corpus on its own face.
+    if not candidate.eval_corpus_digest:
+        blocking.append(
+            "the result document does not name the corpus it was scored on (no parseable "
+            "`eval_set.source`), so it cannot be bound to the baseline it is being compared "
+            "against. An unnamed corpus is refused rather than assumed to be the right one."
+        )
+    elif candidate.eval_corpus_digest != baseline.corpus_digest:
+        blocking.append(
+            f"the candidate was scored on a different corpus from the one baseline "
+            f"{baseline.baseline_id!r} was measured on ({baseline.corpus}:{baseline.split}). "
+            f"Candidate corpus digest {candidate.eval_corpus_digest}, baseline corpus digest "
+            f"{baseline.corpus_digest}. A recall delta across two corpora is not a delta. "
+            "Re-score the candidate on the baseline's split, or pass the baseline that matches."
+        )
+
+    # The eval-set content digest is what pins a promotion to the evidence behind it. Both
+    # benchmark modules emit it; a document without one is either hand-edited or produced by a
+    # build that predates the binding, and neither can be re-audited.
+    if not candidate.eval_set_digest:
+        blocking.append(
+            "the result document carries no `eval_set.digest`, so this decision could never be "
+            "re-audited against the file it was scored on. The decision record is sold as "
+            "pinning a promotion to its evidence, and the eval set is the evidence."
+        )
 
     if not leakage.clean:
         blocking.append(
@@ -319,7 +423,19 @@ def parity_gate(
             evidence=evidence,
         )
 
-    baseline_slice = baseline.slice(gate_slice)
+    try:
+        baseline_slice = baseline.slice(gate_slice)
+    except KeyError as error:
+        # The candidate's slice lookup was already guarded; this one was not, so a recipe naming
+        # a slice the baseline does not carry raised out of the gate. An uncaught exception exits
+        # 1, and 1 is the code reserved for `reject` -- a gap in the evidence would have been
+        # indistinguishable from a rejection to anything reading exit codes.
+        return ParityDecision(
+            verdict="insufficient_evidence",
+            reasons=(str(error.args[0]),),
+            evidence=evidence,
+        )
+
     evidence["counts"] = {
         "candidate": {
             "caught": caught,
@@ -342,6 +458,34 @@ def parity_gate(
             f"{minimum_positives}. This eval could only have resolved a recall difference of "
             f"about {detectable:.3f}; anything smaller than that is a coin flip, and reporting "
             "a verdict from it would be the over-conclusion this gate exists to refuse."
+        )
+
+    # THE TWO-SIDED RULE IS NOT TWO-SIDED IF ONE SIDE HAS NO TRIALS.
+    # `significant_improvement` answers `within_noise` for an empty arm -- correct for a
+    # statistic, catastrophic for a gate, because condition (2) then reads as "the false-positive
+    # rate did not significantly regress" when what actually happened is that no test was run.
+    # This is not hypothetical: every ExpGuard per-domain slice in baselines.py carries
+    # negatives=0, and its own note says a per-domain FPR comparison "must return
+    # insufficient_evidence rather than a number". Without this block a candidate flagging 900 of
+    # 1000 benign healthcare prompts promotes, with the 0.90 false-positive rate printed in the
+    # promotion reason as evidence that it did not regress. A gate that can pass the wrong
+    # comparison manufactures confidence; refusing to decide is the only honest output.
+    if baseline_slice.negatives <= 0 or negatives <= 0:
+        blocking.append(
+            f"the false-positive side of the gate cannot be computed on the {gate_slice!r} "
+            f"slice: the baseline arm has {baseline_slice.negatives} negatives and the candidate "
+            f"arm {negatives}. Falling through to the recall test alone would make this a "
+            "one-sided gate, and a one-sided gate promotes an adapter that flags everything. "
+            "The per-domain ExpGuard slices have no false-positive denominator at all, by "
+            "construction -- the published report breaks the rate down overall only. Gate on "
+            "'overall', or measure the per-domain negatives first."
+        )
+
+    if baseline_slice.positives <= 0:
+        blocking.append(
+            f"the baseline arm of the {gate_slice!r} slice has no positives, so the recall "
+            "comparison has no denominator on the side being compared against. No test was run "
+            "and none is reported."
         )
 
     if blocking:
@@ -403,37 +547,86 @@ def parity_gate(
 
     # Per-category floors: an aggregate can improve while an entire class collapses, and the
     # aggregate is exactly the number that hides it.
+    #
+    # Two things had to be fixed here and they compound. The lookup was exact, while the two
+    # vocabularies disagree on spelling: baselines.py stores 'unqualified professional advice'
+    # and benchmark_expguard emits 'Unqualified Professional Advice'. The floor therefore never
+    # matched, `observed` was always None, and the branch was skipped -- for the ONE measured
+    # weakness (0.4298) that motivates two of the eight models. And a skipped floor was silently
+    # treated as a cleared floor, with the promotion reason going on to assert that no category
+    # fell below its floor when no floor had been evaluated at all.
+    observed_recall = _fold_per_category(candidate.per_category_recall)
+    floors = baseline.normalised_per_category_recall
     fallen: list[str] = []
-    for name, floor in baseline.per_category_recall.items():
-        observed = candidate.per_category_recall.get(name)
-        if observed is not None and observed < floor:
+    unevaluated: list[str] = []
+    checked_names: list[str] = []
+    for name, floor in sorted(floors.items()):
+        observed = observed_recall.get(name)
+        if observed is None:
+            unevaluated.append(f"{name} (measured floor {floor:.4f})")
+            continue
+        checked_names.append(name)
+        if observed < floor:
             fallen.append(f"{name}: {observed:.4f} below the baseline floor {floor:.4f}")
+    evidence["per_category_floors_checked"] = checked_names
     if fallen:
         evidence["per_category_regressions"] = fallen
         reasons.append(
             "per-category recall fell below a measured baseline floor: " + "; ".join(fallen)
         )
+    if unevaluated:
+        evidence["per_category_floors_not_evaluated"] = unevaluated
 
-    if not baseline.baseline_id.startswith("wildguard"):
+    if baseline.commercial_clearance:
         # ExpGuardMix's gate form says research-only while its licence says CC-BY-4.0, and its
         # corpus was GPT-4o-generated. A promotion here is a technical verdict and never a
-        # commercial clearance, and the decision record has to say so on its face.
-        evidence["commercial_clearance"] = (
-            "NOT CLEARED. This baseline is ExpGuardMix-derived: its click-through is narrower "
-            "than its licence and its corpus was frontier-generated upstream. Promotion here "
-            "is a quality verdict only and does not clear the artifact for a shipped pack."
-        )
+        # commercial clearance, and the decision record has to say so on its face. Read from the
+        # baseline rather than guessed from its id prefix.
+        evidence["commercial_clearance"] = baseline.commercial_clearance
 
     if reasons:
         return ParityDecision(verdict="reject", reasons=tuple(reasons), evidence=evidence)
 
+    if unevaluated:
+        # A demonstrated regression outranks an unknown, which is why this sits after the reject.
+        # But an unreported floor is not a cleared floor: promotion requires all three conditions
+        # and only two of them were testable here. A dead guard is no signal, never all clear.
+        return ParityDecision(
+            verdict="insufficient_evidence",
+            reasons=(
+                "the candidate reports no recall for "
+                + "; ".join(unevaluated)
+                + ". Promotion requires all three conditions and this one could not be "
+                "evaluated, so the gate does not decide. Score the candidate with a breakdown "
+                "that covers the measured weak classes -- their recall is the reason those "
+                "floors exist.",
+            ),
+            evidence=evidence,
+        )
+
+    checked = len(checked_names)
     return ParityDecision(
         verdict="promote",
         reasons=(
             f"recall improved beyond sampling noise ({baseline_slice.recall:.4f} -> "
             f"{candidate_recall:.4f}), the false-positive rate did not significantly regress "
-            f"({baseline_slice.false_positive_rate:.4f} -> {candidate_fpr:.4f}), and no "
-            "per-category recall fell below its baseline floor.",
+            f"({baseline_slice.false_positive_rate:.4f} -> {candidate_fpr:.4f}), and none of "
+            f"the {checked} measured per-category floors was breached.",
         ),
         evidence=evidence,
     )
+
+
+def _fold_per_category(observed: Mapping[str, float]) -> dict[str, float]:
+    """Candidate per-category recall keyed on :func:`normalise_category`.
+
+    On a spelling collision the LOWEST observed recall wins -- the reverse of the baseline's
+    rule, and for the same reason. Folding two vocabularies together must never be able to raise
+    a candidate's apparent floor clearance.
+    """
+
+    folded: dict[str, float] = {}
+    for name, recall in observed.items():
+        key = normalise_category(name)
+        folded[key] = min(folded[key], recall) if key in folded else recall
+    return folded

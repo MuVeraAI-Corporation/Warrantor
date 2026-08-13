@@ -120,6 +120,29 @@ def test_a_negative_benign_ratio_is_refused() -> None:
         guard.weak_category_subset(_rows(), -1.0)
 
 
+def test_a_counterweight_the_pool_cannot_supply_is_refused_not_quietly_shortened() -> None:
+    """It used to return whatever the pool had -- including nothing -- with no warning.
+
+    ``benign_ratio`` is given no default across two selectors and a CLI flag precisely so it
+    cannot be forgotten. A ratio that is silently not honoured reaches the same place by a
+    different route, and the shortfall was visible only as a smaller ``benign_counterweight``
+    number in ``build_corpus``'s summary JSON. The counterweight is the one control standing
+    between the weak-category adapter and the false-positive blow-up the parity gate is
+    two-sided to refuse; every other unmet precondition in this module raises.
+    """
+
+    with pytest.raises(guard.MissingCorpusFieldError, match="cannot be honoured"):
+        guard.weak_category_subset(_rows(), 5.0)
+
+
+def test_a_split_with_no_benign_rows_at_all_refuses_rather_than_returning_none() -> None:
+    """Zero available is the worst case of the same bug: the ratio is reported, not delivered."""
+
+    positives_only = tuple(row for row in _rows() if row.unsafe is not False)
+    with pytest.raises(guard.MissingCorpusFieldError, match="pool holds 0"):
+        guard.weak_category_subset(positives_only, 1.0)
+
+
 # ── selectors refuse by name rather than selecting nothing ──────────────────────────────
 
 
