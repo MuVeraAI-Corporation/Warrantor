@@ -44,6 +44,62 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
   fixture, so the measured `Safety: Safe` + `Categories: Jailbreak` finding cannot be lost to drift
   between two implementations.
 
+### Added — the evidence archive (RFC W2, backend stage 1)
+
+- **`rust/archive` (`warrantor-archive`)** — a self-hosted, append-only custody store for the three
+  signed evidence files `warrantor verify` already reads. Postgres, Docker, device-pairing auth.
+  It depends on `warrantor-warrant` so ingest calls the *existing* verifier: there is exactly one
+  implementation of what "verifies" means, and it cannot come to disagree with itself across two
+  processes. Bytes are stored verbatim and returned verbatim — a re-serialised artifact is one the
+  archive chose, and "the archive returns what it was given" is what makes verifying off it worth
+  anything.
+- **Ingest verification is hygiene, never a verdict.** The result is three-valued
+  (`ok`/`failed`/`unknown`, and `unknown` is never rendered as `failed`) and is served under a field
+  named `not_a_verdict`. The archive deliberately does **not** reuse `serve::Response`, whose `json`
+  constructor puts `verified` on every body: on a remote archive that field is a verdict from a
+  machine the audited party may control, and a console renders what it is handed. An artifact whose
+  check failed is still stored and still returned byte for byte — refusing to hold a tampered file
+  would destroy the evidence that it existed.
+- **Device pairing.** An operator mints a one-time code; the device holds an Ed25519 keypair and
+  signs every request over `dsse_pae` of a descriptor pinning method, path, device, nonce, timestamp
+  and body digest. This is what makes the trail name a person: `submitted_by_device` is somebody
+  rather than "whoever held the token". It closes **half** of W1 delivery gap 2.2 — submission and
+  read are attributed; the settle is not, because it happens on a laptop and may never reach this
+  server.
+- **Append-only, enforced twice** — a `BEFORE UPDATE OR DELETE` trigger and a runtime role with no
+  `UPDATE`/`DELETE` grant, because a grant can be misconfigured while restoring a backup and a
+  trigger cannot. Retention and export are implemented and **defaulted off**, with deletion
+  authority requiring an explicit enable *and* a non-zero window: an absent window grants none, and
+  is never read as "delete everything older than nothing".
+
+### Security — `warrantor verify` gained an issuer anchor, and it was not optional
+
+- **`report::verify_export` is anchor-free by construction**, and until now `warrantor verify` merely
+  *printed* the key it was not comparing to anything. Each receipt carries its own public key and
+  the only cross-check is that the two receipts agree, so anyone holding an Ed25519 keypair could
+  fabricate a bundle, sign both receipts with it, and produce a file that verified. That is correct
+  for what the function claims — "nothing has changed since signing" — and much weaker than what a
+  reader hears.
+- This is why the archive could not ship without it: the mandated property "a malicious archive
+  cannot make a tampered bundle verify" was not merely untested, it was **false**.
+- Added `report::verify_export_signed_by`, `stop::verify_stop_signed_by`,
+  `spend::verify_spend_signed_by`, and `warrantor verify <file> --issuer <hex>`. Thin wrappers —
+  the existing verifier, then a key comparison — not a second verifier. All three artifact types
+  gained it so `--issuer` can never be a flag that is silently ignored.
+- The anchor is **never defaulted** from the local store: verifying somebody else's evidence against
+  your own issuer key yields a verdict from a key with nothing to do with the case, which is worse
+  than no check because it looks like an answer. Without `--issuer` the command now prints an
+  explicit limitation saying it checked self-consistency only.
+- Where an anchor legitimately comes from is the trust directory, which is backend stage 2. This
+  change lets an operator supply one.
+
+### Changed
+
+- `serve::parse_request_with` and `serve::Limits`, added additively so the archive reuses the
+  agent's HTTP framing instead of writing a second parser — a second parser is a second place a
+  `Transfer-Encoding` header or an unbounded line read can be got wrong. `parse_request` keeps its
+  exact signature and behaviour; `rust/warrant/tests/serve.rs` passes untouched.
+
 ### Security
 
 - **`trust-core` `SigningKeyWrapper::zeroize()` left a usable key behind.** It overwrote the

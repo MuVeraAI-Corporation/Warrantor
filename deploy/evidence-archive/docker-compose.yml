@@ -1,0 +1,124 @@
+# The evidence archive: Postgres, a one-shot migrator, and the server.
+#
+#   POSTGRES_PASSWORD=$(openssl rand -hex 32) \
+#     docker compose -f deploy/evidence-archive/docker-compose.yml up -d
+#   curl -s http://127.0.0.1:8788/v1/health
+#
+# See README.md beside this file for the password, the first device enrolment, and
+# what to do before this leaves the machine.
+#
+# This is a SIBLING of deploy/local-sigstore/docker-compose.yml, not an edit to the
+# repository-root docker-compose.yml. That file is the whole-portfolio development
+# environment; the archive is a purpose-built deployment somebody actually runs in
+# production, and the two have opposite lifecycles.
+
+name: warrantor-archive
+
+services:
+  # Pinned to a minor version, deliberately. `postgres:16` would silently move
+  # across minors on every `docker compose pull`, and an evidence archive is the
+  # last service that should change its storage engine because a cache expired.
+  db:
+    image: postgres:16.4-bookworm
+    container_name: warrantor-archive-db
+    environment:
+      POSTGRES_DB: warrantor_archive
+      POSTGRES_USER: archive_admin
+      # NEVER written in this file. It comes from the environment, and compose
+      # fails loudly if it is unset rather than defaulting to something guessable.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD before starting the archive}
+      # Scram rather than md5, and stated explicitly rather than inherited from
+      # whatever the image's default happens to be this year.
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    volumes:
+      - archive-data:/var/lib/postgresql/data
+    # Published on LOOPBACK only. Binding 5433 to 0.0.0.0 would put the evidence
+    # database itself on the network, which no part of this design requires.
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U archive_admin -d warrantor_archive"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # A one-shot. It applies the schema and exits, and the server waits for it to
+  # exit successfully — so the server never starts against a database whose
+  # append-only trigger and grants have not been installed yet.
+  migrate:
+    build:
+      context: ../../rust
+      dockerfile: Dockerfile.archive
+    container_name: warrantor-archive-migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WARRANTOR_ARCHIVE_DATABASE_URL: postgres://archive_admin:${POSTGRES_PASSWORD:?}@db:5432/warrantor_archive
+    command: ["migrate"]
+    restart: "no"
+
+  archive:
+    build:
+      context: ../../rust
+      dockerfile: Dockerfile.archive
+    container_name: warrantor-archive
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      # The runtime role, NOT archive_admin. archive_runtime holds INSERT and
+      # SELECT on `artifact` and no UPDATE or DELETE grant at all — that is half
+      # of the append-only enforcement, and connecting as the owner would throw it
+      # away while leaving the trigger as the only thing standing.
+      WARRANTOR_ARCHIVE_DATABASE_URL: postgres://archive_runtime:${ARCHIVE_RUNTIME_PASSWORD:?set ARCHIVE_RUNTIME_PASSWORD; see README.md}@db:5432/warrantor_archive
+    # Loopback on the HOST. Reaching this from another machine is a deliberate act
+    # that goes through the proxy below, not a default.
+    ports:
+      - "127.0.0.1:8788:8788"
+    # No healthcheck, deliberately. The runtime image is debian-slim with no curl and no wget, so
+    # the only in-container probe would be the binary itself — and `warrantor-archive serve` with
+    # the database URL already in the environment does not probe anything, it starts a SECOND
+    # server inside the container every interval. A healthcheck that does the wrong thing quietly
+    # is worse than none. Probe `GET /v1/health` from outside, or add curl to the image and a
+    # proper check together.
+    restart: unless-stopped
+    # The archive writes nothing to disk: all its state is in Postgres. A read-only
+    # root filesystem makes that a property of the container rather than a habit.
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+
+  # ── TLS termination — commented out, and the comment is the point ──────────
+  #
+  # Stage 1 ships NO TLS. Device signatures authenticate a request; they do not
+  # encrypt it. Every byte — the evidence, and the label naming whoever filed it —
+  # crosses the wire in the clear.
+  #
+  # So until this block is filled in with a real certificate, the archive is
+  # LOOPBACK-OR-VPN ONLY. That is not a recommendation, it is the boundary of what
+  # the deployment can support: publishing 8788 to 0.0.0.0 without this proxy puts
+  # an organisation's evidence, and the identities of the people filing it, on the
+  # network in plaintext.
+  #
+  # Uncomment, supply certificates, and change the `archive` service's published
+  # port to an internal expose before this leaves the host.
+  #
+  # proxy:
+  #   image: caddy:2.8-alpine
+  #   container_name: warrantor-archive-proxy
+  #   depends_on:
+  #     archive:
+  #       condition: service_started
+  #   ports:
+  #     - "443:443"
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile:ro
+  #     - caddy-data:/data
+  #   restart: unless-stopped
+
+volumes:
+  archive-data:
+  # caddy-data:

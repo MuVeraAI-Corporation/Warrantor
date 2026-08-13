@@ -16,11 +16,22 @@ sigstore-up: ## Start the local transparency log (MySQL + Trillian + Rekor)
 	@docker compose -f deploy/local-sigstore/docker-compose.yml up -d
 	@echo "then: ./deploy/local-sigstore/bootstrap.sh"
 
+archive-up: ## Start the evidence archive (Postgres + migrate + server)
+	@docker compose -f deploy/evidence-archive/docker-compose.yml up -d
+	@echo "then: deploy/evidence-archive/README.md — set ARCHIVE_RUNTIME_PASSWORD, then enrol a device"
+
+# The database-backed tests are #[ignore]d so `cargo test --workspace` stays green in CI, which has
+# no Postgres. This target is what actually runs them, and it is deliberately separate rather than
+# folded into `test-rust`: a gate that silently needs a service is a gate that silently stops
+# gating.
+archive-test: ## Run the archive's Postgres-backed tests (needs `make archive-up`)
+	@cd rust && cargo test -p warrantor-archive -- --ignored
+
 .PHONY: help setup require-tools verify build lint test fmt fmt-check tracker \
 	build-rust build-ts lint-rust lint-python lint-ts lint-go \
 	test-rust test-python test-ts test-go fmt-rust fmt-python fmt-go \
 	fmt-check-rust fmt-check-python fmt-check-go check-proto check-protocols conformance \
-	check-docs docs clean demo sigstore-up
+	check-docs docs clean demo sigstore-up archive-up archive-test
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Warrantor strict targets:\n\n"} \
