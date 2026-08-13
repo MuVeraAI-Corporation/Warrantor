@@ -72,3 +72,20 @@ htmlcov/
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# ML artifacts (ml/ + python/warrantor_ml). Model weights and corpora must never enter git.
+# Root-anchored where a bare directory name would otherwise match at any depth -- the same
+# discipline /evidence/ needed after an unanchored `evidence/` swallowed rust/evidence/.
+*.safetensors
+*.gguf
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.parquet
+checkpoints/
+adapter_model/
+/ml/data/
+/ml/artifacts/
+/artifacts/
