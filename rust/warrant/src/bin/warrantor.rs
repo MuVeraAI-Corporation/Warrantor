@@ -28,6 +28,7 @@ use warrantor_warrant::mcp::serve;
 use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
 use warrantor_warrant::proxy::{host_of, ProxyMode};
 use warrantor_warrant::report;
+use warrantor_warrant::serve as http;
 use warrantor_warrant::settle::{settle, void, EffectOutcome, EffectPerformer, SettleReport};
 use warrantor_warrant::spend::{self, SpendStore, SpendVerdict};
 use warrantor_warrant::staging::{EffectRegistry, StagedEffect, StagingQueue};
@@ -91,7 +92,16 @@ struct Args {
 }
 
 fn parse_args() -> Option<Args> {
-    let mut raw = std::env::args().skip(1);
+    parse_tokens(std::env::args().skip(1))
+}
+
+/// The parser proper, over any sequence of tokens.
+///
+/// Split from [`parse_args`] so the flag grammar can be tested without a process: `parse_args`
+/// reads `std::env::args`, and a rule that can only be exercised by launching a binary is a rule
+/// that gets tested once, by hand, on the day it is written.
+fn parse_tokens<I: IntoIterator<Item = String>>(tokens: I) -> Option<Args> {
+    let mut raw = tokens.into_iter();
     let command = raw.next()?;
     let mut positional = Vec::new();
     let mut flags = BTreeMap::new();
@@ -174,6 +184,7 @@ warrantor — bounded authority for coding agents
   run     <warrant-id> -- <command> [args...]
   status
   mcp     [--agent <warrant-id>] [--observe]
+  serve   [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
 
 Report --export writes a signed, self-contained evidence bundle. Verify checks one
 offline, on any machine, with no access to this one: it proves nothing changed since
@@ -202,6 +213,23 @@ refuses outright rather than answering about the bound.
 Mcp serves the warrant lifecycle to your own coding agent over MCP. With --agent it
 instead serves a SUPERVISED agent: only that warrant's tools, policed, with no
 lifecycle tool published -- so the agent has no route to settling its own work.
+
+Serve puts the store behind a read API so a second person, a desktop app or a
+browser client can watch a run -- the thing a directory of JSON files on one
+machine could never do. It binds 127.0.0.1 unless you say otherwise, mints a
+per-session bearer token and checks it before it resolves a route, and computes
+every verification verdict itself: a client renders `verified`, it never derives
+it. Three routes change anything -- settle, void and stop -- and there is no
+grant over HTTP. /v1/summary/refusals is the one to read weekly: it aggregates
+every wall your agents hit, across warrants, and says whether the bound was
+wrong or the agent was.
+
+The token is printed and written to ~/.warrantor/serve/token, owner-only where
+the platform has such a thing; --token-file puts it somewhere else and will not
+create the directory for you. It lasts one run: Ctrl-C lets the requests in
+flight finish, then deletes the file, and the next start mints a new one. A
+--bind that is not loopback prints a warning naming what just became reachable,
+because there is no TLS here -- the token controls access, not confidentiality.
 
 Run starts the agent under a supervisor detached from this terminal: closing the
 terminal ends your view of the run, not the run. Status says what is still going
@@ -1208,19 +1236,14 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     }
 }
 
-fn worktree_of(stored: &StoredWarrant, id: &str) -> Option<Worktree> {
-    match (&stored.repo, &stored.worktree) {
-        (Some(repo), Some(path)) => Some(Worktree::existing(
-            repo.clone(),
-            path.clone(),
-            stored
-                .branch
-                .clone()
-                .unwrap_or_else(|| format!("{}{}", warrantor_warrant::worktree::BRANCH_PREFIX, id)),
-            stored.base_commit.clone().unwrap_or_default(),
-        )),
-        _ => None,
-    }
+/// Reconstruct this warrant's worktree handle.
+///
+/// Delegates to [`warrantor_warrant::worktree::of_stored`], which is this function promoted into the
+/// library so the HTTP API is not a fourth independent copy of the same nine lines. The `id`
+/// argument is kept because the call sites read better with it, and it is now redundant: the stored
+/// warrant carries its own id.
+fn worktree_of(stored: &StoredWarrant, _id: &str) -> Option<Worktree> {
+    warrantor_warrant::worktree::of_stored(stored)
 }
 
 fn cmd_void(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
@@ -1545,6 +1568,30 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
         );
         return match serve(&mut endpoint, stdin.lock(), &mut stdout) {
             Ok(_) => {
+                // Write the session's refusals down before printing them. Until this line they
+                // existed only in this process's memory for the lifetime of one session, which is
+                // why `warrantor serve` could not answer "what was refused" by calling an existing
+                // function: the types were there and the data was not.
+                match http::record_refusals(
+                    root,
+                    id,
+                    &endpoint.authority_requests(),
+                    &endpoint.egress_refusals(),
+                    now(),
+                ) {
+                    Ok(0) => {}
+                    Ok(count) => eprintln!(
+                        "warrantor: recorded {count} refusal group(s) for {id}. Review them across \
+                         runs with `warrantor serve` at /v1/summary/refusals."
+                    ),
+                    // The run is over and its refusals are still printed below. Losing the durable
+                    // copy costs a tuning signal, not a guarantee, so it is reported rather than
+                    // turned into a failing exit code.
+                    Err(e) => eprintln!(
+                        "warrantor: the session's refusals could not be written down ({e}). They \
+                         are printed below and nowhere else."
+                    ),
+                }
                 for request in endpoint.authority_requests() {
                     eprintln!(
                         "warrantor: denied {} x{} ({})",
@@ -1589,6 +1636,222 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
     }
 }
 
+// ── serve ─────────────────────────────────────────────────────────────────────────────
+
+/// `warrantor serve [--bind ADDR] [--port N] [--token-file PATH] [--allow-settle]` — the store over
+/// HTTP.
+///
+/// Loopback by default. A non-loopback bind is an explicit `--bind`, and it prints a warning naming
+/// exactly what became reachable — including that there is no TLS, so the bearer token controls
+/// access and not confidentiality.
+///
+/// Keys are **loaded, never created**: the CLI's `load_or_create_key` mints one on first use with
+/// default permissions, which would give a fresh box an issuer identity nobody chose and start
+/// signing evidence with it.
+///
+/// The token file is removed on the way out. A file left behind naming a token that no longer opens
+/// anything is not harmless: the next reader has no way to tell it apart from a live one, and the
+/// obvious conclusion — that the token in the file is the token the server wants — is wrong.
+fn cmd_serve(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
+    let addr = match resolve_bind(args) {
+        Ok(addr) => addr,
+        Err(e) => return fail(&e),
+    };
+    let token_file = match resolve_token_file(args) {
+        Ok(path) => path,
+        Err(e) => return fail(&e),
+    };
+
+    let issuer = match http::load_key(&root.join("keys/issuer.key"), "issuer") {
+        Ok(k) => k,
+        Err(e) => return fail(&e.to_string()),
+    };
+    // Release authority is OPT-IN. This was the other way round, and the other way round is
+    // unsafe on this product's own terms.
+    //
+    // The token lives on a filesystem the supervised agent can read, and there are no read bounds
+    // in this system at all — `read_paths` does not exist; bounds cover tools, egress and
+    // write_paths, and write_paths is Observed. Owner-only permissions exclude other *users*; the
+    // agent runs as the same user. So an agent can read the token and call settle on its own
+    // warrant, and the one load-bearing property of the whole product — that an agent cannot
+    // settle its own warrant, which has a test by that name — would be false whenever a server
+    // was running.
+    //
+    // Under a same-UID model this is not fully fixable: an agent that can read a file can usually
+    // also ptrace the process holding the secret. What IS fixable is the consequence. Default to a
+    // server that has no settle key to steal, so the same file read yields a viewer rather than a
+    // release button, and make arming it a thing the operator typed.
+    //
+    // Which is also just the rule this product already applies everywhere else: an absent limit
+    // means none, never unlimited.
+    let settle_key = if args.flags.contains_key("allow-settle") {
+        match http::load_key(&root.join("keys/settle.key"), "settle") {
+            Ok(k) => Some(k),
+            Err(e) => return fail(&e.to_string()),
+        }
+    } else {
+        None
+    };
+    let release_authority = settle_key.is_some();
+
+    let token = match http::SessionToken::mint() {
+        Ok(t) => t,
+        Err(e) => return fail(&e.to_string()),
+    };
+    // Written before the socket is bound. If the secret cannot be put somewhere the operator can
+    // read it, there is no point opening a port that only refuses.
+    let token_path = match &token_file {
+        None => match token.write_to(root) {
+            Ok(path) => path,
+            Err(e) => return fail(&e.to_string()),
+        },
+        Some(path) => match token.write_to_file(path) {
+            Ok(()) => path.clone(),
+            Err(e) => return fail(&e.to_string()),
+        },
+    };
+
+    // Ctrl-C is installed before the listener, so the window in which an impatient operator gets a
+    // hard kill instead of a drain is as small as it can be.
+    let shutdown = http::Shutdown::new();
+    let interruptible = http::install_interrupt_handler();
+
+    println!("warrantor: serving {} on http://{addr}", root.display());
+    println!("  token         {}", token.as_str());
+    println!("  token file    {}", token_path.display());
+    if cfg!(unix) {
+        println!(
+            "                (mode 0600{})",
+            if token_file.is_some() {
+                ", in a directory you named -- its permissions are yours"
+            } else {
+                ", in a 0700 directory"
+            }
+        );
+    } else {
+        println!(
+            "                (this platform has no owner-only file mode in std: the file is \
+             protected by inherited directory ACLs only)"
+        );
+    }
+    println!(
+        "  authority     {}",
+        if release_authority {
+            "settle, void and stop are reachable. A token holder can release staged effects."
+        } else {
+            "read and stop only -- settle and void refuse. Pass --allow-settle to arm them."
+        }
+    );
+    println!(
+        "  try           curl -H \"authorization: Bearer {}\" http://{addr}/v1/health",
+        token.as_str()
+    );
+    if interruptible {
+        println!(
+            "  stop          Ctrl-C. In-flight requests finish, then the token file is removed."
+        );
+    } else {
+        // The honest version of "press Ctrl-C to stop". On a platform with no handler this module
+        // knows, Ctrl-C kills the process where it stands -- possibly mid-settle -- and leaves the
+        // token file behind.
+        println!(
+            "  stop          Ctrl-C, but this platform has no interrupt handler here: it ends the \
+             process where it stands, and {} is left behind.",
+            token_path.display()
+        );
+    }
+    if let Some(warning) = http::bind_warning(addr, root, release_authority) {
+        eprintln!("{warning}");
+    }
+
+    let api = http::StoreApi::new(
+        store,
+        root.to_path_buf(),
+        issuer,
+        settle_key,
+        build_performer,
+        now,
+    );
+    let outcome = http::listen(api, token, addr, &shutdown);
+    // Removed whether the drain completed or not, and whether or not the loop ended in an error:
+    // the token is a per-session secret and this session is over either way.
+    let removed = std::fs::remove_file(&token_path);
+    match outcome {
+        Ok(drain) => {
+            println!();
+            match drain {
+                http::Drain::Complete => println!("warrantor: stopped. Nothing was cut off."),
+                http::Drain::Incomplete(outstanding) => println!(
+                    "warrantor: stopped with {outstanding} request(s) still running after the \
+                     drain window. Anything they were part-way through -- a settle, a stop -- may \
+                     be half done. Read the store before you trust it."
+                ),
+            }
+            if let Err(e) = removed {
+                eprintln!(
+                    "warrantor: WARNING -- could not remove {}: {e}. The token in it is dead; \
+                     delete it so nobody reads it as live.",
+                    token_path.display()
+                );
+            } else {
+                println!("           {} removed.", token_path.display());
+            }
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&e.to_string()),
+    }
+}
+
+/// Work out where the session token is written, honouring `--token-file`.
+///
+/// `None` means the default under the store root. A `--token-file` with no value is a refusal
+/// rather than a fallback to the default: an operator who typed the flag was moving a secret, and
+/// quietly writing it to the place they were moving it away from is the wrong recovery.
+fn resolve_token_file(args: &Args) -> Result<Option<PathBuf>, String> {
+    match args.flags.get("token-file") {
+        None => Ok(None),
+        Some(raw) if raw == "true" => Err(
+            "--token-file needs a path, e.g. --token-file /run/user/1000/warrantor-token"
+                .to_string(),
+        ),
+        Some(raw) if raw.trim().is_empty() => {
+            Err("--token-file was given an empty path".to_string())
+        }
+        Some(raw) => Ok(Some(PathBuf::from(raw))),
+    }
+}
+
+/// Work out what to bind, defaulting to loopback and refusing anything unparseable.
+///
+/// An address that does not parse is a refusal rather than a fallback to the default: silently
+/// binding loopback when the operator asked for something else would be the friendlier failure and
+/// the wrong one, and silently binding something else when they meant loopback would be worse.
+fn resolve_bind(args: &Args) -> Result<std::net::SocketAddr, String> {
+    let port = match args.flags.get("port") {
+        None => http::DEFAULT_PORT,
+        Some(raw) => raw
+            .parse::<u16>()
+            .map_err(|_| format!("--port must be a whole number; {raw:?} does not parse"))?,
+    };
+    let Some(raw) = args.flags.get("bind") else {
+        return Ok(std::net::SocketAddr::from(([127, 0, 0, 1], port)));
+    };
+    if raw == "true" {
+        return Err("--bind needs an address, e.g. --bind 127.0.0.1:8787".to_string());
+    }
+    if let Ok(addr) = raw.parse::<std::net::SocketAddr>() {
+        return Ok(addr);
+    }
+    match raw.parse::<std::net::IpAddr>() {
+        Ok(ip) => Ok(std::net::SocketAddr::new(ip, port)),
+        Err(_) => Err(format!(
+            "--bind must be an address like 127.0.0.1 or 0.0.0.0:8787; {raw:?} is neither. No \
+             hostname is resolved here: binding whatever a name happens to point at today is not a \
+             decision this should make for you."
+        )),
+    }
+}
+
 fn main() -> ExitCode {
     let Some(args) = parse_args() else {
         println!("{USAGE}");
@@ -1618,6 +1881,7 @@ fn main() -> ExitCode {
         "supervise" => cmd_supervise(&args, &store, &root),
         "status" => cmd_status(&store, &root),
         "mcp" => cmd_mcp(&args, store, &root),
+        "serve" => cmd_serve(&args, store, &root),
         "help" | "--help" | "-h" => {
             println!("{USAGE}");
             ExitCode::SUCCESS
@@ -1636,4 +1900,125 @@ fn _state_is_used(state: WarrantState) -> String {
 #[allow(dead_code)]
 fn _key_is_used(key: &VerifyingKey) -> String {
     hex::encode(key.to_bytes())
+}
+
+/// The `serve` verb's own argument grammar.
+///
+/// These are here rather than in `tests/serve.rs` because they are about the *command line*, and a
+/// binary's command line is not reachable from an integration test without spawning a process. The
+/// rules under test are the ones where a friendly fallback would be the dangerous answer: an
+/// address that does not parse must not become loopback, and a flag that was typed but left empty
+/// must not become its default.
+#[cfg(test)]
+mod serve_cli {
+    use super::{parse_tokens, resolve_bind, resolve_token_file};
+
+    fn args(tokens: &[&str]) -> super::Args {
+        parse_tokens(
+            std::iter::once("serve".to_string())
+                .chain(tokens.iter().map(|t| (*t).to_string()))
+                .collect::<Vec<_>>(),
+        )
+        .expect("a command")
+    }
+
+    #[test]
+    fn serve_binds_loopback_on_a_named_default_port_when_told_nothing() {
+        let addr = resolve_bind(&args(&[])).expect("default");
+        assert!(addr.ip().is_loopback(), "the default must never be public");
+        assert_eq!(addr.ip().to_string(), "127.0.0.1");
+        assert_eq!(addr.port(), warrantor_warrant::serve::DEFAULT_PORT);
+        // And nothing was written anywhere the operator did not ask for.
+        assert_eq!(resolve_token_file(&args(&[])).expect("default"), None);
+    }
+
+    #[test]
+    fn a_port_moves_the_default_and_an_address_may_carry_its_own() {
+        let addr = resolve_bind(&args(&["--port", "9191"])).expect("port");
+        assert!(addr.ip().is_loopback());
+        assert_eq!(addr.port(), 9191);
+
+        // A bare address takes the port from --port, in either order.
+        let addr = resolve_bind(&args(&["--bind", "0.0.0.0", "--port", "9191"])).expect("bind");
+        assert_eq!(addr.to_string(), "0.0.0.0:9191");
+        // An address that carries its own port keeps it.
+        let addr = resolve_bind(&args(&["--bind", "192.168.1.9:7000"])).expect("bind");
+        assert_eq!(addr.to_string(), "192.168.1.9:7000");
+        // v6 too, since the bracket form is the one people get wrong.
+        let addr = resolve_bind(&args(&["--bind", "[::1]:7000"])).expect("bind");
+        assert!(addr.ip().is_loopback());
+    }
+
+    /// The dangerous fallbacks, refused one at a time.
+    #[test]
+    fn an_address_that_does_not_parse_is_refused_rather_than_quietly_looped_back() {
+        for tokens in [
+            vec!["--bind", "localhost"], // a name: this resolves nothing on purpose
+            vec!["--bind", "not-an-address"],
+            vec!["--bind", "999.999.999.999"],
+            vec!["--bind"], // typed, with nothing after it
+        ] {
+            let refusal = resolve_bind(&args(&tokens)).expect_err(&format!("{tokens:?}"));
+            assert!(
+                refusal.contains("--bind"),
+                "the refusal must name the flag: {refusal}"
+            );
+        }
+        // A hostname is refused with a reason, not just a shrug: binding whatever a name points at
+        // today is a decision about exposure.
+        let refusal = resolve_bind(&args(&["--bind", "localhost"])).expect_err("refusal");
+        assert!(refusal.contains("No \nhostname") || refusal.contains("hostname"));
+    }
+
+    #[test]
+    fn a_port_that_is_not_a_port_is_refused() {
+        for value in ["eight-thousand", "-1", "70000", "8787.0"] {
+            let refusal = resolve_bind(&args(&["--port", value])).expect_err(value);
+            assert!(refusal.contains("--port"), "{refusal}");
+        }
+    }
+
+    #[test]
+    fn a_token_file_is_taken_verbatim_and_an_empty_one_is_refused() {
+        let path = resolve_token_file(&args(&["--token-file", "/run/user/1000/wt"]))
+            .expect("path")
+            .expect("some");
+        assert_eq!(path, std::path::PathBuf::from("/run/user/1000/wt"));
+
+        // `--token-file=` and a bare `--token-file` are both a typed flag with no path. Falling
+        // back to the default would write the secret to the place the operator was moving it from.
+        for tokens in [vec!["--token-file"], vec!["--token-file="]] {
+            let refusal = resolve_token_file(&args(&tokens)).expect_err(&format!("{tokens:?}"));
+            assert!(refusal.contains("--token-file"), "{refusal}");
+        }
+    }
+
+    /// `--allow-settle` is a bare flag, and the parser has to see it as present-with-no-value rather
+    /// than swallowing whatever came next.
+    #[test]
+    fn allow_settle_is_a_bare_flag_and_does_not_eat_the_next_one() {
+        let parsed = args(&["--allow-settle", "--port", "9000"]);
+        assert_eq!(
+            parsed.flags.get("allow-settle").map(String::as_str),
+            Some("true")
+        );
+        assert_eq!(resolve_bind(&parsed).expect("bind").port(), 9000);
+    }
+
+    /// The usage text is the only place most people will read the grammar, so it has to carry every
+    /// flag this verb answers to.
+    #[test]
+    fn the_usage_text_names_every_serve_flag() {
+        for flag in ["--bind", "--port", "--token-file", "--allow-settle"] {
+            assert!(super::USAGE.contains(flag), "usage does not mention {flag}");
+        }
+        assert!(
+            super::USAGE.contains("127.0.0.1"),
+            "usage must say what it binds by default"
+        );
+        assert!(
+            super::USAGE.contains("Ctrl-C"),
+            "usage must say how it stops"
+        );
+    }
 }

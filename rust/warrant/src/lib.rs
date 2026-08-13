@@ -39,6 +39,7 @@ pub mod mcp;
 pub mod mcp_endpoints;
 pub mod proxy;
 pub mod report;
+pub mod serve;
 pub mod settle;
 pub mod spend;
 pub mod staging;
