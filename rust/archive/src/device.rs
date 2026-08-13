@@ -304,12 +304,22 @@ pub fn sign_request(
 /// 1. the credential parses;
 /// 2. the timestamp is inside the window (a stale request must not consume a nonce, or an attacker
 ///    could burn a victim's future nonces by replaying old ones);
-/// 3. the device is known and not revoked;
-/// 4. the signature verifies;
-/// 5. **and only then** the nonce is recorded, which is what makes it single-use.
+/// 3. the device is known;
+/// 4. the signature verifies against that device's enrolled key;
+/// 5. the device has not been revoked;
+/// 6. **and only then** the nonce is recorded, which is what makes it single-use.
 ///
 /// Recording last means a request that fails an earlier check leaves no trace in the replay store,
 /// so the store's size is a function of accepted requests rather than of attacker traffic.
+///
+/// **Revocation is checked after the signature, not before, and the order is the whole of a
+/// property `http.rs` claims.** Checked first, an unauthenticated caller signing with a key they
+/// invented got [`DeviceError::Revoked`] for a device id that exists and [`DeviceError::
+/// UnknownDevice`] for one that does not — and those two are served as *different* error codes
+/// (`device_revoked` versus `unauthorized`), so the route answered "does this device id exist?" to
+/// anyone who asked. Checked after `verify_strict`, only someone holding the device's own private
+/// key can tell the two apart, which is the person who is entitled to know their device was
+/// revoked. A revoked device still spends no nonce: this check precedes the recording.
 ///
 /// # Errors
 /// The [`DeviceError`] naming the first check that failed.
@@ -333,9 +343,6 @@ pub fn authenticate<S: ArchiveStore>(
     let device = store
         .device(&credential.device_id)?
         .ok_or(DeviceError::UnknownDevice)?;
-    if !device.active() {
-        return Err(DeviceError::Revoked);
-    }
 
     let key = parse_public_key(&device.public_key)?;
     let signature = parse_signature(&credential.signature)?;
@@ -349,6 +356,12 @@ pub fn authenticate<S: ArchiveStore>(
     );
     key.verify_strict(&signing_input(&descriptor), &signature)
         .map_err(|_| DeviceError::BadSignature)?;
+
+    // Only now, with the signature checked, is it safe to say something about *this device* rather
+    // than about this request. See the ordering note on this function.
+    if !device.active() {
+        return Err(DeviceError::Revoked);
+    }
 
     match store.remember_nonce(&credential.device_id, &credential.nonce, now)? {
         NonceOutcome::Fresh => Ok(device),

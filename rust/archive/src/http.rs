@@ -379,9 +379,15 @@ fn unreachable() -> ArchiveResponse {
 /// Every authentication failure answers 401 with the same body.
 ///
 /// The reason word is carried, because an operator debugging a clock-skew problem needs to know it
-/// is clock skew and a replayed nonce is worth naming. What is never carried is whether the *device*
-/// exists: `UnknownDevice` and `BadSignature` both read as a refusal about this request, so the
-/// route cannot be used to enumerate enrolled devices.
+/// is clock skew and a replayed nonce is worth naming. What is never carried *to an unauthenticated
+/// caller* is whether the device exists: `UnknownDevice` and `BadSignature` both read as a refusal
+/// about this request, so the route cannot be used to enumerate enrolled devices.
+///
+/// `device_revoked` is the one code that says something about a device, and it is reachable only
+/// behind a valid signature — `device::authenticate` checks revocation *after* `verify_strict`
+/// precisely so this code cannot be got out of the route by someone signing with a key they
+/// invented. Whoever sees it is holding that device's private key, and telling that person their
+/// device was revoked is the point of the code rather than a leak.
 fn unauthorized(error: &DeviceError) -> ArchiveResponse {
     let (code, message) =
         match error {
@@ -402,15 +408,25 @@ fn unauthorized(error: &DeviceError) -> ArchiveResponse {
     ArchiveResponse::error(status::UNAUTHORIZED, code, &message)
 }
 
+/// Liveness, and deliberately nothing else.
+///
+/// This body once also served `"append_only": true`, `"holds_no_signing_key": true` and
+/// `"routes_that_mutate_a_warrant": 0`. They are gone, and their absence is the point. They were
+/// literals — not derived from a `pg_trigger` lookup, not from grant introspection, not from
+/// anything — so a compromised archive that had acquired a signing key or had its trigger dropped
+/// returned the identical three values, unauthenticated, to a viewer that would render them as
+/// badges. That is the same failure the `not_a_verdict` naming discipline exists to prevent, one
+/// level up: **a machine asserting its own trustworthiness is not evidence of it**, and the walker
+/// in `tests/the_archive_never_serves_a_verdict.rs` now bans the shape as well as the word.
+///
+/// Whether this archive is append-only is answered by reading `migrations/0001_initial.sql` and by
+/// verifying artifacts off the archive, never by asking the archive.
 fn health(now: u64) -> ArchiveResponse {
     ArchiveResponse::ok(
         json!({
             "service": "warrantor-archive",
             "version": env!("CARGO_PKG_VERSION"),
             "now": now,
-            "append_only": true,
-            "holds_no_signing_key": true,
-            "routes_that_mutate_a_warrant": 0,
         }),
         "unknown",
         "health reads no artifact, so nothing was checked.",

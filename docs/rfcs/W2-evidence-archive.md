@@ -84,9 +84,11 @@ saying which bytes are which artifact, in a language nobody on this project audi
 
 ### Ingest verification: why it exists, and why it is never a verdict
 
-Every submission is run through the existing verifier at the door. That is **hygiene**: it rejects
-forged and malformed submissions before they become stored evidence, so the archive is not a
-convenient place to park a fabrication.
+Every submission is run through the existing verifier at the door. That is **hygiene**, and it is
+worth being exact about what it refuses: a submission that is not one of the three evidence files at
+all, or that names no warrant to be filed under, so the archive is not a convenient place to park
+arbitrary bytes. A file whose *signatures* do not hold is not refused — it is stored and marked, for
+the reason given below.
 
 Its result is recorded three-valued (`ok` / `failed` / `unknown`, mirroring `serve::Integrity`, with
 `unknown` never rendered as `failed`) and served under a field literally named `not_a_verdict`. The
@@ -104,6 +106,15 @@ that way.
 An artifact whose ingest check **failed** is still stored, still listed and still returned byte for
 byte. Refusing to hold a tampered file would destroy the evidence that it existed, and a tampered
 file is the single most important thing to be able to put in front of a human.
+
+The same is true of `unknown`, and making it true took a fix. A body that declares one of the three
+formats and will not deserialise into it is filed under the warrant it names, with the check recorded
+as `unknown` — no verifier ran, so nothing established that its signatures are wrong. Until now that
+was documentation rather than behaviour: every arm producing `unknown` also produced no warrant id,
+and ingest refused the submission on the next line, so the third value could not be written and the
+version-skew case (a newer build's export this one cannot parse) was dropped at the door instead of
+kept. The warrant id is read out of the raw JSON purely as a **filing key**, validated with the same
+`is_warrant_id` the router applies, and a body naming no usable warrant is still refused.
 
 ### The route table
 
@@ -146,9 +157,16 @@ Authorization: Warrantor-Device <device_id>.<timestamp>.<nonce>.<hex-signature>
 signed over `dsse_pae` of a canonical descriptor pinning the format, method, path, device id, nonce,
 timestamp and a digest of the body. Everything swappable is inside the signature, so it cannot be
 lifted onto another route, another body or another device. Verification order is: freshness, then
-device known and not revoked, then the signature, and **only then** is the nonce recorded — a stale
-or unsigned request must not consume a nonce, or an attacker replaying old traffic could burn the
-nonces an honest client is about to use.
+the device is known, then the signature, **then** revocation, and **only then** is the nonce
+recorded — a stale or unsigned request must not consume a nonce, or an attacker replaying old
+traffic could burn the nonces an honest client is about to use.
+
+Revocation sits after the signature rather than before it, and that ordering is load-bearing.
+`device_revoked` and `unauthorized` are distinct wire codes, so checking revocation first answered
+"does this device id exist?" to anyone willing to sign with a key they invented — an enumeration
+oracle over a route whose documented property is that it is not one. After `verify_strict`, only the
+holder of that device's private key can tell a revoked device from an unknown one, and that is the
+person entitled to know.
 
 **Freshness, and the contrast worth naming.** `report.rs` says plainly that the notary's freshness
 gate sees an empty seen-nonce set and cannot detect a replay. That is honest about a report built in
@@ -234,7 +252,7 @@ against a real threat. Adding one should be a documented decision naming an orig
 | A forged or malformed file is submitted | Ingest runs the existing verifier and records `ok`/`failed`/`unknown`; unknown formats are refused at the door and never stored | An artifact that verifies but was signed by an untrusted key is stored, correctly: the archive is not the judge of whose key matters |
 | A captured request is replayed | The signature pins method, path, device, nonce, timestamp and body digest; nonces are single-use per device (unique index); timestamps must be within 5 minutes either way | A replay inside the window from a device whose key is held by the attacker — see the next row |
 | A device key is on a lost laptop | `warrantor-archive` revocation sets `revoked_at`; a revoked device is refused on the next request. Keys are per-device, so the blast radius is one person's device rather than everyone's token | Anything that device submitted before revocation was legitimately signed and stays. There is no automatic key expiry in stage 1 |
-| A stolen enrolment code | Single-use, 15-minute expiry, only its SHA-256 stored, constant-time comparison, and one refusal for unknown/expired/claimed so the route is not an oracle | Whoever holds the code within its window can enrol a device under the operator's chosen label |
+| A stolen enrolment code | Single-use (one conditional `UPDATE`, tested against a real database), 15-minute expiry, only its SHA-256 stored, and one refusal for unknown/expired/claimed so the route is not an oracle | Whoever holds the code within its window can enrol a device under the operator's chosen label. The digest lookup runs in data-dependent time — a `BTreeMap::get` and a primary-key index probe — so a timing side channel exists against a SHA-256 of 32 CSPRNG bytes, which is not a practical path to guessing a code. This row previously claimed a mitigation the code did not apply; see `tests/append_only.rs::the_threat_model_names_no_mitigation_this_crate_does_not_implement` |
 | An operator deletes rows out of band | A `BEFORE UPDATE OR DELETE` trigger and a runtime role with no `UPDATE`/`DELETE` grant | **Not prevented.** The DBA owns the database. Custody against the audited party rests on off-archive verifiability, not on the trigger |
 | Someone renders the archive's ingest check as a verdict | The field is named `not_a_verdict`; `ArchiveResponse` cannot produce a `verified` key; every route's body is walked by test | A client that reads `not_a_verdict.ingest_check` and renders it as a tick anyway. The name makes that a deliberate act |
 | SQL injection through a digest, id or filter | Parameterised queries only (`$1`, `$2` …); no string concatenation near SQL; digests and ids validated before they reach the store | None known |
@@ -294,8 +312,13 @@ unanchored path behaves as before, except that it now states what it did not che
 
 ## Testing
 
-`rust/archive/tests/`, four files, 28 tests. Everything runs against `MemoryStore`, because CI has
-no Postgres; the two that need a database are `#[ignore]`d and name the compose command.
+`rust/archive/tests/`, four files. Everything runs against `MemoryStore`, because CI has no Postgres;
+**three** tests need a database, are `#[ignore]`d, and name the command that runs them
+(`make archive-test`). That number is asserted by
+`append_only.rs::the_ignored_database_tests_are_the_number_the_docs_claim` rather than left to this
+paragraph: this section previously said "two" while one existed, and a reviewer who runs the
+documented command and sees `1 passed` has no way to know which claim is the wrong one. A test that
+is counted and does not exist is worse than a missing test.
 
 **`verification_does_not_depend_on_the_archive.rs`** is the load-bearing file.
 
@@ -312,14 +335,26 @@ no Postgres; the two that need a database are `#[ignore]`d and name the compose 
 - `the_archive_returns_the_bytes_it_was_given_and_the_digest_proves_it` — the property every other
   assertion rests on.
 
-**`the_archive_never_serves_a_verdict.rs`** walks every route's body at every depth for a `verified`
-or `verification` key, and asserts an artifact whose ingest check failed is still retrievable byte
-for byte, and that an unparseable file is `unknown` rather than `failed`.
+**`the_archive_never_serves_a_verdict.rs`** walks every route's body at every depth for a field a
+client could render as a verdict, and asserts an artifact whose ingest check failed is still
+retrievable byte for byte, and that an unparseable file is `unknown` rather than `failed` — at the
+unit boundary and end to end through the wire and the listing.
+
+The walker bans more than the two words. `/v1/health` served `append_only: true`,
+`holds_no_signing_key: true` and `routes_that_mutate_a_warrant: 0` as unauthenticated,
+machine-readable literals — values a compromised archive that had acquired a signing key or lost its
+trigger would return identically, next to a name a viewer renders as a badge. They are removed:
+whether this archive is append-only is answered by reading the migration and by verifying artifacts
+off the archive, never by asking the archive.
 
 **`append_only.rs`** covers idempotence-without-overwrite, second artifacts under one warrant, the
-trait's shape, the migration's two enforcement mechanisms, and that retention grants nothing by
-default — including the enabled-with-no-window and enabled-with-zero-window cases, which are the
-ones an absent-limit bug produces.
+trait's shape, the migration's two enforcement mechanisms *as text*, and that retention grants
+nothing by default — including the enabled-with-no-window and enabled-with-zero-window cases, which
+are the ones an absent-limit bug produces. The two enforcement mechanisms are exercised *for real*
+by one `#[ignore]`d test each, deliberately not one test: connected as a single role, "the trigger
+refused" and "this role was never granted UPDATE" are indistinguishable, and the earlier single test
+proved neither — it updated a table it had never inserted into, and a `FOR EACH ROW` trigger does
+not fire on a statement that matches no rows.
 
 **`device_pairing.rs`** covers single-use codes under a race, expiry, replayed nonces, a signature
 over a different body, a signature lifted onto another route, staleness in both directions without
@@ -343,6 +378,15 @@ A pinned `postgres:16.4-bookworm` with a named volume and a `pg_isready` healthc
 starts against a database whose trigger and grants are not installed; both ports published to
 `127.0.0.1`. No password in the file — `POSTGRES_PASSWORD` and `ARCHIVE_RUNTIME_PASSWORD` come from
 the environment and compose fails loudly if they are unset.
+
+**Bringing it up is three steps, not one, and the order is forced by the schema.** `archive_runtime`
+is created *by* the migration, so its password cannot be set before the migration has run; and the
+server cannot authenticate until that password is set, so it starts last: `up -d db` →
+`run --rm migrate` → `ALTER ROLE archive_runtime PASSWORD …` → `up -d archive`. `make archive-up` is
+that sequence, and it refuses to start at all if either password is unset rather than failing halfway
+through. The earlier runbook told the operator to `exec db psql` before anything was running, to
+alter a role that did not exist yet, and its `psql` invocation supplied no password to a database
+initialised with `--auth-local=scram-sha-256`. It could not be followed as written by anybody.
 
 The TLS-terminating reverse proxy is present and **commented out**, with the note that stage 1
 without it is loopback-or-VPN only. That is not a recommendation; it is the boundary of what the

@@ -16,16 +16,38 @@ sigstore-up: ## Start the local transparency log (MySQL + Trillian + Rekor)
 	@docker compose -f deploy/local-sigstore/docker-compose.yml up -d
 	@echo "then: ./deploy/local-sigstore/bootstrap.sh"
 
-archive-up: ## Start the evidence archive (Postgres + migrate + server)
-	@docker compose -f deploy/evidence-archive/docker-compose.yml up -d
-	@echo "then: deploy/evidence-archive/README.md — set ARCHIVE_RUNTIME_PASSWORD, then enrol a device"
+# Three steps, in this order, because the order is forced by the schema: `archive_runtime` does not
+# exist until the migration has run, so its password cannot be set before that, and the server cannot
+# authenticate until it is set, so the server starts last. A single `up -d` cannot work: compose
+# refuses to interpolate ${ARCHIVE_RUNTIME_PASSWORD:?} if it is unset, and even when it is set the
+# archive container cannot log in until the ALTER ROLE below has run.
+archive-up: ## Start the evidence archive (Postgres, schema, runtime password, server)
+	@: "$${POSTGRES_PASSWORD:?export POSTGRES_PASSWORD first — see deploy/evidence-archive/README.md}"
+	@: "$${ARCHIVE_RUNTIME_PASSWORD:?export ARCHIVE_RUNTIME_PASSWORD first — see deploy/evidence-archive/README.md}"
+	@docker compose -f deploy/evidence-archive/docker-compose.yml up -d db
+	@docker compose -f deploy/evidence-archive/docker-compose.yml run --rm migrate
+	@docker compose -f deploy/evidence-archive/docker-compose.yml exec -T \
+	  -e PGPASSWORD="$$POSTGRES_PASSWORD" db \
+	  psql -U archive_admin -d warrantor_archive -v ON_ERROR_STOP=1 \
+	  -c "ALTER ROLE archive_runtime PASSWORD '$$ARCHIVE_RUNTIME_PASSWORD'"
+	@docker compose -f deploy/evidence-archive/docker-compose.yml up -d archive
+	@echo "then: deploy/evidence-archive/README.md — enrol a device"
 
 # The database-backed tests are #[ignore]d so `cargo test --workspace` stays green in CI, which has
 # no Postgres. This target is what actually runs them, and it is deliberately separate rather than
 # folded into `test-rust`: a gate that silently needs a service is a gate that silently stops
 # gating.
+#
+# BOTH URLs, and they are different roles on purpose. One connection cannot distinguish "the trigger
+# refused" from "this role was never granted UPDATE", which is exactly how this crate once claimed to
+# cover a trigger that had never fired.
 archive-test: ## Run the archive's Postgres-backed tests (needs `make archive-up`)
-	@cd rust && cargo test -p warrantor-archive -- --ignored
+	@: "$${POSTGRES_PASSWORD:?export POSTGRES_PASSWORD first — see deploy/evidence-archive/README.md}"
+	@: "$${ARCHIVE_RUNTIME_PASSWORD:?export ARCHIVE_RUNTIME_PASSWORD first — see deploy/evidence-archive/README.md}"
+	@cd rust && \
+	  WARRANTOR_ARCHIVE_DATABASE_URL="postgres://archive_admin:$$POSTGRES_PASSWORD@127.0.0.1:5433/warrantor_archive" \
+	  WARRANTOR_ARCHIVE_RUNTIME_DATABASE_URL="postgres://archive_runtime:$$ARCHIVE_RUNTIME_PASSWORD@127.0.0.1:5433/warrantor_archive" \
+	  cargo test -p warrantor-archive -- --ignored
 
 .PHONY: help setup require-tools verify build lint test fmt fmt-check tracker \
 	build-rust build-ts lint-rust lint-python lint-ts lint-go \

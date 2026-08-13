@@ -71,6 +71,27 @@ fn all_keys(value: &Value, out: &mut Vec<String>) {
     }
 }
 
+/// Field names no route may ever serve.
+///
+/// The first two are the original guardrail: `verified` and `verification` are what
+/// `serve::Response::json` puts on every body, and a console renders what it is handed.
+///
+/// The last three are the same failure one level up, and they were live. `/v1/health` served
+/// `"append_only": true`, `"holds_no_signing_key": true` and `"routes_that_mutate_a_warrant": 0` as
+/// machine-readable fields, unauthenticated — and they were **literals**, derived from no
+/// `pg_trigger` lookup and no grant introspection. A compromised archive that had acquired a signing
+/// key or had its trigger dropped returned exactly the same three values. A server's assertion about
+/// its own integrity is not evidence of its integrity, whatever the field is called, and a viewer
+/// would render it as a badge. Whether this archive is append-only is answered by reading the
+/// migration and by verifying artifacts off the archive — never by asking the archive.
+const NEVER_SERVED: [&str; 5] = [
+    "verified",
+    "verification",
+    "append_only",
+    "holds_no_signing_key",
+    "routes_that_mutate_a_warrant",
+];
+
 /// The assertion, written once so every route gets exactly the same one.
 fn assert_carries_no_verdict(label: &str, response: &ArchiveResponse) {
     if response.raw.is_some() {
@@ -81,12 +102,14 @@ fn assert_carries_no_verdict(label: &str, response: &ArchiveResponse) {
     }
     let mut keys = Vec::new();
     all_keys(&response.body, &mut keys);
-    for forbidden in ["verified", "verification"] {
+    for forbidden in NEVER_SERVED {
         assert!(
             !keys.iter().any(|k| k == forbidden),
-            "{label} carries a {forbidden:?} key. That field is a server-computed verdict, and \
-             this server is a relay: a viewer would render it as an answer about evidence the \
-             archive did not produce and cannot check authoritatively. Use `not_a_verdict`."
+            "{label} carries a {forbidden:?} key. That field is a server-computed claim about \
+             something the server is not entitled to settle — either a verdict on evidence it \
+             merely relays, or an assertion about its own integrity that a compromised archive \
+             would make identically. A viewer renders what it is handed. Use `not_a_verdict`, and \
+             let the reader check the property off the archive."
         );
     }
     assert!(
@@ -170,6 +193,36 @@ fn no_route_serves_a_field_a_client_could_render_as_a_verdict() {
     assert_carries_no_verdict("an unauthenticated read", &anonymous);
 }
 
+/// The walker catches every name in [`NEVER_SERVED`], including the three it did not used to.
+///
+/// A guard that cannot fail is not a guard, and this one grew three entries after `/v1/health` was
+/// found serving `append_only`, `holds_no_signing_key` and `routes_that_mutate_a_warrant` as
+/// unauthenticated literals for as long as the route has existed. The walker banned only `verified`
+/// and `verification`, so it watched those three go past. This synthesises a body carrying each name
+/// and requires the walker to reject it, so the list cannot be quietly shortened back.
+#[test]
+fn the_walker_rejects_every_name_it_claims_to_reject() {
+    // The default hook prints a backtrace for each deliberate panic below, which makes a passing
+    // run look like six failures. Restored immediately after.
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let mut escaped = Vec::new();
+    for name in NEVER_SERVED {
+        let response = ArchiveResponse::ok(serde_json::json!({ name: true }), "unknown", "");
+        if std::panic::catch_unwind(|| assert_carries_no_verdict("a synthetic body", &response))
+            .is_ok()
+        {
+            escaped.push(name);
+        }
+    }
+    std::panic::set_hook(previous);
+    assert!(
+        escaped.is_empty(),
+        "the walker let {escaped:?} through. Every name in NEVER_SERVED must actually be caught: a \
+         list that is longer than the check is a claim, not a guard."
+    );
+}
+
 /// An artifact whose ingest check FAILED is still stored, still listed and still returned verbatim.
 ///
 /// This is rule 5 in its most consequential form. A tampered file is the single most important
@@ -231,6 +284,12 @@ fn an_artifact_whose_ingest_check_failed_is_still_held_and_returned_byte_for_byt
 /// A body that declares a format this build knows but does not parse as it is `unknown`: no
 /// verifier ran, so nothing established that its signatures are wrong. Calling that `failed` would
 /// be an accusation the archive did not earn.
+///
+/// This test used to wrap its only real assertion in `if let Ok(ingested) = ingest(…)`, and that arm
+/// never matched: every path producing `Unknown` also produced no warrant id, and `ingest` refused
+/// for want of one on the next line. So `IngestCheck::Unknown` was unreachable, the schema's third
+/// `CHECK` value could never be written, and the test named after the distinction asserted nothing
+/// while being counted as covering it. Both halves are now unconditional.
 #[test]
 fn a_check_that_could_not_run_is_unknown_and_never_failed() {
     use warrantor_archive::artifact::{ingest, IngestCheck};
@@ -241,7 +300,7 @@ fn a_check_that_could_not_run_is_unknown_and_never_failed() {
         "bundle_digest": "not even close to a report",
     });
     let error = ingest(serde_json::to_vec(&body).expect("encode"))
-        .expect_err("a report export with no warrant id has nothing to be filed under");
+        .expect_err("a report export naming no warrant has nothing to be filed under");
     // It is refused at the door for want of a warrant id, and the reason names the shape of the
     // file rather than accusing it of a bad signature.
     let message = error.to_string();
@@ -250,13 +309,123 @@ fn a_check_that_could_not_run_is_unknown_and_never_failed() {
         "an unparseable file must not be described as a signature failure: {message}"
     );
 
-    // The same shape, but with enough structure to carry a warrant id. Refusing it at the door is
-    // honest and so is filing it as `Unknown`; the one outcome that must never happen is `Failed`,
-    // because no verifier ran and nothing established that its signatures are wrong.
-    if let Ok(ingested) = ingest(unparseable_but_identifiable_bytes()) {
+    // The same shape, but naming the warrant it is about. It is filed, and the one outcome that
+    // must never happen is `Failed`: no verifier ran, so nothing established that its signatures
+    // are wrong.
+    let ingested = ingest(unparseable_but_identifiable_bytes())
+        .expect("a body that declares a known format and names its warrant is filed, not refused");
+    assert!(
+        matches!(ingested.check, IngestCheck::Unknown { .. }),
+        "a file that could not be parsed into its declared shape is `unknown`, never `failed`: {:?}",
+        ingested.check
+    );
+    assert_eq!(ingested.check.word(), "unknown");
+    assert_eq!(
+        ingested.warrant_id, "wrt_archive",
+        "it is filed under the warrant it names, read as a filing key and nothing more"
+    );
+    assert!(
+        ingested
+            .check
+            .reason()
+            .contains("no signature check was performed"),
+        "the recorded reason must say the check did not run: {:?}",
+        ingested.check.reason()
+    );
+}
+
+/// The three-valued check reaches the wire and the store as `unknown`, end to end.
+///
+/// The unit assertion above proves `ingest` produces the value; this proves nothing downstream
+/// flattens it. `unknown` is the value the schema's `CHECK (ingest_check IN ('ok','failed',
+/// 'unknown'))` allows and that no submission could previously produce, so until now the column had
+/// two reachable values and a client could never see the third.
+#[test]
+fn an_unparseable_submission_is_served_and_listed_as_unknown_never_as_failed() {
+    let mut store = store_with_a_device();
+    let body = unparseable_but_identifiable_bytes();
+
+    let filed = http::handle(
+        &mut store,
+        &signed("POST", &["v1", "evidence"], &body, "n1"),
+        NOW,
+    );
+    assert_eq!(filed.status, status::OK, "{:?}", filed.body);
+    assert_carries_no_verdict("POST /v1/evidence (unparseable)", &filed);
+    assert_eq!(
+        filed
+            .body
+            .get("not_a_verdict")
+            .and_then(|v| v.get("ingest_check"))
+            .and_then(Value::as_str),
+        Some("unknown"),
+        "the door could not run the check, and `unknown` is never served as `failed`"
+    );
+
+    let listing = http::handle(
+        &mut store,
+        &signed(
+            "GET",
+            &["v1", "warrants", "wrt_archive", "evidence"],
+            b"",
+            "n2",
+        ),
+        NOW,
+    );
+    let rows = listing
+        .body
+        .get("data")
+        .and_then(|d| d.get("artifacts"))
+        .and_then(Value::as_array)
+        .expect("a listing carries rows");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(
+        rows[0].get("ingest_check").and_then(Value::as_str),
+        Some("unknown"),
+        "the row keeps the word the door wrote; a listing must not re-derive or downgrade it"
+    );
+
+    // And the bytes come back exactly as submitted, like every other artifact.
+    let digest = filed
+        .body
+        .get("data")
+        .and_then(|d| d.get("digest"))
+        .and_then(Value::as_str)
+        .expect("a filed artifact reports its digest")
+        .to_string();
+    let fetched = http::handle(
+        &mut store,
+        &signed("GET", &["v1", "evidence", &digest], b"", "n3"),
+        NOW,
+    );
+    let (_, bytes) = fetched.raw.expect("an artifact is returned as raw bytes");
+    assert_eq!(bytes, body);
+}
+
+/// A body that declares a known format and names no warrant is still refused at the door.
+///
+/// The counterweight to the test above: making `unknown` reachable must not turn the archive into a
+/// place to park arbitrary JSON. A submission that cannot be filed under a warrant has nothing to be
+/// filed under, and a hostile string is refused rather than rewritten into one that is then used.
+#[test]
+fn an_unparseable_submission_that_names_no_warrant_is_refused() {
+    use warrantor_archive::artifact::ingest;
+    use warrantor_warrant::stop::STOP_EXPORT_FORMAT;
+
+    for body in [
+        serde_json::json!({ "format": STOP_EXPORT_FORMAT }),
+        serde_json::json!({ "format": STOP_EXPORT_FORMAT, "record": {} }),
+        serde_json::json!({ "format": STOP_EXPORT_FORMAT, "record": { "warrant_id": 7 } }),
+        // Not a warrant id: it would be refused by the router on the way back out, so it is
+        // refused on the way in rather than stored under a key nothing can address.
+        serde_json::json!({
+            "format": STOP_EXPORT_FORMAT,
+            "record": { "warrant_id": "../../etc/passwd" },
+        }),
+    ] {
         assert!(
-            matches!(ingested.check, IngestCheck::Unknown { .. }),
-            "a file that could not be parsed into its declared shape is `unknown`, never `failed`"
+            ingest(serde_json::to_vec(&body).expect("encode")).is_err(),
+            "a submission naming no usable warrant id must be refused: {body}"
         );
     }
 }

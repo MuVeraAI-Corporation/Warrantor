@@ -72,6 +72,51 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
   authority requiring an explicit enable *and* a non-zero window: an absent window grants none, and
   is never read as "delete everything older than nothing".
 
+### Fixed — review of the evidence archive, before it shipped
+
+Six defects found reviewing the change above. Three of them are tests that were counted and did not
+test what they were named after, which is the worst kind: a missing test is visible, a hollow one is
+not.
+
+- **`IngestCheck::Unknown` was unreachable, and its test asserted nothing.** Every arm of `ingest`
+  that produced `unknown` also produced no warrant id, and the next line refused the submission for
+  want of one — so the third of three values could never be written, the schema's
+  `CHECK (ingest_check IN ('ok','failed','unknown'))` had two reachable values, and a newer build's
+  export this one cannot parse was dropped at the door rather than kept. A body that names the
+  warrant it is about is now filed as `unknown`, with the id read out of the raw JSON purely as a
+  filing key and validated with the router's own `is_warrant_id`. The guarding test wrapped its only
+  assertion in an `if let Ok(…)` that never matched; it is unconditional now, and a second test
+  follows the value through the wire, the listing and a verbatim fetch.
+- **The append-only trigger had never fired.** `the_database_itself_refuses_an_update_to_a_filed_
+  artifact` updated a table it had never inserted into, and `artifact_append_only` is `FOR EACH ROW`
+  — a row-level trigger does not fire on a statement matching zero rows. It now files a real
+  artifact, connects as the **owner** (the role that *does* hold `UPDATE`), and requires the refusal
+  to carry the trigger's own message, so "the trigger refused" cannot be confused with "this role
+  was never granted UPDATE". The grant half is a second `#[ignore]`d test connecting as
+  `archive_runtime` and asserting SQLSTATE `42501`.
+- **A test the RFC, `store.rs` and `device_pairing.rs` all pointed at did not exist.** The single-use
+  enrolment code — the whole anti-replay property of the pairing flow — had no test at any level.
+  It has one now, and writing it found that `PostgresStore::enrol_device` set `consumed_by_device`,
+  a NOT DEFERRABLE foreign key, to a `device` row the same transaction had not inserted yet: **every
+  enrolment against a real database raised a foreign-key violation.** The claim is still the one
+  conditional `UPDATE`; the FK column is filled after its referent exists. A test now counts the
+  `#[ignore]`d database tests and fails if the number in the docs and the number in the code diverge.
+- **Revocation was checked before the signature**, so an unauthenticated caller signing with a key
+  they invented got `401 device_revoked` for a device id that exists and `401 unauthorized` for one
+  that does not — an enumeration oracle over a route whose own comment promised it was not one.
+  Revocation moved after `verify_strict`: only the holder of the device's key learns it was revoked.
+- **`/v1/health` served `append_only: true`, `holds_no_signing_key: true` and
+  `routes_that_mutate_a_warrant: 0`** as unauthenticated literals — a compromised archive that had
+  acquired a signing key or lost its trigger returned exactly the same values, next to names a
+  viewer renders as badges. Removed; the walker in `the_archive_never_serves_a_verdict.rs` now bans
+  the shape as well as the word, and a test proves the walker catches every name it lists.
+- **The threat model claimed a constant-time comparison that nothing called**, and the deployment
+  runbook could not be followed in the order written — it told the operator to `exec` into a
+  container that was not running, to alter a role the migration had not created yet, with a `psql`
+  invocation carrying no password to a database initialised `--auth-local=scram-sha-256`. The
+  comparison claim is corrected downward and the dead helper deleted; `make archive-up` now performs
+  the three ordered steps and refuses to start if either password is unset.
+
 ### Security — `warrantor verify` gained an issuer anchor, and it was not optional
 
 - **`report::verify_export` is anchor-free by construction**, and until now `warrantor verify` merely

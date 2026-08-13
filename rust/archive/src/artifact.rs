@@ -20,6 +20,7 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use warrantor_warrant::serve::is_warrant_id;
 use warrantor_warrant::{report, spend, stop};
 
 use crate::sha256_hex;
@@ -195,6 +196,11 @@ pub enum IngestError {
 /// [`Ok`](Result::Ok) here and still stored — refusing to hold a tampered file would delete the
 /// evidence that it was tampered with.
 ///
+/// A file that declares one of the three formats and will not parse into it is *also* stored, when
+/// it names the warrant it is about, and its check is [`IngestCheck::Unknown`]: no verifier ran, so
+/// nothing established that its signatures are wrong, and recording that as `failed` would be an
+/// accusation the archive did not earn.
+///
 /// # Errors
 /// [`IngestError`] when the submission is not one of the three evidence files at all.
 pub fn ingest(bytes: Vec<u8>) -> Result<Ingested, IngestError> {
@@ -216,7 +222,19 @@ pub fn ingest(bytes: Vec<u8>) -> Result<Ingested, IngestError> {
         ArtifactKind::Stop => check_stop(&bytes),
         ArtifactKind::Ledger => check_ledger(&bytes),
     };
-    let warrant_id = warrant_id.ok_or(IngestError::NoWarrantId { kind: kind.word() })?;
+    // `warrant_id` is `None` only on the parse-failure arms, which are also the only arms that
+    // produce `Unknown`. Falling straight through to `NoWarrantId` here is what made
+    // `IngestCheck::Unknown` unreachable from this function: every body that would have been
+    // recorded as `unknown` was refused at the door instead, so the three-valued check promised by
+    // the RFC, by the schema's `CHECK (ingest_check IN ('ok','failed','unknown'))` and by the
+    // `not_a_verdict` wire contract had two reachable values. A body that names the warrant it is
+    // about can be filed under it even when this build cannot parse it — which is exactly the
+    // version-skew case worth keeping rather than dropping on the floor.
+    let warrant_id = match warrant_id {
+        Some(id) => id,
+        None => filing_key_from_unparsed(&bytes, kind)
+            .ok_or(IngestError::NoWarrantId { kind: kind.word() })?,
+    };
 
     Ok(Ingested {
         digest: sha256_hex(&bytes),
@@ -240,6 +258,31 @@ fn unparseable(kind: &str, error: &impl std::fmt::Display) -> IngestCheck {
              signature check was performed: {error}"
         ),
     }
+}
+
+/// The filing key of a body that declares a known format and will not parse into it.
+///
+/// One string, read out of the raw JSON at the place that kind carries its warrant id. It is a
+/// **filing key and nothing else**: no signature is checked here and none can be, which is why the
+/// caller's [`IngestCheck`] stays [`IngestCheck::Unknown`]. Reading an id is not a second verifier —
+/// it is the same thing the parsed path does, minus the shape it could not have.
+///
+/// The id is validated with the same [`is_warrant_id`] the router applies to a path segment. This
+/// value came out of a body that did not typecheck and is on its way to a query parameter and to a
+/// listing filter, so it is validated rather than sanitised: a hostile string is refused, never
+/// transformed into a different string that is then used.
+fn filing_key_from_unparsed(bytes: &[u8], kind: ArtifactKind) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+    // Where each of the three exports carries its warrant id. Written as a match on the same
+    // exhaustive enum the parser dispatches on, so a fourth format cannot be added to one and
+    // forgotten by the other.
+    let holder = match kind {
+        ArtifactKind::Report => "bundle",
+        ArtifactKind::Stop => "record",
+        ArtifactKind::Ledger => "ledger",
+    };
+    let id = value.get(holder)?.get("warrant_id")?.as_str()?;
+    is_warrant_id(id).then(|| id.to_string())
 }
 
 fn check_report(bytes: &[u8]) -> (Option<String>, Option<String>, IngestCheck) {

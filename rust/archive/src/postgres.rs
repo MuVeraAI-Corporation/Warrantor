@@ -309,13 +309,20 @@ impl ArchiveStore for PostgresStore {
         // is evaluated by the row lock the UPDATE takes, so of two devices racing on one code
         // exactly one gets a row back and the other gets none -- there is no window between a check
         // and a write for the second one to slip through.
+        //
+        // `consumed_by_device` is deliberately NOT set here, and that is a bug fix rather than a
+        // style choice. It is `TEXT REFERENCES device(id)`, the constraint is NOT DEFERRABLE, and a
+        // NOT DEFERRABLE foreign key is checked at the end of the *statement* -- so naming a device
+        // row that this transaction has not inserted yet raised a foreign-key violation and every
+        // enrolment against a real database failed. Nothing caught it because this path had no test
+        // at any level; the `#[ignore]`d one in `tests/device_pairing.rs` is now that test.
         let claimed = transaction
             .query_opt(
                 "UPDATE enrolment_code
-                    SET consumed_at = $2, consumed_by_device = $3
+                    SET consumed_at = $2
                   WHERE code_sha256 = $1 AND consumed_at IS NULL AND expires_at > $2
               RETURNING label",
-                &[&code_digest, &to_bigint(now), &device_id],
+                &[&code_digest, &to_bigint(now)],
             )
             .map_err(unavailable)?;
         let Some(row) = claimed else {
@@ -327,6 +334,16 @@ impl ArchiveStore for PostgresStore {
             .execute(
                 "INSERT INTO device (id, label, public_key, enrolled_at) VALUES ($1, $2, $3, $4)",
                 &[&device_id, &label, &public_key, &to_bigint(now)],
+            )
+            .map_err(unavailable)?;
+        // Bookkeeping, once the referent exists. It is not part of the claim -- `consumed_at` above
+        // is what makes the code single-use, and this statement's WHERE clause cannot un-claim it.
+        // If this fails the whole transaction rolls back, so a code is never left consumed by a
+        // device that was never enrolled.
+        transaction
+            .execute(
+                "UPDATE enrolment_code SET consumed_by_device = $2 WHERE code_sha256 = $1",
+                &[&code_digest, &device_id],
             )
             .map_err(unavailable)?;
         transaction.commit().map_err(unavailable)?;

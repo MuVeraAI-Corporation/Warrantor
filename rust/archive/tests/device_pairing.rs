@@ -66,8 +66,9 @@ fn request(
 /// Sequential here rather than threaded, because the property under test is that the claim and the
 /// write are **one operation**, and a sequential second attempt exercises exactly the state a loser
 /// in a real race would find. The Postgres implementation gets the same property from a conditional
-/// `UPDATE ... RETURNING` inside a transaction; the `#[ignore]`d database test is where that is
-/// exercised for real.
+/// `UPDATE ... RETURNING` inside a transaction; that statement is exercised against a real database
+/// by `the_database_refuses_a_second_claim_of_one_enrolment_code` at the bottom of this file, which
+/// until now this comment pointed at and which did not exist.
 #[test]
 fn one_enrolment_code_enrols_exactly_one_device() {
     let mut store = MemoryStore::new();
@@ -357,6 +358,69 @@ fn a_revoked_device_is_refused_but_its_history_keeps_its_name() {
     assert_eq!(device.revoked_at, Some(NOW + 10));
 }
 
+/// A revoked device is indistinguishable from an unknown one to anyone without its key.
+///
+/// `http.rs` states that a caller never learns whether a device exists, "so the route cannot be used
+/// to enumerate enrolled devices". That was false while revocation was checked *before*
+/// `verify_strict`: an attacker signing with a key they invented got `401 device_revoked` for a
+/// device id that exists and `401 unauthorized` for one that does not, which is exactly the oracle
+/// the sibling test below is written to deny. The two variants that test covers happened to be the
+/// two that already collapsed, so it gave false confidence about a third that did not.
+///
+/// Exploitability was low — device ids are 128 bits of CSPRNG output — but a comment asserting a
+/// property the code does not have is a defect at the same severity as the property being wrong.
+#[test]
+fn a_revoked_device_and_an_unknown_one_are_indistinguishable_without_the_device_key() {
+    let mut store = MemoryStore::new();
+    enrolled(&mut store, "dev_1111", "Ana's laptop", 1);
+    assert!(store.revoke_device("dev_1111", NOW).expect("revoke"));
+
+    // Both signed with a key the attacker chose, which is all an enumerator has.
+    let attacker = key(9);
+    let revoked = http::handle(
+        &mut store,
+        &request(
+            &attacker,
+            "dev_1111",
+            "GET",
+            &["v1", "warrants", "wrt_archive", "evidence"],
+            b"",
+            "nonce-one",
+            NOW,
+        ),
+        NOW,
+    );
+    let nonexistent = http::handle(
+        &mut store,
+        &request(
+            &attacker,
+            "dev_9999",
+            "GET",
+            &["v1", "warrants", "wrt_archive", "evidence"],
+            b"",
+            "nonce-two",
+            NOW,
+        ),
+        NOW,
+    );
+
+    assert_eq!(revoked.status, nonexistent.status);
+    assert_eq!(
+        revoked.body, nonexistent.body,
+        "an unsigned caller must not be able to tell a revoked device id from one that was never \
+         enrolled: that answers `does this device exist?` to anyone who asks"
+    );
+    assert_eq!(
+        revoked
+            .body
+            .get("error")
+            .and_then(|e| e.get("code"))
+            .and_then(Value::as_str),
+        Some("unauthorized"),
+        "and the refusal is about the request, not about the device"
+    );
+}
+
 /// An unknown device and a bad signature give the same refusal.
 ///
 /// Otherwise the route is an oracle for which device ids exist.
@@ -569,6 +633,113 @@ fn a_device_with_an_unparseable_stored_key_is_a_refusal() {
         DeviceError::BadSignature,
         "a device whose stored key cannot be parsed cannot have signed anything, and the caller is \
          told about their request rather than about this archive's rows"
+    );
+}
+
+// ── the database-backed test ──────────────────────────────────────────────────────────
+
+/// One enrolment code enrols exactly one device **in Postgres**, not just in the memory store.
+///
+/// This test did not exist. RFC W2, `src/store.rs` and the comment on
+/// `one_enrolment_code_enrols_exactly_one_device` all pointed at it, so a reviewer running the
+/// documented command believed the single-use SQL had been exercised; `grep -rn '#\[ignore' ` found
+/// one test in the whole crate and it was about something else. The single-use enrolment code is the
+/// entire anti-replay property of the pairing flow, and it is implemented as a conditional
+/// `UPDATE ... WHERE consumed_at IS NULL AND expires_at > $2 ... RETURNING` that nothing anywhere
+/// executed.
+///
+/// Writing it found a real defect: the claim statement also set `consumed_by_device`, a NOT
+/// DEFERRABLE foreign key onto a `device` row the same transaction had not inserted yet, so every
+/// enrolment against a real database raised a foreign-key violation. See `postgres.rs`.
+///
+/// Run it against the owner role, which is the one the `migrate` service uses:
+///
+/// ```text
+/// make archive-up
+/// WARRANTOR_ARCHIVE_DATABASE_URL=postgres://archive_admin:$POSTGRES_PASSWORD@127.0.0.1:5433/warrantor_archive \
+///   make archive-test
+/// ```
+///
+/// `#[ignore]`d rather than skipped on a missing variable, so a run that was meant to exercise the
+/// database reports "0 passed" loudly instead of quietly passing having tested nothing.
+#[test]
+#[ignore = "needs Postgres: make archive-up, then make archive-test"]
+fn the_database_refuses_a_second_claim_of_one_enrolment_code() {
+    use warrantor_archive::postgres::PostgresStore;
+
+    let url = std::env::var("WARRANTOR_ARCHIVE_DATABASE_URL").expect(
+        "set WARRANTOR_ARCHIVE_DATABASE_URL to the archive_admin URL to run the database tests",
+    );
+    let mut store = PostgresStore::connect(&url).expect("connect");
+    store.migrate().expect("migrate");
+
+    // Ids derived from a freshly minted code, so repeated runs against the same database do not
+    // collide on `device`'s primary key. Nothing here deletes a row: the tests live under the same
+    // append-only rules the product does.
+    let code = EnrolmentCode::mint().expect("mint");
+    let winner = format!("dev_{}", &code.digest()[..24]);
+    let loser = format!("dev_{}", &code.digest()[24..48]);
+    store
+        .create_enrolment_code(
+            code.digest(),
+            "Ana's laptop",
+            NOW,
+            NOW + ENROLMENT_CODE_LIFETIME_SECONDS,
+        )
+        .expect("create");
+
+    let first = store
+        .enrol_device(
+            code.digest(),
+            &winner,
+            &hex::encode(key(1).verifying_key().to_bytes()),
+            NOW,
+        )
+        .expect("the first device claims the code");
+    assert_eq!(first.label, "Ana's laptop", "the label follows the code");
+    assert_eq!(
+        store
+            .device(&winner)
+            .expect("read")
+            .expect("the winner is enrolled")
+            .label,
+        "Ana's laptop"
+    );
+
+    let second = store.enrol_device(
+        code.digest(),
+        &loser,
+        &hex::encode(key(2).verifying_key().to_bytes()),
+        NOW,
+    );
+    assert_eq!(
+        second.expect_err("the second device must be refused by the conditional UPDATE"),
+        EnrolError::CodeNotUsable
+    );
+    assert!(
+        store.device(&loser).expect("read").is_none(),
+        "the losing transaction must roll back whole: a refused enrolment leaves no device behind"
+    );
+
+    // The other half of the same statement's predicate: `expires_at > $2`.
+    let stale = EnrolmentCode::mint().expect("mint");
+    let late = format!("dev_{}", &stale.digest()[..24]);
+    store
+        .create_enrolment_code(stale.digest(), "Ben's workstation", NOW, NOW + 60)
+        .expect("create");
+    let expired = store.enrol_device(
+        stale.digest(),
+        &late,
+        &hex::encode(key(3).verifying_key().to_bytes()),
+        NOW + 61,
+    );
+    assert_eq!(
+        expired.expect_err("an expired code is refused"),
+        EnrolError::CodeNotUsable
+    );
+    assert!(
+        store.device(&late).expect("read").is_none(),
+        "and enrols nobody"
     );
 }
 

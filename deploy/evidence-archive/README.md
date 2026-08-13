@@ -10,7 +10,10 @@ nothing below should be taken as a reason to skip it.
 
 ## Before you start
 
-Two secrets, neither of which goes in a file that is committed.
+Two secrets, neither of which goes in a file that is committed. **Both must be exported before the
+first compose command**: `docker-compose.yml` interpolates `${POSTGRES_PASSWORD:?…}` and
+`${ARCHIVE_RUNTIME_PASSWORD:?…}`, and compose refuses to bring anything up at all if either is
+unset — deliberately, because the alternative is a guessable default.
 
 ```sh
 export POSTGRES_PASSWORD=$(openssl rand -hex 32)
@@ -23,24 +26,54 @@ the server connects as (`archive_runtime`), which holds `INSERT, SELECT` on the 
 the append-only enforcement and leave the trigger standing alone, so the two roles are not
 interchangeable.
 
-The migration creates `archive_runtime` without a password — a migration lands in git, and a
-password in git is a password everybody has. Set it once, out of band:
-
-```sh
-docker compose -f deploy/evidence-archive/docker-compose.yml exec db \
-  psql -U archive_admin -d warrantor_archive \
-  -c "ALTER ROLE archive_runtime PASSWORD '$ARCHIVE_RUNTIME_PASSWORD'"
-```
-
 ## Start it
 
+Three steps, in this order, and the order is not cosmetic. `archive_runtime` **does not exist** until
+the migration has run, so its password cannot be set before that; and the server cannot authenticate
+until the password is set, so it is started last. `make archive-up` runs exactly this sequence.
+
 ```sh
-docker compose -f deploy/evidence-archive/docker-compose.yml up -d
+# 1. the database, and the schema — which creates archive_runtime, the trigger and the grants
+docker compose -f deploy/evidence-archive/docker-compose.yml up -d db
+docker compose -f deploy/evidence-archive/docker-compose.yml run --rm migrate
+
+# 2. the runtime role's password, out of band. A migration lands in git, and a password in git is
+#    a password everybody has — so the migration creates the role without one.
+docker compose -f deploy/evidence-archive/docker-compose.yml exec -T \
+  -e PGPASSWORD="$POSTGRES_PASSWORD" db \
+  psql -U archive_admin -d warrantor_archive -v ON_ERROR_STOP=1 \
+  -c "ALTER ROLE archive_runtime PASSWORD '$ARCHIVE_RUNTIME_PASSWORD'"
+
+# 3. the server
+docker compose -f deploy/evidence-archive/docker-compose.yml up -d archive
 curl -s http://127.0.0.1:8788/v1/health
 ```
 
-The `migrate` service runs once and exits; the server waits for it to exit successfully, so the
-server never starts against a database whose trigger and grants have not been installed.
+`PGPASSWORD` is passed into the exec because the database is initialised with
+`--auth-local=scram-sha-256`: even the local socket wants a password, and `psql` would otherwise sit
+waiting for one that never comes.
+
+The `migrate` service runs once and exits; the `archive` service declares
+`service_completed_successfully` on it, so step 3 re-runs it and the server never starts against a
+database whose trigger and grants have not been installed. Migrations are recorded in
+`schema_migrations`, so the second run applies nothing.
+
+## Running the database-backed tests
+
+Three tests need a real database and are `#[ignore]`d so `cargo test --workspace` stays green in CI,
+which has no Postgres. They cover the trigger, the runtime role's grants and the single-use
+enrolment code, and they need **both** URLs, because a single connection cannot tell "the trigger
+refused" from "this role was never granted UPDATE":
+
+```sh
+WARRANTOR_ARCHIVE_DATABASE_URL=postgres://archive_admin:$POSTGRES_PASSWORD@127.0.0.1:5433/warrantor_archive \
+WARRANTOR_ARCHIVE_RUNTIME_DATABASE_URL=postgres://archive_runtime:$ARCHIVE_RUNTIME_PASSWORD@127.0.0.1:5433/warrantor_archive \
+  make archive-test
+```
+
+They insert and never delete: the tests run under the same append-only rules the product claims, so
+they are safe against a real archive but will leave their fixtures in it. Point them at a database
+you are willing to keep rows in.
 
 ## Enrol the first device
 

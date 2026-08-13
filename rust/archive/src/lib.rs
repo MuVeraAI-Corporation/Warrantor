@@ -25,8 +25,11 @@
 //!    claims and returns something signed — the moment one exists, warrant-minting authority lives
 //!    in a network-reachable process.
 //! 2. **Its ingest check is hygiene, and its opinion is never served as a verdict.** Signatures are
-//!    verified at the door so a forged or malformed submission is refused there rather than stored
-//!    as evidence. That result is recorded and is returned under a field literally named
+//!    verified at the door, and what is refused there is a submission that is not one of the three
+//!    evidence files at all — not one whose signatures fail. A file that fails the check is stored
+//!    and marked `failed`; a file this build cannot parse is stored and marked `unknown`, because
+//!    no verifier ran on it. Refusing to hold either would delete the evidence that it arrived.
+//!    That result is recorded and is returned under a field literally named
 //!    `not_a_verdict`, because on a remote archive a field called `verified` is exactly what a
 //!    viewer would render as one. See [`http`], which deliberately does **not** reuse
 //!    [`warrantor_warrant::serve::Response`] for that reason.
@@ -92,23 +95,18 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-/// Compare two hex digests without leaking where they first differ.
-///
-/// The same byte-folding comparison [`warrantor_warrant::serve::SessionToken::matches`] uses, and
-/// for the same reason: an enrolment code is a secret presented once, and a comparison that returns
-/// early lets a caller learn it a character at a time from response timing. The length check is an
-/// early return and is deliberate: both operands are fixed-length SHA-256 hex here, so the length
-/// is a public constant.
-#[must_use]
-pub fn digests_match(expected: &str, presented: &str) -> bool {
-    let expected = expected.as_bytes();
-    let presented = presented.as_bytes();
-    if expected.len() != presented.len() {
-        return false;
-    }
-    let mut difference: u8 = 0;
-    for (a, b) in expected.iter().zip(presented.iter()) {
-        difference |= a ^ b;
-    }
-    difference == 0
-}
+// A `digests_match` constant-time comparison used to live here, and it is deliberately gone.
+//
+// It was never called. Nothing in this crate compares an enrolment-code digest in Rust: `MemoryStore
+// ::enrol_device` is a `BTreeMap::get(code_digest)` and `PostgresStore::enrol_device` is a
+// `WHERE code_sha256 = $1` decided by a Postgres index — neither is constant-time and neither could
+// route through a helper without becoming a full scan of the code table. Keeping the function made
+// the RFC's threat-model row read "constant-time comparison" as a shipped mitigation, which is a
+// control an auditor checks and this one did not survive `grep`. A dead guard is NO SIGNAL, never
+// "all clear", so the guard is removed and the claim is corrected downward in RFC W2 rather than
+// left standing over an empty function.
+//
+// The residual is small and is now stated where the claim was: the compared value is a SHA-256 of
+// 32 CSPRNG bytes, so a timing side channel buys an attacker essentially nothing against a secret
+// they cannot narrow. The doc-honesty test in `tests/append_only.rs` is what keeps the claim from
+// coming back into the RFC without the code coming back with it.

@@ -1,11 +1,17 @@
 # The evidence archive: Postgres, a one-shot migrator, and the server.
 #
-#   POSTGRES_PASSWORD=$(openssl rand -hex 32) \
-#     docker compose -f deploy/evidence-archive/docker-compose.yml up -d
+# NOT a single `up -d`. Both passwords must be exported first (this file refuses to
+# interpolate without them), and the order is forced by the schema: archive_runtime
+# does not exist until `migrate` has run, so its password cannot be set before that,
+# and the server cannot log in until it is set.
+#
+#   export POSTGRES_PASSWORD=$(openssl rand -hex 32)
+#   export ARCHIVE_RUNTIME_PASSWORD=$(openssl rand -hex 32)
+#   make archive-up            # db -> migrate -> ALTER ROLE -> archive
 #   curl -s http://127.0.0.1:8788/v1/health
 #
-# See README.md beside this file for the password, the first device enrolment, and
-# what to do before this leaves the machine.
+# See README.md beside this file for the long form of that sequence, the first device
+# enrolment, and what to do before this leaves the machine.
 #
 # This is a SIBLING of deploy/local-sigstore/docker-compose.yml, not an edit to the
 # repository-root docker-compose.yml. That file is the whole-portfolio development

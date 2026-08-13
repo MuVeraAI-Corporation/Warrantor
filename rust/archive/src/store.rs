@@ -7,8 +7,11 @@
 //! It also settles a practical problem. CI runs `cargo test --workspace --all-targets` with no
 //! Postgres anywhere, so without this seam either the tests cannot run or the CI job grows a
 //! service container. Every unit and integration test in this crate runs against [`MemoryStore`];
-//! the tests that genuinely need a database are `#[ignore]`d and name the compose command that runs
-//! them.
+//! the **three** that genuinely need a database are `#[ignore]`d, name the command that runs them
+//! (`make archive-test`), and are counted by
+//! `tests/append_only.rs::the_ignored_database_tests_are_the_number_the_docs_claim` — because this
+//! sentence claimed a plural while one such test existed, and a reviewer read the number here
+//! rather than in the code.
 //!
 //! # What "append-only" means at this seam
 //!
