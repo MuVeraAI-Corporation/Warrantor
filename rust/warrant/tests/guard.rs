@@ -1113,3 +1113,71 @@ fn counters_default_to_a_session_that_did_nothing() {
     assert_eq!(GuardCounters::default().classified, 0);
     assert_eq!(GuardCounters::default().flagged, 0);
 }
+
+/// The merged-scope note must not describe one mode's outcome as if it covered both.
+///
+/// `/v1/summary/refusals` builds its log from EVERY warrant in the store, and `enforcing()` is
+/// `any(..)`. So a single enforce session anywhere made the summary state that harmful calls "were
+/// REFUSED ... so those calls did not happen" — over a scope that also held observe-mode signals
+/// describing calls that PROCEEDED. The hedge "at least one session" covered the scope; the
+/// sentence after it asserted an outcome for all of it.
+///
+/// Without the three-valued posture this fails on the first assertion: the summary renders the
+/// enforce sentence.
+#[test]
+fn a_summary_over_both_modes_refuses_to_claim_either_ones_outcome() {
+    let dir = tempdir("mixed-posture");
+    seed(&dir, "wrt_observed");
+    seed(&dir, "wrt_enforced");
+    write_guard_log_in(&dir, "wrt_observed", GuardMode::Observe);
+    write_guard_log_in(&dir, "wrt_enforced", GuardMode::Enforce);
+
+    let mut store = api(&dir);
+    let summary = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    let note = guard_note(&summary);
+
+    assert!(
+        note.contains("BOTH modes"),
+        "a scope holding both modes must say so rather than picking one: {note}"
+    );
+    // The two false halves, each of which is true of only one of the two warrants merged here.
+    assert!(
+        !note.contains("Every session here ran with enforcement ON"),
+        "the observed warrant's calls proceeded; claiming every session enforced is false: {note}"
+    );
+    assert!(
+        !note.contains("Every session here ran observe-only"),
+        "the enforced warrant refused calls; claiming the guard blocked nothing is false: {note}"
+    );
+    // An operator must be told where the per-call truth actually lives.
+    assert!(
+        note.contains("each signal's own mode"),
+        "a note that cannot generalise must point at what can: {note}"
+    );
+
+    // Pin the mechanism rather than only the wording. The superseded surface branched on
+    // `enforcing()` alone, which is `any(..)`; this asserts that predicate is still TRUE here, so
+    // the old two-way branch provably rendered the enforce sentence over this exact scope. Reading
+    // both predicates is what makes the third state visible.
+    let merged = warrantor_warrant::guard::read_all_guard_logs(&dir);
+    assert!(
+        merged.enforcing() && merged.observing(),
+        "this fixture must be genuinely mixed, or the test proves nothing"
+    );
+    assert_eq!(
+        merged.blocking_posture(),
+        warrantor_warrant::guard::BlockingPosture::Mixed
+    );
+
+    // Each single-mode warrant still gets its own unhedged, accurate sentence.
+    let observed = body(&route(
+        &mut store,
+        &get(&["v1", "warrants", "wrt_observed", "refusals"]),
+    ));
+    assert!(guard_note(&observed).contains("blocked nothing"));
+    let enforced = body(&route(
+        &mut store,
+        &get(&["v1", "warrants", "wrt_enforced", "refusals"]),
+    ));
+    assert!(guard_note(&enforced).contains("REFUSED"));
+}

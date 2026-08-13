@@ -2905,13 +2905,28 @@ enum GuardScope {
 fn guard_object(log: &crate::guard::GuardLog, scope: GuardScope) -> Value {
     let configured = log.configured();
     let note = if configured {
-        let mode_clause = if log.enforcing() {
-            " At least one session here ran with enforcement ON: calls that guard called harmful \
-             were REFUSED at the MCP endpoint before any effect was staged, so those calls did not \
-             happen. That bound reaches only calls passing through the endpoint -- it is not \
-             containment."
-        } else {
-            " Every session here ran observe-only: the guard blocked nothing."
+        // Three states, never two. `enforcing()` is `any(..)`, and this route's log covers EVERY
+        // warrant in the store, so a two-way branch let one enforce session anywhere assert that
+        // harmful calls "did not happen" -- over a scope that also held observe-mode signals whose
+        // calls proceeded. A sentence here may only describe what is true of the WHOLE scope.
+        let mode_clause = match log.blocking_posture() {
+            crate::guard::BlockingPosture::Enforced => {
+                " Every session here ran with enforcement ON: calls the guard called harmful were \
+                 REFUSED at the MCP endpoint before any effect was staged, so those calls did not \
+                 happen. That bound reaches only calls passing through the endpoint -- it is not \
+                 containment."
+            }
+            crate::guard::BlockingPosture::Mixed => {
+                " Sessions here ran in BOTH modes, so no single sentence covers them: a call \
+                 flagged in an enforce session was refused at the MCP endpoint and did not happen, \
+                 while a call flagged in an observe session PROCEEDED and was only recorded. Read \
+                 each signal's own mode before concluding anything about a particular call. Where \
+                 enforcement did apply it reaches only calls passing through the endpoint -- it is \
+                 not containment."
+            }
+            crate::guard::BlockingPosture::ObserveOnly => {
+                " Every session here ran observe-only: the guard blocked nothing."
+            }
         };
         format!("{GUARD_PROVENANCE}{mode_clause}")
     } else if !log.signals.is_empty() || !log.summaries.is_empty() {

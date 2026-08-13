@@ -473,6 +473,49 @@ impl GuardLog {
         self.sessions.iter().any(|s| s.mode == GuardMode::Enforce)
             || self.signals.iter().any(|s| s.mode == GuardMode::Enforce)
     }
+
+    /// Whether anything in this log ran in [`GuardMode::Observe`].
+    ///
+    /// The mirror of [`GuardLog::enforcing`], and it exists because the two together are the only
+    /// way to tell a **mixed** log from a uniform one. Read from both sources, for the same reason.
+    #[must_use]
+    pub fn observing(&self) -> bool {
+        self.sessions.iter().any(|s| s.mode == GuardMode::Observe)
+            || self.signals.iter().any(|s| s.mode == GuardMode::Observe)
+    }
+
+    /// What an operator can truthfully be told about blocking, across this log's whole scope.
+    ///
+    /// Three values, never two, for the same reason [`crate::serve::Integrity`] is three-valued:
+    /// collapsing them yields a sentence that is false about part of what it describes.
+    ///
+    /// [`GuardLog::enforcing`] is `any(..)`, and `/v1/summary/refusals` builds its log from **every
+    /// warrant in the store**. So a single enforce session anywhere made the merged surface state
+    /// that harmful calls "were REFUSED ... so those calls did not happen" — while observe-mode
+    /// signals sitting in that same merged log describe calls that DID proceed. The hedge "at least
+    /// one session" covered the scope; the sentence after it did not.
+    #[must_use]
+    pub fn blocking_posture(&self) -> BlockingPosture {
+        match (self.enforcing(), self.observing()) {
+            (true, true) => BlockingPosture::Mixed,
+            (true, false) => BlockingPosture::Enforced,
+            _ => BlockingPosture::ObserveOnly,
+        }
+    }
+}
+
+/// What this log's sessions did about the calls they classified.
+///
+/// Never rendered as a boolean. [`BlockingPosture::Mixed`] is a different claim from either pure
+/// state, and a surface reporting it as one of them is lying about the other half.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlockingPosture {
+    /// Every session recorded and blocked nothing.
+    ObserveOnly,
+    /// Every session refused what it called harmful.
+    Enforced,
+    /// Both, in one scope: some classified calls proceeded and some did not.
+    Mixed,
 }
 
 // ── the mode, and the single place a denial could ever come from ───────────────────────
