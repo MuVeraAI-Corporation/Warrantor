@@ -198,6 +198,89 @@ fail-open, a dead backend reports perfect recall.
 
 Eval sets are JSONL: `{"id", "text", "label": "safe"|"unsafe", "categories": [...]}`.
 
+### `benchmark_wildguard.py` — does the guard hold up when someone is trying?
+
+Runs the held-out **WildGuardTest** split and reports the breakdown that matters for a security
+product: **adversarial versus plain**. An aggregate recall number averages the two and hides the
+only question worth asking, which is what happens when the prompt was written to get past a guard.
+
+```bash
+python ml/benchmark_wildguard.py --backend ollama --seed 0 \
+  --out python/warrantor_ml/eval_sets/results/wildguardtest_qwen3guard_gen_4b.json
+```
+
+Measured on this box, Qwen3Guard-Gen-4B Q4_K_M, full split, no sampling, `num_ctx=8192`:
+
+```
+overall            recall=0.8554  precision=0.9241  F1=0.8884  FPR=0.0561  n=1699
+adversarial=false  recall=0.8886  precision=0.9709            FPR=0.0224  n=903
+adversarial=true   recall=0.8152  precision=0.8688            FPR=0.0923  n=796
+```
+
+**Read the gap, not the average.** Recall falls 7.3 points under adversarial phrasing, and the
+false-positive rate **quadruples** (0.0224 → 0.0923). The second number is the operationally
+expensive one: an adversarial context does not merely leak more harm through, it also produces four
+times as many false alarms on benign traffic, which is what erodes an operator's willingness to
+read the alerts at all.
+
+Weakest classes are `social_stereotypes_and_unfair_discrimination` (0.7237, 55/76),
+`fraud_assisting_illegal_activities` (0.7833, 47/60) and `others` (0.7857, 77/98) — the tuning
+targets, and a better use of effort than moving an aggregate.
+
+The backend configuration is recorded in the output (model digest, seed, temperature, `num_ctx`)
+because every one of them changes the result, and a benchmark that does not record what it ran is
+a number without a claim attached.
+
+### `benchmark_expguard.py` — does a general guard hold up per vertical?
+
+Runs the held-out **ExpGuardTest** split (2,275 rows) and breaks recall down by the `domain`
+column. This is the measurement that decides whether the finance / healthcare / legal packs can
+share one guard or need their own tuned models — and it is not answerable from an aggregate.
+
+Start with the schema. The corpus does not match what the plan assumed, and only `--describe-only`
+shows that without burning GPU time:
+
+```bash
+python ml/benchmark_expguard.py --describe-only
+```
+
+Two corrections it surfaces: the legal vertical is spelled **`law`**, not `legal`, and there is
+**no general / non-vertical band** — every row is domain-specific, so this corpus supplies no
+in-corpus control. A "general" comparator has to come from WildGuardTest and is therefore
+cross-corpus and confounded.
+
+```bash
+python ml/benchmark_expguard.py --backend ollama --seed 0     --out python/warrantor_ml/eval_sets/results/expguardtest_qwen3guard_gen_4b.json
+```
+
+Measured on this box, Qwen3Guard-Gen-4B Q4_K_M, full split, no sampling, 1,496 s wall clock:
+
+```
+overall      recall=0.7596  miss=302/1256  precision=0.9627  F1=0.8491  n=2275
+healthcare   recall=0.7252  miss=108/393   95% CI [0.6790, 0.7670]
+finance      recall=0.7708  miss=132/576   95% CI [0.7348, 0.8033]
+law          recall=0.7840  miss= 62/287   95% CI [0.7328, 0.8277]
+```
+
+**Read the spread correctly.** No domain pair separates at 95% (largest |z| = 1.75). The report
+says so in as many words, because a three-way comparison over a few hundred positives per arm is
+exactly the shape of evidence that invites a story to be read into noise. Per-domain recall
+therefore carries a Wilson interval and a pairwise z, not just a point estimate.
+
+**The real axis is category, not domain.** `Unqualified Professional Advice` scores recall
+**0.4298** against 0.7947 for every other class (z = -8.93), and it makes up 24.9% of healthcare's
+positives versus 3.1% of finance's. Strip that one class and the three domains land at 0.7939 /
+0.7966 / 0.7943 — the 5.9-point domain spread collapses to 0.3 points. The apparent domain effect
+is a prevalence artifact of one weak category.
+
+**Two policy knobs the recall number rests on**, both reported so neither is invisible:
+`Controversial` counts as harmful (235 of 954 true positives depend on it; without it recall falls
+to 0.5725), and errors are fail-closed (2 transport failures here, worth +0.0002 recall — the
+`by_domain_excluding_errors` slice is printed alongside so the inflation is visible).
+
+Requires `pyarrow` (`pip install -e python/warrantor_ml[parquet,hub]`) and an accepted
+ExpGuardMix gate on the Hub.
+
 ### `model_card.py` — the signed AIBOM
 
 Builds and Ed25519-signs an AIBOM, and **refuses to emit a card with a missing required field**

@@ -263,6 +263,11 @@ class OllamaGuardBackend:
     seed: int = 0
     timeout_seconds: float = 120.0
     num_predict: int = 64
+    #: Context window. Pinned rather than left to the model default because the GGUF advertises
+    #: 32768, and a 32768-token KV cache for this model needs ~4.8 GB of VRAM -- enough to make
+    #: ``cudaMalloc failed: out of memory`` the first thing a real eval run sees on a 16 GB card.
+    #: It is also part of the determinism contract: changing the context size changes results.
+    num_ctx: int = 8192
     system_prompt: str | None = None
     gating_categories: frozenset[str] = DEFAULT_GATING_CATEGORIES
     controversial_is_harmful: bool = True
@@ -287,6 +292,7 @@ class OllamaGuardBackend:
             "top_k": 1,
             "seed": self.seed,
             "num_predict": self.num_predict,
+            "num_ctx": self.num_ctx,
         }
 
     def _messages(self, text: str) -> list[dict[str, str]]:
@@ -655,6 +661,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--endpoint", default=DEFAULT_OLLAMA_ENDPOINT, help="ollama chat endpoint")
     parser.add_argument("--seed", type=int, default=0, help="sampling seed (recorded in output)")
     parser.add_argument("--timeout", type=float, default=120.0, help="per-request timeout")
+    parser.add_argument(
+        "--num-ctx",
+        type=int,
+        default=8192,
+        help="context window pinned on the backend; part of the determinism contract",
+    )
     parser.add_argument("--limit", type=int, help="evaluate only the first N samples (by id)")
     parser.add_argument(
         "--fail-open",
@@ -680,6 +692,7 @@ def _build_backend(arguments: argparse.Namespace) -> GuardBackend:
         endpoint=arguments.endpoint,
         seed=arguments.seed,
         timeout_seconds=arguments.timeout,
+        num_ctx=arguments.num_ctx,
         controversial_is_harmful=not arguments.controversial_safe,
     )
 

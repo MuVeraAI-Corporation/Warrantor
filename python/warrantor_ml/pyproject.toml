@@ -24,9 +24,14 @@ train = [
   "bitsandbytes>=0.43",
 ]
 hub = ["huggingface-hub>=0.23"]
+# Reading the WildGuardTest / ExpGuardTest parquet splits. Out of `dev` for the same reason as
+# `train`: both benchmark modules import it lazily and every test here runs without it.
+parquet = ["pyarrow>=15"]
 
 [project.scripts]
 warrantor-ml-evaluate = "warrantor_ml.evaluate:main"
+warrantor-ml-benchmark-wildguard = "warrantor_ml.benchmark_wildguard:main"
+warrantor-ml-benchmark-expguard = "warrantor_ml.benchmark_expguard:main"
 warrantor-ml-datasets = "warrantor_ml.datasets:main"
 warrantor-ml-model-card = "warrantor_ml.model_card:main"
 warrantor-ml-fine-tune = "warrantor_ml.fine_tune:main"
