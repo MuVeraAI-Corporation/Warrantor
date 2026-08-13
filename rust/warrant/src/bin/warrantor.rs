@@ -185,6 +185,7 @@ warrantor — bounded authority for coding agents
   status
   mcp     [--agent <warrant-id>] [--observe]
   serve   [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
+  console [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
 
 Report --export writes a signed, self-contained evidence bundle. Verify checks one
 offline, on any machine, with no access to this one: it proves nothing changed since
@@ -230,6 +231,15 @@ create the directory for you. It lasts one run: Ctrl-C lets the requests in
 flight finish, then deletes the file, and the next start mints a new one. A
 --bind that is not loopback prints a warning naming what just became reachable,
 because there is no TLS here -- the token controls access, not confidentiality.
+
+Console is serve, plus it opens the browser for you. It is the same server with
+the same flags and the same refusals; what it removes is the two steps nobody
+outside engineering will perform, which are starting a daemon and pasting a hex
+token. The token reaches the browser through a redirect page in the same
+owner-only directory as the token file, never through a command line, because an
+argv is readable by other users on a default Linux and the browser would hold it
+for as long as it ran. Read-only by default, like serve: pass --allow-settle to
+arm the release buttons.
 
 Run starts the agent under a supervisor detached from this terminal: closing the
 terminal ends your view of the run, not the run. Status says what is still going
@@ -1652,7 +1662,102 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
 /// The token file is removed on the way out. A file left behind naming a token that no longer opens
 /// anything is not harmless: the next reader has no way to tell it apart from a live one, and the
 /// obvious conclusion — that the token in the file is the token the server wants — is wrong.
-fn cmd_serve(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
+/// Where the redirect shim is written. Beside the token, in the same 0700 directory.
+fn open_shim_path(root: &Path) -> PathBuf {
+    root.join("serve").join("open.html")
+}
+
+/// Hand the console URL to the operator's browser **without putting the token in a command line.**
+///
+/// The obvious implementation — passing `http://addr/#t=<token>` straight to `start`, `open` or
+/// `xdg-open` — leaks the secret twice over. An argv is world-readable on a default Linux
+/// (`/proc/<pid>/cmdline`), and the browser then holds that URL in *its* argv for as long as it
+/// runs. Both would undo the one thing the 0600 token file achieves, which is keeping other *users*
+/// out. (It was never claimed to keep the supervised agent out; `serve.rs` is explicit about that.)
+///
+/// So the URL is written to a one-line redirect page inside the same 0700 directory the token
+/// already lives in, and the *path* is what reaches the command line. A path is not a secret. The
+/// browser reads the fragment from the page and navigates; the token never appears in any process
+/// listing. The shim is removed on shutdown alongside the token file.
+///
+/// This runs on its own thread because the listener has not bound yet when it starts: it waits for
+/// a connection to succeed rather than sleeping a guessed interval, then opens the page.
+fn open_console_when_ready(addr: std::net::SocketAddr, token: String, root: &Path) {
+    let shim = open_shim_path(root);
+    std::thread::spawn(move || {
+        // Wait for the listener. Fifty attempts at 100ms is five seconds, which is far longer than
+        // a bind takes and short enough that a failed bind does not leave a thread waiting forever.
+        //
+        // The probe completes a whole request rather than connecting and hanging up. A bare
+        // connect-then-drop is what a port scanner does, and the server correctly logs it as an
+        // aborted connection -- which would put a spurious error in the operator's log on every
+        // single start. It also tests the wrong thing: that something is bound, rather than that
+        // the console is being served. `GET /` needs no token and returns the document.
+        let probe = format!("GET / HTTP/1.1\r\nhost: {addr}\r\nconnection: close\r\n\r\n");
+        let mut ready = false;
+        for _ in 0..50 {
+            if let Ok(mut socket) =
+                std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_millis(200))
+            {
+                use std::io::{Read, Write};
+                let _ = socket.set_read_timeout(Some(std::time::Duration::from_secs(2)));
+                let mut answer = String::new();
+                if socket.write_all(probe.as_bytes()).is_ok()
+                    && socket.read_to_string(&mut answer).is_ok()
+                    && answer.starts_with("HTTP/1.1 200")
+                {
+                    ready = true;
+                    break;
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        if !ready {
+            eprintln!("warrantor: the console did not come up in time; open it yourself from the URL above.");
+            return;
+        }
+
+        // `http-equiv=refresh` rather than a script, so the page works with JavaScript disabled and
+        // needs no policy of its own. The fragment survives the redirect, which is the whole point.
+        let url = format!("http://{addr}/#t={token}");
+        let page = format!(
+            "<!doctype html><meta charset=\"utf-8\">\
+             <meta http-equiv=\"refresh\" content=\"0; url={url}\">\
+             <title>Opening Warrantor</title>\
+             <p>Opening the Warrantor console. If nothing happens, \
+             <a href=\"{url}\">open it manually</a>.</p>"
+        );
+        if let Some(parent) = shim.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Err(e) = std::fs::write(&shim, page) {
+            eprintln!(
+                "warrantor: could not write the console shim ({e}); open the URL above yourself."
+            );
+            return;
+        }
+
+        // One opener per platform, and no shell interpolation anywhere: the only argument is a path
+        // this process just built.
+        let opened = if cfg!(target_os = "windows") {
+            // `start` is a cmd builtin, so it needs cmd. The empty string is the window title,
+            // which `start` otherwise takes from the first quoted argument.
+            std::process::Command::new("cmd")
+                .args(["/C", "start", ""])
+                .arg(&shim)
+                .spawn()
+        } else if cfg!(target_os = "macos") {
+            std::process::Command::new("open").arg(&shim).spawn()
+        } else {
+            std::process::Command::new("xdg-open").arg(&shim).spawn()
+        };
+        if let Err(e) = opened {
+            eprintln!("warrantor: could not open a browser ({e}); open the URL above yourself.");
+        }
+    });
+}
+
+fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) -> ExitCode {
     let addr = match resolve_bind(args) {
         Ok(addr) => addr,
         Err(e) => return fail(&e),
@@ -1769,6 +1874,12 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
         eprintln!("{warning}");
     }
 
+    // Started before `listen` because `listen` does not return until shutdown. The thread waits
+    // for the bind rather than racing it.
+    if open_browser {
+        open_console_when_ready(addr, token.as_str().to_string(), root);
+    }
+
     let api = http::StoreApi::new(
         store,
         root.to_path_buf(),
@@ -1781,6 +1892,9 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
     // Removed whether the drain completed or not, and whether or not the loop ended in an error:
     // the token is a per-session secret and this session is over either way.
     let removed = std::fs::remove_file(&token_path);
+    // The shim carries the same secret in the same directory, so it goes at the same moment and
+    // under the same rule. A missing file is the expected case for `serve` without a browser.
+    let _ = std::fs::remove_file(open_shim_path(root));
     match outcome {
         Ok(drain) => {
             println!();
@@ -1886,7 +2000,11 @@ fn main() -> ExitCode {
         "supervise" => cmd_supervise(&args, &store, &root),
         "status" => cmd_status(&store, &root),
         "mcp" => cmd_mcp(&args, store, &root),
-        "serve" => cmd_serve(&args, store, &root),
+        "serve" => cmd_serve(&args, store, &root, false),
+        // Same server, same flags, same refusals. The only difference is that it opens the console
+        // for you, which is the difference between a surface a developer can use and one a reviewer
+        // can: nobody outside engineering is going to start a daemon and paste a hex token.
+        "console" => cmd_serve(&args, store, &root, true),
         "help" | "--help" | "-h" => {
             println!("{USAGE}");
             ExitCode::SUCCESS
