@@ -219,11 +219,21 @@ console disables those buttons and says why.
 
 1. **Browser console, same-origin** — done, this RFC's companion change.
 2. **`warrantor console`** — done.
-3. **Packaged desktop shell** — deferred. It is deliberately *not* Electron yet: a security product
-   that ships its own Chromium owns that patch cadence, and the launcher delivers the same outcome
-   today with no new dependency. When packaging happens it must wrap this console rather than
-   reimplement it, because a second viewer is a second thing that can misrender a verdict.
-4. **Backend, in the order the five needs bite:** evidence archive (custody) → directory (trust
+3. **Electron desktop shell** — done, in `desktop/`. It wraps this console rather than
+   reimplementing it, because a second viewer is a second thing that can misrender a verdict.
+
+   The cost is real and is accepted deliberately rather than waved through: a security product that
+   ships its own Chromium owns that patch cadence. Electron 33 carried 21 high-severity advisories;
+   the pin is 43.4.0, which audits clean, and **`npm audit` in `desktop/` is on the release
+   checklist**. `warrantor console` remains the zero-dependency path to the same console for anyone
+   who would rather not run a bundled browser at all.
+
+   The shell's security decisions live in `desktop/src/policy.js`, which imports nothing, so CI
+   gates them on every pull request with no Electron download and no display.
+4. **Packaging and signing** — not done. `npm start` runs it from source; there is no installer, no
+   code signature, no notarisation and no update channel. See the delivery gap list in
+   `docs/W1-delivery-gaps.md`.
+5. **Backend, in the order the five needs bite:** evidence archive (custody) → directory (trust
    anchoring) → approval routing → time anchoring → fleet summaries.
 
 Each backend stage ships only if a client can still verify without it. That test is what keeps the

@@ -1,0 +1,21 @@
+{
+  "name": "@warrantor/desktop",
+  "version": "1.0.0",
+  "description": "Warrantor desktop — an Electron shell around the console the local agent serves",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MuVeraAI-Corporation/Warrantor.git",
+    "directory": "desktop"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "electron": "^43.4.0"
+  }
+}

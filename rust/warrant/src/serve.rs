@@ -3096,6 +3096,22 @@ pub fn listen<A: Api + Send + 'static>(
     addr: SocketAddr,
     shutdown: &Shutdown,
 ) -> Result<Drain, ServeError> {
+    serve_on(api, token, bind(addr)?, shutdown)
+}
+
+/// Bind the listener, separately from serving on it.
+///
+/// Split out so a caller can learn the address it actually got **before** it prints one. With
+/// `--port 0` the operator asks the OS for a free port, and a caller that announced the requested
+/// address would print `http://127.0.0.1:0` — a URL that is not merely unhelpful but unusable, and
+/// which nothing would catch, because the server then works perfectly on a port nobody was told.
+///
+/// Read the real address back with [`TcpListener::local_addr`].
+///
+/// # Errors
+/// [`ServeError::Bind`] if the address cannot be bound, or if the listener will not go
+/// non-blocking.
+pub fn bind(addr: SocketAddr) -> Result<TcpListener, ServeError> {
     let listener = TcpListener::bind(addr).map_err(|e| ServeError::Bind {
         addr,
         detail: e.to_string(),
@@ -3106,6 +3122,19 @@ pub fn listen<A: Api + Send + 'static>(
             addr,
             detail: format!("the listener would not go non-blocking, so Ctrl-C could not be answered promptly: {e}"),
         })?;
+    Ok(listener)
+}
+
+/// Serve on a listener that is already bound. See [`listen`], which is this plus [`bind`].
+///
+/// # Errors
+/// As [`listen`].
+pub fn serve_on<A: Api + Send + 'static>(
+    api: A,
+    token: SessionToken,
+    listener: TcpListener,
+    shutdown: &Shutdown,
+) -> Result<Drain, ServeError> {
     let api = Arc::new(Mutex::new(api));
     let token = Arc::new(token);
     let live = Arc::new(AtomicUsize::new(0));

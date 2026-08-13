@@ -1821,6 +1821,16 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) 
     let shutdown = http::Shutdown::new();
     let interruptible = http::install_interrupt_handler();
 
+    // Bound before anything is printed, so every address below is the one actually bound.
+    // `--port 0` asks the OS to choose, and announcing the *requested* address printed
+    // `http://127.0.0.1:0` -- a URL that cannot be opened, while the server worked perfectly on a
+    // port nobody had been told. Nothing caught it because every other flag makes the two equal.
+    let listener = match http::bind(addr) {
+        Ok(listener) => listener,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let addr = listener.local_addr().unwrap_or(addr);
+
     println!("warrantor: serving {} on http://{addr}", root.display());
     println!("  token         {}", token.as_str());
     println!("  token file    {}", token_path.display());
@@ -1888,7 +1898,7 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) 
         build_performer,
         now,
     );
-    let outcome = http::listen(api, token, addr, &shutdown);
+    let outcome = http::serve_on(api, token, listener, &shutdown);
     // Removed whether the drain completed or not, and whether or not the loop ended in an error:
     // the token is a per-session secret and this session is over either way.
     let removed = std::fs::remove_file(&token_path);
