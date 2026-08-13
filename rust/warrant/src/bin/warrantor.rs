@@ -206,9 +206,11 @@ number is finally read -- a durable per-warrant total, a refusal when a reported
 would break the ceiling, and cost-aware routing advice from your own price table in
 ~/.warrantor/backends.json. A warrant granted without --budget has a ceiling of zero.
 
---guard attaches a local guard model to a supervised MCP session. It is OBSERVE-ONLY:
-it records what a classifier thought about each tool call and blocks nothing, because
-measured adversarial recall is 0.8152 and the adversarial false-positive rate is 0.0923.
+--guard attaches a local guard model to a supervised MCP session. It is OBSERVE-ONLY
+unless you also pass --guard-enforce-untested-do-not-use: it records what a classifier
+thought about each call the warrant permitted and blocks nothing, because measured
+adversarial recall is 0.8152 and the adversarial false-positive rate is 0.0923. A call
+a bound refused is never classified -- it did not happen, so no signal claims it did.
 The endpoint must be loopback -- the guard is sent the agent's tool arguments -- and a
 model whose digest the backend cannot report does not attach at all, because a signal
 with no provenance is not evidence. Knobs: --guard-endpoint, --guard-model, --guard-seed,
@@ -1290,8 +1292,10 @@ fn build_guard(args: &Args, warrant_id: &str, root: &Path) -> Option<Box<dyn gua
         match mode {
             guard::GuardMode::Observe => "observe-only: it records and never blocks.",
             guard::GuardMode::Enforce =>
-                "ENFORCING. This mode is untested in production and denies roughly one benign \
-                 adversarially-phrased call in eleven. Turn it off.",
+                "ENFORCING: a call it calls harmful is refused before anything is staged. This \
+                 mode is untested in production and denies roughly one benign adversarially- \
+                 phrased call in eleven, and it bounds only calls through this endpoint -- it is \
+                 not containment. Turn it off.",
         }
     );
     Some(Box::new(adapter))
@@ -1788,14 +1792,29 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                              ({e}). The counts below are the only record."
                         ),
                     }
+                    // The closing sentence names the mode that was actually in force. It used to
+                    // read "Nothing was blocked." unconditionally, which was a false statement to
+                    // the operator on exactly the runs where it mattered -- the ones started with
+                    // --guard-enforce-untested-do-not-use, where flagged calls WERE refused.
                     eprintln!(
                         "warrantor: guard -- {} classified, {} flagged, {} backend-unavailable, {} \
-                         unparseable, {} skipped over budget. Nothing was blocked.",
+                         unparseable, {} skipped over budget. {}",
                         counters.classified,
                         counters.flagged,
                         counters.backend_unavailable,
                         counters.unparseable,
-                        counters.skipped_over_budget
+                        counters.skipped_over_budget,
+                        match endpoint.guard_mode() {
+                            Some(guard::GuardMode::Enforce) =>
+                                "ENFORCING: every flagged call was refused at this endpoint before \
+                                 anything was staged. That bounds calls through this endpoint only \
+                                 -- it is not containment.",
+                            // `None` cannot happen inside this block (the counters came from an
+                            // attached guard), but reporting the shipped mode on a guess is the
+                            // kind of small lie this whole surface exists to avoid.
+                            Some(guard::GuardMode::Observe) => "Nothing was blocked.",
+                            None => "The mode could not be read, so what was blocked is unknown.",
+                        }
                     );
                 }
                 for request in endpoint.authority_requests() {

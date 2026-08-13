@@ -37,14 +37,18 @@ therefore not timidity about a promising feature. It is what the measurement sup
 ## Goals
 
 1. A guard model's judgement is **recorded** against a warrant, with enough provenance to be
-   evidence, and can change no outcome.
+   evidence, and in the shipped mode changes no outcome. Where it *can* change one — the
+   enforcement path, off by default — every surface says so from the recorded mode rather than
+   assuming the default.
 2. **Absent means absent.** No guard means no signals — never "all clear". A dead backend reporting
    perfect safety is the failure `ml/README.md` already names, and it must be structurally
    impossible here.
 3. The verification envelope is untouched. Integrity stays an Ed25519 question with a three-valued
    answer, and no classifier score enters it or any digest a signature commits to.
-4. The enforcement path exists, is off, is named as untested, and is concentrated in one function so
-   the claim "the guard cannot block" is checkable rather than asserted.
+4. The enforcement path exists, is off, is named as untested, and is concentrated in one function
+   asked at one call site **before the effect exists**, so both halves of the claim — "the guard
+   does not block in the shipped mode" and "when it does block, the call really does not happen" —
+   are checkable rather than asserted.
 5. No new external dependency, no new `/v1` route, no change to the warrant format.
 
 Explicit non-goals: fine-tuning the guard; a decision-maker-facing surface for model intelligence;
@@ -79,9 +83,35 @@ lives in the binary. `attach` refuses in this order:
 ### The observation point
 
 `AgentEndpoint::call` is the only place agent-produced content traverses Warrantor during a run. The
-existing `match self.proxy.decide(&call)` is bound to `let result = …`, then the guard is observed,
-then `result` is returned. The guard cannot change the answer, and the control flow says so rather
-than a comment claiming it.
+warrant decides first, and two rules govern what happens next. Both were got wrong in the first
+wiring of this module and are stated here because the ordering *is* the design:
+
+1. **A call a bound refused is never classified.** The `Decision::Deny` arm returns without calling
+   the guard at all. A refusal means the call did not happen, so a signal about it would assert the
+   opposite in a second log; it would also ship the refused arguments to the classifier process and
+   spend a slot of the per-session call cap that coverage of the calls which *did* happen depends
+   on. The same holds for a permitted call the endpoint cannot forward for want of an upstream:
+   nothing happened, so nothing is recorded.
+2. **The guard is asked before the effect exists, never after.** In the `Decision::Stage` arm the
+   guard is consulted *before* `Proxy::apply`. The first version asked afterwards, and under
+   `GuardMode::Enforce` that produced the worst outcome available: `StagingQueue::stage` had already
+   hash-chained the effect and `sync_all`'d it to `<root>/staged/<id>.jsonl`, so the agent was told
+   "refused by the guard model", the log said refused, and the write was still queued to fire the
+   moment a human settled the warrant. A denial that arrives after the effect is durable has refused
+   nothing.
+
+Under `Observe` — the default and the shipped mode — `enforcement_denial` is `None` for every
+outcome, so the guard still cannot change any answer; the test that compares a guarded run's
+`ToolResult`s byte-for-byte with an unguarded one is what checks that, and it is checked on bytes
+rather than argued from the shape of the control flow.
+
+**What this costs today, stated plainly:** because no upstream is wired yet, the only calls that
+reach the guard are the ones this endpoint stages — the tools in `EffectRegistry`. Everything else
+ends in the "no upstream configured" error, which is not a call that happened, so it produces no
+signal. The earlier wiring classified those too and looked like broader coverage; what it actually
+produced was signals asserting that calls had happened when they had not. Coverage widens when
+forwarding is implemented, and the `Decision::Forward` arm carries the instruction for doing it in
+the right order.
 
 `AgentEndpoint` holds `Option<Box<dyn GuardSink>>`, absent by default, set through a `with_guard`
 builder. `agent_endpoint_for`'s signature is unchanged: a guard is a runtime operator choice like
@@ -119,12 +149,21 @@ the log sees the coverage gap without reading a counter they were not shown.
 
 ### The log, and why it is not the refusal log
 
-Signals land in `<root>/guard/<id>.jsonl`, not `<root>/refusals/`. A refusal means the call **did
-not happen**; a guard signal means it **did**, and a model disliked it. Merged, the console would
-report N refusals for N things that actually occurred, and `aggregate_refusals`' guidance — "widen
-it deliberately in the next grant" — would be shown to an operator in response to a model's opinion
-about a call that was allowed. `aggregate_guard_signals` shares no wording with it; every sentence
-it produces says what happened and says the guard blocked nothing.
+Signals land in `<root>/guard/<id>.jsonl`, not `<root>/refusals/`. A refusal means a bound said no
+and the call **did not happen**; a guard signal means the warrant **permitted** the call, and a
+model disliked it. Merged, the console would report N refusals for N calls the warrant allowed, and
+`aggregate_refusals`' guidance — "widen it deliberately in the next grant" — would be shown to an
+operator in response to a model's opinion about a call that was allowed. `aggregate_guard_signals`
+shares no wording with it; every sentence it produces says what the warrant did with the call and
+what the guard did or could not do with it.
+
+Those sentences name the mode from the signal, and never assume one. Each signal carries its
+`mode`, and the aggregation buckets on it, because "the guard called this harmful" describes a call
+that proceeded under `Observe` and a call this endpoint refused under `Enforce` — opposite facts
+that a reader holding only an outcome cannot tell apart. The same applies one level up: the attach
+record's `note` is chosen by mode rather than stamped from a constant, after a version in which an
+enforcing session wrote a line whose `mode` field said `enforce` and whose `note` on the same line
+said OBSERVE and blocked nothing.
 
 Three line kinds: the attach record at attach time, then the signals and one counters line at
 session end. Two write moments with one reason each — a session that crashes mid-run still shows *a
@@ -151,6 +190,18 @@ outcome at all. Even under `Enforce`, only `Harmful` may deny — a dead or conf
 be able to block a call either. The CLI flag is `--guard-enforce-untested-do-not-use`, spelled so it
 cannot be typed by accident or reached by completing `--guard`.
 
+That function is only half of the path; the other half is *where the call site asks*, and the
+ordering rule above is the rest of it. A test drives `Enforce` through `AgentEndpoint::call` and
+asserts the staging queue is empty afterwards — the path is exercised end to end rather than
+asserted about in isolation, which is what the previous version's unit test on a hand-built
+`GuardObservation` did while the integration was wrong.
+
+What `Enforce` bounds, exactly: a denial stops the call at this MCP endpoint before anything is
+staged, so the effect is never queued and never released at settle. That is the same tier of bound
+as the `tools` allowlist — a chokepoint the call happens to pass through — and it is **not
+containment**. There is no netns, no seccomp and no firewall behind it, and an agent acting outside
+this endpoint is untouched by it. Every surface that mentions enforcement says so in those terms.
+
 ## Dependencies
 
 None added. `ureq` is already a dependency of `rust/warrant` with `tls` and `json`; `serde_json`,
@@ -171,7 +222,11 @@ health, and the run continues.
 | A signal with no provenance | **Mitigated** | `attach` refuses when the backend cannot report a `sha256:<64 hex>` for the tag. No guard attaches, so no evidence-free signal can exist. |
 | The supervised agent reading back its own guard verdicts through `/v1` | **Residual, reduced** | Same-UID reachability of the loopback API is a known, documented property of `serve.rs` and is not fixed here. Reduced to: argument names, a content digest, and a capped excerpt of the model's own reply. The agent learns that *something* was flagged, not what the classifier keys on and not its own text back. |
 | Operator habituation from a 4× adversarial false-positive rate | **Mitigated by design** | There is nothing to override, because nothing blocks. This is the primary reason the design is observe-only. |
-| Someone turns the enforcement flag on | **Residual, named** | `Default` is `Observe`, the flag is `--guard-enforce-untested-do-not-use`, and the mode is recorded in the attach line so a log shows it. The path is untested in production and the docs say so. Turning it on is a real risk that this design accepts and labels rather than removes. |
+| Someone turns the enforcement flag on | **Residual, named** | `Default` is `Observe`, the flag is `--guard-enforce-untested-do-not-use`, and the mode is recorded in the attach line, in every signal, and in the mode clause of every read surface. The path is untested in production and the docs say so. Turning it on is a real risk that this design accepts and labels rather than removes. |
+| A denial that denies nothing: the agent and the log say "refused" while the effect sits fsync'd in the settle queue | **Mitigated** | The guard is consulted before `Proxy::apply`, so an enforced denial returns with nothing staged. A test drives `Enforce` through `AgentEndpoint::call` and asserts the queue is empty. This was a real defect in the first version of this change, not a hypothetical. |
+| A guard signal claiming a call happened that a bound refused | **Mitigated** | The `Decision::Deny` arm never calls the guard, so a refused call produces no signal, sends no arguments to the classifier and spends no call cap. A test asserts the only signal from a mixed session is the one staged call, and that exactly one POST reached the backend. |
+| An honesty surface describing a mode other than the one in force | **Mitigated** | The attach note, the `/v1` guard note, the aggregated guidance and the end-of-session CLI line are all composed from the mode actually recorded — `GuardSignal::mode`, `GuardSession::mode`, `GuardLog::enforcing()`. Tests assert an enforcing log never renders "blocked nothing". |
+| A per-warrant answer making a claim about the whole store | **Mitigated** | `guard_object` takes a scope. The per-warrant route's "nothing was attached" sentence claims only about that warrant and says so; a test seeds a guarded warrant beside an unguarded one and asserts the unguarded one's note makes no store-wide claim. |
 | A classifier score reaching the verification envelope or a bundle digest | **Mitigated** | `guard.rs` imports nothing from `report::` and no verification type. A test compares `verification`, `verified` and the whole report bundle byte-for-byte with and without a guard log present. |
 | A wedged daemon stalling every tool call | **Mitigated** | `ureq` connect and read timeouts, a per-session call cap, and dedup by `(tool, content_digest)`. Cap exhaustion is counted and logged. |
 | A panic in guard code killing the agent mid-run | **Mitigated** | `panic = "abort"` is set on the release profile and this code parses a model's free text inside the session process. No `unwrap`, `expect`, slice index or unchecked arithmetic in `guard.rs`; byte caps walk to a char boundary; all counters are `saturating_*`. |
@@ -186,15 +241,21 @@ auth-before-resolve test and its route list keep their exact meaning.
 
 ```jsonc
 "guard": {
-  "configured": false,          // no attach record anywhere: no coverage, not no findings
+  "configured": false,          // no attach record in what was read: no coverage, not no findings
+  "enforcing": false,           // did any session here actually block? read from sessions AND signals
   "sessions": [ /* GuardSession: mode, max_calls, provenance, note */ ],
   "counters": [ /* GuardSummary: classified, flagged, backend_unavailable, ... */ ],
-  "signals": [ /* per-warrant route */ ],
-  "groups":  [ /* summary route, aggregated by tool + leading category + outcome */ ],
+  "signals": [ /* per-warrant route; each carries its own mode */ ],
+  "groups":  [ /* summary route, aggregated by tool + leading category + outcome + mode */ ],
   "unreadable_lines": 0,
-  "note": "…observe-only… 0.8152 … 0.0224 -> 0.0923 … no classifier score enters integrity…"
+  "note": "…calls the warrant PERMITTED… 0.8152 … 0.0224 -> 0.0923 … no classifier score enters
+           integrity… + a mode clause, and a scope-correct sentence when nothing was attached"
 }
 ```
+
+The `note` is composed, not constant: its mode clause is read from the log, and its "nothing was
+attached" wording says whether it is answering about one warrant or the whole store. Both were
+constants that made claims the reading could not support.
 
 `records`, `grouped`, `total_occurrences`, `bounds_probably_wrong`, `thresholds` and both routes'
 `verification` objects are untouched.
@@ -204,21 +265,39 @@ CLI: `warrantor mcp --agent <id> --guard [--guard-endpoint …] [--guard-model �
 
 ## Testing
 
-`rust/warrant/tests/guard.rs`, 17 tests, no sockets — a stub `GuardTransport` whose `/api/tags` and
+`rust/warrant/tests/guard.rs`, 24 tests, no sockets — a stub `GuardTransport` whose `/api/tags` and
 `/api/chat` answers are both `Result`, so "cannot say what it runs" and "is not there" are
-configured rather than simulated. The load-bearing ones:
+configured rather than simulated, and whose request counters are shared handles so a test can still
+read them after `attach` has consumed the transport. The session the endpoint tests drive mixes one
+call the warrant permits and stages, one it permits but cannot forward, and two a bound refuses.
+The load-bearing ones:
 
 - an absent guard leaves no `<root>/guard/` directory at all, and the run's `ToolResult`s are
   unchanged;
 - a guarded run whose stub calls **every** call harmful returns results byte-identical to an
   unguarded run — the central claim, checked on bytes;
+- **`Enforce`, driven through `AgentEndpoint::call`, returns the denial and leaves the staging queue
+  empty** — the ordering, checked on the queue rather than on the error string;
+- **a call a bound refused produces no signal at all**, and exactly one POST reaches the backend for
+  a four-call session;
 - a dead backend records `backend_unavailable`, and no signal anywhere claims `not_harmful`;
-- `attach` refuses a missing tag, a non-sha256 digest, an unreachable `/api/tags`, and four
-  non-loopback endpoints, writing no session record in any case;
-- every persisted signal carries model, digest, endpoint, adapter version and the full knob set, no
-  knob serialises as a float, and no classified text appears anywhere in the line;
+- `attach` refuses a missing tag, a non-sha256 digest and an unreachable `/api/tags` **without ever
+  POSTing anything to classify**, and refuses four non-loopback endpoints **before a single request
+  reaches them**. (The previous version asserted instead that no session record was written, on a
+  tempdir `attach` was never given — `attach` has no filesystem root, so that assertion could not
+  fail under any implementation.)
+- every persisted signal carries model, digest, endpoint, adapter version, the mode and the full
+  knob set, no knob serialises as a float, and no classified text appears anywhere in the line;
 - every `GuardOutcome` under `Observe` yields `enforcement_denial() == None`, and `Default` is
   `Observe`;
+- **an attach record describes the mode it ran in**, and an enforcing one never says "blocked
+  nothing";
+- **the `/v1` guard note and the aggregated guidance name the mode the signals came from**;
+- **a per-warrant answer with no guard log makes no claim about other warrants in the store**,
+  checked with a guarded warrant sitting beside the unguarded one;
+- **a log with signals but no attach record is not described as "nothing classified anything"** —
+  the attach write happens before the run and the signals after it, so that state is reachable and
+  the sentence has to name which absence it is;
 - `verification`, `verified` and the whole report bundle are identical with and without a guard log,
   on `/v1/warrants/{id}`, `/report` and `/refusals`;
 - guard signals move neither `total_occurrences` nor `bounds_probably_wrong`;

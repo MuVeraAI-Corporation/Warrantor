@@ -2449,12 +2449,13 @@ impl Api for StoreApi {
                 "grouped": groups,
                 "unreadable_lines": log.unreadable_lines,
                 "note": REFUSAL_PROVENANCE,
-                // A sibling, never merged into the arrays above. A refusal means the call did NOT
-                // happen; a guard signal means it did and a model disliked it. Folding guard counts
-                // into `records`/`grouped`/`total_occurrences` would make the console report N
-                // refusals for N things that actually occurred, and would put `aggregate_refusals`'
-                // "widen the bound" guidance behind a classifier score.
-                "guard": guard_object(&guard_log, false),
+                // A sibling, never merged into the arrays above. A refusal means a bound said no and
+                // the call did NOT happen; a guard signal means the warrant PERMITTED the call and a
+                // model disliked it. Folding guard counts into
+                // `records`/`grouped`/`total_occurrences` would make the console report N refusals
+                // for N calls the warrant allowed, and would put `aggregate_refusals`' "widen the
+                // bound" guidance behind a classifier score.
+                "guard": guard_object(&guard_log, GuardScope::Warrant),
             }),
         )
     }
@@ -2484,7 +2485,7 @@ impl Api for StoreApi {
                 "note": REFUSAL_PROVENANCE,
                 // Additive and adjacent: `total_occurrences` and `bounds_probably_wrong` above are
                 // computed from refusals alone and no guard signal may move either.
-                "guard": guard_object(&guard_log, true),
+                "guard": guard_object(&guard_log, GuardScope::Store),
             }),
         )
     }
@@ -2866,34 +2867,88 @@ impl Api for StoreApi {
 /// adversarial recall an empty list is not a clean run, and at a false-positive rate that
 /// quadruples under adversarial phrasing a full list is not a list of incidents.
 const GUARD_PROVENANCE: &str =
-    "Guard signals are a MODEL's opinion about calls that HAPPENED, recorded beside a run. The \
-     guard blocked nothing and cannot: it runs observe-only. Measured recall under adversarial \
-     phrasing is 0.8152 and the false-positive rate quadruples under it (0.0224 -> 0.0923), so an \
-     empty list is NOT a clean bill of health and a full one is NOT a list of incidents. Integrity \
-     remains an Ed25519 question with a three-valued answer, and no classifier score enters it: \
-     the `verification` object on this response is computed without reading any of this.";
+    "Guard signals are a MODEL's opinion about calls the warrant PERMITTED, recorded beside a run; \
+     a call a bound refused is never classified, so it never appears here. Measured recall under \
+     adversarial phrasing is 0.8152 and the false-positive rate quadruples under it (0.0224 -> \
+     0.0923), so an empty list is NOT a clean bill of health and a full one is NOT a list of \
+     incidents. Integrity remains an Ed25519 question with a three-valued answer, and no classifier \
+     score enters it: the `verification` object on this response is computed without reading any of \
+     this.";
+
+/// What a `guard` object is answering about: one warrant's log, or every log in the store.
+///
+/// An enum rather than the `grouped` bool it replaces, because the bool was doing two jobs and got
+/// one of them wrong: it selected the rendering *and* was silently assumed to select the scope of
+/// the "nothing was attached" sentence, so the per-warrant route answered a question about one file
+/// with a claim about the whole store.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GuardScope {
+    /// One warrant's log, rendered as individual signals.
+    Warrant,
+    /// Every warrant's log, rendered as aggregated groups.
+    Store,
+}
 
 /// The `guard` sibling object on the two refusal routes.
 ///
 /// A function rather than two inline `json!` blocks so the disclaiming sentence and the
 /// `configured: false` case cannot drift between the per-warrant and the summary route. `configured`
-/// is false when no attach record exists anywhere, and the note says what that means, because "no
-/// guard signals" and "no guard ran" render identically otherwise — the exact failure `ml/README.md`
-/// names about a dead backend reading as perfect safety, one level up.
-fn guard_object(log: &crate::guard::GuardLog, grouped: bool) -> Value {
+/// is false when no attach record exists **in what was read**, and the note says what that means,
+/// because "no guard signals" and "no guard ran" render identically otherwise — the exact failure
+/// `ml/README.md` names about a dead backend reading as perfect safety, one level up.
+///
+/// The note is composed, never constant. Two facts vary and both of them mislead if assumed: the
+/// scope the absence covers, and the **mode** the sessions actually ran in. A stored sentence saying
+/// the guard "blocked nothing and cannot" is false for a log whose sessions ran in
+/// [`crate::guard::GuardMode::Enforce`], and it is the console's copy of that sentence an operator
+/// reads.
+fn guard_object(log: &crate::guard::GuardLog, scope: GuardScope) -> Value {
     let configured = log.configured();
+    let note = if configured {
+        let mode_clause = if log.enforcing() {
+            " At least one session here ran with enforcement ON: calls that guard called harmful \
+             were REFUSED at the MCP endpoint before any effect was staged, so those calls did not \
+             happen. That bound reaches only calls passing through the endpoint -- it is not \
+             containment."
+        } else {
+            " Every session here ran observe-only: the guard blocked nothing."
+        };
+        format!("{GUARD_PROVENANCE}{mode_clause}")
+    } else if !log.signals.is_empty() || !log.summaries.is_empty() {
+        // An attach record is written before the run and the signals after it, so this state is
+        // reachable: the attach write failed and the session's own signals landed anyway. Saying
+        // "nothing classified anything" over a list of classifications would be a plainly false
+        // sentence sitting next to its own counter-evidence.
+        format!(
+            "{GUARD_PROVENANCE} No attach record was found for these signals, so what was watching              cannot be named from this log alone -- read the per-signal provenance. Whether              anything was blocked is read from the signals' own mode."
+        )
+    } else {
+        match scope {
+            // Said about one file, so it claims only about that file. The old wording made a
+            // store-wide claim from a single warrant's log, and it was false whenever any other
+            // warrant in the same store was guarded -- on the one sentence whose job is to
+            // separate "no findings" from "no coverage".
+            GuardScope::Warrant => "No guard was attached to any run of THIS warrant, so nothing \
+                                    classified anything here. This is an absence of observation, \
+                                    NOT an absence of findings: read it as no coverage. It says \
+                                    nothing about other warrants in this store -- /v1/summary/refusals \
+                                    answers that."
+                .to_string(),
+            GuardScope::Store => "No guard was attached to any run in this store, so nothing \
+                                  classified anything. This is an absence of observation, NOT an \
+                                  absence of findings: read it as no coverage."
+                .to_string(),
+        }
+    };
     let mut object = json!({
         "configured": configured,
+        "enforcing": log.enforcing(),
         "sessions": log.sessions,
         "counters": log.summaries,
         "unreadable_lines": log.unreadable_lines,
-        "note": if configured {
-            GUARD_PROVENANCE
-        } else {
-            "No guard was attached to any run in this store, so nothing classified anything. This \
-             is an absence of observation, NOT an absence of findings: read it as no coverage."
-        },
+        "note": note,
     });
+    let grouped = scope == GuardScope::Store;
     let detail = if grouped {
         json!(crate::guard::aggregate_guard_signals(&log.signals))
     } else {

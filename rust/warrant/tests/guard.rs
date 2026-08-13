@@ -18,6 +18,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use ed25519_dalek::SigningKey;
 use serde_json::Value;
@@ -33,10 +35,15 @@ use warrantor_warrant::proxy::ProxyMode;
 use warrantor_warrant::serve::{
     no_adapter, record_refusals, route, HttpRequest, Response, StoreApi,
 };
+use warrantor_warrant::staging::{EffectRegistry, StagingQueue};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds};
 
 const NOW: u64 = 1_786_000_000;
+/// The one tool in these tests that the warrant permits and the endpoint actually carries out.
+const STAGING_TOOL: &str = "github.create_pr";
+/// Its argument. Kept free of dots and schemes so the egress broker finds no destination in it.
+const STAGING_TITLE: &str = "fix the auth bug";
 const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const DIGEST: &str = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
 
@@ -64,10 +71,35 @@ fn tempdir(tag: &str) -> std::path::PathBuf {
 /// `tags` and `reply` are both `Result`, so the two failure modes this module is most careful
 /// about — a backend that cannot say what it is running, and a backend that is not there at all —
 /// are configured rather than simulated with a timeout.
+///
+/// The two counters are shared handles rather than plain fields because `attach` takes the
+/// transport **by value**: a test that wants to assert "nothing was ever sent to this endpoint"
+/// cannot reach the transport afterwards, and an unreachable counter is how an assertion ends up
+/// vacuous. See [`Traffic`].
 struct StubGuard {
     tags: Result<String, String>,
     reply: Result<String, String>,
-    posts: usize,
+    traffic: Traffic,
+}
+
+/// What actually reached a stub backend, readable after `attach` has consumed the transport.
+///
+/// This is what makes "refused before any content was sent" a checkable claim instead of a
+/// sentence in a doc comment.
+#[derive(Clone, Default)]
+struct Traffic {
+    gets: Arc<AtomicUsize>,
+    posts: Arc<AtomicUsize>,
+}
+
+impl Traffic {
+    fn gets(&self) -> usize {
+        self.gets.load(Ordering::SeqCst)
+    }
+
+    fn posts(&self) -> usize {
+        self.posts.load(Ordering::SeqCst)
+    }
 }
 
 impl StubGuard {
@@ -78,7 +110,7 @@ impl StubGuard {
                 r#"{{"message":{{"role":"assistant","content":{}}}}}"#,
                 serde_json::to_string(reply).expect("encode")
             )),
-            posts: 0,
+            traffic: Traffic::default(),
         }
     }
 
@@ -86,18 +118,24 @@ impl StubGuard {
         Self {
             tags: Ok(tags_body("guard:test", DIGEST)),
             reply: Err("connection refused".to_string()),
-            posts: 0,
+            traffic: Traffic::default(),
         }
+    }
+
+    /// A handle on this stub's traffic counters, kept by the test after `attach` takes the stub.
+    fn traffic(&self) -> Traffic {
+        self.traffic.clone()
     }
 }
 
 impl GuardTransport for StubGuard {
     fn get(&mut self, _path: &str) -> Result<String, String> {
+        self.traffic.gets.fetch_add(1, Ordering::SeqCst);
         self.tags.clone()
     }
 
     fn post_json(&mut self, _path: &str, _body: &str) -> Result<String, String> {
-        self.posts += 1;
+        self.traffic.posts.fetch_add(1, Ordering::SeqCst);
         self.reply.clone()
     }
 }
@@ -123,9 +161,17 @@ fn stored_warrant(id: &str) -> StoredWarrant {
     let issuer = SigningKey::from_bytes(&[1; 32]);
     let settle = SigningKey::from_bytes(&[2; 32]);
     let bounds = WarrantBounds {
-        tools: ["git".to_string(), "curl".to_string()]
-            .into_iter()
-            .collect(),
+        // `github.create_pr` is here because it is the only call in these tests the warrant both
+        // permits AND carries out: it stages. Without one of those, every call in the session is
+        // either refused by a bound or dropped for want of an upstream, and a guard test built only
+        // on those is asserting about signals for calls that never happened.
+        tools: [
+            "git".to_string(),
+            "curl".to_string(),
+            STAGING_TOOL.to_string(),
+        ]
+        .into_iter()
+        .collect(),
         write_paths: BTreeSet::new(),
         egress_hosts: BTreeSet::new(),
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
@@ -181,6 +227,10 @@ fn body(response: &Response) -> Value {
 }
 
 /// Drive a handful of tool calls through an agent endpoint, with or without a guard.
+///
+/// The mix is deliberate and every entry earns its place: one call the warrant permits and the
+/// endpoint stages (the only one a guard may legitimately record a signal about), one the endpoint
+/// permits but cannot forward, and two a bound refuses — one on `egress_hosts`, one on `tools`.
 fn run_session(dir: &Path, id: &str, guard: Option<Box<dyn GuardSink>>) -> Vec<ToolResult> {
     let stored = seed(dir, id);
     let store = WarrantStore::open(dir).expect("store");
@@ -190,21 +240,34 @@ fn run_session(dir: &Path, id: &str, guard: Option<Box<dyn GuardSink>>) -> Vec<T
         endpoint = endpoint.with_guard(sink);
     }
     let mut results = Vec::new();
-    for (tool, argument) in [
-        ("git", "status"),
-        ("curl", "https://example.com"),
+    for (tool, key, argument) in [
+        // Permitted, staged: this one HAPPENS as far as this endpoint takes it.
+        (STAGING_TOOL, "title", STAGING_TITLE),
+        // Permitted, but there is no upstream to forward to, so it does not happen.
+        ("git", "command", "status"),
+        // Refused on egress_hosts.
+        ("curl", "command", "https://example.com"),
         // Not in the warrant's tool allowlist: the proxy refuses it, and the guard must not change
         // that answer in either direction.
-        ("rm", "-rf /"),
+        ("rm", "command", "-rf /"),
     ] {
         let mut arguments = BTreeMap::new();
-        arguments.insert("command".to_string(), Value::String(argument.to_string()));
+        arguments.insert(key.to_string(), Value::String(argument.to_string()));
         results.push(endpoint.call(tool, &arguments));
     }
     if let Some(counters) = endpoint.guard_counters() {
         record_guard_signals(dir, id, &endpoint.guard_signals(), counters, NOW).expect("record");
     }
     results
+}
+
+/// Open the staging queue for a warrant, to ask what is actually in it.
+fn staged_effects(dir: &Path, id: &str) -> usize {
+    let store = WarrantStore::open(dir).expect("store");
+    StagingQueue::open(store.staged_path(id), id, EffectRegistry::github())
+        .expect("queue")
+        .effects()
+        .len()
 }
 
 // ── (1) an absent guard writes nothing and changes nothing ────────────────────────────
@@ -224,13 +287,16 @@ fn an_absent_guard_writes_no_log_and_does_not_fail_the_run() {
     assert!(log.signals.is_empty());
     // The run itself is untouched. `rm` is not in the warrant's allowlist, so the tools bound
     // refuses it by name — the guard had no part in that, and there was no guard to have one.
+    let refused = results.last().expect("the rm call");
     assert!(
-        results[2]
+        refused
             .text
             .contains("refused by the warrant's tools bound"),
         "rm was refused by the warrant, not by a guard: {}",
-        results[2].text
+        refused.text
     );
+    // And the permitted call still staged: an unguarded run performs exactly what it would have.
+    assert_eq!(staged_effects(&dir, "wrt_absent"), 1);
 }
 
 #[test]
@@ -303,8 +369,7 @@ fn a_dead_backend_records_backend_unavailable_and_never_not_harmful() {
 // ── (3) and (4) attach refuses rather than producing evidence-free signals ─────────────
 
 #[test]
-fn attach_refuses_when_the_backend_cannot_name_the_model() {
-    let dir = tempdir("no-digest");
+fn attach_refuses_when_the_backend_cannot_name_the_model_and_classifies_nothing() {
     for tags in [
         // The tag is not there at all.
         Ok(tags_body("something-else", DIGEST)),
@@ -316,8 +381,9 @@ fn attach_refuses_when_the_backend_cannot_name_the_model() {
         let transport = StubGuard {
             tags,
             reply: Ok(String::new()),
-            posts: 0,
+            traffic: Traffic::default(),
         };
+        let traffic = transport.traffic();
         let error = attach(transport, config("wrt_prov"))
             .err()
             .expect("refused");
@@ -325,16 +391,21 @@ fn attach_refuses_when_the_backend_cannot_name_the_model() {
             matches!(error, GuardError::ProvenanceUnknown(_)),
             "got {error:?}"
         );
+        // The assertion this replaces was `!dir.join("guard").exists()` on a tempdir `attach` was
+        // never given: `attach` takes a transport and a config and has no filesystem root, so it
+        // could not have written there under any implementation and the check could not fail. This
+        // one can: a backend that cannot name its model is never sent a single tool argument, so
+        // no evidence-free classification is possible even in principle.
+        assert_eq!(
+            traffic.posts(),
+            0,
+            "a backend that could not name its model must never be sent anything to classify"
+        );
     }
-    assert!(
-        !dir.join("guard").exists(),
-        "a guard that did not attach writes no session record: the log must never claim a guard \
-         was watching when none was"
-    );
 }
 
 #[test]
-fn attach_refuses_a_non_loopback_endpoint() {
+fn attach_refuses_a_non_loopback_endpoint_before_anything_is_sent_to_it() {
     for endpoint in [
         "http://guard.example.com:11434",
         "https://api.some-vendor.example/v1",
@@ -343,13 +414,21 @@ fn attach_refuses_a_non_loopback_endpoint() {
     ] {
         let mut settings = config("wrt_exfil");
         settings.endpoint = endpoint.to_string();
-        let error = attach(StubGuard::answering("Safety: Safe"), settings)
-            .err()
-            .expect("refused");
+        let transport = StubGuard::answering("Safety: Safe");
+        let traffic = transport.traffic();
+        let error = attach(transport, settings).err().expect("refused");
         assert!(
             matches!(error, GuardError::NonLoopbackEndpoint(_)),
             "{endpoint} must be refused: the guard is sent the agent's tool arguments, so an \
              off-box endpoint is an exfiltration channel opened by a flag"
+        );
+        // Refused *before* the handshake, not after it. `GET /api/tags` carries no agent content,
+        // but it does prove reachability to whoever put the host in the flag, and the ordering is
+        // the only thing that keeps the refusal from being cosmetic.
+        assert_eq!(
+            (traffic.gets(), traffic.posts()),
+            (0, 0),
+            "{endpoint} must be refused before a single request reaches it"
         );
     }
 }
@@ -386,10 +465,16 @@ fn every_persisted_signal_carries_the_model_the_digest_and_the_knobs() {
         // the supervised agent can reach.
         assert!(signal.content_digest.starts_with("sha256:"));
         assert_eq!(signal.content_digest.len(), 71);
-        assert_eq!(signal.argument_names, vec!["command".to_string()]);
+        assert_eq!(signal.argument_names, vec!["title".to_string()]);
+        // The mode travels with the signal, not only on the attach record: every sentence written
+        // about a signal depends on whether the guard could block, and a reader of one line has
+        // only the line.
+        assert_eq!(signal.mode, GuardMode::Observe);
         let line = serde_json::to_string(signal).expect("encode");
         assert!(
-            !line.contains("example.com") && !line.contains("-rf /"),
+            !line.contains(STAGING_TITLE)
+                && !line.contains("example.com")
+                && !line.contains("-rf /"),
             "the classified text must never reach the log: {line}"
         );
     }
@@ -518,6 +603,84 @@ fn observe_yields_no_denial_for_any_outcome_and_enforce_is_not_the_default() {
     }
 }
 
+// ── the enforcement path, driven end to end rather than asserted about in isolation ───
+
+#[test]
+fn enforce_refuses_before_the_effect_is_staged() {
+    let dir = tempdir("enforce-order");
+    let stored = seed(&dir, "wrt_enf");
+    let store = WarrantStore::open(&dir).expect("store");
+    let mut settings = config("wrt_enf");
+    settings.mode = GuardMode::Enforce;
+    let adapter = attach(
+        StubGuard::answering("Safety: Unsafe\nCategories: Jailbreak"),
+        settings,
+    )
+    .expect("attach");
+    let mut endpoint = agent_endpoint_for(
+        &stored,
+        store.staged_path("wrt_enf"),
+        ProxyMode::Enforce,
+        now,
+    )
+    .expect("endpoint")
+    .with_guard(Box::new(adapter));
+
+    let mut arguments = BTreeMap::new();
+    arguments.insert(
+        "title".to_string(),
+        Value::String(STAGING_TITLE.to_string()),
+    );
+    let result = endpoint.call(STAGING_TOOL, &arguments);
+
+    assert!(result.is_error, "an enforced denial is an error result");
+    assert!(
+        result.text.contains("refused by the guard model"),
+        "the agent must be told which thing refused it: {}",
+        result.text
+    );
+    // The claim under test, and the one the first wiring got wrong. The denial was returned AFTER
+    // `Proxy::apply` had hash-chained the effect into the queue and fsync'd it, so the agent and
+    // the log both said "refused" while the write sat in `<root>/staged/<id>.jsonl` waiting to be
+    // performed at settle. A refusal that leaves the effect queued has refused nothing.
+    assert_eq!(
+        staged_effects(&dir, "wrt_enf"),
+        0,
+        "a guard denial must arrive before the effect is staged, or it is theatre: the effect \
+         would be released the moment a human settled the warrant"
+    );
+}
+
+#[test]
+fn a_call_a_bound_refused_is_never_classified() {
+    let dir = tempdir("refused-not-classified");
+    let transport = StubGuard::answering("Safety: Unsafe\nCategories: Jailbreak");
+    let traffic = transport.traffic();
+    let adapter = attach(transport, config("wrt_ref")).expect("attach");
+    run_session(&dir, "wrt_ref", Some(Box::new(adapter)));
+
+    let log = read_guard_log(&dir, "wrt_ref");
+    // Exactly one call in that session happened: the staged one. `curl` was refused on
+    // egress_hosts, `rm` on tools, and `git` had no upstream to reach.
+    assert_eq!(
+        log.signals
+            .iter()
+            .map(|s| s.tool.clone())
+            .collect::<Vec<_>>(),
+        vec![STAGING_TOOL.to_string()],
+        "a signal asserts the warrant permitted the call; recording one for a refused call \
+         double-counts the same event across two logs whose entire distinction is that one did not \
+         happen"
+    );
+    assert_eq!(
+        traffic.posts(),
+        1,
+        "the arguments of a call the warrant refused must not be shipped to the classifier \
+         process, and must not spend the per-session call cap that coverage of the calls which DID \
+         happen depends on"
+    );
+}
+
 #[test]
 fn a_guard_that_calls_everything_harmful_changes_no_tool_result() {
     let dir = tempdir("verdict");
@@ -595,9 +758,15 @@ fn the_same_call_twice_costs_one_backend_call() {
 // ── (8), (9), (10) the read surface ───────────────────────────────────────────────────
 
 fn write_guard_log(dir: &Path, id: &str) {
+    write_guard_log_in(dir, id, GuardMode::Observe);
+}
+
+fn write_guard_log_in(dir: &Path, id: &str, mode: GuardMode) {
+    let mut settings = config(id);
+    settings.mode = mode;
     let adapter = attach(
-        StubGuard::answering("Safety: Safe\nCategories: Jailbreak"),
-        config(id),
+        StubGuard::answering("Safety: Unsafe\nCategories: Jailbreak"),
+        settings,
     )
     .expect("attach");
     let session = adapter.session_record(NOW);
@@ -610,6 +779,167 @@ fn write_guard_log(dir: &Path, id: &str) {
     );
     adapter.observe("curl", &arguments, NOW);
     record_guard_signals(dir, id, &adapter.signals(), adapter.counters(), NOW).expect("signals");
+}
+
+/// The `note` string a route rendered for its `guard` object.
+fn guard_note(document: &Value) -> String {
+    document
+        .pointer("/data/guard/note")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string()
+}
+
+// ── every honesty surface names the mode that was actually in force ───────────────────
+
+#[test]
+fn the_attach_record_says_what_the_mode_it_ran_in_actually_did() {
+    for (mode, must_contain, must_not_contain) in [
+        (GuardMode::Observe, "blocked nothing", "ENFORCE mode"),
+        (GuardMode::Enforce, "REFUSED", "blocked nothing"),
+    ] {
+        let mut settings = config("wrt_note");
+        settings.mode = mode;
+        let adapter = attach(StubGuard::answering("Safety: Safe"), settings).expect("attach");
+        let session = adapter.session_record(NOW);
+        assert_eq!(session.mode, mode);
+        // One JSON line used to carry `"mode":"enforce"` and a note saying OBSERVE and blocked
+        // nothing. The note is the half an operator reads.
+        assert!(
+            session.note.contains(must_contain) && !session.note.contains(must_not_contain),
+            "a {mode:?} attach record must not describe some other mode: {}",
+            session.note
+        );
+    }
+}
+
+#[test]
+fn the_read_surface_and_the_guidance_name_the_mode_the_signals_came_from() {
+    let dir = tempdir("mode-surface");
+    seed(&dir, "wrt_mode");
+    write_guard_log_in(&dir, "wrt_mode", GuardMode::Enforce);
+
+    let mut store = api(&dir);
+    let per_warrant = body(&route(
+        &mut store,
+        &get(&["v1", "warrants", "wrt_mode", "refusals"]),
+    ));
+    let note = guard_note(&per_warrant);
+    assert!(
+        !note.contains("blocked nothing"),
+        "the note is stamped on a log whose sessions enforced; saying they blocked nothing is a \
+         false statement to an operator: {note}"
+    );
+    assert!(
+        note.contains("REFUSED"),
+        "an enforcing log has to say what was refused: {note}"
+    );
+    assert_eq!(
+        per_warrant.pointer("/data/guard/enforcing"),
+        Some(&Value::Bool(true))
+    );
+}
+
+#[test]
+fn the_guidance_for_an_enforced_signal_does_not_say_the_call_went_through() {
+    let dir = tempdir("mode-guidance");
+    seed(&dir, "wrt_guidance");
+    write_guard_log_in(&dir, "wrt_guidance", GuardMode::Enforce);
+
+    // The aggregated guidance is the sentence the console renders per group, and it is the one an
+    // operator acts on.
+    let mut store = api(&dir);
+    let summary = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    let groups = summary
+        .pointer("/data/guard/groups")
+        .and_then(Value::as_array)
+        .expect("groups");
+    let harmful = groups
+        .iter()
+        .find(|g| g.get("outcome") == Some(&Value::String("harmful".to_string())))
+        .expect("the stub called it harmful");
+    assert_eq!(harmful.get("mode"), Some(&Value::String("enforce".into())));
+    let guidance = harmful
+        .get("guidance")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    assert!(
+        guidance.contains("REFUSED") && !guidance.contains("blocked nothing"),
+        "guidance for a signal produced under enforcement must not tell the operator the call went \
+         through: {guidance}"
+    );
+}
+
+#[test]
+fn signals_without_an_attach_record_are_not_described_as_nothing_classified() {
+    let dir = tempdir("orphan-signals");
+    seed(&dir, "wrt_orphan");
+    // The attach write is the one that can fail on its own: it happens before the run, the signals
+    // after it. `warrantor mcp` reports that failure and keeps going, so a log with signals and no
+    // session line is a state this surface has to describe correctly.
+    let mut adapter = attach(
+        StubGuard::answering("Safety: Unsafe\nCategories: Jailbreak"),
+        config("wrt_orphan"),
+    )
+    .expect("attach");
+    let mut arguments = BTreeMap::new();
+    arguments.insert("title".to_string(), STAGING_TITLE.to_string());
+    adapter.observe(STAGING_TOOL, &arguments, NOW);
+    record_guard_signals(
+        &dir,
+        "wrt_orphan",
+        &adapter.signals(),
+        adapter.counters(),
+        NOW,
+    )
+    .expect("signals");
+
+    let mut store = api(&dir);
+    let response = body(&route(
+        &mut store,
+        &get(&["v1", "warrants", "wrt_orphan", "refusals"]),
+    ));
+    let note = guard_note(&response);
+    assert!(
+        !note.contains("nothing classified anything"),
+        "the response carries classifications; a sentence saying nothing classified anything sits \
+         next to its own counter-evidence: {note}"
+    );
+    assert!(
+        note.contains("No attach record"),
+        "what is actually missing is the attach record, and the note has to say which absence this \
+         is: {note}"
+    );
+}
+
+#[test]
+fn an_unguarded_warrant_does_not_claim_the_whole_store_was_unguarded() {
+    let dir = tempdir("scope");
+    seed(&dir, "wrt_guarded");
+    seed(&dir, "wrt_bare");
+    // One warrant in this store WAS guarded. The other one's answer must not say otherwise.
+    write_guard_log(&dir, "wrt_guarded");
+
+    let mut store = api(&dir);
+    let bare = body(&route(
+        &mut store,
+        &get(&["v1", "warrants", "wrt_bare", "refusals"]),
+    ));
+    assert_eq!(
+        bare.pointer("/data/guard/configured"),
+        Some(&Value::Bool(false))
+    );
+    let note = guard_note(&bare);
+    assert!(
+        !note.contains("any run in this store"),
+        "this route read one warrant's log; a store-wide claim from it is false whenever another \
+         warrant here was guarded, and this one was: {note}"
+    );
+    assert!(
+        note.contains("no coverage") && note.contains("THIS warrant"),
+        "the sentence still has to separate 'no findings' from 'no coverage', for this warrant: \
+         {note}"
+    );
 }
 
 #[test]

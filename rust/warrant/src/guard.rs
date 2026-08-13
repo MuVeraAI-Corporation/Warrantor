@@ -15,6 +15,18 @@
 //! and reaching it takes a deliberately awkward flag. See [`GuardObservation::enforcement_denial`],
 //! which is the single function through which any denial could ever pass.
 //!
+//! # A denial has to come before the effect, or it is theatre
+//!
+//! [`GuardObservation::enforcement_denial`] is only half of an enforcement path; the other half is
+//! **where the call site asks**. The first wiring of this module observed the guard *after*
+//! [`crate::proxy::Proxy::apply`] had already hash-chained the effect into the staging queue and
+//! `fsync`'d it, so under [`GuardMode::Enforce`] the agent was told "refused by the guard model"
+//! while the effect sat durably in `<root>/staged/<id>.jsonl`, waiting to be performed the moment a
+//! human settled the warrant. The model believed it was blocked, the operator's log said refused,
+//! and the write still fired. [`crate::mcp_endpoints::AgentEndpoint::call`] now asks **before** it
+//! stages, and a test drives `Enforce` through that path and asserts the queue is empty afterwards.
+//! Any future call site that forwards a call upstream owes the same ordering.
+//!
 //! # This module cannot touch the verification envelope
 //!
 //! It imports no `Verification`, no `Integrity`, no `Liveness` and nothing from [`crate::report`],
@@ -35,13 +47,18 @@
 //!
 //! # The log is separate from the refusal log, on purpose
 //!
-//! A refusal means *the call did not happen*. A guard signal means *it did happen, and a model
-//! disliked it*. Writing signals into `<root>/refusals/` would make `/v1/summary/refusals` report
-//! N refusals for N things that actually occurred, and would hand
+//! A refusal means *a bound said no, so the call did not happen*. A guard signal means *the warrant
+//! permitted the call, and a model disliked it*. Writing signals into `<root>/refusals/` would make
+//! `/v1/summary/refusals` report N refusals for N calls the warrant allowed, and would hand
 //! [`crate::serve::aggregate_refusals`]'s guidance — "widen it deliberately in the next grant" — to
 //! an operator in response to a model's opinion about a call that was allowed. Signals live in
-//! `<root>/guard/<id>.jsonl` and are aggregated by [`aggregate_guard_signals`], whose guidance says
-//! plainly that nothing was blocked.
+//! `<root>/guard/<id>.jsonl` and are aggregated by [`aggregate_guard_signals`], whose guidance names
+//! the mode the signal was produced under rather than asserting one.
+//!
+//! The invariant runs the other way too, and it is the call site's job: a call a **bound** refused
+//! is never classified at all. It did not happen, so no signal may claim it did; its arguments are
+//! not handed to the classifier process; and it does not spend the per-session call cap that
+//! coverage of the calls which *did* proceed depends on.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
@@ -337,6 +354,19 @@ pub struct GuardSignal {
     pub truncated: bool,
     /// What the guard concluded.
     pub outcome: GuardOutcome,
+    /// The mode the guard was in when it concluded it.
+    ///
+    /// Carried per signal, and not only on the attach record, because every sentence written about
+    /// a signal depends on it: under [`GuardMode::Observe`] a `harmful` signal describes a call
+    /// that proceeded, and under [`GuardMode::Enforce`] it describes one this endpoint refused. A
+    /// reader that has only the outcome cannot tell those apart, and
+    /// [`aggregate_guard_signals`] aggregates across warrants whose modes may differ.
+    ///
+    /// `#[serde(default)]` so lines written before this field existed still parse — and they parse
+    /// as `observe`, which is what they were: the enforcement path had no way to reach a call site
+    /// before it existed.
+    #[serde(default)]
+    pub mode: GuardMode,
     /// The `Safety:` line, or a word describing why there was none.
     pub severity: String,
     /// The categories the model named.
@@ -430,6 +460,19 @@ impl GuardLog {
     pub fn configured(&self) -> bool {
         !self.sessions.is_empty()
     }
+
+    /// Whether anything in this log ran in [`GuardMode::Enforce`].
+    ///
+    /// Read from the attach records **and** the signals, not from either alone: a session that
+    /// crashed before flushing leaves only an attach record, and a session whose attach record
+    /// could not be written leaves only signals. A surface that described the log as observe-only
+    /// on the strength of the half it happened to have would be making the claim this function
+    /// exists to stop it making.
+    #[must_use]
+    pub fn enforcing(&self) -> bool {
+        self.sessions.iter().any(|s| s.mode == GuardMode::Enforce)
+            || self.signals.iter().any(|s| s.mode == GuardMode::Enforce)
+    }
 }
 
 // ── the mode, and the single place a denial could ever come from ───────────────────────
@@ -439,13 +482,13 @@ impl GuardLog {
 /// `Observe` is the `Default`, and a test asserts it. The default is the whole posture: a mode that
 /// defaulted to enforcing would put a classifier in front of every tool call on the strength of a
 /// flag somebody forgot to pass.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GuardMode {
     /// Record the judgement and return it to nobody. The only mode that has been run in anger.
     #[default]
     Observe,
-    /// Deny the call the guard dislikes.
+    /// Deny the call the guard dislikes, before it is staged or forwarded.
     ///
     /// **Off, and untested in production.** With the measured 0.0923 adversarial false-positive
     /// rate an enforcing guard denies roughly one benign adversarially-phrased call in eleven. The
@@ -453,6 +496,13 @@ pub enum GuardMode {
     /// nobody reads is worse than one nobody shipped. Do not enable this because the flag exists;
     /// enable it when a fine-tune has moved 0.8152 and closed the false-positive gap, and not
     /// before.
+    ///
+    /// What it bounds, exactly, so nothing here claims more than the code does: a denial stops the
+    /// call at the Warrantor MCP endpoint before [`crate::proxy::Proxy::apply`] writes anything, so
+    /// the effect is never staged and never released at settle. It is the same tier of bound as the
+    /// `tools` allowlist — a chokepoint the call happens to pass through — and it is **not**
+    /// containment. There is no netns, no seccomp and no firewall behind it, and an agent that acts
+    /// outside this endpoint is not touched by it.
     Enforce,
 }
 
@@ -475,11 +525,18 @@ pub struct GuardObservation {
 }
 
 impl GuardObservation {
-    /// The denial this observation would produce, if denial were on. It is not.
+    /// The denial this observation produces. `None` in the shipped mode.
     ///
     /// Under [`GuardMode::Observe`] this returns `None` for **every** outcome, unconditionally.
     /// The exhaustive test over `GuardOutcome × Observe` is what makes that checkable rather than
     /// merely asserted in a comment.
+    ///
+    /// **A caller must ask this before the call has any effect**, not after. Returning a denial for
+    /// an effect already staged and `fsync`'d denies nothing — it only lies to the agent and to the
+    /// log while the effect waits in the queue for settle. That ordering is not something this
+    /// function can check, so it is asserted at the one call site instead:
+    /// [`crate::mcp_endpoints::AgentEndpoint::call`] asks before [`crate::proxy::Proxy::apply`],
+    /// and a test drives `Enforce` through it and asserts nothing was staged.
     #[must_use]
     pub fn enforcement_denial(&self) -> Option<String> {
         match self.mode {
@@ -905,6 +962,7 @@ impl<T: GuardTransport> GuardSink for GuardAdapter<T> {
                 content_bytes,
                 truncated,
                 outcome,
+                mode: self.mode,
                 severity,
                 categories: categories.clone(),
                 gated_by_category,
@@ -946,17 +1004,47 @@ impl<T: GuardTransport> GuardSink for GuardAdapter<T> {
             mode: self.mode,
             max_calls: self.max_calls,
             provenance: self.provenance.clone(),
-            note: GUARD_SESSION_NOTE.to_string(),
+            note: guard_session_note(self.mode).to_string(),
         }
     }
 }
 
-/// The sentence every attach record carries about what the guard is not.
-pub const GUARD_SESSION_NOTE: &str =
+/// The sentence an attach record carries about what the guard did, **in the mode it ran in**.
+///
+/// A function and not one constant, because the constant was written once and then stamped on
+/// every session: an `Enforce` run emitted a durable record whose `mode` field said `enforce` and
+/// whose `note` field on the same JSON line said OBSERVE and blocked nothing. An operator who reads
+/// the sentence rather than the enum — which is what the sentence is for — was told the opposite of
+/// what happened. This module is built on "absent must never read as all clear"; a hard-coded note
+/// is that failure with the sign flipped.
+#[must_use]
+pub fn guard_session_note(mode: GuardMode) -> &'static str {
+    match mode {
+        GuardMode::Observe => GUARD_SESSION_NOTE_OBSERVE,
+        GuardMode::Enforce => GUARD_SESSION_NOTE_ENFORCE,
+    }
+}
+
+/// The sentence an observe-mode attach record carries about what the guard is not.
+pub const GUARD_SESSION_NOTE_OBSERVE: &str =
     "A guard model was attached to this run in OBSERVE mode: it recorded its opinion about tool \
      calls and blocked nothing. Its judgements are signals, not verdicts. Nothing here is signed, \
      nothing here enters the verification envelope, and an empty signal list is not a clean bill \
      of health.";
+
+/// The sentence an enforce-mode attach record carries about what the guard actually did.
+///
+/// It says what was blocked and what could not be: the denial happens at the MCP endpoint before
+/// the effect is staged, so it bounds calls that pass through this endpoint and nothing else. There
+/// is no netns, no seccomp and no firewall behind it.
+pub const GUARD_SESSION_NOTE_ENFORCE: &str =
+    "A guard model was attached to this run in ENFORCE mode: calls it classified as harmful were \
+     REFUSED at the MCP endpoint before any effect was staged, so those calls did not happen. \
+     Enforcement is untested in production and rests on a model whose measured false-positive rate \
+     under adversarial phrasing is 0.0923, so roughly one refusal in eleven is a benign call. It \
+     bounds only what passes through this endpoint -- an agent acting outside it is not stopped by \
+     anything here. A dead or unparseable backend never blocks, so an empty signal list is not a \
+     clean bill of health.";
 
 // ── the log ───────────────────────────────────────────────────────────────────────────
 
@@ -1098,6 +1186,9 @@ pub struct GuardGroup {
     pub category: String,
     /// What the guard concluded for this group.
     pub outcome: GuardOutcome,
+    /// The mode these signals were produced under. Grouped on, never averaged over: whether a
+    /// flagged call proceeded or was refused is the difference between two opposite sentences.
+    pub mode: GuardMode,
     /// Total occurrences across every warrant.
     pub occurrences: u64,
     /// How many distinct warrants produced it.
@@ -1110,12 +1201,14 @@ pub struct GuardGroup {
     pub guidance: String,
 }
 
-/// Group signals by tool, leading category and outcome, across warrants.
+/// Group signals by tool, leading category, outcome and mode, across warrants.
 ///
 /// The guidance here deliberately shares no wording with [`crate::serve::aggregate_refusals`].
 /// That function tells an operator to widen a bound, which is correct advice about a wall the agent
-/// hit and actively wrong advice about a model's opinion of a call that **went through**. Every
-/// sentence produced here says what happened and says that nothing was blocked.
+/// hit and actively wrong advice about a model's opinion of a call the warrant allowed. Every
+/// sentence produced here says what the warrant did with the call and what the guard did or could
+/// not do with it, **in the mode that was actually in force** — which is why the mode is part of
+/// the bucket key rather than a fact the sentences assume.
 ///
 /// Sorted loudest first, then by name, so the ordering is total and a client renders a stable list.
 #[must_use]
@@ -1125,7 +1218,7 @@ pub fn aggregate_guard_signals(signals: &[GuardSignal]) -> Vec<GuardGroup> {
         warrants: BTreeSet<String>,
         digests: BTreeSet<String>,
     }
-    let mut buckets: BTreeMap<(String, String, GuardOutcome), Bucket> = BTreeMap::new();
+    let mut buckets: BTreeMap<(String, String, GuardOutcome, GuardMode), Bucket> = BTreeMap::new();
     for signal in signals {
         let category = signal
             .categories
@@ -1133,7 +1226,7 @@ pub fn aggregate_guard_signals(signals: &[GuardSignal]) -> Vec<GuardGroup> {
             .cloned()
             .unwrap_or_else(|| "(no category)".to_string());
         let bucket = buckets
-            .entry((signal.tool.clone(), category, signal.outcome))
+            .entry((signal.tool.clone(), category, signal.outcome, signal.mode))
             .or_insert_with(|| Bucket {
                 occurrences: 0,
                 warrants: BTreeSet::new(),
@@ -1148,46 +1241,62 @@ pub fn aggregate_guard_signals(signals: &[GuardSignal]) -> Vec<GuardGroup> {
 
     let mut out: Vec<GuardGroup> = buckets
         .into_iter()
-        .map(|((tool, category, outcome), bucket)| {
+        .map(|((tool, category, outcome, mode), bucket)| {
             let occurrences = bucket.occurrences;
             let warrants = bucket.warrants.len();
-            let guidance = match outcome {
-                GuardOutcome::Harmful => format!(
+            let guidance = match (outcome, mode) {
+                // The warrant permitted the call and the guard, being observe-only, left it alone.
+                // "Permitted", never "HAPPENED": a call the warrant refused is never classified,
+                // and a permitted call this endpoint could not forward did not happen either.
+                (GuardOutcome::Harmful, GuardMode::Observe) => format!(
                     "A guard model called {occurrences} {tool} call(s) harmful ({category}), \
-                     across {warrants} warrant(s). Those calls HAPPENED -- the guard blocked \
-                     nothing and cannot. Read the run before concluding anything: measured \
-                     false-positive rate under adversarial phrasing is 0.0923, so roughly one in \
-                     eleven of these is a benign call the model disliked."
+                     across {warrants} warrant(s). The warrant PERMITTED those calls and the guard \
+                     blocked nothing: it ran observe-only. Read the run before concluding \
+                     anything: measured false-positive rate under adversarial phrasing is 0.0923, \
+                     so roughly one in eleven of these is a benign call the model disliked."
                 ),
-                GuardOutcome::NotHarmful => format!(
+                (GuardOutcome::Harmful, GuardMode::Enforce) => format!(
+                    "A guard model called {occurrences} {tool} call(s) harmful ({category}), \
+                     across {warrants} warrant(s), with enforcement ON: each was REFUSED at the \
+                     MCP endpoint before any effect was staged, so it did not happen there. \
+                     Enforcement is untested in production and the measured false-positive rate \
+                     under adversarial phrasing is 0.0923, so roughly one of these refusals in \
+                     eleven cost a benign call. It bounds only calls that pass through the \
+                     endpoint -- an agent acting outside it is not stopped by this."
+                ),
+                (GuardOutcome::NotHarmful, _) => format!(
                     "A guard model called {occurrences} {tool} call(s) not harmful, across \
-                     {warrants} warrant(s). This is not a clearance: measured recall under \
-                     adversarial phrasing is 0.8152, so roughly one adversarial case in five is \
-                     missed. It records what a model thought, nothing more."
+                     {warrants} warrant(s), and they proceeded. This is not a clearance: measured \
+                     recall under adversarial phrasing is 0.8152, so roughly one adversarial case \
+                     in five is missed. It records what a model thought, nothing more."
                 ),
-                GuardOutcome::Unparseable => format!(
+                (GuardOutcome::Unparseable, _) => format!(
                     "The guard model answered {occurrences} {tool} call(s) with something that was \
-                     not a verdict, across {warrants} warrant(s). Those calls were NOT classified. \
+                     not a verdict, across {warrants} warrant(s). Those calls were NOT classified \
+                     and were NOT refused -- a confused backend may not block, in either mode. \
                      Treat them as unlooked-at, not as safe, and check the model tag and context \
                      size."
                 ),
-                GuardOutcome::BackendUnavailable => format!(
+                (GuardOutcome::BackendUnavailable, _) => format!(
                     "The guard backend could not be reached for {occurrences} {tool} call(s), \
-                     across {warrants} warrant(s). Those calls were NOT classified and nothing was \
-                     blocked. A dead backend reporting perfect safety is the failure this outcome \
-                     exists to make impossible -- read it as no coverage, not as no findings."
+                     across {warrants} warrant(s). Those calls were NOT classified and were NOT \
+                     refused -- a dead backend may not block, in either mode. A dead backend \
+                     reporting perfect safety is the failure this outcome exists to make \
+                     impossible -- read it as no coverage, not as no findings."
                 ),
-                GuardOutcome::SkippedOverBudget => format!(
+                (GuardOutcome::SkippedOverBudget, _) => format!(
                     "The session's classification cap was already spent for {occurrences} {tool} \
                      call(s), across {warrants} warrant(s). The guard stopped looking before the \
-                     run ended. Raise the cap or accept that coverage was partial -- do not read \
-                     the absence of a signal here as an absence of a problem."
+                     run ended, so those calls proceeded unlooked-at in either mode. Raise the cap \
+                     or accept that coverage was partial -- do not read the absence of a signal \
+                     here as an absence of a problem."
                 ),
             };
             GuardGroup {
                 tool,
                 category,
                 outcome,
+                mode,
                 occurrences,
                 warrants,
                 warrant_ids: bucket.warrants.into_iter().collect(),
@@ -1201,6 +1310,7 @@ pub fn aggregate_guard_signals(signals: &[GuardSignal]) -> Vec<GuardGroup> {
             .cmp(&a.occurrences)
             .then(a.tool.cmp(&b.tool))
             .then(a.category.cmp(&b.category))
+            .then(a.mode.cmp(&b.mode))
     });
     out
 }

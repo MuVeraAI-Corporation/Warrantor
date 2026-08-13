@@ -644,7 +644,8 @@ pub struct AgentEndpoint {
     queue: StagingQueue,
     /// The tool names the warrant allows, published verbatim so the model can see its own bounds.
     allowed: Vec<String>,
-    /// The observe-only guard, absent unless an operator attached one at the CLI.
+    /// The guard, absent unless an operator attached one at the CLI, and observe-only unless they
+    /// also went out of their way — see [`crate::guard::GuardMode`].
     ///
     /// `Option`, and absent by default, because an absent guard must mean **no signals** and never
     /// "all clear". A boxed trait object rather than a generic parameter so a guard stays a runtime
@@ -675,7 +676,7 @@ impl AgentEndpoint {
         }
     }
 
-    /// Attach an observe-only guard to this session.
+    /// Attach a guard to this session, in whatever mode it was built in.
     ///
     /// A builder rather than an argument to [`agent_endpoint_for`], whose signature stays as it is:
     /// it is called from the binary and from the tests, and threading a guard through it would
@@ -705,6 +706,29 @@ impl AgentEndpoint {
     #[must_use]
     pub fn guard_provenance(&self) -> Option<&crate::guard::GuardProvenance> {
         self.guard.as_ref().map(|g| g.provenance())
+    }
+
+    /// The mode the attached guard is in, or `None` when none was attached.
+    ///
+    /// Exposed so the end-of-session line the operator reads can name the mode that was actually in
+    /// force instead of printing "Nothing was blocked." over a run in which something was.
+    #[must_use]
+    pub fn guard_mode(&self) -> Option<crate::guard::GuardMode> {
+        self.guard.as_ref().map(|g| g.mode())
+    }
+
+    /// Classify one **permitted** call and return the denial its mode produces, if any.
+    ///
+    /// The only place a guard is consulted during a run, and it must be called before the call has
+    /// any effect — see the comment in the `Decision::Stage` arm of [`Self::call`], and
+    /// [`crate::guard::GuardObservation::enforcement_denial`]. An absent guard costs nothing here:
+    /// no backend call, no signal, no latency.
+    fn guard_denial(&mut self, tool: &str, arguments: &BTreeMap<String, String>) -> Option<String> {
+        // Read before the mutable borrow of `self.guard`: `self.now` is a field, and borrowck is
+        // right to refuse both at once.
+        let at = (self.now)();
+        let guard = self.guard.as_mut()?;
+        guard.observe(tool, arguments, at).enforcement_denial()
     }
 
     /// Denials recorded during the session, for the morning report.
@@ -766,14 +790,31 @@ impl Endpoint for AgentEndpoint {
             },
         };
 
-        // Bound, not returned. The guard is observed *after* the answer already exists, so the
-        // control flow itself shows that no guard output can change it — the only line below that
-        // could is the `Enforce` early return, which is off.
-        let result = match self.proxy.decide(&call) {
+        // The warrant decides first, and its decision is never reconsidered below: no arm of the
+        // guard can turn a denial into an allow, because a denial returns without ever reaching it.
+        match self.proxy.decide(&call) {
+            // A bound refused this, so the call did NOT happen -- and an unhappened call is not
+            // something to classify. Handing its arguments to the classifier would put a signal in
+            // `<root>/guard/` for a call the refusal log already records as refused, double-counting
+            // one event across two logs whose whole distinction is that a refusal did not happen and
+            // a signal's call did. It would also ship the refused arguments to another process and
+            // spend a slot of the per-session call cap that coverage of the calls which DO proceed
+            // depends on. So: refused calls are not observed at all.
             Decision::Deny { reason, bound } => {
                 ToolResult::error(format!("refused by the warrant's {bound} bound: {reason}"))
             }
             Decision::Stage { .. } => {
+                // BEFORE `apply`, and this ordering is the whole enforcement path. `apply` ->
+                // `StagingQueue::stage` hash-chains the effect and `sync_all`s it to
+                // `<root>/staged/<id>.jsonl`; an `Enforce` denial returned after that told the agent
+                // it was refused, told the operator's log it was refused, and left the effect queued
+                // to fire the moment a human settled the warrant. A denial that arrives after the
+                // effect is durable is theatre. Under `Observe` -- the default and the shipped mode
+                // -- `guard_denial` is `None` for every outcome, so this line changes nothing and
+                // the result below is byte-identical to an unguarded run.
+                if let Some(denial) = self.guard_denial(tool, &call.arguments) {
+                    return ToolResult::error(denial);
+                }
                 match self.proxy.apply(&call, &mut self.queue, (self.now)()) {
                     Ok(effect) => ToolResult::ok(format!(
                         "Staged as {}. This has NOT happened yet — it will be performed only if a \
@@ -787,27 +828,17 @@ impl Endpoint for AgentEndpoint {
             // A forwarded call needs an upstream MCP server to forward to. Until that is wired,
             // saying so is the only honest answer -- returning success would be the exact
             // success-shaped-mock failure this codebase already fixed once.
+            //
+            // No guard call here either, and for the same reason as the `Deny` arm: nothing is
+            // forwarded, so nothing happened, so there is nothing to record a signal about. Whoever
+            // wires an upstream owes this arm the `Stage` arm's shape -- `guard_denial` first, then
+            // the call -- and `GuardObservation::enforcement_denial` says so at the definition.
             Decision::Forward => ToolResult::error(format!(
                 "{tool} is permitted by the warrant, but no upstream MCP server is configured to \
                  forward it to. Start the agent endpoint with --upstream <command> so calls have \
                  somewhere to go."
             )),
-        };
-
-        // The one observation point in a live run. An absent guard does nothing at all: no call,
-        // no signal, no latency, and `result` is returned byte-identical to what it was before this
-        // block existed.
-        if let Some(guard) = self.guard.as_mut() {
-            let observation = guard.observe(tool, &call.arguments, (self.now)());
-            // THE ENFORCEMENT PATH. It is off: `enforcement_denial` returns `None` for every
-            // outcome under `GuardMode::Observe`, which is the default and the only mode that has
-            // been run in anger. This line exists so the path is written down once, in one place,
-            // rather than being an unwritten future edit at every call site.
-            if let Some(denial) = observation.enforcement_denial() {
-                return ToolResult::error(denial);
-            }
         }
-        result
     }
 }
 
