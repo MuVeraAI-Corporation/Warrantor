@@ -125,6 +125,9 @@ impl Worktree {
     }
 
     /// Reconstruct a handle to an existing worktree without creating one.
+    ///
+    /// Prefer [`of_stored`] when you have a [`crate::store::StoredWarrant`]: it is the one place
+    /// the defaulting rules for a missing branch or base commit are written down.
     #[must_use]
     pub fn existing(repo: PathBuf, path: PathBuf, branch: String, base_commit: String) -> Self {
         Self {
@@ -297,5 +300,41 @@ impl Worktree {
         // discarded work be resurrected by someone who found the branch later.
         let _ = git(&self.repo, &["branch", "-D", &self.branch]);
         Ok(())
+    }
+}
+
+/// Reconstruct a worktree handle from a stored warrant, or `None` when it has no worktree.
+///
+/// # Why this exists as a function
+///
+/// Three copies of this logic were written independently — `bin/warrantor.rs`,
+/// [`crate::report::build_observed`] and [`crate::mcp_endpoints`] — and they had already drifted:
+/// two synthesise `BRANCH_PREFIX + id` for a missing branch and one passes an empty string, which
+/// makes `git diff <empty>..<branch>` fail with "ambiguous argument". Adding a fourth copy for the
+/// HTTP API would guarantee the disagreement that "one implementation behind three surfaces" exists
+/// to prevent, so the CLI's version was promoted here instead.
+///
+/// The rule, stated once: a worktree needs **both** a repository and a path. A stored warrant
+/// carrying one without the other is not a worktree this function will invent — reconstructing a
+/// handle whose `repo` is really the worktree path produces git invocations that look plausible and
+/// answer about the wrong tree.
+///
+/// The two inline copies are deliberately **not** changed here. `report.rs` falls back to using the
+/// worktree path as the repository, so replacing it would change which warrants report a changed-
+/// files section; that is a behaviour change and belongs in its own commit, not smuggled in
+/// underneath a new API.
+#[must_use]
+pub fn of_stored(stored: &crate::store::StoredWarrant) -> Option<Worktree> {
+    match (&stored.repo, &stored.worktree) {
+        (Some(repo), Some(path)) => Some(Worktree::existing(
+            repo.clone(),
+            path.clone(),
+            stored
+                .branch
+                .clone()
+                .unwrap_or_else(|| format!("{BRANCH_PREFIX}{}", stored.warrant.claims.id)),
+            stored.base_commit.clone().unwrap_or_default(),
+        )),
+        _ => None,
     }
 }
