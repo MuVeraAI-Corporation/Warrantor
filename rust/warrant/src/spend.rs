@@ -38,27 +38,30 @@
 //!   [`warrantor_spend::issue_receipt`], and `warrantor verify` checks it on a machine that has
 //!   never seen this one.
 //!
-//! # Fail closed: an absent cap is a cap of zero *here*
+//! # Fail closed: an absent cap is a cap of zero, crate-wide
 //!
-//! [`WarrantBounds::budget_cents_observed`] is an `Option`, and in this module an absent limit
-//! means *none*: a warrant granted without `--budget` has a cap of zero micros, so any usage with
-//! a non-zero cost is refused and only free backends can be recorded against it. The refusal names
-//! the fix rather than being cryptic.
+//! [`WarrantBounds::budget_cents_observed`] is an `Option`, and an absent limit means *none*: a
+//! warrant granted without `--budget` has a cap of zero micros, so any usage with a non-zero cost
+//! is refused and only free backends can be recorded against it. The refusal names the fix rather
+//! than being cryptic.
 //!
-//! ## Known inconsistency — do not read this as a crate-wide guarantee
+//! ## The delegation gate reads it the same way
 //!
-//! It would be convenient to claim the absent-means-none rule holds crate-wide for this field. It
-//! does not, and saying so would be the kind of overclaim this product exists to avoid.
+//! [`WarrantBounds::contains`] once read `budget_cents_observed: None` on a *parent* as **no
+//! ceiling**, so a budget-less warrant could mint a sub-warrant carrying an arbitrarily large
+//! budget: the same `None` meant *zero* to this ledger and *unlimited* to the delegation check.
+//! Both readings were defensible alone and they could not both be right, so this was recorded here
+//! as a known inconsistency until it was decided. It is decided.
 //!
-//! [`WarrantBounds::contains`] — the delegation gate, untouched by this module — reads
-//! `budget_cents_observed: None` on a *parent* as **no ceiling**, so a budget-less warrant can mint
-//! a sub-warrant carrying an arbitrarily large budget. The same `None` therefore means
-//! *zero* to the spend ledger and *unlimited* to the delegation check.
+//! The gate now compares `unwrap_or(0)` on both sides. A warrant granted without `--budget` can
+//! delegate a ceiling of zero and nothing more — the child it could previously mint with an
+//! arbitrarily large budget is refused at issue, so that child never exists.
 //!
-//! Both readings are defensible in isolation and they cannot both be right. Reconciling them
-//! changes what already-granted warrants mean, so it is a deliberate decision with its own change
-//! rather than a side effect of wiring the spend engine. Recorded here so the next reader finds it
-//! before they rely on the wrong half.
+//! What did **not** change: a child may still not drop a ceiling its parent declared. Zero is the
+//! smaller number, but whether a ceiling was *declared* is load-bearing beyond its value — an
+//! undeclared budget is never [`SpendLedger::exhausted`], so `warrantor start` can never refuse
+//! that warrant on budget grounds. Dropping a declared ceiling trades a start-gated budget for an
+//! ungated one, which is an expansion of authority however small the number looks.
 //!
 //! # Why [`warrantor_spend::decide`] is not called
 //!

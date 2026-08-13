@@ -89,9 +89,13 @@ fn record(pid: u32) -> DaemonRecord {
 }
 
 /// A supervisor that dies after `dies_after` liveness checks. `None` means it never dies.
+///
+/// `revives_after` makes the same pid answer "alive" again from that check onwards, which is how a
+/// supervisor that restarts — or a pid the OS handed to somebody else — looks from stop's side.
 struct FakeSupervisor {
     checks: Cell<u32>,
     dies_after: Option<u32>,
+    revives_after: Option<u32>,
     terminated: Cell<u32>,
 }
 
@@ -100,6 +104,7 @@ impl FakeSupervisor {
         Self {
             checks: Cell::new(0),
             dies_after: Some(1),
+            revives_after: None,
             terminated: Cell::new(0),
         }
     }
@@ -107,6 +112,7 @@ impl FakeSupervisor {
         Self {
             checks: Cell::new(0),
             dies_after: Some(0),
+            revives_after: None,
             terminated: Cell::new(0),
         }
     }
@@ -114,6 +120,17 @@ impl FakeSupervisor {
         Self {
             checks: Cell::new(0),
             dies_after: None,
+            revives_after: None,
+            terminated: Cell::new(0),
+        }
+    }
+    /// Dies on the first poll after the signal, then is alive again at the same pid on the first
+    /// poll of the hold window.
+    fn dies_then_returns_at_the_same_pid() -> Self {
+        Self {
+            checks: Cell::new(0),
+            dies_after: Some(1),
+            revives_after: Some(2),
             terminated: Cell::new(0),
         }
     }
@@ -123,6 +140,9 @@ impl ProcessControl for FakeSupervisor {
     fn is_alive(&self, _pid: u32) -> bool {
         let seen = self.checks.get();
         self.checks.set(seen + 1);
+        if self.revives_after.is_some_and(|n| seen >= n) {
+            return true;
+        }
         match self.dies_after {
             Some(n) => seen < n,
             None => true,
@@ -211,6 +231,80 @@ fn a_supervisor_that_will_not_die_is_a_containment_failure_not_a_stop() {
         stop::render_cli(&signed).contains("presumed still running"),
         "the operator has to be told the agent may still be running: {}",
         stop::render_cli(&signed)
+    );
+}
+
+/// The pid went away and came back inside the hold. Warrantor cannot tell a supervisor that
+/// restarted from a pid the OS reused, and it does not have to: in neither case did it observe the
+/// run stay stopped, so it must not sign a record saying the supervisor was confirmed gone and leave
+/// it there.
+#[test]
+fn a_supervisor_alive_again_at_the_same_pid_is_a_failure_not_a_stop() {
+    let dir = tempdir("resurrect");
+    let control = FakeSupervisor::dies_then_returns_at_the_same_pid();
+    let signed = stop_now(&dir, WarrantState::Open, &control);
+    let outcome = &signed.record.outcome;
+
+    assert_eq!(control.terminated.get(), 1, "it was signalled");
+    assert!(outcome.supervisor_gone, "and it did go away");
+    assert!(!outcome.quiescence_held, "but it did not stay gone");
+
+    assert_eq!(
+        verdict_for(&signed, conformance::ContainmentCapability::StopInference),
+        conformance::Verdict::Fail,
+        "a supervisor that is alive again at the same pid was not contained"
+    );
+    assert!(
+        !stop::contained(&signed),
+        "so `warrantor stop` must exit non-zero"
+    );
+    stop::verify_stop(&signed).expect("and the record is still a valid, verifiable one");
+
+    let caveats = signed.record.conformance.report.capabilities[0]
+        .caveats
+        .join("\n");
+    assert!(
+        caveats.contains("alive again"),
+        "the signed caveat has to say it came back: {caveats}"
+    );
+    assert!(
+        !signed.record.conformance.report.capabilities[0].assertion_hold,
+        "and must not assert the hold it did not observe"
+    );
+    assert!(
+        stop::render_cli(&signed).contains("did NOT stay gone"),
+        "the operator has to be told too: {}",
+        stop::render_cli(&signed)
+    );
+}
+
+/// The same rule stated against the scoring function directly, so it holds on a platform whose
+/// lifetime link would have produced a FAIL for an unrelated reason.
+#[test]
+fn a_broken_hold_fails_stop_inference_even_where_the_lifetime_link_is_kernel_enforced() {
+    let outcome = StopOutcome {
+        quiescence_held: false,
+        agent_dies_with_supervisor: true,
+        ..stop_outcome_template()
+    };
+    let report = stop::conformance_report(&outcome, NOW).expect("finalises");
+    let stop_inference = report
+        .capabilities
+        .iter()
+        .find(|c| c.capability == conformance::ContainmentCapability::StopInference)
+        .expect("scored");
+    assert_eq!(
+        stop_inference.verdict,
+        conformance::Verdict::Fail,
+        "an unheld quiescence is a failure, not a pass with a footnote"
+    );
+    assert!(
+        !stop_inference
+            .caveats
+            .iter()
+            .any(|c| c.contains("still unused")),
+        "and the caveat must not assert a hold that broke: {:?}",
+        stop_inference.caveats
     );
 }
 

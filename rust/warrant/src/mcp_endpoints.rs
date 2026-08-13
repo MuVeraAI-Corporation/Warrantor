@@ -27,6 +27,60 @@ fn schema(properties: Value, required: &[&str]) -> Value {
     })
 }
 
+/// Read an optional whole-cents ceiling, refusing every shape that is not one.
+///
+/// `Value::as_u64` on its own is the trap this exists to close. It answers `None` for `"500"`, for
+/// `500.0` and for `-1` alike — three shapes an LLM caller emits routinely for an integer field —
+/// and `None` on this argument is not "the caller said nothing". It is a warrant with **no declared
+/// ceiling**, minted silently at the exact moment the caller was declaring one. An undeclared
+/// ceiling is not merely a different number: `spend::cap_declared` is false for it, so the warrant
+/// is never [`crate::spend::SpendLedger::exhausted`] and nothing can refuse it on budget grounds.
+///
+/// So a value that does not parse is a refusal, not a default — the same decision `warrantor grant`
+/// already makes for `--budget`. A string or float is accepted only where it is an exact,
+/// non-negative whole count of cents; anything else is named back to the caller.
+fn optional_cents(arguments: &BTreeMap<String, Value>, key: &str) -> Result<Option<u64>, String> {
+    let Some(raw) = arguments.get(key) else {
+        return Ok(None);
+    };
+    // An explicit `null` is the caller saying nothing, which already means a ceiling of zero.
+    if raw.is_null() {
+        return Ok(None);
+    }
+    let parsed = match raw {
+        Value::Number(n) => n.as_u64().or_else(|| whole_cents_from_f64(n.as_f64())),
+        Value::String(s) => s.trim().parse::<u64>().ok(),
+        _ => None,
+    };
+    parsed.map(Some).ok_or_else(|| {
+        format!(
+            "{key:?} must be a whole, non-negative number of cents -- e.g. 500 for $5.00. {raw} is \
+             not one, so the warrant was NOT granted. Refusing rather than dropping it: a ceiling \
+             that does not parse would leave the warrant with no declared ceiling at all, at the \
+             exact moment you were declaring one."
+        )
+    })
+}
+
+/// A JSON float is a whole count of cents only when it is finite, non-negative, integral, and
+/// small enough that an `f64` still distinguishes it from its neighbours.
+///
+/// `500.0` is the integer 500 written the way a model writes it, and taking it is not a guess.
+/// `5.005`, `-1.0` and `1e30` are not whole cents, and each comes back as a refusal instead.
+fn whole_cents_from_f64(value: Option<f64>) -> Option<u64> {
+    // 2^53: above this, consecutive integers are no longer representable, so a value that large is
+    // not a figure the caller can have meant exactly.
+    const MAX_EXACT: f64 = 9_007_199_254_740_992.0;
+    let cents = value?;
+    // `is_finite` first: NaN and the infinities fail the range test too, but only by accident of
+    // how comparison treats them, and a bound this load-bearing should not rest on an accident.
+    if !cents.is_finite() || !(0.0..=MAX_EXACT).contains(&cents) || cents.fract() != 0.0 {
+        return None;
+    }
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    Some(cents as u64)
+}
+
 // ── control endpoint ──────────────────────────────────────────────────────────────────
 
 /// The developer's own endpoint: the full warrant lifecycle as MCP tools.
@@ -82,6 +136,12 @@ impl ControlEndpoint {
             .get("deadline_seconds")
             .and_then(Value::as_u64)
             .unwrap_or(8 * 3600);
+        // Parsed before anything is signed or created, so a bad ceiling costs the caller an error
+        // message rather than a worktree and a warrant they then have to void.
+        let budget_cents_observed = match optional_cents(arguments, "budget_cents") {
+            Ok(cents) => cents,
+            Err(message) => return ToolResult::error(message),
+        };
 
         let now = (self.now)();
         let id = format!("wrt_{:016x}", now.wrapping_mul(0x9E37_79B9_7F4A_7C15));
@@ -97,7 +157,10 @@ impl ControlEndpoint {
             // and absent still means none: an MCP-granted warrant without `budget_cents` can
             // record only zero-cost usage, which is the same reading the rest of this crate takes
             // of an absent limit. The bound remains observed either way -- see `crate::spend`.
-            budget_cents_observed: arguments.get("budget_cents").and_then(Value::as_u64),
+            //
+            // Read through `optional_cents`, never `Value::as_u64` directly: absence has to be
+            // something the caller chose, not something a malformed value decayed into.
+            budget_cents_observed,
             delegation_depth: arguments
                 .get("delegation_depth")
                 .and_then(Value::as_u64)
@@ -488,7 +551,7 @@ impl Endpoint for ControlEndpoint {
                         "deadline_seconds": {"type": "integer", "description": "How long the warrant lives. Default 28800 (8h)."},
                         "repo": {"type": "string", "description": "Path to the git repo to isolate. Strongly recommended; without it the agent is not isolated."},
                         "delegation_depth": {"type": "integer", "description": "How many levels of sub-warrant may be issued. Default 1."},
-                        "budget_cents": {"type": "integer", "description": "Spend ceiling in whole cents. OBSERVED, not enforced: model API calls do not pass through Warrantor, so this is measured only from usage the agent itself reports. Absent means a ceiling of zero, not unlimited."}
+                        "budget_cents": {"type": "integer", "description": "Spend ceiling in whole cents, e.g. 500 for $5.00. OBSERVED, not enforced: model API calls do not pass through Warrantor, so this is measured only from usage the agent itself reports. Absent means a ceiling of zero, not unlimited. A value that is not a whole, non-negative number of cents is REFUSED, not ignored -- the grant fails rather than quietly producing a warrant with no declared ceiling."}
                     }),
                     &["goal", "tools"],
                 ),

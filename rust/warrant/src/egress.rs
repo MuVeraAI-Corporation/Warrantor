@@ -56,7 +56,7 @@ use serde::{Deserialize, Serialize};
 use warrantor_egress as broker;
 
 use crate::proxy::{host_of, ToolCall};
-use crate::WarrantBounds;
+use crate::{WarrantBounds, WarrantState};
 
 pub use warrantor_egress::{DenyReason, EgressVerdict, BROKER_VERSION};
 
@@ -82,6 +82,85 @@ pub const ENFORCEMENT_NOTE: &str =
 #[must_use]
 pub fn capability_for(destination: &str) -> String {
     format!("{EGRESS_CAPABILITY_PREFIX}{destination}")
+}
+
+// ── can a live session reach anything at all? ─────────────────────────────────────────
+
+/// Why no live session under a warrant could reach *any* destination.
+///
+/// The broker answers "does this warrant's bound permit that host?", which is only half of what a
+/// developer asking `warrantor egress` wants to know. The other half is whether a session exists
+/// that could ask: a warrant that is Held, Settled, Void, past its deadline, or stopped has no
+/// proxy to traverse, so every destination is unreachable regardless of what the bound says.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Unreachable {
+    /// A stop record exists, so the warrant's scope is contained.
+    Stopped,
+    /// The warrant is not `Open`, so [`crate::mcp_endpoints::agent_endpoint_for`] refuses to build
+    /// an endpoint for it at all.
+    NotOpen {
+        /// The state it is in instead.
+        state: WarrantState,
+    },
+    /// The deadline passed, so the supervisor has terminated the agent and everything it started.
+    Expired {
+        /// The deadline, epoch seconds.
+        expires_at: u64,
+        /// When the question was asked, epoch seconds.
+        now: u64,
+    },
+}
+
+impl Unreachable {
+    /// Plain-English form, ending in what would fix it.
+    #[must_use]
+    pub fn sentence(&self) -> String {
+        match self {
+            Self::Stopped => "this warrant has been stopped, so its scope is contained and its \
+                              supervisor is gone. Nothing under it reaches any destination. Grant \
+                              a new warrant."
+                .to_string(),
+            Self::NotOpen { state } => format!(
+                "this warrant is {state:?}, not Open. No agent endpoint is served for it, so no \
+                 call under it reaches any destination. Grant a new warrant."
+            ),
+            Self::Expired { expires_at, now } => format!(
+                "this warrant expired at {expires_at} and it is now {now}. The supervisor \
+                 terminates the agent at the deadline, so no call under it reaches any \
+                 destination. Grant a new warrant rather than extending a dead one."
+            ),
+        }
+    }
+}
+
+/// The preconditions a live session must already satisfy before any destination is decided.
+///
+/// Checked in the order a human would want it explained rather than the order the run-time path
+/// happens to apply them: a stopped warrant is also `Held`, and naming the stop says more than
+/// naming the state it left behind.
+///
+/// `stopped` is the answer from [`crate::stop::StopStore::is_stopped`] and must never be `false`
+/// standing in for "could not tell" — an unreadable stop directory means containment is unknown,
+/// which is a refusal at the caller, not a `false` here.
+///
+/// # Errors
+/// [`Unreachable`] when no live session under this warrant could reach anything.
+pub fn session_reachability(
+    state: WarrantState,
+    expires_at: u64,
+    stopped: bool,
+    now: u64,
+) -> Result<(), Unreachable> {
+    if stopped {
+        return Err(Unreachable::Stopped);
+    }
+    if !matches!(state, WarrantState::Open) {
+        return Err(Unreachable::NotOpen { state });
+    }
+    if expires_at <= now {
+        return Err(Unreachable::Expired { expires_at, now });
+    }
+    Ok(())
 }
 
 // ── the broker, bound to one warrant ──────────────────────────────────────────────────

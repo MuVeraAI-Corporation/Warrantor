@@ -585,3 +585,206 @@ fn an_ordinary_argument_with_no_url_names_no_destination() {
         "a plain argument with no URL and no destination name must yield no destination, got {found:?}"
     );
 }
+
+// ── the pre-flight check must agree with the run ──────────────────────────────────────
+
+/// `warrantor egress` claims to *be* the run-time path rather than a simulation of it. That claim
+/// only holds if the session preconditions are checked as well as the bound.
+///
+/// Regression: `cmd_egress` loaded the warrant, built the broker from its signed bounds and
+/// printed a verdict per destination — and never looked at the warrant's state, its deadline, or
+/// whether a stop record had contained it. So `warrantor egress <id> api.github.com` printed
+/// `allow` and exited 0 for a warrant no live session could reach, which is the one way a
+/// pre-flight check must never be wrong: it disagreed with the run, in the permissive direction.
+///
+/// The three refusal cases are driven through the real binary, because the hole was in
+/// `cmd_egress` and not in the broker — the broker's answer about the bound was correct before
+/// and after.
+mod session_preconditions {
+    use std::path::{Path, PathBuf};
+
+    use ed25519_dalek::SigningKey;
+    use warrantor_warrant::egress::{session_reachability, Unreachable};
+    use warrantor_warrant::store::{StoredWarrant, WarrantStore};
+    use warrantor_warrant::{Warrant, WarrantState};
+
+    use super::bounds_with;
+
+    const HOST: &str = "api.github.com";
+
+    fn wall_clock_now() -> u64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    }
+
+    fn tempdir(tag: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "warrantor-egress-{tag}-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&path).expect("tempdir");
+        path
+    }
+
+    /// A warrant that permits [`HOST`], saved under `root` in `state` with `expires_at`.
+    fn saved_warrant(root: &Path, id: &str, state: WarrantState, expires_at: u64) {
+        let mut bounds = bounds_with(&[HOST]);
+        bounds.expires_at = expires_at;
+        let mut warrant = Warrant::grant(
+            id,
+            "fix the auth bug",
+            "spiffe://muveraai.com/agent/local",
+            bounds,
+            wall_clock_now().saturating_sub(3_600),
+            &SigningKey::from_bytes(&[2; 32]).verifying_key(),
+            &SigningKey::from_bytes(&[1; 32]),
+        )
+        .expect("grant");
+        warrant.state = state;
+        WarrantStore::open(root)
+            .expect("open warrant store")
+            .save(&StoredWarrant {
+                warrant,
+                worktree: None,
+                repo: None,
+                branch: None,
+                base_commit: None,
+            })
+            .expect("save warrant");
+    }
+
+    /// Run `warrantor egress <id> <HOST>` against a store rooted in `home`.
+    fn run_egress(home: &Path, id: &str) -> (bool, String) {
+        let out = std::process::Command::new(env!("CARGO_BIN_EXE_warrantor"))
+            .args(["egress", id, HOST])
+            .env("HOME", home)
+            .env("USERPROFILE", home)
+            .output()
+            .expect("run warrantor egress");
+        let both = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        (out.status.success(), both)
+    }
+
+    /// The exact prefix `render_decision` puts on an allow line, so the assertion catches a
+    /// printed verdict and not the word "allow" appearing inside a refusal's explanation.
+    const ALLOW_LINE: &str = "  allow  ";
+
+    fn assert_refused(home: &Path, id: &str, expected: &str) {
+        let (success, output) = run_egress(home, id);
+        assert!(
+            !output.contains(ALLOW_LINE),
+            "egress printed an allow for a destination no live session could reach: {output}"
+        );
+        assert!(
+            !success,
+            "egress exited 0 for a warrant no live session could reach: {output}"
+        );
+        assert!(
+            output.contains(expected),
+            "the refusal has to say why; expected {expected:?} in: {output}"
+        );
+    }
+
+    /// A warrant past its deadline: the supervisor terminates the agent at the deadline, so no
+    /// call under it reaches anything.
+    #[test]
+    fn egress_refuses_an_expired_warrant() {
+        let home = tempdir("expired");
+        let root = home.join(".warrantor");
+        let id = "wrt_egress_expired";
+        saved_warrant(
+            &root,
+            id,
+            WarrantState::Open,
+            wall_clock_now().saturating_sub(60),
+        );
+        assert_refused(&home, id, "expired at");
+    }
+
+    /// A warrant that is not `Open`: `agent_endpoint_for` refuses to build an endpoint for it at
+    /// all, so there is no proxy for a destination to traverse.
+    #[test]
+    fn egress_refuses_a_warrant_that_is_not_open() {
+        for state in [
+            WarrantState::Held,
+            WarrantState::Settled,
+            WarrantState::Void,
+        ] {
+            let home = tempdir(&format!("{state:?}").to_lowercase());
+            let root = home.join(".warrantor");
+            let id = "wrt_egress_state";
+            saved_warrant(&root, id, state, wall_clock_now() + 3_600);
+            assert_refused(&home, id, "not Open");
+        }
+    }
+
+    /// A stopped warrant: the stop record contains the scope, and every subsequent verdict denies
+    /// at the notary's first gate. Read from the record's existence, as containment always is.
+    #[test]
+    fn egress_refuses_a_stopped_warrant() {
+        let home = tempdir("stopped");
+        let root = home.join(".warrantor");
+        let id = "wrt_egress_stopped";
+        // Deliberately still Open and still live, so the stop record alone has to be enough. A
+        // warrant left Open by a crash between the kill and the state write is exactly the case
+        // where reading only the state would print an allow for a contained scope.
+        saved_warrant(&root, id, WarrantState::Open, wall_clock_now() + 3_600);
+        let stops = root.join("stops");
+        std::fs::create_dir_all(&stops).expect("stops dir");
+        std::fs::write(stops.join(format!("{id}.json")), b"{}").expect("stop record");
+        assert_refused(&home, id, "stopped");
+    }
+
+    /// The live case still decides, so the precondition did not simply break the verb.
+    #[test]
+    fn egress_still_decides_for_a_live_warrant() {
+        let home = tempdir("live");
+        let root = home.join(".warrantor");
+        let id = "wrt_egress_live";
+        saved_warrant(&root, id, WarrantState::Open, wall_clock_now() + 3_600);
+        let (success, output) = run_egress(&home, id);
+        assert!(
+            success && output.contains(ALLOW_LINE) && output.contains(HOST),
+            "a live warrant naming {HOST} has to keep allowing it: {output}"
+        );
+    }
+
+    /// Containment outranks the state it leaves behind, and the state outranks the deadline: all
+    /// three can be true at once, and the most specific explanation is the useful one.
+    #[test]
+    fn the_most_specific_reason_is_the_one_reported() {
+        let now = 1_786_000_000;
+        assert_eq!(
+            session_reachability(WarrantState::Held, now - 1, true, now),
+            Err(Unreachable::Stopped)
+        );
+        assert_eq!(
+            session_reachability(WarrantState::Void, now - 1, false, now),
+            Err(Unreachable::NotOpen {
+                state: WarrantState::Void
+            })
+        );
+        assert_eq!(
+            session_reachability(WarrantState::Open, now, false, now),
+            Err(Unreachable::Expired {
+                expires_at: now,
+                now
+            }),
+            "a deadline exactly reached has passed, as it has everywhere else in the system"
+        );
+        assert_eq!(
+            session_reachability(WarrantState::Open, now + 1, false, now),
+            Ok(())
+        );
+    }
+}

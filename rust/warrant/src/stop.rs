@@ -381,6 +381,28 @@ fn capabilities(outcome: &StopOutcome) -> Vec<conformance::CapabilityResult> {
                 STOP_BUDGET.as_millis()
             )],
         )
+    } else if !outcome.quiescence_held {
+        // Gone, then alive again at the same pid inside the hold. Warrantor cannot tell a supervisor
+        // that restarted from a pid the OS handed to something else, and it does not need to: either
+        // way it did not observe the run stay stopped, and a stop that cannot say the process stayed
+        // gone must not be scored as a stop.
+        result(
+            Cap::StopInference,
+            V::Fail,
+            ms,
+            ms,
+            false,
+            vec![format!(
+                "{} was confirmed gone in {ms} ms, but was alive again within the {} ms hold. \
+                 Warrantor cannot distinguish a supervisor that came back from a pid the OS reused, \
+                 so it did NOT observe this run stay stopped and does not claim quiescence.",
+                match outcome.supervisor_pid {
+                    Some(pid) => format!("the supervisor (pid {pid})"),
+                    None => "the supervisor".to_string(),
+                },
+                STOP_HOLD.as_millis()
+            )],
+        )
     } else if !outcome.agent_dies_with_supervisor {
         result(
             Cap::StopInference,
@@ -404,9 +426,10 @@ fn capabilities(outcome: &StopOutcome) -> Vec<conformance::CapabilityResult> {
             outcome.quiescence_held,
             vec![
                 format!(
-                    "the supervisor was confirmed gone in {ms} ms. The AGENT's quiescence was \
-                     inferred from the {} lifetime link, not measured: warrantor never records the \
-                     agent's process id.",
+                    "the supervisor was confirmed gone in {ms} ms and its pid was still unused \
+                     {} ms later. The AGENT's quiescence was inferred from the {} lifetime link, \
+                     not measured: warrantor never records the agent's process id.",
+                    STOP_HOLD.as_millis(),
                     outcome.linkage_mechanism
                 ),
                 "single trial: the p50 and p99 figures are the same one observation, and no noise \

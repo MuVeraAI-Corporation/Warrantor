@@ -195,7 +195,9 @@ would break the ceiling, and cost-aware routing advice from your own price table
 
 Egress asks the broker, ahead of a run, exactly what the proxy will ask during one:
 for each destination, allow or deny and why. It answers for tool calls that go
-through the Warrantor MCP proxy, which is the only place egress is decided.
+through the Warrantor MCP proxy, which is the only place egress is decided. For a
+warrant no live session could reach -- expired, not Open, or already stopped -- it
+refuses outright rather than answering about the bound.
 
 Mcp serves the warrant lifecycle to your own coding agent over MCP. With --agent it
 instead serves a SUPERVISED agent: only that warrant's tools, policed, with no
@@ -491,9 +493,31 @@ fn verify_report_export(path: &str, body: &[u8]) -> ExitCode {
         Ok(s) => s,
         Err(e) => return fail(&format!("{path} is not an exported warrantor report: {e}")),
     };
+    // Integrity is checked with the time-free verifier on purpose. An exported report is a record
+    // of a past evaluation; it must not become unverifiable because a deadline went by, or an
+    // archive would rot into a pile of files that all say "does NOT verify".
     if let Err(e) = report::verify_export(&signed) {
         return fail(&format!("{path} does NOT verify: {e}"));
     }
+    // Liveness is a different question with a different answer, so it is reported rather than
+    // conflated with tampering. Printing it is also what stops the receipt's `expires_at` from
+    // being a field nothing ever reads.
+    let checked_at = now();
+    let liveness = match report::verify_export_at(&signed, checked_at) {
+        Ok(()) => format!(
+            "live at {checked_at}; the warrant's deadline is {}",
+            signed.bundle.expires_at
+        ),
+        Err(report::ReportError::Expired { expires_at, .. }) => format!(
+            "EXPIRED — the deadline passed at {expires_at}, checked at {checked_at}. The \
+             signatures are intact: this is a true record of a past decision, not a statement \
+             about authority the subject still holds."
+        ),
+        // `verify_export` already passed, so the only thing left for `verify_export_at` to add is
+        // the expiry check. Anything else means the two disagreed, which is worth saying out loud
+        // rather than swallowing into a cheerful "live".
+        Err(e) => format!("could not be determined: {e}"),
+    };
 
     let check = &signed.bundle.authority_check;
     println!("verified  {}", signed.bundle_digest);
@@ -515,6 +539,7 @@ fn verify_report_export(path: &str, body: &[u8]) -> ExitCode {
         "  signed by     {}",
         signed.evidence_receipt.signature.public_key
     );
+    println!("  still live    {liveness}");
 
     println!("\n── WHAT THIS DOES NOT ESTABLISH ──");
     for limitation in &signed.bundle.limitations {
@@ -936,9 +961,18 @@ fn render_ledger(ledger: &warrantor_warrant::spend::SpendLedger) -> String {
 /// destination decision. Nothing here is a simulation of the run-time path; it *is* the run-time
 /// path, called with a destination you typed instead of one an agent named.
 ///
+/// That claim only holds if the *session* preconditions hold too, so they are checked first, and
+/// a warrant that fails one is refused before any destination is decided. The broker alone would
+/// happily print `allow` for a host named by an expired, Held, Voided or stopped warrant — true
+/// about the bound, and a lie about the run, because no live session under that warrant reaches
+/// anything. A pre-flight check that disagrees with the run is worse than no pre-flight check.
+///
+/// Containment is read fail-closed, as `warrantor report` reads it: a stop directory that will not
+/// open means containment is unknown, and an unknown is refused rather than assumed clear.
+///
 /// It exits non-zero if any destination is refused, so it can be used as a check in a script. It
 /// needs no key: asking what a warrant permits is a read.
-fn cmd_egress(args: &Args, store: &WarrantStore) -> ExitCode {
+fn cmd_egress(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     const USAGE_LINE: &str =
         "usage: warrantor egress <warrant-id> <destination> [<destination> ...]";
     let Some(id) = args.positional.first() else {
@@ -952,6 +986,30 @@ fn cmd_egress(args: &Args, store: &WarrantStore) -> ExitCode {
         Ok(s) => s,
         Err(e) => return fail(&e.to_string()),
     };
+    let stops = match StopStore::open(root) {
+        Ok(s) => s,
+        Err(e) => {
+            return fail(&format!(
+                "cannot read stop records, so it is unknown whether {id} is contained: {e}"
+            ))
+        }
+    };
+    if let Err(unreachable) = warrantor_warrant::egress::session_reachability(
+        stored.warrant.state,
+        stored.warrant.claims.bounds.expires_at,
+        stops.is_stopped(id),
+        now(),
+    ) {
+        eprintln!(
+            "warrantor: REFUSING to decide egress for {id} — {}",
+            unreachable.sentence()
+        );
+        eprintln!(
+            "warrantor: the bound is still readable with `warrantor report {id}`. It is not \
+             printed as an allow here, because an allow would describe a call that cannot happen."
+        );
+        return ExitCode::FAILURE;
+    }
 
     let broker = EgressBroker::for_bounds(&stored.warrant.claims.bounds);
     println!(
@@ -1265,35 +1323,45 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     // Only when a ceiling was declared. A warrant that never had a budget was never
     // budget-exhausted, and refusing to start it here would be a different bound wearing this
     // one's name.
-    if let Ok(ledgers) = SpendStore::open(root) {
-        let issuer = match load_or_create_key(&root.join("keys/issuer.key"), "issuer") {
-            Ok(k) => k,
-            Err(e) => return fail(&e),
-        };
-        match ledgers.load(
-            &stored.warrant.claims.bounds,
-            id,
-            &stored.warrant.claims.subject,
-            &issuer.verifying_key(),
-        ) {
-            Ok(ledger) if ledger.exhausted() => {
-                return fail(&format!(
-                    "{id} has reported spending {} of its {} ceiling. Grant a new warrant with a \
-                     new budget rather than restarting a spent one. (Self-reported: an agent that \
-                     does not report is not caught by this.)",
-                    spend::usd(ledger.spent_micros),
-                    spend::usd(ledger.cap_micros)
-                ));
-            }
-            Ok(_) => {}
-            // An unreadable or wrongly-signed ledger is not a reason to start a run whose budget
-            // state is unknown.
-            Err(e) => {
-                return fail(&format!(
-                    "cannot read {id}'s spend ledger, so its budget state \
-                                            is unknown: {e}"
-                ))
-            }
+    //
+    // A ledger store that will not open is the same unknown as a ledger that will not load, and it
+    // is refused in the same breath -- skipping the check because the directory is unavailable
+    // would start a run whose budget state nobody knows, which is the one outcome this precondition
+    // exists to prevent.
+    let ledgers = match SpendStore::open(root) {
+        Ok(s) => s,
+        Err(e) => {
+            return fail(&format!(
+                "cannot open the spend ledger store, so {id}'s budget state is unknown: {e}"
+            ))
+        }
+    };
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), "issuer") {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    match ledgers.load(
+        &stored.warrant.claims.bounds,
+        id,
+        &stored.warrant.claims.subject,
+        &issuer.verifying_key(),
+    ) {
+        Ok(ledger) if ledger.exhausted() => {
+            return fail(&format!(
+                "{id} has reported spending {} of its {} ceiling. Grant a new warrant with a new \
+                 budget rather than restarting a spent one. (Self-reported: an agent that does not \
+                 report is not caught by this.)",
+                spend::usd(ledger.spent_micros),
+                spend::usd(ledger.cap_micros)
+            ));
+        }
+        Ok(_) => {}
+        // An unreadable or wrongly-signed ledger is not a reason to start a run whose budget
+        // state is unknown.
+        Err(e) => {
+            return fail(&format!(
+                "cannot read {id}'s spend ledger, so its budget state is unknown: {e}"
+            ))
         }
     }
 
@@ -1540,7 +1608,7 @@ fn main() -> ExitCode {
         "list" => cmd_list(&store),
         "report" => cmd_report(&args, &store, &root),
         "verify" => cmd_verify(&args),
-        "egress" => cmd_egress(&args, &store),
+        "egress" => cmd_egress(&args, &store, &root),
         "spend" => cmd_spend(&args, &store, &root),
         "stop" => cmd_stop(&args, &store, &root),
         "settle" => cmd_settle(&args, &store, &root),

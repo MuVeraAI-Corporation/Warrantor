@@ -35,6 +35,33 @@
 //! variants — `advisory` on the evidence receipt, `observed` on the notary receipt. Warrantor's
 //! decision does not sit in the execution path of a coding agent that declines to use the proxy,
 //! and a receipt that said `mediated` would be claiming it does. See [`report_modes`].
+//!
+//! # Why both crates export a `WarReceipt` and neither was renamed
+//!
+//! `warrantor-evidence` and `warrantor-notary` each export `WarReceipt`, `EnforcementMode`,
+//! `DelegationLink`, `Verdict`, `Actor`, `Operation`, `ConsequenceTier` and `SignatureEnvelope`.
+//! Same names, different shapes — an evidence receipt has a `predicate`, a notary receipt has a
+//! `body`. They are two records of two different things: the notary's is the *decision*, the
+//! evidence crate's is the *envelope around the whole action*. Both are correct names in their own
+//! crate, and both crates are published at 1.0.
+//!
+//! Nothing here is renamed, because a rename would not remove a hazard that exists. Substituting
+//! one for the other is a type error, not a silent bug: the shapes share no field, so every wrong
+//! use is a compile failure. This module keeps them straight by importing the crates as
+//! `evidence` and `notary` and never bare-importing a type from either, so every use site names
+//! which world it is in. That is a legibility rule, not a safety mechanism — the compiler is the
+//! safety mechanism.
+//!
+//! Two real hazards *did* survive the type system, and both are handled in code rather than prose:
+//!
+//! * The two [`EnforcementMode`](evidence::EnforcementMode)s share the token `mediated` and
+//!   disagree about the other variant (`advisory` against `observed`), so JSON alone cannot say
+//!   which crate a mode came from. [`notary_mode_for`] pins the correspondence in an exhaustive
+//!   `match`, and [`report_modes`] derives one mode from the other rather than stating both.
+//! * Both [`DelegationLink`](evidence::DelegationLink)s are built here, from the same warrant, in
+//!   two places about eighty lines apart. If one drifts, the notary decides on a window the
+//!   evidence receipt does not record. The exported receipt's link is checked against the bundle
+//!   by test.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -71,12 +98,30 @@ pub const REPORT_OPERATION_CLASS: &str = "warrant.report";
 /// against.
 pub const FRESHNESS_WINDOW_SECONDS: u64 = 300;
 
+/// The one place the two enforcement-mode vocabularies are mapped onto each other.
+///
+/// [`warrantor_evidence::EnforcementMode`] is `{Mediated, Advisory}`;
+/// [`warrantor_notary::EnforcementMode`] is `{Observed, Mediated}`. They are the same two states
+/// under two names: `advisory` and `observed` both mean *the host may ignore the verdict*, and
+/// `mediated` means *bypassing warrantor means bypassing execution* in both crates. Neither maps
+/// onto [`BoundStrength`] by a cast.
+///
+/// The mapping is a function rather than a comment so it cannot rot: the `match` is exhaustive, so
+/// a variant added to `warrantor-evidence` stops this crate compiling instead of silently falling
+/// through to a mode nobody chose. It only ever maps a mode onto its equal — there is no arm that
+/// turns a weak mode into a strong one, which is the direction that would matter.
+#[must_use]
+pub fn notary_mode_for(mode: evidence::EnforcementMode) -> notary::EnforcementMode {
+    match mode {
+        evidence::EnforcementMode::Mediated => notary::EnforcementMode::Mediated,
+        evidence::EnforcementMode::Advisory => notary::EnforcementMode::Observed,
+    }
+}
+
 /// The enforcement modes a report's receipts carry, and the reason they are the weak variants.
 ///
-/// The two crates disagree on the vocabulary — [`warrantor_evidence::EnforcementMode`] is
-/// `{Mediated, Advisory}` and [`warrantor_notary::EnforcementMode`] is `{Observed, Mediated}` —
-/// and neither maps onto [`BoundStrength`] by a cast. So the mapping is written down here, once,
-/// and asserted by a test rather than inferred at a call site.
+/// One mode is chosen, in one vocabulary; the other is *derived* through [`notary_mode_for`] so
+/// the two receipts on a single report cannot come to disagree about the same fact.
 ///
 /// Warrantor mediates a tool call that traverses its MCP proxy. It does not mediate an agent that
 /// opens a socket, spawns a shell, or calls a model provider directly — there is no network
@@ -84,10 +129,8 @@ pub const FRESHNESS_WINDOW_SECONDS: u64 = 300;
 /// `mediated` would be asserting non-bypassability that does not exist, so a report claims neither.
 #[must_use]
 pub fn report_modes() -> (evidence::EnforcementMode, notary::EnforcementMode) {
-    (
-        evidence::EnforcementMode::Advisory,
-        notary::EnforcementMode::Observed,
-    )
+    let evidence_mode = evidence::EnforcementMode::Advisory;
+    (evidence_mode, notary_mode_for(evidence_mode))
 }
 
 // ── errors ────────────────────────────────────────────────────────────────────────────
@@ -132,6 +175,19 @@ pub enum ReportError {
     /// workspace release profile is `panic = "abort"`.
     #[error("evidence predicate invariant: {0}")]
     Predicate(String),
+    /// The report verifies, but the warrant's deadline has passed — so it no longer describes live
+    /// authority.
+    ///
+    /// Separate from [`ReportError::Evidence`] on purpose: "intact but stale" and "corrupt" want
+    /// opposite responses from whoever is reading, and collapsing them into one message would make
+    /// an ordinary expiry look like tampering.
+    #[error("the warrant expired at {expires_at}; this report was verified as of {now}")]
+    Expired {
+        /// The warrant's deadline, epoch seconds — from the receipt, not the bundle.
+        expires_at: u64,
+        /// The instant the caller asked about.
+        now: u64,
+    },
 }
 
 // ── the bundle ────────────────────────────────────────────────────────────────────────
@@ -385,6 +441,15 @@ fn limitations(
         "egress_hosts is enforced only for tool calls that traverse the Warrantor MCP proxy. \
          There is no network namespace, seccomp filter or firewall: an agent that opens a socket \
          directly is not bound by it, and nothing in this bundle says otherwise."
+            .to_string(),
+        "write_paths is not refused at the moment of writing. Nothing intercepts the agent's \
+         filesystem access, so an agent under this warrant could have written outside its declared \
+         paths and this report would not know. What the warrant does provide is containment after \
+         the fact: the agent worked in an isolated worktree, so nothing it wrote touched the \
+         developer's working copy, and settle stages only the declared write paths, so \
+         out-of-bounds edits are never merged into the base branch -- they are left in the \
+         worktree. Read write_paths as a statement of what should have been touched, checkable \
+         against the changed-files list in this bundle, not as a boundary that held."
             .to_string(),
         budget,
         "There is no SPIFFE SVID document in this deployment. actor.svid_digest in the evidence \
@@ -740,9 +805,12 @@ impl Report {
                 parent_receipt: None,
                 nonce: self.request.nonce.clone(),
                 issued_at: self.bundle.generated_at,
-                // The warrant's own deadline. Note that `warrantor-evidence` never checks this
-                // field — `EvidenceError::Expired` is declared and never constructed — so a
-                // verifier that cares about receipt expiry has to check it itself.
+                // The warrant's own deadline, and the receipt's too: past it the subject holds
+                // nothing, so a receipt asserting that authority is stale by definition.
+                //
+                // `verify_export` deliberately does NOT enforce this — an exported report is a
+                // record of a past evaluation and has to keep verifying forever. A reader asking
+                // whether the authority is still live calls `verify_export_at`, which does.
                 expires_at: self.bundle.expires_at,
                 enforcement_mode: evidence_mode,
             },
@@ -844,7 +912,10 @@ fn issue_atomic_checked(
 /// than warrantor issues; and that every field binding a receipt to this bundle holds.
 ///
 /// A pass means **nothing has changed since signing**. It does not mean the signer should be
-/// believed — the key has to be established out of band.
+/// believed — the key has to be established out of band. Nor does it mean the warrant is still
+/// live: this function takes no clock and checks no deadline, because an exported report is a
+/// record of a past evaluation and has to keep verifying after the warrant it describes has
+/// lapsed. [`verify_export_at`] is the form that asks whether the authority still holds.
 ///
 /// # Errors
 /// The variant of [`ReportError`] naming the first check that failed.
@@ -971,6 +1042,34 @@ pub fn verify_export(export: &SignedReport) -> Result<(), ReportError> {
     Ok(())
 }
 
+/// [`verify_export`], plus the question it refuses to answer: **is this still true now?**
+///
+/// Everything `verify_export` checks, and then the evidence receipt's `expires_at` against an
+/// explicit `now` — the warrant's own deadline, since past it the subject holds nothing and the
+/// report's verdict describes authority that has lapsed.
+///
+/// `now` is an argument, not a clock read here, for the same reason the notary takes its `now` as
+/// an input: a verification that consults the wall clock cannot be replayed by someone checking
+/// your work.
+///
+/// Use this when acting on a report. Use [`verify_export`] when filing one — an archived report
+/// must not become unverifiable simply because time passed.
+///
+/// # Errors
+/// Everything [`verify_export`] returns, plus [`ReportError::Expired`] when the deadline has
+/// passed. Integrity is checked first, so a tampered file is reported as tampered rather than as
+/// merely old.
+pub fn verify_export_at(export: &SignedReport, now: u64) -> Result<(), ReportError> {
+    verify_export(export)?;
+    if evidence::is_expired(&export.evidence_receipt, now) {
+        return Err(ReportError::Expired {
+            expires_at: export.evidence_receipt.predicate.binding.expires_at,
+            now,
+        });
+    }
+    Ok(())
+}
+
 // ── rendering ─────────────────────────────────────────────────────────────────────────
 
 /// Render the bundle as the CLI's `warrantor report` has always printed it.
@@ -1052,14 +1151,22 @@ pub fn render_cli(bundle: &ReportBundle) -> String {
 
     lines.push(String::new());
     lines.push("── EVIDENCE ──".to_string());
-    lines.push(format!(
-        "  {} staged effect(s)",
-        bundle.staged_count.unwrap_or(0)
-    ));
-    lines.push(format!(
-        "  chain head {}",
-        bundle.chain_head.clone().unwrap_or_default()
-    ));
+    // `None` means the staging queue could not be read, not that it was empty. Printing
+    // `unwrap_or(0)` here would render an unknown count as "0 staged effect(s)" — the fail-open
+    // answer, and indistinguishable from a genuinely empty queue. Every other unreadable-queue
+    // path in this bundle says so out loud; so does this one.
+    match bundle.staged_count {
+        Some(count) => lines.push(format!("  {count} staged effect(s)")),
+        None => lines.push(
+            "  staged effect count UNKNOWN — the staging queue could not be read".to_string(),
+        ),
+    }
+    match &bundle.chain_head {
+        Some(head) => lines.push(format!("  chain head {head}")),
+        None => {
+            lines.push("  chain head UNKNOWN — the staging queue could not be read".to_string());
+        }
+    }
 
     let mut out = lines.join("\n");
     out.push('\n');

@@ -157,12 +157,15 @@ pub struct WarrantBounds {
     pub staged_classes: BTreeSet<SideEffectClass>,
     /// Wall-clock deadline, epoch seconds. Enforced by the supervising process.
     pub expires_at: u64,
-    /// Optional spend ceiling in whole cents.
+    /// Spend ceiling in whole cents. `None` is a ceiling of **zero**, never "unlimited".
     ///
     /// [`BoundStrength::Observed`], not enforced: the agent talks to its model provider directly,
     /// so this is parsed from the agent's own usage reporting and can be defeated by an agent that
     /// does not report. Named `budget_cents_observed` so a caller cannot mistake it for a
     /// guarantee at the point of use.
+    ///
+    /// The absent-means-zero reading is crate-wide: `spend::cap_micros` gives an undeclared budget
+    /// a cap of zero micros, and [`WarrantBounds::contains`] gives it nothing to delegate.
     pub budget_cents_observed: Option<u64>,
     /// Maximum delegation depth remaining for sub-warrants.
     pub delegation_depth: u32,
@@ -174,6 +177,10 @@ impl WarrantBounds {
     /// This is the check that makes sub-warrants safe: authority may shrink at every hop and can
     /// never grow. It is evaluated when a child is *issued*, so an out-of-bounds child never
     /// exists rather than being caught later at use time.
+    ///
+    /// Absent bounds are read as *none* throughout, never as *unlimited* — including
+    /// [`WarrantBounds::budget_cents_observed`], where a parent with no declared budget can
+    /// delegate a ceiling of zero and nothing more.
     pub fn contains(&self, other: &Self) -> Result<(), WarrantError> {
         fn subset(
             child: &BTreeSet<String>,
@@ -205,19 +212,34 @@ impl WarrantBounds {
                 other.expires_at, self.expires_at
             )));
         }
-        match (other.budget_cents_observed, self.budget_cents_observed) {
-            (Some(child), Some(parent)) if child > parent => {
-                return Err(WarrantError::AuthorityExpanded(format!(
-                    "budget: child {child} exceeds parent {parent}"
-                )));
-            }
-            // A parent with a ceiling cannot produce a child without one.
-            (None, Some(parent)) => {
-                return Err(WarrantError::AuthorityExpanded(format!(
-                    "budget: parent is capped at {parent} but child is uncapped"
-                )));
-            }
-            _ => {}
+        // An absent budget is a ceiling of ZERO, never "no ceiling". `spend::cap_micros` reads it
+        // that way when recording usage, so it is read that way here too: the same `None` cannot
+        // mean nothing to the ledger and everything to the gate that mints the warrant. A warrant
+        // granted without a budget therefore holds no spend authority and has none to hand on.
+        let parent_cents = self.budget_cents_observed.unwrap_or(0);
+        let child_cents = other.budget_cents_observed.unwrap_or(0);
+        let absent_parent = if self.budget_cents_observed.is_none() {
+            " -- the parent declares no budget, which is a ceiling of zero, not an absent one"
+        } else {
+            ""
+        };
+        if child_cents > parent_cents {
+            return Err(WarrantError::AuthorityExpanded(format!(
+                "budget: child {child_cents} exceeds parent {parent_cents}{absent_parent}"
+            )));
+        }
+        // Dropping a DECLARED ceiling is not a narrowing, even though zero is the smaller number.
+        // Whether a ceiling was declared is load-bearing beyond its value: a warrant with no
+        // declared budget is never `SpendLedger::exhausted`, so `warrantor start` can never refuse
+        // it on budget grounds however much the agent reports. A child that dropped its parent's
+        // ceiling would trade a start-gated budget for an ungated one -- the same shape as the
+        // staged_classes rule above, where a smaller set is an expansion of authority.
+        if other.budget_cents_observed.is_none() && self.budget_cents_observed.is_some() {
+            return Err(WarrantError::AuthorityExpanded(format!(
+                "budget: parent is capped at {parent_cents} but the child declares no ceiling. An \
+                 absent budget is a ceiling of zero and is never exhausted, so it is not inherited \
+                 -- state the child's ceiling explicitly"
+            )));
         }
         if other.delegation_depth >= self.delegation_depth {
             return Err(WarrantError::AuthorityExpanded(format!(
@@ -523,11 +545,33 @@ impl CapabilityToken {
 ///
 /// Surfaced so the morning report can say so, rather than presenting a parsed-from-self-reporting
 /// budget as though it were the same kind of promise as a tool allowlist.
+///
+/// # `write_paths` was labelled `Enforced` and is not
+///
+/// It was, until this list was checked against the code that would have to do the enforcing. There
+/// is none. `write_paths` is parsed at grant, compared in the delegation subset test, and read at
+/// *settle* by [`worktree::Worktree::commit_all`] — and nowhere else. `proxy.rs`, the one place a
+/// bound is actually refused at the moment of action, contains no path logic at all.
+///
+/// It was caught empirically, not by reading: in the first live dogfood an agent granted
+/// `--write 'src/**'` ran its test suite and wrote `tests/__pycache__/`. Nothing refused it, and
+/// nothing noticed.
+///
+/// That made the label the most damaging kind of wrong. [`BoundStrength::Enforced`] promises "the
+/// system refuses the action", the report signs a sentence saying so, and a developer who reads it
+/// concludes their agent cannot touch anything outside `src/`. Worse than an absent guarantee is
+/// one someone relies on.
+///
+/// What *is* true is written into the limitations of every exported bundle: the worktree keeps the
+/// writes off your working copy, and settle stages only in-bounds paths so out-of-bounds edits are
+/// never merged. Real containment, at settle rather than at write, and not what `Enforced` means.
 #[must_use]
 pub fn bound_strengths() -> Vec<(&'static str, BoundStrength)> {
     vec![
         ("tools", BoundStrength::Enforced),
-        ("write_paths", BoundStrength::Enforced),
+        // Not refused when the write happens. Contained afterwards: out-of-bounds edits are not
+        // staged by settle, so they never reach the base branch. See the note above.
+        ("write_paths", BoundStrength::Observed),
         ("egress_hosts", BoundStrength::Enforced),
         ("staged_classes", BoundStrength::Enforced),
         ("expires_at", BoundStrength::Enforced),

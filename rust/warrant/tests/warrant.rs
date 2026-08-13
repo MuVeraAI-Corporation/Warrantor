@@ -230,6 +230,12 @@ fn a_sub_warrant_cannot_unstage_what_the_parent_stages() {
     );
 }
 
+/// Read this one with the reconciled meaning of `None` in mind: the child here is not *uncapped*,
+/// it is capped at zero, which is the smaller number. The refusal stands anyway, because whether a
+/// ceiling was *declared* does more work than its value — a warrant with no declared budget is
+/// never `SpendLedger::exhausted`, so `warrantor start` can never refuse it on budget grounds. A
+/// child that dropped its parent's ceiling would trade a start-gated budget for an ungated one.
+/// Same shape as the staged_classes rule: the smaller thing can still be the larger authority.
 #[test]
 fn a_sub_warrant_cannot_be_uncapped_when_the_parent_is_capped() {
     let (parent, issuer, _settle) = granted();
@@ -248,6 +254,63 @@ fn a_sub_warrant_cannot_be_uncapped_when_the_parent_is_capped() {
         ),
         Err(WarrantError::AuthorityExpanded(_))
     ));
+}
+
+/// The reconciled reading, pinned at the delegation gate.
+///
+/// `budget_cents_observed: None` means a ceiling of ZERO to the spend ledger (`spend::cap_micros`)
+/// and it now means the same thing here. Before this was reconciled, `None` on a *parent* read as
+/// "no ceiling", so a warrant granted with no `--budget` at all could mint a sub-warrant carrying
+/// an arbitrarily large one — the one `None` meaning zero to the ledger and unlimited to the gate.
+/// A budget-less parent has no spend authority, so it has none to hand a child.
+#[test]
+fn a_budget_less_parent_can_delegate_a_ceiling_of_zero_and_nothing_more() {
+    let issuer = key(1);
+    let settle = key(2);
+    let mut uncapped = bounds();
+    uncapped.budget_cents_observed = None;
+    let parent = Warrant::grant(
+        "wrt_no_budget",
+        "granted without --budget",
+        "spiffe://muveraai.com/agent/alpha",
+        uncapped,
+        NOW,
+        &settle.verifying_key(),
+        &issuer,
+    )
+    .expect("a warrant may be granted without a budget");
+
+    let delegate_with = |cents: Option<u64>| {
+        let mut child = bounds();
+        child.budget_cents_observed = cents;
+        child.delegation_depth = 2;
+        parent.delegate(
+            "wrt_child",
+            "g",
+            "spiffe://muveraai.com/agent/beta",
+            child,
+            NOW,
+            &issuer,
+        )
+    };
+
+    assert!(
+        matches!(
+            delegate_with(Some(1_000_000)),
+            Err(WarrantError::AuthorityExpanded(_))
+        ),
+        "an absent budget is a ceiling of zero, so there is no budget to delegate"
+    );
+    assert!(
+        matches!(
+            delegate_with(Some(1)),
+            Err(WarrantError::AuthorityExpanded(_))
+        ),
+        "one cent is still more than zero; the boundary is exact, not approximate"
+    );
+    delegate_with(Some(0))
+        .expect("a ceiling of zero is what the parent holds, so it may pass it on");
+    delegate_with(None).expect("a child with no budget either is within a parent that has none");
 }
 
 #[test]
@@ -380,11 +443,22 @@ fn a_warrant_without_a_deadline_is_refused() {
 /// Budget is parsed from the agent's own usage reporting, so it can be defeated by an agent that
 /// does not report. Presenting it as though it were as strong as the tool allowlist is how a
 /// developer ends up trusting something that cannot hold.
+///
+/// # One assertion was removed from this test, deliberately
+///
+/// It used to also assert `write_paths == Enforced`. That line was pinning a false claim, not a
+/// property: nothing in this codebase ever refused an out-of-bounds write, and a live run proved
+/// it by writing outside its declared paths unchallenged. Changing a test to match new behaviour
+/// is normally the worst thing you can do to a suite, so it is justified here in place rather than
+/// in a commit message someone has to go looking for.
+///
+/// The property this test exists for -- budget is `Observed` -- is unchanged and still asserted.
+/// `write_paths` is now covered explicitly by `write_paths_is_not_advertised_as_enforced`, and the
+/// bounds that really are refused by `the_bounds_that_are_enforced_still_say_so`.
 #[test]
 fn budget_is_reported_as_observed_not_enforced() {
     let strengths: std::collections::HashMap<_, _> = bound_strengths().into_iter().collect();
     assert_eq!(strengths["tools"], BoundStrength::Enforced);
-    assert_eq!(strengths["write_paths"], BoundStrength::Enforced);
     assert_eq!(strengths["expires_at"], BoundStrength::Enforced);
     assert_eq!(
         strengths["budget_cents_observed"],
@@ -420,4 +494,44 @@ fn signing_is_deterministic() {
     )
     .unwrap();
     assert_eq!(a.signature, b.signature);
+}
+
+/// `write_paths` must not claim to be enforced, because nothing enforces it.
+///
+/// Caught empirically in the first live dogfood: an agent granted `--write 'src/**'` ran its test
+/// suite and wrote `tests/__pycache__/`. Nothing refused it and nothing noticed. The only consumers
+/// of `write_paths` are the grant parser, the delegation subset test, and `commit_all` at settle;
+/// `proxy.rs`, where bounds are actually refused at the moment of action, has no path logic at all.
+///
+/// The label matters more than it looks: `Enforced` is signed into every exported bundle under a
+/// sentence saying the system refuses to exceed these bounds. A guarantee someone relies on and
+/// that does not hold is worse than no guarantee.
+#[test]
+fn write_paths_is_not_advertised_as_enforced() {
+    let strengths: std::collections::BTreeMap<_, _> = bound_strengths().into_iter().collect();
+    assert_eq!(
+        strengths.get("write_paths"),
+        Some(&BoundStrength::Observed),
+        "nothing refuses an out-of-bounds write, so the bundle must not sign a claim that it does"
+    );
+}
+
+/// The bounds that genuinely are refused keep saying so. This is the other half of the same
+/// property: honesty means not overclaiming, and also not quietly giving up a real guarantee.
+#[test]
+fn the_bounds_that_are_enforced_still_say_so() {
+    let strengths: std::collections::BTreeMap<_, _> = bound_strengths().into_iter().collect();
+    for name in [
+        "tools",
+        "egress_hosts",
+        "staged_classes",
+        "expires_at",
+        "delegation_depth",
+    ] {
+        assert_eq!(
+            strengths.get(name),
+            Some(&BoundStrength::Enforced),
+            "{name} is refused at the moment of action and must keep saying so"
+        );
+    }
 }

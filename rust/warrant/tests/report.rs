@@ -11,8 +11,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use ed25519_dalek::SigningKey;
 use warrantor_warrant::report::{
-    build, bundle_digest, render_cli, render_mcp, report_modes, verify_export, ChangedSection,
-    ReportError, SignedReport, StagedSection, REPORT_BUNDLE_FORMAT, REPORT_EXPORT_FORMAT,
+    build, bundle_digest, notary_mode_for, render_cli, render_mcp, report_modes, verify_export,
+    verify_export_at, ChangedSection, ReportError, SignedReport, StagedSection,
+    REPORT_BUNDLE_FORMAT, REPORT_EXPORT_FORMAT,
 };
 use warrantor_warrant::staging::{EffectRegistry, StagingQueue};
 use warrantor_warrant::store::StoredWarrant;
@@ -135,6 +136,11 @@ fn an_export_from_an_unknown_format_is_refused_rather_than_guessed_at() {
 
 /// Signing is additive. The five sections a developer reads every morning are byte for byte what
 /// they were before there was a bundle behind them.
+///
+/// The one intentional change to this golden output: `write_paths` now renders as `observed`.
+/// That is not a relaxation of the report -- it is the report ceasing to state something untrue.
+/// Nothing in the codebase refuses an out-of-bounds write, and a live run demonstrated it by
+/// writing outside its declared paths unchallenged. Everything else here is byte for byte as it was.
 #[test]
 fn the_prose_report_is_exactly_what_it_always_was() {
     let dir = tempdir("prose");
@@ -156,7 +162,7 @@ fn the_prose_report_is_exactly_what_it_always_was() {
          \n\
          ── BOUNDS ──\n\
          \x20 tools                   enforced\n\
-         \x20 write_paths             enforced\n\
+         \x20 write_paths             observed\n\
          \x20 egress_hosts            enforced\n\
          \x20 staged_classes          enforced\n\
          \x20 expires_at              enforced\n\
@@ -401,6 +407,133 @@ fn a_receipt_upgraded_to_mediated_is_refused_as_an_escalation() {
     }
 }
 
+// ── the two vocabularies, mapped once ─────────────────────────────────────────────────
+
+/// `advisory` and `observed` are the same state under two crates' names, and `mediated` is the
+/// same in both. The mapping only ever maps a mode onto its equal — a report cannot be made to
+/// look stronger by being restated in the other vocabulary.
+#[test]
+fn the_two_enforcement_vocabularies_map_onto_each_other_without_upgrading() {
+    use warrantor_evidence::EnforcementMode as EvidenceMode;
+    use warrantor_notary::EnforcementMode as NotaryMode;
+
+    assert_eq!(
+        notary_mode_for(EvidenceMode::Advisory),
+        NotaryMode::Observed
+    );
+    assert_eq!(
+        notary_mode_for(EvidenceMode::Mediated),
+        NotaryMode::Mediated
+    );
+}
+
+/// The pair `report_modes` returns is derived, not stated twice, so the notary receipt cannot end
+/// up claiming a mode the evidence receipt on the same report contradicts.
+#[test]
+fn the_notary_mode_on_a_report_is_derived_from_the_evidence_mode() {
+    let (evidence_mode, notary_mode) = report_modes();
+    assert_eq!(notary_mode, notary_mode_for(evidence_mode));
+
+    let dir = tempdir("modepair");
+    let signed = signed_report(&dir);
+    assert_eq!(
+        signed.notary_receipt.body.enforcement_mode,
+        notary_mode_for(signed.evidence_receipt.predicate.binding.enforcement_mode),
+        "the two receipts on one report must describe the same enforcement fact"
+    );
+}
+
+// ── the two DelegationLinks, built from one warrant ───────────────────────────────────
+
+/// Both crates export a `DelegationLink` and `build` constructs one of each from the same warrant,
+/// about eighty lines apart. Only the evidence link survives into the export, so that is what is
+/// pinned: if it drifts from the warrant's real window or tools, the notary is deciding against a
+/// delegation the signed receipt does not record.
+#[test]
+fn the_exported_delegation_link_describes_the_warrant_it_was_built_from() {
+    let dir = tempdir("deleglink");
+    let signed = signed_report(&dir);
+    let chain = &signed.evidence_receipt.predicate.authority.chain;
+    assert_eq!(chain.len(), 1, "one warrant, one link");
+    let link = &chain[0];
+
+    assert_eq!(link.subject, signed.bundle.subject);
+    assert_eq!(link.not_before, signed.bundle.issued_at);
+    assert_eq!(
+        link.not_after, signed.bundle.expires_at,
+        "the link's window is the warrant's deadline — the same value the notary's identity gate \
+         is given as svid_not_after"
+    );
+    let mut delegated = link.capabilities.clone();
+    delegated.sort();
+    let mut granted: Vec<String> = signed.bundle.bounds.tools.iter().cloned().collect();
+    granted.sort();
+    assert_eq!(
+        delegated, granted,
+        "the link must delegate exactly the warrant's tools — no more, and no fewer"
+    );
+}
+
+// ── expiry: the receipt's own deadline ────────────────────────────────────────────────
+
+/// `warrantor-evidence` declared `EvidenceError::Expired` and never constructed it, so the
+/// receipt's `expires_at` was a field nothing read. This is the check that now reads it.
+#[test]
+fn a_report_whose_warrant_has_expired_is_reported_as_expired() {
+    let dir = tempdir("expired");
+    let signed = signed_report(&dir);
+    let deadline = signed.bundle.expires_at;
+    match verify_export_at(&signed, deadline + 1) {
+        Err(ReportError::Expired { expires_at, now }) => {
+            assert_eq!(expires_at, deadline);
+            assert_eq!(now, deadline + 1);
+        }
+        other => panic!("past the deadline the report is not live, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_report_inside_the_warrants_deadline_is_live() {
+    let dir = tempdir("live");
+    let signed = signed_report(&dir);
+    verify_export_at(&signed, signed.bundle.expires_at - 1).expect("still inside the window");
+}
+
+/// The deadline second itself is already past, matching the notary's identity gate, which denies
+/// at `svid_not_after <= now`. A boundary second goes to the refusing side in both places.
+#[test]
+fn the_deadline_second_is_already_expired() {
+    let dir = tempdir("deadline");
+    let signed = signed_report(&dir);
+    assert!(verify_export_at(&signed, signed.bundle.expires_at).is_err());
+}
+
+/// The archival path must not rot. An exported report records a decision that was taken; it stays
+/// verifiable forever, because "this happened" does not stop being true.
+#[test]
+fn an_expired_report_still_verifies_as_a_record_of_what_happened() {
+    let dir = tempdir("archive");
+    let signed = signed_report(&dir);
+    verify_export(&signed).expect("integrity has no deadline");
+    assert!(
+        verify_export_at(&signed, u64::MAX).is_err(),
+        "…but liveness does"
+    );
+}
+
+/// Staleness and tampering want opposite responses from a reader, so they must not arrive as the
+/// same error. A tampered file is reported as tampered even when it is also expired.
+#[test]
+fn a_tampered_expired_report_is_reported_as_tampered_not_as_stale() {
+    let dir = tempdir("tampered_expired");
+    let mut signed = signed_report(&dir);
+    signed.bundle.goal = "something else entirely".to_string();
+    match verify_export_at(&signed, u64::MAX) {
+        Err(ReportError::Digest { .. }) => {}
+        other => panic!("integrity is checked before the clock, got {other:?}"),
+    }
+}
+
 // ── the nine gates, on real data ──────────────────────────────────────────────────────
 
 #[test]
@@ -502,6 +635,38 @@ fn an_unreadable_staging_queue_denies_rather_than_assuming_nothing_is_pending() 
     // And it still signs and verifies: a denial is evidence too.
     let signed = built.sign(&issuer(), "issuer").expect("sign");
     verify_export(&signed).expect("a deny bundle is still verifiable");
+}
+
+/// The EVIDENCE section must not launder an unknown count into a confident zero. `0 staged
+/// effect(s)` above an empty chain head is exactly what a clean, empty queue prints, so a reader
+/// of the unreadable-queue report would conclude nothing is pending when in fact nobody knows
+/// what is pending.
+#[test]
+fn an_unreadable_queue_renders_an_unknown_count_not_a_zero() {
+    let built = build(
+        &stored(),
+        Err("queue chain broken at line 3".to_string()),
+        &issuer().verifying_key(),
+        NOW,
+    );
+    let text = render_cli(built.bundle());
+
+    assert!(
+        !text.contains("0 staged effect(s)"),
+        "an unreadable queue must not render as a confident zero: {text}"
+    );
+    assert!(
+        text.contains("  staged effect count UNKNOWN — the staging queue could not be read\n"),
+        "{text}"
+    );
+    assert!(
+        !text.contains("  chain head \n"),
+        "an unknown chain head must not render as a blank one: {text}"
+    );
+    assert!(
+        text.contains("  chain head UNKNOWN — the staging queue could not be read\n"),
+        "{text}"
+    );
 }
 
 // ── what the bundle refuses to claim ──────────────────────────────────────────────────

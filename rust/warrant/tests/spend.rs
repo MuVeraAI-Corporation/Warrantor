@@ -948,6 +948,113 @@ fn the_mcp_grant_tool_can_declare_a_ceiling_and_absent_still_means_none() {
     let _ = Value::Null;
 }
 
+/// The MCP grant tool must never turn a malformed ceiling into no ceiling.
+///
+/// `budget_cents` was read with `Value::as_u64`, which answers `None` for `"500"`, for `500.0` and
+/// for `-1` alike — every one of them a shape an LLM caller emits for an integer field. `None` is
+/// not "the caller said nothing" here: `spend::cap_declared` goes false, so the warrant is never
+/// `exhausted` and nothing downstream can refuse it on budget grounds. The cap was dropped at the
+/// exact moment the caller was setting it, with no error. This is the `--budget 5x` bug that
+/// `warrantor grant` already refuses, on the other surface.
+///
+/// Two properties, and the second is the one that makes the first worth having: a malformed value
+/// is a refusal that names the fix, and a refused grant leaves NO warrant behind — a half-granted
+/// warrant with a silently absent ceiling would be the same hole wearing an error message.
+#[test]
+fn the_mcp_grant_tool_refuses_a_budget_it_cannot_parse_rather_than_dropping_the_cap() {
+    use serde_json::json;
+    use warrantor_warrant::mcp::Endpoint;
+    use warrantor_warrant::mcp_endpoints::ControlEndpoint;
+    use warrantor_warrant::store::WarrantStore;
+
+    let grant = |tag: &str, budget: serde_json::Value| -> (bool, String, usize, Option<u64>) {
+        let root = tempdir(tag);
+        let store = WarrantStore::open(&root).expect("store");
+        let mut endpoint = ControlEndpoint::new(
+            store,
+            root.clone(),
+            issuer(),
+            SigningKey::from_bytes(&[2; 32]),
+            || NOW,
+        );
+        let mut arguments = std::collections::BTreeMap::new();
+        arguments.insert("goal".to_string(), json!("cap me"));
+        arguments.insert("tools".to_string(), json!(["git"]));
+        arguments.insert("budget_cents".to_string(), budget);
+        let result = endpoint.call("warrant_grant", &arguments);
+        let granted = WarrantStore::open(&root)
+            .expect("store")
+            .list()
+            .expect("list");
+        let declared = granted
+            .first()
+            .and_then(|w| w.warrant.claims.bounds.budget_cents_observed);
+        (result.is_error, result.text, granted.len(), declared)
+    };
+
+    // The shapes a model actually emits for an integer field. Every one of these used to become a
+    // warrant with no declared ceiling, reported to the caller as a success.
+    for (tag, budget) in [
+        ("mcp-budget-string", json!("500")),
+        ("mcp-budget-float", json!(500.5)),
+        ("mcp-budget-negative", json!(-1)),
+        ("mcp-budget-words", json!("five dollars")),
+        ("mcp-budget-array", json!([500])),
+        ("mcp-budget-bool", json!(true)),
+    ] {
+        // The pre-fix read, pinned so the trap cannot quietly come back: `as_u64` answers `None`
+        // for every shape in this list, and `None` here is a warrant with no declared ceiling.
+        // Whatever the assertions below demand, they demand it of a path that must not be this
+        // expression -- if `budget_cents` is ever read this way again, they fail.
+        assert_eq!(
+            budget.as_u64(),
+            None,
+            "{budget} is exactly a shape Value::as_u64 drops; the test is pointless if it is not"
+        );
+
+        let (is_error, text, count, declared) = grant(tag, budget.clone());
+        if tag == "mcp-budget-string" {
+            // "500" has exactly one whole-cent reading, so taking it is not a guess.
+            assert!(!is_error, "a clean decimal string is unambiguous: {text}");
+            assert_eq!(declared, Some(500), "{budget} must reach the signed claims");
+            continue;
+        }
+        assert!(
+            is_error,
+            "{budget} silently dropped the cap instead of refusing: {text}"
+        );
+        assert!(
+            text.contains("budget_cents") && text.contains("whole"),
+            "the refusal has to name the argument and the fix: {text}"
+        );
+        assert_eq!(
+            count, 0,
+            "a refused budget must leave NO warrant behind; {budget} minted one anyway"
+        );
+        assert_eq!(declared, None, "sanity: nothing was stored for {budget}");
+    }
+
+    // A float that is exactly a whole count of cents is that count, not a refusal.
+    let (is_error, text, _, declared) = grant("mcp-budget-whole-float", json!(500.0));
+    assert!(
+        !is_error,
+        "500.0 is the integer 500 as a model writes it: {text}"
+    );
+    assert_eq!(
+        declared,
+        Some(500),
+        "an integral float must reach the claims"
+    );
+
+    // An explicit null is the caller saying nothing, which already means a ceiling of zero.
+    let (is_error, text, _, declared) = grant("mcp-budget-null", json!(null));
+    assert!(!is_error, "an explicit null is not a malformed cap: {text}");
+    assert_eq!(
+        declared, None,
+        "null must read as absent, i.e. a cap of zero"
+    );
+}
+
 /// A stopped, held or settled warrant still reports whatever the ledger holds — spend does not
 /// vanish because the lifecycle moved on.
 #[test]
@@ -984,5 +1091,99 @@ fn the_spend_section_survives_a_lifecycle_transition() {
     assert_eq!(
         built.bundle().spend.as_ref().expect("carried").spent_micros,
         7_500
+    );
+}
+
+// ── the run precondition ──────────────────────────────────────────────────────────────
+
+/// Wall-clock seconds. The stored warrant a `warrantor run` test loads has to be genuinely live:
+/// the deadline precondition is checked before the budget one, so a warrant pinned to [`NOW`]
+/// would be refused first and for the wrong reason.
+fn wall_clock_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+/// An Open warrant whose deadline has not passed, saved where the CLI will look for it.
+fn live_warrant(root: &Path, id: &str, budget_cents: Option<u64>) {
+    let at = wall_clock_now();
+    let mut live = bounds(budget_cents);
+    live.expires_at = at + 3_600;
+    let warrant = Warrant::grant(
+        id,
+        "fix the auth bug",
+        "spiffe://muveraai.com/agent/local",
+        live,
+        at,
+        &SigningKey::from_bytes(&[2; 32]).verifying_key(),
+        &issuer(),
+    )
+    .expect("grant");
+    assert_eq!(warrant.state, WarrantState::Open);
+    warrantor_warrant::store::WarrantStore::open(root)
+        .expect("open warrant store")
+        .save(&StoredWarrant {
+            warrant,
+            worktree: None,
+            repo: None,
+            branch: None,
+            base_commit: None,
+        })
+        .expect("save warrant");
+}
+
+/// `warrantor run` must not start a run whose budget state it could not read — including when the
+/// failure is the ledger STORE rather than a ledger.
+///
+/// The precondition read `if let Ok(ledgers) = SpendStore::open(root)`, so a store that would not
+/// open skipped the whole exhaustion check and the run started: the outer arm failed open while
+/// the inner arm, a few lines below it, explicitly refused a warrant whose ledger would not load.
+/// Two arms of one check contradicting each other about the same unknown, and the silent one won
+/// whenever the thing that was broken happened to be the directory rather than a file in it. The
+/// bound is still `Observed` either way — what this restores is that the one place the reported
+/// figure has teeth cannot be stepped around by making the ledger directory unavailable.
+///
+/// Driven through the real binary because the contradiction lived in `cmd_run`, not in the
+/// library: a test against `SpendStore` alone would have passed both before and after.
+#[test]
+fn run_refuses_when_the_spend_ledger_store_will_not_open() {
+    let home = tempdir("run-store-unopenable");
+    let root = home.join(".warrantor");
+    let id = "wrt_run_budget";
+    live_warrant(&root, id, Some(500));
+
+    // A regular file where `<root>/spend/` has to be: `create_dir_all` cannot make the directory,
+    // so `SpendStore::open` fails and the budget state is unknowable. Nothing else is disturbed.
+    std::fs::write(root.join("spend"), b"not a directory").expect("write");
+    assert!(
+        SpendStore::open(&root).is_err(),
+        "the test is pointless unless the store really refuses to open"
+    );
+
+    // The agent command is this same binary printing its usage: harmless, present on every
+    // platform, and it exits at once. Before the fix the supervisor was spawned to run it.
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_warrantor"))
+        .args(["run", id, "--", env!("CARGO_BIN_EXE_warrantor"), "--help"])
+        .env("HOME", &home)
+        .env("USERPROFILE", &home)
+        .output()
+        .expect("run warrantor");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+
+    assert!(
+        stderr.contains("budget state is unknown"),
+        "an unopenable ledger store has to be refused in the same terms as an unreadable ledger, \
+         not skipped: {stderr}"
+    );
+    assert!(
+        !out.status.success(),
+        "the run started anyway: {stderr}{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    assert!(
+        !root.join("logs").join(format!("{id}.log")).exists(),
+        "a refused run must not have spawned a supervisor"
     );
 }
