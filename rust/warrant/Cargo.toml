@@ -6,6 +6,10 @@ license.workspace = true
 repository.workspace = true
 readme = "README.md"
 description = "The warrant: bounded authority granted in advance, answerable afterwards (W1)."
+# The console's behaviour tests live beside the asset they test, because `console.js` is the page's
+# entry module and the test boots it against a stubbed DOM under `node --test`. They belong in the
+# repository, not in the published crate: nothing cargo builds reads them.
+exclude = ["src/console/console.test.js"]
 
 [dependencies]
 thiserror.workspace = true

@@ -45,32 +45,60 @@ at exactly the moment a new reader was deciding whether it worked.
 
 The change under the panel is smaller and matters more. One boolean —
 `listEmpty.hidden = rows.length > 0` — used to render four different facts as one sentence. It is
-now a total function over what the server actually answered, evaluated in this order:
+now two total functions over what the server actually answered. `listFacts` decides whether the
+response established anything at all, and `emptyKind` picks a rung in this order:
 
-1. **`error`** — the list route did not answer with `200`. First, because the response parse turns
-   any errored or malformed body into zero rows, so without this rung a server-side failure would
-   tell someone with a full store that they had never granted a warrant. Absence of an answer is
-   not the answer "none".
+1. **`error`** — the list was not read. Decided by `listFacts`, never by the status alone: a
+   connection that was refused, a status that was not `200`, a body that did not parse, and a
+   `warrants` field that is not an array all land here. First, because the optimistic read
+   (`payload?.data?.warrants ?? []`) turns every one of those into the same zero rows as a genuinely
+   empty store — which is how a 200 carrying a truncated body once told someone with a full store
+   that they had never granted a warrant. Absence of an answer is not the answer "none".
 2. **`rows`** — there is something to show, so nothing to explain.
-3. **`unreadable`** — `unreadable_records > 0`. Counted over the store *before* the filter is
-   applied, so it is a filter-independent proof that this store holds files. A store the server
-   could not parse is not a store that has never granted, and saying otherwise would erase a
-   history and bury a corruption warning in the same sentence.
-4. **`filtered`** — a state chip is on. This is the bug named in this item's original text: a
+3. **`filtered`** — a state chip is on. This is the bug named in this item's original text: a
    filter that matched nothing is not a machine with no history, and collapsing the two makes a
    chip look like data loss. The sidebar says so and offers one-click **Show all**.
-5. **`first-run`** — unfiltered, zero rows, zero unreadable. The only case where "this machine has
-   never granted a warrant" is a fact the response supports.
+4. **`unreadable`** — `unreadable_records > 0`, and no filter narrowing the view. This rung ranked
+   *above* `filtered` in the first cut, and that was wrong: a store with five open warrants and one
+   corrupt file, viewed under the Settled chip, was told "Nothing could be listed, but this store is
+   not empty" — false, since plenty could be listed, and it carries no **Show all**, so it removed
+   the way out as well. The count being filter-independent justifies knowing the store is non-empty;
+   it does not justify a filter-independent *sentence*. Nothing is lost by the demotion: the warning
+   row naming the count is written into the list whenever the count is non-zero, whatever the filter
+   and whichever paragraph is showing below it.
+5. **`first-run`** — a readable, unfiltered response with zero rows and zero unreadable. The only
+   case where "this machine has never granted a warrant" is a fact the response supports.
+
+A transport failure now reaches that first rung, which it could not before. `call()` used to throw
+when `fetch` rejected — the likeliest way a loopback agent fails — `refresh()` swallowed the throw
+in a bare `catch {}`, and a throw during `connect()` skipped `startRefreshing()` altogether, so a
+dead agent produced a visible app with an empty list, every explanation still hidden, and no poll
+that could ever recover it. `call()` now reports "no answer" as an outcome, the poll starts before
+the first read rather than after it, and the console recovers on its own when the agent comes back.
 
 No `/v1` route was added or changed, and no `total` field was introduced. Distinguishing the states
 by re-asking the server would make the console assert something the response it is rendering did not
 contain, and would race the five-second poll. The state is re-derived on every poll instead, so the
-panel clears itself within one tick of the first grant, with no reload.
+panel clears itself within one tick of the first grant, with no reload — and clears the detail pane
+with it, so release controls for a warrant a pruned store no longer holds do not survive hidden and
+reappear on the next poll.
 
-The panel's copy about `--write` says what is true and not what would sound better: an out-of-bounds
-write is contained at settle, never refused at the moment it happens (see 3.1). And it stays fixed
-prose compiled into the binary — nothing store-derived may be templated into a document that is
-served before the token check.
+The panel's copy about the bounds says what is true and not what would sound better. The lede
+claimed "nothing it does is visible outside that copy" and "external effects are staged rather than
+performed"; both were false and the second was checkable — `proxy.rs::decide()` forwards anything
+whose class is not in `staged_classes` or whose tool is not in the effect registry, and a grant
+seeds `Write` alone against four GitHub tools. The lede now names the three strengths from
+`bound_strengths()` — enforced deadline and delegation, mediated tools and egress and staged
+classes, observed paths and spend — says the broker is not a cage, and says Warrantor composes with
+a sandbox rather than being one. The grant line gained `--repo .`, without which no worktree is
+created at all and the paragraph above it described something that had not happened. And the panel
+stays fixed prose compiled into the binary — nothing store-derived may be templated into a document
+that is served before the token check.
+
+These are behaviours, so they are now tested as behaviours. `rust/warrant/src/console/console.test.js`
+runs under `node --test` — the runtime's own runner, no install, no bundler, no package manager, so
+RFC W1 §Dependencies still holds — and boots `console.js` against a stubbed DOM and a scripted
+server. Every fix above has a test that fails without it.
 
 **One half of this is still open, and it is not a console problem.** On a machine that has never run
 a warrant-touching command there is no issuer key, and `warrantor serve` refuses to start rather

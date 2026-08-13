@@ -52,12 +52,14 @@
         </div>
         <ul id="list" class="list"></ul>
 
-        <!-- Four sentences, not one. An unanswered question, a store whose files could not be
-             parsed, a filter that matched nothing, and a machine that has never granted are four
+        <!-- Four sentences, not one. A list that could not be read, a filter that matched nothing,
+             a store whose files could not be parsed, and a machine that has never granted are four
              different facts about why this list is empty. A single string for all four made
              clicking a chip look like data loss, and made a failed request look like a confident
              statement about the reader's own history. `emptyKind` in console.js picks exactly one
-             of these, and the order it picks in is the fix. -->
+             of these, and the order it picks in is the fix. The unreadable sentence below is the
+             one that must stay last of the two middle rungs: it speaks about the whole store, so
+             it is only true when no filter is narrowing the view. -->
         <p id="list-empty-first-run" class="empty" hidden>No warrants on this machine yet.</p>
         <p id="list-empty-filtered" class="empty" hidden>
           No warrants in this state.
@@ -66,8 +68,14 @@
         <p id="list-empty-unreadable" class="empty error" hidden>
           Nothing could be listed, but this store is not empty. See the warning above.
         </p>
+        <!-- Three failures, one sentence, because the reader's next move is the same for all
+             three and the console cannot always tell them apart. It is worded for what it can
+             honestly say: this list was not read. It said only "The server did not answer." while
+             `emptyKind` could not reach it on a transport failure at all — the sentence described
+             the one case it never fired on. -->
         <p id="list-empty-error" class="empty error" hidden>
-          The server did not answer. That is not the same as there being nothing here.
+          This list could not be read: the server did not answer, refused, or replied with
+          something this console could not parse. That is not the same as there being nothing here.
         </p>
       </nav>
 
@@ -90,9 +98,38 @@
         <p class="first-run-lede">
           A warrant is written, signed permission for an AI agent to do one stated job: what it is
           for, which tools it may use, which paths it may write to, and when the permission runs
-          out. The agent works in an isolated copy of your repository, so nothing it does is
-          visible outside that copy until a person settles the warrant, and external effects are
-          staged rather than performed.
+          out. Granted inside a git repository, it also prepares a separate worktree on a branch of
+          its own, so the agent's file edits stay off your working copy until a person settles the
+          warrant.
+        </p>
+
+        <!-- The paragraph this panel most needs, and the easiest one to leave out.
+             `bound_strengths()` in lib.rs is the source of every strength word below; if that
+             function changes, this changes with it. Nothing here may promise containment: there is
+             no network namespace, no seccomp filter and no firewall anywhere in this product, so an
+             agent given shell access reaches past the broker. The `write_paths` label read
+             `Enforced` once, a developer relied on it, and an agent wrote outside its bounds with
+             nothing refusing. This is the first and only thing a new reader sees, so it is where a
+             wrong mental model would be formed. -->
+        <p class="first-run-lede">
+          Those bounds are not all held the same way, and a warrant says which is which rather than
+          implying one guarantee. The deadline and the delegation limit are
+          <strong>enforced</strong>: an operating-system process link, and a signature the agent
+          cannot forge. The tool allowlist, the egress hosts and the staged effect classes are
+          <strong>mediated</strong> &mdash; refused by the broker the agent's tool calls pass
+          through, which is real against an agent using its tools and is not a cage: what does not
+          go through the broker is not decided by it. Written paths and spend are
+          <strong>observed</strong>: measured and reported, never refused as they happen. Warrantor
+          makes what an agent did legible, reviewable and hard to misreport. It composes with a
+          sandbox; it is not one.
+        </p>
+
+        <p class="first-run-lede">
+          Staging is narrower than the word suggests, so read it as a list and not as a promise. An
+          effect waits for review only when the warrant names its class <em>and</em> this build
+          knows how to stage that particular tool &mdash; today, the GitHub effects, under the write
+          class a grant sets by default. Everything else the agent is allowed to call happens when
+          it calls it, and what you review afterwards is the record of it.
         </p>
 
         <h3>Granting happens at a terminal, and only at a terminal</h3>
@@ -109,17 +146,21 @@
         <h3>Grant one</h3>
         <p>Run this in a terminal, in the repository you want the agent to work in:</p>
         <div class="cmd">
-          <code id="first-run-command">warrantor grant --goal "..." --tools git --write src</code>
+          <!-- One line, and no whitespace inside the element: `copyGrantCommand` copies
+               `textContent` verbatim, so a wrapped tag would put a newline in the clipboard. -->
+          <code id="first-run-command">warrantor grant --goal "..." --tools git --write src --repo .</code>
           <button id="copy-command" class="copy" type="button">Copy</button>
         </div>
         <p class="note">
           Replace the quoted text with the job in one sentence: it is what every later review is
-          read against. <code>--tools git</code> is the allowlist the proxy refuses against.
+          read against. <code>--tools git</code> is the allowlist the broker refuses against.
           <code>--write src</code> records which paths are in bounds, and what that buys is
           containment rather than refusal: an out-of-bounds write is not blocked as it happens, it
           is simply never staged, so it never reaches your branch. Leaving <code>--write</code>
-          off means no path is in bounds, not every path. Each warrant's own view says how
-          strongly every bound is actually held.
+          off means no path is in bounds, not every path. <code>--repo .</code> is what creates the
+          worktree; without it the warrant is still granted and still bounds staged effects, but
+          there is no separate copy and the agent edits your working tree directly. Each warrant's
+          own view says how strongly every bound is actually held.
         </p>
         <p class="note">
           The list on the left re-reads itself every few seconds, so a warrant granted in another
