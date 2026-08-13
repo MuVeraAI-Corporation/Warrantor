@@ -245,11 +245,21 @@ jobs:
         with:
           node-version: "22.x"
       # No `npm ci`, and no Electron. The shell's security decisions -- which origin the window may
-      # navigate to, which permissions are granted, which line carries the token -- live in
-      # `src/policy.js`, which imports nothing. So this gate needs no dependency install, no
-      # ~150 MB Chromium download and no display, and it still covers the code where a mistake
-      # would matter. Everything Electron-specific is wiring around those functions.
-      - name: Run policy tests
+      # navigate to, which permissions are granted, which line carries the token, and which binary
+      # becomes the agent -- live in `src/policy.js`, which imports nothing. So this gate needs no
+      # dependency install, no ~150 MB Chromium download and no display, and it still covers the
+      # code where a mistake would matter. Everything Electron-specific is wiring around those
+      # functions, and the packaging tests read the builder config and the lockfile as data.
+      #
+      # `npm audit` reads package-lock.json and queries the registry: no node_modules, no Chromium,
+      # so the job keeps that property. It is here because RFC W1 calls a clean audit a release
+      # gate, and a checklist item nobody runs is not a gate -- this directory ships a browser
+      # engine, and Electron 33 carried 21 high-severity advisories. It also errors when the
+      # lockfile has drifted from package.json, which is the only cheap check that the lockfile is
+      # coherent before the release workflow tries to `npm ci` it at tag time.
+      - name: Audit the pinned Electron and its build tooling
+        run: npm audit --audit-level=moderate
+      - name: Run policy and packaging tests
         run: node --test
 
   console:

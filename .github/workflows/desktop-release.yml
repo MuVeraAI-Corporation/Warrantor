@@ -1,0 +1,222 @@
+# Desktop installers for Windows, macOS and Linux.
+#
+# ── Why the agent is compiled in the same job that packages it ────────────────
+#
+# The installers ship the `warrantor` binary inside the app, and the shell prefers that copy over
+# anything on PATH. So the bundled agent has to match the architecture of the app that spawns it,
+# and the cheapest way to guarantee that is to build both on the same runner in the same job.
+#
+# Consuming release-artifacts.yml's binaries instead would have needed the tar.gz rather than the
+# bare file: actions/upload-artifact does not preserve the executable bit, and an agent that arrives
+# without +x fails at spawn with a permission error on the reviewer's first launch.
+#
+# ── What these artifacts are, and are not ─────────────────────────────────────
+#
+# They are unsigned. SmartScreen and Gatekeeper will warn, and desktop/SIGNING.md says exactly what
+# that costs and what to buy. Two consequences are wired in here rather than left to discipline:
+# `--publish never`, because an update channel over an unsigned artifact is an unauthenticated
+# code-execution channel; and a build-provenance attestation over every file, because that
+# attestation plus the published SHA256SUMS is the only integrity signal an unsigned installer can
+# offer a reviewer.
+
+name: desktop-release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build every installer, publish nothing"
+        type: boolean
+        default: true
+
+permissions: {}
+
+jobs:
+  package:
+    name: package ${{ matrix.platform }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    # The workflow denies everything by default, and a job that does not ask for `contents: read`
+    # cannot even check itself out. Four builds in release-artifacts.yml failed at actions/checkout
+    # for exactly this.
+    permissions:
+      contents: read
+    strategy:
+      # One platform failing should not deny the installers to users who can run them.
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  platform: linux, arch: x64,   target: x86_64-unknown-linux-gnu, ext: ""     }
+          - { os: macos-latest,   platform: mac,   arch: arm64, target: aarch64-apple-darwin,     ext: ""     }
+          - { os: macos-latest,   platform: mac,   arch: x64,   target: x86_64-apple-darwin,      ext: ""     }
+          - { os: windows-latest, platform: win,   arch: x64,   target: x86_64-pc-windows-msvc,   ext: ".exe" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # warrantor-api's build script shells out to protoc, and the whole workspace depends on it
+      # transitively.
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build the agent
+        working-directory: rust
+        run: cargo build --release --target ${{ matrix.target }} --bin warrantor
+
+      # electron-builder reads `vendor/${arch}/warrantor[.exe]` — see desktop/electron-builder.config.cjs.
+      - name: Stage the agent for bundling
+        shell: bash
+        run: |
+          mkdir -p "desktop/vendor/${{ matrix.arch }}"
+          cp "rust/target/${{ matrix.target }}/release/warrantor${{ matrix.ext }}" \
+             "desktop/vendor/${{ matrix.arch }}/warrantor${{ matrix.ext }}"
+          if [ "${{ matrix.ext }}" = "" ]; then
+            chmod +x "desktop/vendor/${{ matrix.arch }}/warrantor"
+          fi
+          ls -la "desktop/vendor/${{ matrix.arch }}"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      # The one place in this repository where a Chromium is downloaded. It is deliberately in a
+      # release workflow and never in a pull-request gate: the CI `desktop` job runs `node --test`
+      # with no install at all, and that property is worth keeping.
+      - name: Install the packaging toolchain
+        working-directory: desktop
+        run: npm ci
+
+      # RFC W1 makes this a release gate, and a release must not ship on a vulnerable pin.
+      - name: Audit
+        working-directory: desktop
+        run: npm audit --audit-level=moderate
+
+      # desktop/package.json is pinned at 1.0.0 and does not track git tags. Without the version
+      # override every release would ship installers named Warrantor-1.0.0-*, so two different
+      # releases would produce byte-different files with identical names — and nothing would fail.
+      - name: Resolve the version to stamp
+        id: version
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "stamping ${VERSION}"
+
+      - name: Build the installers
+        working-directory: desktop
+        run: >-
+          npx electron-builder
+          --config electron-builder.config.cjs
+          --${{ matrix.platform }}
+          --${{ matrix.arch }}
+          --publish never
+          --config.extraMetadata.version=${{ steps.version.outputs.version }}
+
+      # The check that catches the failure this whole workstream exists to remove. If the
+      # extraResources pattern stops matching — a rename, a macro that did not expand, a staging
+      # step that wrote elsewhere — electron-builder still produces a perfectly good installer, and
+      # the only symptom is the error dialog on a reviewer's machine. Assert the agent is actually
+      # inside the unpacked app before anything is uploaded.
+      - name: Confirm the agent is inside the app
+        shell: bash
+        run: |
+          bundled=$(find desktop/dist -type f \
+            \( -name warrantor -o -name warrantor.exe \) \
+            -path '*esources*' | head -20)
+          if [ -z "$bundled" ]; then
+            echo "no bundled agent found under desktop/dist — the installers would ship without one"
+            find desktop/dist -maxdepth 3 -type d
+            exit 1
+          fi
+          echo "$bundled"
+
+      - name: Checksum the installers
+        shell: bash
+        working-directory: desktop/dist
+        run: |
+          shopt -s nullglob
+          files=(*.exe *.dmg *.AppImage *.deb)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "electron-builder produced no installer"
+            ls -la
+            exit 1
+          fi
+          # sha256sum on Linux and Git Bash, shasum on macOS.
+          if command -v sha256sum >/dev/null; then
+            sha256sum "${files[@]}" > SHA256SUMS-${{ matrix.platform }}-${{ matrix.arch }}
+          else
+            shasum -a 256 "${files[@]}" > SHA256SUMS-${{ matrix.platform }}-${{ matrix.arch }}
+          fi
+          cat SHA256SUMS-${{ matrix.platform }}-${{ matrix.arch }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.platform }}-${{ matrix.arch }}
+          # Block scalar, not a folded string: upload-artifact splits on newlines, so `a\n  b`
+          # folds to "a b" and matches nothing.
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.dmg
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+            desktop/dist/SHA256SUMS-*
+          if-no-files-found: error
+
+  release:
+    name: attest and attach the installers
+    needs: [package]
+    # Two gates, not one. The tag check is what makes a branch dispatch harmless; `dry_run` is what
+    # makes a dispatch *on a tag* harmless, which is the rehearsal RELEASING.md asks for. On a push
+    # the `inputs` context is empty, so `inputs.dry_run` is null and this reduces to the tag check.
+    if: startsWith(github.ref, 'refs/tags/v') && inputs.dry_run != true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # creating a release is a write to the repository
+      id-token: write      # sigstore signing of the attestation
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: dist/
+      - run: ls -la dist/
+
+      # The only integrity signal an unsigned installer has. It binds each file to the commit,
+      # workflow and runner that produced it, which is a different and weaker claim than a code
+      # signature — it says where the file came from, not that a named publisher stands behind it.
+      # Release notes must point reviewers at this and at SHA256SUMS, never at a way to click
+      # through the operating system's warning.
+      - uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.deb
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.deb
+            dist/SHA256SUMS-*
+          fail_on_unmatched_files: true

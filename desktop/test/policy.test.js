@@ -11,11 +11,14 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  agentBinaryCandidates,
+  agentExecutableName,
   consoleUrl,
   isNavigationAllowed,
   isPermissionGranted,
   originFromLine,
   redactToken,
+  resolveAgentBinary,
   tokenFromLine,
 } from '../src/policy.js';
 
@@ -167,4 +170,167 @@ test('every occurrence of the token is redacted from forwarded output', () => {
 test('redaction is a no-op before a token is known', () => {
   assert.equal(redactToken('warrantor: cannot bind', null), 'warrantor: cannot bind');
   assert.equal(redactToken(null, 'x'), '');
+});
+
+// ── binary resolution ─────────────────────────────────────────────────────────
+//
+// Which binary the shell spawns selects the verifier, because verification happens only in Rust and
+// only in that binary. The ordering below is therefore a security property, and an untested
+// ordering is an asserted one.
+
+const sources = (candidates) => candidates.map((candidate) => candidate.source);
+
+test('the bundled agent outranks everything else in a packaged app', () => {
+  const candidates = agentBinaryCandidates({
+    isPackaged: true,
+    resourcesPath: '/Applications/Warrantor.app/Contents/Resources',
+    warrantorBin: '/home/x/other/warrantor',
+    platform: 'darwin',
+  });
+  assert.deepEqual(sources(candidates), ['bundled', 'env', 'path']);
+  assert.equal(candidates[0].path, '/Applications/Warrantor.app/Contents/Resources/warrantor');
+});
+
+/**
+ * The mistake this catches: in development `process.resourcesPath` points inside
+ * `node_modules/electron/dist/resources`. A stale binary left there by an earlier experiment would
+ * be picked up as though it had been shipped, and it would outrank the one the developer meant.
+ */
+test('no bundled candidate exists outside a packaged app, resourcesPath or not', () => {
+  const candidates = agentBinaryCandidates({
+    isPackaged: false,
+    resourcesPath: '/repo/desktop/node_modules/electron/dist/resources',
+    warrantorBin: undefined,
+    platform: 'linux',
+  });
+  assert.deepEqual(sources(candidates), ['path']);
+});
+
+test('the executable name carries .exe only on Windows', () => {
+  assert.equal(agentExecutableName('win32'), 'warrantor.exe');
+  assert.equal(agentExecutableName('darwin'), 'warrantor');
+  assert.equal(agentExecutableName('linux'), 'warrantor');
+  const windows = agentBinaryCandidates({
+    isPackaged: true,
+    resourcesPath: 'C:\\Users\\x\\AppData\\Local\\Programs\\Warrantor\\resources',
+    warrantorBin: undefined,
+    platform: 'win32',
+  });
+  assert.equal(
+    windows[0].path,
+    'C:\\Users\\x\\AppData\\Local\\Programs\\Warrantor\\resources\\warrantor.exe',
+  );
+});
+
+test('a resourcesPath that already ends in a separator does not gain a second one', () => {
+  const [bundled] = agentBinaryCandidates({
+    isPackaged: true,
+    resourcesPath: '/opt/Warrantor/resources/',
+    warrantorBin: undefined,
+    platform: 'linux',
+  });
+  assert.equal(bundled.path, '/opt/Warrantor/resources/warrantor');
+});
+
+test('WARRANTOR_BIN ranks below the bundled agent and above PATH', () => {
+  const withEnv = agentBinaryCandidates({
+    isPackaged: false,
+    resourcesPath: '',
+    warrantorBin: '/home/x/rust/target/release/warrantor',
+    platform: 'linux',
+  });
+  assert.deepEqual(sources(withEnv), ['env', 'path']);
+  assert.equal(withEnv[0].path, '/home/x/rust/target/release/warrantor');
+});
+
+/**
+ * An unset, empty or whitespace value is *no instruction*, not an instruction to run "". Unchecked
+ * it becomes a candidate for the empty path, and `spawn('')` fails with a message about nothing —
+ * on Windows, in a GUI-subsystem binary, where that message is the only diagnosis available.
+ */
+test('an empty or non-string WARRANTOR_BIN produces no candidate at all', () => {
+  for (const value of ['', '   ', undefined, null, 0, {}]) {
+    const candidates = agentBinaryCandidates({
+      isPackaged: false,
+      resourcesPath: '',
+      warrantorBin: value,
+      platform: 'linux',
+    });
+    assert.deepEqual(sources(candidates), ['path'], `WARRANTOR_BIN=${String(value)}`);
+  }
+});
+
+test('the last candidate is always the bare name, for PATH resolution', () => {
+  for (const platform of ['win32', 'darwin', 'linux']) {
+    const candidates = agentBinaryCandidates({
+      isPackaged: true,
+      resourcesPath: '/r',
+      warrantorBin: '/e/warrantor',
+      platform,
+    });
+    const last = candidates[candidates.length - 1];
+    assert.equal(last.source, 'path');
+    assert.equal(last.path, agentExecutableName(platform));
+  }
+});
+
+// ── choosing from the candidates: there is no fallthrough ─────────────────────
+
+test('the bundled agent is chosen when it is there', () => {
+  const candidates = agentBinaryCandidates({
+    isPackaged: true,
+    resourcesPath: '/r',
+    warrantorBin: undefined,
+    platform: 'linux',
+  });
+  const { binary, error } = resolveAgentBinary(candidates, (path) => path === '/r/warrantor');
+  assert.equal(error, null);
+  assert.deepEqual(binary, { path: '/r/warrantor', source: 'bundled' });
+});
+
+/**
+ * The property this whole ordering exists for. A packaged app whose bundled agent is missing has a
+ * damaged install; running whatever `warrantor` happens to be on `PATH` instead would start
+ * normally and look correct while using a verifier nobody chose. It fails loudly instead.
+ */
+test('a missing bundled agent is fatal rather than a reason to try PATH', () => {
+  const candidates = agentBinaryCandidates({
+    isPackaged: true,
+    resourcesPath: '/r',
+    warrantorBin: '/e/warrantor',
+    platform: 'linux',
+  });
+  const { binary, error } = resolveAgentBinary(candidates, () => false);
+  assert.equal(binary, null);
+  assert.match(error, /\/r\/warrantor/);
+  assert.match(error, /bundled/);
+});
+
+/** An explicit instruction that is silently ignored substitutes a verifier the operator did not ask for. */
+test('a WARRANTOR_BIN that does not exist is fatal rather than a reason to try PATH', () => {
+  const candidates = agentBinaryCandidates({
+    isPackaged: false,
+    resourcesPath: '',
+    warrantorBin: '/typo/warrantor',
+    platform: 'linux',
+  });
+  const { binary, error } = resolveAgentBinary(candidates, () => false);
+  assert.equal(binary, null);
+  assert.match(error, /WARRANTOR_BIN/);
+  assert.match(error, /\/typo\/warrantor/);
+});
+
+/** `PATH` cannot be probed from here — resolving it is `spawn`'s job — so it is handed over as-is. */
+test('the PATH candidate is used without being probed', () => {
+  const candidates = agentBinaryCandidates({
+    isPackaged: false,
+    resourcesPath: '',
+    warrantorBin: undefined,
+    platform: 'win32',
+  });
+  const { binary, error } = resolveAgentBinary(candidates, () => {
+    throw new Error('the PATH candidate must never be probed');
+  });
+  assert.equal(error, null);
+  assert.deepEqual(binary, { path: 'warrantor.exe', source: 'path' });
 });

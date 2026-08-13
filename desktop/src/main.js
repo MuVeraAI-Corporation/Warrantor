@@ -32,16 +32,19 @@
  */
 
 import { spawn } from 'node:child_process';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { Menu, app, BrowserWindow, dialog, session, shell } from 'electron';
 
 import {
+  agentBinaryCandidates,
   consoleUrl,
+  describeBinarySource,
   isNavigationAllowed,
   isPermissionGranted,
   originFromLine,
   redactToken,
+  resolveAgentBinary,
   tokenFromLine,
 } from './policy.js';
 
@@ -89,12 +92,40 @@ let sessionToken = null;
  *
  * Release authority is **not** requested. The shell starts a viewer; arming settle is a thing an
  * operator does deliberately, at a terminal, having read what it means. A desktop icon that
- * silently held release authority would make the safest surface the most dangerous one.
+ * silently held release authority would make the safest surface the most dangerous one. Nothing may
+ * be added to these spawn arguments; `--allow-settle` in particular is the flag that would undo it.
+ *
+ * Which binary gets spawned is decided in `policy.js`. Do **not** add an integrity check on it
+ * here — no hash, no checksum, no signature comparison. Verification happens only in Rust, and a
+ * check above that line would be a second verifier that can disagree with the first, leaving a
+ * human to decide which to believe. Integrity of this file is the installer's job, the operating
+ * system's, and later the code signature's.
  */
 function startAgent() {
   return new Promise((resolve, reject) => {
-    const binary = process.env.WARRANTOR_BIN || 'warrantor';
-    const child = spawn(binary, ['serve', '--port', '0'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const { binary, error: resolutionError } = resolveAgentBinary(
+      agentBinaryCandidates({
+        isPackaged: app.isPackaged,
+        resourcesPath: process.resourcesPath,
+        warrantorBin: process.env.WARRANTOR_BIN,
+        platform: process.platform,
+      }),
+      existsSync,
+    );
+    if (!binary) {
+      reject(new Error(resolutionError));
+      return;
+    }
+
+    // Named in the trace and in both rejection messages below, because without it a broken install
+    // and an empty PATH produce the identical sentence — and on Windows this is a GUI-subsystem
+    // binary with no console, so that sentence is the only diagnosis a reviewer ever gets.
+    const binarySource = describeBinarySource(binary.source);
+    trace(`agent binary: ${binary.path} (${binarySource})`);
+
+    const child = spawn(binary.path, ['serve', '--port', '0'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
 
     let origin = null;
     let token = null;
@@ -105,7 +136,11 @@ function startAgent() {
       if (settled) return;
       settled = true;
       child.kill();
-      reject(new Error('the agent did not announce a token within 20 seconds'));
+      reject(
+        new Error(
+          `${binary.path} (${binarySource}) did not announce a token within 20 seconds`,
+        ),
+      );
     }, AGENT_STARTUP_TIMEOUT_MS);
 
     const finish = () => {
@@ -141,14 +176,18 @@ function startAgent() {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      reject(new Error(`could not start ${binary}: ${error.message}`));
+      reject(new Error(`could not start ${binary.path} (${binarySource}): ${error.message}`));
     });
 
     child.on('exit', (code) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      reject(new Error(`the agent exited with code ${code} before it was ready`));
+      reject(
+        new Error(
+          `${binary.path} (${binarySource}) exited with code ${code} before it was ready`,
+        ),
+      );
     });
   });
 }
