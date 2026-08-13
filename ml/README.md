@@ -434,6 +434,51 @@ Stated rather than buried:
 
 ---
 
+## The training programme — eight models, three lanes, one gate
+
+Specified in [RFC W2](../docs/rfcs/W2-model-intelligence-pipelines.md). Five more launchers,
+none of which trains anything or dispatches a job:
+
+```bash
+python ml/build_corpus.py --task guard --rows train.parquet --describe-only   # ALWAYS first
+python ml/build_corpus.py --task guard --rows train.parquet \
+    --selector weak-category --benign-ratio 1.0 \
+    --out corpora/weak.jsonl --manifest corpora/weak.manifest.json
+python ml/recipes.py                                       # the eight, with their digests
+python ml/lanes.py --recipe guard-4b-adversarial --lane kaggle-t4x2 --corpus-rows 20000
+python ml/export_lane_script.py --recipe guard-4b-adversarial --lane kaggle-t4x2 \
+    --out ml/kaggle/train_guard_4b_adversarial.py
+python ml/parity.py --result results/candidate.json --recipe guard-4b-adversarial \
+    --lane local-rtx5080 --precision gguf-q4_k_m --manifest-digest sha256:... \
+    --training-corpus corpora/weak.jsonl --eval-corpus eval/wildguard_test.jsonl
+```
+
+Four things worth knowing before running any of it.
+
+**`--describe-only` is not a convenience.** The measured weak-class names come from the *test*
+splits. A train split is not obliged to spell them the same way, and a selector written against
+the wrong spelling selects nothing — which looks exactly like a corpus that has no such rows.
+The selectors refuse by name rather than returning an empty set, and `--describe-only` is how you
+find out first.
+
+**`--benign-ratio` has no default.** An adapter trained only on the rows the baseline missed buys
+recall with the false-positive rate measured above, and the gate is two-sided precisely so that
+trade is refused. Zero is a legitimate choice; it just has to be written down.
+
+**The lane router refuses.** `ml/lanes.py` will not resolve a recipe that does not fit the lane's
+VRAM, or whose estimated wall clock exceeds Kaggle's 12-hour session cap without a
+`--resume-from`. Discovering that cap at hour eleven costs the week's 30 GPU-hours.
+
+**A cross-lane comparison is refused, not reported.** Kaggle's T4/P100 have no bf16, so a Kaggle
+adapter inherits fp16 loss scaling — and a guard model's product is a calibrated logit. The gate
+records lane and precision on both arms and returns `insufficient_evidence` rather than a delta.
+
+`ml/parity.py` exits 0 on `promote`, 1 on `reject` and **3** on `insufficient_evidence`. The
+third is not 1 on purpose: "we could not tell" and "it did not work" call for different next
+actions.
+
+---
+
 ## Tests
 
 ```bash
@@ -441,10 +486,17 @@ cd python/warrantor_ml && PYTHONPATH=src python -m pytest tests -q
 python tools/ci/run_python_checks.py lint     # 54/54 projects
 ```
 
-201 tests, none of which need a GPU, a download, or a running Ollama daemon. The three that
-carry the most weight:
+528 tests, none of which need a GPU, a download, a Hugging Face token or a running Ollama
+daemon. The ones that carry the most weight:
 
 - every required AIBOM field is deleted in turn and the builder must name it and refuse;
 - the confusion-matrix arithmetic is checked against hand-computed values, including the
   "95% accuracy, 0% recall" case the module exists to make visible;
-- `Safety: Safe` + `Categories: Jailbreak` must classify as harmful.
+- `Safety: Safe` + `Categories: Jailbreak` must classify as harmful;
+- the Python mirror of `WarrantBounds::contains` is checked against twelve vectors **decided by
+  Rust**, on both the verdict and which bound was blamed — and the test fails rather than skips
+  when its fixture is missing;
+- a candidate with genuinely better recall and a significantly worse false-positive rate is
+  **rejected**, because a one-sided gate promotes an adapter that refuses everything;
+- the report summariser refuses a `failed` bundle and an `unknown` one with *different*
+  messages, and the `unknown` message contains no accusation.

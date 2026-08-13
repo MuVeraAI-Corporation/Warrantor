@@ -27,6 +27,10 @@ hub = ["huggingface-hub>=0.23"]
 # Reading the WildGuardTest / ExpGuardTest parquet splits. Out of `dev` for the same reason as
 # `train`: both benchmark modules import it lazily and every test here runs without it.
 parquet = ["pyarrow>=15"]
+# The Modal lane. Its own extra rather than part of `train`, and never in `dev`: warrantor_ml
+# never imports modal -- `lane_export` RENDERS a Modal entrypoint as text and the orchestrator
+# runs it -- so pulling the SDK into CI would install a dependency nothing under test uses.
+modal = ["modal>=0.64"]
 
 [project.scripts]
 warrantor-ml-evaluate = "warrantor_ml.evaluate:main"
@@ -36,6 +40,11 @@ warrantor-ml-datasets = "warrantor_ml.datasets:main"
 warrantor-ml-model-card = "warrantor_ml.model_card:main"
 warrantor-ml-fine-tune = "warrantor_ml.fine_tune:main"
 warrantor-ml-deploy = "warrantor_ml.deploy_model:main"
+warrantor-ml-build-corpus = "warrantor_ml.build_corpus:main"
+warrantor-ml-recipes = "warrantor_ml.programme:recipes_main"
+warrantor-ml-lanes = "warrantor_ml.programme:lanes_main"
+warrantor-ml-export = "warrantor_ml.programme:export_main"
+warrantor-ml-parity = "warrantor_ml.programme:parity_main"
 
 [build-system]
 requires = ["setuptools>=68"]
