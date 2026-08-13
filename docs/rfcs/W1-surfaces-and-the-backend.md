@@ -183,7 +183,7 @@ New CLI verb: `warrantor console`, taking the same flags as `serve`.
 
 ## Testing
 
-`rust/warrant/tests/console.rs`, nine tests. The load-bearing one is
+`rust/warrant/tests/console.rs`, sixteen tests. The load-bearing one is
 `serving_the_console_does_not_make_the_api_reachable_without_a_token`: six `/v1` routes, including
 `settle`, are asserted to still refuse an anonymous caller. If a future refactor makes
 `console_asset` match too eagerly — a wildcard, a prefix test, a fallthrough to `index.html` for
@@ -193,6 +193,27 @@ unknown paths — it fails on the exact request an attacker would send.
 makes unauthenticated serving safe, rather than asserting it in a comment: two servers on different
 roots, one holding a warrant and one empty, must answer byte-identically.
 
+`the_console_carries_no_inline_script_handler_or_style_because_the_policy_forbids_them` and
+`the_console_loads_nothing_from_off_this_origin` guard the policy from the one direction nothing
+else covers. `script-src 'self'` carries no `unsafe-inline`, so an `onclick=` on a button, a
+`style=` attribute or an icon fetched from a CDN breaks *silently in the browser* while every other
+test here passes. These assert over the served bytes: exactly one `<script`, and it has a `src`; no
+`on…=` attribute; no `style=` or `<style`; no off-origin `src`, `href`, `url()` or `@import`.
+
+Four tests assert the first-run panel's prose, because that prose is the product's own statement of
+its boundary: that granting is deliberately absent rather than missing, that the reason is the
+minting of authority and the issuer key, that the grant line appears exactly as it is typed, and
+that `--write` is described as containment at settle rather than refusal at write. The last one also
+asserts the panel does **not** claim the agent is prevented from writing out of bounds —
+`bound_strengths()` marks `write_paths` **Observed**, and that label was wrong once already.
+`an_empty_store_and_an_empty_filter_are_different_sentences` pins that the four causes of an empty
+list have four wordings and that neither of the two most easily confused is a substring of the
+other.
+
+`emptyKind`'s branch selection cannot be exercised from Rust: there is no JavaScript runner, and
+§Dependencies forbids adding one. The test module says so in its own docs rather than implying
+coverage it does not have, and the manual runs below cover it.
+
 The rest cover content types, the policy headers, the absence of a CORS header, method refusal, the
 `/index.html` alias, and that presenting a token yields no different document.
 
@@ -201,6 +222,28 @@ server started, and the console loaded in Chrome. The list, verdict, report and 
 bundles and the three acts render; the fragment is erased after load; no CSP violation is reported.
 The launcher was verified through the full chain — shim, redirect carrying the fragment,
 authenticated console.
+
+The empty-store path is the one state a machine in use cannot reach, so it is reached by pointing
+the binary at a fresh store root — `WarrantStore::default_root` reads `HOME`, or `USERPROFILE` on
+Windows. Against a live `warrantor serve` on such a root, the four inputs `emptyKind` reads were
+each produced and observed: unfiltered and empty (`200`, zero rows, zero unreadable → first-run);
+`?state=held` on the same store (same triple with a filter on → filtered); one warrant restored
+under the running server (one row → the panel's clearing input, no restart); and an unparseable file
+in `warrants/` (zero rows, `unreadable_records: 1` → unreadable). The `error` rung was **not**
+exercised live: producing a non-200 from the list route needs an induced store failure, and the
+rung's justification is read off `list_warrants`'s `self.internal(...)` path rather than off a run.
+
+**Not yet verified for this change, and stated rather than implied:** the panel's rendering in a
+browser, the copy button and its selection fallback, and the **Show all** round trip. Those are DOM
+behaviour, and the coverage above stops at the bytes served and the JSON answered.
+
+A first-run gap this work did *not* close, found while reaching that state: on a machine that has
+never run any warrant-touching command there is no issuer key, and `warrantor serve` refuses to
+start rather than minting one — correctly, since a server that minted an identity on first use would
+sign evidence with a key nobody chose. So the true first contact for a brand-new user is that CLI
+refusal, not this panel. The panel covers the keyed-but-empty store, which is what a reviewer,
+a pruned store or an `mcp`-first setup actually presents. Closing the other half belongs with
+packaging (`docs/W1-delivery-gaps.md` §1.1–1.2), not with the console.
 
 ## Deployment
 

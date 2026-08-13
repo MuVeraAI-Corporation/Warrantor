@@ -35,11 +35,50 @@ It shells out to `warrantor` on `PATH`, or `WARRANTOR_BIN`. A reviewer has no `w
 so the app starts and immediately reports that it cannot find one. Packaging must ship the Rust
 binary inside the app and prefer the bundled copy.
 
-### 1.3 There is no first-run experience
+### 1.3 There is no first-run experience — **done**
 
-The console assumes a store that already exists. On a machine that has never run `warrantor grant`,
-the list is empty and nothing explains why, what a warrant is, or what to do next. An empty state
-that says "no warrants" to someone who has never had one is indistinguishable from a broken app.
+The console now explains the empty store instead of showing an empty list. On a machine that has
+never run `warrantor grant` it says what a warrant is, prints the grant line with a copy button, and
+states plainly that granting is terminal-only *because* granting mints authority and holds the
+issuer key — a boundary, not an unfinished screen. Leaving that unsaid made the product look broken
+at exactly the moment a new reader was deciding whether it worked.
+
+The change under the panel is smaller and matters more. One boolean —
+`listEmpty.hidden = rows.length > 0` — used to render four different facts as one sentence. It is
+now a total function over what the server actually answered, evaluated in this order:
+
+1. **`error`** — the list route did not answer with `200`. First, because the response parse turns
+   any errored or malformed body into zero rows, so without this rung a server-side failure would
+   tell someone with a full store that they had never granted a warrant. Absence of an answer is
+   not the answer "none".
+2. **`rows`** — there is something to show, so nothing to explain.
+3. **`unreadable`** — `unreadable_records > 0`. Counted over the store *before* the filter is
+   applied, so it is a filter-independent proof that this store holds files. A store the server
+   could not parse is not a store that has never granted, and saying otherwise would erase a
+   history and bury a corruption warning in the same sentence.
+4. **`filtered`** — a state chip is on. This is the bug named in this item's original text: a
+   filter that matched nothing is not a machine with no history, and collapsing the two makes a
+   chip look like data loss. The sidebar says so and offers one-click **Show all**.
+5. **`first-run`** — unfiltered, zero rows, zero unreadable. The only case where "this machine has
+   never granted a warrant" is a fact the response supports.
+
+No `/v1` route was added or changed, and no `total` field was introduced. Distinguishing the states
+by re-asking the server would make the console assert something the response it is rendering did not
+contain, and would race the five-second poll. The state is re-derived on every poll instead, so the
+panel clears itself within one tick of the first grant, with no reload.
+
+The panel's copy about `--write` says what is true and not what would sound better: an out-of-bounds
+write is contained at settle, never refused at the moment it happens (see 3.1). And it stays fixed
+prose compiled into the binary — nothing store-derived may be templated into a document that is
+served before the token check.
+
+**One half of this is still open, and it is not a console problem.** On a machine that has never run
+a warrant-touching command there is no issuer key, and `warrantor serve` refuses to start rather
+than minting one — correctly, because a server that minted an identity on first use would sign
+evidence with a key nobody chose. A brand-new user's first contact is therefore that CLI refusal,
+which the browser never gets a chance to explain. The panel covers the keyed-but-empty store, which
+is what a reviewer, a pruned store or an `mcp`-first setup presents. Covering the other half means
+the packaged app (1.1–1.2) taking the user through key creation before it opens a window.
 
 ### 1.4 Nothing refreshes — **done**
 
