@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warrantor — Deploying on AWS</title>
+<style>
+  :root{--bg:#fbfaf8;--fg:#23201c;--muted:#6b645c;--rule:#e2ddd5;--card:#fff;--accent:#8a4b2a;
+    --ok:#2f6b45;--warn:#8a6a1f;--bad:#8f3232;--code-bg:#f4f1ec;--band:#f0ebe3}
+  @media (prefers-color-scheme:dark){:root{--bg:#16140f;--fg:#ece7df;--muted:#a49c90;--rule:#322d26;
+    --card:#1e1b16;--accent:#d99a6c;--ok:#7dc79b;--warn:#d9bb6c;--bad:#e08c8c;--code-bg:#241f19;--band:#1c1913}}
+  :root[data-theme="dark"]{--bg:#16140f;--fg:#ece7df;--muted:#a49c90;--rule:#322d26;--card:#1e1b16;
+    --accent:#d99a6c;--ok:#7dc79b;--warn:#d9bb6c;--bad:#e08c8c;--code-bg:#241f19;--band:#1c1913}
+  :root[data-theme="light"]{--bg:#fbfaf8;--fg:#23201c;--muted:#6b645c;--rule:#e2ddd5;--card:#fff;
+    --accent:#8a4b2a;--ok:#2f6b45;--warn:#8a6a1f;--bad:#8f3232;--code-bg:#f4f1ec;--band:#f0ebe3}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.66 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .wrap{max-width:66rem;margin:0 auto;padding:3rem 1.5rem 6rem}
+  header{border-bottom:2px solid var(--fg);padding-bottom:1.5rem;margin-bottom:2.5rem}
+  h1{font-size:clamp(1.9rem,4vw,2.8rem);line-height:1.12;margin:0 0 .4rem;letter-spacing:-.015em}
+  .sub{color:var(--muted);font-size:1.05rem;margin:0}
+  .meta{color:var(--muted);font-size:.84rem;margin-top:.9rem;font-family:ui-monospace,Menlo,Consolas,monospace}
+  h2{font-size:1.5rem;margin:3.4rem 0 .3rem;padding-bottom:.35rem;border-bottom:1px solid var(--rule);letter-spacing:-.01em}
+  h3{font-size:1.16rem;margin:2.3rem 0 .4rem}
+  h4{font-size:.97rem;margin:1.3rem 0 .3rem;color:var(--accent)}
+  p{margin:.7rem 0}
+  .lede{font-size:1.08rem}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.87em;background:var(--code-bg);
+    padding:.1em .35em;border-radius:3px}
+  pre{background:var(--code-bg);border:1px solid var(--rule);border-radius:6px;padding:.9rem 1.1rem;
+    overflow-x:auto;font-size:.82rem;line-height:1.5}
+  pre code{background:none;padding:0}
+  .scroll{overflow-x:auto;margin:1rem 0;border:1px solid var(--rule);border-radius:6px}
+  table{border-collapse:collapse;width:100%;font-size:.86rem;font-family:system-ui,sans-serif}
+  th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{background:var(--code-bg);font-weight:600}
+  tbody tr:last-child td{border-bottom:none}
+  .card{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);
+    border-radius:6px;padding:1rem 1.2rem;margin:1.2rem 0}
+  .card.ok{border-left-color:var(--ok)}.card.warn{border-left-color:var(--warn)}
+  .card.bad{border-left-color:var(--bad)}
+  .card h4{margin-top:0}
+  .tag{display:inline-block;font-family:system-ui,sans-serif;font-size:.69rem;font-weight:600;
+    letter-spacing:.04em;text-transform:uppercase;padding:.15em .5em;border-radius:3px;
+    border:1px solid currentColor;white-space:nowrap}
+  .t-ok{color:var(--ok)}.t-no{color:var(--bad)}.t-part{color:var(--warn)}.t-new{color:var(--accent)}
+  ul,ol{padding-left:1.3rem}li{margin:.3rem 0}
+  .muted{color:var(--muted)}
+  hr{border:none;border-top:1px solid var(--rule);margin:2.6rem 0}
+  .footnote{font-size:.87rem;color:var(--muted)}
+  .diagram{background:var(--band);border:1px solid var(--rule);border-radius:8px;padding:1.1rem;
+    font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;line-height:1.45;overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Deploying on AWS</h1>
+  <p class="sub">A reference architecture for running Warrantor on AWS — grounded in what the codebase actually contains, which turns out to change the shape of the answer considerably.</p>
+  <p class="meta">Warrantor v1.0.0 &middot; 12 August 2026 &middot; measured from source, not from the compose file</p>
+</header>
+
+<p class="lede">Before any architecture, a measurement — because "deploy the entire platform on AWS" assumes the platform is a fleet of services, and most of it is not. Getting this wrong produces a beautiful diagram for software that does not exist.</p>
+
+<div class="card bad">
+  <h4>The finding that reshapes this whole document</h4>
+  <p><code>docker-compose.yml</code> defines 17 services. Checking each for an actual network listener:</p>
+  <ul>
+    <li><strong>Five are real HTTP servers</strong> — all Go: <code>agent-identity</code>,
+    <code>open-serve-kit</code>, <code>tee-serve</code>, <code>fleet-marshal</code>,
+    <code>edge-sentinel</code>. And all five are <strong>stateless, in-memory</strong> — not one
+    touches a database.</li>
+    <li><strong>Three are command-line tools</strong>, not services: <code>trust-core</code>,
+    <code>kill-switch</code>, <code>credential-vault</code>. Their containers run a CLI and exit.
+    You cannot put a CLI behind a load balancer.</li>
+    <li><strong>Two are health stubs</strong> — <code>flight-recorder</code> and
+    <code>inference-proxy</code> run a hand-written listener that answers every path with a fixed
+    <code>{"status":"ok"}</code>.</li>
+    <li><strong>The warrant core has no network surface at all.</strong> No <code>TcpListener</code>,
+    no HTTP framework anywhere in the crate. It speaks MCP over <em>stdio</em> and stores warrants as
+    JSON files under <code>~/.warrantor</code>.</li>
+  </ul>
+  <p>So there is no server-side product to deploy for the thing Warrantor actually is. That is not a
+  defect — it is a design choice, and a good one for a tool that supervises a developer's own agent
+  on a developer's own machine. But it means an AWS deployment is answering a different question than
+  "where do I host Warrantor".</p>
+</div>
+
+<h2>Three deployment postures, and which question each answers</h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th></th><th>Posture</th><th>What runs on AWS</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td><strong>A</strong></td><td><strong>Developer workstation</strong></td><td>Nothing. The CLI runs on the laptop it supervises.</td><td><span class="tag t-ok">works today</span></td></tr>
+    <tr><td><strong>B</strong></td><td><strong>Supervised CI fleet</strong></td><td>EC2 or ECS runners that each run <code>warrantor</code> locally, supervising an agent per job</td><td><span class="tag t-ok">works today</span></td></tr>
+    <tr><td><strong>C</strong></td><td><strong>Platform services</strong></td><td>The five stateless Go services behind an ALB</td><td><span class="tag t-part">deployable, limited value alone</span></td></tr>
+    <tr><td><strong>D</strong></td><td><strong>Multi-user oversight</strong></td><td>A warrant service + read API + console</td><td><span class="tag t-no">does not exist yet</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Most people asking this question want <strong>D</strong> — a place where a team's warrants live,
+where a compliance officer can look, where approvals happen. That requires code that has not been
+written. <strong>B</strong> is the posture that delivers value on AWS today and is where this document
+spends its detail.</p>
+
+<hr>
+
+<h2>Posture B — the supervised CI fleet</h2>
+
+<p>This is the one worth building first, because it is where unattended agents actually earn their
+keep: a build fleet that can run an agent against a repository for hours, with the warrant enforcing
+what it may touch and staged effects meaning nothing irreversible happens until a human settles it.</p>
+
+<div class="diagram">
+  ┌───────────────────────── AWS account ─────────────────────────┐
+  │                                                                │
+  │  ┌── VPC (private subnets, 2+ AZs) ─────────────────────────┐  │
+  │  │                                                           │  │
+  │  │   ┌─ ECS on EC2 / ASG ──────────────┐                     │  │
+  │  │   │  runner task                    │  one agent per task │  │
+  │  │   │   ├─ warrantor supervise        │  ── job object /    │  │
+  │  │   │   │   └─ coding agent           │     pdeathsig link  │  │
+  │  │   │   └─ EBS: /var/warrantor        │                     │  │
+  │  │   └─────────────────────────────────┘                     │  │
+  │  │            │ egress via NAT + allowlist                    │  │
+  │  └────────────┼──────────────────────────────────────────────┘  │
+  │               ▼                                                  │
+  │   VPC endpoints: S3 · ECR · Secrets Manager · CloudWatch         │
+  │                                                                  │
+  │   S3 (evidence, versioned + Object Lock)   KMS (settle key)      │
+  └──────────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>Why ECS on EC2 rather than Fargate</h3>
+
+<p>This is the decision that matters most, and the obvious answer is wrong.</p>
+
+<div class="card warn">
+  <h4>Fargate cannot give the supervision guarantee</h4>
+  <p>Warrantor's core promise is that an agent cannot outlive its supervisor, enforced by the kernel:
+  a Windows job object, or <code>setsid</code> plus <code>PR_SET_PDEATHSIG</code> on Linux. That link
+  is a property of the host's process tree.</p>
+  <p>Fargate gives you a managed container with no host access, no control over the init process, and
+  no ability to reason about what happens to descendants when the task is stopped. The mechanism may
+  still work inside the container — but you cannot verify it, and Warrantor's own doctrine is that a
+  guarantee you cannot verify should be reported as absent. On EC2 you own the host, can confirm the
+  process tree, and can run the same verification used in development: kill the supervisor, assert
+  the agent <em>and its grandchildren</em> are gone.</p>
+  <p>Fargate remains the right choice for posture C, where the workloads are ordinary stateless HTTP
+  services with no supervision semantics.</p>
+</div>
+
+<h3>Task sizing and isolation</h3>
+
+<p><strong>One agent per task, never several.</strong> The warrant bounds one agent; two agents in one
+task share a filesystem and a process namespace, and the write-path bound stops meaning anything.
+The isolation model is per-worktree, and a worktree assumes it is alone.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Resource</th><th>Recommendation</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Instance family</td><td><code>m7i</code> / <code>m7g</code> (Graviton)</td><td>Agent runs are memory- and IO-bound, not CPU-bound. Graviton is cheaper and the Rust CLI cross-compiles to <code>aarch64</code> cleanly — the release already ships that target.</td></tr>
+    <tr><td>Memory</td><td>≥ 8 GB per task</td><td>Learned the hard way: the Rust workspace exhausts memory under parallel builds. If agents compile, budget for it or pin <code>CARGO_BUILD_JOBS=1</code>.</td></tr>
+    <tr><td>Storage</td><td>EBS gp3, ≥ 50 GB, one volume per host</td><td>Git worktrees plus build artifacts. <code>~/.warrantor</code> must survive a task restart or in-flight warrants are orphaned.</td></tr>
+    <tr><td>Task timeout</td><td>Warrant deadline + 10 min</td><td>Let the warrant expire the agent, not ECS. The warrant terminates cleanly and writes a report; a task kill does not.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Egress control — where the warrant's allowlist becomes real</h3>
+
+<p>Warrantor's egress bound is enforced at the tool boundary: the proxy refuses a call whose URL host
+is not allowlisted. That stops an agent <em>asking</em> to reach an unapproved host. It does not stop
+a subprocess the agent spawned from opening a socket directly, because nothing in the warrant sits
+between that process and the network.</p>
+
+<div class="card">
+  <h4>AWS is where that gap actually closes</h4>
+  <p>This is the strongest argument for running agents on AWS rather than laptops. Put runners in a
+  private subnet with no internet gateway, and force all egress through a controlled path:</p>
+  <ul>
+    <li><strong>VPC endpoints</strong> for S3, ECR, Secrets Manager, CloudWatch — traffic never leaves
+    the AWS network, and no NAT charge.</li>
+    <li><strong>AWS Network Firewall</strong> with an FQDN allowlist for what genuinely must reach the
+    internet: <code>github.com</code>, <code>crates.io</code>, <code>registry.npmjs.org</code>,
+    <code>pypi.org</code>, and your model API endpoint.</li>
+    <li><strong>Security group egress</strong> denying everything not on that path.</li>
+  </ul>
+  <p>The warrant's <code>egress_hosts</code> list and the firewall rule should be generated from the
+  same source, or they will drift and the tighter one will be a surprise. Warrantor reports egress as
+  <em>Enforced</em>; with the network layer behind it, that word finally covers subprocesses too.</p>
+</div>
+
+<h3>Secrets and the settle key</h3>
+
+<p>Warrantor uses two keys, and the separation is the whole security model: the issuer key signs
+warrants, the settle key authorises releasing staged effects. Putting both in one place undoes it.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Key</th><th>Where</th><th>Reachable by</th></tr></thead>
+  <tbody>
+    <tr><td>Issuer key</td><td>Secrets Manager, task role read</td><td>The runner, to grant and supervise</td></tr>
+    <tr><td><strong>Settle key</strong></td><td><strong>KMS asymmetric, or a separate account</strong></td><td><strong>Never the runner.</strong> Only whoever approves</td></tr>
+    <tr><td>Model API keys</td><td>Secrets Manager, injected at task start</td><td>The agent process</td></tr>
+    <tr><td>Registry tokens</td><td>Not on the runner at all — OIDC at publish time</td><td>CI publish job only</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="card bad">
+  <h4>The mistake that would quietly void the design</h4>
+  <p>Giving the runner's task role read access to the settle key. It is the convenient thing to do —
+  everything then works without a second step — and it means the agent's host can release its own
+  staged effects. Every other control still <em>appears</em> to function; the property that made
+  staging worth anything is simply gone, silently.</p>
+  <p>The runner role should have an explicit <code>Deny</code> on the settle key ARN, not merely an
+  absent Allow. Absent permissions get granted later by someone solving a different problem; an
+  explicit Deny makes them argue with it.</p>
+</div>
+
+<h3>Evidence storage</h3>
+
+<p>Receipts and staged-effect logs are the audit trail, and an audit trail that can be edited is not
+one. S3 with <strong>versioning plus Object Lock in compliance mode</strong> makes them
+write-once — nobody, including the account root, can alter or delete an object before its retention
+expires.</p>
+
+<pre><code>s3://warrantor-evidence-&lt;account&gt;-&lt;region&gt;/
+  receipts/dt=2026-08-12/warrant=wrt_.../*.ocsf.json
+  staged/  dt=2026-08-12/warrant=wrt_.../queue.jsonl
+  reports/ dt=2026-08-12/warrant=wrt_.../report.json</code></pre>
+
+<p>Partitioned by date so Athena can query it without scanning everything, and by warrant so a single
+run's evidence is one prefix. Receipts are already emitted as <strong>OCSF 1.9.0</strong>
+(<code>class_uid 6003</code>), which Security Lake ingests natively — that is a genuinely short path
+from "we run agents" to "agent activity is in the same SIEM as everything else".</p>
+
+<hr>
+
+<h2>Posture C — the five stateless services</h2>
+
+<p>Worth stating plainly: deploying these gives you identity issuance, an inference proxy, a TEE
+serving sidecar, fleet coordination and an edge agent. It does <em>not</em> give you warrant
+supervision, which is the product. Deploy them if you need those components; do not expect them to
+add up to Warrantor.</p>
+
+<p>Because all five are stateless and in-memory, they are unusually easy to run — and unusually
+lossy. Anything they hold disappears on restart, so treat them as pure request/response and put real
+state in RDS or DynamoDB when the components grow it.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Choice</th><th>Take</th></tr></thead>
+  <tbody>
+    <tr><td><strong>ECS Fargate</strong></td><td><span class="tag t-ok">recommended</span> Five stateless HTTP services is exactly Fargate's case. No hosts to patch, no supervision semantics to preserve.</td></tr>
+    <tr><td>EKS</td><td>The Helm chart in <code>deploy/helm/</code> already exists and would work. Justified only if Kubernetes is already the org's platform — otherwise it is a control plane and a specialist for five stateless containers.</td></tr>
+    <tr><td>App Runner</td><td>Simplest, but no VPC-native egress control, which discards the main reason for choosing AWS here.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Images are already published to <code>ghcr.io</code> by the release workflow. Either pull from
+there or mirror into ECR — mirroring is worth it for pull-through caching and for keeping runners in
+a private subnet with no internet route.</p>
+
+<hr>
+
+<h2>What has to be built for posture D</h2>
+
+<p>This is the honest gap, and it is the same one the non-developer platform document identifies.
+Multi-user oversight on AWS needs three things that do not exist:</p>
+
+<ol>
+  <li><strong>A warrant service.</strong> Today the store is JSON files under <code>~/.warrantor</code>
+  on one machine. A team needs a service — and the moment it is a service it needs identity, which is
+  where <code>agent-identity</code> and the SPIFFE work stop being adjacent and become load-bearing.</li>
+  <li><strong>A read API.</strong> The console library expects one; nothing serves it.</li>
+  <li><strong>The console itself.</strong> There is no UI anywhere in the repository.</li>
+</ol>
+
+<p>The sequencing matters: on AWS, a warrant service is the natural home for the settle key, and the
+approval step becomes an API call from a console rather than a CLI command on a laptop. That is a
+better security posture than today's — but it is a build, not a deployment.</p>
+
+<hr>
+
+<h2>Data residency, which is a first-class requirement in these markets</h2>
+
+<p>The platform's primary markets make region choice a design input rather than an afterthought.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Market</th><th>Regions</th><th>What drives it</th></tr></thead>
+  <tbody>
+    <tr><td>India</td><td><code>ap-south-1</code> (Mumbai), <code>ap-south-2</code> (Hyderabad)</td><td>DPDP. Agents touch source code and may touch personal data; evidence records what was accessed. Keep receipts in-region and say so.</td></tr>
+    <tr><td>GCC</td><td><code>me-central-1</code> (UAE), <code>me-south-1</code> (Bahrain)</td><td>SDAIA's framework expects continuous monitoring; DIFC Reg 10 expects auditable automated decisions. Both are easier to evidence when the evidence never leaves the jurisdiction.</td></tr>
+    <tr><td>US</td><td><code>us-east-1</code>, <code>us-west-2</code>; GovCloud where required</td><td>Supervisory expectations attach to the action, not the region — but examiners ask where records live.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="card warn">
+  <h4>The residency hole most architectures leave open</h4>
+  <p>You can pin every AWS resource to one region and still send the agent's entire context to a
+  model API in another country on every call. The model endpoint is the residency boundary that
+  matters most and the one least often drawn on the diagram.</p>
+  <p>Options, in descending order of assurance: Bedrock in-region with a model available there;
+  a self-hosted open-weight model on <code>g5</code>/<code>p4d</code> instances in the same VPC
+  (which is what <code>open-serve-kit</code> and <code>tee-serve</code> are for); or a third-party API
+  with a contractual residency commitment. Warrantor's egress allowlist is where you make that choice
+  explicit and enforceable.</p>
+</div>
+
+<hr>
+
+<h2>Observability</h2>
+
+<p>Three signals matter, and only one is conventional:</p>
+
+<ul>
+  <li><strong>Refusal telemetry.</strong> What agents attempted and were stopped from doing, with
+  counts. A run with twenty refusals of one tool means the warrant was drawn wrong; a single refusal
+  means an agent reached beyond its grant. Ship these as CloudWatch metrics with dimensions on tool
+  and bound, and alarm on a rate change rather than a threshold.</li>
+  <li><strong>Warrants left Open with no live supervisor.</strong> This is the interrupted-run state,
+  and silence is its failure mode. A scheduled reconciliation task publishing a metric for interrupted
+  warrants catches the case where a host died and nobody noticed.</li>
+  <li><strong>Settle outcomes</strong>, split by complete versus <em>Held</em>. A rising Held rate
+  means external effects are failing partway, which is exactly when someone needs to look.</li>
+</ul>
+
+<p>Receipts go to S3 as OCSF and into Security Lake. CloudWatch is for the operational signals above;
+do not duplicate the evidence trail there, because two records of the same event with different
+retention rules is an audit problem rather than redundancy.</p>
+
+<hr>
+
+<h2>Cost</h2>
+
+<p>Order-of-magnitude for a small fleet, on-demand pricing, excluding model API spend — which will
+dominate everything below it.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Item</th><th>Shape</th><th>Note</th></tr></thead>
+  <tbody>
+    <tr><td>Runner instances</td><td>Dominant line</td><td>Spot suits agent runs well: the warrant already handles interruption, and an interrupted run is reported rather than lost. Graviton plus Spot is the biggest lever available.</td></tr>
+    <tr><td>NAT Gateway</td><td>Surprisingly large</td><td>Per-GB processing on every package download. VPC endpoints for S3 and ECR remove most of it — this is usually the second-biggest saving.</td></tr>
+    <tr><td>Network Firewall</td><td>Fixed hourly + per-GB</td><td>Real money for a small fleet. Security-group egress rules cost nothing and cover much of it; add the firewall when FQDN filtering is genuinely required.</td></tr>
+    <tr><td>S3 + Object Lock</td><td>Small</td><td>Receipts are JSON. Lifecycle to Glacier past the retention floor.</td></tr>
+    <tr><td>Fargate (posture C)</td><td>Small</td><td>Five stateless services scale to near zero between requests.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p class="footnote">Deliberately no dollar figures: they would be wrong by region, wrong by the time
+you read this, and precision here implies a rigour the estimate does not have. Model the shape, then
+price it with the AWS calculator for your region and fleet size.</p>
+
+<hr>
+
+<h2>Build order</h2>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Phase</th><th>Deliverable</th><th>Proves</th></tr></thead>
+  <tbody>
+    <tr><td><strong>0</strong></td><td>One EC2 instance, <code>warrantor</code> installed from the v1.0.0 release, one agent run end to end</td><td>The supervision link holds on your AMI. Kill the supervisor; assert the agent and its grandchildren die. Do not skip this — it is the assumption everything else rests on.</td></tr>
+    <tr><td><strong>1</strong></td><td>VPC, private subnets, VPC endpoints, egress allowlist</td><td>An agent cannot reach a host the warrant does not name, even from a subprocess</td></tr>
+    <tr><td><strong>2</strong></td><td>ECS on EC2, one agent per task, EBS-backed <code>~/.warrantor</code></td><td>Warrants survive task restarts; deadlines are enforced by the warrant, not the scheduler</td></tr>
+    <tr><td><strong>3</strong></td><td>KMS settle key with explicit runner Deny; S3 evidence with Object Lock</td><td>The runner cannot settle its own work; the audit trail cannot be edited</td></tr>
+    <tr><td><strong>4</strong></td><td>OCSF receipts into Security Lake; CloudWatch refusal and interrupted-warrant metrics</td><td>Continuous monitoring, in the sense supervisors mean it</td></tr>
+    <tr><td><strong>5</strong></td><td>Posture C services on Fargate, if needed</td><td>—</td></tr>
+    <tr><td><strong>6</strong></td><td>Warrant service, read API, console</td><td>Multi-user oversight. This is a build, not a deployment.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="card ok">
+  <h4>Phase 0 is the one people skip and should not</h4>
+  <p>Every guarantee in this document is downstream of the process-lifetime link working on your host.
+  It has been verified on Windows and on Linux with <code>setsid</code> + <code>PR_SET_PDEATHSIG</code>
+  — but not on your AMI, your kernel, your container runtime. The verification is three commands:
+  start a run, kill the supervisor, check the agent and a grandchild are gone.</p>
+  <p>If it does not hold, Warrantor tells you so at startup rather than pretending. Read what it
+  reports before building six phases on top of it.</p>
+</div>
+
+<hr>
+
+<h2>What this document deliberately does not include</h2>
+
+<ul>
+  <li><strong>Terraform.</strong> Writing modules for an architecture nobody has run once produces
+  code that looks authoritative and has never been executed — the same failure this project has spent
+  a day removing elsewhere. Phase 0 first, then generate IaC from what actually worked.</li>
+  <li><strong>A multi-account landing zone.</strong> Correct at scale, and premature before a single
+  agent run has succeeded in one account.</li>
+  <li><strong>Autoscaling policies.</strong> Meaningless without observed run durations. Measure a
+  week of real runs first; the distribution is bimodal in practice and generic policies handle that
+  badly.</li>
+</ul>
+
+<p class="footnote">Architecture facts here were measured from the repository at v1.0.0: which
+services have HTTP listeners, which are CLIs, which are stubs, whether the warrant store has a network
+surface, and what state each Go service keeps. AWS service capabilities are as of August 2026 and
+should be re-checked against current documentation before committing to a design.</p>
+
+</div>
+</body>
+</html>
