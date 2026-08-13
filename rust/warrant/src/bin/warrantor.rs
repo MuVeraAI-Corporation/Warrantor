@@ -1742,6 +1742,11 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
             "read and stop only -- settle and void refuse. Pass --allow-settle to arm them."
         }
     );
+    // The token rides in the URL *fragment*, not the query string. A fragment is never sent to a
+    // server, so it cannot reach an access log, a proxy, or a Referer header on the way out. The
+    // console reads it once, erases it from the address bar and from the history entry, and holds
+    // it in memory for that tab only. A query string would do none of those things.
+    println!("  console       http://{addr}/#t={}", token.as_str());
     println!(
         "  try           curl -H \"authorization: Bearer {}\" http://{addr}/v1/health",
         token.as_str()

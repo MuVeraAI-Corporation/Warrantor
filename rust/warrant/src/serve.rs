@@ -628,17 +628,29 @@ pub fn is_warrant_id(value: &str) -> bool {
 
 /// One response, ready to write.
 ///
-/// There are exactly two constructors, [`Response::json`] and [`Response::error`], and every route
-/// exits through one of them. Single-response-per-request framing and the presence of the
-/// verification envelope are therefore structural properties of this type rather than a discipline
-/// applied at thirty call sites — the same reason [`crate::mcp`] has exactly two write paths.
+/// There are exactly three constructors — [`Response::json`], [`Response::error`] and
+/// [`Response::asset`] — and every route exits through one of them. Single-response-per-request
+/// framing and the presence of the verification envelope are therefore structural properties of
+/// this type rather than a discipline applied at thirty call sites — the same reason
+/// [`crate::mcp`] has exactly two write paths.
+///
+/// [`Response::asset`] is the one that carries no verification envelope, and it is the only
+/// constructor whose body a route did not compute: it serves a fixed byte string compiled into
+/// this binary. That is what keeps the exception narrow. An asset makes no claim about a warrant,
+/// so there is no verdict for it to carry and none is invented.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Response {
     /// HTTP status.
     pub status: u16,
-    /// The JSON body.
+    /// The JSON body. Empty and unused when [`Response::asset`] built this.
     pub body: Value,
     headers: Vec<(&'static str, &'static str)>,
+    /// A pre-encoded body and its content type, when this is a static asset.
+    ///
+    /// `'static` on both halves is deliberate: the only thing that can become an asset is
+    /// something already in the binary, so no caller-supplied bytes and no filesystem read can
+    /// reach this field. The console cannot be made to serve a file off the disk.
+    asset: Option<(&'static str, &'static [u8])>,
 }
 
 impl Response {
@@ -653,6 +665,22 @@ impl Response {
                 "data": data,
             }),
             headers: Vec::new(),
+            asset: None,
+        }
+    }
+
+    /// A static asset: bytes already in this binary, with the content type to send them as.
+    ///
+    /// Carries no verification envelope, because it makes no claim that could be verified — see
+    /// the note on [`Response`]. The hardening headers a document needs are attached by
+    /// [`console_asset`], not here, so this constructor stays a dumb byte carrier.
+    #[must_use]
+    pub fn asset(status: u16, content_type: &'static str, bytes: &'static [u8]) -> Self {
+        Self {
+            status,
+            body: Value::Null,
+            headers: Vec::new(),
+            asset: Some((content_type, bytes)),
         }
     }
 
@@ -665,6 +693,7 @@ impl Response {
     pub fn error(status: u16, code: &str, message: &str, verification: &Verification) -> Self {
         Self {
             status,
+            asset: None,
             body: json!({
                 "error": { "code": code, "message": message },
                 "verified": verification.verified(),
@@ -729,18 +758,28 @@ fn refuse(status: u16, code: &str, message: &str) -> Response {
 /// I/O failures on the writer only. There is no path by which a response fails to *serialise*: the
 /// body is a [`Value`] the two constructors built.
 pub fn write_response<W: Write>(out: &mut W, response: &Response) -> std::io::Result<()> {
-    let body = serde_json::to_vec(&response.body).unwrap_or_else(|_| {
-        // Unreachable with a body built by the two constructors, and handled anyway: this process
-        // aborts on panic, so "cannot happen" is not a licence to unwrap.
-        br#"{"error":{"code":"internal","message":"the response could not be encoded"}}"#.to_vec()
-    });
+    // An asset is already bytes; everything else is serialised JSON. The framing below is
+    // identical either way, so a static document cannot accidentally acquire different
+    // connection semantics from an API answer.
+    let (content_type, body) = match response.asset {
+        Some((content_type, bytes)) => (content_type, bytes.to_vec()),
+        None => (
+            "application/json",
+            serde_json::to_vec(&response.body).unwrap_or_else(|_| {
+                // Unreachable with a body built by the constructors, and handled anyway: this
+                // process aborts on panic, so "cannot happen" is not a licence to unwrap.
+                br#"{"error":{"code":"internal","message":"the response could not be encoded"}}"#
+                    .to_vec()
+            }),
+        ),
+    };
     write!(
         out,
         "HTTP/1.1 {} {}\r\n",
         response.status,
         reason_phrase(response.status)
     )?;
-    out.write_all(b"content-type: application/json\r\n")?;
+    write!(out, "content-type: {content_type}\r\n")?;
     write!(out, "content-length: {}\r\n", body.len())?;
     out.write_all(b"connection: close\r\n")?;
     out.write_all(b"cache-control: no-store\r\n")?;
@@ -1277,6 +1316,76 @@ fn bearer_of(header: &str) -> Option<&str> {
     }
 }
 
+// ── the console, served same-origin ───────────────────────────────────────────────────
+
+/// `index.html`, compiled in.
+const CONSOLE_HTML: &str = include_str!("console/index.html");
+/// `console.css`, compiled in.
+const CONSOLE_CSS: &str = include_str!("console/console.css");
+/// `console.js`, compiled in.
+const CONSOLE_JS: &str = include_str!("console/console.js");
+
+/// The content security policy the console document is served under.
+///
+/// `connect-src 'self'` is the load-bearing directive. The console holds a token to an API that
+/// can hold settle authority, so the question that matters is not whether a script can run but
+/// where it could send what it read. Restricting connections to this origin means a script that
+/// somehow executed here has nowhere to send the token: no beacon, no image ping, no websocket.
+/// `default-src 'none'` makes every other fetch category deny-by-default rather than
+/// allow-by-omission — the same rule this product applies to bounds, where an absent limit means
+/// none and never unlimited.
+///
+/// `frame-ancestors 'none'` is the other half of the CORS decision recorded at the top of this
+/// module. Refusing cross-origin *reads* would be undone if a hostile page could frame the console
+/// and drive it as the user, so framing is refused too.
+const CONSOLE_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; \
+                           connect-src 'self'; img-src 'self' data:; base-uri 'none'; \
+                           form-action 'none'; frame-ancestors 'none'";
+
+/// Serve a console asset, or `None` when the path is not one.
+///
+/// # Why this runs before authentication
+///
+/// A browser cannot put an `Authorization` header on the navigation that loads a page, so a
+/// token-gated document could never be opened by the client it exists for. Serving it
+/// unauthenticated is safe for one specific reason, and only that reason: these three responses
+/// are fixed byte strings compiled into the binary. They contain no warrant, no id, no store path
+/// and no token, and they are byte-identical whether or not this machine has ever granted a
+/// warrant. An unauthenticated caller learns exactly one thing — that something is listening —
+/// which the TCP handshake already told them.
+///
+/// The property that matters is therefore untouched: `/v1` still answers 401 before [`resolve`]
+/// runs, so an unauthenticated caller still cannot tell a real warrant id from an invented one.
+/// This function returns `None` for every `/v1` path, and the router below is unreachable from it.
+fn console_asset(request: &HttpRequest) -> Option<Response> {
+    let parts: Vec<&str> = request.segments.iter().map(String::as_str).collect();
+    let (content_type, bytes) = match parts.as_slice() {
+        [] | ["index.html"] => ("text/html; charset=utf-8", CONSOLE_HTML.as_bytes()),
+        ["console.css"] => ("text/css; charset=utf-8", CONSOLE_CSS.as_bytes()),
+        ["console.js"] => ("text/javascript; charset=utf-8", CONSOLE_JS.as_bytes()),
+        _ => return None,
+    };
+
+    // A document is a GET. Anything else is a mistake worth naming rather than a body to ignore.
+    if request.method != "GET" {
+        return Some(
+            refuse(
+                status::METHOD_NOT_ALLOWED,
+                "method_not_allowed",
+                "the console is served over GET",
+            )
+            .with_header("Allow", "GET"),
+        );
+    }
+
+    Some(
+        Response::asset(status::OK, content_type, bytes)
+            .with_header("content-security-policy", CONSOLE_CSP)
+            .with_header("x-frame-options", "DENY")
+            .with_header("referrer-policy", "no-referrer"),
+    )
+}
+
 /// Authenticate, then dispatch.
 ///
 /// The order is the point. A 401 is answered before [`resolve`] runs, so an unauthenticated caller
@@ -1285,6 +1394,13 @@ fn bearer_of(header: &str) -> Option<&str> {
 /// token was close, or that this store holds anything at all — the notary's rule, that a denial
 /// which explains itself describes the shape of the boundary.
 pub fn handle<A: Api>(api: &mut A, token: &SessionToken, request: &HttpRequest) -> Response {
+    // The console document, stylesheet and script are served before the token check. See
+    // [`console_asset`] for why that does not weaken the line above: it answers only for paths
+    // that carry no store data, and returns `None` for every `/v1` path.
+    if let Some(response) = console_asset(request) {
+        return response;
+    }
+
     let presented = request.authorization.as_deref().and_then(bearer_of);
     let authenticated = presented.is_some_and(|value| token.matches(value));
     if !authenticated {
