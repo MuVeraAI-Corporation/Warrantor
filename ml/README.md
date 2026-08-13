@@ -384,6 +384,30 @@ enforces that the substrate cannot:
 
 ---
 
+## Where this evaluator meets the running product
+
+`rust/warrant/src/guard.rs` calls the same class of local ollama backend during a **live supervised
+MCP session**, and records what it thought as observe-only signals against a warrant. It never
+blocks: see [RFC W2](../docs/rfcs/W2-guard-signals-in-a-live-run.md) for the argument, which is
+built on the two numbers in this file.
+
+Two things to know if you change `evaluate.py`:
+
+- **`parse_guard_response` now exists twice**, here and in Rust. Both are pinned to
+  `testvectors/guard/parse-cases.json`, read by `python/warrantor_ml/tests/test_evaluate.py` and by
+  `rust/warrant/tests/guard.rs`. Change the parser and you change the fixture, or one of the two
+  suites fails — which is the point, because the `Safety: Safe` + `Categories: Jailbreak` finding is
+  exactly the kind that gets lost in a second implementation.
+- **One deliberate divergence: the transport-failure rule.** This evaluator is fail-closed and
+  scores a backend error as harmful, which is right when measuring recall against known labels. The
+  Rust adapter blocks nothing, so scoring a dead backend as harmful there would manufacture a
+  verdict no model produced and inflate every count an operator reads. It records
+  `backend_unavailable` instead — its own outcome, never `not_harmful`. Fail-closed there means the
+  failure is **visible**, which is the same thing `--fail-open` is warned about here, reached by a
+  different route.
+
+---
+
 ## Open items this code does not resolve
 
 Stated rather than buried:
