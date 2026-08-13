@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Warrantor</title>
+    <link rel="stylesheet" href="/console.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <span>Warrantor</span>
+      </div>
+      <div class="bar-meta">
+        <span id="authority" class="pill pill-quiet" title="Whether this server holds release authority">authority &hellip;</span>
+        <span id="health" class="pill pill-quiet">connecting&hellip;</span>
+      </div>
+    </header>
+
+    <!-- Shown when no token is present. The console is useless without one and says so
+         plainly rather than rendering an empty list that looks like "no warrants". -->
+    <section id="gate" class="gate" hidden>
+      <h1>This console needs the session token</h1>
+      <p>
+        <code>warrantor serve</code> mints a token per run and prints a link that carries it.
+        Open that link, or paste the token below. It is held in memory for this tab only &mdash;
+        never stored, never sent anywhere but this local server.
+      </p>
+      <form id="gate-form">
+        <input
+          id="gate-input"
+          type="password"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="session token"
+          aria-label="session token"
+        />
+        <button type="submit">Connect</button>
+      </form>
+      <p id="gate-error" class="error" hidden></p>
+    </section>
+
+    <main id="app" hidden>
+      <nav class="side">
+        <div class="filters" role="group" aria-label="Filter by state">
+          <button class="chip is-on" data-state="">All</button>
+          <button class="chip" data-state="open">Open</button>
+          <button class="chip" data-state="held">Held</button>
+          <button class="chip" data-state="settled">Settled</button>
+          <button class="chip" data-state="void">Void</button>
+        </div>
+        <ul id="list" class="list"></ul>
+        <p id="list-empty" class="empty" hidden>No warrants in this view.</p>
+      </nav>
+
+      <section id="detail" class="detail">
+        <div class="placeholder">Select a warrant.</div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="/console.js"></script>
+  </body>
+</html>

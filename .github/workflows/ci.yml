@@ -233,10 +233,29 @@ jobs:
           path: evidence/implementation-tracker.json
           if-no-files-found: error
 
+  desktop:
+    name: Desktop shell policy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      # No `npm ci`, and no Electron. The shell's security decisions -- which origin the window may
+      # navigate to, which permissions are granted, which line carries the token -- live in
+      # `src/policy.js`, which imports nothing. So this gate needs no dependency install, no
+      # ~150 MB Chromium download and no display, and it still covers the code where a mistake
+      # would matter. Everything Electron-specific is wiring around those functions.
+      - name: Run policy tests
+        run: node --test
+
   required:
     name: Required checks
     if: always()
-    needs: [dco, contract-plane, rust, python, go, typescript, conformance, docs]
+    needs: [dco, contract-plane, rust, python, go, typescript, conformance, docs, desktop]
     runs-on: ubuntu-latest
     steps:
       - name: Enforce all required jobs
@@ -249,7 +268,8 @@ jobs:
           TYPESCRIPT: ${{ needs.typescript.result }}
           CONFORMANCE: ${{ needs.conformance.result }}
           DOCS: ${{ needs.docs.result }}
+          DESKTOP: ${{ needs.desktop.result }}
         run: |
-          for result in "$DCO" "$CONTRACT_PLANE" "$RUST" "$PYTHON" "$GO" "$TYPESCRIPT" "$CONFORMANCE" "$DOCS"; do
+          for result in "$DCO" "$CONTRACT_PLANE" "$RUST" "$PYTHON" "$GO" "$TYPESCRIPT" "$CONFORMANCE" "$DOCS" "$DESKTOP"; do
             test "$result" = "success"
           done

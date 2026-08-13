@@ -29,6 +29,11 @@ python/**/dist/
 
 # TypeScript / Node
 typescript/**/node_modules/
+# The desktop shell is not part of the typescript workspace: it is installed on its own so a
+# ~150 MB Electron download is never part of the workspace install, and its policy tests need
+# neither. Ignored here rather than by a broader pattern, so a stray node_modules elsewhere in
+# the tree is still noticed.
+desktop/node_modules/
 typescript/**/dist/
 typescript/**/build/
 typescript/**/.next/
