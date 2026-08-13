@@ -737,8 +737,22 @@ impl SpendStore {
         issuer: &VerifyingKey,
     ) -> Result<SpendLedger, SpendError> {
         let path = self.path(warrant_id);
-        let Ok(body) = std::fs::read(&path) else {
-            return Ok(SpendLedger::new(bounds, warrant_id, subject));
+        // Only a genuinely absent ledger means "nothing recorded yet". Any other read failure --
+        // permissions, a bad disk, a locked file -- is unknown spend, and the block below already
+        // refuses to treat an unreadable ledger as zero. Folding every error into "start fresh"
+        // contradicted it and silently reset the cap for whoever could arrange the read to fail.
+        let body = match std::fs::read(&path) {
+            Ok(body) => body,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(SpendLedger::new(bounds, warrant_id, subject))
+            }
+            Err(e) => {
+                return Err(SpendError::Encode(format!(
+                    "{} exists but could not be read: {e}. Refusing to treat an unreadable ledger \
+                     as zero spend.",
+                    path.display()
+                )))
+            }
         };
         let signed: SignedSpend = serde_json::from_slice(&body).map_err(|e| {
             SpendError::Encode(format!(

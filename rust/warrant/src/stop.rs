@@ -860,9 +860,15 @@ impl StopStore {
     /// Answered from the file's **existence**, deliberately: a stop record that is corrupt or
     /// unparseable still means someone stopped this warrant, and treating it as unstopped because
     /// it will not deserialise would be the one failure direction that matters.
+    ///
+    /// `try_exists` rather than `exists`, for exactly the same reason. `Path::exists` returns
+    /// `false` when the answer is *unknown* — a permission error, an I/O failure, a disconnected
+    /// volume — and it folds that into the same answer as "definitely not stopped". That would drop
+    /// the warrant out of [`Self::contained_scopes`], and the notary's containment gate would then
+    /// pass for a warrant somebody had stopped. Unknown resolves to stopped.
     #[must_use]
     pub fn is_stopped(&self, warrant_id: &str) -> bool {
-        self.path(warrant_id).exists()
+        self.path(warrant_id).try_exists().unwrap_or(true)
     }
 
     /// The scopes to hand the notary's containment gate for this warrant.

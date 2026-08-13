@@ -350,3 +350,47 @@ fn a_live_daemon_outranks_an_old_completion_record() {
         "a running supervisor is the truth, whatever an earlier run recorded"
     );
 }
+
+/// A second run must not inherit the first run's completion record.
+///
+/// Without clearing it at register time, a re-run that crashed would find the earlier record and be
+/// reported as "finished on its own (agent exit 0)" -- the exact inversion the completion record
+/// was introduced to prevent, one run later.
+#[test]
+fn a_new_run_clears_the_previous_runs_completion_record() {
+    let dir = tempdir("stale");
+    let store = WarrantStore::open(&dir).expect("store");
+    let state = DaemonState::open(&dir).expect("state");
+    store
+        .save(&stored("wrt_rerun", WarrantState::Open))
+        .expect("save");
+    state
+        .record_completion(&CompletionRecord {
+            warrant_id: "wrt_rerun".to_string(),
+            pid: 1,
+            exit_code: 0,
+            expired: false,
+            finished_at: NOW,
+        })
+        .expect("first run finished");
+
+    // A second run starts, then its supervisor dies without recording a completion.
+    state
+        .register(&record("wrt_rerun", 4242, &dir))
+        .expect("register");
+    assert!(
+        state.completion("wrt_rerun").is_none(),
+        "registering a new run must clear the old completion record"
+    );
+
+    let found = state.reconcile(&store, &|_| false).expect("reconcile");
+    match found.get("wrt_rerun") {
+        Some(Reconciliation::Interrupted { detail }) => {
+            assert!(
+                !detail.contains("finished on its own"),
+                "a crashed re-run must not inherit the earlier run's success: {detail}"
+            );
+        }
+        other => panic!("expected Interrupted for a crashed re-run, got {other:?}"),
+    }
+}

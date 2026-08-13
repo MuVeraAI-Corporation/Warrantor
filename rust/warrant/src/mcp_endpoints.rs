@@ -132,10 +132,24 @@ impl ControlEndpoint {
                 "\"tools\" must list at least one tool: a warrant with no tools can do nothing",
             );
         }
-        let deadline = arguments
-            .get("deadline_seconds")
-            .and_then(Value::as_u64)
-            .unwrap_or(8 * 3600);
+        // `as_u64` yields None for a JSON string ("300"), a float (300.0) and a negative number --
+        // all shapes an LLM caller routinely emits. Folding those into the default silently granted
+        // 8 hours to a caller who asked for 5 minutes: 96x the authority requested, with no error,
+        // on a bound that is genuinely Enforced. Absent means default; present-but-unreadable means
+        // refuse.
+        let deadline = match arguments.get("deadline_seconds") {
+            None => 8 * 3600,
+            Some(value) => match value.as_u64() {
+                Some(seconds) if seconds > 0 => seconds,
+                _ => {
+                    return ToolResult::error(format!(
+                        "deadline_seconds must be a positive whole number of seconds, not {value}. \
+                         Refusing rather than defaulting: defaulting here would hand you 8 hours \
+                         when you asked for something shorter."
+                    ))
+                }
+            },
+        };
         // Parsed before anything is signed or created, so a bad ceiling costs the caller an error
         // message rather than a worktree and a warrant they then have to void.
         let budget_cents_observed = match optional_cents(arguments, "budget_cents") {

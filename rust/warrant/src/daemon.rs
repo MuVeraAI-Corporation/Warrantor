@@ -143,6 +143,19 @@ impl DaemonState {
     /// # Errors
     /// [`WarrantError::Encode`] on I/O or serialisation failure.
     pub fn register(&self, record: &DaemonRecord) -> Result<(), WarrantError> {
+        // A new run supersedes whatever the previous one recorded. Without this, a second run that
+        // crashed would still find the first run's completion record and be reported to the
+        // operator as "finished on its own (agent exit 0)" -- the exact inversion the completion
+        // record was added to prevent, one run later.
+        match std::fs::remove_file(self.completion_path(&record.warrant_id)) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => {
+                return Err(WarrantError::Encode(format!(
+                    "clear stale completion record: {e}"
+                )))
+            }
+        }
         let body = serde_json::to_vec_pretty(record)
             .map_err(|e| WarrantError::Encode(format!("serialise daemon record: {e}")))?;
         std::fs::write(self.path(&record.warrant_id), body)
