@@ -14,6 +14,7 @@ use crate::mcp::{require_str, string_list, Endpoint, ToolResult, ToolSpec};
 use crate::proxy::{Decision, Proxy, ToolCall};
 use crate::settle::{settle, void, EffectPerformer};
 use crate::staging::{EffectRegistry, StagingQueue};
+use crate::stop::{OsProcessControl, StopStore};
 use crate::store::{StoredWarrant, WarrantStore};
 use crate::worktree::Worktree;
 use crate::{SideEffectClass, Warrant, WarrantBounds, WarrantState};
@@ -91,7 +92,12 @@ impl ControlEndpoint {
             // Writes are staged unless the caller says otherwise: the safe reading of silence.
             staged_classes: [SideEffectClass::Write].into_iter().collect(),
             expires_at: now + deadline,
-            budget_cents_observed: None,
+            // Was hardcoded `None` with no schema property, so EVERY MCP-granted warrant was
+            // uncapped and the caller had no way to say otherwise. It is a declared ceiling now,
+            // and absent still means none: an MCP-granted warrant without `budget_cents` can
+            // record only zero-cost usage, which is the same reading the rest of this crate takes
+            // of an absent limit. The bound remains observed either way -- see `crate::spend`.
+            budget_cents_observed: arguments.get("budget_cents").and_then(Value::as_u64),
             delegation_depth: arguments
                 .get("delegation_depth")
                 .and_then(Value::as_u64)
@@ -189,55 +195,156 @@ impl ControlEndpoint {
             Ok(s) => s,
             Err(e) => return ToolResult::error(format!("{e}")),
         };
-        let mut out = vec![
-            format!("Warrant {id} — {:?}", stored.warrant.state),
-            format!("  goal: {}", stored.warrant.claims.goal),
-        ];
 
-        if let Some(path) = &stored.worktree {
-            let tree = Worktree::existing(
-                stored.repo.clone().unwrap_or_else(|| path.clone()),
-                path.clone(),
-                stored.branch.clone().unwrap_or_default(),
-                stored.base_commit.clone().unwrap_or_default(),
-            );
-            match tree.changed_files() {
-                Ok(files) if files.is_empty() => out.push("  changed files: none".to_string()),
-                Ok(files) => {
-                    out.push(format!("  changed files ({}):", files.len()));
-                    for f in files.iter().take(50) {
-                        out.push(format!("    {f}"));
-                    }
-                }
-                Err(e) => out.push(format!("  changed files: could not read ({e})")),
+        // Fail-closed, exactly as the CLI does it: an unreadable stop directory means containment
+        // is unknown, and an unknown must not be reported as "not contained".
+        let stops = match StopStore::open(&self.root) {
+            Ok(s) => s,
+            Err(e) => {
+                return ToolResult::error(format!(
+                    "cannot read stop records, so containment is unknown: {e}"
+                ))
+            }
+        };
+
+        // The budget bound's ledger, read the same fail-closed way and from the same store the CLI
+        // reads: a ledger that will not parse, or is signed by a key other than this store's
+        // issuer, must not be shown as zero spend. Zero is an answer; "unknown" is not.
+        let ledger = match crate::spend::SpendStore::open(&self.root).and_then(|ledgers| {
+            ledgers.load(
+                &stored.warrant.claims.bounds,
+                &id,
+                &stored.warrant.claims.subject,
+                &self.issuer.verifying_key(),
+            )
+        }) {
+            Ok(l) => l,
+            Err(e) => return ToolResult::error(format!("cannot read the spend ledger: {e}")),
+        };
+
+        // Same bundle the CLI prints and the receipts cover. Before this there were two report
+        // implementations that had already drifted apart; now there are two renderings of one.
+        let queue = self.open_queue(&id).map_err(|e| e.to_string());
+        let built = crate::report::build_observed(
+            &stored,
+            queue.as_ref().map_err(Clone::clone),
+            &self.issuer.verifying_key(),
+            (self.now)(),
+            &stops.contained_scopes(&id),
+            Some(crate::spend::section(&ledger)),
+        );
+        let mut out = vec![crate::report::render_mcp(built.bundle())];
+        out.push(String::new());
+
+        // Additive, exactly as on the CLI: the digest and verdict of the signed bundle. Without
+        // this the MCP path would keep emitting unsigned prose while the CLI emitted evidence.
+        match built.sign(&self.issuer, "issuer") {
+            Ok(signed) => {
+                let check = &signed.bundle.authority_check;
+                out.push(format!("  evidence bundle: {}", signed.bundle_digest));
+                out.push(format!(
+                    "  authority: {} ({}), decided by {}",
+                    if check.allowed { "allow" } else { "deny" },
+                    check
+                        .denied_gate
+                        .clone()
+                        .unwrap_or_else(|| "all nine gates passed".to_string()),
+                    check.engine
+                ));
+                out.push(
+                    "  Export the signed bundle from the CLI: warrantor report <id> --export \
+                     <path>"
+                        .to_string(),
+                );
+                out.push(String::new());
+            }
+            Err(e) => {
+                out.push(format!("  evidence bundle: could not be signed ({e})"));
+                out.push(String::new());
             }
         }
 
-        match self.open_queue(&id) {
-            Ok(queue) => match queue.release_order() {
-                Ok(effects) if effects.is_empty() => {
-                    out.push("  staged effects: none".to_string());
-                }
-                Ok(effects) => {
-                    out.push(format!(
-                        "  staged effects ({}) — NOT yet performed, in release order:",
-                        effects.len()
-                    ));
-                    for e in effects {
-                        out.push(format!("    {}  {}", e.handle, e.tool));
-                    }
-                }
-                Err(e) => out.push(format!("  staged effects: {e}")),
-            },
-            Err(e) => out.push(format!("  staged effects: {e}")),
-        }
-        out.push(String::new());
         out.push(
             "Then: warrant_settle to perform the staged effects, or warrant_void to discard \
                   the work and keep the log."
                 .to_string(),
         );
         ToolResult::ok(out.join("\n"))
+    }
+
+    /// Stop a run from the developer's own agent.
+    ///
+    /// The same code path as `warrantor stop`, not a second implementation of it: an operator who
+    /// says "stop it" to their assistant must get the identical termination, the identical held
+    /// state and the identical signed record they would get by typing the command. An uncontained
+    /// stop comes back as an MCP **error** so the model cannot read it as done.
+    ///
+    /// This tool is published on the control endpoint only. [`AgentEndpoint`] publishes nothing but
+    /// the warrant's own tools, so a supervised agent has no name to call here — it can neither stop
+    /// itself to dodge its deadline nor stop a sibling.
+    fn stop_warrant(&mut self, arguments: &BTreeMap<String, Value>) -> ToolResult {
+        let id = match require_str(arguments, "warrant_id") {
+            Ok(v) => v,
+            Err(e) => return *e,
+        };
+        let mut stored = match self.store.load(&id) {
+            Ok(s) => s,
+            Err(e) => return ToolResult::error(format!("{e}")),
+        };
+        let daemons = match DaemonState::open(&self.root) {
+            Ok(d) => d,
+            Err(e) => return ToolResult::error(format!("{e}")),
+        };
+        let stops = match StopStore::open(&self.root) {
+            Ok(s) => s,
+            Err(e) => return ToolResult::error(format!("{e}")),
+        };
+
+        let daemon = daemons.get(&id);
+        let mut outcome = crate::stop::execute(
+            &mut stored,
+            daemon.as_ref(),
+            &OsProcessControl,
+            &self.store.staged_path(&id),
+        );
+        if daemon.is_some() && daemons.deregister(&id).is_ok() {
+            outcome.deregistered = true;
+        }
+        if let Err(e) = self.store.save(&stored) {
+            return ToolResult::error(format!(
+                "the run was stopped but the warrant state could not be persisted: {e}"
+            ));
+        }
+
+        let reason = arguments.get("reason").and_then(Value::as_str);
+        let signed = match crate::stop::sign(&stored, &outcome, reason, &self.issuer, (self.now)())
+        {
+            Ok(s) => s,
+            Err(e) => {
+                return ToolResult::error(format!(
+                    "the run was stopped, but the record could not be signed: {e}"
+                ))
+            }
+        };
+        if let Err(e) = stops.save(&signed) {
+            return ToolResult::error(format!(
+                "the run was stopped but the record was not kept: {e}"
+            ));
+        }
+
+        let text = format!(
+            "{}{}",
+            crate::stop::render_cli(&signed),
+            crate::stop::render_limitations(&signed)
+        );
+        if crate::stop::contained(&signed) {
+            ToolResult::ok(text)
+        } else {
+            ToolResult::error(format!(
+                "{text}\nThis stop did NOT contain the run. Treat the agent as still running until \
+                 that has been confirmed some other way."
+            ))
+        }
     }
 
     fn open_queue(&self, id: &str) -> Result<StagingQueue, crate::WarrantError> {
@@ -371,7 +478,8 @@ impl Endpoint for ControlEndpoint {
                         "egress_hosts": {"type": "array", "items": {"type": "string"}, "description": "Hosts the agent may reach. Empty means no egress at all."},
                         "deadline_seconds": {"type": "integer", "description": "How long the warrant lives. Default 28800 (8h)."},
                         "repo": {"type": "string", "description": "Path to the git repo to isolate. Strongly recommended; without it the agent is not isolated."},
-                        "delegation_depth": {"type": "integer", "description": "How many levels of sub-warrant may be issued. Default 1."}
+                        "delegation_depth": {"type": "integer", "description": "How many levels of sub-warrant may be issued. Default 1."},
+                        "budget_cents": {"type": "integer", "description": "Spend ceiling in whole cents. OBSERVED, not enforced: model API calls do not pass through Warrantor, so this is measured only from usage the agent itself reports. Absent means a ceiling of zero, not unlimited."}
                     }),
                     &["goal", "tools"],
                 ),
@@ -389,6 +497,22 @@ impl Endpoint for ControlEndpoint {
                               before settling."
                     .to_string(),
                 input_schema: schema(json!({"warrant_id": {"type": "string"}}), &["warrant_id"]),
+            },
+            ToolSpec {
+                name: "warrant_stop".to_string(),
+                description: "Stop a running warrant now: terminate its supervisor, hold the \
+                              warrant so its staged work survives for a decision, and write a \
+                              signed record of exactly what the stop contained and what it could \
+                              not. Use this the moment a run should not continue. It does not \
+                              discard work -- warrant_void does that."
+                    .to_string(),
+                input_schema: schema(
+                    json!({
+                        "warrant_id": {"type": "string"},
+                        "reason": {"type": "string", "description": "Why the run is being stopped. Recorded verbatim in the signed stop record; left absent rather than guessed if you do not give one."}
+                    }),
+                    &["warrant_id"],
+                ),
             },
             ToolSpec {
                 name: "warrant_settle".to_string(),
@@ -413,6 +537,7 @@ impl Endpoint for ControlEndpoint {
             "warrant_grant" => self.grant(arguments),
             "warrant_status" => self.status(),
             "warrant_report" => self.report(arguments),
+            "warrant_stop" => self.stop_warrant(arguments),
             "warrant_settle" => self.settle_warrant(arguments),
             "warrant_void" => self.void_warrant(arguments),
             other => ToolResult::error(format!("no tool named {other:?}")),
@@ -459,6 +584,15 @@ impl AgentEndpoint {
     #[must_use]
     pub fn authority_requests(&self) -> Vec<&crate::proxy::AuthorityRequest> {
         self.proxy.authority_requests()
+    }
+
+    /// Egress denials with their destination and reason.
+    ///
+    /// Surfaced separately from [`Self::authority_requests`] because the destination is the part a
+    /// developer acts on, and the bound name alone does not carry it.
+    #[must_use]
+    pub fn egress_refusals(&self) -> Vec<&crate::egress::EgressRefusal> {
+        self.proxy.egress_refusals()
     }
 }
 

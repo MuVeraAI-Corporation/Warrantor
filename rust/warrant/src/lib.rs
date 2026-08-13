@@ -34,11 +34,15 @@
 
 pub mod adapters;
 pub mod daemon;
+pub mod egress;
 pub mod mcp;
 pub mod mcp_endpoints;
 pub mod proxy;
+pub mod report;
 pub mod settle;
+pub mod spend;
 pub mod staging;
+pub mod stop;
 pub mod store;
 pub mod supervise;
 pub mod worktree;
