@@ -28,7 +28,14 @@ const el = {
   gateError: document.getElementById('gate-error'),
   app: document.getElementById('app'),
   list: document.getElementById('list'),
-  listEmpty: document.getElementById('list-empty'),
+  listEmptyFirstRun: document.getElementById('list-empty-first-run'),
+  listEmptyFiltered: document.getElementById('list-empty-filtered'),
+  listEmptyUnreadable: document.getElementById('list-empty-unreadable'),
+  listEmptyError: document.getElementById('list-empty-error'),
+  showAll: document.getElementById('show-all'),
+  firstRun: document.getElementById('first-run'),
+  grantCommand: document.getElementById('first-run-command'),
+  copyButton: document.getElementById('copy-command'),
   detail: document.getElementById('detail'),
   health: document.getElementById('health'),
   authority: document.getElementById('authority'),
@@ -169,6 +176,83 @@ function jsonBlock(value) {
   return node('pre', 'json', JSON.stringify(value, null, 2));
 }
 
+// ── the empty states ────────────────────────────────────────────────────────
+
+/**
+ * Which empty state the server's answer actually supports.
+ *
+ * Total and pure, so the only way to reach a wrong screen is to disagree with the ordering
+ * below — and each rung outranks the next for a reason:
+ *
+ * - `error` first. `list_warrants` can fail, and the payload read in `loadList` turns any errored
+ *   or malformed response into zero rows. Absence of an answer is not the answer "none": telling
+ *   someone with a full store that they have never granted a warrant is the same class of lie as
+ *   rendering `unknown` as `failed`, and it lands on the reader least able to check it.
+ * - `rows` next, because there is then nothing empty to explain.
+ * - `unreadable` above `first-run`. `unreadable_records` is counted over the whole store BEFORE
+ *   the filter is applied, so a non-zero count is proof this store holds files. A store the
+ *   server could not parse is not a store that has never granted, and saying so would erase a
+ *   history and bury a corruption warning in one sentence.
+ * - `filtered` above `first-run`. This is the bug this function exists to remove: a filter that
+ *   matched nothing is not a machine with no history, and collapsing the two makes clicking a
+ *   chip look like data loss.
+ * - `first-run` last, and only there. Unfiltered, zero rows, zero unreadable is the one case
+ *   where "this machine has never granted a warrant" is a fact the response supports.
+ *
+ * Two things are deliberately NOT done. It does not re-ask the server without the filter when a
+ * filtered list comes back empty: that would make the console assert something the response it is
+ * rendering did not contain, and it would race the poller. And no `total` was added to the list
+ * payload: that puts a UI convenience inside a frozen `/v1` surface. Neither is needed — the
+ * filter is never persisted, so it can only be on because someone clicked a chip in this session,
+ * and "Show all" is one click away.
+ *
+ * @param {number} status HTTP status the list route answered with.
+ * @param {number} rowCount Warrants the response actually listed, after filtering.
+ * @param {number} unreadable Files in the store the server could not parse, counted pre-filter.
+ * @param {string} filter The state filter in force, or '' for none.
+ * @returns {'error'|'rows'|'unreadable'|'filtered'|'first-run'}
+ */
+function emptyKind(status, rowCount, unreadable, filter) {
+  if (status !== 200) return 'error';
+  if (rowCount > 0) return 'rows';
+  if (unreadable > 0) return 'unreadable';
+  if (filter) return 'filtered';
+  return 'first-run';
+}
+
+/** Show exactly one empty state, and exactly one of the two right-hand panes. */
+function applyEmptyState(kind) {
+  el.listEmptyFirstRun.hidden = kind !== 'first-run';
+  el.listEmptyFiltered.hidden = kind !== 'filtered';
+  el.listEmptyUnreadable.hidden = kind !== 'unreadable';
+  el.listEmptyError.hidden = kind !== 'error';
+
+  // `hidden` is display:none, so the pane that is not showing occupies no grid cell and the
+  // two-column layout survives having three children.
+  const explain = kind === 'first-run';
+  el.firstRun.hidden = !explain;
+  el.detail.hidden = explain;
+
+  // A selection cannot survive a store that holds nothing: leaving it set would make the next
+  // poll fetch an id this store does not have and render the 404 as if it were news.
+  if (explain) state.selected = null;
+}
+
+/**
+ * Point the list at one state.
+ *
+ * Shared by the chips and by "Show all" so the chip that looks selected and the filter actually
+ * in force cannot drift apart — which they would the moment a second caller set `state.filter`
+ * without touching the chips, leaving the reader looking at "All" while a filter was on.
+ */
+function setFilter(value) {
+  state.filter = value;
+  for (const chip of document.querySelectorAll('.chip')) {
+    chip.classList.toggle('is-on', (chip.dataset.state ?? '') === value);
+  }
+  return loadList();
+}
+
 // ── list ────────────────────────────────────────────────────────────────────
 
 /**
@@ -188,7 +272,6 @@ async function loadList() {
   el.list.replaceChildren();
   const warrants = payload?.data?.warrants ?? [];
   const rows = Array.isArray(warrants) ? warrants : [];
-  el.listEmpty.hidden = rows.length > 0;
 
   // Compared against the previous read rather than assumed from the response, because a filtered
   // list cannot distinguish "this warrant was settled" from "this warrant left the filter".
@@ -241,6 +324,10 @@ async function loadList() {
     item.append(row);
     el.list.append(item);
   }
+
+  // Re-derived from this response rather than latched on connect, so the panel appears the moment
+  // a store empties and clears itself within one poll of the first grant, with no reload.
+  applyEmptyState(emptyKind(status, rows.length, unreadable, state.filter));
 
   return changed;
 }
@@ -414,6 +501,50 @@ async function act(id, path, label, prompt) {
   await select(id);
 }
 
+// ── the grant line ──────────────────────────────────────────────────────────
+
+/**
+ * Put the grant command on the clipboard, or say honestly that it could not be put there.
+ *
+ * Feature-detected rather than assumed, because two supported ways of running this console have
+ * no clipboard write. `navigator.clipboard` is undefined on a non-secure origin, which is what
+ * `--bind <lan-ip>` over plain HTTP produces; and the desktop shell grants the renderer no
+ * permissions at all — `desktop/src/policy.js` freezes the granted list empty, deliberately — so
+ * the write can reject there while working in Chrome. Widening that list to make a convenience
+ * button work would trade a tested security decision for a nicety, so the fallback lives here.
+ *
+ * The fallback selects the text and says what to press. It never toasts "Copied." for a copy that
+ * did not happen: claiming an act that did not occur is the same shape of error as showing
+ * `unknown` as `ok`, and this console is the surface that must not do that anywhere.
+ */
+async function copyGrantCommand() {
+  const line = el.grantCommand.textContent ?? '';
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(line);
+      toast('Copied.');
+      return;
+    } catch {
+      // Permission refused or origin not secure. Fall through rather than report a copy.
+    }
+  }
+  selectGrantCommand();
+}
+
+/** Select the grant line so a keyboard copy works where the clipboard API does not. */
+function selectGrantCommand() {
+  const selection = window.getSelection?.();
+  if (!selection) {
+    toast('This browser will not copy for us — select the line and copy it by hand.');
+    return;
+  }
+  const range = document.createRange();
+  range.selectNodeContents(el.grantCommand);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  toast('Selected. Press Ctrl+C (Cmd+C on a Mac) to copy.');
+}
+
 // ── health ──────────────────────────────────────────────────────────────────
 
 async function loadHealth() {
@@ -468,13 +599,17 @@ el.gateForm.addEventListener('submit', (event) => {
 });
 
 for (const chip of document.querySelectorAll('.chip')) {
-  chip.addEventListener('click', () => {
-    for (const other of document.querySelectorAll('.chip')) other.classList.remove('is-on');
-    chip.classList.add('is-on');
-    state.filter = chip.dataset.state ?? '';
-    loadList();
-  });
+  chip.addEventListener('click', () => setFilter(chip.dataset.state ?? ''));
 }
+
+// "Show all" is the way out of an empty filtered view, and it goes through the same call as the
+// chips so it cannot leave a chip lit for a filter that is no longer in force.
+el.showAll.addEventListener('click', () => setFilter(''));
+
+// Wired here, not as an onclick attribute: the console is served under `script-src 'self'` with
+// no `unsafe-inline`, so an inline handler would be silently dead in the browser and pass every
+// test in the suite.
+el.copyButton.addEventListener('click', copyGrantCommand);
 
 const fromUrl = tokenFromFragment();
 if (fromUrl) {

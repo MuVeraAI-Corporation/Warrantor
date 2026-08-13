@@ -51,11 +51,80 @@
           <button class="chip" data-state="void">Void</button>
         </div>
         <ul id="list" class="list"></ul>
-        <p id="list-empty" class="empty" hidden>No warrants in this view.</p>
+
+        <!-- Four sentences, not one. An unanswered question, a store whose files could not be
+             parsed, a filter that matched nothing, and a machine that has never granted are four
+             different facts about why this list is empty. A single string for all four made
+             clicking a chip look like data loss, and made a failed request look like a confident
+             statement about the reader's own history. `emptyKind` in console.js picks exactly one
+             of these, and the order it picks in is the fix. -->
+        <p id="list-empty-first-run" class="empty" hidden>No warrants on this machine yet.</p>
+        <p id="list-empty-filtered" class="empty" hidden>
+          No warrants in this state.
+          <button id="show-all" type="button">Show all</button>
+        </p>
+        <p id="list-empty-unreadable" class="empty error" hidden>
+          Nothing could be listed, but this store is not empty. See the warning above.
+        </p>
+        <p id="list-empty-error" class="empty error" hidden>
+          The server did not answer. That is not the same as there being nothing here.
+        </p>
       </nav>
 
       <section id="detail" class="detail">
         <div class="placeholder">Select a warrant.</div>
+      </section>
+
+      <!-- The first-run panel.
+           A SIBLING of #detail, never a child: loadDetail() calls el.detail.replaceChildren(),
+           which would delete a nested panel outright the first time anyone clicked a row.
+           Exactly one of the two is visible, so the two-column grid stays two columns.
+
+           Every word here is fixed prose compiled into the binary. Nothing store-derived may be
+           templated in — no warrant count, no store path, no URL — because this document is
+           served BEFORE the token check, and it is safe to serve unauthenticated only for as
+           long as it is byte-identical on every machine. -->
+      <section id="first-run" class="first-run" hidden>
+        <h2>Nothing has been granted on this machine yet</h2>
+
+        <p class="first-run-lede">
+          A warrant is written, signed permission for an AI agent to do one stated job: what it is
+          for, which tools it may use, which paths it may write to, and when the permission runs
+          out. The agent works in an isolated copy of your repository, so nothing it does is
+          visible outside that copy until a person settles the warrant, and external effects are
+          staged rather than performed.
+        </p>
+
+        <h3>Granting happens at a terminal, and only at a terminal</h3>
+        <p>
+          This is the one act the console cannot perform, and it is deliberately absent rather
+          than missing. Granting mints authority: it creates the permission and signs it with the
+          issuer key held on this machine. So the server publishes no grant route at all, not a
+          disabled one and not a permissioned one. The moment granting were reachable over HTTP,
+          the power to mint warrants would live in a network-reachable process, and the whole
+          design rests on authority being minted by a human at a terminal. This console can read
+          what exists and act on it. It cannot create authority.
+        </p>
+
+        <h3>Grant one</h3>
+        <p>Run this in a terminal, in the repository you want the agent to work in:</p>
+        <div class="cmd">
+          <code id="first-run-command">warrantor grant --goal "..." --tools git --write src</code>
+          <button id="copy-command" class="copy" type="button">Copy</button>
+        </div>
+        <p class="note">
+          Replace the quoted text with the job in one sentence: it is what every later review is
+          read against. <code>--tools git</code> is the allowlist the proxy refuses against.
+          <code>--write src</code> records which paths are in bounds, and what that buys is
+          containment rather than refusal: an out-of-bounds write is not blocked as it happens, it
+          is simply never staged, so it never reaches your branch. Leaving <code>--write</code>
+          off means no path is in bounds, not every path. Each warrant's own view says how
+          strongly every bound is actually held.
+        </p>
+        <p class="note">
+          The list on the left re-reads itself every few seconds, so a warrant granted in another
+          window appears there without reloading this page.
+        </p>
       </section>
     </main>
 
