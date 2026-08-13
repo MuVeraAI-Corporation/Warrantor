@@ -458,7 +458,11 @@ fn a_warrant_without_a_deadline_is_refused() {
 #[test]
 fn budget_is_reported_as_observed_not_enforced() {
     let strengths: std::collections::HashMap<_, _> = bound_strengths().into_iter().collect();
-    assert_eq!(strengths["tools"], BoundStrength::Enforced);
+    assert_eq!(
+        strengths["tools"],
+        BoundStrength::Mediated,
+        "the tool allowlist is held at the proxy, not by the OS"
+    );
     assert_eq!(strengths["expires_at"], BoundStrength::Enforced);
     assert_eq!(
         strengths["budget_cents_observed"],
@@ -516,22 +520,41 @@ fn write_paths_is_not_advertised_as_enforced() {
     );
 }
 
-/// The bounds that genuinely are refused keep saying so. This is the other half of the same
-/// property: honesty means not overclaiming, and also not quietly giving up a real guarantee.
+/// Every bound's tier, pinned exactly. The other half of not overclaiming is not quietly giving up
+/// a real guarantee, so this asserts the whole table rather than one direction of it.
+///
+/// The tiers are three different promises:
+///   Enforced — held by cryptography or the OS. The agent cannot route around it.
+///   Mediated — held by the MCP proxy. Real against an agent using its tools; not a sandbox.
+///   Observed — measured, or not even that. Cannot prevent.
+///
+/// A change here is a change to what the product claims, and should be as hard to make by accident
+/// as this test makes it.
 #[test]
-fn the_bounds_that_are_enforced_still_say_so() {
+fn every_bound_declares_the_tier_that_actually_holds_it() {
     let strengths: std::collections::BTreeMap<_, _> = bound_strengths().into_iter().collect();
-    for name in [
-        "tools",
-        "egress_hosts",
-        "staged_classes",
-        "expires_at",
-        "delegation_depth",
-    ] {
+    let expected = [
+        // Ed25519 over the claims, and an OS process link. Unbypassable.
+        ("delegation_depth", BoundStrength::Enforced),
+        ("expires_at", BoundStrength::Enforced),
+        // The proxy sees only what the agent routes through it. No netns, seccomp or firewall.
+        ("tools", BoundStrength::Mediated),
+        ("egress_hosts", BoundStrength::Mediated),
+        ("staged_classes", BoundStrength::Mediated),
+        // Nothing refuses an out-of-bounds write; nothing measures the agent's real spend.
+        ("write_paths", BoundStrength::Observed),
+        ("budget_cents_observed", BoundStrength::Observed),
+    ];
+    for (name, tier) in expected {
         assert_eq!(
             strengths.get(name),
-            Some(&BoundStrength::Enforced),
-            "{name} is refused at the moment of action and must keep saying so"
+            Some(&tier),
+            "{name} must declare the tier that actually holds it"
         );
     }
+    assert_eq!(
+        strengths.len(),
+        expected.len(),
+        "a bound was added or removed without deciding which tier holds it"
+    );
 }

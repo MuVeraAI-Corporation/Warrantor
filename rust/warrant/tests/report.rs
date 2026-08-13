@@ -161,10 +161,10 @@ fn the_prose_report_is_exactly_what_it_always_was() {
          \x20     title: Fix auth\n\
          \n\
          ── BOUNDS ──\n\
-         \x20 tools                   enforced\n\
+         \x20 tools                   mediated\n\
          \x20 write_paths             observed\n\
-         \x20 egress_hosts            enforced\n\
-         \x20 staged_classes          enforced\n\
+         \x20 egress_hosts            mediated\n\
+         \x20 staged_classes          mediated\n\
          \x20 expires_at              enforced\n\
          \x20 delegation_depth        enforced\n\
          \x20 budget_cents_observed   observed\n\

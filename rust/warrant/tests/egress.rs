@@ -456,13 +456,23 @@ fn a_url_quoted_in_prose_is_refused_deliberately() {
 // ── honesty ───────────────────────────────────────────────────────────────────────────
 
 /// The whole point of the constraint: wiring the broker changed WHICH decision is made, not WHERE.
+///
+/// This asserted `Enforced` with the note "enforced for calls that traverse the proxy, which is
+/// what it always meant". That sentence is the definition of `Mediated`, which now exists, so the
+/// assertion says the same thing in a word that cannot be misread. The label got weaker; the bound
+/// did not change at all, which was always the property under test.
 #[test]
 fn the_egress_bound_is_still_only_as_strong_as_it_was() {
     let strengths: BTreeMap<&str, BoundStrength> = bound_strengths().into_iter().collect();
     assert_eq!(
         strengths.get("egress_hosts"),
+        Some(&BoundStrength::Mediated),
+        "held at the proxy, not by the OS: an agent that does not route through it is not bound"
+    );
+    assert_ne!(
+        strengths.get("egress_hosts"),
         Some(&BoundStrength::Enforced),
-        "unchanged: enforced for calls that traverse the proxy, which is what it always meant"
+        "must never claim the tier reserved for bounds the agent cannot route around"
     );
     assert!(
         ENFORCEMENT_NOTE.contains("no network namespace, seccomp filter or firewall"),

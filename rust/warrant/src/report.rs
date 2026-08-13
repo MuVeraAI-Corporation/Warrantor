@@ -1133,6 +1133,9 @@ pub fn render_cli(bundle: &ReportBundle) -> String {
     for bound in &bundle.bound_strengths {
         let mark = match bound.strength {
             BoundStrength::Enforced => "enforced",
+            // Deliberately not "enforced (proxy)". A reader skimming a column of one-word marks
+            // takes the first word and moves on, and "enforced" is the word that would be taken.
+            BoundStrength::Mediated => "mediated",
             BoundStrength::Observed => "observed",
         };
         lines.push(format!("  {:<24}{mark}", bound.name));

@@ -135,11 +135,34 @@ pub enum WarrantState {
 /// something that cannot hold. A token budget parsed from an agent's own self-reporting is not the
 /// same kind of promise as a tool allowlist the proxy refuses to forward, and the difference is
 /// surfaced rather than hidden.
+///
+/// # Three tiers, not two
+///
+/// There were two, and two was one short in a way that mattered. `delegation_depth` is held by an
+/// Ed25519 signature and `expires_at` by an OS process link — neither can be bypassed by the agent
+/// at all. `tools`, `egress_hosts` and `staged_classes` are held by the MCP proxy, which sees only
+/// what the agent routes through it: there is no network namespace, no seccomp filter and no
+/// firewall anywhere in this crate, so an agent granted shell access reaches the network without
+/// passing the broker.
+///
+/// Both were labelled `Enforced`. Both are real, and they are not the same promise — the first
+/// holds against an agent trying to escape, the second holds against an agent behaving like an
+/// agent. Collapsing them meant the strongest claim in the product was made on behalf of the
+/// weaker case.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BoundStrength {
-    /// The system refuses the action. The bound cannot be exceeded.
+    /// The system refuses the action, and the agent cannot route around the thing that refuses.
+    ///
+    /// Held by cryptography or by the operating system: a signature it cannot forge, a process
+    /// link it cannot outlive.
     Enforced,
+    /// The system refuses the action at a chokepoint the agent could decline to use.
+    ///
+    /// Held by the MCP proxy. Real against an agent using its tools — which is what every current
+    /// coding agent does, all the time — and not a containment boundary. Warrantor composes with a
+    /// sandbox here rather than replacing one.
+    Mediated,
     /// The system measures and reports, but cannot prevent. Best-effort.
     Observed,
 }
@@ -568,13 +591,18 @@ impl CapabilityToken {
 #[must_use]
 pub fn bound_strengths() -> Vec<(&'static str, BoundStrength)> {
     vec![
-        ("tools", BoundStrength::Enforced),
+        // Refused by the MCP proxy, which sees only what the agent routes through it.
+        ("tools", BoundStrength::Mediated),
         // Not refused when the write happens. Contained afterwards: out-of-bounds edits are not
         // staged by settle, so they never reach the base branch. See the note above.
         ("write_paths", BoundStrength::Observed),
-        ("egress_hosts", BoundStrength::Enforced),
-        ("staged_classes", BoundStrength::Enforced),
+        // Proxy again, and the one most often assumed stronger than it is: no netns, no seccomp,
+        // no firewall. An agent granted shell access reaches the network without passing here.
+        ("egress_hosts", BoundStrength::Mediated),
+        ("staged_classes", BoundStrength::Mediated),
+        // OS process link: Windows job object, Linux setsid + PR_SET_PDEATHSIG.
         ("expires_at", BoundStrength::Enforced),
+        // Ed25519 over the warrant claims. A child cannot hold what its parent did not.
         ("delegation_depth", BoundStrength::Enforced),
         // Parsed from the agent's own usage reporting; defeatable by an agent that does not report.
         ("budget_cents_observed", BoundStrength::Observed),
