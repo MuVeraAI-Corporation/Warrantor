@@ -61,8 +61,10 @@ moved on while others were never built. Where a document and the code disagree, 
 truth — and the [integrations inventory](integrations-inventory.html) is the reconciliation between
 them, because it was produced by measuring rather than by reading.
 
-**Naming is inconsistent.** *Warrantor*, *Warrantor* and *Warrantor* all appear and all mean the same
-project. The consolidation onto Warrantor is in progress.
+**Naming is now consistent in prose.** Earlier working names were renamed throughout. A few
+functional identifiers still carry them — `defstack-cli`, `defstack-cloud`, and the `AUMOS_*`
+environment variables the published MCP server reads — because renaming those breaks the released
+interface. They move together in a version that can carry a breaking change.
 
 **`decisions/` is empty.** Architecture decision records were planned and not written. The reasoning
 that would have gone there is mostly in commit messages and in the RFCs.
