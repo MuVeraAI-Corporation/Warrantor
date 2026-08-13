@@ -257,7 +257,23 @@ jobs:
       # engine, and Electron 33 carried 21 high-severity advisories. It also errors when the
       # lockfile has drifted from package.json, which is the only cheap check that the lockfile is
       # coherent before the release workflow tries to `npm ci` it at tag time.
+      #
+      # `continue-on-error`, and only here. This step is a live query against the npm advisory
+      # service covering electron-builder's whole build-tool tree, so it can turn red with no change
+      # to this repository at all -- a newly published moderate advisory, or a registry outage. As a
+      # blocking member of the `required` gate that would stop every unrelated Rust and Python pull
+      # request, and none of the remedies (a newer electron-builder, a scoped `overrides` entry,
+      # holding the release) is something an unrelated contributor can apply. The gate that matters
+      # keeps its teeth: the copy in `.github/workflows/desktop-release.yml` is hard-failing, so a
+      # release still cannot ship on a vulnerable pin.
+      #
+      # This is not a silenced guard. The step still runs on every pull request and still reports
+      # red in the checks list when an advisory lands, which is the signal it exists to raise; what
+      # is removed is only its power to block merges elsewhere in the repository. The deterministic
+      # half of the property -- that the lockfile still resolves Electron inside the audited range
+      # -- is asserted offline by `desktop/test/packaging.test.js` in the hard-failing step below.
       - name: Audit the pinned Electron and its build tooling
+        continue-on-error: true
         run: npm audit --audit-level=moderate
       - name: Run policy and packaging tests
         run: node --test

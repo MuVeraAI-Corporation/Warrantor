@@ -71,11 +71,28 @@ module.exports = {
     extraResources: [{ from: 'vendor/${arch}/warrantor', to: 'warrantor' }],
     target: [{ target: 'dmg', arch: ['arm64', 'x64'] }],
     category: 'public.app-category.developer-tools',
-    // `null` means ad-hoc: no Developer ID is required, and on Apple Silicon an ad-hoc signature is
-    // the difference between an app that launches and a Mach-O the kernel refuses to execute at
-    // all. It is not a trust signal — Gatekeeper still refuses the download. See SIGNING.md for
-    // the one-line change once a certificate exists.
-    identity: null,
+    // `'-'` is ad-hoc. `null` is NOT, and the difference is the whole macOS leg.
+    //
+    // In electron-builder 26, `identity: null` reaches `handleNullIdentity()`, which logs
+    // "skipped macOS code signing" and signs nothing at all; only the literal `'-'` constructs an
+    // ad-hoc `Identity` (app-builder-lib/out/macPackager.js, out/mac/MacTargetHelper.js).
+    // Packaging renames Electron.app and its Mach-O, rewrites Info.plist and injects
+    // `extraResources`, all of which invalidate the ad-hoc signature the prebuilt Electron ships
+    // with — so "skip signing" leaves an invalidly-signed bundle, and on Apple Silicon the kernel
+    // refuses to execute one. That failure passes every gate in the release workflow and appears
+    // only as an app that will not start on the reviewer's machine.
+    //
+    // It is not a trust signal: Gatekeeper still refuses the download. See SIGNING.md for the
+    // change once a certificate exists.
+    identity: '-',
+    // Explicit `false`, not a default. electron-builder turns the hardened runtime ON for every
+    // non-MAS macOS build unless it is switched off (`hardenedRuntime !== false`), and ad-hoc
+    // signing under the hardened runtime requires `com.apple.security.cs.disable-library-validation`
+    // — an entitlement that lets arbitrary unsigned libraries load into the process. Granting that
+    // to a security product to work around a certificate we have not bought is a worse trade than
+    // not enabling the hardened runtime at all, which buys nothing without notarisation anyway.
+    // It is switched on together with the Developer ID and notarisation; see SIGNING.md §4.
+    hardenedRuntime: false,
   },
 
   linux: {

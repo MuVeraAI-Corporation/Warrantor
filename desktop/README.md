@@ -87,11 +87,16 @@ npm run dist         # real installers in dist/
 `vendor/` and `dist/` are gitignored: a committed executable in the source tree of a security
 substrate is an unreviewed, unattested binary that nothing in CI ever looks at.
 
-`.github/workflows/desktop-release.yml` builds all four legs — Linux x64, macOS arm64, macOS x64,
-Windows x64 — compiling the agent on the same runner that packages it, so the bundled agent always
-matches the app's architecture. It then asserts the agent really is inside the produced app, because
-a pattern that stops matching produces a perfectly good installer whose only symptom is an error
-dialog on a reviewer's machine.
+`.github/workflows/desktop-release.yml` is written to build four legs — Linux x64, macOS arm64,
+macOS x64, Windows x64 — compiling the agent on the same runner that packages it, so the bundled
+agent always matches the app's architecture. It then asserts the agent really is inside the produced
+app, and executable, because a pattern that stops matching (or a mode lost in a copy) produces a
+perfectly good installer whose only symptom is an error dialog on a reviewer's machine.
+
+**That workflow has not run yet.** `workflow_dispatch` is unavailable until the file is on the
+default branch, so no installer has been produced, installed or launched on any platform — the
+macOS and Linux legs have never executed at all. Treat every sentence above as describing
+configuration until the rehearsal in [RELEASING.md](../RELEASING.md) has been done.
 
 The installers are **unsigned**. SmartScreen and Gatekeeper will warn.
 [SIGNING.md](SIGNING.md) says what that costs, what to buy, and the config lines that change once
@@ -126,7 +131,15 @@ That is the standing cost of this directory, and it has to be paid deliberately:
 `desktop/` now runs in CI on every pull request**, not only on the release checklist, and a release
 must not ship on a vulnerable pin. It costs the CI job nothing — `npm audit` reads
 `package-lock.json` and needs no `node_modules` — and it catches a lockfile that has drifted from
-`package.json` before the release workflow tries to `npm ci` it. The policy module already blunts
+`package.json` before the release workflow tries to `npm ci` it.
+
+It **reports** in CI and **blocks** in the release workflow. An advisory published anywhere in
+electron-builder's build-tool tree turns that step red with no change to this repository, and none
+of the remedies — a newer `electron-builder`, a scoped `overrides` entry, holding the release — is
+something an unrelated contributor can apply, so it must not stop Rust or Python work from merging.
+The property is kept where it bites: `desktop-release.yml` fails hard on it. The deterministic half
+— that the lockfile still resolves Electron inside the audited `^43.4.0` — is asserted offline by
+`test/packaging.test.js`, which does block. The policy module already blunts
 several of the advisory classes — permissions are all denied, window open is refused — but a
 renderer CVE is a renderer CVE.
 

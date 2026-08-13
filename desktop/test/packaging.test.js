@@ -105,20 +105,135 @@ test('the Windows installer is per-user and never elevates', () => {
   assert.equal(builderConfig.win.forceCodeSigning, false);
 });
 
+/**
+ * `identity: null` and `identity: '-'` are not synonyms, and reading them as synonyms produces a
+ * dmg that installs and then will not start.
+ *
+ * electron-builder 26 routes `null` to `handleNullIdentity()` — "skipped macOS code signing" — and
+ * only the literal `'-'` builds an ad-hoc identity. Packaging invalidates the signature the
+ * prebuilt Electron arrives with (renamed bundle, renamed Mach-O, rewritten Info.plist, injected
+ * extraResources), and Apple Silicon refuses to execute an invalidly-signed Mach-O. Nothing else
+ * catches it: the build succeeds, the workflow's "agent is inside the app" assertion passes, and
+ * the symptom is an app that does not launch on the reviewer's machine.
+ *
+ * `hardenedRuntime: false` is asserted with it because the two are one decision. The default for a
+ * non-MAS build is ON, and ad-hoc signing under the hardened runtime requires the
+ * disable-library-validation entitlement — which `build/entitlements.mac.plist` deliberately does
+ * not grant, and which a security product should not grant to route around a missing certificate.
+ */
+test('the macOS build is ad-hoc signed rather than signing-skipped', () => {
+  assert.equal(
+    builderConfig.mac.identity,
+    '-',
+    "mac.identity must be '-' (ad-hoc); null means skip signing entirely",
+  );
+  assert.equal(
+    builderConfig.mac.hardenedRuntime,
+    false,
+    'ad-hoc signing under the hardened runtime needs an entitlement we do not grant',
+  );
+});
+
 // ── the Electron pin ──────────────────────────────────────────────────────────
+
+/**
+ * A dependency-free `^major.minor.patch` check.
+ *
+ * `node --test` here runs with no `node_modules` at all — that is the property that keeps the CI
+ * gate free of a 150 MB Chromium download — so `semver` is not available and this is the whole of
+ * the range logic the pin test needs. Only the caret form is accepted: if the manifest range ever
+ * stops being a caret this throws rather than silently admitting everything, because a range check
+ * that quietly degrades to "anything" is worse than no check.
+ *
+ * A prerelease is never satisfying. `43.5.0-beta.1` is not the artifact anybody audited, and
+ * reading it as "within 43.x" is exactly the loose comparison this function replaces.
+ */
+function satisfiesCaretRange(range, version) {
+  if (!range.startsWith('^')) {
+    throw new Error(`only caret ranges are understood here, got ${range}`);
+  }
+  if (version.includes('-')) {
+    return false; // a prerelease is not the audited version
+  }
+  const parse = (value) => {
+    const parts = value.split('.');
+    if (parts.length !== 3 || parts.some((part) => !/^\d+$/.test(part))) {
+      throw new Error(`not a plain major.minor.patch version: ${value}`);
+    }
+    return parts.map(Number);
+  };
+  const [floorMajor, floorMinor, floorPatch] = parse(range.slice(1));
+  const [major, minor, patch] = parse(version);
+  if (major !== floorMajor) {
+    return false; // a caret never crosses a major
+  }
+  if (minor !== floorMinor) {
+    return minor > floorMinor;
+  }
+  return patch >= floorPatch;
+}
+
+/**
+ * The range check is itself tested, because the previous version of the pin test asserted only
+ * `version.startsWith('43.')` — which admits `43.0.0`: inside the major, outside `^43.4.0`, and not
+ * the release that was audited. A test whose name claims more than its assertion is the failure
+ * mode being repaired here, so the boundary cases are pinned rather than assumed.
+ */
+test('the audited-pin check rejects what the pin does not admit', () => {
+  assert.equal(satisfiesCaretRange('^43.4.0', '43.0.0'), false);
+  assert.equal(satisfiesCaretRange('^43.4.0', '43.3.9'), false);
+  assert.equal(satisfiesCaretRange('^43.4.0', '42.9.9'), false);
+  assert.equal(satisfiesCaretRange('^43.4.0', '44.0.0'), false);
+  assert.equal(satisfiesCaretRange('^43.4.0', '43.5.0-beta.1'), false);
+  assert.equal(satisfiesCaretRange('^43.4.0', '43.4.0'), true);
+  assert.equal(satisfiesCaretRange('^43.4.0', '43.4.1'), true);
+  assert.equal(satisfiesCaretRange('^43.4.0', '43.5.1'), true);
+  assert.throws(() => satisfiesCaretRange('43.4.0', '43.4.0'), /caret/);
+});
 
 /**
  * RFC W1 states the pin and says `npm audit` in `desktop/` is a release gate. A pin stated in prose
  * is a sentence; asserted here it is a gate, and `npm audit fix --force` — the reflex fix for an
  * advisory in electron-builder's tree — moves Electron off the audited version and fails this.
+ *
+ * The lockfile is checked against the manifest range rather than against a hand-copied major, so
+ * the assertion means what the test's name says: the resolved Electron is a version the audited
+ * range admits, not merely one that shares its major.
  */
 test('Electron stays on the audited pin', () => {
-  assert.equal(manifest.devDependencies.electron, '^43.4.0');
+  const range = manifest.devDependencies.electron;
+  assert.equal(range, '^43.4.0');
   const resolved = lockfile.packages['node_modules/electron'];
   assert.ok(resolved, 'the lockfile must actually contain electron');
   assert.ok(
-    resolved.version.startsWith('43.'),
-    `the lockfile resolves electron ${resolved.version}, off the 43.x pin`,
+    satisfiesCaretRange(range, resolved.version),
+    `the lockfile resolves electron ${resolved.version}, outside the audited pin ${range}`,
+  );
+});
+
+// ── the release workflow's own assertion ──────────────────────────────────────
+
+/**
+ * A text assertion over the workflow, and the weakest test in this file — no gate here can run a
+ * GitHub Actions job. It is worth its line anyway: the workflow's header states that the agent is
+ * compiled in-job because `actions/upload-artifact` drops the executable bit and an agent without
+ * `+x` fails at spawn with EACCES on the reviewer's first launch. That reasoning is only real if
+ * the step that confirms the bundled agent actually tests the bit; a presence-only `find` leaves
+ * open the exact failure the comment names, and nothing downstream would notice — the installer
+ * builds, uploads and installs, and dies at spawn.
+ */
+test('the release workflow asserts the bundled agent is executable, not merely present', () => {
+  const workflow = readFileSync(
+    join(here, '..', '..', '.github', 'workflows', 'desktop-release.yml'),
+    'utf8',
+  );
+  const step = workflow.split('- name: Confirm the agent is inside the app')[1];
+  assert.ok(step, 'the "Confirm the agent is inside the app" step must exist');
+  const untilNextStep = step.split('\n      - name:')[0];
+  assert.match(
+    untilNextStep,
+    /-x "\$agent"|test -x|-perm -u\+x/,
+    'the confirmation step must test the executable bit, not only the file’s presence',
   );
 });
 

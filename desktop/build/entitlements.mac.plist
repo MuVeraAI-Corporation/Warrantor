@@ -3,9 +3,13 @@
 <!--
   Entitlements for the macOS hardened runtime.
 
-  Inert today: `hardenedRuntime` is false while the build is unsigned, so nothing reads this file.
-  It exists now so that enabling notarisation later really is the one-line change SIGNING.md
-  promises, rather than a change plus a file nobody remembered was needed.
+  Inert today: `electron-builder.config.cjs` sets `mac.hardenedRuntime: false` explicitly while the
+  build is only ad-hoc signed, so nothing reads this file. (The explicit `false` matters —
+  electron-builder's default for a non-MAS build is hardened-runtime ON, and ad-hoc signing under
+  the hardened runtime would demand `com.apple.security.cs.disable-library-validation`, which is
+  granted here to nothing and must stay that way.) This file exists now so that enabling
+  notarisation later really is the config change SIGNING.md promises, rather than a change plus a
+  file nobody remembered was needed.
 
   Both entries are required by Electron itself under the hardened runtime — V8 compiles JavaScript
   to machine code at runtime, and a hardened process cannot do that without them. Nothing else is

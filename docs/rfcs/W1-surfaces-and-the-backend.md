@@ -291,7 +291,7 @@ the target.
 Release authority remains opt-in: settle and void refuse unless `--allow-settle` was typed, and the
 console disables those buttons and says why.
 
-The desktop installers added in Milestone 4 are a new artifact but not a new deployment story: the
+The desktop installers configured in Milestone 4 are a new artifact but not a new deployment story: the
 console still ships inside the `warrantor` binary, so `deploy/airgap` is unchanged, and an installer
 is simply that same binary with a window around it. The shell starts the agent as a viewer and never
 passes `--allow-settle`, on any launch path — spawn arguments and installer shortcuts alike.
@@ -306,18 +306,34 @@ passes `--allow-settle`, on any launch path — spawn arguments and installer sh
    The cost is real and is accepted deliberately rather than waved through: a security product that
    ships its own Chromium owns that patch cadence. Electron 33 carried 21 high-severity advisories;
    the pin is 43.4.0, which audits clean, and **`npm audit` in `desktop/` now runs in CI on every
-   pull request** rather than only on the release checklist. `warrantor console` remains the
+   pull request** rather than only on the release checklist — reporting there, blocking in the
+   release workflow, because the advisory feed is a live external service and a new publication in
+   electron-builder's tree must not stop unrelated work across the repository. `warrantor console`
+   remains the
    zero-dependency path to the same console for anyone who would rather not run a bundled browser
    at all.
 
    The shell's security decisions live in `desktop/src/policy.js`, which imports nothing, so CI
    gates them on every pull request with no Electron download and no display.
-4. **Packaging** — done, unsigned. electron-builder produces a Windows NSIS installer (per-user, no
-   elevation), a macOS dmg for arm64 and x64, and a Linux AppImage and deb. The `warrantor` binary
-   is compiled on the same runner that packages it and ships **inside** the app, and the shell
-   prefers that copy over `WARRANTOR_BIN` and over `PATH`: verification happens only in that binary,
-   so choosing the binary chooses the verifier, and an installed app must not be silently
-   re-pointed at a different one by an environment variable any parent process can set.
+4. **Packaging** — **written, not yet exercised.** The configuration for a Windows NSIS installer
+   (per-user, no elevation), a macOS dmg for arm64 and x64, and a Linux AppImage and deb exists, in
+   `desktop/electron-builder.config.cjs` and `.github/workflows/desktop-release.yml`. **That
+   workflow has never run** — `workflow_dispatch` is unavailable until the file is on the default
+   branch — and **no installer has been produced, installed or launched on any platform.** The only
+   build performed by hand was a Windows `--dir` run with a stand-in for the agent, which yields an
+   unpacked directory rather than an installer. The macOS and Linux legs are entirely unexercised,
+   and the macOS leg carried a real defect for as long as it was described as done: `identity: null`
+   means *skip signing*, not ad-hoc, and an invalidly-signed bundle does not execute on Apple
+   Silicon at all. This milestone is done when a dispatch has built all four legs and one installer
+   per platform has been launched on a machine with no `warrantor` on `PATH` — the rehearsal in
+   RELEASING.md, which no gate can perform for us.
+
+   The `warrantor` binary is compiled on the same runner that packages it and ships **inside** the
+   app, and the shell prefers that copy over `WARRANTOR_BIN` and over `PATH`: verification happens
+   only in that binary, so choosing the binary chooses the verifier, and an installed app must not
+   be silently re-pointed at a different one by an environment variable any parent process can set.
+   That ordering is code and is tested. That it survives into a produced installer is configuration,
+   and is unobserved until the dispatch runs.
 
    **Signing, notarisation and the update channel remain not done.** Signing is procurement rather
    than engineering; the update channel is deliberately blocked behind it, because an update channel

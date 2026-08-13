@@ -147,11 +147,16 @@ not.
 
 ### Added — desktop installers, unsigned
 
-- **The desktop shell is packaged for three platforms.** electron-builder produces a Windows NSIS
-  installer (per-user, no elevation — an unsigned installer asking for administrator is the worst
-  possible first prompt from a security product, and an elevated install invites an elevated launch
-  of the supervised agent), a macOS dmg for arm64 and x64, and a Linux AppImage and deb.
-  `.github/workflows/desktop-release.yml` builds each on its native runner.
+- **The desktop shell has packaging configured for three platforms — not yet exercised.**
+  `desktop/electron-builder.config.cjs` and `.github/workflows/desktop-release.yml` describe a
+  Windows NSIS installer (per-user, no elevation — an unsigned installer asking for administrator
+  is the worst possible first prompt from a security product, and an elevated install invites an
+  elevated launch of the supervised agent), a macOS dmg for arm64 and x64, and a Linux AppImage and
+  deb, each on its native runner. **That workflow has never run**: `workflow_dispatch` is
+  unavailable until the file is on the default branch, so no installer has been produced, installed
+  or launched on any platform, and the macOS and Linux legs are entirely unexercised. The macOS
+  block is ad-hoc signed via `identity: '-'` — `identity: null` skips signing altogether, which
+  leaves an invalidly-signed bundle that Apple Silicon will not execute.
 - **The `warrantor` agent now ships inside the app, and is preferred over `PATH`.** It is compiled
   on the same runner that packages it, so the bundled agent always matches the app's architecture.
   Resolution order is bundled → `WARRANTOR_BIN` → `PATH`, and it is that way round because
@@ -165,11 +170,16 @@ not.
   and the notarisation constraint the bundled agent creates. No update channel exists and none may
   be added before signing: over an unsigned artifact it is an unauthenticated code-execution
   channel.
-- **`npm audit --audit-level=moderate` in `desktop/` is now a CI gate** rather than a checklist
-  item, at no cost to that job's no-Electron property. New packaging tests assert that the builder
-  config and `src/policy.js` agree on the bundled agent's filename, that Electron stays on the
-  audited `^43.4.0` pin, that no publish channel is configured, and that `desktop` never joins the
-  `typescript/` npm workspace.
+- **`npm audit --audit-level=moderate` in `desktop/` now runs on every pull request** rather than
+  only on the release checklist, at no cost to that job's no-Electron property. It reports in CI
+  and blocks in `desktop-release.yml`: the advisory feed is a live external service, so a
+  publication anywhere in electron-builder's build-tool tree must not stop unrelated Rust and
+  Python work from merging, while a release still cannot ship on a vulnerable pin. New packaging
+  tests assert that the builder config and `src/policy.js` agree on the bundled agent's filename,
+  that the lockfile resolves Electron inside the audited `^43.4.0` range (not merely inside major
+  43), that the macOS build is ad-hoc signed rather than signing-skipped, that the release workflow
+  checks the bundled agent's executable bit rather than only its presence, that no publish channel
+  is configured, and that `desktop` never joins the `typescript/` npm workspace.
 
 ### Security
 

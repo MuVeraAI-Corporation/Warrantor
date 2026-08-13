@@ -146,6 +146,26 @@ jobs:
           fi
           echo "$bundled"
 
+          # Presence is not enough, and this workflow's own header says why: the agent is compiled
+          # in-job rather than consumed from release-artifacts.yml because a mode lost in transit
+          # produces an agent that fails at spawn with EACCES on the reviewer's first launch — the
+          # error dialog this workstream exists to remove, arriving through the one hole the
+          # presence check leaves open. The mode can still be dropped between `chmod +x` and
+          # electron-builder's extraResources copy, so assert the bit rather than assume it.
+          #
+          # Only on the posix legs: NTFS has no execute bit, and Git Bash on the Windows runner
+          # synthesises one from the file extension, so `-x` there would assert nothing real.
+          if [ "${{ matrix.ext }}" = "" ]; then
+            while IFS= read -r agent; do
+              if [ ! -x "$agent" ]; then
+                echo "the bundled agent is not executable: $agent"
+                ls -la "$agent"
+                exit 1
+              fi
+            done <<< "$bundled"
+            echo "every bundled agent above carries the executable bit"
+          fi
+
       - name: Checksum the installers
         shell: bash
         working-directory: desktop/dist

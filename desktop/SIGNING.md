@@ -16,12 +16,29 @@ person trying to install.
 
 **macOS.** Gatekeeper refuses the app with *"…cannot be opened because the developer cannot be
 verified"*, and the download carries a quarantine attribute the app cannot clear for itself.
-Separately from Gatekeeper, on Apple Silicon an *entirely* unsigned Mach-O will not execute at all —
-the kernel requires at least an ad-hoc signature. That is why `electron-builder.config.cjs` sets
-`mac.identity: null` rather than disabling signing: `null` means ad-hoc, which makes the app
-launchable while carrying no publisher identity whatsoever. **Verify on the macOS runner that the
-produced `.app` actually launches on arm64.** If it does not, the fix is an `afterPack` hook that
-runs `codesign --force --sign - <helpers>` and then the app bundle, before the dmg is assembled.
+Separately from Gatekeeper, on Apple Silicon an *entirely* unsigned or invalidly-signed Mach-O will
+not execute at all — the kernel requires at least a valid ad-hoc signature, and packaging
+invalidates the one the prebuilt Electron ships with (renamed bundle, renamed Mach-O, rewritten
+`Info.plist`, injected `extraResources`). That is why `electron-builder.config.cjs` sets
+`mac.identity: '-'`, which is what makes electron-builder re-sign the packaged bundle ad-hoc —
+launchable, carrying no publisher identity whatsoever.
+
+**`identity: null` is not a synonym for this and must not be used.** In electron-builder 26 `null`
+routes to `handleNullIdentity()`, which logs *"skipped macOS code signing"* and signs nothing;
+only the literal `'-'` constructs an ad-hoc identity. The config carried `null` until this was
+caught, so any macOS build produced before that fix should be assumed unlaunchable on arm64.
+
+`mac.hardenedRuntime` is set to `false` explicitly for the same reason. electron-builder turns the
+hardened runtime on by default for non-MAS builds, and ad-hoc signing under it requires
+`com.apple.security.cs.disable-library-validation` — an entitlement that admits arbitrary unsigned
+libraries into the process, which is not a trade this product should make to work around a
+certificate it has not bought. The hardened runtime buys nothing without notarisation; §4 turns
+both on together.
+
+**None of this has been observed on a macOS runner: no macOS build has been executed.** The first
+dispatch must verify that the produced `.app` actually launches on arm64. If it does not, the fix
+is an `afterPack` hook that runs `codesign --force --sign - <helpers>` and then the app bundle,
+before the dmg is assembled.
 
 **Linux.** No equivalent check. AppImage and deb carry no publisher trust to lose, which is why the
 Linux legs are the only ones where unsigned costs nothing beyond the missing repository signature a
@@ -87,7 +104,9 @@ In `electron-builder.config.cjs`, the `mac` block becomes:
     entitlements: 'build/entitlements.mac.plist',            // already committed, currently inert
     entitlementsInherit: 'build/entitlements.mac.plist',
     notarize: true,
-    // `identity: null` is REMOVED — leaving it in silently keeps the build ad-hoc.
+    // `identity: '-'` is REMOVED — leaving it in silently keeps the build ad-hoc, and
+    // `hardenedRuntime: false` is replaced by the `true` above rather than deleted, so the
+    // change is one edit and not two half-edits.
   },
 ```
 
@@ -167,13 +186,20 @@ extra line.
 
 ## 7. Current status
 
+`desktop-release.yml` has **never run**: `workflow_dispatch` is unavailable until the workflow file
+is on the default branch, so nothing below has been produced by CI. The only build performed by hand
+was a Windows `electron-builder --dir` run against a dummy stand-in for the agent — an unpacked
+directory, not an installer. **No installer has been produced, installed or launched on any
+platform.** The table says configured where the configuration exists and the build has not been
+exercised; RELEASING.md step 1 is the dispatch that changes those rows.
+
 | Item | State |
 | --- | --- |
-| Windows NSIS installer, per-user, no elevation | built, unsigned |
-| macOS dmg, arm64 and x64 | built, ad-hoc signed only |
-| Linux AppImage and deb, x64 | built, unsigned |
-| `warrantor` agent bundled inside the app | yes, and preferred over `PATH` |
-| SHA256SUMS published per platform | yes |
-| Build provenance attestation | yes, on tagged releases |
+| Windows NSIS installer, per-user, no elevation | configured; only an unpacked `--dir` build has run, never an installer |
+| macOS dmg, arm64 and x64 | configured, never built — and until this branch it was configured to skip signing entirely (§1) |
+| Linux AppImage and deb, x64 | configured, never built |
+| `warrantor` agent bundled inside the app | configured, and preferred over `WARRANTOR_BIN` and `PATH`; asserted by a test against the builder config, never observed in a produced installer |
+| SHA256SUMS published per platform | in the workflow, never executed |
+| Build provenance attestation | in the workflow, never executed — tagged releases only |
 | Code signature / notarisation | no — needs the certificates in §3 |
 | Update channel | none, and none until signing exists |
