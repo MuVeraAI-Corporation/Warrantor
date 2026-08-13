@@ -1,6 +1,6 @@
 # 01 — Vision & Portfolio
 
-> **Naming:** the platform is now **Warrantor**. "Warrantor" and "Warrantor" appear throughout this
+> **Naming:** the platform is **Warrantor**. Earlier working names may still appear in this
 > document as the historical names and remain in directory paths, package names, and older RFCs; a
 > path rename has not been done and is not urgent. Read *Warrantor* as *Warrantor* wherever it appears.
 >
