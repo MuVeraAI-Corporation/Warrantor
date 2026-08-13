@@ -211,6 +211,37 @@ pub const MAX_HEADERS: usize = 64;
 pub const MAX_BODY_BYTES: usize = 64 * 1024;
 /// Longest warrant id accepted after the `wrt_` prefix.
 pub const MAX_ID_BODY: usize = 64;
+
+/// The four caps [`parse_request_with`] enforces, gathered so a second server can reuse the parser
+/// with different numbers instead of writing a second parser.
+///
+/// Only the numbers differ between callers. The *behaviour* — refuse every `Transfer-Encoding`,
+/// validate path segments and never decode them, cap every line read, refuse a duplicate
+/// `Content-Length` — is the part worth not rewriting, and it is exactly the part a second
+/// implementation gets wrong. `warrantor-archive` faces a network rather than a loopback socket and
+/// needs a much larger body cap than 64 KiB, because an exported report bundle with a long
+/// changed-files list will exceed it; that is a constant, not a reason for another parser.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Limits {
+    /// Longest request line, in bytes.
+    pub request_line: usize,
+    /// Largest total header block, in bytes.
+    pub header_bytes: usize,
+    /// Most header lines.
+    pub headers: usize,
+    /// Largest request body, in bytes.
+    pub body_bytes: usize,
+}
+
+impl Limits {
+    /// What [`parse_request`] has always enforced, and what this server still uses.
+    pub const DEFAULT: Self = Self {
+        request_line: MAX_REQUEST_LINE,
+        header_bytes: MAX_HEADER_BYTES,
+        headers: MAX_HEADERS,
+        body_bytes: MAX_BODY_BYTES,
+    };
+}
 /// Connections served at once before [`status::UNAVAILABLE`].
 ///
 /// A hard cap rather than a queue: a hung client must not be able to exhaust the process, and a
@@ -313,7 +344,23 @@ impl HttpRequest {
 /// The [`Response`] that should be written back. A parse failure is answered, not swallowed: a
 /// server that accepts a connection and never replies hangs its peer forever.
 pub fn parse_request<R: BufRead>(input: &mut R) -> Result<HttpRequest, Response> {
-    let line = read_capped_line(input, MAX_REQUEST_LINE).map_err(|e| match e {
+    parse_request_with(input, &Limits::DEFAULT)
+}
+
+/// [`parse_request`], with the caps supplied rather than taken from this module's constants.
+///
+/// Exists so `warrantor-archive` — a second HTTP surface, on a network rather than on loopback —
+/// gets this parser instead of its own. A second parser is a second place a `Transfer-Encoding`
+/// header, a percent-encoded path segment or an unbounded line read can be got wrong, and the two
+/// would then disagree about what a well-formed request is while both claiming to be hardened.
+///
+/// # Errors
+/// As [`parse_request`].
+pub fn parse_request_with<R: BufRead>(
+    input: &mut R,
+    limits: &Limits,
+) -> Result<HttpRequest, Response> {
+    let line = read_capped_line(input, limits.request_line).map_err(|e| match e {
         LineError::TooLong => refuse(
             status::URI_TOO_LONG,
             "uri_too_long",
@@ -362,7 +409,7 @@ pub fn parse_request<R: BufRead>(input: &mut R) -> Result<HttpRequest, Response>
     let mut header_count = 0usize;
     let mut content_length: Option<usize> = None;
     loop {
-        let raw = read_capped_line(input, MAX_HEADER_BYTES).map_err(|e| match e {
+        let raw = read_capped_line(input, limits.header_bytes).map_err(|e| match e {
             LineError::TooLong => refuse(
                 status::HEADERS_TOO_LARGE,
                 "headers_too_large",
@@ -385,7 +432,7 @@ pub fn parse_request<R: BufRead>(input: &mut R) -> Result<HttpRequest, Response>
         }
         header_bytes = header_bytes.saturating_add(raw.len());
         header_count = header_count.saturating_add(1);
-        if header_bytes > MAX_HEADER_BYTES || header_count > MAX_HEADERS {
+        if header_bytes > limits.header_bytes || header_count > limits.headers {
             return Err(refuse(
                 status::HEADERS_TOO_LARGE,
                 "headers_too_large",
@@ -426,7 +473,7 @@ pub fn parse_request<R: BufRead>(input: &mut R) -> Result<HttpRequest, Response>
                     "Content-Length must be a whole number of bytes",
                 ));
             };
-            if parsed > MAX_BODY_BYTES {
+            if parsed > limits.body_bytes {
                 return Err(refuse(
                     status::PAYLOAD_TOO_LARGE,
                     "payload_too_large",
