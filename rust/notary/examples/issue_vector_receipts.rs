@@ -43,9 +43,12 @@ fn main() {
         .expect("crate lives two levels below the repository root")
         .to_path_buf();
 
-    let out = env::args()
-        .nth(1)
-        .unwrap_or_else(|| repo_root.join(".notary_interop_bundle.json").display().to_string());
+    let out = env::args().nth(1).unwrap_or_else(|| {
+        repo_root
+            .join(".notary_interop_bundle.json")
+            .display()
+            .to_string()
+    });
 
     let vectors_path = repo_root.join("testvectors/notary/vectors.json");
     let raw = std::fs::read_to_string(&vectors_path)
