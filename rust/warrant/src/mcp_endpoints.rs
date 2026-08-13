@@ -644,6 +644,14 @@ pub struct AgentEndpoint {
     queue: StagingQueue,
     /// The tool names the warrant allows, published verbatim so the model can see its own bounds.
     allowed: Vec<String>,
+    /// The observe-only guard, absent unless an operator attached one at the CLI.
+    ///
+    /// `Option`, and absent by default, because an absent guard must mean **no signals** and never
+    /// "all clear". A boxed trait object rather than a generic parameter so a guard stays a runtime
+    /// choice of the process that starts the session, like [`crate::proxy::ProxyMode`], and never a
+    /// property of the stored warrant — a classifier knob inside signed claims would make a model's
+    /// configuration part of granted authority.
+    guard: Option<Box<dyn crate::guard::GuardSink>>,
     now: fn() -> u64,
 }
 
@@ -662,8 +670,41 @@ impl AgentEndpoint {
             proxy,
             queue,
             allowed,
+            guard: None,
             now,
         }
+    }
+
+    /// Attach an observe-only guard to this session.
+    ///
+    /// A builder rather than an argument to [`agent_endpoint_for`], whose signature stays as it is:
+    /// it is called from the binary and from the tests, and threading a guard through it would
+    /// imply the guard is something the warrant carries.
+    #[must_use]
+    pub fn with_guard(mut self, guard: Box<dyn crate::guard::GuardSink>) -> Self {
+        self.guard = Some(guard);
+        self
+    }
+
+    /// The guard signals accumulated during the session, for the end-of-run write.
+    ///
+    /// Empty when no guard was attached, which is the same shape as a guard that saw nothing — and
+    /// the reason the log records an attach line separately, so the two can still be told apart.
+    #[must_use]
+    pub fn guard_signals(&self) -> Vec<crate::guard::GuardSignal> {
+        self.guard.as_ref().map(|g| g.signals()).unwrap_or_default()
+    }
+
+    /// What the guard did, in counts. `None` when no guard was attached.
+    #[must_use]
+    pub fn guard_counters(&self) -> Option<crate::guard::GuardCounters> {
+        self.guard.as_ref().map(|g| g.counters())
+    }
+
+    /// Who the guard is, or `None` when none was attached.
+    #[must_use]
+    pub fn guard_provenance(&self) -> Option<&crate::guard::GuardProvenance> {
+        self.guard.as_ref().map(|g| g.provenance())
     }
 
     /// Denials recorded during the session, for the morning report.
@@ -725,7 +766,10 @@ impl Endpoint for AgentEndpoint {
             },
         };
 
-        match self.proxy.decide(&call) {
+        // Bound, not returned. The guard is observed *after* the answer already exists, so the
+        // control flow itself shows that no guard output can change it — the only line below that
+        // could is the `Enforce` early return, which is off.
+        let result = match self.proxy.decide(&call) {
             Decision::Deny { reason, bound } => {
                 ToolResult::error(format!("refused by the warrant's {bound} bound: {reason}"))
             }
@@ -748,7 +792,22 @@ impl Endpoint for AgentEndpoint {
                  forward it to. Start the agent endpoint with --upstream <command> so calls have \
                  somewhere to go."
             )),
+        };
+
+        // The one observation point in a live run. An absent guard does nothing at all: no call,
+        // no signal, no latency, and `result` is returned byte-identical to what it was before this
+        // block existed.
+        if let Some(guard) = self.guard.as_mut() {
+            let observation = guard.observe(tool, &call.arguments, (self.now)());
+            // THE ENFORCEMENT PATH. It is off: `enforcement_denial` returns `None` for every
+            // outcome under `GuardMode::Observe`, which is the default and the only mode that has
+            // been run in anger. This line exists so the path is written down once, in one place,
+            // rather than being an unwritten future edit at every call site.
+            if let Some(denial) = observation.enforcement_denial() {
+                return ToolResult::error(denial);
+            }
         }
+        result
     }
 }
 

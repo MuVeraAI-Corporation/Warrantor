@@ -35,6 +35,7 @@
 pub mod adapters;
 pub mod daemon;
 pub mod egress;
+pub mod guard;
 pub mod mcp;
 pub mod mcp_endpoints;
 pub mod proxy;

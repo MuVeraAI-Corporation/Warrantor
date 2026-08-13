@@ -24,6 +24,7 @@ use warrantor_warrant::daemon::{
 use warrantor_warrant::egress::{
     render_decision, EgressBroker, EgressVerdict, BROKER_VERSION, ENFORCEMENT_NOTE,
 };
+use warrantor_warrant::guard;
 use warrantor_warrant::mcp::serve;
 use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
 use warrantor_warrant::proxy::{host_of, ProxyMode};
@@ -183,7 +184,7 @@ warrantor — bounded authority for coding agents
   stage   <warrant-id> --tool T [--target H] [--arg k=v ...]
   run     <warrant-id> -- <command> [args...]
   status
-  mcp     [--agent <warrant-id>] [--observe]
+  mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
   serve   [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
   console [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
 
@@ -204,6 +205,16 @@ itself, and an agent that does not report spends unwatched. What it buys is that
 number is finally read -- a durable per-warrant total, a refusal when a reported use
 would break the ceiling, and cost-aware routing advice from your own price table in
 ~/.warrantor/backends.json. A warrant granted without --budget has a ceiling of zero.
+
+--guard attaches a local guard model to a supervised MCP session. It is OBSERVE-ONLY:
+it records what a classifier thought about each tool call and blocks nothing, because
+measured adversarial recall is 0.8152 and the adversarial false-positive rate is 0.0923.
+The endpoint must be loopback -- the guard is sent the agent's tool arguments -- and a
+model whose digest the backend cannot report does not attach at all, because a signal
+with no provenance is not evidence. Knobs: --guard-endpoint, --guard-model, --guard-seed,
+--guard-num-ctx, --guard-timeout, --guard-max-calls. Signals land in <root>/guard/ and
+read back beside the refusals at /v1/warrants/<id>/refusals. An absent or failed guard
+writes nothing, and that is reported as no coverage rather than as a clean run.
 
 Egress asks the broker, ahead of a run, exactly what the proxy will ask during one:
 for each destination, allow or deny and why. It answers for tool calls that go
@@ -1130,6 +1141,162 @@ impl warrantor_warrant::adapters::github::GitHubTransport for HttpsGitHub {
     }
 }
 
+// ── the guard's transport ─────────────────────────────────────────────────────────────
+
+/// A real HTTP transport for a loopback ollama-compatible daemon.
+///
+/// Built exactly like [`HttpsGitHub`] and for the same reasons: the client lives in the binary so
+/// the library has no socket in it, both timeouts are set so a wedged daemon cannot stall the
+/// agent's tool call forever, and redirects are refused. It sends **no credential** — a loopback
+/// classifier needs none, and a transport that could carry one would be a transport that could be
+/// pointed somewhere worth carrying one to.
+struct OllamaGuardTransport {
+    agent: ureq::Agent,
+    base: String,
+}
+
+impl guard::GuardTransport for OllamaGuardTransport {
+    fn get(&mut self, path: &str) -> Result<String, String> {
+        match self.agent.get(&format!("{}{path}", self.base)).call() {
+            Ok(ok) => ok.into_string().map_err(|e| format!("read response: {e}")),
+            Err(ureq::Error::Status(code, _)) => Err(format!("the guard returned HTTP {code}")),
+            Err(other) => Err(format!("the guard request failed: {other}")),
+        }
+    }
+
+    fn post_json(&mut self, path: &str, body: &str) -> Result<String, String> {
+        let response = self
+            .agent
+            .post(&format!("{}{path}", self.base))
+            .set("content-type", "application/json")
+            .send_string(body);
+        match response {
+            Ok(ok) => ok.into_string().map_err(|e| format!("read response: {e}")),
+            // Status only, never the body: an error body from a classifier can echo the request,
+            // and the request is the agent's own tool arguments.
+            Err(ureq::Error::Status(code, _)) => Err(format!("the guard returned HTTP {code}")),
+            Err(other) => Err(format!("the guard request failed: {other}")),
+        }
+    }
+}
+
+/// Read a `--guard-*` numeric flag, or fall back rather than failing the run.
+///
+/// A malformed knob is reported and defaulted here, unlike `--budget`, because the fallback is not
+/// an authority decision: the worst case is a guard configured differently from what was typed,
+/// and the value it was actually run with is recorded in every signal's provenance, so the mistake
+/// is visible in the evidence rather than silent.
+fn guard_number<T: std::str::FromStr + std::fmt::Display>(
+    args: &Args,
+    flag: &str,
+    fallback: T,
+) -> T {
+    match args.flags.get(flag) {
+        None => fallback,
+        Some(raw) => match raw.parse::<T>() {
+            Ok(value) => value,
+            Err(_) => {
+                eprintln!(
+                    "warrantor: --{flag}={raw:?} is not a number; using {fallback}. The value \
+                     actually used is recorded in every guard signal's provenance."
+                );
+                fallback
+            }
+        },
+    }
+}
+
+/// Build the observe-only guard, or `None` and a sentence saying no guard ran.
+///
+/// OFF unless `--guard` is passed. Every failure path returns `None` **and says so loudly**: a
+/// guard that could not attach must never be indistinguishable from a guard that found nothing, and
+/// it must never fail the run either — the run's authority comes from the warrant, not from a
+/// classifier being reachable.
+fn build_guard(args: &Args, warrant_id: &str, root: &Path) -> Option<Box<dyn guard::GuardSink>> {
+    if !args.flags.contains_key("guard") {
+        return None;
+    }
+    let endpoint = args
+        .flags
+        .get("guard-endpoint")
+        .cloned()
+        .unwrap_or_else(|| guard::DEFAULT_GUARD_ENDPOINT.to_string());
+    let model = args
+        .flags
+        .get("guard-model")
+        .cloned()
+        .unwrap_or_else(|| guard::DEFAULT_GUARD_MODEL.to_string());
+    let knobs = guard::GuardKnobs {
+        seed: guard_number(args, "guard-seed", 0),
+        num_ctx: guard_number(args, "guard-num-ctx", 4096),
+        timeout_seconds: guard_number(args, "guard-timeout", 20),
+        ..guard::GuardKnobs::default()
+    };
+    // Spelled so it cannot be typed by accident or reached by a tab-completion of `--guard`. The
+    // measured 0.0923 adversarial false-positive rate is why: an enforcing guard denies roughly one
+    // benign adversarially-phrased call in eleven, and the operator who overrides it twice stops
+    // reading it. See `guard::GuardMode::Enforce`.
+    let mode = if args.flags.contains_key("guard-enforce-untested-do-not-use") {
+        guard::GuardMode::Enforce
+    } else {
+        guard::GuardMode::Observe
+    };
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(std::time::Duration::from_secs(2))
+        .timeout(std::time::Duration::from_secs(knobs.timeout_seconds))
+        .redirects(0)
+        .build();
+    let transport = OllamaGuardTransport {
+        agent,
+        base: endpoint.trim_end_matches('/').to_string(),
+    };
+    let config = guard::GuardConfig {
+        warrant_id: warrant_id.to_string(),
+        endpoint: endpoint.trim_end_matches('/').to_string(),
+        model,
+        mode,
+        knobs,
+        max_calls: guard_number(args, "guard-max-calls", guard::DEFAULT_MAX_CALLS),
+    };
+    let adapter = match guard::attach(transport, config) {
+        Ok(adapter) => adapter,
+        Err(e) => {
+            eprintln!(
+                "warrantor: the guard did NOT attach: {e}\n  \
+                 NO guard ran for this session. That is not a clean bill of health -- nothing \
+                 classified anything. The run continues under its warrant, which is where its \
+                 authority comes from."
+            );
+            return None;
+        }
+    };
+    let session = {
+        use warrantor_warrant::guard::GuardSink as _;
+        adapter.session_record(now())
+    };
+    // Written at attach, before the first tool call. A session that dies mid-run then still shows
+    // exactly what was watching it, which is a different state from "no guard ran".
+    if let Err(e) = guard::record_guard_session(root, &session) {
+        eprintln!(
+            "warrantor: the guard attached but its attach record could not be written ({e}). Its \
+             signals will still be written at the end of the session."
+        );
+    }
+    eprintln!(
+        "warrantor: guard attached -- {} ({}) at {}. {}",
+        session.provenance.model,
+        session.provenance.model_digest,
+        session.provenance.endpoint,
+        match mode {
+            guard::GuardMode::Observe => "observe-only: it records and never blocks.",
+            guard::GuardMode::Enforce =>
+                "ENFORCING. This mode is untested in production and denies roughly one benign \
+                 adversarially-phrased call in eleven. Turn it off.",
+        }
+    );
+    Some(Box::new(adapter))
+}
+
 /// Build the performer for a settle: the real adapter when configured, an honest refusal otherwise.
 fn build_performer() -> Box<dyn EffectPerformer> {
     let Ok(slug) = std::env::var("WARRANTOR_GITHUB_REPO") else {
@@ -1565,6 +1732,11 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
             Ok(e) => e,
             Err(e) => return fail(&e.to_string()),
         };
+        // Absent by default. `build_guard` returns `None` unless `--guard` was passed, and also
+        // whenever attaching failed -- an absent guard produces no signals and never "all clear".
+        if let Some(sink) = build_guard(args, id, root) {
+            endpoint = endpoint.with_guard(sink);
+        }
         // stderr, not stdout: stdout is the JSON-RPC channel and a stray line there desynchronises
         // every client reading it line by line.
         eprintln!(
@@ -1601,6 +1773,30 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                         "warrantor: the session's refusals could not be written down ({e}). They \
                          are printed below and nowhere else."
                     ),
+                }
+                // Beside the refusals and never mixed into them: these calls HAPPENED. The write
+                // is skipped entirely when no guard was attached, so an unguarded run leaves no
+                // guard log and `/v1/.../refusals` reports `configured: false`.
+                if let Some(counters) = endpoint.guard_counters() {
+                    let signals = endpoint.guard_signals();
+                    match guard::record_guard_signals(root, id, &signals, counters, now()) {
+                        Ok(_) => {}
+                        // Same shape as the refusal write above: reported, never a failing exit
+                        // code. The run is over and its authority never depended on this.
+                        Err(e) => eprintln!(
+                            "warrantor: the session's guard signals could not be written down \
+                             ({e}). The counts below are the only record."
+                        ),
+                    }
+                    eprintln!(
+                        "warrantor: guard -- {} classified, {} flagged, {} backend-unavailable, {} \
+                         unparseable, {} skipped over budget. Nothing was blocked.",
+                        counters.classified,
+                        counters.flagged,
+                        counters.backend_unavailable,
+                        counters.unparseable,
+                        counters.skipped_over_budget
+                    );
                 }
                 for request in endpoint.authority_requests() {
                     eprintln!(

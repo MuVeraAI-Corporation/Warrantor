@@ -2439,6 +2439,7 @@ impl Api for StoreApi {
         }
         let log = read_refusals(&self.root, id);
         let groups = aggregate_refusals(&log.records);
+        let guard_log = crate::guard::read_guard_log(&self.root, id);
         Response::json(
             status::OK,
             &Verification::unsigned(now, REFUSAL_PROVENANCE),
@@ -2448,6 +2449,12 @@ impl Api for StoreApi {
                 "grouped": groups,
                 "unreadable_lines": log.unreadable_lines,
                 "note": REFUSAL_PROVENANCE,
+                // A sibling, never merged into the arrays above. A refusal means the call did NOT
+                // happen; a guard signal means it did and a model disliked it. Folding guard counts
+                // into `records`/`grouped`/`total_occurrences` would make the console report N
+                // refusals for N things that actually occurred, and would put `aggregate_refusals`'
+                // "widen the bound" guidance behind a classifier score.
+                "guard": guard_object(&guard_log, false),
             }),
         )
     }
@@ -2461,6 +2468,7 @@ impl Api for StoreApi {
             .iter()
             .filter(|g| g.signal == RefusalSignal::BoundsProbablyWrong)
             .count();
+        let guard_log = crate::guard::read_all_guard_logs(&self.root);
         Response::json(
             status::OK,
             &Verification::unsigned(now, REFUSAL_PROVENANCE),
@@ -2474,6 +2482,9 @@ impl Api for StoreApi {
                 },
                 "unreadable_lines": log.unreadable_lines,
                 "note": REFUSAL_PROVENANCE,
+                // Additive and adjacent: `total_occurrences` and `bounds_probably_wrong` above are
+                // computed from refusals alone and no guard signal may move either.
+                "guard": guard_object(&guard_log, true),
             }),
         )
     }
@@ -2845,6 +2856,56 @@ impl Api for StoreApi {
             .with_details(data)
         }
     }
+}
+
+/// The sentence every guard answer carries about what a model's opinion is and is not.
+///
+/// Longer than [`REFUSAL_PROVENANCE`] because it has more to disclaim. A refusal is a fact about a
+/// bound; a guard signal is a model's opinion, and both directions of it mislead if read as a
+/// verdict. The measured numbers are in the sentence rather than in a doc nobody opens: at 0.8152
+/// adversarial recall an empty list is not a clean run, and at a false-positive rate that
+/// quadruples under adversarial phrasing a full list is not a list of incidents.
+const GUARD_PROVENANCE: &str =
+    "Guard signals are a MODEL's opinion about calls that HAPPENED, recorded beside a run. The \
+     guard blocked nothing and cannot: it runs observe-only. Measured recall under adversarial \
+     phrasing is 0.8152 and the false-positive rate quadruples under it (0.0224 -> 0.0923), so an \
+     empty list is NOT a clean bill of health and a full one is NOT a list of incidents. Integrity \
+     remains an Ed25519 question with a three-valued answer, and no classifier score enters it: \
+     the `verification` object on this response is computed without reading any of this.";
+
+/// The `guard` sibling object on the two refusal routes.
+///
+/// A function rather than two inline `json!` blocks so the disclaiming sentence and the
+/// `configured: false` case cannot drift between the per-warrant and the summary route. `configured`
+/// is false when no attach record exists anywhere, and the note says what that means, because "no
+/// guard signals" and "no guard ran" render identically otherwise — the exact failure `ml/README.md`
+/// names about a dead backend reading as perfect safety, one level up.
+fn guard_object(log: &crate::guard::GuardLog, grouped: bool) -> Value {
+    let configured = log.configured();
+    let mut object = json!({
+        "configured": configured,
+        "sessions": log.sessions,
+        "counters": log.summaries,
+        "unreadable_lines": log.unreadable_lines,
+        "note": if configured {
+            GUARD_PROVENANCE
+        } else {
+            "No guard was attached to any run in this store, so nothing classified anything. This \
+             is an absence of observation, NOT an absence of findings: read it as no coverage."
+        },
+    });
+    let detail = if grouped {
+        json!(crate::guard::aggregate_guard_signals(&log.signals))
+    } else {
+        json!(log.signals)
+    };
+    if let Some(map) = object.as_object_mut() {
+        map.insert(
+            if grouped { "groups" } else { "signals" }.to_string(),
+            detail,
+        );
+    }
+    object
 }
 
 /// The sentence every refusal answer carries about where its data came from.
