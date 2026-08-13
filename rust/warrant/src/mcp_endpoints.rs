@@ -14,6 +14,7 @@ use crate::mcp::{require_str, string_list, Endpoint, ToolResult, ToolSpec};
 use crate::proxy::{Decision, Proxy, ToolCall};
 use crate::settle::{settle, void, EffectPerformer};
 use crate::staging::{EffectRegistry, StagingQueue};
+use crate::stop::{OsProcessControl, StopStore};
 use crate::store::{StoredWarrant, WarrantStore};
 use crate::worktree::Worktree;
 use crate::{SideEffectClass, Warrant, WarrantBounds, WarrantState};
@@ -24,6 +25,60 @@ fn schema(properties: Value, required: &[&str]) -> Value {
         "properties": properties,
         "required": required,
     })
+}
+
+/// Read an optional whole-cents ceiling, refusing every shape that is not one.
+///
+/// `Value::as_u64` on its own is the trap this exists to close. It answers `None` for `"500"`, for
+/// `500.0` and for `-1` alike — three shapes an LLM caller emits routinely for an integer field —
+/// and `None` on this argument is not "the caller said nothing". It is a warrant with **no declared
+/// ceiling**, minted silently at the exact moment the caller was declaring one. An undeclared
+/// ceiling is not merely a different number: `spend::cap_declared` is false for it, so the warrant
+/// is never [`crate::spend::SpendLedger::exhausted`] and nothing can refuse it on budget grounds.
+///
+/// So a value that does not parse is a refusal, not a default — the same decision `warrantor grant`
+/// already makes for `--budget`. A string or float is accepted only where it is an exact,
+/// non-negative whole count of cents; anything else is named back to the caller.
+fn optional_cents(arguments: &BTreeMap<String, Value>, key: &str) -> Result<Option<u64>, String> {
+    let Some(raw) = arguments.get(key) else {
+        return Ok(None);
+    };
+    // An explicit `null` is the caller saying nothing, which already means a ceiling of zero.
+    if raw.is_null() {
+        return Ok(None);
+    }
+    let parsed = match raw {
+        Value::Number(n) => n.as_u64().or_else(|| whole_cents_from_f64(n.as_f64())),
+        Value::String(s) => s.trim().parse::<u64>().ok(),
+        _ => None,
+    };
+    parsed.map(Some).ok_or_else(|| {
+        format!(
+            "{key:?} must be a whole, non-negative number of cents -- e.g. 500 for $5.00. {raw} is \
+             not one, so the warrant was NOT granted. Refusing rather than dropping it: a ceiling \
+             that does not parse would leave the warrant with no declared ceiling at all, at the \
+             exact moment you were declaring one."
+        )
+    })
+}
+
+/// A JSON float is a whole count of cents only when it is finite, non-negative, integral, and
+/// small enough that an `f64` still distinguishes it from its neighbours.
+///
+/// `500.0` is the integer 500 written the way a model writes it, and taking it is not a guess.
+/// `5.005`, `-1.0` and `1e30` are not whole cents, and each comes back as a refusal instead.
+fn whole_cents_from_f64(value: Option<f64>) -> Option<u64> {
+    // 2^53: above this, consecutive integers are no longer representable, so a value that large is
+    // not a figure the caller can have meant exactly.
+    const MAX_EXACT: f64 = 9_007_199_254_740_992.0;
+    let cents = value?;
+    // `is_finite` first: NaN and the infinities fail the range test too, but only by accident of
+    // how comparison treats them, and a bound this load-bearing should not rest on an accident.
+    if !cents.is_finite() || !(0.0..=MAX_EXACT).contains(&cents) || cents.fract() != 0.0 {
+        return None;
+    }
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    Some(cents as u64)
 }
 
 // ── control endpoint ──────────────────────────────────────────────────────────────────
@@ -77,10 +132,30 @@ impl ControlEndpoint {
                 "\"tools\" must list at least one tool: a warrant with no tools can do nothing",
             );
         }
-        let deadline = arguments
-            .get("deadline_seconds")
-            .and_then(Value::as_u64)
-            .unwrap_or(8 * 3600);
+        // `as_u64` yields None for a JSON string ("300"), a float (300.0) and a negative number --
+        // all shapes an LLM caller routinely emits. Folding those into the default silently granted
+        // 8 hours to a caller who asked for 5 minutes: 96x the authority requested, with no error,
+        // on a bound that is genuinely Enforced. Absent means default; present-but-unreadable means
+        // refuse.
+        let deadline = match arguments.get("deadline_seconds") {
+            None => 8 * 3600,
+            Some(value) => match value.as_u64() {
+                Some(seconds) if seconds > 0 => seconds,
+                _ => {
+                    return ToolResult::error(format!(
+                        "deadline_seconds must be a positive whole number of seconds, not {value}. \
+                         Refusing rather than defaulting: defaulting here would hand you 8 hours \
+                         when you asked for something shorter."
+                    ))
+                }
+            },
+        };
+        // Parsed before anything is signed or created, so a bad ceiling costs the caller an error
+        // message rather than a worktree and a warrant they then have to void.
+        let budget_cents_observed = match optional_cents(arguments, "budget_cents") {
+            Ok(cents) => cents,
+            Err(message) => return ToolResult::error(message),
+        };
 
         let now = (self.now)();
         let id = format!("wrt_{:016x}", now.wrapping_mul(0x9E37_79B9_7F4A_7C15));
@@ -91,7 +166,15 @@ impl ControlEndpoint {
             // Writes are staged unless the caller says otherwise: the safe reading of silence.
             staged_classes: [SideEffectClass::Write].into_iter().collect(),
             expires_at: now + deadline,
-            budget_cents_observed: None,
+            // Was hardcoded `None` with no schema property, so EVERY MCP-granted warrant was
+            // uncapped and the caller had no way to say otherwise. It is a declared ceiling now,
+            // and absent still means none: an MCP-granted warrant without `budget_cents` can
+            // record only zero-cost usage, which is the same reading the rest of this crate takes
+            // of an absent limit. The bound remains observed either way -- see `crate::spend`.
+            //
+            // Read through `optional_cents`, never `Value::as_u64` directly: absence has to be
+            // something the caller chose, not something a malformed value decayed into.
+            budget_cents_observed,
             delegation_depth: arguments
                 .get("delegation_depth")
                 .and_then(Value::as_u64)
@@ -168,6 +251,15 @@ impl ControlEndpoint {
                 Reconciliation::Supervised { pid } => {
                     lines.push(format!("running    {id}  (supervisor pid {pid})"));
                 }
+                // Kept distinct from Interrupted for the same reason the CLI does: an assistant
+                // relaying "attention: the supervisor died" about a run that finished cleanly is
+                // worse than saying nothing, because the operator acts on it.
+                Reconciliation::Completed {
+                    detail, expired, ..
+                } => {
+                    let label = if *expired { "deadline " } else { "finished " };
+                    lines.push(format!("{label}  {id}\n           {detail}"));
+                }
                 Reconciliation::Interrupted { detail } => {
                     lines.push(format!("attention  {id}\n           {detail}"));
                 }
@@ -189,55 +281,156 @@ impl ControlEndpoint {
             Ok(s) => s,
             Err(e) => return ToolResult::error(format!("{e}")),
         };
-        let mut out = vec![
-            format!("Warrant {id} — {:?}", stored.warrant.state),
-            format!("  goal: {}", stored.warrant.claims.goal),
-        ];
 
-        if let Some(path) = &stored.worktree {
-            let tree = Worktree::existing(
-                stored.repo.clone().unwrap_or_else(|| path.clone()),
-                path.clone(),
-                stored.branch.clone().unwrap_or_default(),
-                stored.base_commit.clone().unwrap_or_default(),
-            );
-            match tree.changed_files() {
-                Ok(files) if files.is_empty() => out.push("  changed files: none".to_string()),
-                Ok(files) => {
-                    out.push(format!("  changed files ({}):", files.len()));
-                    for f in files.iter().take(50) {
-                        out.push(format!("    {f}"));
-                    }
-                }
-                Err(e) => out.push(format!("  changed files: could not read ({e})")),
+        // Fail-closed, exactly as the CLI does it: an unreadable stop directory means containment
+        // is unknown, and an unknown must not be reported as "not contained".
+        let stops = match StopStore::open(&self.root) {
+            Ok(s) => s,
+            Err(e) => {
+                return ToolResult::error(format!(
+                    "cannot read stop records, so containment is unknown: {e}"
+                ))
+            }
+        };
+
+        // The budget bound's ledger, read the same fail-closed way and from the same store the CLI
+        // reads: a ledger that will not parse, or is signed by a key other than this store's
+        // issuer, must not be shown as zero spend. Zero is an answer; "unknown" is not.
+        let ledger = match crate::spend::SpendStore::open(&self.root).and_then(|ledgers| {
+            ledgers.load(
+                &stored.warrant.claims.bounds,
+                &id,
+                &stored.warrant.claims.subject,
+                &self.issuer.verifying_key(),
+            )
+        }) {
+            Ok(l) => l,
+            Err(e) => return ToolResult::error(format!("cannot read the spend ledger: {e}")),
+        };
+
+        // Same bundle the CLI prints and the receipts cover. Before this there were two report
+        // implementations that had already drifted apart; now there are two renderings of one.
+        let queue = self.open_queue(&id).map_err(|e| e.to_string());
+        let built = crate::report::build_observed(
+            &stored,
+            queue.as_ref().map_err(Clone::clone),
+            &self.issuer.verifying_key(),
+            (self.now)(),
+            &stops.contained_scopes(&id),
+            Some(crate::spend::section(&ledger)),
+        );
+        let mut out = vec![crate::report::render_mcp(built.bundle())];
+        out.push(String::new());
+
+        // Additive, exactly as on the CLI: the digest and verdict of the signed bundle. Without
+        // this the MCP path would keep emitting unsigned prose while the CLI emitted evidence.
+        match built.sign(&self.issuer, "issuer") {
+            Ok(signed) => {
+                let check = &signed.bundle.authority_check;
+                out.push(format!("  evidence bundle: {}", signed.bundle_digest));
+                out.push(format!(
+                    "  authority: {} ({}), decided by {}",
+                    if check.allowed { "allow" } else { "deny" },
+                    check
+                        .denied_gate
+                        .clone()
+                        .unwrap_or_else(|| "all nine gates passed".to_string()),
+                    check.engine
+                ));
+                out.push(
+                    "  Export the signed bundle from the CLI: warrantor report <id> --export \
+                     <path>"
+                        .to_string(),
+                );
+                out.push(String::new());
+            }
+            Err(e) => {
+                out.push(format!("  evidence bundle: could not be signed ({e})"));
+                out.push(String::new());
             }
         }
 
-        match self.open_queue(&id) {
-            Ok(queue) => match queue.release_order() {
-                Ok(effects) if effects.is_empty() => {
-                    out.push("  staged effects: none".to_string());
-                }
-                Ok(effects) => {
-                    out.push(format!(
-                        "  staged effects ({}) — NOT yet performed, in release order:",
-                        effects.len()
-                    ));
-                    for e in effects {
-                        out.push(format!("    {}  {}", e.handle, e.tool));
-                    }
-                }
-                Err(e) => out.push(format!("  staged effects: {e}")),
-            },
-            Err(e) => out.push(format!("  staged effects: {e}")),
-        }
-        out.push(String::new());
         out.push(
             "Then: warrant_settle to perform the staged effects, or warrant_void to discard \
                   the work and keep the log."
                 .to_string(),
         );
         ToolResult::ok(out.join("\n"))
+    }
+
+    /// Stop a run from the developer's own agent.
+    ///
+    /// The same code path as `warrantor stop`, not a second implementation of it: an operator who
+    /// says "stop it" to their assistant must get the identical termination, the identical held
+    /// state and the identical signed record they would get by typing the command. An uncontained
+    /// stop comes back as an MCP **error** so the model cannot read it as done.
+    ///
+    /// This tool is published on the control endpoint only. [`AgentEndpoint`] publishes nothing but
+    /// the warrant's own tools, so a supervised agent has no name to call here — it can neither stop
+    /// itself to dodge its deadline nor stop a sibling.
+    fn stop_warrant(&mut self, arguments: &BTreeMap<String, Value>) -> ToolResult {
+        let id = match require_str(arguments, "warrant_id") {
+            Ok(v) => v,
+            Err(e) => return *e,
+        };
+        let mut stored = match self.store.load(&id) {
+            Ok(s) => s,
+            Err(e) => return ToolResult::error(format!("{e}")),
+        };
+        let daemons = match DaemonState::open(&self.root) {
+            Ok(d) => d,
+            Err(e) => return ToolResult::error(format!("{e}")),
+        };
+        let stops = match StopStore::open(&self.root) {
+            Ok(s) => s,
+            Err(e) => return ToolResult::error(format!("{e}")),
+        };
+
+        let daemon = daemons.get(&id);
+        let mut outcome = crate::stop::execute(
+            &mut stored,
+            daemon.as_ref(),
+            &OsProcessControl,
+            &self.store.staged_path(&id),
+        );
+        if daemon.is_some() && daemons.deregister(&id).is_ok() {
+            outcome.deregistered = true;
+        }
+        if let Err(e) = self.store.save(&stored) {
+            return ToolResult::error(format!(
+                "the run was stopped but the warrant state could not be persisted: {e}"
+            ));
+        }
+
+        let reason = arguments.get("reason").and_then(Value::as_str);
+        let signed = match crate::stop::sign(&stored, &outcome, reason, &self.issuer, (self.now)())
+        {
+            Ok(s) => s,
+            Err(e) => {
+                return ToolResult::error(format!(
+                    "the run was stopped, but the record could not be signed: {e}"
+                ))
+            }
+        };
+        if let Err(e) = stops.save(&signed) {
+            return ToolResult::error(format!(
+                "the run was stopped but the record was not kept: {e}"
+            ));
+        }
+
+        let text = format!(
+            "{}{}",
+            crate::stop::render_cli(&signed),
+            crate::stop::render_limitations(&signed)
+        );
+        if crate::stop::contained(&signed) {
+            ToolResult::ok(text)
+        } else {
+            ToolResult::error(format!(
+                "{text}\nThis stop did NOT contain the run. Treat the agent as still running until \
+                 that has been confirmed some other way."
+            ))
+        }
     }
 
     fn open_queue(&self, id: &str) -> Result<StagingQueue, crate::WarrantError> {
@@ -371,7 +564,8 @@ impl Endpoint for ControlEndpoint {
                         "egress_hosts": {"type": "array", "items": {"type": "string"}, "description": "Hosts the agent may reach. Empty means no egress at all."},
                         "deadline_seconds": {"type": "integer", "description": "How long the warrant lives. Default 28800 (8h)."},
                         "repo": {"type": "string", "description": "Path to the git repo to isolate. Strongly recommended; without it the agent is not isolated."},
-                        "delegation_depth": {"type": "integer", "description": "How many levels of sub-warrant may be issued. Default 1."}
+                        "delegation_depth": {"type": "integer", "description": "How many levels of sub-warrant may be issued. Default 1."},
+                        "budget_cents": {"type": "integer", "description": "Spend ceiling in whole cents, e.g. 500 for $5.00. OBSERVED, not enforced: model API calls do not pass through Warrantor, so this is measured only from usage the agent itself reports. Absent means a ceiling of zero, not unlimited. A value that is not a whole, non-negative number of cents is REFUSED, not ignored -- the grant fails rather than quietly producing a warrant with no declared ceiling."}
                     }),
                     &["goal", "tools"],
                 ),
@@ -389,6 +583,22 @@ impl Endpoint for ControlEndpoint {
                               before settling."
                     .to_string(),
                 input_schema: schema(json!({"warrant_id": {"type": "string"}}), &["warrant_id"]),
+            },
+            ToolSpec {
+                name: "warrant_stop".to_string(),
+                description: "Stop a running warrant now: terminate its supervisor, hold the \
+                              warrant so its staged work survives for a decision, and write a \
+                              signed record of exactly what the stop contained and what it could \
+                              not. Use this the moment a run should not continue. It does not \
+                              discard work -- warrant_void does that."
+                    .to_string(),
+                input_schema: schema(
+                    json!({
+                        "warrant_id": {"type": "string"},
+                        "reason": {"type": "string", "description": "Why the run is being stopped. Recorded verbatim in the signed stop record; left absent rather than guessed if you do not give one."}
+                    }),
+                    &["warrant_id"],
+                ),
             },
             ToolSpec {
                 name: "warrant_settle".to_string(),
@@ -413,6 +623,7 @@ impl Endpoint for ControlEndpoint {
             "warrant_grant" => self.grant(arguments),
             "warrant_status" => self.status(),
             "warrant_report" => self.report(arguments),
+            "warrant_stop" => self.stop_warrant(arguments),
             "warrant_settle" => self.settle_warrant(arguments),
             "warrant_void" => self.void_warrant(arguments),
             other => ToolResult::error(format!("no tool named {other:?}")),
@@ -459,6 +670,15 @@ impl AgentEndpoint {
     #[must_use]
     pub fn authority_requests(&self) -> Vec<&crate::proxy::AuthorityRequest> {
         self.proxy.authority_requests()
+    }
+
+    /// Egress denials with their destination and reason.
+    ///
+    /// Surfaced separately from [`Self::authority_requests`] because the destination is the part a
+    /// developer acts on, and the bound name alone does not carry it.
+    #[must_use]
+    pub fn egress_refusals(&self) -> Vec<&crate::egress::EgressRefusal> {
+        self.proxy.egress_refusals()
     }
 }
 

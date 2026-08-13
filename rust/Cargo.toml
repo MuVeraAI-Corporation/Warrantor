@@ -47,6 +47,11 @@ exclude = [
 [workspace.package]
 version = "1.0.0"
 edition = "2021"
+# Floor set by ed25519-dalek 3 and curve25519-dalek 5, both of which moved to 1.85. Declared rather
+# than discovered: without it the build passes on whatever toolchain the CI image happens to ship,
+# and a contributor on an older one gets an error naming a transitive dependency instead of a
+# requirement. `cargo` enforces this; the toolchain file beside it pins what CI actually installs.
+rust-version = "1.85"
 license = "Apache-2.0"
 authors = ["Warrantor contributors"]
 repository = "https://github.com/MuVeraAI-Corporation/Warrantor"

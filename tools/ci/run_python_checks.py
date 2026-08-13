@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -190,10 +191,54 @@ def write_report(path: Path, check: str, results: list[ProjectResult]) -> None:
     path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
 
+# The cross-language interop tests verify a receipt signed by Rust using Python's `cryptography`.
+# They are the only thing standing between a canonicalisation change and four languages silently
+# disagreeing -- and they `skipif` when their fixture is absent, so with no fixture the suite
+# reported 53/53 green having never run them. A safety net that reports success without being
+# exercised is worse than no safety net, because it is believed.
+#
+# Each entry: (cargo package, example, fixture written at the repo root).
+INTEROP_FIXTURES: list[tuple[str, str, str]] = [
+    ("warrantor-notary", "issue_vector_receipts", ".notary_interop_bundle.json"),
+    ("warrantor-evidence", "issue_sample_chain", ".evidence_interop.json"),
+]
+
+
+def produce_interop_fixtures() -> list[str]:
+    """Generate the Rust-signed fixtures so the interop tests actually run.
+
+    Returns a list of human-readable notes about anything that could not be produced. Missing
+    cargo is reported rather than treated as success: the caller prints it, so a run without
+    interop coverage announces itself instead of looking identical to one with it.
+    """
+
+    notes: list[str] = []
+    if shutil.which("cargo") is None:
+        return ["cargo not on PATH: interop fixtures not produced, so interop tests will SKIP"]
+    for package, example, fixture in INTEROP_FIXTURES:
+        target = REPOSITORY_ROOT / fixture
+        completed = subprocess.run(
+            ["cargo", "run", "-q", "-p", package, "--example", example, "--", str(target)],
+            cwd=REPOSITORY_ROOT / "rust",
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0 or not target.exists():
+            notes.append(
+                f"could not produce {fixture} via {package}/{example}: "
+                f"{completed.stderr.strip()[:300] or 'no output'}"
+            )
+    return notes
+
+
 def main() -> int:
     """Run the selected check against every discovered project."""
 
     arguments = parse_arguments()
+    if arguments.check == "test":
+        for note in produce_interop_fixtures():
+            print(f"interop: {note}", file=sys.stderr)
     try:
         projects = discover_projects()
         results = [check_project(project, arguments.check) for project in projects]

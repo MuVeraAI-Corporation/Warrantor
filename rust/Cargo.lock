@@ -2844,6 +2844,11 @@ dependencies = [
  "thiserror 1.0.69",
  "ureq",
  "warrantor-authority-spec",
+ "warrantor-containment-conformance",
+ "warrantor-egress",
+ "warrantor-evidence",
+ "warrantor-notary",
+ "warrantor-spend",
  "warrantor-trust-core",
 ]
 

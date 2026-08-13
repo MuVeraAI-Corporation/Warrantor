@@ -28,12 +28,31 @@ fn deep_merge(base: &mut Value, override_val: &Value) {
 
 fn main() {
     use std::env;
-    let out = env::args()
-        .nth(1)
-        .unwrap_or_else(|| "../../.notary_interop_bundle.json".to_string());
+    use std::path::PathBuf;
 
-    let raw =
-        std::fs::read_to_string("../../testvectors/notary/vectors.json").expect("read vectors");
+    // Resolved from the crate manifest, not from the current directory. These were relative paths
+    // (`../../testvectors/...`), which only work when you happen to run from inside this crate --
+    // `cargo run -p warrantor-notary --example …` from the workspace root panicked with a bare
+    // NotFound. That is not cosmetic: this example produces the fixture the Python interop tests
+    // need, and those tests `skipif` when it is absent. So the fixture was never produced, the
+    // interop tests never ran, and the suite reported green having skipped the one check that
+    // proves Rust and Python agree on a signature.
+    let repo_root: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("crate lives two levels below the repository root")
+        .to_path_buf();
+
+    let out = env::args().nth(1).unwrap_or_else(|| {
+        repo_root
+            .join(".notary_interop_bundle.json")
+            .display()
+            .to_string()
+    });
+
+    let vectors_path = repo_root.join("testvectors/notary/vectors.json");
+    let raw = std::fs::read_to_string(&vectors_path)
+        .unwrap_or_else(|e| panic!("read vectors at {}: {e}", vectors_path.display()));
     let root: Value = serde_json::from_str(&raw).expect("vectors json");
     let base_req = root.get("base_request").cloned().expect("base_request");
     let base_ctx = root.get("base_context").cloned().expect("base_context");

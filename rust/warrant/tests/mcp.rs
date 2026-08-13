@@ -103,6 +103,10 @@ fn the_agent_endpoint_does_not_publish_any_lifecycle_tool() {
         "warrant_grant",
         "warrant_report",
         "warrant_status",
+        // Stop is an operator control, not an agent one. An agent that could stop its own warrant
+        // could end a run before a deadline it was meant to work under, and one that could stop a
+        // sibling's could halt work it was never granted authority over.
+        "warrant_stop",
     ] {
         assert!(
             !names.contains(&forbidden.to_string()),
@@ -148,11 +152,64 @@ fn the_control_endpoint_publishes_the_full_lifecycle() {
         "warrant_grant",
         "warrant_status",
         "warrant_report",
+        "warrant_stop",
         "warrant_settle",
         "warrant_void",
     ] {
         assert!(names.contains(&expected.to_string()), "missing {expected}");
     }
+}
+
+/// "Stop it" said to the developer's own assistant must do exactly what typing the command does:
+/// the same hold, the same signed record on disk, the same containment afterwards. A second
+/// implementation behind the MCP tool is how the two surfaces drift into disagreeing about whether
+/// a run was stopped.
+#[test]
+fn the_control_endpoint_stops_a_run_and_leaves_the_same_record_the_cli_would() {
+    let dir = tempdir("mcpstop");
+    let store = WarrantStore::open(&dir).expect("store");
+    let stored = stored_open("wrt_stop_mcp", &["git"]);
+    store.save(&stored).expect("save");
+
+    let mut endpoint = control(&dir);
+    let result = endpoint.call(
+        "warrant_stop",
+        &args(&[
+            ("warrant_id", json!("wrt_stop_mcp")),
+            ("reason", json!("the goal changed")),
+        ]),
+    );
+    assert!(
+        !result.is_error,
+        "nothing was running to fail on: {result:?}"
+    );
+    assert!(
+        result.text.contains("STOPPED wrt_stop_mcp"),
+        "{}",
+        result.text
+    );
+
+    // Held, not void: the staged work survives for a decision.
+    let after = store.load("wrt_stop_mcp").expect("reload");
+    assert_eq!(after.warrant.state, WarrantState::Held);
+
+    // And the record is durable, verifiable, and contains this warrant's scope from now on.
+    let stops = warrantor_warrant::stop::StopStore::open(&dir).expect("stops");
+    let signed = stops.get("wrt_stop_mcp").expect("a record was kept");
+    warrantor_warrant::stop::verify_stop(&signed).expect("it verifies");
+    assert_eq!(signed.record.reason.as_deref(), Some("the goal changed"));
+    assert_eq!(stops.contained_scopes("wrt_stop_mcp"), vec!["wrt_stop_mcp"]);
+
+    // The report the same endpoint renders now denies at the containment gate.
+    let report = endpoint.call(
+        "warrant_report",
+        &args(&[("warrant_id", json!("wrt_stop_mcp"))]),
+    );
+    assert!(
+        report.text.contains("deny (containment)"),
+        "a stopped warrant's report must say it is contained: {}",
+        report.text
+    );
 }
 
 // ── the agent endpoint's policing ─────────────────────────────────────────────────────
