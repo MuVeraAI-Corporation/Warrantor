@@ -174,6 +174,15 @@ impl ControlEndpoint {
                 Reconciliation::Supervised { pid } => {
                     lines.push(format!("running    {id}  (supervisor pid {pid})"));
                 }
+                // Kept distinct from Interrupted for the same reason the CLI does: an assistant
+                // relaying "attention: the supervisor died" about a run that finished cleanly is
+                // worse than saying nothing, because the operator acts on it.
+                Reconciliation::Completed {
+                    detail, expired, ..
+                } => {
+                    let label = if *expired { "deadline " } else { "finished " };
+                    lines.push(format!("{label}  {id}\n           {detail}"));
+                }
                 Reconciliation::Interrupted { detail } => {
                     lines.push(format!("attention  {id}\n           {detail}"));
                 }

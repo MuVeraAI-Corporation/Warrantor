@@ -83,8 +83,37 @@ pub enum Reconciliation {
         /// What the operator needs to do.
         detail: String,
     },
+    /// The run finished on its own and the warrant is waiting for a decision.
+    ///
+    /// Distinct from [`Reconciliation::Interrupted`], and the distinction is the whole point: a run
+    /// that completed and a supervisor that died both leave no daemon record behind, so without a
+    /// completion record the two are indistinguishable and the ordinary case — an agent that worked
+    /// all night and exited cleanly — gets reported to its operator as a crash.
+    Completed {
+        /// The agent's exit code. `-1` when the deadline stopped it rather than the agent choosing to.
+        exit_code: i32,
+        /// Whether the deadline ended the run.
+        expired: bool,
+        /// What the operator needs to do.
+        detail: String,
+    },
     /// The warrant reached a terminal state; nothing to reconcile.
     Finished,
+}
+
+/// What a finished run left behind, so a completed run is never mistaken for a dead supervisor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompletionRecord {
+    /// The warrant whose run finished.
+    pub warrant_id: String,
+    /// The supervisor that ran it.
+    pub pid: u32,
+    /// The agent's exit code; `-1` if the deadline terminated it.
+    pub exit_code: i32,
+    /// True when the deadline ended the run rather than the agent finishing.
+    pub expired: bool,
+    /// When the run finished, seconds since the Unix epoch.
+    pub finished_at: u64,
 }
 
 /// Tracks daemon records on disk.
@@ -140,6 +169,32 @@ impl DaemonState {
         serde_json::from_slice(&body).ok()
     }
 
+    fn completion_path(&self, warrant_id: &str) -> PathBuf {
+        self.root.join(format!("{warrant_id}.done.json"))
+    }
+
+    /// Record that a run finished on its own, so `status` can tell it apart from a crash.
+    ///
+    /// Written *before* [`Self::deregister`], because the window between the two is exactly when a
+    /// crash would be indistinguishable from a clean finish, and the safe direction to be wrong in
+    /// is claiming the run finished when it very nearly had.
+    ///
+    /// # Errors
+    /// [`WarrantError::Encode`] on I/O or serialisation failure.
+    pub fn record_completion(&self, record: &CompletionRecord) -> Result<(), WarrantError> {
+        let body = serde_json::to_vec_pretty(record)
+            .map_err(|e| WarrantError::Encode(format!("serialise completion record: {e}")))?;
+        std::fs::write(self.completion_path(&record.warrant_id), body)
+            .map_err(|e| WarrantError::Encode(format!("write completion record: {e}")))
+    }
+
+    /// Read the completion record for a warrant, if its run finished.
+    #[must_use]
+    pub fn completion(&self, warrant_id: &str) -> Option<CompletionRecord> {
+        let body = std::fs::read(self.completion_path(warrant_id)).ok()?;
+        serde_json::from_slice(&body).ok()
+    }
+
     /// Reconcile every warrant against the daemons that should be supervising them.
     ///
     /// Run at startup. A warrant left Open by a daemon that died is surfaced, not resumed: an
@@ -182,18 +237,44 @@ impl DaemonState {
                     );
                 }
                 None => {
-                    // Open with no record at all: either granted but never run, or the daemon died
-                    // before it could register. Both mean nothing is supervising it now.
-                    out.insert(
-                        id.clone(),
-                        Reconciliation::Interrupted {
-                            detail: format!(
-                                "{id} is open but nothing is supervising it. If you never started \
-                                 a run, this is expected. Otherwise the supervisor died before it \
-                                 could register, and the agent died with it."
-                            ),
-                        },
-                    );
+                    // Open with no live record. Three different things look identical here, and
+                    // conflating them told operators their finished run had crashed.
+                    if let Some(done) = self.completion(&id) {
+                        let detail = if done.expired {
+                            format!(
+                                "{id} ran until its deadline and was stopped there. Whatever it \
+                                 finished is kept and whatever it staged is awaiting your \
+                                 decision: review with `warrantor report {id}`, then settle or \
+                                 void."
+                            )
+                        } else {
+                            format!(
+                                "{id} finished on its own (agent exit {}). Review with \
+                                 `warrantor report {id}`, then settle or void.",
+                                done.exit_code
+                            )
+                        };
+                        out.insert(
+                            id.clone(),
+                            Reconciliation::Completed {
+                                exit_code: done.exit_code,
+                                expired: done.expired,
+                                detail,
+                            },
+                        );
+                    } else {
+                        out.insert(
+                            id.clone(),
+                            Reconciliation::Interrupted {
+                                detail: format!(
+                                    "{id} is open and nothing is supervising it, with no record \
+                                     of a run having finished. If you never started one, this is \
+                                     expected. Otherwise the supervisor died before it could \
+                                     register, and the agent died with it."
+                                ),
+                            },
+                        );
+                    }
                 }
             }
         }
@@ -273,11 +354,15 @@ pub fn supervise_run(state: &DaemonState, request: &SuperviseRequest) -> Result<
     let pid = supervisor.spawn(program, args, cwd.as_deref())?;
     println!("warrantor: agent pid {pid}");
 
+    // Monotonic, so the finish time survives a wall-clock adjustment during a long overnight run.
+    // `now` is injected rather than read here, which is what keeps this function testable.
+    let started = std::time::Instant::now();
+
     let remaining = expires_at.saturating_sub(now);
-    let code = match supervisor.wait_until(remaining)? {
+    let (code, expired) = match supervisor.wait_until(remaining)? {
         Some(code) => {
             println!("warrantor: agent exited with {code}");
-            code
+            (code, false)
         }
         None => {
             // The deadline is the point of the warrant. Reaching it means stopping, not asking.
@@ -286,9 +371,24 @@ pub fn supervise_run(state: &DaemonState, request: &SuperviseRequest) -> Result<
                  started. Staged effects are kept -- review with `warrantor report {warrant_id}`."
             );
             supervisor.terminate()?;
-            -1
+            (-1, true)
         }
     };
+
+    // Before deregistering, not after: the gap between the two is the only window in which a
+    // finished run is indistinguishable from a dead supervisor, and an operator told their
+    // overnight run crashed when it did not is how they stop trusting `status`.
+    if let Err(e) = state.record_completion(&CompletionRecord {
+        warrant_id: warrant_id.to_string(),
+        pid: std::process::id(),
+        exit_code: code,
+        expired,
+        finished_at: now.saturating_add(started.elapsed().as_secs()),
+    }) {
+        // Not fatal: the run really did finish, and failing here would turn a successful run into
+        // an error. It costs the precision of the next `status`, which says so rather than guessing.
+        eprintln!("warrantor: could not record run completion for {warrant_id}: {e}");
+    }
 
     state
         .deregister(warrant_id)

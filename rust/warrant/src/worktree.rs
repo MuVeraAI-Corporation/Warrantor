@@ -180,6 +180,70 @@ impl Worktree {
         Ok(files)
     }
 
+    /// Commit whatever the agent left uncommitted, so the work can be settled.
+    ///
+    /// # Why this is not automatic
+    ///
+    /// Coding agents edit files; most do not commit. The first dogfood run of this product ended
+    /// with a correct fix sitting in the worktree and `settle` refusing it — the documented happy
+    /// path did not complete. Committing silently inside `settle` would fix that and introduce a
+    /// worse problem: work merged into the base branch under a message nobody chose, with no moment
+    /// at which the operator saw what was being committed on their behalf.
+    ///
+    /// So it stays opt-in. `settle` still refuses a dirty worktree by default and names this as the
+    /// way through.
+    ///
+    /// # It commits only what the warrant permitted
+    ///
+    /// Not `git add -A`. An agent that runs the test suite leaves `__pycache__`, `target/`, coverage
+    /// output and whatever else its tools produced; a repository without an exhaustive `.gitignore`
+    /// would have all of it committed and merged. The first dogfood run did exactly that and then
+    /// failed the merge on the artifacts it had just committed.
+    ///
+    /// The warrant already says which paths the agent was allowed to write. Those are precisely the
+    /// paths whose changes are legitimate, so those are the only ones staged. Anything the agent
+    /// produced outside its write bounds is left in the worktree, where it can be inspected, rather
+    /// than merged into the base branch on its behalf.
+    ///
+    /// Returns the number of paths committed.
+    ///
+    /// # Errors
+    /// [`WarrantError::Encode`] if git cannot be run, [`WarrantError::Invalid`] if the commit fails.
+    pub fn commit_all<'a>(
+        &self,
+        message: &str,
+        write_paths: impl IntoIterator<Item = &'a String>,
+    ) -> Result<usize, WarrantError> {
+        let globs: Vec<&str> = write_paths.into_iter().map(String::as_str).collect();
+        if globs.is_empty() {
+            return Err(WarrantError::Invalid(
+                "this warrant permits no write paths, so there is nothing it could legitimately \
+                 have changed; refusing to commit on its behalf"
+                    .to_string(),
+            ));
+        }
+
+        let mut add = vec!["add", "--"];
+        add.extend_from_slice(&globs);
+        git(&self.path, &add)?;
+
+        // Count what is actually staged, not what is merely present in the worktree: the untracked
+        // artifacts left outside the bounds are deliberately not part of this number.
+        let staged = Command::new("git")
+            .arg("-C")
+            .arg(&self.path)
+            .args(["diff", "--cached", "--name-only"])
+            .output()
+            .map_err(|e| WarrantError::Encode(format!("git diff --cached: {e}")))?;
+        let listed = String::from_utf8_lossy(&staged.stdout);
+        let count = listed.lines().filter(|l| !l.trim().is_empty()).count();
+        if count == 0 {
+            return Ok(0);
+        }
+        git(&self.path, &["commit", "-m", message])?;
+        Ok(count)
+    }
+
     /// Merge this warrant's branch back into the branch it came from.
     ///
     /// Uses `--no-ff` so the warrant is visible in history as a unit: a reviewer looking at the log
@@ -198,8 +262,10 @@ impl Worktree {
             .map_err(|e| WarrantError::Encode(format!("git status: {e}")))?;
         if !String::from_utf8_lossy(&dirty.stdout).trim().is_empty() {
             return Err(WarrantError::Invalid(
-                "the worktree has uncommitted changes; commit or discard them before settling, \
-                 otherwise the merge would silently drop them"
+                "the worktree has uncommitted changes; the merge would silently drop them. \
+                 Most agents edit files without committing, so this is the common case rather \
+                 than a mistake: re-run with `--commit \"<message>\"` to commit the agent's work \
+                 and settle it, or commit it yourself in the worktree first."
                     .to_string(),
             ));
         }

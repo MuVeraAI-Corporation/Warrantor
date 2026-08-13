@@ -168,7 +168,7 @@ warrantor — bounded authority for coding agents
   egress  <warrant-id> <destination> [<destination> ...]
   spend   <warrant-id> [--input N --output N [--backend ID] [--quote]] [--export <path>]
   stop    <warrant-id> [--reason \"...\"] [--export <path>]
-  settle  <warrant-id>
+  settle  <warrant-id> [--commit \"<message>\"]
   void    <warrant-id>
   stage   <warrant-id> --tool T [--target H] [--arg k=v ...]
   run     <warrant-id> -- <command> [args...]
@@ -1085,7 +1085,7 @@ fn print_settle_report(report: &SettleReport) {
 
 fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let Some(id) = args.positional.first() else {
-        return fail("usage: warrantor settle <warrant-id>");
+        return fail("usage: warrantor settle <warrant-id> [--commit \"<message>\"]");
     };
     let mut stored = match store.load(id) {
         Ok(s) => s,
@@ -1101,6 +1101,31 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     };
 
     let tree = worktree_of(&stored, id);
+
+    // `--commit` is opt-in and named in the refusal, because most agents edit without committing
+    // and the merge would otherwise drop the work. Doing it silently would merge under a message
+    // nobody chose; refusing without offering a way through leaves the documented path unfinishable.
+    if let Some(message) = args.flags.get("commit") {
+        let Some(tree) = tree.as_ref() else {
+            return fail("--commit needs a worktree, and this warrant has none");
+        };
+        let message = if message.trim().is_empty() {
+            format!("warrant {id}: {}", stored.warrant.claims.goal)
+        } else {
+            message.clone()
+        };
+        match tree.commit_all(&message, &stored.warrant.claims.bounds.write_paths) {
+            Ok(0) => println!(
+                "warrantor: nothing to commit inside the warrant's write paths. Anything the \
+                 agent left elsewhere is still in the worktree, uncommitted, on purpose."
+            ),
+            Ok(n) => println!(
+                "warrantor: committed {n} path(s), staged only from the write paths this warrant \
+                 permitted. Artifacts the agent produced outside them are left in the worktree."
+            ),
+            Err(e) => return fail(&e.to_string()),
+        }
+    }
     let mut performer = build_performer();
     match settle(
         &mut stored.warrant,
@@ -1370,6 +1395,10 @@ fn cmd_status(store: &WarrantStore, root: &Path) -> ExitCode {
     };
 
     let mut live = 0;
+    // Two buckets, because a run that finished and a supervisor that died need different words.
+    // Both want a decision; only one of them is bad news, and the morning review is unusable if
+    // every completed overnight run is announced as a failure.
+    let mut finished = Vec::new();
     let mut needs_decision = Vec::new();
     for (id, status) in &found {
         match status {
@@ -1377,15 +1406,27 @@ fn cmd_status(store: &WarrantStore, root: &Path) -> ExitCode {
                 live += 1;
                 println!("  running    {id}  (supervisor pid {pid})");
             }
+            Reconciliation::Completed {
+                detail, expired, ..
+            } => {
+                finished.push((id, detail, *expired));
+            }
             Reconciliation::Interrupted { detail } => {
                 needs_decision.push((id, detail));
             }
             Reconciliation::Finished => {}
         }
     }
-    if live == 0 && needs_decision.is_empty() {
+    if live == 0 && finished.is_empty() && needs_decision.is_empty() {
         println!("warrantor: nothing open. `warrantor list` shows finished warrants.");
         return ExitCode::SUCCESS;
+    }
+    for (id, detail, expired) in &finished {
+        println!(
+            "  {}  {id}",
+            if *expired { "deadline " } else { "finished " }
+        );
+        println!("             {detail}");
     }
     for (id, detail) in &needs_decision {
         println!("  attention  {id}");

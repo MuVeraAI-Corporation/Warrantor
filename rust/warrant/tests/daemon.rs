@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 
 use ed25519_dalek::SigningKey;
 use warrantor_warrant::daemon::{
-    process_is_alive, socket_path, DaemonRecord, DaemonState, Reconciliation,
+    process_is_alive, socket_path, CompletionRecord, DaemonRecord, DaemonState, Reconciliation,
 };
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds, WarrantState};
@@ -239,4 +239,114 @@ fn the_socket_lives_under_the_store_not_in_shared_temp() {
             "the socket must live under the store root: {text}"
         );
     }
+}
+
+// ── a finished run is not a crash ─────────────────────────────────────────────────────
+
+/// The regression this exists for: before completion records, a run that finished cleanly and a
+/// supervisor that died both left no daemon record, so `status` told the operator their successful
+/// overnight run had crashed. Found by the first live dogfood, where a real agent fixed a real bug
+/// and was reported as an incident.
+#[test]
+fn a_completed_run_is_reported_as_finished_not_interrupted() {
+    let dir = tempdir("completed");
+    let store = WarrantStore::open(&dir).expect("store");
+    let state = DaemonState::open(&dir).expect("state");
+    store
+        .save(&stored("wrt_done", WarrantState::Open))
+        .expect("save");
+    state
+        .record_completion(&CompletionRecord {
+            warrant_id: "wrt_done".to_string(),
+            pid: 4242,
+            exit_code: 0,
+            expired: false,
+            finished_at: NOW + 60,
+        })
+        .expect("record completion");
+
+    let found = state.reconcile(&store, &|_| true).expect("reconcile");
+    match found.get("wrt_done") {
+        Some(Reconciliation::Completed {
+            exit_code,
+            expired,
+            detail,
+        }) => {
+            assert_eq!(*exit_code, 0);
+            assert!(!*expired);
+            assert!(
+                detail.contains("finished on its own"),
+                "a clean finish must read as a finish: {detail}"
+            );
+            assert!(
+                !detail.contains("died"),
+                "nothing died; saying so trains the operator to ignore status: {detail}"
+            );
+        }
+        other => panic!("expected Completed, got {other:?}"),
+    }
+}
+
+/// A deadline stop is a completion too, and must say which it was -- the operator's next action
+/// differs between "it finished" and "it ran out of time with work half done".
+#[test]
+fn a_deadline_stop_is_reported_as_a_deadline() {
+    let dir = tempdir("expired");
+    let store = WarrantStore::open(&dir).expect("store");
+    let state = DaemonState::open(&dir).expect("state");
+    store
+        .save(&stored("wrt_late", WarrantState::Open))
+        .expect("save");
+    state
+        .record_completion(&CompletionRecord {
+            warrant_id: "wrt_late".to_string(),
+            pid: 7,
+            exit_code: -1,
+            expired: true,
+            finished_at: NOW + 3600,
+        })
+        .expect("record completion");
+
+    let found = state.reconcile(&store, &|_| true).expect("reconcile");
+    match found.get("wrt_late") {
+        Some(Reconciliation::Completed {
+            expired, detail, ..
+        }) => {
+            assert!(*expired);
+            assert!(
+                detail.contains("deadline"),
+                "the deadline case must name itself: {detail}"
+            );
+        }
+        other => panic!("expected Completed, got {other:?}"),
+    }
+}
+
+/// A live daemon still wins over a stale completion record from an earlier run of the same warrant.
+#[test]
+fn a_live_daemon_outranks_an_old_completion_record() {
+    let dir = tempdir("relive");
+    let store = WarrantStore::open(&dir).expect("store");
+    let state = DaemonState::open(&dir).expect("state");
+    store
+        .save(&stored("wrt_again", WarrantState::Open))
+        .expect("save");
+    state
+        .record_completion(&CompletionRecord {
+            warrant_id: "wrt_again".to_string(),
+            pid: 1,
+            exit_code: 0,
+            expired: false,
+            finished_at: NOW,
+        })
+        .expect("record completion");
+    state
+        .register(&record("wrt_again", 5150, &dir))
+        .expect("register");
+
+    let found = state.reconcile(&store, &|_| true).expect("reconcile");
+    assert!(
+        matches!(found.get("wrt_again"), Some(Reconciliation::Supervised { pid }) if *pid == 5150),
+        "a running supervisor is the truth, whatever an earlier run recorded"
+    );
 }
