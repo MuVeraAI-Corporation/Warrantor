@@ -37,6 +37,22 @@ const el = {
 
 let state = { filter: '', selected: null, releaseAuthority: false };
 
+/**
+ * How often to re-read the list, in milliseconds.
+ *
+ * Polling rather than a change feed, because the API has none — and `serve.rs` designed for exactly
+ * this: "no keep-alive means no idle state machine [...] because the consumer is one console polling
+ * at human speed". Five seconds is human speed for watching a run. It is not a live tail and does
+ * not pretend to be.
+ */
+const REFRESH_MS = 5000;
+
+/** In-flight guard: a slow poll must not stack behind a slower one. */
+let refreshing = false;
+
+/** Last known lifecycle state per warrant id, to detect what actually changed. */
+const knownStates = new Map();
+
 // ── token handling ──────────────────────────────────────────────────────────
 
 /** Take the token out of the fragment and erase every trace of it from the URL. */
@@ -155,15 +171,33 @@ function jsonBlock(value) {
 
 // ── list ────────────────────────────────────────────────────────────────────
 
+/**
+ * Re-read the list.
+ *
+ * Returns the set of warrant ids whose lifecycle state changed since the last read, which is what
+ * lets the poller leave the detail pane alone unless something actually happened to it.
+ */
 async function loadList() {
   const query = state.filter ? `?state=${encodeURIComponent(state.filter)}` : '';
   const { status, payload } = await call(`/v1/warrants${query}`);
-  if (status === 401) return showGate('That token was not accepted.');
+  if (status === 401) {
+    showGate('That token was not accepted.');
+    return new Set();
+  }
 
   el.list.replaceChildren();
   const warrants = payload?.data?.warrants ?? [];
   const rows = Array.isArray(warrants) ? warrants : [];
   el.listEmpty.hidden = rows.length > 0;
+
+  // Compared against the previous read rather than assumed from the response, because a filtered
+  // list cannot distinguish "this warrant was settled" from "this warrant left the filter".
+  const changed = new Set();
+  for (const w of rows) {
+    if (!w.id) continue;
+    if (knownStates.has(w.id) && knownStates.get(w.id) !== w.state) changed.add(w.id);
+    knownStates.set(w.id, w.state);
+  }
 
   // A record the server could not read is the one thing an oversight console must never
   // quietly drop: a list that silently shrinks reads as "nothing happened" at exactly the
@@ -207,6 +241,52 @@ async function loadList() {
     item.append(row);
     el.list.append(item);
   }
+
+  return changed;
+}
+
+// ── live refresh ────────────────────────────────────────────────────────────
+
+/**
+ * One poll.
+ *
+ * The list is re-read every tick; the **detail pane is only re-rendered when the selected warrant's
+ * state actually changed**. Re-rendering it on every tick would throw away the reader's scroll
+ * position every five seconds, which in a pane holding a full report bundle makes the document
+ * unreadable — and this is the surface someone is reading precisely when they are deciding whether
+ * to release an agent's work.
+ *
+ * Nothing polls while the tab is hidden. A background tab that keeps a loopback API busy is a
+ * battery cost with no reader attached.
+ */
+async function refresh() {
+  if (refreshing || document.hidden || !api.token || el.app.hidden) return;
+  refreshing = true;
+  try {
+    const changed = await loadList();
+    if (state.selected && changed.has(state.selected)) {
+      await loadDetail(state.selected, { quiet: true });
+    }
+  } catch {
+    // A failed poll is not worth a message: the next one is five seconds away, and a console that
+    // shouts about a transient fetch teaches the reader to ignore it.
+  } finally {
+    refreshing = false;
+  }
+}
+
+/**
+ * Start polling. Idempotent, because `connect` runs again whenever a token is re-entered, and a
+ * second interval would double the poll rate every time someone reconnected.
+ */
+let refreshTimer = null;
+function startRefreshing() {
+  if (refreshTimer !== null) return;
+  refreshTimer = setInterval(refresh, REFRESH_MS);
+  // A reader coming back to the tab should not wait out the remainder of a tick.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refresh();
+  });
 }
 
 // ── detail ──────────────────────────────────────────────────────────────────
@@ -217,8 +297,10 @@ async function select(id) {
   await loadDetail(id);
 }
 
-async function loadDetail(id) {
-  el.detail.replaceChildren(node('div', 'placeholder', 'Loading…'));
+async function loadDetail(id, { quiet = false } = {}) {
+  // The placeholder is skipped on a background refresh: a "Loading…" flash that nobody asked for
+  // reads as the view breaking, not as it updating.
+  if (!quiet) el.detail.replaceChildren(node('div', 'placeholder', 'Loading…'));
 
   const { status, payload } = await call(`/v1/warrants/${encodeURIComponent(id)}`);
   if (status === 401) return showGate('That token was not accepted.');
@@ -371,6 +453,7 @@ async function connect(token) {
   el.gate.hidden = true;
   el.app.hidden = false;
   await loadList();
+  startRefreshing();
 }
 
 // ── wiring ──────────────────────────────────────────────────────────────────

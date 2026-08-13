@@ -41,12 +41,16 @@ The console assumes a store that already exists. On a machine that has never run
 the list is empty and nothing explains why, what a warrant is, or what to do next. An empty state
 that says "no warrants" to someone who has never had one is indistinguishable from a broken app.
 
-### 1.4 Nothing refreshes
+### 1.4 Nothing refreshes — **done**
 
-The console fetches on click. A run that finishes while a reviewer is watching does not appear until
-they reload. For a surface whose purpose is *watching an agent work*, that is the single most
-visible gap. Polling on a timer is the cheap version; the honest version is that the read API has no
-change feed.
+The console now polls every five seconds, and re-renders the detail pane only when the selected
+warrant's state actually changed: a five-second re-render would throw away the reader's scroll
+position in the middle of a report bundle, which is the one document they are reading when they
+decide whether to release an agent's work. Polling stops while the tab is hidden.
+
+It is polling, not a change feed, because the read API has none — and `serve.rs` designed for
+exactly that: "the consumer is one console polling at human speed". A real change feed remains
+unbuilt, and would matter for a fleet view rather than for one machine.
 
 ---
 
@@ -134,7 +138,7 @@ takes.
 
 The **substrate is real** and the **single-machine loop is complete**. What is missing is nearly
 everything that makes it a product rather than a tool: it cannot be installed, cannot be reached by
-a second person, cannot say who did what, and does not refresh while you watch it.
+a second person, and cannot say who did what.
 
 The ordering matters. Packaging (1.1–1.2) is the cheapest visible win and unblocks any user
 research. But **2.1 is the one that decides whether this is a product**, because multi-user
