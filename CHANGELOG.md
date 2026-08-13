@@ -9,6 +9,56 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Security
+
+- **`trust-core` `SigningKeyWrapper::zeroize()` left a usable key behind.** It overwrote the
+  secret with `SigningKey::from_bytes(&[0u8; 32])` — a valid key derived from a constant, so
+  anything signing after `zeroize()` produced a genuine signature under a key any attacker can
+  reconstruct, and that signature verified. The key is now an `Option`: signing after zeroize
+  fails closed rather than succeeding under a different key. `is_zeroized()` added so callers can
+  check before the panicking accessors. Four regression tests, one of which asserts specifically
+  that the all-zero-seed key cannot come back.
+  Latent rather than exploited — nothing in this repository called `zeroize()` on the wrapper —
+  but `warrantor-trust-core` is published, so a downstream caller could reach it.
+- The no-op `impl Drop` (`let _ = self.inner.to_bytes();`) is removed. It zeroized nothing and
+  made an extra stack copy of key material. `ed25519_dalek::SigningKey` is `ZeroizeOnDrop` and
+  does the real wipe.
+
+### Changed — cryptography (record of what PR #28 actually carried)
+
+**PR #28 was titled "chore: rename AumOS and DefStack to Warrantor across prose". It also
+contained a major cryptography migration.** Two workstreams were running in one working tree and
+the crypto change was swept into the rename commit (`8300d15`). Recorded here because a signing
+change described as a prose rename is not an acceptable audit trail for a product whose claim is
+verifiable evidence.
+
+What `8300d15` carried, beyond prose:
+- `ed25519-dalek` 2.2.0 → **3.0.0**, pulling `ed25519` 3.0, `signature` 3.0, `curve25519-dalek`
+  4 → **5.0**, `rand_core` 0.10.
+- **Signing entropy source changed.** `rand` 0.8 removed as a direct dependency from 23 crates;
+  ~20 `SigningKey::generate` call sites moved from `rand::rngs::OsRng` to
+  `ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng)`. `getrandom::SysRng` is the direct
+  successor to `rand` 0.8's `OsRng` (true OS entropy); `rand::rng()` was rejected because
+  `ThreadRng` is a userspace ChaCha CSPRNG.
+- `eval-guard` nonce generation moved to `getrandom::fill`.
+- The two Ed25519ph prehash sites moved from `sha2::{Digest, Sha512}` to the
+  `ed25519_dalek` re-export, which is byte-identical under both 2.2 and 3.0. `sha2` stays at
+  0.10 for the unrelated Sha256 uses.
+- MSRV rises to 1.85 (dalek 3 / curve25519-dalek 5).
+
+**Wire format did not change, and this was tested rather than assumed.** Differential harnesses
+pinned to `=2.2.0` and `=3.0.0` ran identical source against both and were byte-identical on
+verifying keys, signatures, keypair byte ordering, `to_scalar_bytes`, Ed25519ph, canonical-CBOR
+signing and DSSE PAE bytes, including the strictness matrix (S+L malleability, identity /
+all-`0xff` / order-2 / p−1 keys). Rust-signed manifests verify under Python `cryptography`
+46.0.3. Conformance is 220/220 across Rust/Python/Go/TypeScript, reproduced twice, and
+`testvectors/` is unchanged. **No receipt re-signing is required.**
+
+Known follow-ups from that migration, not addressed here: `rust/trust-core/fuzz/Cargo.lock` was
+committed despite the gitignore policy and is now a second unsynchronised crypto pin; MSRV is not
+pinned by a `rust-toolchain.toml`; the W1 notary Rust↔Python interop tests skip themselves when
+their bundle is absent, so that lane can report green without running.
+
 ### Added — Wave 7 (console + commercial surface)
 
 5 components at v1.0.0:

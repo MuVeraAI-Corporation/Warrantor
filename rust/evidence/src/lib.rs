@@ -15,6 +15,22 @@
 //!   chain intersection; authority expansion is rejected.
 //! - **§6 (enforcement-mode honesty):** an `advisory` receipt cannot assert non-bypassability.
 //! - **§4 (crypto-agility + Rust-only signing):** Ed25519 over DSSE PAE of JCS-canonical JSON.
+//! - **§3.1 + §9 (expiry):** a receipt presented past its own `expires_at` is rejected —
+//!   [`verify_receipt_at`] and [`verify_chain_at`].
+//!
+//! # Expiry is a separate call, on purpose
+//!
+//! [`verify_receipt`] answers *"was this signed by that key, and has it changed since?"*. It takes
+//! no time input and never expires anything, because that question has the same answer forever and
+//! an archived receipt has to stay verifiable long after the authority it records has lapsed.
+//!
+//! [`verify_receipt_at`] answers the different question *"may I rely on this **now**?"* — and that
+//! one is time-dependent, so `now` is an explicit argument rather than a clock read (spec 11 §6:
+//! time is an input, never read inside the function). Anything presenting a receipt as live
+//! authorization MUST use the `_at` form; spec 01 §9's replay vector ("receipt re-presented after
+//! `expires_at`") is exactly this check.
+//!
+//! An `expires_at` of `0` is expired at every `now`. An absent limit is NONE, never unlimited.
 
 #![forbid(unsafe_code)]
 
@@ -206,6 +222,10 @@ pub enum EvidenceError {
     Phase(String),
     #[error("enforcement-mode violation (§6): {0}")]
     EnforcementMode(String),
+    /// The receipt was presented at or after its own `binding.expires_at` (spec 01 §3.1, §9).
+    ///
+    /// Only the `_at` verifiers construct this: [`verify_receipt_at`] and [`verify_chain_at`].
+    /// The time-free [`verify_receipt`] and [`verify_chain`] never do, and say so.
     #[error("receipt expired (expires_at={0})")]
     Expired(u64),
 }
@@ -374,6 +394,10 @@ pub fn issue_atomic(predicate: WarPredicate, key: &SigningKey, key_id: &str) -> 
 // ---------------------------------------------------------------------------
 
 /// Verify a single receipt's Ed25519 signature over the DSSE PAE of the canonical predicate.
+///
+/// **This does not check `expires_at`** and never will: it answers "was this signed by that key,
+/// and has it changed since?", which has the same answer forever. Use [`verify_receipt_at`] before
+/// relying on a receipt as *current* authority.
 pub fn verify_receipt(receipt: &WarReceipt) -> Result<(), EvidenceError> {
     let sig = &receipt.signature;
     if sig.algorithm != "Ed25519" {
@@ -410,6 +434,37 @@ pub fn verify_receipt(receipt: &WarReceipt) -> Result<(), EvidenceError> {
         .map_err(|_| EvidenceError::InvalidSignature)
 }
 
+/// Whether `receipt` is past its own `binding.expires_at` at `now` (epoch seconds).
+///
+/// Expired at `expires_at <= now`, matching the notary's identity gate, which denies at
+/// `svid_not_after <= now`. A boundary second belongs to neither side, and both crates give it to
+/// the refusing side.
+///
+/// `expires_at == 0` is expired at every `now`, including `now == 0`. An absent limit is NONE, not
+/// unlimited: a receipt that forgot to say when it stops being good has already stopped.
+#[must_use]
+pub fn is_expired(receipt: &WarReceipt, now: u64) -> bool {
+    receipt.predicate.binding.expires_at <= now
+}
+
+/// Verify a receipt **for reliance now**: the signature, then `expires_at` against an explicit
+/// `now` (spec 01 §3.1; §9's "receipt re-presented after `expires_at`" vector).
+///
+/// Signature first, so a forged receipt is reported as forged rather than as merely stale.
+///
+/// Use this — not [`verify_receipt`] — wherever a receipt is presented as live authority. Use
+/// [`verify_receipt`] for the audit question, where an old receipt is supposed to keep verifying.
+///
+/// # Errors
+/// [`EvidenceError::Expired`] if `expires_at <= now`; otherwise whatever [`verify_receipt`] returns.
+pub fn verify_receipt_at(receipt: &WarReceipt, now: u64) -> Result<(), EvidenceError> {
+    verify_receipt(receipt)?;
+    if is_expired(receipt, now) {
+        return Err(EvidenceError::Expired(receipt.predicate.binding.expires_at));
+    }
+    Ok(())
+}
+
 /// Verify a pre_commit→post_commit chain (spec 01 §5, I-07). Checks:
 /// 1. Both receipts' signatures verify.
 /// 2. The post_commit's `parent_receipt` equals the pre_commit's `receipt_id` (commit gate).
@@ -417,6 +472,8 @@ pub fn verify_receipt(receipt: &WarReceipt) -> Result<(), EvidenceError> {
 /// 4. The authority intersection recomputes correctly (I-02).
 /// 5. No enforcement-mode escalation (§6 — advisory cannot claim non-bypassability via a `claim`
 ///    field; the mode itself is the honesty field).
+///
+/// **Expiry is not checked here** — see [`verify_chain_at`] for the reliance-now form.
 pub fn verify_chain(
     pre_commit: &WarReceipt,
     post_commit: &WarReceipt,
@@ -464,6 +521,29 @@ pub fn verify_chain(
     verify_authority(&pre_commit.predicate.authority)?;
     verify_authority(&post_commit.predicate.authority)?;
 
+    Ok(())
+}
+
+/// [`verify_chain`], plus `expires_at` on **both** receipts against an explicit `now`.
+///
+/// Both, not just the post_commit: a pre_commit that had already lapsed when the effect was
+/// committed never authorised anything, and a chain is no stronger than the pre-auth it hangs from.
+/// The pre_commit is checked first, so the earlier failure is the one reported.
+///
+/// # Errors
+/// [`EvidenceError::Expired`] naming the lapsed receipt's `expires_at`; otherwise whatever
+/// [`verify_chain`] returns.
+pub fn verify_chain_at(
+    pre_commit: &WarReceipt,
+    post_commit: &WarReceipt,
+    now: u64,
+) -> Result<(), EvidenceError> {
+    verify_chain(pre_commit, post_commit)?;
+    for receipt in [pre_commit, post_commit] {
+        if is_expired(receipt, now) {
+            return Err(EvidenceError::Expired(receipt.predicate.binding.expires_at));
+        }
+    }
     Ok(())
 }
 
@@ -681,6 +761,107 @@ mod tests {
         };
         let err = verify_chain(&pre, &post).unwrap_err();
         assert!(matches!(err, EvidenceError::CommitGate(_)));
+    }
+
+    // --- expiry (spec 01 §3.1, §9) ---
+
+    /// The normative adversarial vector: "Replay — receipt re-presented after `expires_at`".
+    /// Before this existed `EvidenceError::Expired` was declared and unreachable, so the crate
+    /// advertised a rejection nothing performed.
+    #[test]
+    fn a_receipt_presented_after_its_expiry_is_rejected() {
+        let (sk, _) = generate_keypair();
+        // sample_predicate sets expires_at = 99999.
+        let rcpt = issue_pre_commit(sample_predicate(Phase::PreCommit, None), &sk, "k");
+        match verify_receipt_at(&rcpt, 100_000) {
+            Err(EvidenceError::Expired(at)) => assert_eq!(at, 99999),
+            other => panic!("a replayed expired receipt must be rejected, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_receipt_inside_its_window_verifies() {
+        let (sk, _) = generate_keypair();
+        let rcpt = issue_pre_commit(sample_predicate(Phase::PreCommit, None), &sk, "k");
+        verify_receipt_at(&rcpt, 99998).expect("one second before the deadline is still good");
+    }
+
+    /// The deadline second belongs to the refusing side, matching the notary's identity gate
+    /// (`svid_not_after <= now` denies).
+    #[test]
+    fn the_expiry_second_itself_is_already_expired() {
+        let (sk, _) = generate_keypair();
+        let rcpt = issue_pre_commit(sample_predicate(Phase::PreCommit, None), &sk, "k");
+        assert!(is_expired(&rcpt, 99999));
+        assert!(verify_receipt_at(&rcpt, 99999).is_err());
+    }
+
+    /// Doctrine: an absent limit means NONE, never unlimited.
+    #[test]
+    fn an_expires_at_of_zero_is_expired_not_unlimited() {
+        let (sk, _) = generate_keypair();
+        let mut pred = sample_predicate(Phase::PreCommit, None);
+        pred.binding.expires_at = 0;
+        let rcpt = issue_pre_commit(pred, &sk, "k");
+        assert!(
+            is_expired(&rcpt, 0),
+            "expires_at=0 must not read as forever"
+        );
+        assert!(verify_receipt_at(&rcpt, 0).is_err());
+    }
+
+    /// A forged receipt is reported as forged, not as stale: the signature is checked first, so
+    /// the reason a reader sees names the worse problem.
+    #[test]
+    fn a_tampered_expired_receipt_fails_on_the_signature_not_the_clock() {
+        let (sk, _) = generate_keypair();
+        let mut rcpt = issue_pre_commit(sample_predicate(Phase::PreCommit, None), &sk, "k");
+        rcpt.predicate.actor.principal = "evil".to_string();
+        assert!(matches!(
+            verify_receipt_at(&rcpt, 100_000),
+            Err(EvidenceError::InvalidSignature)
+        ));
+    }
+
+    /// The audit path must not rot. An archived receipt is a record of a past evaluation, and it
+    /// has to keep verifying long after the authority it records has lapsed.
+    #[test]
+    fn the_time_free_verifier_still_accepts_a_long_expired_receipt() {
+        let (sk, _) = generate_keypair();
+        let rcpt = issue_pre_commit(sample_predicate(Phase::PreCommit, None), &sk, "k");
+        assert!(is_expired(&rcpt, u64::MAX));
+        verify_receipt(&rcpt).expect("verify_receipt answers a question with no deadline");
+    }
+
+    /// A chain is no stronger than the pre-auth it hangs from: an expired pre_commit sinks it even
+    /// when the post_commit is still inside its own window.
+    #[test]
+    fn an_expired_pre_commit_sinks_the_chain() {
+        let (sk, _) = generate_keypair();
+        let mut pre_pred = sample_predicate(Phase::PreCommit, None);
+        pre_pred.binding.expires_at = 500;
+        let pre = issue_pre_commit(pre_pred, &sk, "k");
+        // issue_post_commit clones the pre_commit's binding, so widen the child's window to prove
+        // the parent's is what fails.
+        let mut post = issue_post_commit(&pre, sample_outcome(), &sk, "k");
+        post.predicate.binding.expires_at = 99999;
+        let post = WarReceipt {
+            signature: sign_predicate(&post.predicate, &sk, "k"),
+            predicate: post.predicate,
+        };
+        verify_chain(&pre, &post).expect("the chain itself is well formed");
+        match verify_chain_at(&pre, &post, 1000) {
+            Err(EvidenceError::Expired(at)) => assert_eq!(at, 500, "the PARENT is what lapsed"),
+            other => panic!("an expired pre_commit must sink the chain, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_live_chain_verifies_at_a_time_inside_both_windows() {
+        let (sk, _) = generate_keypair();
+        let pre = issue_pre_commit(sample_predicate(Phase::PreCommit, None), &sk, "k");
+        let post = issue_post_commit(&pre, sample_outcome(), &sk, "k");
+        verify_chain_at(&pre, &post, 1000).expect("both receipts are inside their window");
     }
 
     // --- authority intersection (I-02) ---

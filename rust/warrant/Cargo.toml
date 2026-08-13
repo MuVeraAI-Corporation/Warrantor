@@ -19,6 +19,35 @@ sha2 = "0.10"
 # publish refuses -- correctly, since a published crate cannot depend on a local path.
 warrantor-trust-core = { path = "../trust-core", version = "1.0.0" }
 warrantor-authority-spec = { path = "../authority-spec", version = "1.0.0" }
+# The report's two signing planes. Neither adds an external crate: both depend on exactly
+# {thiserror, serde, serde_json, ed25519-dalek, getrandom, sha2}, all of which this crate already
+# carries at the same versions, and both ship their own private `mod hex`. The 7-external-dep,
+# tokio-free posture is unchanged.
+warrantor-evidence = { path = "../evidence", version = "1.0.0" }
+warrantor-notary = { path = "../notary", version = "1.0.0" }
+# The egress broker, behind the proxy's egress bound. Same dependency family again -- it adds no
+# external crate and no new version to Cargo.lock. It decides; it does not enforce: enforcement
+# still terminates at the MCP proxy, exactly where it did before.
+warrantor-egress = { path = "../egress", version = "1.0.0" }
+# The containment conformance suite, behind `warrantor stop`. It is a report VALIDATOR, not a
+# conformance runner: it cannot measure quiescence and cannot elicit, so what it buys is the
+# anti-sandbagging gate -- a stop record can never claim a passing containment grade, because
+# warrantor never runs an elicitation. Same dependency family minus sha2; no new external crate.
+#
+# `warrantor-kill-switch` is deliberately NOT here. Its Cargo.toml declares tokio, clap, tracing
+# and tracing-subscriber unconditionally, and a path dependency would pull all four into this
+# crate's graph, breaking the tokio-free posture -- for nothing, since grep finds no tokio, no
+# `async fn` and no `.await` anywhere in that crate's src. Nothing is lost: `stop` needs
+# `DaemonState::get` and `supervise::terminate_group`, both already in this crate, and the
+# containment SEAM the kill switch would fill is `notary::VerdictContext.contained_scopes`, a
+# plain `Vec<String>` this crate supplies on its own.
+warrantor-containment-conformance = { path = "../containment-conformance", version = "1.0.0" }
+# The spend engine, behind the budget bound. It does NOT make that bound enforceable and does not
+# try: model API calls never traverse this process, so every figure it can see is one the agent
+# reported about itself. What it buys is that `budget_cents_observed` becomes TRUE -- before this,
+# nothing in the system read the number at all, so a bound labelled "observed" was observed by
+# nobody. Same dependency family again; no new external crate and no new version in Cargo.lock.
+warrantor-spend = { path = "../spend", version = "1.0.0" }
 
 getrandom = { version = "0.4", features = ["sys_rng"] }
 ureq = { version = "2", default-features = false, features = ["tls", "json"] }

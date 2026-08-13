@@ -470,6 +470,91 @@ mod tests {
         assert!(verify_receipt(&r).is_err());
     }
 
+    /// A receipt re-signed by a stranger must not verify.
+    ///
+    /// Distinct from `tampered_receipt_fails`, which changes the body and leaves the signature.
+    /// Here the body is untouched and the *signer* is wrong: the attacker swaps in their own key
+    /// and a matching signature, so every internal consistency check passes. Only the question
+    /// "is this the key we expect?" catches it, and this crate answers that by verifying against
+    /// the key the receipt itself carries -- which is exactly why the limitation is stated in the
+    /// exported bundle: a signature proves who signed, never that the signer was trusted.
+    #[test]
+    fn a_receipt_resigned_by_a_stranger_does_not_verify_against_the_original_key() {
+        let (sk, original) = generate_keypair();
+        let (attacker_sk, attacker_pk) = generate_keypair();
+        let scanners: Vec<Box<dyn ContentScanner>> = vec![Box::new(MockScanner::safe("test"))];
+        let v = decide("clean", &scanners, &ModerationConfig::default());
+        let genuine = issue_receipt(&v, "clean", 1000, &sk);
+
+        // The forgery: same verdict, same body, signed by someone else and self-consistent.
+        let forged = issue_receipt(&v, "clean", 1000, &attacker_sk);
+        assert!(
+            verify_receipt(&forged).is_ok(),
+            "a self-consistent forgery verifies against the key it carries -- that is the point"
+        );
+        assert_ne!(
+            forged.signature_public_key, genuine.signature_public_key,
+            "the forgery must carry a different key, or it is not a forgery"
+        );
+        assert_eq!(
+            forged.signature_public_key,
+            hex::encode(&attacker_pk.to_bytes())
+        );
+        assert_ne!(
+            genuine.signature_public_key,
+            hex::encode(&attacker_pk.to_bytes())
+        );
+        assert_eq!(
+            genuine.signature_public_key,
+            hex::encode(&original.to_bytes())
+        );
+
+        // And the genuine receipt's signature does not transfer onto the forged body's key.
+        let mut spliced = forged.clone();
+        spliced.signature_value = genuine.signature_value.clone();
+        assert!(
+            verify_receipt(&spliced).is_err(),
+            "a signature lifted from another key must not verify"
+        );
+    }
+
+    /// A malformed key or signature must be refused, not panic. `copy_from_slice` panics on a
+    /// length mismatch, so the length checks in front of it are load-bearing rather than tidy.
+    #[test]
+    fn malformed_key_and_signature_are_refused_without_panicking() {
+        let (sk, _) = generate_keypair();
+        let scanners: Vec<Box<dyn ContentScanner>> = vec![Box::new(MockScanner::safe("test"))];
+        let v = decide("clean", &scanners, &ModerationConfig::default());
+        let good = issue_receipt(&v, "clean", 1000, &sk);
+
+        for bad_key in [
+            "".to_string(),
+            "zz".to_string(),
+            "aa".repeat(31),
+            "aa".repeat(33),
+        ] {
+            let mut r = good.clone();
+            r.signature_public_key = bad_key.clone();
+            assert!(
+                verify_receipt(&r).is_err(),
+                "public key {bad_key:?} must be refused, not accepted or panicked on"
+            );
+        }
+        for bad_sig in [
+            "".to_string(),
+            "zz".to_string(),
+            "bb".repeat(63),
+            "bb".repeat(65),
+        ] {
+            let mut r = good.clone();
+            r.signature_value = bad_sig.clone();
+            assert!(
+                verify_receipt(&r).is_err(),
+                "signature {bad_sig:?} must be refused, not accepted or panicked on"
+            );
+        }
+    }
+
     #[test]
     fn deny_reason_variants() {
         assert_eq!(

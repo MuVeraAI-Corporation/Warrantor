@@ -56,11 +56,19 @@ impl AgentBudget {
         self.usd_cap_micros.saturating_sub(self.usd_spent_micros)
     }
 
+    /// Charge `cost_micros` against the cap.
+    ///
+    /// The addition saturates rather than wrapping. With a plain `+` an absurd cost — an agent
+    /// reporting a nonsense token count, or a corrupted price — overflows u64, which panics in
+    /// debug and **wraps in release**; a wrapped sum compares small and the comparison below then
+    /// yields `Ok`, i.e. the budget gate fails OPEN on exactly the inputs it exists to catch.
+    /// Saturating makes the impossible sum compare large, which denies. No normal input reaches
+    /// either bound, so this changes nothing except the direction of the absurd case.
     pub fn spend(&mut self, cost_micros: u64) -> Result<(), DenyReason> {
-        if self.usd_spent_micros + cost_micros > self.usd_cap_micros {
+        if self.usd_spent_micros.saturating_add(cost_micros) > self.usd_cap_micros {
             return Err(DenyReason::UsdCapExceeded);
         }
-        self.usd_spent_micros += cost_micros;
+        self.usd_spent_micros = self.usd_spent_micros.saturating_add(cost_micros);
         Ok(())
     }
 }
@@ -84,15 +92,19 @@ impl TaskBudget {
         self.max_tool_calls.saturating_sub(self.tool_calls_used)
     }
 
+    /// Consume tokens and tool calls against the task's ceilings.
+    ///
+    /// Saturating for the same reason as [`AgentBudget::spend`]: a wrapped sum compares small and
+    /// turns an absurd request into an allow.
     pub fn consume(&mut self, tokens: u64, tool_calls: u64) -> Result<(), DenyReason> {
-        if self.tokens_used + tokens > self.max_tokens {
+        if self.tokens_used.saturating_add(tokens) > self.max_tokens {
             return Err(DenyReason::TokenBudgetExhausted);
         }
-        if self.tool_calls_used + tool_calls > self.max_tool_calls {
+        if self.tool_calls_used.saturating_add(tool_calls) > self.max_tool_calls {
             return Err(DenyReason::ToolCallBudgetExhausted);
         }
-        self.tokens_used += tokens;
-        self.tool_calls_used += tool_calls;
+        self.tokens_used = self.tokens_used.saturating_add(tokens);
+        self.tool_calls_used = self.tool_calls_used.saturating_add(tool_calls);
         Ok(())
     }
 }
@@ -114,13 +126,22 @@ pub struct ModelBackend {
 
 impl ModelBackend {
     /// Compute the cost in micros for a given token usage.
+    ///
+    /// Saturating, like the budget comparisons this feeds. The token counts are caller-supplied
+    /// estimates — in Warrantor's case, numbers an agent reported about itself — so an absurd count
+    /// is reachable input, not a theoretical one. `(tokens / 1000) * price` overflows u64 for a
+    /// large enough count, and a wrapped product is a SMALL cost that then passes the cap check:
+    /// the fail-open direction, on the one function whose whole job is to say what something costs.
+    /// Saturating turns the impossible number into `u64::MAX`, which every ceiling denies.
     #[must_use]
     pub fn cost_micros(&self, input_tokens: u64, output_tokens: u64) -> u64 {
-        let input_cost = (input_tokens / 1000) * self.price_per_1k_input_micros
-            + ((input_tokens % 1000) * self.price_per_1k_input_micros) / 1000;
-        let output_cost = (output_tokens / 1000) * self.price_per_1k_output_micros
-            + ((output_tokens % 1000) * self.price_per_1k_output_micros) / 1000;
-        input_cost + output_cost
+        let priced = |tokens: u64, per_1k: u64| -> u64 {
+            (tokens / 1000)
+                .saturating_mul(per_1k)
+                .saturating_add((tokens % 1000).saturating_mul(per_1k) / 1000)
+        };
+        priced(input_tokens, self.price_per_1k_input_micros)
+            .saturating_add(priced(output_tokens, self.price_per_1k_output_micros))
     }
 }
 
@@ -177,7 +198,14 @@ pub fn decide(
     backends: &[ModelBackend],
 ) -> SpendVerdict {
     // 1. Token budget check (before consuming — fail-closed).
-    if task_budget.tokens_used + request.estimated_input_tokens + request.estimated_output_tokens
+    //
+    // Saturating throughout: these pre-checks must agree with `TaskBudget::consume` and
+    // `AgentBudget::spend` exactly, and a plain `+` here would wrap in release and allow the very
+    // request the gate exists to deny.
+    if task_budget
+        .tokens_used
+        .saturating_add(request.estimated_input_tokens)
+        .saturating_add(request.estimated_output_tokens)
         > task_budget.max_tokens
     {
         return SpendVerdict::Deny {
@@ -186,7 +214,11 @@ pub fn decide(
     }
 
     // 2. Tool-call budget.
-    if task_budget.tool_calls_used + request.tool_calls > task_budget.max_tool_calls {
+    if task_budget
+        .tool_calls_used
+        .saturating_add(request.tool_calls)
+        > task_budget.max_tool_calls
+    {
         return SpendVerdict::Deny {
             reason: DenyReason::ToolCallBudgetExhausted,
         };
@@ -203,7 +235,7 @@ pub fn decide(
         request.estimated_input_tokens,
         request.estimated_output_tokens,
     );
-    if agent_budget.usd_spent_micros + cost > agent_budget.usd_cap_micros {
+    if agent_budget.usd_spent_micros.saturating_add(cost) > agent_budget.usd_cap_micros {
         return SpendVerdict::Deny {
             reason: DenyReason::UsdCapExceeded,
         };
@@ -613,6 +645,69 @@ mod tests {
                 reason: DenyReason::UsdCapExceeded
             }
         );
+    }
+
+    /// An absurd cost must DENY, not wrap into an allow.
+    ///
+    /// With the plain `usd_spent + cost > cap` this crate used to carry, a cost near `u64::MAX`
+    /// overflowed: debug builds panicked, release builds wrapped to a small number that compared
+    /// under the cap and returned `Ok`. That is a budget gate failing open on exactly the input it
+    /// exists to catch, so the arithmetic saturates and the impossible sum denies.
+    #[test]
+    fn an_overflowing_cost_denies_rather_than_wrapping() {
+        let mut ab = agent(10 * MICROS_PER_DOLLAR);
+        ab.usd_spent_micros = 5;
+        assert_eq!(ab.spend(u64::MAX), Err(DenyReason::UsdCapExceeded));
+        assert_eq!(ab.usd_spent_micros, 5, "a denied spend must change nothing");
+    }
+
+    /// Pricing an absurd token count must saturate, not wrap.
+    ///
+    /// This is the same failure one layer down: `(tokens / 1000) * price` overflows before any
+    /// budget comparison happens, and a wrapped product is a small cost that sails through the cap.
+    #[test]
+    fn an_absurd_token_count_prices_at_the_ceiling_rather_than_wrapping() {
+        let paid = &backends()[0];
+        assert_eq!(paid.cost_micros(u64::MAX, u64::MAX), u64::MAX);
+        // A free backend still costs nothing, however absurd the count.
+        assert_eq!(backends()[1].cost_micros(u64::MAX, u64::MAX), 0);
+        // And ordinary pricing is untouched.
+        assert_eq!(paid.cost_micros(1000, 1000), 12_500);
+        assert_eq!(paid.cost_micros(1500, 0), 3_750);
+    }
+
+    /// The same, for the task ceilings.
+    #[test]
+    fn an_overflowing_token_claim_denies_rather_than_wrapping() {
+        let mut tb = task(1_000, 10);
+        tb.tokens_used = 7;
+        assert_eq!(
+            tb.consume(u64::MAX, 1),
+            Err(DenyReason::TokenBudgetExhausted)
+        );
+        assert_eq!(
+            tb.consume(1, u64::MAX),
+            Err(DenyReason::ToolCallBudgetExhausted)
+        );
+        assert_eq!(tb.tokens_used, 7);
+        assert_eq!(tb.tool_calls_used, 0);
+    }
+
+    /// `decide` duplicates those comparisons before consuming, so it must saturate too — otherwise
+    /// the pre-check and the consume disagree and the engine allows what the budget would refuse.
+    #[test]
+    fn decide_denies_an_overflowing_estimate() {
+        let mut ab = agent(10 * MICROS_PER_DOLLAR);
+        let mut tb = task(100_000, 50);
+        let v = decide(&req(u64::MAX, u64::MAX, 1), &mut ab, &mut tb, &backends());
+        assert_eq!(
+            v,
+            SpendVerdict::Deny {
+                reason: DenyReason::TokenBudgetExhausted
+            }
+        );
+        assert_eq!(tb.tokens_used, 0);
+        assert_eq!(ab.usd_spent_micros, 0);
     }
 
     fn req_with_backend(input: u64, output: u64) -> SpendRequest {
