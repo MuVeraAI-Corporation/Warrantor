@@ -14,9 +14,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from warrantor_ml.benchmark_expguard import build_eval_set_descriptor as expguard_descriptor
 from warrantor_ml.benchmark_wildguard import build_eval_set_descriptor as wildguard_descriptor
-from warrantor_ml.programme import parity_main
+from warrantor_ml.programme import export_main, lanes_main, parity_main
 
 PROMOTE, REJECT, INSUFFICIENT = 0, 1, 3
 
@@ -180,3 +182,30 @@ def test_the_written_decision_carries_the_digests_and_the_corpus_it_was_bound_to
         "others",
         "social stereotypes and unfair discrimination",
     ]
+
+
+def test_the_lane_router_requires_the_corpus_size_rather_than_assuming_one() -> None:
+    """The session-cap refusal is only as true as the row count it is computed from.
+
+    A substituted default lets the router approve a lane for a corpus it was never shown --
+    and the Kaggle cap exists to be discovered before the run, not at hour eleven.
+    """
+
+    with pytest.raises(SystemExit):
+        lanes_main(["--recipe", "guard-0.6b-weak-category", "--lane", "kaggle-t4x2"])
+
+
+def test_the_exporter_requires_the_corpus_size_rather_than_assuming_one(tmp_path: Path) -> None:
+    """corpus_rows is embedded in RUN_MANIFEST; a default writes a run that was never planned."""
+
+    with pytest.raises(SystemExit):
+        export_main(
+            [
+                "--recipe",
+                "guard-0.6b-weak-category",
+                "--lane",
+                "modal-a100",
+                "--out",
+                str(tmp_path / "runner.py"),
+            ]
+        )

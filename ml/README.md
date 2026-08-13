@@ -442,24 +442,52 @@ none of which trains anything or dispatches a job:
 ```bash
 python ml/build_corpus.py --task guard --rows train.parquet --describe-only   # ALWAYS first
 python ml/build_corpus.py --task guard --rows train.parquet \
+    --eval-rows test.parquet \
     --selector weak-category --benign-ratio 1.0 \
     --out corpora/weak.jsonl --manifest corpora/weak.manifest.json
 python ml/recipes.py                                       # the eight, with their digests
-python ml/lanes.py --recipe guard-4b-adversarial --lane kaggle-t4x2 --corpus-rows 20000
+python ml/lanes.py --recipe guard-4b-adversarial --lane kaggle-t4x2 --corpus-rows 38694
 python ml/export_lane_script.py --recipe guard-4b-adversarial --lane kaggle-t4x2 \
-    --out ml/kaggle/train_guard_4b_adversarial.py
+    --corpus-rows 38694 --out ml/kaggle/train_guard_4b_adversarial.py
 python ml/parity.py --result results/candidate.json --recipe guard-4b-adversarial \
     --lane local-rtx5080 --precision gguf-q4_k_m --manifest-digest sha256:... \
     --training-corpus corpora/weak.jsonl --eval-corpus eval/wildguard_test.jsonl
 ```
 
-Six things worth knowing before running any of it.
+Nine things worth knowing before running any of it.
 
 **`--describe-only` is not a convenience.** The measured weak-class names come from the *test*
 splits. A train split is not obliged to spell them the same way, and a selector written against
 the wrong spelling selects nothing — which looks exactly like a corpus that has no such rows.
 The selectors refuse by name rather than returning an empty set, and `--describe-only` is how you
 find out first.
+
+Run against WildGuardMix's train split it earns its keep immediately: **`Unqualified Professional
+Advice` — the weakest measured class at 0.4298 recall, and the headline target of both
+weak-category recipes — does not exist in that split at all.** It is an ExpGuardMix category. The
+two corpora have disjoint category vocabularies, so a weak-category corpus built from WildGuard
+train targets three of the four named classes and cannot touch the fourth. Fixing UPA needs an
+ExpGuardTrain corpus, and the parity gate will refuse to score that against the WildGuardTest
+baseline the recipe declares. That is a real gap in the programme, not a step to skip.
+
+**`--eval-rows` is how hold-out gets verified before the run, not after it.** The parity gate
+checks leakage and refuses a candidate whose training corpus overlaps the eval split — but it
+runs *after* training, so a leaked corpus costs a full session before anything says so, and the
+only repair left is hand-editing a JSONL the manifest has already digested. Passing the eval
+split to the builder excludes colliding rows before selection and records the exclusion in the
+manifest. WildGuardMix ships three such rows between its own published train and test splits.
+
+Omitting it is allowed and is recorded as `hold-out NOT verified` rather than left blank: a
+manifest silent about hold-out and one that checked and found nothing are different facts. Above
+1% of the eval split the builder **refuses** instead of repairing — at that size the overlap is
+not an upstream duplicate, and excluding thousands of rows would read in the manifest exactly
+like excluding three.
+
+**`--corpus-rows` has no default either.** It sets the wall-clock estimate, the `save_steps`
+cadence, *and* the session-cap refusal — so a substituted default lets the lane router approve a
+lane for a corpus it was never shown, and the Kaggle cap exists to be discovered before the run
+rather than at hour eleven. It used to default to 20,000, which also meant the generated runner
+embedded a `RUN_MANIFEST` describing a run nobody had planned.
 
 **`--benign-ratio` has no default, and it is not silently approximated either.** An adapter
 trained only on the rows the baseline missed buys recall with the false-positive rate measured
@@ -487,6 +515,22 @@ both of which used to end in `promote`: a slice with no negatives on either arm 
 the false-positive test (all three ExpGuard per-domain slices are recorded with `negatives=0`, so
 gating on `healthcare` degraded to a one-sided recall gate), and a per-category floor the
 candidate does not report is not a floor that was cleared. Both return `insufficient_evidence`.
+
+**The adapter has to outlive the container.** A Modal function's filesystem is ephemeral. The
+generated entrypoint used to write the adapter to `/tmp` and return the run record — which
+produces a *success-shaped* result for a six-hour A100 session that yields no model: `rows_trained`
+is right, the manifest validates, the exit code is 0, and nothing downstream can tell it from a
+real run. Weights now go to a named `modal.Volume`, the function `commit()`s and then reads them
+back before reporting, and it refuses to overwrite an existing `run_id` — an adapter replaced by
+a later run is indistinguishable from one that trained badly.
+
+**The eval lane is what the gate compares, not the training lane.** `_lane_matches` reads
+`lane` and `precision` off the *result document*, so where an adapter trained does not constrain
+the gate; where it was **scored** does. The baseline is `local-rtx5080` at `gguf-q4_k_m`, so a
+Modal-trained adapter must still be merged, quantised and evaluated locally to be comparable.
+Note that the refusal message argues about training-time fp16 loss scaling while the field it
+guards is an eval-time property — two different concerns sharing one name, and worth separating
+before a run is scored on a lane whose training precision nobody recorded.
 
 `ml/parity.py` exits 0 on `promote`, 1 on `reject` and **3** on `insufficient_evidence`. The
 third is not 1 on purpose: "we could not tell" and "it did not work" call for different next

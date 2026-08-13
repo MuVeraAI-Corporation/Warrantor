@@ -15,14 +15,16 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .leakage import content_fingerprint
 from .manifest import DatasetManifest, ManifestRefused, corpus_source, validate_manifest
 from .tasks import guard
 
-__all__ = ["build_guard_corpus", "build_parser", "main"]
+__all__ = ["ExcessiveLeakageError", "build_guard_corpus", "build_parser", "main"]
 
 TASKS = ("guard", "bounds", "triage", "effects", "summary")
 
@@ -39,6 +41,68 @@ CSAM_ATTESTATION: dict[str, Any] = {
 }
 
 
+class ExcessiveLeakageError(ValueError):
+    """The training split overlaps the eval split by more than a repairable margin.
+
+    Dropping a handful of colliding rows repairs an upstream duplicate. Dropping thousands
+    conceals a corpus that is wrong, and the repair would be indistinguishable from the fix
+    in the manifest -- both read as "n rows excluded". So there is a ceiling, and crossing it
+    is an error rather than a larger number in a summary.
+    """
+
+
+#: Above this fraction of the eval split, an overlap stops being an upstream duplicate and
+#: starts being evidence the two splits are not what they claim to be. Deliberately a hard
+#: constant and not a CLI flag: :mod:`warrantor_ml.leakage` makes the argument that a
+#: threshold exposed as a knob is a threshold that gets turned until the corpus passes.
+MAX_REPAIRABLE_LEAKAGE = 0.01
+
+
+def _exclude_leaked_rows(
+    rows: tuple[guard.GuardCorpusRow, ...],
+    eval_prompts: Sequence[str],
+) -> tuple[tuple[guard.GuardCorpusRow, ...], dict[str, Any]]:
+    """Drop training rows whose normalised content appears in the eval split.
+
+    The check belongs here rather than only in the parity gate. The gate runs after training,
+    so a leaked corpus costs a full run before anything says so -- and the operator's only
+    remaining repair at that point is to hand-edit a JSONL the manifest has already digested.
+
+    Raises:
+        ExcessiveLeakageError: the overlap exceeds :data:`MAX_REPAIRABLE_LEAKAGE`.
+    """
+
+    eval_fingerprints = {content_fingerprint(text) for text in eval_prompts}
+    kept: list[guard.GuardCorpusRow] = []
+    excluded: list[str] = []
+    for row in rows:
+        if content_fingerprint(row.prompt) in eval_fingerprints:
+            excluded.append(row.row_id)
+        else:
+            kept.append(row)
+
+    overlap_fraction = len(excluded) / len(eval_fingerprints) if eval_fingerprints else 0.0
+    if overlap_fraction > MAX_REPAIRABLE_LEAKAGE:
+        raise ExcessiveLeakageError(
+            f"{len(excluded)} training row(s) match {len(eval_fingerprints)} eval fingerprint(s) "
+            f"-- {overlap_fraction:.2%} of the eval split, above the {MAX_REPAIRABLE_LEAKAGE:.0%} "
+            "ceiling. At this size the overlap is not an upstream duplicate to be repaired: the "
+            "two splits are not the held-out pair they are being treated as. Excluding the rows "
+            "would leave a corpus that passes the gate and an eval set that measures "
+            "memorisation. Check that --eval-rows is the split the recipe's baseline was "
+            "measured on."
+        )
+
+    report = {
+        "eval_rows_fingerprinted": len(eval_fingerprints),
+        "excluded_row_count": len(excluded),
+        "overlap_fraction_of_eval": overlap_fraction,
+        # Bounded: the count is the finding, the ids are for whoever has to look one up.
+        "excluded_row_ids": sorted(excluded)[:20],
+    }
+    return tuple(kept), report
+
+
 def build_guard_corpus(
     rows: tuple[guard.GuardCorpusRow, ...],
     selector: str,
@@ -46,13 +110,39 @@ def build_guard_corpus(
     output: Path,
     dataset_id: str,
     split: str,
+    eval_prompts: Sequence[str] | None = None,
 ) -> tuple[DatasetManifest, dict[str, Any]]:
     """Select, render and write a guard corpus, returning its manifest and a summary.
+
+    Args:
+        eval_prompts: the held-out split the parity gate will score against. When given, rows
+            colliding with it are excluded before selection and the exclusion is recorded in
+            the manifest. When ``None``, no claim about hold-out is made or recorded.
 
     Raises:
         ManifestRefused: the manifest describes a corpus that must not be trained on.
         guard.MissingCorpusFieldError: the selector needs a column this split does not carry.
+        ExcessiveLeakageError: the overlap with ``eval_prompts`` is too large to repair.
     """
+
+    leakage_note: str
+    leakage_report_body: dict[str, Any] | None = None
+    if eval_prompts is None:
+        # Recorded as absent rather than omitted. A manifest that is silent about hold-out
+        # reads the same as one that checked and found nothing, and they are different facts.
+        leakage_note = (
+            "hold-out NOT verified at build time: no eval split was supplied to the builder. "
+            "The parity gate performs its own leakage check and will refuse the candidate if "
+            "this corpus overlaps the eval set."
+        )
+    else:
+        rows, leakage_report_body = _exclude_leaked_rows(rows, eval_prompts)
+        leakage_note = (
+            f"hold-out verified at build time against {leakage_report_body['eval_rows_fingerprinted']}"
+            f" eval fingerprint(s); {leakage_report_body['excluded_row_count']} training row(s) "
+            f"excluded for collision ({leakage_report_body['overlap_fraction_of_eval']:.4%} of the "
+            "eval split). Comparison is over NFKC-folded content, not row ids."
+        )
 
     if selector == "weak-category":
         selected = guard.weak_category_subset(rows, benign_ratio)
@@ -77,6 +167,7 @@ def build_guard_corpus(
                 notes=(
                     f"selector={selector}, benign_ratio={benign_ratio}, "
                     f"{len(dropped)} row(s) dropped for an absent or unrecognised label",
+                    leakage_note,
                 ),
             ),
         ),
@@ -96,6 +187,7 @@ def build_guard_corpus(
         "benign_counterweight": sum(1 for pair in pairs if not pair.unsafe),
         "content_digest": digest,
         "output": str(output),
+        "leakage": leakage_report_body,
     }
     return manifest, summary
 
@@ -129,6 +221,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="guard task only: benign rows per selected positive. REQUIRED -- there is no "
         "default, because an adapter trained on positives alone buys recall with the "
         "false-positive rate the parity gate then refuses it for",
+    )
+    parser.add_argument(
+        "--eval-rows",
+        type=Path,
+        help="the held-out split the parity gate will score against. Colliding training rows "
+        "are excluded before selection and the exclusion is recorded in the manifest. Omit it "
+        "and the manifest says hold-out was not verified -- the gate will still check, but "
+        "only after a full training run has already been spent",
     )
     parser.add_argument("--dataset-id", default="wildguardmix")
     parser.add_argument("--split", default="train")
@@ -179,6 +279,10 @@ def main(argv: list[str] | None = None) -> int:
     if arguments.out is None:
         build_parser().error("--out is required unless --describe-only")
 
+    eval_prompts: Sequence[str] | None = None
+    if arguments.eval_rows is not None:
+        eval_prompts = tuple(row.prompt for row in _load_rows(arguments.eval_rows))
+
     try:
         manifest, summary = build_guard_corpus(
             rows,
@@ -187,8 +291,9 @@ def main(argv: list[str] | None = None) -> int:
             arguments.out,
             arguments.dataset_id,
             arguments.split,
+            eval_prompts=eval_prompts,
         )
-    except (ManifestRefused, guard.MissingCorpusFieldError) as error:
+    except (ManifestRefused, guard.MissingCorpusFieldError, ExcessiveLeakageError) as error:
         print(f"\nCORPUS NOT BUILT\n{error}")
         return 2
 

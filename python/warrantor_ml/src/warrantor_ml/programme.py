@@ -92,8 +92,11 @@ def lanes_main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--corpus-rows",
         type=int,
-        default=20_000,
-        help="rows the run will train on; sets the wall-clock estimate",
+        help="rows the run will train on. REQUIRED -- there is no default, for the same reason "
+        "--benign-ratio has none. This number drives the wall-clock estimate, the save_steps "
+        "cadence AND the session-cap refusal, so a substituted one lets the router approve a "
+        "lane for a corpus it was never shown. The cap exists to be discovered before the run, "
+        "not at hour eleven",
     )
     parser.add_argument("--resume-from", help="a checkpoint, which permits a run over the cap")
     parser.add_argument("--json", action="store_true")
@@ -114,6 +117,11 @@ def lanes_main(argv: list[str] | None = None) -> int:
 
     if arguments.lane is None:
         parser.error("--lane is required when --recipe is given")
+    if arguments.corpus_rows is None:
+        parser.error(
+            "--corpus-rows is required when --recipe is given. Build the corpus first and pass "
+            "its pairs_written count; the session-cap refusal is only as true as this number"
+        )
 
     recipe = get_recipe(arguments.recipe)
     try:
@@ -153,7 +161,14 @@ def export_main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--recipe", required=True)
     parser.add_argument("--lane", required=True, choices=sorted(LANES))
-    parser.add_argument("--corpus-rows", type=int, default=20_000)
+    parser.add_argument(
+        "--corpus-rows",
+        type=int,
+        required=True,
+        help="rows the run will train on. Required: it is embedded in the generated script's "
+        "RUN_MANIFEST as the wall-clock estimate and sets save_steps, so a default writes a "
+        "provenance record describing a run that was never planned",
+    )
     parser.add_argument("--out", type=Path, required=True)
     arguments = parser.parse_args(argv)
 

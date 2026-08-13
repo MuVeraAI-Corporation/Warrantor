@@ -324,3 +324,41 @@ def test_the_modal_entrypoint_ships_the_corpus_rather_than_a_hub_token() -> None
     # The message may name the variable; nothing may read it.
     assert 'environ["HF_TOKEN"]' not in text
     assert "environ.get(" not in text
+
+
+# ── the adapter has to outlive the container ────────────────────────────────────────────
+
+
+def test_the_modal_entrypoint_persists_the_adapter_to_a_volume() -> None:
+    """A Modal container's filesystem is ephemeral.
+
+    Writing the adapter to /tmp and returning a run record produces a success-shaped result --
+    rows_trained, a valid manifest, exit 0 -- for a six-hour A100 session that yields no model.
+    Nothing downstream can tell that apart from a real run, which is why the weights go to a
+    named Volume and the function reads them back before reporting.
+    """
+
+    text = _modal_text()
+    assert "modal.Volume.from_name(" in text
+    assert "volumes=" in text
+    # The write is not durable outside the container until commit(), and every check made
+    # before it passes against the container's own view of the filesystem.
+    assert ".commit()" in text
+    assert "/tmp/adapter" not in text
+
+
+def test_the_modal_entrypoint_verifies_the_weights_landed_before_reporting_success() -> None:
+    """Reading the weights back is the only check that distinguishes a run from a no-op."""
+
+    text = _modal_text()
+    assert 'glob("adapter_model.*")' in text
+    assert "no adapter weights are present" in text
+    assert "adapter_path" in text
+
+
+def test_the_modal_entrypoint_refuses_to_overwrite_an_existing_adapter() -> None:
+    """An adapter replaced by a later run is indistinguishable from one that trained badly."""
+
+    text = _modal_text()
+    assert "already exists on the volume" in text
+    assert "run_id" in text

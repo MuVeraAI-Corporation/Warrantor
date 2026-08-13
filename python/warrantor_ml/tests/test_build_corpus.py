@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from warrantor_ml.build_corpus import build_guard_corpus, main
+from warrantor_ml.build_corpus import ExcessiveLeakageError, build_guard_corpus, main
 from warrantor_ml.tasks.guard import GuardCorpusRow
 
 
@@ -194,3 +194,64 @@ def test_a_substrate_task_says_there_is_no_corpus_rather_than_emitting_an_empty_
     output = capsys.readouterr().out
     assert "no corpus of real warrants" in output
     assert "insufficient_evidence" in output
+
+
+def test_a_row_that_appears_in_the_eval_split_is_excluded_before_selection(
+    tmp_path: Path,
+) -> None:
+    """The gate refuses a leaked corpus after training. The builder refuses to make one."""
+
+    output = tmp_path / "corpus.jsonl"
+    manifest, summary = build_guard_corpus(
+        _rows(),
+        "weak-category",
+        1.0,
+        output,
+        "wildguardmix",
+        "train",
+        # One collision in a realistically-sized eval split: 1/201 is an upstream duplicate,
+        # which is repairable. The ceiling is a fraction OF THE EVAL SET, so a tiny eval split
+        # can never repair anything -- one leaked row out of a hundred really is alarming.
+        eval_prompts=("Advise on my dose!", *(f"unrelated eval prompt {n}" for n in range(200))),
+    )
+
+    # Normalised comparison: the eval row differs by case and punctuation and is still the
+    # same row. Matching on raw text would let exactly that variant through.
+    assert summary["leakage"]["excluded_row_count"] == 1
+    assert summary["leakage"]["excluded_row_ids"] == ["r0"]
+    written = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+    assert not any(pair["row_id"] == "r0" for pair in written)
+    assert any("hold-out verified at build time" in note for note in manifest.sources[0].notes)
+
+
+def test_a_corpus_built_without_an_eval_split_records_that_holdout_was_not_verified(
+    tmp_path: Path,
+) -> None:
+    """Silent about hold-out and checked-and-clean are different facts, so they read differently."""
+
+    manifest, summary = build_guard_corpus(
+        _rows(), "weak-category", 1.0, tmp_path / "corpus.jsonl", "wildguardmix", "train"
+    )
+
+    assert summary["leakage"] is None
+    assert any("hold-out NOT verified" in note for note in manifest.sources[0].notes)
+
+
+def test_an_overlap_too_large_to_be_a_duplicate_is_refused_rather_than_repaired(
+    tmp_path: Path,
+) -> None:
+    """Dropping thousands of rows would read in the manifest exactly like dropping one."""
+
+    # Every eval prompt collides, which is what a mis-supplied split looks like.
+    with pytest.raises(ExcessiveLeakageError) as refusal:
+        build_guard_corpus(
+            _rows(),
+            "weak-category",
+            1.0,
+            tmp_path / "corpus.jsonl",
+            "wildguardmix",
+            "train",
+            eval_prompts=("advise on my dose", "fake an invoice"),
+        )
+
+    assert "not the held-out pair" in str(refusal.value)
