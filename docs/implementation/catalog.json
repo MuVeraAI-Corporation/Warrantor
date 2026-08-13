@@ -911,6 +911,18 @@
       ],
       "rfc": null,
       "note": "Stdlib Prometheus exposition. Honest and complete."
+    },
+    {
+      "id": "SUP-14",
+      "name": "model-intelligence",
+      "kind": "support",
+      "domain": "content-moderation",
+      "status": "reference_implementation",
+      "source_paths": [
+        "python/warrantor_ml"
+      ],
+      "rfc": null,
+      "note": "Guard-model dataset registry, recall-first evaluation, signed AIBOM, LoRA/QLoRA training and ContentScanner registration. Operator entry points in ml/."
     }
   ]
 }

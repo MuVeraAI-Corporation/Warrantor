@@ -1,0 +1,51 @@
+[project]
+name = "warrantor-ml"
+version = "1.0.0"
+description = "Model-intelligence pipeline — guard-model dataset registry, recall-first evaluation, signed AIBOM, and LoRA/QLoRA training for the Warrantor content-moderation plane."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Warrantor contributors" }]
+requires-python = ">=3.11"
+dependencies = ["cryptography>=42"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.4"]
+# Heavy training/inference stack. Deliberately NOT in `dev`: tools/ci/run_python_checks.py
+# installs only the `dev` extra, and pulling torch into every CI run to satisfy one project
+# would cost far more than it proves. Every test in this project must degrade gracefully
+# without these installed.
+train = [
+  "torch>=2.7",
+  "transformers>=4.51",
+  "datasets>=2.19",
+  "peft>=0.11",
+  "trl>=0.9",
+  "accelerate>=0.30",
+  "bitsandbytes>=0.43",
+]
+hub = ["huggingface-hub>=0.23"]
+
+[project.scripts]
+warrantor-ml-evaluate = "warrantor_ml.evaluate:main"
+warrantor-ml-datasets = "warrantor_ml.datasets:main"
+warrantor-ml-model-card = "warrantor_ml.model_card:main"
+warrantor-ml-fine-tune = "warrantor_ml.fine_tune:main"
+warrantor-ml-deploy = "warrantor_ml.deploy_model:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
