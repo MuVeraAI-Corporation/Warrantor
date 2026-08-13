@@ -291,6 +291,11 @@ the target.
 Release authority remains opt-in: settle and void refuse unless `--allow-settle` was typed, and the
 console disables those buttons and says why.
 
+The desktop installers added in Milestone 4 are a new artifact but not a new deployment story: the
+console still ships inside the `warrantor` binary, so `deploy/airgap` is unchanged, and an installer
+is simply that same binary with a window around it. The shell starts the agent as a viewer and never
+passes `--allow-settle`, on any launch path — spawn arguments and installer shortcuts alike.
+
 ## Milestones
 
 1. **Browser console, same-origin** — done, this RFC's companion change.
@@ -300,15 +305,29 @@ console disables those buttons and says why.
 
    The cost is real and is accepted deliberately rather than waved through: a security product that
    ships its own Chromium owns that patch cadence. Electron 33 carried 21 high-severity advisories;
-   the pin is 43.4.0, which audits clean, and **`npm audit` in `desktop/` is on the release
-   checklist**. `warrantor console` remains the zero-dependency path to the same console for anyone
-   who would rather not run a bundled browser at all.
+   the pin is 43.4.0, which audits clean, and **`npm audit` in `desktop/` now runs in CI on every
+   pull request** rather than only on the release checklist. `warrantor console` remains the
+   zero-dependency path to the same console for anyone who would rather not run a bundled browser
+   at all.
 
    The shell's security decisions live in `desktop/src/policy.js`, which imports nothing, so CI
    gates them on every pull request with no Electron download and no display.
-4. **Packaging and signing** — not done. `npm start` runs it from source; there is no installer, no
-   code signature, no notarisation and no update channel. See the delivery gap list in
-   `docs/W1-delivery-gaps.md`.
+4. **Packaging** — done, unsigned. electron-builder produces a Windows NSIS installer (per-user, no
+   elevation), a macOS dmg for arm64 and x64, and a Linux AppImage and deb. The `warrantor` binary
+   is compiled on the same runner that packages it and ships **inside** the app, and the shell
+   prefers that copy over `WARRANTOR_BIN` and over `PATH`: verification happens only in that binary,
+   so choosing the binary chooses the verifier, and an installed app must not be silently
+   re-pointed at a different one by an environment variable any parent process can set.
+
+   **Signing, notarisation and the update channel remain not done.** Signing is procurement rather
+   than engineering; the update channel is deliberately blocked behind it, because an update channel
+   over an unsigned artifact is an unauthenticated code-execution channel pointed at a machine that
+   runs a supervised agent. What to buy, and the config lines that change once it exists, are in
+   [../../desktop/SIGNING.md](../../desktop/SIGNING.md). Until then a tagged release publishes
+   per-platform SHA256SUMS and a build-provenance attestation — which say where a file came from,
+   not who stands behind it, and that difference is stated rather than blurred.
+
+   See the remaining delivery gaps in [../W1-delivery-gaps.md](../W1-delivery-gaps.md).
 5. **Backend, in the order the five needs bite:** evidence archive (custody) → directory (trust
    anchoring) → approval routing → time anchoring → fleet summaries.
 

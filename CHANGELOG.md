@@ -145,6 +145,32 @@ not.
   `Transfer-Encoding` header or an unbounded line read can be got wrong. `parse_request` keeps its
   exact signature and behaviour; `rust/warrant/tests/serve.rs` passes untouched.
 
+### Added — desktop installers, unsigned
+
+- **The desktop shell is packaged for three platforms.** electron-builder produces a Windows NSIS
+  installer (per-user, no elevation — an unsigned installer asking for administrator is the worst
+  possible first prompt from a security product, and an elevated install invites an elevated launch
+  of the supervised agent), a macOS dmg for arm64 and x64, and a Linux AppImage and deb.
+  `.github/workflows/desktop-release.yml` builds each on its native runner.
+- **The `warrantor` agent now ships inside the app, and is preferred over `PATH`.** It is compiled
+  on the same runner that packages it, so the bundled agent always matches the app's architecture.
+  Resolution order is bundled → `WARRANTOR_BIN` → `PATH`, and it is that way round because
+  verification happens only in Rust and only in that binary: choosing the binary chooses the
+  verifier, and an installed app must not be silently re-pointed at a different one by an
+  environment variable any parent process can set. There is no fallthrough — a missing bundled
+  agent, or a `WARRANTOR_BIN` that does not exist, stops the app with a message naming the path.
+  Previously a reviewer with no `warrantor` on `PATH` got an error dialog on first launch.
+- **`desktop/SIGNING.md`** — what unsigned costs on each platform, what to buy (EV code-signing
+  certificate, Apple Developer Program), the config lines that turn signing and notarisation on,
+  and the notarisation constraint the bundled agent creates. No update channel exists and none may
+  be added before signing: over an unsigned artifact it is an unauthenticated code-execution
+  channel.
+- **`npm audit --audit-level=moderate` in `desktop/` is now a CI gate** rather than a checklist
+  item, at no cost to that job's no-Electron property. New packaging tests assert that the builder
+  config and `src/policy.js` agree on the bundled agent's filename, that Electron stays on the
+  audited `^43.4.0` pin, that no publish channel is configured, and that `desktop` never joins the
+  `typescript/` npm workspace.
+
 ### Security
 
 - **`trust-core` `SigningKeyWrapper::zeroize()` left a usable key behind.** It overwrote the
