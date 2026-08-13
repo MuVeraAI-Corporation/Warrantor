@@ -1,5 +1,13 @@
 # Warrantor
 
+[![CI](https://github.com/MuVeraAI-Corporation/Warrantor/actions/workflows/ci.yml/badge.svg)](https://github.com/MuVeraAI-Corporation/Warrantor/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/warrantor-warrant?logo=rust&label=crates.io)](https://crates.io/crates/warrantor-warrant)
+[![npm](https://img.shields.io/npm/v/%40warrantor%2Fmcp-server?logo=npm&label=npm)](https://www.npmjs.com/package/@warrantor/mcp-server)
+[![PyPI](https://img.shields.io/pypi/v/warrantor-agent?logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/warrantor-agent/)
+[![docs.rs](https://img.shields.io/docsrs/warrantor-warrant?logo=docsdotrs&label=docs.rs)](https://docs.rs/warrantor-warrant)
+[![Release](https://img.shields.io/github/v/release/MuVeraAI-Corporation/Warrantor?label=release)](https://github.com/MuVeraAI-Corporation/Warrantor/releases/latest)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 **Give a coding agent bounded authority, walk away, and decide in the morning.**
 
 Warrantor hands an AI agent a *warrant*: authority granted in advance, with hard limits, that the
