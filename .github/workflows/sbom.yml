@@ -27,18 +27,32 @@ jobs:
       - name: Install cargo-cyclonedx
         run: cargo install cargo-cyclonedx --locked || echo "cargo-cyclonedx cached"
       - name: Generate CycloneDX SBOMs
-        # Generates one bom.json per crate under rust/<crate>/.
-        run: cargo cyclonedx --all --format json --output-pattern package
+        # One SBOM per workspace member, written to rust/<dir>/<crate-name>.cdx.json.
+        # `--all` here means "all dependencies, not just top-level" -- it is not a
+        # crate selector; workspace members are each emitted regardless. There is no
+        # --output-pattern flag in cargo-cyclonedx, and passing one is a hard error,
+        # which is what kept this job red.
+        run: cargo cyclonedx --all --format json
       - name: Aggregate SBOMs
         working-directory: .
         run: |
+          set -euo pipefail
           mkdir -p sbom
-          # Collect every generated bom.json into sbom/<crate>-bom.json
-          find rust -maxdepth 2 -name 'bom.json' -print0 | while IFS= read -r -d '' f; do
-            crate_dir=$(dirname "$f")
-            crate=$(basename "$crate_dir")
-            cp "$f" "sbom/${crate}.bom.json"
-          done
+          # Match the name the tool actually writes (<crate-name>.cdx.json). The
+          # previous pattern looked for bom.json, matched nothing, and would have
+          # uploaded an empty artifact behind a green check.
+          found=0
+          while IFS= read -r -d '' f; do
+            cp "$f" "sbom/$(basename "$f")"
+            found=$((found + 1))
+          done < <(find rust -maxdepth 2 -name '*.cdx.json' -print0)
+          # An empty SBOM set fails loudly. A provenance artifact that silently
+          # contains nothing is worse than one that is plainly missing.
+          if [ "$found" -eq 0 ]; then
+            echo "::error::No CycloneDX SBOMs were generated -- refusing to upload an empty artifact."
+            exit 1
+          fi
+          echo "Aggregated $found crate SBOMs."
           ls -la sbom/
       - name: Upload SBOMs
         uses: actions/upload-artifact@v4

@@ -27,12 +27,22 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
+      # warrantor-api's build.rs runs tonic-build, which shells out to protoc.
+      # Without this the whole workspace fails to build, not just that crate, so
+      # coverage reports nothing at all rather than reporting one crate short.
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --locked || echo "cargo-llvm-cov already cached"
-      - name: Run coverage
-        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      # One instrumented test run, then every report is generated from that same
+      # profile data. `--summary` is not a flag -- the previous form was silently
+      # doing nothing behind its `|| true`, so the summary never appeared in a log.
+      - name: Run instrumented tests
+        run: cargo llvm-cov --no-report --workspace
+      - name: Generate lcov
+        run: cargo llvm-cov report --lcov --output-path lcov.info
       - name: Summary
-        run: cargo llvm-cov --workspace --summary || true
+        run: cargo llvm-cov report --summary-only
       - name: Upload lcov
         uses: actions/upload-artifact@v4
         with:
