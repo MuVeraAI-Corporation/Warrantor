@@ -103,7 +103,8 @@ exits 2 rather than reporting a skipped green gate.
 Requires Rust (stable) and git.
 
 ```bash
-git clone <this repo> && cd aumos/rust
+git clone https://github.com/MuVeraAI-Corporation/Warrantor.git
+cd Warrantor/rust
 cargo build -p warrantor-warrant
 ```
 
@@ -169,7 +170,7 @@ It holds the agent under an OS-enforced lifetime link, so the agent cannot outli
 
 ## Project status
 
-Pre-1.0, open-sourced early on purpose.
+v1.0.0, open-sourced early on purpose.
 
 | Area | State |
 |---|---|
@@ -177,13 +178,14 @@ Pre-1.0, open-sourced early on purpose.
 | Supervision — detached daemon, OS lifetime link, deadline enforcement | **Works.** Windows job objects; Linux `setsid` + `PR_SET_PDEATHSIG` |
 | MCP — transport, control and agent endpoints | **Works.** Upstream forwarding not implemented yet |
 | GitHub adapter — PRs, comments, reviews, labels at settle | **Works** |
-| Python SDKs — harness, agent SDK, LangChain, vLLM, Hugging Face, Jira/Linear, OCSF, K8s admission | **Work.** Not yet published |
+| Python SDKs — harness, agent SDK, LangChain, vLLM, Hugging Face, Jira/Linear, OCSF, K8s admission | **Work.** 4 of 12 on PyPI; the rest held by PyPI's new-project quota |
 | Web console for non-developers | **Not built.** Data model and reducers exist; no UI in this repository |
-| Published packages | **None yet.** See [`docs/publishing-runbook.md`](docs/publishing-runbook.md) |
+| Published packages | **crates.io** 4/4 · **npm** 3/3 · **PyPI** 4/12 · prebuilt binaries for Linux, macOS (arm64 + x86_64) and Windows on the [v1.0.0 release](https://github.com/MuVeraAI-Corporation/Warrantor/releases/tag/v1.0.0) |
 
 ### Things that will bite you today
 
-- **Nothing is on PyPI, npm or crates.io.** Every install is from source.
+- **8 of the 12 Python packages are not on PyPI yet.** PyPI limits how many new projects an account
+  may create in a rolling window, and that window is still closed. Every other channel is complete.
 - **There is no web UI.** Everything is CLI, SDK or MCP.
 - **`docker compose up` defines 17 services, and three of them are not services.**
   `flight-recorder`'s container is a health stub that answers every path identically;
