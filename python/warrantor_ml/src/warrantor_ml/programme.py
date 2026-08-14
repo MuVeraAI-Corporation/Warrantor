@@ -23,6 +23,7 @@ from .lanes import LANES, LaneUnsuitableError, resolve
 from .leakage import LeakageReport, leakage_report
 from .parity import load_candidate_result, parity_gate
 from .recipes import get_recipe, list_recipes
+from .tasks import guard
 
 __all__ = [
     "export_main",
@@ -224,7 +225,13 @@ def parity_main(argv: list[str] | None = None) -> int:
         type=Path,
         help="the JSONL corpus the candidate trained on; required for the leakage check",
     )
-    parser.add_argument("--eval-corpus", type=Path, help="the eval split as JSONL")
+    parser.add_argument(
+        "--eval-corpus",
+        type=Path,
+        help="the eval split, parquet or JSONL. Prefer the parquet: it is what the splits "
+        "actually are, and it removes the hand-export step where the text ends up under a key "
+        "the leakage comparison does not read",
+    )
     parser.add_argument(
         "--breakdown-key",
         default="wildguard_breakdowns",
@@ -256,7 +263,7 @@ def parity_main(argv: list[str] | None = None) -> int:
 
     if arguments.training_corpus and arguments.eval_corpus:
         leakage = leakage_report(
-            _read_jsonl(arguments.training_corpus), _read_jsonl(arguments.eval_corpus)
+            _read_corpus(arguments.training_corpus), _read_corpus(arguments.eval_corpus)
         )
     else:
         # Not checking is not the same as checking and finding nothing. An unchecked corpus is
@@ -301,3 +308,24 @@ def _read_jsonl(path: Path) -> list[dict[str, object]]:
             if stripped:
                 rows.append(json.loads(stripped))
     return rows
+
+
+def _read_corpus(path: Path) -> list[dict[str, object]]:
+    """Read a corpus for the leakage comparison, in whichever format it is in.
+
+    Parquet is accepted because the eval splits ARE parquet and nothing in this repository
+    produced the JSONL the flag used to demand. That left every operator hand-exporting it and
+    choosing their own key, which is precisely how an eval arm ends up carrying `text` where
+    the comparison looks for `prompt` -- fingerprinting nothing and reporting a held-out set.
+    `leakage_report` refuses that now, but not needing the export at all removes the step where
+    it goes wrong.
+
+    The parquet path reuses the same loader the corpus builder uses, so the field the gate
+    compares is the field the corpus was built from, by construction rather than by agreement.
+    """
+
+    if path.suffix == ".parquet":
+        return [
+            {"row_id": row.row_id, "prompt": row.prompt} for row in guard.load_rows_parquet(path)
+        ]
+    return _read_jsonl(path)

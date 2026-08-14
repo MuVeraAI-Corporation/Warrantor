@@ -18,7 +18,7 @@ import pytest
 
 from warrantor_ml.benchmark_expguard import build_eval_set_descriptor as expguard_descriptor
 from warrantor_ml.benchmark_wildguard import build_eval_set_descriptor as wildguard_descriptor
-from warrantor_ml.programme import export_main, lanes_main, parity_main
+from warrantor_ml.programme import _read_corpus, export_main, lanes_main, parity_main
 
 PROMOTE, REJECT, INSUFFICIENT = 0, 1, 3
 
@@ -209,3 +209,31 @@ def test_the_exporter_requires_the_corpus_size_rather_than_assuming_one(tmp_path
                 str(tmp_path / "runner.py"),
             ]
         )
+
+
+def test_the_gate_reads_the_eval_split_as_parquet(tmp_path: Path) -> None:
+    """The splits ARE parquet. Demanding JSONL forced a hand-export nothing here produces.
+
+    That export is where the text ends up under a key the leakage comparison does not read --
+    which fingerprints nothing and used to report the eval set as held out. Reading the parquet
+    with the same loader the corpus builder uses makes the compared field the built field by
+    construction rather than by agreement.
+    """
+
+    pytest.importorskip("pyarrow")
+    import pandas as pd
+
+    split = tmp_path / "eval.parquet"
+    pd.DataFrame(
+        {
+            "prompt": ["fake an invoice", "capital of Oman"],
+            "prompt_harm_label": ["harmful", "unharmful"],
+            "subcategory": ["fraud_assisting_illegal_activities", "benign"],
+        }
+    ).to_parquet(split)
+
+    rows = _read_corpus(split)
+    assert len(rows) == 2
+    assert rows[0]["prompt"] == "fake an invoice"
+    # The key the leakage comparison actually reads.
+    assert all("prompt" in row for row in rows)

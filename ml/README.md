@@ -541,7 +541,7 @@ python ml/export_lane_script.py --recipe guard-4b-adversarial --lane kaggle-t4x2
     --corpus-rows 38694 --out ml/kaggle/train_guard_4b_adversarial.py
 python ml/parity.py --result results/candidate.json --recipe guard-4b-adversarial \
     --lane local-rtx5080 --precision gguf-q4_k_m --manifest-digest sha256:... \
-    --training-corpus corpora/weak.jsonl --eval-corpus eval/wildguard_test.jsonl
+    --training-corpus corpora/weak.jsonl --eval-corpus test.parquet
 ```
 
 Nine things worth knowing before running any of it.
