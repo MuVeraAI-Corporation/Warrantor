@@ -223,7 +223,7 @@ jobs:
       # signature — it says where the file came from, not that a named publisher stands behind it.
       # Release notes must point reviewers at this and at SHA256SUMS, never at a way to click
       # through the operating system's warning.
-      - uses: actions/attest-build-provenance@v1
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             dist/*.exe
