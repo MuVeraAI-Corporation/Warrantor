@@ -2,16 +2,23 @@
 //!
 //! # Key handling
 //!
-//! Two keys live under `~/.warrantor/keys/`:
+//! Three keys live under `~/.warrantor/keys/`:
 //!
 //! * `issuer.key` signs warrants and capability tokens.
 //! * `settle.key` authorises settling, voiding and renewal.
+//! * `device.key` signs requests to an evidence archive this machine is paired with.
 //!
-//! They are separate because the agent must not be able to settle its own warrant. In this CLI
-//! both are on the developer's machine, which is correct — the developer *is* the settle
+//! The first two are separate because the agent must not be able to settle its own warrant. In this
+//! CLI both are on the developer's machine, which is correct — the developer *is* the settle
 //! authority. What matters is that the settle key is never loaded into the process the agent runs
 //! in. When the daemon lands it will hold the issuer key and supervise agents; the settle key
 //! stays here, in the command the human types.
+//!
+//! `device.key` is different in kind: it is a credential rather than an authority, minted only by
+//! `warrantor archive enrol` and meaningless until an archive has enrolled its public half. It is
+//! never created on demand, it is minted fresh on every enrolment, and the pairing record beside it
+//! (`~/.warrantor/archive.json`) records which public key it must be — because one device key must
+//! name exactly one device id for revocation at the archive to mean anything.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -119,6 +126,29 @@ fn load_or_create_key(path: &Path, kind: KeyKind) -> Result<SigningKey, String> 
         kind.protect()
     );
     Ok(key)
+}
+
+/// Write a freshly minted device key, replacing whatever was there.
+///
+/// Separate from [`load_or_create_key`] because a device key is not created on first *use* — it is
+/// created on enrolment, and enrolment is the only caller. The write goes through a temporary file
+/// and a rename so a key file is never half a key: a truncated device key is 32 bytes of nothing
+/// that would be read back as a valid signing key and refused by the archive as a stranger.
+fn write_device_key(path: &Path, key: &SigningKey) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("create key dir: {e}"))?;
+    }
+    let temporary = path.with_extension("key.tmp");
+    std::fs::write(&temporary, key.to_bytes())
+        .map_err(|e| format!("write {}: {e}", temporary.display()))?;
+    std::fs::rename(&temporary, path).map_err(|e| format!("write {}: {e}", path.display()))?;
+    eprintln!(
+        "warrantor: wrote a new {} key at {}. Protect it: {}.",
+        KeyKind::Device.label(),
+        path.display(),
+        KeyKind::Device.protect()
+    );
+    Ok(())
 }
 
 /// Load a key that must already exist, reporting its absence as absence.
@@ -261,7 +291,8 @@ warrantor — bounded authority for coding agents
   list
   report  <warrant-id> [--export <path> [--archive [<url>]]]
   verify  <exported-report.json | exported-stop.json | exported-spend.json>
-  archive enrol --url <url> --code <code> | push <file> | fetch <sha256> --out <path>
+  archive enrol --url <url> --code <code> [--replace] | push <file>
+                | fetch <sha256> --out <path>
   egress  <warrant-id> <destination> [<destination> ...]
   spend   <warrant-id> [--input N --output N [--backend ID] [--quote]] [--export <path>]
   stop    <warrant-id> [--reason \"...\"] [--export <path>]
@@ -283,10 +314,13 @@ Archive files evidence with a self-hosted evidence archive, and reads it back. E
 pairs this machine against a one-time code an operator mints on the archive host and
 writes ~/.warrantor/keys/device.key plus a pairing record; every later request is
 signed with that key, so the archive records WHO filed an artifact rather than that
-someone with a token did. Push sends a file's bytes VERBATIM -- the digest the archive
-returns must equal the SHA-256 of the bytes sent, or the push is refused rather than
-reported. --archive on report/stop/spend files the file --export just wrote, through
-the same path, and exits non-zero if it fails.
+someone with a token did. Enrol mints a FRESH keypair and REFUSES to run over an
+existing pairing without --replace: one key must name one device id, because revoking
+the id you can name withdraws nothing if a second id shares its key. Push sends a
+file's bytes VERBATIM -- the digest the archive returns must equal the SHA-256 of the
+bytes sent, or the push is refused rather than reported. --archive on report/stop/spend
+files the file --export just wrote, through the same path, and exits non-zero if it
+fails.
 
 A filing is CUSTODY, NOT A VERDICT. The archive holds bytes it did not produce and
 cannot forge; it stores artifacts whose signatures do not check out and marks them,
@@ -2503,7 +2537,14 @@ fn archive_identity(root: &Path) -> Result<(ArchiveConfig, SigningKey), String> 
     let config = ArchiveConfig::load(root).map_err(|e| e.to_string())?;
     let path = root.join("keys/device.key");
     match load_key(&path, KeyKind::Device)? {
-        Some(key) => Ok((config, key)),
+        // The key and the record are checked against each other *here*, before anything is signed.
+        // A key that does not belong to this device id signs perfectly well and is refused at the
+        // far end as a bad signature — which sends the operator hunting a crypto problem when what
+        // they have is a pairing that was never finished, or a key restored from another machine.
+        Some(key) => {
+            config.check_key(&key, &path).map_err(|e| e.to_string())?;
+            Ok((config, key))
+        }
         None => Err(archive_client::ArchiveClientError::NoDeviceKey {
             path,
             url: config.url.clone(),
@@ -2564,8 +2605,8 @@ fn cmd_archive(args: &Args, root: &Path) -> ExitCode {
             "unknown archive verb {other:?}. warrantor archive has three: enrol, push, fetch."
         )),
         None => fail(
-            "usage: warrantor archive enrol --url <url> --code <code>\n       warrantor archive \
-             push <file>\n       warrantor archive fetch <sha256> --out <path>",
+            "usage: warrantor archive enrol --url <url> --code <code> [--replace]\n       \
+             warrantor archive push <file>\n       warrantor archive fetch <sha256> --out <path>",
         ),
     }
 }
@@ -2585,38 +2626,104 @@ fn cmd_archive_enrol(args: &Args, root: &Path) -> ExitCode {
     if let Err(e) = archive_client::check_url(url) {
         return fail(&e.to_string());
     }
-    // The one place a device key is created. It is created *because* the public half is about to be
-    // enrolled: that is what turns a keypair into a credential.
-    let key = match load_or_create_key(&root.join("keys/device.key"), KeyKind::Device) {
-        Ok(key) => key,
-        Err(e) => return fail(&e),
+    let key_path = root.join("keys/device.key");
+    let record_path = ArchiveConfig::path(root);
+
+    // Enrolling over an existing pairing is refused, and the refusal is the point. Done silently it
+    // mints a SECOND device at the archive while the first stays active, and overwrites the only
+    // local record of the first id — which `warrantor-archive revoke --device <id>` needs. The
+    // natural way to reach it is the ordinary one: a `code_not_usable`, a URL typo, and a re-run.
+    // `--replace` is not a formality; it is the operator saying they have withdrawn the old device
+    // or accept that they must.
+    let replacing = args.flags.contains_key("replace");
+    let previous = match ArchiveConfig::read_if_present(root) {
+        Ok(previous) => previous,
+        // An unreadable record still means a device was enrolled from this machine. Reading it as
+        // "never paired" is exactly what would orphan that device.
+        Err(e) => {
+            if !replacing {
+                return fail(
+                    &archive_client::ArchiveClientError::AlreadyPaired {
+                        path: record_path,
+                        describes: format!("this build cannot read it — {e}"),
+                    }
+                    .to_string(),
+                );
+            }
+            None
+        }
     };
+    if let (Some(previous), false) = (previous.as_ref(), replacing) {
+        return fail(
+            &archive_client::ArchiveClientError::AlreadyPaired {
+                path: record_path,
+                describes: format!(
+                    "pairs this machine with {} as {}",
+                    previous.url, previous.device_id
+                ),
+            }
+            .to_string(),
+        );
+    }
+
+    // A FRESH keypair, every enrolment — never `load_or_create_key`, which returns the key already
+    // on disk. Re-using it enrols one private key under two device ids, and revocation is by id:
+    // withdrawing the id an operator can name would withdraw nothing, because the same key would
+    // keep signing under the other. The archive refuses the second enrolment of a key it already
+    // holds, so this is the half that keeps the honest path from ever needing that refusal.
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
+    let key = SigningKey::generate(&mut csprng);
+    let device_public_key = hex::encode(key.verifying_key().to_bytes());
+
+    // Nothing on disk has been touched yet, so a refusal from the archive leaves an existing
+    // pairing exactly as it was.
     let mut transport = https_archive(url);
     let enrolled = match archive_client::enrol(&mut transport, url, code, &key.verifying_key()) {
         Ok(enrolled) => enrolled,
         Err(e) => return fail(&e.to_string()),
     };
+    // Between here and the last write there is a device at the archive that this machine may not be
+    // able to use. Every failure below says so and names it, because an enrolled device nobody can
+    // name is the thing this whole command is careful about.
+    let orphaned = |what: &str| {
+        format!(
+            "{what}\n\nThe archive HAS enrolled {}, and this machine cannot sign as it. Withdraw \
+             it, or it stays active with no way to use or name it:\n  warrantor-archive revoke \
+             --device {}   (on the archive host)",
+            enrolled.device_id, enrolled.device_id
+        )
+    };
+    if let Err(e) = write_device_key(&key_path, &key) {
+        return fail(&orphaned(&e));
+    }
     let config = ArchiveConfig {
         format: archive_client::ARCHIVE_CONFIG_FORMAT.to_string(),
         url: url.trim_end_matches('/').to_string(),
         device_id: enrolled.device_id.clone(),
+        device_public_key,
         label: enrolled.label.clone(),
         enrolled_at: enrolled.enrolled_at,
     };
     let written = match config.save(root) {
         Ok(path) => path,
         Err(e) => {
-            return fail(&format!(
-                "this device enrolled as {} but the pairing could not be recorded, so nothing here \
-                 can use it: {e}",
-                enrolled.device_id
-            ))
+            return fail(&orphaned(&format!(
+                "the pairing could not be recorded, so nothing here can use it: {e}"
+            )))
         }
     };
     println!("paired   {}", config.url);
     println!("device   {} ({})", enrolled.device_id, enrolled.label);
     println!("record   {}", written.display());
-    println!("key      {}", root.join("keys/device.key").display());
+    println!("key      {}", key_path.display());
+    if let Some(previous) = previous.as_ref() {
+        println!(
+            "\nREPLACED the pairing with {} as {}. That device is still ACTIVE at the archive and \
+             its key is now gone from this machine. Withdraw it:\n  warrantor-archive revoke \
+             --device {}   (on the archive host)",
+            previous.url, previous.device_id, previous.device_id
+        );
+    }
     println!(
         "\nThe archive holds only the public half. Revoking this device is an operator action on \
          the archive host:\n  warrantor-archive revoke --device {}",

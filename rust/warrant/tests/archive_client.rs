@@ -48,6 +48,7 @@ fn config() -> ArchiveConfig {
         format: ARCHIVE_CONFIG_FORMAT.to_string(),
         url: "http://127.0.0.1:8788".to_string(),
         device_id: DEVICE.to_string(),
+        device_public_key: hex::encode(key().verifying_key().to_bytes()),
         label: "Ana's laptop".to_string(),
         enrolled_at: NOW,
     }
@@ -192,6 +193,78 @@ fn a_pairing_record_written_by_enrol_is_readable_by_push() {
     let written = config().save(&root).expect("save");
     assert!(written.ends_with("archive.json"));
     assert_eq!(ArchiveConfig::load(&root).expect("load"), config());
+}
+
+/// A record that does not say which key it was written for is refused rather than trusted.
+///
+/// The field is what makes the device id and the key on disk one credential instead of two facts
+/// that happen to sit in the same directory. A record without it would have to be taken on faith.
+#[test]
+fn a_pairing_record_without_a_public_key_is_refused() {
+    let root = tempdir("no-public-key");
+    let mut config = config();
+    config.device_public_key = "not-a-key".to_string();
+    config.save(&root).expect("save");
+
+    let error = ArchiveConfig::load(&root).expect_err("that is not a public key");
+    assert!(matches!(&error, ArchiveClientError::Config(_)), "{error}");
+    assert!(error.to_string().contains("64 hex characters"), "{error}");
+}
+
+/// The key on disk is checked against the record BEFORE anything is signed, and the refusal names
+/// the pairing rather than blaming the signature.
+///
+/// This is the shape a half-finished enrolment leaves behind, and the shape a `device.key` copied
+/// from another machine's backup leaves behind. Both sign perfectly well; both are refused by the
+/// archive with a message about signatures, which sends the operator hunting a crypto problem.
+#[test]
+fn a_device_key_that_is_not_the_enrolled_one_is_refused_as_a_pairing_problem() {
+    let config = config();
+    let stranger = SigningKey::from_bytes(&[9; 32]);
+    let path = PathBuf::from("/warrantor/keys/device.key");
+
+    config
+        .check_key(&key(), &path)
+        .expect("the enrolled key is accepted");
+    let error = config
+        .check_key(&stranger, &path)
+        .expect_err("a key this pairing was not written for");
+
+    assert!(
+        matches!(&error, ArchiveClientError::DeviceKeyMismatch(mismatch)
+            if mismatch.device_id == DEVICE),
+        "{error}"
+    );
+    let message = error.to_string();
+    assert!(
+        message.contains(&hex::encode(stranger.verifying_key().to_bytes()))
+            && message.contains(&config.device_public_key),
+        "the refusal names both keys, so the operator can tell which one is the stranger: {message}"
+    );
+    assert!(
+        message.contains("not a signature problem"),
+        "the refusal says what kind of problem this is not: {message}"
+    );
+}
+
+/// "No pairing" and "a pairing record I cannot read" are different answers, and the second one is
+/// never flattened into the first.
+///
+/// Flattening them is precisely what would let a second enrolment run silently over a device that
+/// is still active at the archive.
+#[test]
+fn an_unreadable_pairing_record_is_not_reported_as_never_paired() {
+    let absent = tempdir("read-if-present-absent");
+    assert_eq!(
+        ArchiveConfig::read_if_present(&absent).expect("absence is not an error"),
+        None
+    );
+
+    let root = tempdir("read-if-present-broken");
+    std::fs::write(ArchiveConfig::path(&root), b"{ this is not json").expect("write");
+    let error = ArchiveConfig::read_if_present(&root)
+        .expect_err("a record that exists and cannot be read is not an absent record");
+    assert!(matches!(&error, ArchiveClientError::Config(_)), "{error}");
 }
 
 /// A URL this client will not sign a request to is refused, with the reason.
@@ -533,4 +606,104 @@ fn every_request_carries_a_fresh_nonce() {
             "a nonce repeated"
         );
     }
+}
+
+// ── enrolling twice ───────────────────────────────────────────────────────────────────
+//
+// These drive the real binary, because what is being tested is an ordering: the refusal has to
+// happen before a key is minted and before anything goes on the wire, and only the command knows
+// that order. The archive URL below points at a port nothing is listening on — if a test here ever
+// reaches the network it will hang or fail loudly rather than pass by accident.
+
+/// `warrantor archive enrol` on an already-paired machine refuses, names the device that is still
+/// active at the archive, and changes nothing on disk.
+///
+/// Silently re-enrolling is the failure this exists to prevent: it mints a SECOND device id at the
+/// archive with the first row left active, and overwrites the only local record of the first id —
+/// and `warrantor-archive revoke` takes a device id. The natural way to get there is the ordinary
+/// way, a mistyped URL and a re-run.
+#[test]
+fn enrolling_over_an_existing_pairing_is_refused_and_touches_nothing() {
+    let home = tempdir("enrol-twice");
+    let root = home.join(".warrantor");
+    std::fs::create_dir_all(root.join("keys")).expect("keys dir");
+    config().save(&root).expect("an existing pairing");
+    std::fs::write(root.join("keys/device.key"), key().to_bytes()).expect("an existing key");
+
+    let (success, output) = run_enrol(&home, &["--url", "http://127.0.0.1:9", "--code", "abc"]);
+
+    assert!(
+        !success,
+        "enrol exited 0 over an existing pairing: {output}"
+    );
+    assert!(
+        output.contains(DEVICE) && output.contains("warrantor-archive revoke --device"),
+        "the refusal names the device that would have been orphaned, and how to withdraw it: \
+         {output}"
+    );
+    assert!(
+        output.contains("--replace"),
+        "the refusal says how to proceed on purpose: {output}"
+    );
+    assert_eq!(
+        ArchiveConfig::load(&root).expect("the pairing record is untouched"),
+        config()
+    );
+    assert_eq!(
+        std::fs::read(root.join("keys/device.key")).expect("the key is untouched"),
+        key().to_bytes(),
+        "a refused enrolment must not have replaced the device key"
+    );
+}
+
+/// A pairing record that exists and cannot be parsed is still a pairing: refused, not treated as an
+/// unpaired machine.
+#[test]
+fn enrolling_over_an_unreadable_pairing_record_is_refused_too() {
+    let home = tempdir("enrol-over-junk");
+    let root = home.join(".warrantor");
+    std::fs::create_dir_all(&root).expect("root");
+    std::fs::write(ArchiveConfig::path(&root), b"{ half a record").expect("write");
+
+    let (success, output) = run_enrol(&home, &["--url", "http://127.0.0.1:9", "--code", "abc"]);
+
+    assert!(!success, "enrol exited 0 over a broken record: {output}");
+    assert!(
+        output.contains("already paired") && output.contains("cannot read it"),
+        "the refusal says which of the two problems this is: {output}"
+    );
+}
+
+/// `--url` and `--code` are still checked before the pairing state is, so a machine that was never
+/// paired gets the usage error it deserves rather than a lecture about revocation.
+#[test]
+fn an_unpaired_machine_enrolling_without_a_code_gets_the_usage_error() {
+    let home = tempdir("enrol-no-code");
+
+    let (success, output) = run_enrol(&home, &["--url", "http://127.0.0.1:9"]);
+
+    assert!(!success, "{output}");
+    assert!(output.contains("--code is required"), "{output}");
+    assert!(
+        !home.join(".warrantor/keys/device.key").exists(),
+        "no key is minted for an enrolment that never happened: {output}"
+    );
+}
+
+/// Run `warrantor archive enrol <args>` against a store rooted in `home`.
+fn run_enrol(home: &std::path::Path, args: &[&str]) -> (bool, String) {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_warrantor"))
+        .arg("archive")
+        .arg("enrol")
+        .args(args)
+        .env("HOME", home)
+        .env("USERPROFILE", home)
+        .output()
+        .expect("run warrantor archive enrol");
+    let both = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    (out.status.success(), both)
 }

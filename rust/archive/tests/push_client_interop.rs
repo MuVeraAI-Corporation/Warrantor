@@ -203,6 +203,11 @@ fn config() -> ArchiveConfig {
         format: ARCHIVE_CONFIG_FORMAT.to_string(),
         url: "http://127.0.0.1:8788".to_string(),
         device_id: DEVICE.to_string(),
+        // Derived from `device_key()` rather than written as a literal, because every call below
+        // signs with that key and `check_key` compares the two. A hardcoded hex here would be a
+        // second place to update whenever the fixture key changes, and getting it wrong would fail
+        // as a pairing mismatch inside tests that are about something else entirely.
+        device_public_key: hex::encode(device_key().verifying_key().to_bytes()),
         label: "Ana's laptop".to_string(),
         enrolled_at: NOW,
     }

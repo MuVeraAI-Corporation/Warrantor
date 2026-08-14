@@ -586,6 +586,18 @@ fn enrol<S: ArchiveStore>(store: &mut S, request: &HttpRequest, now: u64) -> Arc
             "that enrolment code is not usable: it is unknown, expired, or already claimed. Ask an \
              operator for a new one.",
         ),
+        // The device id holding this key is NOT named. Enrolment proves possession of a code, never
+        // of the private half of the key presented — so naming the id would hand whoever ran this
+        // the identity to ask an operator to revoke. The code is not consumed either, so the
+        // operator who hit this can retry with a fresh keypair.
+        Err(EnrolError::KeyAlreadyEnrolled) => ArchiveResponse::error(
+            status::FORBIDDEN,
+            "device_key_already_enrolled",
+            "that device key is already enrolled at this archive. A key may name exactly one \
+             device, because revocation is by device id and a key with two ids could not be \
+             withdrawn. Enrol a fresh keypair: on the device, `warrantor archive enrol … \
+             --replace` mints one. Your enrolment code was not spent.",
+        ),
         Err(EnrolError::Store(_)) => ArchiveResponse::error(
             status::UNAVAILABLE,
             "store_unavailable",

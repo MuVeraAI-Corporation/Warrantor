@@ -20,7 +20,9 @@ serde.workspace = true
 serde_json = "1"
 ed25519-dalek = { version = "3", features = ["rand_core"] }
 hex = "0.4"
-sha2 = "0.11"
+# No `sha2` here on purpose. `warrantor_archive::sha256_hex` delegates to
+# `warrantor_warrant::report::sha256_hex`, so this crate hashes nothing of its own, and a dependency
+# nothing imports is a line in the SBOM claiming supply-chain surface this build does not have.
 getrandom = { version = "0.4", features = ["sys_rng"] }
 # The one verifier. This crate does NOT check a signature of its own: ingest hygiene calls
 # `report::verify_export`, `stop::verify_stop` and `spend::verify_spend` -- the same functions

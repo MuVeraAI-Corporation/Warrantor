@@ -56,6 +56,14 @@
 //!   did not compute would be certifying something it never checked.
 //! * **It checks fetched bytes against the digest that was asked for**, for the same reason and in
 //!   the same place.
+//! * **It holds one key per device id, and refuses to blur the two.** Enrolment mints a *fresh*
+//!   keypair and refuses to run over an existing [`ArchiveConfig`] without `--replace`, and every
+//!   signed request checks the key on disk against [`ArchiveConfig::device_public_key`] first. The
+//!   failure this prevents is the one that defeats revocation: enrolling the same key twice leaves
+//!   two device ids sharing one credential, so revoking the id you can name withdraws nothing —
+//!   the same key keeps filing and reading under the id you cannot. The archive enforces the other
+//!   half (`EnrolError::KeyAlreadyEnrolled`, and a unique index on `device.public_key`), because a
+//!   rule only a client keeps is not a rule.
 //! * **It never prints or returns a verdict.** A 200 from `POST /v1/evidence` means *these bytes
 //!   are held*. The archive deliberately stores artifacts whose ingest check is `failed` or
 //!   `unknown`, so [`Filed::ingest_check`] is carried verbatim under a name that cannot be read as
@@ -239,6 +247,16 @@ pub struct ArchiveConfig {
     pub url: String,
     /// The device id this archive issued at enrolment.
     pub device_id: String,
+    /// Hex of the public half of the key that was enrolled under [`Self::device_id`].
+    ///
+    /// A device id and a key are **one** credential, and this field is what lets that be checked
+    /// locally. Without it, a `keys/device.key` that does not belong to this device id — an enrolment
+    /// that died between writing the key and writing this record, a key restored from another
+    /// machine's backup — produces a perfectly well-formed signature that the archive refuses with a
+    /// message about signatures, sending the operator to look for a key problem instead of a pairing
+    /// one. The private half is still never written here; this is the same 32 bytes the archive
+    /// already holds.
+    pub device_public_key: String,
     /// The label the operator gave the device when the code was minted, as the archive reported it.
     pub label: String,
     /// When the archive said the enrolment happened, epoch seconds.
@@ -292,11 +310,39 @@ impl ArchiveConfig {
                 config.device_id
             )));
         }
+        parse_public_key_hex(&config.device_public_key).map_err(|e| {
+            ArchiveClientError::Config(format!(
+                "{} records this device's public key as {:?}, and {e}",
+                path.display(),
+                config.device_public_key
+            ))
+        })?;
         check_url(&config.url)?;
         Ok(config)
     }
 
-    /// Write the pairing record.
+    /// Read the pairing record only if there is one, distinguishing "no pairing" from "unreadable".
+    ///
+    /// `Ok(None)` means this machine is not paired. An unreadable record is **not** flattened into
+    /// that: a file that exists and cannot be parsed still means a device was enrolled and is
+    /// probably still active at the archive, and treating it as "never paired" is what would let a
+    /// second enrolment quietly orphan the first.
+    ///
+    /// # Errors
+    /// [`ArchiveClientError::Config`] when a record is present and unusable.
+    pub fn read_if_present(root: &Path) -> Result<Option<Self>, ArchiveClientError> {
+        match Self::load(root) {
+            Ok(config) => Ok(Some(config)),
+            Err(ArchiveClientError::NotConfigured(_)) => Ok(None),
+            Err(other) => Err(other),
+        }
+    }
+
+    /// Write the pairing record, atomically.
+    ///
+    /// Content goes to a temporary file and is then renamed over the target, the same way a warrant
+    /// is written. A half-written pairing record is worse than none: `load` would refuse it, and the
+    /// operator would be told they are not paired by a machine that is.
     ///
     /// # Errors
     /// [`ArchiveClientError::Config`] when it cannot be encoded or written.
@@ -309,10 +355,55 @@ impl ArchiveConfig {
         }
         let body = serde_json::to_vec_pretty(self)
             .map_err(|e| ArchiveClientError::Config(format!("encode pairing record: {e}")))?;
-        std::fs::write(&path, &body)
+        let temporary = path.with_extension("json.tmp");
+        std::fs::write(&temporary, &body).map_err(|e| {
+            ArchiveClientError::Config(format!("write {}: {e}", temporary.display()))
+        })?;
+        std::fs::rename(&temporary, &path)
             .map_err(|e| ArchiveClientError::Config(format!("write {}: {e}", path.display())))?;
         Ok(path)
     }
+
+    /// Refuse a key that is not the one this pairing was written for.
+    ///
+    /// # Errors
+    /// [`ArchiveClientError::DeviceKeyMismatch`] when the key on disk is not the enrolled one.
+    pub fn check_key(&self, key: &SigningKey, key_path: &Path) -> Result<(), ArchiveClientError> {
+        let on_disk = hex::encode(key.verifying_key().to_bytes());
+        if on_disk == self.device_public_key {
+            return Ok(());
+        }
+        Err(ArchiveClientError::DeviceKeyMismatch(Box::new(
+            DeviceKeyMismatch {
+                path: key_path.to_path_buf(),
+                url: self.url.clone(),
+                device_id: self.device_id.clone(),
+                enrolled: self.device_public_key.clone(),
+                on_disk,
+            },
+        )))
+    }
+}
+
+/// Parse the hex form of a device's public key, refusing anything that is not one.
+///
+/// # Errors
+/// [`ArchiveClientError::Config`] saying what is wrong with it.
+pub fn parse_public_key_hex(text: &str) -> Result<ed25519_dalek::VerifyingKey, ArchiveClientError> {
+    let raw = hex::decode(text.trim()).map_err(|_| {
+        ArchiveClientError::Config(
+            "a device public key is 64 hex characters (32 bytes); that is not hex".to_string(),
+        )
+    })?;
+    let bytes: [u8; 32] = raw.as_slice().try_into().map_err(|_| {
+        ArchiveClientError::Config(format!(
+            "that key is {} bytes; an Ed25519 verifying key is 32 (64 hex characters)",
+            raw.len()
+        ))
+    })?;
+    ed25519_dalek::VerifyingKey::from_bytes(&bytes).map_err(|e| {
+        ArchiveClientError::Config(format!("that is not a valid Ed25519 verifying key: {e}"))
+    })
 }
 
 /// Refuse a URL this client will not send a signed request to.
@@ -380,6 +471,37 @@ pub struct Enrolled {
     pub enrolled_at: u64,
 }
 
+/// The pairing record and the device key on disk name different keys.
+///
+/// Its own type, boxed inside [`ArchiveClientError::DeviceKeyMismatch`], because five inline
+/// fields made that the largest variant and an enum costs its largest variant everywhere.
+///
+/// The message is the point of the type. What the archive can say about this is "bad signature",
+/// which sends an operator to look for a signing problem — and there isn't one. The signature is
+/// perfectly valid; it is made by a key that is not the one this device id was enrolled with. Only
+/// the client holds both halves of that comparison, so only the client can say which it is.
+#[derive(Debug, Error, PartialEq, Eq)]
+#[error(
+    "this machine's pairing record and its device key disagree, so nothing here can sign as \
+     {device_id}: {path} holds the key {on_disk}, and the record for {url} was written for \
+     {enrolled}. That is a pairing that was never completed or a key from somewhere else — not \
+     a signature problem, which is all the archive would have been able to tell you. Enrol \
+     again with a new one-time code:\n  warrantor archive enrol --url {url} --code <code> \
+     --replace"
+)]
+pub struct DeviceKeyMismatch {
+    /// Where the key was read from.
+    pub path: PathBuf,
+    /// The archive the pairing record names.
+    pub url: String,
+    /// The device the pairing record names.
+    pub device_id: String,
+    /// The public key the pairing record was written for.
+    pub enrolled: String,
+    /// The public half of the key actually on disk.
+    pub on_disk: String,
+}
+
 /// Everything that can go wrong talking to an archive.
 ///
 /// Every variant is a refusal and every message is written for the operator who will read it at
@@ -400,6 +522,34 @@ pub enum ArchiveClientError {
     /// The pairing record, or a URL, is unusable.
     #[error("{0}")]
     Config(String),
+    /// This machine is already paired, and enrolling again would orphan that pairing.
+    ///
+    /// The refusal exists because the damage is silent and one-way. A second enrolment mints a
+    /// **second** device id at the archive while the first row stays active, and overwrites the only
+    /// local record of the first id — and `warrantor-archive revoke` takes a device id. The operator
+    /// would be left with a live device nobody on this machine can name.
+    #[error(
+        "this machine is already paired: {path} exists and {describes}. Enrolling again would mint \
+         a SECOND device at the archive while the first stays active, and overwrite the only local \
+         record of it — revocation is by device id, so that device would become unnameable from \
+         here. Withdraw the old one first, then say so explicitly:\n  warrantor-archive revoke \
+         --device <the id above>   (on the archive host)\n  warrantor archive enrol --url <url> \
+         --code <code> --replace"
+    )]
+    AlreadyPaired {
+        /// The pairing record that is in the way.
+        path: PathBuf,
+        /// What is known about the existing pairing, phrased for the message.
+        describes: String,
+    },
+    /// The device key on disk is not the key this pairing record was written for.
+    ///
+    /// Boxed. Five fields inline made this variant 128 bytes, and an enum is as large as its
+    /// largest variant — so every `Result<_, ArchiveClientError>` in this crate paid for it, on
+    /// the success path too. `clippy::result_large_err` is what said so, across fourteen
+    /// signatures. The allocation is on the error path only, which is the cold one.
+    #[error(transparent)]
+    DeviceKeyMismatch(Box<DeviceKeyMismatch>),
     /// A device key was expected on disk and was not there.
     #[error(
         "this device is paired with {url} as {device_id}, but its signing key is gone: {path} does \

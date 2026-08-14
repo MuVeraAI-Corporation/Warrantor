@@ -145,6 +145,15 @@ pub enum EnrolError {
     /// one.
     #[error("that enrolment code is not usable: it is unknown, expired, or already claimed")]
     CodeNotUsable,
+    /// That public key is already enrolled here, under some device id.
+    ///
+    /// **This is what makes revocation total.** Revocation is by device id; if one key could hold
+    /// two ids, revoking the id an operator can name would withdraw nothing, because the same
+    /// private key would keep signing under the other. It also means a revoked key cannot be
+    /// re-enrolled into a fresh id and launder its own revocation. The device id is deliberately
+    /// **not** carried in this error — see `http::enrol` for why the answer names no id.
+    #[error("that device key is already enrolled here; enrol a new keypair instead")]
+    KeyAlreadyEnrolled,
     /// The store failed.
     #[error(transparent)]
     Store(#[from] StoreError),
@@ -241,8 +250,14 @@ pub trait ArchiveStore {
     /// single `UPDATE ... WHERE consumed_at IS NULL ... RETURNING` inside a transaction; two racing
     /// devices cannot both claim one code.
     ///
+    /// A key may be enrolled **once**. A second enrolment of a public key this store already holds
+    /// — active or revoked — is [`EnrolError::KeyAlreadyEnrolled`], and it does **not** consume the
+    /// code: an operator who hit it needs their code back to retry with a fresh keypair, and a
+    /// caller without a usable code must not be able to learn whether a key is enrolled at all.
+    ///
     /// # Errors
-    /// [`EnrolError::CodeNotUsable`] when the code is unknown, expired or already claimed.
+    /// [`EnrolError::CodeNotUsable`] when the code is unknown, expired or already claimed;
+    /// [`EnrolError::KeyAlreadyEnrolled`] when the public key is already on file.
     fn enrol_device(
         &mut self,
         code_digest: &str,
@@ -437,11 +452,28 @@ impl ArchiveStore for MemoryStore {
         // is a lock held across a network round trip.
         let row = self
             .codes
-            .get_mut(code_digest)
+            .get(code_digest)
             .ok_or(EnrolError::CodeNotUsable)?;
         if row.consumed_at.is_some() || row.expires_at <= now {
             return Err(EnrolError::CodeNotUsable);
         }
+        // One key, one device id — checked after the code is known to be good and before it is
+        // spent. Both halves of that ordering are deliberate: refusing before would let anyone
+        // without a code probe whether a key is enrolled, and spending first would burn an
+        // operator's code on an attempt that enrolled nobody. The Postgres implementation gets the
+        // same ordering out of a rollback, and the unique index behind it is what holds under a
+        // race.
+        if self
+            .devices
+            .values()
+            .any(|device| device.public_key == public_key)
+        {
+            return Err(EnrolError::KeyAlreadyEnrolled);
+        }
+        let row = self
+            .codes
+            .get_mut(code_digest)
+            .ok_or(EnrolError::CodeNotUsable)?;
         row.consumed_at = Some(now);
         let device = Device {
             id: device_id.to_string(),
