@@ -362,3 +362,17 @@ def test_the_modal_entrypoint_refuses_to_overwrite_an_existing_adapter() -> None
     text = _modal_text()
     assert "already exists on the volume" in text
     assert "run_id" in text
+
+
+def test_the_modal_entrypoint_is_actually_dispatchable() -> None:
+    """A GPU function with no local entrypoint is unreachable.
+
+    `modal run` on the file alone cannot hand a `bytes` argument to `train_remote`, so without
+    this the runner was dispatchable only in the comment claiming it was.
+    """
+
+    text = _modal_text()
+    assert "@APP.local_entrypoint()" in text
+    assert "train_remote.remote(" in text
+    # The volume path is the only pointer back to the GPU time, so it is persisted, not printed.
+    assert "run record: " in text

@@ -531,6 +531,35 @@ if modal is not None:
         record["adapter_bytes"] = sum(item.stat().st_size for item in weights)
         return record
 
+    @APP.local_entrypoint()
+    def dispatch(corpus: str, run_id: str, record_out: str = "") -> None:
+        """Send the corpus to the GPU function and write the returned record locally.
+
+        Invoked as::
+
+            modal run <this file>::dispatch --corpus corpora/weak.jsonl --run-id 2026-08-13a
+
+        Without this the module declares a GPU function nobody can reach: `modal run` on the
+        file alone has no way to hand a `bytes` argument to `train_remote`, so the runner was
+        dispatchable only in the comment that said it was.
+
+        The record is written to disk as well as printed. It carries the volume path the
+        adapter landed at, and that is the only pointer back to six hours of GPU time.
+        """
+
+        corpus_path = Path(corpus)
+        if not corpus_path.is_file():
+            raise SystemExit(f"no corpus at {{corpus_path}} -- build it before dispatching a run.")
+
+        record = train_remote.remote(corpus_path.read_bytes(), run_id)
+        text = json.dumps(record, indent=2)
+        print(text)
+        destination = Path(record_out) if record_out else corpus_path.with_name(
+            f"run_record_{{run_id}}.json"
+        )
+        destination.write_text(text + "\\n", encoding="utf-8")
+        print(f"run record: {{destination}}")
+
 
 def main(argv: list[str] | None = None) -> int:
     """Local entry point -- runs the same training body without Modal."""
