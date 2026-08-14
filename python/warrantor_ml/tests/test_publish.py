@@ -117,7 +117,7 @@ def test_the_conversion_keeps_the_adapter_unquantised(tmp_path: Path) -> None:
 
 
 def test_the_converter_runs_under_this_interpreter_by_default(tmp_path: Path) -> None:
-    """"python" resolves to whatever is first on PATH, which need not be the one running this.
+    """ "python" resolves to whatever is first on PATH, which need not be the one running this.
 
     The converter needs torch, safetensors and gguf. On a machine where those live in a separate
     venv the failure is an ImportError seconds into a conversion, not a refusal -- and the run
@@ -133,7 +133,9 @@ def test_the_converter_runs_under_this_interpreter_by_default(tmp_path: Path) ->
         tmp_path / "work",
     )
     assert convert_command(plan, Path("c.py"))[0] == sys.executable
-    assert convert_command(plan, Path("c.py"), "/other/venv/bin/python")[0] == "/other/venv/bin/python"
+    assert (
+        convert_command(plan, Path("c.py"), "/other/venv/bin/python")[0] == "/other/venv/bin/python"
+    )
 
 
 def test_neither_a_converter_nor_a_gguf_is_refused(tmp_path: Path) -> None:
@@ -193,7 +195,7 @@ def test_planning_needs_no_ollama_on_the_machine(tmp_path: Path, monkeypatch) ->
 
 
 def test_a_caller_mistake_is_named_before_a_missing_ollama(tmp_path: Path, monkeypatch) -> None:
-    """"You passed neither --converter nor --gguf" is actionable anywhere.
+    """ "You passed neither --converter nor --gguf" is actionable anywhere.
 
     "ollama is not on PATH" is a fact about one machine, and reporting it first would mask the
     mistake the caller can actually fix.

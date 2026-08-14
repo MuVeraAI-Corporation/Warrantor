@@ -244,9 +244,7 @@ def publish(
             "untuned base and reads as the candidate."
         )
 
-    plan.modelfile.write_text(
-        build_modelfile(plan.ollama_base, plan.gguf_out), encoding="utf-8"
-    )
+    plan.modelfile.write_text(build_modelfile(plan.ollama_base, plan.gguf_out), encoding="utf-8")
     created = subprocess.run(  # fixed argv, never a shell string
         ["ollama", "create", plan.model_name, "-f", str(plan.modelfile)],
         capture_output=True,
