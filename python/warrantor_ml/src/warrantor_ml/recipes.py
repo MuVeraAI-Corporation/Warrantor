@@ -305,7 +305,17 @@ _EXPGUARD_WEAK_NOTES = (
     "flattening cost on WildGuard. The 0.6B's exposure is recorded NOWHERE: no ExpGuard result "
     "document is committed in this repository. Without that number a reject cannot be attributed "
     "between 'the adapter did not learn' and 'the adapter flattened severity'. "
-    "supervise_severity=False is the mitigation and it has never been run.",
+    "supervise_severity=False WAS the proposed mitigation and it has now been run and REFUTED: "
+    "run 2 masked the severity line and recall fell 0.8329 -> 0.6804 overall, 0.7947 -> 0.5572 "
+    "adversarial -- far worse than the flattening it was meant to prevent. The reasoning was "
+    "wrong. LoRA adapts q/k/v/o/gate/up/down across every layer, weights BOTH output fields "
+    "share, so not computing a loss on severity never held it still; it only stopped correcting "
+    "it while training moved it anyway. The field came unmoored and filled with its neighbour's "
+    "vocabulary -- the 0.6B began emitting category names ('violent', 'others') into the "
+    "severity slot. So this recipe runs supervise_severity=True, and the exposure above stays "
+    "unmeasured rather than mitigated. A real fix needs SEPARATE PARAMETERS -- a second adapter, "
+    "or target modules that do not carry severity -- or a corpus that can supervise all three "
+    "severity values. It is not a third setting of this flag.",
     "Two of the six per-category floors -- Fraud, Scams & Deception (603 positives) and Criminal "
     "Planning (356) -- are NOT trained for by this recipe and can only fall. That is the gate "
     "working, not a flaw: an aggregate that improves while a class collapses is exactly what the "

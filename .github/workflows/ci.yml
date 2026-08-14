@@ -80,6 +80,18 @@ jobs:
       # Without this the whole workspace fails to build, not just that crate.
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      # Nothing else in this job passes --locked, so cargo quietly rewrites Cargo.lock in the
+      # runner whenever the committed one does not match the manifests, and every step after it
+      # passes. That is how #11 and #47 -- two green PRs, each editing Cargo.lock, merged one
+      # after the other -- put a lock on main that resolved wasm-tools 0.132 under a wasmtime
+      # that requires 0.134. Git merged both diffs textually because they touched different
+      # lines; neither PR was wrong and no check was looking.
+      #
+      # It matters beyond tidiness: sbom.yml reads this lock, so a stale one publishes a
+      # dependency set nobody builds, under a supply-chain claim this repository does make.
+      # `--locked` here fails the build instead, and the fix is one `cargo metadata` and a commit.
+      - name: Verify Cargo.lock matches the manifests
+        run: cargo metadata --format-version 1 --locked > /dev/null
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Run clippy with warnings denied

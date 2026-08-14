@@ -48,11 +48,23 @@ exclude = [
 [workspace.package]
 version = "1.0.0"
 edition = "2021"
-# Floor set by ed25519-dalek 3 and curve25519-dalek 5, both of which moved to 1.85. Declared rather
-# than discovered: without it the build passes on whatever toolchain the CI image happens to ship,
-# and a contributor on an older one gets an error naming a transitive dependency instead of a
-# requirement. `cargo` enforces this; the toolchain file beside it pins what CI actually installs.
-rust-version = "1.85"
+# Floor set by wasmtime 47's cranelift crates, which require 1.94. It was 1.85 (ed25519-dalek 3 and
+# curve25519-dalek 5) until the wasmtime =45.0.1 -> =47.0.3 bump in #11, which raised the real floor
+# nine minors without touching this line.
+#
+# Declared rather than discovered: without it the build passes on whatever toolchain the CI image
+# happens to ship, and a contributor on an older one gets an error naming a transitive dependency
+# instead of a requirement. That is not hypothetical -- it is exactly what #11 produced on a 1.93.1
+# box: `cranelift-assembler-x64@0.134.3 requires rustc 1.94.0`, twenty times, naming no requirement
+# of this repository. CI never saw it because `rust-toolchain.toml` says `stable` and CI's stable
+# was already past 1.94, so the floor this line exists to state was the only thing that could have
+# caught it, and it was stale.
+#
+# Raising it is the honest move rather than the convenient one: 1.94 is what the tree needs, and a
+# declared floor that is nine minors below the truth is worse than none. Reverting wasmtime to 45
+# is the alternative if 1.85 must hold. `cargo` enforces this; the toolchain file beside it pins
+# what CI actually installs.
+rust-version = "1.94"
 license = "Apache-2.0"
 authors = ["Warrantor contributors"]
 repository = "https://github.com/MuVeraAI-Corporation/Warrantor"
