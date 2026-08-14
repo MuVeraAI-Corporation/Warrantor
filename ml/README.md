@@ -543,9 +543,31 @@ reaches, two improved marginally and the largest one collapsed:
 
 So the run's finding is not "LoRA does not work here". It is that **a corpus whose targets are
 binary trains a binary model**, and that the weak-category selection alone does not survive
-contact with a three-valued output space. The next attempt should render `Controversial` for the
-rows the corpora mark borderline, or hold the severity head out of the adapter entirely — not
-simply train longer.
+contact with a three-valued output space.
+
+**The fix, and why it is the only one available.** Two repairs were on the table: render
+`Controversial` for the rows the corpora mark borderline, or stop supervising severity at all.
+The first is **not implementable from either corpus** — WildGuardMix's `prompt_harm_agreement`
+column (3 = unanimous, 2 = split, null = no majority) exists *only in its test split*, the train
+split does not carry it, and ExpGuardMix has nothing equivalent. There is no borderline signal to
+render a third class from, so supervising severity at all means supervising it binary.
+
+So `supervise_severity=False` is now set on all four guard recipes. The `Safety:` line stays in
+`input_ids` — the categories line must still be conditioned on it — and is masked in `labels`, so
+no gradient teaches the model to emit one. The base model's severity distribution, `Controversial`
+included, is left intact while the category line is still tuned; and `parse_guard_response`
+already treats a gating category as harmful in its own right, so catch rate can improve through
+the category path without the severity head being touched at all.
+
+This changes the recipe digest — `sha256:7509dd11…` → `sha256:f3a980d2…` — which is correct: it
+is a different recipe now, and the rejected run's decision document still names the digest that
+produced it. **The corpus is unchanged and does not need rebuilding**, leakage check included.
+
+(While confirming this, one more schema correction: ExpGuardMix's **train** split *does* carry a
+`general` domain, 26,098 rows of it. The statement below that the corpus "supplies no general
+band" is true of the **test** split, which is what `--describe-only` was run against — but a
+within-corpus general-versus-vertical *training* contrast is available even though the test split
+cannot supply the control for it.)
 
 This is the outcome the whole apparatus exists to produce: a negative result that is *trustworthy*
 and *diagnostic*, rather than a promotion nobody could audit.

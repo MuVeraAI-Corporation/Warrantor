@@ -462,6 +462,22 @@ class FineTuneConfig:
     output_dir: Path = Path("artifacts/guard-lora")
     max_samples: int | None = None
     headroom_gib: float = 1.0
+    #: Whether the loss covers the target's ``Safety:`` line as well as its ``Categories:`` line.
+    #:
+    #: ``False`` masks the severity line, so the adapter never learns to emit one. Run
+    #: `weak-2026-08-13a` is the argument: the corpora label rows harmful or not, so the rendered
+    #: targets carry only ``Unsafe``/``Safe``, and one epoch of that extinguished Qwen3Guard's
+    #: third severity ``Controversial`` outright -- 49 verdicts to 0 across 1,699 samples. Recall
+    #: fell while the false-positive rate fell with it: a more permissive gate, which is the
+    #: failure direction. It also silently turned the documented ``Controversial=SAFE`` policy
+    #: knob into a no-op.
+    #:
+    #: Neither train split carries a borderline signal to render a third class FROM -- WildGuard's
+    #: ``prompt_harm_agreement`` exists only in its TEST split and ExpGuard has no such column --
+    #: so supervising severity at all means supervising it binary. Leaving it unsupervised keeps
+    #: the base model's severity distribution intact while still tuning the category line, which
+    #: ``parse_guard_response`` treats as harmful in its own right.
+    supervise_severity: bool = True
 
     def profile(self) -> ModelProfile:
         """The model profile this config targets."""

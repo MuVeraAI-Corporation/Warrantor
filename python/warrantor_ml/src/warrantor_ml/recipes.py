@@ -132,6 +132,14 @@ def _guard_recipe(
             learning_rate=1e-4,
             epochs=1.0,
             seed=20260813,
+            # Measured, not assumed. Run `weak-2026-08-13a` supervised severity and the adapter
+            # stopped emitting `Controversial` altogether -- 49 verdicts to 0 -- because the
+            # corpora label rows harmful or not and the rendered targets are therefore binary.
+            # Recall fell 0.8488 -> 0.8329 with the false-positive rate falling too, and the
+            # documented `Controversial=SAFE` policy knob became a no-op. Neither train split
+            # carries a borderline signal to render a third class from, so the choice is between
+            # supervising severity binary and not supervising it at all. This is the latter.
+            supervise_severity=False,
             output_dir=Path("artifacts") / f"guard-{profile_key}-{variant}",
         ),
         corpus_task="guard",
@@ -151,6 +159,17 @@ _WEAK_NOTES = (
     "false positives, and the gate refuses a candidate whose FPR regresses.",
     "Run describe_split on the TRAIN split first. The measured class names come from the TEST "
     "splits and the train split is not obliged to spell them the same way.",
+    "REVISED after run weak-2026-08-13a, which this recipe's previous digest "
+    "(sha256:7509dd11...) produced and the gate REJECTED. Severity is no longer supervised. "
+    "Supervising it taught the adapter a binary Unsafe/Safe vocabulary and extinguished "
+    "Qwen3Guard's third severity Controversial -- 49 verdicts to 0 over 1,699 samples -- which "
+    "took recall from 0.8488 to 0.8329 WITH the false-positive rate falling, i.e. a more "
+    "permissive gate, and silently made the Controversial=SAFE policy knob a no-op.",
+    "Unqualified Professional Advice is unreachable from this corpus: it is an ExpGuardMix "
+    "category and the WildGuardMix train split has no such class. Neither train split carries a "
+    "borderline/agreement signal either -- WildGuard's prompt_harm_agreement exists only in its "
+    "TEST split -- so rendering Controversial as a third target class is not available here, "
+    "which is why the fix is to stop supervising severity rather than to label it better.",
 )
 
 _ADVERSARIAL_NOTES = (

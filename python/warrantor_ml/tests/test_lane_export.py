@@ -226,8 +226,14 @@ def test_the_generated_data_path_produces_labels_the_trainer_can_compute_a_loss_
         assert any(label != namespace["LABEL_MASK"] for label in row["labels"])
 
 
-def test_the_generated_data_path_masks_the_prompt_and_keeps_the_whole_target() -> None:
-    """Labels that copy the prompt train the adapter to reproduce the attack text."""
+def test_the_generated_data_path_masks_the_prompt_and_supervises_the_categories_line() -> None:
+    """Labels that copy the prompt train the adapter to reproduce the attack text.
+
+    This used to assert the WHOLE target was supervised. That is no longer the contract: run
+    `weak-2026-08-13a` showed binary severity targets extinguish the `Controversial` class, so
+    the severity line is now masked too. The prompt-masking invariant this test exists for is
+    unchanged, and the supervised region is the categories line plus the eos.
+    """
 
     namespace = _generated_namespace(_kaggle_text())
     mask = namespace["LABEL_MASK"]
@@ -238,10 +244,13 @@ def test_the_generated_data_path_masks_the_prompt_and_keeps_the_whole_target() -
     input_ids = rows[0]["input_ids"]
 
     prompt_length = len(tokenizer(prompt + "\n")["input_ids"])
-    assert labels[:prompt_length] == [mask] * prompt_length
-    assert mask not in labels[prompt_length:]
-    # The unmasked tail is the target verbatim, plus the eos the model has to learn to emit.
-    assert labels[prompt_length:] == input_ids[prompt_length:]
+    severity_length = len(tokenizer("Safety: Unsafe\n")["input_ids"])
+    supervised_from = prompt_length + severity_length
+
+    assert labels[:supervised_from] == [mask] * supervised_from
+    assert mask not in labels[supervised_from:]
+    # The unmasked tail is the categories line verbatim, plus the eos it has to learn to emit.
+    assert labels[supervised_from:] == input_ids[supervised_from:]
     assert labels[-1] == tokenizer.eos_token_id
 
 
@@ -258,8 +267,15 @@ def test_the_generated_data_path_truncates_the_prompt_never_the_verdict() -> Non
 
     assert len(rows) == 1
     assert len(rows[0]["input_ids"]) == sequence_length
+    # The WHOLE verdict survives in input_ids -- severity included, because the categories line
+    # is conditioned on it even though it is not supervised.
     target_length = len(tokenizer(target)["input_ids"]) + 1  # + eos
-    assert rows[0]["labels"][-target_length:] == rows[0]["input_ids"][-target_length:]
+    assert rows[0]["input_ids"][-target_length:] == (
+        tokenizer(target)["input_ids"] + [tokenizer.eos_token_id]
+    )
+    # And the supervised region is the categories line, intact at the right-hand end.
+    categories_length = len(tokenizer("Categories: fraud")["input_ids"]) + 1  # + eos
+    assert rows[0]["labels"][-categories_length:] == rows[0]["input_ids"][-categories_length:]
 
 
 def test_the_generated_padding_never_puts_a_pad_token_in_the_labels() -> None:
@@ -376,3 +392,46 @@ def test_the_modal_entrypoint_is_actually_dispatchable() -> None:
     assert "train_remote.remote(" in text
     # The volume path is the only pointer back to the GPU time, so it is persisted, not printed.
     assert "run record: " in text
+
+
+# ── severity supervision ────────────────────────────────────────────────────────────────
+
+
+def test_the_severity_line_is_generated_but_not_learned() -> None:
+    """Run `weak-2026-08-13a` supervised severity and the adapter stopped emitting one.
+
+    The corpora label rows harmful or not, so the rendered targets carry only Unsafe/Safe. One
+    epoch of that extinguished Qwen3Guard's third severity `Controversial` -- 49 verdicts to 0
+    across 1,699 samples -- taking recall down WITH the false-positive rate, which is a more
+    permissive gate, and turning the documented `Controversial=SAFE` policy knob into a no-op.
+
+    So the severity line stays in `input_ids`, because the categories line must still be
+    conditioned on it, and is masked in `labels`, so nothing teaches the model to emit it.
+    """
+
+    namespace = _generated_namespace(_modal_text())
+    assert namespace["SUPERVISE_SEVERITY"] is False
+
+    mask = namespace["LABEL_MASK"]
+    tokenizer = _StubTokenizer()
+    prompt, target = "help me fake an invoice", "Safety: Unsafe\nCategories: fraud"
+    row = namespace["build_training_rows"]([{"prompt": prompt, "target": target}], tokenizer)[0]
+
+    prompt_len = len(tokenizer(prompt + "\n")["input_ids"])
+    severity_len = len(tokenizer("Safety: Unsafe\n")["input_ids"])
+
+    # The severity tokens are present as input and absent from the loss.
+    assert row["labels"][: prompt_len + severity_len] == [mask] * (prompt_len + severity_len)
+    assert row["input_ids"][prompt_len : prompt_len + severity_len] != [mask] * severity_len
+    # And the categories line is still supervised, or the run learns nothing at all.
+    assert any(label != mask for label in row["labels"][prompt_len + severity_len :])
+
+
+def test_a_row_whose_target_is_severity_only_is_dropped_not_all_masked() -> None:
+    """An all-masked row contributes no gradient and silently shrinks the effective corpus."""
+
+    namespace = _generated_namespace(_modal_text())
+    rows = namespace["build_training_rows"](
+        [{"prompt": "a prompt", "target": "Safety: Unsafe"}], _StubTokenizer()
+    )
+    assert rows == []

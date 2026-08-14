@@ -157,6 +157,7 @@ LORA_ALPHA = {recipe.config.lora_alpha}
 SEED = {recipe.config.seed}
 SAVE_STEPS = {resolution.save_steps!r}
 PRECISION = "{resolution.precision}"
+SUPERVISE_SEVERITY = {recipe.config.supervise_severity!r}
 
 NO_GPU_MESSAGE = """{NO_CPU_FALLBACK_MESSAGE}"""
 
@@ -245,6 +246,24 @@ def build_training_rows(pairs: list[dict], tokenizer) -> list[dict]:
             target_ids = target_ids + [eos]
         if not target_ids:
             continue
+
+        # How much of the target the loss covers. With SUPERVISE_SEVERITY off, the `Safety:` line
+        # is generated but never learned: it stays in input_ids so the `Categories:` line is still
+        # conditioned on it, and is masked in labels so no gradient teaches the model to emit it.
+        # Tokenising the severity line separately -- rather than counting characters -- because a
+        # BPE token can straddle the newline and a character offset would mask a partial token.
+        supervised_from = 0
+        if not SUPERVISE_SEVERITY:
+            severity_line, _, _ = pair["target"].partition("\\n")
+            supervised_from = len(
+                tokenizer(severity_line + "\\n", add_special_tokens=False)["input_ids"]
+            )
+            # Drop a row whose target is severity and nothing else. The comparison allows for the
+            # appended eos: supervising only "stop here" is not a training signal, and an
+            # effectively-blank row silently shrinks the corpus while still being counted in it.
+            meaningful = len(target_ids) - (1 if eos is not None else 0)
+            if supervised_from >= meaningful:
+                continue
         overflow = len(prompt_ids) + len(target_ids) - SEQUENCE_LENGTH
         if overflow > 0:
             if overflow >= len(prompt_ids):
@@ -257,7 +276,8 @@ def build_training_rows(pairs: list[dict], tokenizer) -> list[dict]:
             {
                 "input_ids": input_ids,
                 "attention_mask": [1] * len(input_ids),
-                "labels": [LABEL_MASK] * len(prompt_ids) + target_ids,
+                "labels": [LABEL_MASK] * (len(prompt_ids) + supervised_from)
+                + target_ids[supervised_from:],
             }
         )
     return rows

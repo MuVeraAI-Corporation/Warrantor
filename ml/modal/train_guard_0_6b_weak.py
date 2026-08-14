@@ -8,7 +8,7 @@ nothing from warrantor_ml. It is generated rather than hand-written because code
 never discovered by tools/ci/run_python_checks.py -- no ruff, no pytest -- and an ungoverned
 code surface inside a governance substrate is the anti-pattern rust/self-governance names.
 
-Recipe digest: sha256:7509dd1149265b138812715deb8008d004f06e9e62b527da4dc61d82d3a46e95
+Recipe digest: sha256:f3a980d20e536816dd2d543d198c4216a4bd273ea27473c00f565d4261fb9043
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from pathlib import Path
 RUN_MANIFEST = json.loads(
     """{
     "recipe_id": "guard-0.6b-weak-category",
-    "recipe_digest": "sha256:7509dd1149265b138812715deb8008d004f06e9e62b527da4dc61d82d3a46e95",
+    "recipe_digest": "sha256:f3a980d20e536816dd2d543d198c4216a4bd273ea27473c00f565d4261fb9043",
     "lane": "modal-a100",
     "precision": "bf16",
     "precision_reason": "sm_8x supports bf16 natively; matching the base model's dtype.",
@@ -52,6 +52,7 @@ LORA_ALPHA = 32
 SEED = 20260813
 SAVE_STEPS = None
 PRECISION = "bf16"
+SUPERVISE_SEVERITY = False
 
 NO_GPU_MESSAGE = """FATAL: no CUDA device is available.\n\nThis script has NO CPU fallback by design. A guard-model fine-tune that silently drops to CPU does not fail -- it appears to work, takes days, and produces an artifact indistinguishable from a real one until it is in front of a deny gate."""
 
@@ -125,6 +126,24 @@ def build_training_rows(pairs: list[dict], tokenizer) -> list[dict]:
             target_ids = target_ids + [eos]
         if not target_ids:
             continue
+
+        # How much of the target the loss covers. With SUPERVISE_SEVERITY off, the `Safety:` line
+        # is generated but never learned: it stays in input_ids so the `Categories:` line is still
+        # conditioned on it, and is masked in labels so no gradient teaches the model to emit it.
+        # Tokenising the severity line separately -- rather than counting characters -- because a
+        # BPE token can straddle the newline and a character offset would mask a partial token.
+        supervised_from = 0
+        if not SUPERVISE_SEVERITY:
+            severity_line, _, _ = pair["target"].partition("\n")
+            supervised_from = len(
+                tokenizer(severity_line + "\n", add_special_tokens=False)["input_ids"]
+            )
+            # Drop a row whose target is severity and nothing else. The comparison allows for the
+            # appended eos: supervising only "stop here" is not a training signal, and an
+            # effectively-blank row silently shrinks the corpus while still being counted in it.
+            meaningful = len(target_ids) - (1 if eos is not None else 0)
+            if supervised_from >= meaningful:
+                continue
         overflow = len(prompt_ids) + len(target_ids) - SEQUENCE_LENGTH
         if overflow > 0:
             if overflow >= len(prompt_ids):
@@ -137,7 +156,8 @@ def build_training_rows(pairs: list[dict], tokenizer) -> list[dict]:
             {
                 "input_ids": input_ids,
                 "attention_mask": [1] * len(input_ids),
-                "labels": [LABEL_MASK] * len(prompt_ids) + target_ids,
+                "labels": [LABEL_MASK] * (len(prompt_ids) + supervised_from)
+                + target_ids[supervised_from:],
             }
         )
     return rows
