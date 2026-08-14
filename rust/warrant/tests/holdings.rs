@@ -9,7 +9,7 @@ use std::path::Path;
 
 use ed25519_dalek::SigningKey;
 use warrantor_warrant::retention::{self, ArtifactClass, DeletionEffect, RETENTION_STATEMENT};
-use warrantor_warrant::staging::StagedChainMark;
+use warrantor_warrant::staging::{EffectRegistry, StagedChainMark};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::{
     SideEffectClass, Warrant, WarrantBounds, WarrantState, DEFAULT_CLI_SUBJECT,
@@ -330,4 +330,43 @@ fn walk(root: &Path) -> BTreeMap<String, u64> {
         }
     }
     out
+}
+
+/// The inventory is only "enumerated from one place" if the one place covers the store. It is a
+/// hand-maintained list, so the part that can be checked mechanically is checked: a directory this
+/// store creates and no class names is a location the inventory would silently omit.
+#[test]
+fn every_directory_this_store_creates_is_a_known_class() {
+    let dir = tempdir("classes-cover-the-store");
+    let store = WarrantStore::open(&dir).expect("open store");
+    // Written through the store's own API, so a new sidecar file lands wherever the store puts it.
+    save(
+        &store,
+        "wrt_cover",
+        DEFAULT_CLI_SUBJECT,
+        WarrantState::Open,
+        None,
+        true,
+    );
+    let mut queue = store
+        .open_queue("wrt_cover", EffectRegistry::github())
+        .expect("open queue");
+    queue
+        .stage("github.create_pr", BTreeMap::new(), NOW)
+        .expect("stage");
+    store
+        .witness_staged_chain("wrt_cover", &queue, NOW)
+        .expect("witness");
+
+    let known: BTreeSet<std::path::PathBuf> = retention::ALL_CLASSES
+        .iter()
+        .map(|class| class.path_under(&dir))
+        .collect();
+    for entry in std::fs::read_dir(&dir).expect("read root").flatten() {
+        assert!(
+            known.contains(&entry.path()),
+            "{} is in the store and in no ArtifactClass, so `warrantor holdings` does not count it",
+            entry.path().display()
+        );
+    }
 }

@@ -62,9 +62,12 @@ pub const GENESIS: &str = "00000000000000000000000000000000000000000000000000000
 /// [`GENESIS`], and a report built from that says "0 staged effect(s), chain head 0000…" —
 /// success-shaped, and then signed into an evidence bundle.
 ///
-/// So the head and the count are written where the log is not: into the warrant record itself.
-/// That is the same reasoning `StoredWarrant::base_commit` already carries — derived state that
-/// cannot be re-derived has to be stored.
+/// So the head and the count are written where the log is not. The mark taken at grant goes into
+/// the warrant record — the same reasoning `StoredWarrant::base_commit` already carries, derived
+/// state that cannot be re-derived has to be stored — and every mark after it is appended to
+/// `witness/<id>.jsonl`, because advancing the record once per staged effect would clobber the
+/// lifecycle state `settle` and `stop` are slowly writing to that same file. [`crate::store`] has
+/// the full argument.
 ///
 /// # What a mark can and cannot detect
 ///
@@ -77,6 +80,12 @@ pub const GENESIS: &str = "00000000000000000000000000000000000000000000000000000
 /// to everything below the recorded point; it never produces a false alarm. A warrant granted
 /// before this field existed carries `None`, and then nothing can be proven about its log either
 /// way, which is stated rather than assumed away.
+///
+/// **This is not a defence against an editor with write access to the store.** The mark is a plain
+/// serde field, the witness log is a plain JSONL file, and the issuer key sits in `keys/` on the
+/// same disk — anyone who can rewrite the staged log can delete `witness/<id>.jsonl` beside it and
+/// be back to the silent absence. What it detects is the accident, the script, the crash and the
+/// future prune job over `staged/`: the cases where the log goes away and nothing else does.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StagedChainMark {
     /// The chain head at the moment the mark was taken.

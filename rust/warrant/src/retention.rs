@@ -98,6 +98,8 @@ pub enum ArtifactClass {
     Warrants,
     /// `staged/<id>.jsonl`
     Staged,
+    /// `witness/<id>.jsonl`
+    Witness,
     /// `stops/<id>.json`
     Stops,
     /// `spend/<id>.json`
@@ -121,9 +123,10 @@ pub enum ArtifactClass {
 }
 
 /// Every class, in the order an operator should read them: evidence first, machinery last.
-pub const ALL_CLASSES: [ArtifactClass; 12] = [
+pub const ALL_CLASSES: [ArtifactClass; 13] = [
     ArtifactClass::Warrants,
     ArtifactClass::Staged,
+    ArtifactClass::Witness,
     ArtifactClass::Stops,
     ArtifactClass::Spend,
     ArtifactClass::Refusals,
@@ -143,6 +146,7 @@ impl ArtifactClass {
         match self {
             Self::Warrants => "warrants",
             Self::Staged => "staged",
+            Self::Witness => "witness",
             Self::Stops => "stops",
             Self::Spend => "spend",
             Self::Daemons => "daemons",
@@ -162,6 +166,7 @@ impl ArtifactClass {
         match self {
             Self::Warrants => "warrants/<id>.json",
             Self::Staged => "staged/<id>.jsonl",
+            Self::Witness => "witness/<id>.jsonl",
             Self::Stops => "stops/<id>.json",
             Self::Spend => "spend/<id>.json",
             Self::Daemons => "daemons/<id>[.done].json",
@@ -181,6 +186,7 @@ impl ArtifactClass {
         match self {
             Self::Warrants => root.join("warrants"),
             Self::Staged => root.join("staged"),
+            Self::Witness => root.join("witness"),
             Self::Stops => root.join("stops"),
             Self::Spend => root.join("spend"),
             Self::Daemons => root.join("daemons"),
@@ -199,10 +205,13 @@ impl ArtifactClass {
     pub fn contains(self) -> &'static str {
         match self {
             Self::Warrants => {
-                "the signed warrant, its lifecycle state, its worktree, and the witness of its \
-                 staged chain"
+                "the signed warrant -- and, alongside the signature rather than under it, its \
+                 lifecycle state, its worktree, and the chain mark taken at grant"
             }
             Self::Staged => "every outward-facing effect an agent queued and did not perform",
+            Self::Witness => {
+                "how far each warrant's staged-effect chain reached, recorded outside the log it                  describes"
+            }
             Self::Stops => "signed stop records: what a stop terminated and what it did not",
             Self::Spend => "the signed observed-spend ledger the budget bound is checked against",
             Self::Daemons => "supervisor registration and completion for each run",
@@ -238,6 +247,7 @@ impl ArtifactClass {
                 DeletionEffect::FlipsAVerdict
             }
             Self::Staged => DeletionEffect::LosesEvidenceSilently,
+            Self::Witness => DeletionEffect::LosesEvidence,
             Self::Refusals | Self::Guard => DeletionEffect::LosesEvidence,
             Self::Logs => DeletionEffect::NoIntegrityConsequence,
             Self::Keys | Self::Serve | Self::Run | Self::Backends => {
@@ -257,8 +267,12 @@ impl ArtifactClass {
             }
             Self::Staged => {
                 "the log is created lazily, so its absence used to read as an empty queue -- zero \
-                 staged effects, signed into a bundle. The chain witness in the warrant record now \
-                 makes a removal a refusal instead"
+                 staged effects, signed into a bundle. The chain witness now makes a removal a \
+                 refusal instead"
+            }
+            Self::Witness => {
+                "it is what makes a deleted staged log detectable rather than silent; delete both \
+                 and the pair is back to the absence the witness exists to close"
             }
             Self::Stops => {
                 "containment is decided by this file existing: remove it and the notary's gate goes \
