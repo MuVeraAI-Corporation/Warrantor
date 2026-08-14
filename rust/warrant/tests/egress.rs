@@ -665,6 +665,7 @@ mod session_preconditions {
                 repo: None,
                 branch: None,
                 base_commit: None,
+                staged_chain: None,
             })
             .expect("save warrant");
     }

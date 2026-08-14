@@ -41,6 +41,7 @@ pub mod mcp;
 pub mod mcp_endpoints;
 pub mod proxy;
 pub mod report;
+pub mod retention;
 pub mod serve;
 pub mod settle;
 pub mod spend;
@@ -60,6 +61,16 @@ pub use warrantor_authority_spec::SideEffectClass;
 /// Wire-format identifier. Present in every warrant so a future format change is detectable
 /// rather than silently misparsed.
 pub const WARRANT_FORMAT: &str = "warrantor.warrant/1";
+
+/// The subject `warrantor grant` records when `--subject` is not given.
+///
+/// A placeholder, not an identity. Named as a constant because anything answering "what does this
+/// machine hold, and for whom" has to be able to say how much of its answer is this one string: a
+/// per-person breakdown of warrants that all carry the same default is a fabricated answer.
+pub const DEFAULT_CLI_SUBJECT: &str = "spiffe://muveraai.com/agent/local";
+
+/// The subject the MCP `warrant_grant` tool records. That path takes no subject argument at all.
+pub const DEFAULT_MCP_SUBJECT: &str = "spiffe://muveraai.com/agent/mcp";
 
 /// Domain separator for warrant signatures.
 ///

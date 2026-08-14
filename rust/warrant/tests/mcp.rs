@@ -74,6 +74,7 @@ fn stored_open(id: &str, tools: &[&str]) -> StoredWarrant {
         repo: None,
         branch: None,
         base_commit: None,
+        staged_chain: None,
     }
 }
 

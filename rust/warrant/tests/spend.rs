@@ -72,6 +72,7 @@ fn stored(budget_cents: Option<u64>) -> StoredWarrant {
         repo: None,
         branch: None,
         base_commit: None,
+        staged_chain: None,
     }
 }
 
@@ -1130,6 +1131,7 @@ fn live_warrant(root: &Path, id: &str, budget_cents: Option<u64>) {
             repo: None,
             branch: None,
             base_commit: None,
+            staged_chain: None,
         })
         .expect("save warrant");
 }

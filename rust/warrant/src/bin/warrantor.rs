@@ -37,15 +37,18 @@ use warrantor_warrant::mcp::serve;
 use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
 use warrantor_warrant::proxy::{host_of, ProxyMode};
 use warrantor_warrant::report;
+use warrantor_warrant::retention;
 use warrantor_warrant::serve as http;
 use warrantor_warrant::settle::{settle, void, EffectOutcome, EffectPerformer, SettleReport};
 use warrantor_warrant::spend::{self, SpendStore, SpendVerdict};
-use warrantor_warrant::staging::{EffectRegistry, StagedEffect, StagingQueue};
+use warrantor_warrant::staging::{EffectRegistry, StagedChainMark, StagedEffect, StagingQueue};
 use warrantor_warrant::stop::{self, OsProcessControl, StopStore};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::supervise::{describe_linkage, spawn_detached};
 use warrantor_warrant::worktree::Worktree;
-use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds, WarrantState};
+use warrantor_warrant::{
+    SideEffectClass, Warrant, WarrantBounds, WarrantState, DEFAULT_CLI_SUBJECT,
+};
 
 fn now() -> u64 {
     std::time::SystemTime::now()
@@ -288,7 +291,9 @@ const USAGE: &str = "\
 warrantor — bounded authority for coding agents
 
   grant   --goal G --tools T,T --write P,P [--deadline 8h] [--repo .] [--egress H,H]
+          [--budget CENTS] [--subject <id>]
   list
+  holdings
   report  <warrant-id> [--export <path> [--archive [<url>]]]
   verify  <exported-report.json | exported-stop.json | exported-spend.json>
   archive enrol --url <url> --code <code> [--replace] | push <file>
@@ -304,6 +309,14 @@ warrantor — bounded authority for coding agents
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
   serve   [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
   console [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
+
+Holdings reports what this machine is keeping: every class of data in the store,
+what it contains, whether it is signed and chained, how many files, how old the
+oldest is, and how many could not be read. It also says what deleting each class
+would cost -- three of them decide a verdict by existing, so removing one changes
+an answer rather than losing one. Nothing in this build deletes anything on a
+schedule, and there is no retention window to configure, because no deletion job
+exists to enforce one; holdings says so on every line rather than implying it.
 
 Report --export writes a signed, self-contained evidence bundle. Verify checks one
 offline, on any machine, with no access to this one: it proves nothing changed since
@@ -462,7 +475,7 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         goal,
         args.flags
             .get("subject")
-            .map_or("spiffe://muveraai.com/agent/local", String::as_str),
+            .map_or(DEFAULT_CLI_SUBJECT, String::as_str),
         bounds,
         now(),
         &settle_key.verifying_key(),
@@ -492,6 +505,9 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         repo: worktree.as_ref().map(|t| t.repo.clone()),
         branch: worktree.as_ref().map(|t| t.branch.clone()),
         base_commit: worktree.as_ref().map(|t| t.base_commit.clone()),
+        // Witnessed from the moment the warrant exists rather than from its first staged effect,
+        // so there is no window in which a deleted staged log still reads back as an empty queue.
+        staged_chain: Some(StagedChainMark::genesis(now())),
     };
     if let Err(e) = store.save(&stored) {
         return fail(&e.to_string());
@@ -510,6 +526,22 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     println!("\nRun your agent with its working directory set to the worktree.");
     println!("Then: warrantor report {id}");
     ExitCode::SUCCESS
+}
+
+/// `warrantor holdings` — what this machine holds, per class, and what deleting each would cost.
+///
+/// Read-only, and there is deliberately no `--prune` behind it and no window to configure. A
+/// retention setting an operator could fill in while nothing enforced it would read as a policy in
+/// force; this answers the part that can be answered truthfully today — what is here, how much,
+/// how old, how much could not be read, and which of these locations decide a verdict by existing.
+fn cmd_holdings(store: &WarrantStore) -> ExitCode {
+    match retention::holdings(store, now()) {
+        Ok(holdings) => {
+            print!("{}", retention::render_cli(&holdings));
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&format!("cannot read this store's holdings: {e}")),
+    }
 }
 
 fn cmd_list(store: &WarrantStore) -> ExitCode {
@@ -533,8 +565,11 @@ fn cmd_list(store: &WarrantStore) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+/// Open a warrant's queue through the store, so it is checked against the chain the store
+/// witnessed rather than replayed from whatever is on disk.
 fn open_queue(store: &WarrantStore, id: &str) -> Result<StagingQueue, String> {
-    StagingQueue::open(store.staged_path(id), id, EffectRegistry::github())
+    store
+        .open_queue(id, EffectRegistry::github())
         .map_err(|e| e.to_string())
 }
 
@@ -556,10 +591,18 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(s) => s,
         Err(e) => return fail(&e.to_string()),
     };
-    let queue = match open_queue(store, id) {
-        Ok(q) => q,
-        Err(e) => return fail(&e),
-    };
+    // An unreadable queue is reported, not hidden behind an early exit. This used to `return
+    // fail(...)`, which printed one line and stopped -- so the fail-closed machinery the rest of
+    // this file relies on (`Unavailable` -> `queue_available: false` -> `policy_decision: false`
+    // -> the notary denies) was reachable from `serve` and MCP but never from the CLI, and the
+    // operator most likely to notice a missing staged log got the least evidence of it. Now the
+    // report is built, printed, signed and exported with the queue marked unreadable, and the
+    // command still exits non-zero at the end.
+    let queue = open_queue(store, id);
+    let queue_input: Result<&StagingQueue, String> = queue.as_ref().map_err(Clone::clone);
+    // `KeyKind::Issuer` rather than the "issuer" string this branch was written against: #archive
+    // replaced the stringly-typed argument while this was in flight, so that a device key and an
+    // issuer key cannot be requested by two spellings of the same word.
     let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
         Err(e) => return fail(&e),
@@ -600,7 +643,7 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     // itself: a warrant re-signed by some other key must not vouch for itself.
     let built = report::build_observed(
         &stored,
-        Ok(&queue),
+        queue_input,
         &issuer.verifying_key(),
         now(),
         &contained,
@@ -636,6 +679,17 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             "--archive files the file --export writes, so it needs one: warrantor report <id> \
              --export report.json --archive",
         );
+    }
+    // Everything above is printed and signed either way; what changes here is whether the command
+    // claims to have described the run. It did not: the staged effects are the part a settle would
+    // act on, and a report that could not read them is an incomplete answer, not a passing one.
+    if let Err(reason) = &queue {
+        eprintln!("warrantor: {reason}");
+        eprintln!(
+            "warrantor: the report above is signed and records the queue as unreadable. It does \
+             NOT describe what this warrant staged."
+        );
+        return ExitCode::FAILURE;
     }
     ExitCode::SUCCESS
 }
@@ -1720,8 +1774,19 @@ fn cmd_stage(args: &Args, store: &WarrantStore) -> ExitCode {
             arguments.insert(k.to_string(), v.to_string());
         }
     }
-    match queue.stage(tool, arguments, now()) {
+    let at = now();
+    match queue.stage(tool, arguments, at) {
         Ok(effect) => {
+            // After the append. The effect is durable by now, so failing the command here would
+            // report a refusal for something that happened; what is lost is the ability to detect a
+            // later deletion below this point, and that is said rather than swallowed.
+            if let Err(e) = store.witness_staged_chain(id, &queue, at) {
+                eprintln!(
+                    "warrantor: staged, but the chain witness for {id} could not be recorded \
+                     ({e}). The effect is queued; a later deletion of the staged log is only \
+                     detectable back to the last witness."
+                );
+            }
             println!("staged  {}", effect.handle);
             println!("(queued; performed only when the warrant settles)");
             ExitCode::SUCCESS
@@ -1980,6 +2045,10 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
             Ok(e) => e,
             Err(e) => return fail(&e.to_string()),
         };
+        // The session records its own chain as it stages, so a staged log deleted after the run
+        // is detectable down to the last effect rather than down to the last time somebody ran a
+        // CLI command.
+        endpoint = endpoint.witnessed_by(store.clone());
         // Absent by default. `build_guard` returns `None` unless `--guard` was passed, and also
         // whenever attaching failed -- an absent guard produces no signals and never "all clear".
         if let Some(sink) = build_guard(args, id, root) {
@@ -2837,6 +2906,7 @@ fn main() -> ExitCode {
     match args.command.as_str() {
         "grant" => cmd_grant(&args, &store, &root),
         "list" => cmd_list(&store),
+        "holdings" => cmd_holdings(&store),
         "report" => cmd_report(&args, &store, &root),
         "verify" => cmd_verify(&args),
         "archive" => cmd_archive(&args, &root),

@@ -87,6 +87,10 @@ fn evidence(dir: &std::path::Path) -> Vec<u8> {
         repo: None,
         branch: None,
         base_commit: None,
+        // No mark: this fixture is about the push path, and a warrant granted before the witness
+        // existed carries `None` too. `open_witnessed` checks nothing when it is absent rather
+        // than inventing a verdict, so the interop assertions are unaffected either way.
+        staged_chain: None,
     };
     let queue = StagingQueue::open(dir.join("q.jsonl"), "wrt_interop", EffectRegistry::github())
         .expect("open queue");

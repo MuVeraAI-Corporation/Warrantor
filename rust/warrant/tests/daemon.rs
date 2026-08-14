@@ -58,6 +58,7 @@ fn stored(id: &str, state: WarrantState) -> StoredWarrant {
         repo: None,
         branch: None,
         base_commit: None,
+        staged_chain: None,
     }
 }
 

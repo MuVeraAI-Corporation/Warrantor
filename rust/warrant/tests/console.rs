@@ -113,6 +113,7 @@ fn seed(dir: &Path, id: &str, task: &str) {
             repo: None,
             branch: None,
             base_commit: None,
+            staged_chain: None,
         })
         .expect("save");
 }

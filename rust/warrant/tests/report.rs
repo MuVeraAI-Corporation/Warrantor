@@ -76,6 +76,7 @@ fn stored_with(expires_at: u64, state: WarrantState) -> StoredWarrant {
         repo: None,
         branch: None,
         base_commit: None,
+        staged_chain: None,
     }
 }
 
@@ -781,6 +782,7 @@ fn an_unverified_parent_chain_is_declared_as_a_fragment() {
         repo: None,
         branch: None,
         base_commit: None,
+        staged_chain: None,
     };
 
     let built = build(&stored, Ok(&queue), &issuer().verifying_key(), NOW);

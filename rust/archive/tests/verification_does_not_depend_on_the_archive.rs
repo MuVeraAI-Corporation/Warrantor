@@ -95,6 +95,7 @@ fn stored_as(id: &str, goal: &str) -> StoredWarrant {
         repo: None,
         branch: None,
         base_commit: None,
+        staged_chain: None,
     }
 }
 
