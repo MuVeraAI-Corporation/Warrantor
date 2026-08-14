@@ -43,6 +43,15 @@
 
     <main id="app" hidden>
       <nav class="side">
+        <!-- Two destinations, not two apps. The warrant list answers "what is running"; the
+             summary answers "what did the bounds refuse this month, and what did the guard model
+             say about the calls they allowed". The second question had a route and no client at
+             all before this: /v1/summary/refusals was reachable only by curl. -->
+        <div class="views" role="group" aria-label="What to show">
+          <button id="view-warrants" class="view is-on" type="button">Warrants</button>
+          <button id="view-summary" class="view" type="button">Refusals &amp; guard</button>
+        </div>
+
         <div class="filters" role="group" aria-label="Filter by state">
           <button class="chip is-on" data-state="">All</button>
           <button class="chip" data-state="open">Open</button>
@@ -81,6 +90,93 @@
 
       <section id="detail" class="detail">
         <div class="placeholder">Select a warrant.</div>
+      </section>
+
+      <!-- The month view. A SIBLING of #detail and #first-run for the same reason #first-run is
+           one: exactly one of the three occupies the right-hand grid cell, and `hidden` is
+           display:none so the other two cost no column.
+
+           Every word in here is fixed prose compiled into the binary, like #first-run: this
+           document is served BEFORE the token check, so nothing store-derived may be templated
+           in. The numbers and every sentence about them arrive from /v1 at runtime.
+
+           The three blocks are separate on purpose and must stay separate. A refusal is a fact
+           about a bound: the call did NOT happen. A guard signal is a MODEL's opinion about a call
+           the warrant PERMITTED, which in the default observe mode did happen. Merging them would
+           report N refusals for N things that actually occurred, and would put a classifier score
+           behind the "widen the bound" advice. There is no verification verdict anywhere in the
+           guard block, and there must never be: the `verification` envelope on this response is
+           computed without reading a single guard record. -->
+      <section id="summary" class="summary" hidden>
+        <h2>What the bounds refused, and what the guard model said</h2>
+
+        <form id="summary-form" class="summary-controls">
+          <label for="summary-month">Month</label>
+          <input id="summary-month" type="month" />
+          <button type="submit">Show</button>
+        </form>
+        <p class="note">
+          This view does not re-read itself every few seconds the way the list does &mdash; a
+          summary that re-rendered under you would take your place in it with it. Press
+          <em>Show</em> to re-read.
+        </p>
+
+        <p id="summary-error" class="empty error" hidden>
+          This summary could not be read: the server did not answer, refused, or replied with
+          something this console could not parse. That is not the same as there being nothing in
+          this month.
+        </p>
+        <p id="summary-window" class="note"></p>
+        <p id="summary-caveat" class="note"></p>
+
+        <div class="section">
+          <h3>Bounds that refused &mdash; these calls did NOT happen</h3>
+          <p id="summary-refusals-empty" class="empty" hidden>
+            No refusal was recorded in this window. That means no supervised session wrote one, not
+            that no agent tried anything: an agent that never traversed the Warrantor proxy leaves
+            no record here at all.
+          </p>
+          <ul id="summary-refusals" class="rows"></ul>
+          <p id="summary-refusals-note" class="note"></p>
+        </div>
+
+        <div class="section guard-block">
+          <h3>What the guard MODEL flagged &mdash; an opinion about calls that were ALLOWED</h3>
+          <p class="note">
+            Read the mode on every row before concluding anything about a call. In
+            <strong>observe</strong> mode &mdash; the default, and the only mode that has been run
+            in anger &mdash; the warrant permitted the call, it happened, and the guard blocked
+            nothing; it only wrote down what it thought. Nothing in this block is a verification
+            verdict, and none of it moves the numbers above.
+          </p>
+          <p id="summary-guard-unknown" class="empty error" hidden>
+            The server's answer carried no guard section this console could read, so nothing here
+            is a statement about guard coverage in this window.
+          </p>
+          <p id="summary-guard-none" class="empty error" hidden>
+            NO COVERAGE. No guard was attached to any run in this window, so nothing classified
+            anything. That is an absence of observation, not an absence of findings.
+          </p>
+          <p id="summary-guard-quiet" class="empty" hidden>
+            A guard was attached in this window and grouped nothing. That is not a clean bill of
+            health &mdash; read the measured rates in the note below, and the coverage counts
+            underneath.
+          </p>
+          <ul id="summary-guard" class="rows"></ul>
+          <p id="summary-guard-note" class="note"></p>
+        </div>
+
+        <div class="section">
+          <h3>What was not looked at</h3>
+          <p class="note">
+            This counts what nothing looked at. It is not an estimate of what was looked at and got
+            wrong: live traffic here carries no labels, so no such number exists, and the measured
+            benchmark rates quoted in the note above are figures about a test corpus and not about
+            your month.
+          </p>
+          <ul id="summary-coverage" class="rows"></ul>
+          <p id="summary-coverage-note" class="note"></p>
+        </div>
       </section>
 
       <!-- The first-run panel.

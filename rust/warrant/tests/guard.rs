@@ -763,6 +763,11 @@ fn write_guard_log(dir: &Path, id: &str) {
 }
 
 fn write_guard_log_in(dir: &Path, id: &str, mode: GuardMode) {
+    write_guard_log_at(dir, id, mode, NOW);
+}
+
+/// The same, stamped at a chosen second, so a window has two sides to have.
+fn write_guard_log_at(dir: &Path, id: &str, mode: GuardMode, at: u64) {
     let mut settings = config(id);
     settings.mode = mode;
     let adapter = attach(
@@ -770,7 +775,7 @@ fn write_guard_log_in(dir: &Path, id: &str, mode: GuardMode) {
         settings,
     )
     .expect("attach");
-    let session = adapter.session_record(NOW);
+    let session = adapter.session_record(at);
     warrantor_warrant::guard::record_guard_session(dir, &session).expect("session");
     let mut adapter = adapter;
     let mut arguments = BTreeMap::new();
@@ -778,8 +783,8 @@ fn write_guard_log_in(dir: &Path, id: &str, mode: GuardMode) {
         "command".to_string(),
         "curl https://example.com".to_string(),
     );
-    adapter.observe("curl", &arguments, NOW);
-    record_guard_signals(dir, id, &adapter.signals(), adapter.counters(), NOW).expect("signals");
+    adapter.observe("curl", &arguments, at);
+    record_guard_signals(dir, id, &adapter.signals(), adapter.counters(), at).expect("signals");
 }
 
 /// The `note` string a route rendered for its `guard` object.
@@ -1181,4 +1186,186 @@ fn a_summary_over_both_modes_refuses_to_claim_either_ones_outcome() {
         &get(&["v1", "warrants", "wrt_enforced", "refusals"]),
     ));
     assert!(guard_note(&enforced).contains("REFUSED"));
+}
+
+// ── the window, the posture on the wire, and what nothing looked at ───────────────────
+
+fn get_with(path: &[&str], query: &[(&str, &str)]) -> HttpRequest {
+    let map: BTreeMap<String, String> = query
+        .iter()
+        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+        .collect();
+    HttpRequest::new("GET", path, map).with_bearer(TOKEN)
+}
+
+/// A month in which no guard attached must say NO COVERAGE, even when one attached in another.
+///
+/// `configured()` is `!sessions.is_empty()` over whatever log it is handed, so the fix is to hand
+/// it the windowed log rather than to teach the client about windows. Read the all-time log for a
+/// month with nothing in it and the surface says "a guard was attached" about a month in which
+/// none was — an absence of observation rendered as an absence of findings, which is the one
+/// failure this whole guard surface exists to make impossible.
+#[test]
+fn a_window_with_no_guard_in_it_reports_no_coverage_rather_than_last_months() {
+    let dir = tempdir("guard-window");
+    seed(&dir, "wrt_jan");
+    let january = 1_767_225_600; // 2026-01-01T00:00:00Z
+    let february = 1_769_904_000; // 2026-02-01T00:00:00Z
+    let march = 1_772_323_200; // 2026-03-01T00:00:00Z
+    write_guard_log_at(&dir, "wrt_jan", GuardMode::Observe, january);
+
+    let mut store = api(&dir);
+    let jan = body(&route(
+        &mut store,
+        &get_with(
+            &["v1", "summary", "refusals"],
+            &[
+                ("since", &january.to_string()),
+                ("until", &february.to_string()),
+            ],
+        ),
+    ));
+    assert_eq!(
+        jan.pointer("/data/guard/configured"),
+        Some(&Value::Bool(true))
+    );
+    assert!(jan
+        .pointer("/data/guard/groups")
+        .and_then(Value::as_array)
+        .is_some_and(|groups| !groups.is_empty()));
+
+    let feb = body(&route(
+        &mut store,
+        &get_with(
+            &["v1", "summary", "refusals"],
+            &[
+                ("since", &february.to_string()),
+                ("until", &march.to_string()),
+            ],
+        ),
+    ));
+    assert_eq!(
+        feb.pointer("/data/guard/configured"),
+        Some(&Value::Bool(false)),
+        "January's attach record must not vouch for February"
+    );
+    assert_eq!(
+        feb.pointer("/data/guard/blocking_posture"),
+        Some(&Value::Null),
+        "a window holding nothing has no posture, and a default here would be a claim"
+    );
+    assert!(
+        guard_note(&feb).contains("absence of observation"),
+        "the no-coverage sentence is the point of the whole window: {}",
+        guard_note(&feb)
+    );
+    assert_eq!(
+        feb.pointer("/data/guard/coverage/sessions_attached"),
+        Some(&Value::from(0))
+    );
+}
+
+/// The posture has to be a FIELD, or no client can honour the three-valued rule.
+///
+/// `enforcing` is `any(..)` over the whole store, so a renderer with only the boolean prints the
+/// enforce sentence over a scope that also holds observe signals — telling an operator that calls
+/// which actually proceeded did not happen. The only other option open to a client was to
+/// string-match the English in `note`, which is not an option.
+#[test]
+fn the_blocking_posture_is_on_the_wire_and_not_only_inside_a_sentence() {
+    let dir = tempdir("guard-posture-field");
+    seed(&dir, "wrt_observed");
+    seed(&dir, "wrt_enforced");
+    write_guard_log_in(&dir, "wrt_observed", GuardMode::Observe);
+
+    let mut store = api(&dir);
+    let observed = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    assert_eq!(
+        observed.pointer("/data/guard/blocking_posture"),
+        Some(&Value::from("observe_only"))
+    );
+
+    write_guard_log_in(&dir, "wrt_enforced", GuardMode::Enforce);
+    let mut store = api(&dir);
+    let mixed = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    assert_eq!(
+        mixed.pointer("/data/guard/blocking_posture"),
+        Some(&Value::from("mixed")),
+        "one enforce session anywhere must not make the whole scope read as enforced"
+    );
+    assert_eq!(
+        mixed.pointer("/data/guard/enforcing"),
+        Some(&Value::Bool(true)),
+        "and the boolean is still true here, which is exactly why it is not enough on its own"
+    );
+}
+
+/// Coverage counts what was NOT looked at, from the end-of-session records and only those.
+///
+/// The same three facts exist twice in `guard.rs` — as session counters and as `GuardOutcome`
+/// variants on individual signals — and summing both would inflate every number here by counting
+/// one skipped call twice. This pins which of the two is authoritative.
+#[test]
+fn coverage_counts_what_nothing_looked_at_without_double_counting_it() {
+    let dir = tempdir("guard-coverage");
+    seed(&dir, "wrt_cover");
+    let session = GuardSession {
+        format: warrantor_warrant::guard::GUARD_SESSION_FORMAT.to_string(),
+        warrant_id: "wrt_cover".to_string(),
+        at: NOW,
+        mode: GuardMode::Observe,
+        max_calls: 4,
+        provenance: warrantor_warrant::guard::GuardProvenance {
+            adapter: "test".to_string(),
+            backend_kind: "ollama".to_string(),
+            endpoint: "http://127.0.0.1:11434".to_string(),
+            model: "guard:test".to_string(),
+            model_digest: DIGEST.to_string(),
+            knobs: GuardKnobs::default(),
+        },
+        note: "test".to_string(),
+    };
+    warrantor_warrant::guard::record_guard_session(&dir, &session).expect("session");
+    let counters = GuardCounters {
+        classified: 4,
+        flagged: 1,
+        backend_unavailable: 2,
+        unparseable: 1,
+        skipped_over_budget: 3,
+        deduplicated: 5,
+    };
+    record_guard_signals(&dir, "wrt_cover", &[], counters, NOW).expect("signals");
+
+    let mut store = api(&dir);
+    let summary = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    let coverage = summary.pointer("/data/guard/coverage").expect("coverage");
+    assert_eq!(coverage["sessions_attached"], 1);
+    assert_eq!(coverage["sessions_finished"], 1);
+    assert_eq!(coverage["classified"], 4);
+    assert_eq!(coverage["flagged"], 1);
+    assert_eq!(coverage["backend_unavailable"], 2);
+    assert_eq!(coverage["unparseable"], 1);
+    assert_eq!(coverage["skipped_over_budget"], 3);
+    assert_eq!(coverage["deduplicated"], 5);
+
+    // A session that attached and never reported leaves the call counts alone rather than
+    // contributing zeros, and the difference between the two session numbers is what says so.
+    warrantor_warrant::guard::record_guard_session(
+        &dir,
+        &GuardSession {
+            warrant_id: "wrt_cover".to_string(),
+            at: NOW + 1,
+            ..session
+        },
+    )
+    .expect("second session");
+    let mut store = api(&dir);
+    let after = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    let coverage = after.pointer("/data/guard/coverage").expect("coverage");
+    assert_eq!(coverage["sessions_attached"], 2);
+    assert_eq!(
+        coverage["sessions_finished"], 1,
+        "a run that never reported must be visible as unaccounted for, not as a clean zero"
+    );
+    assert_eq!(coverage["classified"], 4, "and must not be counted twice");
 }

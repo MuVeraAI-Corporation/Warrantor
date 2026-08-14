@@ -704,3 +704,62 @@ fn presenting_a_token_does_not_produce_a_different_console() {
     );
     assert_eq!(anonymous_body, authenticated);
 }
+
+/// The month view is reachable, and its fixed prose keeps the product's central boundary.
+///
+/// Byte assertions over the served document, which is the only guard that exists for prose: the
+/// separation between "a bound refused this, so the call did not happen" and "a model disliked
+/// this call the warrant allowed" is the claim the whole product rests on, and it is undone by one
+/// careless heading. There is no verdict word anywhere in the guard block for the same reason
+/// `guard_object`'s note says the verification envelope is computed without reading any of it.
+#[test]
+fn the_month_view_is_reachable_and_never_dresses_a_model_opinion_as_a_verdict() {
+    let document = asset("/");
+
+    // Reachable: a destination the reader can press, not a route only curl finds.
+    assert!(document.contains("id=\"view-summary\""));
+    assert!(document.contains("id=\"summary-month\""));
+
+    // The four states of the guard block, each with its own paragraph. Collapsing any two of them
+    // is how "nothing looked" comes to read as "nothing was found".
+    for id in [
+        "summary-guard-unknown",
+        "summary-guard-none",
+        "summary-guard-quiet",
+        "summary-error",
+    ] {
+        assert!(
+            document.contains(&format!("id=\"{id}\"")),
+            "the console needs a distinct paragraph for {id}"
+        );
+    }
+    assert!(
+        document.contains("NO COVERAGE"),
+        "an absence of observation has to say so in the words a reader will act on"
+    );
+
+    // The guard block's fixed prose. It may never call a model's opinion a verdict, and it may
+    // never describe an observe-mode flag as something that was stopped.
+    let block = document
+        .split("guard-block")
+        .nth(1)
+        .expect("the guard block")
+        .split("What was not looked at")
+        .next()
+        .expect("the block ends at the next section");
+    for forbidden in [
+        "verified",
+        "verification verdict is",
+        "blocked the call",
+        "caught",
+    ] {
+        assert!(
+            !block.contains(forbidden),
+            "the guard block must not contain {forbidden:?}: a model's opinion is not a verdict"
+        );
+    }
+    assert!(
+        block.contains("ALLOWED"),
+        "the heading has to say what a guard signal is ABOUT, or it reads as a second refusal list"
+    );
+}

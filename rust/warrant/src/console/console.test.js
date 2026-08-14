@@ -54,6 +54,24 @@ const ELEMENT_IDS = [
   'health',
   'authority',
   'toast',
+  'view-warrants',
+  'view-summary',
+  'summary',
+  'summary-form',
+  'summary-month',
+  'summary-error',
+  'summary-window',
+  'summary-caveat',
+  'summary-refusals',
+  'summary-refusals-empty',
+  'summary-refusals-note',
+  'summary-guard',
+  'summary-guard-unknown',
+  'summary-guard-none',
+  'summary-guard-quiet',
+  'summary-guard-note',
+  'summary-coverage',
+  'summary-coverage-note',
 ];
 
 function element(tag = 'div', id = '') {
@@ -357,6 +375,256 @@ test('an agent that is not answering explains itself and keeps polling', async (
   assert.equal(app.el('list-empty-error').hidden, true);
   assert.match(textOf(app.el('list')), /wrt_0000000000000001/);
   assert.equal(app.el('authority').textContent, 'read + stop only');
+});
+
+// ── the month summary: the window, and the two things that must never merge ───────────────
+
+const REFUSAL_GROUP = {
+  kind: 'tool',
+  subject: 'curl',
+  occurrences: 23,
+  warrants: 4,
+  signal: 'bounds_probably_wrong',
+  guidance: 'curl was refused 23 times across 4 warrants. Widen it deliberately in the next grant.',
+};
+
+const GUARD_GROUP = {
+  tool: 'github.create_pr',
+  category: 'Jailbreak',
+  outcome: 'harmful',
+  mode: 'observe',
+  occurrences: 3,
+  warrants: 1,
+  guidance: 'The warrant PERMITTED those calls and the guard blocked nothing: it ran observe-only.',
+};
+
+const COVERAGE = {
+  sessions_attached: 2,
+  sessions_finished: 1,
+  classified: 9,
+  flagged: 3,
+  backend_unavailable: 4,
+  unparseable: 1,
+  skipped_over_budget: 7,
+  deduplicated: 2,
+};
+
+function summaryBody(overrides = {}) {
+  return {
+    status: 200,
+    body: {
+      data: {
+        total_occurrences: 23,
+        groups: [REFUSAL_GROUP],
+        bounds_probably_wrong: 1,
+        window: {
+          since: 1_754_006_400,
+          until: 1_756_684_800,
+          records_in_window: 6,
+          records_all_time: 11,
+          caveat: 'This window is applied to the time a SESSION ENDED.',
+        },
+        unreadable_lines: 0,
+        note: 'Refusal records are a local observation log.',
+        guard: {
+          configured: true,
+          enforcing: false,
+          blocking_posture: 'observe_only',
+          groups: [GUARD_GROUP],
+          coverage: COVERAGE,
+          note: 'Guard signals are a MODEL opinion about calls the warrant PERMITTED.',
+        },
+        ...overrides,
+      },
+    },
+  };
+}
+
+/** Boot, then switch to the summary destination. */
+async function openSummary(summary) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p.startsWith('/v1/summary/refusals')) return summary;
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-summary').fire('click');
+  await settle();
+  return app;
+}
+
+test('a month becomes a half-open UTC window, and anything else becomes no window at all', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  assert.deepEqual(module.monthWindow('2026-08'), {
+    since: Date.UTC(2026, 7, 1) / 1000,
+    until: Date.UTC(2026, 8, 1) / 1000,
+  });
+  // December must roll the year rather than asking for a thirteenth month.
+  assert.deepEqual(module.monthWindow('2026-12'), {
+    since: Date.UTC(2026, 11, 1) / 1000,
+    until: Date.UTC(2027, 0, 1) / 1000,
+  });
+  for (const bad of ['', '2026', '2026-13', '2026-00', 'august', null, undefined, '2026-8']) {
+    assert.equal(
+      module.monthWindow(bad),
+      null,
+      `${JSON.stringify(bad)} must not be silently replaced with a window this console made up`,
+    );
+  }
+});
+
+test('the console asks for the window it means, on the route that can now apply one', async () => {
+  const app = await openSummary(summaryBody());
+  const asked = app.calls.find((p) => p.startsWith('/v1/summary/refusals'));
+  assert.ok(asked, 'the summary view must actually call the summary route');
+  assert.match(asked, /\?since=\d+&until=\d+$/, 'an unwindowed read would answer for all time');
+});
+
+test('a summary nobody could read is never rendered as a month in which nothing happened', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  for (const facts of [
+    module.summaryFacts(false, 0, null),
+    module.summaryFacts(true, 500, { data: { groups: [] } }),
+    module.summaryFacts(true, 200, null),
+    module.summaryFacts(true, 200, { data: { groups: 'none' } }),
+    module.summaryFacts(true, 200, {}),
+  ]) {
+    assert.equal(facts.readable, false);
+  }
+
+  const app = await openSummary({ status: 200, unparseable: true });
+  assert.equal(app.el('summary-error').hidden, false);
+  assert.equal(
+    app.el('summary-refusals-empty').hidden,
+    true,
+    '"no refusal was recorded" is a claim about a month, and an unreadable answer supports none',
+  );
+  assert.equal(app.el('summary-guard-none').hidden, true);
+  assert.equal(app.el('summary-window').textContent, '');
+});
+
+test('the window shown is the one the SERVER resolved, with its caveat', async () => {
+  const app = await openSummary(summaryBody());
+  assert.match(textOf(app.el('summary-window')), /2025-08-01 to 2025-09-01/);
+  assert.match(textOf(app.el('summary-window')), /6 refusal record\(s\) of 11/);
+  assert.match(textOf(app.el('summary-caveat')), /SESSION ENDED/);
+});
+
+test('a guard row keeps its mode and never becomes a refusal or a verdict', async () => {
+  const app = await openSummary(summaryBody());
+
+  const refusals = textOf(app.el('summary-refusals'));
+  assert.match(refusals, /curl/);
+  assert.doesNotMatch(
+    refusals,
+    /github\.create_pr/,
+    'a call the warrant ALLOWED must never appear among the calls a bound refused',
+  );
+
+  const guard = textOf(app.el('summary-guard'));
+  assert.match(guard, /mode observe/, 'the mode is the difference between two opposite sentences');
+  assert.match(guard, /blocked nothing/, "the server's guidance is printed verbatim");
+  assert.doesNotMatch(guard, /verified/, 'no verification verdict may sit beside a model opinion');
+  assert.doesNotMatch(guard, /not verified/);
+});
+
+test('a mixed posture never collapses to one of the two pure claims', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  // `enforcing` is `any(..)` over the whole store, so a client reading it renders Mixed as
+  // Enforced — and tells an operator that calls which actually proceeded did not happen.
+  assert.equal(
+    module.postureWord({ enforcing: true, blocking_posture: 'mixed' }),
+    'mixed',
+    'mixed is a third claim, not a rounding of the other two',
+  );
+  assert.equal(
+    module.postureWord({ enforcing: true }),
+    'unknown',
+    'a server that did not state a posture must not have one inferred from the boolean',
+  );
+  assert.equal(module.postureWord({ enforcing: false, blocking_posture: 'nonsense' }), 'unknown');
+
+  const app = await openSummary(
+    summaryBody({
+      guard: {
+        configured: true,
+        enforcing: true,
+        blocking_posture: 'mixed',
+        groups: [GUARD_GROUP],
+        coverage: COVERAGE,
+        note: 'Sessions here ran in BOTH modes.',
+      },
+    }),
+  );
+  const guard = textOf(app.el('summary-guard'));
+  assert.match(guard, /MIXED/);
+  assert.doesNotMatch(guard, /nothing here was blocked/);
+  assert.doesNotMatch(guard, /flagged calls were refused/);
+});
+
+test('no coverage is four different sentences, and one never stands in for another', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  assert.equal(module.guardKind(undefined), 'unknown');
+  assert.equal(module.guardKind({ groups: [] }), 'unknown', 'configured must be stated');
+  assert.equal(module.guardKind({ configured: true, groups: 'none' }), 'unknown');
+  assert.equal(module.guardKind({ configured: false, groups: [] }), 'no-coverage');
+  assert.equal(module.guardKind({ configured: true, groups: [] }), 'quiet');
+  assert.equal(module.guardKind({ configured: true, groups: [GUARD_GROUP] }), 'groups');
+  // Signals with no attach record are a real state: the attach write failed and the run's own
+  // signals landed anyway. "No coverage" printed above a list of classifications would be a
+  // sentence sitting next to its own counter-evidence.
+  assert.equal(module.guardKind({ configured: false, groups: [GUARD_GROUP] }), 'groups');
+});
+
+test('a month in which no guard attached says NO COVERAGE, not an empty reassuring table', async () => {
+  const app = await openSummary(
+    summaryBody({
+      guard: {
+        configured: false,
+        enforcing: false,
+        blocking_posture: null,
+        groups: [],
+        coverage: { ...COVERAGE, sessions_attached: 0, sessions_finished: 0 },
+        note: 'No guard was attached to any run in this store.',
+      },
+    }),
+  );
+  assert.equal(app.el('summary-guard-none').hidden, false);
+  assert.equal(app.el('summary-guard-quiet').hidden, true);
+  assert.equal(app.el('summary-guard-unknown').hidden, true);
+  assert.match(
+    textOf(app.el('summary-guard')),
+    /posture not stated/,
+    'a log with nothing in it has no posture, and a default would be a claim',
+  );
+});
+
+test('what was not looked at is counted, and no miss is estimated from a benchmark', async () => {
+  const app = await openSummary(summaryBody());
+  const coverage = textOf(app.el('summary-coverage'));
+  for (const [label, value] of [
+    ['the backend was unreachable', 4],
+    ['the answer was not a verdict', 1],
+    ["session's cap was spent", 7],
+  ]) {
+    assert.ok(coverage.includes(label), `the coverage block must name: ${label}`);
+    assert.ok(coverage.includes(String(value)), `and carry its count: ${value}`);
+  }
+  // The one number that must not exist: live traffic here has no labels, so "we probably missed N"
+  // would be an estimate with no measurement behind it, on the surface that least tolerates one.
+  assert.doesNotMatch(coverage, /probably missed|estimated|0\.8152|0\.1848/);
+  assert.match(textOf(app.el('summary-coverage-note')), /unaccounted for/);
+});
+
+test('the summary owns the right-hand column, and switching back restores the warrant pane', async () => {
+  const app = await openSummary(summaryBody());
+  assert.equal(app.el('summary').hidden, false);
+  assert.equal(app.el('detail').hidden, true);
+  assert.equal(app.el('first-run').hidden, true);
+
+  app.el('view-warrants').fire('click');
+  await settle();
+  assert.equal(app.el('summary').hidden, true);
+  assert.equal(app.el('detail').hidden, false, 'a store with rows shows the detail pane');
 });
 
 // ── residue ───────────────────────────────────────────────────────────────────────────────

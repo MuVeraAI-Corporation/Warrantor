@@ -502,6 +502,131 @@ impl GuardLog {
             _ => BlockingPosture::ObserveOnly,
         }
     }
+
+    /// The same log, holding only what a time window covers.
+    ///
+    /// `since` is inclusive and `until` is exclusive, both in epoch seconds, and `None` means
+    /// unbounded on that side. Every record here carries the time the SESSION ended rather than the
+    /// time of the call it describes, and a deduplicated signal carries the FIRST sighting's time
+    /// (see [`GuardSignal::at`] and the dedup path in `GuardAdapter::observe`). So a session that
+    /// straddles a boundary lands wholly on one side: a windowed count is systematically attributed
+    /// to the window its session ended in, not merely approximate. Every surface that windows this
+    /// log has to say so.
+    ///
+    /// `unreadable_lines` is carried through **unfiltered and it cannot be otherwise**: a line that
+    /// did not parse has no `at` to compare against. A caller rendering a window must label that
+    /// count as covering the whole log, or it prints an all-time number under a month heading —
+    /// which is the failure this whole surface exists to avoid.
+    #[must_use]
+    pub fn within(&self, since: Option<u64>, until: Option<u64>) -> Self {
+        let holds =
+            |at: u64| since.is_none_or(|start| at >= start) && until.is_none_or(|end| at < end);
+        Self {
+            sessions: self
+                .sessions
+                .iter()
+                .filter(|s| holds(s.at))
+                .cloned()
+                .collect(),
+            signals: self
+                .signals
+                .iter()
+                .filter(|s| holds(s.at))
+                .cloned()
+                .collect(),
+            summaries: self
+                .summaries
+                .iter()
+                .filter(|s| holds(s.at))
+                .cloned()
+                .collect(),
+            unreadable_lines: self.unreadable_lines,
+        }
+    }
+
+    /// What the guard did **not** look at, over whatever this log covers.
+    ///
+    /// Summed from [`GuardSummary`] — the end-of-session counters — and from nothing else. The same
+    /// three facts exist twice in this module: as counters on a session summary, and as
+    /// [`GuardOutcome`] variants on individual signals that [`aggregate_guard_signals`] already
+    /// groups. Adding both would inflate "what was not looked at" by counting one skipped call
+    /// twice. The summaries win because they are the only one of the two that is windowable and
+    /// complete: a call skipped over budget produces a counter increment whether or not a signal
+    /// line was written for it.
+    ///
+    /// `sessions_attached` above `sessions_finished` is not an error — it is a run that never
+    /// reported, whose calls are unaccounted for here rather than accounted for as zero.
+    #[must_use]
+    pub fn coverage(&self) -> GuardCoverage {
+        let mut coverage = GuardCoverage {
+            sessions_attached: self.sessions.len(),
+            sessions_finished: self.summaries.len(),
+            ..GuardCoverage::default()
+        };
+        for summary in &self.summaries {
+            let counters = summary.counters;
+            coverage.classified = coverage
+                .classified
+                .saturating_add(u64::from(counters.classified));
+            coverage.flagged = coverage.flagged.saturating_add(u64::from(counters.flagged));
+            coverage.backend_unavailable = coverage
+                .backend_unavailable
+                .saturating_add(u64::from(counters.backend_unavailable));
+            coverage.unparseable = coverage
+                .unparseable
+                .saturating_add(u64::from(counters.unparseable));
+            coverage.skipped_over_budget = coverage
+                .skipped_over_budget
+                .saturating_add(u64::from(counters.skipped_over_budget));
+            coverage.deduplicated = coverage
+                .deduplicated
+                .saturating_add(u64::from(counters.deduplicated));
+        }
+        coverage
+    }
+}
+
+/// How much of a scope the guard actually looked at, and how much it did not.
+///
+/// The honest live answer to "what did we miss" is this and only this: it counts what was **not
+/// looked at**, never what was looked at and got wrong. The second number does not exist anywhere
+/// in this product — live traffic carries no labels — and the measured miss rate in
+/// [`GuardSignal`]'s guidance is a benchmark figure about a corpus, not an estimate about anyone's
+/// month.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct GuardCoverage {
+    /// Sessions that wrote an attach record.
+    pub sessions_attached: usize,
+    /// Sessions that wrote end-of-session counters. Fewer than attached means a run did not finish.
+    pub sessions_finished: usize,
+    /// Calls actually sent to the backend.
+    pub classified: u64,
+    /// Of those, how many came back harmful.
+    pub flagged: u64,
+    /// Calls that could not reach a usable backend, so nothing looked at them.
+    pub backend_unavailable: u64,
+    /// Calls the backend answered with something that was not a verdict.
+    pub unparseable: u64,
+    /// Calls that were never classified because the session's cap was spent.
+    pub skipped_over_budget: u64,
+    /// Repeats of a `(tool, content_digest)` already seen, which cost no backend call.
+    pub deduplicated: u64,
+}
+
+impl BlockingPosture {
+    /// The stable wire word for this posture.
+    ///
+    /// A field on the payload rather than a phrase inside a prose note, because a client that can
+    /// only read the note has two choices and both are wrong: the `enforcing` boolean, which reads
+    /// [`BlockingPosture::Mixed`] as [`BlockingPosture::Enforced`], or string-matching English.
+    #[must_use]
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::ObserveOnly => "observe_only",
+            Self::Enforced => "enforced",
+            Self::Mixed => "mixed",
+        }
+    }
 }
 
 /// What this log's sessions did about the calls they classified.

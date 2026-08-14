@@ -382,9 +382,11 @@ machine could never do. It binds 127.0.0.1 unless you say otherwise, mints a
 per-session bearer token and checks it before it resolves a route, and computes
 every verification verdict itself: a client renders `verified`, it never derives
 it. Three routes change anything -- settle, void and stop -- and there is no
-grant over HTTP. /v1/summary/refusals is the one to read weekly: it aggregates
-every wall your agents hit, across warrants, and says whether the bound was
-wrong or the agent was.
+grant over HTTP. The console's `Refusals & guard` view is the one to read
+monthly: it aggregates every wall your agents hit, across warrants, and says
+whether the bound was wrong or the agent was -- and beside it, separately, what
+the guard MODEL flagged and how much of the month nothing looked at. It reads
+/v1/summary/refusals?since=&until=, which curl can read too.
 
 The token is printed and written to ~/.warrantor/serve/token, owner-only where
 the platform has such a thing; --token-file puts it somewhere else and will not

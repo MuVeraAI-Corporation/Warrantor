@@ -55,6 +55,49 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
   `spend::LEDGER_EXPORT_FORMAT = "warrantor.spend-export/1"`. The runtime was always right — it uses
   the constant — but the prose is what somebody hand-building a submission reads.
 
+### Added — a month-scoped console view for the refusal and guard aggregates
+
+- **`/v1/summary/refusals` finally has a client.** The store-wide aggregate, the bounds-probably-
+  wrong verdict, the guard groups and the coverage counters were computed on every request and
+  rendered by nobody: the route was reachable only by `curl`, and the CLI help pointed at it as
+  "the one to read weekly". The console now has a second destination beside the warrant list —
+  **Refusals & guard** — that answers, for a chosen month: which bounds the agents hit and whether
+  the bound or the agent is probably wrong; what the guard MODEL flagged, stated separately and
+  with the mode on every row; and how much of the month nothing looked at.
+- **Fixed first, because the view could not honestly exist without it: the route accepted a query
+  and ignored it.** `request.query` was read at exactly one place — inside `list_filter`, reached
+  only from `Target::List` — so `GET /v1/summary/refusals?since=X` returned HTTP 200 carrying the
+  **all-time** aggregate. A console rendering that under a month heading is the `?status=open`
+  silently-returning-every-warrant defect with a nicer font. `/v1/summary/refusals` now takes
+  `?since=` and `?until=` (inclusive/exclusive epoch seconds), filters records **and** guard
+  signals before the existing aggregators run, and echoes the window it resolved.
+- **Every other route now refuses a query string instead of ignoring one.** Ten routes had no
+  parser at all, so `GET /v1/warrants/{id}?state=settled` answered 200 as though the parameter had
+  meant something. It never did. **This is a behaviour change to `/v1`:** an unrecognised query on
+  a route with no filters is now `400 malformed_query`.
+- **`blocking_posture` is a field on the wire, not a phrase inside a sentence.** `enforcing` is
+  `any(..)` over the whole scope, so a client with only the boolean renders `Mixed` as `Enforced`
+  and tells an operator that calls which actually proceeded did not happen; the only alternative
+  open to a renderer was string-matching English in `note`. `guard.blocking_posture` is now
+  `observe_only` / `enforced` / `mixed`, or `null` when nothing at all was read.
+- **`guard.coverage` counts what nothing looked at** — sessions attached vs. sessions that
+  reported, calls sent to the backend, and the backend-unavailable, unparseable and over-budget
+  totals — summed from the end-of-session records **only**, since the same three facts also exist
+  as per-signal outcomes and adding both would inflate every number. There is deliberately **no**
+  estimate of what the guard looked at and got wrong: live traffic here carries no labels, so
+  multiplying the benchmark miss rate by live counts would put a number with no measurement behind
+  it on the surface that least tolerates one. The measured rates stay where they already are,
+  inside the server's own note, labelled as a benchmark.
+- **Windowing is honest about what it cannot window.** Records carry the time their **session
+  ended**, and a deduplicated guard signal carries the first sighting's time, so a session
+  straddling a boundary lands wholly on one side — the answer is systematically attributed, not
+  merely imprecise. `unreadable_lines` has no timestamp to compare and stays an all-time count.
+  Both facts are stated by the server in `window.caveat` and printed by the console verbatim.
+- **The separation is enforced in the view, not only in the payload.** A refusal row and a guard
+  row are visually distinct, the guard block carries the mode on every row, and no verification
+  verdict appears anywhere near it — asserted from Rust over the served bytes, and from
+  `node --test` over the rendered panes.
+
 ### Added — the guard as a refusal signal, recorded and never enforcing
 
 - **`rust/warrant/src/guard.rs`: a guard model wired into a live supervised MCP session, observe-only.**

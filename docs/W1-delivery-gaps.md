@@ -301,7 +301,9 @@ production. The backend is absent by default too: no `--guard` means no signals,
 cannot resolve its own model digest refuses to attach rather than emitting provenance-free
 "evidence".
 
-§4.3 below is unchanged by this. §4.2 is not — it has been run.
+§4.3 below has since moved too: the store-wide aggregate these signals feed now has a client, and
+the two routes stopped being the only way to read them. §4.2 is not unchanged either — it has been
+run.
 
 ### 4.2 A fine-tune has been run, and the gate rejected it — **done, and informative**
 
@@ -340,11 +342,28 @@ measured class at 0.4298 and the headline target of both weak-category recipes �
 from WildGuardMix**, which has no such category; reaching it needs an ExpGuard corpus, and the
 gate refuses cross-corpus scoring until an ExpGuard baseline is bound to a recipe.
 
-### 4.3 No non-developer surface for model intelligence
+### 4.3 A non-developer surface for model intelligence — **partly done**
 
-Decision-makers cannot see refusal quality at all. The console shows refusals per warrant; there is
-no view of "what our guard caught and missed this month", which is the form the question actually
-takes.
+No longer true that decision-makers cannot see refusal quality at all. The console now has a second
+destination, **Refusals & guard**, over `/v1/summary/refusals?since=&until=`: for a chosen month it
+shows which bounds refused and whether the bound or the agent is probably wrong, and — separately,
+with the mode on every row and no verdict anywhere near it — what the guard model flagged about the
+calls the warrant *allowed*.
+
+Two things that fix required, and both were real defects rather than plumbing. The route accepted a
+query string and **ignored** it, so a month view built on top of it would have answered 200 with the
+all-time aggregate under a month heading; and the payload carried `enforcing` as a bare boolean,
+which is `any(..)` over the whole store, so no client could honour the three-valued blocking posture
+the server had already worked out. Both are fixed at the source.
+
+**What the view deliberately does not answer is the second half of the original sentence.** It shows
+what the guard *caught* and what nothing *looked at* — sessions where the backend was down, replies
+that were not verdicts, calls past the per-session cap. It shows no estimate of what the guard looked
+at and got **wrong**, because live traffic here carries no labels: the measured 0.8152 recall is a
+figure about WildGuardTest, and multiplying it by live counts would produce a number with no
+measurement behind it on the surface that least tolerates one. It also does not yet count warrants
+that ran with **no guard attached at all** — that needs a per-warrant *run* timestamp, and the only
+one the store holds is `claims.issued_at`, which is when the warrant was granted.
 
 ---
 

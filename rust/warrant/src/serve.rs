@@ -945,6 +945,48 @@ pub struct ListFilter {
     pub since: Option<u64>,
 }
 
+/// Which slice of time a summary should answer about.
+///
+/// `since` is inclusive and `until` is exclusive, both in epoch seconds. `None` on a side means
+/// unbounded, so the default is the all-time aggregate this route always answered.
+///
+/// It exists because the route used to accept `?since=` and ignore it: `request.query` was read at
+/// exactly one place, inside [`list_filter`], reached only from `Target::List`. A caller asking for
+/// one month got a 200 carrying every refusal ever recorded, and a console rendering that under a
+/// month heading would be the `?status=open silently returning every warrant` defect with a nicer
+/// font. A window the API cannot apply must not be a window the API accepts.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SummaryWindow {
+    /// At or after this epoch second.
+    pub since: Option<u64>,
+    /// Strictly before this epoch second.
+    pub until: Option<u64>,
+}
+
+impl SummaryWindow {
+    /// Whether a record stamped `at` falls inside this window.
+    #[must_use]
+    pub fn holds(&self, at: u64) -> bool {
+        self.since.is_none_or(|start| at >= start) && self.until.is_none_or(|end| at < end)
+    }
+}
+
+/// What every windowed answer has to carry about the timestamps it was filtered on.
+///
+/// Stated by the server rather than composed by the client, for the same reason the guard note is:
+/// the caveat is a fact about how the records were written, and a renderer inventing its own
+/// wording for it will eventually invent a weaker one. It is not "these totals are approximate" —
+/// the error is not noise. Every refusal from one session carries that session's END time, and a
+/// deduplicated guard signal carries the first sighting's time, so a session straddling a boundary
+/// contributes ALL of its records to one side of it.
+const WINDOW_CAVEAT: &str =
+    "This window is applied to the time a SESSION ENDED, not to the moment of each call: every \
+     refusal a session recorded carries that session's end time, and a repeated guard signal \
+     carries the first sighting's time. A session that straddles the boundary therefore lands \
+     wholly on one side, so a per-window total is systematically attributed to the window its \
+     session ended in rather than merely being imprecise. `unreadable_lines` is counted over the \
+     WHOLE log and is not windowed at all: a line that did not parse has no timestamp to compare.";
+
 /// Everything the HTTP layer is allowed to ask for.
 ///
 /// A trait for the same reason [`crate::mcp::Endpoint`] is one: it keeps [`route`] and
@@ -973,8 +1015,8 @@ pub trait Api {
     fn void(&mut self, id: &str) -> Response;
     /// End the run now and write a signed stop record.
     fn stop(&mut self, id: &str, reason: Option<&str>) -> Response;
-    /// Refusals aggregated across every warrant — the tuning signal.
-    fn summary_refusals(&mut self) -> Response;
+    /// Refusals aggregated across every warrant, over one window — the tuning signal.
+    fn summary_refusals(&mut self, window: &SummaryWindow) -> Response;
     /// The morning digest.
     fn summary_daily(&mut self) -> Response;
 }
@@ -1113,6 +1155,17 @@ fn dispatch<A: Api>(api: &mut A, request: &HttpRequest) -> Response {
         .with_header("Allow", allow);
     }
 
+    // Query handling is per route, and every route has one. Two routes parse a query; the rest
+    // refuse one. The middle option -- accept and ignore -- is what shipped, and it is the only one
+    // that can answer 200 to a question it did not ask: `/v1/summary/refusals?since=X` returned the
+    // all-time aggregate under whatever heading the caller had in mind. A filter that cannot run
+    // must not report success.
+    if !matches!(target, Target::List | Target::SummaryRefusals) {
+        if let Err(response) = no_query(request) {
+            return response;
+        }
+    }
+
     match target {
         Target::Health => api.health(),
         Target::List => match list_filter(request) {
@@ -1124,7 +1177,10 @@ fn dispatch<A: Api>(api: &mut A, request: &HttpRequest) -> Response {
         Target::Effects(id) => api.effects(&id),
         Target::Refusals(id) => api.refusals(&id),
         Target::Evidence(id) => api.evidence(&id),
-        Target::SummaryRefusals => api.summary_refusals(),
+        Target::SummaryRefusals => match summary_window(request) {
+            Ok(window) => api.summary_refusals(&window),
+            Err(response) => response,
+        },
         Target::SummaryDaily => api.summary_daily(),
         Target::Settle(id) => {
             match body_object(request).and_then(|b| optional_text(&b, "commit")) {
@@ -1188,6 +1244,67 @@ fn list_filter(request: &HttpRequest) -> Result<ListFilter, Response> {
         }
     }
     Ok(filter)
+}
+
+/// Refuse a query string on a route that has no filters.
+///
+/// The other half of [`list_filter`]'s argument, applied to the ten routes that had no parser at
+/// all. `GET /v1/warrants/{id}?state=settled` used to answer 200 with the warrant, which reads as
+/// though the parameter meant something. It never did. This makes it a 400 instead — a behaviour
+/// change to `/v1`, and the right one: the alternative is a surface where whether a filter is
+/// honoured depends on which route the caller happened to hit.
+fn no_query(request: &HttpRequest) -> Result<(), Response> {
+    if request.query.is_empty() {
+        return Ok(());
+    }
+    Err(refuse(
+        status::BAD_REQUEST,
+        "malformed_query",
+        "this route takes no query parameters; an unrecognised filter is refused rather than \
+         ignored, because a caller who believed they had filtered and had not is the failure this \
+         surface exists to prevent",
+    ))
+}
+
+/// Parse `?since=` and `?until=` for the summary route, refusing anything else.
+///
+/// Both are whole seconds since the Unix epoch. An inverted or empty window is refused rather than
+/// answered: `since=B&until=A` would return an empty aggregate, which is shaped exactly like a
+/// quiet month and is not one.
+fn summary_window(request: &HttpRequest) -> Result<SummaryWindow, Response> {
+    let mut window = SummaryWindow::default();
+    for (key, value) in &request.query {
+        let field =
+            match key.as_str() {
+                "since" => &mut window.since,
+                "until" => &mut window.until,
+                _ => return Err(refuse(
+                    status::BAD_REQUEST,
+                    "malformed_query",
+                    "this route accepts only since and until; an unrecognised filter is refused \
+                     rather than ignored",
+                )),
+            };
+        let Ok(parsed) = value.parse::<u64>() else {
+            return Err(refuse(
+                status::BAD_REQUEST,
+                "malformed_query",
+                "since and until must each be a whole number of seconds since the Unix epoch",
+            ));
+        };
+        *field = Some(parsed);
+    }
+    if let (Some(start), Some(end)) = (window.since, window.until) {
+        if start >= end {
+            return Err(refuse(
+                status::BAD_REQUEST,
+                "malformed_query",
+                "until must be strictly after since: an empty window answers nothing while looking \
+                 exactly like a window in which nothing happened",
+            ));
+        }
+    }
+    Ok(window)
 }
 
 // ── authentication ────────────────────────────────────────────────────────────────────
@@ -2515,16 +2632,30 @@ impl Api for StoreApi {
         )
     }
 
-    fn summary_refusals(&mut self) -> Response {
+    fn summary_refusals(&mut self, window: &SummaryWindow) -> Response {
         let now = (self.now)();
         let log = read_all_refusals(&self.root);
-        let groups = aggregate_refusals(&log.records);
+        // Filtered before aggregation, never after: `aggregate_refusals` reads
+        // `REPEATED_OCCURRENCES` and `SPREAD_WARRANTS` off the set it is given, so a group's
+        // `signal` has to be the verdict for THIS window. Aggregating all time and then dropping
+        // rows would label a bound "probably wrong" on evidence the reader is not being shown.
+        let records: Vec<RefusalRecord> = log
+            .records
+            .iter()
+            .filter(|record| window.holds(record.at))
+            .cloned()
+            .collect();
+        let groups = aggregate_refusals(&records);
         let total: u64 = groups.iter().map(|g| g.occurrences).sum();
         let wrong_bounds = groups
             .iter()
             .filter(|g| g.signal == RefusalSignal::BoundsProbablyWrong)
             .count();
-        let guard_log = crate::guard::read_all_guard_logs(&self.root);
+        // The same window on the same axis, for the same reason. `configured()` and
+        // `blocking_posture()` are then read off the WINDOWED log, so a month in which no guard
+        // attached says so even when one attached in another month.
+        let guard_log =
+            crate::guard::read_all_guard_logs(&self.root).within(window.since, window.until);
         Response::json(
             status::OK,
             &Verification::unsigned(now, REFUSAL_PROVENANCE),
@@ -2536,6 +2667,18 @@ impl Api for StoreApi {
                     "repeated_occurrences": REPEATED_OCCURRENCES,
                     "spread_warrants": SPREAD_WARRANTS,
                 },
+                // The window this answer is actually about, echoed back resolved. A client that
+                // rendered the window it ASKED for would keep printing "August" over an answer the
+                // server had not filtered -- which is precisely what this route did before.
+                "window": {
+                    "since": window.since,
+                    "until": window.until,
+                    "records_in_window": records.len(),
+                    "records_all_time": log.records.len(),
+                    "caveat": WINDOW_CAVEAT,
+                },
+                // All-time, and it cannot be otherwise: an unparseable line has no timestamp. The
+                // caveat above names it so this number is never read as a fact about the window.
                 "unreadable_lines": log.unreadable_lines,
                 "note": REFUSAL_PROVENANCE,
                 // Additive and adjacent: `total_occurrences` and `bounds_probably_wrong` above are
@@ -3015,11 +3158,27 @@ fn guard_object(log: &crate::guard::GuardLog, scope: GuardScope) -> Value {
                 .to_string(),
         }
     };
+    // Three values on the wire, plus `null` for "nothing was read here at all". `enforcing` stays
+    // for the callers that already read it, but it is not enough on its own and never was: it is
+    // `any(..)`, so a client branching on it renders `Mixed` as `Enforced` and tells an operator
+    // that calls which actually proceeded did not happen. Without this field the only alternative
+    // open to a renderer is string-matching the English in `note`.
+    let posture = if log.sessions.is_empty() && log.signals.is_empty() {
+        None
+    } else {
+        Some(log.blocking_posture().word())
+    };
     let mut object = json!({
         "configured": configured,
         "enforcing": log.enforcing(),
+        "blocking_posture": posture,
         "sessions": log.sessions,
         "counters": log.summaries,
+        // What was NOT looked at, which is the only honest live answer to "what did we miss".
+        // There is no live answer to "what did it look at and get wrong": nothing in this product
+        // labels live traffic, and multiplying a benchmark miss rate by these counts would put a
+        // number with no measurement behind it on the surface that least tolerates one.
+        "coverage": log.coverage(),
         "unreadable_lines": log.unreadable_lines,
         "note": note,
     });

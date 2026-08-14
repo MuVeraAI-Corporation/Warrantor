@@ -800,6 +800,169 @@ fn refusals_aggregate_across_warrants_into_a_tuning_signal() {
     );
 }
 
+/// A GET with a query string attached.
+fn get_with(path: &[&str], query: &[(&str, &str)]) -> HttpRequest {
+    let map: BTreeMap<String, String> = query
+        .iter()
+        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+        .collect();
+    HttpRequest::new("GET", path, map).with_bearer(TOKEN)
+}
+
+/// The defect this window exists to close: the route answered 200 to a filter it never applied.
+///
+/// `request.query` was read at exactly one place — inside `list_filter`, reached only from
+/// `Target::List` — so `/v1/summary/refusals?since=X` returned the ALL-TIME aggregate. A console
+/// rendering that under a month heading is the `?status=open silently returning every warrant`
+/// defect wearing a nicer font, on the surface whose whole job is not to overstate what it knows.
+#[test]
+fn the_summary_window_filters_before_it_aggregates() {
+    let dir = tempdir("summary-window");
+    let mut api = api(&dir, true);
+
+    let january = 1_767_225_600; // 2026-01-01T00:00:00Z
+    let february = 1_769_904_000; // 2026-02-01T00:00:00Z
+    let march = 1_772_323_200; // 2026-03-01T00:00:00Z
+
+    // Enough of the same wall, in enough runs, to earn `bounds_probably_wrong` — but only if all
+    // of it is counted. Half of it is in January and half in February.
+    for (index, at) in [(1u8, january), (2, january), (3, february), (4, february)] {
+        let id = format!("wrt_w{index}");
+        seed(&dir, &id);
+        record_refusals(&dir, &id, &[&tool_refusal("curl", 6)], &[], at).expect("record");
+    }
+
+    let all_time = route(&mut api, &get(&["v1", "summary", "refusals"]));
+    assert_eq!(all_time.body["data"]["total_occurrences"], 24);
+    assert_eq!(
+        all_time.body["data"]["groups"][0]["signal"],
+        "bounds_probably_wrong"
+    );
+
+    let jan = route(
+        &mut api,
+        &get_with(
+            &["v1", "summary", "refusals"],
+            &[
+                ("since", &january.to_string()),
+                ("until", &february.to_string()),
+            ],
+        ),
+    );
+    assert_eq!(jan.status, status::OK);
+    assert_eq!(
+        jan.body["data"]["total_occurrences"], 12,
+        "a window that answered 24 here would be the all-time aggregate under a month heading"
+    );
+    assert_eq!(
+        jan.body["data"]["window"]["records_in_window"], 2,
+        "two records fall in January; the other two ended in February"
+    );
+    assert_eq!(jan.body["data"]["window"]["records_all_time"], 4);
+    assert_eq!(jan.body["data"]["window"]["since"], january);
+    assert_eq!(jan.body["data"]["window"]["until"], february);
+    // The verdict is re-read for the window rather than inherited from the all-time set. Two
+    // warrants is still spread, so this one stays loud — but it is loud on evidence the reader is
+    // actually being shown.
+    assert_eq!(jan.body["data"]["groups"][0]["warrants"], 2);
+    assert!(
+        jan.body["data"]["groups"][0]["guidance"]
+            .as_str()
+            .is_some_and(|g| g.contains("12 times across 2 warrants")),
+        "the guidance has to state the number an operator acts on, for THIS window: {}",
+        jan.body["data"]["groups"][0]["guidance"]
+    );
+
+    // A month in which nothing was recorded is an empty aggregate, not the all-time one.
+    let mar = route(
+        &mut api,
+        &get_with(
+            &["v1", "summary", "refusals"],
+            &[("since", &march.to_string())],
+        ),
+    );
+    assert_eq!(mar.body["data"]["total_occurrences"], 0);
+    assert_eq!(
+        mar.body["data"]["groups"].as_array().expect("groups").len(),
+        0
+    );
+    assert!(
+        mar.body["data"]["window"]["caveat"]
+            .as_str()
+            .is_some_and(|c| c.contains("SESSION ENDED")),
+        "a windowed answer must carry the reason its boundary is not the boundary of a call"
+    );
+}
+
+/// A window the API cannot apply must not be a window the API accepts.
+#[test]
+fn the_summary_route_refuses_a_query_it_cannot_honour() {
+    let dir = tempdir("summary-query");
+    let mut api = api(&dir, true);
+
+    let refusals: Vec<(&str, Vec<(&str, &str)>)> = vec![
+        ("an unknown key", vec![("month", "2026-08")]),
+        ("a key that is nearly right", vec![("state", "open")]),
+        ("a since that is not a number", vec![("since", "august")]),
+        ("a negative since", vec![("since", "-1")]),
+        (
+            "an inverted window",
+            vec![("since", "200"), ("until", "100")],
+        ),
+        ("an empty window", vec![("since", "100"), ("until", "100")]),
+    ];
+    for (why, query) in refusals {
+        let response = route(&mut api, &get_with(&["v1", "summary", "refusals"], &query));
+        assert_eq!(
+            response.status,
+            status::BAD_REQUEST,
+            "{why} must be refused rather than ignored"
+        );
+        assert_eq!(code_of(&response), "malformed_query", "{why}");
+    }
+
+    // And the honest window still works.
+    let ok = route(
+        &mut api,
+        &get_with(
+            &["v1", "summary", "refusals"],
+            &[("since", "100"), ("until", "200")],
+        ),
+    );
+    assert_eq!(ok.status, status::OK);
+}
+
+/// The other ten routes had no query parser at all, which is the same failure one level quieter.
+///
+/// `GET /v1/warrants/{id}?state=settled` answered 200 with the warrant, which reads as though the
+/// parameter meant something. It never did. This is a behaviour change to `/v1` and the right one:
+/// the alternative is a surface where whether a filter is honoured depends on which route was hit.
+#[test]
+fn a_route_with_no_filters_refuses_a_query_rather_than_ignoring_it() {
+    let dir = tempdir("no-query");
+    let mut api = api(&dir, true);
+    seed(&dir, "wrt_q");
+
+    let routes: [&[&str]; 5] = [
+        &["v1", "health"],
+        &["v1", "warrants", "wrt_q"],
+        &["v1", "warrants", "wrt_q", "report"],
+        &["v1", "warrants", "wrt_q", "refusals"],
+        &["v1", "summary", "daily"],
+    ];
+    for path in routes {
+        let ignored = route(&mut api, &get_with(path, &[("state", "settled")]));
+        assert_eq!(
+            ignored.status,
+            status::BAD_REQUEST,
+            "{path:?} accepted a filter it does not have"
+        );
+        assert_eq!(code_of(&ignored), "malformed_query", "{path:?}");
+        // Unchanged without one.
+        assert_eq!(route(&mut api, &get(path)).status, status::OK, "{path:?}");
+    }
+}
+
 /// The proxy books an egress denial twice. Counting both would double every egress number.
 #[test]
 fn an_egress_denial_is_recorded_once_and_keeps_its_destination() {
