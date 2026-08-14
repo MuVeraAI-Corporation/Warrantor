@@ -57,7 +57,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "warrantor/protocols/v1/aar.proto",
     ];
 
-    tonic_build::configure()
+    // `tonic_prost_build`, not `tonic_build`. As of tonic 0.14 the prost integration lives in its
+    // own crate; `tonic_build` still exists but is the codec-agnostic half and has no
+    // `compile_protos`. The call below is otherwise unchanged.
+    tonic_prost_build::configure()
         .build_server(true)
         .build_client(true)
         .compile_protos(

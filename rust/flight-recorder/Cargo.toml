@@ -22,7 +22,7 @@ sha2 = "0.11"
 # recorders cannot share an evidence log and hand out contradictory durability proofs.
 fs4 = "0.8"
 uuid = { version = "1", features = ["v4"] }
-prost-types = "0.13"
+prost-types = "0.14"
 warrantor-api = { path = "../warrantor-api" }
 
 [dev-dependencies]

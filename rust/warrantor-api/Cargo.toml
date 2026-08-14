@@ -14,13 +14,18 @@ include = ["src/**/*", "proto/**/*", "build.rs", "Cargo.toml", "README.md"]
 build = "build.rs"
 
 [dependencies]
-prost = "0.13"
-prost-types = "0.13"
-tonic = "0.12"
+prost = "0.14"
+prost-types = "0.14"
+tonic = "0.14"
+# tonic 0.14 has no prost dependency: the prost codec moved out of the runtime into
+# `tonic-prost`, and the prost codegen into `tonic-prost-build`. The generated code
+# names `tonic_prost::ProstCodec`, so this is a direct dependency of what build.rs
+# writes, not an optional feature of tonic.
+tonic-prost = "0.14"
 serde.workspace = true
 
 [build-dependencies]
-tonic-build = "0.12"
+tonic-prost-build = "0.14"
 
 [lib]
 name = "warrantor_api"
