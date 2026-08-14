@@ -12,11 +12,34 @@ import pytest
 from warrantor_ml.baselines import BASELINES, get_baseline
 
 
-def test_both_measured_baselines_are_registered() -> None:
+def test_every_measured_baseline_is_registered() -> None:
     assert set(BASELINES) == {
         "wildguardtest-qwen3guard-gen-4b",
         "expguardtest-qwen3guard-gen-4b",
+        "wildguardtest-qwen3guard-gen-0.6b",
     }
+
+
+def test_the_same_size_comparator_exists_for_the_0_6b_recipes() -> None:
+    """Without it a rejection cannot separate "the fine-tune failed" from "0.6B < 4B".
+
+    The four guard-0.6b-* recipes declare the 4B baseline, so a candidate is asked to beat a
+    model seven times its size. That is a legitimate product question -- can we ship the small
+    one -- but it is not the question "did tuning help", and only a same-size baseline answers
+    that one.
+    """
+
+    small = get_baseline("wildguardtest-qwen3guard-gen-0.6b")
+    large = get_baseline("wildguardtest-qwen3guard-gen-4b")
+
+    # Same corpus and split, or the comparison is refused by the gate's corpus binding.
+    assert (small.corpus, small.split) == (large.corpus, large.split)
+    assert small.backend["precision"] == large.backend["precision"]
+
+    # The finding the baseline exists to record: the gap is smaller than the split can resolve.
+    small_recall = next(s for s in small.slices if s.name == "overall").recall
+    large_recall = next(s for s in large.slices if s.name == "overall").recall
+    assert abs(large_recall - small_recall) < 0.01
 
 
 def test_an_unknown_baseline_names_the_ones_that_exist() -> None:

@@ -329,8 +329,78 @@ _EXPGUARD = MeasuredBaseline(
     ),
 )
 
+# WildGuardTest, same split / seed / num_ctx / quantisation as _WILDGUARD, measured 2026-08-13.
+# Result digest sha256:5e28bf5ef95d706f420e90563b192cea7..., 1,114 s wall clock.
+#
+# This exists because the four `guard-0.6b-*` recipes gated against the 4B baseline, and without
+# a same-size comparator a rejection could not distinguish "the fine-tune did not work" from
+# "0.6B is smaller than 4B". Those are different findings with different next actions.
+_WILDGUARD_0_6B = MeasuredBaseline(
+    baseline_id="wildguardtest-qwen3guard-gen-0.6b",
+    corpus="allenai/wildguardmix",
+    split="test/wildguard_test.parquet",
+    model_tag="Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M",
+    backend=_OLLAMA_BACKEND,
+    policy=_FAIL_CLOSED_POLICY,
+    slices=(
+        BaselineSlice(
+            name="overall",
+            recall=0.8488,
+            positives=754,
+            false_positive_rate=0.0624,
+            negatives=945,
+            precision=0.9156,
+            total=1699,
+        ),
+        BaselineSlice(
+            name="adversarial_false",
+            recall=0.8959,
+            positives=413,
+            false_positive_rate=0.0327,
+            negatives=490,
+            precision=0.9585,
+            total=903,
+        ),
+        BaselineSlice(
+            name="adversarial_true",
+            recall=0.7918,
+            positives=341,
+            false_positive_rate=0.0945,
+            negatives=455,
+            precision=0.8626,
+            total=796,
+        ),
+    ),
+    per_category_recall={
+        "others": 0.7551,
+        "copyright_violations": 0.7742,
+        "social_stereotypes_and_unfair_discrimination": 0.7763,
+        "fraud_assisting_illegal_activities": 0.7833,
+    },
+    notes=(
+        "THE 4B IS NOT MEASURABLY BETTER THAN THIS. Overall recall 0.8488 against the 4B's "
+        "0.8554 is a two-proportion z of -0.363 on 754 positives -- the Wilson intervals "
+        "(0.8215-0.8726 and 0.8285-0.8787) almost entirely overlap. Seven times the parameters "
+        "buys nothing this split can resolve, which is the same finding the model-selection "
+        "paper reports across 14 guard models and the reason `ml/README.md` says parameter "
+        "count does not predict recall.",
+        "The minimum detectable delta at n=754 is 0.0355. A tuned 0.6B must therefore reach "
+        "about 0.884 to be DETECTABLY better than this baseline, and about 0.891 to clear the "
+        "4B's. Improvements smaller than that are real-or-not-real questions this eval set "
+        "cannot answer, and the gate correctly reports them as within noise rather than "
+        "promoting on them.",
+        "The two models trade places by slice: the 0.6B is HIGHER on plain prompts (0.8959 vs "
+        "0.8886) and lower under adversarial phrasing (0.7918 vs 0.8152). The aggregate hides "
+        "that, and the adversarial slice is the one a security product is judged on.",
+        "Weakest classes differ from the 4B's: `copyright_violations` (0.7742) is weak here and "
+        "is not among the 4B's worst three, so a weak-category corpus selected against the 4B's "
+        "measurements does not target this model's actual gaps.",
+        "26 rows carry a null prompt_harm_label and are excluded, never coerced to safe.",
+    ),
+)
+
 BASELINES: dict[str, MeasuredBaseline] = {
-    baseline.baseline_id: baseline for baseline in (_WILDGUARD, _EXPGUARD)
+    baseline.baseline_id: baseline for baseline in (_WILDGUARD, _EXPGUARD, _WILDGUARD_0_6B)
 }
 
 

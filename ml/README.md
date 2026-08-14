@@ -231,6 +231,41 @@ The backend configuration is recorded in the output (model digest, seed, tempera
 because every one of them changes the result, and a benchmark that does not record what it ran is
 a number without a claim attached.
 
+#### The 4B is not measurably better than the 0.6B
+
+Measured 2026-08-13 on the same split, seed, `num_ctx` and quantisation:
+
+| | 0.6B | 4B | |
+| --- | --- | --- | --- |
+| overall recall | **0.8488** | **0.8554** | z = −0.363, **not significant** |
+| 95% CI | 0.8215–0.8726 | 0.8285–0.8787 | intervals almost entirely overlap |
+| precision | 0.9156 | 0.9241 | |
+| FPR | 0.0624 | 0.0561 | |
+| `adversarial=false` recall | **0.8959** | 0.8886 | the *small* model is ahead here |
+| `adversarial=true` recall | 0.7918 | **0.8152** | and behind here |
+
+Seven times the parameters buys nothing this split can resolve. That is the same finding the
+model-selection paper reports across 14 guard models, arriving independently on our own corpus —
+and it is the number that matters for the desktop app, where the 0.6B is 1.4 GB resident against
+the 4B's 3.2 GB.
+
+Two consequences that are easy to miss:
+
+**The minimum detectable delta at n=754 is 0.0355.** A tuned 0.6B has to reach roughly **0.884**
+to be detectably better than the untuned 0.6B, and **0.891** to clear the 4B. Anything smaller is
+a question this eval set cannot answer, and `parity_gate` correctly returns within-noise rather
+than promoting on it. Plan the run against that bar, not against the raw baseline number.
+
+**The two models have different weak classes.** `copyright_violations` (0.7742) is among the
+0.6B's worst and is not in the 4B's worst three, so a weak-category corpus selected from the 4B's
+per-category measurements does not target where the 0.6B actually fails. The corpus built for
+`guard-0.6b-weak-category` inherits that mismatch.
+
+Both are registered as baselines (`wildguardtest-qwen3guard-gen-4b`,
+`wildguardtest-qwen3guard-gen-0.6b`) so a candidate can be gated against either. The 0.6B one
+exists because without a same-size comparator, a rejection cannot distinguish "the fine-tune did
+not work" from "0.6B is smaller than 4B" — different findings, different next actions.
+
 ### `benchmark_expguard.py` — does a general guard hold up per vertical?
 
 Runs the held-out **ExpGuardTest** split (2,275 rows) and breaks recall down by the `domain`
