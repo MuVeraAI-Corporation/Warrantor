@@ -4,7 +4,12 @@ Companion to [RFC W1](rfcs/W1-surfaces-and-the-backend.md). W1 says what the sur
 the backend is bounded the way it is. This says what is **not built**, ordered by what blocks a real
 user first.
 
-Written 2026-08-13, against the state of `main` plus the console and desktop work.
+Written 2026-08-13 against the state of `main` plus the console and desktop work. **Revised
+2026-08-14, after PRs #37–#41 merged**, which changed enough of this document to make the
+unrevised version misleading. What those five landed, and what each did *not* close, is marked
+inline. The revision itself is the discipline §1.1 names: this document's job is to be the one
+place that does not say "done" ahead of the evidence, which it can only do if it is re-read
+against `main` every time `main` moves.
 
 ## What works today, end to end
 
@@ -157,14 +162,27 @@ unbuilt, and would matter for a fleet view rather than for one machine.
 
 ## Tier 2 — blocks the multi-user claim, which is the product claim
 
-### 2.1 No backend exists
+### 2.1 One of five backend needs is built, and nothing can reach it — **stage 1 done, orphaned**
 
-None of the five needs in W1 §"Does this need a backend" is built: no evidence archive, no trust
-directory, no approval routing, no time anchoring, no fleet summary. **`serve.rs` binds loopback,
-so a second person on another machine cannot see anything at all.** The console makes oversight
-usable for someone at the same keyboard, which is not the claim.
+PR #40 landed `rust/archive` (`warrantor-archive`): a self-hosted, append-only, content-addressed
+custody store for the three signed evidence files `warrantor verify` already reads, on Postgres,
+behind device-pairing auth. It reuses `warrantor-warrant`'s verifier rather than reimplementing
+one, stores and returns bytes verbatim, and never serves a verdict. Its design target —
+*compromise degrades availability, never integrity* — is a falsifiable claim with a test that
+asserts it (`tests/verification_does_not_depend_on_the_archive.rs`).
 
-This is the largest single gap in the product, and everything in Tier 3 assumes it.
+**And nothing sends it anything.** There is no client. No `warrantor` subcommand, no agent hook,
+no console action pushes evidence to an archive. The crate is a server with no caller — the
+[[wire before widen]] failure this repository has now made three times: the ~20 substrate crates
+orphaned from the warrant, the guard benchmarked but not wired, and now this. **Until a push path
+exists, stage 1 is not usable by anyone**, and its merge changes nothing a user can observe.
+
+The other four needs remain unbuilt: **trust directory, approval routing, time anchoring, fleet
+summary.** And `serve.rs` still binds loopback, so a second person on another machine still sees
+nothing at all. The console makes oversight usable for someone at the same keyboard, which is not
+the claim.
+
+This remains the largest single gap in the product, and everything in Tier 3 assumes it.
 
 ### 2.2 No identity, no per-person authorisation
 
@@ -234,13 +252,44 @@ production. The backend is absent by default too: no `--guard` means no signals,
 cannot resolve its own model digest refuses to attach rather than emitting provenance-free
 "evidence".
 
-§4.2 and §4.3 below are unchanged by this.
+§4.3 below is unchanged by this. §4.2 is not — it has been run.
 
-### 4.2 No fine-tune has been run
+### 4.2 A fine-tune has been run, and the gate rejected it — **done, and informative**
 
-The benchmarks establish a baseline and identify the target — `Unqualified Professional Advice` at
-0.4298 recall, and the adversarial FPR quadrupling. Neither has been acted on. No adapter has been
-trained, and the parity gate in the model foundry has not been exercised on this task.
+No longer true that "no adapter has been trained". Run `weak-2026-08-13a` (PR #37) trained
+`guard-0.6b-weak-category` on Modal A100 — 38,694 rows, one epoch, 2 h 28 m, ~$7 — and the parity
+gate **rejected** it at exit 1. The whole path from corpus to verdict is now exercised end to end,
+including the adapter → GGUF → Ollama bridge that did not previously exist.
+
+The rejection is the useful part. Against the **same-size** baseline the adapter was *worse*:
+recall 0.8488 → 0.8329, with the false-positive rate falling too (0.0624 → 0.0519) — a more
+permissive gate, which is the direction this substrate's own rule says fails silently.
+
+**The cause was the target vocabulary, not the method.** The corpora label rows harmful or not, so
+rendered targets carry only `Unsafe`/`Safe`. One epoch of that extinguished Qwen3Guard's third
+severity outright: **49 `Controversial` verdicts became 0** across 1,699 samples. Worse for a
+governance product, the documented `Controversial=SAFE` policy knob silently became a **no-op** —
+with no such verdicts left to act on it reports a recall identical to the headline row, where on
+the base model it moves recall 0.8488 → 0.8011. An operator lever stopped working and nothing
+announced it.
+
+Rendering `Controversial` as a third target class is **not available**: WildGuardMix's
+`prompt_harm_agreement` column exists only in its *test* split and ExpGuardMix has no equivalent,
+so there is no borderline signal in either training corpus. All four guard recipes therefore now
+set `supervise_severity=False` — the severity line stays in the input and is masked in the loss —
+and run `catonly-2026-08-13b` is testing that.
+
+Two measurements landed alongside, and they correct each other. On WildGuardTest the 4B is **not**
+measurably better than the 0.6B (z = −0.363); on ExpGuardTest it **is** (z = −2.539). Parameter
+count buys nothing on general safety and 4.5 points of recall on professional-vertical content —
+so for a product aimed at regulated verticals, **the 4B earns its 3.2 GB**. Quoting either corpus
+alone gives a confident wrong answer to the packaging question.
+
+Still open here: seven of the eight models are untrained, four of them cold-start blocked on real
+warrant history rather than on engineering. And `Unqualified Professional Advice` — the weakest
+measured class at 0.4298 and the headline target of both weak-category recipes — is **unreachable
+from WildGuardMix**, which has no such category; reaching it needs an ExpGuard corpus, and the
+gate refuses cross-corpus scoring until an ExpGuard baseline is bound to a recipe.
 
 ### 4.3 No non-developer surface for model intelligence
 
@@ -255,6 +304,18 @@ takes.
 The **substrate is real** and the **single-machine loop is complete**. Most of what is missing is
 still what makes it a product rather than a tool: it installs but announces itself with an operating
 system warning, it cannot be reached by a second person, and it cannot say who did what.
+
+**What the 2026-08-14 revision changed, and the pattern in it.** Five PRs merged. Two gaps closed
+outright (§1.3 first run, §1.4 refresh), two moved from "absent" to "built but unreachable"
+(§2.1 the archive has no client, §4.1 the guard is observe-only), and one closed with a result
+worth more than the feature (§4.2, a rejected fine-tune that diagnosed its own cause).
+
+The recurring shape is worth naming because it has now happened three times: **a component is
+built, is correct, and is not wired to anything that would exercise it.** The ~20 substrate crates
+orphaned from the warrant, the guard benchmarked but never called during a run, and now an
+evidence archive with no client. Each merge felt like progress and moved no user-visible line.
+The next unit of work in this document that changes what a person can *do* is not another
+component — it is a caller for one that already exists.
 
 The ordering matters. Packaging (1.1–1.2) was the cheapest visible win and is now done to the point
 where a reviewer can install and launch it; what remains of 1.1 is a purchase, not a build. But
