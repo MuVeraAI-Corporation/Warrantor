@@ -80,7 +80,7 @@ jobs:
       # TypeScript
       - name: TypeScript setup
         if: inputs.language == 'typescript'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: TS lint + test

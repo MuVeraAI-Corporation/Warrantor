@@ -172,7 +172,7 @@ jobs:
         working-directory: typescript
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.x"
           cache: npm
@@ -203,7 +203,7 @@ jobs:
         with:
           go-version: "1.24.x"
           cache: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.x"
       # The Rust verifier is built from the workspace, so this job needs protoc too.
@@ -253,7 +253,7 @@ jobs:
         working-directory: desktop
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.x"
       # No `npm ci`, and no Electron. The shell's security decisions -- which origin the window may
@@ -295,7 +295,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.x"
       # Same trade as the desktop job above, for the same reason. The Rust tests over
