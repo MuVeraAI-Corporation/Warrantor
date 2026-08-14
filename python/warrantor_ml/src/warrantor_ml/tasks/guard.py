@@ -152,6 +152,25 @@ def render_guard_target(unsafe: bool, categories: Sequence[str]) -> str:
     class the labels do not distinguish would teach the model a distinction the data never
     made -- while the evaluator's policy line that scores ``Controversial`` as harmful would
     quietly absorb the difference.
+
+    .. warning::
+
+       **That last clause was wrong, and run `weak-2026-08-13a` measured how wrong.** One epoch
+       over a corpus of 19,349 ``Unsafe`` and 19,345 ``Safe`` targets and no third value
+       extinguished the severity class outright: the tuned adapter emitted **0** ``Controversial``
+       verdicts across 1,699 samples where the base model emitted 49. The policy line did not
+       absorb it. Overall recall fell 0.8488 -> 0.8329 while the false-positive rate fell too --
+       the adapter learned to be more permissive, which on a deny gate is the failure direction
+       this module's own opening rule names.
+
+       Worse for a governance product: with no ``Controversial`` verdicts left to act on, the
+       documented ``Controversial=SAFE`` policy knob became a **no-op**, reporting a recall
+       identical to the headline row. An operator lever silently stopped doing anything, and
+       nothing announced it.
+
+       Do not "fix" this by training longer. Either render ``Controversial`` for the rows the
+       corpora mark borderline, or keep the severity head out of the adapter entirely. Whichever
+       is chosen, it is a change to the target vocabulary and therefore a new recipe digest.
     """
 
     listed = ", ".join(category for category in categories if category) or "None"

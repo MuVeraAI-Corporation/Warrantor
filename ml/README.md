@@ -489,6 +489,67 @@ The adapter is converted at `f16` and never quantised itself: the base supplies 
 quantisation, and rounding the delta separately would compound two roundings the baseline's
 Q4_K_M measurement never saw.
 
+#### The first real run: rejected, and worth more than a promotion would have been
+
+`guard-0.6b-weak-category`, run id `weak-2026-08-13a`, Modal A100, 38,694 rows, 1 epoch,
+2 h 28 m, final loss 0.0101. Scored on the full WildGuardTest split and put through the gate:
+
+```
+VERDICT: REJECT  (exit 1)
+ - recall 0.8329 against 0.8554 is within sampling noise at these counts (this set could
+   resolve about 0.036). No improvement was demonstrated, which is not the same finding
+   as a regression.
+ - per-category recall fell below a measured baseline floor: others 0.7653 below 0.7857;
+   social stereotypes and unfair discrimination 0.6184 below 0.7237
+```
+
+Against the **same-size** baseline the picture is sharper — the fine-tune made the model worse:
+
+| | untuned 0.6B | tuned | Δ |
+| --- | --- | --- | --- |
+| overall recall | 0.8488 | **0.8329** | **−0.0159** |
+| false-positive rate | 0.0624 | 0.0519 | −0.0105 |
+| precision | 0.9156 | 0.9276 | +0.0120 |
+| `Controversial` verdicts emitted | 49 | **0** | extinguished |
+
+Recall down, FPR down, precision up: the adapter learned to be **more permissive**. For a deny
+gate that is the wrong direction, and it is the direction this document's opening rule says fails
+silently.
+
+**The mechanism is the target vocabulary.** `render_guard_target` emits only `Safety: Unsafe` or
+`Safety: Safe` — the corpus contains 19,349 of one and 19,345 of the other and no third value.
+Its docstring reasons that inventing a `Controversial` class the labels do not distinguish would
+teach a distinction the data never made, and that "the evaluator's policy line that scores
+`Controversial` as harmful would quietly absorb the difference." **It did not absorb it.** One
+epoch of binary targets extinguished the severity class entirely, and every prompt that would
+have been `Controversial` — and therefore caught, because policy scores it harmful — is now
+`Safe` and missed.
+
+There is a second-order consequence worth more than the recall number to a governance product.
+For the tuned model the `if Controversial=SAFE` policy row reports **0.8329, identical to the
+headline row**, because there are no `Controversial` verdicts left for it to act on. A documented
+operator lever — *does a borderline verdict count as harmful?* — silently became a no-op, and
+nothing in the system announces that. On the untuned model the same lever moves recall from
+0.8488 to 0.8011.
+
+**Targeting a weak category did not fix it.** Of the three weak classes the corpus actually
+reaches, two improved marginally and the largest one collapsed:
+
+| class (all three targeted) | untuned | tuned | Δ |
+| --- | --- | --- | --- |
+| `fraud_assisting_illegal_activities` | 0.7833 | 0.8000 | +0.0167 |
+| `others` | 0.7551 | 0.7653 | +0.0102 |
+| `social_stereotypes_and_unfair_discrimination` | 0.7763 | **0.6184** | **−0.1579** |
+
+So the run's finding is not "LoRA does not work here". It is that **a corpus whose targets are
+binary trains a binary model**, and that the weak-category selection alone does not survive
+contact with a three-valued output space. The next attempt should render `Controversial` for the
+rows the corpora mark borderline, or hold the severity head out of the adapter entirely — not
+simply train longer.
+
+This is the outcome the whole apparatus exists to produce: a negative result that is *trustworthy*
+and *diagnostic*, rather than a promotion nobody could audit.
+
 #### The whole chain, proven end to end
 
 Every link was exercised on 2026-08-13 before the first real candidate existed, using a 50-row
