@@ -401,9 +401,33 @@ discard half the append-only enforcement and leave the trigger standing alone.
    change.
 2. **Issuer-anchor pinning in the client verify path** — done, this change, because stage 1 could
    not honestly ship without it. `verify_export_signed_by` and `warrantor verify --issuer`.
-3. **A push path from the local agent** — not done. Today an operator files evidence by hand.
-   `warrantor report --export … --archive <url>` is the obvious shape and belongs with the device
-   key living beside the local store.
+3. **A push path from the local agent** — **done.** `warrantor archive enrol --url … --code …`
+   pairs a machine, writing `~/.warrantor/keys/device.key` beside the issuer and settle keys and a
+   pairing record at `~/.warrantor/archive.json`; `warrantor archive push <file>` files a file's
+   bytes verbatim; `warrantor archive fetch <sha256> --out <path>` reads one back, because reads are
+   signed too and a `curl` could never perform one; and `--archive` on `report`, `stop` and `spend`
+   files what `--export` just wrote, through the same code path, exiting non-zero if it fails and
+   never unwriting the local file.
+
+   The signing half of the wire contract **moved** to `rust/warrant/src/archive_client.rs`, and
+   `warrantor_archive::device` re-exports it. That is the only shape in which one definition of the
+   descriptor exists: this crate cannot become a dependency of the local agent — it pulls `postgres`
+   and therefore tokio — so a client reaching for `sign_request` would have inverted the edge this
+   RFC and `Cargo.toml` both forbid. `warrantor_archive::sha256_hex` now delegates to
+   `warrantor_warrant::report::sha256_hex` for the same reason: the body digest a device signature
+   covers is computed on both sides of the wire, and "one implementation" would otherwise have
+   quietly become two.
+
+   What the client refuses at **runtime**, not in a test: a digest the archive names that is not the
+   SHA-256 of the bytes sent, and fetched bytes that are not the bytes their address names. Both
+   checks are free — the client already computed that digest to sign the request — and an archive
+   whose address does not name the bytes is not holding the operator's file, while both copies would
+   still verify against their own signatures.
+
+   What did **not** ship: no list client (`GET /v1/warrants/{id}/evidence` has no verb), no TLS, no
+   automatic push on settle, and no revocation *from the agent* — revocation is
+   `warrantor-archive revoke --device <id>` on the archive host, added in the same change because
+   issuing long-lived device keys with no way to withdraw one is not a credential system.
 4. **TLS** — not done, and deliberately not half-done. Needs a certificate and a proxy config, both
    deployment rather than engineering.
 5. **The trust directory (stage 2)** — where an anchor comes from, so `--issuer` stops being a hex

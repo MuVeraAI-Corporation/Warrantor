@@ -38,21 +38,33 @@
 //! `(device_id, nonce)` — so the claim can be made here and it is made no more widely than that: a
 //! request is refused if its nonce was seen before under the same device, or if its timestamp falls
 //! outside [`FRESHNESS_WINDOW_SECONDS`] of the server's clock.
+//!
+//! # Where the signed descriptor lives, and why it is not here
+//!
+//! [`DEVICE_SCHEME`], [`REQUEST_DESCRIPTOR_FORMAT`], [`is_device_id`], [`request_descriptor`],
+//! [`signing_input`] and [`sign_request`] are **re-exports from
+//! [`warrantor_warrant::archive_client`]**, not definitions. They are the half of this contract a
+//! client needs, and the local agent cannot reach into this crate for them: `Cargo.toml` states
+//! that the dependency edge runs archive → warrant and never the reverse, because this crate pulls
+//! `postgres` and therefore tokio, and the agent's whole point is to run on a laptop with nothing
+//! installed. Putting the descriptor in the crate both halves already share is the only shape in
+//! which there is exactly **one** definition of what a device signature covers. A second copy would
+//! not fail silently — signatures would be refused — but it would drift on the next change to the
+//! descriptor, and then two builds would disagree about a wire format while both looked correct.
+//!
+//! What stays here is what only a server does: parsing a presented credential, the freshness
+//! window, the nonce cap, enrolment codes, minting device ids, and [`authenticate`].
 
 use ed25519_dalek::{Signature, VerifyingKey};
 use thiserror::Error;
 
-use warrantor_evidence::dsse_pae;
-
 use crate::sha256_hex;
 use crate::store::{ArchiveStore, NonceOutcome, StoreError};
 
-/// The scheme token in the `Authorization` header.
-pub const DEVICE_SCHEME: &str = "Warrantor-Device";
-
-/// The descriptor's own format line. Present so a later change to the signed shape is detectable
-/// rather than silently misverified.
-pub const REQUEST_DESCRIPTOR_FORMAT: &str = "warrantor.archive-request/1";
+pub use warrantor_warrant::archive_client::{
+    is_device_id, request_descriptor, sign_request, signing_input, DEVICE_SCHEME,
+    REQUEST_DESCRIPTOR_FORMAT,
+};
 
 /// How far a request's timestamp may sit from the server's clock, in seconds, in either direction.
 ///
@@ -129,19 +141,6 @@ pub fn mint_device_id() -> Result<String, DeviceError> {
     getrandom::fill(&mut bytes)
         .map_err(|e| DeviceError::Randomness(format!("the system CSPRNG refused: {e}")))?;
     Ok(format!("dev_{}", hex::encode(bytes)))
-}
-
-/// Is this a device id this archive could hold?
-///
-/// Validated, not sanitised — the reading [`warrantor_warrant::serve::is_warrant_id`] applies. A
-/// hostile string is refused before it reaches a query parameter, rather than transformed into a
-/// different string that is then used.
-#[must_use]
-pub fn is_device_id(value: &str) -> bool {
-    let Some(body) = value.strip_prefix("dev_") else {
-        return false;
-    };
-    !body.is_empty() && body.len() <= 64 && body.chars().all(|c| c.is_ascii_alphanumeric())
 }
 
 /// Everything that can go wrong authenticating a device request.
@@ -241,58 +240,6 @@ pub fn parse_credential(header: Option<&str>) -> Result<DeviceCredential, Device
         nonce: (*nonce).to_string(),
         signature: (*signature).to_string(),
     })
-}
-
-/// The exact string a device signature covers.
-///
-/// Every field that could otherwise be swapped is in here. Without the method and path a signature
-/// over a `GET` could be replayed as a `POST`; without the body digest a valid signature could be
-/// lifted onto different bytes; without the device id one device's signature could be presented
-/// under another's name; without the nonce and timestamp the whole request replays forever.
-#[must_use]
-pub fn request_descriptor(
-    method: &str,
-    path: &str,
-    device_id: &str,
-    nonce: &str,
-    timestamp: u64,
-    body: &[u8],
-) -> String {
-    format!(
-        "{REQUEST_DESCRIPTOR_FORMAT}\n{method}\n{path}\n{device_id}\n{nonce}\n{timestamp}\n{}",
-        sha256_hex(body)
-    )
-}
-
-/// The bytes a device actually signs: DSSE PAE over the descriptor.
-///
-/// Reusing [`dsse_pae`] rather than signing the descriptor directly is not decoration. PAE is
-/// length-prefixed, so a descriptor field containing a newline cannot shift the meaning of the
-/// fields after it, and it is the encoding every other signature in this repository is taken over —
-/// so there is one convention here rather than two.
-#[must_use]
-pub fn signing_input(descriptor: &str) -> Vec<u8> {
-    dsse_pae(descriptor)
-}
-
-/// Sign a request as a device would. Exercised by the tests, and the reference for a client.
-#[must_use]
-pub fn sign_request(
-    key: &ed25519_dalek::SigningKey,
-    method: &str,
-    path: &str,
-    device_id: &str,
-    nonce: &str,
-    timestamp: u64,
-    body: &[u8],
-) -> String {
-    use ed25519_dalek::Signer;
-    let descriptor = request_descriptor(method, path, device_id, nonce, timestamp, body);
-    let signature = key.sign(&signing_input(&descriptor));
-    format!(
-        "{DEVICE_SCHEME} {device_id}.{timestamp}.{nonce}.{}",
-        hex::encode(signature.to_bytes())
-    )
 }
 
 /// Authenticate one request against the store.

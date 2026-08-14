@@ -87,17 +87,54 @@ docker compose -f deploy/evidence-archive/docker-compose.yml exec archive \
 ```
 
 The code is printed **once** and only its SHA-256 is stored. It is single-use and expires in fifteen
-minutes. The device claims it:
+minutes. On the machine that will file evidence, claim it:
 
 ```sh
-curl -s http://127.0.0.1:8788/v1/devices/enrol \
-  -H 'content-type: application/json' \
-  -d '{"code":"<the code>","public_key":"<64 hex chars>"}'
+warrantor archive enrol --url http://127.0.0.1:8788 --code <the code>
 ```
 
+That generates `~/.warrantor/keys/device.key`, sends only the public half, and writes
+`~/.warrantor/archive.json` recording which archive this device is paired with and under what id.
 The archive never sees a private key, at enrolment or afterwards.
 
+## Filing and reading evidence
+
+```sh
+warrantor report <warrant-id> --export report.json --archive   # write it, then file it
+warrantor archive push report.json                             # or file a file you already have
+warrantor archive fetch <sha256> --out fetched.json            # read it back out
+warrantor verify fetched.json --issuer <the issuer's hex key>  # and check it, off the archive
+```
+
+`push` sends the file's bytes **verbatim** and refuses if the digest the archive returns is not the
+SHA-256 of the bytes it sent — a content-addressed archive whose address does not name the bytes is
+not holding your file, and both copies would still verify against their own signatures. `--archive`
+on `report`, `stop` and `spend` files the file `--export` just wrote, through the same code path,
+and exits non-zero if the push fails; it never unwrites the local file.
+
+A filing is **custody, not a verdict**. The archive stores artifacts whose signatures do not check
+out and marks them, because refusing to hold a tampered file would destroy the evidence that it
+arrived. Nothing the client prints says "verified": that answer comes from `warrantor verify`, in
+Rust, on your machine, against an issuer key you obtained out of band.
+
+## Revoking a device
+
+```sh
+docker compose -f deploy/evidence-archive/docker-compose.yml exec archive \
+  warrantor-archive revoke --device dev_…
+```
+
+Revocation is not a delete: the row stays, so everything that device filed keeps its attribution.
+The device still holds its private key — delete `~/.warrantor/keys/device.key` and
+`~/.warrantor/archive.json` on that machine too, or it will keep trying.
+
 ## Signing a request
+
+You do not need this to use the archive; `warrantor archive` does it. It is written down because it
+is the wire contract, and because it is what makes `curl` insufficient — every route except
+`/v1/health` and `/v1/devices/enrol` needs a signature, **reads included**. There is exactly one
+implementation, in `rust/warrant/src/archive_client.rs`, which the server re-exports from
+`warrantor_archive::device` rather than keeping a second copy of.
 
 ```text
 Authorization: Warrantor-Device <device_id>.<timestamp>.<nonce>.<hex-signature>
@@ -142,10 +179,13 @@ filled in with a real certificate. The compose file publishes both ports to `127
   custody guarantee is that every artifact here is independently verifiable *off* the archive:
 
   ```sh
-  curl -s http://127.0.0.1:8788/v1/evidence/<sha256> \
-    -H "Authorization: Warrantor-Device …" > report.json
+  warrantor archive fetch <sha256> --out report.json
   warrantor verify report.json --issuer <the issuer's hex key>
   ```
+
+  The fetch is signed like every other read, and it checks that the bytes it got back hash to the
+  digest it asked for before it writes them. The verify that follows is the one that matters, and it
+  has no archive in its call graph at all.
 
   Without `--issuer` that checks self-consistency only, and a file fabricated end to end by anyone
   at all passes. The anchor is what makes the check mean something, and it must come from somewhere

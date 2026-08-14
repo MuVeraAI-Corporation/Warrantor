@@ -3,7 +3,7 @@
 //!
 //! This is stage 1 of the backend RFC W1 bounds — see `docs/rfcs/W2-evidence-archive.md`. It stores
 //! the three files `warrantor verify` already reads (`warrantor.report-export/1`,
-//! `warrantor.stop-export/1`, `warrantor.ledger-export/1`), content-addressed by SHA-256, in
+//! `warrantor.stop-export/1`, `warrantor.spend-export/1`), content-addressed by SHA-256, in
 //! Postgres, behind device-pairing authentication.
 //!
 //! # The design target, stated first because everything below is shaped by it
@@ -76,10 +76,9 @@ pub mod store;
 
 /// Wire format of an archive success or refusal body.
 ///
-/// Present from the first release for the reason every other format constant in this repository is:
-/// the day the shape changes, a client parsing the old one must fail loudly rather than silently
-/// read a field that moved.
-pub const ARCHIVE_RESPONSE_FORMAT: &str = "warrantor.archive-response/1";
+/// Re-exported from the crate the client half lives in, so the server and the client cannot come to
+/// disagree about the name of the envelope they are exchanging.
+pub use warrantor_warrant::archive_client::ARCHIVE_RESPONSE_FORMAT;
 
 /// SHA-256 hex of a byte string.
 ///
@@ -87,12 +86,15 @@ pub const ARCHIVE_RESPONSE_FORMAT: &str = "warrantor.archive-response/1";
 /// a device signature covers. A digest computed a second way — in SQL, in a client, in a helper
 /// that re-serialises first — is a second implementation of the rule that says which bytes are
 /// which artifact.
+///
+/// It **delegates** to [`warrantor_warrant::report::sha256_hex`] rather than hashing here, and that
+/// is the whole point of the line: the body digest a device signature covers is now computed by the
+/// client in `warrantor-warrant` as well as by this server, and "one implementation" would have
+/// quietly become two the moment a client existed. One function, called from both sides of the
+/// wire.
 #[must_use]
 pub fn sha256_hex(bytes: &[u8]) -> String {
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize())
+    warrantor_warrant::report::sha256_hex(bytes)
 }
 
 // A `digests_match` constant-time comparison used to live here, and it is deliberately gone.

@@ -347,7 +347,16 @@ pub struct Report {
 
 // ── building ──────────────────────────────────────────────────────────────────────────
 
-pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+/// SHA-256 hex of a byte string.
+///
+/// **The one implementation in this system.** It is public rather than crate-private because
+/// `warrantor-archive` delegates its own `sha256_hex` to this function: the artifact digest that
+/// names which bytes are which artifact, the enrolment-code digest, and the body digest a device
+/// signature covers are all this code. A digest computed a second way — in SQL, in a client, in a
+/// helper that re-serialises first — is a second implementation of the rule that decides identity,
+/// and the two can come to disagree across a process boundary where nobody is watching.
+#[must_use]
+pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     hex::encode(hasher.finalize())

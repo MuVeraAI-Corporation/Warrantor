@@ -162,7 +162,7 @@ unbuilt, and would matter for a fleet view rather than for one machine.
 
 ## Tier 2 — blocks the multi-user claim, which is the product claim
 
-### 2.1 One of five backend needs is built, and nothing can reach it — **stage 1 done, orphaned**
+### 2.1 One of five backend needs is built, and the agent can now reach it — **stage 1 wired**
 
 PR #40 landed `rust/archive` (`warrantor-archive`): a self-hosted, append-only, content-addressed
 custody store for the three signed evidence files `warrantor verify` already reads, on Postgres,
@@ -171,11 +171,25 @@ one, stores and returns bytes verbatim, and never serves a verdict. Its design t
 *compromise degrades availability, never integrity* — is a falsifiable claim with a test that
 asserts it (`tests/verification_does_not_depend_on_the_archive.rs`).
 
-**And nothing sends it anything.** There is no client. No `warrantor` subcommand, no agent hook,
-no console action pushes evidence to an archive. The crate is a server with no caller — the
-[[wire before widen]] failure this repository has now made three times: the ~20 substrate crates
-orphaned from the warrant, the guard benchmarked but not wired, and now this. **Until a push path
-exists, stage 1 is not usable by anyone**, and its merge changes nothing a user can observe.
+**For one release nothing sent it anything.** There was no client: no `warrantor` subcommand, no
+agent hook, no console action, and nothing outside `rust/archive` could produce a `Warrantor-Device`
+header at all — so the `curl` the deployment README documented could not be typed by anybody, and
+`submitted_by_device` had never named a person outside a unit test. That was the [[wire before
+widen]] failure this repository had by then made three times: the ~20 substrate crates orphaned from
+the warrant, the guard benchmarked but not wired, and then this.
+
+**It is wired now.** `warrantor archive enrol` pairs a machine against a one-time code and writes a
+device key beside the issuer and settle keys; `warrantor archive push <file>` files bytes verbatim;
+`warrantor archive fetch <sha256> --out <path>` reads one back — reads are signed too, which is the
+other reason `curl` was never enough; and `--archive` on `report`, `stop` and `spend` files the file
+`--export` just wrote. The signing half of the wire contract moved into
+`rust/warrant/src/archive_client.rs` so there is one definition of it rather than two, and the
+archive re-exports it: the dependency edge still runs archive → warrant, and the agent is still
+tokio-free. `warrantor-archive revoke --device <id>` landed with it, because issuing long-lived
+device keys with no way to withdraw one is not a credential system.
+
+What is still missing here: no list client, no TLS, no automatic push on settle, and no trust
+directory — so `--issuer` is still a hex string an operator pastes.
 
 The other four needs remain unbuilt: **trust directory, approval routing, time anchoring, fleet
 summary.** And `serve.rs` still binds loopback, so a second person on another machine still sees
