@@ -26,6 +26,16 @@ module.exports = {
   productName: 'Warrantor',
   copyright: 'Copyright © MuVeraAI Corporation. Licensed under Apache-2.0.',
 
+  // Set explicitly because the Linux default is package.json `name`, and this package is scoped:
+  // `@warrantor/desktop` becomes `@warrantordesktop`, whose `@` is not legal in a file path.
+  // electron-builder refuses at the AppImage step with "executableName contains characters that
+  // cannot be safely used in file paths", which is where the first-ever run of desktop-release
+  // died — after the Electron download and the packaging, so it costs a full leg to discover.
+  //
+  // Windows and macOS derive theirs from productName and were unaffected, which is exactly why
+  // this could sit in a config that reads fine and had never been executed.
+  executableName: 'warrantor-desktop',
+
   directories: {
     output: 'dist',
     buildResources: 'build',
@@ -104,5 +114,10 @@ module.exports = {
     category: 'Development',
     // The deb target fails outright without a maintainer. Read from package.json `author`.
     maintainer: 'MuVeraAI Corporation <opensource@muveraai.com>',
+    // Without this, desktop environments cannot associate the running window with this .desktop
+    // entry: the window shows a generic icon and does not group under the launcher. Electron uses
+    // it as app_id / WM_CLASS. It must match the .desktop filename, which is `executableName`.
+    desktopName: 'warrantor-desktop.desktop',
+    synopsis: 'Supervise an AI agent under a warrant you granted.',
   },
 };

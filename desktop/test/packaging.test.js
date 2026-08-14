@@ -256,3 +256,32 @@ test('desktop is not a member of the typescript npm workspace', () => {
     );
   }
 });
+
+/**
+ * electron-builder derives `executableName` from package.json `name` on Linux, and this package is
+ * scoped: `@warrantor/desktop` collapses to `@warrantordesktop`, whose `@` is not legal in a file
+ * path. The AppImage target refuses outright — "executableName contains characters that cannot be
+ * safely used in file paths" — and it does so AFTER downloading Electron and packaging the app, so
+ * it costs a whole platform leg to find out.
+ *
+ * That is what killed the first-ever run of desktop-release. Windows and macOS derive theirs from
+ * `productName` and were unaffected, which is precisely why a config that reads fine could sit
+ * unexecuted with this in it.
+ */
+test('executableName is set explicitly and is path-safe', () => {
+  assert.ok(builderConfig.executableName, 'executableName must be set, not derived from a scoped name');
+  assert.match(
+    builderConfig.executableName,
+    /^[A-Za-z0-9._ -]+$/,
+    'executableName must contain only letters, digits, hyphens, underscores, dots and spaces',
+  );
+});
+
+/**
+ * Electron uses `desktopName` as app_id / WM_CLASS. Without it a desktop environment cannot link
+ * the running window to the installed .desktop entry: generic icon, no launcher grouping. It has to
+ * match the .desktop file electron-builder writes, which is named after `executableName`.
+ */
+test('the linux desktop entry is named after the executable', () => {
+  assert.equal(builderConfig.linux.desktopName, `${builderConfig.executableName}.desktop`);
+});
