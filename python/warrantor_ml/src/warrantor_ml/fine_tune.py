@@ -474,9 +474,39 @@ class FineTuneConfig:
     #:
     #: Neither train split carries a borderline signal to render a third class FROM -- WildGuard's
     #: ``prompt_harm_agreement`` exists only in its TEST split and ExpGuard has no such column --
-    #: so supervising severity at all means supervising it binary. Leaving it unsupervised keeps
-    #: the base model's severity distribution intact while still tuning the category line, which
-    #: ``parse_guard_response`` treats as harmful in its own right.
+    #: so supervising severity at all means supervising it binary.
+    #:
+    #: .. warning::
+    #:
+    #:    **MASKING THE SEVERITY LINE DOES NOT PROTECT THE SEVERITY HEAD, AND RUN
+    #:    `catonly-2026-08-13b` MEASURED HOW BADLY.** The sentence this note replaced claimed
+    #:    that leaving severity unsupervised "keeps the base model's severity distribution
+    #:    intact". It does not, and the claim was wrong for a structural reason: LoRA adapts
+    #:    q/k/v/o/gate/up/down across every layer -- weights SHARED by both output fields. Not
+    #:    computing a loss on a field does not isolate that field; it only stops correcting it
+    #:    while training moves it anyway.
+    #:
+    #:    Three runs on the identical corpus, split, seed and quantisation::
+    #:
+    #:        untuned 0.6B                overall 0.8488   adversarial 0.7918
+    #:        run 1, severity supervised  overall 0.8329   adversarial 0.7947
+    #:        run 2, severity masked      overall 0.6804   adversarial 0.5572
+    #:
+    #:    Masking was **17 points worse than supervising it binary** and 23 adversarial points
+    #:    below the untuned model. The gate rejected run 1 as "within sampling noise" and run 2
+    #:    as "recall REGRESSED beyond sampling noise" -- correctly distinguishing them.
+    #:
+    #:    The severity distribution shows the mechanism. Run 2 did bring ``Controversial`` back,
+    #:    but overproduced it (187 against the base model's 49) while ``Unsafe`` collapsed (367
+    #:    against 650) -- and it began emitting **its own CATEGORY vocabulary in the severity
+    #:    slot**: ``non-violent illegal acts``, ``others``, ``violent``. An unsupervised field
+    #:    next to a supervised one did not stay still; it came unmoored and filled with the
+    #:    neighbouring field's tokens.
+    #:
+    #:    So neither setting works on this corpus, and the next attempt is not a third value of
+    #:    this flag. Isolating a field needs separate parameters (a second adapter, or target
+    #:    modules that do not carry severity), or a corpus that can supervise severity with all
+    #:    three values -- which needs a borderline signal no training split here has.
     supervise_severity: bool = True
 
     def profile(self) -> ModelProfile:

@@ -42,6 +42,24 @@ def _modal_text() -> str:
     return render_modal_entrypoint(_RECIPE, resolution)
 
 
+def _masked_modal_text() -> str:
+    """A runner rendered with severity supervision OFF.
+
+    The recipe default is True — both settings were measured and masking lost badly (see the
+    warning on FineTuneConfig.supervise_severity) — but the masking code path still exists and
+    still has to be correct, so it is exercised from an explicit config rather than from whatever
+    the recipe currently defaults to. A test that reads the default asserts the default, not the
+    behaviour.
+    """
+
+    import dataclasses
+
+    recipe = dataclasses.replace(
+        _RECIPE, config=dataclasses.replace(_RECIPE.config, supervise_severity=False)
+    )
+    return render_modal_entrypoint(recipe, resolve(recipe.config, "modal-a100", 5_000))
+
+
 class _StubTokenizer:
     """One token per whitespace-separated word, ids derived from the word.
 
@@ -226,13 +244,17 @@ def test_the_generated_data_path_produces_labels_the_trainer_can_compute_a_loss_
         assert any(label != namespace["LABEL_MASK"] for label in row["labels"])
 
 
-def test_the_generated_data_path_masks_the_prompt_and_supervises_the_categories_line() -> None:
+def test_the_generated_data_path_masks_the_prompt_and_supervises_the_whole_target() -> None:
     """Labels that copy the prompt train the adapter to reproduce the attack text.
 
-    This used to assert the WHOLE target was supervised. That is no longer the contract: run
-    `weak-2026-08-13a` showed binary severity targets extinguish the `Controversial` class, so
-    the severity line is now masked too. The prompt-masking invariant this test exists for is
-    unchanged, and the supervised region is the categories line plus the eos.
+    This assertion has now been rewritten twice by measurement, which is worth recording. It
+    originally covered the whole target; run `weak-2026-08-13a` made severity masking look like
+    the fix, so it was narrowed to the categories line; run `catonly-2026-08-13b` then measured
+    masking as 17 points WORSE, so the default went back and so did this. See the warning on
+    FineTuneConfig.supervise_severity — the masking path is still tested, from an explicit
+    config, by `_masked_modal_text`.
+
+    The prompt-masking invariant the test exists for never changed through any of that.
     """
 
     namespace = _generated_namespace(_kaggle_text())
@@ -244,9 +266,9 @@ def test_the_generated_data_path_masks_the_prompt_and_supervises_the_categories_
     input_ids = rows[0]["input_ids"]
 
     prompt_length = len(tokenizer(prompt + "\n")["input_ids"])
-    severity_length = len(tokenizer("Safety: Unsafe\n")["input_ids"])
-    supervised_from = prompt_length + severity_length
+    supervised_from = prompt_length
 
+    assert namespace["SUPERVISE_SEVERITY"] is True
     assert labels[:supervised_from] == [mask] * supervised_from
     assert mask not in labels[supervised_from:]
     # The unmasked tail is the categories line verbatim, plus the eos it has to learn to emit.
@@ -409,7 +431,7 @@ def test_the_severity_line_is_generated_but_not_learned() -> None:
     conditioned on it, and is masked in `labels`, so nothing teaches the model to emit it.
     """
 
-    namespace = _generated_namespace(_modal_text())
+    namespace = _generated_namespace(_masked_modal_text())
     assert namespace["SUPERVISE_SEVERITY"] is False
 
     mask = namespace["LABEL_MASK"]
@@ -430,7 +452,7 @@ def test_the_severity_line_is_generated_but_not_learned() -> None:
 def test_a_row_whose_target_is_severity_only_is_dropped_not_all_masked() -> None:
     """An all-masked row contributes no gradient and silently shrinks the effective corpus."""
 
-    namespace = _generated_namespace(_modal_text())
+    namespace = _generated_namespace(_masked_modal_text())
     rows = namespace["build_training_rows"](
         [{"prompt": "a prompt", "target": "Safety: Unsafe"}], _StubTokenizer()
     )
