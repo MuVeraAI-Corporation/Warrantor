@@ -27,7 +27,7 @@ clap.workspace = true
 # is a DIFFERENT algorithm and Rekor rejects it.
 ed25519-dalek = { version = "3", features = ["rand_core", "zeroize", "digest"] }
 getrandom = { version = "0.4", features = ["sys_rng"] }
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 base64 = "0.22"
 warrantor-api = { path = "../warrantor-api", version = "1.0.0" }
