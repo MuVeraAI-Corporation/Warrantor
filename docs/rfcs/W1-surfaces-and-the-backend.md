@@ -142,7 +142,11 @@ must not touch the verification path.
 - `rust/warrant` — the store, the verifier, and `serve.rs`. No new crate dependency is introduced by
   the console: the assets are `include_str!`-ed and the HTTP layer is the existing one.
 - No JavaScript build step, framework, bundler or package manager. The console is plain ES modules
-  and CSS, which keeps the audit surface of the oversight UI readable in full.
+  and CSS, which keeps the audit surface of the oversight UI readable in full. `node --test` is not
+  a violation of that rule and the console's behaviour tests use it: it is the runtime's own runner,
+  it installs nothing, there is no `package.json` beside the assets, and `desktop/test/policy.test.js`
+  already runs under it here. Reading the rule as "no test runner either" is what left `emptyKind`
+  untested, and three of its four rungs were wrong.
 - The future backend depends on `ed25519-dalek` verification and the evidence bundle format already
   produced by `report --export`; it introduces no new cryptographic primitive.
 
@@ -183,7 +187,7 @@ New CLI verb: `warrantor console`, taking the same flags as `serve`.
 
 ## Testing
 
-`rust/warrant/tests/console.rs`, nine tests. The load-bearing one is
+`rust/warrant/tests/console.rs`, sixteen tests. The load-bearing one is
 `serving_the_console_does_not_make_the_api_reachable_without_a_token`: six `/v1` routes, including
 `settle`, are asserted to still refuse an anonymous caller. If a future refactor makes
 `console_asset` match too eagerly — a wildcard, a prefix test, a fallthrough to `index.html` for
@@ -193,6 +197,51 @@ unknown paths — it fails on the exact request an attacker would send.
 makes unauthenticated serving safe, rather than asserting it in a comment: two servers on different
 roots, one holding a warrant and one empty, must answer byte-identically.
 
+`the_console_carries_no_inline_script_handler_or_style_because_the_policy_forbids_them` and
+`the_console_loads_nothing_from_off_this_origin` guard the policy from the one direction nothing
+else covers. `script-src 'self'` carries no `unsafe-inline`, so an `onclick=` on a button, a
+`style=` attribute or an icon fetched from a CDN breaks *silently in the browser* while every other
+test here passes. These assert over the served bytes: exactly one `<script`, and it has a `src`; no
+`on…=` attribute; no `style=` or `<style`; no off-origin `src`, `href`, `url()` or `@import`.
+
+Five tests assert the first-run panel's prose, because that prose is the product's own statement of
+its boundary: that granting is deliberately absent rather than missing, that the reason is the
+minting of authority and the issuer key, that the grant line appears exactly as it is typed, that
+`--write` is described as containment at settle rather than refusal at write, and — the one added
+after review — that the lede claims only the strengths `bound_strengths()` actually holds.
+
+That last test exists because the lede did not. It said "nothing it does is visible outside that
+copy until a person settles the warrant, and external effects are staged rather than performed", and
+neither half is true: there is no network namespace, no seccomp filter and no firewall anywhere in
+this crate, and `proxy.rs::decide()` returns `Decision::Forward` for any call whose class is not in
+`staged_classes` or whose tool is absent from `EffectRegistry::github()` — so under the exact grant
+line the panel printed, `Financial`, `Destructive` and `Physical` effects were performed on the
+spot. Prose that promises a property the code does not enforce is a defect of the same severity as
+a wrong signature check, and this is the first thing a non-developer reads. The test now pins the
+three strength tiers by name, pins that the mediated tier says what it does *not* hold, and pins the
+overclaims out in the words they would return in. The grant line gained `--repo .` in the same pass:
+`cmd_grant` creates a worktree only when `--repo` is given, so the printed line made no worktree at
+all while the paragraph above it described one.
+
+`an_empty_store_and_an_empty_filter_are_different_sentences` pins that the four causes of an empty
+list have four wordings and that neither of the two most easily confused is a substring of the
+other. `the_inline_attribute_guards_see_an_attribute_however_its_tag_is_wrapped` pins the reach of
+the two byte guards above, which read a single literal space while their doc comment claimed
+"whitespace-delimited" — a handler on its own line was invisible to the only guard that exists for
+it.
+
+`emptyKind`'s branch selection is exercised by `rust/warrant/src/console/console.test.js` under
+`node --test`, added after review found three of its four rungs wrong or unreachable while every
+Rust test passed. It is not a JavaScript runner in the sense §Dependencies forbids: nothing is
+installed, no `package.json` sits beside the assets, and the same runner already gates
+`desktop/test/policy.test.js`. The file stubs the DOM itself and boots `console.js` as the browser
+does, so it covers both the pure decision (`listFacts`, `emptyKind`) and the rendered result: that
+a 200 with an unparseable body shows the error paragraph and never "No warrants on this machine
+yet."; that a filtered empty view over a store holding a corrupt file stays a filtered view with
+its **Show all**; that an agent which is not answering explains itself, starts polling anyway and
+recovers without a reload; and that a store which empties under the console takes the detail pane's
+release controls with it. Every one of those fails against the code as it was.
+
 The rest cover content types, the policy headers, the absence of a CORS header, method refusal, the
 `/index.html` alias, and that presenting a token yields no different document.
 
@@ -201,6 +250,33 @@ server started, and the console loaded in Chrome. The list, verdict, report and 
 bundles and the three acts render; the fragment is erased after load; no CSP violation is reported.
 The launcher was verified through the full chain — shim, redirect carrying the fragment,
 authenticated console.
+
+The empty-store path is the one state a machine in use cannot reach, so it is reached by pointing
+the binary at a fresh store root — `WarrantStore::default_root` reads `HOME`, or `USERPROFILE` on
+Windows. Against a live `warrantor serve` on such a root, the four inputs `emptyKind` reads were
+each produced and observed: unfiltered and empty (`200`, zero rows, zero unreadable → first-run);
+`?state=held` on the same store (same triple with a filter on → filtered); one warrant restored
+under the running server (one row → the panel's clearing input, no restart); and an unparseable file
+in `warrants/` (zero rows, `unreadable_records: 1` → unreadable). The `error` rung was **not**
+exercised live: producing a non-200 from the list route needs an induced store failure, and the
+rung's justification was read off `list_warrants`'s `self.internal(...)` path rather than off a run.
+That reading is what missed the two ways into the rung that mattered more — a 200 whose body did not
+parse, and a `fetch` that rejected — both of which are now covered by `console.test.js` rather than
+by a justification.
+
+**Not yet verified for this change, and stated rather than implied:** the panel's rendering in a
+real browser, and the copy button's clipboard path and its selection fallback. Those need a DOM the
+stub does not model, and the coverage above stops at the bytes served, the JSON answered, and the
+elements the stub does model. The **Show all** round trip and the chip round trip are covered by
+`console.test.js`.
+
+A first-run gap this work did *not* close, found while reaching that state: on a machine that has
+never run any warrant-touching command there is no issuer key, and `warrantor serve` refuses to
+start rather than minting one — correctly, since a server that minted an identity on first use would
+sign evidence with a key nobody chose. So the true first contact for a brand-new user is that CLI
+refusal, not this panel. The panel covers the keyed-but-empty store, which is what a reviewer,
+a pruned store or an `mcp`-first setup actually presents. Closing the other half belongs with
+packaging (`docs/W1-delivery-gaps.md` §1.1–1.2), not with the console.
 
 ## Deployment
 

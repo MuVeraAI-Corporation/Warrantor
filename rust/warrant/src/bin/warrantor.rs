@@ -258,8 +258,17 @@ Run starts the agent under a supervisor detached from this terminal: closing the
 terminal ends your view of the run, not the run. Status says what is still going
 and what stopped and needs a decision.
 
-Grant creates an isolated git worktree. The agent works there; nothing it does is
-visible outside until you settle. External effects are staged, not performed.";
+Grant creates a git worktree and points the agent at it. External effects are
+staged, not performed, and settle stages only in-bounds paths, so out-of-bounds
+edits are never merged into your working copy.
+
+That is containment AT SETTLE, not at write. Nothing stops the agent writing
+outside the worktree while it runs: write_paths is Observed, and the one place a
+bound is refused at the moment of action is the MCP proxy, which sees only what
+the agent routes through it. In the first live dogfood an agent granted
+--write 'src/**' wrote tests/__pycache__/ and nothing refused it. Every warrant
+reports which of its bounds are Enforced, Mediated and Observed -- read that, and
+compose with a sandbox if you need writes stopped as they happen.";
 
 fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let Some(goal) = args.flags.get("goal") else {

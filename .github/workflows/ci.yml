@@ -252,10 +252,29 @@ jobs:
       - name: Run policy tests
         run: node --test
 
+  console:
+    name: Browser console behaviour
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      # Same trade as the desktop job above, for the same reason. The Rust tests over
+      # `rust/warrant/tests/console.rs` can only assert on the bytes the server sends; which empty
+      # state a reader is shown -- "no warrants yet" versus "no warrants in this state" versus "this
+      # list could not be read" -- is decided in `console.js`, and three of those four rungs were
+      # wrong or unreachable while every Rust test passed. `node --test` is the runtime's own
+      # runner: no install, no bundler, no framework, no package manager, so RFC W1 §Dependencies
+      # holds. The DOM is stubbed in the test file itself.
+      - name: Run console tests
+        run: node --test rust/warrant/src/console/console.test.js
+
   required:
     name: Required checks
     if: always()
-    needs: [dco, contract-plane, rust, python, go, typescript, conformance, docs, desktop]
+    needs:
+      [dco, contract-plane, rust, python, go, typescript, conformance, docs, desktop, console]
     runs-on: ubuntu-latest
     steps:
       - name: Enforce all required jobs
@@ -269,7 +288,8 @@ jobs:
           CONFORMANCE: ${{ needs.conformance.result }}
           DOCS: ${{ needs.docs.result }}
           DESKTOP: ${{ needs.desktop.result }}
+          CONSOLE: ${{ needs.console.result }}
         run: |
-          for result in "$DCO" "$CONTRACT_PLANE" "$RUST" "$PYTHON" "$GO" "$TYPESCRIPT" "$CONFORMANCE" "$DOCS" "$DESKTOP"; do
+          for result in "$DCO" "$CONTRACT_PLANE" "$RUST" "$PYTHON" "$GO" "$TYPESCRIPT" "$CONFORMANCE" "$DOCS" "$DESKTOP" "$CONSOLE"; do
             test "$result" = "success"
           done

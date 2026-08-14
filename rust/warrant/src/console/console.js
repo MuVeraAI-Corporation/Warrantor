@@ -28,14 +28,29 @@ const el = {
   gateError: document.getElementById('gate-error'),
   app: document.getElementById('app'),
   list: document.getElementById('list'),
-  listEmpty: document.getElementById('list-empty'),
+  listEmptyFirstRun: document.getElementById('list-empty-first-run'),
+  listEmptyFiltered: document.getElementById('list-empty-filtered'),
+  listEmptyUnreadable: document.getElementById('list-empty-unreadable'),
+  listEmptyError: document.getElementById('list-empty-error'),
+  showAll: document.getElementById('show-all'),
+  firstRun: document.getElementById('first-run'),
+  grantCommand: document.getElementById('first-run-command'),
+  copyButton: document.getElementById('copy-command'),
   detail: document.getElementById('detail'),
   health: document.getElementById('health'),
   authority: document.getElementById('authority'),
   toast: document.getElementById('toast'),
 };
 
-let state = { filter: '', selected: null, releaseAuthority: false };
+/**
+ * `authorityKnown` is tracked separately from `releaseAuthority` on purpose.
+ *
+ * "this server told us it holds no settle key" and "nobody has answered yet" are different facts.
+ * Folding them would print the confident sentence "this server was started without --allow-settle"
+ * underneath a server the console has never heard from, which is a dead guard reported as a
+ * reading. Both keep the buttons disabled; only one of them may be explained that way.
+ */
+let state = { filter: '', selected: null, releaseAuthority: false, authorityKnown: false };
 
 /**
  * How often to re-read the list, in milliseconds.
@@ -72,27 +87,43 @@ function tokenFromFragment() {
 /**
  * Call the local API.
  *
- * Returns the parsed envelope for any response the server produced, including a refusal:
- * a 4xx here is an *answer*, and the caller decides how to show it. Only a transport
- * failure throws.
+ * Returns three things, and `answered` is the one that matters: whether the server produced a
+ * response at all. A 4xx is an *answer* — the caller decides how to show it — but a connection
+ * refused, an agent process that exited, or a socket cut mid-body is not, and this reports that as
+ * an outcome rather than throwing.
+ *
+ * It threw once, and every caller was worse for it. `refresh()` swallowed the throw in a bare
+ * `catch {}` so nothing on screen changed; a throw during `connect()` skipped `startRefreshing()`
+ * entirely, leaving a visible app with an empty list, every empty-state paragraph still hidden, and
+ * no poll that could ever recover it. Failing to reach the server is the likeliest way a loopback
+ * agent fails, and it was the one failure the console could not say anything about.
+ *
+ * `payload` is null when the body did not parse. Callers must not read that as "empty": see
+ * `listFacts`.
  */
 async function call(path, options = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      authorization: `Bearer ${api.token}`,
-      ...(options.body ? { 'content-type': 'application/json' } : {}),
-    },
-    // The API sends Connection: close and no CORS headers; this is same-origin only.
-    cache: 'no-store',
-  });
+  let response;
+  try {
+    response = await fetch(path, {
+      ...options,
+      headers: {
+        authorization: `Bearer ${api.token}`,
+        ...(options.body ? { 'content-type': 'application/json' } : {}),
+      },
+      // The API sends Connection: close and no CORS headers; this is same-origin only.
+      cache: 'no-store',
+    });
+  } catch {
+    return { answered: false, status: 0, payload: null };
+  }
   let payload = null;
   try {
     payload = await response.json();
   } catch {
+    // A truncated body under `Connection: close` lands here, as does anything that is not JSON.
     payload = null;
   }
-  return { status: response.status, payload };
+  return { answered: true, status: response.status, payload };
 }
 
 // ── rendering helpers ───────────────────────────────────────────────────────
@@ -169,6 +200,133 @@ function jsonBlock(value) {
   return node('pre', 'json', JSON.stringify(value, null, 2));
 }
 
+// ── the empty states ────────────────────────────────────────────────────────
+
+/**
+ * What a list response actually established, as opposed to what reading it optimistically yields.
+ *
+ * Exported and pure so it can be tested directly; `console.test.js` covers every branch.
+ *
+ * `readable` is the load-bearing field, and the reason this function exists rather than a chain of
+ * `?.` and `?? 0` at the call site. Optional chaining turns *every* unusable response into the same
+ * shape as an empty store: a body that did not parse gives `payload === null`, a `warrants` field
+ * that is not an array gives zero rows, and an absent `unreadable_records` gives zero unreadable.
+ * All three used to arrive at `emptyKind` indistinguishable from a genuinely empty store on a 200,
+ * and therefore rendered as the confident sentence "No warrants on this machine yet." to someone
+ * whose store was full. Zero rows is a fact about a response only when the response was one this
+ * console could read.
+ *
+ * `unreadable_records` is validated rather than coerced for the same reason. It is the count that
+ * raises the corruption alarm, so a value this console cannot interpret must not be quietly read as
+ * zero — that is a broken guard reported as "all clear". Absent is treated as zero, and only
+ * absent, so a server that predates the field still lists.
+ *
+ * @param {boolean} answered Did the server produce a response at all?
+ * @param {number} status HTTP status, meaningful only when `answered`.
+ * @param {unknown} payload The parsed envelope, or null when the body did not parse.
+ * @returns {{readable: boolean, rows: Array, unreadable: number}}
+ */
+export function listFacts(answered, status, payload) {
+  const unusable = { readable: false, rows: [], unreadable: 0 };
+  if (!answered || status !== 200) return unusable;
+  const warrants = payload?.data?.warrants;
+  // `undefined`, not `?? 0`: JSON has no `undefined`, so an absent field is a server that predates
+  // the count, while an explicit `null` is a server declining to give one. Only the first may be
+  // read as "no corrupt files"; the second is a guard with no reading behind it.
+  const counted = payload?.data?.unreadable_records;
+  const unreadable = counted === undefined ? 0 : counted;
+  if (!Array.isArray(warrants)) return unusable;
+  if (!Number.isInteger(unreadable) || unreadable < 0) return unusable;
+  return { readable: true, rows: warrants, unreadable };
+}
+
+/**
+ * Which empty state the server's answer actually supports.
+ *
+ * Total and pure, so the only way to reach a wrong screen is to disagree with the ordering
+ * below — and each rung outranks the next for a reason:
+ *
+ * - `error` first, and it is decided by `readable`, never by the status alone. `list_warrants` can
+ *   fail, the connection can fail, and the body can arrive unparseable with a 200 on it. Absence of
+ *   an answer is not the answer "none": telling someone with a full store that they have never
+ *   granted a warrant is the same class of lie as rendering `unknown` as `failed`, and it lands on
+ *   the reader least able to check it.
+ * - `rows` next, because there is then nothing empty to explain.
+ * - `filtered` above `unreadable`. This ordering was the other way round and that was wrong: a
+ *   store holding five open warrants and one corrupt file, viewed under the Settled chip, was told
+ *   "Nothing could be listed, but this store is not empty" — a sentence that is false (plenty could
+ *   be listed, just not in this state) and that carries no **Show all**, so it also removed the way
+ *   out. `unreadable_records` being filter-independent justifies knowing the store is non-empty; it
+ *   does not justify a filter-independent *sentence*. The corruption count is not lost by this: the
+ *   warning row `loadList` writes into the list is rendered whenever the count is non-zero,
+ *   whatever the filter and whichever paragraph is showing.
+ * - `unreadable` above `first-run`. Counted over the whole store, so a non-zero count is proof this
+ *   store holds files. A store the server could not parse is not a store that has never granted,
+ *   and saying so would erase a history and bury a corruption warning in one sentence.
+ * - `first-run` last, and only there. A readable, unfiltered response with zero rows and zero
+ *   unreadable is the one case where "this machine has never granted a warrant" is a fact the
+ *   response supports.
+ *
+ * Two things are deliberately NOT done. It does not re-ask the server without the filter when a
+ * filtered list comes back empty: that would make the console assert something the response it is
+ * rendering did not contain, and it would race the poller. And no `total` was added to the list
+ * payload: that puts a UI convenience inside a frozen `/v1` surface. Neither is needed — the
+ * filter is never persisted, so it can only be on because someone clicked a chip in this session,
+ * and "Show all" is one click away.
+ *
+ * @param {{readable: boolean, rowCount: number, unreadable: number, filter: string}} facts
+ * @returns {'error'|'rows'|'filtered'|'unreadable'|'first-run'}
+ */
+export function emptyKind({ readable, rowCount, unreadable, filter }) {
+  if (!readable) return 'error';
+  if (rowCount > 0) return 'rows';
+  if (filter) return 'filtered';
+  if (unreadable > 0) return 'unreadable';
+  return 'first-run';
+}
+
+/** Show exactly one empty state, and exactly one of the two right-hand panes. */
+function applyEmptyState(kind) {
+  el.listEmptyFirstRun.hidden = kind !== 'first-run';
+  el.listEmptyFiltered.hidden = kind !== 'filtered';
+  el.listEmptyUnreadable.hidden = kind !== 'unreadable';
+  el.listEmptyError.hidden = kind !== 'error';
+
+  // `hidden` is display:none, so the pane that is not showing occupies no grid cell and the
+  // two-column layout survives having three children.
+  const explain = kind === 'first-run';
+  el.firstRun.hidden = !explain;
+  el.detail.hidden = explain;
+
+  // A selection cannot survive a store that holds nothing: leaving it set would make the next
+  // poll fetch an id this store does not have and render the 404 as if it were news.
+  //
+  // Clearing the *pane* is the other half, and it was missing. `hidden` only stops the pane being
+  // painted; the verdict and the enabled Settle / Void / Stop buttons rendered for the warrant that
+  // was selected stayed in the DOM, and the next poll that returned rows showed them again intact —
+  // live-looking release controls over a warrant this store no longer holds, with no row
+  // highlighted and no selection behind them. Clicking Settle there POSTs against a deleted id.
+  if (explain) {
+    state.selected = null;
+    el.detail.replaceChildren(node('div', 'placeholder', 'Select a warrant.'));
+  }
+}
+
+/**
+ * Point the list at one state.
+ *
+ * Shared by the chips and by "Show all" so the chip that looks selected and the filter actually
+ * in force cannot drift apart — which they would the moment a second caller set `state.filter`
+ * without touching the chips, leaving the reader looking at "All" while a filter was on.
+ */
+function setFilter(value) {
+  state.filter = value;
+  for (const chip of document.querySelectorAll('.chip')) {
+    chip.classList.toggle('is-on', (chip.dataset.state ?? '') === value);
+  }
+  return loadList();
+}
+
 // ── list ────────────────────────────────────────────────────────────────────
 
 /**
@@ -179,16 +337,15 @@ function jsonBlock(value) {
  */
 async function loadList() {
   const query = state.filter ? `?state=${encodeURIComponent(state.filter)}` : '';
-  const { status, payload } = await call(`/v1/warrants${query}`);
-  if (status === 401) {
+  const { answered, status, payload } = await call(`/v1/warrants${query}`);
+  if (answered && status === 401) {
     showGate('That token was not accepted.');
     return new Set();
   }
 
   el.list.replaceChildren();
-  const warrants = payload?.data?.warrants ?? [];
-  const rows = Array.isArray(warrants) ? warrants : [];
-  el.listEmpty.hidden = rows.length > 0;
+  const facts = listFacts(answered, status, payload);
+  const rows = facts.rows;
 
   // Compared against the previous read rather than assumed from the response, because a filtered
   // list cannot distinguish "this warrant was settled" from "this warrant left the filter".
@@ -202,7 +359,10 @@ async function loadList() {
   // A record the server could not read is the one thing an oversight console must never
   // quietly drop: a list that silently shrinks reads as "nothing happened" at exactly the
   // moment something did. The API counts them separately, so this surfaces the count.
-  const unreadable = payload?.data?.unreadable_records ?? 0;
+  //
+  // This row is written whatever the filter and whichever empty paragraph shows below, which is
+  // what lets `emptyKind` rank `filtered` above `unreadable` without losing the warning.
+  const unreadable = facts.unreadable;
   if (unreadable > 0) {
     const warn = document.createElement('li');
     warn.append(
@@ -242,6 +402,17 @@ async function loadList() {
     el.list.append(item);
   }
 
+  // Re-derived from this response rather than latched on connect, so the panel appears the moment
+  // a store empties and clears itself within one poll of the first grant, with no reload.
+  applyEmptyState(
+    emptyKind({
+      readable: facts.readable,
+      rowCount: rows.length,
+      unreadable,
+      filter: state.filter,
+    }),
+  );
+
   return changed;
 }
 
@@ -263,13 +434,19 @@ async function refresh() {
   if (refreshing || document.hidden || !api.token || el.app.hidden) return;
   refreshing = true;
   try {
+    // Re-read while the answer is still missing, and only then. A health read that never arrived
+    // left `releaseAuthority` latched at a value nobody reported, and nothing else re-reads it.
+    if (!state.authorityKnown) await loadHealth();
     const changed = await loadList();
     if (state.selected && changed.has(state.selected)) {
       await loadDetail(state.selected, { quiet: true });
     }
-  } catch {
-    // A failed poll is not worth a message: the next one is five seconds away, and a console that
-    // shouts about a transient fetch teaches the reader to ignore it.
+  } catch (failure) {
+    // Reaching here now means a defect in this file, not a failed request: `call` reports a
+    // transport failure as an answer-less outcome and `loadList` paints the error paragraph for it.
+    // The bare `catch {}` that used to sit here was a guard that failed open and reported nothing —
+    // an unexplained empty list that never explained itself. A static asset has one channel left.
+    console.error('warrantor console: refresh failed', failure);
   } finally {
     refreshing = false;
   }
@@ -294,6 +471,10 @@ function startRefreshing() {
 async function select(id) {
   state.selected = id;
   await loadList();
+  // That read can null the selection out from under this click — it does exactly that when the
+  // store turned out to be empty. Loading the detail anyway would refill the pane
+  // `applyEmptyState` just cleared, with a 404 rendered as though it were about a real warrant.
+  if (state.selected !== id) return;
   await loadDetail(id);
 }
 
@@ -302,11 +483,26 @@ async function loadDetail(id, { quiet = false } = {}) {
   // reads as the view breaking, not as it updating.
   if (!quiet) el.detail.replaceChildren(node('div', 'placeholder', 'Loading…'));
 
-  const { status, payload } = await call(`/v1/warrants/${encodeURIComponent(id)}`);
-  if (status === 401) return showGate('That token was not accepted.');
+  const { answered, status, payload } = await call(`/v1/warrants/${encodeURIComponent(id)}`);
+  if (answered && status === 401) return showGate('That token was not accepted.');
 
   const view = document.createDocumentFragment();
   view.append(node('h2', null, id));
+
+  if (!answered) {
+    // No verdict, no actions. Rendering the envelope helpers against a null payload would print
+    // "not verified — unknown" and a row of buttons, which reads as a statement about this warrant
+    // when the truth is that nothing was read about it at all.
+    view.append(
+      node(
+        'p',
+        'error',
+        'The server did not answer, so nothing here is a statement about this warrant. The list keeps retrying.',
+      ),
+    );
+    el.detail.replaceChildren(view);
+    return;
+  }
 
   if (status >= 400) {
     view.append(node('p', 'error', payload?.error?.message ?? `The server refused with ${status}.`));
@@ -334,11 +530,15 @@ async function loadDetail(id, { quiet = false } = {}) {
   // The sub-resources load after the shell so a slow report cannot hold up the verdict —
   // the verdict is the thing a reviewer came for.
   for (const [title, path] of sections.slice(1)) {
-    const { status: s, payload: p } = await call(path);
-    if (s === 404) continue;
+    const { answered: a, status: s, payload: p } = await call(path);
+    if (a && s === 404) continue;
     const section = node('div', 'section');
     section.append(node('h3', null, title));
-    if (s >= 400) {
+    if (!a) {
+      // Not `continue`: a section that vanishes reads as "there is none of this", and a sub-resource
+      // nobody could reach is not a sub-resource that does not exist.
+      section.append(node('p', 'error', 'The server did not answer for this section.'));
+    } else if (s >= 400) {
       section.append(node('p', 'error', p?.error?.message ?? `Refused with ${s}.`));
     } else {
       // Each sub-resource carries its own verdict; a report that fails verification must
@@ -379,7 +579,17 @@ function renderActions(id, envelope) {
   make('Stop', 'stop', true, false, 'End this run now and write a signed stop record?');
   wrap.append(acts);
 
-  if (!state.releaseAuthority) {
+  if (!state.authorityKnown) {
+    // The reason has to match what was actually read. Printing the --allow-settle sentence here
+    // would explain a server nobody has heard from, which is a guess wearing a reading's clothes.
+    wrap.append(
+      node(
+        'p',
+        'note error',
+        'This console has not been able to read whether this server holds release authority, so settle and void are disabled here. That is an absence of signal, not a clearance.',
+      ),
+    );
+  } else if (!state.releaseAuthority) {
     wrap.append(
       node(
         'p',
@@ -402,11 +612,19 @@ function renderActions(id, envelope) {
 
 async function act(id, path, label, prompt) {
   if (!window.confirm(`${prompt}\n\n${id}`)) return;
-  const { status, payload } = await call(`/v1/warrants/${encodeURIComponent(id)}/${path}`, {
-    method: 'POST',
-    body: JSON.stringify({}),
-  });
-  if (status >= 400) {
+  const { answered, status, payload } = await call(
+    `/v1/warrants/${encodeURIComponent(id)}/${path}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({}),
+    },
+  );
+  if (!answered) {
+    // A POST that got no answer may still have been performed: the request can have reached the
+    // server and the response been lost. Saying "refused" would be a claim about the store, and
+    // saying "accepted" would be worse. The reload below shows whatever actually happened.
+    toast(`${label}: the server did not answer, so whether it acted is unknown.`);
+  } else if (status >= 400) {
     toast(payload?.error?.message ?? `${label} refused with ${status}.`);
   } else {
     toast(`${label} accepted.`);
@@ -414,15 +632,79 @@ async function act(id, path, label, prompt) {
   await select(id);
 }
 
+// ── the grant line ──────────────────────────────────────────────────────────
+
+/**
+ * Put the grant command on the clipboard, or say honestly that it could not be put there.
+ *
+ * Feature-detected rather than assumed, because two supported ways of running this console have
+ * no clipboard write. `navigator.clipboard` is undefined on a non-secure origin, which is what
+ * `--bind <lan-ip>` over plain HTTP produces; and the desktop shell grants the renderer no
+ * permissions at all — `desktop/src/policy.js` freezes the granted list empty, deliberately — so
+ * the write can reject there while working in Chrome. Widening that list to make a convenience
+ * button work would trade a tested security decision for a nicety, so the fallback lives here.
+ *
+ * The fallback selects the text and says what to press. It never toasts "Copied." for a copy that
+ * did not happen: claiming an act that did not occur is the same shape of error as showing
+ * `unknown` as `ok`, and this console is the surface that must not do that anywhere.
+ */
+async function copyGrantCommand() {
+  const line = el.grantCommand.textContent ?? '';
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(line);
+      toast('Copied.');
+      return;
+    } catch {
+      // Permission refused or origin not secure. Fall through rather than report a copy.
+    }
+  }
+  selectGrantCommand();
+}
+
+/** Select the grant line so a keyboard copy works where the clipboard API does not. */
+function selectGrantCommand() {
+  const selection = window.getSelection?.();
+  if (!selection) {
+    toast('This browser will not copy for us — select the line and copy it by hand.');
+    return;
+  }
+  const range = document.createRange();
+  range.selectNodeContents(el.grantCommand);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  toast('Selected. Press Ctrl+C (Cmd+C on a Mac) to copy.');
+}
+
 // ── health ──────────────────────────────────────────────────────────────────
 
+/**
+ * Read the server's own report of itself.
+ *
+ * Returns whether the console may proceed into the app — which is NOT the same as whether the read
+ * succeeded. A server that did not answer has not rejected the token, and sending the reader back
+ * to the gate would blame them for the agent being down. So a silent server proceeds, says so in
+ * the pill, leaves authority unknown, and lets the list explain itself; only an actual 401 gates.
+ */
 async function loadHealth() {
-  const { status, payload } = await call('/v1/health');
-  if (status === 401) {
+  const { answered, status, payload } = await call('/v1/health');
+  if (answered && status === 401) {
     showGate('That token was not accepted.');
     return false;
   }
-  const data = payload?.data ?? {};
+  if (!answered || status !== 200 || !payload?.data) {
+    el.health.textContent = answered ? `no reading (${status})` : 'no answer';
+    el.health.className = 'pill pill-unknown';
+    // Conservative on the buttons, honest in the label: `authorityKnown` stays false, so
+    // `renderActions` explains the absence rather than asserting how the server was started.
+    // `refresh` re-reads until a real answer arrives.
+    state.releaseAuthority = false;
+    state.authorityKnown = false;
+    el.authority.textContent = 'authority unknown';
+    el.authority.className = 'pill pill-unknown';
+    return true;
+  }
+  const data = payload.data;
   el.health.textContent = data.version ? `v${data.version}` : 'connected';
   el.health.className = 'pill pill-ok';
 
@@ -433,6 +715,7 @@ async function loadHealth() {
   );
   el.authority.textContent = state.releaseAuthority ? 'settle armed' : 'read + stop only';
   el.authority.className = `pill ${state.releaseAuthority ? 'pill-unknown' : 'pill-quiet'}`;
+  state.authorityKnown = true;
   return true;
 }
 
@@ -452,8 +735,13 @@ async function connect(token) {
   if (!ok) return;
   el.gate.hidden = true;
   el.app.hidden = false;
-  await loadList();
+  // Polling starts BEFORE the first read, not after it. It used to be the other line, and a first
+  // read that did not complete meant `startRefreshing()` was never reached: a visible app, an empty
+  // list, every explanation still hidden, and no timer that could ever revisit any of it. The order
+  // here is the difference between a console that recovers when the agent comes back and one that
+  // has to be reloaded by hand.
   startRefreshing();
+  await loadList();
 }
 
 // ── wiring ──────────────────────────────────────────────────────────────────
@@ -468,13 +756,17 @@ el.gateForm.addEventListener('submit', (event) => {
 });
 
 for (const chip of document.querySelectorAll('.chip')) {
-  chip.addEventListener('click', () => {
-    for (const other of document.querySelectorAll('.chip')) other.classList.remove('is-on');
-    chip.classList.add('is-on');
-    state.filter = chip.dataset.state ?? '';
-    loadList();
-  });
+  chip.addEventListener('click', () => setFilter(chip.dataset.state ?? ''));
 }
+
+// "Show all" is the way out of an empty filtered view, and it goes through the same call as the
+// chips so it cannot leave a chip lit for a filter that is no longer in force.
+el.showAll.addEventListener('click', () => setFilter(''));
+
+// Wired here, not as an onclick attribute: the console is served under `script-src 'self'` with
+// no `unsafe-inline`, so an inline handler would be silently dead in the browser and pass every
+// test in the suite.
+el.copyButton.addEventListener('click', copyGrantCommand);
 
 const fromUrl = tokenFromFragment();
 if (fromUrl) {

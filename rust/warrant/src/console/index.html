@@ -51,11 +51,121 @@
           <button class="chip" data-state="void">Void</button>
         </div>
         <ul id="list" class="list"></ul>
-        <p id="list-empty" class="empty" hidden>No warrants in this view.</p>
+
+        <!-- Four sentences, not one. A list that could not be read, a filter that matched nothing,
+             a store whose files could not be parsed, and a machine that has never granted are four
+             different facts about why this list is empty. A single string for all four made
+             clicking a chip look like data loss, and made a failed request look like a confident
+             statement about the reader's own history. `emptyKind` in console.js picks exactly one
+             of these, and the order it picks in is the fix. The unreadable sentence below is the
+             one that must stay last of the two middle rungs: it speaks about the whole store, so
+             it is only true when no filter is narrowing the view. -->
+        <p id="list-empty-first-run" class="empty" hidden>No warrants on this machine yet.</p>
+        <p id="list-empty-filtered" class="empty" hidden>
+          No warrants in this state.
+          <button id="show-all" type="button">Show all</button>
+        </p>
+        <p id="list-empty-unreadable" class="empty error" hidden>
+          Nothing could be listed, but this store is not empty. See the warning above.
+        </p>
+        <!-- Three failures, one sentence, because the reader's next move is the same for all
+             three and the console cannot always tell them apart. It is worded for what it can
+             honestly say: this list was not read. It said only "The server did not answer." while
+             `emptyKind` could not reach it on a transport failure at all — the sentence described
+             the one case it never fired on. -->
+        <p id="list-empty-error" class="empty error" hidden>
+          This list could not be read: the server did not answer, refused, or replied with
+          something this console could not parse. That is not the same as there being nothing here.
+        </p>
       </nav>
 
       <section id="detail" class="detail">
         <div class="placeholder">Select a warrant.</div>
+      </section>
+
+      <!-- The first-run panel.
+           A SIBLING of #detail, never a child: loadDetail() calls el.detail.replaceChildren(),
+           which would delete a nested panel outright the first time anyone clicked a row.
+           Exactly one of the two is visible, so the two-column grid stays two columns.
+
+           Every word here is fixed prose compiled into the binary. Nothing store-derived may be
+           templated in — no warrant count, no store path, no URL — because this document is
+           served BEFORE the token check, and it is safe to serve unauthenticated only for as
+           long as it is byte-identical on every machine. -->
+      <section id="first-run" class="first-run" hidden>
+        <h2>Nothing has been granted on this machine yet</h2>
+
+        <p class="first-run-lede">
+          A warrant is written, signed permission for an AI agent to do one stated job: what it is
+          for, which tools it may use, which paths it may write to, and when the permission runs
+          out. Granted inside a git repository, it also prepares a separate worktree on a branch of
+          its own, so the agent's file edits stay off your working copy until a person settles the
+          warrant.
+        </p>
+
+        <!-- The paragraph this panel most needs, and the easiest one to leave out.
+             `bound_strengths()` in lib.rs is the source of every strength word below; if that
+             function changes, this changes with it. Nothing here may promise containment: there is
+             no network namespace, no seccomp filter and no firewall anywhere in this product, so an
+             agent given shell access reaches past the broker. The `write_paths` label read
+             `Enforced` once, a developer relied on it, and an agent wrote outside its bounds with
+             nothing refusing. This is the first and only thing a new reader sees, so it is where a
+             wrong mental model would be formed. -->
+        <p class="first-run-lede">
+          Those bounds are not all held the same way, and a warrant says which is which rather than
+          implying one guarantee. The deadline and the delegation limit are
+          <strong>enforced</strong>: an operating-system process link, and a signature the agent
+          cannot forge. The tool allowlist, the egress hosts and the staged effect classes are
+          <strong>mediated</strong> &mdash; refused by the broker the agent's tool calls pass
+          through, which is real against an agent using its tools and is not a cage: what does not
+          go through the broker is not decided by it. Written paths and spend are
+          <strong>observed</strong>: measured and reported, never refused as they happen. Warrantor
+          makes what an agent did legible, reviewable and hard to misreport. It composes with a
+          sandbox; it is not one.
+        </p>
+
+        <p class="first-run-lede">
+          Staging is narrower than the word suggests, so read it as a list and not as a promise. An
+          effect waits for review only when the warrant names its class <em>and</em> this build
+          knows how to stage that particular tool &mdash; today, the GitHub effects, under the write
+          class a grant sets by default. Everything else the agent is allowed to call happens when
+          it calls it, and what you review afterwards is the record of it.
+        </p>
+
+        <h3>Granting happens at a terminal, and only at a terminal</h3>
+        <p>
+          This is the one act the console cannot perform, and it is deliberately absent rather
+          than missing. Granting mints authority: it creates the permission and signs it with the
+          issuer key held on this machine. So the server publishes no grant route at all, not a
+          disabled one and not a permissioned one. The moment granting were reachable over HTTP,
+          the power to mint warrants would live in a network-reachable process, and the whole
+          design rests on authority being minted by a human at a terminal. This console can read
+          what exists and act on it. It cannot create authority.
+        </p>
+
+        <h3>Grant one</h3>
+        <p>Run this in a terminal, in the repository you want the agent to work in:</p>
+        <div class="cmd">
+          <!-- One line, and no whitespace inside the element: `copyGrantCommand` copies
+               `textContent` verbatim, so a wrapped tag would put a newline in the clipboard. -->
+          <code id="first-run-command">warrantor grant --goal "..." --tools git --write src --repo .</code>
+          <button id="copy-command" class="copy" type="button">Copy</button>
+        </div>
+        <p class="note">
+          Replace the quoted text with the job in one sentence: it is what every later review is
+          read against. <code>--tools git</code> is the allowlist the broker refuses against.
+          <code>--write src</code> records which paths are in bounds, and what that buys is
+          containment rather than refusal: an out-of-bounds write is not blocked as it happens, it
+          is simply never staged, so it never reaches your branch. Leaving <code>--write</code>
+          off means no path is in bounds, not every path. <code>--repo .</code> is what creates the
+          worktree; without it the warrant is still granted and still bounds staged effects, but
+          there is no separate copy and the agent edits your working tree directly. Each warrant's
+          own view says how strongly every bound is actually held.
+        </p>
+        <p class="note">
+          The list on the left re-reads itself every few seconds, so a warrant granted in another
+          window appears there without reloading this page.
+        </p>
       </section>
     </main>
 
