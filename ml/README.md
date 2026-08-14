@@ -489,6 +489,27 @@ The adapter is converted at `f16` and never quantised itself: the base supplies 
 quantisation, and rounding the delta separately would compound two roundings the baseline's
 Q4_K_M measurement never saw.
 
+#### The whole chain, proven end to end
+
+Every link was exercised on 2026-08-13 before the first real candidate existed, using a 50-row
+smoke adapter — because a chain proven only once it is carrying something valuable is a chain
+proven too late:
+
+| Step | Verified |
+| --- | --- |
+| Modal training → volume persistence | 40 MB read back after `commit()` |
+| `modal volume get` → local adapter | `adapter_bytes` matches on both sides |
+| `convert_lora_to_gguf.py` → GGUF | 392 tensors, 20.2 MB |
+| `publish_adapter.py` → Ollama tag | registers; emits parseable `Safety:`/`Categories:` |
+| `benchmark_wildguard.py` on that tag | 119 scored, 0 parse or transport failures |
+| `parity.py` → verdict and exit code | all four refusals below |
+
+The gate refused correctly in every condition that could be constructed for it: leakage not
+checked → 3, eval export under the wrong key → 3, positives below the floor → 3 (*"53 positives
+is below the floor of 100; this eval could only have resolved a recall difference of about
+0.134"*), and a real comparison against the baseline → 1 (reject, recall within noise). Exit 0
+was not reachable with any of them, which is the right answer for all four.
+
 ### `deploy_model.py` — register behind `ContentScanner`
 
 ```bash
