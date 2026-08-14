@@ -185,7 +185,7 @@ impl ControlEndpoint {
         let warrant = match Warrant::grant(
             &id,
             &goal,
-            "spiffe://muveraai.com/agent/mcp",
+            crate::DEFAULT_MCP_SUBJECT,
             bounds,
             now,
             &self.settle_key.verifying_key(),

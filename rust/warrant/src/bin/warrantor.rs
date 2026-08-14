@@ -37,6 +37,7 @@ use warrantor_warrant::mcp::serve;
 use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
 use warrantor_warrant::proxy::{host_of, ProxyMode};
 use warrantor_warrant::report;
+use warrantor_warrant::retention;
 use warrantor_warrant::serve as http;
 use warrantor_warrant::settle::{settle, void, EffectOutcome, EffectPerformer, SettleReport};
 use warrantor_warrant::spend::{self, SpendStore, SpendVerdict};
@@ -45,7 +46,9 @@ use warrantor_warrant::stop::{self, OsProcessControl, StopStore};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::supervise::{describe_linkage, spawn_detached};
 use warrantor_warrant::worktree::Worktree;
-use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds, WarrantState};
+use warrantor_warrant::{
+    SideEffectClass, Warrant, WarrantBounds, WarrantState, DEFAULT_CLI_SUBJECT,
+};
 
 fn now() -> u64 {
     std::time::SystemTime::now()
@@ -288,7 +291,9 @@ const USAGE: &str = "\
 warrantor — bounded authority for coding agents
 
   grant   --goal G --tools T,T --write P,P [--deadline 8h] [--repo .] [--egress H,H]
+          [--budget CENTS] [--subject <id>]
   list
+  holdings
   report  <warrant-id> [--export <path> [--archive [<url>]]]
   verify  <exported-report.json | exported-stop.json | exported-spend.json>
   archive enrol --url <url> --code <code> [--replace] | push <file>
@@ -304,6 +309,14 @@ warrantor — bounded authority for coding agents
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
   serve   [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
   console [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
+
+Holdings reports what this machine is keeping: every class of data in the store,
+what it contains, whether it is signed and chained, how many files, how old the
+oldest is, and how many could not be read. It also says what deleting each class
+would cost -- three of them decide a verdict by existing, so removing one changes
+an answer rather than losing one. Nothing in this build deletes anything on a
+schedule, and there is no retention window to configure, because no deletion job
+exists to enforce one; holdings says so on every line rather than implying it.
 
 Report --export writes a signed, self-contained evidence bundle. Verify checks one
 offline, on any machine, with no access to this one: it proves nothing changed since
@@ -462,7 +475,7 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         goal,
         args.flags
             .get("subject")
-            .map_or("spiffe://muveraai.com/agent/local", String::as_str),
+            .map_or(DEFAULT_CLI_SUBJECT, String::as_str),
         bounds,
         now(),
         &settle_key.verifying_key(),
@@ -513,6 +526,22 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     println!("\nRun your agent with its working directory set to the worktree.");
     println!("Then: warrantor report {id}");
     ExitCode::SUCCESS
+}
+
+/// `warrantor holdings` — what this machine holds, per class, and what deleting each would cost.
+///
+/// Read-only, and there is deliberately no `--prune` behind it and no window to configure. A
+/// retention setting an operator could fill in while nothing enforced it would read as a policy in
+/// force; this answers the part that can be answered truthfully today — what is here, how much,
+/// how old, how much could not be read, and which of these locations decide a verdict by existing.
+fn cmd_holdings(store: &WarrantStore) -> ExitCode {
+    match retention::holdings(store, now()) {
+        Ok(holdings) => {
+            print!("{}", retention::render_cli(&holdings));
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&format!("cannot read this store's holdings: {e}")),
+    }
 }
 
 fn cmd_list(store: &WarrantStore) -> ExitCode {
@@ -2877,6 +2906,7 @@ fn main() -> ExitCode {
     match args.command.as_str() {
         "grant" => cmd_grant(&args, &store, &root),
         "list" => cmd_list(&store),
+        "holdings" => cmd_holdings(&store),
         "report" => cmd_report(&args, &store, &root),
         "verify" => cmd_verify(&args),
         "archive" => cmd_archive(&args, &root),

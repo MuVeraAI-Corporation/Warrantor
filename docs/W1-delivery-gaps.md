@@ -238,10 +238,45 @@ email, no webhook, no push.
 `/v1/summary/daily` covers one store on one machine. A decision-maker's question — "what did our
 agents do this quarter" — has no surface at all.
 
-### 3.4 No retention or export policy
+### 3.4 No retention or export policy — **the inventory half is done; nothing prunes**
 
-Warrants accumulate in `~/.warrantor` forever. Nothing prunes, archives, or answers a data-retention
-question, which is the first thing a regulated buyer asks.
+`warrantor holdings` now answers "what do you keep, where, and how much of it": every one of the
+twelve locations the store writes to, what each contains, whether it is signed and hash-chained, how
+many files and bytes, how old the oldest is, how many could not be read (counted separately, never
+folded into the total), plus the warrants by state and by recorded subject, and the worktrees that
+are still on disk in each repository.
+
+Three things it makes visible that nothing reported before:
+
+- **Deleting is not uniform.** `stops/`, `spend/` and `daemons/` decide a verdict by their own
+  existence — remove a stop record and the notary's containment gate goes from deny to pass; remove a
+  ledger and a spent budget resets to zero; remove a completion record and a finished run reads as
+  unsupervised. Removing one of those changes an answer rather than losing one, and `holdings` labels
+  them `FLIPS-VERDICT`.
+- **`settle` never removes a worktree** — only `void` does (`settle.rs` calls `Worktree::remove`
+  from `void`/`void_on_breach` only). Settled worktrees accumulate in every repository a warrant was
+  granted against; `holdings` counts them.
+- **`logs/<id>.log` is the class most worth a window and the one with no integrity consequence**:
+  raw agent stdout and stderr, unsigned, in no evidence bundle, and the most likely to hold source,
+  prompts and secrets.
+
+What is deliberately **not** shipped: any deletion, and any retention window to configure. A
+`retention.json` an operator could fill in while no job enforced it would read as a policy in force,
+which is worse than the absence it replaces — so `holdings` states on every class that no deletion
+authority exists in this build. Storage still grows without bound.
+
+Two facts worth recording for whoever writes the prune:
+
+- The archive already has the right policy shape and nothing reads it. `rust/archive` ships a
+  `retention_policy` table with `enabled` as a separate boolean from `window_seconds`, and
+  `RetentionPolicy::deletes_anything() == enabled && window > 0` — the absent-limit rule, already
+  correct. `retention_policy()` is called from `tests/append_only.rs` and nowhere else, and
+  `rust/warrant` has no archive client at all. Adding a deletion job there would be a fifth
+  built-but-uncalled component; the local answer comes first.
+- A prune must not be able to break a verification chain silently. The staged-effect log is the case
+  that used to be silent, and is now not: `StoredWarrant.staged_chain` witnesses the head and count
+  outside the file, so a removed or truncated log is a refusal instead of "0 staged effect(s)". Any
+  prune of `staged/` has to write that witness forward into a tombstone, or it re-opens the hole.
 
 ---
 
