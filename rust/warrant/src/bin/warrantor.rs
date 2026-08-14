@@ -79,6 +79,25 @@ fn load_or_create_key(path: &Path, label: &str) -> Result<SigningKey, String> {
     Ok(key)
 }
 
+/// Parse a 64-character hex Ed25519 verifying key — the anchor a reader pins with `--issuer`.
+///
+/// Refuses rather than truncating or padding. A key the caller half-typed is not a key that should
+/// produce a verdict about somebody's evidence, and a lenient parser here would turn a typo into a
+/// confident "does NOT verify" against the wrong anchor.
+fn parse_verifying_key(text: &str) -> Result<VerifyingKey, String> {
+    let raw = hex::decode(text.trim()).map_err(|_| {
+        format!("{text:?} is not hex. An issuer key is 64 hex characters (32 bytes).")
+    })?;
+    let bytes: [u8; 32] = raw.as_slice().try_into().map_err(|_| {
+        format!(
+            "that key is {} bytes; an Ed25519 verifying key is 32 (64 hex characters).",
+            raw.len()
+        )
+    })?;
+    VerifyingKey::from_bytes(&bytes)
+        .map_err(|e| format!("that is not a valid Ed25519 verifying key: {e}"))
+}
+
 // ── argument parsing ──────────────────────────────────────────────────────────────────
 
 struct Args {
@@ -520,9 +539,34 @@ fn write_export<T: serde::Serialize>(signed: &T, path: &Path) -> Result<(), Stri
 /// Two artifacts share the verb, dispatched on the file's declared `format` rather than on whether
 /// a struct happens to deserialise: a report bundle and a stop record are different claims, and
 /// guessing between them by shape is how one gets checked with the other's rules.
+///
+/// `--issuer <hex>` pins the key that must have signed it. **Without it this command checks
+/// self-consistency only**, which is a weaker statement than most readers hear: every receipt
+/// carries its own public key, so a file fabricated and signed end to end by anyone at all is
+/// internally consistent and passes. That matters the moment a file arrives from somewhere — an
+/// evidence archive, an email, a shared drive — rather than off the disk that produced it. The flag
+/// is not defaulted from the local store: verifying somebody else's evidence against your own issuer
+/// key would produce a verdict from a key with nothing to do with the case.
 fn cmd_verify(args: &Args) -> ExitCode {
     let Some(path) = args.positional.first() else {
-        return fail("usage: warrantor verify <exported-report.json | exported-stop.json>");
+        return fail(
+            "usage: warrantor verify <exported-report.json | exported-stop.json> [--issuer <hex>]",
+        );
+    };
+    // Parsed BEFORE the file is read, so a mistyped key is a refusal about the key rather than a
+    // verdict about the evidence.
+    let anchor = match args.flags.get("issuer") {
+        None => None,
+        Some(text) if text == "true" => {
+            return fail(
+                "--issuer needs the issuer's 64-character hex verifying key: warrantor verify \
+                 <file> --issuer <hex>",
+            )
+        }
+        Some(text) => match parse_verifying_key(text) {
+            Ok(key) => Some(key),
+            Err(e) => return fail(&e),
+        },
     };
     let body = match std::fs::read(path) {
         Ok(b) => b,
@@ -532,10 +576,11 @@ fn cmd_verify(args: &Args) -> ExitCode {
         Ok(v) => v,
         Err(e) => return fail(&format!("{path} is not a warrantor evidence file: {e}")),
     };
+    let anchor = anchor.as_ref();
     match declared.get("format").and_then(serde_json::Value::as_str) {
-        Some(f) if f == report::REPORT_EXPORT_FORMAT => verify_report_export(path, &body),
-        Some(f) if f == stop::STOP_EXPORT_FORMAT => verify_stop_export(path, &body),
-        Some(f) if f == spend::LEDGER_EXPORT_FORMAT => verify_spend_export(path, &body),
+        Some(f) if f == report::REPORT_EXPORT_FORMAT => verify_report_export(path, &body, anchor),
+        Some(f) if f == stop::STOP_EXPORT_FORMAT => verify_stop_export(path, &body, anchor),
+        Some(f) if f == spend::LEDGER_EXPORT_FORMAT => verify_spend_export(path, &body, anchor),
         Some(other) => fail(&format!(
             "{path} declares format {other:?}. warrantor verify reads {}, {} and {}.",
             report::REPORT_EXPORT_FORMAT,
@@ -548,7 +593,7 @@ fn cmd_verify(args: &Args) -> ExitCode {
     }
 }
 
-fn verify_report_export(path: &str, body: &[u8]) -> ExitCode {
+fn verify_report_export(path: &str, body: &[u8], anchor: Option<&VerifyingKey>) -> ExitCode {
     let signed: report::SignedReport = match serde_json::from_slice(body) {
         Ok(s) => s,
         Err(e) => return fail(&format!("{path} is not an exported warrantor report: {e}")),
@@ -556,7 +601,14 @@ fn verify_report_export(path: &str, body: &[u8]) -> ExitCode {
     // Integrity is checked with the time-free verifier on purpose. An exported report is a record
     // of a past evaluation; it must not become unverifiable because a deadline went by, or an
     // archive would rot into a pile of files that all say "does NOT verify".
-    if let Err(e) = report::verify_export(&signed) {
+    //
+    // With an anchor it is the anchored form, which is `verify_export` plus a key comparison — one
+    // verifier with a stricter question, not a second verifier.
+    let checked = match anchor {
+        Some(key) => report::verify_export_signed_by(&signed, key),
+        None => report::verify_export(&signed),
+    };
+    if let Err(e) = checked {
         return fail(&format!("{path} does NOT verify: {e}"));
     }
     // Liveness is a different question with a different answer, so it is reported rather than
@@ -600,12 +652,39 @@ fn verify_report_export(path: &str, body: &[u8]) -> ExitCode {
         signed.evidence_receipt.signature.public_key
     );
     println!("  still live    {liveness}");
+    println!("  anchor        {}", anchor_line(anchor));
 
     println!("\n── WHAT THIS DOES NOT ESTABLISH ──");
     for limitation in &signed.bundle.limitations {
         println!("  - {limitation}");
     }
+    if anchor.is_none() {
+        println!("  - {NO_ANCHOR_LIMITATION}");
+    }
     ExitCode::SUCCESS
+}
+
+/// The sentence the no-anchor path has to say out loud.
+///
+/// Before `--issuer` existed this command printed `signed by <key>` and compared that key to
+/// nothing, which reads as an endorsement of the key it just printed. It is not one: the key came
+/// out of the same file as everything else it certifies.
+const NO_ANCHOR_LIMITATION: &str =
+    "No issuer anchor was pinned, so this checked SELF-CONSISTENCY ONLY: every receipt carries \
+     its own public key, and a file fabricated and signed end to end by anyone at all passes this \
+     check. Re-run with --issuer <hex> to bind the result to a key you obtained out of band. This \
+     matters most for a file that came from somewhere -- an evidence archive, an email, a shared \
+     drive -- rather than off the machine that produced it.";
+
+/// How the anchor line reads on each path.
+fn anchor_line(anchor: Option<&VerifyingKey>) -> String {
+    match anchor {
+        Some(key) => format!(
+            "pinned — the signature is bound to {}",
+            hex::encode(key.to_bytes())
+        ),
+        None => "NONE pinned — self-consistency only; see the limitations below".to_string(),
+    }
 }
 
 /// Check an exported spend ledger.
@@ -613,7 +692,7 @@ fn verify_report_export(path: &str, body: &[u8]) -> ExitCode {
 /// A pass means the ledger has not changed since it was signed and its arithmetic is internally
 /// consistent. It does not mean the figures are true — they are the agent's own — so the caveats
 /// are printed on every pass, not only on failure.
-fn verify_spend_export(path: &str, body: &[u8]) -> ExitCode {
+fn verify_spend_export(path: &str, body: &[u8], anchor: Option<&VerifyingKey>) -> ExitCode {
     let signed: spend::SignedSpend = match serde_json::from_slice(body) {
         Ok(s) => s,
         Err(e) => {
@@ -622,7 +701,11 @@ fn verify_spend_export(path: &str, body: &[u8]) -> ExitCode {
             ))
         }
     };
-    if let Err(e) = spend::verify_spend(&signed) {
+    let checked = match anchor {
+        Some(key) => spend::verify_spend_signed_by(&signed, key),
+        None => spend::verify_spend(&signed),
+    };
+    if let Err(e) = checked {
         return fail(&format!("{path} does NOT verify: {e}"));
     }
     let ledger = &signed.ledger;
@@ -641,10 +724,14 @@ fn verify_spend_export(path: &str, body: &[u8]) -> ExitCode {
     println!("  remaining     {}", spend::usd(ledger.remaining_micros()));
     println!("  records       {}", ledger.entries.len());
     println!("  signed by     {}", signed.receipt.signature_public_key);
+    println!("  anchor        {}", anchor_line(anchor));
 
     println!("\n── WHAT THIS DOES NOT ESTABLISH ──");
     for limitation in &signed.limitations {
         println!("  - {limitation}");
+    }
+    if anchor.is_none() {
+        println!("  - {NO_ANCHOR_LIMITATION}");
     }
     ExitCode::SUCCESS
 }
@@ -654,7 +741,7 @@ fn verify_spend_export(path: &str, body: &[u8]) -> ExitCode {
 /// Exits non-zero when the record verifies but records a containment FAIL: a stop that could not
 /// contain the run is a true record of a bad outcome, and reporting it as a clean pass would be the
 /// exact failure the record exists to prevent.
-fn verify_stop_export(path: &str, body: &[u8]) -> ExitCode {
+fn verify_stop_export(path: &str, body: &[u8], anchor: Option<&VerifyingKey>) -> ExitCode {
     let signed: stop::SignedStop = match serde_json::from_slice(body) {
         Ok(s) => s,
         Err(e) => {
@@ -663,7 +750,11 @@ fn verify_stop_export(path: &str, body: &[u8]) -> ExitCode {
             ))
         }
     };
-    if let Err(e) = stop::verify_stop(&signed) {
+    let checked = match anchor {
+        Some(key) => stop::verify_stop_signed_by(&signed, key),
+        None => stop::verify_stop(&signed),
+    };
+    if let Err(e) = checked {
         return fail(&format!("{path} does NOT verify: {e}"));
     }
 
@@ -683,6 +774,7 @@ fn verify_stop_export(path: &str, body: &[u8]) -> ExitCode {
         "  signed by     {}",
         signed.record.conformance.signature_public_key
     );
+    println!("  anchor        {}", anchor_line(anchor));
     for capability in &signed.record.conformance.report.capabilities {
         println!(
             "  {:<18}{}",
@@ -691,6 +783,9 @@ fn verify_stop_export(path: &str, body: &[u8]) -> ExitCode {
         );
     }
     print!("{}", stop::render_limitations(&signed));
+    if anchor.is_none() {
+        println!("  - {NO_ANCHOR_LIMITATION}");
+    }
     if stop::contained(&signed) {
         ExitCode::SUCCESS
     } else {

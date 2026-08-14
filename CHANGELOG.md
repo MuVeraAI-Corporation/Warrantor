@@ -44,6 +44,107 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
   fixture, so the measured `Safety: Safe` + `Categories: Jailbreak` finding cannot be lost to drift
   between two implementations.
 
+### Added — the evidence archive (RFC W2, backend stage 1)
+
+- **`rust/archive` (`warrantor-archive`)** — a self-hosted, append-only custody store for the three
+  signed evidence files `warrantor verify` already reads. Postgres, Docker, device-pairing auth.
+  It depends on `warrantor-warrant` so ingest calls the *existing* verifier: there is exactly one
+  implementation of what "verifies" means, and it cannot come to disagree with itself across two
+  processes. Bytes are stored verbatim and returned verbatim — a re-serialised artifact is one the
+  archive chose, and "the archive returns what it was given" is what makes verifying off it worth
+  anything.
+- **Ingest verification is hygiene, never a verdict.** The result is three-valued
+  (`ok`/`failed`/`unknown`, and `unknown` is never rendered as `failed`) and is served under a field
+  named `not_a_verdict`. The archive deliberately does **not** reuse `serve::Response`, whose `json`
+  constructor puts `verified` on every body: on a remote archive that field is a verdict from a
+  machine the audited party may control, and a console renders what it is handed. An artifact whose
+  check failed is still stored and still returned byte for byte — refusing to hold a tampered file
+  would destroy the evidence that it existed.
+- **Device pairing.** An operator mints a one-time code; the device holds an Ed25519 keypair and
+  signs every request over `dsse_pae` of a descriptor pinning method, path, device, nonce, timestamp
+  and body digest. This is what makes the trail name a person: `submitted_by_device` is somebody
+  rather than "whoever held the token". It closes **half** of W1 delivery gap 2.2 — submission and
+  read are attributed; the settle is not, because it happens on a laptop and may never reach this
+  server.
+- **Append-only, enforced twice** — a `BEFORE UPDATE OR DELETE` trigger and a runtime role with no
+  `UPDATE`/`DELETE` grant, because a grant can be misconfigured while restoring a backup and a
+  trigger cannot. Retention and export are implemented and **defaulted off**, with deletion
+  authority requiring an explicit enable *and* a non-zero window: an absent window grants none, and
+  is never read as "delete everything older than nothing".
+
+### Fixed — review of the evidence archive, before it shipped
+
+Six defects found reviewing the change above. Three of them are tests that were counted and did not
+test what they were named after, which is the worst kind: a missing test is visible, a hollow one is
+not.
+
+- **`IngestCheck::Unknown` was unreachable, and its test asserted nothing.** Every arm of `ingest`
+  that produced `unknown` also produced no warrant id, and the next line refused the submission for
+  want of one — so the third of three values could never be written, the schema's
+  `CHECK (ingest_check IN ('ok','failed','unknown'))` had two reachable values, and a newer build's
+  export this one cannot parse was dropped at the door rather than kept. A body that names the
+  warrant it is about is now filed as `unknown`, with the id read out of the raw JSON purely as a
+  filing key and validated with the router's own `is_warrant_id`. The guarding test wrapped its only
+  assertion in an `if let Ok(…)` that never matched; it is unconditional now, and a second test
+  follows the value through the wire, the listing and a verbatim fetch.
+- **The append-only trigger had never fired.** `the_database_itself_refuses_an_update_to_a_filed_
+  artifact` updated a table it had never inserted into, and `artifact_append_only` is `FOR EACH ROW`
+  — a row-level trigger does not fire on a statement matching zero rows. It now files a real
+  artifact, connects as the **owner** (the role that *does* hold `UPDATE`), and requires the refusal
+  to carry the trigger's own message, so "the trigger refused" cannot be confused with "this role
+  was never granted UPDATE". The grant half is a second `#[ignore]`d test connecting as
+  `archive_runtime` and asserting SQLSTATE `42501`.
+- **A test the RFC, `store.rs` and `device_pairing.rs` all pointed at did not exist.** The single-use
+  enrolment code — the whole anti-replay property of the pairing flow — had no test at any level.
+  It has one now, and writing it found that `PostgresStore::enrol_device` set `consumed_by_device`,
+  a NOT DEFERRABLE foreign key, to a `device` row the same transaction had not inserted yet: **every
+  enrolment against a real database raised a foreign-key violation.** The claim is still the one
+  conditional `UPDATE`; the FK column is filled after its referent exists. A test now counts the
+  `#[ignore]`d database tests and fails if the number in the docs and the number in the code diverge.
+- **Revocation was checked before the signature**, so an unauthenticated caller signing with a key
+  they invented got `401 device_revoked` for a device id that exists and `401 unauthorized` for one
+  that does not — an enumeration oracle over a route whose own comment promised it was not one.
+  Revocation moved after `verify_strict`: only the holder of the device's key learns it was revoked.
+- **`/v1/health` served `append_only: true`, `holds_no_signing_key: true` and
+  `routes_that_mutate_a_warrant: 0`** as unauthenticated literals — a compromised archive that had
+  acquired a signing key or lost its trigger returned exactly the same values, next to names a
+  viewer renders as badges. Removed; the walker in `the_archive_never_serves_a_verdict.rs` now bans
+  the shape as well as the word, and a test proves the walker catches every name it lists.
+- **The threat model claimed a constant-time comparison that nothing called**, and the deployment
+  runbook could not be followed in the order written — it told the operator to `exec` into a
+  container that was not running, to alter a role the migration had not created yet, with a `psql`
+  invocation carrying no password to a database initialised `--auth-local=scram-sha-256`. The
+  comparison claim is corrected downward and the dead helper deleted; `make archive-up` now performs
+  the three ordered steps and refuses to start if either password is unset.
+
+### Security — `warrantor verify` gained an issuer anchor, and it was not optional
+
+- **`report::verify_export` is anchor-free by construction**, and until now `warrantor verify` merely
+  *printed* the key it was not comparing to anything. Each receipt carries its own public key and
+  the only cross-check is that the two receipts agree, so anyone holding an Ed25519 keypair could
+  fabricate a bundle, sign both receipts with it, and produce a file that verified. That is correct
+  for what the function claims — "nothing has changed since signing" — and much weaker than what a
+  reader hears.
+- This is why the archive could not ship without it: the mandated property "a malicious archive
+  cannot make a tampered bundle verify" was not merely untested, it was **false**.
+- Added `report::verify_export_signed_by`, `stop::verify_stop_signed_by`,
+  `spend::verify_spend_signed_by`, and `warrantor verify <file> --issuer <hex>`. Thin wrappers —
+  the existing verifier, then a key comparison — not a second verifier. All three artifact types
+  gained it so `--issuer` can never be a flag that is silently ignored.
+- The anchor is **never defaulted** from the local store: verifying somebody else's evidence against
+  your own issuer key yields a verdict from a key with nothing to do with the case, which is worse
+  than no check because it looks like an answer. Without `--issuer` the command now prints an
+  explicit limitation saying it checked self-consistency only.
+- Where an anchor legitimately comes from is the trust directory, which is backend stage 2. This
+  change lets an operator supply one.
+
+### Changed
+
+- `serve::parse_request_with` and `serve::Limits`, added additively so the archive reuses the
+  agent's HTTP framing instead of writing a second parser — a second parser is a second place a
+  `Transfer-Encoding` header or an unbounded line read can be got wrong. `parse_request` keeps its
+  exact signature and behaviour; `rust/warrant/tests/serve.rs` passes untouched.
+
 ### Security
 
 - **`trust-core` `SigningKeyWrapper::zeroize()` left a usable key behind.** It overwrote the

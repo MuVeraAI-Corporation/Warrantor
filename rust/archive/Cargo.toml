@@ -1,0 +1,43 @@
+[package]
+name = "warrantor-archive"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The evidence archive: self-hosted, append-only custody for signed Warrantor evidence (W2)."
+
+[lib]
+name = "warrantor_archive"
+path = "src/lib.rs"
+
+[[bin]]
+name = "warrantor-archive"
+path = "src/bin/warrantor-archive.rs"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json = "1"
+ed25519-dalek = { version = "3", features = ["rand_core"] }
+hex = "0.4"
+sha2 = "0.10"
+getrandom = { version = "0.4", features = ["sys_rng"] }
+# The one verifier. This crate does NOT check a signature of its own: ingest hygiene calls
+# `report::verify_export`, `stop::verify_stop` and `spend::verify_spend` -- the same functions
+# `warrantor verify` calls -- so there is exactly one implementation of what "verifies" means and
+# it cannot come to disagree with itself across two processes.
+warrantor-warrant = { path = "../warrant", version = "1.0.0" }
+# `dsse_pae`, reused for the device request signature. Not a new convention: it is the same
+# pre-auth encoding every receipt in this repository is signed over.
+warrantor-evidence = { path = "../evidence", version = "1.0.0" }
+# The sync rust-postgres client. Pure Rust -- no libpq, no C toolchain on the build host, no
+# `async fn` and no `.await` anywhere in this crate.
+#
+# It pulls tokio in transitively (rust-postgres drives tokio-postgres on a current-thread runtime
+# it owns). That is a genuine cost and it is confined here on purpose: **the dependency edge runs
+# archive -> warrant, never the reverse**, so `rust/warrant`'s tokio-free, seven-external-dependency
+# posture is untouched and the local agent gains nothing from this file. If that edge is ever
+# inverted -- a `warrantor-archive` dependency added to `rust/warrant/Cargo.toml` -- the local agent
+# acquires an async runtime and a database client for a program whose whole point is to run on a
+# developer's laptop with nothing installed.
+postgres = "0.19"

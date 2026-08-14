@@ -804,6 +804,38 @@ pub fn verify_stop(signed: &SignedStop) -> Result<(), StopError> {
     Ok(())
 }
 
+/// [`verify_stop`], plus the question it cannot answer on its own: **whose key was that?**
+///
+/// [`verify_stop`] checks each signature against the key the record carries about itself, and cannot
+/// do otherwise: an exported record is meant to verify on a machine with no store and no keys.
+/// Nothing in the file says which key *should* have signed it, so a record fabricated and signed end
+/// to end by a hostile party — an evidence archive, say — is fully self-consistent and passes.
+///
+/// The anchor is the reader's, established out of band, and is never defaulted from a local store.
+/// See [`crate::report::verify_export_signed_by`], which carries the full argument; this is the same
+/// pin over the stop record's own signature field, present so `--issuer` cannot be a flag that is
+/// silently ignored for two of the three artifacts `warrantor verify` accepts.
+///
+/// # Errors
+/// Everything [`verify_stop`] returns, plus [`StopError::Binding`] when the record was signed by a
+/// key that is not `anchor`.
+pub fn verify_stop_signed_by(
+    signed: &SignedStop,
+    anchor: &ed25519_dalek::VerifyingKey,
+) -> Result<(), StopError> {
+    verify_stop(signed)?;
+    let expected = hex::encode(anchor.to_bytes());
+    if signed.signature_public_key != expected {
+        return Err(StopError::Binding(format!(
+            "this stop record was signed by {}, not by the issuer you pinned ({expected}). The \
+             signatures are intact — it is internally consistent — but it was signed by a \
+             different key, so it is not evidence about the issuer you asked about.",
+            signed.signature_public_key
+        )));
+    }
+    Ok(())
+}
+
 // ── durable stop records ──────────────────────────────────────────────────────────────
 
 /// Where stop records live: `<root>/stops/<warrant-id>.json`.

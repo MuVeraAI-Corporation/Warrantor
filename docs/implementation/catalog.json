@@ -923,6 +923,18 @@
       ],
       "rfc": null,
       "note": "Guard-model dataset registry, recall-first evaluation, signed AIBOM, LoRA/QLoRA training and ContentScanner registration. Operator entry points in ml/."
+    },
+    {
+      "id": "SUP-15",
+      "name": "warrantor-archive",
+      "kind": "support",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/archive"
+      ],
+      "rfc": "docs/rfcs/W2-evidence-archive.md",
+      "note": "Self-hosted, append-only evidence archive (RFC W2, backend stage 1). Relay, never an authority: ingest verification is hygiene and is never served as a verdict. Device-pairing auth gives per-person attribution for submission and read."
     }
   ]
 }

@@ -1,0 +1,61 @@
+# warrantor-archive (Rust) — self-hosted, append-only custody for signed Warrantor evidence.
+#
+# Build context MUST be the `rust/` workspace root, so Cargo can resolve the path
+# dependencies on warrantor-warrant and warrantor-evidence:
+#   docker build -f Dockerfile.archive -t warrantor/archive .
+#
+# The container runs the `warrantor-archive` server. It listens on 8788 and speaks
+# NO TLS: put a TLS-terminating reverse proxy in front of it before it leaves the
+# host. See deploy/evidence-archive/docker-compose.yml and its README.
+#
+# What this image does NOT contain, and must not acquire: any signing key. The
+# archive holds device PUBLIC keys and nothing else. If a future change gives this
+# container a private key, it has become an authority over the evidence it keeps,
+# which is the one property RFC W1 forbids the backend outright.
+
+# ── Stage 1: build the release binary ────────────────────────────────────────
+# Same pin as Dockerfile.trust-core. A base-image pin is a floor that silently
+# expires as the dependency tree moves, so it is bumped deliberately rather than
+# left to whatever `rust:slim` resolves to on the day of the build.
+FROM rust:1.85-slim AS builder
+
+# `postgres` is the pure-Rust rust-postgres client: no libpq and no C client
+# library. pkg-config and libssl-dev are still needed because other crates in the
+# workspace link OpenSSL, and this build shares the workspace lockfile.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# The whole workspace, so path dependencies and the shared Cargo.lock resolve.
+COPY . .
+
+# Only this binary. `--bin` keeps the layer cache effective and avoids compiling
+# every other crate's binaries into an image that will never run them.
+RUN cargo build --release --bin warrantor-archive
+
+# ── Stage 2: minimal runtime image ───────────────────────────────────────────
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libssl3 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root. The archive reads no file it did not ship with and writes nothing to
+# disk — its entire state is in Postgres — so it needs no writable path at all.
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin archive
+
+COPY --from=builder /app/target/release/warrantor-archive /usr/local/bin/warrantor-archive
+
+USER archive
+
+EXPOSE 8788
+
+# 0.0.0.0 inside the container, because a loopback bind here would be unreachable
+# from the compose network. That is NOT a relaxation of the loopback default: the
+# container boundary is what limits reachability, and the compose file publishes
+# the port to 127.0.0.1 on the host. Publishing it to 0.0.0.0 without a TLS proxy
+# is the mistake this comment exists to name.
+ENTRYPOINT ["warrantor-archive"]
+CMD ["serve", "--bind", "0.0.0.0:8788"]

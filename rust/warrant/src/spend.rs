@@ -671,6 +671,33 @@ pub fn verify_spend(signed: &SignedSpend) -> Result<(), SpendError> {
     Ok(())
 }
 
+/// [`verify_spend`], plus the question it cannot answer on its own: **whose key was that?**
+///
+/// The cost receipt carries its own public key and is verified against it, so a ledger fabricated
+/// and signed end to end by a hostile party passes [`verify_spend`] while describing spend that
+/// never happened. See [`crate::report::verify_export_signed_by`] for the full argument; this is the
+/// same pin over the cost receipt's key.
+///
+/// # Errors
+/// Everything [`verify_spend`] returns, plus [`SpendError::Binding`] when the receipt was signed by
+/// a key that is not `anchor`.
+pub fn verify_spend_signed_by(
+    signed: &SignedSpend,
+    anchor: &VerifyingKey,
+) -> Result<(), SpendError> {
+    verify_spend(signed)?;
+    let expected = hex::encode(anchor.to_bytes());
+    if signed.receipt.signature_public_key != expected {
+        return Err(SpendError::Binding(format!(
+            "this ledger was signed by {}, not by the issuer you pinned ({expected}). The \
+             signature is intact — it is internally consistent — but it was signed by a different \
+             key, so it is not evidence about the issuer you asked about.",
+            signed.receipt.signature_public_key
+        )));
+    }
+    Ok(())
+}
+
 // ── storage ───────────────────────────────────────────────────────────────────────────
 
 /// The per-warrant ledger directory under a store root.

@@ -1042,6 +1042,59 @@ pub fn verify_export(export: &SignedReport) -> Result<(), ReportError> {
     Ok(())
 }
 
+/// [`verify_export`], plus the question it cannot answer on its own: **whose key was that?**
+///
+/// # Why this function has to exist
+///
+/// [`verify_export`] is **anchor-free by construction**. Each receipt carries the public key it was
+/// signed with, each is verified against that key, and the only cross-check is that the two receipts
+/// agree on one key. Nothing in the file says *which* key should have signed it, so a file signed
+/// end to end by a key nobody trusts is fully self-consistent and passes.
+///
+/// That is correct for what `verify_export` claims — "nothing has changed since signing" — and it is
+/// not enough for the question a reader actually has. Anyone holding an Ed25519 keypair can
+/// fabricate a bundle, sign both receipts with it, and produce a file that verifies. An evidence
+/// archive is precisely a party that holds artifacts it did not produce and could be tempted to
+/// improve, so the archive's own design target — *compromise of the server degrades availability,
+/// never integrity* — is only true if the reader pins an anchor. This is that pin.
+///
+/// `anchor` is supplied by the caller and is **never defaulted** to a local key. A caller verifying
+/// someone else's evidence against their own issuer key would get a pass or a fail from a key with
+/// nothing to do with the case, which is worse than no check: it looks like an answer.
+///
+/// Where an anchor legitimately comes from is out of scope here and is stage 2 of the backend (the
+/// trust directory). Until then it is the operator's `--issuer <hex>`, established out of band —
+/// which is what [`verify_export`]'s own limitation sentence has always said has to happen.
+///
+/// # Errors
+/// Everything [`verify_export`] returns, plus [`ReportError::Binding`] when the receipts were signed
+/// by a key that is not `anchor`. Integrity is checked first, so a tampered file reads as tampered
+/// rather than as merely foreign.
+pub fn verify_export_signed_by(
+    export: &SignedReport,
+    anchor: &VerifyingKey,
+) -> Result<(), ReportError> {
+    verify_export(export)?;
+    // `verify_export` has already established that both receipts carry the same key, so checking
+    // one is checking both. Checking the evidence receipt specifically, rather than either, keeps
+    // this from silently becoming a one-receipt check if that invariant is ever relaxed.
+    let expected = hex::encode(anchor.to_bytes());
+    let presented = &export.evidence_receipt.signature.public_key;
+    if presented != &expected {
+        return Err(ReportError::Binding(format!(
+            "this report was signed by {presented}, not by the issuer you pinned ({expected}). \
+             The signatures are intact — the file is internally consistent — but it was signed by \
+             a different key, so it is not evidence about the issuer you asked about."
+        )));
+    }
+    if export.notary_receipt.signature.public_key != expected {
+        return Err(ReportError::Binding(
+            "the notary receipt was signed by a key that is not the pinned issuer".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 /// [`verify_export`], plus the question it refuses to answer: **is this still true now?**
 ///
 /// Everything `verify_export` checks, and then the evidence receipt's `expires_at` against an
