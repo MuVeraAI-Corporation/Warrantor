@@ -148,7 +148,7 @@ jobs:
           python-version: "3.11"
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
+          go-version: "1.24.x"
           cache: false
       - name: Test every module
         run: python tools/ci/run_go_checks.py test --report evidence/go-tests.json
@@ -201,7 +201,7 @@ jobs:
           python-version: "3.11"
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
+          go-version: "1.24.x"
           cache: false
       - uses: actions/setup-node@v4
         with:
