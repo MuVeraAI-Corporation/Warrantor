@@ -2098,7 +2098,18 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                 // guard log and `/v1/.../refusals` reports `configured: false`.
                 if let Some(counters) = endpoint.guard_counters() {
                     let signals = endpoint.guard_signals();
-                    match guard::record_guard_signals(root, id, &signals, counters, now()) {
+                    // The same id the attach record above carries. It is what lets a windowed read
+                    // hold this session's start, its calls and these counters together instead of
+                    // filtering three different clocks apart.
+                    let session_id = endpoint.guard_session_id().unwrap_or_default();
+                    match guard::record_guard_signals(
+                        root,
+                        id,
+                        session_id,
+                        &signals,
+                        counters,
+                        now(),
+                    ) {
                         Ok(_) => {}
                         // Same shape as the refusal write above: reported, never a failing exit
                         // code. The run is over and its authority never depended on this.

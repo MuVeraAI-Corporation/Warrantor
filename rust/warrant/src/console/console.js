@@ -43,16 +43,20 @@ const el = {
   summaryForm: document.getElementById('summary-form'),
   summaryMonth: document.getElementById('summary-month'),
   summaryError: document.getElementById('summary-error'),
+  summaryMonthError: document.getElementById('summary-month-error'),
   summaryWindow: document.getElementById('summary-window'),
   summaryCaveat: document.getElementById('summary-caveat'),
+  summaryUnreadable: document.getElementById('summary-unreadable'),
   summaryRefusals: document.getElementById('summary-refusals'),
   summaryRefusalsEmpty: document.getElementById('summary-refusals-empty'),
   summaryRefusalsNote: document.getElementById('summary-refusals-note'),
   summaryGuard: document.getElementById('summary-guard'),
   summaryGuardUnknown: document.getElementById('summary-guard-unknown'),
   summaryGuardNone: document.getElementById('summary-guard-none'),
+  summaryGuardUnattributed: document.getElementById('summary-guard-unattributed'),
   summaryGuardQuiet: document.getElementById('summary-guard-quiet'),
   summaryGuardNote: document.getElementById('summary-guard-note'),
+  summaryGuardCaveats: document.getElementById('summary-guard-caveats'),
   summaryCoverage: document.getElementById('summary-coverage'),
   summaryCoverageNote: document.getElementById('summary-coverage-note'),
   health: document.getElementById('health'),
@@ -441,9 +445,37 @@ export function summaryFacts(answered, status, payload) {
 }
 
 /**
+ * Whether this guard object carries evidence that a guard ran, other than an attach record.
+ *
+ * `configured` is `!sessions.is_empty()` on the server, so it is false in two very different
+ * situations: nothing ran at all, and something ran whose attach record is not in what was read —
+ * the write failed, or the window holds records the attach record is not grouped with. Counts are
+ * evidence: a finished session, a classified call, a call nothing looked at. One of them being
+ * nonzero makes "no guard was attached to any run in this window" a false sentence, and this
+ * console prints that sentence in fixed prose that no server field can soften.
+ */
+function guardEvidence(guard) {
+  const coverage = guard?.coverage;
+  const counted = [
+    'sessions_attached',
+    'sessions_finished',
+    'classified',
+    'flagged',
+    'backend_unavailable',
+    'unparseable',
+    'skipped_over_budget',
+    'deduplicated',
+  ].some((key) => Number.isFinite(coverage?.[key]) && coverage[key] > 0);
+  const listed = ['sessions', 'counters'].some(
+    (key) => Array.isArray(guard?.[key]) && guard[key].length > 0,
+  );
+  return counted || listed;
+}
+
+/**
  * Which sentence a guard object supports, and only that one.
  *
- * Four states that render identically under optional chaining, and conflating any two of them is a
+ * Five states that render identically under optional chaining, and conflating any two of them is a
  * dead guard reported as a clean month:
  *
  * - `unknown`: the server said nothing this console can interpret. Not coverage, not findings.
@@ -451,8 +483,14 @@ export function summaryFacts(answered, status, payload) {
  *   record are a real state (the attach write failed and the run's own signals landed anyway), and
  *   printing "no coverage" above a list of classifications would be a sentence sitting next to its
  *   own counter-evidence.
- * - `no-coverage`: nothing attached, so nothing looked. This is the one that must never render as
- *   a quiet, reassuring table.
+ * - `no-coverage`: nothing attached and nothing else in the answer says otherwise, so nothing
+ *   looked. This is the one that must never render as a quiet, reassuring table — and the one that
+ *   must never be printed over an answer whose own counts contradict it.
+ * - `unattributed`: no attach record, but the answer carries counts that only a guard can produce.
+ *   Distinct from `no-coverage` because they are opposite claims: one says nothing watched, the
+ *   other says something watched and cannot be named. The server's own note already distinguishes
+ *   them; printing NO COVERAGE here put this console's fixed prose in direct contradiction of the
+ *   coverage table underneath it and of the server's sentence beside it.
  * - `quiet`: something attached and grouped nothing.
  */
 export function guardKind(guard) {
@@ -460,8 +498,44 @@ export function guardKind(guard) {
   if (guard.configured !== true && guard.configured !== false) return 'unknown';
   if (!Array.isArray(guard.groups)) return 'unknown';
   if (guard.groups.length > 0) return 'groups';
-  if (guard.configured === false) return 'no-coverage';
-  return 'quiet';
+  if (guard.configured === true) return 'quiet';
+  return guardEvidence(guard) ? 'unattributed' : 'no-coverage';
+}
+
+/**
+ * The sentence about lines that did not parse, or the sentence about not knowing.
+ *
+ * Three answers, never two. A count the server did not state is NOT zero: the summary route
+ * carries `unreadable_lines` for the refusal log and again inside `guard`, and a console that read
+ * the field and rendered nothing omitted, with no disclosure, exactly the records nobody could
+ * read — on the surface whose whole thesis is that an absence of observation must not read as an
+ * absence of findings. The warrant list already prints its own version of this sentence.
+ *
+ * Empty string for a stated zero, because there the silence is the truth.
+ */
+export function unreadableSentence(value, subject) {
+  if (!Number.isFinite(value) || value < 0) {
+    return `This server did not state how many lines of the ${subject} were unreadable, so nothing here says whether any were dropped from the counts above.`;
+  }
+  if (value === 0) return '';
+  return `${value} line(s) of the ${subject} could not be read and are in nothing above. That count covers the WHOLE log, not this window: a line that did not parse has no timestamp to window it on.`;
+}
+
+/**
+ * What the guard half of this answer could not window the way the caveat describes.
+ *
+ * Guard records are windowed by session, so a session is held or dropped whole. Records written
+ * before sessions carried an id cannot be grouped and fall back to their own clock — the attach
+ * record on one side of a boundary, its own signals and counters on the other. That is the one case
+ * the server's caveat excludes, and a reader is owed the count rather than left to assume the
+ * better rule applied to all of it.
+ */
+export function unattributedSentence(value) {
+  if (!Number.isFinite(value) || value < 0) {
+    return 'This server did not state how many guard records carry no session id, so whether every session here was windowed whole is unknown.';
+  }
+  if (value === 0) return '';
+  return `${value} guard record(s) here carry no session id — they were written before sessions were identified, so each was windowed on its own clock instead of being held with the rest of its session, and one such session can be split across the boundary.`;
 }
 
 /**
@@ -509,7 +583,12 @@ function factRow(className, heading, pills, guidance) {
 async function loadSummary() {
   const range = monthWindow(el.summaryMonth.value);
   if (!range) {
-    renderSummary({ readable: false, groups: [], guard: null, window: null, note: '' });
+    // Its own reason, and its own paragraph. This branch makes NO request, so the server-error
+    // sentence ("the server did not answer, refused, or replied with something this console could
+    // not parse") would be this console stating a fact about a server it never spoke to.
+    // `<input type="month">` degrades to a free-text field in browsers that do not implement it, so
+    // this is reached by typing, not only by tampering.
+    renderSummary({ readable: false, reason: 'month', groups: [], guard: null, window: null, note: '' });
     return;
   }
   const { answered, status, payload } = await call(
@@ -523,7 +602,9 @@ async function loadSummary() {
 }
 
 function renderSummary(facts) {
-  el.summaryError.hidden = facts.readable;
+  const monthUnreadable = facts.reason === 'month';
+  el.summaryError.hidden = facts.readable || monthUnreadable;
+  el.summaryMonthError.hidden = !monthUnreadable;
   el.summaryRefusals.replaceChildren();
   el.summaryGuard.replaceChildren();
   el.summaryCoverage.replaceChildren();
@@ -533,12 +614,15 @@ function renderSummary(facts) {
     // successful read can sit under the error and read as this month's answer.
     el.summaryWindow.textContent = '';
     el.summaryCaveat.textContent = '';
+    el.summaryUnreadable.textContent = '';
     el.summaryRefusalsNote.textContent = '';
     el.summaryGuardNote.textContent = '';
+    el.summaryGuardCaveats.textContent = '';
     el.summaryCoverageNote.textContent = '';
     el.summaryRefusalsEmpty.hidden = true;
     el.summaryGuardUnknown.hidden = true;
     el.summaryGuardNone.hidden = true;
+    el.summaryGuardUnattributed.hidden = true;
     el.summaryGuardQuiet.hidden = true;
     return;
   }
@@ -553,6 +637,10 @@ function renderSummary(facts) {
     ? `Window ${stamp(range.since)} to ${stamp(range.until)} (end exclusive): ${range.records_in_window} refusal record(s) of ${range.records_all_time} in the whole log.`
     : 'This server did not state the window it answered about, so what follows may not be the month asked for.';
   el.summaryCaveat.textContent = range?.caveat ?? '';
+  // Read off the wire and then dropped is how this count was handled before: `summaryFacts` set it
+  // and nothing rendered it, so unparseable refusal-log lines were omitted from the month view with
+  // no disclosure at all.
+  el.summaryUnreadable.textContent = unreadableSentence(facts.unreadableLines, 'refusal log');
   el.summaryRefusalsNote.textContent = facts.note;
 
   el.summaryRefusalsEmpty.hidden = facts.groups.length > 0;
@@ -579,10 +667,19 @@ function renderGuardBlock(guard) {
   const kind = guardKind(guard);
   el.summaryGuardUnknown.hidden = kind !== 'unknown';
   el.summaryGuardNone.hidden = kind !== 'no-coverage';
+  el.summaryGuardUnattributed.hidden = kind !== 'unattributed';
   el.summaryGuardQuiet.hidden = kind !== 'quiet';
   // The server composes this sentence per scope and per posture. Printed verbatim; it is also
   // where the measured benchmark rates live, so this console never keys a number like 0.8152 in.
   el.summaryGuardNote.textContent = typeof guard?.note === 'string' ? guard.note : '';
+  // What this block could not see, and what it could not window as the caveat describes. Written
+  // even for an unreadable guard object, where "the server stated no count" is the whole point.
+  el.summaryGuardCaveats.textContent = [
+    unreadableSentence(guard?.unreadable_lines, 'guard log'),
+    unattributedSentence(guard?.unattributed_records),
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   if (kind === 'unknown') {
     el.summaryCoverageNote.textContent =

@@ -126,8 +126,21 @@
           something this console could not parse. That is not the same as there being nothing in
           this month.
         </p>
+        <!-- Its own paragraph, because it is a different fact. Nothing was asked of the server on
+             this path, so the sentence above it would attribute to the server a failure that
+             happened in this field. -->
+        <p id="summary-month-error" class="empty error" hidden>
+          That month could not be read as a month, so no request was made and nothing below is an
+          answer about anything. Write it as <code>YYYY-MM</code>. This says nothing about the
+          server or about what happened in any month.
+        </p>
         <p id="summary-window" class="note"></p>
         <p id="summary-caveat" class="note"></p>
+        <!-- Lines of the refusal log nobody could read. Filled by the console from the server's own
+             count: rendering nothing here made an all-time omission invisible on the one surface
+             whose thesis is that an absence of observation must not read as an absence of
+             findings. -->
+        <p id="summary-unreadable" class="note error"></p>
 
         <div class="section">
           <h3>Bounds that refused &mdash; these calls did NOT happen</h3>
@@ -157,6 +170,15 @@
             NO COVERAGE. No guard was attached to any run in this window, so nothing classified
             anything. That is an absence of observation, not an absence of findings.
           </p>
+          <!-- The opposite claim to the one above, and it used to be rendered AS the one above:
+               counts that only a guard can produce, with no attach record to name what produced
+               them. "No guard was attached" printed over a coverage table reading forty calls
+               classified is the same class of error this view exists to prevent, reversed. -->
+          <p id="summary-guard-unattributed" class="empty error" hidden>
+            A guard's own records are in this window, but no attach record is. Something was
+            watching and this window cannot name it &mdash; read the note below and the per-signal
+            provenance. This is NOT "no guard ran": the counts underneath are that guard's.
+          </p>
           <p id="summary-guard-quiet" class="empty" hidden>
             A guard was attached in this window and grouped nothing. That is not a clean bill of
             health &mdash; read the measured rates in the note below, and the coverage counts
@@ -164,6 +186,10 @@
           </p>
           <ul id="summary-guard" class="rows"></ul>
           <p id="summary-guard-note" class="note"></p>
+          <!-- Guard-log lines nobody could read, and records this window could not hold with their
+               own session. Both are exceptions to what the window caveat above promises, so both
+               are printed rather than assumed to be zero. -->
+          <p id="summary-guard-caveats" class="note error"></p>
         </div>
 
         <div class="section">

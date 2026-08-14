@@ -134,6 +134,9 @@ pub enum GuardError {
     /// The guard log could not be created, appended to, or encoded.
     #[error("{0}")]
     Log(String),
+    /// The session could not be given an id, so its records could not be told from another's.
+    #[error("{0}")]
+    SessionIdentity(String),
 }
 
 // ── policy knobs and provenance ───────────────────────────────────────────────────────
@@ -340,7 +343,18 @@ pub struct GuardSignal {
     pub format: String,
     /// The warrant the run happened under.
     pub warrant_id: String,
-    /// When the session that recorded it ended, epoch seconds.
+    /// Which guarded session produced it. See [`GuardSession::session_id`].
+    #[serde(default)]
+    pub session_id: String,
+    /// When the CALL this describes was observed, epoch seconds.
+    ///
+    /// The moment of the call, not the moment the session ended: `observe` is handed the endpoint's
+    /// clock at the call site. A deduplicated repeat keeps the FIRST sighting's time, because the
+    /// later ones cost no classification and the record describes the classification.
+    ///
+    /// This is a different axis from [`GuardSession::at`] (session start) and [`GuardSummary::at`]
+    /// (session end), which is why anything windowing this log windows it by
+    /// [`GuardSignal::session_id`] rather than by these three fields — see [`GuardLog::within`].
     pub at: u64,
     /// The tool whose arguments were classified.
     pub tool: String,
@@ -409,7 +423,22 @@ pub struct GuardSession {
     pub format: String,
     /// The warrant this guard was attached to.
     pub warrant_id: String,
-    /// When it attached, epoch seconds.
+    /// The id of this guarded session, minted at attach and stamped on every record it writes.
+    ///
+    /// One warrant can be run many times, and the three record types are written on three different
+    /// clocks — this one at the START, [`GuardSignal::at`] at the moment of each CALL, and
+    /// [`GuardSummary::at`] at the END. Without a shared id there is nothing tying them together,
+    /// and a reader filtering each type on its own timestamp can hold half of one session: an
+    /// attach record on one side of a month boundary and its own signals and counters on the other,
+    /// which renders as "no guard was attached" above that same session's call counts. The id is
+    /// what makes [`GuardLog::within`] able to keep a session whole.
+    ///
+    /// `#[serde(default)]` so records written before this field existed still parse. They parse as
+    /// `""`, which is NOT a session id and is never treated as one: an empty id means *unattributed*
+    /// and every surface has to say so rather than grouping all of them together as one session.
+    #[serde(default)]
+    pub session_id: String,
+    /// When it attached, epoch seconds. The START of the session, before its first tool call.
     pub at: u64,
     /// The mode it attached in. `observe` unless somebody went out of their way.
     pub mode: GuardMode,
@@ -428,10 +457,25 @@ pub struct GuardSummary {
     pub format: String,
     /// The warrant the session ran under.
     pub warrant_id: String,
+    /// Which guarded session these counters close. See [`GuardSession::session_id`].
+    #[serde(default)]
+    pub session_id: String,
     /// When the session ended, epoch seconds.
     pub at: u64,
     /// What it did, in counts.
     pub counters: GuardCounters,
+}
+
+/// Whether a moment falls inside a half-open window: `since` inclusive, `until` exclusive.
+///
+/// `None` on a side means unbounded there. One function rather than one per caller, because an
+/// inclusive/exclusive boundary rule written twice is the shape that drifts by one on the next
+/// edit — and the two callers here ([`GuardLog::within`] and [`crate::serve::SummaryWindow::holds`])
+/// filter two halves of a single answer, so a drift between them would put a refusal and its own
+/// session's guard signals in different months.
+#[must_use]
+pub fn window_holds(at: u64, since: Option<u64>, until: Option<u64>) -> bool {
+    since.is_none_or(|start| at >= start) && until.is_none_or(|end| at < end)
 }
 
 /// What a guard log holds, and how much of it did not parse.
@@ -503,15 +547,30 @@ impl GuardLog {
         }
     }
 
-    /// The same log, holding only what a time window covers.
+    /// The same log, holding only what a time window covers — windowed **by session**.
     ///
     /// `since` is inclusive and `until` is exclusive, both in epoch seconds, and `None` means
-    /// unbounded on that side. Every record here carries the time the SESSION ended rather than the
-    /// time of the call it describes, and a deduplicated signal carries the FIRST sighting's time
-    /// (see [`GuardSignal::at`] and the dedup path in `GuardAdapter::observe`). So a session that
-    /// straddles a boundary lands wholly on one side: a windowed count is systematically attributed
-    /// to the window its session ended in, not merely approximate. Every surface that windows this
-    /// log has to say so.
+    /// unbounded on that side; see [`window_holds`], which is the one copy of that rule.
+    ///
+    /// The three record types are stamped on three different clocks: an attach record at the START
+    /// of the session, each [`GuardSignal`] at the moment of the CALL it describes (a deduplicated
+    /// repeat keeping the first sighting's time), and the counters at the END. Filtering each type
+    /// on its own `at` therefore SPLITS a session that straddles a boundary — and the split is not a
+    /// rounding error, it is a contradiction: the far side of the boundary holds the session's
+    /// counters and none of its attach record, so `configured()` is false over a window whose own
+    /// coverage counts say forty calls were classified. "No guard was attached" printed above a
+    /// guard's own call counts is the exact failure this surface exists to prevent, running in
+    /// reverse.
+    ///
+    /// So a session is the unit, not a record: every record carrying a [`GuardSession::session_id`]
+    /// is held or dropped together with the rest of its session, on ONE moment — the last time that
+    /// session wrote anything, which is when it ended for every session that reported. A straddling
+    /// session then genuinely does land wholly on one side.
+    ///
+    /// Records with an empty `session_id` were written before the field existed and **cannot** be
+    /// grouped: they keep the old per-record behaviour, which can still split such a session across
+    /// a boundary. They are not silently mixed in with the rest — [`GuardLog::unattributed_records`]
+    /// counts them so a surface can say which of the two rules its answer was built under.
     ///
     /// `unreadable_lines` is carried through **unfiltered and it cannot be otherwise**: a line that
     /// did not parse has no `at` to compare against. A caller rendering a window must label that
@@ -519,29 +578,79 @@ impl GuardLog {
     /// which is the failure this whole surface exists to avoid.
     #[must_use]
     pub fn within(&self, since: Option<u64>, until: Option<u64>) -> Self {
-        let holds =
-            |at: u64| since.is_none_or(|start| at >= start) && until.is_none_or(|end| at < end);
+        // One moment per identified session: the last thing it wrote. For a session that reported,
+        // that is its counters line -- the end. For one that died mid-run it is the last call it
+        // classified, or its attach record if it never got that far.
+        fn note<'a>(seen: &mut BTreeMap<&'a str, u64>, id: &'a str, at: u64) {
+            if id.is_empty() {
+                return;
+            }
+            seen.entry(id)
+                .and_modify(|last| *last = (*last).max(at))
+                .or_insert(at);
+        }
+        let mut last_write: BTreeMap<&str, u64> = BTreeMap::new();
+        for session in &self.sessions {
+            note(&mut last_write, &session.session_id, session.at);
+        }
+        for signal in &self.signals {
+            note(&mut last_write, &signal.session_id, signal.at);
+        }
+        for summary in &self.summaries {
+            note(&mut last_write, &summary.session_id, summary.at);
+        }
+        // An unattributed record has no session to be held whole with, so it falls back to its own
+        // clock. That is the pre-session-id behaviour and it is a worse answer; it is kept only
+        // because dropping such records outright would be a quieter lie than the one it fixes.
+        let holds = |session_id: &str, at: u64| {
+            let moment = last_write.get(session_id).copied().unwrap_or(at);
+            window_holds(moment, since, until)
+        };
         Self {
             sessions: self
                 .sessions
                 .iter()
-                .filter(|s| holds(s.at))
+                .filter(|s| holds(&s.session_id, s.at))
                 .cloned()
                 .collect(),
             signals: self
                 .signals
                 .iter()
-                .filter(|s| holds(s.at))
+                .filter(|s| holds(&s.session_id, s.at))
                 .cloned()
                 .collect(),
             summaries: self
                 .summaries
                 .iter()
-                .filter(|s| holds(s.at))
+                .filter(|s| holds(&s.session_id, s.at))
                 .cloned()
                 .collect(),
             unreadable_lines: self.unreadable_lines,
         }
+    }
+
+    /// How many records here carry no session id, so were windowed on their own clock.
+    ///
+    /// Nonzero means this log holds records written before sessions were identified, and that the
+    /// session-whole rule in [`GuardLog::within`] could not be applied to them. A surface that
+    /// prints a window has to be able to say that, because it is the one case where the window's
+    /// own caveat does not hold.
+    #[must_use]
+    pub fn unattributed_records(&self) -> usize {
+        self.sessions
+            .iter()
+            .filter(|s| s.session_id.is_empty())
+            .count()
+            + self
+                .signals
+                .iter()
+                .filter(|s| s.session_id.is_empty())
+                .count()
+            + self
+                .summaries
+                .iter()
+                .filter(|s| s.session_id.is_empty())
+                .count()
     }
 
     /// What the guard did **not** look at, over whatever this log covers.
@@ -870,6 +979,7 @@ pub fn attach<T: GuardTransport>(
 
     Ok(GuardAdapter {
         transport,
+        session_id: new_session_id()?,
         warrant_id: config.warrant_id,
         mode: config.mode,
         max_calls: config.max_calls,
@@ -885,6 +995,32 @@ pub fn attach<T: GuardTransport>(
         signals: BTreeMap::new(),
         counters: GuardCounters::default(),
     })
+}
+
+/// Mint an id for one guarded session: `gsn_` and 16 bytes from the system CSPRNG.
+///
+/// Random rather than derived from the warrant id and the clock, because two sessions of one
+/// warrant can start inside the same second and a colliding id would silently merge two sessions'
+/// records — which is worse than the splitting it exists to fix, since the merge is invisible.
+///
+/// A CSPRNG that refuses is a refusal to attach, not a fallback to a weaker source or an empty id:
+/// an empty id is the *unattributed* marker for records written before this field existed, and
+/// minting new records that claim to be that would make the one number that discloses the old
+/// behaviour ([`GuardLog::unattributed_records`]) mean two different things at once.
+///
+/// # Errors
+/// [`GuardError::SessionIdentity`] if the operating system will not supply randomness.
+fn new_session_id() -> Result<String, GuardError> {
+    let mut bytes = [0u8; 16];
+    getrandom::fill(&mut bytes).map_err(|e| {
+        GuardError::SessionIdentity(format!(
+            "the system CSPRNG refused ({e}), so this session could not be given an id. Its attach \
+             record, its signals and its counters are written on three different clocks and the id \
+             is what holds them together, so no guard is attached rather than one whose records a \
+             reader could not group."
+        ))
+    })?;
+    Ok(format!("gsn_{}", hex::encode(bytes)))
 }
 
 /// Find the digest an ollama-compatible `/api/tags` reports for one tag.
@@ -940,11 +1076,18 @@ pub trait GuardSink {
     fn counters(&self) -> GuardCounters;
     /// The attach record, so the caller can write it before the run starts.
     fn session_record(&self, at: u64) -> GuardSession;
+    /// The id every record of this session carries. See [`GuardSession::session_id`].
+    ///
+    /// On the trait rather than read off the signals, because the end-of-session counters have to
+    /// carry it too and a session that classified nothing has no signal to read it from.
+    fn session_id(&self) -> &str;
 }
 
 /// A guard bound to one loopback backend and one warrant.
 pub struct GuardAdapter<T: GuardTransport> {
     transport: T,
+    /// Minted once at attach and stamped on every record this session writes.
+    session_id: String,
     warrant_id: String,
     mode: GuardMode,
     max_calls: u32,
@@ -1123,6 +1266,7 @@ impl<T: GuardTransport> GuardSink for GuardAdapter<T> {
             GuardSignal {
                 format: GUARD_SIGNAL_FORMAT.to_string(),
                 warrant_id: self.warrant_id.clone(),
+                session_id: self.session_id.clone(),
                 at,
                 tool: tool.to_string(),
                 argument_names,
@@ -1164,10 +1308,15 @@ impl<T: GuardTransport> GuardSink for GuardAdapter<T> {
         self.counters
     }
 
+    fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
     fn session_record(&self, at: u64) -> GuardSession {
         GuardSession {
             format: GUARD_SESSION_FORMAT.to_string(),
             warrant_id: self.warrant_id.clone(),
+            session_id: self.session_id.clone(),
             at,
             mode: self.mode,
             max_calls: self.max_calls,
@@ -1251,11 +1400,17 @@ pub fn record_guard_session(root: &Path, session: &GuardSession) -> Result<(), G
 /// signals, because "the guard ran and found nothing" and "the guard never finished" are different
 /// states and the log has to distinguish them.
 ///
+/// `session_id` is taken from the sink ([`GuardSink::session_id`]) rather than read off the first
+/// signal: a session that classified nothing still writes counters, and those counters have to be
+/// groupable with the attach record written before the run — see [`GuardLog::within`] for what a
+/// record that cannot be grouped costs a reader.
+///
 /// # Errors
 /// [`GuardError::Log`] if the log cannot be created, encoded or appended to.
 pub fn record_guard_signals(
     root: &Path,
     warrant_id: &str,
+    session_id: &str,
     signals: &[GuardSignal],
     counters: GuardCounters,
     at: u64,
@@ -1270,6 +1425,7 @@ pub fn record_guard_signals(
     let summary = GuardSummary {
         format: GUARD_SUMMARY_FORMAT.to_string(),
         warrant_id: warrant_id.to_string(),
+        session_id: session_id.to_string(),
         at,
         counters,
     };

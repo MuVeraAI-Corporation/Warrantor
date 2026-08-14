@@ -965,9 +965,14 @@ pub struct SummaryWindow {
 
 impl SummaryWindow {
     /// Whether a record stamped `at` falls inside this window.
+    ///
+    /// Delegates to [`crate::guard::window_holds`] rather than restating the half-open rule, because
+    /// the guard log windows itself with the same rule and two copies of an inclusive/exclusive
+    /// boundary is the shape that drifts by one on the next edit — putting a refusal and its own
+    /// session's guard signals in different months.
     #[must_use]
     pub fn holds(&self, at: u64) -> bool {
-        self.since.is_none_or(|start| at >= start) && self.until.is_none_or(|end| at < end)
+        crate::guard::window_holds(at, self.since, self.until)
     }
 }
 
@@ -976,15 +981,27 @@ impl SummaryWindow {
 /// Stated by the server rather than composed by the client, for the same reason the guard note is:
 /// the caveat is a fact about how the records were written, and a renderer inventing its own
 /// wording for it will eventually invent a weaker one. It is not "these totals are approximate" —
-/// the error is not noise. Every refusal from one session carries that session's END time, and a
-/// deduplicated guard signal carries the first sighting's time, so a session straddling a boundary
-/// contributes ALL of its records to one side of it.
+/// the error is not noise.
+///
+/// It names each half separately because the two halves of this payload are filtered on different
+/// things, and a single sentence covering both was **false about one of them**. Refusals are
+/// stamped once per session, at the end, so filtering a refusal on its own `at` is filtering it on
+/// its session. Guard records are not: an attach record is written at the start of the session,
+/// each signal at the moment of its call, and the counters at the end, so the guard half is
+/// filtered by SESSION — see [`crate::guard::GuardLog::within`] — and only records written before
+/// sessions carried an id still fall back to their own clock.
 const WINDOW_CAVEAT: &str =
-    "This window is applied to the time a SESSION ENDED, not to the moment of each call: every \
-     refusal a session recorded carries that session's end time, and a repeated guard signal \
-     carries the first sighting's time. A session that straddles the boundary therefore lands \
-     wholly on one side, so a per-window total is systematically attributed to the window its \
-     session ended in rather than merely being imprecise. `unreadable_lines` is counted over the \
+    "This window is applied per record type, on the clock each record actually carries, and the two \
+     halves of this answer do not carry the same one. REFUSALS: every refusal a session recorded is \
+     stamped with one moment, the time that SESSION ENDED, so a session straddling the boundary \
+     contributes all of its refusals to the side it ended on -- systematically attributed, not \
+     merely imprecise. GUARD: its three record types are written on three different clocks -- the \
+     attach record when the session STARTED, each signal at the moment of the CALL it describes (a \
+     repeat keeping the first sighting's time), the counters when the session ENDED -- so the guard \
+     half is windowed by SESSION and a session is held or dropped whole, on the last moment it \
+     wrote anything. Guard records written before sessions carried an id cannot be grouped and are \
+     each windowed on their own clock, which can split one such session across the boundary; \
+     `guard.unattributed_records` counts exactly those. `unreadable_lines` is counted over the \
      WHOLE log and is not windowed at all: a line that did not parse has no timestamp to compare.";
 
 /// Everything the HTTP layer is allowed to ask for.
@@ -3137,8 +3154,13 @@ fn guard_object(log: &crate::guard::GuardLog, scope: GuardScope) -> Value {
         // reachable: the attach write failed and the session's own signals landed anyway. Saying
         // "nothing classified anything" over a list of classifications would be a plainly false
         // sentence sitting next to its own counter-evidence.
+        // One `format!` argument and no line continuations: the previous spelling broke the string
+        // across source lines without `\`, so the note an operator read carried fourteen literal
+        // spaces mid-sentence ("what was watching              cannot be named").
         format!(
-            "{GUARD_PROVENANCE} No attach record was found for these signals, so what was watching              cannot be named from this log alone -- read the per-signal provenance. Whether              anything was blocked is read from the signals' own mode."
+            "{GUARD_PROVENANCE} No attach record was found for these signals, so what was watching \
+             cannot be named from this log alone -- read the per-signal provenance. Whether \
+             anything was blocked is read from the signals' own mode."
         )
     } else {
         match scope {
@@ -3180,6 +3202,11 @@ fn guard_object(log: &crate::guard::GuardLog, scope: GuardScope) -> Value {
         // number with no measurement behind it on the surface that least tolerates one.
         "coverage": log.coverage(),
         "unreadable_lines": log.unreadable_lines,
+        // How many of the records above were written before sessions carried an id, so could not be
+        // windowed as part of a session and fell back to their own clock. Nonzero is the one case
+        // in which `window.caveat`'s "held or dropped whole" does not hold, and a reader is owed
+        // that rather than left to assume the better rule applied to all of it.
+        "unattributed_records": log.unattributed_records(),
         "note": note,
     });
     let grouped = scope == GuardScope::Store;
