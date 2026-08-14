@@ -6,6 +6,7 @@
   "private": true,
   "type": "module",
   "main": "src/main.js",
+  "author": "MuVeraAI Corporation <opensource@muveraai.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MuVeraAI-Corporation/Warrantor.git",
@@ -13,9 +14,12 @@
   },
   "scripts": {
     "start": "electron .",
-    "test": "node --test"
+    "test": "node --test",
+    "pack": "electron-builder --config electron-builder.config.cjs --dir --publish never",
+    "dist": "electron-builder --config electron-builder.config.cjs --publish never"
   },
   "devDependencies": {
-    "electron": "^43.4.0"
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3"
   }
 }

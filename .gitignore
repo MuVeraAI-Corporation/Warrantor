@@ -34,6 +34,13 @@ typescript/**/node_modules/
 # neither. Ignored here rather than by a broader pattern, so a stray node_modules elsewhere in
 # the tree is still noticed.
 desktop/node_modules/
+# Installers, and the compiled `warrantor` binary the release workflow drops in for
+# electron-builder to bundle. Neither belongs in git: a committed executable in the source tree of
+# a security substrate is an unreviewed, unattested binary that nothing in CI ever looks at, and
+# the whole point of building it in the release job is that the artifact is attested to the commit
+# it came from.
+desktop/dist/
+desktop/vendor/
 typescript/**/dist/
 typescript/**/build/
 typescript/**/.next/

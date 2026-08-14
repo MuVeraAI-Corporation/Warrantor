@@ -177,6 +177,42 @@ stops *new* dependency resolution and leaves the version downloadable forever.
 
 Scope the crates.io token to `publish-new` + `publish-update` and nothing else.
 
+## Desktop installers
+
+A different artifact from the three registries above: `.github/workflows/desktop-release.yml`
+produces a Windows NSIS installer, a macOS dmg for arm64 and x64, and a Linux AppImage and deb, all
+**unsigned**. Nothing here is irreversible the way a registry publish is, but a tag burns a version
+number in the artifact names, so rehearse first.
+
+1. **Run the workflow by `workflow_dispatch` with `dry_run` left true, before tagging.** This is the
+   only place `npm ci` in `desktop/` ever runs, and neither the workflow YAML nor the regenerated
+   lockfile is exercised anywhere else — CI's `desktop` job deliberately installs nothing. Confirm
+   all four legs upload artifacts, and read the "Confirm the agent is inside the app" step: the
+   macOS and Linux legs are where an `extraResources` pattern that does not expand would first
+   show up.
+
+   Note the ordering constraint GitHub imposes: **`workflow_dispatch` is only available once the
+   workflow file is on the default branch.** A dispatch against a feature branch returns 404 until
+   then, so the first real exercise of this workflow necessarily happens after the merge and before
+   the tag — which is exactly why it must happen before the tag.
+2. **Confirm `npm audit` was clean in every leg.** RFC W1 makes it a release gate and it is a step
+   in the job. If an advisory appears, the fixes are a newer `electron-builder` or a scoped
+   `overrides` entry — never `npm audit fix --force`, which moves Electron off the audited pin, and
+   never raising `--audit-level`. If neither clears it, record the advisory in `desktop/SIGNING.md`
+   and hold the release.
+3. **Install one artifact per platform on a machine with no `warrantor` on `PATH`, and confirm the
+   window opens.** This is the whole point of bundling the agent and it is the one thing no gate can
+   check. The workflow asserts the binary is inside the app; it cannot assert that the app then
+   starts it.
+4. **Publish `SHA256SUMS-*` alongside the installers.** The release job already attaches them and
+   attaches a build-provenance attestation. Together they are the only integrity signal an unsigned
+   installer has.
+5. **Say in the release notes that the installers are unsigned**, that SmartScreen and Gatekeeper
+   will warn, and link `desktop/SIGNING.md`. Do **not** write instructions for bypassing the
+   warning — no "More info → Run anyway", no `xattr -dr com.apple.quarantine`. Teaching users to
+   click through a security warning is the exact habit this product exists to break, and doing it in
+   our own release notes makes it ours. Point at the checksums and the attestation instead.
+
 ---
 
 ## The order I would actually do this in

@@ -16,6 +16,105 @@
 const GRANTED_PERMISSIONS = Object.freeze([]);
 
 /**
+ * The name the agent executable carries on this platform.
+ *
+ * @param {string} platform - a `process.platform` value
+ * @returns {string}
+ */
+export function agentExecutableName(platform) {
+  return platform === 'win32' ? 'warrantor.exe' : 'warrantor';
+}
+
+/**
+ * Where to look for the agent, in descending order of authority.
+ *
+ * This is a security decision, not a convenience one. Verification happens only in Rust and only in
+ * this binary, so substituting the binary substitutes the verifier — and a verifier chosen by
+ * something other than the person who installed the app is a verifier nobody audited. An installed
+ * application must therefore not be re-pointed at a different agent by an environment variable that
+ * any parent process can set.
+ *
+ * Hence the order: the copy shipped inside the installer wins outright; `WARRANTOR_BIN` is for the
+ * development case where there is no bundled copy; the bare name handed to `spawn` for `PATH`
+ * resolution is the last resort and is what `npm start` uses today.
+ *
+ * The bundled candidate is emitted only when the app is packaged. In development
+ * `process.resourcesPath` points inside `node_modules/electron/dist/resources`, and a stale file
+ * left there by an earlier experiment would be picked up as if it had been shipped.
+ *
+ * Joins with a literal separator rather than `node:path` so this module keeps importing nothing,
+ * which is what lets CI gate it with no Electron and no display.
+ *
+ * @param {{isPackaged: boolean, resourcesPath: string, warrantorBin: string|undefined,
+ *          platform: string}} environment
+ * @returns {Array<{path: string, source: 'bundled'|'env'|'path'}>} ordered, never empty
+ */
+export function agentBinaryCandidates({ isPackaged, resourcesPath, warrantorBin, platform }) {
+  const name = agentExecutableName(platform);
+  const candidates = [];
+
+  if (isPackaged === true && typeof resourcesPath === 'string' && resourcesPath !== '') {
+    const separator = platform === 'win32' ? '\\' : '/';
+    const alreadyEnds = resourcesPath.endsWith('/') || resourcesPath.endsWith('\\');
+    candidates.push({
+      path: `${resourcesPath}${alreadyEnds ? '' : separator}${name}`,
+      source: 'bundled',
+    });
+  }
+
+  // An empty or non-string value is *no instruction*, not an instruction to run "". Left unchecked
+  // it becomes a candidate for the empty path, which fails at spawn with a message about nothing.
+  if (typeof warrantorBin === 'string' && warrantorBin.trim() !== '') {
+    candidates.push({ path: warrantorBin, source: 'env' });
+  }
+
+  candidates.push({ path: name, source: 'path' });
+  return candidates;
+}
+
+/** Human wording for a candidate's source, for the one place a person reads it: an error dialog. */
+export function describeBinarySource(source) {
+  if (source === 'bundled') return 'bundled with the app';
+  if (source === 'env') return 'WARRANTOR_BIN';
+  return 'PATH';
+}
+
+/**
+ * Choose the agent binary from an ordered candidate list.
+ *
+ * **There is no fallthrough, deliberately.** The list is ordered by authority and the head wins; a
+ * head that does not exist is a fatal error rather than a reason to try the next entry. Falling
+ * through would mean a packaged app with a damaged install, or an operator whose `WARRANTOR_BIN`
+ * has a typo in it, silently runs a *different verifier* than the one that was chosen — which is
+ * the whole failure this ordering exists to prevent, and it would be invisible because the app
+ * would start and look correct.
+ *
+ * The consequence, stated so it is a decision rather than an accident: in a packaged build
+ * `WARRANTOR_BIN` cannot override the bundled agent. Anyone who needs a different agent should run
+ * `warrantor console`, or the shell from source.
+ *
+ * The `path` candidate cannot be probed — resolving it is `spawn`'s job — so it is handed over
+ * as-is and a missing `PATH` entry surfaces as a spawn error naming it.
+ *
+ * @param {Array<{path: string, source: string}>} candidates
+ * @param {(path: string) => boolean} exists
+ * @returns {{binary: {path: string, source: string}|null, error: string|null}}
+ */
+export function resolveAgentBinary(candidates, exists) {
+  const [chosen] = candidates;
+  if (!chosen) return { binary: null, error: 'no agent binary was configured' };
+  if (chosen.source === 'path' || exists(chosen.path)) return { binary: chosen, error: null };
+  return {
+    binary: null,
+    error:
+      `the agent binary (${describeBinarySource(chosen.source)}) is not at ${chosen.path}. ` +
+      (chosen.source === 'bundled'
+        ? 'This install is incomplete; reinstall rather than running a different agent.'
+        : 'Correct WARRANTOR_BIN or unset it.'),
+  };
+}
+
+/**
  * Is this a URL the window may navigate to?
  *
  * An allowlist of one origin, compared after parsing rather than by string prefix. A prefix test is

@@ -19,21 +19,55 @@ Everything below is what stops that being true for someone who is *not* the deve
 
 ## Tier 1 — blocks a non-developer using this at all
 
-### 1.1 The desktop app is not packaged
+### 1.1 No installer has been built yet, and none of them will be signed
 
-`npm start` runs it from source. There is no installer, no `.exe`/`.dmg`/`.AppImage`, no code
-signature, no notarisation, no icon and no update channel. A reviewer cannot install this.
+Two separable things, and the first was written here as finished when it was not.
+
+**Packaging is configured, not exercised.** `.github/workflows/desktop-release.yml` and
+`desktop/electron-builder.config.cjs` describe a Windows NSIS installer, a macOS dmg for both
+architectures, and a Linux AppImage and deb, with an icon. **That workflow has never run** —
+`workflow_dispatch` 404s until the file is on the default branch — and **no installer has been
+produced, installed or launched on any platform.** The only build performed by hand was a Windows
+`electron-builder --dir` run with a 17-byte dummy file standing in for the agent: an unpacked
+directory, not an installer, and not a launch. The macOS and Linux legs have never been executed at
+all, and the macOS leg was misconfigured for as long as this document called packaging done —
+`identity: null` skips code signing rather than signing ad-hoc, and an invalidly-signed bundle does
+not execute on Apple Silicon. That is the concrete cost of writing "done" here ahead of the
+evidence, in the one document whose job is to prevent it. RELEASING.md step 1 is the dispatch that
+resolves this, and it can only happen after merge.
+
+**The signature is the second half**, and it is what remains once that dispatch is green: the code
+signature, the notarisation, and the update channel — the last deliberately blocked behind the
+signature, because an update channel over an unsigned artifact is an unauthenticated
+code-execution channel.
 
 Signing is the long pole: an unsigned binary is SmartScreen-blocked on Windows and Gatekeeper-blocked
 on macOS, and a security product that asks a user to click through a "developer cannot be verified"
 warning has taught them the wrong lesson on first contact. Needs an EV code-signing certificate and
-an Apple Developer ID, both procurement rather than engineering.
+an Apple Developer ID, both procurement rather than engineering. Exactly what to buy and the config
+lines that change are written down in [../desktop/SIGNING.md](../desktop/SIGNING.md).
 
-### 1.2 The desktop app bundles no agent
+Until then, a tagged release publishes per-platform SHA256SUMS and a build-provenance attestation.
+Those say where a file came from, not who stands behind it, and the difference is not papered over.
 
-It shells out to `warrantor` on `PATH`, or `WARRANTOR_BIN`. A reviewer has no `warrantor` binary,
-so the app starts and immediately reports that it cannot find one. Packaging must ship the Rust
-binary inside the app and prefer the bundled copy.
+### 1.2 The desktop app bundles no agent — **resolver done, bundling unobserved**
+
+Not "done", because half of this is configuration that has never been executed. See 1.1.
+
+**Done:** the shell resolves the bundled copy first — ahead of `WARRANTOR_BIN` and ahead of `PATH`.
+That is code in `desktop/src/policy.js`, and `node --test` gates it on every pull request. The
+ordering is the security decision, not the bundling: verification happens only in Rust and only in
+that binary, so substituting the binary substitutes the verifier, and an installed app must not be
+silently re-pointed at a different one by an environment variable any parent process can set. There
+is no fallthrough either — a missing bundled agent or a `WARRANTOR_BIN` that does not exist stops
+the app with a message naming the path, rather than quietly running whatever is on `PATH`.
+
+**Not observed:** that the `warrantor` binary actually arrives inside a produced app. The workflow
+compiles it on the runner that packages it and asserts it is present and executable inside
+`dist/`, and a packaging test asserts the builder config and the resolver agree on the name — but
+the workflow has never run, so no installer has ever been shown to contain an agent, and no app has
+ever been shown to start one. That last step is the one no gate can perform: RELEASING.md step 3
+asks for an install on a machine with no `warrantor` on `PATH`.
 
 ### 1.3 There is no first-run experience — **done**
 
@@ -218,10 +252,11 @@ takes.
 
 ## The honest summary
 
-The **substrate is real** and the **single-machine loop is complete**. What is missing is nearly
-everything that makes it a product rather than a tool: it cannot be installed, cannot be reached by
-a second person, and cannot say who did what.
+The **substrate is real** and the **single-machine loop is complete**. Most of what is missing is
+still what makes it a product rather than a tool: it installs but announces itself with an operating
+system warning, it cannot be reached by a second person, and it cannot say who did what.
 
-The ordering matters. Packaging (1.1–1.2) is the cheapest visible win and unblocks any user
-research. But **2.1 is the one that decides whether this is a product**, because multi-user
-oversight is the claim, and today it is a claim the transport cannot support.
+The ordering matters. Packaging (1.1–1.2) was the cheapest visible win and is now done to the point
+where a reviewer can install and launch it; what remains of 1.1 is a purchase, not a build. But
+**2.1 is the one that decides whether this is a product**, because multi-user oversight is the
+claim, and today it is a claim the transport cannot support.
