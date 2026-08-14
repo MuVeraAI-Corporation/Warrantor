@@ -278,10 +278,20 @@ test('executableName is set explicitly and is path-safe', () => {
 });
 
 /**
- * Electron uses `desktopName` as app_id / WM_CLASS. Without it a desktop environment cannot link
- * the running window to the installed .desktop entry: generic icon, no launcher grouping. It has to
- * match the .desktop file electron-builder writes, which is named after `executableName`.
+ * Electron uses the desktop name as app_id / WM_CLASS. Without it a desktop environment cannot link
+ * the running window to the installed .desktop entry: generic icon, no launcher grouping.
+ *
+ * It lives in package.json and is copied in by `linux.syncDesktopName`. `linux.desktopName` is NOT
+ * a key in electron-builder 26's schema — setting it fails config validation for EVERY platform,
+ * which is how a Linux-only cosmetic fix took down the three legs that were already passing. The
+ * name has to match the .desktop file, which electron-builder names after `executableName`.
  */
 test('the linux desktop entry is named after the executable', () => {
-  assert.equal(builderConfig.linux.desktopName, `${builderConfig.executableName}.desktop`);
+  assert.equal(builderConfig.linux.syncDesktopName, true);
+  assert.equal(manifest.desktopName, `${builderConfig.executableName}.desktop`);
+  assert.equal(
+    builderConfig.linux.desktopName,
+    undefined,
+    'linux.desktopName is not in the v26 schema and fails validation for all platforms',
+  );
 });

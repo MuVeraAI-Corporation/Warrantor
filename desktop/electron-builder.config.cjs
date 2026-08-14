@@ -114,10 +114,11 @@ module.exports = {
     category: 'Development',
     // The deb target fails outright without a maintainer. Read from package.json `author`.
     maintainer: 'MuVeraAI Corporation <opensource@muveraai.com>',
-    // Without this, desktop environments cannot associate the running window with this .desktop
-    // entry: the window shows a generic icon and does not group under the launcher. Electron uses
-    // it as app_id / WM_CLASS. It must match the .desktop filename, which is `executableName`.
-    desktopName: 'warrantor-desktop.desktop',
-    synopsis: 'Supervise an AI agent under a warrant you granted.',
+    // Without a desktop name, Electron has no app_id / WM_CLASS and a desktop environment cannot
+    // associate the running window with the installed .desktop entry: generic icon, no launcher
+    // grouping. electron-builder 26 takes it from package.json `desktopName` and copies it in when
+    // this is set — `linux.desktopName` is NOT a key in this version's schema, and setting it
+    // fails validation for EVERY platform, not just Linux.
+    syncDesktopName: true,
   },
 };
