@@ -545,23 +545,48 @@ So the run's finding is not "LoRA does not work here". It is that **a corpus who
 binary trains a binary model**, and that the weak-category selection alone does not survive
 contact with a three-valued output space.
 
-**The fix, and why it is the only one available.** Two repairs were on the table: render
+**The repair that was not available, and the one that was tried.** Two were on the table: render
 `Controversial` for the rows the corpora mark borderline, or stop supervising severity at all.
 The first is **not implementable from either corpus** — WildGuardMix's `prompt_harm_agreement`
 column (3 = unanimous, 2 = split, null = no majority) exists *only in its test split*, the train
 split does not carry it, and ExpGuardMix has nothing equivalent. There is no borderline signal to
 render a third class from, so supervising severity at all means supervising it binary.
 
-So `supervise_severity=False` is now set on all four guard recipes. The `Safety:` line stays in
-`input_ids` — the categories line must still be conditioned on it — and is masked in `labels`, so
-no gradient teaches the model to emit one. The base model's severity distribution, `Controversial`
-included, is left intact while the category line is still tuned; and `parse_guard_response`
-already treats a gating category as harmful in its own right, so catch rate can improve through
-the category path without the severity head being touched at all.
+So run 2 (`catonly-2026-08-13b`) masked the `Safety:` line in the loss and kept it in the input.
+The reasoning was that the base model's severity distribution would be left intact while the
+category line was tuned — and `parse_guard_response` treats a gating category as harmful in its
+own right, so catch rate could improve through the category path alone.
 
-This changes the recipe digest — `sha256:7509dd11…` → `sha256:f3a980d2…` — which is correct: it
-is a different recipe now, and the rejected run's decision document still names the digest that
-produced it. **The corpus is unchanged and does not need rebuilding**, leakage check included.
+#### That reasoning was wrong, and run 2 measured how wrong
+
+| run | overall | adversarial | severity verdicts emitted |
+| --- | --- | --- | --- |
+| untuned 0.6B | 0.8488 | 0.7918 | controversial 49, safe 1000, unsafe 650 |
+| run 1 — severity supervised | 0.8329 | 0.7947 | **controversial 0**, safe 1022, unsafe 677 |
+| run 2 — severity masked | **0.6804** | **0.5572** | controversial **187**, safe 1132, unsafe **367**, *plus category words* |
+
+Masking was **17 points worse than supervising it binary**, and 23 adversarial points below the
+untuned model. The gate rejected run 1 as *"within sampling noise"* and run 2 as *"recall
+REGRESSED beyond sampling noise"* — correctly distinguishing "no improvement shown" from "this
+made it worse".
+
+**Masking a field's loss does not isolate that field.** LoRA adapts q/k/v/o/gate/up/down across
+every layer — weights *both* output fields share. Not computing a loss on severity did not hold
+it still; it only stopped correcting it while training moved it anyway. The severity distribution
+shows exactly that: `Controversial` came back but **overproduced** (187 against the base model's
+49) while `Unsafe` collapsed (367 against 650), and the model began emitting **its own category
+vocabulary in the severity slot** — `non-violent illegal acts`, `others`, `violent`. An
+unsupervised field beside a supervised one did not stay still; it came unmoored and filled with
+the neighbouring field's tokens.
+
+The default is back to `supervise_severity=True`: the less-bad of two measured losses, and it at
+least keeps the severity line well-formed. **That is not a fix.** The next attempt needs separate
+parameters — a second adapter, or target modules that do not carry severity — or a corpus that
+can supervise all three severity values. It is not a third setting of this flag.
+
+The recipe digest moved twice and is back where it started, which is correct: the recipes are
+what they were, and the two rejected runs' decision documents each still name the digest that
+produced them. **The corpus was never rebuilt for any of this**, leakage check included.
 
 (While confirming this, one more schema correction: ExpGuardMix's **train** split *does* carry a
 `general` domain, 26,098 rows of it. The statement below that the corpus "supplies no general

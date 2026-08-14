@@ -132,14 +132,18 @@ def _guard_recipe(
             learning_rate=1e-4,
             epochs=1.0,
             seed=20260813,
-            # Measured, not assumed. Run `weak-2026-08-13a` supervised severity and the adapter
-            # stopped emitting `Controversial` altogether -- 49 verdicts to 0 -- because the
-            # corpora label rows harmful or not and the rendered targets are therefore binary.
-            # Recall fell 0.8488 -> 0.8329 with the false-positive rate falling too, and the
-            # documented `Controversial=SAFE` policy knob became a no-op. Neither train split
-            # carries a borderline signal to render a third class from, so the choice is between
-            # supervising severity binary and not supervising it at all. This is the latter.
-            supervise_severity=False,
+            # BOTH SETTINGS WERE MEASURED, AND BOTH LOSE. Run `weak-2026-08-13a` supervised
+            # severity: `Controversial` went 49 verdicts -> 0, recall 0.8488 -> 0.8329, and the
+            # documented Controversial=SAFE knob became a no-op. So run `catonly-2026-08-13b`
+            # masked it instead -- and did far worse: 0.6804 overall, 0.5572 adversarial, with
+            # the model emitting its own CATEGORY words in the severity slot. Masking a field's
+            # loss does not isolate it when LoRA adapts the weights both fields share.
+            #
+            # Back to True, which is the less-bad of two measured losses and keeps the severity
+            # line at least well-formed. This is NOT a fix; see the warning on
+            # FineTuneConfig.supervise_severity. The next attempt needs separate parameters or a
+            # corpus that can supervise all three severity values, not a third setting here.
+            supervise_severity=True,
             output_dir=Path("artifacts") / f"guard-{profile_key}-{variant}",
         ),
         corpus_task="guard",
