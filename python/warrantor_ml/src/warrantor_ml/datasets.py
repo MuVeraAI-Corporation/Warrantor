@@ -170,9 +170,15 @@ _EXPGUARDMIX = DatasetSpec(
         "counsel before the finance/healthcare/law packs depend on it."
     ),
     terms_read_on=date(2026, 8, 12),
-    total_rows=58_928,
+    # CORRECTED 2026-08-13 against the cached file, not the dataset card: the train split holds
+    # 46,005 rows, not the 56,653 declared here since the registry was written. The byte figure
+    # was right all along (declared 20,890,000; actual 20,888,698), which is what makes the case
+    # that this is the right file with a wrong count rather than a different revision. Nothing
+    # reconciles `SplitSpec.rows` against the bytes, so the error surfaced only in the preflight
+    # and in `warrantor-ml-datasets --json`, where it overstated the corpus by 23%.
+    total_rows=48_280,
     splits=(
-        SplitSpec("train", "expguardtrain.parquet", 56_653, 20_890_000),
+        SplitSpec("train", "expguardtrain.parquet", 46_005, 20_890_000),
         SplitSpec("test", "expguardtest.parquet", 2_275, 1_530_000),
     ),
     homepage="https://huggingface.co/datasets/6rightjade/expguardmix",

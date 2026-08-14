@@ -42,7 +42,7 @@ project would cost far more than it proves. Every test in this project runs with
 | `baselines` | The measured numbers from `ml/README.md`, frozen as counts with the backend configuration that produced them. |
 | `leakage` | Normalised-content overlap between a training corpus and an eval split. The augmentation leak, not the published split boundary. |
 | `lanes` | RTX 5080 / Kaggle T4-P100 / Modal A100. Refuses a run that will not fit or will not finish. |
-| `recipes` | The eight recipes as data with a stable digest, so two lanes can run provably the same recipe. |
+| `recipes` | The nine recipes as data with a stable digest, so two lanes can run provably the same recipe. Also the only place a measured baseline becomes reachable: an unbound one cannot be gated against by any CLI. |
 | `parity` | The blind gate. `promote` / `reject` / `insufficient_evidence`, two-sided and per-slice. |
 | `lane_export` | Renders the standalone Kaggle and Modal runners from a recipe. Generates text; dispatches nothing. |
 | `build_corpus` | Corpus CLI. `--describe-only` first, always. |

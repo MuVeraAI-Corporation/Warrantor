@@ -62,7 +62,15 @@ def test_expguardmix_records_the_licence_versus_click_through_conflict() -> None
     # CC-BY permits commercial use; the gate form does not. The registry must not flatten that.
     assert spec.commercial_use == "restricted-by-click-through"
     assert "research purposes" in spec.terms_note
-    assert spec.total_rows == 58_928
+    # Corrected 2026-08-13 against the cached parquet: 46,005 train + 2,275 test. The registry
+    # had declared 56,653 train / 58,928 total -- a 23% overstatement that surfaced in the
+    # preflight and in `warrantor-ml-datasets --json` and that nothing reconciled, because
+    # `SplitSpec.rows` is never checked against the file or against `approx_bytes` (which was
+    # right all along: declared 20,890,000 against an actual 20,888,698).
+    assert spec.total_rows == 48_280
+    assert spec.split("train").rows == 46_005
+    assert spec.split("test").rows == 2_275
+    assert sum(split.rows for split in spec.splits) == spec.total_rows
 
 
 def test_both_primary_corpora_are_flagged_gated() -> None:

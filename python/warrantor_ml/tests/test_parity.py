@@ -163,7 +163,7 @@ def test_a_floor_spelled_the_other_vocabularys_way_is_still_enforced() -> None:
     """baselines.py stores 'unqualified professional advice'; ExpGuard emits it in title case.
 
     The gate's lookup was an exact dict hit, so the floor protecting the ONE measured weak class
-    (0.4298, the weakness two of the eight models exist to repair) never matched anything --
+    (0.4298, the weakness the weak-category recipes exist to repair) never matched anything --
     ``observed`` was always None and the condition was skipped. ``tasks/guard._matches_category``
     already normalised case and underscores for exactly this reason.
     """

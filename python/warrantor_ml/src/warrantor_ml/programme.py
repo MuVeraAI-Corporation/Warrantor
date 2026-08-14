@@ -3,7 +3,7 @@
 Four entry points, none of which trains anything, downloads anything, or dispatches a job. They
 answer the questions that have to be answerable before any of that happens:
 
-* ``warrantor-ml-recipes`` -- what are the eight, and what is each one's digest?
+* ``warrantor-ml-recipes`` -- what are the nine, and what is each one's digest?
 * ``warrantor-ml-lanes`` -- will this recipe fit and finish on that lane?
 * ``warrantor-ml-export`` -- render the standalone runner the orchestrator will upload.
 * ``warrantor-ml-parity`` -- given a benchmark result document, promote or refuse.
@@ -22,7 +22,7 @@ from .lane_export import render_kaggle_script, render_modal_entrypoint
 from .lanes import LANES, LaneUnsuitableError, resolve
 from .leakage import LeakageReport, leakage_report
 from .parity import load_candidate_result, parity_gate
-from .recipes import get_recipe, list_recipes
+from .recipes import get_recipe, list_recipes, unbound_baselines
 from .tasks import guard
 
 __all__ = [
@@ -43,20 +43,24 @@ def recipes_main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(
         prog="warrantor-ml-recipes",
-        description="The eight training recipes, as data with a stable digest.",
+        description="The nine training recipes, as data with a stable digest.",
     )
     parser.add_argument("--recipe", help="restrict to one recipe id")
     parser.add_argument("--json", action="store_true")
     arguments = parser.parse_args(argv)
 
     selected = (get_recipe(arguments.recipe),) if arguments.recipe else list_recipes()
+    unbound = unbound_baselines()
     if arguments.json:
         print(
             json.dumps(
-                [
-                    {**recipe.to_dict(), "recipe_digest": recipe.recipe_digest}
-                    for recipe in selected
-                ],
+                {
+                    "recipes": [
+                        {**recipe.to_dict(), "recipe_digest": recipe.recipe_digest}
+                        for recipe in selected
+                    ],
+                    "unbound_baselines": unbound,
+                },
                 indent=2,
                 ensure_ascii=False,
             )
@@ -65,7 +69,8 @@ def recipes_main(argv: list[str] | None = None) -> int:
     for recipe in selected:
         print(f"{recipe.recipe_id:26} {recipe.config.profile_key:22} {recipe.model_role}")
         print(f"  digest    {recipe.recipe_digest}")
-        print(f"  corpus    {recipe.corpus_task} via {recipe.corpus_selector}")
+        print(f"  corpus    {recipe.config.dataset_id} {recipe.corpus_task} via ")
+        print(f"            {recipe.corpus_selector} {recipe.corpus_arguments}")
         print(
             f"  gate      {recipe.baseline_id or '(no measured baseline yet)'}"
             + (f" [{recipe.gate_slice}]" if recipe.gate_slice else "")
@@ -73,6 +78,14 @@ def recipes_main(argv: list[str] | None = None) -> int:
         for note in recipe.notes:
             print(f"  - {note}")
         print()
+
+    # Printed on the listing rather than left to a test. A measured baseline no recipe names
+    # cannot be gated against by any CLI path -- `parity_main` reads `recipe.baseline_id` and
+    # offers no override -- so an unbound baseline is dead weight that looks like capability.
+    if unbound and arguments.recipe is None:
+        print("UNBOUND BASELINES -- measured, registered, and reachable by no recipe:")
+        for baseline_id, reason in unbound.items():
+            print(f"  {baseline_id}\n    {reason}")
     return 0
 
 

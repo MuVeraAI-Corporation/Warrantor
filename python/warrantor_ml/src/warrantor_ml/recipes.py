@@ -1,4 +1,4 @@
-"""The eight recipes, as data with a stable digest.
+"""The nine recipes, as data with a stable digest.
 
 A recipe is a :class:`~warrantor_ml.fine_tune.FineTuneConfig` plus the things a config does not
 carry: which corpus selector built the data, which baseline the result is measured against, and
@@ -11,17 +11,38 @@ gate target, and it is recorded in the run record next to the lane and the preci
 records with the same recipe digest and different lanes are the confounded comparison
 :mod:`warrantor_ml.lanes` warns about and :mod:`warrantor_ml.parity` refuses.
 
-Four of the eight are one recipe shape
---------------------------------------
-Guard 0.6B and 4B, each in a weak-category and an adversarial-robustness variant, differ only in
-``profile_key`` and the row selector. They are enumerated rather than generated so each one has
-a stable id and digest that a run record can name, but they are built from one function so the
-hyperparameters cannot drift between them.
+Five of the nine are one recipe shape
+------------------------------------
+Guard 0.6B and 4B in a weak-category and an adversarial-robustness variant, plus the 0.6B
+ExpGuard weak-category variant, differ only in ``profile_key``, the corpus and the row
+selector. They are enumerated rather than generated so each one has a stable id and digest that
+a run record can name, but they are built from one function so the hyperparameters cannot drift
+between them.
 
 The four substrate recipes carry a cold-start warning in their notes, and it is not decoration:
 there is no corpus of real warrants in this repository. Those recipes are built and cannot yet
 be exercised at a size that would support a promotion, which is why the gate's
 ``insufficient_evidence`` verdict exists.
+
+Every registered baseline must be bound by a recipe
+---------------------------------------------------
+``baselines.BASELINES`` holds four measured baselines and, until this module was corrected,
+``_guard_recipe`` hardcoded exactly one of them for all four guard recipes. Three baselines
+were therefore unreachable: ``wildguardtest-qwen3guard-gen-0.6b`` -- whose own docstring says it
+exists *because* the ``guard-0.6b-*`` recipes gated against the 4B -- and both ExpGuard
+baselines. ``parity_main`` reads ``recipe.baseline_id`` and exposes no override, so an
+unreferenced baseline is not "available", it is dead. :mod:`warrantor_ml.parity` could measure
+Unqualified Professional Advice, the weakest class on both models, and no CLI path could ask it
+to. A test in ``test_recipes.py`` now asserts the binding is total.
+
+``corpus_arguments`` is the corpus specification, and it is executed
+-------------------------------------------------------------------
+It carries ``benign_ratio`` and, for the weak-category selector, the explicit ``categories``
+tuple. Both are covered by :attr:`Recipe.recipe_digest`, and
+``warrantor-ml-build-corpus --recipe <id>`` builds from them rather than from hand-typed flags.
+Before that, ``categories`` was an implicit dependency on the module-level
+``guard.WEAK_CATEGORIES``: adding an ExpGuard class to it would have changed what the WildGuard
+weak-category recipes select while their digests stayed identical.
 """
 
 from __future__ import annotations
@@ -32,13 +53,42 @@ from typing import Any
 
 from ._canonical import canonical_json, sha256_text
 from .fine_tune import PROFILES, FineTuneConfig
+from .tasks.guard import WEAK_CATEGORIES
 
 __all__ = [
+    "DEFERRED_BASELINES",
+    "EXPGUARD_WEAK_CATEGORIES",
     "RECIPES",
+    "WILDGUARD_WEAK_CATEGORIES",
     "Recipe",
     "get_recipe",
     "list_recipes",
+    "unbound_baselines",
 ]
+
+#: The WildGuard-spelled weak classes, resolved from the measured table rather than retyped.
+#: Baked into ``corpus_arguments`` at import so the recipe digest covers the selection: a change
+#: to ``guard.WEAK_CATEGORIES`` now changes the digest of every recipe that selects on it.
+WILDGUARD_WEAK_CATEGORIES: tuple[str, ...] = tuple(WEAK_CATEGORIES)
+
+#: The four ExpGuard classes the 0.6B ExpGuard recipe targets, in the ExpGuardTest spelling.
+#:
+#: Chosen by arithmetic, not by which name reads worst. The gate slice is ``overall`` and
+#: promotion needs +44 caught rows out of 1,256 (see ``_EXPGUARD_WEAK_NOTES``). Unqualified
+#: Professional Advice alone has only 76 missed positives in the whole test split, so a UPA-only
+#: adapter would have to roughly double its recall before the aggregate moved at all -- and the
+#: honest reject that produced would say nothing about UPA. These four carry 127 recoverable
+#: misses between them (UPA 76, Privacy Violation 13, Violence & Incitement 19, Self-Harm 19), so
+#: recovering about a third of them clears the bar.
+#:
+#: Their ExpGuardTrain positive counts, read from the cached split: UPA 1,173, Privacy Violation
+#: 1,584, Violence & Incitement 2,284, Self-Harm & Suicide Promotion 595.
+EXPGUARD_WEAK_CATEGORIES: tuple[str, ...] = (
+    "Unqualified Professional Advice",
+    "Privacy Violation",
+    "Violence & Incitement",
+    "Self-Harm & Suicide Promotion",
+)
 
 
 @dataclass(frozen=True)
@@ -105,14 +155,47 @@ def _guard_recipe(
     benign_ratio: float,
     gate_slice: str,
     notes: tuple[str, ...],
+    *,
+    dataset_id: str,
+    baseline_id: str,
+    categories: tuple[str, ...] = (),
 ) -> Recipe:
-    """Build one of the four guard adapter recipes.
+    """Build one of the five guard adapter recipes.
 
-    All four share these hyperparameters on purpose. A weak-category adapter and an adversarial
+    All five share these hyperparameters on purpose. A weak-category adapter and an adversarial
     adapter that also differed in learning rate would make the comparison between them a
     comparison of two things at once, and the whole point of splitting the axes was to be able
     to attribute the result to the data.
+
+    ``dataset_id``, ``baseline_id`` and ``categories`` are keyword-only parameters rather than
+    the constants they used to be. The baseline in particular: all four original recipes named
+    ``wildguardtest-qwen3guard-gen-4b``, which orphaned the other three measured baselines and
+    asked every 0.6B candidate to beat a model seven times its size.
+
+    Raises:
+        ValueError: ``categories`` is given for a selector that does not read it, or omitted for
+            one that does. A category list silently ignored by ``adversarial_subset`` would be a
+            recipe whose declaration says one thing and whose corpus builder does another, and
+            ``build_corpus --recipe`` executes this dict verbatim.
     """
+
+    wants_categories = selector.endswith(":weak_category_subset")
+    if wants_categories and not categories:
+        raise ValueError(
+            f"{profile_key}/{variant}: selector {selector!r} selects on categories and none were "
+            "declared. The default would come from guard.WEAK_CATEGORIES, which the recipe "
+            "digest does not cover -- on ExpGuardTrain that default happens to select one class, "
+            "and a corpus that is correct by luck is not a corpus that is specified"
+        )
+    if categories and not wants_categories:
+        raise ValueError(
+            f"{profile_key}/{variant}: selector {selector!r} does not read categories, so "
+            f"declaring {list(categories)} would record a targeting claim nothing acts on"
+        )
+
+    corpus_arguments: dict[str, Any] = {"benign_ratio": benign_ratio}
+    if wants_categories:
+        corpus_arguments["categories"] = list(categories)
 
     parameters = PROFILES[profile_key].parameters
     return Recipe(
@@ -122,7 +205,7 @@ def _guard_recipe(
             profile_key=profile_key,
             technique="qlora" if parameters > 1_000_000_000 else "lora",
             base_dtype="nf4" if parameters > 1_000_000_000 else "bf16",
-            dataset_id="wildguardmix",
+            dataset_id=dataset_id,
             dataset_split="train",
             lora_rank=16,
             lora_alpha=32,
@@ -144,8 +227,8 @@ def _guard_recipe(
         ),
         corpus_task="guard",
         corpus_selector=selector,
-        corpus_arguments={"benign_ratio": benign_ratio},
-        baseline_id="wildguardtest-qwen3guard-gen-4b",
+        corpus_arguments=corpus_arguments,
+        baseline_id=baseline_id,
         gate_slice=gate_slice,
         notes=notes,
     )
@@ -170,6 +253,51 @@ _WEAK_NOTES = (
     "borderline/agreement signal either -- WildGuard's prompt_harm_agreement exists only in its "
     "TEST split -- so rendering Controversial as a third target class is not available here, "
     "which is why the fix is to stop supervising severity rather than to label it better.",
+    "For UPA, use `guard-0.6b-expguard-weak`. It trains from ExpGuardTrain and gates against the "
+    "ExpGuardTest baseline the UPA figure was measured on -- a corpus this recipe cannot reach "
+    "and a baseline this recipe must not be scored against.",
+)
+
+_EXPGUARD_WEAK_NOTES = (
+    "The ONLY recipe that can train for Unqualified Professional Advice. UPA is the weakest "
+    "measured class on both guard sizes (0.3719 on the 0.6B, 0.4298 on the 4B) and it exists "
+    "only in ExpGuardMix -- the WildGuardMix train split has no such category, which is why the "
+    "two WildGuard weak-category recipes name it as a target they cannot reach.",
+    "Gated against expguardtest-qwen3guard-gen-0.6b, the same-size baseline measured on the same "
+    "split, seed, num_ctx and quantisation. THE BAR, computed with this repo's own `stats` "
+    "against that baseline's overall slice (898/1256 caught, 89/1019 false positives): promotion "
+    "needs at least 942 caught (recall >= 0.7500, i.e. +44 rows) AND fewer than 116 false "
+    "positives (FPR below 0.1138). The minimum detectable delta is 0.0353; anything smaller is "
+    "`within_noise` and is a reject, correctly.",
+    "Four classes, not one, and the reason is arithmetic. UPA has only 76 missed positives in "
+    "the whole 2,275-row test split, so a UPA-only adapter would have to nearly double its "
+    "recall before the `overall` slice moved at all. The four together carry 127 recoverable "
+    "misses (UPA 76, Privacy Violation 13, Violence & Incitement 19, Self-Harm 19), so about a "
+    "third of them clears the bar.",
+    "MEASURE THE 0.6B's SEVERITY EXPOSURE BEFORE TRAINING, and budget for it as the most likely "
+    "failure mode. Run weak-2026-08-13a took Qwen3Guard's `Controversial` verdicts from 49 to 0 "
+    "over 1,699 WildGuard samples. On ExpGuardTest the 4B's `Controversial` verdicts carry 235 "
+    "of 954 true positives -- losing them drops recall 0.7596 -> 0.5725, four times what "
+    "flattening cost on WildGuard. The 0.6B's exposure is recorded NOWHERE: no ExpGuard result "
+    "document is committed in this repository. Without that number a reject cannot be attributed "
+    "between 'the adapter did not learn' and 'the adapter flattened severity'. "
+    "supervise_severity=False is the mitigation and it has never been run.",
+    "Two of the six per-category floors -- Fraud, Scams & Deception (603 positives) and Criminal "
+    "Planning (356) -- are NOT trained for by this recipe and can only fall. That is the gate "
+    "working, not a flaw: an aggregate that improves while a class collapses is exactly what the "
+    "floors exist to refuse.",
+    "Do NOT pass --sample-size when scoring. `stratified_sample` stratifies on (domain, "
+    "prompt_label), not category, and Privacy Violation has 25 test positives -- a subsample can "
+    "drop a floor-bearing class entirely, which the gate reports as insufficient_evidence.",
+    "COMMERCIAL USE IS NOT CLEARED. ExpGuardMix's licence is CC-BY-4.0 and its gate form says "
+    "research-only; the click-through is the agreement that was signed and it is the narrower "
+    "one. Its corpus was GPT-4o-generated upstream. A promotion here is a quality verdict and "
+    "never a clearance for a shipped vertical pack -- the baseline carries that string and the "
+    "decision record prints it.",
+    "Run describe_split on the TRAIN split first. Verified 2026-08-13 against the cached file: "
+    "46,005 rows, prompt_label {unsafe 25877, safe 20128}, no `adversarial` column (so the "
+    "adversarial variant is not available on this corpus), and these four categories select "
+    "5,636 positives + 5,636 benign with 0 rows dropped and 0 train/test leakage.",
 )
 
 _ADVERSARIAL_NOTES = (
@@ -235,6 +363,12 @@ def _substrate_recipe(
 RECIPES: dict[str, Recipe] = {
     recipe.recipe_id: recipe
     for recipe in (
+        # The two 0.6B WildGuard recipes gate against the 0.6B baseline, not the 4B one. That
+        # baseline was measured on 2026-08-13 for exactly this purpose and then left unbound, so
+        # every 0.6B candidate was still being asked to beat a model seven times its size -- a
+        # legitimate product question ("can we ship the small one") standing in for the question
+        # a training run actually asks ("did tuning help"). Re-pointing changes both digests,
+        # which is correct and has precedent in the supervise_severity revision.
         _guard_recipe(
             "qwen3guard-gen-0.6b",
             "weak-category",
@@ -242,6 +376,9 @@ RECIPES: dict[str, Recipe] = {
             1.0,
             "overall",
             _WEAK_NOTES,
+            dataset_id="wildguardmix",
+            baseline_id="wildguardtest-qwen3guard-gen-0.6b",
+            categories=WILDGUARD_WEAK_CATEGORIES,
         ),
         _guard_recipe(
             "qwen3guard-gen-0.6b",
@@ -250,6 +387,19 @@ RECIPES: dict[str, Recipe] = {
             1.5,
             "adversarial_true",
             _ADVERSARIAL_NOTES,
+            dataset_id="wildguardmix",
+            baseline_id="wildguardtest-qwen3guard-gen-0.6b",
+        ),
+        _guard_recipe(
+            "qwen3guard-gen-0.6b",
+            "expguard-weak",
+            "warrantor_ml.tasks.guard:weak_category_subset",
+            1.0,
+            "overall",
+            _EXPGUARD_WEAK_NOTES,
+            dataset_id="expguardmix",
+            baseline_id="expguardtest-qwen3guard-gen-0.6b",
+            categories=EXPGUARD_WEAK_CATEGORIES,
         ),
         _guard_recipe(
             "qwen3guard-gen-4b",
@@ -258,6 +408,9 @@ RECIPES: dict[str, Recipe] = {
             1.0,
             "overall",
             _WEAK_NOTES,
+            dataset_id="wildguardmix",
+            baseline_id="wildguardtest-qwen3guard-gen-4b",
+            categories=WILDGUARD_WEAK_CATEGORIES,
         ),
         _guard_recipe(
             "qwen3guard-gen-4b",
@@ -266,7 +419,15 @@ RECIPES: dict[str, Recipe] = {
             1.5,
             "adversarial_true",
             _ADVERSARIAL_NOTES,
+            dataset_id="wildguardmix",
+            baseline_id="wildguardtest-qwen3guard-gen-4b",
         ),
+        # DELIBERATELY ABSENT: a 4B ExpGuard recipe. `expguardtest-qwen3guard-gen-4b` carries ONE
+        # per-category floor (UPA 0.4298) where the 0.6B baseline carries six, because that is
+        # all ml/README.md transcribed -- everything else is aggregated as "0.7947 for every
+        # other class". Binding it now would gate the better-instrumented-looking model with five
+        # ExpGuard classes unprotected. It needs a re-run of `benchmark_expguard` against the 4B,
+        # and those numbers must not be invented.
         _substrate_recipe(
             "bound-proposer",
             "task description -> proposed warrant bounds",
@@ -326,6 +487,49 @@ RECIPES: dict[str, Recipe] = {
 }
 
 
+#: Measured baselines that no recipe binds, each with the reason it is not bound YET.
+#:
+#: An entry here is a deferral on the record, not an exemption. :func:`unbound_baselines` returns
+#: any registered baseline missing from both this table and the recipes, and
+#: ``warrantor-ml-recipes`` prints the result -- so the next baseline that is measured, committed
+#: and then forgotten shows up as UNEXPLAINED on a command a human runs, rather than as three
+#: silently unreachable entries in ``baselines.BASELINES``, which is what was there before.
+DEFERRED_BASELINES: dict[str, str] = {
+    "expguardtest-qwen3guard-gen-4b": (
+        "DEFERRED pending re-measurement. This baseline carries ONE per-category floor "
+        "(unqualified professional advice 0.4298) where the 0.6B ExpGuard baseline carries six, "
+        "because ml/README.md aggregated everything else as '0.7947 for every other class'. A 4B "
+        "ExpGuard recipe bound to it would be gated with five ExpGuard classes unprotected while "
+        "looking better instrumented than the 0.6B. Unblock by re-running benchmark_expguard "
+        "against the 4B and transcribing the full by_prompt_category table; do not invent it."
+    ),
+}
+
+
+def unbound_baselines() -> dict[str, str]:
+    """Every measured baseline no recipe names, mapped to why -- or to a refusal to guess.
+
+    A baseline nothing binds is not "available", it is dead: ``programme.parity_main`` reads
+    ``recipe.baseline_id`` and exposes no override, so there is no CLI path to gate against it.
+    Three of the four registered baselines were in that state, including one whose own docstring
+    said it existed for recipes that were never re-pointed at it.
+    """
+
+    from .baselines import BASELINES
+
+    bound = {recipe.baseline_id for recipe in RECIPES.values() if recipe.baseline_id}
+    return {
+        baseline_id: DEFERRED_BASELINES.get(
+            baseline_id,
+            "UNEXPLAINED: no recipe binds this baseline and no deferral reason is recorded in "
+            "recipes.DEFERRED_BASELINES. Nothing can be gated against it. Bind it to a recipe or "
+            "write down why it is not bound yet.",
+        )
+        for baseline_id in sorted(BASELINES)
+        if baseline_id not in bound
+    }
+
+
 def list_recipes() -> tuple[Recipe, ...]:
     """Every recipe in stable id order."""
 
@@ -333,7 +537,7 @@ def list_recipes() -> tuple[Recipe, ...]:
 
 
 def get_recipe(recipe_id: str) -> Recipe:
-    """Look up one recipe, or fail naming the eight."""
+    """Look up one recipe, or fail naming the nine."""
 
     try:
         return RECIPES[recipe_id]

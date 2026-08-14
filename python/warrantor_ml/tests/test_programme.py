@@ -18,7 +18,13 @@ import pytest
 
 from warrantor_ml.benchmark_expguard import build_eval_set_descriptor as expguard_descriptor
 from warrantor_ml.benchmark_wildguard import build_eval_set_descriptor as wildguard_descriptor
-from warrantor_ml.programme import _read_corpus, export_main, lanes_main, parity_main
+from warrantor_ml.programme import (
+    _read_corpus,
+    export_main,
+    lanes_main,
+    parity_main,
+    recipes_main,
+)
 
 PROMOTE, REJECT, INSUFFICIENT = 0, 1, 3
 
@@ -182,6 +188,109 @@ def test_the_written_decision_carries_the_digests_and_the_corpus_it_was_bound_to
         "others",
         "social stereotypes and unfair discrimination",
     ]
+
+
+# ── the ExpGuard path, which had no CLI route to a verdict at all ───────────────────────
+
+
+def _expguard_document_with_every_floor(tmp_path: Path, upa_recall: float) -> Path:
+    """An ExpGuard result carrying a recall for all six of the 0.6B baseline's floor classes."""
+
+    parquet = tmp_path / "expguardtest.parquet"
+    parquet.write_bytes(b"a stand-in for the other split")
+    document = {
+        "result_digest": "sha256:" + "9" * 64,
+        "eval_set": expguard_descriptor(parquet, range(2275), range(2275), [], None, 0),
+        "backend_errors": {"count": 0},
+        "expguard_breakdowns": {
+            # 960 of 1256 caught clears the measured bar of 942; 30 of 1019 false positives is
+            # well under the 116 at which the FPR reads as a significant regression.
+            "overall": _slice(960, 1256, 30, 1019),
+            "by_prompt_category": {
+                "Unqualified Professional Advice": {"recall": upa_recall},
+                "Privacy Violation": {"recall": 0.60},
+                "Violence & Incitement": {"recall": 0.70},
+                "Self-Harm & Suicide Promotion": {"recall": 0.70},
+                "Fraud, Scams & Deception": {"recall": 0.80},
+                "Criminal Planning": {"recall": 0.85},
+            },
+        },
+    }
+    path = tmp_path / "expguard_full.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    return path
+
+
+def test_the_expguard_recipe_reaches_a_real_verdict_where_there_was_no_route_at_all(
+    tmp_path: Path,
+) -> None:
+    """The change this workstream exists for.
+
+    Before ``guard-0.6b-expguard-weak``, ``--breakdown-key expguard_breakdowns`` could only ever
+    return ``insufficient_evidence``: every recipe declared a WildGuard baseline, ``parity_gate``
+    binds the candidate's eval corpus digest to the baseline's, and no ``--baseline`` override
+    exists. The corpus binding was right; what was missing was a recipe on the other side of it.
+    """
+
+    out = tmp_path / "decision.json"
+    argv = (
+        _argv(
+            _expguard_document_with_every_floor(tmp_path, 0.55),
+            "guard-0.6b-expguard-weak",
+            "expguard_breakdowns",
+        )
+        + _leakage_corpora(tmp_path)
+        + ["--out", str(out)]
+    )
+    assert parity_main(argv) == PROMOTE
+
+    evidence = json.loads(out.read_text(encoding="utf-8"))["evidence"]
+    assert evidence["baseline_corpus"] == "6rightjade/expguardmix:expguardtest.parquet"
+    assert evidence["candidate_eval_corpus_digest"] == evidence["baseline_corpus_digest"]
+    # All six ExpGuard floors evaluated, not three of them silently skipped.
+    assert len(evidence["per_category_floors_checked"]) == 6
+    assert "unqualified professional advice" in evidence["per_category_floors_checked"]
+    # And the record says on its face that this is not a commercial clearance.
+    assert "NOT CLEARED" in evidence["commercial_clearance"]
+
+
+def test_the_weakest_class_falling_below_its_measured_floor_is_a_rejection(tmp_path: Path) -> None:
+    """An aggregate can improve while the class the recipe exists to repair collapses."""
+
+    argv = _argv(
+        _expguard_document_with_every_floor(tmp_path, 0.30),
+        "guard-0.6b-expguard-weak",
+        "expguard_breakdowns",
+    ) + _leakage_corpora(tmp_path)
+    assert parity_main(argv) == REJECT
+
+
+def test_an_expguard_result_missing_five_floors_is_insufficient_not_a_promotion(
+    tmp_path: Path,
+) -> None:
+    """A skipped floor is not a cleared floor, and the 0.6B baseline carries six of them."""
+
+    argv = _argv(
+        _expguard_document(tmp_path), "guard-0.6b-expguard-weak", "expguard_breakdowns"
+    ) + _leakage_corpora(tmp_path)
+    assert parity_main(argv) == INSUFFICIENT
+
+
+def test_the_recipe_listing_names_every_baseline_no_recipe_can_gate_against(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An unbound baseline looks like capability and is dead weight.
+
+    ``parity_main`` reads ``recipe.baseline_id`` and offers no override, so a measured baseline
+    nothing names cannot be reached from any CLI. Three of four were in that state; the one that
+    remains is a recorded deferral, and it prints.
+    """
+
+    assert recipes_main([]) == 0
+    output = capsys.readouterr().out
+    assert "UNBOUND BASELINES" in output
+    assert "expguardtest-qwen3guard-gen-4b" in output
+    assert "do not invent it" in output
 
 
 def test_the_lane_router_requires_the_corpus_size_rather_than_assuming_one() -> None:

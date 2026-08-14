@@ -668,18 +668,25 @@ Stated rather than buried:
 
 ---
 
-## The training programme — eight models, three lanes, one gate
+## The training programme — nine recipes, three lanes, one gate
 
 Specified in [RFC W2](../docs/rfcs/W2-model-intelligence-pipelines.md). Five more launchers,
 none of which trains anything or dispatches a job:
 
 ```bash
 python ml/build_corpus.py --task guard --rows train.parquet --describe-only   # ALWAYS first
+# Preferred: build FROM the recipe's declared corpus specification, so the corpus and the
+# digested declaration can be checked against each other afterwards.
+python ml/build_corpus.py --recipe guard-0.6b-expguard-weak \
+    --rows expguardtrain.parquet --eval-rows expguardtest.parquet \
+    --out corpora/expguard-weak.jsonl --manifest corpora/expguard-weak.manifest.json
+# Ad hoc: --dataset-id has no default, because the manifest's licence, attribution and
+# frontier lineage are all derived from it and nothing reconciles them against the file.
 python ml/build_corpus.py --task guard --rows train.parquet \
-    --eval-rows test.parquet \
+    --eval-rows test.parquet --dataset-id wildguardmix \
     --selector weak-category --benign-ratio 1.0 \
     --out corpora/weak.jsonl --manifest corpora/weak.manifest.json
-python ml/recipes.py                                       # the eight, with their digests
+python ml/recipes.py                                       # the nine, with their digests
 python ml/lanes.py --recipe guard-4b-adversarial --lane kaggle-t4x2 --corpus-rows 38694
 python ml/export_lane_script.py --recipe guard-4b-adversarial --lane kaggle-t4x2 \
     --corpus-rows 38694 --out ml/kaggle/train_guard_4b_adversarial.py
@@ -700,9 +707,30 @@ Run against WildGuardMix's train split it earns its keep immediately: **`Unquali
 Advice` — the weakest measured class at 0.4298 recall, and the headline target of both
 weak-category recipes — does not exist in that split at all.** It is an ExpGuardMix category. The
 two corpora have disjoint category vocabularies, so a weak-category corpus built from WildGuard
-train targets three of the four named classes and cannot touch the fourth. Fixing UPA needs an
-ExpGuardTrain corpus, and the parity gate will refuse to score that against the WildGuardTest
-baseline the recipe declares. That is a real gap in the programme, not a step to skip.
+train targets three of the four named classes and cannot touch the fourth.
+
+**That gap is now closed on the 0.6B, and the blocker was narrower than this paragraph used to
+say.** The earlier wording — "the parity gate will refuse to score an ExpGuardTrain corpus
+against the WildGuardTest baseline the recipe declares" — was accurate but reads as *ExpGuard
+cannot be gated*. It can. The gate binds a candidate's `eval_set.source` to the baseline's
+corpus, and both ExpGuard baselines bind cleanly to an ExpGuard-scored document; what was
+missing was a recipe on the other side of the binding. Every recipe declared a WildGuard
+baseline, `parity_main` reads `recipe.baseline_id` and offers no `--baseline` override, so
+`--breakdown-key expguard_breakdowns` could only ever return `insufficient_evidence`.
+`guard-0.6b-expguard-weak` is that recipe. Verified against the cached split on 2026-08-13:
+ExpGuardTrain carries 1,173 UPA positives (plus Privacy Violation 1,584, Violence & Incitement
+2,284, Self-Harm 595), the four together select 5,636 positives with a matching benign
+counterweight and 0 rows dropped, and train/test leakage measured with this repo's own
+`content_fingerprint` is **0 collisions over 2,275 eval fingerprints**.
+
+Three things about that recipe are not optional reading. It targets **four** classes, not UPA
+alone, because the `overall` slice needs +44 caught rows out of 1,256 and UPA has only 76 missed
+positives in the entire test split. The **0.6B's `Controversial` exposure on ExpGuardTest is
+recorded nowhere** — measure it before training, because severity flattening cost the 4B 18.7
+recall points on this corpus against 1.6 on WildGuard. And an ExpGuardMix promotion is a quality
+verdict only: the click-through is research-only, and the decision record prints that on its
+face. A 4B ExpGuard recipe is deliberately absent — that baseline carries one per-category floor
+where the 0.6B carries six, and the other five must be re-measured, not invented.
 
 **`--eval-rows` is how hold-out gets verified before the run, not after it.** The parity gate
 checks leakage and refuses a candidate whose training corpus overlaps the eval split — but it

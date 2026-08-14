@@ -560,7 +560,7 @@ def parity_gate(
     # vocabularies disagree on spelling: baselines.py stores 'unqualified professional advice'
     # and benchmark_expguard emits 'Unqualified Professional Advice'. The floor therefore never
     # matched, `observed` was always None, and the branch was skipped -- for the ONE measured
-    # weakness (0.4298) that motivates two of the eight models. And a skipped floor was silently
+    # weakness (0.4298) that motivates the weak-category recipes. And a skipped floor was silently
     # treated as a cleared floor, with the promotion reason going on to assert that no category
     # fell below its floor when no floor had been evaluated at all.
     observed_recall = _fold_per_category(candidate.per_category_recall)
