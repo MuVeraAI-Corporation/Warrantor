@@ -384,6 +384,34 @@ enforces that the substrate cannot:
 
 ---
 
+## Where this evaluator meets the running product
+
+`rust/warrant/src/guard.rs` calls the same class of local ollama backend during a **live supervised
+MCP session**, and records what it thought as signals against a warrant. In the shipped mode it
+blocks nothing; an enforcement mode exists, is off by default, and takes a deliberately awkward
+flag to reach. See [RFC W2](../docs/rfcs/W2-guard-signals-in-a-live-run.md) for the argument, which
+is built on the two numbers in this file. Two invariants there are worth knowing here: a call a
+warrant bound refused is never classified at all, and when enforcement *is* on the denial is
+returned before the effect is staged -- a denial after the write is queued would refuse nothing.
+
+Two things to know if you change `evaluate.py`:
+
+- **`parse_guard_response` now exists twice**, here and in Rust. Both are pinned to
+  `testvectors/guard/parse-cases.json`, read by `python/warrantor_ml/tests/test_evaluate.py` and by
+  `rust/warrant/tests/guard.rs`. Change the parser and you change the fixture, or one of the two
+  suites fails — which is the point, because the `Safety: Safe` + `Categories: Jailbreak` finding is
+  exactly the kind that gets lost in a second implementation.
+- **One deliberate divergence: the transport-failure rule.** This evaluator is fail-closed and
+  scores a backend error as harmful, which is right when measuring recall against known labels. The
+  Rust adapter blocks nothing in its shipped mode -- and a dead backend may not block it even
+  under enforcement -- so scoring a dead backend as harmful there would manufacture a
+  verdict no model produced and inflate every count an operator reads. It records
+  `backend_unavailable` instead — its own outcome, never `not_harmful`. Fail-closed there means the
+  failure is **visible**, which is the same thing `--fail-open` is warned about here, reached by a
+  different route.
+
+---
+
 ## Open items this code does not resolve
 
 Stated rather than buried:

@@ -9,6 +9,41 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — the guard as a refusal signal, recorded and never enforcing
+
+- **`rust/warrant/src/guard.rs`: a guard model wired into a live supervised MCP session, observe-only.**
+  Before this the classifier was benchmarked and nothing called it during a run — W1 stated the
+  boundary ("a model judgement becomes a refusal *signal*, never a verdict") and nothing implemented
+  it. `warrantor mcp --agent <id> --guard` now attaches a local ollama-compatible classifier, records
+  what it thought about each tool call into `<root>/guard/<id>.jsonl`, and reads back beside the
+  refusals on `/v1/warrants/{id}/refusals` and `/v1/summary/refusals`. No new route, no new external
+  dependency, no change to the warrant format. See
+  [RFC W2](docs/rfcs/W2-guard-signals-in-a-live-run.md).
+  **It blocks nothing, and that is the decision, not an unfinished edge.** Measured adversarial
+  recall is 0.8152 — it would miss roughly one adversarial case in five anyway — and the
+  false-positive rate quadruples under adversarial phrasing (0.0224 → 0.0923), so an enforcing guard
+  would deny roughly one benign call in eleven and train the operator to override it. The enforcement
+  path exists behind `--guard-enforce-untested-do-not-use`, defaults to off, and is untested in
+  production.
+- **Absent means absent, never "all clear".** No `--guard` writes no log and leaves no directory; a
+  guard whose backend cannot report a `sha256:<64 hex>` digest for its model **refuses to attach**
+  rather than emitting provenance-free signals; a transport failure records `backend_unavailable` and
+  never `not_harmful`; an absent log renders `configured: false` with a note saying it is an absence
+  of observation, not of findings. Model, digest and every policy knob travel on **every** signal
+  line, as integers and bools so two runs compare byte for byte.
+- **The endpoint must be loopback.** The guard is sent the agent's tool arguments — source, commands,
+  PR bodies — so a configurable off-box endpoint would be an exfiltration channel opened by a flag,
+  and it would bypass the egress broker because the call originates from warrantor rather than from
+  the agent. `attach` refuses anything that is not loopback.
+- **The verification envelope is untouched.** `guard.rs` imports no verification type and nothing
+  from `report::`; a test compares `verification`, `verified` and the whole report bundle
+  byte-for-byte with and without a guard log present, and asserts guard signals move neither
+  `total_occurrences` nor `bounds_probably_wrong`. Guard signals live in their own log because a
+  refusal means the call did *not* happen and a signal means it *did*.
+- **`testvectors/guard/parse-cases.json`** pins the Rust and Python guard-response parsers to one
+  fixture, so the measured `Safety: Safe` + `Categories: Jailbreak` finding cannot be lost to drift
+  between two implementations.
+
 ### Security
 
 - **`trust-core` `SigningKeyWrapper::zeroize()` left a usable key behind.** It overwrote the

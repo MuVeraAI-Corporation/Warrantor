@@ -114,11 +114,26 @@ question, which is the first thing a regulated buyer asks.
 
 ## Tier 4 — model intelligence
 
-### 4.1 The guard is measured but not wired in
+### 4.1 The guard is wired in as observe-only signals — **partly done**
 
 The benchmarks land real numbers, and W1 fixes the boundary: a model judgement can become a
-**refusal signal** recorded against a warrant, never a verification verdict. But nothing calls the
-guard during a run. `record_refusals` exists; the classifier is not connected to it.
+**refusal signal** recorded against a warrant, never a verification verdict.
+
+That boundary is now wired. `rust/warrant/src/guard.rs` attaches a local guard model to a supervised
+MCP session behind `warrantor mcp --agent <id> --guard`, records what it thought about each tool
+call — with the model, its digest and every policy knob on every line — into
+`<root>/guard/<id>.jsonl`, and reads back beside the refusals on the two existing `/v1` routes. See
+[RFC W2](rfcs/W2-guard-signals-in-a-live-run.md).
+
+What is still true: **it enforces nothing, deliberately.** At 0.8152 adversarial recall it would
+miss roughly one adversarial case in five anyway, and its adversarial false-positive rate is 0.0923
+— roughly one benign call in eleven — so an enforcing guard would train the operator to override it.
+The enforcement path exists behind `--guard-enforce-untested-do-not-use`, is off, and is untested in
+production. The backend is absent by default too: no `--guard` means no signals, and a guard that
+cannot resolve its own model digest refuses to attach rather than emitting provenance-free
+"evidence".
+
+§4.2 and §4.3 below are unchanged by this.
 
 ### 4.2 No fine-tune has been run
 

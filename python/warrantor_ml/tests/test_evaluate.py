@@ -82,6 +82,42 @@ def test_category_only_response_still_parses() -> None:
 
 
 # ---------------------------------------------------------------------------
+# The shared fixture: this parser and the Rust one must not drift
+# ---------------------------------------------------------------------------
+
+PARSE_CASES = Path(__file__).resolve().parents[3] / "testvectors" / "guard" / "parse-cases.json"
+
+
+def test_parse_cases_fixture_pins_both_implementations() -> None:
+    """`rust/warrant/src/guard.rs` ports this parser, and two of them can disagree.
+
+    W1 forbids a second verification implementation for exactly that reason. The prohibition
+    cannot apply here -- the Rust adapter has to parse the model's reply itself -- so both are
+    pinned to `testvectors/guard/parse-cases.json` instead, and `rust/warrant/tests/guard.rs`
+    reads the same file. A change to either parser that the fixture does not sanction fails one
+    of the two suites.
+    """
+
+    document = json.loads(PARSE_CASES.read_text(encoding="utf-8"))
+    cases = document["cases"]
+    assert len(cases) >= 8, "the fixture is the drift guard; do not shrink it"
+
+    for case in cases:
+        gating = frozenset(case["gating_categories"])
+        controversial = case["controversial_is_harmful"]
+        expected = case.get("expect")
+        if expected is None:
+            with pytest.raises(ev.BackendError):
+                ev.parse_guard_response(case["raw"], gating, controversial)
+            continue
+        response = ev.parse_guard_response(case["raw"], gating, controversial)
+        assert response.is_harmful is expected["is_harmful"], case["name"]
+        assert response.severity == expected["severity"], case["name"]
+        assert list(response.categories) == expected["categories"], case["name"]
+        assert response.gated_by_category is expected["gated_by_category"], case["name"]
+
+
+# ---------------------------------------------------------------------------
 # Eval set loading
 # ---------------------------------------------------------------------------
 
