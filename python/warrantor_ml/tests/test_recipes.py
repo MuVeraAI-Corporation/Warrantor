@@ -121,11 +121,32 @@ def test_the_expguard_recipe_records_that_promotion_is_not_a_commercial_clearanc
 
 
 def test_the_expguard_recipe_warns_that_severity_exposure_is_unmeasured() -> None:
-    """The most likely failure mode, and the one number nobody has: budget the run knowing it."""
+    """The most likely failure mode, and the one number nobody has: budget the run knowing it.
 
-    notes = " ".join(get_recipe("guard-0.6b-expguard-weak").notes)
+    This recipe and the run-2 finding landed as separate PRs, each green on its own, and they
+    disagreed. The recipe was written when `supervise_severity=False` was the proposed mitigation;
+    run 2 then executed that proposal and it cost 17 points of recall, so the default reverted to
+    `True`. Merged together the recipe silently inherited `True` while this test still demanded
+    `False` -- which is the correct outcome and the wrong assertion.
+
+    A recipe must never default to the setting that measured 17 points worse, so the assertion
+    moves rather than the config: `True`, plus the note carrying WHY masking is not the answer.
+    Leaving the exposure described as unmeasured is deliberate -- it is unmeasured. It was never
+    mitigated, and a refuted mitigation must not read like a closed risk.
+    """
+
+    recipe = get_recipe("guard-0.6b-expguard-weak")
+    notes = " ".join(recipe.notes)
     assert "recorded NOWHERE" in notes
-    assert get_recipe("guard-0.6b-expguard-weak").config.supervise_severity is False
+    assert recipe.config.supervise_severity is True, (
+        "masking severity is measured worse (0.8329 -> 0.6804); a recipe must not default to it"
+    )
+    assert "REFUTED" in notes, (
+        "the note must say the mitigation was tried and failed, not that it is still available"
+    )
+    assert "SEPARATE PARAMETERS" in notes, (
+        "and must name what a real fix needs, so nobody proposes the flag a third time"
+    )
 
 
 # ── corpus_arguments is the corpus specification, and the digest covers it ───────────────
