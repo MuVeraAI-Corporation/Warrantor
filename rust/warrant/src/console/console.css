@@ -334,6 +334,78 @@ pre.json {
   text-decoration: underline;
 }
 
+/* ── the two destinations ────────────────────────────────────────────── */
+
+.views { display: flex; gap: 5px; margin-bottom: 12px; }
+
+.view {
+  flex: 1 1 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.view.is-on { border-color: var(--accent); color: var(--ink); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+
+/* ── the month summary ───────────────────────────────────────────────── */
+
+.summary { overflow-y: auto; padding: 20px 24px; }
+.summary h2 { font-size: 17px; margin: 0 0 12px; }
+.summary h3 { font-size: 13px; margin: 0 0 8px; }
+.summary .section { margin: 20px 0; }
+.summary .note { color: var(--ink-soft); font-size: 12px; margin: 8px 0 0; overflow-wrap: anywhere; }
+.summary .empty { padding: 14px 0; text-align: left; }
+
+.summary-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.summary-controls label { font-size: 12px; color: var(--ink-soft); }
+
+.summary-controls input {
+  padding: 5px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.summary-controls button {
+  padding: 5px 13px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.row-fact {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.row-fact .row-top { flex-wrap: wrap; justify-content: flex-start; }
+.row-fact .row-id { font-family: var(--sans); font-size: 13px; }
+
+/* A guard row must not be mistakeable for a refusal row, and neither may be mistaken for a
+   verdict. A refusal is a fact about a bound and the call did NOT happen; a guard row is a
+   model's opinion about a call that WAS allowed. Keeping those two apart is what this view is
+   for, so the separation is visual as well as structural — and deliberately not in any of the
+   verdict colours, because nothing in this block is a verification verdict. */
+.guard-block { border-left: 3px solid var(--unknown); padding-left: 12px; }
+.guard-row { border-style: dashed; }
+.guard-posture { background: var(--unknown-bg); color: var(--unknown); border-color: var(--unknown); }
+.coverage-row { border-style: dotted; }
+
 /* ── toast ───────────────────────────────────────────────────────────── */
 
 .toast {

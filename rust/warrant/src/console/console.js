@@ -37,6 +37,28 @@ const el = {
   grantCommand: document.getElementById('first-run-command'),
   copyButton: document.getElementById('copy-command'),
   detail: document.getElementById('detail'),
+  viewWarrants: document.getElementById('view-warrants'),
+  viewSummary: document.getElementById('view-summary'),
+  summary: document.getElementById('summary'),
+  summaryForm: document.getElementById('summary-form'),
+  summaryMonth: document.getElementById('summary-month'),
+  summaryError: document.getElementById('summary-error'),
+  summaryMonthError: document.getElementById('summary-month-error'),
+  summaryWindow: document.getElementById('summary-window'),
+  summaryCaveat: document.getElementById('summary-caveat'),
+  summaryUnreadable: document.getElementById('summary-unreadable'),
+  summaryRefusals: document.getElementById('summary-refusals'),
+  summaryRefusalsEmpty: document.getElementById('summary-refusals-empty'),
+  summaryRefusalsNote: document.getElementById('summary-refusals-note'),
+  summaryGuard: document.getElementById('summary-guard'),
+  summaryGuardUnknown: document.getElementById('summary-guard-unknown'),
+  summaryGuardNone: document.getElementById('summary-guard-none'),
+  summaryGuardUnattributed: document.getElementById('summary-guard-unattributed'),
+  summaryGuardQuiet: document.getElementById('summary-guard-quiet'),
+  summaryGuardNote: document.getElementById('summary-guard-note'),
+  summaryGuardCaveats: document.getElementById('summary-guard-caveats'),
+  summaryCoverage: document.getElementById('summary-coverage'),
+  summaryCoverageNote: document.getElementById('summary-coverage-note'),
   health: document.getElementById('health'),
   authority: document.getElementById('authority'),
   toast: document.getElementById('toast'),
@@ -50,7 +72,20 @@ const el = {
  * underneath a server the console has never heard from, which is a dead guard reported as a
  * reading. Both keep the buttons disabled; only one of them may be explained that way.
  */
-let state = { filter: '', selected: null, releaseAuthority: false, authorityKnown: false };
+let state = {
+  filter: '',
+  selected: null,
+  releaseAuthority: false,
+  authorityKnown: false,
+  /** Which destination owns the right-hand column: 'warrants' or 'summary'. */
+  view: 'warrants',
+  /**
+   * The last rung `emptyKind` returned, remembered so switching back from the summary restores the
+   * pane the list's own answer supports rather than a guess. Re-deriving it here would be a second
+   * copy of the ordering that `emptyKind` exists to be the only copy of.
+   */
+  lastKind: 'rows',
+};
 
 /**
  * How often to re-read the list, in milliseconds.
@@ -285,18 +320,21 @@ export function emptyKind({ readable, rowCount, unreadable, filter }) {
   return 'first-run';
 }
 
-/** Show exactly one empty state, and exactly one of the two right-hand panes. */
+/** Show exactly one empty state, and exactly one of the three right-hand panes. */
 function applyEmptyState(kind) {
+  state.lastKind = kind;
   el.listEmptyFirstRun.hidden = kind !== 'first-run';
   el.listEmptyFiltered.hidden = kind !== 'filtered';
   el.listEmptyUnreadable.hidden = kind !== 'unreadable';
   el.listEmptyError.hidden = kind !== 'error';
 
-  // `hidden` is display:none, so the pane that is not showing occupies no grid cell and the
-  // two-column layout survives having three children.
+  // `hidden` is display:none, so the panes that are not showing occupy no grid cell and the
+  // two-column layout survives having four children.
   const explain = kind === 'first-run';
-  el.firstRun.hidden = !explain;
-  el.detail.hidden = explain;
+  const summary = state.view === 'summary';
+  el.summary.hidden = !summary;
+  el.firstRun.hidden = summary || !explain;
+  el.detail.hidden = summary || explain;
 
   // A selection cannot survive a store that holds nothing: leaving it set would make the next
   // poll fetch an id this store does not have and render the 404 as if it were news.
@@ -325,6 +363,377 @@ function setFilter(value) {
     chip.classList.toggle('is-on', (chip.dataset.state ?? '') === value);
   }
   return loadList();
+}
+
+/**
+ * Point the right-hand column at one destination.
+ *
+ * Goes through `applyEmptyState` with the rung the list last established, so the pane that appears
+ * is the one that response supports. Switching to the summary reads it once — it is not polled;
+ * see `loadSummary`.
+ */
+async function setView(value) {
+  state.view = value;
+  el.viewWarrants.classList.toggle('is-on', value === 'warrants');
+  el.viewSummary.classList.toggle('is-on', value === 'summary');
+  applyEmptyState(state.lastKind);
+  if (value === 'summary') await loadSummary();
+}
+
+// ── the summary: bounds that refused, and what a model said about what they allowed ──
+
+/**
+ * Turn a month into the half-open window the API takes.
+ *
+ * `[since, until)` in whole epoch seconds, UTC, because that is the axis the records are stamped
+ * on. Exported and pure so `console.test.js` can pin the boundaries: an off-by-one month here would
+ * silently show the wrong data under the right heading, which is the exact failure this whole view
+ * was built to stop making.
+ *
+ * Returns null for anything that is not `YYYY-MM`. Null is not "this month": a window this console
+ * could not build must not be replaced with one it made up.
+ *
+ * @param {string} text A `YYYY-MM` value, as `<input type="month">` produces.
+ * @returns {{since: number, until: number}|null}
+ */
+export function monthWindow(text) {
+  const match = /^(\d{4})-(\d{2})$/.exec(String(text ?? '').trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return null;
+  const since = Date.UTC(year, month - 1, 1) / 1000;
+  const until = Date.UTC(year, month, 1) / 1000;
+  if (!Number.isSafeInteger(since) || !Number.isSafeInteger(until)) return null;
+  return { since, until };
+}
+
+/** The month `<input type="month">` should start on: the one the reader is in. */
+function currentMonth(date = new Date()) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * What a summary response actually established.
+ *
+ * The same argument as `listFacts`, and the same load-bearing `readable`. Optional chaining over an
+ * unusable body yields zero groups, which is shaped exactly like a month in which no bound refused
+ * anything — and this is the surface where "nothing was refused" is the most reassuring sentence
+ * available. A response this console could not read must not produce it.
+ *
+ * `guard` is passed through unvalidated on purpose: `guardKind` is the one place that decides what
+ * a guard object supports, so validating it twice would create two answers to one question.
+ *
+ * @param {boolean} answered Did the server produce a response at all?
+ * @param {number} status HTTP status, meaningful only when `answered`.
+ * @param {unknown} payload The parsed envelope, or null when the body did not parse.
+ */
+export function summaryFacts(answered, status, payload) {
+  const unusable = { readable: false, groups: [], guard: null, window: null, note: '' };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data;
+  if (!data || typeof data !== 'object') return unusable;
+  if (!Array.isArray(data.groups)) return unusable;
+  return {
+    readable: true,
+    groups: data.groups,
+    guard: data.guard ?? null,
+    window: data.window ?? null,
+    note: typeof data.note === 'string' ? data.note : '',
+    unreadableLines: data.unreadable_lines,
+  };
+}
+
+/**
+ * Whether this guard object carries evidence that a guard ran, other than an attach record.
+ *
+ * `configured` is `!sessions.is_empty()` on the server, so it is false in two very different
+ * situations: nothing ran at all, and something ran whose attach record is not in what was read —
+ * the write failed, or the window holds records the attach record is not grouped with. Counts are
+ * evidence: a finished session, a classified call, a call nothing looked at. One of them being
+ * nonzero makes "no guard was attached to any run in this window" a false sentence, and this
+ * console prints that sentence in fixed prose that no server field can soften.
+ */
+function guardEvidence(guard) {
+  const coverage = guard?.coverage;
+  const counted = [
+    'sessions_attached',
+    'sessions_finished',
+    'classified',
+    'flagged',
+    'backend_unavailable',
+    'unparseable',
+    'skipped_over_budget',
+    'deduplicated',
+  ].some((key) => Number.isFinite(coverage?.[key]) && coverage[key] > 0);
+  const listed = ['sessions', 'counters'].some(
+    (key) => Array.isArray(guard?.[key]) && guard[key].length > 0,
+  );
+  return counted || listed;
+}
+
+/**
+ * Which sentence a guard object supports, and only that one.
+ *
+ * Five states that render identically under optional chaining, and conflating any two of them is a
+ * dead guard reported as a clean month:
+ *
+ * - `unknown`: the server said nothing this console can interpret. Not coverage, not findings.
+ * - `groups`: it grouped something. Rendered whatever `configured` says — signals with no attach
+ *   record are a real state (the attach write failed and the run's own signals landed anyway), and
+ *   printing "no coverage" above a list of classifications would be a sentence sitting next to its
+ *   own counter-evidence.
+ * - `no-coverage`: nothing attached and nothing else in the answer says otherwise, so nothing
+ *   looked. This is the one that must never render as a quiet, reassuring table — and the one that
+ *   must never be printed over an answer whose own counts contradict it.
+ * - `unattributed`: no attach record, but the answer carries counts that only a guard can produce.
+ *   Distinct from `no-coverage` because they are opposite claims: one says nothing watched, the
+ *   other says something watched and cannot be named. The server's own note already distinguishes
+ *   them; printing NO COVERAGE here put this console's fixed prose in direct contradiction of the
+ *   coverage table underneath it and of the server's sentence beside it.
+ * - `quiet`: something attached and grouped nothing.
+ */
+export function guardKind(guard) {
+  if (!guard || typeof guard !== 'object') return 'unknown';
+  if (guard.configured !== true && guard.configured !== false) return 'unknown';
+  if (!Array.isArray(guard.groups)) return 'unknown';
+  if (guard.groups.length > 0) return 'groups';
+  if (guard.configured === true) return 'quiet';
+  return guardEvidence(guard) ? 'unattributed' : 'no-coverage';
+}
+
+/**
+ * The sentence about lines that did not parse, or the sentence about not knowing.
+ *
+ * Three answers, never two. A count the server did not state is NOT zero: the summary route
+ * carries `unreadable_lines` for the refusal log and again inside `guard`, and a console that read
+ * the field and rendered nothing omitted, with no disclosure, exactly the records nobody could
+ * read — on the surface whose whole thesis is that an absence of observation must not read as an
+ * absence of findings. The warrant list already prints its own version of this sentence.
+ *
+ * Empty string for a stated zero, because there the silence is the truth.
+ */
+export function unreadableSentence(value, subject) {
+  if (!Number.isFinite(value) || value < 0) {
+    return `This server did not state how many lines of the ${subject} were unreadable, so nothing here says whether any were dropped from the counts above.`;
+  }
+  if (value === 0) return '';
+  return `${value} line(s) of the ${subject} could not be read and are in nothing above. That count covers the WHOLE log, not this window: a line that did not parse has no timestamp to window it on.`;
+}
+
+/**
+ * What the guard half of this answer could not window the way the caveat describes.
+ *
+ * Guard records are windowed by session, so a session is held or dropped whole. Records written
+ * before sessions carried an id cannot be grouped and fall back to their own clock — the attach
+ * record on one side of a boundary, its own signals and counters on the other. That is the one case
+ * the server's caveat excludes, and a reader is owed the count rather than left to assume the
+ * better rule applied to all of it.
+ */
+export function unattributedSentence(value) {
+  if (!Number.isFinite(value) || value < 0) {
+    return 'This server did not state how many guard records carry no session id, so whether every session here was windowed whole is unknown.';
+  }
+  if (value === 0) return '';
+  return `${value} guard record(s) here carry no session id — they were written before sessions were identified, so each was windowed on its own clock instead of being held with the rest of its session, and one such session can be split across the boundary.`;
+}
+
+/**
+ * The blocking posture, read as the server stated it and never derived.
+ *
+ * Deliberately does NOT look at `guard.enforcing`. That field is `any(..)` over the whole scope, so
+ * a single enforce session anywhere makes it true — and a summary merges every warrant in the
+ * store. Rendering it as a boolean tells an operator that calls which actually proceeded did not
+ * happen. `mixed` is a third claim, not a rounding of the other two, and an unrecognised or absent
+ * word is `unknown` rather than a default.
+ */
+export function postureWord(guard) {
+  const word = guard?.blocking_posture;
+  if (word === 'observe_only' || word === 'enforced' || word === 'mixed') return word;
+  return 'unknown';
+}
+
+/** The sentence for each posture. Fixed prose, chosen by the server's word, never composed. */
+const POSTURE_SENTENCE = {
+  observe_only: 'observe only — nothing here was blocked',
+  enforced: 'enforced — flagged calls were refused at the MCP endpoint',
+  mixed: 'MIXED — some flagged calls proceeded and some were refused; read each row',
+  unknown: 'posture not stated — do not assume either way',
+};
+
+/** A labelled row of facts, with the server's own guidance sentence printed verbatim underneath. */
+function factRow(className, heading, pills, guidance) {
+  const item = document.createElement('li');
+  const row = node('div', className);
+  const top = node('div', 'row-top');
+  top.append(node('span', 'row-id', heading));
+  for (const [label, value] of pills) {
+    if (value === undefined || value === null || value === '') continue;
+    top.append(node('span', 'pill pill-quiet', `${label} ${value}`));
+  }
+  row.append(top);
+  // Verbatim. Rewriting it here would be a second implementation of the server's judgement, and the
+  // two would disagree the first time one of them was edited.
+  if (guidance) row.append(node('div', 'row-sub', guidance));
+  item.append(row);
+  return item;
+}
+
+/** Read the summary for the chosen month and render it. Never polled — see the note in the page. */
+async function loadSummary() {
+  const range = monthWindow(el.summaryMonth.value);
+  if (!range) {
+    // Its own reason, and its own paragraph. This branch makes NO request, so the server-error
+    // sentence ("the server did not answer, refused, or replied with something this console could
+    // not parse") would be this console stating a fact about a server it never spoke to.
+    // `<input type="month">` degrades to a free-text field in browsers that do not implement it, so
+    // this is reached by typing, not only by tampering.
+    renderSummary({ readable: false, reason: 'month', groups: [], guard: null, window: null, note: '' });
+    return;
+  }
+  const { answered, status, payload } = await call(
+    `/v1/summary/refusals?since=${range.since}&until=${range.until}`,
+  );
+  if (answered && status === 401) {
+    showGate('That token was not accepted.');
+    return;
+  }
+  renderSummary(summaryFacts(answered, status, payload));
+}
+
+function renderSummary(facts) {
+  const monthUnreadable = facts.reason === 'month';
+  el.summaryError.hidden = facts.readable || monthUnreadable;
+  el.summaryMonthError.hidden = !monthUnreadable;
+  el.summaryRefusals.replaceChildren();
+  el.summaryGuard.replaceChildren();
+  el.summaryCoverage.replaceChildren();
+
+  if (!facts.readable) {
+    // Every block is emptied and every explanatory paragraph hidden, so nothing left over from a
+    // successful read can sit under the error and read as this month's answer.
+    el.summaryWindow.textContent = '';
+    el.summaryCaveat.textContent = '';
+    el.summaryUnreadable.textContent = '';
+    el.summaryRefusalsNote.textContent = '';
+    el.summaryGuardNote.textContent = '';
+    el.summaryGuardCaveats.textContent = '';
+    el.summaryCoverageNote.textContent = '';
+    el.summaryRefusalsEmpty.hidden = true;
+    el.summaryGuardUnknown.hidden = true;
+    el.summaryGuardNone.hidden = true;
+    el.summaryGuardUnattributed.hidden = true;
+    el.summaryGuardQuiet.hidden = true;
+    return;
+  }
+
+  // The window the SERVER resolved, not the one this console asked for. Printing the request would
+  // keep saying "August" over an answer that had not been filtered, which is exactly what this
+  // route did before it learned to filter.
+  const range = facts.window;
+  const stamp = (seconds) =>
+    Number.isFinite(seconds) ? new Date(seconds * 1000).toISOString().slice(0, 10) : '(unbounded)';
+  el.summaryWindow.textContent = range
+    ? `Window ${stamp(range.since)} to ${stamp(range.until)} (end exclusive): ${range.records_in_window} refusal record(s) of ${range.records_all_time} in the whole log.`
+    : 'This server did not state the window it answered about, so what follows may not be the month asked for.';
+  el.summaryCaveat.textContent = range?.caveat ?? '';
+  // Read off the wire and then dropped is how this count was handled before: `summaryFacts` set it
+  // and nothing rendered it, so unparseable refusal-log lines were omitted from the month view with
+  // no disclosure at all.
+  el.summaryUnreadable.textContent = unreadableSentence(facts.unreadableLines, 'refusal log');
+  el.summaryRefusalsNote.textContent = facts.note;
+
+  el.summaryRefusalsEmpty.hidden = facts.groups.length > 0;
+  for (const group of facts.groups) {
+    el.summaryRefusals.append(
+      factRow(
+        'row-fact',
+        group.subject ?? '(unnamed)',
+        [
+          ['', group.kind],
+          ['refused', group.occurrences],
+          ['warrants', group.warrants],
+          ['', group.signal],
+        ],
+        group.guidance,
+      ),
+    );
+  }
+
+  renderGuardBlock(facts.guard);
+}
+
+function renderGuardBlock(guard) {
+  const kind = guardKind(guard);
+  el.summaryGuardUnknown.hidden = kind !== 'unknown';
+  el.summaryGuardNone.hidden = kind !== 'no-coverage';
+  el.summaryGuardUnattributed.hidden = kind !== 'unattributed';
+  el.summaryGuardQuiet.hidden = kind !== 'quiet';
+  // The server composes this sentence per scope and per posture. Printed verbatim; it is also
+  // where the measured benchmark rates live, so this console never keys a number like 0.8152 in.
+  el.summaryGuardNote.textContent = typeof guard?.note === 'string' ? guard.note : '';
+  // What this block could not see, and what it could not window as the caveat describes. Written
+  // even for an unreadable guard object, where "the server stated no count" is the whole point.
+  el.summaryGuardCaveats.textContent = [
+    unreadableSentence(guard?.unreadable_lines, 'guard log'),
+    unattributedSentence(guard?.unattributed_records),
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (kind === 'unknown') {
+    el.summaryCoverageNote.textContent =
+      'No coverage counts were readable in this answer, so nothing here says how much was looked at.';
+    return;
+  }
+
+  const posture = postureWord(guard);
+  el.summaryGuard.append(
+    factRow('row-fact guard-posture', 'Across this window', [['', POSTURE_SENTENCE[posture]]], null),
+  );
+  for (const group of guard.groups) {
+    el.summaryGuard.append(
+      factRow(
+        'row-fact guard-row',
+        group.tool ?? '(unnamed tool)',
+        [
+          // The mode is on the row, never averaged away: the server groups on it precisely because
+          // "the call proceeded" and "the call was refused" are opposite sentences about one
+          // outcome word.
+          ['mode', group.mode],
+          ['', group.outcome],
+          ['category', group.category],
+          ['occurrences', group.occurrences],
+          ['warrants', group.warrants],
+        ],
+        group.guidance,
+      ),
+    );
+  }
+
+  const coverage = guard.coverage;
+  if (!coverage || typeof coverage !== 'object') {
+    el.summaryCoverageNote.textContent =
+      'This answer carried no coverage counts, so how much of the window nothing looked at is unknown.';
+    return;
+  }
+  const rows = [
+    ['guard sessions that attached', coverage.sessions_attached],
+    ['of those, sessions that finished and reported', coverage.sessions_finished],
+    ['calls actually sent to the backend', coverage.classified],
+    ['of those, calls it called harmful', coverage.flagged],
+    ['calls nothing looked at: the backend was unreachable', coverage.backend_unavailable],
+    ['calls nothing looked at: the answer was not a verdict', coverage.unparseable],
+    ["calls nothing looked at: the session's cap was spent", coverage.skipped_over_budget],
+    ['repeats that cost no backend call', coverage.deduplicated],
+  ];
+  for (const [label, value] of rows) {
+    el.summaryCoverage.append(
+      factRow('row-fact coverage-row', label, [['', value ?? '(not stated)']], null),
+    );
+  }
+  el.summaryCoverageNote.textContent =
+    'Counted from end-of-session records only. A session that attached and never finished contributes nothing to the call counts above, so where the two session numbers differ those runs are unaccounted for here rather than accounted for as zero.';
 }
 
 // ── list ────────────────────────────────────────────────────────────────────
@@ -767,6 +1176,16 @@ el.showAll.addEventListener('click', () => setFilter(''));
 // no `unsafe-inline`, so an inline handler would be silently dead in the browser and pass every
 // test in the suite.
 el.copyButton.addEventListener('click', copyGrantCommand);
+
+// The month view. The input starts on the month the reader is in, because a blank one would make
+// the first click render the "could not be read" paragraph over a working server.
+el.summaryMonth.value = currentMonth();
+el.viewWarrants.addEventListener('click', () => setView('warrants'));
+el.viewSummary.addEventListener('click', () => setView('summary'));
+el.summaryForm.addEventListener('submit', (event) => {
+  event.preventDefault?.();
+  loadSummary();
+});
 
 const fromUrl = tokenFromFragment();
 if (fromUrl) {

@@ -27,7 +27,8 @@ use serde_json::Value;
 use warrantor_warrant::guard::{
     aggregate_guard_signals, attach, parse_guard_response, read_all_guard_logs, read_guard_log,
     record_guard_signals, GuardConfig, GuardCounters, GuardError, GuardKnobs, GuardMode,
-    GuardObservation, GuardOutcome, GuardSession, GuardSink, GuardTransport, GUARD_SIGNAL_FORMAT,
+    GuardObservation, GuardOutcome, GuardProvenance, GuardSession, GuardSignal, GuardSink,
+    GuardTransport, GUARD_SIGNAL_FORMAT,
 };
 use warrantor_warrant::mcp::{Endpoint, ToolResult};
 use warrantor_warrant::mcp_endpoints::agent_endpoint_for;
@@ -257,7 +258,15 @@ fn run_session(dir: &Path, id: &str, guard: Option<Box<dyn GuardSink>>) -> Vec<T
         results.push(endpoint.call(tool, &arguments));
     }
     if let Some(counters) = endpoint.guard_counters() {
-        record_guard_signals(dir, id, &endpoint.guard_signals(), counters, NOW).expect("record");
+        record_guard_signals(
+            dir,
+            id,
+            endpoint.guard_session_id().unwrap_or_default(),
+            &endpoint.guard_signals(),
+            counters,
+            NOW,
+        )
+        .expect("record");
     }
     results
 }
@@ -763,6 +772,27 @@ fn write_guard_log(dir: &Path, id: &str) {
 }
 
 fn write_guard_log_in(dir: &Path, id: &str, mode: GuardMode) {
+    write_guard_log_at(dir, id, mode, NOW);
+}
+
+/// The same, stamped at a chosen second, so a window has two sides to have.
+fn write_guard_log_at(dir: &Path, id: &str, mode: GuardMode, at: u64) {
+    write_guard_log_spanning(dir, id, mode, at, at, at);
+}
+
+/// A whole session on the three clocks it is really written on: attach, call, end.
+///
+/// Production stamps the attach record when the session STARTS, each signal at the moment of its
+/// CALL, and the counters when the session ENDS. A fixture that used one second for all three could
+/// not exercise a window at all, because there was nothing for a boundary to fall between.
+fn write_guard_log_spanning(
+    dir: &Path,
+    id: &str,
+    mode: GuardMode,
+    attached_at: u64,
+    called_at: u64,
+    ended_at: u64,
+) {
     let mut settings = config(id);
     settings.mode = mode;
     let adapter = attach(
@@ -770,7 +800,7 @@ fn write_guard_log_in(dir: &Path, id: &str, mode: GuardMode) {
         settings,
     )
     .expect("attach");
-    let session = adapter.session_record(NOW);
+    let session = adapter.session_record(attached_at);
     warrantor_warrant::guard::record_guard_session(dir, &session).expect("session");
     let mut adapter = adapter;
     let mut arguments = BTreeMap::new();
@@ -778,8 +808,16 @@ fn write_guard_log_in(dir: &Path, id: &str, mode: GuardMode) {
         "command".to_string(),
         "curl https://example.com".to_string(),
     );
-    adapter.observe("curl", &arguments, NOW);
-    record_guard_signals(dir, id, &adapter.signals(), adapter.counters(), NOW).expect("signals");
+    adapter.observe("curl", &arguments, called_at);
+    record_guard_signals(
+        dir,
+        id,
+        adapter.session_id(),
+        &adapter.signals(),
+        adapter.counters(),
+        ended_at,
+    )
+    .expect("signals");
 }
 
 /// The `note` string a route rendered for its `guard` object.
@@ -889,6 +927,7 @@ fn signals_without_an_attach_record_are_not_described_as_nothing_classified() {
     record_guard_signals(
         &dir,
         "wrt_orphan",
+        adapter.session_id(),
         &adapter.signals(),
         adapter.counters(),
         NOW,
@@ -1181,4 +1220,399 @@ fn a_summary_over_both_modes_refuses_to_claim_either_ones_outcome() {
         &get(&["v1", "warrants", "wrt_enforced", "refusals"]),
     ));
     assert!(guard_note(&enforced).contains("REFUSED"));
+}
+
+// ── the window, the posture on the wire, and what nothing looked at ───────────────────
+
+fn get_with(path: &[&str], query: &[(&str, &str)]) -> HttpRequest {
+    let map: BTreeMap<String, String> = query
+        .iter()
+        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+        .collect();
+    HttpRequest::new("GET", path, map).with_bearer(TOKEN)
+}
+
+/// A month in which no guard attached must say NO COVERAGE, even when one attached in another.
+///
+/// `configured()` is `!sessions.is_empty()` over whatever log it is handed, so the fix is to hand
+/// it the windowed log rather than to teach the client about windows. Read the all-time log for a
+/// month with nothing in it and the surface says "a guard was attached" about a month in which
+/// none was — an absence of observation rendered as an absence of findings, which is the one
+/// failure this whole guard surface exists to make impossible.
+#[test]
+fn a_window_with_no_guard_in_it_reports_no_coverage_rather_than_last_months() {
+    let dir = tempdir("guard-window");
+    seed(&dir, "wrt_jan");
+    let january = 1_767_225_600; // 2026-01-01T00:00:00Z
+    let february = 1_769_904_000; // 2026-02-01T00:00:00Z
+    let march = 1_772_323_200; // 2026-03-01T00:00:00Z
+    write_guard_log_at(&dir, "wrt_jan", GuardMode::Observe, january);
+
+    let mut store = api(&dir);
+    let jan = body(&route(
+        &mut store,
+        &get_with(
+            &["v1", "summary", "refusals"],
+            &[
+                ("since", &january.to_string()),
+                ("until", &february.to_string()),
+            ],
+        ),
+    ));
+    assert_eq!(
+        jan.pointer("/data/guard/configured"),
+        Some(&Value::Bool(true))
+    );
+    assert!(jan
+        .pointer("/data/guard/groups")
+        .and_then(Value::as_array)
+        .is_some_and(|groups| !groups.is_empty()));
+
+    let feb = body(&route(
+        &mut store,
+        &get_with(
+            &["v1", "summary", "refusals"],
+            &[
+                ("since", &february.to_string()),
+                ("until", &march.to_string()),
+            ],
+        ),
+    ));
+    assert_eq!(
+        feb.pointer("/data/guard/configured"),
+        Some(&Value::Bool(false)),
+        "January's attach record must not vouch for February"
+    );
+    assert_eq!(
+        feb.pointer("/data/guard/blocking_posture"),
+        Some(&Value::Null),
+        "a window holding nothing has no posture, and a default here would be a claim"
+    );
+    assert!(
+        guard_note(&feb).contains("absence of observation"),
+        "the no-coverage sentence is the point of the whole window: {}",
+        guard_note(&feb)
+    );
+    assert_eq!(
+        feb.pointer("/data/guard/coverage/sessions_attached"),
+        Some(&Value::from(0))
+    );
+    // Nothing at all in February, so the no-coverage sentence is TRUE here. That is only defensible
+    // because the coverage counts agree with it: the assertion below is the one that would have
+    // caught the defect the next test is about.
+    assert_eq!(
+        feb.pointer("/data/guard/coverage/classified"),
+        Some(&Value::from(0)),
+        "a no-coverage sentence over a nonzero call count is a contradiction, not a caveat"
+    );
+}
+
+/// A session written on three clocks must never be held half in a window.
+///
+/// The attach record is stamped when the session STARTS, each signal at the moment of its CALL, and
+/// the counters when it ENDS. Filtering those three on one `at` split a session that straddled a
+/// month boundary: February got the counters and none of the attach record, so `configured` was
+/// false over a window whose own coverage said a call was classified — and the console prints "NO
+/// COVERAGE. No guard was attached to any run in this window" in fixed prose that no server field
+/// can soften, directly above that count. The same class of error this whole view exists to prevent,
+/// running in reverse.
+#[test]
+fn a_session_that_straddles_a_boundary_is_held_whole_and_never_half_reported() {
+    let dir = tempdir("guard-straddle");
+    seed(&dir, "wrt_straddle");
+    let january = 1_767_225_600; // 2026-01-01T00:00:00Z
+    let february = 1_769_904_000; // 2026-02-01T00:00:00Z
+    let march = 1_772_323_200; // 2026-03-01T00:00:00Z
+                               // Attach a minute before midnight, classify a call in that same minute, report a minute after.
+    write_guard_log_spanning(
+        &dir,
+        "wrt_straddle",
+        GuardMode::Observe,
+        february - 60,
+        february - 30,
+        february + 60,
+    );
+
+    let mut store = api(&dir);
+    let window = |store: &mut StoreApi, since: u64, until: u64| {
+        body(&route(
+            store,
+            &get_with(
+                &["v1", "summary", "refusals"],
+                &[("since", &since.to_string()), ("until", &until.to_string())],
+            ),
+        ))
+    };
+
+    // The session ended in February, so February owns all of it -- attach record included.
+    let feb = window(&mut store, february, march);
+    assert_eq!(
+        feb.pointer("/data/guard/configured"),
+        Some(&Value::Bool(true)),
+        "the session that produced February's counters attached, and this window has its counters"
+    );
+    assert_eq!(
+        feb.pointer("/data/guard/coverage/sessions_attached"),
+        Some(&Value::from(1))
+    );
+    assert_eq!(
+        feb.pointer("/data/guard/coverage/sessions_finished"),
+        Some(&Value::from(1))
+    );
+    assert_eq!(
+        feb.pointer("/data/guard/coverage/classified"),
+        Some(&Value::from(1))
+    );
+    assert!(
+        feb.pointer("/data/guard/groups")
+            .and_then(Value::as_array)
+            .is_some_and(|groups| !groups.is_empty()),
+        "the call it classified is in the window its session was attributed to, or it is nowhere"
+    );
+    assert!(
+        !guard_note(&feb).contains("No guard was attached"),
+        "the note may not deny the guard whose counts are in the same payload: {}",
+        guard_note(&feb)
+    );
+
+    // And January holds none of it, rather than the half whose timestamps happen to land there.
+    let jan = window(&mut store, january, february);
+    assert_eq!(
+        jan.pointer("/data/guard/configured"),
+        Some(&Value::Bool(false))
+    );
+    for field in ["sessions_attached", "sessions_finished", "classified"] {
+        assert_eq!(
+            jan.pointer(&format!("/data/guard/coverage/{field}")),
+            Some(&Value::from(0)),
+            "a session is held or dropped whole, so January must hold no part of it: {field}"
+        );
+    }
+    assert!(
+        jan.pointer("/data/guard/groups")
+            .and_then(Value::as_array)
+            // A closure, not `<[Value]>::is_empty`: `as_array` yields `&Vec<Value>`, and the
+            // deref to `&[Value]` that would make the path form work does not happen in
+            // function-pointer position.
+            .is_some_and(|groups| groups.is_empty()),
+        "the attach record and the signal both sat in January by their own clocks; neither may be \
+         rendered under a heading the session's counters are not under"
+    );
+}
+
+/// The one case the window caveat cannot cover has to be counted, not assumed away.
+///
+/// Records written before sessions carried an id cannot be grouped, so they keep the old
+/// per-record behaviour and a session of them can still be split across a boundary. That is a real
+/// exception to what the server's caveat promises, so the count is on the wire: a surface that
+/// printed the caveat over a log of them would be describing a rule that was not applied.
+#[test]
+fn guard_records_with_no_session_id_are_counted_rather_than_assumed_grouped() {
+    let dir = tempdir("guard-unattributed");
+    seed(&dir, "wrt_legacy");
+    // Written by hand, because nothing in this build can produce them any more: `attach` mints an
+    // id and refuses rather than writing an empty one.
+    let legacy = format!(
+        "{}\n{}\n",
+        serde_json::json!({
+            "format": warrantor_warrant::guard::GUARD_SESSION_FORMAT,
+            "warrant_id": "wrt_legacy",
+            "at": NOW,
+            "mode": "observe",
+            "max_calls": 4,
+            "provenance": {
+                "adapter": "test",
+                "backend_kind": "ollama",
+                "endpoint": "http://127.0.0.1:11434",
+                "model": "guard:test",
+                "model_digest": DIGEST,
+                "knobs": GuardKnobs::default(),
+            },
+            "note": "test",
+        }),
+        serde_json::json!({
+            "format": warrantor_warrant::guard::GUARD_SUMMARY_FORMAT,
+            "warrant_id": "wrt_legacy",
+            "at": NOW + 5,
+            "counters": GuardCounters { classified: 2, ..GuardCounters::default() },
+        })
+    );
+    let guard_dir = dir.join("guard");
+    std::fs::create_dir_all(&guard_dir).expect("guard dir");
+    std::fs::write(guard_dir.join("wrt_legacy.jsonl"), legacy).expect("legacy log");
+
+    let log = read_all_guard_logs(&dir);
+    assert_eq!(log.sessions.len(), 1, "the legacy lines must still parse");
+    assert_eq!(log.unreadable_lines, 0);
+    assert_eq!(
+        log.unattributed_records(),
+        2,
+        "both lines carry no session id, and both have to be visible as such"
+    );
+    assert_eq!(
+        log.within(Some(NOW), Some(NOW + 10)).unattributed_records(),
+        2,
+        "windowing them keeps the disclosure; it does not launder them into grouped records"
+    );
+
+    let mut store = api(&dir);
+    let summary = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    assert_eq!(
+        summary.pointer("/data/guard/unattributed_records"),
+        Some(&Value::from(2)),
+        "the count the caveat names has to be on the wire, or the caveat names nothing"
+    );
+
+    // A session this build wrote is attributed, so the exception is not reported over records it
+    // does not apply to.
+    write_guard_log_at(&dir, "wrt_legacy", GuardMode::Observe, NOW + 20);
+    let log = read_all_guard_logs(&dir);
+    assert_eq!(
+        log.unattributed_records(),
+        2,
+        "the three records just written carry ids and must not be counted among the two that do not"
+    );
+}
+
+/// The posture has to be a FIELD, or no client can honour the three-valued rule.
+///
+/// `enforcing` is `any(..)` over the whole store, so a renderer with only the boolean prints the
+/// enforce sentence over a scope that also holds observe signals — telling an operator that calls
+/// which actually proceeded did not happen. The only other option open to a client was to
+/// string-match the English in `note`, which is not an option.
+#[test]
+fn the_blocking_posture_is_on_the_wire_and_not_only_inside_a_sentence() {
+    let dir = tempdir("guard-posture-field");
+    seed(&dir, "wrt_observed");
+    seed(&dir, "wrt_enforced");
+    write_guard_log_in(&dir, "wrt_observed", GuardMode::Observe);
+
+    let mut store = api(&dir);
+    let observed = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    assert_eq!(
+        observed.pointer("/data/guard/blocking_posture"),
+        Some(&Value::from("observe_only"))
+    );
+
+    write_guard_log_in(&dir, "wrt_enforced", GuardMode::Enforce);
+    let mut store = api(&dir);
+    let mixed = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    assert_eq!(
+        mixed.pointer("/data/guard/blocking_posture"),
+        Some(&Value::from("mixed")),
+        "one enforce session anywhere must not make the whole scope read as enforced"
+    );
+    assert_eq!(
+        mixed.pointer("/data/guard/enforcing"),
+        Some(&Value::Bool(true)),
+        "and the boolean is still true here, which is exactly why it is not enough on its own"
+    );
+}
+
+/// Coverage counts what was NOT looked at, from the end-of-session records and only those.
+///
+/// The same three facts exist twice in `guard.rs` — as session counters and as `GuardOutcome`
+/// variants on individual signals — and summing both would inflate every number here by counting
+/// one skipped call twice. This pins which of the two is authoritative.
+///
+/// The signals below are the point of the fixture and it used to be written with none: an empty
+/// slice cannot exercise a double count, so a future change that also summed the signals' own
+/// outcomes would have kept this test green. Each carries an outcome that the counters line already
+/// accounts for, so any number here moving means both sources were read.
+#[test]
+fn coverage_counts_what_nothing_looked_at_without_double_counting_it() {
+    let dir = tempdir("guard-coverage");
+    seed(&dir, "wrt_cover");
+    let provenance = GuardProvenance {
+        adapter: "test".to_string(),
+        backend_kind: "ollama".to_string(),
+        endpoint: "http://127.0.0.1:11434".to_string(),
+        model: "guard:test".to_string(),
+        model_digest: DIGEST.to_string(),
+        knobs: GuardKnobs::default(),
+    };
+    let session_id = "gsn_00000000000000000000000000000001";
+    let session = GuardSession {
+        format: warrantor_warrant::guard::GUARD_SESSION_FORMAT.to_string(),
+        warrant_id: "wrt_cover".to_string(),
+        session_id: session_id.to_string(),
+        at: NOW,
+        mode: GuardMode::Observe,
+        max_calls: 4,
+        provenance: provenance.clone(),
+        note: "test".to_string(),
+    };
+    warrantor_warrant::guard::record_guard_session(&dir, &session).expect("session");
+    let counters = GuardCounters {
+        classified: 4,
+        flagged: 1,
+        backend_unavailable: 2,
+        unparseable: 1,
+        skipped_over_budget: 3,
+        deduplicated: 5,
+    };
+    let signals: Vec<GuardSignal> = [
+        (GuardOutcome::BackendUnavailable, "backend_unavailable", "a"),
+        (GuardOutcome::SkippedOverBudget, "not_classified", "b"),
+        (GuardOutcome::Unparseable, "unparseable", "c"),
+    ]
+    .into_iter()
+    .map(|(outcome, severity, seed)| GuardSignal {
+        format: GUARD_SIGNAL_FORMAT.to_string(),
+        warrant_id: "wrt_cover".to_string(),
+        session_id: session_id.to_string(),
+        at: NOW,
+        tool: "curl".to_string(),
+        argument_names: vec!["command".to_string()],
+        content_digest: format!("sha256:{}", seed.repeat(64)),
+        content_bytes: 12,
+        truncated: false,
+        outcome,
+        mode: GuardMode::Observe,
+        severity: severity.to_string(),
+        categories: Vec::new(),
+        gated_by_category: false,
+        raw_excerpt: "fixture".to_string(),
+        count: 1,
+        provenance: provenance.clone(),
+    })
+    .collect();
+    record_guard_signals(&dir, "wrt_cover", session_id, &signals, counters, NOW).expect("signals");
+
+    let mut store = api(&dir);
+    let summary = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    let coverage = summary.pointer("/data/guard/coverage").expect("coverage");
+    assert_eq!(coverage["sessions_attached"], 1);
+    assert_eq!(coverage["sessions_finished"], 1);
+    assert_eq!(coverage["classified"], 4);
+    assert_eq!(coverage["flagged"], 1);
+    assert_eq!(coverage["backend_unavailable"], 2);
+    assert_eq!(coverage["unparseable"], 1);
+    assert_eq!(
+        coverage["skipped_over_budget"], 3,
+        "the signal carrying SkippedOverBudget must not add a fourth: the counters already hold it"
+    );
+    assert_eq!(coverage["deduplicated"], 5);
+
+    // A session that attached and never reported leaves the call counts alone rather than
+    // contributing zeros, and the difference between the two session numbers is what says so.
+    warrantor_warrant::guard::record_guard_session(
+        &dir,
+        &GuardSession {
+            warrant_id: "wrt_cover".to_string(),
+            session_id: "gsn_00000000000000000000000000000002".to_string(),
+            at: NOW + 1,
+            ..session
+        },
+    )
+    .expect("second session");
+    let mut store = api(&dir);
+    let after = body(&route(&mut store, &get(&["v1", "summary", "refusals"])));
+    let coverage = after.pointer("/data/guard/coverage").expect("coverage");
+    assert_eq!(coverage["sessions_attached"], 2);
+    assert_eq!(
+        coverage["sessions_finished"], 1,
+        "a run that never reported must be visible as unaccounted for, not as a clean zero"
+    );
+    assert_eq!(coverage["classified"], 4, "and must not be counted twice");
 }

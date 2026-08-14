@@ -725,6 +725,16 @@ impl AgentEndpoint {
         self.guard.as_ref().map(|g| g.counters())
     }
 
+    /// The id of the guarded session, or `None` when no guard was attached.
+    ///
+    /// The end-of-run write needs it even for a session that classified nothing: without it the
+    /// counters line cannot be grouped with the attach record written before the run, and a reader
+    /// windowing the log holds half a session — see [`crate::guard::GuardLog::within`].
+    #[must_use]
+    pub fn guard_session_id(&self) -> Option<&str> {
+        self.guard.as_ref().map(|g| g.session_id())
+    }
+
     /// Who the guard is, or `None` when none was attached.
     #[must_use]
     pub fn guard_provenance(&self) -> Option<&crate::guard::GuardProvenance> {
