@@ -168,3 +168,46 @@ def test_a_prebuilt_gguf_that_is_not_there_is_refused(tmp_path: Path) -> None:
     )
     with pytest.raises(PublishRefused, match="no GGUF adapter"):
         publish(plan, prebuilt_gguf=tmp_path / "absent.gguf")
+
+
+def test_planning_needs_no_ollama_on_the_machine(tmp_path: Path, monkeypatch) -> None:
+    """Planning is pure, and CI has no Ollama.
+
+    These tests passed locally only because Ollama happens to be installed on the machine that
+    wrote them, and failed in CI where it is not. The fix was not to mock the check but to move
+    it: `plan_publish` reads the filesystem it was given and returns a value, so `--plan-only`
+    works on a build box, and `publish` requires the binary before it spends anything.
+    """
+
+    monkeypatch.setattr("warrantor_ml.publish.shutil.which", lambda _name: None)
+
+    plan = plan_publish(
+        _adapter(tmp_path),
+        _snapshot(tmp_path),
+        BASE,
+        "guard-0.6b-weak-category",
+        "run",
+        tmp_path / "work",
+    )
+    assert plan.model_name
+
+
+def test_a_caller_mistake_is_named_before_a_missing_ollama(tmp_path: Path, monkeypatch) -> None:
+    """"You passed neither --converter nor --gguf" is actionable anywhere.
+
+    "ollama is not on PATH" is a fact about one machine, and reporting it first would mask the
+    mistake the caller can actually fix.
+    """
+
+    monkeypatch.setattr("warrantor_ml.publish.shutil.which", lambda _name: None)
+
+    plan = plan_publish(
+        _adapter(tmp_path),
+        _snapshot(tmp_path),
+        BASE,
+        "guard-0.6b-weak-category",
+        "run",
+        tmp_path / "work",
+    )
+    with pytest.raises(PublishRefused, match="--converter or --gguf"):
+        publish(plan)

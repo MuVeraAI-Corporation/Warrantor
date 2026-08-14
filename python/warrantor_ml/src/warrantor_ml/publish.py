@@ -145,7 +145,10 @@ def plan_publish(
             "'Qwen/Qwen3Guard-Gen-0.6B' fails with FileNotFoundError on that literal string."
         )
 
-    _require_tool("ollama", "Install Ollama; the baseline was measured through it.")
+    # Deliberately NOT checking for the ollama binary here. Planning is pure: it reads the
+    # filesystem it was given and returns a value, so `--plan-only` works on a machine that
+    # will never register anything and the tests need no ambient tooling. The binary is
+    # required by `publish`, which checks for it before spending anything on a conversion.
 
     return PublishPlan(
         adapter_dir=adapter_dir,
@@ -201,20 +204,27 @@ def publish(
     phases is the honest fit rather than pretending one interpreter can reach both.
     """
 
+    # Order matters. The caller's own mistakes are named first, because "you passed neither
+    # --converter nor --gguf" is actionable anywhere, while "ollama is not on PATH" is a fact
+    # about this machine that would otherwise mask it. Then the environment, and only then any
+    # work -- a missing Ollama found after the GGUF is written is a refusal that cost minutes.
+    if prebuilt_gguf is None and converter is None:
+        raise PublishRefused(
+            "one of --converter or --gguf is required: either convert the adapter here, or "
+            "name one converted elsewhere. Neither is assumed, because registering without "
+            "an adapter yields a model tag that scores as the untuned base."
+        )
+    if prebuilt_gguf is not None and not prebuilt_gguf.is_file():
+        raise PublishRefused(f"no GGUF adapter at {prebuilt_gguf}")
+
+    _require_tool("ollama", "Install Ollama; the baseline was measured through it.")
+
     plan.gguf_out.parent.mkdir(parents=True, exist_ok=True)
 
     if prebuilt_gguf is not None:
-        if not prebuilt_gguf.is_file():
-            raise PublishRefused(f"no GGUF adapter at {prebuilt_gguf}")
         if prebuilt_gguf.resolve() != plan.gguf_out.resolve():
             shutil.copyfile(prebuilt_gguf, plan.gguf_out)
     else:
-        if converter is None:
-            raise PublishRefused(
-                "one of --converter or --gguf is required: either convert the adapter here, or "
-                "name one converted elsewhere. Neither is assumed, because registering without "
-                "an adapter yields a model tag that scores as the untuned base."
-            )
         completed = subprocess.run(  # fixed argv, never a shell string
             convert_command(plan, converter, interpreter),
             capture_output=True,
