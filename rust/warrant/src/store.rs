@@ -9,10 +9,25 @@
 //! Receipts and warrants live centrally so one tamper-evident chain covers every repository;
 //! worktrees live in the repository because git requires it.
 //!
+//! This block listed two directories, which was true when it was written and wrong by nine by the
+//! time anybody asked what the store actually holds. It is the operator-facing description of the
+//! root, so it is kept complete — and `warrantor holdings` enumerates the same locations from
+//! [`crate::retention::ArtifactClass`] rather than from this prose, so an eleventh directory shows
+//! up in the answer whether or not somebody remembers to edit a comment.
+//!
 //! ```text
 //! ~/.warrantor/
-//!   warrants/wrt_<id>.json     signed warrant + lifecycle state
-//!   staged/wrt_<id>.jsonl      hash-chained staged-effect queue
+//!   warrants/<id>.json         signed warrant + lifecycle state + the staged-chain witness
+//!   staged/<id>.jsonl          hash-chained staged-effect queue
+//!   stops/<id>.json            signed stop records
+//!   spend/<id>.json            signed observed-spend ledger
+//!   daemons/<id>[.done].json   supervisor registration and completion
+//!   logs/<id>.log              the agent's raw stdout/stderr
+//!   refusals/<id>.jsonl        what a bound refused during a session
+//!   guard/<id>.jsonl           guard-model session records and signals
+//!   keys/{issuer,settle}.key   signing keys
+//!   serve/{token,open.html}    the read API's bearer token and its browser shim
+//!   backends.json              the local price table for spend routing
 //! <repo>/.warrantor/
 //!   wrt_<id>/                  the git worktree
 //! ```
@@ -29,6 +44,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::staging::{EffectRegistry, StagedChainMark, StagingQueue};
 use crate::{Warrant, WarrantError, WarrantState};
 
 /// Directory name used inside a repository for worktrees.
@@ -53,6 +69,18 @@ pub struct StoredWarrant {
     /// with "ambiguous argument". Derived state that cannot be re-derived has to be stored.
     #[serde(default)]
     pub base_commit: Option<String>,
+    /// What the store last saw of this warrant's staged-effect chain.
+    ///
+    /// Stored for the same reason as `base_commit`, one step further: the staged-effect log is
+    /// created lazily, so its absence is ambiguous — a warrant that staged nothing and a warrant
+    /// whose log was deleted read identically, as an empty queue at genesis. The witness is what
+    /// makes the second one detectable, and it has to live outside the file it witnesses.
+    ///
+    /// `None` on warrants granted before this field existed. That is "cannot say", not "nothing
+    /// was staged", and [`StagingQueue::open_witnessed`] checks nothing when it is absent rather
+    /// than inventing a verdict.
+    #[serde(default)]
+    pub staged_chain: Option<StagedChainMark>,
 }
 
 /// A filesystem-backed warrant store.
@@ -88,6 +116,15 @@ impl WarrantStore {
                 WarrantError::Encode("neither HOME nor USERPROFILE is set".to_string())
             })?;
         Ok(PathBuf::from(home).join(".warrantor"))
+    }
+
+    /// The root this store is open on.
+    ///
+    /// Exposed because enumerating the store from outside used to mean rebuilding the path from
+    /// `default_root()` and hoping the two agreed.
+    #[must_use]
+    pub fn root(&self) -> &Path {
+        &self.root
     }
 
     fn warrant_path(&self, id: &str) -> PathBuf {
@@ -131,13 +168,71 @@ impl WarrantStore {
             .map_err(|e| WarrantError::Encode(format!("parse warrant {id}: {e}")))
     }
 
+    /// Open a warrant's staged-effect queue, checked against the chain this store witnessed.
+    ///
+    /// The call every reader should make instead of [`StagingQueue::open`] on a bare path. Opening
+    /// by path alone cannot tell a queue that was never written from one that was deleted, and the
+    /// difference decides whether a report says "0 staged effect(s)" or refuses to answer.
+    ///
+    /// # Errors
+    /// [`WarrantError::Invalid`] if there is no such warrant, if the chain does not replay, or if
+    /// the log no longer holds the chain the witness recorded.
+    pub fn open_queue(
+        &self,
+        id: &str,
+        registry: EffectRegistry,
+    ) -> Result<StagingQueue, WarrantError> {
+        let stored = self.load(id)?;
+        StagingQueue::open_witnessed(
+            self.staged_path(id),
+            id,
+            registry,
+            stored.staged_chain.as_ref(),
+        )
+    }
+
+    /// Record where a warrant's staged chain now stands.
+    ///
+    /// Called after an effect is appended, never before: the witness follows the log so that a
+    /// crash between the two leaves a mark that lags (weaker detection) rather than one that runs
+    /// ahead (a refusal for a log nobody touched).
+    ///
+    /// # Errors
+    /// [`WarrantError::Invalid`] if there is no such warrant, [`WarrantError::Encode`] on I/O
+    /// failure.
+    pub fn witness_staged_chain(
+        &self,
+        id: &str,
+        queue: &StagingQueue,
+        at: u64,
+    ) -> Result<(), WarrantError> {
+        let mut stored = self.load(id)?;
+        stored.staged_chain = Some(queue.mark(at));
+        self.save(&stored)
+    }
+
     /// Every warrant in the store, newest first by issue time.
     ///
     /// # Errors
     /// [`WarrantError::Encode`] if the directory cannot be read.
     pub fn list(&self) -> Result<Vec<StoredWarrant>, WarrantError> {
+        Ok(self.list_counting_unreadable()?.0)
+    }
+
+    /// Every warrant in the store, and how many files could not be read.
+    ///
+    /// [`Self::list`] drops what it cannot parse, which is right for a listing — a store that
+    /// refuses to list because one file is corrupt is a store you cannot recover from — but it
+    /// makes the result look authoritative when it is not. Anything answering "what does this
+    /// machine hold" has to be able to say "fourteen, and three I could not read"; a count built on
+    /// `list()` alone would report fourteen out of seventeen and look like a complete answer.
+    ///
+    /// # Errors
+    /// [`WarrantError::Encode`] if the directory cannot be read.
+    pub fn list_counting_unreadable(&self) -> Result<(Vec<StoredWarrant>, usize), WarrantError> {
         let dir = self.root.join("warrants");
         let mut out = Vec::new();
+        let mut unreadable = 0usize;
         let entries =
             fs::read_dir(&dir).map_err(|e| WarrantError::Encode(format!("read warrants: {e}")))?;
         for entry in entries.flatten() {
@@ -147,16 +242,18 @@ impl WarrantStore {
             }
             // A single unreadable warrant must not hide every other one -- a store that refuses to
             // list because one file is corrupt is a store you cannot recover from.
-            if let Ok(body) = fs::read(&path) {
-                if let Ok(stored) = serde_json::from_slice::<StoredWarrant>(&body) {
-                    out.push(stored);
-                }
+            match fs::read(&path) {
+                Ok(body) => match serde_json::from_slice::<StoredWarrant>(&body) {
+                    Ok(stored) => out.push(stored),
+                    Err(_) => unreadable = unreadable.saturating_add(1),
+                },
+                Err(_) => unreadable = unreadable.saturating_add(1),
             }
         }
         // Newest first. Expressed with `Reverse` rather than a hand-written comparator so the
         // ordering is stated once instead of depending on argument order being read correctly.
         out.sort_by_key(|s| std::cmp::Reverse(s.warrant.claims.issued_at));
-        Ok(out)
+        Ok((out, unreadable))
     }
 
     /// Warrants that are still open or held — the ones that need a decision.

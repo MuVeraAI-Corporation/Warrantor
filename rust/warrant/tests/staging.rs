@@ -300,6 +300,7 @@ fn a_warrant_round_trips_through_the_store() {
         repo: Some(dir.clone()),
         branch: Some("warrantor/wrt_stored".to_string()),
         base_commit: Some("abc123".to_string()),
+        staged_chain: None,
     };
     store.save(&stored).expect("save");
 
@@ -331,6 +332,7 @@ fn outstanding_returns_only_warrants_needing_a_decision() {
                 repo: None,
                 branch: None,
                 base_commit: None,
+                staged_chain: None,
             })
             .expect("save");
     }

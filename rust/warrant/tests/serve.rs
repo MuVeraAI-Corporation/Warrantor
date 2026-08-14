@@ -81,6 +81,7 @@ fn warrant_with(id: &str, expires_at: u64, issuer_seed: u8) -> StoredWarrant {
         repo: None,
         branch: None,
         base_commit: None,
+        staged_chain: None,
     }
 }
 

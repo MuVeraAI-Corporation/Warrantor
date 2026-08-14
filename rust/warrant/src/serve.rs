@@ -2031,8 +2031,16 @@ impl StoreApi {
         let stored = self.load(id)?;
         let now = (self.now)();
 
-        // Same registry as every other caller, or handle types would differ.
-        let queue = StagingQueue::open(self.store.staged_path(id), id, EffectRegistry::github());
+        // Same registry as every other caller, or handle types would differ. Witnessed against the
+        // chain the warrant record carries, so a log that was removed reaches the `Unavailable`
+        // path below -- and from there `queue_available: false` and a notary denial -- rather than
+        // being reported as an empty queue.
+        let queue = StagingQueue::open_witnessed(
+            self.store.staged_path(id),
+            id,
+            EffectRegistry::github(),
+            stored.staged_chain.as_ref(),
+        );
         let queue_input: Result<&StagingQueue, String> = match &queue {
             Ok(q) => Ok(q),
             Err(e) => Err(safe_warrant_message(e)),
@@ -2650,23 +2658,28 @@ impl Api for StoreApi {
         if let Err(response) = self.require_intact(&stored, now) {
             return response;
         }
-        let queue =
-            match StagingQueue::open(self.store.staged_path(id), id, EffectRegistry::github()) {
-                Ok(q) => q,
-                Err(e) => {
-                    let (code, word) = warrant_error_status(&e);
-                    return Response::error(
-                        code,
-                        word,
-                        &format!(
-                            "the staged-effect queue could not be opened, so nothing was settled: \
-                             {}",
-                            safe_warrant_message(&e)
-                        ),
-                        &Verification::not_attempted(now),
-                    );
-                }
-            };
+        // Witnessed: settling against a log that has lost records would release whatever survived
+        // and call it the whole queue.
+        let queue = match StagingQueue::open_witnessed(
+            self.store.staged_path(id),
+            id,
+            EffectRegistry::github(),
+            stored.staged_chain.as_ref(),
+        ) {
+            Ok(q) => q,
+            Err(e) => {
+                let (code, word) = warrant_error_status(&e);
+                return Response::error(
+                    code,
+                    word,
+                    &format!(
+                        "the staged-effect queue could not be opened, so nothing was settled: {}",
+                        safe_warrant_message(&e)
+                    ),
+                    &Verification::not_attempted(now),
+                );
+            }
+        };
 
         let tree = crate::worktree::of_stored(&stored);
         let mut committed = Value::Null;

@@ -219,6 +219,9 @@ impl ControlEndpoint {
             repo: repo.map(std::path::PathBuf::from),
             branch,
             base_commit,
+            // Witnessed from the moment it exists. A warrant whose witness only appeared at its
+            // first staged effect would have a window in which a deleted log still read as empty.
+            staged_chain: Some(crate::staging::StagedChainMark::genesis(now)),
         };
         if let Err(e) = self.store.save(&stored) {
             return ToolResult::error(format!("could not persist the warrant: {e}"));
@@ -434,7 +437,9 @@ impl ControlEndpoint {
     }
 
     fn open_queue(&self, id: &str) -> Result<StagingQueue, crate::WarrantError> {
-        StagingQueue::open(self.store.staged_path(id), id, EffectRegistry::github())
+        // Witnessed, not bare: a log that was deleted must not read back as "nothing was staged"
+        // on the path that both reports and settles.
+        self.store.open_queue(id, EffectRegistry::github())
     }
 
     fn settle_warrant(&mut self, arguments: &BTreeMap<String, Value>) -> ToolResult {
@@ -653,6 +658,13 @@ pub struct AgentEndpoint {
     /// property of the stored warrant — a classifier knob inside signed claims would make a model's
     /// configuration part of granted authority.
     guard: Option<Box<dyn crate::guard::GuardSink>>,
+    /// The store to record the staged chain into after each effect, absent in tests that drive a
+    /// queue at a bare path.
+    ///
+    /// Absent means the session's staged effects are appended but never witnessed, so a later
+    /// deletion of the log is detectable only down to whatever the last witness recorded. That is
+    /// a weaker guarantee, never a false one — see [`crate::staging::StagedChainMark`].
+    witness: Option<crate::store::WarrantStore>,
     now: fn() -> u64,
 }
 
@@ -672,8 +684,19 @@ impl AgentEndpoint {
             queue,
             allowed,
             guard: None,
+            witness: None,
             now,
         }
+    }
+
+    /// Record the staged chain into `store` after every effect this session stages.
+    ///
+    /// A builder for the same reason as [`Self::with_guard`]: whether a session witnesses its own
+    /// chain is a property of the process that started it, not of the stored warrant.
+    #[must_use]
+    pub fn witnessed_by(mut self, store: crate::store::WarrantStore) -> Self {
+        self.witness = Some(store);
+        self
     }
 
     /// Attach a guard to this session, in whatever mode it was built in.
@@ -815,13 +838,33 @@ impl Endpoint for AgentEndpoint {
                 if let Some(denial) = self.guard_denial(tool, &call.arguments) {
                     return ToolResult::error(denial);
                 }
-                match self.proxy.apply(&call, &mut self.queue, (self.now)()) {
-                    Ok(effect) => ToolResult::ok(format!(
-                        "Staged as {}. This has NOT happened yet — it will be performed only if a \
-                     human settles warrant {}. Use this handle wherever you would use the real \
-                     result; it will be resolved to the real identifier at settle time.",
-                        effect.handle, self.warrant_id
-                    )),
+                let at = (self.now)();
+                match self.proxy.apply(&call, &mut self.queue, at) {
+                    Ok(effect) => {
+                        // AFTER the append, never before. The effect is already durable at this
+                        // point, so a failure here costs future detection, not the effect — and
+                        // returning an error would tell the agent its call was refused when it was
+                        // staged. It is said out loud on stderr instead of swallowed.
+                        if let Some(store) = &self.witness {
+                            if let Err(e) =
+                                store.witness_staged_chain(&self.warrant_id, &self.queue, at)
+                            {
+                                eprintln!(
+                                    "warrantor: staged {} but could not record the chain witness \
+                                     for {}: {e}. The effect is queued; a later deletion of the \
+                                     staged log is only detectable back to the last witness.",
+                                    effect.handle, self.warrant_id
+                                );
+                            }
+                        }
+                        ToolResult::ok(format!(
+                            "Staged as {}. This has NOT happened yet — it will be performed only \
+                             if a human settles warrant {}. Use this handle wherever you would use \
+                             the real result; it will be resolved to the real identifier at settle \
+                             time.",
+                            effect.handle, self.warrant_id
+                        ))
+                    }
                     Err(e) => ToolResult::error(format!("could not stage: {e}")),
                 }
             }
@@ -861,7 +904,14 @@ pub fn agent_endpoint_for(
     let id = stored.warrant.claims.id.clone();
     let bounds = stored.warrant.claims.bounds.clone();
     let allowed: Vec<String> = bounds.tools.iter().cloned().collect();
-    let queue = StagingQueue::open(staged_path, &id, EffectRegistry::github())?;
+    // Checked against the witness the warrant carries, so a session cannot start on a log that has
+    // been truncated or removed and then append fresh effects on top of the gap.
+    let queue = StagingQueue::open_witnessed(
+        staged_path,
+        &id,
+        EffectRegistry::github(),
+        stored.staged_chain.as_ref(),
+    )?;
     let proxy = Proxy::new(bounds, mode, EffectRegistry::github());
     Ok(AgentEndpoint::new(id, proxy, queue, allowed, now))
 }

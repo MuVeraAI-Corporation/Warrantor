@@ -33,6 +33,11 @@
 //! vanished would be a data-loss bug the developer could not detect — they would settle a warrant
 //! and simply not get the pull request they were promised. The chain makes tampering and
 //! truncation detectable rather than merely unlikely.
+//!
+//! The chain cannot, on its own, detect the log being **removed**: an absent file replays as an
+//! empty queue at [`GENESIS`], which is exactly what a warrant that staged nothing looks like. That
+//! is what [`StagedChainMark`] is for — see its documentation for why the witness has to live
+//! outside the file it witnesses.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{File, OpenOptions};
@@ -46,6 +51,56 @@ use crate::WarrantError;
 
 /// Digest that precedes the first entry in a queue.
 pub const GENESIS: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+/// What the store last saw of a warrant's staged-effect chain, recorded outside the log itself.
+///
+/// # Why this exists
+///
+/// The chain proves that the log was not *edited*. It cannot prove the log still *exists*: the
+/// file is created lazily by the first append, so a queue that was never used and a queue somebody
+/// deleted are the same absence on disk. [`StagingQueue::open`] reads both as an empty queue at
+/// [`GENESIS`], and a report built from that says "0 staged effect(s), chain head 0000…" —
+/// success-shaped, and then signed into an evidence bundle.
+///
+/// So the head and the count are written where the log is not: into the warrant record itself.
+/// That is the same reasoning `StoredWarrant::base_commit` already carries — derived state that
+/// cannot be re-derived has to be stored.
+///
+/// # What a mark can and cannot detect
+///
+/// The chain only grows forward, so a mark is checked by asking whether the digest it recorded is
+/// *still where it was*: record number `count` must still carry `head`. Records appended after the
+/// mark was taken are ordinary growth and pass. Records missing below it do not — the log was
+/// truncated, replaced or deleted, and that is a refusal.
+///
+/// A mark that lags the log (the process died between the append and the save) weakens detection
+/// to everything below the recorded point; it never produces a false alarm. A warrant granted
+/// before this field existed carries `None`, and then nothing can be proven about its log either
+/// way, which is stated rather than assumed away.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StagedChainMark {
+    /// The chain head at the moment the mark was taken.
+    pub head: String,
+    /// How many effects the chain held then.
+    pub count: u64,
+    /// When the mark was taken, epoch seconds.
+    pub recorded_at: u64,
+}
+
+impl StagedChainMark {
+    /// The mark of a warrant that has staged nothing yet.
+    ///
+    /// Written at grant time rather than at first stage, so a warrant is witnessed from the moment
+    /// it exists instead of only from its first staged effect.
+    #[must_use]
+    pub fn genesis(at: u64) -> Self {
+        Self {
+            head: GENESIS.to_string(),
+            count: 0,
+            recorded_at: at,
+        }
+    }
+}
 
 /// A staged effect: an outward-facing action that has been queued but not performed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -141,6 +196,10 @@ pub struct StagingQueue {
     path: PathBuf,
     warrant_id: String,
     effects: Vec<StagedEffect>,
+    /// Every record's digest, in order, so a [`StagedChainMark`] can be checked against the
+    /// position it named rather than only against the current head. Kept because a mark taken
+    /// mid-run must still verify once more effects have been appended on top of it.
+    digests: Vec<String>,
     head: String,
     registry: EffectRegistry,
 }
@@ -159,6 +218,7 @@ impl StagingQueue {
         let path = path.as_ref().to_path_buf();
         let warrant_id = warrant_id.into();
         let mut effects = Vec::new();
+        let mut digests = Vec::new();
         let mut head = GENESIS.to_string();
 
         if path.exists() {
@@ -186,6 +246,7 @@ impl StagingQueue {
                     )));
                 }
                 head = record.digest.clone();
+                digests.push(record.digest.clone());
                 effects.push(record.effect);
             }
         }
@@ -194,9 +255,78 @@ impl StagingQueue {
             path,
             warrant_id,
             effects,
+            digests,
             head,
             registry,
         })
+    }
+
+    /// Open a queue and check it against what the store last witnessed of its chain.
+    ///
+    /// This is the call every reader of a stored warrant should make. [`Self::open`] alone cannot
+    /// tell a queue that was never written from one that was deleted — see [`StagedChainMark`] —
+    /// and answering "0 staged effect(s)" for the second is the fail-open answer.
+    ///
+    /// # Errors
+    /// Everything [`Self::open`] returns, plus [`WarrantError::Invalid`] when the log no longer
+    /// contains the chain the mark recorded. `None` for `mark` means no witness exists (a warrant
+    /// granted before marks did), and then this is exactly [`Self::open`] — an unwitnessed log is
+    /// not evidence that nothing happened, and the caller is told nothing it cannot support.
+    pub fn open_witnessed(
+        path: impl AsRef<Path>,
+        warrant_id: impl Into<String>,
+        registry: EffectRegistry,
+        mark: Option<&StagedChainMark>,
+    ) -> Result<Self, WarrantError> {
+        let queue = Self::open(path, warrant_id, registry)?;
+        if let Some(mark) = mark {
+            queue.verify_against(mark)?;
+        }
+        Ok(queue)
+    }
+
+    /// The chain head and count as they stand, for the store to witness.
+    #[must_use]
+    pub fn mark(&self, at: u64) -> StagedChainMark {
+        StagedChainMark {
+            head: self.head.clone(),
+            count: self.effects.len() as u64,
+            recorded_at: at,
+        }
+    }
+
+    /// Check that this log still contains the chain a [`StagedChainMark`] recorded.
+    ///
+    /// # Errors
+    /// [`WarrantError::Invalid`] when the record the mark named is gone or now carries a different
+    /// digest. Growth past the mark is not an error: the log is append-only, so records staged
+    /// after the mark was taken are the expected case.
+    pub fn verify_against(&self, mark: &StagedChainMark) -> Result<(), WarrantError> {
+        if mark.count == 0 {
+            // Nothing was witnessed, so nothing can have been lost below it. A log that is absent
+            // here is a log that was never written.
+            return Ok(());
+        }
+        let index = (mark.count - 1) as usize;
+        match self.digests.get(index) {
+            Some(found) if *found == mark.head => Ok(()),
+            Some(found) => Err(WarrantError::Invalid(format!(
+                "the staged-effect log for {} no longer matches the chain this store recorded: \
+                 effect {} carried {} when it was staged and carries {found} now. The log has been \
+                 rewritten. Nothing here can say what the agent actually staged.",
+                self.warrant_id, mark.count, mark.head
+            ))),
+            None => Err(WarrantError::Invalid(format!(
+                "the staged-effect log for {} is missing records this store recorded: {} effect(s) \
+                 were staged, ending at chain head {}, and the log now holds {}. It was truncated \
+                 or deleted. Treating this as an empty queue would report zero staged effects and \
+                 sign that into an evidence bundle, so it is refused instead.",
+                self.warrant_id,
+                mark.count,
+                mark.head,
+                self.digests.len()
+            ))),
+        }
     }
 
     fn digest(effect: &StagedEffect, prev: &str) -> Result<String, WarrantError> {
@@ -266,7 +396,8 @@ impl StagingQueue {
             digest: digest.clone(),
         };
         self.append(&record)?;
-        self.head = digest;
+        self.head = digest.clone();
+        self.digests.push(digest);
         self.effects.push(effect.clone());
         Ok(effect)
     }
