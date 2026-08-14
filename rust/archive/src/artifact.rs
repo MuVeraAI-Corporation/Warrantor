@@ -38,7 +38,10 @@ pub enum ArtifactKind {
     Report,
     /// `warrantor.stop-export/1`.
     Stop,
-    /// `warrantor.ledger-export/1`.
+    /// `warrantor.spend-export/1`. The kind is called `ledger` and the format string says `spend`;
+    /// the two names differ and the format string is the one on the wire. Written out because this
+    /// doc is what somebody hand-building a submission reads, and a format the door does not
+    /// recognise is refused outright.
     Ledger,
 }
 

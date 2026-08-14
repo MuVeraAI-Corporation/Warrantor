@@ -2,22 +2,30 @@
 //!
 //! # Key handling
 //!
-//! Two keys live under `~/.warrantor/keys/`:
+//! Three keys live under `~/.warrantor/keys/`:
 //!
 //! * `issuer.key` signs warrants and capability tokens.
 //! * `settle.key` authorises settling, voiding and renewal.
+//! * `device.key` signs requests to an evidence archive this machine is paired with.
 //!
-//! They are separate because the agent must not be able to settle its own warrant. In this CLI
-//! both are on the developer's machine, which is correct — the developer *is* the settle
+//! The first two are separate because the agent must not be able to settle its own warrant. In this
+//! CLI both are on the developer's machine, which is correct — the developer *is* the settle
 //! authority. What matters is that the settle key is never loaded into the process the agent runs
 //! in. When the daemon lands it will hold the issuer key and supervise agents; the settle key
 //! stays here, in the command the human types.
+//!
+//! `device.key` is different in kind: it is a credential rather than an authority, minted only by
+//! `warrantor archive enrol` and meaningless until an archive has enrolled its public half. It is
+//! never created on demand, it is minted fresh on every enrolment, and the pairing record beside it
+//! (`~/.warrantor/archive.json`) records which public key it must be — because one device key must
+//! name exactly one device id for revocation at the archive to mean anything.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use ed25519_dalek::{SigningKey, VerifyingKey};
+use warrantor_warrant::archive_client::{self, ArchiveAnswer, ArchiveConfig, ArchiveTransport};
 use warrantor_warrant::daemon::{
     process_is_alive, supervise_run, DaemonState, Reconciliation, SuperviseRequest,
 };
@@ -53,30 +61,118 @@ fn fail(message: &str) -> ExitCode {
 
 // ── keys ──────────────────────────────────────────────────────────────────────────────
 
+/// The keys this machine holds, and what each one actually authorises.
+///
+/// An enum rather than a `&str` label, because the sentence printed when a key is created must name
+/// the authority *that* key carries. It used to be one hardcoded line about the settle key printed
+/// for every kind, so creating an issuer key warned the operator about releasing staged effects —
+/// an authority the issuer key does not have — and a device key would have warned about the same
+/// thing again. A warning about the wrong power is worse than none: it teaches the reader that the
+/// warnings are boilerplate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum KeyKind {
+    /// Signs warrants and capability tokens.
+    Issuer,
+    /// Authorises settling, voiding and renewal.
+    Settle,
+    /// Signs requests to an evidence archive this machine is paired with.
+    Device,
+}
+
+impl KeyKind {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Issuer => "issuer",
+            Self::Settle => "settle",
+            Self::Device => "archive device",
+        }
+    }
+
+    /// What somebody who steals this file can do with it. One sentence per key, and each one names
+    /// only what that key can actually do.
+    fn protect(self) -> &'static str {
+        match self {
+            Self::Issuer => {
+                "anyone holding the issuer key can mint warrants and sign evidence that this \
+                 machine's own verification will accept as its own"
+            }
+            Self::Settle => "anyone holding the settle key can release staged effects",
+            Self::Device => {
+                "anyone holding the device key can file evidence to your archive under this \
+                 device's name, and read anything it holds"
+            }
+        }
+    }
+}
+
 /// Load a key, creating it on first use.
 ///
 /// Generating on demand keeps the first run to one command. The tradeoff is stated in the message
 /// rather than hidden: a key that appears without ceremony is easy to forget you must protect.
-fn load_or_create_key(path: &Path, label: &str) -> Result<SigningKey, String> {
-    if let Ok(body) = std::fs::read(path) {
-        let bytes: [u8; 32] = body
-            .as_slice()
-            .try_into()
-            .map_err(|_| format!("{label} key at {} is not 32 bytes", path.display()))?;
-        return Ok(SigningKey::from_bytes(&bytes));
+fn load_or_create_key(path: &Path, kind: KeyKind) -> Result<SigningKey, String> {
+    if let Some(key) = load_key(path, kind)? {
+        return Ok(key);
     }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("create key dir: {e}"))?;
     }
     let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
     let key = SigningKey::generate(&mut csprng);
-    std::fs::write(path, key.to_bytes()).map_err(|e| format!("write {label} key: {e}"))?;
+    std::fs::write(path, key.to_bytes()).map_err(|e| format!("write {} key: {e}", kind.label()))?;
     eprintln!(
-        "warrantor: created a new {label} key at {}. Protect it: anyone holding the settle key \
-         can release staged effects.",
-        path.display()
+        "warrantor: created a new {} key at {}. Protect it: {}.",
+        kind.label(),
+        path.display(),
+        kind.protect()
     );
     Ok(key)
+}
+
+/// Write a freshly minted device key, replacing whatever was there.
+///
+/// Separate from [`load_or_create_key`] because a device key is not created on first *use* — it is
+/// created on enrolment, and enrolment is the only caller. The write goes through a temporary file
+/// and a rename so a key file is never half a key: a truncated device key is 32 bytes of nothing
+/// that would be read back as a valid signing key and refused by the archive as a stranger.
+fn write_device_key(path: &Path, key: &SigningKey) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("create key dir: {e}"))?;
+    }
+    let temporary = path.with_extension("key.tmp");
+    std::fs::write(&temporary, key.to_bytes())
+        .map_err(|e| format!("write {}: {e}", temporary.display()))?;
+    std::fs::rename(&temporary, path).map_err(|e| format!("write {}: {e}", path.display()))?;
+    eprintln!(
+        "warrantor: wrote a new {} key at {}. Protect it: {}.",
+        KeyKind::Device.label(),
+        path.display(),
+        KeyKind::Device.protect()
+    );
+    Ok(())
+}
+
+/// Load a key that must already exist, reporting its absence as absence.
+///
+/// Separate from [`load_or_create_key`] because creation is not always the right answer. A device
+/// key is only a credential once an archive has enrolled its public half; minting one on demand
+/// would produce a file that looks like a key, signs perfectly well, and is refused by every
+/// archive on earth — and the operator would be reading a message about signatures when their
+/// problem is that they never paired.
+fn load_key(path: &Path, kind: KeyKind) -> Result<Option<SigningKey>, String> {
+    match std::fs::read(path) {
+        Ok(body) => {
+            let bytes: [u8; 32] = body.as_slice().try_into().map_err(|_| {
+                format!("{} key at {} is not 32 bytes", kind.label(), path.display())
+            })?;
+            Ok(Some(SigningKey::from_bytes(&bytes)))
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!(
+            "read the {} key at {}: {e}",
+            kind.label(),
+            path.display()
+        )),
+    }
 }
 
 /// Parse a 64-character hex Ed25519 verifying key — the anchor a reader pins with `--issuer`.
@@ -193,8 +289,10 @@ warrantor — bounded authority for coding agents
 
   grant   --goal G --tools T,T --write P,P [--deadline 8h] [--repo .] [--egress H,H]
   list
-  report  <warrant-id> [--export <path>]
+  report  <warrant-id> [--export <path> [--archive [<url>]]]
   verify  <exported-report.json | exported-stop.json | exported-spend.json>
+  archive enrol --url <url> --code <code> [--replace] | push <file>
+                | fetch <sha256> --out <path>
   egress  <warrant-id> <destination> [<destination> ...]
   spend   <warrant-id> [--input N --output N [--backend ID] [--quote]] [--export <path>]
   stop    <warrant-id> [--reason \"...\"] [--export <path>]
@@ -211,6 +309,24 @@ Report --export writes a signed, self-contained evidence bundle. Verify checks o
 offline, on any machine, with no access to this one: it proves nothing changed since
 signing, and says plainly what it does not prove. It reads stop records and spend
 ledgers too, dispatching on the format the file declares.
+
+Archive files evidence with a self-hosted evidence archive, and reads it back. Enrol
+pairs this machine against a one-time code an operator mints on the archive host and
+writes ~/.warrantor/keys/device.key plus a pairing record; every later request is
+signed with that key, so the archive records WHO filed an artifact rather than that
+someone with a token did. Enrol mints a FRESH keypair and REFUSES to run over an
+existing pairing without --replace: one key must name one device id, because revoking
+the id you can name withdraws nothing if a second id shares its key. Push sends a
+file's bytes VERBATIM -- the digest the archive returns must equal the SHA-256 of the
+bytes sent, or the push is refused rather than reported. --archive on report/stop/spend
+files the file --export just wrote, through the same path, and exits non-zero if it
+fails.
+
+A filing is CUSTODY, NOT A VERDICT. The archive holds bytes it did not produce and
+cannot forge; it stores artifacts whose signatures do not check out and marks them,
+because refusing to hold a tampered file would destroy the evidence that it arrived.
+Nothing here prints \"verified\": check evidence where evidence is always checked, with
+warrantor verify <file> --issuer <hex>, against a key you got out of band.
 
 Stop ends a run now: it terminates the supervisor, lets the OS lifetime link take the
 agent tree with it, holds the warrant so its staged work survives for a decision, and
@@ -320,11 +436,11 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         },
     };
 
-    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), "issuer") {
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
-    let settle_key = match load_or_create_key(&root.join("keys/settle.key"), "settle") {
+    let settle_key = match load_or_create_key(&root.join("keys/settle.key"), KeyKind::Settle) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
@@ -444,7 +560,7 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(q) => q,
         Err(e) => return fail(&e),
     };
-    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), "issuer") {
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
@@ -512,6 +628,14 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         }
         println!("exported  {path}");
         println!("Check it anywhere, with no access to this machine:  warrantor verify {path}");
+        if let Err(e) = push_export(args, root, path) {
+            return fail(&e);
+        }
+    } else if args.flags.contains_key("archive") {
+        return fail(
+            "--archive files the file --export writes, so it needs one: warrantor report <id> \
+             --export report.json --archive",
+        );
     }
     ExitCode::SUCCESS
 }
@@ -830,7 +954,7 @@ fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     };
     // The issuer key, not the settle key. Stop releases nothing and performs nothing, so loading
     // settle authority to record it would put that key in a process with no business holding it.
-    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), "issuer") {
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
@@ -895,6 +1019,14 @@ fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         }
         println!("\nexported  {path}");
         println!("Check it anywhere, with no access to this machine:  warrantor verify {path}");
+        if let Err(e) = push_export(args, root, path) {
+            return fail(&e);
+        }
+    } else if args.flags.contains_key("archive") {
+        return fail(
+            "--archive files the file --export writes, so it needs one: warrantor stop <id> \
+             --export stop.json --archive",
+        );
     }
 
     if stop::contained(&signed) {
@@ -949,7 +1081,7 @@ fn cmd_spend(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Err(e) => return fail(&e.to_string()),
     };
     // The issuer key, not the settle key: recording what an agent says it spent releases nothing.
-    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), "issuer") {
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
@@ -1085,6 +1217,14 @@ fn cmd_spend(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         }
         println!("\nexported  {path}");
         println!("Check it anywhere, with no access to this machine:  warrantor verify {path}");
+        if let Err(e) = push_export(args, root, path) {
+            return fail(&e);
+        }
+    } else if args.flags.contains_key("archive") {
+        return fail(
+            "--archive files the file --export writes, so it needs one: warrantor spend <id> \
+             --export spend.json --archive",
+        );
     }
     ExitCode::SUCCESS
 }
@@ -1466,7 +1606,7 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(q) => q,
         Err(e) => return fail(&e),
     };
-    let settle_key = match load_or_create_key(&root.join("keys/settle.key"), "settle") {
+    let settle_key = match load_or_create_key(&root.join("keys/settle.key"), KeyKind::Settle) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
@@ -1539,7 +1679,7 @@ fn cmd_void(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(s) => s,
         Err(e) => return fail(&e.to_string()),
     };
-    let settle_key = match load_or_create_key(&root.join("keys/settle.key"), "settle") {
+    let settle_key = match load_or_create_key(&root.join("keys/settle.key"), KeyKind::Settle) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
@@ -1644,7 +1784,7 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             ))
         }
     };
-    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), "issuer") {
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
@@ -1946,11 +2086,11 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
         };
     }
 
-    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), "issuer") {
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
-    let settle_key = match load_or_create_key(&root.join("keys/settle.key"), "settle") {
+    let settle_key = match load_or_create_key(&root.join("keys/settle.key"), KeyKind::Settle) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
@@ -2300,6 +2440,386 @@ fn resolve_bind(args: &Args) -> Result<std::net::SocketAddr, String> {
     }
 }
 
+// ── the evidence archive ──────────────────────────────────────────────────────────────
+
+/// A real HTTP transport for an evidence archive.
+///
+/// Built like [`HttpsGitHub`] and [`OllamaGuardTransport`] — client in the binary, both timeouts
+/// set, redirects refused — with one deliberate difference: **it returns the archive's own error
+/// body instead of collapsing it into a status code.** The GitHub transport hides response bodies
+/// because a GitHub error can echo the request, and the request carries the developer's content.
+/// The archive's refusals are the opposite: they are short sentences written about the caller's
+/// request, and they are the only way an operator learns that a 401 was a clock problem
+/// (`stale_request`, naming both clocks) rather than a key problem.
+///
+/// `redirects(0)` is load-bearing rather than tidy. A device signature covers the path; following a
+/// redirect would resend a credential bound to the original path to somewhere else entirely.
+struct HttpsArchive {
+    agent: ureq::Agent,
+    base: String,
+}
+
+/// Most this client will read back off an archive.
+///
+/// Twice the archive's own 4 MiB submission cap, so a legitimate artifact always fits and a
+/// misbehaving or hostile server still cannot make this process grow without bound.
+const MAX_ARCHIVE_RESPONSE_BYTES: u64 = 8 * 1024 * 1024;
+
+impl ArchiveTransport for HttpsArchive {
+    fn send(
+        &mut self,
+        method: &str,
+        path: &str,
+        authorization: Option<&str>,
+        body: &[u8],
+    ) -> Result<ArchiveAnswer, String> {
+        use std::io::Read;
+
+        let url = format!("{}{path}", self.base);
+        let mut request = match method {
+            "GET" => self.agent.get(&url),
+            "POST" => self.agent.post(&url),
+            other => {
+                return Err(format!(
+                    "this client speaks GET and POST; it was asked for {other}"
+                ))
+            }
+        };
+        request = request.set("user-agent", "warrantor");
+        if let Some(credential) = authorization {
+            request = request.set("authorization", credential);
+        }
+        // `send_bytes`, never `send_json`: the body is evidence read off disk and it goes out
+        // exactly as it came in. A re-serialisation would change the digest, and the archive would
+        // then be holding a file the operator does not have.
+        let sent = if body.is_empty() {
+            request.call()
+        } else {
+            request
+                .set("content-type", "application/json")
+                .send_bytes(body)
+        };
+        let response = match sent {
+            Ok(response) | Err(ureq::Error::Status(_, response)) => response,
+            Err(other) => return Err(other.to_string()),
+        };
+        let status = response.status();
+        let mut bytes = Vec::new();
+        response
+            .into_reader()
+            .take(MAX_ARCHIVE_RESPONSE_BYTES)
+            .read_to_end(&mut bytes)
+            .map_err(|e| format!("read the answer: {e}"))?;
+        Ok(ArchiveAnswer {
+            status,
+            body: bytes,
+        })
+    }
+}
+
+fn https_archive(url: &str) -> HttpsArchive {
+    HttpsArchive {
+        agent: ureq::AgentBuilder::new()
+            .timeout_connect(std::time::Duration::from_secs(5))
+            .timeout(std::time::Duration::from_secs(30))
+            .redirects(0)
+            .build(),
+        base: url.trim_end_matches('/').to_string(),
+    }
+}
+
+/// The device key and the pairing record together, or a refusal that names which half is missing.
+///
+/// A device key is **never created here.** One minted on demand and enrolled nowhere is not a
+/// credential — it is a file that signs perfectly and every archive refuses — and the operator
+/// would be reading a message about signatures when their actual problem is that they never paired.
+fn archive_identity(root: &Path) -> Result<(ArchiveConfig, SigningKey), String> {
+    let config = ArchiveConfig::load(root).map_err(|e| e.to_string())?;
+    let path = root.join("keys/device.key");
+    match load_key(&path, KeyKind::Device)? {
+        // The key and the record are checked against each other *here*, before anything is signed.
+        // A key that does not belong to this device id signs perfectly well and is refused at the
+        // far end as a bad signature — which sends the operator hunting a crypto problem when what
+        // they have is a pairing that was never finished, or a key restored from another machine.
+        Some(key) => {
+            config.check_key(&key, &path).map_err(|e| e.to_string())?;
+            Ok((config, key))
+        }
+        None => Err(archive_client::ArchiveClientError::NoDeviceKey {
+            path,
+            url: config.url.clone(),
+            device_id: config.device_id.clone(),
+        }
+        .to_string()),
+    }
+}
+
+/// What a filing looks like to a human.
+///
+/// Note the heading, and note the word that is absent. A 200 from the archive means *these bytes
+/// are held*, and the archive deliberately stores artifacts whose ingest check failed — so the
+/// door's note is printed under a heading that says outright it is not a verdict, followed by the
+/// archive's own sentence about where a real answer comes from. This command never prints
+/// "verified".
+fn render_filed(filed: &archive_client::Filed, url: &str) -> String {
+    let mut out = String::new();
+    out.push_str("\n── FILED (CUSTODY, NOT A VERDICT) ──\n");
+    out.push_str(&format!("  archive        {url}\n"));
+    out.push_str(&format!("  digest         {}\n", filed.digest));
+    out.push_str(&format!("  kind           {}\n", filed.kind));
+    out.push_str(&format!("  warrant        {}\n", filed.warrant_id));
+    out.push_str(&format!("  filed by       {}\n", filed.submitted_by_device));
+    out.push_str(&format!("  filed at       {}\n", filed.submitted_at));
+    out.push_str(&format!(
+        "  state          {}\n",
+        if filed.already_held {
+            "already held — the archive had these exact bytes; submission is idempotent"
+        } else {
+            "newly held"
+        }
+    ));
+    out.push_str(&format!(
+        "\n  the door's note (NOT a verdict): {}\n",
+        filed.ingest_check
+    ));
+    if !filed.ingest_reason.is_empty() {
+        out.push_str(&format!("    {}\n", filed.ingest_reason));
+    }
+    out.push_str(&format!("\n  {}\n", filed.verify_locally));
+    out
+}
+
+/// `warrantor archive <enrol|push|fetch>` — the local half of the evidence archive.
+///
+/// Until this existed, `warrantor-archive` was a complete server with no client: nothing outside
+/// that crate could produce a `Warrantor-Device` header, so the `curl` its deployment README
+/// documented could not actually be typed by anybody and `submitted_by_device` had never named a
+/// person. These three verbs are the whole loop — pair a device, file evidence, read it back — and
+/// the reading half is authenticated too, which is why a `curl` was never going to be enough.
+fn cmd_archive(args: &Args, root: &Path) -> ExitCode {
+    match args.positional.first().map(String::as_str) {
+        Some("enrol" | "enroll") => cmd_archive_enrol(args, root),
+        Some("push") => cmd_archive_push(args, root),
+        Some("fetch") => cmd_archive_fetch(args, root),
+        Some(other) => fail(&format!(
+            "unknown archive verb {other:?}. warrantor archive has three: enrol, push, fetch."
+        )),
+        None => fail(
+            "usage: warrantor archive enrol --url <url> --code <code> [--replace]\n       \
+             warrantor archive push <file>\n       warrantor archive fetch <sha256> --out <path>",
+        ),
+    }
+}
+
+fn cmd_archive_enrol(args: &Args, root: &Path) -> ExitCode {
+    let Some(url) = args.flags.get("url").filter(|u| *u != "true") else {
+        return fail(
+            "--url is required: warrantor archive enrol --url http://127.0.0.1:8788 --code <code>",
+        );
+    };
+    let Some(code) = args.flags.get("code").filter(|c| *c != "true") else {
+        return fail(
+            "--code is required. An operator mints one on the archive host with `warrantor-archive \
+             enrol --label \"<this machine>\"`; it is single-use and expires in fifteen minutes.",
+        );
+    };
+    if let Err(e) = archive_client::check_url(url) {
+        return fail(&e.to_string());
+    }
+    let key_path = root.join("keys/device.key");
+    let record_path = ArchiveConfig::path(root);
+
+    // Enrolling over an existing pairing is refused, and the refusal is the point. Done silently it
+    // mints a SECOND device at the archive while the first stays active, and overwrites the only
+    // local record of the first id — which `warrantor-archive revoke --device <id>` needs. The
+    // natural way to reach it is the ordinary one: a `code_not_usable`, a URL typo, and a re-run.
+    // `--replace` is not a formality; it is the operator saying they have withdrawn the old device
+    // or accept that they must.
+    let replacing = args.flags.contains_key("replace");
+    let previous = match ArchiveConfig::read_if_present(root) {
+        Ok(previous) => previous,
+        // An unreadable record still means a device was enrolled from this machine. Reading it as
+        // "never paired" is exactly what would orphan that device.
+        Err(e) => {
+            if !replacing {
+                return fail(
+                    &archive_client::ArchiveClientError::AlreadyPaired {
+                        path: record_path,
+                        describes: format!("this build cannot read it — {e}"),
+                    }
+                    .to_string(),
+                );
+            }
+            None
+        }
+    };
+    if let (Some(previous), false) = (previous.as_ref(), replacing) {
+        return fail(
+            &archive_client::ArchiveClientError::AlreadyPaired {
+                path: record_path,
+                describes: format!(
+                    "pairs this machine with {} as {}",
+                    previous.url, previous.device_id
+                ),
+            }
+            .to_string(),
+        );
+    }
+
+    // A FRESH keypair, every enrolment — never `load_or_create_key`, which returns the key already
+    // on disk. Re-using it enrols one private key under two device ids, and revocation is by id:
+    // withdrawing the id an operator can name would withdraw nothing, because the same key would
+    // keep signing under the other. The archive refuses the second enrolment of a key it already
+    // holds, so this is the half that keeps the honest path from ever needing that refusal.
+    let mut csprng = ed25519_dalek::rand_core::UnwrapErr(getrandom::SysRng);
+    let key = SigningKey::generate(&mut csprng);
+    let device_public_key = hex::encode(key.verifying_key().to_bytes());
+
+    // Nothing on disk has been touched yet, so a refusal from the archive leaves an existing
+    // pairing exactly as it was.
+    let mut transport = https_archive(url);
+    let enrolled = match archive_client::enrol(&mut transport, url, code, &key.verifying_key()) {
+        Ok(enrolled) => enrolled,
+        Err(e) => return fail(&e.to_string()),
+    };
+    // Between here and the last write there is a device at the archive that this machine may not be
+    // able to use. Every failure below says so and names it, because an enrolled device nobody can
+    // name is the thing this whole command is careful about.
+    let orphaned = |what: &str| {
+        format!(
+            "{what}\n\nThe archive HAS enrolled {}, and this machine cannot sign as it. Withdraw \
+             it, or it stays active with no way to use or name it:\n  warrantor-archive revoke \
+             --device {}   (on the archive host)",
+            enrolled.device_id, enrolled.device_id
+        )
+    };
+    if let Err(e) = write_device_key(&key_path, &key) {
+        return fail(&orphaned(&e));
+    }
+    let config = ArchiveConfig {
+        format: archive_client::ARCHIVE_CONFIG_FORMAT.to_string(),
+        url: url.trim_end_matches('/').to_string(),
+        device_id: enrolled.device_id.clone(),
+        device_public_key,
+        label: enrolled.label.clone(),
+        enrolled_at: enrolled.enrolled_at,
+    };
+    let written = match config.save(root) {
+        Ok(path) => path,
+        Err(e) => {
+            return fail(&orphaned(&format!(
+                "the pairing could not be recorded, so nothing here can use it: {e}"
+            )))
+        }
+    };
+    println!("paired   {}", config.url);
+    println!("device   {} ({})", enrolled.device_id, enrolled.label);
+    println!("record   {}", written.display());
+    println!("key      {}", key_path.display());
+    if let Some(previous) = previous.as_ref() {
+        println!(
+            "\nREPLACED the pairing with {} as {}. That device is still ACTIVE at the archive and \
+             its key is now gone from this machine. Withdraw it:\n  warrantor-archive revoke \
+             --device {}   (on the archive host)",
+            previous.url, previous.device_id, previous.device_id
+        );
+    }
+    println!(
+        "\nThe archive holds only the public half. Revoking this device is an operator action on \
+         the archive host:\n  warrantor-archive revoke --device {}",
+        enrolled.device_id
+    );
+    println!("\nNow: warrantor archive push <exported-evidence.json>");
+    ExitCode::SUCCESS
+}
+
+fn cmd_archive_push(args: &Args, root: &Path) -> ExitCode {
+    let Some(path) = args.positional.get(1) else {
+        return fail("usage: warrantor archive push <file>");
+    };
+    let (config, key) = match archive_identity(root) {
+        Ok(pair) => pair,
+        Err(e) => return fail(&e),
+    };
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(e) => return fail(&format!("read {path}: {e}")),
+    };
+    let mut transport = https_archive(&config.url);
+    match archive_client::push(&mut transport, &config, &key, &bytes, now()) {
+        Ok(filed) => {
+            print!("{}", render_filed(&filed, &config.url));
+            println!(
+                "\nRead it back on any paired machine:  warrantor archive fetch {} --out <path>",
+                filed.digest
+            );
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&e.to_string()),
+    }
+}
+
+fn cmd_archive_fetch(args: &Args, root: &Path) -> ExitCode {
+    let Some(digest) = args.positional.get(1) else {
+        return fail("usage: warrantor archive fetch <sha256> --out <path>");
+    };
+    let Some(out) = args.flags.get("out").filter(|o| *o != "true") else {
+        return fail(
+            "--out is required: warrantor archive fetch <sha256> --out evidence.json. The bytes are \
+             written to a file rather than to stdout because the next thing to do with them is \
+             `warrantor verify <file> --issuer <hex>`, which reads a path.",
+        );
+    };
+    let (config, key) = match archive_identity(root) {
+        Ok(pair) => pair,
+        Err(e) => return fail(&e),
+    };
+    let mut transport = https_archive(&config.url);
+    let bytes = match archive_client::fetch(&mut transport, &config, &key, digest, now()) {
+        Ok(bytes) => bytes,
+        Err(e) => return fail(&e.to_string()),
+    };
+    if let Err(e) = std::fs::write(out, &bytes) {
+        return fail(&format!("write {out}: {e}"));
+    }
+    println!("fetched  {out}  ({} bytes)", bytes.len());
+    println!(
+        "These bytes are unverified evidence: the archive relayed them and cannot forge them, and \
+         its opinion of them is not a verdict."
+    );
+    println!("Check them here:  warrantor verify {out} --issuer <the issuer's hex key>");
+    ExitCode::SUCCESS
+}
+
+/// File an artifact that `--export` has just written, or fail the command.
+///
+/// One code path shared by `report`, `stop` and `spend`, reading the bytes back **off the exported
+/// path** rather than re-serialising the value in memory: `write_export` uses `to_vec_pretty`, and
+/// anything else here would file a digest that does not name the file on disk.
+///
+/// A failure is loud and the command exits non-zero. A best-effort push that only warned would let
+/// a nightly pipeline report success with an empty archive behind it — the same shape as a guard
+/// that was benchmarked and never invoked. What a failure never does is unwrite the local file: the
+/// evidence on disk is the source of truth and stays exactly where it was written.
+fn push_export(args: &Args, root: &Path, exported: &str) -> Result<(), String> {
+    let Some(requested) = args.flags.get("archive") else {
+        return Ok(());
+    };
+    let (mut config, key) = archive_identity(root)?;
+    if requested != "true" {
+        archive_client::check_url(requested).map_err(|e| e.to_string())?;
+        config.url = requested.trim_end_matches('/').to_string();
+    }
+    let bytes = std::fs::read(exported).map_err(|e| format!("read back {exported}: {e}"))?;
+    let mut transport = https_archive(&config.url);
+    let filed =
+        archive_client::push(&mut transport, &config, &key, &bytes, now()).map_err(|e| {
+            format!("{exported} was written and is intact; the archive push failed: {e}")
+        })?;
+    print!("{}", render_filed(&filed, &config.url));
+    Ok(())
+}
+
 fn main() -> ExitCode {
     let Some(args) = parse_args() else {
         println!("{USAGE}");
@@ -2319,6 +2839,7 @@ fn main() -> ExitCode {
         "list" => cmd_list(&store),
         "report" => cmd_report(&args, &store, &root),
         "verify" => cmd_verify(&args),
+        "archive" => cmd_archive(&args, &root),
         "egress" => cmd_egress(&args, &store, &root),
         "spend" => cmd_spend(&args, &store, &root),
         "stop" => cmd_stop(&args, &store, &root),

@@ -346,6 +346,10 @@ fn the_migration_enforces_append_only_twice_and_grants_no_write_back() {
 ///
 /// Update this number and the prose together, in `docs/rfcs/W2-evidence-archive.md`, `src/store.rs`,
 /// this file's module doc and `deploy/evidence-archive/README.md`, or leave both alone.
+///
+/// **A new test file must be added to `files` below.** The list is hardcoded because `include_str!`
+/// takes a literal, and a file missing from it is a file this counter silently stopped covering —
+/// which is the same "a check that stopped checking" shape the counter itself was written against.
 #[test]
 fn the_ignored_database_tests_are_the_number_the_docs_claim() {
     const EXPECTED: usize = 3;
@@ -355,6 +359,10 @@ fn the_ignored_database_tests_are_the_number_the_docs_claim() {
     let files = [
         ("append_only.rs", include_str!("append_only.rs")),
         ("device_pairing.rs", include_str!("device_pairing.rs")),
+        (
+            "push_client_interop.rs",
+            include_str!("push_client_interop.rs"),
+        ),
         (
             "the_archive_never_serves_a_verdict.rs",
             include_str!("the_archive_never_serves_a_verdict.rs"),

@@ -1,14 +1,21 @@
-//! `warrantor-archive` — the evidence archive server and its two operator verbs.
+//! `warrantor-archive` — the evidence archive server and its operator verbs.
 //!
-//! Three verbs, in the shape `rust/warrant/src/bin/warrantor.rs` established: arguments parsed by
+//! Four verbs, in the shape `rust/warrant/src/bin/warrantor.rs` established: arguments parsed by
 //! hand with no `clap`, refusals written as sentences addressed to the operator, and nothing
 //! printed that a reader could mistake for a verdict.
 //!
 //! ```text
 //! warrantor-archive migrate [--database-url <url>]
 //! warrantor-archive enrol --label "Ana's laptop" [--database-url <url>]
+//! warrantor-archive revoke --device dev_… [--database-url <url>]
 //! warrantor-archive serve [--bind 127.0.0.1:8788] [--database-url <url>]
 //! ```
+//!
+//! `revoke` is here because `enrol` finally has a client. `ArchiveStore::revoke_device` has been
+//! implemented in both stores since the crate landed and had no caller outside a test, which was
+//! survivable only while no device key existed anywhere in the world. It stopped being survivable
+//! the moment `warrantor archive enrol` began putting long-lived Ed25519 device keys on laptops:
+//! issuing a credential you cannot withdraw is not a credential system.
 //!
 //! `$WARRANTOR_ARCHIVE_DATABASE_URL` supplies the URL when `--database-url` is absent. The
 //! environment is preferred to a flag for the credential itself, because a flag lands in every
@@ -44,9 +51,10 @@ fn main() -> ExitCode {
     match command.as_str() {
         "migrate" => cmd_migrate(&flags),
         "enrol" | "enroll" => cmd_enrol(&flags),
+        "revoke" => cmd_revoke(&flags),
         "serve" => cmd_serve(&flags),
         other => fail(&format!(
-            "unknown command {other:?}. warrantor-archive has three: migrate, enrol, serve."
+            "unknown command {other:?}. warrantor-archive has four: migrate, enrol, revoke, serve."
         )),
     }
 }
@@ -57,6 +65,7 @@ fn usage() -> ExitCode {
 
   warrantor-archive migrate                       apply the schema, then exit
   warrantor-archive enrol --label \"Ana's laptop\"   mint a one-time device enrolment code
+  warrantor-archive revoke --device dev_…          withdraw a device's ability to file or read
   warrantor-archive serve [--bind 127.0.0.1:{DEFAULT_PORT}]
 
 The database URL comes from --database-url or $WARRANTOR_ARCHIVE_DATABASE_URL. Prefer the
@@ -177,6 +186,73 @@ fn cmd_enrol(flags: &std::collections::BTreeMap<String, String>) -> ExitCode {
         ENROLMENT_CODE_LIFETIME_SECONDS / 60
     );
     ExitCode::SUCCESS
+}
+
+/// Withdraw a device's ability to file or read.
+///
+/// Revocation is **not a delete**: the device row stays, so everything it ever filed keeps its
+/// attribution. An archive that erased a revoked device would rewrite the audit trail of every
+/// artifact that device submitted, which is the opposite of what custody is for.
+///
+/// A device that was already revoked reports that plainly and exits successfully. It is the state
+/// the operator asked for, and failing on it would make the command unsafe to run twice — which is
+/// exactly how it gets run, at the moment somebody is unsure whether the first one worked.
+fn cmd_revoke(flags: &std::collections::BTreeMap<String, String>) -> ExitCode {
+    let Some(device_id) = flags.get("device").filter(|d| *d != "true") else {
+        return fail("revoke needs a device: warrantor-archive revoke --device dev_…");
+    };
+    if !warrantor_archive::device::is_device_id(device_id) {
+        return fail(&format!(
+            "{device_id:?} is not a device id. It is `dev_` followed by hex, and it is printed by \
+             `warrantor archive enrol` on the device and stored in that machine's pairing record."
+        ));
+    }
+    let mut store = match open_store(flags) {
+        Ok(store) => store,
+        Err(e) => return fail(&e),
+    };
+    // Read before the write, so "there is no such device" and "it was already revoked" are
+    // different sentences. `revoke_device` returns false for both, and telling an operator their
+    // typo succeeded is how a device stays live for a week after somebody thought they killed it.
+    let known = match store.device(device_id) {
+        Ok(device) => device,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let Some(known) = known else {
+        return fail(&format!(
+            "this archive has never enrolled {device_id}. Nothing was changed. Check the id \
+             against the pairing record on the device itself."
+        ));
+    };
+    if !known.active() {
+        println!(
+            "{device_id} ({:?}) was already revoked. Nothing was changed; its past submissions keep \
+             their attribution.",
+            known.label
+        );
+        return ExitCode::SUCCESS;
+    }
+    match store.revoke_device(device_id, now()) {
+        Ok(true) => {
+            println!("revoked  {device_id} ({:?})", known.label);
+            println!(
+                "\nIt can no longer file or read. Its past submissions keep their attribution -- \
+                 the row is kept, not deleted, because erasing it would rewrite the audit trail of \
+                 every artifact it ever filed.\n\
+                 The device still holds its private key. Delete keys/device.key and the pairing \
+                 record on that machine too, or it will keep trying."
+            );
+            ExitCode::SUCCESS
+        }
+        // Between the read and the write somebody else revoked it. Reported, not claimed.
+        Ok(false) => {
+            println!(
+                "{device_id} was revoked by someone else while this ran. Nothing was changed."
+            );
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&e.to_string()),
+    }
 }
 
 fn cmd_serve(flags: &std::collections::BTreeMap<String, String>) -> ExitCode {

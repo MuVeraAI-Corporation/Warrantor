@@ -9,6 +9,52 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — the evidence archive gets a client, so evidence can actually reach it
+
+- **`warrantor archive enrol | push | fetch`, and `--archive` on `report`/`stop`/`spend`.** PR #40
+  merged a complete evidence archive with **no clients**: nothing outside `rust/archive` could
+  produce a `Warrantor-Device` `Authorization` header, so the `curl` its deployment README
+  documented could not be typed by anybody, `submitted_by_device` had never named a person outside a
+  unit test, and reading an artifact back was as unreachable as filing one — every route except
+  health and enrolment is signed. `warrantor archive enrol --url … --code …` pairs a machine and
+  writes `~/.warrantor/keys/device.key` beside the issuer and settle keys, plus a pairing record at
+  `~/.warrantor/archive.json`; `push` files a file's bytes **verbatim**; `fetch` reads one back;
+  `--archive` files what `--export` just wrote, through the same code path, exiting non-zero on
+  failure and never unwriting the local file.
+- **One definition of the wire contract, not two.** The signing half of
+  `warrantor_archive::device` — `DEVICE_SCHEME`, `REQUEST_DESCRIPTOR_FORMAT`, `is_device_id`,
+  `request_descriptor`, `signing_input`, `sign_request` — **moved** to
+  `rust/warrant/src/archive_client.rs`, and the archive re-exports it. Copying it into the agent was
+  the obvious alternative and the wrong one; depending on `warrantor-archive` from `rust/warrant` was
+  the other, and it would have pulled `postgres` and tokio into a program whose point is to run on a
+  laptop with nothing installed. `warrantor_archive::sha256_hex` now delegates to
+  `warrantor_warrant::report::sha256_hex` for the same reason: the body digest a device signature
+  covers is now computed on both sides of the wire.
+- **Two runtime refusals, not test assertions.** `push` compares the digest the archive returns
+  against the SHA-256 of the bytes it sent and refuses on disagreement; `fetch` checks the bytes it
+  received against the address it asked for. Both are free — the client already computed that digest
+  to sign the request — and an archive whose address does not name the bytes is not holding the
+  operator's file, while both copies would still verify against their own signatures.
+- **A filing is custody, not a verdict.** The client's result type has no field a viewer could render
+  as one: the door's three-valued ingest note is carried verbatim under the archive's own
+  `not_a_verdict` wording, an artifact whose signatures fail is still filed and still reported as
+  filed, and nothing in this path prints "verified". That answer still comes only from
+  `warrantor verify <file> --issuer <hex>`, in Rust, on the reader's own machine.
+- **`warrantor-archive revoke --device <id>`.** `ArchiveStore::revoke_device` had been implemented in
+  both stores since the crate landed, with no caller outside a test. That was survivable while no
+  device key existed anywhere; it stopped being survivable the moment `enrol` began putting
+  long-lived Ed25519 keys on laptops.
+
+### Fixed
+
+- **`load_or_create_key` warned about the wrong key.** It printed "anyone holding the **settle** key
+  can release staged effects" whatever key it had just created, so creating an issuer key warned
+  about an authority the issuer key does not carry. Each kind now names only what it can actually do.
+- **`warrantor.ledger-export/1` does not exist.** `rust/archive/src/lib.rs` and `src/artifact.rs`
+  both named the spend ledger's format that way; the constant is
+  `spend::LEDGER_EXPORT_FORMAT = "warrantor.spend-export/1"`. The runtime was always right — it uses
+  the constant — but the prose is what somebody hand-building a submission reads.
+
 ### Added — the guard as a refusal signal, recorded and never enforcing
 
 - **`rust/warrant/src/guard.rs`: a guard model wired into a live supervised MCP session, observe-only.**

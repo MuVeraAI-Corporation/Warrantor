@@ -44,10 +44,16 @@ use crate::store::{
 /// Embedded with `include_str!` rather than read off the disk at run time, so the binary in a
 /// container carries its own schema and cannot be pointed at a different one by an environment
 /// variable. The version string is the file name; `schema_migrations` records what has run.
-pub const MIGRATIONS: &[(&str, &str)] = &[(
-    "0001_initial",
-    include_str!("../migrations/0001_initial.sql"),
-)];
+pub const MIGRATIONS: &[(&str, &str)] = &[
+    (
+        "0001_initial",
+        include_str!("../migrations/0001_initial.sql"),
+    ),
+    (
+        "0002_device_public_key_unique",
+        include_str!("../migrations/0002_device_public_key_unique.sql"),
+    ),
+];
 
 /// An [`ArchiveStore`] over a single synchronous Postgres connection.
 pub struct PostgresStore {
@@ -330,12 +336,36 @@ impl ArchiveStore for PostgresStore {
         };
         let label: String = row.try_get("label").map_err(unreadable)?;
 
+        // One key, one device id. The check runs *after* the claim so that a caller without a
+        // usable code cannot learn whether a key is enrolled, and the transaction is then dropped
+        // without committing so the claim is rolled back and the operator keeps their code. The
+        // guarantee is not this SELECT — it is `device_public_key_unique` in migration 0002, which
+        // is what holds when two enrolments race past this read; the violation is mapped to the
+        // same refusal below.
+        let already = transaction
+            .query_opt(
+                "SELECT id FROM device WHERE public_key = $1",
+                &[&public_key],
+            )
+            .map_err(unavailable)?;
+        if already.is_some() {
+            return Err(EnrolError::KeyAlreadyEnrolled);
+        }
+
         transaction
             .execute(
                 "INSERT INTO device (id, label, public_key, enrolled_at) VALUES ($1, $2, $3, $4)",
                 &[&device_id, &label, &public_key, &to_bigint(now)],
             )
-            .map_err(unavailable)?;
+            .map_err(|e| {
+                if is_unique_violation(&e) {
+                    // Either two enrolments of one key raced past the SELECT above, or a device id
+                    // collided. Both are "this row already exists"; neither may become a device.
+                    EnrolError::KeyAlreadyEnrolled
+                } else {
+                    EnrolError::Store(unavailable(e))
+                }
+            })?;
         // Bookkeeping, once the referent exists. It is not part of the claim -- `consumed_at` above
         // is what makes the code single-use, and this statement's WHERE clause cannot un-claim it.
         // If this fails the whole transaction rolls back, so a code is never left consumed by a
