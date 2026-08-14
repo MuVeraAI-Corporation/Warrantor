@@ -57,7 +57,7 @@ jobs:
           - { os: macos-latest,   target: x86_64-apple-darwin,       ext: ""     }
           - { os: windows-latest, target: x86_64-pc-windows-msvc,    ext: ".exe" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -126,7 +126,7 @@ jobs:
           - { image: trust-core,       context: "rust",  dockerfile: "rust/Dockerfile.trust-core" }
           - { image: agent-identity,   context: "go/agent-identity", dockerfile: "go/agent-identity/Dockerfile" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to ghcr.io
