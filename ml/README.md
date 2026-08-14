@@ -421,6 +421,14 @@ python ml/publish_adapter.py \
     --record-out adapters/<run-id>.publish.json
 ```
 
+`--python` names the interpreter the converter runs under, defaulting to the one running the
+tool. It matters whenever torch, safetensors and gguf live somewhere else — on this box the
+training environment is a WSL venv while Ollama is on Windows, so the conversion step runs as
+`--python ~/foundry/.venv-foundry/bin/python` from inside WSL and the `ollama create` step runs
+on the Windows side. Hardcoding `python` would have picked whatever is first on PATH and failed
+with an ImportError seconds into a conversion, after the run that produced the adapter was
+already spent.
+
 Three things it knows that cost time to find out, each of which is asserted by a test rather
 than left as folklore:
 

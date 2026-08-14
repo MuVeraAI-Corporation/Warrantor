@@ -31,6 +31,7 @@ import argparse
 import json
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -156,16 +157,24 @@ def plan_publish(
     )
 
 
-def convert_command(plan: PublishPlan, converter: Path) -> list[str]:
+def convert_command(
+    plan: PublishPlan, converter: Path, interpreter: str | None = None
+) -> list[str]:
     """The llama.cpp conversion command, as a list. Returned rather than run, so it is testable.
 
     ``--outtype f16`` and not a quantised type: the adapter is quantised implicitly by the base
     it is applied to, and quantising the delta separately would compound two roundings that the
     baseline's Q4_K_M measurement never saw.
+
+    ``interpreter`` defaults to ``sys.executable`` rather than the string ``"python"``. The
+    converter needs torch, safetensors and gguf, and ``"python"`` resolves to whatever is first
+    on PATH -- which on a machine where the training environment is a separate venv (or in WSL,
+    while this runs on Windows) is a different interpreter from the one running this code, and
+    the failure is an ImportError several seconds into a conversion rather than a refusal.
     """
 
     return [
-        "python",
+        interpreter or sys.executable,
         str(converter),
         "--base",
         str(plan.base_snapshot),
@@ -177,13 +186,13 @@ def convert_command(plan: PublishPlan, converter: Path) -> list[str]:
     ]
 
 
-def publish(plan: PublishPlan, converter: Path) -> dict[str, str]:
+def publish(plan: PublishPlan, converter: Path, interpreter: str | None = None) -> dict[str, str]:
     """Convert and register. Returns the plan plus what was produced."""
 
     plan.gguf_out.parent.mkdir(parents=True, exist_ok=True)
 
     completed = subprocess.run(  # fixed argv, never a shell string
-        convert_command(plan, converter), capture_output=True, text=True, check=False
+        convert_command(plan, converter, interpreter), capture_output=True, text=True, check=False
     )
     if completed.returncode != 0:
         raise PublishRefused(
@@ -256,6 +265,12 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="path to llama.cpp's convert_lora_to_gguf.py (pure Python; no C++ build needed)",
     )
+    parser.add_argument(
+        "--python",
+        help="interpreter to run the converter with (default: the one running this). The "
+        "converter needs torch, safetensors and gguf; if those live in a different venv or in "
+        "WSL, name it here rather than discovering an ImportError mid-conversion",
+    )
     parser.add_argument("--record-out", type=Path, help="write the publish record here")
     parser.add_argument(
         "--plan-only", action="store_true", help="check preconditions and exit, converting nothing"
@@ -286,7 +301,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
-        record = publish(plan, arguments.converter)
+        record = publish(plan, arguments.converter, arguments.python)
     except PublishRefused as refusal:
         print(f"\nNOT PUBLISHED\n{refusal}")
         return 2

@@ -7,6 +7,7 @@ safetensors one, and it resolves ADAPTER relative to the Modelfile rather than t
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -112,3 +113,23 @@ def test_the_conversion_keeps_the_adapter_unquantised(tmp_path: Path) -> None:
     assert command[command.index("--outtype") + 1] == "f16"
     # The base is passed as a directory, which is the whole point of the refusal above.
     assert command[command.index("--base") + 1] == str(plan.base_snapshot)
+
+
+def test_the_converter_runs_under_this_interpreter_by_default(tmp_path: Path) -> None:
+    """"python" resolves to whatever is first on PATH, which need not be the one running this.
+
+    The converter needs torch, safetensors and gguf. On a machine where those live in a separate
+    venv the failure is an ImportError seconds into a conversion, not a refusal -- and the run
+    that produced the adapter is already spent by then.
+    """
+
+    plan = plan_publish(
+        _adapter(tmp_path),
+        _snapshot(tmp_path),
+        BASE,
+        "guard-0.6b-weak-category",
+        "run",
+        tmp_path / "work",
+    )
+    assert convert_command(plan, Path("c.py"))[0] == sys.executable
+    assert convert_command(plan, Path("c.py"), "/other/venv/bin/python")[0] == "/other/venv/bin/python"
