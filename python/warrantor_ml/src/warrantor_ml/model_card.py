@@ -635,6 +635,47 @@ def verify_aibom(envelope: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _registry_dataset_entry(
+    dataset_id: str,
+    *,
+    digest: str,
+    commercial_use: str,
+    note: str,
+) -> dict[str, Any]:
+    """One AIBOM datasets entry, with every factual field read FROM the dataset registry.
+
+    These fields used to be retyped here, and they drifted: this block declared ExpGuardMix at
+    58,928 rows for a corpus whose train split holds 46,005 -- a 23% overstatement inside a
+    provenance document, in a repository whose subject is provenance. The registry corrected the
+    figure and this copy did not, because nothing connected them.
+
+    ``digest``, ``commercial_use`` and ``note`` stay arguments: the digest is per-artifact, and
+    the other two are the card's own prose about a conflict the registry records in its own
+    words. The row count, licence, gating and terms date are facts with exactly one home.
+    """
+
+    from .datasets import get_dataset
+
+    spec = get_dataset(dataset_id)
+    return {
+        "dataset_id": spec.dataset_id,
+        "revision": spec.revision,
+        "digest": digest,
+        "licence": spec.licence,
+        "licence_url": spec.licence_url,
+        "gated": spec.gated,
+        "redistributable": spec.redistributable,
+        "commercial_use": commercial_use,
+        "terms_read_on": spec.terms_read_on.isoformat(),
+        "rows": spec.total_rows,
+        "note": (
+            f"{spec.total_rows:,} rows total ("
+            + " + ".join(f"{split.rows:,} {split.name}" for split in spec.splits)
+            + f"), read from the dataset registry. {note}"
+        ),
+    }
+
+
 def example_card() -> dict[str, Any]:
     """A fully-populated card used as the CLI's ``--template`` and as a test fixture.
 
@@ -658,34 +699,20 @@ def example_card() -> dict[str, Any]:
             "the Work, and s.6 forbids use of Alibaba/Qwen trademarks in downstream branding.",
         },
         "datasets": [
-            {
-                "dataset_id": "wildguardmix",
-                "revision": "main",
-                "digest": "sha256:" + "1" * 64,
-                "licence": "ODC-By-1.0",
-                "licence_url": "https://opendatacommons.org/licenses/by/1-0/",
-                "gated": True,
-                "redistributable": False,
-                "commercial_use": "restricted-by-click-through (AI2 responsible-use terms)",
-                "terms_read_on": "2026-08-12",
-                "rows": 88484,
-                "note": "88,484 rows total (86,759 train + 1,725 test). Not 92K.",
-            },
-            {
-                "dataset_id": "expguardmix",
-                "revision": "main",
-                "digest": "sha256:" + "2" * 64,
-                "licence": "CC-BY-4.0",
-                "licence_url": "https://creativecommons.org/licenses/by/4.0/",
-                "gated": True,
-                "redistributable": True,
-                "commercial_use": "UNRESOLVED -- licence permits it, click-through says "
+            _registry_dataset_entry(
+                "wildguardmix",
+                digest="sha256:" + "1" * 64,
+                commercial_use="restricted-by-click-through (AI2 responsible-use terms)",
+                note="Not the 92K figure that circulated in early planning.",
+            ),
+            _registry_dataset_entry(
+                "expguardmix",
+                digest="sha256:" + "2" * 64,
+                commercial_use="UNRESOLVED -- licence permits it, click-through says "
                 "'solely for research purposes'. Awaiting written counsel read.",
-                "terms_read_on": "2026-08-12",
-                "rows": 58928,
-                "note": "GPT-4o-generated corpus; records a closed-frontier-model dependency in "
+                note="GPT-4o-generated corpus; records a closed-frontier-model dependency in "
                 "the data lineage. arXiv:2603.02588, ICLR 2026 conference track.",
-            },
+            ),
         ],
         "derived_artifact": {
             "licence": "Apache-2.0",

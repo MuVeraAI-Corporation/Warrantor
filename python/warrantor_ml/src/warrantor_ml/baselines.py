@@ -6,8 +6,10 @@ Whether ``Controversial`` counts as harmful changes the number by 19 points on E
 A baseline recorded as a bare float is a number with no claim attached.
 
 Every figure below is transcribed from ``ml/README.md``, which records them as measured on the
-development box against ``hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M`` over the full
-held-out splits with no sampling. They are stored as **counts wherever counts are available**,
+development box against the mradermacher Q4_K_M GGUF of the size named in each baseline's
+``model_tag`` -- 4B or 0.6B, and ``backend["model"]`` names the one that actually served it --
+over the full held-out splits with no sampling. They are stored as **counts wherever counts are
+available**,
 not just rates, because :mod:`warrantor_ml.stats` needs successes and trials to say whether a
 candidate's improvement clears sampling noise -- and a rate alone cannot supply them.
 
@@ -193,17 +195,39 @@ class MeasuredBaseline:
         return sha256_text(canonical_json(self.to_dict()))
 
 
-_OLLAMA_BACKEND: dict[str, Any] = {
-    "kind": "ollama",
-    "model": "hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M",
-    "quantisation": "Q4_K_M",
-    "num_ctx": 8192,
-    "temperature": 0.0,
-    "top_k": 1,
-    "seed": 0,
-    "lane": "local-rtx5080",
-    "precision": "gguf-q4_k_m",
-}
+def _ollama_backend(model: str) -> dict[str, Any]:
+    """The serving descriptor a baseline's numbers were produced through.
+
+    ``model`` is a parameter rather than a constant because it stopped being one the moment a
+    second size was measured. Both 0.6B baselines used to share a single ``_OLLAMA_BACKEND``
+    literal naming the **4B** GGUF, so ``model_tag`` said 0.6B while ``backend["model"]`` said
+    4B on the same record. Nothing refused it -- :func:`warrantor_ml.parity._lane_matches` reads
+    only ``lane`` and ``precision`` -- so the error was dormant right up until a recipe bound a
+    0.6B baseline, at which point every archived decision record would have named the wrong
+    serving model as the thing it measured. A provenance field that is wrong and unchecked is
+    worse than an absent one; this is the two-line fix that makes it right.
+    """
+
+    return {
+        "kind": "ollama",
+        "model": model,
+        "quantisation": "Q4_K_M",
+        "num_ctx": 8192,
+        "temperature": 0.0,
+        "top_k": 1,
+        "seed": 0,
+        "lane": "local-rtx5080",
+        "precision": "gguf-q4_k_m",
+    }
+
+
+_OLLAMA_BACKEND_4B: dict[str, Any] = _ollama_backend(
+    "hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M"
+)
+
+_OLLAMA_BACKEND_0_6B: dict[str, Any] = _ollama_backend(
+    "hf.co/mradermacher/Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M"
+)
 
 _FAIL_CLOSED_POLICY: dict[str, Any] = {
     "fail_mode": "closed",
@@ -229,7 +253,7 @@ _WILDGUARD = MeasuredBaseline(
     corpus="allenai/wildguardmix",
     split="test/wildguard_test.parquet",
     model_tag="Qwen3Guard-Gen-4B-GGUF:Q4_K_M",
-    backend=_OLLAMA_BACKEND,
+    backend=_OLLAMA_BACKEND_4B,
     policy=_FAIL_CLOSED_POLICY,
     slices=(
         BaselineSlice(
@@ -280,7 +304,7 @@ _EXPGUARD = MeasuredBaseline(
     corpus="6rightjade/expguardmix",
     split="expguardtest.parquet",
     model_tag="Qwen3Guard-Gen-4B-GGUF:Q4_K_M",
-    backend=_OLLAMA_BACKEND,
+    backend=_OLLAMA_BACKEND_4B,
     policy=_FAIL_CLOSED_POLICY,
     slices=(
         BaselineSlice(
@@ -340,7 +364,7 @@ _WILDGUARD_0_6B = MeasuredBaseline(
     corpus="allenai/wildguardmix",
     split="test/wildguard_test.parquet",
     model_tag="Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M",
-    backend=_OLLAMA_BACKEND,
+    backend=_OLLAMA_BACKEND_0_6B,
     policy=_FAIL_CLOSED_POLICY,
     slices=(
         BaselineSlice(
@@ -415,7 +439,7 @@ _EXPGUARD_0_6B = MeasuredBaseline(
     corpus="6rightjade/expguardmix",
     split="expguardtest.parquet",
     model_tag="Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M",
-    backend=_OLLAMA_BACKEND,
+    backend=_OLLAMA_BACKEND_0_6B,
     policy=_FAIL_CLOSED_POLICY,
     slices=(
         BaselineSlice(

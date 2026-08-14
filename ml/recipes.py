@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """CLI entry point for ``warrantor_ml.programme:recipes_main``.
 
-Prints the eight training recipes with their stable digests. A recipe digest is what makes a
+Prints the nine training recipes with their stable digests. A recipe digest is what makes a
 Kaggle run and a Modal run of "the same recipe" provably the same recipe rather than two scripts
 edited in parallel.
 

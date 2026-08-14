@@ -1,8 +1,9 @@
 """Per-model corpus builders, label vocabularies and asymmetric metrics.
 
-One module per model family. Four of the eight models -- Guard 0.6B and 4B, each in a
-weak-category and an adversarial-robustness variant -- share :mod:`~warrantor_ml.tasks.guard`,
-because they are two row selectors over one corpus and two base profiles, not four pipelines.
+One module per model family. Five of the nine recipes -- Guard 0.6B and 4B, each in a
+weak-category and an adversarial-robustness variant, plus the 0.6B ExpGuard weak-category
+variant -- share :mod:`~warrantor_ml.tasks.guard`, because they are two row selectors over two
+corpora and two base profiles, not five pipelines.
 The other four are substrate models whose supervision comes from warrant artifacts, so each
 gets its own module, its own label vocabulary mirrored from the Rust type it serves, and its
 own metric.

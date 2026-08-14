@@ -161,6 +161,23 @@ def test_the_backend_configuration_that_produced_the_numbers_is_recorded() -> No
         assert baseline.backend["lane"] == "local-rtx5080"
 
 
+def test_the_serving_model_recorded_matches_the_model_the_baseline_names() -> None:
+    """Both 0.6B baselines used to record the 4B GGUF as the model that served them.
+
+    They shared one ``_OLLAMA_BACKEND`` literal. ``model_tag`` said 0.6B and ``backend['model']``
+    said 4B on the same record, and nothing refused it: ``parity._lane_matches`` reads only
+    ``lane`` and ``precision``. The error was harmless only while no recipe bound a 0.6B
+    baseline -- the moment one did, every archived decision record would name the wrong serving
+    model as the thing it measured, inside a document sold as pinning a promotion to its
+    evidence.
+    """
+
+    for baseline in BASELINES.values():
+        size = "0.6B" if "0.6b" in baseline.baseline_id else "4B"
+        assert size in baseline.model_tag, baseline.baseline_id
+        assert f"Qwen3Guard-Gen-{size}-GGUF" in baseline.backend["model"], baseline.baseline_id
+
+
 def test_the_controversial_policy_is_recorded() -> None:
     """Scoring Controversial as safe moves ExpGuard's recall by 19 points."""
 
