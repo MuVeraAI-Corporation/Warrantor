@@ -26,6 +26,16 @@ module.exports = {
   productName: 'Warrantor',
   copyright: 'Copyright © MuVeraAI Corporation. Licensed under Apache-2.0.',
 
+  // Set explicitly because the Linux default is package.json `name`, and this package is scoped:
+  // `@warrantor/desktop` becomes `@warrantordesktop`, whose `@` is not legal in a file path.
+  // electron-builder refuses at the AppImage step with "executableName contains characters that
+  // cannot be safely used in file paths", which is where the first-ever run of desktop-release
+  // died — after the Electron download and the packaging, so it costs a full leg to discover.
+  //
+  // Windows and macOS derive theirs from productName and were unaffected, which is exactly why
+  // this could sit in a config that reads fine and had never been executed.
+  executableName: 'warrantor-desktop',
+
   directories: {
     output: 'dist',
     buildResources: 'build',
@@ -101,8 +111,23 @@ module.exports = {
       { target: 'AppImage', arch: ['x64'] },
       { target: 'deb', arch: ['x64'] },
     ],
+    // The SECOND thing the scoped package name breaks. AppImage names itself from productName and
+    // was fine once `executableName` was set; deb defaults to `${name}_${version}_${arch}.${ext}`,
+    // and `@warrantor/desktop` puts a SLASH in the output path — fpm is handed
+    // `dist/@warrantor/desktop_0.0.0_amd64.deb`, a directory that does not exist, and dies with a
+    // bare "fpm process failed 1" that names neither the path nor the cause.
+    //
+    // Named to match the Windows artifact rather than left to a default, because a default that
+    // depends on the package name is the thing that broke twice.
+    artifactName: 'Warrantor-${version}-${arch}.${ext}',
     category: 'Development',
     // The deb target fails outright without a maintainer. Read from package.json `author`.
     maintainer: 'MuVeraAI Corporation <opensource@muveraai.com>',
+    // Without a desktop name, Electron has no app_id / WM_CLASS and a desktop environment cannot
+    // associate the running window with the installed .desktop entry: generic icon, no launcher
+    // grouping. electron-builder 26 takes it from package.json `desktopName` and copies it in when
+    // this is set — `linux.desktopName` is NOT a key in this version's schema, and setting it
+    // fails validation for EVERY platform, not just Linux.
+    syncDesktopName: true,
   },
 };
