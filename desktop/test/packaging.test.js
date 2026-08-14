@@ -295,3 +295,37 @@ test('the linux desktop entry is named after the executable', () => {
     'linux.desktopName is not in the v26 schema and fails validation for all platforms',
   );
 });
+
+/**
+ * Every produced artifact must have a name that is a legal path, and none may be derived from the
+ * scoped package name. `@warrantor/desktop` broke packaging twice: once through `executableName`
+ * (AppImage refused it outright) and once through the deb target's default artifact name, which is
+ * `${name}_${version}_${arch}.${ext}` — putting a SLASH in the output path, so fpm was handed a
+ * directory that does not exist and failed with a bare "fpm process failed 1" naming neither.
+ */
+test('artifact names never derive from the scoped package name', () => {
+  // Wherever one is set — per platform or per target, `nsis.artifactName` being the existing case.
+  const named = Object.entries(builderConfig)
+    .filter(([, value]) => value && typeof value === 'object' && 'artifactName' in value)
+    .map(([key, value]) => [key, value.artifactName]);
+
+  assert.ok(named.length > 0, 'no artifactName is configured anywhere');
+
+  for (const [key, artifactName] of named) {
+    assert.ok(
+      !artifactName.includes('${name}'),
+      `${key}: artifactName must not interpolate the scoped package name`,
+    );
+    // Macros aside, what remains has to be a legal path segment.
+    assert.match(
+      artifactName.replace(/\$\{[a-zA-Z]+\}/g, 'X'),
+      /^[A-Za-z0-9._-]+$/,
+      `${key}: artifactName resolves to an unsafe path: ${artifactName}`,
+    );
+  }
+
+  // Linux specifically MUST set one. Its deb default is `${name}_${version}_${arch}.${ext}`, which
+  // is the form that put a slash in the path; AppImage's default comes from productName and is why
+  // only half of the Linux leg failed the first time.
+  assert.ok(builderConfig.linux.artifactName, 'linux must set artifactName; the deb default is unsafe');
+});

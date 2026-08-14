@@ -111,6 +111,15 @@ module.exports = {
       { target: 'AppImage', arch: ['x64'] },
       { target: 'deb', arch: ['x64'] },
     ],
+    // The SECOND thing the scoped package name breaks. AppImage names itself from productName and
+    // was fine once `executableName` was set; deb defaults to `${name}_${version}_${arch}.${ext}`,
+    // and `@warrantor/desktop` puts a SLASH in the output path — fpm is handed
+    // `dist/@warrantor/desktop_0.0.0_amd64.deb`, a directory that does not exist, and dies with a
+    // bare "fpm process failed 1" that names neither the path nor the cause.
+    //
+    // Named to match the Windows artifact rather than left to a default, because a default that
+    // depends on the package name is the thing that broke twice.
+    artifactName: 'Warrantor-${version}-${arch}.${ext}',
     category: 'Development',
     // The deb target fails outright without a maintainer. Read from package.json `author`.
     maintainer: 'MuVeraAI Corporation <opensource@muveraai.com>',
