@@ -100,12 +100,20 @@ separate injection detector rather than folding injection into the moderation mo
 | Corpus | Rows | Licence | Gated | Role |
 | --- | --- | --- | --- | --- |
 | WildGuardMix | **88,484** (not 92K) | ODC-By-1.0 | yes (`auto`) | General safety, 13 risk categories |
-| ExpGuardMix | 58,928 | CC-BY-4.0 | yes (`auto`) | Finance / healthcare / law — three of the four vertical packs |
+| ExpGuardMix | **48,280** (46,005 train + 2,275 test) | CC-BY-4.0 | yes (`auto`) | Finance / healthcare / law — three of the four vertical packs |
 
 ExpGuardMix is arXiv:2603.02588, an ICLR 2026 **conference** paper (do not conflate it with the
 workshop benchmark above). Its corpus was **generated with GPT-4o**, so anything trained on it
 records a closed-frontier-model dependency in its data lineage even though no frontier API is
 called at training time.
+
+Both figures are read from the cached parquet files rather than the dataset cards. ExpGuardMix's
+was overstated by 23% in four places at once — the registry, this table, the Kaggle upload table
+and the AIBOM template — and correcting one of them was not correcting it. The superseded numbers
+now survive only in the correction comment in `warrantor_ml/datasets.py`;
+`warrantor_ml.datasets.REGISTRY` is the single source, `model_card.example_card` reads its dataset
+rows from it instead of restating them, and `test_datasets.py` asserts both documents agree with
+it.
 
 ### Multilingual: **HaloGuard 1.0 — eval-only, not on the critical path**
 
@@ -674,16 +682,17 @@ Specified in [RFC W2](../docs/rfcs/W2-model-intelligence-pipelines.md). Five mor
 none of which trains anything or dispatches a job:
 
 ```bash
-python ml/build_corpus.py --task guard --rows train.parquet --describe-only   # ALWAYS first
+python ml/build_corpus.py --task guard --rows wildguard_train.parquet --describe-only  # FIRST
 # Preferred: build FROM the recipe's declared corpus specification, so the corpus and the
 # digested declaration can be checked against each other afterwards.
 python ml/build_corpus.py --recipe guard-0.6b-expguard-weak \
     --rows expguardtrain.parquet --eval-rows expguardtest.parquet \
     --out corpora/expguard-weak.jsonl --manifest corpora/expguard-weak.manifest.json
-# Ad hoc: --dataset-id has no default, because the manifest's licence, attribution and
-# frontier lineage are all derived from it and nothing reconciles them against the file.
-python ml/build_corpus.py --task guard --rows train.parquet \
-    --eval-rows test.parquet --dataset-id wildguardmix \
+# Ad hoc: --dataset-id has no default, because the manifest's licence, attribution and frontier
+# lineage are all derived from it. The filenames are checked against the registry's declared
+# split files, so the id and the rows cannot disagree in silence.
+python ml/build_corpus.py --task guard --rows wildguard_train.parquet \
+    --eval-rows wildguard_test.parquet --dataset-id wildguardmix \
     --selector weak-category --benign-ratio 1.0 \
     --out corpora/weak.jsonl --manifest corpora/weak.manifest.json
 python ml/recipes.py                                       # the nine, with their digests
@@ -695,7 +704,18 @@ python ml/parity.py --result results/candidate.json --recipe guard-4b-adversaria
     --training-corpus corpora/weak.jsonl --eval-corpus test.parquet
 ```
 
-Nine things worth knowing before running any of it.
+Ten things worth knowing before running any of it.
+
+**`--recipe` is not provenance until the file is checked against it.** Taking the dataset id off a
+digested recipe removed the flag that could contradict the rows, and then stamped the recipe digest
+on the manifest — so `--recipe guard-4b-weak-category --rows expguardtrain.parquet` produced a
+document that declared ODC-By-1.0, attributed AI2, carried no GPT-4o lineage, *validated cleanly*
+and now also read as verified. The builder therefore compares `--rows` (and `--eval-rows`, against
+the registry's TEST split) with the filename `datasets.SplitSpec.remote_path` declares, and
+**refuses** on a mismatch — naming which registered split the file it was handed actually belongs
+to. A different container for the same split (`expguardtrain.jsonl`) is accepted. It is a filename
+check and the manifest note says exactly that: no published content digest exists to compare the
+bytes against, so it catches the wrong file and cannot catch a renamed one.
 
 **`--describe-only` is not a convenience.** The measured weak-class names come from the *test*
 splits. A train split is not obliged to spell them the same way, and a selector written against
@@ -704,10 +724,18 @@ The selectors refuse by name rather than returning an empty set, and `--describe
 find out first.
 
 Run against WildGuardMix's train split it earns its keep immediately: **`Unqualified Professional
-Advice` — the weakest measured class at 0.4298 recall, and the headline target of both
-weak-category recipes — does not exist in that split at all.** It is an ExpGuardMix category. The
-two corpora have disjoint category vocabularies, so a weak-category corpus built from WildGuard
-train targets three of the four named classes and cannot touch the fourth.
+Advice` — the weakest measured class at 0.4298 recall — does not exist in that split at all.** It
+is an ExpGuardMix category, and the two corpora have disjoint category vocabularies.
+
+The two WildGuard weak-category recipes used to name it anyway, and that was a declaration nothing
+could honour: `weak_category_subset` refuses only when *no* requested class matches, so a
+four-class request that matched three built a corpus and the manifest recorded all four as
+targeted. Both halves are fixed. `WILDGUARD_WEAK_CATEGORIES` now declares the three classes
+WildGuardMix carries (`EXPGUARD_ONLY_CATEGORIES` names the exclusion, and the measured table
+itself stays frozen), and `build_corpus` **refuses** an explicit request that matches only part of
+a split rather than recording the request as the result. The manifest note is now `categories
+targeted: <class>=<rows matched>`, per class. UPA is trained for by `guard-0.6b-expguard-weak`, on
+the corpus that has it.
 
 **That gap is now closed on the 0.6B, and the blocker was narrower than this paragraph used to
 say.** The earlier wording — "the parity gate will refuse to score an ExpGuardTrain corpus

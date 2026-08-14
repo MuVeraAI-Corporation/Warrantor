@@ -51,13 +51,19 @@ ODC-By governs the database rather than the underlying content.
 | --- | --- | --- |
 | `wildguard_train.parquet` | 53.7 MB | 86,759 |
 | `wildguard_test.parquet` | 2.3 MB | 1,725 |
-| `expguardtrain.parquet` | 20.9 MB | 56,653 |
+| `expguardtrain.parquet` | 20.9 MB | 46,005 |
 | `expguardtest.parquet` | 1.5 MB | 2,275 |
 
 Both corpora are tiny — under 80 MB combined. Upload time is not the constraint; the gate is.
 
-> **Row-count correction:** WildGuardMix is **88,484 rows total**, not the 92K figure that
-> circulated in early planning. Use 88,484 in every public claim, licence document and AIBOM.
+> **Row-count corrections.** WildGuardMix is **88,484 rows total**, not the 92K figure that
+> circulated in early planning. ExpGuardMix is **48,280** (46,005 train + 2,275 test); the
+> registry overstated it by 23% until the cached parquet was read on 2026-08-13, and the table
+> above carried that overstatement (the superseded figures are recorded in the correction comment
+> in `warrantor_ml/datasets.py`, and nowhere else). Use these figures in every public claim,
+> licence document and AIBOM: `warrantor_ml.datasets.REGISTRY` is the one source, the AIBOM
+> template reads its dataset rows from it rather than restating them, and a test asserts these
+> documents agree with it.
 
 ### 2. `train_guard_lora.py`
 

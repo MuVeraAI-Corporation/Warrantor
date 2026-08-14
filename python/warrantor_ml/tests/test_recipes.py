@@ -8,6 +8,7 @@ from warrantor_ml.baselines import BASELINES
 from warrantor_ml.fine_tune import PROFILES
 from warrantor_ml.recipes import (
     DEFERRED_BASELINES,
+    EXPGUARD_ONLY_CATEGORIES,
     EXPGUARD_WEAK_CATEGORIES,
     RECIPES,
     WILDGUARD_WEAK_CATEGORIES,
@@ -140,13 +141,21 @@ def test_every_weak_category_recipe_declares_the_classes_it_targets() -> None:
             assert all(isinstance(name, str) for name in declared)
 
 
-def test_the_wildguard_recipes_target_exactly_the_measured_weak_table() -> None:
-    """Resolved from the measurement, not retyped -- so the two cannot drift apart."""
+def test_the_wildguard_recipes_target_the_measured_weak_table_minus_what_the_corpus_lacks() -> None:
+    """Resolved from the measurement, not retyped -- so the two cannot drift apart.
 
-    assert tuple(WEAK_CATEGORIES) == WILDGUARD_WEAK_CATEGORIES
-    assert get_recipe("guard-4b-weak-category").corpus_arguments["categories"] == list(
-        WILDGUARD_WEAK_CATEGORIES
-    )
+    Minus exactly one class. `WEAK_CATEGORIES` is the measured table across BOTH corpora and
+    Unqualified Professional Advice is an ExpGuardMix category the WildGuardMix train split does
+    not contain, so declaring it made these recipes name a target no build could reach -- the
+    same "targeting claim nothing acts on" `_guard_recipe` raises over for the adversarial
+    recipes, and `build_corpus` now refuses a request that matches only part of a split.
+    """
+
+    assert set(WILDGUARD_WEAK_CATEGORIES) < set(WEAK_CATEGORIES)
+    assert set(WEAK_CATEGORIES) - set(WILDGUARD_WEAK_CATEGORIES) == set(EXPGUARD_ONLY_CATEGORIES)
+    assert "unqualified professional advice" not in WILDGUARD_WEAK_CATEGORIES
+    for key in ("guard-4b-weak-category", "guard-0.6b-weak-category"):
+        assert get_recipe(key).corpus_arguments["categories"] == list(WILDGUARD_WEAK_CATEGORIES)
 
 
 def test_the_adversarial_recipes_declare_no_categories_because_nothing_reads_them() -> None:

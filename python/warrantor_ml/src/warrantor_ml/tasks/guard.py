@@ -51,6 +51,7 @@ __all__ = [
     "MissingCorpusFieldError",
     "adversarial_subset",
     "build_guard_pairs",
+    "category_positive_counts",
     "describe_split",
     "load_rows_jsonl",
     "load_rows_parquet",
@@ -308,6 +309,29 @@ def _matches_category(row: GuardCorpusRow, category: str) -> bool:
     """
 
     return normalise_category(row.subcategory) == normalise_category(category)
+
+
+def category_positive_counts(
+    rows: Sequence[GuardCorpusRow],
+    categories: Sequence[str],
+) -> dict[str, int]:
+    """How many *unsafe* rows each requested category actually matches, in the order requested.
+
+    Exists because a request and a result are different facts and used to be recorded as one.
+    :func:`weak_category_subset` refuses only when NONE of the requested classes match, so a
+    four-class request that matched one class returned a corpus, and the caller had nothing to
+    write down but the request -- a targeting claim reading exactly like an honoured one, which
+    is the failure :data:`warrantor_ml.build_corpus.SELECTOR_ARGUMENTS` refuses for the
+    adversarial selector.
+
+    A zero here is the whole point: it names a class this split cannot supply, by name, with the
+    count that proves it.
+    """
+
+    return {
+        name: sum(1 for row in rows if row.unsafe is True and _matches_category(row, name))
+        for name in categories
+    }
 
 
 def build_guard_pairs(

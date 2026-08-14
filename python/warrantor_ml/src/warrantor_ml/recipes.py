@@ -57,6 +57,7 @@ from .tasks.guard import WEAK_CATEGORIES
 
 __all__ = [
     "DEFERRED_BASELINES",
+    "EXPGUARD_ONLY_CATEGORIES",
     "EXPGUARD_WEAK_CATEGORIES",
     "RECIPES",
     "WILDGUARD_WEAK_CATEGORIES",
@@ -66,10 +67,25 @@ __all__ = [
     "unbound_baselines",
 ]
 
-#: The WildGuard-spelled weak classes, resolved from the measured table rather than retyped.
-#: Baked into ``corpus_arguments`` at import so the recipe digest covers the selection: a change
-#: to ``guard.WEAK_CATEGORIES`` now changes the digest of every recipe that selects on it.
-WILDGUARD_WEAK_CATEGORIES: tuple[str, ...] = tuple(WEAK_CATEGORIES)
+#: The one measured weak class that WildGuardMix does not contain. ``guard.WEAK_CATEGORIES`` is
+#: the measured table across BOTH corpora and is frozen against the published measurement, so the
+#: exclusion is expressed here rather than by editing the table.
+EXPGUARD_ONLY_CATEGORIES: tuple[str, ...] = ("unqualified professional advice",)
+
+#: The WildGuard-spelled weak classes, resolved from the measured table rather than retyped, with
+#: the classes WildGuardMix does not carry removed. Baked into ``corpus_arguments`` at import so
+#: the recipe digest covers the selection: a change to ``guard.WEAK_CATEGORIES`` still changes
+#: the digest of every recipe that selects on it.
+#:
+#: Unqualified Professional Advice used to be in here and is an ExpGuardMix category -- the
+#: WildGuardMix train split has no such class (ml/README.md, verified with ``--describe-only``).
+#: Declaring it made these two recipes name a target they could not reach, which is the same
+#: "targeting claim nothing acts on" that ``_guard_recipe`` raises ValueError over, and it made
+#: them unbuildable once ``build_corpus`` started refusing a request that matches only part of a
+#: split. UPA is trained for by ``guard-0.6b-expguard-weak``, on the corpus that has it.
+WILDGUARD_WEAK_CATEGORIES: tuple[str, ...] = tuple(
+    name for name in WEAK_CATEGORIES if name not in EXPGUARD_ONLY_CATEGORIES
+)
 
 #: The four ExpGuard classes the 0.6B ExpGuard recipe targets, in the ExpGuardTest spelling.
 #:
@@ -235,9 +251,9 @@ def _guard_recipe(
 
 
 _WEAK_NOTES = (
-    "Targets the measured weak classes: Unqualified Professional Advice 0.4298, "
+    "Targets the measured weak classes THIS corpus carries: "
     "social_stereotypes_and_unfair_discrimination 0.7237, fraud_assisting_illegal_activities "
-    "0.7833, others 0.7857.",
+    "0.7833, others 0.7857. Three, not four -- see the Unqualified Professional Advice note.",
     "benign_ratio is 1.0 rather than 0: training on the missed positives alone buys recall with "
     "false positives, and the gate refuses a candidate whose FPR regresses.",
     "Run describe_split on the TRAIN split first. The measured class names come from the TEST "
@@ -249,7 +265,11 @@ _WEAK_NOTES = (
     "took recall from 0.8488 to 0.8329 WITH the false-positive rate falling, i.e. a more "
     "permissive gate, and silently made the Controversial=SAFE policy knob a no-op.",
     "Unqualified Professional Advice is unreachable from this corpus: it is an ExpGuardMix "
-    "category and the WildGuardMix train split has no such class. Neither train split carries a "
+    "category and the WildGuardMix train split has no such class. It is therefore NO LONGER "
+    "DECLARED here (it was, and the declaration was decoration): corpus_arguments['categories'] "
+    "names the three reachable classes, and build_corpus refuses a request that matches only "
+    "part of a split rather than recording the whole request as honoured. Neither train split "
+    "carries a "
     "borderline/agreement signal either -- WildGuard's prompt_harm_agreement exists only in its "
     "TEST split -- so rendering Controversial as a third target class is not available here, "
     "which is why the fix is to stop supervising severity rather than to label it better.",
@@ -262,7 +282,7 @@ _EXPGUARD_WEAK_NOTES = (
     "The ONLY recipe that can train for Unqualified Professional Advice. UPA is the weakest "
     "measured class on both guard sizes (0.3719 on the 0.6B, 0.4298 on the 4B) and it exists "
     "only in ExpGuardMix -- the WildGuardMix train split has no such category, which is why the "
-    "two WildGuard weak-category recipes name it as a target they cannot reach.",
+    "two WildGuard weak-category recipes no longer declare it and target three classes each.",
     "Gated against expguardtest-qwen3guard-gen-0.6b, the same-size baseline measured on the same "
     "split, seed, num_ctx and quantisation. THE BAR, computed with this repo's own `stats` "
     "against that baseline's overall slice (898/1256 caught, 89/1019 false positives): promotion "

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from warrantor_ml.build_corpus import (
+    CorpusSpecificationError,
     ExcessiveLeakageError,
     RecipeUnbuildableError,
     build_guard_corpus,
@@ -108,7 +110,7 @@ def test_an_unknown_selector_is_refused(tmp_path: Path) -> None:
 
 
 def test_describe_only_writes_nothing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    split = _write_split(tmp_path / "split.jsonl")
+    split = _write_split(tmp_path / "wildguard_train.jsonl")
     assert main(["--task", "guard", "--rows", str(split), "--describe-only"]) == 0
     described = json.loads(capsys.readouterr().out)
     assert described["row_count"] == 4
@@ -119,7 +121,7 @@ def test_describe_only_writes_nothing(tmp_path: Path, capsys: pytest.CaptureFixt
 def test_the_cli_requires_a_benign_ratio(tmp_path: Path) -> None:
     """argparse exits 2. There is no default because zero has to be written down."""
 
-    split = _write_split(tmp_path / "split.jsonl")
+    split = _write_split(tmp_path / "wildguard_train.jsonl")
     with pytest.raises(SystemExit):
         main(
             [
@@ -138,7 +140,7 @@ def test_the_cli_requires_a_benign_ratio(tmp_path: Path) -> None:
 def test_the_cli_builds_a_corpus_and_writes_a_manifest(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    split = _write_split(tmp_path / "split.jsonl")
+    split = _write_split(tmp_path / "wildguard_train.jsonl")
     code = main(
         [
             "--task",
@@ -170,7 +172,7 @@ def test_a_selector_that_matches_nothing_exits_non_zero_rather_than_writing_an_e
 ) -> None:
     """An empty corpus and a broken selector look identical on disk."""
 
-    split = tmp_path / "split.jsonl"
+    split = tmp_path / "wildguard_train.jsonl"
     split.write_text(
         json.dumps({"prompt": "x", "prompt_harm_label": "harmful", "subcategory": "unrelated"})
         + "\n",
@@ -281,7 +283,7 @@ def test_the_cli_refuses_to_build_without_a_dataset_id(tmp_path: Path) -> None:
     validates and is false.
     """
 
-    split = _write_split(tmp_path / "split.jsonl")
+    split = _write_split(tmp_path / "wildguard_train.jsonl")
     with pytest.raises(SystemExit):
         main(
             [
@@ -304,7 +306,7 @@ def test_describe_only_still_works_without_a_dataset_id(
 ) -> None:
     """Describe-first is the workflow this module is built around; it must not need a build flag."""
 
-    split = _write_split(tmp_path / "split.jsonl")
+    split = _write_split(tmp_path / "wildguard_train.jsonl")
     assert main(["--task", "guard", "--rows", str(split), "--describe-only"]) == 0
     assert json.loads(capsys.readouterr().out)["row_count"] == 4
 
@@ -336,11 +338,15 @@ def test_the_category_flag_reaches_the_selector(tmp_path: Path) -> None:
 def test_a_category_that_matches_nothing_refuses_rather_than_selecting_nothing(
     tmp_path: Path,
 ) -> None:
-    """An empty selection and a misspelled class look identical on disk."""
+    """An empty selection and a misspelled class look identical on disk.
 
-    from warrantor_ml.tasks.guard import MissingCorpusFieldError
+    An EXPLICIT request is now checked class by class, so the misspelling is caught in
+    `build_guard_corpus` rather than surviving down to `weak_category_subset` -- and the refusal
+    can name the split's real vocabulary, which is the fix for a misspelling. The deeper
+    `MissingCorpusFieldError` still guards the fallback path, covered by the test below.
+    """
 
-    with pytest.raises(MissingCorpusFieldError, match="no rows match"):
+    with pytest.raises(CorpusSpecificationError, match="match no unsafe row in this split"):
         build_guard_corpus(
             _rows(),
             "weak-category",
@@ -349,6 +355,36 @@ def test_a_category_that_matches_nothing_refuses_rather_than_selecting_nothing(
             "expguardmix",
             "train",
             categories=("Unqualified Professional Advise",),
+        )
+
+
+def test_the_fallback_still_refuses_when_not_one_of_its_classes_is_present(
+    tmp_path: Path,
+) -> None:
+    """`categories=None` records absent classes rather than refusing them -- until none match.
+
+    The fallback is a measured table spanning two corpus vocabularies, not a request, so a class
+    it names that this split does not carry is a fact to record, not a mistake to refuse. That
+    reasoning stops holding when the intersection is empty: there is no corpus left to build, and
+    `weak_category_subset` is what says so.
+    """
+
+    from warrantor_ml.tasks.guard import MissingCorpusFieldError
+
+    unmatched = tuple(
+        replace(row, subcategory="a class no fallback entry names")
+        if row.harm_label == "harmful"
+        else row
+        for row in _rows()
+    )
+    with pytest.raises(MissingCorpusFieldError, match="no rows match"):
+        build_guard_corpus(
+            unmatched,
+            "weak-category",
+            0.0,
+            tmp_path / "c.jsonl",
+            "expguardmix",
+            "train",
         )
 
 
@@ -411,8 +447,6 @@ def test_a_substrate_recipe_is_refused_rather_than_built_from_flag_defaults() ->
 def test_a_recipe_whose_arguments_the_selector_cannot_read_is_refused() -> None:
     """An unread argument is a declaration nothing honours, and --recipe executes the dict."""
 
-    from dataclasses import replace
-
     broken = replace(
         get_recipe("guard-4b-adversarial"),
         corpus_arguments={"benign_ratio": 1.5, "categories": ["others"]},
@@ -428,9 +462,15 @@ def test_a_recipe_whose_arguments_the_selector_cannot_read_is_refused() -> None:
 def test_the_cli_builds_from_a_recipe_and_stamps_its_digest_on_the_manifest(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The whole point: the corpus and the declaration can be checked against each other later."""
+    """The whole point: the corpus and the declaration can be checked against each other later.
 
-    split = tmp_path / "split.jsonl"
+    The fixture is named for the split the recipe declares. It used to be `wildguard_train.jsonl`
+    under an ExpGuard recipe, which is exactly the mismatch `reconcile_rows_with_declared_split`
+    now refuses -- this test was building the false manifest the reconciliation exists to stop.
+    A `.jsonl` rendering of the declared `expguardtrain.parquet` is accepted by design.
+    """
+
+    split = tmp_path / "expguardtrain.jsonl"
     records = [
         {
             "prompt": "advise on my dose",
@@ -442,8 +482,23 @@ def test_the_cli_builds_from_a_recipe_and_stamps_its_digest_on_the_manifest(
             "prompt_label": "unsafe",
             "prompt_category": "Privacy Violation",
         },
+        # All four classes the recipe declares, because a fixture carrying two of them is the
+        # partial match `build_guard_corpus` now refuses -- and a test whose corpus silently
+        # covered half its declaration was asserting the wrong thing was fine.
+        {
+            "prompt": "start a brawl at the match",
+            "prompt_label": "unsafe",
+            "prompt_category": "Violence & Incitement",
+        },
+        {
+            "prompt": "tell me how to hurt myself",
+            "prompt_label": "unsafe",
+            "prompt_category": "Self-Harm & Suicide Promotion",
+        },
         {"prompt": "capital of Oman", "prompt_label": "safe", "prompt_category": "Unharmful"},
         {"prompt": "summarise this", "prompt_label": "safe", "prompt_category": "Unharmful"},
+        {"prompt": "convert 20C to F", "prompt_label": "safe", "prompt_category": "Unharmful"},
+        {"prompt": "name three primes", "prompt_label": "safe", "prompt_category": "Unharmful"},
     ]
     split.write_text("\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8")
 
@@ -463,8 +518,8 @@ def test_the_cli_builds_from_a_recipe_and_stamps_its_digest_on_the_manifest(
     summary = json.loads(capsys.readouterr().out.split("manifest:")[0])
     assert summary["recipe_id"] == "guard-0.6b-expguard-weak"
     assert summary["recipe_digest"] == get_recipe("guard-0.6b-expguard-weak").recipe_digest
-    assert summary["positives"] == 2
-    assert summary["benign_counterweight"] == 2
+    assert summary["positives"] == 4
+    assert summary["benign_counterweight"] == 4
 
     manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
     source = manifest["sources"][0]
@@ -481,7 +536,7 @@ def test_a_flag_that_contradicts_the_recipe_is_a_refusal_not_an_override(tmp_pat
     """An override restores exactly the gap --recipe closes: the recipe says 1.0, the corpus is 0.0,
     and nothing downstream can tell -- `--manifest-digest` is never validated against anything."""
 
-    split = _write_split(tmp_path / "split.jsonl")
+    split = _write_split(tmp_path / "wildguard_train.jsonl")
     with pytest.raises(SystemExit):
         main(
             [
@@ -500,7 +555,7 @@ def test_a_flag_that_contradicts_the_recipe_is_a_refusal_not_an_override(tmp_pat
 def test_an_unknown_recipe_exits_two_rather_than_raising(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    split = _write_split(tmp_path / "split.jsonl")
+    split = _write_split(tmp_path / "wildguard_train.jsonl")
     code = main(["--recipe", "guard-70b-magic", "--rows", str(split), "--out", str(tmp_path / "c")])
     assert code == 2
     assert "CORPUS NOT BUILT" in capsys.readouterr().out
