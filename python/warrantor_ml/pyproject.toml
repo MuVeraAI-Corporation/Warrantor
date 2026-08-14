@@ -45,6 +45,7 @@ warrantor-ml-recipes = "warrantor_ml.programme:recipes_main"
 warrantor-ml-lanes = "warrantor_ml.programme:lanes_main"
 warrantor-ml-export = "warrantor_ml.programme:export_main"
 warrantor-ml-parity = "warrantor_ml.programme:parity_main"
+warrantor-ml-publish = "warrantor_ml.publish:main"
 
 [build-system]
 requires = ["setuptools>=68"]

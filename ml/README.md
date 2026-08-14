@@ -359,6 +359,53 @@ tests to measured envelopes (4B QLoRA → 7–9 GiB, DeBERTa full FT → 9–11 
 attached: a guard model's product is a calibrated logit, and fp16 loss scaling is exactly where
 calibration goes quietly wrong.
 
+### `publish_adapter.py` — the bridge from a trained adapter to a scoreable model
+
+Between training and scoring there was **nothing**. The programme could produce a LoRA adapter
+and could benchmark an Ollama model, and no code path joined them — so no trained adapter could
+be compared with the baseline it was trained to beat, which is the only question the parity gate
+exists to answer. The gate requires the candidate to be measured on the baseline's lane and
+precision (`local-rtx5080`, `gguf-q4_k_m`), so the adapter has to reach Ollama at Q4_K_M no
+matter where it trained.
+
+```bash
+# One-time: llama.cpp's LoRA converter is pure Python -- no C++ build, no cmake.
+git clone --depth 1 --filter=blob:none --sparse https://github.com/ggml-org/llama.cpp
+cd llama.cpp && git sparse-checkout set --skip-checks gguf-py conversion convert_lora_to_gguf.py
+pip install gguf
+
+# Pull the adapter off the Modal volume the lane runner committed it to:
+modal volume get warrantor-adapters guard-0.6b-weak-category/<run-id> adapters/
+
+python ml/publish_adapter.py \
+    --adapter adapters/<run-id> \
+    --base-snapshot ~/.cache/huggingface/hub/models--Qwen--Qwen3Guard-Gen-0.6B/snapshots/<sha> \
+    --ollama-base hf.co/mradermacher/Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M \
+    --recipe-id guard-0.6b-weak-category --run-id <run-id> \
+    --converter ~/llama.cpp/convert_lora_to_gguf.py \
+    --record-out adapters/<run-id>.publish.json
+```
+
+Three things it knows that cost time to find out, each of which is asserted by a test rather
+than left as folklore:
+
+**Ollama takes a GGUF adapter and refuses a safetensors one** against a registry GGUF base —
+and it reports that as `no Modelfile or safetensors files found` while looking directly at an
+`adapter_model.safetensors`. The message names the opposite of the cause, which is why this
+converts first and never hands Ollama the PEFT directory.
+
+**`ADAPTER` resolves relative to the Modelfile's own directory**, not the working directory. A
+relative path that is correct at the shell silently resolves one level deeper once written into
+a Modelfile that lives in the adapter directory. Paths are written absolute.
+
+**`--base` wants a directory, not a repo id.** `convert_lora_to_gguf.py --base
+Qwen/Qwen3Guard-Gen-0.6B` fails with `FileNotFoundError` on that literal string; it needs the
+local HF cache snapshot. `--plan-only` catches it before the conversion starts.
+
+The adapter is converted at `f16` and never quantised itself: the base supplies the
+quantisation, and rounding the delta separately would compound two roundings the baseline's
+Q4_K_M measurement never saw.
+
 ### `deploy_model.py` — register behind `ContentScanner`
 
 ```bash
