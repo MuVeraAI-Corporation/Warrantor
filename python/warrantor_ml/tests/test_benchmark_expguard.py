@@ -13,8 +13,13 @@ than an obvious failure.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from warrantor_ml import benchmark_expguard as be
+from warrantor_ml._canonical import is_wellformed_digest, sha256_file
+from warrantor_ml.baselines import get_baseline
 from warrantor_ml.evaluate import SampleOutcome
+from warrantor_ml.parity import corpus_digest_of
 
 
 def _row(
@@ -361,3 +366,41 @@ def test_rehydrate_round_trips_a_serialised_summary() -> None:
     rebuilt = be._rehydrate(original.to_dict())
     assert rebuilt.recall == original.recall
     assert rebuilt.matrix == original.matrix
+
+
+# ── the eval-set descriptor is what pins a decision to its evidence ─────────────────────
+
+
+def test_the_eval_set_descriptor_carries_a_digest_and_names_expguard(tmp_path: Path) -> None:
+    """`source` is the only thing telling the parity gate this is not WildGuardTest.
+
+    Every guard recipe declares the WildGuard baseline, and `--breakdown-key` will happily read
+    this module's document. Without the binding, ExpGuard recall was scored against WildGuard
+    numbers and promoted. `digest` is the SHA-256 of the split, so the decision can be re-audited
+    against the exact bytes it was scored on -- this module never wrote it before.
+    """
+
+    parquet = tmp_path / "expguardtest.parquet"
+    parquet.write_bytes(b"bytes are enough to have a digest")
+    descriptor = be.build_eval_set_descriptor(parquet, range(2275), range(2275), [], None, 0)
+
+    assert descriptor["digest"] == sha256_file(parquet)
+    assert is_wellformed_digest(descriptor["digest"])
+    assert descriptor["source"] == f"{be.EXPGUARD_TEST_REPO}:{be.EXPGUARD_TEST_FILE}"
+    assert descriptor["sampling"] == "full split, no sampling"
+
+    expguard = get_baseline("expguardtest-qwen3guard-gen-4b")
+    assert corpus_digest_of(descriptor["source"]) == expguard.corpus_digest
+    assert (
+        corpus_digest_of(descriptor["source"])
+        != get_baseline("wildguardtest-qwen3guard-gen-4b").corpus_digest
+    )
+
+
+def test_a_sampled_run_records_the_sampling_rule_in_the_descriptor(tmp_path: Path) -> None:
+    parquet = tmp_path / "expguardtest.parquet"
+    parquet.write_bytes(b"x")
+    descriptor = be.build_eval_set_descriptor(parquet, range(2275), range(300), ["a"], 300, 7)
+    assert "size=300" in descriptor["sampling"]
+    assert "seed=7" in descriptor["sampling"]
+    assert descriptor["rows_dropped_unlabelled"] == 1

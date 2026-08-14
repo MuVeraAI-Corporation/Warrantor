@@ -231,6 +231,69 @@ The backend configuration is recorded in the output (model digest, seed, tempera
 because every one of them changes the result, and a benchmark that does not record what it ran is
 a number without a claim attached.
 
+#### Is the 4B worth 7× the parameters? It depends on the corpus
+
+Measured 2026-08-13, both models on the same splits, seed, `num_ctx` and quantisation:
+
+| Corpus | 0.6B | 4B | z | verdict |
+| --- | --- | --- | --- | --- |
+| WildGuardTest (general safety) | 0.8488 | 0.8554 | −0.363 | **not** significant |
+| ExpGuardTest (finance / healthcare / law) | 0.7150 | 0.7596 | **−2.539** | **significant at 95%** |
+
+**Read both rows or the answer comes out wrong.** Parameter count buys nothing measurable on
+general safety and buys 4.5 points of recall on professional-vertical content. Either corpus
+alone supports a confident conclusion that the other contradicts.
+
+That decides the packaging question against the cheap answer: for a product aimed at regulated
+and professional verticals, **the 4B earns its 3.2 GB**. The 0.6B is adequate only where the
+traffic is general-safety shaped.
+
+The general-safety detail, which is still the right comparison for that traffic:
+
+| | 0.6B | 4B | |
+| --- | --- | --- | --- |
+| overall recall | **0.8488** | **0.8554** | z = −0.363, **not significant** |
+| 95% CI | 0.8215–0.8726 | 0.8285–0.8787 | intervals almost entirely overlap |
+| precision | 0.9156 | 0.9241 | |
+| FPR | 0.0624 | 0.0561 | |
+| `adversarial=false` recall | **0.8959** | 0.8886 | the *small* model is ahead here |
+| `adversarial=true` recall | 0.7918 | **0.8152** | and behind here |
+
+On *this* split seven times the parameters buys nothing measurable — the same finding the
+model-selection paper reports across 14 guard models, arriving independently on our own corpus.
+The vertical corpus above is where it stops holding.
+
+Two consequences that are easy to miss:
+
+**The minimum detectable delta at n=754 is 0.0355.** A tuned 0.6B has to reach roughly **0.884**
+to be detectably better than the untuned 0.6B, and **0.891** to clear the 4B. Anything smaller is
+a question this eval set cannot answer, and `parity_gate` correctly returns within-noise rather
+than promoting on it. Plan the run against that bar, not against the raw baseline number.
+
+**The weak-category selection transfers between the two models — mostly.** `WEAK_CATEGORIES` is
+derived from the 4B's per-category recall, and it targets three of the 0.6B's worst four anyway
+(`others` 0.7551, `social_stereotypes_and_unfair_discrimination` 0.7763,
+`fraud_assisting_illegal_activities` 0.7833). The only class it misses is `copyright_violations`
+at 24/31 — and at n=31 the Wilson interval is [0.602, 0.886], overlapping every other class, so
+it is not established as weak at all.
+
+Worth stating because an earlier draft of this section claimed the selection missed the 0.6B's
+real gaps. It does not, and that claim was a story read into 31 samples — the same mistake the
+per-domain analysis below exists to warn against. The fourth declared target, `Unqualified
+Professional Advice`, is missed for a different and real reason: it is not in this corpus.
+
+All four are registered as baselines (`wildguardtest-` and `expguardtest-` × `-4b` and
+`-0.6b`) so a candidate can be gated against any of them, and so neither half of the size
+finding can be quoted without the other being available to contradict it. The 0.6B pair exists
+because without a same-size comparator, a rejection cannot distinguish "the fine-tune did not
+work" from "0.6B is smaller than 4B" — different findings, different next actions.
+
+On ExpGuardTest the 0.6B scores **`Unqualified Professional Advice` at 0.3719** (45/121) against
+the 4B's 0.4298 — the weakest actionable class on both models, the headline target of both
+weak-category recipes, and a category that exists *only in this corpus*. Ignore the single-digit
+classes there (Harmful Misinformation 1/7, Harassment 3/8, Illegal Weapons 1/1): they carry no
+information at those counts and are not tuning targets.
+
 ### `benchmark_expguard.py` — does a general guard hold up per vertical?
 
 Runs the held-out **ExpGuardTest** split (2,275 rows) and breaks recall down by the `domain`
@@ -359,6 +422,177 @@ tests to measured envelopes (4B QLoRA → 7–9 GiB, DeBERTa full FT → 9–11 
 attached: a guard model's product is a calibrated logit, and fp16 loss scaling is exactly where
 calibration goes quietly wrong.
 
+### `publish_adapter.py` — the bridge from a trained adapter to a scoreable model
+
+Between training and scoring there was **nothing**. The programme could produce a LoRA adapter
+and could benchmark an Ollama model, and no code path joined them — so no trained adapter could
+be compared with the baseline it was trained to beat, which is the only question the parity gate
+exists to answer. The gate requires the candidate to be measured on the baseline's lane and
+precision (`local-rtx5080`, `gguf-q4_k_m`), so the adapter has to reach Ollama at Q4_K_M no
+matter where it trained.
+
+```bash
+# One-time: llama.cpp's LoRA converter is pure Python -- no C++ build, no cmake.
+git clone --depth 1 --filter=blob:none --sparse https://github.com/ggml-org/llama.cpp
+cd llama.cpp && git sparse-checkout set --skip-checks gguf-py conversion convert_lora_to_gguf.py
+pip install gguf
+
+# Pull the adapter off the Modal volume the lane runner committed it to:
+modal volume get warrantor-adapters guard-0.6b-weak-category/<run-id> adapters/
+
+python ml/publish_adapter.py \
+    --adapter adapters/<run-id> \
+    --base-snapshot ~/.cache/huggingface/hub/models--Qwen--Qwen3Guard-Gen-0.6B/snapshots/<sha> \
+    --ollama-base hf.co/mradermacher/Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M \
+    --recipe-id guard-0.6b-weak-category --run-id <run-id> \
+    --converter ~/llama.cpp/convert_lora_to_gguf.py \
+    --record-out adapters/<run-id>.publish.json
+```
+
+`--python` names the interpreter the converter runs under, defaulting to the one running the
+tool. Hardcoding `python` would pick whatever is first on PATH and fail with an ImportError
+seconds into a conversion, after the run that produced the adapter is already spent.
+
+**When the converter and Ollama live in different environments, split the phases.** That is the
+case on this box — torch is in a WSL venv, Ollama is on Windows, and the two path forms cannot
+be handed to one subprocess. Convert in WSL, register on Windows:
+
+```bash
+# in WSL, where torch and gguf are:
+python ~/llama.cpp/convert_lora_to_gguf.py --outtype f16     --base /mnt/m/hf/hub/models--Qwen--Qwen3Guard-Gen-0.6B/snapshots/<sha>     --outfile /mnt/m/wt-mlpipeline/adapters/<run-id>.gguf     /mnt/m/wt-mlpipeline/adapters/<run-id>
+
+# on Windows, where Ollama is -- --gguf skips the conversion:
+python ml/publish_adapter.py --adapter adapters/<run-id> --gguf adapters/<run-id>.gguf     --base-snapshot M:/hf/hub/models--Qwen--Qwen3Guard-Gen-0.6B/snapshots/<sha>     --ollama-base hf.co/mradermacher/Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M     --recipe-id guard-0.6b-weak-category --run-id <run-id>
+```
+
+One of `--converter` or `--gguf` is required and neither is assumed: registering without an
+adapter produces a model tag whose numbers are the untuned base's, compared against the
+baseline, and reported as a fair test of the fine-tune.
+
+Three things it knows that cost time to find out, each of which is asserted by a test rather
+than left as folklore:
+
+**Ollama takes a GGUF adapter and refuses a safetensors one** against a registry GGUF base —
+and it reports that as `no Modelfile or safetensors files found` while looking directly at an
+`adapter_model.safetensors`. The message names the opposite of the cause, which is why this
+converts first and never hands Ollama the PEFT directory.
+
+**`ADAPTER` resolves relative to the Modelfile's own directory**, not the working directory. A
+relative path that is correct at the shell silently resolves one level deeper once written into
+a Modelfile that lives in the adapter directory. Paths are written absolute.
+
+**`--base` wants a directory, not a repo id.** `convert_lora_to_gguf.py --base
+Qwen/Qwen3Guard-Gen-0.6B` fails with `FileNotFoundError` on that literal string; it needs the
+local HF cache snapshot. `--plan-only` catches it before the conversion starts.
+
+The adapter is converted at `f16` and never quantised itself: the base supplies the
+quantisation, and rounding the delta separately would compound two roundings the baseline's
+Q4_K_M measurement never saw.
+
+#### The first real run: rejected, and worth more than a promotion would have been
+
+`guard-0.6b-weak-category`, run id `weak-2026-08-13a`, Modal A100, 38,694 rows, 1 epoch,
+2 h 28 m, final loss 0.0101. Scored on the full WildGuardTest split and put through the gate:
+
+```
+VERDICT: REJECT  (exit 1)
+ - recall 0.8329 against 0.8554 is within sampling noise at these counts (this set could
+   resolve about 0.036). No improvement was demonstrated, which is not the same finding
+   as a regression.
+ - per-category recall fell below a measured baseline floor: others 0.7653 below 0.7857;
+   social stereotypes and unfair discrimination 0.6184 below 0.7237
+```
+
+Against the **same-size** baseline the picture is sharper — the fine-tune made the model worse:
+
+| | untuned 0.6B | tuned | Δ |
+| --- | --- | --- | --- |
+| overall recall | 0.8488 | **0.8329** | **−0.0159** |
+| false-positive rate | 0.0624 | 0.0519 | −0.0105 |
+| precision | 0.9156 | 0.9276 | +0.0120 |
+| `Controversial` verdicts emitted | 49 | **0** | extinguished |
+
+Recall down, FPR down, precision up: the adapter learned to be **more permissive**. For a deny
+gate that is the wrong direction, and it is the direction this document's opening rule says fails
+silently.
+
+**The mechanism is the target vocabulary.** `render_guard_target` emits only `Safety: Unsafe` or
+`Safety: Safe` — the corpus contains 19,349 of one and 19,345 of the other and no third value.
+Its docstring reasons that inventing a `Controversial` class the labels do not distinguish would
+teach a distinction the data never made, and that "the evaluator's policy line that scores
+`Controversial` as harmful would quietly absorb the difference." **It did not absorb it.** One
+epoch of binary targets extinguished the severity class entirely, and every prompt that would
+have been `Controversial` — and therefore caught, because policy scores it harmful — is now
+`Safe` and missed.
+
+There is a second-order consequence worth more than the recall number to a governance product.
+For the tuned model the `if Controversial=SAFE` policy row reports **0.8329, identical to the
+headline row**, because there are no `Controversial` verdicts left for it to act on. A documented
+operator lever — *does a borderline verdict count as harmful?* — silently became a no-op, and
+nothing in the system announces that. On the untuned model the same lever moves recall from
+0.8488 to 0.8011.
+
+**Targeting a weak category did not fix it.** Of the three weak classes the corpus actually
+reaches, two improved marginally and the largest one collapsed:
+
+| class (all three targeted) | untuned | tuned | Δ |
+| --- | --- | --- | --- |
+| `fraud_assisting_illegal_activities` | 0.7833 | 0.8000 | +0.0167 |
+| `others` | 0.7551 | 0.7653 | +0.0102 |
+| `social_stereotypes_and_unfair_discrimination` | 0.7763 | **0.6184** | **−0.1579** |
+
+So the run's finding is not "LoRA does not work here". It is that **a corpus whose targets are
+binary trains a binary model**, and that the weak-category selection alone does not survive
+contact with a three-valued output space.
+
+**The fix, and why it is the only one available.** Two repairs were on the table: render
+`Controversial` for the rows the corpora mark borderline, or stop supervising severity at all.
+The first is **not implementable from either corpus** — WildGuardMix's `prompt_harm_agreement`
+column (3 = unanimous, 2 = split, null = no majority) exists *only in its test split*, the train
+split does not carry it, and ExpGuardMix has nothing equivalent. There is no borderline signal to
+render a third class from, so supervising severity at all means supervising it binary.
+
+So `supervise_severity=False` is now set on all four guard recipes. The `Safety:` line stays in
+`input_ids` — the categories line must still be conditioned on it — and is masked in `labels`, so
+no gradient teaches the model to emit one. The base model's severity distribution, `Controversial`
+included, is left intact while the category line is still tuned; and `parse_guard_response`
+already treats a gating category as harmful in its own right, so catch rate can improve through
+the category path without the severity head being touched at all.
+
+This changes the recipe digest — `sha256:7509dd11…` → `sha256:f3a980d2…` — which is correct: it
+is a different recipe now, and the rejected run's decision document still names the digest that
+produced it. **The corpus is unchanged and does not need rebuilding**, leakage check included.
+
+(While confirming this, one more schema correction: ExpGuardMix's **train** split *does* carry a
+`general` domain, 26,098 rows of it. The statement below that the corpus "supplies no general
+band" is true of the **test** split, which is what `--describe-only` was run against — but a
+within-corpus general-versus-vertical *training* contrast is available even though the test split
+cannot supply the control for it.)
+
+This is the outcome the whole apparatus exists to produce: a negative result that is *trustworthy*
+and *diagnostic*, rather than a promotion nobody could audit.
+
+#### The whole chain, proven end to end
+
+Every link was exercised on 2026-08-13 before the first real candidate existed, using a 50-row
+smoke adapter — because a chain proven only once it is carrying something valuable is a chain
+proven too late:
+
+| Step | Verified |
+| --- | --- |
+| Modal training → volume persistence | 40 MB read back after `commit()` |
+| `modal volume get` → local adapter | `adapter_bytes` matches on both sides |
+| `convert_lora_to_gguf.py` → GGUF | 392 tensors, 20.2 MB |
+| `publish_adapter.py` → Ollama tag | registers; emits parseable `Safety:`/`Categories:` |
+| `benchmark_wildguard.py` on that tag | 119 scored, 0 parse or transport failures |
+| `parity.py` → verdict and exit code | all four refusals below |
+
+The gate refused correctly in every condition that could be constructed for it: leakage not
+checked → 3, eval export under the wrong key → 3, positives below the floor → 3 (*"53 positives
+is below the floor of 100; this eval could only have resolved a recall difference of about
+0.134"*), and a real comparison against the baseline → 1 (reject, recall within noise). Exit 0
+was not reachable with any of them, which is the right answer for all four.
+
 ### `deploy_model.py` — register behind `ContentScanner`
 
 ```bash
@@ -434,6 +668,111 @@ Stated rather than buried:
 
 ---
 
+## The training programme — eight models, three lanes, one gate
+
+Specified in [RFC W2](../docs/rfcs/W2-model-intelligence-pipelines.md). Five more launchers,
+none of which trains anything or dispatches a job:
+
+```bash
+python ml/build_corpus.py --task guard --rows train.parquet --describe-only   # ALWAYS first
+python ml/build_corpus.py --task guard --rows train.parquet \
+    --eval-rows test.parquet \
+    --selector weak-category --benign-ratio 1.0 \
+    --out corpora/weak.jsonl --manifest corpora/weak.manifest.json
+python ml/recipes.py                                       # the eight, with their digests
+python ml/lanes.py --recipe guard-4b-adversarial --lane kaggle-t4x2 --corpus-rows 38694
+python ml/export_lane_script.py --recipe guard-4b-adversarial --lane kaggle-t4x2 \
+    --corpus-rows 38694 --out ml/kaggle/train_guard_4b_adversarial.py
+python ml/parity.py --result results/candidate.json --recipe guard-4b-adversarial \
+    --lane local-rtx5080 --precision gguf-q4_k_m --manifest-digest sha256:... \
+    --training-corpus corpora/weak.jsonl --eval-corpus test.parquet
+```
+
+Nine things worth knowing before running any of it.
+
+**`--describe-only` is not a convenience.** The measured weak-class names come from the *test*
+splits. A train split is not obliged to spell them the same way, and a selector written against
+the wrong spelling selects nothing — which looks exactly like a corpus that has no such rows.
+The selectors refuse by name rather than returning an empty set, and `--describe-only` is how you
+find out first.
+
+Run against WildGuardMix's train split it earns its keep immediately: **`Unqualified Professional
+Advice` — the weakest measured class at 0.4298 recall, and the headline target of both
+weak-category recipes — does not exist in that split at all.** It is an ExpGuardMix category. The
+two corpora have disjoint category vocabularies, so a weak-category corpus built from WildGuard
+train targets three of the four named classes and cannot touch the fourth. Fixing UPA needs an
+ExpGuardTrain corpus, and the parity gate will refuse to score that against the WildGuardTest
+baseline the recipe declares. That is a real gap in the programme, not a step to skip.
+
+**`--eval-rows` is how hold-out gets verified before the run, not after it.** The parity gate
+checks leakage and refuses a candidate whose training corpus overlaps the eval split — but it
+runs *after* training, so a leaked corpus costs a full session before anything says so, and the
+only repair left is hand-editing a JSONL the manifest has already digested. Passing the eval
+split to the builder excludes colliding rows before selection and records the exclusion in the
+manifest. WildGuardMix ships three such rows between its own published train and test splits.
+
+Omitting it is allowed and is recorded as `hold-out NOT verified` rather than left blank: a
+manifest silent about hold-out and one that checked and found nothing are different facts. Above
+1% of the eval split the builder **refuses** instead of repairing — at that size the overlap is
+not an upstream duplicate, and excluding thousands of rows would read in the manifest exactly
+like excluding three.
+
+**`--corpus-rows` has no default either.** It sets the wall-clock estimate, the `save_steps`
+cadence, *and* the session-cap refusal — so a substituted default lets the lane router approve a
+lane for a corpus it was never shown, and the Kaggle cap exists to be discovered before the run
+rather than at hour eleven. It used to default to 20,000, which also meant the generated runner
+embedded a `RUN_MANIFEST` describing a run nobody had planned.
+
+**`--benign-ratio` has no default, and it is not silently approximated either.** An adapter
+trained only on the rows the baseline missed buys recall with the false-positive rate measured
+above, and the gate is two-sided precisely so that trade is refused. Zero is a legitimate choice;
+it just has to be written down. If the unselected pool cannot supply the benign rows the ratio
+asks for, the build **raises** — it used to return whatever was available, which honoured the
+ratio in the summary JSON and not in the corpus.
+
+**The lane router refuses.** `ml/lanes.py` will not resolve a recipe that does not fit the lane's
+VRAM, or whose estimated wall clock exceeds Kaggle's 12-hour session cap without a
+`--resume-from`. Discovering that cap at hour eleven costs the week's 30 GPU-hours.
+
+**A cross-lane comparison is refused, not reported.** Kaggle's T4/P100 have no bf16, so a Kaggle
+adapter inherits fp16 loss scaling — and a guard model's product is a calibrated logit. The gate
+records lane and precision on both arms and returns `insufficient_evidence` rather than a delta.
+
+**A cross-*corpus* comparison is refused too.** All four guard recipes name the WildGuardTest
+baseline, and `--breakdown-key` will happily read an ExpGuardTest document — lane and precision
+matching cannot tell the two corpora apart. The gate parses `eval_set.source` back into the
+`(corpus, split)` pair the baseline stores and compares them by digest. Mismatch, or a document
+that does not say, is `insufficient_evidence`.
+
+**A condition the gate cannot evaluate is never a condition it reports as passed.** Two cases,
+both of which used to end in `promote`: a slice with no negatives on either arm cannot support
+the false-positive test (all three ExpGuard per-domain slices are recorded with `negatives=0`, so
+gating on `healthcare` degraded to a one-sided recall gate), and a per-category floor the
+candidate does not report is not a floor that was cleared. Both return `insufficient_evidence`.
+
+**The adapter has to outlive the container.** A Modal function's filesystem is ephemeral. The
+generated entrypoint used to write the adapter to `/tmp` and return the run record — which
+produces a *success-shaped* result for a six-hour A100 session that yields no model: `rows_trained`
+is right, the manifest validates, the exit code is 0, and nothing downstream can tell it from a
+real run. Weights now go to a named `modal.Volume`, the function `commit()`s and then reads them
+back before reporting, and it refuses to overwrite an existing `run_id` — an adapter replaced by
+a later run is indistinguishable from one that trained badly.
+
+**The eval lane is what the gate compares, not the training lane.** `_lane_matches` reads
+`lane` and `precision` off the *result document*, so where an adapter trained does not constrain
+the gate; where it was **scored** does. The baseline is `local-rtx5080` at `gguf-q4_k_m`, so a
+Modal-trained adapter must still be merged, quantised and evaluated locally to be comparable.
+Note that the refusal message argues about training-time fp16 loss scaling while the field it
+guards is an eval-time property — two different concerns sharing one name, and worth separating
+before a run is scored on a lane whose training precision nobody recorded.
+
+`ml/parity.py` exits 0 on `promote`, 1 on `reject` and **3** on `insufficient_evidence`. The
+third is not 1 on purpose: "we could not tell" and "it did not work" call for different next
+actions. A recipe with no measured baseline — the four substrate models declare none — exits 3,
+and so does a result document the gate cannot read.
+
+---
+
 ## Tests
 
 ```bash
@@ -441,10 +780,27 @@ cd python/warrantor_ml && PYTHONPATH=src python -m pytest tests -q
 python tools/ci/run_python_checks.py lint     # 54/54 projects
 ```
 
-201 tests, none of which need a GPU, a download, or a running Ollama daemon. The three that
-carry the most weight:
+562 tests, none of which need a GPU, a download, a Hugging Face token or a running Ollama
+daemon. The ones that carry the most weight:
 
 - every required AIBOM field is deleted in turn and the builder must name it and refuse;
 - the confusion-matrix arithmetic is checked against hand-computed values, including the
   "95% accuracy, 0% recall" case the module exists to make visible;
-- `Safety: Safe` + `Categories: Jailbreak` must classify as harmful.
+- `Safety: Safe` + `Categories: Jailbreak` must classify as harmful;
+- the Python mirror of `WarrantBounds::contains` is checked against twelve vectors **decided by
+  Rust**, on both the verdict and which bound was blamed — and the test fails rather than skips
+  when its fixture is missing;
+- a candidate with genuinely better recall and a significantly worse false-positive rate is
+  **rejected**, because a one-sided gate promotes an adapter that refuses everything;
+- a candidate flagging 900 of 1,000 benign prompts on a slice whose baseline has no negatives is
+  `insufficient_evidence`, not `promote` — the gate refuses to decide rather than answering the
+  weaker question it *can* answer;
+- an ExpGuardTest result document scored against the WildGuardTest baseline every guard recipe
+  declares is refused by corpus digest, through the documented CLI, on its exit code;
+- the generated Kaggle and Modal runners are **executed**, not merely `compile()`d, and their
+  data path is driven with a stub tokenizer: labels exist, the prompt is masked, truncation never
+  cuts the verdict. `compile()` passed on a script that died at step 0 with "The model did not
+  return a loss", and on a Modal entrypoint that raised `NameError: name 'null' is not defined`
+  the moment it was imported;
+- the report summariser refuses a `failed` bundle and an `unknown` one with *different*
+  messages, and the `unknown` message contains no accusation.

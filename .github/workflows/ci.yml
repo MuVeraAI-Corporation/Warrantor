@@ -101,6 +101,18 @@ jobs:
           cache-dependency-path: python/*/pyproject.toml
       - name: Install required test tooling
         run: python -m pip install --disable-pip-version-check pytest
+      # The THIRD job to need this, and for the third distinct reason. warrantor_ml's
+      # bounds-interop test shells out to the Rust `emit_bounds_vectors` binary to
+      # produce its fixture, and warrantor-api's build.rs runs tonic-build, which
+      # needs protoc. Without it the fixture cannot be produced and the test fails --
+      # correctly and loudly, because a cross-language check that SKIPS when its
+      # fixture is absent reports success having never run.
+      #
+      # ci.yml's rust and conformance jobs already carry this; coverage.yml learned it
+      # separately. Each workflow job is its own environment and a fix in one does not
+      # propagate, which is exactly how the first two went unnoticed.
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       # Install each project from its own pyproject.toml rather than maintaining a
       # package list here. The previous hardcoded list omitted jsonschema and
       # pyyaml, which both projects declare correctly -- the list was the defect.

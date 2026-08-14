@@ -29,6 +29,29 @@ project would cost far more than it proves. Every test in this project runs with
 | `model_card` | Builds and Ed25519-signs an AIBOM. Refuses to emit one with a missing required field. |
 | `fine_tune` | LoRA/QLoRA planning and training. Pure VRAM arithmetic; no CPU fallback. |
 | `deploy_model` | Binds a fine-tuned adapter behind `ContentScanner` without touching enforcement code. |
+| `benchmark_wildguard` | The held-out WildGuardTest split, broken down adversarial versus plain. |
+| `benchmark_expguard` | The held-out ExpGuardTest split, broken down by vertical domain. |
+
+### The training programme (RFC W2)
+
+| Module | Responsibility |
+| --- | --- |
+| `stats` | Wilson intervals, two-proportion z, and a two-sided improvement verdict. One arithmetic, shared by the vertical benchmark and the parity gate. |
+| `manifest` | Dataset provenance. A validator that **refuses** five named conditions, not a schema that records them. |
+| `teachers` | Open-weight teachers may generate; frontier judges may only score. Enforced by type: `JudgeScore` is not a row type. |
+| `baselines` | The measured numbers from `ml/README.md`, frozen as counts with the backend configuration that produced them. |
+| `leakage` | Normalised-content overlap between a training corpus and an eval split. The augmentation leak, not the published split boundary. |
+| `lanes` | RTX 5080 / Kaggle T4-P100 / Modal A100. Refuses a run that will not fit or will not finish. |
+| `recipes` | The eight recipes as data with a stable digest, so two lanes can run provably the same recipe. |
+| `parity` | The blind gate. `promote` / `reject` / `insufficient_evidence`, two-sided and per-slice. |
+| `lane_export` | Renders the standalone Kaggle and Modal runners from a recipe. Generates text; dispatches nothing. |
+| `build_corpus` | Corpus CLI. `--describe-only` first, always. |
+| `programme` | The recipes / lanes / export / parity CLIs. |
+| `tasks.guard` | Models 1–4. One corpus builder, two selectors, targets pinned to `parse_guard_response`. |
+| `tasks.bounds` | Model 5. Mirrors `WarrantBounds::contains`; scored on over-grant rate, never accuracy. |
+| `tasks.triage` | Model 6. Labels from the operator's next grant, never from the served threshold. |
+| `tasks.effects` | Model 7. Recall on the consequential set; a downgrade across that boundary is counted apart. |
+| `tasks.summary` | Model 8. Accepts only a bundle the Rust verifier vouched for. |
 
 ## Test
 

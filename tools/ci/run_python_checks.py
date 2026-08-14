@@ -201,6 +201,10 @@ def write_report(path: Path, check: str, results: list[ProjectResult]) -> None:
 INTEROP_FIXTURES: list[tuple[str, str, str]] = [
     ("warrantor-notary", "issue_vector_receipts", ".notary_interop_bundle.json"),
     ("warrantor-evidence", "issue_sample_chain", ".evidence_interop.json"),
+    # `warrantor_ml.tasks.bounds` re-implements `WarrantBounds::contains` in order to score the
+    # bound proposer on over-grant rate, and a second implementation of authority arithmetic is
+    # one that can disagree with the first. Rust decides these vectors; Python must agree.
+    ("warrantor-warrant", "emit_bounds_vectors", ".bounds_interop.json"),
 ]
 
 
