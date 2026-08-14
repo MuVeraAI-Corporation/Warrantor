@@ -390,7 +390,15 @@ def parity_gate(
             "pinning a promotion to its evidence, and the eval set is the evidence."
         )
 
-    if not leakage.clean:
+    if unusable := leakage.get("unusable_arms"):
+        blocking.append(
+            f"the leakage check could not run: the {' and '.join(unusable)} corpus supplied "
+            f"rows but none carried text under {leakage.get('field', 'prompt')!r}. A comparison "
+            "over an empty set reports zero overlap, which is indistinguishable from a held-out "
+            "eval set and is why this is a refusal rather than a pass. The usual cause is an "
+            "export written with a different key."
+        )
+    elif not leakage.clean:
         blocking.append(
             f"{leakage['overlapping_eval_rows']} eval row(s) appear in the training corpus "
             f"({leakage['distinct_collisions']} distinct collisions). The eval set is not held "

@@ -66,8 +66,18 @@ class LeakageReport(dict[str, Any]):
 
     @property
     def clean(self) -> bool:
-        """True when no eval row appears in the training corpus."""
+        """True when the check ran over both arms and found no eval row in the training corpus.
 
+        Zero overlap is not sufficient. If either arm fingerprinted nothing while rows were
+        supplied, the comparison did not happen -- the usual cause is an eval export whose text
+        lives under a different key, and the symptom is a report that says CLEAN over an empty
+        set while every eval row is verbatim in the training corpus. That is a false pass on
+        the one check standing between a memorised adapter and promotion, so it is reported as
+        not clean.
+        """
+
+        if self.get("unusable_arms"):
+            return False
         return int(self["overlapping_eval_rows"]) == 0
 
 
@@ -123,10 +133,27 @@ def leakage_report(
         for key in shared[:sample_limit]
     ]
     eval_total = sum(len(ids) for ids in eval_index.values())
+    training_total = sum(len(ids) for ids in training_index.values())
+
+    # Rows were supplied and none of them carried usable text under `field`. Almost always a
+    # key mismatch -- an eval split exported with `text` rather than `prompt` fingerprints to
+    # nothing, collides with nothing, and reports CLEAN while being identical to the training
+    # corpus. Named per arm because the fix differs: the wrong export, or the wrong corpus.
+    unusable_arms = [
+        name
+        for name, supplied, fingerprinted in (
+            ("training", len(training_rows), training_total),
+            ("eval", len(eval_rows), eval_total),
+        )
+        if supplied and not fingerprinted
+    ]
+
     return LeakageReport(
         {
-            "training_rows_fingerprinted": sum(len(ids) for ids in training_index.values()),
+            "training_rows_fingerprinted": training_total,
             "eval_rows_fingerprinted": eval_total,
+            "unusable_arms": unusable_arms,
+            "field": field,
             "distinct_collisions": len(shared),
             "overlapping_eval_rows": overlapping_eval_rows,
             "overlap_fraction_of_eval": (overlapping_eval_rows / eval_total if eval_total else 0.0),

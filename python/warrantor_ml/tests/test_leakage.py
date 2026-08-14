@@ -77,11 +77,19 @@ def test_bare_strings_are_accepted_as_rows() -> None:
 
 
 def test_blank_rows_are_skipped_rather_than_colliding_with_each_other() -> None:
-    """Every empty row would otherwise share one fingerprint and report a false leak."""
+    """Every empty row would otherwise share one fingerprint and report a false leak.
+
+    Skipping them is still right, and it is separate from the verdict: an eval arm left with
+    nothing to compare has not been checked, whatever emptied it. This test originally asserted
+    `clean is True` because the only failure mode it considered was a false LEAK; the false
+    PASS is the more dangerous direction and the one the gate now refuses on.
+    """
 
     report = leakage_report([{"prompt": "   "}, {"prompt": "real"}], [{"prompt": ""}])
-    assert report.clean is True
     assert report["eval_rows_fingerprinted"] == 0
+    assert report["distinct_collisions"] == 0  # the blanks did NOT fingerprint together
+    assert report["unusable_arms"] == ["eval"]
+    assert report.clean is False
 
 
 def test_multiple_eval_rows_behind_one_collision_are_all_counted() -> None:
@@ -103,3 +111,39 @@ def test_the_field_is_configurable_for_non_guard_corpora() -> None:
 def test_the_report_names_the_leak_path_it_exists_for() -> None:
     report = leakage_report([{"prompt": "a"}], [{"prompt": "b"}])
     assert "Teacher augmentation" in report["note"]
+
+
+def test_an_eval_export_with_the_wrong_key_is_not_reported_clean() -> None:
+    """The dangerous case: zero fingerprints, zero collisions, and total contamination.
+
+    An eval split exported under `text` rather than `prompt` fingerprints to nothing, so it
+    collides with nothing and the report reads CLEAN -- while every eval row is verbatim in the
+    training corpus. That is a false pass on the one check standing between a memorised adapter
+    and promotion.
+    """
+
+    training = [{"prompt": "fake an invoice"}, {"prompt": "advise on my dose"}]
+    exported_wrong = [{"text": "fake an invoice"}, {"text": "advise on my dose"}]
+
+    report = leakage_report(training, exported_wrong, field="prompt")
+
+    assert report["eval_rows_fingerprinted"] == 0
+    assert report["distinct_collisions"] == 0  # nothing to collide with
+    assert report["unusable_arms"] == ["eval"]
+    assert not report.clean
+
+
+def test_a_genuinely_empty_arm_is_not_treated_as_a_key_mismatch() -> None:
+    """Supplying no rows is a different fact from supplying rows that carry no text."""
+
+    report = leakage_report([{"prompt": "a row"}], [], field="prompt")
+    assert report["unusable_arms"] == []
+    assert report.clean
+
+
+def test_both_arms_are_named_when_both_are_unusable() -> None:
+    """The fix differs per arm -- the wrong export, or the wrong corpus."""
+
+    report = leakage_report([{"text": "x"}], [{"text": "x"}], field="prompt")
+    assert report["unusable_arms"] == ["training", "eval"]
+    assert not report.clean
