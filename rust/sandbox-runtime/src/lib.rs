@@ -110,6 +110,30 @@ pub const fn default_max_wall_clock_ms() -> u64 {
 /// increment per tick on a single shared thread.
 const EPOCH_TICK: std::time::Duration = std::time::Duration::from_millis(10);
 
+/// A wall-clock budget in milliseconds, as a number of epoch ticks — never zero.
+///
+/// Rounded UP so a sub-tick budget still yields at least one tick. A deadline of zero traps
+/// immediately, which would turn "one millisecond" into "no time at all" — the shortest budget a
+/// caller can express would be the one budget that can never succeed.
+///
+/// Separated from [`SandboxRuntime::execute`] because it is the only part of the sub-tick
+/// behaviour that can be asserted deterministically. How much wall time one tick actually buys a
+/// guest is not a property of this code: the ticker below is free-running per engine, so a
+/// deadline of one tick lands anywhere between zero and [`EPOCH_TICK`] from the guest's first
+/// instruction, depending on where in the ticker's cycle it started. A test that runs a guest
+/// under a one-tick deadline and requires it to finish is asserting that the machine is fast, and
+/// it fails on a loaded CI runner — which is exactly what happened after the wasmtime 47 bump.
+#[must_use]
+const fn epoch_deadline_ticks(max_wall_clock_ms: u64) -> u64 {
+    let tick_ms = EPOCH_TICK.as_millis() as u64;
+    let ticks = max_wall_clock_ms.div_ceil(if tick_ms == 0 { 1 } else { tick_ms });
+    if ticks == 0 {
+        1
+    } else {
+        ticks
+    }
+}
+
 impl SandboxPolicy {
     /// Construct a zero-host-authority policy with bounded compute and memory.
     #[must_use]
@@ -529,13 +553,7 @@ impl SandboxRuntime {
         store
             .set_fuel(policy.max_fuel)
             .map_err(|error| SandboxError::RuntimeUnavailable(error.to_string()))?;
-        // Wall-clock deadline, in ticks. Rounded UP so a sub-tick budget still yields at
-        // least one tick rather than a deadline of zero, which would trap immediately.
-        let ticks = policy
-            .max_wall_clock_ms
-            .div_ceil(EPOCH_TICK.as_millis().max(1) as u64)
-            .max(1);
-        store.set_epoch_deadline(ticks);
+        store.set_epoch_deadline(epoch_deadline_ticks(policy.max_wall_clock_ms));
         let mut linker = Linker::new(&self.engine);
         define_host_abi(&mut linker)?;
         let execution = (|| -> WasmtimeResult<i32> {
@@ -1177,21 +1195,47 @@ mod tests {
 
     /// A sub-tick budget must round up to one tick, not a zero deadline that traps before
     /// the guest runs at all.
+    ///
+    /// This used to run a trivial guest under `max_wall_clock_ms = 1` and require it to finish.
+    /// That assertion is a race, and it started losing on CI after the wasmtime 47 bump: the
+    /// epoch ticker is free-running per engine, so a one-tick deadline lands anywhere between
+    /// zero and 10ms from the guest's first instruction. Whether a guest beats it is a fact about
+    /// the runner's scheduler, not about this crate — and a test whose subject is the machine
+    /// fails on a busy machine, then gets re-run until it passes, which is how a real deadline
+    /// regression would get waved through.
+    ///
+    /// The rounding is the part this crate owns, so the rounding is what is asserted.
     #[test]
-    fn a_tiny_deadline_still_lets_a_trivial_guest_finish() {
-        let mut tiny = policy();
-        tiny.max_wall_clock_ms = 1; // below one 10ms tick
-        let result = runtime(
-            Arc::new(RecordingAudit::default()),
-            Arc::new(RecordingBackend::default()),
-        )
-        .execute(
-            &signed(tiny),
-            &request("(module (func (export \"run\") (result i32) i32.const 7))"),
-        )
-        .expect("a trivial guest must complete under a sub-tick budget");
-        assert_eq!(result.value, 7);
+    fn a_sub_tick_budget_rounds_up_to_one_tick_and_never_to_zero() {
+        assert_eq!(
+            epoch_deadline_ticks(1),
+            1,
+            "1ms is below one tick and must not floor to 0"
+        );
+        assert_eq!(epoch_deadline_ticks(9), 1);
+        assert_eq!(
+            epoch_deadline_ticks(10),
+            1,
+            "exactly one tick stays one tick"
+        );
+        assert_eq!(
+            epoch_deadline_ticks(11),
+            2,
+            "a millisecond past a tick buys the next one"
+        );
+        assert_eq!(epoch_deadline_ticks(200), 20);
+        assert_eq!(
+            epoch_deadline_ticks(0),
+            1,
+            "even a zero budget gets a tick: a deadline of zero traps before the guest's first \
+             instruction, so the policy would be unenforceable rather than strict"
+        );
     }
+
+    // That the deadline actually fires is already covered, correctly, by
+    // `a_spinning_guest_is_stopped_by_the_deadline_not_by_fuel` above — which sets max_fuel to
+    // u64::MAX / 2 so fuel cannot be what stops the guest. Nothing is added here; the removed
+    // sub-tick test's end-to-end half was never the part carrying the coverage.
 
     /// Pull the failure_class off the ExecutionFinal audit event.
     fn final_failure_class(audit: &RecordingAudit) -> Option<String> {
