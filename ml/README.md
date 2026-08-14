@@ -270,10 +270,17 @@ to be detectably better than the untuned 0.6B, and **0.891** to clear the 4B. An
 a question this eval set cannot answer, and `parity_gate` correctly returns within-noise rather
 than promoting on it. Plan the run against that bar, not against the raw baseline number.
 
-**The two models have different weak classes.** `copyright_violations` (0.7742) is among the
-0.6B's worst and is not in the 4B's worst three, so a weak-category corpus selected from the 4B's
-per-category measurements does not target where the 0.6B actually fails. The corpus built for
-`guard-0.6b-weak-category` inherits that mismatch.
+**The weak-category selection transfers between the two models — mostly.** `WEAK_CATEGORIES` is
+derived from the 4B's per-category recall, and it targets three of the 0.6B's worst four anyway
+(`others` 0.7551, `social_stereotypes_and_unfair_discrimination` 0.7763,
+`fraud_assisting_illegal_activities` 0.7833). The only class it misses is `copyright_violations`
+at 24/31 — and at n=31 the Wilson interval is [0.602, 0.886], overlapping every other class, so
+it is not established as weak at all.
+
+Worth stating because an earlier draft of this section claimed the selection missed the 0.6B's
+real gaps. It does not, and that claim was a story read into 31 samples — the same mistake the
+per-domain analysis below exists to warn against. The fourth declared target, `Unqualified
+Professional Advice`, is missed for a different and real reason: it is not in this corpus.
 
 All four are registered as baselines (`wildguardtest-` and `expguardtest-` × `-4b` and
 `-0.6b`) so a candidate can be gated against any of them, and so neither half of the size

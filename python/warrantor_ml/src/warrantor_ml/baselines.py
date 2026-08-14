@@ -392,9 +392,15 @@ _WILDGUARD_0_6B = MeasuredBaseline(
         "The two models trade places by slice: the 0.6B is HIGHER on plain prompts (0.8959 vs "
         "0.8886) and lower under adversarial phrasing (0.7918 vs 0.8152). The aggregate hides "
         "that, and the adversarial slice is the one a security product is judged on.",
-        "Weakest classes differ from the 4B's: `copyright_violations` (0.7742) is weak here and "
-        "is not among the 4B's worst three, so a weak-category corpus selected against the 4B's "
-        "measurements does not target this model's actual gaps.",
+        "The weak-category corpus, selected from the 4B's per-category numbers, targets THREE "
+        "of this model's worst four anyway (`others` 0.7551, "
+        "`social_stereotypes_and_unfair_discrimination` 0.7763, "
+        "`fraud_assisting_illegal_activities` 0.7833). The only miss is `copyright_violations` "
+        "at 24/31 -- and at n=31 its Wilson interval is [0.602, 0.886], overlapping every other "
+        "class, so it is not established as weak at all. An earlier reading of this table "
+        "claimed the selection missed this model's gaps; that was a story read into 31 samples, "
+        "which is the failure the per-domain analysis in `benchmark_expguard` exists to warn "
+        "about.",
         "26 rows carry a null prompt_harm_label and are excluded, never coerced to safe.",
     ),
 )
