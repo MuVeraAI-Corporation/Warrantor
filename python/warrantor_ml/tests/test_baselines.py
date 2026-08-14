@@ -17,6 +17,7 @@ def test_every_measured_baseline_is_registered() -> None:
         "wildguardtest-qwen3guard-gen-4b",
         "expguardtest-qwen3guard-gen-4b",
         "wildguardtest-qwen3guard-gen-0.6b",
+        "expguardtest-qwen3guard-gen-0.6b",
     }
 
 
@@ -178,3 +179,27 @@ def test_the_baseline_digest_is_stable() -> None:
 def test_an_unknown_slice_names_the_slices_that_exist() -> None:
     with pytest.raises(KeyError, match="have:"):
         get_baseline("wildguardtest-qwen3guard-gen-4b").slice("nonexistent")
+
+
+def test_the_size_question_has_a_domain_dependent_answer() -> None:
+    """Read one corpus alone and the 0.6B-versus-4B conclusion comes out wrong.
+
+    On general safety the 4B is not measurably better (z = -0.363). On professional-vertical
+    content it is (z = -2.539). Both baselines are registered so neither half can be quoted
+    without the other being available to contradict it.
+    """
+
+    def overall(baseline_id: str) -> float:
+        baseline = get_baseline(baseline_id)
+        return next(s for s in baseline.slices if s.name == "overall").recall
+
+    wild_gap = overall("wildguardtest-qwen3guard-gen-4b") - overall(
+        "wildguardtest-qwen3guard-gen-0.6b"
+    )
+    exp_gap = overall("expguardtest-qwen3guard-gen-4b") - overall(
+        "expguardtest-qwen3guard-gen-0.6b"
+    )
+
+    # The vertical corpus separates the two models by roughly seven times as much.
+    assert wild_gap < 0.01
+    assert exp_gap > 0.04

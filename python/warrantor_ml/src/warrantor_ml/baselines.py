@@ -399,8 +399,69 @@ _WILDGUARD_0_6B = MeasuredBaseline(
     ),
 )
 
+# ExpGuardTest, 2,275 rows, 1,256 positives, 358 missed -> recall 0.7150. Measured 2026-08-13,
+# same split / seed / num_ctx / quantisation as _EXPGUARD, 1,068 s wall clock.
+#
+# This is the measurement that CORRECTS the WildGuard one. Read the two together or the size
+# question gets the wrong answer.
+_EXPGUARD_0_6B = MeasuredBaseline(
+    baseline_id="expguardtest-qwen3guard-gen-0.6b",
+    corpus="6rightjade/expguardmix",
+    split="expguardtest.parquet",
+    model_tag="Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M",
+    backend=_OLLAMA_BACKEND,
+    policy=_FAIL_CLOSED_POLICY,
+    slices=(
+        BaselineSlice(
+            name="overall",
+            recall=0.7150,
+            positives=1256,
+            false_positive_rate=0.0873,
+            negatives=1019,
+            precision=0.9098,
+            total=2275,
+        ),
+    ),
+    per_category_recall={
+        "Unqualified Professional Advice": 0.3719,
+        "Privacy Violation": 0.4800,
+        "Violence & Incitement": 0.6481,
+        "Self-Harm & Suicide Promotion": 0.6607,
+        "Fraud, Scams & Deception": 0.7629,
+        "Criminal Planning": 0.8062,
+    },
+    notes=(
+        "THE SIZE QUESTION HAS A DOMAIN-DEPENDENT ANSWER, and this is the half that is easy to "
+        "miss. On WildGuardTest the 4B is NOT measurably better than the 0.6B (z = -0.363). "
+        "Here it is: 0.7150 against 0.7596 is z = -2.539, significant at 95%, with intervals "
+        "(0.6894-0.7392) and (0.7352-0.7824) that barely touch. Parameter count buys nothing on "
+        "general safety and buys 4.5 points of recall on professional-vertical content. A "
+        "conclusion drawn from either corpus alone is wrong about the other.",
+        "That decides the desktop packaging question against the cheap answer: for a product "
+        "aimed at regulated and professional verticals, the 4B earns its 3.2 GB. The 0.6B is "
+        "adequate only where the traffic is general-safety shaped.",
+        "`Unqualified Professional Advice` is 0.3719 here (45/121) against the 4B's 0.4298 -- "
+        "the weakest actionable class on both models, and the one the weak-category recipes "
+        "name as their headline target. It exists ONLY in this corpus: the WildGuardMix train "
+        "split has no such category, so it cannot be trained for from WildGuard rows.",
+        "Ignore the single-digit categories. Harmful Misinformation (1/7), Harassment (3/8), "
+        "Hate Speech (2/3), Sexual Content (2/3) and Illegal Weapons (1/1) carry no information "
+        "at those counts and are not tuning targets.",
+        "No domain pair separates at 95% (largest |z| = 1.67), reproducing the 4B's finding that "
+        "the apparent finance/healthcare/law spread is a category prevalence artifact rather "
+        "than a domain effect.",
+        "Every slice here has negatives=0 per domain in the source document, so a per-domain "
+        "false-positive gate has no denominator and must return insufficient_evidence.",
+    ),
+    commercial_clearance=(
+        "NOT CLEARED. ExpGuardMix-derived: its click-through is narrower than its licence and "
+        "its corpus was frontier-generated upstream. A promotion here is a quality verdict only."
+    ),
+)
+
 BASELINES: dict[str, MeasuredBaseline] = {
-    baseline.baseline_id: baseline for baseline in (_WILDGUARD, _EXPGUARD, _WILDGUARD_0_6B)
+    baseline.baseline_id: baseline
+    for baseline in (_WILDGUARD, _EXPGUARD, _WILDGUARD_0_6B, _EXPGUARD_0_6B)
 }
 
 

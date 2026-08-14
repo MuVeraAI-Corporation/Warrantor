@@ -231,9 +231,24 @@ The backend configuration is recorded in the output (model digest, seed, tempera
 because every one of them changes the result, and a benchmark that does not record what it ran is
 a number without a claim attached.
 
-#### The 4B is not measurably better than the 0.6B
+#### Is the 4B worth 7× the parameters? It depends on the corpus
 
-Measured 2026-08-13 on the same split, seed, `num_ctx` and quantisation:
+Measured 2026-08-13, both models on the same splits, seed, `num_ctx` and quantisation:
+
+| Corpus | 0.6B | 4B | z | verdict |
+| --- | --- | --- | --- | --- |
+| WildGuardTest (general safety) | 0.8488 | 0.8554 | −0.363 | **not** significant |
+| ExpGuardTest (finance / healthcare / law) | 0.7150 | 0.7596 | **−2.539** | **significant at 95%** |
+
+**Read both rows or the answer comes out wrong.** Parameter count buys nothing measurable on
+general safety and buys 4.5 points of recall on professional-vertical content. Either corpus
+alone supports a confident conclusion that the other contradicts.
+
+That decides the packaging question against the cheap answer: for a product aimed at regulated
+and professional verticals, **the 4B earns its 3.2 GB**. The 0.6B is adequate only where the
+traffic is general-safety shaped.
+
+The general-safety detail, which is still the right comparison for that traffic:
 
 | | 0.6B | 4B | |
 | --- | --- | --- | --- |
@@ -244,10 +259,9 @@ Measured 2026-08-13 on the same split, seed, `num_ctx` and quantisation:
 | `adversarial=false` recall | **0.8959** | 0.8886 | the *small* model is ahead here |
 | `adversarial=true` recall | 0.7918 | **0.8152** | and behind here |
 
-Seven times the parameters buys nothing this split can resolve. That is the same finding the
-model-selection paper reports across 14 guard models, arriving independently on our own corpus —
-and it is the number that matters for the desktop app, where the 0.6B is 1.4 GB resident against
-the 4B's 3.2 GB.
+On *this* split seven times the parameters buys nothing measurable — the same finding the
+model-selection paper reports across 14 guard models, arriving independently on our own corpus.
+The vertical corpus above is where it stops holding.
 
 Two consequences that are easy to miss:
 
@@ -261,10 +275,17 @@ than promoting on it. Plan the run against that bar, not against the raw baselin
 per-category measurements does not target where the 0.6B actually fails. The corpus built for
 `guard-0.6b-weak-category` inherits that mismatch.
 
-Both are registered as baselines (`wildguardtest-qwen3guard-gen-4b`,
-`wildguardtest-qwen3guard-gen-0.6b`) so a candidate can be gated against either. The 0.6B one
-exists because without a same-size comparator, a rejection cannot distinguish "the fine-tune did
-not work" from "0.6B is smaller than 4B" — different findings, different next actions.
+All four are registered as baselines (`wildguardtest-` and `expguardtest-` × `-4b` and
+`-0.6b`) so a candidate can be gated against any of them, and so neither half of the size
+finding can be quoted without the other being available to contradict it. The 0.6B pair exists
+because without a same-size comparator, a rejection cannot distinguish "the fine-tune did not
+work" from "0.6B is smaller than 4B" — different findings, different next actions.
+
+On ExpGuardTest the 0.6B scores **`Unqualified Professional Advice` at 0.3719** (45/121) against
+the 4B's 0.4298 — the weakest actionable class on both models, the headline target of both
+weak-category recipes, and a category that exists *only in this corpus*. Ignore the single-digit
+classes there (Harmful Misinformation 1/7, Harassment 3/8, Illegal Weapons 1/1): they carry no
+information at those counts and are not tuning targets.
 
 ### `benchmark_expguard.py` — does a general guard hold up per vertical?
 
