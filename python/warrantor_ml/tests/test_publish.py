@@ -18,6 +18,7 @@ from warrantor_ml.publish import (
     candidate_model_name,
     convert_command,
     plan_publish,
+    publish,
 )
 
 BASE = "hf.co/mradermacher/Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M"
@@ -133,3 +134,37 @@ def test_the_converter_runs_under_this_interpreter_by_default(tmp_path: Path) ->
     )
     assert convert_command(plan, Path("c.py"))[0] == sys.executable
     assert convert_command(plan, Path("c.py"), "/other/venv/bin/python")[0] == "/other/venv/bin/python"
+
+
+def test_neither_a_converter_nor_a_gguf_is_refused(tmp_path: Path) -> None:
+    """Registering without an adapter yields a tag that scores as the untuned base.
+
+    That is the worst outcome available here: a candidate model name whose numbers are the
+    baseline's, compared against the baseline, reported as a fair test of the fine-tune.
+    """
+
+    plan = plan_publish(
+        _adapter(tmp_path),
+        _snapshot(tmp_path),
+        BASE,
+        "guard-0.6b-weak-category",
+        "run",
+        tmp_path / "work",
+    )
+    with pytest.raises(PublishRefused, match="--converter or --gguf"):
+        publish(plan)
+
+
+def test_a_prebuilt_gguf_that_is_not_there_is_refused(tmp_path: Path) -> None:
+    """The split-environment path must not be the one that skips the existence check."""
+
+    plan = plan_publish(
+        _adapter(tmp_path),
+        _snapshot(tmp_path),
+        BASE,
+        "guard-0.6b-weak-category",
+        "run",
+        tmp_path / "work",
+    )
+    with pytest.raises(PublishRefused, match="no GGUF adapter"):
+        publish(plan, prebuilt_gguf=tmp_path / "absent.gguf")

@@ -186,18 +186,47 @@ def convert_command(
     ]
 
 
-def publish(plan: PublishPlan, converter: Path, interpreter: str | None = None) -> dict[str, str]:
-    """Convert and register. Returns the plan plus what was produced."""
+def publish(
+    plan: PublishPlan,
+    converter: Path | None = None,
+    interpreter: str | None = None,
+    prebuilt_gguf: Path | None = None,
+) -> dict[str, str]:
+    """Convert and register. Returns the plan plus what was produced.
+
+    ``prebuilt_gguf`` skips the conversion and registers an adapter converted elsewhere. That is
+    not a convenience: the converter needs torch in a CUDA-capable environment while Ollama runs
+    wherever the GPU is exposed to it, and on a Windows box with a WSL training venv those are
+    two filesystems with two path forms that cannot be handed to one subprocess. Splitting the
+    phases is the honest fit rather than pretending one interpreter can reach both.
+    """
 
     plan.gguf_out.parent.mkdir(parents=True, exist_ok=True)
 
-    completed = subprocess.run(  # fixed argv, never a shell string
-        convert_command(plan, converter, interpreter), capture_output=True, text=True, check=False
-    )
-    if completed.returncode != 0:
-        raise PublishRefused(
-            f"convert_lora_to_gguf.py failed ({completed.returncode}):\n{completed.stderr[-2000:]}"
+    if prebuilt_gguf is not None:
+        if not prebuilt_gguf.is_file():
+            raise PublishRefused(f"no GGUF adapter at {prebuilt_gguf}")
+        if prebuilt_gguf.resolve() != plan.gguf_out.resolve():
+            shutil.copyfile(prebuilt_gguf, plan.gguf_out)
+    else:
+        if converter is None:
+            raise PublishRefused(
+                "one of --converter or --gguf is required: either convert the adapter here, or "
+                "name one converted elsewhere. Neither is assumed, because registering without "
+                "an adapter yields a model tag that scores as the untuned base."
+            )
+        completed = subprocess.run(  # fixed argv, never a shell string
+            convert_command(plan, converter, interpreter),
+            capture_output=True,
+            text=True,
+            check=False,
         )
+        if completed.returncode != 0:
+            raise PublishRefused(
+                f"convert_lora_to_gguf.py failed ({completed.returncode}):"
+                f"\n{completed.stderr[-2000:]}"
+            )
+
     if not plan.gguf_out.is_file():
         raise PublishRefused(
             f"the converter reported success and wrote no file at {plan.gguf_out}. "
@@ -262,8 +291,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--converter",
         type=Path,
-        required=True,
-        help="path to llama.cpp's convert_lora_to_gguf.py (pure Python; no C++ build needed)",
+        help="path to llama.cpp's convert_lora_to_gguf.py (pure Python; no C++ build needed). "
+        "One of --converter or --gguf is required",
+    )
+    parser.add_argument(
+        "--gguf",
+        type=Path,
+        help="an already-converted GGUF adapter, skipping the conversion. Use this when the "
+        "converter and Ollama live in different environments -- a WSL training venv and a "
+        "Windows Ollama cannot be handed to one subprocess",
     )
     parser.add_argument(
         "--python",
@@ -301,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
-        record = publish(plan, arguments.converter, arguments.python)
+        record = publish(plan, arguments.converter, arguments.python, arguments.gguf)
     except PublishRefused as refusal:
         print(f"\nNOT PUBLISHED\n{refusal}")
         return 2

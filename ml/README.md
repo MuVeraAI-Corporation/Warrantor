@@ -422,12 +422,24 @@ python ml/publish_adapter.py \
 ```
 
 `--python` names the interpreter the converter runs under, defaulting to the one running the
-tool. It matters whenever torch, safetensors and gguf live somewhere else — on this box the
-training environment is a WSL venv while Ollama is on Windows, so the conversion step runs as
-`--python ~/foundry/.venv-foundry/bin/python` from inside WSL and the `ollama create` step runs
-on the Windows side. Hardcoding `python` would have picked whatever is first on PATH and failed
-with an ImportError seconds into a conversion, after the run that produced the adapter was
-already spent.
+tool. Hardcoding `python` would pick whatever is first on PATH and fail with an ImportError
+seconds into a conversion, after the run that produced the adapter is already spent.
+
+**When the converter and Ollama live in different environments, split the phases.** That is the
+case on this box — torch is in a WSL venv, Ollama is on Windows, and the two path forms cannot
+be handed to one subprocess. Convert in WSL, register on Windows:
+
+```bash
+# in WSL, where torch and gguf are:
+python ~/llama.cpp/convert_lora_to_gguf.py --outtype f16     --base /mnt/m/hf/hub/models--Qwen--Qwen3Guard-Gen-0.6B/snapshots/<sha>     --outfile /mnt/m/wt-mlpipeline/adapters/<run-id>.gguf     /mnt/m/wt-mlpipeline/adapters/<run-id>
+
+# on Windows, where Ollama is -- --gguf skips the conversion:
+python ml/publish_adapter.py --adapter adapters/<run-id> --gguf adapters/<run-id>.gguf     --base-snapshot M:/hf/hub/models--Qwen--Qwen3Guard-Gen-0.6B/snapshots/<sha>     --ollama-base hf.co/mradermacher/Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M     --recipe-id guard-0.6b-weak-category --run-id <run-id>
+```
+
+One of `--converter` or `--gguf` is required and neither is assumed: registering without an
+adapter produces a model tag whose numbers are the untuned base's, compared against the
+baseline, and reported as a fair test of the fine-tune.
 
 Three things it knows that cost time to find out, each of which is asserted by a test rather
 than left as folklore:
