@@ -59,17 +59,21 @@ const ELEMENT_IDS = [
   'summary',
   'summary-form',
   'summary-month',
+  'summary-month-error',
   'summary-error',
   'summary-window',
   'summary-caveat',
+  'summary-unreadable',
   'summary-refusals',
   'summary-refusals-empty',
   'summary-refusals-note',
   'summary-guard',
   'summary-guard-unknown',
   'summary-guard-none',
+  'summary-guard-unattributed',
   'summary-guard-quiet',
   'summary-guard-note',
+  'summary-guard-caveats',
   'summary-coverage',
   'summary-coverage-note',
 ];
@@ -221,6 +225,45 @@ const ONE_WARRANT = [
     verification: { integrity: 'ok' },
   },
 ];
+
+// ── the stub and the page it stands in for ────────────────────────────────────────────────
+
+// ELEMENT_IDS is a second copy of what index.html declares, and nothing used to check the two
+// agreed. Adding four elements to the page left the stub without them, `getElementById` returned
+// null for each, and eight tests died on `Cannot set properties of null (setting 'hidden')` —
+// eight failures, in tests about guard states, none of which named the actual problem.
+//
+// This test names it. It reads the real index.html and the real console.js rather than a list
+// maintained beside them, so the next element added to the page either appears here or fails with
+// a sentence saying which id is missing and from where.
+test('every element the console looks up exists in index.html and in this stub', async () => {
+  const { readFileSync } = await import('node:fs');
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const read = (name) => readFileSync(path.join(here, name), 'utf8');
+
+  const lookedUp = [...read('console.js').matchAll(/getElementById\('([a-z0-9-]+)'\)/g)].map(
+    (match) => match[1],
+  );
+  const onThePage = new Set(
+    [...read('index.html').matchAll(/id="([a-z0-9-]+)"/g)].map((match) => match[1]),
+  );
+  const stubbed = new Set(ELEMENT_IDS);
+
+  const missingFromPage = [...new Set(lookedUp)].filter((id) => !onThePage.has(id)).sort();
+  const missingFromStub = [...new Set(lookedUp)].filter((id) => !stubbed.has(id)).sort();
+
+  assert.deepEqual(
+    missingFromPage,
+    [],
+    `console.js looks up ids that index.html does not declare: ${missingFromPage.join(', ')}`,
+  );
+  assert.deepEqual(
+    missingFromStub,
+    [],
+    `console.js looks up ids this test file's ELEMENT_IDS does not stub, so they resolve to null \
+and every test touching them fails somewhere unrelated: ${missingFromStub.join(', ')}`,
+  );
+});
 
 // ── listFacts: what a response established, not what reading it optimistically yields ─────
 
@@ -575,6 +618,9 @@ test('no coverage is four different sentences, and one never stands in for anoth
   assert.equal(module.guardKind({ configured: false, groups: [GUARD_GROUP] }), 'groups');
 });
 
+/** Every coverage counter at zero: the only shape that supports "nothing was looked at". */
+const NO_COVERAGE = Object.fromEntries(Object.keys(COVERAGE).map((key) => [key, 0]));
+
 test('a month in which no guard attached says NO COVERAGE, not an empty reassuring table', async () => {
   const app = await openSummary(
     summaryBody({
@@ -583,12 +629,19 @@ test('a month in which no guard attached says NO COVERAGE, not an empty reassuri
         enforcing: false,
         blocking_posture: null,
         groups: [],
-        coverage: { ...COVERAGE, sessions_attached: 0, sessions_finished: 0 },
+        // Every counter zero. This fixture used to spread COVERAGE and zero only the two
+        // `sessions_*` fields, leaving classified: 9 and flagged: 3 under a note reading "No
+        // guard was attached to any run in this store." That is not the no-coverage state -- it
+        // is the contradiction this change exists to stop rendering, and the test asserting
+        // NO COVERAGE over it was pinning the defect in place. The state it meant to describe is
+        // below; the state it actually built is the test after it.
+        coverage: { ...NO_COVERAGE },
         note: 'No guard was attached to any run in this store.',
       },
     }),
   );
   assert.equal(app.el('summary-guard-none').hidden, false);
+  assert.equal(app.el('summary-guard-unattributed').hidden, true);
   assert.equal(app.el('summary-guard-quiet').hidden, true);
   assert.equal(app.el('summary-guard-unknown').hidden, true);
   assert.match(
@@ -596,6 +649,36 @@ test('a month in which no guard attached says NO COVERAGE, not an empty reassuri
     /posture not stated/,
     'a log with nothing in it has no posture, and a default would be a claim',
   );
+});
+
+test('counts with no attach record are UNATTRIBUTED, never NO COVERAGE', async () => {
+  const app = await openSummary(
+    summaryBody({
+      guard: {
+        configured: false,
+        enforcing: false,
+        blocking_posture: null,
+        groups: [],
+        // `configured` is `!sessions.is_empty()` on the server, so it is false both when nothing
+        // ran and when something ran whose attach record is not in what was read. These counts
+        // can only come from a guard, so the second reading is the true one here.
+        coverage: { ...COVERAGE, sessions_attached: 0, sessions_finished: 0 },
+        note: 'Guard signals were recorded without an attach record.',
+      },
+    }),
+  );
+  assert.equal(
+    app.el('summary-guard-none').hidden,
+    true,
+    'NO COVERAGE cannot be printed above a coverage table whose own counts contradict it',
+  );
+  assert.equal(
+    app.el('summary-guard-unattributed').hidden,
+    false,
+    'something watched and cannot be named -- the opposite claim to nothing watched',
+  );
+  assert.equal(app.el('summary-guard-quiet').hidden, true);
+  assert.equal(app.el('summary-guard-unknown').hidden, true);
 });
 
 test('what was not looked at is counted, and no miss is estimated from a benchmark', async () => {
