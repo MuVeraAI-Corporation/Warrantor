@@ -68,6 +68,7 @@ fn export_bytes(id: &str, goal: &str) -> Vec<u8> {
         repo: None,
         branch: None,
         base_commit: None,
+        staged_chain: None,
     };
     let dir = tempdir("append");
     let queue =
