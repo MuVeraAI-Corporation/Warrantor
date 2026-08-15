@@ -291,10 +291,23 @@ Three things it makes visible that nothing reported before:
   raw agent stdout and stderr, unsigned, in no evidence bundle, and the most likely to hold source,
   prompts and secrets.
 
-What is deliberately **not** shipped: any deletion, and any retention window to configure. A
-`retention.json` an operator could fill in while no job enforced it would read as a policy in force,
-which is worse than the absence it replaces — so `holdings` states on every class that no deletion
-authority exists in this build. Storage still grows without bound.
+**The prune half has shipped, gated to the only classes it can honestly delete.**
+`retention.json` (the archive's `retention_policy` shape: `enabled` separate from
+`window_seconds`, deleting anything only when both say so) is the policy;
+`warrantor prune` is the enforcement — **dry run by default**, `--apply` to act. The gate is in
+the code, not the config: the job deletes only `NoIntegrityConsequence` classes (`logs/` today),
+refuses every other class by construction, and prints the refusals with their effects so an
+operator reads what is NOT going as easily as what is. `holdings` now states the truth per class
+under the policy in force: the window and the command for prunable classes, "never removed by
+warrantor" for everything else, the old no-authority sentence when no policy exists, and a BROKEN
+line when one exists and will not parse.
+
+What is deliberately **not** shipped: pruning of any class a verdict, an answer or a piece of
+evidence depends on. Extending the gate to `staged/` — the first class worth asking for —
+requires writing the chain witness forward into a tombstone at deletion time, and that design is
+recorded below with the other facts. The archive's own `retention_policy` table also remains
+unwired by anything server-side: the local answer came first, and the server half should read
+this one before growing its own.
 
 Two facts worth recording for whoever writes the prune:
 

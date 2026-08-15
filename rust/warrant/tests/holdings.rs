@@ -111,10 +111,13 @@ fn every_class_is_reported_whether_or_not_it_exists_on_disk() {
     );
 }
 
-/// The absent-limit rule, in the only form this build can honestly state it: there is no window,
-/// because there is no job. Said on every class, not once at the top.
+/// The absent-limit rule, still true in the state most machines are in: with no `retention.json`
+/// there is no window, and every class says so rather than implying one. The prune job exists
+/// now, but it refuses to act without a policy, so the statement stays honest until an operator
+/// writes one — at which point the per-class lines change to the window and the never-lines
+/// (covered in `tests/prune.rs`).
 #[test]
-fn no_retention_window_is_offered_because_nothing_would_enforce_one() {
+fn no_retention_window_is_offered_until_a_policy_exists() {
     let dir = tempdir("no-window");
     let store = WarrantStore::open(&dir).expect("open");
     let text = retention::render_cli(&retention::holdings(&store, NOW).expect("holdings"));
