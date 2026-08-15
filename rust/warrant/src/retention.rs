@@ -440,6 +440,16 @@ pub struct Holdings {
     /// For these, a deleted staged log still reads as an empty queue — the pre-witness behaviour.
     /// Reported because "we cannot prove it for this many" is the honest form of the answer.
     pub unwitnessed_chains: usize,
+    /// The prune policy in force, when one exists. Absent means no deletion authority: storage
+    /// grows without bound, and every class line says so rather than implying a window.
+    #[serde(default)]
+    pub retention: Option<PrunePolicy>,
+    /// Set when a `retention.json` exists and cannot be read: the operator wrote a window and it
+    /// is enforcing nothing, which must be said on the listing rather than making the listing
+    /// fail — an inventory that refuses to render leaves the operator with less than one that
+    /// renders with a complaint.
+    #[serde(default)]
+    pub retention_error: Option<String>,
 }
 
 /// Count what the store holds. Reads only; nothing here writes or deletes.
@@ -452,6 +462,14 @@ pub struct Holdings {
 pub fn holdings(store: &WarrantStore, now: u64) -> Result<Holdings, WarrantError> {
     let root = store.root().to_path_buf();
     let (warrants, unparseable) = store.list_counting_unreadable()?;
+    // The prune policy is read here rather than at render time so the rendered answer and the
+    // API answer agree. A policy that exists but will not parse is carried as an error on the
+    // answer rather than failing it: the operator with a broken window configured must read a
+    // listing that says so, and a listing that refuses to render says nothing at all.
+    let (retention, retention_error) = match PrunePolicy::load(&root) {
+        Ok(policy) => (policy, None),
+        Err(e) => (None, Some(e)),
+    };
 
     let classes = ALL_CLASSES
         .into_iter()
@@ -515,6 +533,8 @@ pub fn holdings(store: &WarrantStore, now: u64) -> Result<Holdings, WarrantError
         },
         worktrees,
         unwitnessed_chains,
+        retention,
+        retention_error,
     })
 }
 
@@ -582,7 +602,16 @@ pub fn render_cli(holdings: &Holdings) -> String {
     let mut lines = vec![
         format!("STORE  {}", holdings.root.display()),
         String::new(),
-        format!("── WHAT THIS MACHINE HOLDS ── ({RETENTION_STATEMENT})"),
+        format!(
+            "── WHAT THIS MACHINE HOLDS ── ({})",
+            match (&holdings.retention, &holdings.retention_error) {
+                (_, Some(error)) => format!(
+                    "retention.json exists and cannot be read: {error} — it enforces nothing"
+                ),
+                (Some(policy), None) => policy.sentence(),
+                (None, None) => RETENTION_STATEMENT.to_string(),
+            }
+        ),
         String::new(),
         format!(
             "{:<14}{:<26}{:>7}{:>12}{:>10}{:>12}  {}",
@@ -639,7 +668,14 @@ pub fn render_cli(holdings: &Holdings) -> String {
             class.class.deletion_effect().word(),
             class.class.deletion_note()
         ));
-        lines.push(format!("    retention : {RETENTION_STATEMENT}"));
+        lines.push(format!(
+            "    retention : {}",
+            retention_line(
+                class.class,
+                holdings.retention.as_ref(),
+                holdings.retention_error.as_deref()
+            )
+        ));
         if !class.present {
             lines.push(
                 "    on disk   : this location has never been created on this machine".to_string(),
@@ -731,5 +767,264 @@ fn age(now: u64, then: u64) -> String {
         60..=3599 => format!("{}m", seconds / 60),
         3600..=86_399 => format!("{}h", seconds / 3600),
         _ => format!("{}d", seconds / 86_400),
+    }
+}
+
+// ── pruning: the deletion authority this build does have ──────────────────────────────
+//
+// For the whole of Wave-1 the honest sentence was RETENTION_STATEMENT: no deletion authority
+// existed, so no window was offered — a retention setting an operator could fill in while
+// nothing enforced it would have read as a policy in force. That was true because nothing could
+// delete. This section is the authority, and it is shaped so the sentence can stay honest in the
+// other direction:
+//
+// * The policy mirrors the archive's `retention_policy` table exactly — `enabled` separate from
+//   `window_seconds`, deleting anything only when both say so — so the two halves of this
+//   platform answer the absent-limit question the same way, and neither can drift into "a number
+//   that means nothing".
+// * **The gate is in the code, not the config.** There is no per-class setting, on purpose:
+//   this job deletes only classes whose `DeletionEffect` is `NoIntegrityConsequence` — today,
+//   `logs/`. Everything a verdict, an answer or a piece of evidence depends on is refused by
+//   construction, and the refusal is printed per class with the reason, so an operator reads
+//   what is NOT being deleted as easily as what is.
+// * Extending the gate to a class that carries evidence (first candidate: `staged/`) requires
+//   writing the chain witness forward into a tombstone at deletion time — a removed log must
+//   read as a refusal, not as an empty queue. That is recorded in W1-delivery-gaps §3.4 and is
+//   the one hard prerequisite for widening this.
+
+/// The format line of the prune policy.
+pub const PRUNE_POLICY_FORMAT: &str = "warrantor.retention/1";
+
+/// The local prune policy, hand-written by the operator at `<root>/retention.json`.
+///
+/// The shape is the archive's `retention_policy` — `enabled` and `window_seconds` are separate,
+/// and neither alone deletes anything — because "the absent-limit rule" should not mean two
+/// different shapes on two halves of one platform.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PrunePolicy {
+    /// Always [`PRUNE_POLICY_FORMAT`].
+    pub format: String,
+    /// Whether deletion is permitted at all. `false` means the window is recorded but enforces
+    /// nothing, which is sometimes exactly what an operator wants to be able to say.
+    pub enabled: bool,
+    /// How old a file must be before it is prunable, seconds.
+    pub window_seconds: u64,
+}
+
+impl PrunePolicy {
+    /// Where the policy lives under a store root.
+    #[must_use]
+    pub fn path(root: &Path) -> PathBuf {
+        root.join("retention.json")
+    }
+
+    /// Read the policy.
+    ///
+    /// An absent file is `None` — no policy, no deletion authority, and every caller says so
+    /// rather than implying a default window. A file that exists and will not parse, or declares
+    /// a future format, is an error: an operator who wrote a window and is silently not getting
+    /// it enforced has been told something false by omission.
+    ///
+    /// # Errors
+    /// [`String`] naming the file and the reason.
+    pub fn load(root: &Path) -> Result<Option<Self>, String> {
+        let path = Self::path(root);
+        let Ok(bytes) = std::fs::read(&path) else {
+            return Ok(None);
+        };
+        let policy: PrunePolicy = serde_json::from_slice(&bytes)
+            .map_err(|e| format!("{} cannot be read: {e}", path.display()))?;
+        if policy.format != PRUNE_POLICY_FORMAT {
+            return Err(format!(
+                "{} declares format {:?}, and this build reads only {PRUNE_POLICY_FORMAT}. \
+                 Nothing is guessed at across formats.",
+                path.display(),
+                policy.format
+            ));
+        }
+        Ok(Some(policy))
+    }
+
+    /// Does this policy, on its own, delete anything? The archive's rule: enabled AND a window.
+    #[must_use]
+    pub fn deletes_anything(&self) -> bool {
+        self.enabled && self.window_seconds > 0
+    }
+
+    /// One human sentence about what this policy is worth, for the holdings header.
+    #[must_use]
+    pub fn sentence(&self) -> String {
+        if !self.deletes_anything() {
+            return format!(
+                "prune policy present but {} — it deletes nothing",
+                if self.enabled {
+                    "its window is zero"
+                } else {
+                    "not enabled"
+                }
+            );
+        }
+        format!(
+            "prune policy: enabled, window {} — `warrantor prune` deletes only \
+             NO-CONSEQUENCE classes this old; everything else is refused by the job itself",
+            age(self.window_seconds, 0)
+        )
+    }
+}
+
+/// May this job ever delete this class? The gate is the deletion effect, not the config.
+#[must_use]
+pub fn prunable(class: ArtifactClass) -> bool {
+    class.deletion_effect() == DeletionEffect::NoIntegrityConsequence
+}
+
+/// What the prune job plans to do to one class.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassPrune {
+    /// The class.
+    pub class: ArtifactClass,
+    /// Files old enough to delete under the policy.
+    pub files: Vec<PathBuf>,
+    /// Their total bytes.
+    pub bytes: u64,
+    /// Why this class is refused, when it is. Printed, never swallowed: an operator reading a
+    /// prune report is exactly the person who needs to see what is NOT going.
+    pub refused: Option<&'static str>,
+}
+
+/// A full prune plan: what would go, and what is refused and why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PruneReport {
+    /// Per class, in `ALL_CLASSES` order.
+    pub classes: Vec<ClassPrune>,
+    /// Whether the plan deletes anything at all.
+    pub deletes_anything: bool,
+}
+
+/// Plan a prune. Nothing is deleted here; the plan is what `--apply` acts on and what a dry run
+/// prints, and building it never touches a file's contents — only its metadata.
+///
+/// # Errors
+/// [`String`] when a class's files cannot be listed at all.
+pub fn plan_prune(root: &Path, policy: &PrunePolicy, now: u64) -> Result<PruneReport, String> {
+    let cutoff = now.saturating_sub(policy.window_seconds);
+    let mut classes = Vec::new();
+    for class in ALL_CLASSES {
+        if !prunable(class) {
+            classes.push(ClassPrune {
+                class,
+                files: Vec::new(),
+                bytes: 0,
+                refused: Some(class.deletion_note()),
+            });
+            continue;
+        }
+        let mut files = Vec::new();
+        let mut bytes = 0u64;
+        for path in list_files(class.path_under(root))? {
+            let Ok(metadata) = std::fs::metadata(&path) else {
+                continue;
+            };
+            let modified = metadata
+                .modified()
+                .ok()
+                .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|duration| duration.as_secs())
+                .unwrap_or(u64::MAX);
+            if modified < cutoff {
+                files.push(path);
+                bytes = bytes.saturating_add(metadata.len());
+            }
+        }
+        classes.push(ClassPrune {
+            class,
+            bytes,
+            files,
+            refused: None,
+        });
+    }
+    let deletes_anything = classes.iter().any(|entry| !entry.files.is_empty());
+    Ok(PruneReport {
+        classes,
+        deletes_anything,
+    })
+}
+
+/// Apply a plan: delete the files it names, and report every one that would not go.
+///
+/// A file that cannot be removed is reported and the apply continues — a stuck file is a fact
+/// about that file, not a reason to abandon the rest — but the caller exits non-zero when any
+/// deletion failed, because "pruned" that left things behind is a success line this command
+/// refuses to print.
+///
+/// # Errors
+/// [`String`] naming each file that could not be removed.
+pub fn apply_prune(report: &PruneReport) -> Result<u64, String> {
+    let mut removed = 0u64;
+    let mut failures = Vec::new();
+    for entry in &report.classes {
+        for path in &entry.files {
+            match std::fs::remove_file(path) {
+                Ok(()) => removed = removed.saturating_add(1),
+                Err(e) => failures.push(format!("{}: {e}", path.display())),
+            }
+        }
+    }
+    if failures.is_empty() {
+        return Ok(removed);
+    }
+    Err(failures.join("\n"))
+}
+
+/// List the files directly under a path (or the single file the path names). Flat on purpose:
+/// every class this build can prune is a flat directory, and a recursive walk would silently
+/// promise more than the plan verified.
+fn list_files(path: PathBuf) -> Result<Vec<PathBuf>, String> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    if path.is_file() {
+        return Ok(vec![path]);
+    }
+    let mut out = Vec::new();
+    let entries = std::fs::read_dir(&path).map_err(|e| format!("list {}: {e}", path.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("list {}: {e}", path.display()))?;
+        if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            out.push(entry.path());
+        }
+    }
+    Ok(out)
+}
+
+/// The per-class retention line, which now depends on the policy in force.
+///
+/// With no policy, every class carries [`RETENTION_STATEMENT`] — the old truth, still true.
+/// With one, prunable classes state their window and the command that enforces it, and every
+/// other class says it is never removed and what deleting it would cost. An operator reading
+/// either listing knows exactly which sentence they are under.
+#[must_use]
+pub fn retention_line(
+    class: ArtifactClass,
+    policy: Option<&PrunePolicy>,
+    error: Option<&str>,
+) -> String {
+    if let Some(error) = error {
+        return format!(
+            "retention.json is BROKEN ({error}) — no deletion is happening under a policy \
+             nobody can read"
+        );
+    }
+    match policy {
+        None => RETENTION_STATEMENT.to_string(),
+        Some(policy) if !policy.deletes_anything() => RETENTION_STATEMENT.to_string(),
+        Some(policy) if prunable(class) => format!(
+            "removable by `warrantor prune --apply` once older than {}",
+            age(policy.window_seconds, 0)
+        ),
+        Some(_) => format!(
+            "never removed by warrantor — deleting it {}",
+            class.deletion_effect().word().to_lowercase()
+        ),
     }
 }

@@ -9,6 +9,30 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — `warrantor prune`: the one deletion authority this build has, gated to what it can honestly delete
+
+- **`retention.json` + `warrantor prune [--apply]`.** For the whole of Wave-1 the honest sentence
+  was "no deletion authority exists in this build; nothing here is ever removed by warrantor" —
+  because nothing could delete, no window was offered either: a retention setting an operator
+  could fill in while nothing enforced it would have read as a policy in force. The enforcement
+  now exists. The policy mirrors the archive's `retention_policy` table exactly (`enabled`
+  separate from `window_seconds`; either alone deletes nothing), and **the gate is in the code,
+  not the config**: the job deletes only classes whose deletion costs nothing any signed
+  artifact depends on (`logs/` today), refuses every other class by construction, and prints the
+  refusals with their deletion effects so an operator reads what is NOT going as easily as what
+  is. **Dry run by default; `--apply` is the opt-in** — the `--commit`/`--replace` precedent for
+  the most destructive thing this binary does. Without a policy the command refuses and says the
+  honest thing about storage growing without bound.
+- **`warrantor holdings` now states the retention truth per class, under the policy in force**:
+  the window and the enforcing command for prunable classes, "never removed by warrantor" plus
+  the deletion effect for everything else, the old no-authority sentence when no policy exists,
+  and a **BROKEN** line when a policy exists and will not parse — a window that enforces nothing
+  while looking like one is the exact lie this exists to prevent.
+- **What is deliberately not prunable**: anything a verdict, an answer or a piece of evidence
+  depends on. Extending the gate to `staged/` requires writing the chain witness forward into a
+  tombstone at deletion time (recorded in §3.4); the archive's server-side `retention_policy`
+  table also remains unwired — the local answer came first.
+
 ### Added — notifications: the machine tells the human who is not looking at the window
 
 - **Webhook notifications from `notify.json`.** Every oversight surface this repo has — console,

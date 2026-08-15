@@ -771,3 +771,115 @@ fn a_settle_whose_notification_failed_exits_as_a_settle() {
         "the earlier notification has failed twice now"
     );
 }
+
+// ── the prune: dry-run by default, refused classes never go ───────────────────────────
+//
+// The binary-level contract for the one deletion command this build has, driven through the real
+// binary beside the other contracts this file pins.
+
+/// Write a prune policy.
+fn configure_prune(home: &std::path::Path, enabled: bool, window_seconds: u64) {
+    let root = home.join(".warrantor");
+    std::fs::create_dir_all(&root).expect("store root");
+    std::fs::write(
+        root.join("retention.json"),
+        format!(
+            "{{\"format\":\"warrantor.retention/1\",\"enabled\":{enabled},\
+             \"window_seconds\":{window_seconds}}}"
+        ),
+    )
+    .expect("write the policy");
+}
+
+/// An old log file, mtime set back so the window sees it.
+fn old_log(home: &std::path::Path, name: &str, age_seconds: u64) -> std::path::PathBuf {
+    let dir = home.join(".warrantor/logs");
+    std::fs::create_dir_all(&dir).expect("logs dir");
+    let path = dir.join(name);
+    std::fs::write(&path, b"raw agent output nobody signed depends on").expect("write");
+    let when = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(age_seconds);
+    std::fs::File::options()
+        .write(true)
+        .open(&path)
+        .expect("open")
+        .set_modified(when)
+        .expect("set mtime");
+    path
+}
+
+/// Without a policy the command refuses rather than inventing a window, and says the honest
+/// thing about storage in the refusal.
+#[test]
+fn prune_without_a_policy_refuses_rather_than_invents_one() {
+    let home = tempdir("prune-nopolicy");
+    let log = old_log(&home, "wrt_a.log", 100);
+    let (ok, output) = run(&home, &["prune"]);
+
+    assert!(!ok, "{output}");
+    assert!(
+        output.contains("no prune policy is configured")
+            && output.contains("grows without bound")
+            && output.contains("retention.json"),
+        "the refusal names the state and the file that would change it: {output}"
+    );
+    assert!(log.exists(), "and nothing was deleted on the way out");
+}
+
+/// Dry run by default: the plan lists what would go, the file stays; `--apply` deletes exactly
+/// the old log and leaves the store's warrant records untouched; and holdings states the window
+/// now that one is in force.
+#[test]
+fn prune_is_a_dry_run_until_apply_and_holdings_says_so() {
+    let home = tempdir("prune-dryrun");
+    let id = grant(&home);
+    let log = old_log(&home, "wrt_b.log", 100);
+    configure_prune(&home, true, 86_400);
+
+    let (ok, output) = run(&home, &["prune"]);
+    assert!(ok, "{output}");
+    assert!(
+        output.contains("DRY RUN") && output.contains("would go") && output.contains("logs"),
+        "the plan says what would go and that nothing did: {output}"
+    );
+    assert!(log.exists(), "a dry run deletes nothing");
+
+    let (ok, output) = run(&home, &["prune", "--apply"]);
+    assert!(ok, "{output}");
+    assert!(output.contains("pruned 1 file"), "{output}");
+    assert!(!log.exists(), "the old log is gone");
+    assert!(
+        home.join(".warrantor/warrants")
+            .join(format!("{id}.json"))
+            .exists(),
+        "and the warrant record is untouched — FLIPS-VERDICT classes never go"
+    );
+
+    let (ok, output) = run(&home, &["holdings"]);
+    assert!(ok, "{output}");
+    assert!(
+        output.contains("removable by `warrantor prune --apply` once older than 1d"),
+        "holdings states the window now that one is enforced: {output}"
+    );
+    assert!(
+        output.contains("never removed by warrantor"),
+        "and states the never-line for everything else: {output}"
+    );
+}
+
+/// A policy that deletes nothing (window zero) is a decision, and the command says so rather
+/// than reporting a prune that is not happening.
+#[test]
+fn a_window_of_zero_deletes_nothing_and_says_so() {
+    let home = tempdir("prune-zero");
+    let log = old_log(&home, "wrt_c.log", 100);
+    configure_prune(&home, true, 0);
+
+    let (ok, output) = run(&home, &["prune", "--apply"]);
+
+    assert!(ok, "{output}");
+    assert!(
+        output.contains("deletes nothing") && output.contains("window is zero"),
+        "{output}"
+    );
+    assert!(log.exists(), "a zero window leaves even an old file alone");
+}

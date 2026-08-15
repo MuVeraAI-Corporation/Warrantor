@@ -297,6 +297,7 @@ warrantor — bounded authority for coding agents
           [--budget CENTS] [--subject <id>]
   list
   holdings
+  prune   [--apply]
   report  <warrant-id> [--export <path> [--archive [<url>]]]
   verify  <exported-report.json | exported-stop.json | exported-spend.json>
   issuer  add <name> <hex> [--note \"...\"] | list | remove <name> | show-hex
@@ -313,6 +314,13 @@ warrantor — bounded authority for coding agents
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
   serve   [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
   console [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
+
+Prune is the one deletion authority this build has: a retention.json policy
+(window in seconds, enabled separately) and a job gated IN CODE to the classes
+whose deletion costs nothing any signed artifact depends on -- logs today. Every
+other class is refused by the job itself, whatever its age, and the refusal is
+printed with the reason. Dry run by default; --apply deletes exactly the files
+the plan listed.
 
 Holdings reports what this machine is keeping: every class of data in the store,
 what it contains, whether it is signed and chained, how many files, how old the
@@ -582,6 +590,95 @@ fn cmd_holdings(store: &WarrantStore) -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(e) => fail(&format!("cannot read this store's holdings: {e}")),
+    }
+}
+
+/// `warrantor prune [--apply]` — the one deletion authority this build has, and only what it can
+/// honestly delete.
+///
+/// For the whole of Wave-1 the honest sentence was "no deletion authority exists in this build" —
+/// because nothing could delete, no window was offered either: a retention setting an operator
+/// could fill in while nothing enforced it would have read as a policy in force. This command is
+/// the enforcement, and the gate is in the code, not the config: it deletes only classes whose
+/// deletion costs nothing any signed artifact depends on (`logs/` today), refuses every other
+/// class by construction, and prints the refusals so an operator reads what is NOT going as
+/// easily as what is.
+///
+/// **Dry run by default.** Deletion is the most destructive thing this binary does, so the plan
+/// is what runs unless `--apply` says otherwise — the `--commit` and `--replace` precedent: the
+/// opt-in is the operator saying they read the plan.
+///
+/// Without a `retention.json` this refuses rather than no-ops: storage still grows without
+/// bound, and saying so in the refusal is the honest rendering of a machine with no policy.
+fn cmd_prune(args: &Args, store: &WarrantStore) -> ExitCode {
+    let root = store.root();
+    let policy = match retention::PrunePolicy::load(root) {
+        Ok(None) => {
+            return fail(&format!(
+                "no prune policy is configured, and this command will not invent one: without a \
+                 window nothing is deleted and storage grows without bound, which is today's \
+                 state. To change it, write {} as \
+                 {{\"format\":\"warrantor.retention/1\",\"enabled\":true,\"window_seconds\":2592000}} \
+                 (that example is 30 days), then run `warrantor prune` to see the plan before \
+                 `--apply` ever touches a file.",
+                retention::PrunePolicy::path(root).display()
+            ));
+        }
+        Ok(Some(policy)) => policy,
+        Err(e) => return fail(&e),
+    };
+    if !policy.deletes_anything() {
+        println!("{}", policy.sentence());
+        println!(
+            "\nNothing will be deleted, and this refusal is the policy working: a window of \
+             zero is a decision, not an oversight."
+        );
+        return ExitCode::SUCCESS;
+    }
+    let report = match retention::plan_prune(root, &policy, now()) {
+        Ok(report) => report,
+        Err(e) => return fail(&format!("cannot plan a prune of this store: {e}")),
+    };
+    println!("{}", policy.sentence());
+    println!();
+    let applying = args.flags.contains_key("apply");
+    for entry in &report.classes {
+        if entry.refused.is_some() {
+            println!(
+                "  refused  {:<14} {}",
+                entry.class.name(),
+                entry.class.deletion_effect().word().to_lowercase()
+            );
+        } else if !entry.files.is_empty() {
+            println!(
+                "  {}  {:<14} {} file(s), {} byte(s)",
+                if applying { "pruned   " } else { "would go " },
+                entry.class.name(),
+                entry.files.len(),
+                entry.bytes
+            );
+        }
+    }
+    if report.classes.iter().all(|entry| entry.files.is_empty()) {
+        println!(
+            "\nNothing is old enough to prune under this window. The refusals above stand \
+             regardless: those classes are never deleted by this job, whatever their age."
+        );
+        return ExitCode::SUCCESS;
+    }
+    if !applying {
+        println!(
+            "\nDRY RUN — nothing was deleted. `warrantor prune --apply` deletes the files listed \
+             above and nothing else; every refused class stays exactly where it is."
+        );
+        return ExitCode::SUCCESS;
+    }
+    match retention::apply_prune(&report) {
+        Ok(removed) => {
+            println!("\npruned {removed} file(s). Every refused class above is untouched.");
+            ExitCode::SUCCESS
+        }
+        Err(failures) => fail(&format!("some files could not be removed:\n{failures}")),
     }
 }
 
@@ -3763,6 +3860,7 @@ fn main() -> ExitCode {
         "grant" => cmd_grant(&args, &store, &root),
         "list" => cmd_list(&store),
         "holdings" => cmd_holdings(&store),
+        "prune" => cmd_prune(&args, &store),
         "report" => cmd_report(&args, &store, &root),
         "verify" => cmd_verify(&args, &root),
         "issuer" => cmd_issuer(&args, &root),
