@@ -247,10 +247,22 @@ enforced. There is no netns, no seccomp and no firewall. The console shows `boun
 honestly, but "the agent is bounded" is a stronger sentence than the system currently earns without
 composing with a real sandbox.
 
-### 3.2 No notifications
+### 3.2 Notifications — **webhooks shipped; the human loop is not closed**
 
-Approval routing (2.1) is inert without a way to reach a human who is not looking at the window. No
-email, no webhook, no push.
+**What exists:** `notify.json` in the store root names webhook destinations (optionally with an
+HMAC-SHA256 secret, so a receiver can tell Warrantor's POSTs from anyone else's), and the CLI
+fires them when a warrant settles, is voided, is stopped, or when an automatic filing failed and
+was queued — the one event an off-site overseer most needs pushed at them. A delivery failure
+never fails the action that caused it: it prints its own block and queues in
+`notify/pending.jsonl`, retried at the next notification. What leaves the machine is the event,
+the warrant's id, goal, subject, state and a timestamp — never evidence bytes, never tool
+arguments. A machine with no `notify.json` sees byte-for-byte today's output.
+
+**What is still missing:** email and mobile push (a webhook can front both, but nothing here
+speaks them directly); notifications from the HTTP/console settle surface (the policy is read by
+the CLI alone, same as automatic filing); and approval routing itself (§2.1) — a webhook that
+says "a warrant needs a decision" is only useful once there is a decision to make and a way to
+make it from where the notification lands.
 
 ### 3.3 No multi-machine or multi-repo view
 

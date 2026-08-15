@@ -126,10 +126,12 @@ pub enum ArtifactClass {
     PendingFilings,
     /// `trusted/issuers.json`
     TrustedIssuers,
+    /// `notify.json`, `notify/pending.jsonl`
+    Notifications,
 }
 
 /// Every class, in the order an operator should read them: evidence first, machinery last.
-pub const ALL_CLASSES: [ArtifactClass; 16] = [
+pub const ALL_CLASSES: [ArtifactClass; 17] = [
     ArtifactClass::Warrants,
     ArtifactClass::Staged,
     ArtifactClass::Witness,
@@ -140,6 +142,7 @@ pub const ALL_CLASSES: [ArtifactClass; 16] = [
     ArtifactClass::Exports,
     ArtifactClass::PendingFilings,
     ArtifactClass::TrustedIssuers,
+    ArtifactClass::Notifications,
     ArtifactClass::Daemons,
     ArtifactClass::Logs,
     ArtifactClass::Keys,
@@ -169,6 +172,7 @@ impl ArtifactClass {
             Self::Exports => "exports",
             Self::PendingFilings => "archive-queue",
             Self::TrustedIssuers => "trusted-issuers",
+            Self::Notifications => "notifications",
         }
     }
 
@@ -192,6 +196,7 @@ impl ArtifactClass {
             Self::Exports => "exports/<id>.settle-report.json",
             Self::PendingFilings => "archive/pending.jsonl",
             Self::TrustedIssuers => "trusted/issuers.json",
+            Self::Notifications => "notify/pending.jsonl (config: notify.json at the root)",
         }
     }
 
@@ -215,6 +220,7 @@ impl ArtifactClass {
             Self::Exports => root.join("exports"),
             Self::PendingFilings => root.join("archive").join("pending.jsonl"),
             Self::TrustedIssuers => root.join("trusted").join("issuers.json"),
+            Self::Notifications => root.join("notify"),
         }
     }
 
@@ -246,6 +252,11 @@ impl ArtifactClass {
             }
             Self::TrustedIssuers => {
                 "the names this machine pins to issuer keys, with when and why each was trusted"
+            }
+            Self::Notifications => {
+                "notifications that failed and are queued to retry. The webhook config that \
+                 caused them is notify.json at the store root: named by this class, and not \
+                 part of its file count"
             }
             Self::Keys => "the issuer and settle signing keys",
             Self::Serve => "the read API's bearer token and the browser shim that opens it",
@@ -281,6 +292,7 @@ impl ArtifactClass {
             Self::Refusals | Self::Guard => DeletionEffect::LosesEvidence,
             Self::Exports => DeletionEffect::LosesEvidence,
             Self::PendingFilings | Self::TrustedIssuers => DeletionEffect::FlipsAVerdict,
+            Self::Notifications => DeletionEffect::LosesEvidenceSilently,
             Self::Logs => DeletionEffect::NoIntegrityConsequence,
             Self::Keys | Self::Serve | Self::Run | Self::Backends => {
                 DeletionEffect::BreaksTheInstallation
@@ -351,6 +363,11 @@ impl ArtifactClass {
                  road back is re-pinning -- the one operation that could put a DIFFERENT key \
                  under the same name. Verdicts already given stand; the ability to re-obtain \
                  them does not"
+            }
+            Self::Notifications => {
+                "notifications stop firing, or stop retrying, and nothing complains in either \
+                 direction -- an operator who asked to be told silently stops being told. \
+                 Deleting the queue alone abandons undelivered notifications it still names"
             }
         }
     }

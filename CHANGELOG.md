@@ -9,6 +9,29 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — notifications: the machine tells the human who is not looking at the window
+
+- **Webhook notifications from `notify.json`.** Every oversight surface this repo has — console,
+  desktop, CLI — assumes someone is watching. `notify.json` in the store root names webhook
+  destinations (optionally per-webhook with a secret, used to HMAC-SHA256-sign every POST under
+  `X-Warrantor-Signature`, so a receiver can tell Warrantor's pings from anyone else's; without a
+  secret the POST is unsigned and the receiver should treat it as advisory). The CLI fires them
+  when a warrant **settles, is voided, or is stopped**, and — the one an off-site overseer most
+  needs — when an **automatic filing failed and was queued**.
+- **The failure contract is the one automatic filing already set:** a delivery failure never
+  fails the action that caused it (test-pinned through the real binary against a dead port —
+  settle still exits 0), prints its own block stating both facts, and queues in
+  `notify/pending.jsonl`, retried at the **next notification**. No daemon. A corrupt queue is an
+  error naming the line, never an empty queue. An unconfigured machine sees byte-for-byte
+  today's output (also test-pinned).
+- **What leaves the machine is a decided, small contract:** event, warrant id, goal, subject,
+  state, timestamp, one small detail — **never evidence bytes, never tool arguments** — and a
+  test pins the payload to exactly those eight fields so a ninth cannot ride along quietly.
+  Webhooks are usually third-party services; anything richer than "which warrant reached which
+  state, when" is a data-export decision, and those are made deliberately or not at all.
+- `warrantor holdings` learns the class, `LosesEvidenceSilently`: deleting the config or the
+  queue silently stops an operator being told, and nothing complains in either direction.
+
 ### Added — `warrantor issuer show-hex`
 
 - **The issuer's public key, from the one command whose job is to produce it.** Until now an

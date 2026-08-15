@@ -3096,9 +3096,11 @@ dependencies = [
 name = "warrantor-warrant"
 version = "1.0.0"
 dependencies = [
+ "digest 0.11.3",
  "ed25519-dalek",
  "getrandom 0.4.3",
  "hex",
+ "hmac",
  "serde",
  "serde_json",
  "sha2 0.11.0",
