@@ -297,7 +297,7 @@ warrantor — bounded authority for coding agents
   report  <warrant-id> [--export <path> [--archive [<url>]]]
   verify  <exported-report.json | exported-stop.json | exported-spend.json>
   archive enrol --url <url> --code <code> [--replace] | push <file>
-                | fetch <sha256> --out <path>
+                | fetch <sha256> --out <path> | list <warrant-id>
   egress  <warrant-id> <destination> [<destination> ...]
   spend   <warrant-id> [--input N --output N [--backend ID] [--quote]] [--export <path>]
   stop    <warrant-id> [--reason \"...\"] [--export <path>]
@@ -334,6 +334,15 @@ file's bytes VERBATIM -- the digest the archive returns must equal the SHA-256 o
 bytes sent, or the push is refused rather than reported. --archive on report/stop/spend
 files the file --export just wrote, through the same path, and exits non-zero if it
 fails.
+
+List enumerates what the archive holds about one warrant, newest first, with each
+artifact's full digest -- the address fetch takes. It exists because push prints a
+digest exactly once: once that scrollback is gone, fetch cannot help, because fetch
+takes the digest you no longer have; filing evidence you can never enumerate is a
+write-only archive. An empty listing is a real answer -- this archive holds nothing
+about that warrant -- and it is kept distinct from an archive that could not read its
+store, which refuses with `store_unavailable` rather than listing, so the two never
+render the same way here either.
 
 A filing is CUSTODY, NOT A VERDICT. The archive holds bytes it did not produce and
 cannot forge; it stores artifacts whose signatures do not check out and marks them,
@@ -2671,24 +2680,93 @@ fn render_filed(filed: &archive_client::Filed, url: &str) -> String {
     out
 }
 
-/// `warrantor archive <enrol|push|fetch>` — the local half of the evidence archive.
+/// What a listing looks like to a human.
+///
+/// The heading says what the archive did — *held* — and the word it refuses to say. No row here
+/// had its signature checked: a listing reads no artifact body, so `ingest_check` is the note the
+/// door took when the bytes arrived, and nothing in this output may read as though the artifacts
+/// were examined now. Digests are printed in full because the digest is the address `fetch`
+/// takes; truncating it here would rebuild, in the one command whose job is to recover it, the
+/// very problem it exists to solve.
+///
+/// An empty listing gets a sentence, not a bare header. The archive separates "nothing held"
+/// (a 200) from "store unreadable" (a `store_unavailable` refusal, which never reaches this
+/// function), and the CLI must not glue the two back together by rendering an empty table that a
+/// reader could take for a failed read.
+fn render_holdings(holdings: &archive_client::Holdings, url: &str) -> String {
+    let mut out = String::new();
+    out.push_str("\n── HELD (CUSTODY, NOT A VERDICT) ──\n");
+    out.push_str(&format!("  archive        {url}\n"));
+    out.push_str(&format!("  warrant        {}\n", holdings.warrant_id));
+    if holdings.artifacts.is_empty() {
+        out.push_str(
+            "  held           nothing — this archive holds no evidence about that warrant\n\n\
+             This is the archive's answer, not a failure to ask. An archive that could not read\n\
+             its store refuses with `store_unavailable` instead of listing, so an empty listing\n\
+             and an unreadable one cannot render the same way here. If you expected evidence,\n\
+             check the id: `warrantor list` shows the warrant ids on this machine.\n",
+        );
+        return out;
+    }
+    out.push_str(&format!(
+        "  held           {} artifact(s), newest first — a listing reads no artifact body, so no\n\
+         \x20                signature was checked for any of these rows\n\n",
+        holdings.artifacts.len()
+    ));
+    for (index, held) in holdings.artifacts.iter().enumerate() {
+        out.push_str(&format!(
+            "  [{}] {:<8}  filed {}  by {}\n",
+            index + 1,
+            held.kind,
+            held.submitted_at,
+            held.submitted_by_device
+        ));
+        out.push_str(&format!(
+            "      door's note (NOT a verdict): {}\n",
+            held.ingest_check
+        ));
+        out.push_str(&format!("      {}\n", held.digest));
+    }
+    if holdings
+        .artifacts
+        .iter()
+        .any(|held| held.ingest_check != "ok")
+    {
+        out.push_str(
+            "\n  One or more rows carry a door's note other than `ok`: the bytes were held, and\n\
+             \x20 the note records what the archive saw when they arrived. The sentence behind the\n\
+             \x20 word is not in a listing — fetch the artifact and verify it, which is the real\n\
+             \x20 check anyway.\n",
+        );
+    }
+    out.push_str(&format!("\n  {}\n", holdings.verify_locally));
+    out.push_str(
+        "\nRead one back on any paired machine:  warrantor archive fetch <digest> --out <path>\n",
+    );
+    out
+}
+
+/// `warrantor archive <enrol|push|fetch|list>` — the local half of the evidence archive.
 ///
 /// Until this existed, `warrantor-archive` was a complete server with no client: nothing outside
 /// that crate could produce a `Warrantor-Device` header, so the `curl` its deployment README
 /// documented could not actually be typed by anybody and `submitted_by_device` had never named a
-/// person. These three verbs are the whole loop — pair a device, file evidence, read it back — and
-/// the reading half is authenticated too, which is why a `curl` was never going to be enough.
+/// person. These four verbs are the whole loop — pair a device, file evidence, read it back, and
+/// enumerate what was filed — and both reading halves are authenticated, which is why a `curl` was
+/// never going to be enough.
 fn cmd_archive(args: &Args, root: &Path) -> ExitCode {
     match args.positional.first().map(String::as_str) {
         Some("enrol" | "enroll") => cmd_archive_enrol(args, root),
         Some("push") => cmd_archive_push(args, root),
         Some("fetch") => cmd_archive_fetch(args, root),
+        Some("list") => cmd_archive_list(args, root),
         Some(other) => fail(&format!(
-            "unknown archive verb {other:?}. warrantor archive has three: enrol, push, fetch."
+            "unknown archive verb {other:?}. warrantor archive has four: enrol, push, fetch, list."
         )),
         None => fail(
             "usage: warrantor archive enrol --url <url> --code <code> [--replace]\n       \
-             warrantor archive push <file>\n       warrantor archive fetch <sha256> --out <path>",
+             warrantor archive push <file>\n       warrantor archive fetch <sha256> --out <path>\n\
+             \x20      warrantor archive list <warrant-id>",
         ),
     }
 }
@@ -2871,6 +2949,31 @@ fn cmd_archive_fetch(args: &Args, root: &Path) -> ExitCode {
     );
     println!("Check them here:  warrantor verify {out} --issuer <the issuer's hex key>");
     ExitCode::SUCCESS
+}
+
+/// `warrantor archive list <warrant-id>` — what the archive holds about one warrant.
+///
+/// The verb that makes the other two auditable. `push` prints a digest exactly once, and `fetch`
+/// takes the digest rather than the warrant id, so without this command an operator whose
+/// scrollback is gone cannot even find out what they filed — a write-only archive. It reads; it
+/// verifies nothing; an empty listing is a success here and a `store_unavailable` refusal is not,
+/// and the render keeps those two visibly apart.
+fn cmd_archive_list(args: &Args, root: &Path) -> ExitCode {
+    let Some(warrant_id) = args.positional.get(1) else {
+        return fail("usage: warrantor archive list <warrant-id>");
+    };
+    let (config, key) = match archive_identity(root) {
+        Ok(pair) => pair,
+        Err(e) => return fail(&e),
+    };
+    let mut transport = https_archive(&config.url);
+    match archive_client::list(&mut transport, &config, &key, warrant_id, now()) {
+        Ok(holdings) => {
+            print!("{}", render_holdings(&holdings, &config.url));
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&e.to_string()),
+    }
 }
 
 /// File an artifact that `--export` has just written, or fail the command.

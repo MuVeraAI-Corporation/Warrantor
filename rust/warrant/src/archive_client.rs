@@ -460,6 +460,44 @@ pub struct Filed {
     pub verify_locally: String,
 }
 
+/// One row of a warrant's listing: what the archive holds, not what it is worth.
+///
+/// Declared here rather than reusing `warrantor_archive::store::ArtifactSummary`, which is the same
+/// shape. Depending on `warrantor-archive` from `rust/warrant` would pull `postgres` and tokio into
+/// a program whose whole point is running on a laptop with nothing installed — the same reasoning
+/// that moved the signing half of the wire contract in this direction rather than the other. The
+/// duplication is a wire type on two sides of a wire, which is what a wire type is.
+///
+/// Every field is a fact the archive recorded at the door. **None of them is a verdict**, and
+/// [`Self::ingest_check`] in particular is the note taken when the bytes arrived, not an opinion
+/// about them now — a listing reads no artifact body, so nothing here checked a signature.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Held {
+    /// SHA-256 hex. Also the address [`fetch`] takes.
+    pub digest: String,
+    /// `report`, `stop` or `ledger`, as the archive classified it at ingest.
+    pub kind: String,
+    /// The warrant this artifact is about.
+    pub warrant_id: String,
+    /// The archive's clock when it was filed, epoch seconds.
+    pub submitted_at: u64,
+    /// The device that filed it.
+    pub submitted_by_device: String,
+    /// `ok`, `failed` or `unknown` — the door's note. **Not a verdict.**
+    pub ingest_check: String,
+}
+
+/// What the archive holds about one warrant, and what it says that listing is worth.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Holdings {
+    /// The warrant asked about, echoed back.
+    pub warrant_id: String,
+    /// The rows, newest first, exactly as the archive ordered them.
+    pub artifacts: Vec<Held>,
+    /// The archive's own sentence about why a listing establishes nothing about the bytes.
+    pub verify_locally: String,
+}
+
 /// What the archive recorded about one enrolment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Enrolled {
@@ -785,6 +823,108 @@ pub fn fetch<T: ArchiveTransport>(
         });
     }
     Ok(answer.body)
+}
+
+/// What the archive holds about one warrant.
+///
+/// The verb that makes the other two auditable. `push` prints a digest once; if that scrollback is
+/// gone, `fetch` cannot help, because `fetch` takes the digest you no longer have. Filing evidence
+/// you can never enumerate is a write-only archive, which is indistinguishable from a directory
+/// nobody reads.
+///
+/// Authenticated like every route but health and enrolment, so this is not something `curl` could
+/// do either.
+///
+/// **A listing is not verification, and this function is careful not to imply it is.** The archive
+/// reads no artifact body to produce these rows, so no signature was checked for any of them;
+/// `ingest_check` is the note taken at the door when the bytes arrived. Nothing here is a substitute
+/// for `warrantor archive fetch <digest> --out <path>` followed by `warrantor verify <path>`, and
+/// [`Holdings::verify_locally`] carries the archive's own sentence saying so.
+///
+/// An empty list is returned as an empty list. It is a real answer — this archive holds nothing
+/// about that warrant — and it is reported distinctly from a store the archive could not read,
+/// which is a refusal ([`ArchiveClientError::Refused`] on the archive's `store_unavailable`). The
+/// archive is deliberate about that distinction on its side; discarding it here would put the two
+/// back together.
+///
+/// # Errors
+/// [`ArchiveClientError`] when the request cannot be signed or sent, the archive refuses, or the
+/// answer is not one this client can read.
+pub fn list<T: ArchiveTransport>(
+    transport: &mut T,
+    config: &ArchiveConfig,
+    key: &SigningKey,
+    warrant_id: &str,
+    now: u64,
+) -> Result<Holdings, ArchiveClientError> {
+    let warrant_id = warrant_id.trim();
+    if warrant_id.is_empty() || warrant_id.contains('/') {
+        return Err(ArchiveClientError::Config(format!(
+            "{warrant_id:?} is not a warrant id. It is the id `warrantor grant` printed and \
+             `warrantor list` shows, and it cannot contain a path separator."
+        )));
+    }
+    let path = format!("/v1/warrants/{warrant_id}/evidence");
+    let nonce = mint_nonce()?;
+    let authorization = sign_request(key, "GET", &path, &config.device_id, &nonce, now, &[]);
+    let answer = transport
+        .send("GET", &path, Some(&authorization), &[])
+        .map_err(|reason| ArchiveClientError::Transport {
+            url: config.url.clone(),
+            reason,
+        })?;
+    let data = json_data(&answer)?;
+    // `not_a_verdict` is a sibling of `data` in the envelope, not inside it — the same read `push`
+    // makes. An earlier draft of this function looked for it inside `data`, where it never is on
+    // the wire, and every well-formed 200 would have failed as unreadable; written from the wire
+    // format rather than from `push`'s variable names, which is what the tests hold it to.
+    let not_a_verdict = answer_body(&answer)?
+        .get("not_a_verdict")
+        .cloned()
+        .ok_or_else(|| ArchiveClientError::Unreadable {
+            status: answer.status,
+            reason: "it carried no not_a_verdict block, so what the archive says a listing is \
+                     worth is unknown"
+                .to_string(),
+        })?;
+
+    let rows = data
+        .get("artifacts")
+        .and_then(|value| value.as_array().cloned())
+        .ok_or_else(|| ArchiveClientError::Unreadable {
+            status: answer.status,
+            reason: "data.artifacts was missing or not an array".to_string(),
+        })?;
+    let mut artifacts = Vec::with_capacity(rows.len());
+    for row in rows {
+        artifacts.push(Held {
+            digest: string_field(&answer, &row, "digest")?,
+            kind: string_field(&answer, &row, "kind")?,
+            warrant_id: string_field(&answer, &row, "warrant_id")?,
+            submitted_at: u64_field(&answer, &row, "submitted_at")?,
+            submitted_by_device: string_field(&answer, &row, "submitted_by_device")?,
+            ingest_check: string_field(&answer, &row, "ingest_check")?,
+        });
+    }
+    // The archive echoes the id it was asked about. A runtime check rather than a test, like the
+    // digest check in `push`: an answer about a different warrant is not the answer to the question
+    // that was asked, and rendering it under the requested id would file the operator's next
+    // `fetch` under someone else's evidence.
+    let echoed = string_field(&answer, &data, "warrant_id")?;
+    if echoed != warrant_id {
+        return Err(ArchiveClientError::Unreadable {
+            status: answer.status,
+            reason: format!(
+                "the listing came back about {echoed:?}, not the {warrant_id:?} that was asked \
+                 about, so it is not an answer to the question"
+            ),
+        });
+    }
+    Ok(Holdings {
+        warrant_id: echoed,
+        artifacts,
+        verify_locally: string_field(&answer, &not_a_verdict, "verify_locally")?,
+    })
 }
 
 // ── reading an answer ─────────────────────────────────────────────────────────────────

@@ -181,15 +181,18 @@ the warrant, the guard benchmarked but not wired, and then this.
 **It is wired now.** `warrantor archive enrol` pairs a machine against a one-time code and writes a
 device key beside the issuer and settle keys; `warrantor archive push <file>` files bytes verbatim;
 `warrantor archive fetch <sha256> --out <path>` reads one back — reads are signed too, which is the
-other reason `curl` was never enough; and `--archive` on `report`, `stop` and `spend` files the file
-`--export` just wrote. The signing half of the wire contract moved into
+other reason `curl` was never enough; `warrantor archive list <warrant-id>` enumerates what is held
+about one warrant, newest first, with each artifact's full digest — the address `fetch` takes —
+because `push` prints a digest exactly once and an operator whose scrollback is gone could not
+otherwise even find out what they filed; and `--archive` on `report`, `stop` and `spend` files the
+file `--export` just wrote. The signing half of the wire contract moved into
 `rust/warrant/src/archive_client.rs` so there is one definition of it rather than two, and the
 archive re-exports it: the dependency edge still runs archive → warrant, and the agent is still
 tokio-free. `warrantor-archive revoke --device <id>` landed with it, because issuing long-lived
 device keys with no way to withdraw one is not a credential system.
 
-What is still missing here: no list client, no TLS, no automatic push on settle, and no trust
-directory — so `--issuer` is still a hex string an operator pastes.
+What is still missing here: no TLS, no automatic push on settle, and no trust directory — so
+`--issuer` is still a hex string an operator pastes.
 
 The other four needs remain unbuilt: **trust directory, approval routing, time anchoring, fleet
 summary.** And `serve.rs` still binds loopback, so a second person on another machine still sees

@@ -62,6 +62,12 @@ fn tempdir(tag: &str) -> std::path::PathBuf {
 
 /// A real, issuer-signed report export: the bytes an operator would actually file.
 fn evidence(dir: &std::path::Path) -> Vec<u8> {
+    evidence_at(dir, NOW)
+}
+
+/// The same export built at a different moment, so it hashes differently: a warrant accumulates
+/// one filing per distinct artifact, and distinct bytes are the only way to make two.
+fn evidence_at(dir: &std::path::Path, at: u64) -> Vec<u8> {
     let mut warrant = Warrant::grant(
         "wrt_interop",
         "fix the auth token refresh bug",
@@ -75,7 +81,7 @@ fn evidence(dir: &std::path::Path) -> Vec<u8> {
             budget_cents_observed: Some(500),
             delegation_depth: 3,
         },
-        NOW,
+        at,
         &settle_key().verifying_key(),
         &issuer(),
     )
@@ -94,7 +100,7 @@ fn evidence(dir: &std::path::Path) -> Vec<u8> {
     };
     let queue = StagingQueue::open(dir.join("q.jsonl"), "wrt_interop", EffectRegistry::github())
         .expect("open queue");
-    let signed: SignedReport = build(&stored, Ok(&queue), &issuer().verifying_key(), NOW)
+    let signed: SignedReport = build(&stored, Ok(&queue), &issuer().verifying_key(), at)
         .sign(&issuer(), "issuer")
         .expect("sign");
     // `to_vec_pretty`, exactly as `warrantor report --export` writes it. The bytes are the artifact;
@@ -296,6 +302,123 @@ fn filing_the_same_evidence_twice_reports_already_held() {
     assert!(second.already_held);
     assert_eq!(first.digest, second.digest);
     assert_eq!(archive.store.len(), 1);
+}
+
+// ── enumerating what was filed ────────────────────────────────────────────────────────
+
+/// The loop the listing verb exists to close: file evidence, enumerate it by warrant, and the
+/// digest the listing prints is the address that fetches the bytes back.
+///
+/// `push` prints a digest exactly once and `fetch` takes a digest, not a warrant id — so an
+/// operator whose scrollback is gone could not even find out what they filed. This checks the
+/// three verbs agree with each other and with the store: the row names the filing, the digest
+/// names the bytes, and fetching that digest returns them.
+#[test]
+fn what_was_filed_can_be_listed_and_the_listing_fetches() {
+    let dir = tempdir("list");
+    let bytes = evidence(&dir);
+    let mut archive = LoopbackArchive::new();
+    let filed =
+        archive_client::push(&mut archive, &config(), &device_key(), &bytes, NOW).expect("filed");
+
+    let holdings = archive_client::list(
+        &mut archive,
+        &config(),
+        &device_key(),
+        "wrt_interop",
+        NOW + 1,
+    )
+    .expect("an enrolled device can enumerate what it filed");
+
+    assert_eq!(holdings.warrant_id, "wrt_interop");
+    assert_eq!(holdings.artifacts.len(), 1);
+    let row = &holdings.artifacts[0];
+    assert_eq!(row.digest, filed.digest, "the row names the filing");
+    assert_eq!(row.digest, sha256_hex(&bytes), "the digest names the bytes");
+    assert_eq!(row.kind, "report");
+    assert_eq!(row.warrant_id, "wrt_interop");
+    assert_eq!(row.submitted_by_device, DEVICE);
+    assert_eq!(row.ingest_check, "ok");
+    assert!(
+        !holdings.verify_locally.is_empty(),
+        "the archive's own sentence about what a listing is worth travels with it"
+    );
+    assert!(
+        archive
+            .seen
+            .contains(&"/v1/warrants/wrt_interop/evidence".to_string()),
+        "the listing went to the route the client signed for"
+    );
+
+    let back = archive_client::fetch(&mut archive, &config(), &device_key(), &row.digest, NOW + 2)
+        .expect("the digest a listing prints is the address fetch takes");
+    assert_eq!(back, bytes, "and it addresses the bytes that were filed");
+}
+
+/// A warrant nothing was ever filed for lists as empty — a 200, not a refusal — and the client
+/// carries it as an answer rather than an error. The archive keeps "nothing held" and "store
+/// unreadable" apart on its side of the wire (it answers the second with `store_unavailable`
+/// rather than an empty list); the client keeps them apart on its, and both halves are checked.
+#[test]
+fn a_warrant_with_nothing_filed_lists_as_empty() {
+    let mut archive = LoopbackArchive::new();
+
+    let holdings = archive_client::list(
+        &mut archive,
+        &config(),
+        &device_key(),
+        "wrt_never_filed",
+        NOW,
+    )
+    .expect("empty is an answer, not a failure");
+
+    assert_eq!(holdings.warrant_id, "wrt_never_filed");
+    assert!(
+        holdings.artifacts.is_empty(),
+        "the archive said it holds nothing, and nothing is what arrived"
+    );
+}
+
+/// A listing is newest first, so the top row is the latest filing — the one an operator reaching
+/// for the listing is most likely after. Two distinct artifacts for one warrant, filed in order,
+/// listed reversed.
+#[test]
+fn a_listing_is_newest_first() {
+    let dir = tempdir("newest-first");
+    let earlier = evidence_at(&dir, NOW);
+    let later = evidence_at(&dir, NOW + 1);
+    assert_ne!(
+        sha256_hex(&earlier),
+        sha256_hex(&later),
+        "the fixture must make two artifacts, not one idempotent re-file"
+    );
+    let mut archive = LoopbackArchive::new();
+    let first =
+        archive_client::push(&mut archive, &config(), &device_key(), &earlier, NOW).expect("filed");
+    // The archive stamps `submitted_at` from its OWN clock, not from the client's signature
+    // timestamp — a client could otherwise set its filing time to anything it liked. Advancing the
+    // archive between the two filings is what makes their stamps differ.
+    archive.now = NOW + 1;
+    let second = archive_client::push(&mut archive, &config(), &device_key(), &later, NOW + 1)
+        .expect("filed");
+
+    let holdings = archive_client::list(
+        &mut archive,
+        &config(),
+        &device_key(),
+        "wrt_interop",
+        NOW + 2,
+    )
+    .expect("listed");
+
+    assert_eq!(holdings.artifacts.len(), 2);
+    assert_eq!(
+        holdings.artifacts[0].digest, second.digest,
+        "the later filing is listed first"
+    );
+    assert_eq!(holdings.artifacts[0].submitted_at, NOW + 1);
+    assert_eq!(holdings.artifacts[1].digest, first.digest);
+    assert_eq!(holdings.artifacts[1].submitted_at, NOW);
 }
 
 // ── what must be refused ──────────────────────────────────────────────────────────────
