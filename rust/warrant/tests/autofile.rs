@@ -679,3 +679,95 @@ fn a_settle_on_an_unpaired_machine_writes_no_filing_state() {
         "and it writes nothing toward one"
     );
 }
+
+// ── notifications: the sibling contract, driven through the same real binary ───────────
+//
+// A notification is downstream of the event that caused it, exactly as an automatic filing is
+// downstream of the settle: a delivery failure never changes the exit code. These live here
+// rather than in tests/notify.rs because that file drives the library against a scripted
+// transport, and this is the binary-level contract — the same file, the same helper, the same
+// shape of assertion as the filing contract above.
+
+/// Write a notify.json naming one webhook at `url`.
+fn configure_notifications(home: &std::path::Path, url: &str) {
+    let root = home.join(".warrantor");
+    std::fs::create_dir_all(&root).expect("make the store root");
+    std::fs::write(
+        warrantor_warrant::notify::config_path(&root),
+        format!(
+            "{{\"format\":\"{}\",\"webhooks\":[{{\"url\":\"{url}\",\"secret\":\"\",\"events\":[]}}]}}",
+            warrantor_warrant::notify::NOTIFY_CONFIG_FORMAT
+        ),
+    )
+    .expect("write the notification config");
+}
+
+/// An unconfigured machine sees byte-for-byte today's settle and void: no notification words,
+/// no notify/ directory. Silence is the honest rendering of "nobody asked".
+#[test]
+fn an_unconfigured_machine_sees_no_notification_difference() {
+    let home = tempdir("notify-unconfigured");
+    let id = grant(&home);
+
+    let (ok, output) = run(&home, &["settle", &id]);
+    assert!(ok, "{output}");
+    assert!(
+        !output.to_lowercase().contains("notif"),
+        "no configuration, no notification words: {output}"
+    );
+    assert!(
+        !home.join(".warrantor/notify").exists(),
+        "and no queue directory is created"
+    );
+
+    let other = grant(&home);
+    let (ok, output) = run(&home, &["void", &other]);
+    assert!(ok, "{output}");
+    assert!(!output.to_lowercase().contains("notif"), "{output}");
+}
+
+/// A settle whose notification failed exits exactly as one with no configuration — exit 0, the
+/// failure in its own block, the notification queued — and the NEXT notification drains first,
+/// so the queued one carries one more attempt behind it.
+#[test]
+fn a_settle_whose_notification_failed_exits_as_a_settle() {
+    use warrantor_warrant::notify;
+
+    let home = tempdir("notify-unreachable");
+    configure_notifications(&home, "http://127.0.0.1:9");
+    let id = grant(&home);
+
+    let (ok, output) = run(&home, &["settle", &id]);
+
+    assert!(ok, "the notification is downstream of the settle: {output}");
+    assert!(
+        output.contains("NOTIFICATION NOT DELIVERED")
+            && output.contains("the settled above is done")
+            && output.contains("retried at the next notification"),
+        "the failure block states the event, the fact and the retry: {output}"
+    );
+    let root = home.join(".warrantor");
+    let pending = notify::load_pending(&root).expect("readable queue");
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].notification.event, "settled");
+    assert_eq!(pending[0].notification.warrant_id, id);
+    assert_eq!(pending[0].notification.goal, "exercise automatic filing");
+
+    let other = grant(&home);
+    let (ok, output) = run(&home, &["void", &other]);
+    assert!(ok, "{output}");
+    assert!(
+        output.contains("NOTIFICATION NOT DELIVERED"),
+        "the voided notification also fails loudly: {output}"
+    );
+    let pending = notify::load_pending(&root).expect("readable queue");
+    assert_eq!(pending.len(), 2, "the retried failure plus the new failure");
+    assert_eq!(
+        pending
+            .iter()
+            .find(|entry| entry.notification.event == "settled")
+            .map(|entry| entry.attempts),
+        Some(2),
+        "the earlier notification has failed twice now"
+    );
+}

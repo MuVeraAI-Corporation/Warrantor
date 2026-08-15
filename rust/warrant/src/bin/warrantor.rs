@@ -36,6 +36,7 @@ use warrantor_warrant::egress::{
 use warrantor_warrant::guard;
 use warrantor_warrant::mcp::serve;
 use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
+use warrantor_warrant::notify::{self, Notification, NotifyConfig, NotifyTransport};
 use warrantor_warrant::proxy::{host_of, ProxyMode};
 use warrantor_warrant::report;
 use warrantor_warrant::retention;
@@ -436,6 +437,15 @@ arm the release buttons.
 Run starts the agent under a supervisor detached from this terminal: closing the
 terminal ends your view of the run, not the run. Status says what is still going
 and what stopped and needs a decision.
+
+Notifications fire when a warrant is settled, voided or stopped, and when an
+automatic filing failed and was queued: write notify.json in the store root naming
+a webhook URL (and, if the receiver checks, a secret used to HMAC-sign every POST)
+and whoever is not watching the window is told. A delivery failure never fails the
+action that caused it -- it prints its own block and queues in notify/pending.jsonl,
+retried at the next notification. What leaves the machine is the event, the
+warrant's id, goal, subject, state and a timestamp -- never evidence bytes, never
+tool arguments. No notify.json, no notifications, no new output.
 
 Grant creates a git worktree and points the agent at it. External effects are
 staged, not performed, and settle stages only in-bounds paths, so out-of-bounds
@@ -1388,7 +1398,16 @@ fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         );
     }
 
-    if stop::contained(&signed) {
+    let contained = stop::contained(&signed);
+    // The stop is a fact; the notification is downstream of it and cannot gate the exit code.
+    notify_event(
+        root,
+        "stopped",
+        &stored,
+        serde_json::json!({ "contained": contained }),
+    );
+
+    if contained {
         ExitCode::SUCCESS
     } else {
         eprintln!(
@@ -2014,6 +2033,14 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             // on. It cannot change what settle reports — see its doc comment for the one
             // deliberate difference from `--archive` on the export verbs.
             auto_file_at_settle(store, root, id, &stored);
+            // And last, the notification — the event already happened; the webhook is downstream
+            // of it, not a gate on it, and a delivery failure cannot touch this exit code.
+            notify_event(
+                root,
+                "settled",
+                &stored,
+                serde_json::json!({ "complete": report.complete }),
+            );
             if report.complete {
                 ExitCode::SUCCESS
             } else {
@@ -2057,6 +2084,12 @@ fn cmd_void(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
                 return fail(&e.to_string());
             }
             println!("warrant {id} voided. Staged effects discarded; receipts retained.");
+            notify_event(
+                root,
+                "voided",
+                &stored,
+                serde_json::json!({ "staged_effects": "discarded" }),
+            );
             ExitCode::SUCCESS
         }
         Err(e) => fail(&e.to_string()),
@@ -3532,6 +3565,15 @@ fn auto_file_at_settle(store: &WarrantStore, root: &Path, id: &str, stored: &Sto
                     path.display()
                 ),
             }
+            // The one event an off-site overseer most needs pushed at them: the evidence did not
+            // reach the archive. Same rules as every notification — downstream of the fact, never
+            // a gate on it.
+            notify_event(
+                root,
+                "filing-queued",
+                stored,
+                serde_json::json!({ "digest": digest }),
+            );
             return;
         }
     };
@@ -3551,13 +3593,19 @@ fn auto_file_at_settle(store: &WarrantStore, root: &Path, id: &str, stored: &Sto
             print!("{}", render_filed(&filed, &config.url));
             println!("\nfinal report for {id}, filed automatically (policy: settle)");
         }
-        Ok(autofile::Filing::Queued { reason, .. }) => {
+        Ok(autofile::Filing::Queued { reason, entry }) => {
             eprintln!(
                 "\nAUTOMATIC FILING FAILED — the warrant above IS settled; the evidence is NOT \
                  filed.\n  reason:   {reason}\n  queued:   {} (retries at the next settle)\n  on \
                  disk:  {}",
                 autofile::pending_path(root).display(),
                 path.display()
+            );
+            notify_event(
+                root,
+                "filing-queued",
+                stored,
+                serde_json::json!({ "digest": entry.digest }),
             );
         }
         Err(e) => {
@@ -3587,6 +3635,113 @@ fn render_drain(outcome: &autofile::DrainOutcome, url: &str) {
     }
     for dropped in &outcome.dropped {
         println!("  dropped        {dropped}");
+    }
+}
+
+/// A real HTTP transport for webhook notifications.
+///
+/// Built like [`HttpsArchive`]: short timeouts, because a slow webhook must not stall a settle
+/// that is already done; redirects refused, because the body is re-POSTed verbatim on a redirect
+/// and a signature bound to a payload is no reason to hand that payload to whoever the receiver
+/// names next; and the answer body carried in the error, because a receiver's own refusal text is
+/// worth more to the operator than a status code.
+struct WebhookDelivery {
+    agent: ureq::Agent,
+}
+
+impl WebhookDelivery {
+    fn new() -> Self {
+        Self {
+            agent: ureq::AgentBuilder::new()
+                .timeout_connect(std::time::Duration::from_secs(5))
+                .timeout(std::time::Duration::from_secs(10))
+                .redirects(0)
+                .build(),
+        }
+    }
+}
+
+impl NotifyTransport for WebhookDelivery {
+    fn deliver(
+        &mut self,
+        url: &str,
+        headers: &[(String, String)],
+        body: &[u8],
+    ) -> Result<(), String> {
+        let mut request = self
+            .agent
+            .post(url)
+            .set("content-type", "application/json")
+            .set("user-agent", "warrantor");
+        for (name, value) in headers {
+            request = request.set(name, value);
+        }
+        let sent = request.send_bytes(body);
+        let response = match sent {
+            Ok(response) | Err(ureq::Error::Status(_, response)) => response,
+            Err(other) => return Err(other.to_string()),
+        };
+        let status = response.status();
+        if (200..300).contains(&status) {
+            return Ok(());
+        }
+        let mut text = String::new();
+        use std::io::Read;
+        let _ = response.into_reader().take(512).read_to_string(&mut text);
+        Err(format!(
+            "the webhook answered {status}: {}",
+            text.trim().chars().take(200).collect::<String>()
+        ))
+    }
+}
+
+/// Tell whoever is configured in `notify.json` that a warrant event happened.
+///
+/// Same silence rules as automatic filing: a machine with no configuration sees byte-for-byte
+/// today's output, and a configuration that exists but will not parse is refused loudly, because
+/// an operator asked for notifications and silently not getting them is the one outcome this
+/// feature exists to prevent. A failed delivery never changes the caller's exit code — the event
+/// already happened; the webhook is downstream of it, not a gate on it.
+fn notify_event(root: &Path, event: &str, stored: &StoredWarrant, detail: serde_json::Value) {
+    let config = match NotifyConfig::load(root) {
+        Ok(config) if config.webhooks.is_empty() => return,
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!(
+                "\nwarrantor: notifications are configured and NOT running — notify.json exists \
+                 and cannot be read: {e}. Nobody is being told about the {event} above until \
+                 that is fixed."
+            );
+            return;
+        }
+    };
+    let claims = &stored.warrant.claims;
+    let notification = Notification {
+        format: notify::NOTIFICATION_FORMAT.to_string(),
+        event: event.to_string(),
+        warrant_id: claims.id.clone(),
+        goal: claims.goal.clone(),
+        subject: claims.subject.clone(),
+        state: format!("{:?}", stored.warrant.state).to_lowercase(),
+        at: now(),
+        detail,
+    };
+    let mut transport = WebhookDelivery::new();
+    match notify::notify(&mut transport, root, &config, &notification, now()) {
+        Ok(outcomes) => {
+            for (url, outcome) in outcomes {
+                match outcome {
+                    notify::Delivery::Delivered => println!("notified  {url}"),
+                    notify::Delivery::Queued { reason } => eprintln!(
+                        "\nNOTIFICATION NOT DELIVERED — the {event} above is done; the webhook \
+                         was not told.\n  reason: {reason}\n  queued:  {} (retried at the next \
+                         notification)",
+                        notify::pending_path(root).display()
+                    ),
+                }
+            }
+        }
+        Err(e) => eprintln!("\nwarrantor: notifications could not be processed: {e}"),
     }
 }
 

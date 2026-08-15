@@ -40,6 +40,7 @@ pub mod egress;
 pub mod guard;
 pub mod mcp;
 pub mod mcp_endpoints;
+pub mod notify;
 pub mod proxy;
 pub mod report;
 pub mod retention;
