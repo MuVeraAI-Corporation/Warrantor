@@ -50,6 +50,7 @@ pub mod staging;
 pub mod stop;
 pub mod store;
 pub mod supervise;
+pub mod trust;
 pub mod worktree;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};

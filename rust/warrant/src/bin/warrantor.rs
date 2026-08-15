@@ -46,6 +46,7 @@ use warrantor_warrant::staging::{EffectRegistry, StagedChainMark, StagedEffect, 
 use warrantor_warrant::stop::{self, OsProcessControl, StopStore};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::supervise::{describe_linkage, spawn_detached};
+use warrantor_warrant::trust;
 use warrantor_warrant::worktree::Worktree;
 use warrantor_warrant::{
     SideEffectClass, Warrant, WarrantBounds, WarrantState, DEFAULT_CLI_SUBJECT,
@@ -297,6 +298,7 @@ warrantor — bounded authority for coding agents
   holdings
   report  <warrant-id> [--export <path> [--archive [<url>]]]
   verify  <exported-report.json | exported-stop.json | exported-spend.json>
+  issuer  add <name> <hex> [--note \"...\"] | list | remove <name>
   archive enrol --url <url> --code <code> [--replace] | push <file>
                 | fetch <sha256> --out <path> | list <warrant-id> | auto [settle|off]
   egress  <warrant-id> <destination> [<destination> ...]
@@ -323,6 +325,16 @@ Report --export writes a signed, self-contained evidence bundle. Verify checks o
 offline, on any machine, with no access to this one: it proves nothing changed since
 signing, and says plainly what it does not prove. It reads stop records and spend
 ledgers too, dispatching on the format the file declares.
+
+Issuer pins a name to an issuer's public key, checked out of band, once: `issuer add
+ana <hex> --note \"video call, 2026-08\"` and from then on `verify --issuer ana` means
+the key checked when that pin was made -- and every verdict says which name it used
+and when it was pinned, or says plainly that the anchor was pasted onto the command
+line instead. Pinning is trust on first use, and the pin records that; changing a
+pinned key refuses without --replace, because two keys under one name is exactly what
+an attacker who cannot forge signatures wants. The directory is local -- nothing
+fetches keys over a network, because a directory that hands them out is a new trust
+root, and this design does not add one.
 
 Archive files evidence with a self-hosted evidence archive, and reads it back. Enrol
 pairs this machine against a one-time code an operator mints on the archive host and
@@ -744,10 +756,10 @@ fn write_export<T: serde::Serialize>(signed: &T, path: &Path) -> Result<(), Stri
 /// evidence archive, an email, a shared drive — rather than off the disk that produced it. The flag
 /// is not defaulted from the local store: verifying somebody else's evidence against your own issuer
 /// key would produce a verdict from a key with nothing to do with the case.
-fn cmd_verify(args: &Args) -> ExitCode {
+fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
     let Some(path) = args.positional.first() else {
         return fail(
-            "usage: warrantor verify <exported-report.json | exported-stop.json> [--issuer <hex>]",
+            "usage: warrantor verify <exported-report.json | exported-stop.json> [--issuer <hex | name>]",
         );
     };
     // Parsed BEFORE the file is read, so a mistyped key is a refusal about the key rather than a
@@ -756,12 +768,13 @@ fn cmd_verify(args: &Args) -> ExitCode {
         None => None,
         Some(text) if text == "true" => {
             return fail(
-                "--issuer needs the issuer's 64-character hex verifying key: warrantor verify \
-                 <file> --issuer <hex>",
+                "--issuer needs an issuer: a 64-character hex verifying key, or a name pinned \
+                 with `warrantor issuer add`. Pinned names are the form that means anything — \
+                 nobody checks a hex string they pasted from the same place they got the file.",
             )
         }
-        Some(text) => match parse_verifying_key(text) {
-            Ok(key) => Some(key),
+        Some(text) => match resolve_anchor(root, text) {
+            Ok(anchor) => Some(anchor),
             Err(e) => return fail(&e),
         },
     };
@@ -790,7 +803,233 @@ fn cmd_verify(args: &Args) -> ExitCode {
     }
 }
 
-fn verify_report_export(path: &str, body: &[u8], anchor: Option<&VerifyingKey>) -> ExitCode {
+/// Where a verify anchor came from. Printed in the verdict, because a name resolved from the
+/// pinned directory and a key pasted onto the command line are different claims even when they
+/// are the same bytes — one says "I decided this before, out of band", the other says "I typed
+/// this just now, from wherever the file came from".
+struct Anchor {
+    key: VerifyingKey,
+    origin: AnchorOrigin,
+}
+
+enum AnchorOrigin {
+    /// Resolved from `trusted/issuers.json` under this name, pinned at this moment.
+    Pinned { name: String, pinned_at: u64 },
+    /// 64 hex characters given on the command line.
+    GivenOnTheCommandLine,
+}
+
+/// Resolve `--issuer`'s text into an anchor, refusing everything in between.
+///
+/// 64 hex characters is the raw-key form, kept for scripts and for one-off checks. Anything else
+/// is a name and must be pinned — an unknown name is a refusal that says how to pin it, never a
+/// guess, and never a quiet fallthrough to treating it as something else. The two forms cannot
+/// overlap because a pin name is at most 32 characters.
+///
+/// # Errors
+/// [`String`] explaining what was refused and what would have worked.
+fn resolve_anchor(root: &Path, text: &str) -> Result<Anchor, String> {
+    let text = text.trim();
+    if trust::looks_like_a_key(text) {
+        return Ok(Anchor {
+            key: parse_verifying_key(text)?,
+            origin: AnchorOrigin::GivenOnTheCommandLine,
+        });
+    }
+    if let Err(e) = trust::check_name(text) {
+        return Err(format!(
+            "{e} --issuer takes a pinned name or a 64-hex-character key, and {text:?} is \
+             neither."
+        ));
+    }
+    let directory = trust::Directory::load(root)?;
+    match directory.issuers.get(text) {
+        Some(pin) => Ok(Anchor {
+            key: trust::parse_key(&pin.key)?,
+            origin: AnchorOrigin::Pinned {
+                name: text.to_string(),
+                pinned_at: pin.pinned_at,
+            },
+        }),
+        None => Err(format!(
+            "{text:?} is not pinned on this machine, and an unpinned name verifies nothing. Pin \
+             it after checking the key out of band — a video call, a company key registry, \
+             anything but the same message the file arrived in:\n  warrantor issuer add {text} \
+             <the issuer's 64-hex-character key>\nThen: warrantor verify <file> --issuer {text}",
+        )),
+    }
+}
+
+/// `warrantor issuer <add|list|remove>` — names for the keys evidence is verified against.
+///
+/// `--issuer <hex>` works but checks the wrong thing in human hands: the hex string is pasted
+/// from wherever the file came from, so it verifies the file against a claim the file itself
+/// supplied. A pin is the same decision made once, deliberately, out of band — and from then on
+/// `verify --issuer ana` means "the key I checked when I made this pin", with the pin's date
+/// printed in every verdict that uses it.
+///
+/// This is a local directory with no network, on purpose: a directory that hands out keys over
+/// the network is a new trust root, and nothing here adds one. See `trust.rs` for the model
+/// written out, including why the file is not itself signed.
+fn cmd_issuer(args: &Args, root: &Path) -> ExitCode {
+    match args.positional.first().map(String::as_str) {
+        Some("add" | "pin") => cmd_issuer_add(args, root),
+        Some("list") => cmd_issuer_list(root),
+        Some("remove" | "unpin") => cmd_issuer_remove(args, root),
+        Some(other) => fail(&format!(
+            "unknown issuer verb {other:?}. warrantor issuer has three: add, list, remove."
+        )),
+        None => fail(
+            "usage: warrantor issuer add <name> <hex> [--note \"...\" | --replace]\n       \
+             warrantor issuer list\n       warrantor issuer remove <name>",
+        ),
+    }
+}
+
+fn cmd_issuer_add(args: &Args, root: &Path) -> ExitCode {
+    let (Some(name), Some(text)) = (args.positional.get(1), args.positional.get(2)) else {
+        return fail(
+            "usage: warrantor issuer add <name> <hex> [--note \"where you checked it\"]\n\nThe \
+             note is worth writing: it is what your future self reads when deciding whether a \
+             pin made today is still a pin they stand behind.",
+        );
+    };
+    if let Err(e) = trust::check_name(name) {
+        return fail(&e);
+    }
+    let key = match trust::parse_key(text) {
+        Ok(key) => key,
+        Err(e) => return fail(&e),
+    };
+    let note = args.flags.get("note").cloned().unwrap_or_default();
+    let mut directory = match trust::Directory::load(root) {
+        Ok(directory) => directory,
+        Err(e) => return fail(&e),
+    };
+    let replacing = args.flags.contains_key("replace");
+    match directory.pin(name, &key, now(), &note) {
+        Ok(trust::PinOutcome::Pinned) => {
+            let written = match directory.save(root) {
+                Ok(path) => path,
+                Err(e) => return fail(&e),
+            };
+            println!("pinned   {name} -> {}", hex::encode(key.to_bytes()));
+            println!("record   {}", written.display());
+            println!(
+                "\nThis is TRUST ON FIRST USE, and the use is this one: you have just decided \
+                 that `{name}` means this key, on this machine, from now on. Verify against it \
+                 by name:  warrantor verify <file> --issuer {name}"
+            );
+            ExitCode::SUCCESS
+        }
+        Ok(trust::PinOutcome::AlreadyPinned) => {
+            println!(
+                "already pinned — {name} was already pinned to this same key, and nothing has \
+                 changed. Not even the pin's date: when a pin was made is part of what it \
+                 claims."
+            );
+            ExitCode::SUCCESS
+        }
+        Ok(trust::PinOutcome::RefusedDifferentKey {
+            existing,
+            pinned_at,
+        }) => {
+            if !replacing {
+                return fail(&format!(
+                    "{name} is already pinned to {existing} (pinned at {pinned_at}), and \
+                     refusing to change a pin quietly is the one thing this command is most for. \
+                     Two keys under one name is exactly what an attacker who cannot forge a \
+                     signature wants instead.\n\nIf the key really did change, and you checked \
+                     that out of band the same way you checked the first one: rerun with \
+                     --replace. Every verdict verified as `{name}` before that moment used the \
+                     old key, and this one will not pretend otherwise."
+                ));
+            }
+            if let Err(e) = directory.replace(name, &key, now(), &note) {
+                return fail(&e);
+            }
+            let written = match directory.save(root) {
+                Ok(path) => path,
+                Err(e) => return fail(&e),
+            };
+            println!("replaced {name}");
+            println!("  was    {existing} (pinned at {pinned_at})");
+            println!("  now    {}", hex::encode(key.to_bytes()));
+            println!("record  {}", written.display());
+            println!(
+                "\nEvery verdict verified as `{name}` before this moment was verified against \
+                 the old key. This one will not pretend otherwise."
+            );
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&e),
+    }
+}
+
+fn cmd_issuer_list(root: &Path) -> ExitCode {
+    let directory = match trust::Directory::load(root) {
+        Ok(directory) => directory,
+        Err(e) => return fail(&e),
+    };
+    if directory.issuers.is_empty() {
+        // An empty directory is a real answer — nothing on this machine has been pinned — and it
+        // is rendered as the state it is, not as a table with no rows that could read as a
+        // failure to read the directory.
+        println!(
+            "nothing is pinned on this machine. Pinning is how `verify --issuer` stops being a \
+             hex string pasted from the same place as the file:\n  warrantor issuer add <name> \
+             <the issuer's 64-hex-character key> --note \"where you checked it\"\n\nA name is \
+             checked once, out of band, and every later verification prints which name it used \
+             and when you pinned it."
+        );
+        return ExitCode::SUCCESS;
+    }
+    println!("{:<20}{:<68}PINNED   NOTE", "NAME", "KEY");
+    for (name, pin) in &directory.issuers {
+        println!(
+            "{:<20}{:<68}{:<9}{}",
+            name,
+            pin.key,
+            pin.pinned_at,
+            if pin.note.is_empty() {
+                "—"
+            } else {
+                &pin.note
+            }
+        );
+    }
+    ExitCode::SUCCESS
+}
+
+fn cmd_issuer_remove(args: &Args, root: &Path) -> ExitCode {
+    let Some(name) = args.positional.get(1) else {
+        return fail("usage: warrantor issuer remove <name>");
+    };
+    let mut directory = match trust::Directory::load(root) {
+        Ok(directory) => directory,
+        Err(e) => return fail(&e),
+    };
+    let removed = match directory.unpin(name) {
+        Ok(removed) => removed,
+        Err(e) => return fail(&e),
+    };
+    if let Err(e) = directory.save(root) {
+        return fail(&e);
+    }
+    println!(
+        "unpinned {name} (was {}/{})",
+        removed.key, removed.pinned_at
+    );
+    println!(
+        "\nWhat that costs: `warrantor verify <file> --issuer {name}` will now refuse until the \
+         name is pinned again — and re-pinning is the one operation that could put a DIFFERENT \
+         key under the same name, so do it by the same out-of-band check as the first pin. \
+         Files still verify against the raw key, and every verdict already given stands."
+    );
+    ExitCode::SUCCESS
+}
+
+fn verify_report_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitCode {
     let signed: report::SignedReport = match serde_json::from_slice(body) {
         Ok(s) => s,
         Err(e) => return fail(&format!("{path} is not an exported warrantor report: {e}")),
@@ -802,7 +1041,7 @@ fn verify_report_export(path: &str, body: &[u8], anchor: Option<&VerifyingKey>) 
     // With an anchor it is the anchored form, which is `verify_export` plus a key comparison — one
     // verifier with a stricter question, not a second verifier.
     let checked = match anchor {
-        Some(key) => report::verify_export_signed_by(&signed, key),
+        Some(anchor) => report::verify_export_signed_by(&signed, &anchor.key),
         None => report::verify_export(&signed),
     };
     if let Err(e) = checked {
@@ -874,12 +1113,19 @@ const NO_ANCHOR_LIMITATION: &str =
      drive -- rather than off the machine that produced it.";
 
 /// How the anchor line reads on each path.
-fn anchor_line(anchor: Option<&VerifyingKey>) -> String {
+fn anchor_line(anchor: Option<&Anchor>) -> String {
     match anchor {
-        Some(key) => format!(
-            "pinned — the signature is bound to {}",
-            hex::encode(key.to_bytes())
-        ),
+        Some(anchor) => {
+            let bound = hex::encode(anchor.key.to_bytes());
+            match &anchor.origin {
+                AnchorOrigin::Pinned { name, pinned_at } => format!(
+                    "pinned as `{name}` — the signature is bound to {bound}, pinned at                      {pinned_at} by whoever ran `issuer add` on this machine (trust on first                      use, checked out of band at pinning time)"
+                ),
+                AnchorOrigin::GivenOnTheCommandLine => format!(
+                    "given on this command line — the signature is bound to {bound}. A name                      pinned with `warrantor issuer add` is the form that outlives the shell                      history it was pasted into"
+                ),
+            }
+        }
         None => "NONE pinned — self-consistency only; see the limitations below".to_string(),
     }
 }
@@ -889,7 +1135,7 @@ fn anchor_line(anchor: Option<&VerifyingKey>) -> String {
 /// A pass means the ledger has not changed since it was signed and its arithmetic is internally
 /// consistent. It does not mean the figures are true — they are the agent's own — so the caveats
 /// are printed on every pass, not only on failure.
-fn verify_spend_export(path: &str, body: &[u8], anchor: Option<&VerifyingKey>) -> ExitCode {
+fn verify_spend_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitCode {
     let signed: spend::SignedSpend = match serde_json::from_slice(body) {
         Ok(s) => s,
         Err(e) => {
@@ -899,7 +1145,7 @@ fn verify_spend_export(path: &str, body: &[u8], anchor: Option<&VerifyingKey>) -
         }
     };
     let checked = match anchor {
-        Some(key) => spend::verify_spend_signed_by(&signed, key),
+        Some(anchor) => spend::verify_spend_signed_by(&signed, &anchor.key),
         None => spend::verify_spend(&signed),
     };
     if let Err(e) = checked {
@@ -938,7 +1184,7 @@ fn verify_spend_export(path: &str, body: &[u8], anchor: Option<&VerifyingKey>) -
 /// Exits non-zero when the record verifies but records a containment FAIL: a stop that could not
 /// contain the run is a true record of a bad outcome, and reporting it as a clean pass would be the
 /// exact failure the record exists to prevent.
-fn verify_stop_export(path: &str, body: &[u8], anchor: Option<&VerifyingKey>) -> ExitCode {
+fn verify_stop_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitCode {
     let signed: stop::SignedStop = match serde_json::from_slice(body) {
         Ok(s) => s,
         Err(e) => {
@@ -948,7 +1194,7 @@ fn verify_stop_export(path: &str, body: &[u8], anchor: Option<&VerifyingKey>) ->
         }
     };
     let checked = match anchor {
-        Some(key) => stop::verify_stop_signed_by(&signed, key),
+        Some(anchor) => stop::verify_stop_signed_by(&signed, &anchor.key),
         None => stop::verify_stop(&signed),
     };
     if let Err(e) = checked {
@@ -3323,7 +3569,8 @@ fn main() -> ExitCode {
         "list" => cmd_list(&store),
         "holdings" => cmd_holdings(&store),
         "report" => cmd_report(&args, &store, &root),
-        "verify" => cmd_verify(&args),
+        "verify" => cmd_verify(&args, &root),
+        "issuer" => cmd_issuer(&args, &root),
         "archive" => cmd_archive(&args, &root),
         "egress" => cmd_egress(&args, &store, &root),
         "spend" => cmd_spend(&args, &store, &root),

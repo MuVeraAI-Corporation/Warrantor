@@ -434,8 +434,13 @@ discard half the append-only enforcement and leave the trigger standing alone.
    settle surface does not auto-file.)
 4. **TLS** — not done, and deliberately not half-done. Needs a certificate and a proxy config, both
    deployment rather than engineering.
-5. **The trust directory (stage 2)** — where an anchor comes from, so `--issuer` stops being a hex
-   string an operator pastes. This is what closes the residual in row 1 of the threat model.
+5. **The trust directory (stage 2)** — the local half shipped: `warrantor issuer add` pins
+   name → key into `trusted/issuers.json` (TOFU-with-pinning, no network, re-pinning refuses
+   without an explicit replace), and `verify --issuer <name>` prints which anchor a verdict used.
+   Stage 2 proper — a signed or shared directory, rotation, and organisational vouching — is
+   still open, and a directory that hands out keys over the network remains a trust root this
+   design has not decided to add. That is what would fully close the residual in row 1 of the
+   threat model.
 6. **Binding a device key into the settle record** — what would close the other half of W1 delivery
    gap 2.2 and make "who settled this" answerable.
 7. **A retention job** — only after somebody needs one. The policy table exists so that job reads an
