@@ -234,6 +234,23 @@ pub trait ArchiveTransport {
 
 // ── local pairing record ──────────────────────────────────────────────────────────────
 
+/// When evidence should be filed to the archive without an operator passing `--archive`.
+///
+/// A policy, not a default: `off` is what a record written before this field existed means, so a
+/// machine that never asked for automatic filing never gets it. `settle` files the final report at
+/// the moment the warrant's story is over — the one moment an operator will not think to type a
+/// flag, because from their side they are done.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AutoFile {
+    /// File nothing automatically. Today's behaviour, and what an absent field means.
+    #[default]
+    Off,
+    /// At settle, file the final report export. A filing that fails does not undo the settle;
+    /// it is queued and retried at the next settle.
+    Settle,
+}
+
 /// Which archive this device is paired with, and under what name.
 ///
 /// Written by `warrantor archive enrol` and read by everything else. It deliberately holds **no
@@ -261,6 +278,12 @@ pub struct ArchiveConfig {
     pub label: String,
     /// When the archive said the enrolment happened, epoch seconds.
     pub enrolled_at: u64,
+    /// Whether settle files the final report without being asked. Absent means [`AutoFile::Off`]:
+    /// records written before this field existed keep their meaning, and the format stays /1 for
+    /// the same reason — an older binary reading this record ignores the field and behaves as
+    /// `off`, which is the safe direction for a policy to default in.
+    #[serde(default)]
+    pub auto_file: AutoFile,
 }
 
 impl ArchiveConfig {

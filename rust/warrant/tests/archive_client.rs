@@ -51,6 +51,7 @@ fn config() -> ArchiveConfig {
         device_public_key: hex::encode(key().verifying_key().to_bytes()),
         label: "Ana's laptop".to_string(),
         enrolled_at: NOW,
+        auto_file: archive_client::AutoFile::Off,
     }
 }
 

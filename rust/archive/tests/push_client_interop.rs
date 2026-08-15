@@ -220,6 +220,7 @@ fn config() -> ArchiveConfig {
         device_public_key: hex::encode(device_key().verifying_key().to_bytes()),
         label: "Ana's laptop".to_string(),
         enrolled_at: NOW,
+        auto_file: warrantor_warrant::archive_client::AutoFile::Off,
     }
 }
 

@@ -9,6 +9,37 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — automatic push on settle, and a queue that refuses to lose a filing
+
+- **`warrantor archive auto settle|off`, and the settle that files without being asked.**
+  `--archive` on `report`/`stop`/`spend` files what `--export` wrote — when an operator remembers
+  the flag at the moment they export. The final report has no such moment: by the time a warrant
+  is settled, the operator is done. `auto settle` records the policy in the existing pairing
+  record (absent field means `off`, so records from before this change keep their meaning and the
+  format stays `/1`), and every CLI settle builds the final report export — the same recipe
+  `report --export` uses, including the queue-read-as-result so an unreadable staged log is
+  *recorded*, not hidden — writes it to `exports/<id>.settle-report.json`, and files it.
+- **A failed filing never fails the settle.** The warrant's state is a local fact established by
+  local keys; an unreachable archive cannot un-settle it. This is the one deliberate difference
+  from `--archive` on the export verbs, where the operator asked for a filing and a failed filing
+  fails the command: here the operator asked to settle, the filing is policy, and a non-zero exit
+  would tell a pipeline the settle failed when it did not — inviting a re-settle of a settled
+  warrant, which is a command that no longer exists. The failure prints in its own block stating
+  both facts in separate sentences ("the warrant above IS settled; the evidence is NOT filed").
+- **A queue with a defined retry point, not a daemon.** Failed filings append to
+  `archive/pending.jsonl` — warrant id, the export's path, its digest, the attempt count, the
+  newest refusal — and the next settle drains the queue before filing its own export. A retry
+  re-reads the bytes off disk and checks them against the digest the entry promised: an entry
+  whose file is gone, or whose bytes changed since queueing, is **dropped with a sentence**
+  rather than silently skipped or filed under a promise that no longer names those bytes. A
+  ledger that exists and will not parse fails the drain loudly rather than reading as an empty
+  queue. There is deliberately no background retry: the next settle is the retry point, which is
+  the next moment this machine is already doing archive business.
+- **`warrantor holdings` knows about the two new locations** (`exports/`, `archive/pending.jsonl`)
+  and what deleting each costs — including that an export whose filing is still queued is the
+  only copy of those bytes, and that deleting the queue makes a failed filing permanent,
+  silently.
+
 ### Added — the archive can be enumerated, so filing it is no longer write-only
 
 - **`warrantor archive list <warrant-id>`.** `push` prints a digest exactly once and `fetch` takes
