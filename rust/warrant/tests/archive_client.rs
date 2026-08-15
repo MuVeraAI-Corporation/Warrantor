@@ -608,6 +608,281 @@ fn every_request_carries_a_fresh_nonce() {
     }
 }
 
+// ── listing what was filed ────────────────────────────────────────────────────────────
+
+/// A listing row, in the wire shape the archive actually sends. Written by hand, not built from a
+/// shared struct, so the test pins the client to the documented format.
+fn held_row(digest: &str, kind: &str, at: u64, check: &str) -> serde_json::Value {
+    json!({
+        "digest": digest,
+        "kind": kind,
+        "warrant_id": "wrt_test",
+        "submitted_at": at,
+        "submitted_by_device": DEVICE,
+        "ingest_check": check,
+    })
+}
+
+/// A well-formed listing answer, `artifacts` set to whatever the test wants.
+fn holdings_body(artifacts: serde_json::Value) -> serde_json::Value {
+    json!({
+        "format": ARCHIVE_RESPONSE_FORMAT,
+        "data": {
+            "warrant_id": "wrt_test",
+            "artifacts": artifacts,
+            "kinds_held": ["report", "stop", "ledger"],
+        },
+        "not_a_verdict": {
+            "ingest_check": "unknown",
+            "reason": "a listing reads no artifact body, so no signature was checked for these rows.",
+            "verify_locally": "verify locally with `warrantor verify <file> --issuer <hex>`",
+        },
+    })
+}
+
+/// A list asks for exactly the warrant it was given, with GET, and the rows come back in the
+/// archive's order as plain facts — including a door's note of `failed`, carried verbatim rather
+/// than tidied into a pass.
+#[test]
+fn a_list_addresses_one_warrant_and_carries_the_rows_verbatim() {
+    let older = held_row(&"1".repeat(64), "report", NOW, "ok");
+    let newer = held_row(&"2".repeat(64), "stop", NOW + 1, "failed");
+    let mut archive = Canned::ok(holdings_body(json!([newer, older])));
+
+    let holdings = archive_client::list(&mut archive, &config(), &key(), "wrt_test", NOW)
+        .expect("a well-formed listing is read");
+
+    assert_eq!(
+        archive.asked,
+        [(
+            "GET".to_string(),
+            "/v1/warrants/wrt_test/evidence".to_string()
+        )]
+    );
+    assert_eq!(holdings.warrant_id, "wrt_test");
+    assert_eq!(
+        holdings.artifacts.len(),
+        2,
+        "the rows arrive in the order sent"
+    );
+    assert_eq!(holdings.artifacts[0].digest, "2".repeat(64));
+    assert_eq!(holdings.artifacts[0].kind, "stop");
+    assert_eq!(holdings.artifacts[0].warrant_id, "wrt_test");
+    assert_eq!(holdings.artifacts[0].submitted_at, NOW + 1);
+    assert_eq!(holdings.artifacts[0].submitted_by_device, DEVICE);
+    assert_eq!(
+        holdings.artifacts[0].ingest_check, "failed",
+        "a failed door's note is a fact about the filing, not something to soften"
+    );
+    assert!(
+        !holdings.verify_locally.is_empty(),
+        "the archive's own sentence about where a real answer comes from travels with the listing"
+    );
+}
+
+/// An empty listing is a real answer — this archive holds nothing about that warrant — and it is
+/// returned as one. The archive says "nothing" with a 200 and an empty array, on purpose.
+#[test]
+fn an_empty_listing_is_an_answer_not_a_failure() {
+    let mut archive = Canned::ok(holdings_body(json!([])));
+
+    let holdings = archive_client::list(&mut archive, &config(), &key(), "wrt_test", NOW)
+        .expect("empty is what the archive said, and it said it with a 200");
+
+    assert_eq!(holdings.warrant_id, "wrt_test");
+    assert!(
+        holdings.artifacts.is_empty(),
+        "and it stays empty rather than growing a defaulted row"
+    );
+}
+
+/// A listing that comes back about a warrant other than the one asked about is refused, at
+/// runtime. The echo check is the listing's analogue of `push`'s digest check: an answer about a
+/// different warrant is not an answer to the question, and returning it would send the operator
+/// to `fetch` under someone else's evidence.
+#[test]
+fn a_listing_about_a_different_warrant_than_the_one_asked_is_refused() {
+    let mut body = holdings_body(json!([]));
+    *body.pointer_mut("/data/warrant_id").unwrap() = json!("wrt_somebody_elses");
+    let mut archive = Canned::ok(body);
+
+    let error = archive_client::list(&mut archive, &config(), &key(), "wrt_test", NOW)
+        .expect_err("an answer about a different warrant is not an answer");
+
+    assert!(
+        matches!(&error, ArchiveClientError::Unreadable { reason, .. }
+            if reason.contains("wrt_somebody_elses") && reason.contains("wrt_test")),
+        "{error}"
+    );
+}
+
+/// A store the archive cannot read is a refusal, and that refusal is what keeps "nothing held"
+/// honest. Collapsing the 503 into an empty listing would make a broken archive indistinguishable
+/// from an empty one — the exact pair this archive keeps apart on its side of the wire.
+#[test]
+fn a_store_the_archive_cannot_read_is_a_refusal_not_an_empty_listing() {
+    let mut archive = Canned::refusing(
+        503,
+        "store_unavailable",
+        "the archive could not read its store, so this listing was not produced. An empty list \
+         would have been indistinguishable from an archive that holds nothing.",
+    );
+
+    let error = archive_client::list(&mut archive, &config(), &key(), "wrt_test", NOW)
+        .expect_err("an unreadable store is not an empty one");
+
+    assert!(
+        matches!(&error, ArchiveClientError::Refused { status, code, .. }
+            if *status == 503 && code == "store_unavailable"),
+        "{error}"
+    );
+}
+
+/// A 200 with no `artifacts` array is refused rather than read as empty. "The archive holds
+/// nothing" and "the archive said something this client cannot parse" are different claims, and a
+/// default of `vec![]` would erase the difference exactly where it matters most.
+#[test]
+fn a_listing_without_an_artifacts_array_is_refused_rather_than_assumed_empty() {
+    let mut archive = Canned::ok(json!({
+        "format": ARCHIVE_RESPONSE_FORMAT,
+        "data": { "warrant_id": "wrt_test" },
+        "not_a_verdict": { "ingest_check": "unknown", "reason": "", "verify_locally": "…" },
+    }));
+
+    let error = archive_client::list(&mut archive, &config(), &key(), "wrt_test", NOW)
+        .expect_err("a missing field is not an empty answer");
+
+    assert!(
+        matches!(&error, ArchiveClientError::Unreadable { reason, .. }
+            if reason.contains("artifacts")),
+        "{error}"
+    );
+}
+
+/// A row missing one field is refused rather than defaulted. `ingest_check` especially: defaulting
+/// it to `ok` would turn a row the door flagged into one the CLI renders as clean, which is the
+/// one transformation this client must never perform.
+#[test]
+fn a_row_missing_its_ingest_check_is_refused_rather_than_defaulted_to_ok() {
+    let row = json!({
+        "digest": "1".repeat(64),
+        "kind": "report",
+        "warrant_id": "wrt_test",
+        "submitted_at": NOW,
+        "submitted_by_device": DEVICE,
+        // ingest_check omitted.
+    });
+    let mut archive = Canned::ok(holdings_body(json!([row])));
+
+    let error = archive_client::list(&mut archive, &config(), &key(), "wrt_test", NOW)
+        .expect_err("refused");
+
+    assert!(
+        matches!(&error, ArchiveClientError::Unreadable { reason, .. }
+            if reason.contains("ingest_check")),
+        "{error}"
+    );
+}
+
+/// A 200 that carries no `not_a_verdict` block is refused, with a reason naming the block — not
+/// read as a listing whose `verify_locally` happens to be absent. That block is where the archive
+/// says what a listing is worth; an answer without it is not the archive's answer.
+#[test]
+fn a_listing_without_a_not_a_verdict_block_is_refused() {
+    let mut archive = Canned::ok(json!({
+        "format": ARCHIVE_RESPONSE_FORMAT,
+        "data": { "warrant_id": "wrt_test", "artifacts": [] },
+    }));
+
+    let error = archive_client::list(&mut archive, &config(), &key(), "wrt_test", NOW)
+        .expect_err("refused");
+
+    assert!(
+        matches!(&error, ArchiveClientError::Unreadable { reason, .. }
+            if reason.contains("not_a_verdict")),
+        "{error}"
+    );
+}
+
+/// A warrant id with a path separator, or none at all, is refused before anything is signed — the
+/// path is inside the signature, so `../` in a warrant id would otherwise be signed and sent.
+#[test]
+fn a_list_of_something_that_is_not_a_warrant_id_sends_nothing() {
+    let mut archive = Canned::saying(Vec::new());
+
+    for bad in ["", "wrt_../keys"] {
+        let error = archive_client::list(&mut archive, &config(), &key(), bad, NOW)
+            .expect_err("refused before the wire");
+        assert!(
+            matches!(&error, ArchiveClientError::Config(_)),
+            "{bad:?}: {error}"
+        );
+    }
+    assert!(archive.asked.is_empty(), "nothing was sent");
+}
+
+// ── the CLI verb ──────────────────────────────────────────────────────────────────────
+
+/// Run `warrantor archive <args...>` against a store rooted in `home`.
+fn run_archive(home: &std::path::Path, args: &[&str]) -> (bool, String) {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_warrantor"))
+        .arg("archive")
+        .args(args)
+        .env("HOME", home)
+        .env("USERPROFILE", home)
+        .output()
+        .expect("run warrantor archive");
+    let both = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    (out.status.success(), both)
+}
+
+/// `warrantor archive list` with no warrant id is a usage error, and it is the pairing that is
+/// asked about second — a machine that never enrolled still gets the usage error, not a lecture
+/// about keys.
+#[test]
+fn archive_list_without_an_id_is_a_usage_error() {
+    let home = tempdir("list-no-id");
+
+    let (success, output) = run_archive(&home, &["list"]);
+
+    assert!(!success, "{output}");
+    assert!(output.contains("usage: warrantor archive list"), "{output}");
+}
+
+/// An unknown archive verb names all four, so an operator who guesses can see `list` exists.
+#[test]
+fn an_unknown_archive_verb_names_all_four() {
+    let home = tempdir("unknown-verb");
+
+    let (success, output) = run_archive(&home, &["retrieve"]);
+
+    assert!(!success, "{output}");
+    assert!(output.contains("enrol, push, fetch, list"), "{output}");
+}
+
+/// The synopsis names the list verb. A synopsis that has drifted from the dispatch is how a verb
+/// ships unreachable — listed in the match, absent from the help an operator actually reads.
+#[test]
+fn the_synopsis_names_the_list_verb() {
+    let home = tempdir("usage");
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_warrantor"))
+        .env("HOME", &home)
+        .env("USERPROFILE", &home)
+        .output()
+        .expect("run warrantor with no arguments");
+    let output = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    assert!(output.contains("list <warrant-id>"), "{output}");
+}
+
 // ── enrolling twice ───────────────────────────────────────────────────────────────────
 //
 // These drive the real binary, because what is being tested is an ordering: the refusal has to

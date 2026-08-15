@@ -9,6 +9,26 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — the archive can be enumerated, so filing it is no longer write-only
+
+- **`warrantor archive list <warrant-id>`.** `push` prints a digest exactly once and `fetch` takes
+  a digest, not a warrant id — so an operator whose scrollback was gone could not even find out
+  what they had filed. The listing route had been served by the archive since #40 with no client
+  that could reach it. `list` asks `GET /v1/warrants/{id}/evidence`, signed like every other
+  route, and prints each artifact's **full** digest — the address `fetch` takes — newest first,
+  with the door's note carried verbatim under the archive's own `not_a_verdict` wording. **An
+  empty listing is a real answer** (this archive holds nothing about that warrant) and is kept
+  visibly distinct from an archive that could not read its store, which refuses with
+  `store_unavailable` rather than listing: the CLI renders the first as a sentence and the second
+  as the refusal it is, and a test pins the pair so they cannot collapse back together. The client
+  also refuses, at runtime, a listing that comes back about a warrant other than the one asked
+  about — the echo check is `list`'s analogue of `push`'s digest check — and a 200 whose
+  `artifacts` array is missing is refused as unreadable rather than defaulted to empty, because
+  "nothing held" and "an answer I could not parse" are different claims. Wiring this up found and
+  fixed a real bug in the library half: it read `not_a_verdict` from inside `data`, where it never
+  is on the wire, so every well-formed 200 would have failed as unreadable — invisible until now
+  because nothing called the function and no test held it to the wire shape.
+
 ### Added — the evidence archive gets a client, so evidence can actually reach it
 
 - **`warrantor archive enrol | push | fetch`, and `--archive` on `report`/`stop`/`spend`.** PR #40
