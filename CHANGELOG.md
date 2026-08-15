@@ -9,6 +9,26 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — the fleet-level view: custody totals across everything the archive holds
+
+- **`GET /v1/summary` at the archive, `warrantor archive summary` on the client.** The
+  decision-maker's question — "what did our agents file, from where, when" — is one no single
+  machine can answer about itself, because the filings live at the archive. The summary answers
+  the part an evidence relay can answer honestly: **artifacts, warrants, devices, first and last
+  filing, by kind, by device** — an account of custody records, aggregated from the same store
+  read the per-warrant listing uses, so the summary and the listings can never disagree about
+  what is held.
+- **The boundary is stated in the render, not implied**: the heading says CUSTODY and refuses to
+  say verdict, no artifact body is read to count anything, and the footer says plainly that
+  "what any agent actually DID" is in the artifacts — `list`, `fetch`, `verify` — never in the
+  counts. An archive holding nothing summarises as a sentence (zeros, no timestamps), visibly
+  distinct from an archive that could not read its store, which **refuses** rather than
+  summarising — the pair the listing already kept, kept here too, test-pinned.
+- Authenticated like every route but health (server test: an unsigned caller learns nothing, not
+  even whether there is anything to summarise). Not done, said in §3.3: per-repo views,
+  time-bounded queries (no archive route reads a query parameter — the signature covers the
+  path), and any aggregation of local-machine data.
+
 ### Added — `warrantor prune`: the one deletion authority this build has, gated to what it can honestly delete
 
 - **`retention.json` + `warrantor prune [--apply]`.** For the whole of Wave-1 the honest sentence

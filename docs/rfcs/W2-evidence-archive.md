@@ -124,6 +124,7 @@ kept. The warrant id is read out of the raw JSON purely as a **filing key**, val
 | `/v1/evidence` | POST | file an artifact |
 | `/v1/evidence/{sha256}` | GET | the stored bytes, verbatim |
 | `/v1/warrants/{id}/evidence` | GET | what is held about one warrant |
+| `/v1/summary` | GET | custody totals across everything held |
 | `/v1/devices/enrol` | POST | claim a one-time code with a public key |
 
 There is no settle, void, stop or grant, and **no route that accepts warrant claims and returns

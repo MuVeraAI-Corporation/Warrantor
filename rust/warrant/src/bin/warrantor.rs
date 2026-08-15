@@ -303,6 +303,7 @@ warrantor — bounded authority for coding agents
   issuer  add <name> <hex> [--note \"...\"] | list | remove <name> | show-hex
   archive enrol --url <url> --code <code> [--replace] | push <file>
                 | fetch <sha256> --out <path> | list <warrant-id> | auto [settle|off]
+                | summary
   egress  <warrant-id> <destination> [<destination> ...]
   spend   <warrant-id> [--input N --output N [--backend ID] [--quote]] [--export <path>]
   stop    <warrant-id> [--reason \"...\"] [--export <path>]
@@ -365,6 +366,14 @@ write-only archive. An empty listing is a real answer -- this archive holds noth
 about that warrant -- and it is kept distinct from an archive that could not read its
 store, which refuses with `store_unavailable` rather than listing, so the two never
 render the same way here either.
+
+Summary renders what the paired archive holds ACROSS warrants -- artifacts,
+warrants, devices, first and last filing, by kind, by device. It is an account
+of CUSTODY records, not a verdict: no artifact body is read to count it, and
+what any agent actually did stays a question answered by fetching and verifying
+evidence, never by counting rows. An archive holding nothing summarises as
+nothing -- visibly distinct from an archive that could not read its store,
+which refuses rather than summarising.
 
 Auto decides whether filing happens without being asked: `auto settle` files the
 final report at every settle, through the same export path report --export writes;
@@ -3174,15 +3183,16 @@ fn render_holdings(holdings: &archive_client::Holdings, url: &str) -> String {
     out
 }
 
-/// `warrantor archive <enrol|push|fetch|list|auto>` — the local half of the evidence archive.
+/// `warrantor archive <enrol|push|fetch|list|auto|summary>` — the local half of the evidence
+/// archive.
 ///
 /// Until the client existed, `warrantor-archive` was a complete server with nothing that could
 /// reach it: nothing outside that crate could produce a `Warrantor-Device` header, so the `curl`
 /// its deployment README documented could not actually be typed by anybody and
-/// `submitted_by_device` had never named a person. These five verbs are the whole loop — pair a
-/// device, file evidence, read it back, enumerate what was filed, and decide whether filing
-/// happens without being asked — and both reading halves are authenticated, which is why a
-/// `curl` was never going to be enough.
+/// `submitted_by_device` had never named a person. These six verbs are the whole loop — pair a
+/// device, file evidence, read it back, enumerate what was filed, decide whether filing happens
+/// without being asked, and see the totals across everything filed — and every reading half is
+/// authenticated, which is why a `curl` was never going to be enough.
 fn cmd_archive(args: &Args, root: &Path) -> ExitCode {
     match args.positional.first().map(String::as_str) {
         Some("enrol" | "enroll") => cmd_archive_enrol(args, root),
@@ -3190,17 +3200,85 @@ fn cmd_archive(args: &Args, root: &Path) -> ExitCode {
         Some("fetch") => cmd_archive_fetch(args, root),
         Some("list") => cmd_archive_list(args, root),
         Some("auto") => cmd_archive_auto(args, root),
+        Some("summary") => cmd_archive_summary(root),
         Some(other) => fail(&format!(
-            "unknown archive verb {other:?}. warrantor archive has five: enrol, push, fetch, \
-             list, auto."
+            "unknown archive verb {other:?}. warrantor archive has six: enrol, push, fetch, \
+             list, auto, summary."
         )),
         None => fail(
             "usage: warrantor archive enrol --url <url> --code <code> [--replace]\n       \
              warrantor archive push <file>\n       warrantor archive fetch <sha256> --out <path>\n\
              \x20      warrantor archive list <warrant-id>\n       warrantor archive auto \
-             [settle|off]",
+             [settle|off]\n       warrantor archive summary",
         ),
     }
+}
+
+/// `warrantor archive summary` — custody totals across everything the paired archive holds.
+///
+/// The fleet-level question ("what did our agents file, from where, when") is one no single
+/// machine can answer about itself, because the filings live at the archive. This renders what
+/// the relay can answer honestly: an account of custody records, aggregated — artifacts,
+/// warrants, devices, first and last filing, per kind, per device — under a heading that says
+/// CUSTODY and refuses to say verdict. "What did our agents *do*" remains a question about
+/// evidence, answered by fetching and verifying it, never by counting rows.
+fn cmd_archive_summary(root: &Path) -> ExitCode {
+    let (config, key) = match archive_identity(root) {
+        Ok(pair) => pair,
+        Err(e) => return fail(&e),
+    };
+    let mut transport = https_archive(&config.url);
+    match archive_client::summary(&mut transport, &config, &key, now()) {
+        Ok(summary) => {
+            print!("{}", render_fleet(&summary, &config.url));
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&e.to_string()),
+    }
+}
+
+/// What a fleet summary looks like to a human. The heading says what was counted — custody
+/// records — and the word it refuses to say. An archive holding nothing renders as a sentence,
+/// not a bare header of zeros, and stays visibly distinct from an archive that could not read
+/// its store, which never reaches this function (it is a refusal).
+fn render_fleet(summary: &archive_client::FleetSummary, url: &str) -> String {
+    let mut out = String::new();
+    out.push_str("\n── CUSTODY SUMMARY (NOT A VERDICT) ──\n");
+    out.push_str(&format!("  archive        {url}\n"));
+    if summary.artifacts == 0 {
+        out.push_str(concat!(
+            "  held           nothing — this archive has received no filings\n",
+            "\n",
+            "That is a real answer, not a failure to ask: an archive that could not read its\n",
+            "store refuses rather than summarising, so the two cannot render the same way.\n",
+        ));
+        return out;
+    }
+    out.push_str(&format!("  artifacts      {}\n", summary.artifacts));
+    out.push_str(&format!("  warrants       {}\n", summary.warrants));
+    out.push_str(&format!("  devices        {}\n", summary.devices));
+    out.push_str(&format!(
+        "  first filing   {}\n",
+        summary.first_filed_at.unwrap_or_default()
+    ));
+    out.push_str(&format!(
+        "  last filing    {}\n",
+        summary.last_filed_at.unwrap_or_default()
+    ));
+    out.push_str("\n  by kind:\n");
+    for (kind, count) in &summary.by_kind {
+        out.push_str(&format!("    {:<10}{count}\n", kind));
+    }
+    out.push_str("\n  by device:\n");
+    for (device, count) in &summary.by_device {
+        out.push_str(&format!("    {device}  {count}\n"));
+    }
+    out.push_str(&format!("\n  {}\n", summary.verify_locally));
+    out.push_str(concat!(
+        "\nThese are counts of what reached custody. What any agent actually DID is in the\n",
+        "artifacts: warrantor archive list <warrant-id>, fetch, verify.\n",
+    ));
+    out
 }
 
 /// `warrantor archive auto [settle|off]` — whether filing happens without being asked.

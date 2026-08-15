@@ -28,11 +28,13 @@ Everything below is what stops that being true for someone who is *not* the deve
 
 Two separable things, and the first was written here as finished when it was not.
 
-**Packaging is configured, not exercised.** `.github/workflows/desktop-release.yml` and
+**Packaging is exercised, not observed.** `.github/workflows/desktop-release.yml` and
 `desktop/electron-builder.config.cjs` describe a Windows NSIS installer, a macOS dmg for both
-architectures, and a Linux AppImage and deb, with an icon. **That workflow has never run** —
-`workflow_dispatch` 404s until the file is on the default branch — and **no installer has been
-produced, installed or launched on any platform.** The only build performed by hand was a Windows
+architectures, and a Linux AppImage and deb, with an icon. **The workflow has now run** — first
+dispatch 2026-08-15, dry-run, run 31875701622: all four packaging jobs (mac x64, mac arm64,
+linux x64, win x64) green in 4–6 minutes each, the run carrying one installer artifact per
+platform (win 101 MB, mac ~243 MB per arch, linux ~230 MB). Still not done: no installer has been
+**installed or launched** on any machine, and every artifact is unsigned. The only build performed by hand was a Windows
 `electron-builder --dir` run with a 17-byte dummy file standing in for the agent: an unpacked
 directory, not an installer, and not a launch. The macOS and Linux legs have never been executed at
 all, and the macOS leg was misconfigured for as long as this document called packaging done —
@@ -67,12 +69,12 @@ silently re-pointed at a different one by an environment variable any parent pro
 is no fallthrough either — a missing bundled agent or a `WARRANTOR_BIN` that does not exist stops
 the app with a message naming the path, rather than quietly running whatever is on `PATH`.
 
-**Not observed:** that the `warrantor` binary actually arrives inside a produced app. The workflow
-compiles it on the runner that packages it and asserts it is present and executable inside
-`dist/`, and a packaging test asserts the builder config and the resolver agree on the name — but
-the workflow has never run, so no installer has ever been shown to contain an agent, and no app has
-ever been shown to start one. That last step is the one no gate can perform: RELEASING.md step 3
-asks for an install on a machine with no `warrantor` on `PATH`.
+**Partly observed:** the workflow has now run (run 31875701622, all four platforms green), and
+each packaging job's own assertion — the `warrantor` binary present and executable inside
+`dist/`, compiled on the same runner that packaged it — passed inside those green jobs. Not yet
+observed: an installer actually **installed** and the app **launched** from it, which is the step
+no gate can perform: RELEASING.md step 3 asks for an install on a machine with no `warrantor` on
+`PATH`.
 
 ### 1.3 There is no first-run experience — **done**
 
@@ -210,8 +212,17 @@ organisation.
 
 What is still missing here: TLS.
 
-The other needs remain unbuilt or local-only: **approval routing, time anchoring, fleet summary**
-unbuilt; the trust directory local-only. And `serve.rs` still binds loopback, so a second person on
+The other needs: **approval routing** unbuilt (and inert until notifications landed with #57 had
+a decision to carry); **fleet summary** shipped at the custody level (§3.3); the trust directory
+local-only; **time anchoring** unbuilt and now with its options written down — an external RFC
+3161 timestamp authority (a real external clock, at the cost of a new trust root: the TSA's
+certificate chain, and ASN.1/CMS verification this tokio-free agent has no dependency for yet), a
+transparency log (the strongest third-party proof, the heaviest infrastructure), or countersigned
+custody times from the archive operator (the cheapest, and only as strong as the operator's
+clock — the `submitted_at` every filing already records is exactly this, undocumented as
+anchoring). Filing to an archive run by someone else already gives weak clock-independence
+today; making any stronger claim is a design decision deliberately not rushed, for the same
+reason the network trust directory was not. And `serve.rs` still binds loopback, so a second person on
 another machine still sees nothing at all. The console makes oversight usable for someone at the
 same keyboard, which is not the claim.
 
@@ -264,10 +275,22 @@ the CLI alone, same as automatic filing); and approval routing itself (§2.1) �
 says "a warrant needs a decision" is only useful once there is a decision to make and a way to
 make it from where the notification lands.
 
-### 3.3 No multi-machine or multi-repo view
+### 3.3 No multi-machine or multi-repo view — **the custody-level half shipped**
 
-`/v1/summary/daily` covers one store on one machine. A decision-maker's question — "what did our
-agents do this quarter" — has no surface at all.
+`GET /v1/summary` at the evidence archive — and `warrantor archive summary` on the client —
+answers the part of the decision-maker's question an evidence relay can answer honestly: **what
+reached custody** — artifacts, warrants, devices, first and last filing, by kind, by device,
+computed from the same store read the per-warrant listing uses so summary and listings can never
+disagree. It is authenticated like every route, an unreadable store refuses rather than
+summarising as zero, and the render says in its heading and its footer that it is an account of
+custody records, not a verdict: "what did our agents file, from where, when" is answerable; "what
+did our agents DO" is a question about evidence, answered by fetching and verifying it.
+
+What is still missing: per-repo views (nothing records which repository a warrant ran against
+beyond the warrant record itself), time-bounded queries (the summary is all-time; the signature
+covers the path and no archive route reads a query parameter — a deliberate limitation until a
+route design takes that on), and any aggregation of local-machine data (`/v1/summary/daily`
+covers one store on one machine, unchanged).
 
 ### 3.4 No retention or export policy — **the inventory half is done; nothing prunes**
 
