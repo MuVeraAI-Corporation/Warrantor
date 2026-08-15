@@ -298,7 +298,7 @@ warrantor — bounded authority for coding agents
   holdings
   report  <warrant-id> [--export <path> [--archive [<url>]]]
   verify  <exported-report.json | exported-stop.json | exported-spend.json>
-  issuer  add <name> <hex> [--note \"...\"] | list | remove <name>
+  issuer  add <name> <hex> [--note \"...\"] | list | remove <name> | show-hex
   archive enrol --url <url> --code <code> [--replace] | push <file>
                 | fetch <sha256> --out <path> | list <warrant-id> | auto [settle|off]
   egress  <warrant-id> <destination> [<destination> ...]
@@ -876,14 +876,54 @@ fn cmd_issuer(args: &Args, root: &Path) -> ExitCode {
         Some("add" | "pin") => cmd_issuer_add(args, root),
         Some("list") => cmd_issuer_list(root),
         Some("remove" | "unpin") => cmd_issuer_remove(args, root),
+        Some("show-hex" | "show") => cmd_issuer_show_hex(root),
         Some(other) => fail(&format!(
-            "unknown issuer verb {other:?}. warrantor issuer has three: add, list, remove."
+            "unknown issuer verb {other:?}. warrantor issuer has four: add, list, remove, \
+             show-hex."
         )),
         None => fail(
             "usage: warrantor issuer add <name> <hex> [--note \"...\" | --replace]\n       \
-             warrantor issuer list\n       warrantor issuer remove <name>",
+             warrantor issuer list\n       warrantor issuer remove <name>\n       warrantor \
+             issuer show-hex",
         ),
     }
+}
+
+/// `warrantor issuer show-hex` — this machine's issuer public key, as the hex the other commands
+/// take.
+///
+/// Before this existed, an operator pinning `issuer add` or handing the key to a verifier on
+/// another machine had to read the hex off `warrantor verify`'s "signed by" line — a key you fish
+/// out of a command's output is a key people copy wrong, and there was no way to see it before
+/// the first export existed.
+///
+/// **Read-only, never minting.** `load_or_create_key` is deliberately not used here: it creates a
+/// key when none exists, and showing an operator a key that was minted by the act of looking for
+/// it — a key that has signed nothing — is worse than saying there isn't one. The issuer key is
+/// created by `grant`, and this command says so.
+fn cmd_issuer_show_hex(root: &Path) -> ExitCode {
+    let path = root.join("keys/issuer.key");
+    let key = match load_key(&path, KeyKind::Issuer) {
+        Ok(Some(key)) => key,
+        Ok(None) => {
+            return fail(&format!(
+                "there is no issuer key on this machine yet, and this command will not mint one: \
+                 a key created by the act of looking for it has signed nothing. `warrantor grant` \
+                 creates the issuer key at {} alongside the first warrant.",
+                path.display()
+            ));
+        }
+        Err(e) => return fail(&e),
+    };
+    let hex_key = hex::encode(key.verifying_key().to_bytes());
+    println!("issuer public key  {hex_key}");
+    println!("\nPin it here, checked out of band:        warrantor issuer add <name> {hex_key}");
+    println!("Verify against it, here or on any machine: warrantor verify <file> --issuer <name>");
+    println!(
+        "\nThe PRIVATE half stays at {} and never leaves it. Anyone holding the hex above can\nonly CHECK evidence; anyone holding the file can mint it.",
+        path.display()
+    );
+    ExitCode::SUCCESS
 }
 
 fn cmd_issuer_add(args: &Args, root: &Path) -> ExitCode {

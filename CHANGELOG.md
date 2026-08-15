@@ -9,6 +9,21 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — `warrantor issuer show-hex`
+
+- **The issuer's public key, from the one command whose job is to produce it.** Until now an
+  operator pinning `issuer add` or handing the anchor to a verifier on another machine had to read
+  the hex off `warrantor verify`'s "signed by" line — a key you fish out of a command's output is
+  a key people copy wrong, and there was no way to see it before the first export existed.
+  `show-hex` prints the 64-hex-character **public** half of `keys/issuer.key` with the two
+  commands that take it (`issuer add`, `verify --issuer`), and states the asymmetry in plain
+  words: anyone holding the hex can only *check* evidence; anyone holding the file can mint it.
+- **Read-only, never minting.** `load_or_create_key` is deliberately not used: it creates a key
+  when none exists, and showing an operator a key minted by the act of looking for it — a key that
+  has signed nothing — is worse than saying there isn't one. On a machine with no issuer key the
+  command refuses and names `warrantor grant`; a test pins that asking to *see* a key creates
+  nothing.
+
 ### Added — issuer pins, so `verify --issuer` stops being a hex string pasted from the evidence itself
 
 - **`warrantor issuer add <name> <hex> [--note "..."]`, `issuer list`, `issuer remove <name>`, and

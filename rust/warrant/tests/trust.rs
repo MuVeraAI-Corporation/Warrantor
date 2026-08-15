@@ -419,3 +419,50 @@ fn verifying_by_a_removed_name_refuses() {
     let (ok, output) = run(&home, &["verify", &export, "--issuer", "ana"]);
     assert!(!ok, "the removed pin no longer anchors anything: {output}");
 }
+
+// ── show-hex: the issuer's public key, without fishing it out of verify's output ──────
+
+/// After a grant, `show-hex` prints exactly the hex `verify` prints as its "signed by" line —
+/// the same 32 bytes, from the one command whose job is to produce them.
+#[test]
+fn show_hex_names_the_key_verify_reports_as_the_signer() {
+    let home = tempdir("show-hex");
+    let (export, _issuer) = exported_report(&home);
+
+    let (ok, shown) = run(&home, &["issuer", "show-hex"]);
+    assert!(ok, "{shown}");
+
+    let (ok, verified) = run(&home, &["verify", &export]);
+    assert!(ok, "{verified}");
+    let signed_by = verified
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("signed by"))
+        .expect("verify prints the signer's public key")
+        .trim()
+        .to_string();
+    let first_line = shown.lines().next().map(str::trim).unwrap_or_default();
+    assert_eq!(
+        first_line,
+        format!("issuer public key  {signed_by}"),
+        "show-hex and verify's signer line are the same 32 bytes"
+    );
+}
+
+/// On a machine with no issuer key, `show-hex` refuses and names the command that creates one —
+/// and it must not mint a key as a side effect of being asked to show one.
+#[test]
+fn show_hex_without_an_issuer_key_refuses_and_mints_nothing() {
+    let home = tempdir("show-hex-fresh");
+
+    let (ok, output) = run(&home, &["issuer", "show-hex"]);
+
+    assert!(!ok, "{output}");
+    assert!(
+        output.contains("will not mint one") && output.contains("warrantor grant"),
+        "the refusal names the reason and the command that creates the key: {output}"
+    );
+    assert!(
+        !home.join(".warrantor/keys/issuer.key").exists(),
+        "asking to SEE a key must not create one: {output}"
+    );
+}
