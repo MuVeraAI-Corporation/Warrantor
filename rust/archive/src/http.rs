@@ -27,6 +27,7 @@
 //! | `/v1/evidence` | POST | file an artifact |
 //! | `/v1/evidence/{sha256}` | GET | the stored bytes, verbatim |
 //! | `/v1/warrants/{id}/evidence` | GET | what is held about one warrant |
+//! | `/v1/summary` | GET | custody totals across everything held |
 //! | `/v1/devices/enrol` | POST | claim a one-time code with a public key |
 //!
 //! There is **no settle, void, stop or grant**, and there is no route that accepts warrant claims
@@ -251,6 +252,7 @@ enum Target {
     Submit,
     Fetch(String),
     ListForWarrant(String),
+    Summary,
     Enrol,
 }
 
@@ -286,6 +288,7 @@ fn resolve(segments: &[String]) -> Result<(Target, &'static str), ArchiveRespons
             }
             Ok((Target::ListForWarrant((*id).to_string()), "GET"))
         }
+        ["v1", "summary"] => Ok((Target::Summary, "GET")),
         _ => Err(no_such_route()),
     }
 }
@@ -295,7 +298,8 @@ fn no_such_route() -> ArchiveResponse {
         status::NOT_FOUND,
         "no_such_route",
         "this archive serves GET /v1/health, POST /v1/evidence, GET /v1/evidence/{sha256}, GET \
-         /v1/warrants/{id}/evidence and POST /v1/devices/enrol. There is deliberately no settle, \
+         /v1/warrants/{id}/evidence, GET /v1/summary and POST /v1/devices/enrol. There is \
+         deliberately no settle, \
          void, stop or grant: this server holds no key that could perform one.",
     )
 }
@@ -362,6 +366,7 @@ pub fn handle<S: ArchiveStore>(store: &mut S, request: &HttpRequest, now: u64) -
         Target::Submit => submit(store, request, &device.id, now),
         Target::Fetch(digest) => fetch(store, &digest),
         Target::ListForWarrant(id) => list_for_warrant(store, &id),
+        Target::Summary => summary(store),
     }
 }
 
@@ -526,6 +531,64 @@ fn list_for_warrant<S: ArchiveStore>(store: &S, warrant_id: &str) -> ArchiveResp
              row's ingest_check is the note taken at the door when it was filed.",
         ),
     }
+}
+
+/// Custody totals across everything this archive holds — the fleet-level view a decision-maker
+/// asks for that no single machine can answer.
+///
+/// Computed from the same `list_artifacts` a per-warrant listing uses, with the empty filter, so
+/// the summary and the listings can never disagree about what is held: they are the same read,
+/// aggregated. It is a summary **of custody records** — what arrived, from which devices, about
+/// which warrants, when — and nothing here read an artifact body or formed an opinion about one.
+/// The `not_a_verdict` block says so, as on every route.
+///
+/// A store that cannot be read is a refusal, never a summary of nothing — the same rule the
+/// listing already keeps.
+fn summary<S: ArchiveStore>(store: &S) -> ArchiveResponse {
+    let filter = ListFilter::default();
+    let rows = match store.list_artifacts(&filter) {
+        Err(_) => {
+            return ArchiveResponse::error(
+                status::UNAVAILABLE,
+                "store_unavailable",
+                "the archive could not read its store, so this summary was not produced. An \
+                 empty summary would have been indistinguishable from an archive that holds \
+                 nothing.",
+            )
+        }
+        Ok(rows) => rows,
+    };
+    let mut warrants = std::collections::BTreeSet::new();
+    let mut devices = std::collections::BTreeSet::new();
+    let mut by_kind = std::collections::BTreeMap::<String, u64>::new();
+    let mut by_device = std::collections::BTreeMap::<String, u64>::new();
+    let mut first_filed_at = u64::MAX;
+    let mut last_filed_at = u64::MIN;
+    for row in &rows {
+        warrants.insert(row.warrant_id.clone());
+        devices.insert(row.submitted_by_device.clone());
+        *by_kind.entry(row.kind.word().to_string()).or_insert(0) += 1;
+        *by_device
+            .entry(row.submitted_by_device.clone())
+            .or_insert(0) += 1;
+        first_filed_at = first_filed_at.min(row.submitted_at);
+        last_filed_at = last_filed_at.max(row.submitted_at);
+    }
+    ArchiveResponse::ok(
+        json!({
+            "artifacts": rows.len(),
+            "warrants": warrants.len(),
+            "devices": devices.len(),
+            "first_filed_at": if rows.is_empty() { serde_json::Value::Null } else { json!(first_filed_at) },
+            "last_filed_at": if rows.is_empty() { serde_json::Value::Null } else { json!(last_filed_at) },
+            "by_kind": by_kind,
+            "by_device": by_device,
+        }),
+        "unknown",
+        "a summary reads no artifact body, so no signature was checked for anything it counts. \
+         It is an account of custody records — what arrived, from which devices, when — and not \
+         an opinion about any of it.",
+    )
 }
 
 fn enrol<S: ArchiveStore>(store: &mut S, request: &HttpRequest, now: u64) -> ArchiveResponse {

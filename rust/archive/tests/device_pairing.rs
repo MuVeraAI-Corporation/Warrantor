@@ -265,6 +265,40 @@ fn a_signature_cannot_be_lifted_onto_a_different_route() {
     assert_eq!(response.status, status::UNAUTHORIZED);
 }
 
+/// The fleet summary authenticates like every route but health: an unsigned caller learns
+/// nothing, not even whether the archive holds anything to summarise.
+#[test]
+fn the_fleet_summary_refuses_an_unauthenticated_caller() {
+    let mut store = MemoryStore::new();
+    enrolled(&mut store, "dev_1111", "Ana's laptop", 1);
+
+    let unsigned = HttpRequest::new("GET", &["v1", "summary"], BTreeMap::new());
+    let response = http::handle(&mut store, &unsigned, NOW);
+    assert_eq!(response.status, status::UNAUTHORIZED);
+
+    // And a signed one is answered — the route is reachable by an enrolled device, not just
+    // refused by shape.
+    let signed = request(
+        &key(1),
+        "dev_1111",
+        "GET",
+        &["v1", "summary"],
+        b"",
+        "nonce-one",
+        NOW,
+    );
+    let response = http::handle(&mut store, &signed, NOW);
+    assert_eq!(response.status, status::OK);
+    assert_eq!(
+        response
+            .body
+            .pointer("/data/artifacts")
+            .and_then(Value::as_u64),
+        Some(0),
+        "an empty store summarises as zero, which is a real answer"
+    );
+}
+
 /// A stale request is refused, in both directions, and does not burn a nonce.
 ///
 /// The second half matters: if a stale request consumed its nonce, an attacker replaying captured

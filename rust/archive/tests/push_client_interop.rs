@@ -422,6 +422,44 @@ fn a_listing_is_newest_first() {
     assert_eq!(holdings.artifacts[1].submitted_at, NOW);
 }
 
+/// The fleet summary agrees with the listings: same store read, aggregated. Two filings from
+/// one device about one warrant, and the summary counts them the way the per-warrant listing
+/// showed them — and an archive holding nothing summarises as zeros with no timestamps, kept
+/// distinct from a refusal.
+#[test]
+fn the_fleet_summary_counts_what_the_listings_show() {
+    let dir = tempdir("summary");
+    let earlier = evidence_at(&dir, NOW);
+    let later = evidence_at(&dir, NOW + 1);
+    let mut archive = LoopbackArchive::new();
+    archive_client::push(&mut archive, &config(), &device_key(), &earlier, NOW).expect("filed");
+    archive.now = NOW + 1;
+    archive_client::push(&mut archive, &config(), &device_key(), &later, NOW + 1).expect("filed");
+
+    let summary =
+        archive_client::summary(&mut archive, &config(), &device_key(), NOW + 2).expect("summed");
+
+    assert_eq!(summary.artifacts, 2, "{summary:?}");
+    assert_eq!(summary.warrants, 1);
+    assert_eq!(summary.devices, 1);
+    assert_eq!(summary.first_filed_at, Some(NOW));
+    assert_eq!(summary.last_filed_at, Some(NOW + 1));
+    assert_eq!(summary.by_kind.get("report").copied(), Some(2));
+    assert_eq!(
+        summary.by_device.get(DEVICE).copied(),
+        Some(2),
+        "{:?}",
+        summary.by_device
+    );
+    assert!(!summary.verify_locally.is_empty());
+
+    let mut empty = LoopbackArchive::new();
+    let summary =
+        archive_client::summary(&mut empty, &config(), &device_key(), NOW).expect("summed");
+    assert_eq!(summary.artifacts, 0);
+    assert_eq!(summary.first_filed_at, None);
+}
+
 // ── what must be refused ──────────────────────────────────────────────────────────────
 
 /// A body changed after signing is refused. This is what the body digest in the descriptor is for.

@@ -521,6 +521,36 @@ pub struct Holdings {
     pub verify_locally: String,
 }
 
+/// Custody totals across everything the paired archive holds — the fleet-level view no single
+/// machine can answer, because no single machine holds the filings.
+///
+/// Every number is an aggregate of **custody records** — what arrived, from which devices, about
+/// which warrants, when. No artifact body was read and no signature was checked for anything
+/// counted here, and [`Self::verify_locally`] carries the archive's own sentence saying so. The
+/// decision-maker's question this serves ("what did our agents file, this quarter, from where")
+/// is answered by what reached custody, which is a question an evidence relay can answer
+/// honestly — never "what did our agents do", which is a verdict.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FleetSummary {
+    /// Artifacts held, all warrants.
+    pub artifacts: u64,
+    /// Distinct warrants with anything held.
+    pub warrants: u64,
+    /// Distinct devices that ever filed.
+    pub devices: u64,
+    /// The earliest filing the archive recorded, `None` when it holds nothing. An empty archive
+    /// is a real answer, kept distinct from an unreadable store — which is a refusal, as ever.
+    pub first_filed_at: Option<u64>,
+    /// The latest filing the archive recorded.
+    pub last_filed_at: Option<u64>,
+    /// Artifacts per kind, kind word → count.
+    pub by_kind: std::collections::BTreeMap<String, u64>,
+    /// Artifacts per device, device id → count.
+    pub by_device: std::collections::BTreeMap<String, u64>,
+    /// The archive's own sentence about why a summary establishes nothing about the bytes.
+    pub verify_locally: String,
+}
+
 /// What the archive recorded about one enrolment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Enrolled {
@@ -794,6 +824,92 @@ pub fn push<T: ArchiveTransport>(
             .and_then(serde_json::Value::as_str)
             .unwrap_or_default()
             .to_string(),
+        verify_locally: string_field(&answer, &not_a_verdict, "verify_locally")?,
+    })
+}
+
+/// Custody totals across everything the paired archive holds.
+///
+/// The fleet-level question — "what did our agents file, from where, when" — is one no machine
+/// can answer about itself, because filings live at the archive. This asks the one component
+/// that holds them, and renders what it can answer honestly: an account of custody records,
+/// aggregated. It is never an account of what the agents *did*; the archive's own
+/// `not_a_verdict` sentence travels with the numbers.
+///
+/// An archive holding nothing summarises as zero with `None` timestamps — a real answer, this
+/// archive has received no filings — kept distinct from a store the archive could not read,
+/// which is a refusal ([`ArchiveClientError::Refused`] on `store_unavailable`) exactly as a
+/// listing is.
+///
+/// # Errors
+/// [`ArchiveClientError`] when the request cannot be signed or sent, the archive refuses, or the
+/// answer is not one this client can read.
+pub fn summary<T: ArchiveTransport>(
+    transport: &mut T,
+    config: &ArchiveConfig,
+    key: &SigningKey,
+    now: u64,
+) -> Result<FleetSummary, ArchiveClientError> {
+    let path = "/v1/summary".to_string();
+    let nonce = mint_nonce()?;
+    let authorization = sign_request(key, "GET", &path, &config.device_id, &nonce, now, &[]);
+    let answer = transport
+        .send("GET", &path, Some(&authorization), &[])
+        .map_err(|reason| ArchiveClientError::Transport {
+            url: config.url.clone(),
+            reason,
+        })?;
+    let data = json_data(&answer)?;
+    let not_a_verdict = answer_body(&answer)?
+        .get("not_a_verdict")
+        .cloned()
+        .ok_or_else(|| ArchiveClientError::Unreadable {
+            status: answer.status,
+            reason: "it carried no not_a_verdict block, so what the archive says a summary is \
+                     worth is unknown"
+                .to_string(),
+        })?;
+    let optional_at = |name: &str| -> Result<Option<u64>, ArchiveClientError> {
+        match data.get(name) {
+            None | Some(serde_json::Value::Null) => Ok(None),
+            Some(value) => value
+                .as_u64()
+                .map(Some)
+                .ok_or_else(|| ArchiveClientError::Unreadable {
+                    status: answer.status,
+                    reason: format!("{name} was present and not a whole number"),
+                }),
+        }
+    };
+    let counts =
+        |name: &str| -> Result<std::collections::BTreeMap<String, u64>, ArchiveClientError> {
+            let map = data
+                .get(name)
+                .and_then(serde_json::Value::as_object)
+                .ok_or_else(|| ArchiveClientError::Unreadable {
+                    status: answer.status,
+                    reason: format!("data.{name} was missing or not an object"),
+                })?;
+            let mut out = std::collections::BTreeMap::new();
+            for (key, value) in map {
+                let count = value
+                    .as_u64()
+                    .ok_or_else(|| ArchiveClientError::Unreadable {
+                        status: answer.status,
+                        reason: format!("data.{name}.{key} was not a whole number"),
+                    })?;
+                out.insert(key.clone(), count);
+            }
+            Ok(out)
+        };
+    Ok(FleetSummary {
+        artifacts: u64_field(&answer, &data, "artifacts")?,
+        warrants: u64_field(&answer, &data, "warrants")?,
+        devices: u64_field(&answer, &data, "devices")?,
+        first_filed_at: optional_at("first_filed_at")?,
+        last_filed_at: optional_at("last_filed_at")?,
+        by_kind: counts("by_kind")?,
+        by_device: counts("by_device")?,
         verify_locally: string_field(&answer, &not_a_verdict, "verify_locally")?,
     })
 }

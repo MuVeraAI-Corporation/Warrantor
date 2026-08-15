@@ -641,6 +641,110 @@ fn holdings_body(artifacts: serde_json::Value) -> serde_json::Value {
     })
 }
 
+/// A well-formed fleet-summary answer, in the wire shape the archive sends.
+fn fleet_body(empty: bool) -> serde_json::Value {
+    json!({
+        "format": ARCHIVE_RESPONSE_FORMAT,
+        "data": if empty {
+            json!({
+                "artifacts": 0, "warrants": 0, "devices": 0,
+                "first_filed_at": serde_json::Value::Null,
+                "last_filed_at": serde_json::Value::Null,
+                "by_kind": {}, "by_device": {},
+            })
+        } else {
+            json!({
+                "artifacts": 3, "warrants": 2, "devices": 2,
+                "first_filed_at": NOW,
+                "last_filed_at": NOW + 100,
+                "by_kind": { "report": 2, "stop": 1 },
+                "by_device": { "dev_00112233445566778899aabbccddeeff": 2, "dev_ffffffffffffffffffffffffffffffff": 1 },
+            })
+        },
+        "not_a_verdict": {
+            "ingest_check": "unknown",
+            "reason": "a summary reads no artifact body",
+            "verify_locally": "verify locally with `warrantor verify <file> --issuer <hex>`",
+        },
+    })
+}
+
+/// A summary asks for the aggregate route, with GET, and every count arrives as it was sent —
+/// including the empty archive, which is zeros and null timestamps, not an error.
+#[test]
+fn a_summary_addresses_the_aggregate_and_parses_both_states() {
+    let mut archive = Canned::ok(fleet_body(false));
+
+    let summary = archive_client::summary(&mut archive, &config(), &key(), NOW)
+        .expect("a well-formed summary is read");
+
+    assert_eq!(
+        archive.asked,
+        [("GET".to_string(), "/v1/summary".to_string())]
+    );
+    assert_eq!(summary.artifacts, 3);
+    assert_eq!(summary.warrants, 2);
+    assert_eq!(summary.devices, 2);
+    assert_eq!(summary.first_filed_at, Some(NOW));
+    assert_eq!(summary.last_filed_at, Some(NOW + 100));
+    assert_eq!(
+        summary.by_kind.get("report").copied(),
+        Some(2),
+        "{:?}",
+        summary.by_kind
+    );
+    assert_eq!(summary.by_device.len(), 2);
+    assert!(
+        !summary.verify_locally.is_empty(),
+        "the archive's sentence about what a summary is worth travels with it"
+    );
+
+    let mut empty = Canned::ok(fleet_body(true));
+    let empty = archive_client::summary(&mut empty, &config(), &key(), NOW)
+        .expect("an empty archive is a real answer");
+    assert_eq!(empty.artifacts, 0);
+    assert_eq!(empty.first_filed_at, None, "no filings, no timestamps");
+}
+
+/// A store the archive cannot read is a refusal, never a summary of nothing — the pair the
+/// listing already keeps, kept here for the same reason.
+#[test]
+fn a_summary_of_an_unreadable_store_is_a_refusal_not_zeros() {
+    let mut archive = Canned::refusing(
+        503,
+        "store_unavailable",
+        "the archive could not read its store, so this summary was not produced. An empty \
+         summary would have been indistinguishable from an archive that holds nothing.",
+    );
+
+    let error = archive_client::summary(&mut archive, &config(), &key(), NOW)
+        .expect_err("an unreadable store is not an empty one");
+
+    assert!(
+        matches!(&error, ArchiveClientError::Refused { code, .. } if code == "store_unavailable"),
+        "{error}"
+    );
+}
+
+/// A 200 missing a count is refused rather than defaulted: a fleet summary with a silently
+/// zeroed field would understate custody to whoever read it.
+#[test]
+fn a_summary_missing_a_count_is_refused_rather_than_defaulted() {
+    let mut body = fleet_body(false);
+    if let Some(data) = body.pointer_mut("/data") {
+        data.as_object_mut().expect("an object").remove("artifacts");
+    }
+    let mut archive = Canned::ok(body);
+
+    let error = archive_client::summary(&mut archive, &config(), &key(), NOW).expect_err("refused");
+
+    assert!(
+        matches!(&error, ArchiveClientError::Unreadable { reason, .. }
+            if reason.contains("artifacts")),
+        "{error}"
+    );
+}
+
 /// A list asks for exactly the warrant it was given, with GET, and the rows come back in the
 /// archive's order as plain facts — including a door's note of `failed`, carried verbatim rather
 /// than tidied into a pass.
@@ -854,15 +958,18 @@ fn archive_list_without_an_id_is_a_usage_error() {
     assert!(output.contains("usage: warrantor archive list"), "{output}");
 }
 
-/// An unknown archive verb names all four, so an operator who guesses can see `list` exists.
+/// An unknown archive verb names all six, so an operator who guesses can see what exists.
 #[test]
-fn an_unknown_archive_verb_names_all_four() {
+fn an_unknown_archive_verb_names_all_six() {
     let home = tempdir("unknown-verb");
 
     let (success, output) = run_archive(&home, &["retrieve"]);
 
     assert!(!success, "{output}");
-    assert!(output.contains("enrol, push, fetch, list"), "{output}");
+    assert!(
+        output.contains("enrol, push, fetch, list, auto, summary"),
+        "{output}"
+    );
 }
 
 /// The synopsis names the list verb. A synopsis that has drifted from the dispatch is how a verb
