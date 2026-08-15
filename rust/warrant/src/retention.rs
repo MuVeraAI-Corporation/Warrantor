@@ -120,10 +120,14 @@ pub enum ArtifactClass {
     Run,
     /// `backends.json`
     Backends,
+    /// `exports/<id>.settle-report.json`
+    Exports,
+    /// `archive/pending.jsonl`
+    PendingFilings,
 }
 
 /// Every class, in the order an operator should read them: evidence first, machinery last.
-pub const ALL_CLASSES: [ArtifactClass; 13] = [
+pub const ALL_CLASSES: [ArtifactClass; 15] = [
     ArtifactClass::Warrants,
     ArtifactClass::Staged,
     ArtifactClass::Witness,
@@ -131,6 +135,8 @@ pub const ALL_CLASSES: [ArtifactClass; 13] = [
     ArtifactClass::Spend,
     ArtifactClass::Refusals,
     ArtifactClass::Guard,
+    ArtifactClass::Exports,
+    ArtifactClass::PendingFilings,
     ArtifactClass::Daemons,
     ArtifactClass::Logs,
     ArtifactClass::Keys,
@@ -157,6 +163,8 @@ impl ArtifactClass {
             Self::Serve => "serve",
             Self::Run => "run",
             Self::Backends => "backends.json",
+            Self::Exports => "exports",
+            Self::PendingFilings => "archive-queue",
         }
     }
 
@@ -177,6 +185,8 @@ impl ArtifactClass {
             Self::Serve => "serve/{token,open.html}",
             Self::Run => "run/<id>.sock",
             Self::Backends => "backends.json",
+            Self::Exports => "exports/<id>.settle-report.json",
+            Self::PendingFilings => "archive/pending.jsonl",
         }
     }
 
@@ -197,6 +207,8 @@ impl ArtifactClass {
             Self::Serve => root.join("serve"),
             Self::Run => root.join("run"),
             Self::Backends => root.join("backends.json"),
+            Self::Exports => root.join("exports"),
+            Self::PendingFilings => root.join("archive").join("pending.jsonl"),
         }
     }
 
@@ -220,6 +232,12 @@ impl ArtifactClass {
             }
             Self::Refusals => "what a bound refused, with the verbatim arguments and destinations",
             Self::Guard => "guard-model session records and per-call signals",
+            Self::Exports => {
+                "the final report exports that automatic filing wrote, one per settled warrant"
+            }
+            Self::PendingFilings => {
+                "filings that failed and are queued to retry at the next settle"
+            }
             Self::Keys => "the issuer and settle signing keys",
             Self::Serve => "the read API's bearer token and the browser shim that opens it",
             Self::Run => "a socket path recorded for each daemon",
@@ -230,7 +248,10 @@ impl ArtifactClass {
     /// Is what it holds signed?
     #[must_use]
     pub fn signed(self) -> bool {
-        matches!(self, Self::Warrants | Self::Stops | Self::Spend)
+        matches!(
+            self,
+            Self::Warrants | Self::Stops | Self::Spend | Self::Exports
+        )
     }
 
     /// Is what it holds hash-chained?
@@ -249,6 +270,8 @@ impl ArtifactClass {
             Self::Staged => DeletionEffect::LosesEvidenceSilently,
             Self::Witness => DeletionEffect::LosesEvidence,
             Self::Refusals | Self::Guard => DeletionEffect::LosesEvidence,
+            Self::Exports => DeletionEffect::LosesEvidence,
+            Self::PendingFilings => DeletionEffect::LosesEvidenceSilently,
             Self::Logs => DeletionEffect::NoIntegrityConsequence,
             Self::Keys | Self::Serve | Self::Run | Self::Backends => {
                 DeletionEffect::BreaksTheInstallation
@@ -304,6 +327,16 @@ impl ArtifactClass {
                  this socket in this build"
             }
             Self::Backends => "the price table an operator wrote; nothing else holds a copy",
+            Self::Exports => {
+                "the archive holds a copy when the filing succeeded, so the loss there is a local \
+                 duplicate. When the filing is still queued it is the only copy of those bytes, \
+                 and the queue entry pointing at it can no longer retry"
+            }
+            Self::PendingFilings => {
+                "the exports it points at stay on disk, but nothing retries them and nothing \
+                 complains that they were never filed -- a failed filing becomes a permanent one, \
+                 silently"
+            }
         }
     }
 }

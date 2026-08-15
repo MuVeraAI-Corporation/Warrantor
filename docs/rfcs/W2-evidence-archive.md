@@ -424,11 +424,14 @@ discard half the append-only enforcement and leave the trigger standing alone.
    whose address does not name the bytes is not holding the operator's file, while both copies would
    still verify against their own signatures.
 
-   What did **not** ship: no TLS, no automatic push on settle, and no revocation *from the agent* —
-   revocation is `warrantor-archive revoke --device <id>` on the archive host, added in the same
+   What did **not** ship: no TLS, and no revocation *from the agent* — revocation is
+   `warrantor-archive revoke --device <id>` on the archive host, added in the same
    change because issuing long-lived device keys with no way to withdraw one is not a credential
    system. (The list client, `warrantor archive list <warrant-id>`, shipped later — it was the one
-   route this client still could not reach.)
+   route this client still could not reach. So did automatic push at settle: `warrantor archive
+   auto settle` records the policy in the pairing record, the CLI settle files the final report
+   under it, and failures queue for the next settle rather than failing the settle. The HTTP
+   settle surface does not auto-file.)
 4. **TLS** — not done, and deliberately not half-done. Needs a certificate and a proxy config, both
    deployment rather than engineering.
 5. **The trust directory (stage 2)** — where an anchor comes from, so `--issuer` stops being a hex

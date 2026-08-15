@@ -26,6 +26,7 @@ use std::process::ExitCode;
 
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use warrantor_warrant::archive_client::{self, ArchiveAnswer, ArchiveConfig, ArchiveTransport};
+use warrantor_warrant::autofile;
 use warrantor_warrant::daemon::{
     process_is_alive, supervise_run, DaemonState, Reconciliation, SuperviseRequest,
 };
@@ -297,7 +298,7 @@ warrantor — bounded authority for coding agents
   report  <warrant-id> [--export <path> [--archive [<url>]]]
   verify  <exported-report.json | exported-stop.json | exported-spend.json>
   archive enrol --url <url> --code <code> [--replace] | push <file>
-                | fetch <sha256> --out <path> | list <warrant-id>
+                | fetch <sha256> --out <path> | list <warrant-id> | auto [settle|off]
   egress  <warrant-id> <destination> [<destination> ...]
   spend   <warrant-id> [--input N --output N [--backend ID] [--quote]] [--export <path>]
   stop    <warrant-id> [--reason \"...\"] [--export <path>]
@@ -343,6 +344,13 @@ write-only archive. An empty listing is a real answer -- this archive holds noth
 about that warrant -- and it is kept distinct from an archive that could not read its
 store, which refuses with `store_unavailable` rather than listing, so the two never
 render the same way here either.
+
+Auto decides whether filing happens without being asked: `auto settle` files the
+final report at every settle, through the same export path report --export writes;
+`auto off` is the default and the undo. The settle itself is never blocked by the
+archive -- a filing that fails is printed, queued in archive/pending.jsonl, and
+retried at the next settle, and nothing retries it anywhere else. `auto` with no
+argument reads the policy and the queue back.
 
 A filing is CUSTODY, NOT A VERDICT. The archive holds bytes it did not produce and
 cannot forge; it stores artifacts whose signatures do not check out and marks them,
@@ -1716,6 +1724,10 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
                 return fail(&e.to_string());
             }
             println!("\nwarrant is now {:?}", stored.warrant.state);
+            // After the state is saved and printed: automatic filing, if this machine turned it
+            // on. It cannot change what settle reports — see its doc comment for the one
+            // deliberate difference from `--archive` on the export verbs.
+            auto_file_at_settle(store, root, id, &stored);
             if report.complete {
                 ExitCode::SUCCESS
             } else {
@@ -2746,29 +2758,117 @@ fn render_holdings(holdings: &archive_client::Holdings, url: &str) -> String {
     out
 }
 
-/// `warrantor archive <enrol|push|fetch|list>` — the local half of the evidence archive.
+/// `warrantor archive <enrol|push|fetch|list|auto>` — the local half of the evidence archive.
 ///
-/// Until this existed, `warrantor-archive` was a complete server with no client: nothing outside
-/// that crate could produce a `Warrantor-Device` header, so the `curl` its deployment README
-/// documented could not actually be typed by anybody and `submitted_by_device` had never named a
-/// person. These four verbs are the whole loop — pair a device, file evidence, read it back, and
-/// enumerate what was filed — and both reading halves are authenticated, which is why a `curl` was
-/// never going to be enough.
+/// Until the client existed, `warrantor-archive` was a complete server with nothing that could
+/// reach it: nothing outside that crate could produce a `Warrantor-Device` header, so the `curl`
+/// its deployment README documented could not actually be typed by anybody and
+/// `submitted_by_device` had never named a person. These five verbs are the whole loop — pair a
+/// device, file evidence, read it back, enumerate what was filed, and decide whether filing
+/// happens without being asked — and both reading halves are authenticated, which is why a
+/// `curl` was never going to be enough.
 fn cmd_archive(args: &Args, root: &Path) -> ExitCode {
     match args.positional.first().map(String::as_str) {
         Some("enrol" | "enroll") => cmd_archive_enrol(args, root),
         Some("push") => cmd_archive_push(args, root),
         Some("fetch") => cmd_archive_fetch(args, root),
         Some("list") => cmd_archive_list(args, root),
+        Some("auto") => cmd_archive_auto(args, root),
         Some(other) => fail(&format!(
-            "unknown archive verb {other:?}. warrantor archive has four: enrol, push, fetch, list."
+            "unknown archive verb {other:?}. warrantor archive has five: enrol, push, fetch, \
+             list, auto."
         )),
         None => fail(
             "usage: warrantor archive enrol --url <url> --code <code> [--replace]\n       \
              warrantor archive push <file>\n       warrantor archive fetch <sha256> --out <path>\n\
-             \x20      warrantor archive list <warrant-id>",
+             \x20      warrantor archive list <warrant-id>\n       warrantor archive auto \
+             [settle|off]",
         ),
     }
+}
+
+/// `warrantor archive auto [settle|off]` — whether filing happens without being asked.
+///
+/// A policy knob for the one filing an operator will never remember to make: the final report at
+/// settle, filed to the archive this machine is paired with. Turning it on is deliberate and
+/// separate from enrolment, because it changes what a future `settle` does and an operator should
+/// not learn that from a flag they passed for a different reason.
+///
+/// With no argument it reads the policy back, plus the queue of filings that failed and are
+/// waiting to retry — the read an operator wants the morning after an archive outage.
+fn cmd_archive_auto(args: &Args, root: &Path) -> ExitCode {
+    let (config, _key) = match archive_identity(root) {
+        Ok(pair) => pair,
+        // The whole pairing is required, key and record both checked against each other, because
+        // a policy to file automatically with a broken pairing is a policy to fail automatically:
+        // every settle would file nothing and queue a failure, and the operator turned the knob
+        // on while believing they were done configuring.
+        Err(e) => return fail(&e),
+    };
+    let word = match args.positional.get(1).map(String::as_str) {
+        None => {
+            let pending = match autofile::load_pending(root) {
+                Ok(pending) => pending,
+                Err(e) => return fail(&e),
+            };
+            println!(
+                "automatic filing: {}",
+                match config.auto_file {
+                    archive_client::AutoFile::Off => "off".to_string(),
+                    archive_client::AutoFile::Settle =>
+                        format!("at settle, to {} as {}", config.url, config.device_id),
+                }
+            );
+            println!(
+                "pending filings: {}{}",
+                pending.len(),
+                if pending.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        " (retried at the next settle; oldest queued {})",
+                        pending
+                            .first()
+                            .map(|entry| entry.queued_at.to_string())
+                            .unwrap_or_default()
+                    )
+                }
+            );
+            return ExitCode::SUCCESS;
+        }
+        Some("settle") => archive_client::AutoFile::Settle,
+        Some("off") => archive_client::AutoFile::Off,
+        Some(other) => {
+            return fail(&format!(
+                "unknown automatic-filing policy {other:?}. This build knows two: settle (file \
+                 the final report at settle, queue failures for retry) and off."
+            ));
+        }
+    };
+    let mut config = config;
+    config.auto_file = word;
+    let written = match config.save(root) {
+        Ok(path) => path,
+        Err(e) => return fail(&e.to_string()),
+    };
+    match word {
+        archive_client::AutoFile::Off => println!(
+            "automatic filing is off. Exports reach the archive only through --archive or \
+             `warrantor archive push`."
+        ),
+        archive_client::AutoFile::Settle => println!(
+            "automatic filing at settle is on. Every `warrantor settle` will build the final \
+             report export and file it to {} as {}.",
+            config.url, config.device_id
+        ),
+    }
+    println!("record  {}", written.display());
+    println!(
+        "\nThe settle itself is never blocked by the archive: a filing that fails is queued in \
+         {} and retried at the next settle, and the failure is printed, not swallowed.",
+        autofile::pending_path(root).display()
+    );
+    ExitCode::SUCCESS
 }
 
 fn cmd_archive_enrol(args: &Args, root: &Path) -> ExitCode {
@@ -2863,6 +2963,10 @@ fn cmd_archive_enrol(args: &Args, root: &Path) -> ExitCode {
         device_public_key,
         label: enrolled.label.clone(),
         enrolled_at: enrolled.enrolled_at,
+        // A fresh pairing files nothing automatically. Turning that on is a separate, deliberate
+        // `warrantor archive auto settle`, because it changes what a future `settle` does and an
+        // operator should not learn that from a flag they passed for a different reason.
+        auto_file: archive_client::AutoFile::Off,
     };
     let written = match config.save(root) {
         Ok(path) => path,
@@ -3003,6 +3107,201 @@ fn push_export(args: &Args, root: &Path, exported: &str) -> Result<(), String> {
         })?;
     print!("{}", render_filed(&filed, &config.url));
     Ok(())
+}
+
+/// Where the settle hook writes the export it files, under the store root.
+fn settle_export_path(root: &Path, id: &str) -> std::path::PathBuf {
+    root.join("exports")
+        .join(format!("{id}.settle-report.json"))
+}
+
+/// Build and sign the final report export for a settled warrant.
+///
+/// The same recipe `warrantor report --export` uses — same queue-as-result so an unreadable
+/// staged log is *recorded* rather than hidden, same fail-closed stops and ledger reads, same
+/// issuer key — because what automatic filing files must be the artifact the operator would have
+/// exported, not a cheaper one built to a different recipe. The `report` command keeps its own
+/// inline copy of this sequence for a reason that is not laziness: its choreography prints the
+/// unsigned bundle before signing so that a signing failure still leaves the reader holding the
+/// report, and folding that into a shared helper would silently reorder it.
+///
+/// Returns the signed export and, when the staged-effect queue could not be read, the sentence
+/// saying so — the export records it internally (`queue_available: false`), and the caller prints
+/// it rather than letting a filed report read as a complete one.
+fn build_final_report(
+    store: &WarrantStore,
+    root: &Path,
+    id: &str,
+    stored: &StoredWarrant,
+) -> Result<(report::SignedReport, Option<String>), String> {
+    let queue = open_queue(store, id);
+    let queue_input: Result<&StagingQueue, String> = queue.as_ref().map_err(Clone::clone);
+    let issuer = load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer)
+        .map_err(|e| format!("load the issuer key: {e}"))?;
+    let stops = StopStore::open(root).map_err(|e| format!("read stop records: {e}"))?;
+    let contained = stops.contained_scopes(id);
+    let ledgers = SpendStore::open(root).map_err(|e| format!("open the spend ledger: {e}"))?;
+    let ledger = ledgers
+        .load(
+            &stored.warrant.claims.bounds,
+            id,
+            &stored.warrant.claims.subject,
+            &issuer.verifying_key(),
+        )
+        .map_err(|e| format!("read the spend ledger: {e}"))?;
+    let built = report::build_observed(
+        stored,
+        queue_input,
+        &issuer.verifying_key(),
+        now(),
+        &contained,
+        Some(spend::section(&ledger)),
+    );
+    let signed = built
+        .sign(&issuer, "issuer")
+        .map_err(|e| format!("sign the final report: {e}"))?;
+    Ok((signed, queue.err()))
+}
+
+/// File the final report at settle, under this machine's automatic-filing policy.
+///
+/// Called after the warrant is saved and its state printed, and it touches neither: the warrant's
+/// state is a local fact established by local keys, and an unreachable archive cannot un-settle
+/// it. That is the one deliberate difference from `--archive` on report/stop/spend, where the
+/// operator asked for a filing and a failed filing fails the command. Here the operator asked to
+/// settle; the filing is policy, and its failure is printed in its own block and queued for the
+/// next settle. A non-zero exit would tell a pipeline the settle failed when it did not, and the
+/// natural response — settling again — is a command that no longer exists for this warrant.
+///
+/// Silence rules: a machine that never paired, or whose policy is `off`, sees byte-for-byte
+/// today's settle output. An unreadable pairing record is the exception — an operator who turned
+/// the policy on has a filing owed to them, and it is refused loudly, not dropped.
+fn auto_file_at_settle(store: &WarrantStore, root: &Path, id: &str, stored: &StoredWarrant) {
+    let config = match ArchiveConfig::read_if_present(root) {
+        Ok(None) => return,
+        Ok(Some(config)) => config,
+        Err(e) => {
+            eprintln!(
+                "\nwarrantor: automatic filing is not running, and the reason is local: this \
+                 machine's pairing record exists and cannot be read: {e}. Filings are not being \
+                 made and not being queued."
+            );
+            return;
+        }
+    };
+    if config.auto_file != archive_client::AutoFile::Settle {
+        return;
+    }
+    let (signed, queue_unreadable) = match build_final_report(store, root, id, stored) {
+        Ok(built) => built,
+        Err(e) => {
+            eprintln!(
+                "\nAUTOMATIC FILING DID NOT HAPPEN — the warrant above IS settled, and no \
+                 evidence was filed: the final report could not be built: {e}. Nothing is \
+                 queued, because there are no bytes to file. Build and file it by hand once the \
+                 problem is fixed: warrantor report {id} --export <path> --archive"
+            );
+            return;
+        }
+    };
+    let path = settle_export_path(root, id);
+    if let Err(e) = write_export(&signed, &path) {
+        eprintln!(
+            "\nAUTOMATIC FILING DID NOT HAPPEN — the warrant above IS settled, and no evidence \
+             was filed: {e}. Nothing is queued, because there are no bytes on disk to file."
+        );
+        return;
+    }
+    if let Some(reason) = queue_unreadable {
+        eprintln!(
+            "\nwarrantor: the final report was built with the staged-effect queue marked \
+             UNREADABLE ({reason}). It records that fact inside the export; it does NOT describe \
+             what this warrant staged."
+        );
+    }
+    // The pairing's key half is checked here rather than before building: a broken pairing is a
+    // filing failure, not a reason to skip making the export. The export goes to disk either way,
+    // and a queued filing whose bytes exist is one key-restore away from succeeding.
+    let (config, key) = match archive_identity(root) {
+        Ok(pair) => pair,
+        Err(e) => {
+            let reason = format!("the pairing cannot sign: {e}");
+            // The digest the entry promises is read back off the file just written — never
+            // recomputed from memory — so the promise and the bytes on disk cannot drift.
+            let digest = std::fs::read(&path)
+                .map(|bytes| report::sha256_hex(&bytes))
+                .unwrap_or_default();
+            match autofile::queue_filing(root, id, &path, &digest, &reason, now()) {
+                Ok(_) => eprintln!(
+                    "\nAUTOMATIC FILING FAILED — the warrant above IS settled; the evidence is \
+                     NOT filed.\n  reason:   {reason}\n  queued:   {} (retries at the next \
+                     settle)\n  on disk:  {}",
+                    autofile::pending_path(root).display(),
+                    path.display()
+                ),
+                Err(queued) => eprintln!(
+                    "\nAUTOMATIC FILING FAILED and could not even be queued — the warrant above \
+                     IS settled, the evidence is NOT filed, and nothing will retry it: {queued}. \
+                     The bytes are on disk at {}.",
+                    path.display()
+                ),
+            }
+            return;
+        }
+    };
+    let mut transport = https_archive(&config.url);
+    // Retry what failed before, then file the new export. Draining first is what makes the queue
+    // trustworthy: the next settle is the retry point, and a settle that filed its own export
+    // while leaving older failures untried would be advertising a retry it never performs.
+    match autofile::drain_pending(&mut transport, &config, &key, root, now()) {
+        Ok(outcome) => render_drain(&outcome, &config.url),
+        Err(e) => eprintln!(
+            "\nwarrantor: the pending-filings ledger could not be drained, so nothing queued \
+             was retried: {e}. The new filing below still goes out."
+        ),
+    }
+    match autofile::file_or_queue(&mut transport, &config, &key, root, id, &path, now()) {
+        Ok(autofile::Filing::Filed(filed)) => {
+            print!("{}", render_filed(&filed, &config.url));
+            println!("\nfinal report for {id}, filed automatically (policy: settle)");
+        }
+        Ok(autofile::Filing::Queued { reason, .. }) => {
+            eprintln!(
+                "\nAUTOMATIC FILING FAILED — the warrant above IS settled; the evidence is NOT \
+                 filed.\n  reason:   {reason}\n  queued:   {} (retries at the next settle)\n  on \
+                 disk:  {}",
+                autofile::pending_path(root).display(),
+                path.display()
+            );
+        }
+        Err(e) => {
+            eprintln!(
+                "\nAUTOMATIC FILING FAILED and could not even be queued — the warrant above IS \
+                 settled, the evidence is NOT filed, and nothing will retry it: {e}. The bytes \
+                 are on disk at {}.",
+                path.display()
+            );
+        }
+    }
+}
+
+/// What a drain did, printed in full. Each retried filing renders like a fresh one, because a
+/// filing that succeeded on the third settle is still a filing, and each still-pending and
+/// dropped entry carries its own sentence.
+fn render_drain(outcome: &autofile::DrainOutcome, url: &str) {
+    if outcome.filed.is_empty() && outcome.still_pending.is_empty() && outcome.dropped.is_empty() {
+        return;
+    }
+    println!("\n── PENDING FILINGS, RETRIED AT THIS SETTLE ──");
+    for filed in &outcome.filed {
+        print!("{}", render_filed(filed, url));
+    }
+    for pending in &outcome.still_pending {
+        println!("  still queued   {pending}");
+    }
+    for dropped in &outcome.dropped {
+        println!("  dropped        {dropped}");
+    }
 }
 
 fn main() -> ExitCode {

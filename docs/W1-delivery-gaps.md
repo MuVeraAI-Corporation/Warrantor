@@ -185,14 +185,20 @@ other reason `curl` was never enough; `warrantor archive list <warrant-id>` enum
 about one warrant, newest first, with each artifact's full digest — the address `fetch` takes —
 because `push` prints a digest exactly once and an operator whose scrollback is gone could not
 otherwise even find out what they filed; and `--archive` on `report`, `stop` and `spend` files the
-file `--export` just wrote. The signing half of the wire contract moved into
-`rust/warrant/src/archive_client.rs` so there is one definition of it rather than two, and the
+file `--export` just wrote. **Automatic push on settle exists**: `warrantor archive auto settle`
+records the policy in the pairing record, and every CLI settle builds the final report export and
+files it — a filing that fails does not fail the settle (the warrant's state is a local fact), it
+is printed in its own block and queued in `archive/pending.jsonl`, retried at the next settle, and
+dropped loudly if the bytes it promised changed underneath it. There is deliberately no daemon
+retrying the queue — the next settle is the retry point — and the HTTP settle surface does not
+auto-file yet; the policy is read by the CLI alone. The signing half of the wire contract moved
+into `rust/warrant/src/archive_client.rs` so there is one definition of it rather than two, and the
 archive re-exports it: the dependency edge still runs archive → warrant, and the agent is still
 tokio-free. `warrantor-archive revoke --device <id>` landed with it, because issuing long-lived
 device keys with no way to withdraw one is not a credential system.
 
-What is still missing here: no TLS, no automatic push on settle, and no trust directory — so
-`--issuer` is still a hex string an operator pastes.
+What is still missing here: no TLS, and no trust directory — so `--issuer` is still a hex string an
+operator pastes.
 
 The other four needs remain unbuilt: **trust directory, approval routing, time anchoring, fleet
 summary.** And `serve.rs` still binds loopback, so a second person on another machine still sees
