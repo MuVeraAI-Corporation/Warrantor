@@ -197,13 +197,23 @@ archive re-exports it: the dependency edge still runs archive → warrant, and t
 tokio-free. `warrantor-archive revoke --device <id>` landed with it, because issuing long-lived
 device keys with no way to withdraw one is not a credential system.
 
-What is still missing here: no TLS, and no trust directory — so `--issuer` is still a hex string an
-operator pastes.
+**A local trust directory exists.** `warrantor issuer add <name> <hex>` pins a name to an issuer
+key, checked out of band, into `trusted/issuers.json` under the store root; `verify --issuer <name>`
+resolves the pin and every verdict prints **which anchor it used** — the pinned name and when it was
+pinned, or "given on this command line" for the raw-hex form. Re-pinning a name to a different key
+refuses without an explicit `--replace` that prints both keys, because two keys under one name is
+exactly what an attacker who cannot forge signatures wants instead. This is deliberately **local,
+TOFU-with-pinning, no network**: a directory that hands out keys over the network is a new trust
+root, and that design decision has not been made. What remains open is everything beyond one
+machine — a signed or shared directory, rotation, and who vouches for a name the first time in an
+organisation.
 
-The other four needs remain unbuilt: **trust directory, approval routing, time anchoring, fleet
-summary.** And `serve.rs` still binds loopback, so a second person on another machine still sees
-nothing at all. The console makes oversight usable for someone at the same keyboard, which is not
-the claim.
+What is still missing here: TLS.
+
+The other needs remain unbuilt or local-only: **approval routing, time anchoring, fleet summary**
+unbuilt; the trust directory local-only. And `serve.rs` still binds loopback, so a second person on
+another machine still sees nothing at all. The console makes oversight usable for someone at the
+same keyboard, which is not the claim.
 
 This remains the largest single gap in the product, and everything in Tier 3 assumes it.
 

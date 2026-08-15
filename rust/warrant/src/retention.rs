@@ -124,10 +124,12 @@ pub enum ArtifactClass {
     Exports,
     /// `archive/pending.jsonl`
     PendingFilings,
+    /// `trusted/issuers.json`
+    TrustedIssuers,
 }
 
 /// Every class, in the order an operator should read them: evidence first, machinery last.
-pub const ALL_CLASSES: [ArtifactClass; 15] = [
+pub const ALL_CLASSES: [ArtifactClass; 16] = [
     ArtifactClass::Warrants,
     ArtifactClass::Staged,
     ArtifactClass::Witness,
@@ -137,6 +139,7 @@ pub const ALL_CLASSES: [ArtifactClass; 15] = [
     ArtifactClass::Guard,
     ArtifactClass::Exports,
     ArtifactClass::PendingFilings,
+    ArtifactClass::TrustedIssuers,
     ArtifactClass::Daemons,
     ArtifactClass::Logs,
     ArtifactClass::Keys,
@@ -165,6 +168,7 @@ impl ArtifactClass {
             Self::Backends => "backends.json",
             Self::Exports => "exports",
             Self::PendingFilings => "archive-queue",
+            Self::TrustedIssuers => "trusted-issuers",
         }
     }
 
@@ -187,6 +191,7 @@ impl ArtifactClass {
             Self::Backends => "backends.json",
             Self::Exports => "exports/<id>.settle-report.json",
             Self::PendingFilings => "archive/pending.jsonl",
+            Self::TrustedIssuers => "trusted/issuers.json",
         }
     }
 
@@ -209,6 +214,7 @@ impl ArtifactClass {
             Self::Backends => root.join("backends.json"),
             Self::Exports => root.join("exports"),
             Self::PendingFilings => root.join("archive").join("pending.jsonl"),
+            Self::TrustedIssuers => root.join("trusted").join("issuers.json"),
         }
     }
 
@@ -237,6 +243,9 @@ impl ArtifactClass {
             }
             Self::PendingFilings => {
                 "filings that failed and are queued to retry at the next settle"
+            }
+            Self::TrustedIssuers => {
+                "the names this machine pins to issuer keys, with when and why each was trusted"
             }
             Self::Keys => "the issuer and settle signing keys",
             Self::Serve => "the read API's bearer token and the browser shim that opens it",
@@ -271,7 +280,7 @@ impl ArtifactClass {
             Self::Witness => DeletionEffect::LosesEvidence,
             Self::Refusals | Self::Guard => DeletionEffect::LosesEvidence,
             Self::Exports => DeletionEffect::LosesEvidence,
-            Self::PendingFilings => DeletionEffect::LosesEvidenceSilently,
+            Self::PendingFilings | Self::TrustedIssuers => DeletionEffect::FlipsAVerdict,
             Self::Logs => DeletionEffect::NoIntegrityConsequence,
             Self::Keys | Self::Serve | Self::Run | Self::Backends => {
                 DeletionEffect::BreaksTheInstallation
@@ -336,6 +345,12 @@ impl ArtifactClass {
                 "the exports it points at stay on disk, but nothing retries them and nothing \
                  complains that they were never filed -- a failed filing becomes a permanent one, \
                  silently"
+            }
+            Self::TrustedIssuers => {
+                "every `verify --issuer <name>` flips from a verdict to a refusal, and the only \
+                 road back is re-pinning -- the one operation that could put a DIFFERENT key \
+                 under the same name. Verdicts already given stand; the ability to re-obtain \
+                 them does not"
             }
         }
     }

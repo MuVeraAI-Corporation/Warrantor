@@ -9,6 +9,31 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — issuer pins, so `verify --issuer` stops being a hex string pasted from the evidence itself
+
+- **`warrantor issuer add <name> <hex> [--note "..."]`, `issuer list`, `issuer remove <name>`, and
+  `verify --issuer <name>`.** Pasting a 64-character key verifies the file against a claim the
+  same channel supplied — nobody checks a hex string they copied from the message the file arrived
+  in. A pin makes that decision **once, out of band**: `issuer add ana <hex> --note "video call,
+  2026-08"` records name → key in `trusted/issuers.json` under the store root, and every
+  `verify --issuer ana` thereafter resolves the pin.
+- **Every verdict says which anchor it used.** A pinned name prints `pinned as \`ana\`` with the
+  pin's date and the words *trust on first use, checked out of band at pinning time*; the raw-hex
+  form still works and prints *given on this command line* — different claims, never the same
+  sentence. An unpinned name refuses with the exact `issuer add` command that would pin it, and
+  never falls through to guessing.
+- **Re-pinning refuses.** Pinning a name that is already pinned to a *different* key is refused,
+  naming both keys and the old pin's date, because two keys under one name is exactly what an
+  attacker who cannot forge signatures wants instead; `--replace` works, prints both keys, and
+  says that every earlier verdict used the old one. The directory itself is **local, with no
+  network, on purpose** — a directory that hands out keys over the network is a new trust root,
+  and that is a design decision deliberately not taken here. The file is not signed, and `trust.rs`
+  records why: an attacker who can rewrite it can equally rewrite `keys/issuer.key` and forge
+  evidence outright.
+- **`warrantor holdings` learns `trusted/issuers.json`**, classified `FLIPS-VERDICT`: deleting it
+  turns every named verification from a verdict into a refusal, and the only road back —
+  re-pinning — is the one operation that could put a different key under the same name.
+
 ### Added — automatic push on settle, and a queue that refuses to lose a filing
 
 - **`warrantor archive auto settle|off`, and the settle that files without being asked.**
