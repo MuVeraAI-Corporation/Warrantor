@@ -336,6 +336,23 @@ until two *distinct named* approvers have recorded one.
 - **The session token still works, unscoped**, and must: otherwise registering an operator would
   lock out whoever started the server.
 
+### 2.2c The surface for it — **built, and it was nearly the fifth wire-before-widen**
+
+§2.2 and §2.2b recorded who acted and gated a settle on it, and for one commit gave both **no
+viewer**: the console could not show an approval and could not record one. That is the pattern this
+document names four times, made against a change from the same session.
+
+`GET /v1/warrants/<id>/custody` returns the acts, the distinct approvers, what the policy requires,
+and whether the chain holds — **checked server-side and reported as a value**, because a console
+that verified the hash chain itself would be a second implementation of a check. The console renders
+it as a standing with five kinds (unreadable, chain-broken, no-requirement, met, short), because
+collapsing any two of them tells a reviewer they are done when they are not, and a broken chain
+outranks everything: a store whose record of who acted has been edited must not report "approved" on
+the strength of that record.
+
+An anonymous actor renders as a sentence and never as a name. The store deliberately declines to
+invent a principal; a placeholder here would invent one on its behalf.
+
 ### 2.2b Approval routing — **built on top of 2.2**
 
 `approvals.json` (`required`, `settler_may_approve`) and `warrantor approve <warrant-id>`. A settle
