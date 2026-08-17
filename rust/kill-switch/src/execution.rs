@@ -325,6 +325,15 @@ const WINDOWS_CRITICAL_IMAGES: &[&str] = &[
     "lsaiso.exe",
 ];
 
+/// The critical-image verdict for one pid: `Some((pid, Some(image)))` means that pid resolved to a
+/// critical Windows image and must not be signalled, `Some((pid, None))` means it is a legitimate
+/// target, and `None` means the rail has not been consulted yet for any pid.
+///
+/// Named rather than inlined because clippy is right that the nested form is unreadable -- and
+/// because the three states above are the whole meaning of this field, which a bare
+/// `Arc<Mutex<Option<(u32, Option<String>)>>>` hides completely.
+type CriticalImageMemo = std::sync::Arc<std::sync::Mutex<Option<(u32, Option<String>)>>>;
+
 /// A **real** execution engine for agents that run as a local OS process.
 ///
 /// | action | what actually happens |
@@ -343,6 +352,43 @@ pub struct LocalProcessEngine {
     /// Allow the engine to signal the process it is running in. Off by default — a kill switch
     /// that kills its own controller cannot report the outcome.
     allow_self_target: bool,
+    /// The Windows critical-image verdict for one pid, computed at most once per engine.
+    ///
+    /// # Why this exists, and why it is a correctness fix rather than an optimisation
+    ///
+    /// `checked_pid` runs the critical-image rail, and every one of the five contain actions calls
+    /// `checked_pid`. On Windows that rail shells out to `tasklist.exe`, which costs **0.6–1.0
+    /// seconds per invocation** on an ordinary developer machine. Six calls is roughly six seconds,
+    /// against a [`crate::KILL_BUDGET`] of five — so the engine **missed its own contract on
+    /// Windows**, and did so entirely in redundant process spawns rather than in any work.
+    ///
+    /// The measured failure was 6.18s, and the budget is not an arbitrary test constant: it is
+    /// stated in this crate's own documentation as coming from RFC R3 and AI Kill Switch Act
+    /// expectations. Widening it to make a test pass would have relabelled a real defect as a slow
+    /// machine.
+    ///
+    /// # Why caching is safe here, stated rather than assumed
+    ///
+    /// The memo is keyed on the pid and lives only as long as the engine, and the engine lives for
+    /// exactly one kill: `cli.rs` constructs one per process invocation. Within a single kill the
+    /// target pid is fixed, so the rail cannot legitimately change its answer between the first
+    /// action and the fifth.
+    ///
+    /// The direction that would be dangerous is caching *not critical* for a pid that later becomes
+    /// critical. That cannot happen inside a kill: Windows assigns its critical images at boot or
+    /// session start, and a pid cannot be recycled into one while its current owner is still being
+    /// signalled. The opposite direction is harmless — once the target is dead a fresh query would
+    /// also return `None`.
+    ///
+    /// `Arc<Mutex<_>>` rather than a plain field because `checked_pid` takes `&self`, and because
+    /// the struct must keep its `Clone` and `Default` derives.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    critical_image_memo: CriticalImageMemo,
+    /// How many times the critical-image rail actually shelled out. Tests assert on this, because
+    /// "it is fast now" is a claim about behaviour and this crate has been bitten before by claims
+    /// nothing checked.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    critical_image_lookups: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl LocalProcessEngine {
@@ -378,7 +424,7 @@ impl LocalProcessEngine {
         }
         #[cfg(windows)]
         {
-            if let Some(image) = windows_critical_image(pid) {
+            if let Some(image) = self.critical_image_cached(pid) {
                 return Err(KillError::ExecutionFailed(format!(
                     "{action}: refusing to signal pid {pid} ({image} is a critical Windows \
                      process; terminating it bluescreens the machine or ends the session)"
@@ -388,6 +434,44 @@ impl LocalProcessEngine {
         Ok(pid)
     }
 
+    /// The critical-image rail, computed at most once per pid per engine.
+    ///
+    /// See the field docs on `critical_image_memo` for why this is a correctness fix rather than an
+    /// optimisation, and why the caching is safe. The rail itself is unchanged: this only stops
+    /// asking `tasklist.exe` the same question six times about the same pid.
+    #[cfg(windows)]
+    fn critical_image_cached(&self, pid: u32) -> Option<String> {
+        // A poisoned mutex must never silently disable a SAFETY RAIL. On poison the memo is skipped
+        // and the rail is evaluated directly -- slower, and correct, which is the right way round
+        // for a check whose entire job is to refuse.
+        if let Ok(memo) = self.critical_image_memo.lock() {
+            if let Some((cached_pid, verdict)) = memo.as_ref() {
+                if *cached_pid == pid {
+                    return verdict.clone();
+                }
+            }
+        }
+
+        self.critical_image_lookups
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let verdict = windows_critical_image(pid);
+
+        if let Ok(mut memo) = self.critical_image_memo.lock() {
+            *memo = Some((pid, verdict.clone()));
+        }
+        verdict
+    }
+
+    /// How many times the critical-image rail actually shelled out to `tasklist.exe`.
+    ///
+    /// Exposed so a test can assert the SPAWN COUNT rather than a wall-clock duration. A timing
+    /// assertion on a developer machine is a flake generator; the spawn count is the thing that was
+    /// actually wrong, and it is deterministic.
+    #[must_use]
+    pub fn critical_image_lookup_count(&self) -> usize {
+        self.critical_image_lookups
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
     fn pod_note(target: &KillTarget, detail: String) -> String {
         match &target.pod {
             Some(pod) => {

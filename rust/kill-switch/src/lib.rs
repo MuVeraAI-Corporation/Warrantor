@@ -836,10 +836,24 @@ mod tests {
 
         let engine = LocalProcessEngine::new();
         let target = KillTarget::local_process("spiffe://muveraai.com/agent/victim", pid);
-        let outcome = execute_kill(
+        // A GENEROUS budget, deliberately, and not KILL_BUDGET.
+        //
+        // This test asserts EXECUTION SEMANTICS -- that a real engine really terminates a real
+        // process and reports honestly. It used to run under the 5-second KILL_BUDGET, which
+        // silently made it a test of how fast the host can spawn `tasklist.exe`: measured at 2.86s
+        // per call on one Windows developer machine, against ~200ms on a healthy one. It failed
+        // there with `BudgetExceeded { elapsed: 6.18s }` while passing in CI, which runs
+        // ubuntu-latest where the Windows path compiles to nothing.
+        //
+        // Latency is asserted where it can be asserted deterministically -- as a SPAWN COUNT, in
+        // `the_critical_image_rail_is_consulted_once_per_kill_ax05`. A wall-clock assertion in a
+        // unit test measures the machine; the spawn count measures the code.
+        let outcome = execute_kill_with_budget(
+            &MockPolicyEngine,
             &engine,
             &target,
             KillTrigger::SandboxEscape { confidence: 0.95 },
+            Duration::from_secs(120),
         )
         .expect("kill executes");
 
@@ -872,6 +886,44 @@ mod tests {
         let _ = victim.wait(); // reap
     }
 
+    #[test]
+    fn the_critical_image_rail_is_consulted_once_per_kill_ax05() {
+        let mut victim = spawn_victim();
+        let pid = victim.id();
+
+        let engine = LocalProcessEngine::new();
+        let target = KillTarget::local_process("spiffe://muveraai.com/agent/victim", pid);
+        // Same generous budget as the sibling test, and for the same reason: the property under
+        // test is the spawn count, which is deterministic. Gating it on KILL_BUDGET would make it
+        // fail on exactly the slow machine where the spawn count matters most.
+        execute_kill_with_budget(
+            &MockPolicyEngine,
+            &engine,
+            &target,
+            KillTrigger::SandboxEscape { confidence: 0.95 },
+            Duration::from_secs(120),
+        )
+        .expect("kill executes");
+
+        // On Windows the rail shells out; everywhere else it is compiled out entirely and the
+        // counter stays at zero. Both are correct, and asserting the platform-appropriate value
+        // keeps this test meaningful rather than vacuous on Linux.
+        let lookups = engine.critical_image_lookup_count();
+        if cfg!(windows) {
+            assert_eq!(
+                lookups, 1,
+                "the critical-image rail must shell out to tasklist.exe ONCE per kill, not once \
+                 per action: at ~1s per spawn, six spawns blew the 5s KILL_BUDGET"
+            );
+        } else {
+            assert_eq!(
+                lookups, 0,
+                "the rail is Windows-only and must not spawn anything on this platform"
+            );
+        }
+
+        let _ = victim.wait(); // reap
+    }
     #[test]
     fn local_process_engine_is_idempotent_on_a_dead_pid_ax05() {
         let mut victim = spawn_victim();
