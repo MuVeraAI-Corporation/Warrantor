@@ -278,7 +278,49 @@ unbuilt, and would matter for a fleet view rather than for one machine.
 
 ## Tier 2 — blocks the multi-user claim, which is the product claim
 
-### 2.1 One of five backend needs is built, and the agent can now reach it — **stage 1 wired**
+### 2.1 The approval loop is closed — **a second person can now be told, and can decide**
+
+**2026-08-17.** This was the section that read "the one that decides whether this is a product",
+because multi-user oversight is the claim and the transport could not support it. It can now.
+
+The gap was never the *deciding*. §2.2 built scopes, a hash-chained actor log, a two-person rule
+and a settle gate that reads all three. Every one of those assumed the reviewer already knew the
+warrant existed and needed them. **Nothing told them.** `notify.json` fired on `settled`, `voided`,
+`stopped` and `filing-queued` — four events that are all *after* a decision, and none that says one
+is wanted. By the time `settled` arrives the moment to look has passed.
+
+Three commits closed it:
+
+- **`warrantor queue` and `GET /v1/queue`** (`rust/warrant/src/review.rs`). Derived from warrant
+  state, the approval policy, each actor log and the registry — there is no `queue.json`, because
+  every second copy of the truth in this codebase has eventually disagreed with the first. Rendered
+  **per caller**: `you_can` names only acts this principal could actually take, and
+  `tests/review.rs` asserts the queue and the settle gate agree at every step *against the gate
+  itself* rather than against a second copy of its rules.
+- **`--notify`**, raising a fifth event, `review-requested` — the only one that fires *before* a
+  decision. It announces **transitions, not states**: a warrant moving from `awaiting-approval` to
+  `awaiting-decision` is news and is announced again, which a plain "already notified" flag would
+  have suppressed.
+- **The console's "Waiting on you" destination**, so the second person in the sentence does not
+  have to be at a terminal. Verified in a real browser across three operators with the two scopes
+  separated.
+
+**Deadlock is a first-class answer.** A store can be configured into a policy no set of people can
+satisfy, and `approval_verdict` refuses each attempt with a sentence about what is *missing* —
+which reads as "not yet" rather than "not ever". Three cases are now named with their own remedies,
+including the one that surprises people: two operators holding both scopes with `required: 2` is
+deadlocked, because satisfying the count consumes both and leaves nobody to settle.
+
+**A defect this found.** `approval_verdict` refuses any settle whose log holds an anonymous
+approval when `required > 1`, and it reads the *log*, not the registry — so one `warrantor approve`
+typed at a terminal trips it on a fully registered store, and because the log is append-only it can
+never be untripped. The warrant becomes settleable never, voidable only. The queue reports it as
+deadlocked and the CLI now **refuses** the act rather than performing it and printing a caution
+afterwards. What shipped told the operator they had achieved nothing; they had achieved worse.
+
+---
+
+### 2.1b The archive: one of five backend needs is built, and the agent can reach it — **stage 1 wired**
 
 PR #40 landed `rust/archive` (`warrantor-archive`): a self-hosted, append-only, content-addressed
 custody store for the three signed evidence files `warrantor verify` already reads, on Postgres,
@@ -486,7 +528,7 @@ enforced. There is no netns, no seccomp and no firewall. The console shows `boun
 honestly, but "the agent is bounded" is a stronger sentence than the system currently earns without
 composing with a real sandbox.
 
-### 3.2 Notifications — **webhooks shipped; the human loop is not closed**
+### 3.2 Notifications — **webhooks ship, every surface fires them; email and push do not exist**
 
 **What exists:** `notify.json` in the store root names webhook destinations (optionally with an
 HMAC-SHA256 secret, so a receiver can tell Warrantor's POSTs from anyone else's), and the CLI
@@ -497,11 +539,23 @@ never fails the action that caused it: it prints its own block and queues in
 the warrant's id, goal, subject, state and a timestamp — never evidence bytes, never tool
 arguments. A machine with no `notify.json` sees byte-for-byte today's output.
 
-**What is still missing:** email and mobile push (a webhook can front both, but nothing here
-speaks them directly); notifications from the HTTP/console settle surface (the policy is read by
-the CLI alone, same as automatic filing); and approval routing itself (§2.1) — a webhook that
-says "a warrant needs a decision" is only useful once there is a decision to make and a way to
-make it from where the notification lands.
+**Closed 2026-08-17.** Two of the three gaps this section listed are gone.
+
+*Notifications from the HTTP/console surface.* `serve.rs` held zero references to `notify`: a
+settle, void or stop over HTTP fired nothing at all. That was survivable while the API was a read
+surface with three write routes nobody used interactively, and stopped being survivable the moment
+§2.1 put Approve and Settle buttons in the console — the browser became the *expected* place to
+decide and was the one place that went silent. `StoreApi::with_notifier` closes it with a plain
+function pointer, exactly like `performer`: the library decides *when* and the binary owns *how*,
+because `rust/warrant` carries no HTTP client and is not getting one. Payloads are byte-identical
+to the CLI's, since a receiver must not be able to tell which surface a decision was taken from.
+
+*Approval routing.* Closed by §2.1, and the `review-requested` event is the webhook that says a
+warrant needs a decision — now that there is a decision to make and a way to make it from where
+the notification lands.
+
+**What is still missing:** email and mobile push. A webhook can front both, and nothing here speaks
+them directly.
 
 ### 3.3 No multi-machine or multi-repo view — **the custody-level half shipped**
 
@@ -710,9 +764,26 @@ what the guard *caught* and what nothing *looked at* — sessions where the back
 that were not verdicts, calls past the per-session cap. It shows no estimate of what the guard looked
 at and got **wrong**, because live traffic here carries no labels: the measured 0.8152 recall is a
 figure about WildGuardTest, and multiplying it by live counts would produce a number with no
-measurement behind it on the surface that least tolerates one. It also does not yet count warrants
-that ran with **no guard attached at all** — that needs a per-warrant *run* timestamp, and the only
-one the store holds is `claims.issued_at`, which is when the warrant was granted.
+measurement behind it on the surface that least tolerates one. **That remains true and is not a gap
+to close.**
+
+**Runs with no guard attached — closed 2026-08-17.** This section used to end saying the count
+"needs a per-warrant *run* timestamp, and the only one the store holds is `claims.issued_at`". The
+difficulty was sharper than a missing timestamp: the guard writes an attach record when it attaches,
+so a *guarded* run was visible and an unguarded run left **nothing behind at all**. Absence of a
+guard record was indistinguishable from absence of a run, and the two mean opposite things.
+
+`rust/warrant/src/runs.rs` writes `runs/<warrant-id>.jsonl` at the start of every supervised
+session, with `guard: null` exactly when nothing was watching — a positive record of an unwatched
+run, which no absence could establish. It surfaces as a **third block** on
+`/v1/summary/refusals` (`total`, `guarded`, `unguarded`, `warrants`, `unreadable_lines`) and as one
+sentence in the console. A third block rather than a field on `guard`, because everything in that
+block is counted *from* guard records and is silent about sessions the guard was never in; putting
+`unguarded` inside it would make the guard object partly a statement about its own absence.
+
+`unguarded` is never rendered as "missed". An unguarded run produced no signal at all, so nothing is
+known about what happened inside it beyond what the bounds refused — a gap in observation, not a
+count of failures.
 
 ---
 
@@ -735,6 +806,18 @@ The next unit of work in this document that changes what a person can *do* is no
 component — it is a caller for one that already exists.
 
 The ordering matters. Packaging (1.1–1.2) was the cheapest visible win and is now done to the point
-where a reviewer can install and launch it; what remains of 1.1 is a purchase, not a build. But
-**2.1 is the one that decides whether this is a product**, because multi-user oversight is the
-claim, and today it is a claim the transport cannot support.
+where a reviewer can install and launch it; what remains of 1.1 is a purchase, not a build.
+
+**2.1 was the one that decided whether this is a product, and it is closed** (2026-08-17). A second
+person can now be told a warrant needs them, see what they would be approving, decide it from a
+browser, and have the decision land — with the two-person rule enforced by the same code the queue
+renders from. The recurring shape named above was broken once on purpose in the process: the queue
+shipped with a CLI and a route and no client, and that was caught and fixed *one commit later*
+rather than one release later.
+
+**What now decides whether it is trustworthy is §3.1.** `write_paths` and `budget_cents_observed`
+are Observed, not enforced; there is no netns, no seccomp and no firewall. Every other open item is
+smaller than it: §2.4 is a token-scoping change on one surface, §3.4 is a retention window for
+`logs/`, §3.2's remainder is two transports a webhook can already front, and §1.1 is a purchase.
+§3.1 is the only one where the product's central sentence — "the agent is bounded" — is stronger
+than what the code earns without composing with a sandbox.
