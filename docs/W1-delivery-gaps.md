@@ -207,6 +207,43 @@ the resolver prefers that copy over an empty `PATH`, the agent starts, the windo
 loads, and the installer builds into a valid NSIS artifact with a recorded digest. The residue is one
 double-click by a person.
 
+### 1.5 The desktop app cannot start on a machine that has never run `warrantor` — **found 2026-08-17, half fixed**
+
+Found by building the Linux AppImage and launching it in WSL2 against a home directory with no
+`~/.warrantor`. The bundled agent resolved correctly, started, and **exited 1**:
+
+> `no issuer key was found. `warrantor serve` loads keys and never creates them: a server that
+> minted an identity on first use would sign evidence with a key nobody chose. Run a `warrantor`
+> command that creates it first.`
+
+That refusal is **correct and must stay**. `load_or_create_key` is reached by `grant`, `report` and
+the other commands that mint; `serve` deliberately is not one of them, and a server that minted an
+identity on first use would sign evidence with a key nobody chose.
+
+**But it is also the reviewer's exact path.** Install the app on a clean machine, double-click it,
+and the agent dies before the window opens. The Windows install did not show this because that
+machine already had a store from CLI use — which is precisely why "it worked on the machine that
+built it" is not evidence about a first run. Note what the store *does* contain afterwards:
+`staged/`, `warrants/` and `witness/` were created by `WarrantStore::open` and `keys/` was not, so
+the failure leaves a half-made store behind.
+
+**Fixed here:** the desktop app retained the agent's stderr and threw it away, reporting only
+`exited with code 1 before it was ready`. The cause was in hand and discarded. It now keeps a
+bounded, token-redacted tail and appends *"The agent said: …"* to the failure, so the dialog carries
+the sentence that names the remedy.
+
+**Still open, and it is a design question rather than a bug:** what should a first launch on a clean
+machine actually do? The three candidates, none of which should be chosen by default:
+
+1. **The app mints the key** as an explicit, announced first-run act — the user launching their own
+   local install *is* the person choosing the identity. This is the only option that makes
+   double-click work, and it moves an identity decision into a click.
+2. **A real first-run screen** that explains what is missing and offers a button. §1.3's first-run
+   experience exists but is unreachable here: the agent dies before the window loads, so the screen
+   that would explain it never renders.
+3. **Ship nothing and document it** — the reviewer runs one CLI command first, which contradicts the
+   entire point of bundling the agent.
+
 ### 1.3 There is no first-run experience — **done**
 
 The console now explains the empty store instead of showing an empty list. On a machine that has

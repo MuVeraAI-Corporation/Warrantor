@@ -67,6 +67,9 @@ import {
 } from './policy.js';
 
 /** How long to wait for the agent to announce itself before giving up, in milliseconds. */
+/** How much of the agent's stderr to keep for a failure message. A dialog is not a log. */
+const AGENT_STDERR_TAIL = 900;
+
 const AGENT_STARTUP_TIMEOUT_MS = 20_000;
 
 /**
@@ -201,6 +204,16 @@ function startAgent() {
     let token = null;
     let buffered = '';
     let settled = false;
+    // A bounded tail of the agent's own stderr, kept so a startup failure can SAY WHY.
+    //
+    // Found by launching the Linux AppImage on a machine that had never run `warrantor`: the agent
+    // exited 1 with "no issuer key was found ... Run a `warrantor` command that creates it first" --
+    // an actionable sentence, written to a log the user never opens -- and the dialog said only
+    // "exited with code 1 before it was ready". The cause was already in hand and thrown away.
+    //
+    // Bounded because a dialog is not a log: the last 900 characters carry the refusal that killed
+    // it, and the earlier output is still on stderr for anyone who wants it.
+    let stderrTail = '';
 
     const timer = setTimeout(() => {
       if (settled) return;
@@ -208,7 +221,11 @@ function startAgent() {
       child.kill();
       reject(
         new Error(
-          `${binary.path} (${binarySource}) did not announce a token within 20 seconds`,
+          `${binary.path} (${binarySource}) did not announce a token within 20 seconds` +
+            (stderrTail.trim() ? `
+
+The agent said:
+${stderrTail.trim()}` : ''),
         ),
       );
     }, AGENT_STARTUP_TIMEOUT_MS);
@@ -239,7 +256,10 @@ function startAgent() {
 
     child.stderr.setEncoding('utf8');
     child.stderr.on('data', (chunk) => {
-      process.stderr.write(redactToken(chunk, token));
+      const redacted = redactToken(chunk, token);
+      process.stderr.write(redacted);
+      // Retained in redacted form, never raw: this string can reach a dialog and a clipboard.
+      stderrTail = (stderrTail + redacted).slice(-AGENT_STDERR_TAIL);
     });
 
     child.on('error', (error) => {
@@ -259,9 +279,14 @@ function startAgent() {
       }
       settled = true;
       clearTimeout(timer);
+      const why = stderrTail.trim();
       reject(
         new Error(
-          `${binary.path} (${binarySource}) exited with code ${code} before it was ready`,
+          `${binary.path} (${binarySource}) exited with code ${code} before it was ready` +
+            (why ? `
+
+The agent said:
+${why}` : ''),
         ),
       );
     });

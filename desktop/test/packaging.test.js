@@ -407,3 +407,48 @@ test('every certificate extension SIGNING.md promises is ignored', () => {
     );
   }
 });
+
+/**
+ * electron-builder 26 does not run on Node 18, and nothing in this repository said so.
+ *
+ * `app-builder-lib` does `require('@noble/hashes/blake2.js')`, which is ESM — legal only where
+ * `require(esm)` is supported, i.e. Node 20.19+. On Node 18 the build dies with `ERR_REQUIRE_ESM`
+ * from inside a transitive dependency, naming neither Node nor a version. Found by building the
+ * Linux target in WSL2 on Node 18.19, which is still an active LTS a contributor may well have.
+ *
+ * CI pinned `node-version: 22.x` and therefore never saw it. That pin was the only thing enforcing
+ * the requirement, and a pin is not a declaration: it protects CI and tells a human nothing.
+ */
+test('the Node requirement is declared, and CI satisfies it', () => {
+  const engines = manifest.engines;
+  assert.ok(engines?.node, 'package.json must declare engines.node — electron-builder 26 needs 20.19+');
+
+  // The range is compound, and it has to be: `require(esm)` landed in 20.19 and in 22.12, but NOT
+  // in 22.0-22.11 — every one of which satisfies a naive `>=20.19` and then fails with exactly the
+  // error the declaration exists to prevent. Node 22.11 disproved that first draft before this
+  // test did.
+  assert.match(
+    engines.node,
+    /20\.19/,
+    'the 20.x line needs an explicit 20.19 floor: require(esm) landed there',
+  );
+  assert.match(
+    engines.node,
+    /22\.12/,
+    'a bare >=20.19 admits Node 22.0-22.11, which do NOT have require(esm) and fail the build',
+  );
+
+  // The workflow's pin and the declaration must not disagree: a declaration CI violates is worse
+  // than none, because it would fail for contributors and pass for the only build that matters.
+  const workflow = readFileSync(
+    join(here, '..', '..', '.github', 'workflows', 'desktop-release.yml'),
+    'utf8',
+  );
+  const pinned = workflow.match(/node-version:\s*"?(\d+)/);
+  assert.ok(pinned, 'desktop-release.yml must pin a node-version');
+  assert.ok(
+    Number(pinned[1]) >= 22,
+    `CI pins Node ${pinned[1]}; the declared range needs 20.19+ or 22.12+, and the 22.x line is ` +
+      'the one CI is on',
+  );
+});
