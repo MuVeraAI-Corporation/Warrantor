@@ -393,9 +393,18 @@ function setFilter(value) {
  */
 async function setView(value) {
   state.view = value;
-  el.viewWarrants.classList.toggle('is-on', value === 'warrants');
-  el.viewSummary.classList.toggle('is-on', value === 'summary');
-  el.viewQueue.classList.toggle('is-on', value === 'queue');
+  // `is-on` is a CLASS, which is a fact about paint and nothing else: a screen reader cannot see it,
+  // so which destination was showing was announced to nobody. `aria-pressed` is the property that
+  // carries it, and it goes on all three every time rather than only on the new one — a toggle
+  // group where two buttons carry the attribute and one does not reads as a group of two.
+  for (const [button, name] of [
+    [el.viewWarrants, 'warrants'],
+    [el.viewQueue, 'queue'],
+    [el.viewSummary, 'summary'],
+  ]) {
+    button.classList.toggle('is-on', value === name);
+    button.setAttribute('aria-pressed', String(value === name));
+  }
   applyEmptyState(state.lastKind);
   if (value === 'summary') await loadSummary();
   if (value === 'queue') await loadQueue();
@@ -1524,7 +1533,7 @@ export const SHORTCUTS = [
   ['Enter', 'open the selected warrant'],
   ['g / G', 'first / last warrant'],
   ['/', 'jump to the state filters'],
-  ['1 / 2', 'Warrants / Refusals & guard'],
+  ['1 / 2 / 3', 'Warrants / Waiting on you / Refusals & guard'],
   ['?', 'this sheet'],
   ['Escape', 'close this sheet'],
 ];
@@ -1611,10 +1620,18 @@ function installKeyboard() {
         event.preventDefault();
         document.querySelector('.chip')?.focus();
         break;
+      // Numbered by VISUAL ORDER, which rebinds `2` from the summary to the queue. Worth doing
+      // rather than appending `3` to the queue and leaving `2` on the summary: a number key that
+      // does not match the position of the thing it selects is a shortcut people stop trusting,
+      // and this console has had three destinations for exactly one commit on an unmerged branch,
+      // so there is no muscle memory to protect yet.
       case '1':
         setView('warrants');
         break;
       case '2':
+        setView('queue');
+        break;
+      case '3':
         setView('summary');
         break;
       case '?':

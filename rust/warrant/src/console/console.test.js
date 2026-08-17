@@ -270,6 +270,8 @@ test('every element the console looks up exists in index.html and in this stub',
   const { readFileSync } = await import('node:fs');
   const here = path.dirname(fileURLToPath(import.meta.url));
   const read = (name) => readFileSync(path.join(here, name), 'utf8');
+  const { module } = await boot(() => HEALTH_OK);
+  const { SHORTCUTS } = module;
 
   const lookedUp = [...read('console.js').matchAll(/getElementById\('([a-z0-9-]+)'\)/g)].map(
     (match) => match[1],
@@ -1096,5 +1098,77 @@ test('the runs sentence is cleared when the summary could not be read', async ()
     app.el('summary-runs').textContent,
     '',
     'a run count left over from a previous month would read as this one under the error',
+  );
+});
+
+// ── reaching the destinations without a mouse ────────────────────────────────────────
+
+test('every destination has a number key, and the sheet names the same ones', async () => {
+  const { readFileSync } = await import('node:fs');
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const read = (name) => readFileSync(path.join(here, name), 'utf8');
+  const { module } = await boot(() => HEALTH_OK);
+  const { SHORTCUTS } = module;
+
+  // The defect: adding "Waiting on you" left `1 / 2` bound to Warrants and Refusals & guard, so
+  // the ONE destination with an action attached was the one a keyboard user could not reach — and
+  // the shortcut sheet went on describing a two-destination console that no longer existed.
+  //
+  // Asserted as a relationship rather than as three literals, so a fourth destination cannot be
+  // added without either binding a key or failing here.
+  const source = read('console.js');
+  // `\s*` rather than `\n\s*`: this working copy is CRLF, and a regex anchored on a bare `\n`
+  // matches nothing here while matching everything on a LF checkout. A source-reading test that
+  // silently finds zero things is worse than no test at all, which is why the assertion below
+  // compares the whole list rather than checking that each expected pair is present.
+  const bound = [...source.matchAll(/case '(\d)':\s*setView\('([a-z]+)'\)/g)].map((m) => [
+    m[1],
+    m[2],
+  ]);
+  assert.deepEqual(
+    bound,
+    [
+      ['1', 'warrants'],
+      ['2', 'queue'],
+      ['3', 'summary'],
+    ],
+    'the number keys must match the order the destinations appear in the nav',
+  );
+
+  const row = SHORTCUTS.find((r) => /\d/.test(r[0]) && r[0].includes('/'));
+  assert.ok(row, 'the sheet must document the destination keys');
+  assert.equal(
+    row[0].match(/\d/g).length,
+    bound.length,
+    `the sheet documents ${row[0]} while ${bound.length} destinations are bound`,
+  );
+  for (const [, name] of bound) {
+    const shown = name === 'queue' ? 'Waiting on you' : name === 'summary' ? 'Refusals' : 'Warrants';
+    assert.ok(
+      row[1].includes(shown),
+      `the sheet's destination row does not mention ${name}: ${row[1]}`,
+    );
+  }
+});
+
+test('the destination showing is announced, not only painted', async () => {
+  // `is-on` is a class. A screen reader cannot see a class, so which of the three destinations was
+  // current was announced to nobody. Set on ALL three every time: a toggle group where two buttons
+  // carry the attribute and one does not reads as a group of two.
+  const app = await boot((p) => (p === '/v1/health' ? HEALTH_OK : listOf(ONE_WARRANT)));
+  const buttons = ['view-warrants', 'view-queue', 'view-summary'].map((id) => app.el(id));
+
+  app.el('view-queue').fire('click');
+  await settle();
+  assert.deepEqual(
+    buttons.map((b) => b.getAttribute('aria-pressed')),
+    ['false', 'true', 'false'],
+  );
+
+  app.el('view-warrants').fire('click');
+  await settle();
+  assert.deepEqual(
+    buttons.map((b) => b.getAttribute('aria-pressed')),
+    ['true', 'false', 'false'],
   );
 });
