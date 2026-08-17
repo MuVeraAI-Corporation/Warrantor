@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use ed25519_dalek::{SigningKey, VerifyingKey};
+use warrantor_warrant::anchor;
 use warrantor_warrant::archive_client::{self, ArchiveAnswer, ArchiveConfig, ArchiveTransport};
 use warrantor_warrant::autofile;
 use warrantor_warrant::daemon::{
@@ -402,6 +403,7 @@ warrantor — bounded authority for coding agents
   status
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
           [--upstream 'name=command args' ...] [--upstream-timeout 30s]
+  anchor  show | verify
   guard   doctor [--guard-endpoint URL] [--guard-model M] [--guard-num-ctx N]
   operator list | add <name> --scope read,stop,settle,approve --note \"...\"
            | remove <name>
@@ -975,10 +977,20 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         if path == "true" {
             return fail("--export needs a file path: warrantor report <id> --export report.json");
         }
-        if let Err(e) = write_export(&signed, Path::new(path)) {
-            return fail(&e);
-        }
+        let anchored = match write_export_anchored(
+            &signed,
+            Path::new(path),
+            root,
+            id,
+            anchor::Anchored::Report,
+        ) {
+            Ok(head) => head,
+            Err(e) => return fail(&e),
+        };
         println!("exported  {path}");
+        if let Some(head) = anchored {
+            println!("anchored  in this store's time ledger; head is now {head}");
+        }
         println!("Check it anywhere, with no access to this machine:  warrantor verify {path}");
         if let Err(e) = push_export(args, root, path) {
             return fail(&e);
@@ -1014,6 +1026,43 @@ fn write_export<T: serde::Serialize>(signed: &T, path: &Path) -> Result<(), Stri
         }
     }
     std::fs::write(path, &body).map_err(|e| format!("write {}: {e}", path.display()))
+}
+
+/// Write an export and record its position in the store's time ledger.
+///
+/// The anchor is appended over the **bytes that were written**, not over the value in memory: the
+/// digest an auditor computes is a digest of a file, and `to_vec_pretty` is what produced it.
+///
+/// A failure to anchor **never fails the export**. The artifact is signed, correct, and on disk; the
+/// anchor is what establishes its position relative to other artifacts, and losing that costs
+/// ordering rather than evidence. It is said out loud instead, in the same shape
+/// `autofile.rs` uses for a filing that could not be delivered — the fact that the anchor is
+/// missing is reported, never silently absent, because a ledger with a hole in it that nobody was
+/// told about is worse than no ledger.
+fn write_export_anchored<T: serde::Serialize>(
+    signed: &T,
+    path: &Path,
+    root: &Path,
+    warrant_id: &str,
+    kind: anchor::Anchored,
+) -> Result<Option<String>, String> {
+    write_export(signed, path)?;
+    let mut anchored: Option<String> = None;
+    let bytes = std::fs::read(path).map_err(|e| format!("re-read {}: {e}", path.display()))?;
+    match anchor::append(root, warrant_id, kind, &bytes, now()) {
+        Ok(entry) => {
+            // Held rather than printed here, so the caller can put it after its own "exported"
+            // line: an artifact is exported and then anchored, and printing them the other way
+            // round describes an order that did not happen.
+            anchored = Some(entry.digest);
+        }
+        Err(e) => {
+            eprintln!(
+                "warrantor: the export was written and could NOT be anchored ({e}). The artifact                  is signed and valid; what is missing is its position relative to every other                  artifact this store has produced, so nothing can establish whether it was signed                  before or after them. Run `warrantor anchor verify` before relying on ordering."
+            );
+        }
+    }
+    Ok(anchored)
 }
 
 /// `warrantor verify <path>` — check an exported artifact offline.
@@ -1651,10 +1700,19 @@ fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         if path == "true" {
             return fail("--export needs a file path: warrantor stop <id> --export stop.json");
         }
-        if let Err(e) = write_export(&signed, Path::new(path)) {
+        if let Err(e) =
+            write_export_anchored(&signed, Path::new(path), root, id, anchor::Anchored::Stop)
+        {
             return fail(&e);
         }
         println!("\nexported  {path}");
+        // Read back rather than threaded out of the write: the head is the same value either way,
+        // and reading it here keeps the anchor line under the export line it belongs to.
+        if let Ok(entries) = anchor::read(root) {
+            if let Some(head) = anchor::head(&entries).digest {
+                println!("anchored  in this store's time ledger; head is now {head}");
+            }
+        }
         println!("Check it anywhere, with no access to this machine:  warrantor verify {path}");
         if let Err(e) = push_export(args, root, path) {
             return fail(&e);
@@ -1858,10 +1916,19 @@ fn cmd_spend(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         if path == "true" {
             return fail("--export needs a file path: warrantor spend <id> --export spend.json");
         }
-        if let Err(e) = write_export(&signed, Path::new(path)) {
+        if let Err(e) =
+            write_export_anchored(&signed, Path::new(path), root, id, anchor::Anchored::Spend)
+        {
             return fail(&e);
         }
         println!("\nexported  {path}");
+        // Read back rather than threaded out of the write: the head is the same value either way,
+        // and reading it here keeps the anchor line under the export line it belongs to.
+        if let Ok(entries) = anchor::read(root) {
+            if let Some(head) = anchor::head(&entries).digest {
+                println!("anchored  in this store's time ledger; head is now {head}");
+            }
+        }
         println!("Check it anywhere, with no access to this machine:  warrantor verify {path}");
         if let Err(e) = push_export(args, root, path) {
             return fail(&e);
@@ -2769,6 +2836,77 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         }
         Err(e) => fail(&e),
     }
+}
+
+// ── time anchoring: order without a trust root ─────────────────────────────────
+
+fn cmd_anchor(args: &Args, root: &Path) -> ExitCode {
+    match args.positional.first().map(String::as_str) {
+        Some("show") | None => cmd_anchor_show(root),
+        Some("verify") => cmd_anchor_verify(root),
+        Some(other) => fail(&format!(
+            "unknown anchor subcommand {other:?}. Try: show, verify"
+        )),
+    }
+}
+
+fn cmd_anchor_show(root: &Path) -> ExitCode {
+    let entries = match anchor::read(root) {
+        Ok(e) => e,
+        Err(e) => return fail(&e),
+    };
+    let summary = anchor::head(&entries);
+    if summary.entries == 0 {
+        println!("The time ledger is empty: nothing has been exported from this store yet.");
+        println!();
+        println!("{}", anchor::ANCHOR_CAVEAT);
+        return ExitCode::SUCCESS;
+    }
+    println!("entries   {}", summary.entries);
+    if let (Some(oldest), Some(newest)) = (summary.oldest_at, summary.newest_at) {
+        println!("oldest    {oldest}");
+        println!("newest    {newest}");
+    }
+    // Last, and in full. It is the thing to copy, and a truncated digest is not one.
+    println!(
+        "head      {}",
+        summary.digest.as_deref().unwrap_or("(none)")
+    );
+    println!();
+    println!("{}", anchor::ANCHOR_CAVEAT);
+    ExitCode::SUCCESS
+}
+
+fn cmd_anchor_verify(root: &Path) -> ExitCode {
+    let entries = match anchor::read(root) {
+        Ok(e) => e,
+        Err(e) => return fail(&e),
+    };
+    let faults = anchor::verify(&entries);
+    println!(
+        "{} entr{}",
+        entries.len(),
+        if entries.len() == 1 { "y" } else { "ies" }
+    );
+    if faults.is_empty() {
+        println!();
+        println!("The chain is intact and the clock never went backwards across it.");
+        println!("Every artifact's position relative to every other is established.");
+        println!();
+        println!("{}", anchor::ANCHOR_CAVEAT);
+        return ExitCode::SUCCESS;
+    }
+    println!();
+    for fault in &faults {
+        println!("  {fault}");
+    }
+    println!();
+    // Non-zero: a broken ledger is a finding, and a finding that exits zero is a finding a script
+    // does not notice.
+    fail(&format!(
+        "{} fault(s) in the time ledger. Ordering across this store cannot be relied on until they are explained.",
+        faults.len()
+    ))
 }
 
 // ── operators and approvals: §2.2, who did it and what they were allowed to do ─────────
@@ -5119,6 +5257,7 @@ fn main() -> ExitCode {
         "approve" => cmd_approve(&args, &store, &root),
         "agents" => cmd_agents(&args, &store),
         "guard" => cmd_guard(&args),
+        "anchor" => cmd_anchor(&args, &root),
         "selftest-upstream" => cmd_selftest_upstream(),
         "serve" => cmd_serve(&args, store, &root, false),
         // Same server, same flags, same refusals. The only difference is that it opens the console
