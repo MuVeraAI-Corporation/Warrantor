@@ -510,23 +510,69 @@ who this server is to a client — that depends on what the client already trust
 certificate is indistinguishable from an attacker's until somebody pins it. A reverse proxy remains
 a perfectly good answer.
 
-### 2.4 The agent can reach the API
+### 2.4 The agent can reach the API — **narrowed 2026-08-17; the residue is unfixable under same-UID**
 
-Documented and not fully fixable under a same-UID model: the supervised agent can read the token
-file and call the API. The mitigation is that `--allow-settle` is opt-in, so a stolen token yields a
-viewer. Closing it properly needs the act-scoped capability tokens `daemon.rs` already uses, applied
-to this surface.
+Not fully fixable under a same-UID model: the supervised agent can read the token file and call the
+API. The mitigation was that `--allow-settle` is opt-in, so a stolen token yields a viewer — true,
+and it means the escalation existed exactly on the servers where somebody wanted to settle from a
+browser, which after §2.1 is the expected setup.
+
+**`warrantor operator session-scope read`** narrows what the unnamed session token may do. Absent
+means unscoped, which is what every machine that has never run it has, so `operator add` still does
+not narrow anything as a side effect — the property §2.2 pinned with a test, now pinned again from
+the other direction. Read per request with the rest of the registry, so it takes effect on the next
+call rather than the next restart.
+
+**The earlier note here was wrong about the fix.** It said closing this "needs the act-scoped
+capability tokens `daemon.rs` already uses, applied to this surface". Act-scoped tokens would not
+have helped: an agent reads a scoped token off disk exactly as easily as an unscoped one. What
+closes the escalation is the *write* path requiring a secret that is not on this filesystem at all,
+which is what an operator token is — minted once, printed once, kept only as a SHA-256, carried by a
+person.
+
+**What remains, stated narrowly:** the agent can still read the store directly, and nothing can stop
+it. Same UID is same UID. What is gone is the agent settling its own work through the API, which is
+the escalation the product's central claim depends on.
 
 ---
 
 ## Tier 3 — needed before anyone trusts this with real oversight
 
-### 3.1 Bounds are weaker than they read
+### 3.1 Bounds are weaker than they read — **a profile can now be derived; nothing has run one**
 
 Per [[three enforcement tiers]]: `write_paths` and `budget_cents_observed` are **Observed**, not
 enforced. There is no netns, no seccomp and no firewall. The console shows `bound_strengths`
 honestly, but "the agent is bounded" is a stronger sentence than the system currently earns without
 composing with a real sandbox.
+
+**Half of it is now executable, and the half that is not is the important one.** `warrantor sandbox
+<id> [--kind bubblewrap|firejail]` derives a confinement profile from a warrant's bounds. The advice
+"compose with a real sandbox" was previously unactionable — not because writing a `bwrap` line is
+hard, but because the hard part is knowing which bounds a sandbox *cannot express at all*, and
+nothing said so.
+
+What the profile establishes:
+
+- **`write_paths`** — everything outside the worktree is mounted read-only, so an out-of-bounds
+  write fails at the syscall instead of being noticed at settle. The glob refinement *inside* the
+  worktree is deliberately **not** expressed: binding each glob's directory read-write would turn
+  `src/**` into a read-write `src/`, making the sandbox **looser** than the bound while appearing to
+  enforce it.
+- **`egress_hosts`** — a no-egress warrant gets `--unshare-net`, and that is the one genuine
+  upgrade here: an agent cannot route around a network namespace the way it can route around the
+  proxy. A warrant that *permits* hosts gets **no** netns and is told why — a namespace is
+  all-or-nothing, so emitting one would deny egress the warrant grants and the agent would fail at
+  its first fetch, in a way that does not look like Warrantor refusing anything. That asymmetry —
+  a profile stricter than the warrant is its own failure — is the reason this is a module rather
+  than a documentation snippet.
+- Everything else is reported as a **gap**, with what actually holds it.
+
+**§3.1 is NOT closed.** The derivation is unit-tested; nothing in this repository has executed
+`bubblewrap`, because the branch had no Linux host. `bound_strengths()` is untouched and a test
+asserts writing a profile does not move a single entry in it — a profile that is never launched
+confines nothing, and this process cannot tell whether the operator launched it. What closes §3.1 is
+running an agent under one of these profiles on Linux and watching a write outside the worktree fail
+at the syscall.
 
 ### 3.2 Notifications — **webhooks ship, every surface fires them; email and push do not exist**
 
