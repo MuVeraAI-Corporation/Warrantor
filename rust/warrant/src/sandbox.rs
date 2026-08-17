@@ -55,9 +55,20 @@
 //! Finding that required running it. Every unit test in this file passed before and after; nothing
 //! in a derivation can tell you what a kernel does with it.
 //!
+//! # It fails closed, and that is the part a wrapper can undo
+//!
+//! Three setup failures were then driven deliberately: a bind source that does not exist (a
+//! worktree deleted between grant and launch), a bind target it cannot create, and a `--chdir` into
+//! a path the sandbox does not have. All three exited 1 with a named error, and **the wrapped
+//! command never ran**. See [`EXIT_CODE_WARNING`], which is printed with every profile, because the
+//! easiest way to lose this property is a wrapper script: `bwrap ... agent || agent` turns a refused
+//! sandbox into an unconfined run, and `bwrap ... agent; agent` does it without anyone typing `||`.
+//!
 //! What remains outside this crate's claim: whether bubblewrap is correct is bubblewrap's claim,
 //! not Warrantor's, and one kernel is not every kernel — WSL2's 6.18 is not a hardened distro
 //! kernel with `unprivileged_userns_clone` disabled, where `bwrap` will refuse to start at all.
+//! That refusal is the same fail-closed direction as the three above, which is why it is a caveat
+//! about coverage rather than about safety.
 
 use std::collections::BTreeSet;
 
@@ -177,6 +188,19 @@ pub struct Profile {
     /// The sentence this profile carries about its own limits.
     pub caveat: String,
 }
+
+/// What a non-zero exit from the confinement means, and the wrapper mistake it invites.
+///
+/// Verified rather than assumed: three setup failures were driven against bubblewrap on Linux
+/// 6.18 — a bind source that does not exist (a worktree deleted between grant and launch), a bind
+/// target it cannot create, and a `--chdir` into a path the sandbox does not have. All three exited
+/// 1 with a named error, and **the wrapped command never ran** in any of them.
+///
+/// That is the fail-closed direction and it is the right one. It is also the thing a wrapper script
+/// most easily undoes: `bwrap ... agent || agent` and `bwrap ... agent; agent` both turn a refused
+/// sandbox into an unconfined run, and the second is what a shell does by default if nobody checks.
+pub const EXIT_CODE_WARNING: &str =
+    "IF THE CONFINEMENT EXITS NON-ZERO, YOUR AGENT DID NOT RUN. Verified against bubblewrap on Linux 6.18: a missing bind source, an uncreatable bind target and a bad --chdir all exit 1 with a named error and never execute the wrapped command -- which is the correct direction. Do NOT let a wrapper fall back to running the agent unconfined on that exit code; a script that ignores it turns a refused sandbox into an unsupervised run, which is worse than not having attempted one.";
 
 /// The caveat every profile carries.
 ///

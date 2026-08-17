@@ -4006,6 +4006,8 @@ fn cmd_sandbox(args: &Args, store: &WarrantStore) -> ExitCode {
     println!();
     println!("{}", profile.caveat);
     println!();
+    println!("{}", sandbox::EXIT_CODE_WARNING);
+    println!();
     println!(
         "VERIFIED ONCE, ON ONE KERNEL. A profile of this shape was built for Linux and run under bubblewrap on 6.18: a write inside the worktree persisted, writes to $HOME and /etc failed with EROFS, and DNS did not resolve with no egress granted. That run is also what found the /tmp exception named above. Whether {} is correct is its claim and not Warrantor's, and one kernel is not every kernel -- a hardened distro with unprivileged user namespaces disabled refuses to start it at all. Verify on your own host.",
         kind.word()
