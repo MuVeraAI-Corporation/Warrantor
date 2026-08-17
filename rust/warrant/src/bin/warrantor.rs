@@ -4920,6 +4920,11 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) 
         open_console_when_ready(addr, token.as_str().to_string(), root);
     }
 
+    // The notifier is attached here rather than defaulted in the library, because the transport is
+    // `ureq` and the library has no HTTP client and is not getting one. Before this, `notify.json`
+    // was read by the CLI alone: a settle taken in the console told nobody at all, which stopped
+    // being an edge case the moment the console grew a review queue and the browser became the
+    // expected place to decide.
     let api = http::StoreApi::new(
         store,
         root.to_path_buf(),
@@ -4927,7 +4932,8 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) 
         settle_key,
         build_performer,
         now,
-    );
+    )
+    .with_notifier(notify_event);
     let outcome = http::serve_on(api, token, listener, root.to_path_buf(), tls, &shutdown);
     // Removed whether the drain completed or not, and whether or not the loop ended in an error:
     // the token is a per-session secret and this session is over either way.

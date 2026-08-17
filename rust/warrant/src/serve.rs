@@ -2616,8 +2616,26 @@ pub struct StoreApi {
     issuer: SigningKey,
     settle_key: Option<SigningKey>,
     performer: fn() -> Box<dyn EffectPerformer>,
+    notifier: Notifier,
     now: fn() -> u64,
 }
+
+/// How this server tells anybody that a warrant was settled, voided or stopped.
+///
+/// # Why this is injected rather than called directly
+///
+/// [`crate::notify`] needs a transport, and the only transport in this repository is `ureq`-backed
+/// and lives in the binary. The library has no HTTP client and is not getting one — the tokio-free,
+/// seven-dependency posture of `rust/warrant` is a security property rather than an accident. So
+/// this is a plain function pointer, exactly like `performer`: the library decides *when* to
+/// notify and the binary owns *how*.
+pub type Notifier = fn(&Path, &str, &StoredWarrant, Value);
+
+/// The notifier a server uses when its caller configured none: it tells nobody.
+///
+/// The honest default for a library that cannot reach a network. Every test and every embedder
+/// that predates notification from this surface gets exactly the behaviour it had.
+pub fn silent_notifier(_root: &Path, _event: &str, _stored: &StoredWarrant, _detail: Value) {}
 
 impl StoreApi {
     /// Build the API over a store root.
@@ -2625,6 +2643,9 @@ impl StoreApi {
     /// `performer` is injected rather than constructed here so the GitHub adapter and its
     /// credentials stay in the binary that owns them, and so a test can settle against a stub
     /// without a network.
+    ///
+    /// Notifications default to [`silent_notifier`]; see [`Self::with_notifier`] for why that is a
+    /// builder rather than a seventh parameter.
     #[must_use]
     pub fn new(
         store: WarrantStore,
@@ -2640,8 +2661,40 @@ impl StoreApi {
             issuer,
             settle_key,
             performer,
+            notifier: silent_notifier,
             now,
         }
+    }
+
+    /// Attach the notifier this server should use.
+    ///
+    /// # The gap this closes
+    ///
+    /// `notify.json` was read by the CLI alone, so a settle, void or stop performed over HTTP told
+    /// nobody. That was survivable while the API was a read surface with three write routes nobody
+    /// used interactively. It stopped being survivable the moment the console grew a review queue:
+    /// the browser is now the *expected* place to settle, and it was the one place that went
+    /// silent. An off-site overseer watching `notify.json` would have seen a machine where warrants
+    /// stopped being decided on the day people started deciding them.
+    ///
+    /// A builder rather than a seventh parameter to [`Self::new`], because every existing caller
+    /// and every test that predates this constructs the six-argument form, and a machine that
+    /// never attaches a notifier must behave exactly as it did.
+    #[must_use]
+    pub fn with_notifier(mut self, notifier: Notifier) -> Self {
+        self.notifier = notifier;
+        self
+    }
+
+    /// Tell whoever is configured, if anybody is.
+    ///
+    /// Called only after the act is durable, and its result is discarded on purpose: the event
+    /// already happened, and a webhook is downstream of it rather than a gate on it. That is the
+    /// rule the CLI path already follows, restated here because the tempting mistake is to let a
+    /// delivery failure fail the settle — which would make the feature that reports outages the
+    /// cause of one.
+    fn announce(&self, event: &str, stored: &StoredWarrant, detail: Value) {
+        (self.notifier)(&self.root, event, stored, detail);
     }
 
     fn issuer_key(&self) -> VerifyingKey {
@@ -3480,6 +3533,13 @@ impl Api for StoreApi {
             return self.internal("persist a settled warrant", &e);
         }
 
+        // The same event, with the same detail, as the CLI's settle fires. Deliberately identical:
+        // a receiver must not be able to tell which surface a decision was taken from, because the
+        // decision is the fact and the surface is not. An incomplete settle notifies too, carrying
+        // `complete: false` — a partial release is exactly the state an off-site overseer most
+        // needs pushed at them, and suppressing it would make the quiet case the alarming one.
+        self.announce("settled", &stored, json!({ "complete": report.complete }));
+
         let verdict = self.warrant_verdict(&stored, now);
         let data = json!({
             "warrant_id": id,
@@ -3538,6 +3598,7 @@ impl Api for StoreApi {
         if let Err(e) = self.store.save(&stored) {
             return self.internal("persist a voided warrant", &e);
         }
+        self.announce("voided", &stored, json!({ "staged_effects": "discarded" }));
         let verdict = self.warrant_verdict(&stored, now);
         Response::json(
             status::OK,
@@ -3609,6 +3670,15 @@ impl Api for StoreApi {
                 &Verification::not_attempted(now),
             );
         }
+
+        // Announced once the record is kept, and only then. A stop notification for a run whose
+        // record failed to save would tell an overseer a containment fact this machine cannot
+        // support — the branch above returns before reaching here for exactly that reason.
+        self.announce(
+            "stopped",
+            &stored,
+            json!({ "contained": stop::contained(&signed) }),
+        );
 
         let verified = stop::verify_stop(&signed).is_ok();
         let verdict = Verification {
