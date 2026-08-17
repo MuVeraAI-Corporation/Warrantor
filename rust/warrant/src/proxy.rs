@@ -137,6 +137,17 @@ impl Proxy {
         }
     }
 
+    /// The mode this proxy is enforcing.
+    ///
+    /// Read by the endpoint when it decides which tools to *publish*: under `Observe` the whole
+    /// point is to discover what an agent reaches for, so an upstream's tools are published even
+    /// when the warrant does not list them; under `Enforce` a tool the warrant does not allow is
+    /// not published at all — the structural version of a refusal rather than the configurable one.
+    #[must_use]
+    pub const fn mode(&self) -> ProxyMode {
+        self.mode
+    }
+
     fn deny(&mut self, tool: &str, bound: &'static str, reason: String) -> Decision {
         let key = (tool.to_string(), bound.to_string());
         self.requests

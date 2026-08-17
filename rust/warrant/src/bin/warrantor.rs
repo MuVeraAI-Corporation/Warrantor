@@ -34,6 +34,7 @@ use warrantor_warrant::egress::{
     render_decision, EgressBroker, EgressVerdict, BROKER_VERSION, ENFORCEMENT_NOTE,
 };
 use warrantor_warrant::guard;
+use warrantor_warrant::harness;
 use warrantor_warrant::mcp::serve;
 use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
 use warrantor_warrant::notify::{self, Notification, NotifyConfig, NotifyTransport};
@@ -48,6 +49,7 @@ use warrantor_warrant::stop::{self, OsProcessControl, StopStore};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::supervise::{describe_linkage, spawn_detached};
 use warrantor_warrant::trust;
+use warrantor_warrant::upstream::{self, UpstreamSpec};
 use warrantor_warrant::worktree::Worktree;
 use warrantor_warrant::{
     SideEffectClass, Warrant, WarrantBounds, WarrantState, DEFAULT_CLI_SUBJECT,
@@ -211,6 +213,20 @@ struct Args {
     /// Kept separate because it is the agent's own command line: rewriting or re-parsing it would
     /// change what the developer asked to run.
     trailing: Vec<String>,
+    /// Every value a flag was given, in the order it was given, for the flags that may repeat.
+    ///
+    /// `flags` is last-wins, which is right for a flag naming one thing (`--port`) and silently
+    /// wrong for one naming a set. `--upstream a=x --upstream b=y` under last-wins attaches one
+    /// server and drops the other — with no error, because dropping is what a map does. Both are
+    /// kept here; `flags` is untouched, so nothing that reads it changes behaviour.
+    repeated: BTreeMap<String, Vec<String>>,
+}
+
+impl Args {
+    /// Every value given for a repeatable flag, in command-line order.
+    fn all(&self, name: &str) -> &[String] {
+        self.repeated.get(name).map_or(&[], Vec::as_slice)
+    }
 }
 
 fn parse_args() -> Option<Args> {
@@ -227,40 +243,51 @@ fn parse_tokens<I: IntoIterator<Item = String>>(tokens: I) -> Option<Args> {
     let command = raw.next()?;
     let mut positional = Vec::new();
     let mut flags = BTreeMap::new();
+    let mut repeated: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut trailing = Vec::new();
     let mut pending: Option<String> = None;
     let mut after_separator = false;
+    // One place both maps are written, so they cannot drift: `flags` keeps last-wins for every
+    // reader that predates repeatable flags, `repeated` keeps the whole sequence.
+    let mut record = |flags: &mut BTreeMap<String, String>, name: String, value: String| {
+        repeated
+            .entry(name.clone())
+            .or_default()
+            .push(value.clone());
+        flags.insert(name, value);
+    };
     for token in raw {
         if after_separator {
             trailing.push(token);
         } else if token == "--" {
             if let Some(previous) = pending.take() {
-                flags.insert(previous, "true".to_string());
+                record(&mut flags, previous, "true".to_string());
             }
             after_separator = true;
         } else if let Some(name) = token.strip_prefix("--") {
             if let Some(previous) = pending.take() {
-                flags.insert(previous, "true".to_string());
+                record(&mut flags, previous, "true".to_string());
             }
             if let Some((name, value)) = name.split_once('=') {
-                flags.insert(name.to_string(), value.to_string());
+                record(&mut flags, name.to_string(), value.to_string());
             } else {
                 pending = Some(name.to_string());
             }
         } else if let Some(name) = pending.take() {
-            flags.insert(name, token);
+            record(&mut flags, name, token);
         } else {
             positional.push(token);
         }
     }
     if let Some(remaining) = pending {
-        flags.insert(remaining, "true".to_string());
+        record(&mut flags, remaining, "true".to_string());
     }
     Some(Args {
         command,
         positional,
         flags,
         trailing,
+        repeated,
     })
 }
 
@@ -274,6 +301,33 @@ fn csv(value: Option<&String>) -> BTreeSet<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Read every `--upstream name=command args...` into a spec, in the order they were given.
+///
+/// Order matters and is preserved: two servers may publish the same tool name, and the first one
+/// attached wins the route. Sorting them — which a map would do — would make which server answers
+/// a call depend on alphabetical accident rather than on what the operator typed.
+///
+/// # Errors
+/// The first malformed value, or a duplicate name. A duplicate is refused rather than merged
+/// because the name is the prefix every one of that server's tools is granted against: two servers
+/// under one name means a warrant cannot say which of them it authorised.
+fn upstream_specs(args: &Args) -> Result<Vec<UpstreamSpec>, String> {
+    let mut specs: Vec<UpstreamSpec> = Vec::new();
+    for raw in args.all("upstream") {
+        let spec = UpstreamSpec::parse(raw)?;
+        if let Some(existing) = specs.iter().find(|s| s.name == spec.name) {
+            return Err(format!(
+                "two upstreams are named {:?} ({:?} and {:?}). The name is the prefix every one of \
+                 that server's tools is granted against, so two servers under one name would make \
+                 a warrant unable to say which it authorised.",
+                spec.name, existing.program, spec.program
+            ));
+        }
+        specs.push(spec);
+    }
+    Ok(specs)
 }
 
 /// Parse a duration like `8h`, `30m`, `90s`.
@@ -292,6 +346,9 @@ fn duration_seconds(value: &str) -> Option<u64> {
 
 const USAGE: &str = "\
 warrantor — bounded authority for coding agents
+
+  --root <path>   the store to use, on any command. Without it the store is
+                  ~/.warrantor, derived from HOME (USERPROFILE on Windows).
 
   grant   --goal G --tools T,T --write P,P [--deadline 8h] [--repo .] [--egress H,H]
           [--budget CENTS] [--subject <id>]
@@ -313,8 +370,39 @@ warrantor — bounded authority for coding agents
   run     <warrant-id> -- <command> [args...]
   status
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
+          [--upstream 'name=command args' ...] [--upstream-timeout 30s]
+  agents  list | detect | show <harness>
+          | wire <harness> <warrant-id> [--repo .] [--apply] [--replace]
+                 [--upstream 'name=command args' ...]
+  selftest-upstream
   serve   [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
   console [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
+
+Agents is the harness registry: which coding agents, general-purpose agents and
+SDKs can be pointed at a warranted session, and -- the column that matters -- how
+much of what each one does actually passes through it. For every terminal coding
+agent the honest answer is NOT EVERYTHING: their own file, edit and shell tools
+do not speak MCP and never reach the proxy, so wiring buys mediation of the MCP
+tools they use plus the deadline, the worktree, the staged effects, the evidence
+and the OS lifetime link -- and not mediation of bash. `show <harness>` names the
+escapes one by one. A harness with no MCP client at all is told so and given no
+config file, because a config that does nothing is a security claim that is not
+true. Wire is a DRY RUN by default: it writes into files your other tools read,
+some of them per-user, and --apply is the second sentence.
+
+--upstream attaches the MCP servers a permitted call is forwarded TO. Without one
+the proxy can refuse and stage and cannot deliver: every tool the warrant allows
+and the staging registry does not know comes back as a refusal that says so. Each
+server is named on the command line and its tools are published as <name>.<tool>,
+which is the string the warrant is granted against, so two servers publishing
+`search` stay distinguishable in an allowlist. Under enforce a tool the warrant
+does not allow is NOT PUBLISHED at all rather than refused when called; under
+--observe everything is published, because observing is how a warrant learns what
+an agent needs. An upstream publishing warrant lifecycle verbs (grant, settle,
+void, stage) is REFUSED at attach: a supervised agent that can settle holds the
+one authority this endpoint exists to withhold. selftest-upstream is a two-tool
+MCP server built into this binary, so the whole chain can be proved without
+installing anyone else's.
 
 Prune is the one deletion authority this build has: a retention.json policy
 (window in seconds, enabled separately) and a job gated IN CODE to the classes
@@ -2369,6 +2457,464 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     }
 }
 
+// ── agents: the harnesses, and pointing them at a warranted session ───────────────────
+
+/// The home directory, for the harnesses whose configuration is per-user rather than per-project.
+fn home_dir() -> Result<PathBuf, String> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+        .ok_or_else(|| "neither HOME nor USERPROFILE is set".to_string())
+}
+
+/// Resolve a command on `PATH`, the way a shell would.
+///
+/// Written rather than shelled out to `which`/`where`, which differ between platforms, are absent
+/// in minimal containers, and on Windows answer about a different search order than the one a
+/// spawned process actually gets.
+fn resolve_on_path(command: &str) -> Option<PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    // On Windows a bare name is tried against each PATHEXT suffix; elsewhere the name is the file.
+    let extensions: Vec<String> = if cfg!(windows) {
+        std::env::var("PATHEXT")
+            .unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string())
+            .split(';')
+            .filter(|e| !e.is_empty())
+            .map(str::to_string)
+            .collect()
+    } else {
+        vec![String::new()]
+    };
+    for directory in std::env::split_paths(&path) {
+        for extension in &extensions {
+            let candidate = directory.join(format!("{command}{extension}"));
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+/// This executable's own path, as an absolute string for a generated configuration.
+///
+/// A generated config must name an absolute path, never `warrantor`. The harness that reads it may
+/// be launched by an editor or a service manager with a `PATH` that does not contain this binary
+/// at all, and a config naming a bare command then fails at the moment the agent first tries to
+/// use a tool — which reads as Warrantor refusing everything.
+fn own_exe() -> Result<String, String> {
+    std::env::current_exe()
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| format!("cannot locate the warrantor executable to write into a config: {e}"))
+}
+
+fn cmd_agents(args: &Args, store: &WarrantStore) -> ExitCode {
+    match args.positional.first().map(String::as_str) {
+        Some("list") | None => cmd_agents_list(),
+        Some("detect") => cmd_agents_detect(),
+        Some("show") => cmd_agents_show(args),
+        Some("wire") => cmd_agents_wire(args, store),
+        Some(other) => fail(&format!(
+            "unknown agents subcommand {other:?}. Try: list, detect, show <harness>, wire \
+             <harness> <warrant-id>"
+        )),
+    }
+}
+
+fn cmd_agents_list() -> ExitCode {
+    println!("Harnesses this build knows how to point at a warranted session.\n");
+    println!(
+        "The second column is the one that matters. For every terminal coding agent the honest\n\
+         answer is that its OWN file and shell tools do not speak MCP and never reach the proxy;\n\
+         wiring buys mediation of the MCP tools it uses, plus the deadline, the worktree, the\n\
+         staged effects, the evidence and the OS lifetime link. `show <harness>` names the\n\
+         escapes for each one.\n"
+    );
+    for (kind, group) in harness::by_kind() {
+        println!("{}:", kind.to_uppercase());
+        for h in group {
+            let coverage = match h.coverage {
+                harness::Coverage::McpOnly => "all tool calls mediated",
+                harness::Coverage::McpAndBuiltins(_) => "MCP calls mediated, built-ins are not",
+                harness::Coverage::ProcessOnly => "no tool mediation -- process bounds only",
+            };
+            let wiring = match &h.wiring {
+                harness::Wiring::Json { path, .. } | harness::Wiring::Toml { path, .. } => {
+                    format!("writes {path}")
+                }
+                harness::Wiring::Manual { .. } => "prints a block".to_string(),
+                harness::Wiring::None => "nothing to wire".to_string(),
+            };
+            println!("  {:<20} {:<38} {}", h.id, coverage, wiring);
+        }
+        println!();
+    }
+    println!("  warrantor agents show <harness>");
+    println!("  warrantor agents wire <harness> <warrant-id> [--repo .] [--apply]");
+    ExitCode::SUCCESS
+}
+
+fn cmd_agents_detect() -> ExitCode {
+    println!("Which of these are on this machine's PATH.\n");
+    let mut found = 0;
+    let mut checkable = 0;
+    for h in harness::registry() {
+        match h.command {
+            Some(command) => {
+                checkable += 1;
+                match resolve_on_path(command) {
+                    Some(path) => {
+                        found += 1;
+                        println!("  {:<20} {}", h.id, path.display());
+                    }
+                    None => println!("  {:<20} not found (looked for `{command}`)", h.id),
+                }
+            }
+            // An editor extension or an SDK is not a command, and reporting "not found" for one
+            // would read as a missing install rather than as a category this check cannot answer.
+            None => println!("  {:<20} not a command -- {}", h.id, h.display),
+        }
+    }
+    println!("\n{found} of {checkable} command-line harnesses found.");
+    if found == 0 {
+        println!(
+            "\nNone found. That is a statement about this PATH, not about the harnesses: an agent\n\
+             installed for a different shell, or inside a container, is invisible from here."
+        );
+    }
+    ExitCode::SUCCESS
+}
+
+fn cmd_agents_show(args: &Args) -> ExitCode {
+    let Some(id) = args.positional.get(1) else {
+        return fail("usage: warrantor agents show <harness>");
+    };
+    let Some(h) = harness::find(id) else {
+        return fail(&format!(
+            "no harness {id:?}. `warrantor agents list` names them all."
+        ));
+    };
+    println!("{} ({})", h.display, h.kind.label());
+    println!();
+    println!("  COVERAGE");
+    println!("    {}", wrap(h.coverage.sentence(), 4));
+    if let Some(escapes) = h.coverage.escapes() {
+        println!("    Not mediated: {}", wrap(escapes, 4));
+    }
+    println!();
+    println!("  WIRING");
+    match &h.wiring {
+        harness::Wiring::Json { scope, path, key } => {
+            println!(
+                "    A JSON entry under {key:?} in {path}, {}.",
+                describe_scope(*scope)
+            );
+            println!("    `warrantor agents wire {id} <warrant-id> --apply` writes it.");
+        }
+        harness::Wiring::Toml { scope, path, table } => {
+            println!(
+                "    A [{table}.warrantor] section in {path}, {}.",
+                describe_scope(*scope)
+            );
+            println!("    `warrantor agents wire {id} <warrant-id> --apply` writes it.");
+        }
+        harness::Wiring::Manual { where_to, .. } => {
+            println!("    Put it in {where_to}.");
+            println!(
+                "    This build prints the block rather than writing it -- see the reason in the \
+                 note below."
+            );
+        }
+        harness::Wiring::None => {
+            println!("    Nothing. This harness has no MCP client.");
+        }
+    }
+    println!();
+    println!("  NOTE");
+    println!("    {}", wrap(h.note, 4));
+    if let Some(command) = h.command {
+        println!();
+        println!("  ON THIS MACHINE");
+        match resolve_on_path(command) {
+            Some(path) => println!("    {} -> {}", command, path.display()),
+            None => println!("    `{command}` is not on this PATH"),
+        }
+    }
+    ExitCode::SUCCESS
+}
+
+fn describe_scope(scope: harness::Scope) -> &'static str {
+    match scope {
+        harness::Scope::Project => "relative to the repository the warrant was granted against",
+        harness::Scope::Home => "relative to your home directory -- it applies to every project",
+    }
+}
+
+/// Wrap prose to a readable width at a given indent, so a long note is not one unreadable line.
+fn wrap(text: &str, indent: usize) -> String {
+    const WIDTH: usize = 88;
+    let pad = " ".repeat(indent);
+    let mut lines: Vec<String> = Vec::new();
+    let mut current = String::new();
+    for word in text.split_whitespace() {
+        if !current.is_empty() && current.len() + 1 + word.len() > WIDTH - indent {
+            lines.push(std::mem::take(&mut current));
+        }
+        if !current.is_empty() {
+            current.push(' ');
+        }
+        current.push_str(word);
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines.join(&format!("\n{pad}"))
+}
+
+fn cmd_agents_wire(args: &Args, store: &WarrantStore) -> ExitCode {
+    let (Some(id), Some(warrant_id)) = (args.positional.get(1), args.positional.get(2)) else {
+        return fail(
+            "usage: warrantor agents wire <harness> <warrant-id> [--repo .] [--apply] \
+             [--replace] [--upstream 'name=command' ...]",
+        );
+    };
+    let Some(h) = harness::find(id) else {
+        return fail(&format!(
+            "no harness {id:?}. `warrantor agents list` names them all."
+        ));
+    };
+
+    // The warrant is loaded and checked BEFORE anything is written. A config naming a warrant that
+    // does not exist, or one that is settled, is a config whose agent will fail at its first tool
+    // call -- and the person reading that failure will read it as Warrantor being broken rather
+    // than as wiring that was stale before it was written.
+    let stored = match store.load(warrant_id) {
+        Ok(s) => s,
+        Err(e) => return fail(&format!("cannot wire against {warrant_id}: {e}")),
+    };
+    if !matches!(stored.warrant.state, WarrantState::Open) {
+        return fail(&format!(
+            "{warrant_id} is {:?}, not Open. Wiring a harness to a warrant that cannot be run \
+             would write a config that fails at the agent's first tool call.",
+            stored.warrant.state
+        ));
+    }
+    if stored.warrant.claims.bounds.expires_at <= now() {
+        return fail(&format!(
+            "{warrant_id} expired at {}. Grant a new warrant and wire against that.",
+            stored.warrant.claims.bounds.expires_at
+        ));
+    }
+
+    let exe = match own_exe() {
+        Ok(e) => e,
+        Err(e) => return fail(&e),
+    };
+    let upstreams: Vec<String> = args.all("upstream").to_vec();
+    // Parsed here as well as at `mcp`, so a malformed spec is caught while writing the file rather
+    // than at the moment the agent starts and cannot say why.
+    for raw in &upstreams {
+        if let Err(e) = UpstreamSpec::parse(raw) {
+            return fail(&e);
+        }
+    }
+
+    // The store this warrant actually lives in, written into the generated config verbatim. Not
+    // `default_root()`: a session started with `--root` must produce wiring that addresses the
+    // same store, or the agent looks for its warrant somewhere it was never granted.
+    let root_string = store.root().to_string_lossy().to_string();
+    let session = harness::Session {
+        exe: &exe,
+        warrant_id,
+        root: &root_string,
+        upstreams: &upstreams,
+    };
+
+    let apply = args.flags.contains_key("apply");
+    let replace = args.flags.contains_key("replace");
+    let repo = args
+        .flags
+        .get("repo")
+        .map_or_else(|| PathBuf::from("."), PathBuf::from);
+
+    // What the warrant actually allows, printed with the wiring, because the two are read
+    // together: a harness pointed at a warrant granting one tool is a harness with one tool.
+    println!(
+        "Wiring {} at warrant {warrant_id} ({} tool(s) granted, expires at {}).",
+        h.display,
+        stored.warrant.claims.bounds.tools.len(),
+        stored.warrant.claims.bounds.expires_at
+    );
+    println!();
+    println!("  {}", wrap(h.coverage.sentence(), 2));
+    if let Some(escapes) = h.coverage.escapes() {
+        println!("  Not mediated: {}", wrap(escapes, 2));
+    }
+    println!();
+
+    match &h.wiring {
+        harness::Wiring::None => fail(&format!(
+            "{} has no MCP client, so there is no configuration that would route its calls \
+             through the warrant. Run it under `warrantor run {warrant_id} -- {}` for the \
+             process-level bounds, and read `warrantor agents show {}` for what that does and \
+             does not buy.",
+            h.display,
+            h.command.unwrap_or("<command>"),
+            h.id
+        )),
+        harness::Wiring::Manual { where_to, format } => {
+            println!("Put this in {where_to}:\n");
+            println!("{}", harness::render_manual(&h, *format, &session));
+            println!("\nThis build does not write it. {}", wrap(h.note, 0));
+            ExitCode::SUCCESS
+        }
+        harness::Wiring::Json { scope, path, key } => {
+            let target = match resolve_config_path(*scope, path, &repo) {
+                Ok(p) => p,
+                Err(e) => return fail(&e),
+            };
+            let existing = std::fs::read_to_string(&target).ok();
+            let entry = harness::server_entry(&session, h.id == "opencode");
+            match harness::splice_json(existing.as_deref(), key, &entry, replace) {
+                Ok(rendered) => write_or_show(&target, &rendered, apply, existing.is_some()),
+                Err(e) => fail(&e.to_string()),
+            }
+        }
+        harness::Wiring::Toml { scope, path, table } => {
+            let target = match resolve_config_path(*scope, path, &repo) {
+                Ok(p) => p,
+                Err(e) => return fail(&e),
+            };
+            let existing = std::fs::read_to_string(&target).ok();
+            let (command, command_args) = harness::server_command(&session);
+            match harness::splice_toml(existing.as_deref(), table, &command, &command_args, replace)
+            {
+                Ok(rendered) => write_or_show(&target, &rendered, apply, existing.is_some()),
+                Err(e) => fail(&e.to_string()),
+            }
+        }
+    }
+}
+
+fn resolve_config_path(scope: harness::Scope, path: &str, repo: &Path) -> Result<PathBuf, String> {
+    match scope {
+        harness::Scope::Project => Ok(repo.join(path)),
+        harness::Scope::Home => Ok(home_dir()?.join(path)),
+    }
+}
+
+/// Dry run by default, exactly as `prune` is.
+///
+/// The default matters more here than it looks. This writes into files an operator's other tools
+/// read, some of them per-user and shared across every project on the machine. A command that
+/// edited those the first time it was typed would be a command people run once and then distrust.
+fn write_or_show(target: &Path, rendered: &str, apply: bool, existed: bool) -> ExitCode {
+    if !apply {
+        println!(
+            "DRY RUN. This would {} {}:\n",
+            if existed { "rewrite" } else { "create" },
+            target.display()
+        );
+        println!("{rendered}");
+        println!("Run again with --apply to write it.");
+        return ExitCode::SUCCESS;
+    }
+    if let Some(parent) = target.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            return fail(&format!("cannot create {}: {e}", parent.display()));
+        }
+    }
+    match std::fs::write(target, rendered) {
+        Ok(()) => {
+            println!(
+                "{} {}.",
+                if existed { "Rewrote" } else { "Created" },
+                target.display()
+            );
+            println!(
+                "\nStart the harness from the directory this config applies to. Its first tool \
+                 call will go through `warrantor mcp --agent`, which refuses to start at all if \
+                 the warrant is not open -- so stale wiring fails closed rather than silently \
+                 running unbounded."
+            );
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&format!("cannot write {}: {e}", target.display())),
+    }
+}
+
+/// A minimal MCP server, so the forwarding chain can be proved without a third-party server.
+///
+/// It publishes two tools that cannot do harm — `echo` returns what it was given, `now` returns
+/// the clock — and speaks the same stdio JSON-RPC every other MCP server does. It exists because
+/// the first question anyone wiring an agent has is "did my calls actually go through Warrantor?",
+/// and answering it otherwise requires installing somebody's server, giving it credentials, and
+/// then being unable to tell a wiring fault from that server's own failure.
+///
+/// Run it as an upstream and the answer is unambiguous:
+///
+/// ```text
+/// warrantor grant --goal "wiring check" --tools selftest.echo --write . --repo .
+/// warrantor mcp --agent <id> --upstream 'selftest=warrantor selftest-upstream'
+/// ```
+///
+/// A call to `selftest.echo` that comes back with its own arguments traversed the proxy. A call to
+/// `selftest.now` under a warrant that did not grant it is not even published — which is the other
+/// half of the answer, and the half a permissive check would miss.
+fn cmd_selftest_upstream() -> ExitCode {
+    struct SelfTest;
+    impl warrantor_warrant::mcp::Endpoint for SelfTest {
+        fn name(&self) -> &str {
+            "warrantor-selftest"
+        }
+        fn tools(&mut self) -> Vec<warrantor_warrant::mcp::ToolSpec> {
+            vec![
+                warrantor_warrant::mcp::ToolSpec {
+                    name: "echo".to_string(),
+                    description: "Return the text you were given, unchanged. Harmless by \
+                                  construction: it reads nothing, writes nothing and reaches \
+                                  nothing."
+                        .to_string(),
+                    input_schema: serde_json::json!({
+                        "type": "object",
+                        "properties": { "text": { "type": "string" } },
+                        "required": ["text"],
+                    }),
+                },
+                warrantor_warrant::mcp::ToolSpec {
+                    name: "now".to_string(),
+                    description: "Return this machine's clock, in seconds since the Unix epoch."
+                        .to_string(),
+                    input_schema: serde_json::json!({"type": "object", "properties": {}}),
+                },
+            ]
+        }
+        fn call(
+            &mut self,
+            tool: &str,
+            arguments: &BTreeMap<String, serde_json::Value>,
+        ) -> warrantor_warrant::mcp::ToolResult {
+            match tool {
+                "echo" => match warrantor_warrant::mcp::require_str(arguments, "text") {
+                    Ok(text) => warrantor_warrant::mcp::ToolResult::ok(text),
+                    Err(e) => *e,
+                },
+                "now" => warrantor_warrant::mcp::ToolResult::ok(now().to_string()),
+                other => warrantor_warrant::mcp::ToolResult::error(format!(
+                    "{other:?} is not a tool this server publishes"
+                )),
+            }
+        }
+    }
+
+    let stdin = std::io::stdin();
+    let mut stdout = std::io::stdout();
+    match serve(&mut SelfTest, stdin.lock(), &mut stdout) {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(e) => fail(&e.to_string()),
+    }
+}
+
 /// The daemon body. Not advertised in the usage text: `run` re-enters the binary here.
 fn cmd_supervise(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let Some(id) = args.positional.first() else {
@@ -2497,6 +3043,75 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
         // is detectable down to the last effect rather than down to the last time somebody ran a
         // CLI command.
         endpoint = endpoint.witnessed_by(store.clone());
+
+        // Upstreams before the guard, because attaching one can fail and a failure here must stop
+        // the session rather than start a supervised agent whose permitted calls have nowhere to
+        // go. Everything about the wiring is decided at start-up for the same reason the archive
+        // client checks its pairing up front: an agent discovering broken wiring mid-run burns its
+        // deadline retrying against it.
+        match upstream_specs(args) {
+            Ok(specs) if specs.is_empty() => {}
+            Ok(specs) => {
+                let timeout = match args.flags.get("upstream-timeout") {
+                    Some(raw) => match duration_seconds(raw) {
+                        Some(secs) => std::time::Duration::from_secs(secs),
+                        None => {
+                            return fail(&format!(
+                                "--upstream-timeout {raw:?} is not a duration like 30s, 2m or 1h"
+                            ))
+                        }
+                    },
+                    None => upstream::DEFAULT_TIMEOUT,
+                };
+                // Named at length because it does something an operator must not do by accident.
+                // The refusal it disables exists for one case — pointing a supervised agent at a
+                // server that can release the agent's own staged work — and the check that finds
+                // that case is a name heuristic, so a benign server whose tool is called
+                // `stage_changes` needs a way past it.
+                let attach = if args
+                    .flags
+                    .contains_key("upstream-allow-lifecycle-tools-i-accept-this")
+                {
+                    eprintln!(
+                        "warrantor: WARNING -- the lifecycle-tool refusal is DISABLED for this \
+                         session. If any attached server can settle, void or release staged work, \
+                         the supervised agent can now call it."
+                    );
+                    upstream::UpstreamSet::start_allowing_lifecycle_tools(&specs, timeout)
+                } else {
+                    upstream::UpstreamSet::start(&specs, timeout)
+                };
+                match attach {
+                    Ok(set) => {
+                        eprintln!(
+                            "warrantor: upstream -- {} attached, {}s per-call deadline.",
+                            set.describe_attached(),
+                            timeout.as_secs()
+                        );
+                        endpoint = endpoint.with_upstreams(set);
+                        // Said once, at the terminal, to the person who can act on it. The model is
+                        // not told: a tool that is granted but unreachable is a fact about wiring,
+                        // and an agent cannot fix wiring.
+                        let unreachable = endpoint.allowed_but_unreachable();
+                        if !unreachable.is_empty() {
+                            eprintln!(
+                                "warrantor: WARNING -- the warrant allows {} that no attached \
+                                 server publishes and nothing stages: {}. Those calls are not \
+                                 published on this endpoint, so the agent cannot make them.",
+                                if unreachable.len() == 1 {
+                                    "a tool"
+                                } else {
+                                    "tools"
+                                },
+                                unreachable.join(", ")
+                            );
+                        }
+                    }
+                    Err(e) => return fail(&e.to_string()),
+                }
+            }
+            Err(e) => return fail(&e),
+        }
         // Absent by default. `build_guard` returns `None` unless `--guard` was passed, and also
         // whenever attaching failed -- an absent guard produces no signals and never "all clear".
         if let Some(sink) = build_guard(args, id, root) {
@@ -2587,6 +3202,17 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                             Some(guard::GuardMode::Observe) => "Nothing was blocked.",
                             None => "The mode could not be read, so what was blocked is unknown.",
                         }
+                    );
+                }
+                // Separate from the refusals below, and deliberately so: a refusal is the warrant
+                // working and a delivery failure is the wiring not working. Folding them into one
+                // count would let a session in which every call failed in transport read as a
+                // well-bounded run in which the agent behaved.
+                if let Some((forwarded, failures)) = endpoint.forwarding_counts() {
+                    eprintln!(
+                        "warrantor: upstream -- {forwarded} call(s) forwarded, {failures} \
+                         undeliverable, to {}.",
+                        endpoint.describe_upstreams()
                     );
                 }
                 for request in endpoint.authority_requests() {
@@ -3925,9 +4551,22 @@ fn main() -> ExitCode {
         println!("{USAGE}");
         return ExitCode::SUCCESS;
     };
-    let root = match WarrantStore::default_root() {
-        Ok(r) => r,
-        Err(e) => return fail(&e.to_string()),
+    // `--root` names the store explicitly; without it the store is derived from the home
+    // directory, as it always has been.
+    //
+    // It exists because a generated MCP configuration has to name one. A harness is started by an
+    // editor, a service manager or a container, each with an environment this process never sees,
+    // and a config that relied on `HOME` would address a *different store* under any of them — so
+    // the agent's first tool call would fail with "no such warrant", which reads to a user as
+    // Warrantor being broken rather than as wiring that never named where to look. It also gives
+    // the tests a way to run the real binary against a real store without mutating `HOME`, which
+    // is what they had to do before.
+    let root = match args.flags.get("root") {
+        Some(explicit) => PathBuf::from(explicit),
+        None => match WarrantStore::default_root() {
+            Ok(r) => r,
+            Err(e) => return fail(&e.to_string()),
+        },
     };
     let store = match WarrantStore::open(&root) {
         Ok(s) => s,
@@ -3953,6 +4592,8 @@ fn main() -> ExitCode {
         "supervise" => cmd_supervise(&args, &store, &root),
         "status" => cmd_status(&store, &root),
         "mcp" => cmd_mcp(&args, store, &root),
+        "agents" => cmd_agents(&args, &store),
+        "selftest-upstream" => cmd_selftest_upstream(),
         "serve" => cmd_serve(&args, store, &root, false),
         // Same server, same flags, same refusals. The only difference is that it opens the console
         // for you, which is the difference between a surface a developer can use and one a reviewer

@@ -38,6 +38,7 @@ pub mod autofile;
 pub mod daemon;
 pub mod egress;
 pub mod guard;
+pub mod harness;
 pub mod mcp;
 pub mod mcp_endpoints;
 pub mod notify;
@@ -52,6 +53,7 @@ pub mod stop;
 pub mod store;
 pub mod supervise;
 pub mod trust;
+pub mod upstream;
 pub mod worktree;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
