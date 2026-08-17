@@ -33,17 +33,26 @@
 #![deny(missing_docs)]
 
 pub mod adapters;
+pub mod anchor;
 pub mod archive_client;
 pub mod autofile;
+pub mod bench;
+pub mod bundle;
+pub mod corpus;
 pub mod daemon;
 pub mod egress;
 pub mod guard;
+pub mod harness;
 pub mod mcp;
 pub mod mcp_endpoints;
 pub mod notify;
+pub mod operators;
 pub mod proxy;
 pub mod report;
 pub mod retention;
+pub mod review;
+pub mod runs;
+pub mod sandbox;
 pub mod serve;
 pub mod settle;
 pub mod spend;
@@ -51,7 +60,12 @@ pub mod staging;
 pub mod stop;
 pub mod store;
 pub mod supervise;
+/// Server-side TLS. Present only with the `tls` feature; see the module docs for why it is off by
+/// default and why enabling it adds nothing to the dependency graph.
+#[cfg(feature = "tls")]
+pub mod tls;
 pub mod trust;
+pub mod upstream;
 pub mod worktree;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};

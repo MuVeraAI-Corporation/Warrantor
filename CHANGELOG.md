@@ -9,6 +9,76 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — the proxy can forward, and the harnesses that can now be pointed at it
+
+- **`--upstream 'name=command args'` on `warrantor mcp`, and `rust/warrant/src/upstream.rs`.**
+  `Decision::Forward` has existed since the proxy was written; the endpoint answered it with an
+  error telling the operator to start the session with `--upstream`, **a flag that did not exist
+  anywhere in the binary**. So of everything an agent could ask a warranted session to do,
+  exactly four calls worked — the GitHub effects the staging registry knows how to queue — and
+  every other permitted call failed with a remedy that could not be performed. A proxy that
+  cannot forward is not a proxy; it is a deny-list with a staging queue bolted to it, and every
+  harness integration was blocked behind it. The client is synchronous — a reader thread and
+  `recv_timeout` buy the per-call deadline — so the seven-dependency, **tokio-free** posture of
+  `rust/warrant` is unchanged.
+- **Tools are published as `<name>.<tool>`.** Two servers may both publish `search`, and a
+  warrant's allowlist is a set of strings: unqualified, a grant intended for a read-only
+  documentation server would silently authorise a different server's tool of the same name.
+- **Under enforce, an ungranted tool is not published at all** rather than refused when called —
+  the structural version of a refusal, and the same decision the control endpoint's absent
+  lifecycle tools rest on. Under `--observe` everything is published, because observing is how a
+  warrant learns what an agent needs. The upstream's **own schema and description are carried
+  through verbatim**: a model that cannot see the real schema composes calls the upstream rejects
+  and cannot tell a schema mistake from a policy refusal.
+- **An upstream publishing warrant lifecycle verbs is refused at attach.** Pointing an agent at
+  "the warrantor MCP server" has two answers and one of them hands the supervised agent the
+  authority to settle its own warrant. The first cut of this check split on `.` and took the last
+  segment; this repository's own control endpoint publishes `warrant_settle`, so it passed — a
+  check that misses the one server it was written for is worse than none. It now matches every
+  segment, and `--upstream-allow-lifecycle-tools-i-accept-this` is the named way past it.
+- **The `Forward` arm pays the debt its own comment recorded**: `guard_denial` runs before
+  delivery, exactly as the `Stage` arm does. Forward counts are reported **separately from
+  refusals** — a refusal is the warrant working, a delivery failure is the wiring not working,
+  and folding them together would let a session in which every call failed in transport read as a
+  well-bounded run.
+- **`warrantor selftest-upstream`** — a two-tool MCP server built into this binary, so the whole
+  chain can be proved without installing anyone else's server, and so the forwarding tests spawn
+  a real child process over real pipes rather than a stub that would have kept the broken arm
+  green forever.
+
+### Added — `warrantor agents`: the harness registry, and what each harness does *not* route
+
+- **`agents list | detect | show <harness> | wire <harness> <warrant-id>`.** There was already an
+  "integration" surface here: a Python command that wrote `CLAUDE.md`, `AGENTS.md` or
+  `.cursorrules` containing sentences like *"Every action is tracked and recorded"*. Nothing in
+  the system made those sentences true. They were **instructions to a model**, and a security
+  boundary that lives in the prompt is the precise failure this product was founded on.
+- **The registry states coverage per harness, and the second column is the one that matters.**
+  For every terminal coding agent the honest answer is *not everything*: their own file, edit and
+  shell tools do not speak MCP and never reach the proxy. `agents show` names them one by one.
+  Wiring buys mediation of the MCP tools they use, plus the deadline, the worktree, the staged
+  effects, the evidence and the OS lifetime link — and not mediation of `bash`.
+- **A harness with no MCP client is told so and given no file.** Aider gets a refusal naming
+  `warrantor run` and an explanation, not a config, because a config that does nothing is a
+  security claim that is not true.
+- **`wire` is a dry run by default**, like `prune`. It writes into files an operator's other
+  tools read, two of them per-user and shared across every project on the machine.
+- Sixteen harnesses: Claude Code, Codex CLI, Cursor, Gemini CLI, OpenCode, Aider, Copilot CLI,
+  Cline, Continue, Zed, Claude Desktop, Goose, and the Claude Agent / OpenAI Agents / LangChain /
+  Pydantic AI SDKs. Four are written automatically (JSON and TOML, spliced without touching
+  anything else in the file); the rest print the block, because this build does not rewrite YAML
+  and does not write to a path it cannot verify from here.
+
+### Added — `--root <path>` on every command
+
+- The store is addressable explicitly instead of only via `HOME`/`USERPROFILE`. Found while
+  testing the above: a generated MCP configuration **has** to name a store, because a harness is
+  started by an editor, a service manager or a container with an environment this process never
+  sees — and one that relied on `HOME` would address a *different store*, so the agent's first
+  tool call would fail with "no such warrant", which reads to a user as Warrantor being broken.
+  Every generated config now carries it. It also gives the tests a way to run the real binary
+  against a real store without mutating `HOME`.
+
 ### Added — the fleet-level view: custody totals across everything the archive holds
 
 - **`GET /v1/summary` at the archive, `warrantor archive summary` on the client.** The

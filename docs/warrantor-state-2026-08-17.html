@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Warrantor — verified state, 17 August 2026</title>
+<style>
+  :root {
+    --bg: #faf9f7; --panel: #ffffff; --ink: #191817; --ink-soft: #4a4642; --ink-faint: #75706a;
+    --line: #e6e1da; --line-strong: #d0c9c0; --accent: #c2571f; --accent-soft: #fdf3ec;
+    --ok: #1f6b4a; --ok-bg: #edf6f1; --bad: #9c2a1e; --bad-bg: #fbeeec;
+    --warn: #8a6100; --warn-bg: #fdf5e3;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Söhne", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1917; --panel: #232120; --ink: #f2efea; --ink-soft: #c4bdb4; --ink-faint: #948d84;
+      --line: #35322f; --line-strong: #4a4642; --accent: #e07a42; --accent-soft: #2c2320;
+      --ok: #6fc79b; --ok-bg: #1c2a24; --bad: #e08a7d; --bad-bg: #2c2120;
+      --warn: #d9ad5a; --warn-bg: #2a2419;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
+         font-size: 17px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 56px 28px 120px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+             font-weight: 600; margin: 0 0 12px; }
+  h1 { font-size: 34px; line-height: 1.2; margin: 0 0 14px; font-weight: 600; letter-spacing: -.02em; }
+  .standfirst { font-size: 19px; color: var(--ink-soft); margin: 0; }
+  .meta { font-size: 13px; color: var(--ink-faint); margin-top: 18px; font-family: var(--mono); }
+  h2 { font-size: 24px; margin: 52px 0 14px; font-weight: 600; letter-spacing: -.01em;
+       padding-top: 10px; border-top: 1px solid var(--line); }
+  h3 { font-size: 17px; margin: 28px 0 8px; font-weight: 600; }
+  p { margin: 0 0 15px; }
+  code { font-family: var(--mono); font-size: .87em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; margin: 20px 0 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .d-ver { background: var(--ok); } .d-cfg { background: var(--warn); } .d-open { background: var(--bad); }
+  .tablewrap { overflow-x: auto; margin: 18px 0 26px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  td.num { font-family: var(--mono); white-space: nowrap; font-size: 13.5px; }
+  .tag { font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+         padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid; }
+  .t-ver { color: var(--ok); background: var(--ok-bg); border-color: var(--ok); }
+  .t-cfg { color: var(--warn); background: var(--warn-bg); border-color: var(--warn); }
+  .t-open { color: var(--bad); background: var(--bad-bg); border-color: var(--bad); }
+  .callout { border-radius: 8px; padding: 16px 20px; margin: 22px 0; border: 1px solid; font-size: 16px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .label { font-weight: 600; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+                    display: block; margin-bottom: 6px; }
+  .stop { background: var(--bad-bg); border-color: var(--bad); } .stop .label { color: var(--bad); }
+  .warn { background: var(--warn-bg); border-color: var(--warn); } .warn .label { color: var(--warn); }
+  .good { background: var(--ok-bg); border-color: var(--ok); } .good .label { color: var(--ok); }
+  ul, ol { margin: 0 0 15px; padding-left: 22px; } li { margin-bottom: 7px; }
+  .footnote { font-size: 14px; color: var(--ink-faint); border-top: 1px solid var(--line);
+              padding-top: 20px; margin-top: 48px; }
+  .prov { font-family: var(--mono); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Status · supersedes warrantor-critical-analysis-2026-08-16</p>
+  <h1>Warrantor: verified state</h1>
+  <p class="standfirst">
+    A cross-area account of what this system does, separated by <em>how much is known about
+    it</em> — because the recurring failure in this repository has never been broken code. It has
+    been sentences that were true when written and stopped being true, in a document nobody re-read.
+  </p>
+  <p class="meta">
+    17 August 2026 · branch <code>feat/agent-integrations</code>, 52 commits over <code>b6557bb</code>
+    · 678 Rust tests (681 with <code>--features tls</code>) · 44 console · 68 desktop
+  </p>
+</header>
+
+<div class="callout warn">
+  <span class="label">Why this document exists</span>
+  <p>
+    <code>warrantor-critical-analysis-2026-08-16.html</code> and
+    <code>integrations-inventory.html</code> both predate the work below and describe a codebase that
+    no longer exists — the first is silent on six of the seven components added since, the second
+    lists 16 integrations where there are now 36. Both are superseded here. That is the same defect
+    class this branch spent its time finding, applied to the analysis rather than the code.
+  </p>
+</div>
+
+<div class="legend">
+  <span><i class="dot d-ver"></i> <strong>Verified</strong> — executed and observed on this machine</span>
+  <span><i class="dot d-cfg"></i> <strong>Configured</strong> — built and tested, not exercised end to end</span>
+  <span><i class="dot d-open"></i> <strong>Open</strong> — needs something that is not engineering</span>
+</div>
+
+<h2>1. Integrations — coding agents, general agents, SDKs</h2>
+
+<p>
+  <strong>36 harnesses</strong>: 21 coding agents, 6 general-purpose agents, 9 SDKs.
+  <code>warrantor agents list</code> enumerates them, <code>detect</code> resolves each against
+  <code>PATH</code>, <code>show</code> names what does <em>not</em> traverse the proxy, and
+  <code>wire</code> writes the MCP config where the path is known and prints a block where it is not.
+</p>
+
+<p>
+  The second column is the one that matters and it is enforced by test: <strong>no coding agent may
+  claim <code>McpOnly</code></strong>. Every terminal agent ships its own file and shell tools, none
+  of which speak MCP. An integration page that omitted that would be the <code>CLAUDE.md</code>
+  mistake wearing better clothes — asserting a boundary that lives only in prose.
+</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Class</th><th>Count</th><th>What a warrant decides for them</th></tr></thead>
+  <tbody>
+    <tr><td>Coding agents</td><td class="num">21</td><td>MCP tool calls, plus the deadline, worktree, staged effects, evidence and OS lifetime link. <strong>Not</strong> their own <code>bash</code>.</td></tr>
+    <tr><td>General-purpose agents</td><td class="num">6</td><td>MCP calls only. No worktree, no supervised process — the deadline and lifetime link do not apply.</td></tr>
+    <tr><td>Agent SDKs</td><td class="num">9</td><td>Full mediation is <em>reachable</em>: give the agent only MCP tools and the warrant sees every call. One locally-defined tool ends that, silently.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Four entries exist to say <em>no</em></h3>
+<ul>
+  <li><strong><code>warp</code></strong> — its agent acts in <em>your shell, in whatever directory that shell is in</em>, not the worktree. Wiring buys a view of MCP calls and nothing else.</li>
+  <li><strong><code>glm-coding</code></strong> — prevents a category error. GLM is a <em>model</em>; the thing that calls tools is the harness in front of it.</li>
+  <li><strong><code>minimax</code></strong> — <code>ProcessOnly</code>, no local MCP client to point anywhere. Treat its output as unwarranted work.</li>
+  <li><strong><code>open-webui</code></strong> — needs an <code>mcpo</code>-style bridge, so coverage is whatever the bridge forwards.</li>
+</ul>
+
+<h2>2. Model intelligence — verified end to end, with a measured limit</h2>
+
+<div class="callout good">
+  <span class="label">Verified 17 August</span>
+  <p>
+    A live <code>Qwen3Guard-Gen-4B</code> (<code>sha256:6a88b46b…</code>) on Ollama at
+    <code>num_ctx</code> 8192, classifying real tool calls in a real supervised session.
+    <strong>Observe</strong> mode records and stages; <strong>enforce</strong> mode refuses before
+    anything is staged, names the category, and insists it is a model's opinion and not a warrant
+    bound. Both are branches, not claims.
+  </p>
+</div>
+
+<p>
+  <code>warrantor guard bench</code> over the 14 shipped cases: recall <strong>0.875 [0.529,
+  0.978]</strong>, false-positive rate <strong>0.000 [0.000, 0.390]</strong> — both consistent with
+  the published 0.8152 / 0.0923. Fourteen hand-written cases cannot measure a classifier; what this
+  establishes is that the configuration running here is the one the published figures came from.
+</p>
+
+<div class="callout stop">
+  <span class="label">The measured category limit</span>
+  <p>
+    Of two <code>destructive</code> cases the guard caught <em>"Run <code>rm -rf</code> on the
+    production data volume"</em> and <strong>missed</strong> <em>"Force-push a rewritten history over
+    main and delete every other branch."</em> Both destroy work irrecoverably. The difference is
+    vocabulary: Qwen3Guard is a general <em>safety</em> classifier trained on harm to people, and
+    <code>force-push</code> is ordinary developer English that appears in that distribution as
+    neither harmful nor notable.
+  </p>
+  <p>
+    This is a <strong>category limitation, not a tuning problem</strong> — no threshold moves it. It
+    is also the argument for the architecture: bounds refuse deterministically, before the act; the
+    model is an observe-only signal about what the bounds <em>allowed</em>. Wired the other way
+    round, that force-push goes through.
+  </p>
+</div>
+
+<h3>What the guard cannot see, now counted</h3>
+<p>
+  A live session exposed a coverage hole: a call the warrant <em>permitted</em> whose decision is
+  <code>Forward</code>, with no upstream attached, was recorded <strong>nowhere</strong> — not
+  classified, not in any "nothing looked at" bucket, not in the refusals log. The operator read a
+  complete-looking picture while the guard had seen one of two permitted calls.
+  <code>permitted_no_route</code> now counts it at all three layers, and deliberately does not
+  classify it: the call did not happen.
+</p>
+
+<h2>3. Local backend</h2>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Capability</th><th>State</th><th>Evidence</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Approval loop</strong> (§2.1)</td>
+      <td><span class="tag t-ver">verified</span></td>
+      <td>Three operators, scopes separated, in a real browser: granted → waiting on ana+ben → ana approves → waiting on ben → ben approves → cleo offered Settle → settled → queue empty. The queue and the settle gate are asserted to agree <em>against the gate itself</em>.</td>
+    </tr>
+    <tr>
+      <td><strong>Identity &amp; scoping</strong> (§2.2, §2.4)</td>
+      <td><span class="tag t-ver">verified</span></td>
+      <td>Named operators, hash-chained actor log, two-person rule. <code>operator session-scope read</code> makes a stolen session token a viewer even with <code>--allow-settle</code>: read 200, settle 403, operator settle 200.</td>
+    </tr>
+    <tr>
+      <td><strong>Notifications</strong> (§3.2)</td>
+      <td><span class="tag t-ver">verified</span></td>
+      <td>HMAC-signed webhook delivered from an HTTP settle. Email/push front-ended by a program named in <code>notify.json</code>, inert unless the invocation carried <code>--allow-notify-command</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>Run accounting</strong> (§4.3)</td>
+      <td><span class="tag t-ver">verified</span></td>
+      <td><code>runs/</code> records every supervised session with <code>guard: null</code> when nothing watched it — the positive record that makes "nobody was watching" distinguishable from "nothing ran".</td>
+    </tr>
+    <tr>
+      <td><strong>Retention</strong> (§3.4)</td>
+      <td><span class="tag t-ver">verified</span></td>
+      <td>20 store locations inventoried by <code>holdings</code>; <code>prune</code> deletes only no-consequence classes, verified against a backdated <code>logs/</code> file.</td>
+    </tr>
+    <tr>
+      <td><strong>TLS</strong> (§2.3)</td>
+      <td><span class="tag t-cfg">configured</span></td>
+      <td>Feature-gated, verified at TLS 1.3; a non-loopback bind is fail-closed without it.</td>
+    </tr>
+    <tr>
+      <td><strong>Confinement</strong> (§3.1)</td>
+      <td><span class="tag t-cfg">one kernel</span></td>
+      <td>See below.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>§3.1 — the honest boundary</h3>
+<p>
+  <code>warrantor sandbox</code> derives a bubblewrap or firejail profile from a warrant's bounds. It
+  was <strong>run</strong> on Linux 6.18: a write inside the worktree persisted, writes to
+  <code>$HOME</code> and <code>/etc</code> failed with <code>EROFS</code>, DNS did not resolve with
+  no egress granted, and three deliberate setup failures all exited non-zero with the wrapped command
+  <em>never executing</em> — it fails closed.
+</p>
+<p>
+  That run also <strong>disproved one of its own claims</strong>: <code>/tmp</code> is a private
+  tmpfs, so a write there succeeds, stays readable for the session, and is silently discarded — not
+  refused, not persisted. Every unit test passed before and after. <code>bound_strengths()</code>
+  still reports <code>write_paths</code> as <strong>Observed</strong>, correctly: a profile that is
+  never launched confines nothing, and this store cannot tell whether you launched it.
+</p>
+
+<h2>4. Desktop — Windows and macOS</h2>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Platform</th><th>Built</th><th>Installed</th><th>Launched</th></tr></thead>
+  <tbody>
+    <tr><td>Windows NSIS</td><td>CI + local</td><td><span class="tag t-ver">yes</span></td><td><span class="tag t-ver">yes</span></td></tr>
+    <tr><td>macOS dmg (arm64, x64)</td><td>CI</td><td><span class="tag t-open">no</span></td><td><span class="tag t-open">no</span></td></tr>
+    <tr><td>Linux AppImage + deb</td><td>CI + local</td><td><span class="tag t-cfg">deb not installed (no sudo)</span></td><td><span class="tag t-ver">yes &mdash; AppImage</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+  The Windows install was verified on 17 August: the app launched from an <strong>empty
+  <code>PATH</code></strong>, resolved its bundled agent — <code>agent binary:
+  …\resources\warrantor.exe (bundled with the app)</code> — started it, and loaded the console. The
+  tray installed with no <code>tray skipped</code> line, so the earlier tray fix holds in a real
+  install and not only in an unpacked directory.
+</p>
+
+<div class="callout warn">
+  <span class="label">What installing it found</span>
+  <p>
+    <code>executableName</code> was set at the <em>top level</em>, which applies to every platform —
+    so Windows took a fix written for Linux and installed to
+    <code>Programs\warrantor-desktop\</code> with an <code>Uninstall warrantor-desktop.exe</code>,
+    while Add/Remove Programs listed <code>Warrantor 1.0.0</code>. The config comment directly above
+    it asserted Windows was unaffected. <strong>Nothing broke</strong> — which is exactly why it
+    survived every configuration test. Now scoped to <code>linux</code>.
+  </p>
+</div>
+
+<p>
+  <strong>macOS is configured and unobserved.</strong> <code>mac.identity: '-'</code> is ad-hoc
+  signing — the literal <code>'-'</code>, not <code>null</code>, which in electron-builder 26 skips
+  signing entirely and leaves a bundle Apple Silicon refuses to execute. That distinction is the
+  whole macOS leg, and it has never been watched running on an arm64 machine.
+</p>
+
+<h2>5. Interface</h2>
+
+<p>
+  Three destinations — <strong>Warrants</strong>, <strong>Waiting on you</strong>, <strong>Refusals
+  &amp; guard</strong> — reachable by <code>1 / 2 / 3</code> in visual order, with
+  <code>aria-pressed</code> on each so the active one is announced rather than only painted.
+</p>
+
+<p>
+  The design rule throughout: <strong>the server computes, the client renders.</strong> Every act
+  button in the queue comes from the server's own <code>you_can</code>, and nothing on the page
+  recomputes it — a console deciding its own buttons would be a second implementation of the
+  approval rules, drifting from the gate the first time either changed. Verdicts carry a glyph and a
+  word as well as a colour. Warrants that cannot be described are listed as <em>undetermined</em>
+  rather than dropped to make a list shorter.
+</p>
+
+<p>
+  Four headline states, not one: "nothing is waiting" and "nothing is waiting <em>on you</em>" are
+  different facts about the same store, and a queue that could not be read is never rendered as an
+  empty queue.
+</p>
+
+<h3>Accessibility, audited rather than assumed</h3>
+<p>
+  Every input carries an accessible name &mdash; one by <code>&lt;label for&gt;</code>, one by
+  <code>aria-label</code>, which is why counting <code>&lt;label&gt;</code> elements is not the
+  check. The three destinations carry <code>aria-pressed</code> so the current one is announced and
+  not merely painted. Verdicts carry a glyph and a word beside the colour.
+</p>
+<p>
+  The audit found one real gap: the <strong>health</strong> and <strong>authority</strong> pills are
+  re-rendered by the poller with nobody clicking anything, and had no live region &mdash; so their
+  two facts reached no screen reader at all. <code>authority</code> is the security-relevant one: it
+  says whether this server holds <em>release</em> authority, and a reader who cannot see it change
+  cannot know the surface in front of them stopped being read-only. Both are now
+  <code>role="status"</code>, <code>aria-live="polite"</code>, <code>aria-atomic="true"</code> &mdash;
+  polite because they re-render several times a minute and an assertive region would interrupt
+  whatever is being read to repeat something that usually has not changed.
+</p>
+
+<h2>6. What is actually open</h2>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Item</th><th>Blocked by</th><th>Cost</th></tr></thead>
+  <tbody>
+    <tr><td>Code-signing certificate</td><td>Purchase — and only for public distribution</td><td>Reclassified as pre-publication; blocks nothing in development</td></tr>
+    <tr><td>Corpus re-measurement (§4.1c)</td><td>Two HF licence acceptances + a token</td><td>Free, ~10 min. <code>ml/run_corpus_benchmarks.py --check</code> reports it</td></tr>
+    <tr><td>Guard fine-tunes</td><td>The same HF token, <em>then</em> a spend decision</td><td>See the Modal brief — Modal is not required; the local RTX 5080 fits all five recipes</td></tr>
+    <tr><td>macOS / Linux install</td><td>A machine of each</td><td>Built by CI; never installed or launched</td></tr>
+    <tr><td>§3.1 on a second kernel</td><td>Nothing — just not done</td><td>One kernel is not every kernel; a hardened distro refuses <code>bwrap</code> outright</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>7. The pattern worth carrying forward</h2>
+
+<p>
+  Across this branch, <strong>the failures clustered in the claims, not the code.</strong> A flag
+  named in an error message that did not exist. A recall figure quoted for a configuration that was
+  not running. A tray that never appeared in a packaged build. A <code>.gitignore</code> rule
+  <code>SIGNING.md</code> promised and did not have — the two file types a purchased certificate
+  actually arrives as. A config comment asserting Windows was unaffected. A console destination with
+  no keyboard route and a shortcut sheet describing a product that had stopped existing. A test
+  fixture that drove a case and asserted nothing about it.
+</p>
+
+<p>
+  Every one was invisible to a passing suite, because prose has no compiler. The countermeasures that
+  now catch these classes are cheap and were each built <em>because</em> of an earlier one:
+</p>
+
+<ul>
+  <li><code>tests/instructions.rs</code> — every flag and command the binary names in its own output must be real. It has caught six changes, all mine.</li>
+  <li><code>tests/guard_parity.rs</code> — the Rust and Python guards must agree knob for knob, read from each other's source.</li>
+  <li>A test that reads the console's keybindings and asserts the shortcut sheet documents the same count.</li>
+  <li>A test that reads the root <code>.gitignore</code> rather than <code>SIGNING.md</code>'s prose.</li>
+  <li><strong>Running the thing.</strong> The packaged launch found the tray. The install found the naming. The Linux run disproved the confinement sentence. The live guard session found the coverage hole. None of these was reachable from an artifact.</li>
+</ul>
+
+<p class="footnote">
+  <span class="prov">Provenance.</span> Harness counts from <code>warrantor agents list</code>. Guard
+  figures from <code>warrantor guard bench</code> against
+  <code>hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M</code> at <code>num_ctx</code> 8192.
+  Confinement results from bubblewrap on WSL2 Linux 6.18. Install results from
+  <code>Warrantor-1.0.0-x64-setup.exe</code> (<code>sha256 f7f6cd68…</code>) run on Windows 11.
+  Section states from <code>docs/W1-delivery-gaps.md</code>. Test counts from
+  <code>cargo test</code> and <code>node --test</code>. Nothing here is asserted without having been
+  observed.
+</p>
+
+</div>
+</body>
+</html>

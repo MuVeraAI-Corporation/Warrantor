@@ -13,8 +13,19 @@
         <span>Warrantor</span>
       </div>
       <div class="bar-meta">
-        <span id="authority" class="pill pill-quiet" title="Whether this server holds release authority">authority &hellip;</span>
-        <span id="health" class="pill pill-quiet">connecting&hellip;</span>
+        <!-- Both pills change on a poll, with nobody clicking anything, so without a live region
+             the two facts they carry are announced to no screen reader at all. `authority` is the
+             security-relevant one: it says whether this server holds RELEASE authority, and a
+             reader who cannot see it changing cannot know the surface in front of them stopped
+             being read-only.
+
+             `polite` rather than `assertive` because they are re-rendered on every poll and an
+             assertive region would interrupt whatever is being read, several times a minute, to
+             repeat something that usually has not changed. `aria-atomic` so the whole pill is read
+             rather than the one word that differs, which out of context is not a sentence. -->
+        <span id="authority" class="pill pill-quiet" role="status" aria-live="polite" aria-atomic="true"
+              title="Whether this server holds release authority">authority &hellip;</span>
+        <span id="health" class="pill pill-quiet" role="status" aria-live="polite" aria-atomic="true">connecting&hellip;</span>
       </div>
     </header>
 
@@ -43,12 +54,19 @@
 
     <main id="app" hidden>
       <nav class="side">
-        <!-- Two destinations, not two apps. The warrant list answers "what is running"; the
-             summary answers "what did the bounds refuse this month, and what did the guard model
-             say about the calls they allowed". The second question had a route and no client at
-             all before this: /v1/summary/refusals was reachable only by curl. -->
+        <!-- Three destinations, not three apps. The warrant list answers "what is running"; the
+             queue answers "what needs me, right now"; the summary answers "what did the bounds
+             refuse this month, and what did the guard model say about the calls they allowed".
+             Each had a route before it had a client -- /v1/summary/refusals and /v1/queue were
+             both reachable only by curl on the day they were written.
+
+             The queue is placed SECOND rather than last on purpose. It is the only one of the
+             three with an action attached to it: the other two are things you read, and this is
+             the thing that is waiting. A destination nobody clicks is a notification nobody
+             receives, which is the failure §2.1 exists to fix. -->
         <div class="views" role="group" aria-label="What to show">
           <button id="view-warrants" class="view is-on" type="button">Warrants</button>
+          <button id="view-queue" class="view" type="button">Waiting on you</button>
           <button id="view-summary" class="view" type="button">Refusals &amp; guard</button>
         </div>
 
@@ -107,6 +125,38 @@
            behind the "widen the bound" advice. There is no verification verdict anywhere in the
            guard block, and there must never be: the `verification` envelope on this response is
            computed without reading a single guard record. -->
+      <!-- The queue. A SIBLING of #detail, #first-run and #summary, hidden by `applyEmptyState`,
+           so exactly one right-hand pane occupies the grid cell at a time.
+
+           Every act button here is rendered from the server's own `you_can`, and NOTHING on this
+           page recomputes it. A console that decided for itself which buttons to show would be a
+           second implementation of the approval rules, drifting from the settle gate the first
+           time either changed — the mistake this whole product is built on not making.
+
+           The empty state is deliberately two sentences and not one. "Nothing is waiting" and
+           "nothing is waiting ON YOU" are different facts about the same store, and showing the
+           second as the first tells a reviewer their work is done while eleven warrants sit
+           behind a scope they do not hold. `queueHeadline` picks between four of them. -->
+      <section id="queue" class="queue" hidden>
+        <h2 id="queue-headline">Waiting on a decision</h2>
+        <p id="queue-who" class="note"></p>
+        <p id="queue-error" class="empty error" hidden>
+          This queue could not be read: the server did not answer, refused, or replied with
+          something this console could not parse. That is not the same as nothing waiting for you.
+        </p>
+        <p id="queue-empty" class="empty" hidden>
+          Nothing is waiting. A warrant appears here from the moment it is granted until somebody
+          releases or discards it.
+        </p>
+        <p id="queue-unreadable" class="note error"></p>
+        <ul id="queue-rows" class="rows"></ul>
+        <p class="note">
+          This list is derived from store state, the approval policy and each warrant&rsquo;s actor
+          log. None of those is signed. An entry says a decision is owed &mdash; never that the
+          evidence checks out. Check that with <code>warrantor verify</code>.
+        </p>
+      </section>
+
       <section id="summary" class="summary" hidden>
         <h2>What the bounds refused, and what the guard model said</h2>
 
@@ -202,6 +252,12 @@
           </p>
           <ul id="summary-coverage" class="rows"></ul>
           <p id="summary-coverage-note" class="note"></p>
+          <!-- The opposite population to everything above it. Those rows are counted FROM guard
+               records and so are silent about sessions the guard was never in; this one counts
+               sessions that ran with nothing watching. Until the server grew a run log it could not
+               be counted at all -- an unguarded session left no record, so "nobody was watching"
+               and "nothing ran" were one observation. -->
+          <p id="summary-runs" class="note"></p>
         </div>
       </section>
 
@@ -294,5 +350,16 @@
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
     <script type="module" src="/console.js"></script>
-  </body>
+  
+    <!-- The keyboard sheet. `hidden` in the markup so it is absent to assistive technology until
+         asked for, rather than present and merely invisible. -->
+    <div id="shortcuts" class="sheet" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" hidden>
+      <div class="sheet-panel">
+        <h2 id="shortcuts-title">Keyboard</h2>
+        <ul id="shortcut-list"></ul>
+        <p class="hint">This console is a viewer. Granting a warrant is terminal-only, because granting mints authority and holds the issuer key.</p>
+        <button id="shortcuts-close" class="act" type="button">Close</button>
+      </div>
+    </div>
+</body>
 </html>

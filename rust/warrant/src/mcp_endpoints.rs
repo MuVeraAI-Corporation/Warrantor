@@ -223,7 +223,13 @@ impl ControlEndpoint {
             // first staged effect would have a window in which a deleted log still read as empty.
             staged_chain: Some(crate::staging::StagedChainMark::genesis(now)),
         };
-        if let Err(e) = self.store.save(&stored) {
+        // `create`, not `save`. This id is derived from a one-second clock — `now` is injected so
+        // callers and tests own it, which is why it is not randomised the way the CLI's is — so two
+        // grants inside one second collide, and `save` renames over the first warrant's record
+        // without a word: its bounds, its worktree and its staged-effect chain witness, replaced by
+        // a different warrant's. A model driving this endpoint is exactly the caller that grants
+        // twice in a second. It is now a refusal the model can read and retry.
+        if let Err(e) = self.store.create(&stored) {
             return ToolResult::error(format!("could not persist the warrant: {e}"));
         }
 
@@ -321,6 +327,10 @@ impl ControlEndpoint {
             (self.now)(),
             &stops.contained_scopes(&id),
             Some(crate::spend::section(&ledger)),
+            // No custody section here, deliberately: this report is a tool result an AGENT reads,
+            // and the actor log names the humans who acted on the warrant. `None` is honest -- the
+            // log was not consulted -- and the limitations line says so.
+            None,
         );
         let mut out = vec![crate::report::render_mcp(built.bundle())];
         out.push(String::new());
@@ -665,6 +675,32 @@ pub struct AgentEndpoint {
     /// deletion of the log is detectable only down to whatever the last witness recorded. That is
     /// a weaker guarantee, never a false one — see [`crate::staging::StagedChainMark`].
     witness: Option<crate::store::WarrantStore>,
+    /// The MCP servers a permitted call is forwarded *to*, absent until an operator attaches some.
+    ///
+    /// Absent is the shipped default and the state every test that predates forwarding runs in: a
+    /// permitted call is then answered with the refusal that says no upstream is configured, which
+    /// is the same answer this endpoint has always given — except that the remedy it names is now
+    /// a flag that exists.
+    upstreams: Option<crate::upstream::UpstreamSet>,
+    /// Side-effect classes an operator declared for upstream tools, by published tool name.
+    ///
+    /// Empty by default, which is the shipped behaviour: everything the staging registry does not
+    /// know is classed `Read`. That fallback is a **guess**, and it became reachable the moment
+    /// forwarding did — an upstream `write_file` is forwarded rather than staged. This map is how
+    /// an operator replaces the guess with a statement.
+    classes: BTreeMap<String, SideEffectClass>,
+    /// Whether a tool with no declared class is refused rather than guessed at.
+    refuse_unclassified: bool,
+    /// Tools this session decided by the fallback, so the closing line can name them.
+    unclassified: std::collections::BTreeSet<String>,
+    /// How many calls this session actually forwarded, and how many failed in transport.
+    ///
+    /// Counted separately from the proxy's refusals because they are different facts about the
+    /// run: a refusal is the warrant working, a forward failure is the wiring not working, and an
+    /// end-of-session line that folded them together would let a broken upstream read as a
+    /// well-bounded agent.
+    forwarded: usize,
+    forward_failures: usize,
     now: fn() -> u64,
 }
 
@@ -685,8 +721,132 @@ impl AgentEndpoint {
             allowed,
             guard: None,
             witness: None,
+            classes: BTreeMap::new(),
+            refuse_unclassified: false,
+            unclassified: std::collections::BTreeSet::new(),
+            upstreams: None,
+            forwarded: 0,
+            forward_failures: 0,
             now,
         }
+    }
+
+    /// Attach the MCP servers permitted calls are forwarded to.
+    ///
+    /// A builder, for the same reason as [`Self::with_guard`]: which servers a session can reach
+    /// is a property of the process an operator started, never of the signed warrant. Putting an
+    /// upstream command inside granted claims would make the *implementation* of a tool part of
+    /// the authority to use it, and a warrant would then have to be re-issued whenever a server
+    /// moved.
+    #[must_use]
+    pub fn with_upstreams(mut self, upstreams: crate::upstream::UpstreamSet) -> Self {
+        self.upstreams = Some(upstreams);
+        self
+    }
+
+    /// Declare side-effect classes for upstream tools, and whether an undeclared one is refused.
+    ///
+    /// A builder, like [`Self::with_upstreams`], and for the same reason: which tools an operator
+    /// has classified is a property of the session they started, not of the signed warrant. Putting
+    /// a class map inside granted claims would mean re-issuing a warrant whenever a server added a
+    /// tool.
+    #[must_use]
+    pub fn with_classes(
+        mut self,
+        classes: BTreeMap<String, SideEffectClass>,
+        refuse_unclassified: bool,
+    ) -> Self {
+        self.classes = classes;
+        self.refuse_unclassified = refuse_unclassified;
+        self
+    }
+
+    /// Tools this session decided by the fallback rather than by a declaration.
+    ///
+    /// Reported at the end of a run. An empty set on a session that forwarded nothing is not the
+    /// same fact as an empty set on a session where every tool was declared, so the caller pairs
+    /// this with [`Self::forwarding_counts`] rather than reading it alone.
+    #[must_use]
+    pub fn unclassified_tools(&self) -> Vec<String> {
+        self.unclassified.iter().cloned().collect()
+    }
+
+    /// How many calls were forwarded, and how many failed in transport.
+    ///
+    /// `None` when nothing was attached — which is not the same as `Some((0, 0))`, and the
+    /// distinction is the whole point: a session with no upstream forwarded nothing *because there
+    /// was nowhere to forward to*, and a session with an upstream that forwarded nothing had an
+    /// agent that never asked for anything outside its staged effects.
+    #[must_use]
+    pub fn forwarding_counts(&self) -> Option<(usize, usize)> {
+        self.upstreams
+            .as_ref()
+            .map(|_| (self.forwarded, self.forward_failures))
+    }
+
+    /// How many upstream servers are attached.
+    ///
+    /// Zero covers both "none were asked for" and "none attached", which is right for its one
+    /// caller: [`crate::runs::RunRecord`] records a *count* rather than names, because a server
+    /// name can carry a hostname or a path and a run record is meant to be safe to hand to
+    /// somebody counting runs. A caller that needs the distinction has [`Self::forwarding_counts`],
+    /// which keeps it.
+    #[must_use]
+    pub fn upstream_count(&self) -> usize {
+        self.upstreams
+            .as_ref()
+            .map_or(0, crate::upstream::UpstreamSet::len)
+    }
+
+    /// A one-line account of what is attached, for the session banner.
+    #[must_use]
+    pub fn describe_upstreams(&self) -> String {
+        self.upstreams
+            .as_ref()
+            .map_or_else(|| "nothing".to_string(), |u| u.describe_attached())
+    }
+
+    /// The sentence appended to every published tool, saying what this session does to the call.
+    ///
+    /// Two different sentences, because two different things happen and telling a model the wrong
+    /// one makes it act wrongly: an agent told its pull request was staged will go on to reference
+    /// the handle, and an agent told the same about a real filesystem read will distrust a result
+    /// it should have used.
+    fn describe_permitted(&self, tool: &str) -> String {
+        if EffectRegistry::github().get(tool).is_some() {
+            format!(
+                "{tool}, permitted by warrant {}. Write actions are staged rather than performed: \
+                 you will receive a handle, and the real action happens only if a human settles \
+                 the warrant.",
+                self.warrant_id
+            )
+        } else {
+            format!(
+                "Permitted by warrant {}, and forwarded to the server that published it. The \
+                 warrant's bounds are checked on every call, so a request outside them comes back \
+                 as a refusal naming the bound rather than as a failure of this tool.",
+                self.warrant_id
+            )
+        }
+    }
+
+    /// Tools the warrant allows that no attached upstream publishes and no effect registry stages.
+    ///
+    /// Reported to the operator on stderr at attach time rather than to the model, because it is a
+    /// fact about *wiring* and the model can do nothing with it. A warrant granting `files.read`
+    /// against a session with no filesystem server attached is not a broken warrant — it is a
+    /// session that cannot honour part of one, and the person who can fix that is at the terminal.
+    #[must_use]
+    pub fn allowed_but_unreachable(&self) -> Vec<String> {
+        let Some(upstreams) = &self.upstreams else {
+            return Vec::new();
+        };
+        let registry = EffectRegistry::github();
+        self.allowed
+            .iter()
+            .filter(|name| !upstreams.has(name) && registry.get(name).is_none())
+            .cloned()
+            .collect()
     }
 
     /// Record the staged chain into `store` after every effect this session stages.
@@ -786,19 +946,74 @@ impl Endpoint for AgentEndpoint {
     }
 
     fn tools(&mut self) -> Vec<ToolSpec> {
-        self.allowed
-            .iter()
-            .map(|name| ToolSpec {
-                name: name.clone(),
-                description: format!(
-                    "{name}, permitted by warrant {}. Write actions are staged rather than \
-                     performed: you will receive a handle, and the real action happens only if a \
-                     human settles the warrant.",
-                    self.warrant_id
-                ),
-                input_schema: json!({"type": "object", "additionalProperties": true}),
-            })
-            .collect()
+        // No upstream: the shipped behaviour since this endpoint existed. The warrant's tool names
+        // are published verbatim with an open schema, because there is no server to ask what the
+        // real schema is. Kept exactly as it was — a session with nothing attached is what every
+        // test and every `--observe` authoring run has always been.
+        let Some(upstreams) = &self.upstreams else {
+            return self
+                .allowed
+                .iter()
+                .map(|name| ToolSpec {
+                    name: name.clone(),
+                    description: self.describe_permitted(name),
+                    input_schema: json!({"type": "object", "additionalProperties": true}),
+                })
+                .collect();
+        };
+
+        let observing = self.proxy.mode() == crate::proxy::ProxyMode::Observe;
+        let registry = EffectRegistry::github();
+        let mut published: Vec<ToolSpec> = Vec::new();
+        let mut seen: BTreeMap<String, ()> = BTreeMap::new();
+
+        // Staged effects first, and they do **not** require an upstream. A staged effect is
+        // performed by an adapter at settle time, from this machine, with credentials the agent
+        // never holds — the whole point of staging is that nothing goes over the wire during the
+        // run. Dropping them here because no server publishes them would silently remove the one
+        // class of action this product was built to mediate.
+        for name in &self.allowed {
+            if registry.get(name).is_some() {
+                seen.insert(name.clone(), ());
+                published.push(ToolSpec {
+                    name: name.clone(),
+                    description: self.describe_permitted(name),
+                    input_schema: json!({"type": "object", "additionalProperties": true}),
+                });
+            }
+        }
+
+        for tool in upstreams.published_tools() {
+            // Under Enforce, a tool the warrant does not allow is **not published**. That is the
+            // same structural decision the control endpoint's absent lifecycle tools rest on: a
+            // refusal can be misconfigured, an absent name cannot be called. Under Observe it is
+            // published, because observing is how a warrant learns what an agent actually needs
+            // and a tool the agent cannot see is a tool it cannot be observed reaching for.
+            if !observing && !self.allowed.iter().any(|a| a == &tool.name) {
+                continue;
+            }
+            if seen.insert(tool.name.clone(), ()).is_some() {
+                continue;
+            }
+            published.push(ToolSpec {
+                // The upstream's own description and schema, carried through unchanged, with one
+                // sentence appended saying what this session will do to the call. A model that
+                // cannot see the real schema composes calls the upstream rejects, and cannot tell
+                // a schema mistake from a policy refusal.
+                name: tool.name.clone(),
+                description: if tool.description.is_empty() {
+                    self.describe_permitted(&tool.name)
+                } else {
+                    format!(
+                        "{}\n\n{}",
+                        tool.description,
+                        self.describe_permitted(&tool.name)
+                    )
+                },
+                input_schema: tool.input_schema.clone(),
+            });
+        }
+        published
     }
 
     fn call(&mut self, tool: &str, arguments: &BTreeMap<String, Value>) -> ToolResult {
@@ -812,15 +1027,37 @@ impl Endpoint for AgentEndpoint {
             })
             .collect();
 
+        // What CLASS of action is this? The answer decides whether the call is staged, forwarded or
+        // refused, and until forwarding existed the question had one reachable answer, so the guess
+        // below was invisible.
+        //
+        // The order is: what the staging registry knows, then what the operator declared, then the
+        // fallback. The registry wins because those four tools are the ones this build can actually
+        // stage; a declaration that contradicted it would promise staging for something the settle
+        // path cannot perform.
+        let declared = self.classes.get(tool).copied();
+        let side_effect = if EffectRegistry::github().get(tool).is_some() {
+            SideEffectClass::Write
+        } else if let Some(class) = declared {
+            class
+        } else {
+            // UNCLASSIFIED. `Read` is the shipped fallback and it is a guess: an upstream
+            // `write_file` is forwarded rather than staged, and nothing about the call says so.
+            // Counted here so the end of the session can report how many calls were decided by a
+            // guess, and refusable outright with `--upstream-refuse-unclassified`.
+            self.unclassified.insert(tool.to_string());
+            if self.refuse_unclassified {
+                return ToolResult::error(format!(
+                    "{tool} has no declared side-effect class, and this session was started with --upstream-refuse-unclassified. This build can only tell what a call DOES for the tools it stages; for everything else the class is whatever an operator declared, and an undeclared tool would be forwarded as if it only read. Declare it: --upstream-class '{tool}=write' (or =read, =destructive, =financial)."
+                ));
+            }
+            SideEffectClass::Read
+        };
+
         let call = ToolCall {
             tool: tool.to_string(),
             arguments: flattened,
-            // Anything the registry knows how to stage is a write; the proxy decides from there.
-            side_effect: if EffectRegistry::github().get(tool).is_some() {
-                SideEffectClass::Write
-            } else {
-                SideEffectClass::Read
-            },
+            side_effect,
         };
 
         // The warrant decides first, and its decision is never reconsidered below: no arm of the
@@ -878,19 +1115,67 @@ impl Endpoint for AgentEndpoint {
                     Err(e) => ToolResult::error(format!("could not stage: {e}")),
                 }
             }
-            // A forwarded call needs an upstream MCP server to forward to. Until that is wired,
+            // A forwarded call needs an upstream MCP server to forward to. With none attached,
             // saying so is the only honest answer -- returning success would be the exact
-            // success-shaped-mock failure this codebase already fixed once.
-            //
-            // No guard call here either, and for the same reason as the `Deny` arm: nothing is
-            // forwarded, so nothing happened, so there is nothing to record a signal about. Whoever
-            // wires an upstream owes this arm the `Stage` arm's shape -- `guard_denial` first, then
-            // the call -- and `GuardObservation::enforcement_denial` says so at the definition.
-            Decision::Forward => ToolResult::error(format!(
-                "{tool} is permitted by the warrant, but no upstream MCP server is configured to \
-                 forward it to. Start the agent endpoint with --upstream <command> so calls have \
-                 somewhere to go."
-            )),
+            // success-shaped-mock failure this codebase already fixed once. The remedy the message
+            // names is now a flag that exists; for one release it was not.
+            Decision::Forward if self.upstreams.is_none() => {
+                // Counted, and deliberately NOT classified. A live guarded session found this
+                // recorded nowhere at all: not in `classified`, not in any of the three "nothing
+                // looked at" buckets, and not in the refusals log either, because no bound refused
+                // it. The operator read "1 classified, 0 flagged, 0 everywhere else" and would have
+                // concluded the guard saw every call the warrant allowed; it had seen one of two.
+                //
+                // Not classified because the call did not happen — the same rule that keeps a
+                // bound-refused call out of the signal log. Classifying a non-event would put
+                // things nobody did into `flagged`. What was wrong was the invisibility, not the
+                // absence of a verdict.
+                if let Some(guard) = self.guard.as_mut() {
+                    guard.note_no_route();
+                }
+                ToolResult::error(format!(
+                    "{tool} is permitted by warrant {}, but no upstream MCP server is attached to \
+                     forward it to. Start the agent endpoint with --upstream '<name>=<command>' so \
+                     calls have somewhere to go, or see `warrantor agents wire` to have that \
+                     written for the harness you use.",
+                    self.warrant_id
+                ))
+            }
+            Decision::Forward => {
+                // BEFORE the call, exactly as in the `Stage` arm above, and for the same reason:
+                // a denial that arrives after the effect has happened is theatre. This is the debt
+                // the previous version of this arm recorded against whoever wired an upstream —
+                // `GuardObservation::enforcement_denial` names it at the definition — and it is
+                // paid here. Under the shipped observe mode `guard_denial` is `None` for every
+                // outcome, so this line changes nothing about what is forwarded.
+                if let Some(denial) = self.guard_denial(tool, &call.arguments) {
+                    return ToolResult::error(denial);
+                }
+                let Some(upstreams) = self.upstreams.as_mut() else {
+                    // Unreachable: the guard arm above matched on `is_none()`. Written as a value
+                    // rather than an `unwrap` so a later refactor that breaks the pairing produces
+                    // a sentence instead of a panic in a supervised agent's session.
+                    return ToolResult::error(format!("{tool}: no upstream is attached"));
+                };
+                match upstreams.call(tool, arguments) {
+                    Ok(result) => {
+                        self.forwarded += 1;
+                        result
+                    }
+                    // A transport failure is the wiring, not the warrant, and the two must never
+                    // read the same to the model: an agent told "refused" stops asking, and an
+                    // agent told "the server is gone" can reasonably try something else. The
+                    // sentence says which it is.
+                    Err(e) => {
+                        self.forward_failures += 1;
+                        ToolResult::error(format!(
+                            "{tool} was permitted by the warrant and could not be delivered: {e}. \
+                             This is a transport failure, not a refusal — the warrant did not \
+                             stop this call."
+                        ))
+                    }
+                }
+            }
         }
     }
 }

@@ -194,6 +194,41 @@ impl WarrantStore {
         Ok(())
     }
 
+    /// Write a warrant that must not already exist.
+    ///
+    /// [`Self::save`] overwrites, which is right for a state transition — `settle` and `void`
+    /// rewrite a record they just read — and catastrophic for a *grant*. A grant that lands on an
+    /// existing id replaces that warrant's bounds, its worktree pointer and its staged-chain
+    /// witness with a different warrant's, and the record it replaced is the only place the first
+    /// warrant's staged effects could be found or checked. Nothing announces it: `fs::rename` over
+    /// an existing file succeeds.
+    ///
+    /// This was reachable. Warrant ids were derived from a **one-second** clock, so two grants in
+    /// the same second produced the same id — which is how a test that granted twice in a row
+    /// found it, intermittently, depending on where the second boundary fell. The id is now drawn
+    /// from the system CSPRNG, and this method exists so that a collision from *any* future
+    /// source — a restored backup, a copied store, an id supplied by a caller — is a refusal
+    /// rather than a silent overwrite. Two defences, because the first one is a probability
+    /// argument and the second one is not.
+    ///
+    /// # Errors
+    /// [`WarrantError::Invalid`] if a warrant with that id is already stored, and
+    /// [`WarrantError::Encode`] on serialisation or I/O failure.
+    pub fn create(&self, stored: &StoredWarrant) -> Result<(), WarrantError> {
+        let path = self.warrant_path(&stored.warrant.claims.id);
+        if path.exists() {
+            return Err(WarrantError::Invalid(format!(
+                "a warrant with id {} is already stored at {}. Refusing to write over it: that \
+                 record is the only place its bounds, its worktree and its staged-effect chain \
+                 witness are held, and replacing it would leave any effects staged under it \
+                 unreachable and uncheckable.",
+                stored.warrant.claims.id,
+                path.display()
+            )));
+        }
+        self.save(stored)
+    }
+
     /// Load a warrant by id, with its chain witness resolved.
     ///
     /// `staged_chain` comes back as the stronger of what the record carries and what the witness

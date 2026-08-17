@@ -167,8 +167,14 @@ extra line.
 
 ## 6. What not to do
 
-- **Never commit a `.p12`, a `.pfx`, or a private key.** The root `.gitignore` already excludes
-  `*.key` and `*.pem`; neither pattern catches `.p12`. Certificates go in repository secrets.
+- **Never commit a `.p12`, a `.pfx`, or a private key.** The root `.gitignore` excludes them — as
+  of 2026-08-17. It did **not** when this line was written: it carried `*.key` and `*.pem` and
+  neither `*.p12` nor `*.pfx`, so the two file types a purchased certificate actually arrives as
+  were the two this document promised were covered and were not. Verified now with
+  `git check-ignore` for `.p12`, `.pfx`, `.cer`, `.crt`, `.key` and `.pem`. The claim mattered
+  exactly at the moment somebody acted on this document, and a signing key in git history is not
+  revocable by deleting the commit. Certificates belong in repository secrets regardless: an ignore
+  rule stops an accident, not a decision.
 - **Never document "right-click → Open", `xattr -dr com.apple.quarantine`, or "More info → Run
   anyway" as the recommended install path.** That is the click-through habit this product exists to
   break, and putting it in our own README makes it ours. Point reviewers at the published
@@ -187,19 +193,48 @@ extra line.
 ## 7. Current status
 
 `desktop-release.yml` has **never run**: `workflow_dispatch` is unavailable until the workflow file
-is on the default branch, so nothing below has been produced by CI. The only build performed by hand
-was a Windows `electron-builder --dir` run against a dummy stand-in for the agent — an unpacked
-directory, not an installer. **No installer has been produced, installed or launched on any
-platform.** The table says configured where the configuration exists and the build has not been
-exercised; RELEASING.md step 1 is the dispatch that changes those rows.
+is on the default branch, so nothing below had been produced by CI when it was written. The only
+build performed by hand was a Windows `electron-builder --dir` run against a dummy stand-in for the
+agent — an unpacked directory, not an installer.
+
+**That premise is stale, and correcting it is the point of the two updates below.** CI *has* run:
+`docs/W1-delivery-gaps.md` §1.1 records dispatch 2026-08-15, run `31875701622`, with all four
+packaging jobs green — mac x64, mac arm64, linux x64, win x64 — each carrying one installer
+artifact (win 101 MB, mac ~243 MB per arch, linux ~230 MB). This document went on saying nothing had
+been built by CI for two days after that, which is the same failure it exists to catch, pointed the
+other way: a status table that understates is still a status table nobody can trust.
+
+**Updated 2026-08-17.** That paragraph was true when written and is no longer. A full Windows NSIS
+installer has been produced locally: `Warrantor-1.0.0-x64-setup.exe`, 101,239,598 bytes, sha256
+`f7f6cd68517de7d01929579c6bdee5bcb938e3bd0c1cd99bd8a170d0d3b151d2`. The packaged app was also
+*launched* from `dist/win-unpacked`, twice — which is how the tray defect in `135df7a` was found,
+since `build/` is electron-builder's own resources directory and is not copied into the app, so
+`installTray` skipped silently in every packaged build while every config assertion passed.
+
+**Updated again 2026-08-17, after the install.** The installer was run. It completed, created its
+Start Menu and Desktop shortcuts and its Add/Remove entry, and the installed app launched, resolved
+its bundled agent ahead of an empty `PATH` and loaded the console. The tray — the defect
+`135df7a` fixed, and one only a packaged launch can find — installed without a `tray skipped` or
+`tray failed` line.
+
+It also found a packaging defect that no configuration test could: a **top-level `executableName`**
+applies to every platform, so Windows took the Linux fix too and the app installed to
+`%LOCALAPPDATA%\Programs\warrantor-desktop\` with an `Uninstall warrantor-desktop.exe`, while
+Add/Remove Programs listed `Warrantor 1.0.0`. Nothing broke, which is why it survived a config
+comment asserting Windows was unaffected. It is now scoped to `linux`.
+
+What has still never happened: **no installer has been run on macOS or Linux.** Producing an
+artifact, installing it and executing it are three different claims and this document keeps them
+apart — all four platforms are built, exactly one is installed, and the macOS ad-hoc signature
+that Apple Silicon requires has never been observed executing.
 
 | Item | State |
 | --- | --- |
-| Windows NSIS installer, per-user, no elevation | configured; only an unpacked `--dir` build has run, never an installer |
-| macOS dmg, arm64 and x64 | configured, never built — and until this branch it was configured to skip signing entirely (§1) |
-| Linux AppImage and deb, x64 | configured, never built |
-| `warrantor` agent bundled inside the app | configured, and preferred over `WARRANTOR_BIN` and `PATH`; asserted by a test against the builder config, never observed in a produced installer |
-| SHA256SUMS published per platform | in the workflow, never executed |
+| Windows NSIS installer, per-user, no elevation | **built by CI** (run `31875701622`), **built locally**, **installed and launched** 2026-08-17 (sha256 `f7f6cd68…`) |
+| macOS dmg, arm64 and x64 | **built by CI** (run `31875701622`, both arches). Never installed and never launched, so the `identity: '-'` fix in §1 is still unobserved on Apple Silicon |
+| Linux AppImage and deb, x64 | **built by CI** (run `31875701622`). Never installed and never launched |
+| `warrantor` agent bundled inside the app | **observed in an INSTALLED app**: the trace reads `agent binary: …\resources\warrantor.exe (bundled with the app)`, resolved ahead of an empty `PATH`, agent ready, console loaded |
+| SHA256SUMS published per platform | in the workflow; the 2026-08-15 run was a dry run, so this step is still unexecuted |
 | Build provenance attestation | in the workflow, never executed — tagged releases only |
 | Code signature / notarisation | no — needs the certificates in §3 |
 | Update channel | none, and none until signing exists |

@@ -51,11 +51,22 @@ const ELEMENT_IDS = [
   'first-run-command',
   'copy-command',
   'detail',
+  'shortcuts',
+  'shortcut-list',
+  'shortcuts-close',
   'health',
   'authority',
   'toast',
   'view-warrants',
   'view-summary',
+  'view-queue',
+  'queue',
+  'queue-headline',
+  'queue-who',
+  'queue-rows',
+  'queue-empty',
+  'queue-error',
+  'queue-unreadable',
   'summary',
   'summary-form',
   'summary-month',
@@ -76,6 +87,7 @@ const ELEMENT_IDS = [
   'summary-guard-caveats',
   'summary-coverage',
   'summary-coverage-note',
+  'summary-runs',
 ];
 
 function element(tag = 'div', id = '') {
@@ -105,6 +117,24 @@ function element(tag = 'div', id = '') {
     },
     get childElementCount() {
       return self.children.length;
+    },
+    attributes: {},
+    // Needed for `aria-current`, which is how the list tells assistive technology which
+    // row the detail pane is showing. Modelled as a plain map: nothing reads it back yet,
+    // and a stub that pretended to be more would invite tests that assert on the stub.
+    setAttribute(name, value) {
+      self.attributes[name] = String(value);
+    },
+    getAttribute(name) {
+      return Object.prototype.hasOwnProperty.call(self.attributes, name)
+        ? self.attributes[name]
+        : null;
+    },
+    // Selection follows the keyboard, and a focused row is how a screen reader is told
+    // which one it is. Recorded rather than performed: there is no focus in a stub.
+    focused: false,
+    focus() {
+      self.focused = true;
     },
     append(...kids) {
       self.children.push(...kids);
@@ -240,6 +270,8 @@ test('every element the console looks up exists in index.html and in this stub',
   const { readFileSync } = await import('node:fs');
   const here = path.dirname(fileURLToPath(import.meta.url));
   const read = (name) => readFileSync(path.join(here, name), 'utf8');
+  const { module } = await boot(() => HEALTH_OK);
+  const { SHORTCUTS } = module;
 
   const lookedUp = [...read('console.js').matchAll(/getElementById\('([a-z0-9-]+)'\)/g)].map(
     (match) => match[1],
@@ -741,3 +773,442 @@ test('a store that empties while the console is open takes the detail pane with 
     'release controls for a warrant this store no longer holds must not survive in the hidden pane',
   );
 });
+
+// ── custody: the surface for §2.2's record of who acted ─────────────────────
+
+test('an unreadable custody record is never rendered as "nobody has approved"', async () => {
+  // The same distinction `listFacts` exists for, on the surface where it decides whether a release
+  // is permitted. An optimistic read turns "the request failed" and "nobody acted" into one empty
+  // array, and here those are opposite facts: one means the requirement cannot be evaluated.
+  const { module } = await boot(() => HEALTH_OK);
+  const { custodyFacts, approvalStanding } = module;
+
+  for (const [answered, status, payload] of [
+    [false, 0, null],
+    [true, 500, { error: {} }],
+    [true, 200, { data: {} }],
+    [true, 200, { data: { acts: 'not an array', approvers: [] } }],
+  ]) {
+    const facts = custodyFacts(answered, status, payload);
+    assert.equal(facts.readable, false);
+    assert.equal(approvalStanding(facts).kind, 'unknown');
+  }
+});
+
+test('a broken act chain outranks every other standing', async () => {
+  // A store whose record of who acted has been edited must not report "approved" on the strength of
+  // that record. The fault is the finding.
+  const { module } = await boot(() => HEALTH_OK);
+  const { custodyFacts, approvalStanding } = module;
+  const facts = custodyFacts(true, 200, {
+    data: {
+      acts: [{ act: 'approve', actor: 'ana', via: 'operator-token', at: 1, digest: 'd' }],
+      approvers: ['ana'],
+      distinct_approvers: 1,
+      required_approvals: 1,
+      chain_intact: false,
+      chain_fault: 'line 2 has been edited',
+    },
+  });
+  const standing = approvalStanding(facts);
+  assert.equal(standing.kind, 'broken');
+  assert.match(standing.text, /line 2 has been edited/);
+});
+
+test('the standing distinguishes met, short and no-requirement', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  const { custodyFacts, approvalStanding } = module;
+  const make = (required, approvers) =>
+    approvalStanding(
+      custodyFacts(true, 200, {
+        data: {
+          acts: [],
+          approvers,
+          distinct_approvers: approvers.length,
+          required_approvals: required,
+          chain_intact: true,
+        },
+      }),
+    );
+
+  assert.equal(make(0, []).kind, 'none');
+  assert.match(make(0, []).text, /accountability rather than a gate/);
+  assert.equal(make(2, ['ana']).kind, 'short');
+  assert.match(make(2, ['ana']).text, /1 of 2/);
+  assert.equal(make(2, ['ana', 'bo']).kind, 'met');
+});
+
+test('an anonymous actor is rendered as a sentence and never as a name', async () => {
+  // The store deliberately declines to invent a principal; a console that printed a placeholder
+  // would invent one on its behalf.
+  const { module } = await boot(() => HEALTH_OK);
+  const { custodyFacts } = module;
+  const facts = custodyFacts(true, 200, {
+    data: {
+      acts: [{ act: 'settle', actor: null, via: 'session-token', at: 1, digest: 'd' }],
+      approvers: [null],
+      distinct_approvers: 1,
+      required_approvals: 0,
+      chain_intact: true,
+    },
+  });
+  assert.equal(facts.acts[0].actor, null, 'the fact stays null; only the rendering is a sentence');
+});
+
+// ── keyboard ────────────────────────────────────────────────────────────────
+
+test('the shortcut sheet and its handler are generated from one table', async () => {
+  // A sheet maintained separately from its handler is a sheet that lies within two commits.
+  const { module } = await boot(() => HEALTH_OK);
+  const { SHORTCUTS } = module;
+  const keys = SHORTCUTS.map(([k]) => k);
+  assert.ok(keys.some((k) => k.startsWith('j')), `${keys}`);
+  assert.ok(keys.includes('?'), `${keys}`);
+  assert.ok(keys.includes('Escape'), `${keys}`);
+  for (const row of SHORTCUTS) {
+    assert.equal(row.length, 2, 'every row is keys + what it does');
+    assert.ok(row[1].length > 3, `${row}`);
+  }
+});
+
+// ── the review queue ─────────────────────────────────────────────────────────────────
+
+const QUEUE_ENTRY = {
+  warrant_id: 'wrt_a',
+  state: 'open',
+  issued_at: 1_786_000_000,
+  staged_effects: 3,
+  blocker: {
+    blocker: 'awaiting-approval',
+    still_needed: 1,
+    could_approve: ['ben'],
+    approved_by: ['ana'],
+  },
+  you_can: ['approve'],
+};
+
+const queueBody = (over = {}) => ({
+  status: 200,
+  body: {
+    data: {
+      waiting: [QUEUE_ENTRY],
+      waiting_on_you: 1,
+      counts: { 'awaiting-approval': 1 },
+      undetermined: [],
+      unreadable_records: 0,
+      you: { name: 'ben', via: 'operator-token', scopes: ['read', 'approve'] },
+      ...over,
+    },
+  },
+});
+
+async function openQueue(queue) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/queue') return queue;
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-queue').fire('click');
+  await settle();
+  return app;
+}
+
+test('the queue view actually calls the queue route', async () => {
+  const app = await openQueue(queueBody());
+  assert.ok(app.calls.includes('/v1/queue'), 'the destination must read its own route');
+});
+
+test('a queue nobody could read is never rendered as nothing waiting', async () => {
+  // The two sentences a reviewer must never see confused. "Nothing is waiting on you" ends their
+  // day; "this console could not find out" does not.
+  const { module } = await boot(() => HEALTH_OK);
+  for (const facts of [
+    module.queueFacts(false, 0, null),
+    module.queueFacts(true, 500, { data: { waiting: [] } }),
+    module.queueFacts(true, 200, null),
+    module.queueFacts(true, 200, { data: { waiting: 'none' } }),
+    module.queueFacts(true, 200, {}),
+  ]) {
+    assert.equal(facts.readable, false);
+  }
+
+  const app = await openQueue({ status: 200, unparseable: true });
+  assert.equal(app.el('queue-error').hidden, false);
+  assert.equal(
+    app.el('queue-empty').hidden,
+    true,
+    '"nothing is waiting" is a claim about a store, and an unreadable answer supports none',
+  );
+  assert.match(textOf(app.el('queue-headline')), /could not be read/);
+});
+
+test('the headline separates "nothing waiting" from "nothing waiting on YOU"', async () => {
+  // Different facts about the same store. Rendering the second as the first tells a reviewer their
+  // work is done while warrants sit behind a scope they do not hold.
+  const { module } = await boot(() => HEALTH_OK);
+  const facts = (waiting, yours) => ({ readable: true, waiting, yours, you: null });
+  assert.match(module.queueHeadline(facts([], 0)), /Nothing is waiting on a decision/);
+  assert.match(
+    module.queueHeadline(facts([1, 2, 3], 0)),
+    /none of which you can act on/,
+    'three waiting and none yours is not an empty queue',
+  );
+  assert.match(module.queueHeadline(facts([1, 2], 2)), /^2 waiting on you/);
+  assert.match(module.queueHeadline(facts([1, 2, 3], 1)), /^1 of 3 waiting on you/);
+  assert.match(module.queueHeadline({ readable: false, waiting: [], yours: 0 }), /not the same as/);
+});
+
+test('the acts offered are exactly the ones the SERVER named, and nothing is recomputed', async () => {
+  // The rule the whole product rests on: the server decides, the client renders. A console that
+  // worked out its own buttons would be a second implementation of the approval rules, drifting
+  // from the settle gate the first time either changed.
+  // Scoped to the acts bar. The warrant id is itself a button — it crosses to the warrant view —
+  // so a blanket "every button in the row" would have counted navigation as an act, which is the
+  // kind of assertion that passes for the wrong reason.
+  const actsIn = (row) =>
+    (row.children.find((c) => c.className === 'queue-acts')?.children ?? []).map(
+      (b) => b.textContent,
+    );
+
+  const app = await openQueue(queueBody());
+  assert.deepEqual(
+    actsIn(app.el('queue-rows').children[0]),
+    ['Approve'],
+    'you_can was ["approve"], so exactly one act appears',
+  );
+
+  // The same store, the same reader scopes, but the server offers nothing: the console must offer
+  // nothing, even though this reader plainly holds `approve`.
+  const none = await openQueue(
+    queueBody({ waiting: [{ ...QUEUE_ENTRY, you_can: [] }], waiting_on_you: 0 }),
+  );
+  assert.deepEqual(
+    actsIn(none.el('queue-rows').children[0]),
+    [],
+    'an empty you_can renders no acts, whatever the reader holds',
+  );
+
+  // And a `you_can` naming both is rendered as both, in the server's order.
+  const both = await openQueue(
+    queueBody({
+      waiting: [
+        {
+          ...QUEUE_ENTRY,
+          you_can: ['approve', 'settle'],
+          blocker: { blocker: 'awaiting-decision', approved_by: ['ana'] },
+        },
+      ],
+    }),
+  );
+  assert.deepEqual(actsIn(both.el('queue-rows').children[0]), ['Approve', 'Settle']);
+});
+
+test('a deadlocked row carries its reason and offers nobody anything', async () => {
+  const app = await openQueue(
+    queueBody({
+      waiting: [
+        {
+          ...QUEUE_ENTRY,
+          you_can: [],
+          blocker: { blocker: 'deadlocked', why: 'this store requires 2 approval(s) and ...' },
+        },
+      ],
+      waiting_on_you: 0,
+      counts: { deadlocked: 1 },
+    }),
+  );
+  const row = app.el('queue-rows').children[0];
+  assert.match(row.className, /is-deadlocked/);
+  assert.match(textOf(row), /this store requires 2 approval\(s\)/);
+  // No "nothing for you to do yet" consolation on a deadlock: "yet" would be false.
+  assert.doesNotMatch(textOf(row), /yet/);
+});
+
+test('a warrant that cannot be described is listed rather than dropped', async () => {
+  // A warrant that is outstanding, needs a human and cannot be described is the most urgent row on
+  // the page. Omitting it makes the queue quietly shorter and the store quietly worse.
+  const app = await openQueue(
+    queueBody({
+      waiting: [],
+      waiting_on_you: 0,
+      counts: {},
+      undetermined: [{ warrant_id: 'wrt_broken', state: 'open', why: 'its actor log will not parse' }],
+    }),
+  );
+  assert.equal(app.el('queue-rows').children.length, 1);
+  assert.match(textOf(app.el('queue-rows')), /wrt_broken/);
+  assert.match(textOf(app.el('queue-rows')), /will not parse/);
+  assert.equal(
+    app.el('queue-empty').hidden,
+    true,
+    'an undetermined warrant is not an empty queue',
+  );
+});
+
+test('the reader is described in the SERVER\'s words, including having no name at all', async () => {
+  const named = await openQueue(queueBody());
+  assert.match(textOf(named.el('queue-who')), /You are ben, holding read, approve/);
+
+  const anonymous = await openQueue(
+    queueBody({ you: { name: null, via: 'session-token', scopes: ['read', 'settle'] } }),
+  );
+  assert.match(
+    textOf(anonymous.el('queue-who')),
+    /unnamed session principal/,
+    'a console that printed a remembered name would assert an identity nobody checked',
+  );
+});
+
+test('warrant records that could not be read are counted separately and said out loud', async () => {
+  const app = await openQueue(queueBody({ unreadable_records: 2 }));
+  assert.match(textOf(app.el('queue-unreadable')), /2 warrant record\(s\) could not be read/);
+});
+
+// ── unguarded runs ───────────────────────────────────────────────────────────────────
+
+test('an unguarded run is reported as a fact, not as an absence', async () => {
+  // §4.3's gap. Everything in the coverage block is counted FROM guard records, so it is silent
+  // about sessions the guard was never in — and before the server kept a run log, an unguarded
+  // session left no record at all, making "nobody was watching" and "nothing ran" one observation.
+  const { module } = await boot(() => HEALTH_OK);
+  const sentence = module.runsSentence({ total: 5, guarded: 2, unguarded: 3, warrants: 2 });
+  assert.match(sentence, /3 with NO guard attached/);
+  // Never "missed". An unguarded run produced no signal, so nothing is known about what happened
+  // in it — that is a gap in observation, not a count of failures.
+  assert.doesNotMatch(sentence, /missed/i);
+});
+
+test('a server that says nothing about runs is unknown, never zero', async () => {
+  // An older server is exactly this case, and rendering it as "0 unguarded" would be this console
+  // inventing a fact about a month.
+  const { module } = await boot(() => HEALTH_OK);
+  for (const runs of [null, undefined, {}, { guarded: 1 }]) {
+    assert.match(module.runsSentence(runs), /unknown — not zero/);
+  }
+  assert.match(module.runsSentence({ total: 0, guarded: 0, unguarded: 0, warrants: 0 }), /No supervised session started/);
+  assert.match(
+    module.runsSentence({ total: 2, guarded: 2, unguarded: 0, warrants: 1 }),
+    /Every one had a guard attached/,
+  );
+});
+
+test('the runs sentence is cleared when the summary could not be read', async () => {
+  const app = await openSummary({ status: 200, unparseable: true });
+  assert.equal(
+    app.el('summary-runs').textContent,
+    '',
+    'a run count left over from a previous month would read as this one under the error',
+  );
+});
+
+// ── reaching the destinations without a mouse ────────────────────────────────────────
+
+test('every destination has a number key, and the sheet names the same ones', async () => {
+  const { readFileSync } = await import('node:fs');
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const read = (name) => readFileSync(path.join(here, name), 'utf8');
+  const { module } = await boot(() => HEALTH_OK);
+  const { SHORTCUTS } = module;
+
+  // The defect: adding "Waiting on you" left `1 / 2` bound to Warrants and Refusals & guard, so
+  // the ONE destination with an action attached was the one a keyboard user could not reach — and
+  // the shortcut sheet went on describing a two-destination console that no longer existed.
+  //
+  // Asserted as a relationship rather than as three literals, so a fourth destination cannot be
+  // added without either binding a key or failing here.
+  const source = read('console.js');
+  // `\s*` rather than `\n\s*`: this working copy is CRLF, and a regex anchored on a bare `\n`
+  // matches nothing here while matching everything on a LF checkout. A source-reading test that
+  // silently finds zero things is worse than no test at all, which is why the assertion below
+  // compares the whole list rather than checking that each expected pair is present.
+  const bound = [...source.matchAll(/case '(\d)':\s*setView\('([a-z]+)'\)/g)].map((m) => [
+    m[1],
+    m[2],
+  ]);
+  assert.deepEqual(
+    bound,
+    [
+      ['1', 'warrants'],
+      ['2', 'queue'],
+      ['3', 'summary'],
+    ],
+    'the number keys must match the order the destinations appear in the nav',
+  );
+
+  const row = SHORTCUTS.find((r) => /\d/.test(r[0]) && r[0].includes('/'));
+  assert.ok(row, 'the sheet must document the destination keys');
+  assert.equal(
+    row[0].match(/\d/g).length,
+    bound.length,
+    `the sheet documents ${row[0]} while ${bound.length} destinations are bound`,
+  );
+  for (const [, name] of bound) {
+    const shown = name === 'queue' ? 'Waiting on you' : name === 'summary' ? 'Refusals' : 'Warrants';
+    assert.ok(
+      row[1].includes(shown),
+      `the sheet's destination row does not mention ${name}: ${row[1]}`,
+    );
+  }
+});
+
+test('the destination showing is announced, not only painted', async () => {
+  // `is-on` is a class. A screen reader cannot see a class, so which of the three destinations was
+  // current was announced to nobody. Set on ALL three every time: a toggle group where two buttons
+  // carry the attribute and one does not reads as a group of two.
+  const app = await boot((p) => (p === '/v1/health' ? HEALTH_OK : listOf(ONE_WARRANT)));
+  const buttons = ['view-warrants', 'view-queue', 'view-summary'].map((id) => app.el(id));
+
+  app.el('view-queue').fire('click');
+  await settle();
+  assert.deepEqual(
+    buttons.map((b) => b.getAttribute('aria-pressed')),
+    ['false', 'true', 'false'],
+  );
+
+  app.el('view-warrants').fire('click');
+  await settle();
+  assert.deepEqual(
+    buttons.map((b) => b.getAttribute('aria-pressed')),
+    ['true', 'false', 'false'],
+  );
+});
+
+test('state that changes on a poll is announced, not only painted', async () => {
+  // The health and authority pills are re-rendered by the poller with nobody clicking anything.
+  // Without a live region their two facts reach no screen reader, and `authority` is the
+  // security-relevant one: it says whether this server holds RELEASE authority. A reader who cannot
+  // see it change cannot know the surface in front of them stopped being read-only.
+  const { readFileSync } = await import('node:fs');
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const html = readFileSync(path.join(here, 'index.html'), 'utf8');
+
+  for (const id of ['authority', 'health']) {
+    const tag = html.match(new RegExp(`<span id="${id}"[^>]*>`));
+    assert.ok(tag, `${id} must exist`);
+    assert.match(tag[0], /aria-live="polite"/, `${id} changes on a poll and must announce it`);
+    assert.match(tag[0], /aria-atomic="true"/, `${id} must be read whole, not by the word that differs`);
+  }
+
+  // Polite, never assertive: these re-render several times a minute and an assertive region would
+  // interrupt whatever is being read to repeat something that usually has not changed.
+  assert.doesNotMatch(html, /aria-live="assertive"/);
+});
+
+test('every input carries a name a screen reader can read', async () => {
+  // Two inputs, one <label>. The gate's token field is labelled by aria-label instead, which is
+  // correct for a field whose visible text is a placeholder — but it means counting <label>
+  // elements is not the check, and a naive audit would report a false gap here.
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html'), 'utf8');
+  const inputs = [...html.matchAll(/<input\b[\s\S]*?>/g)].map((m) => m[0]);
+  assert.ok(inputs.length >= 2, 'expected at least the gate and the month inputs');
+  for (const input of inputs) {
+    const id = input.match(/id="([^"]+)"/)?.[1];
+    const named =
+      /aria-label=/.test(input) ||
+      /aria-labelledby=/.test(input) ||
+      new RegExp(`<label[^>]*for="${id}"`).test(html);
+    assert.ok(named, `input ${id} has no accessible name`);
+  }
+});
+

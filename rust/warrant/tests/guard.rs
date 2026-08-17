@@ -1550,6 +1550,7 @@ fn coverage_counts_what_nothing_looked_at_without_double_counting_it() {
         unparseable: 1,
         skipped_over_budget: 3,
         deduplicated: 5,
+        permitted_no_route: 0,
     };
     let signals: Vec<GuardSignal> = [
         (GuardOutcome::BackendUnavailable, "backend_unavailable", "a"),
@@ -1615,4 +1616,47 @@ fn coverage_counts_what_nothing_looked_at_without_double_counting_it() {
         "a run that never reported must be visible as unaccounted for, not as a clean zero"
     );
     assert_eq!(coverage["classified"], 4, "and must not be counted twice");
+}
+
+/// A permitted call that never became an action must be counted, and must not be classified.
+///
+/// Found by running a live guarded session against a real Qwen3Guard-4B: a `Forward` call with no
+/// upstream attached returned its error and was recorded **nowhere** — not in `classified`, not in
+/// any of the three "nothing looked at" buckets, and not in the refusals log either, because no
+/// bound refused it. The operator read `1 classified, 0 flagged, 0 everywhere else` and would have
+/// concluded the guard saw every call the warrant allowed. It had seen one of two.
+///
+/// `run_session` already drove this exact call — `("git", "command", "status")`, carrying the
+/// comment "there is no upstream to forward to, so it does not happen" — and asserted nothing about
+/// it. The case was in the fixture and outside the assertions.
+#[test]
+fn a_permitted_call_with_no_upstream_is_counted_and_never_classified() {
+    let dir = tempdir("no-route-counted");
+    let adapter =
+        attach(StubGuard::answering("Safety: Safe"), config("wrt_no_route")).expect("attach");
+    let results = run_session(&dir, "wrt_no_route", Some(Box::new(adapter)));
+
+    // The second call in the fixture is the permitted-but-unroutable one.
+    let body = format!("{:?}", results[1]);
+    assert!(
+        body.contains("no upstream MCP server is attached"),
+        "the fixture's second call must take the no-route arm: {body}"
+    );
+
+    let log = read_all_guard_logs(&dir);
+    let summary = log
+        .summaries
+        .first()
+        .expect("a finished session writes counters");
+
+    assert_eq!(
+        summary.counters.permitted_no_route, 1,
+        "a permitted call that never became an action has to be visible somewhere"
+    );
+    // And NOT classified. The call did not happen, and classifying a non-event would put things
+    // nobody did into `flagged` — the same rule that keeps a bound-refused call out of the log.
+    assert!(
+        !log.signals.iter().any(|s| s.tool == "git"),
+        "a call that did not happen must produce no signal"
+    );
 }

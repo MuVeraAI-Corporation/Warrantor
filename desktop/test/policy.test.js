@@ -14,6 +14,7 @@ import {
   agentBinaryCandidates,
   agentExecutableName,
   consoleUrl,
+  firstRunRemedy,
   isNavigationAllowed,
   isPermissionGranted,
   originFromLine,
@@ -333,4 +334,43 @@ test('the PATH candidate is used without being probed', () => {
   });
   assert.equal(error, null);
   assert.deepEqual(binary, { path: 'warrantor.exe', source: 'path' });
+});
+
+// ── the first run on a machine with no identity ──────────────────────────────────────
+
+/**
+ * Found by launching the packaged Linux app against a home directory that had never run
+ * `warrantor`: the bundled agent resolved, started, and exited 1 for want of an issuer key. That
+ * refusal is deliberate and correct — a server that minted an identity on first use would sign
+ * evidence with a key nobody chose — and it is also the reviewer's exact path. Install,
+ * double-click, dead, with the cause in a log nobody opens.
+ */
+test('a missing issuer key becomes a route out, not a generic error', () => {
+  const remedy = firstRunRemedy(
+    'warrantor: no issuer key was found. `warrantor serve` loads keys and never creates them.',
+  );
+  assert.ok(remedy, 'the known refusal must be recognised');
+  assert.match(remedy.command, /^warrantor grant /, 'only `grant` creates the issuer key');
+  // The command must commit the holder to nothing: read-only tools, and a deadline short enough
+  // that a warrant created to mint a key is not the first thing waiting in the reviewer's queue.
+  assert.match(remedy.command, /--tools read_file\b/);
+  assert.match(remedy.command, /--deadline 1h\b/);
+  assert.doesNotMatch(remedy.command, /write_file|--allow-settle/);
+  // And it must say WHY the agent refused, or it reads as a bug rather than a design.
+  assert.match(remedy.detail, /nobody chose/);
+});
+
+test('an unrelated failure gets no first-run screen', () => {
+  // A first-run screen shown for something else sends somebody to create a key they already have,
+  // and hides the real cause behind a confident wrong answer.
+  for (const other of [
+    'EADDRINUSE: address already in use 127.0.0.1:8787',
+    'could not start /opt/Warrantor/resources/warrantor: ENOENT',
+    'did not announce a token within 20 seconds',
+    '',
+    null,
+    undefined,
+  ]) {
+    assert.equal(firstRunRemedy(other), null, `${other} must fall through to the generic error`);
+  }
 });

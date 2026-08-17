@@ -209,6 +209,268 @@ export function consoleUrl(origin, token) {
 }
 
 /**
+ * The application menu, per platform.
+ *
+ * Written here rather than inline because two of its items are correctness rather than decoration,
+ * and both were missing:
+ *
+ * **Paste.** On macOS the standard editing shortcuts are delivered *through the menu*. A window
+ * with no Edit menu containing `role: 'paste'` cannot paste, at all, with ⌘V — the keystroke has
+ * nowhere to go. The first version of this menu had `copy` and `selectAll` and neither `paste` nor
+ * `cut` nor `undo`, so the console's token field could be typed into and not pasted into, on the
+ * one platform where that is the difference between working and not.
+ *
+ * **The application menu.** On macOS the first submenu is the app menu whatever it is called, and
+ * it is where `about`, `hide`, `services` and `quit` live. Replacing the whole menu without one
+ * removes Hide, Services and the standard Quit item from an application that has no other route to
+ * them.
+ *
+ * Reload survives from the first version and keeps its reason: the console takes its token from the
+ * URL fragment and erases it, so reloading the document's own URL lands on the token gate in a
+ * window whose entire purpose is that nobody has to paste a token. The handler re-loads the
+ * *authenticated* URL, which the shell can do and the page cannot, because the token lives in this
+ * process.
+ *
+ * The rest of Electron's default menu is still dropped. This window shows a verdict; File and
+ * Window items that do nothing here are worse than absent.
+ *
+ * @param {{platform: string, appName: string,
+ *          handlers: {reload: () => void, about: () => void}}} options
+ * @returns {Array<object>} an Electron menu template
+ */
+export function menuTemplate({ platform, appName, handlers }) {
+  const isMac = platform === 'darwin';
+  const template = [];
+
+  if (isMac) {
+    template.push({
+      label: appName,
+      submenu: [
+        { label: `About ${appName}`, click: handlers.about },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    });
+  }
+
+  template.push({
+    label: 'View',
+    submenu: [
+      { label: 'Reload', accelerator: 'CmdOrCtrl+R', click: handlers.reload },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' },
+      // Kept for support: "what does the console actually say" is answered here, and the renderer
+      // has no privileges for it to expose.
+      { role: 'toggleDevTools' },
+    ],
+  });
+
+  template.push({
+    label: 'Edit',
+    submenu: [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      { role: 'selectAll' },
+    ],
+  });
+
+  template.push({
+    label: 'Window',
+    submenu: isMac
+      ? [{ role: 'minimize' }, { role: 'zoom' }, { type: 'separator' }, { role: 'front' }]
+      : [{ role: 'minimize' }, { role: 'close' }],
+  });
+
+  if (!isMac) {
+    template.push({
+      label: 'Help',
+      submenu: [{ label: `About ${appName}`, click: handlers.about }],
+    });
+  }
+
+  return template;
+}
+
+/** The window geometry used when nothing has been remembered. */
+export const DEFAULT_WINDOW_STATE = Object.freeze({ width: 1280, height: 860 });
+
+/**
+ * Turn a remembered window position into one that is safe to open.
+ *
+ * Restoring geometry verbatim is the standard way an application becomes unopenable: a window
+ * remembered on a second monitor, restored after that monitor is gone, opens at coordinates no
+ * display contains — visible nowhere, focusable by nothing, and with no way for the user to get it
+ * back other than deleting a file they do not know exists.
+ *
+ * So a remembered position is kept only when it lands inside some display's work area, with enough
+ * of the title bar reachable to drag. Anything else falls back to centring, which every platform
+ * does correctly on its own when `x`/`y` are absent.
+ *
+ * Size is clamped rather than discarded: a window larger than the current display is a nuisance, a
+ * window at the wrong place is a support ticket.
+ *
+ * @param {unknown} saved - whatever was in the state file, which may be anything at all
+ * @param {Array<{x: number, y: number, width: number, height: number}>} workAreas
+ * @returns {{width: number, height: number, x?: number, y?: number, maximized: boolean}}
+ */
+export function sanitiseWindowState(saved, workAreas) {
+  const state = saved && typeof saved === 'object' ? saved : {};
+  const number = (value, fallback) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+  const areas = Array.isArray(workAreas) ? workAreas : [];
+  const widest = areas.reduce((max, a) => Math.max(max, number(a?.width, 0)), 0);
+  const tallest = areas.reduce((max, a) => Math.max(max, number(a?.height, 0)), 0);
+
+  let width = Math.max(720, Math.round(number(state.width, DEFAULT_WINDOW_STATE.width)));
+  let height = Math.max(480, Math.round(number(state.height, DEFAULT_WINDOW_STATE.height)));
+  if (widest > 0) width = Math.min(width, widest);
+  if (tallest > 0) height = Math.min(height, tallest);
+
+  const result = { width, height, maximized: state.maximized === true };
+
+  const x = number(state.x, null);
+  const y = number(state.y, null);
+  if (x === null || y === null) return result;
+
+  // "Enough of it is reachable": the top-left corner plus a strip of title bar has to be inside
+  // some work area. Requiring the whole window to fit would refuse a window the user had
+  // deliberately hung off the edge of their screen, which is theirs to do.
+  const REACHABLE = 80;
+  const landsSomewhere = areas.some((area) => {
+    const ax = number(area?.x, 0);
+    const ay = number(area?.y, 0);
+    const aw = number(area?.width, 0);
+    const ah = number(area?.height, 0);
+    return (
+      x + REACHABLE > ax && x < ax + aw && y + 24 > ay && y < ay + ah - 24
+    );
+  });
+  if (!landsSomewhere) return result;
+
+  return { ...result, x: Math.round(x), y: Math.round(y) };
+}
+
+/**
+ * The sentence shown when the agent dies *after* the window has opened.
+ *
+ * Previously nothing was shown at all. The child's `exit` handler returned early once startup had
+ * settled, so an agent that crashed or was killed left a window rendering a console that could not
+ * reach anything — and because the console recovers silently when the agent comes back, its
+ * "no answer" state is deliberately quiet. Quiet is right for a hiccup and wrong for a death.
+ *
+ * @param {number|null} code
+ * @param {string|null} signal
+ * @returns {string}
+ */
+export function agentExitMessage(code, signal) {
+  const how = signal
+    ? `was terminated by ${signal}`
+    : code === 0
+      ? 'exited normally'
+      : `exited with code ${code}`;
+  return (
+    `The Warrantor agent ${how}.\n\n` +
+    'This window is now showing a console that cannot reach anything. Nothing has been lost: ' +
+    'warrants, evidence and staged effects live in the store on disk, not in this process. ' +
+    'Relaunching starts a new agent and a new session.'
+  );
+}
+
+/**
+ * What the tray should say, from a list response.
+ *
+ * A pure function over the payload, so the one thing that could be wrong here — deciding a run is
+ * finished when the read merely failed — is testable without an Electron process.
+ *
+ * `null` means **the count is unknown**, and it is a distinct return from zero. A read that failed
+ * and a store with nothing open are opposite facts: the first must not quietly render as "no agents
+ * running", because that is the sentence somebody closes their laptop on.
+ *
+ * @param {{answered: boolean, status: number, payload: unknown}} response
+ * @returns {{open: number|null, label: string}}
+ */
+export function traySummary({ answered, status, payload }) {
+  if (!answered || status !== 200) {
+    return { open: null, label: 'Warrantor — cannot reach the agent' };
+  }
+  const warrants = payload?.data?.warrants;
+  if (!Array.isArray(warrants)) {
+    return { open: null, label: 'Warrantor — the agent answered unreadably' };
+  }
+  const open = warrants.filter((w) => w?.state === 'open').length;
+  if (open === 0) return { open: 0, label: 'Warrantor — no agent running' };
+  return {
+    open,
+    label: `Warrantor — ${open} warrant${open === 1 ? '' : 's'} open`,
+  };
+}
+
+/**
+ * Which warrants have newly become "waiting for a decision" since the last look.
+ *
+ * Transitions, not levels. Notifying on a level means one held warrant produces a notification every
+ * poll until somebody acts on it, which is how a person learns to dismiss them without reading — and
+ * the one that mattered goes with the rest.
+ *
+ * A read that failed yields **no** transitions and does not clear what is known. Treating an
+ * unreadable answer as "nothing is waiting any more" would re-notify for every warrant the moment
+ * the agent came back.
+ *
+ * @param {{answered: boolean, status: number, payload: unknown}} response
+ * @param {Set<string>} alreadyNotified - mutated: ids that have already produced a notification
+ * @returns {Array<{id: string, goal: string}>}
+ */
+export function newlyWaiting({ answered, status, payload }, alreadyNotified) {
+  if (!answered || status !== 200) return [];
+  const warrants = payload?.data?.warrants;
+  if (!Array.isArray(warrants)) return [];
+
+  // `held` is the state a warrant reaches when its deadline or budget ended the run with staged
+  // effects waiting for a human. That is precisely "a decision is waiting", and it is the only
+  // state that means it: `open` is still running, and settled/void are decided.
+  const waiting = warrants.filter((w) => w?.state === 'held' && typeof w?.id === 'string');
+  const fresh = waiting.filter((w) => !alreadyNotified.has(w.id));
+
+  // Ids that have left the waiting state are forgotten, so a warrant that is held, decided, and
+  // somehow held again notifies twice — which is correct, because it is two decisions.
+  const stillWaiting = new Set(waiting.map((w) => w.id));
+  for (const id of [...alreadyNotified]) {
+    if (!stillWaiting.has(id)) alreadyNotified.delete(id);
+  }
+  for (const w of fresh) alreadyNotified.add(w.id);
+
+  return fresh.map((w) => ({
+    id: w.id,
+    goal: typeof w.goal === 'string' ? w.goal : '',
+  }));
+}
+
+/** The body of the notification raised for a warrant that is waiting on a human. */
+export function waitingNotification({ id, goal }) {
+  return {
+    title: 'A warrant is waiting for a decision',
+    // The goal, then the id. A reviewer recognises their own task before they recognise a hex id,
+    // and a notification is read in about a second.
+    body: goal ? `${goal}\n${id}` : id,
+  };
+}
+
+/**
  * Redact a token wherever it appears in text bound for a log.
  *
  * `warrantor serve` prints the token three times — on its own line, in the console URL and in the
@@ -223,4 +485,47 @@ export function redactToken(text, token) {
   if (typeof text !== 'string') return '';
   if (!token) return text;
   return text.split(token).join('<redacted>');
+}
+
+/**
+ * The command that gives this machine an identity, when the agent refused for want of one.
+ *
+ * # The failure this turns into a path
+ *
+ * Found by launching the packaged Linux app against a home directory that had never run
+ * `warrantor`: the bundled agent resolved, started, and exited 1 with *"no issuer key was found …
+ * `warrantor serve` loads keys and never creates them"*. That refusal is correct and deliberate — a
+ * server that minted an identity on first use would sign evidence with a key nobody chose — but it
+ * is also the reviewer's exact path. Install, double-click, dead.
+ *
+ * The desktop app cannot fix that by minting the key itself without making the same mistake one
+ * layer up, and it must not: `warrantor issuer show-hex` refuses for the same reason, saying *"a key
+ * created by the act of looking for it has signed nothing"*. Only `grant` creates one, alongside the
+ * first warrant, which is a deliberate act by a person.
+ *
+ * So what this returns is not a fix, it is a **route out of a dead dialog** — the exact command,
+ * ready to copy, with a goal and bounds narrow enough that running it commits the user to nothing.
+ *
+ * @param {string} stderr The agent's own output, as captured at startup.
+ * @returns {{title: string, detail: string, command: string}|null} `null` when the failure is
+ *   something else, and the generic error must be shown instead. A first-run screen shown for an
+ *   unrelated crash would send somebody to create a key they already have.
+ */
+export function firstRunRemedy(stderr) {
+  if (!stderr || !/no issuer key was found/i.test(stderr)) {
+    return null;
+  }
+  return {
+    title: 'Warrantor needs an identity before it can start',
+    detail:
+      'This machine has no issuer key yet.\n\n' +
+      'The agent refuses to create one when it starts, on purpose: a server that minted an ' +
+      'identity on first use would sign evidence with a key nobody chose. The key is created ' +
+      'deliberately, by granting your first warrant.\n\n' +
+      'Run this once in a terminal, then open Warrantor again:',
+    // Narrow on purpose. `read_file` and the current directory commit the holder to nothing, and a
+    // one-hour deadline means a warrant created only to mint a key expires by itself rather than
+    // sitting Open in a queue as the first thing the reviewer ever sees.
+    command: 'warrantor grant --goal "first run" --tools read_file --write . --deadline 1h',
+  };
 }

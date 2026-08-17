@@ -393,6 +393,9 @@ fn a_deleted_log_reaches_the_report_as_unavailable_and_denies() {
         NOW + 60,
         &[],
         None,
+        // No custody section: this test is about the staged chain, and a report with an
+        // unconsulted actor log is the shape every pre-existing export has.
+        None,
     );
     let bundle = built.bundle();
 

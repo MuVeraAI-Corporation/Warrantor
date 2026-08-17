@@ -57,7 +57,23 @@ pub const NOTIFICATION_FORMAT: &str = "warrantor.notification/1";
 pub const PENDING_FORMAT: &str = "warrantor.pending-notification/1";
 
 /// The event kinds v1 knows. Anything else in a config is refused rather than guessed at.
-pub const EVENTS: [&str; 4] = ["settled", "voided", "stopped", "filing-queued"];
+///
+/// **`review-requested` is the only one that fires before a decision rather than after one.** The
+/// other four report something that already happened, which is useful for an archive and useless
+/// for a reviewer: by the time "settled" arrives, the moment to look has passed. See
+/// [`crate::review`] for why a warrant needing a human was previously something nobody could be
+/// told about.
+///
+/// Adding a word here is backward-compatible in the direction that matters — an old config naming
+/// only the original four still parses — and deliberately *not* in the other: a config naming
+/// `review-requested` is refused by an older build rather than silently subscribing to nothing.
+pub const EVENTS: [&str; 5] = [
+    "settled",
+    "voided",
+    "stopped",
+    "filing-queued",
+    crate::review::REVIEW_EVENT,
+];
 
 /// One webhook destination.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -74,6 +90,39 @@ pub struct Webhook {
     pub events: BTreeSet<String>,
 }
 
+/// A program to run when an event fires, so email and push can be fronted without a dependency.
+///
+/// # Why this exists, and why it is disarmed by default
+///
+/// `docs/W1-delivery-gaps.md` §3.2's last open item is email and mobile push. The two ways to close
+/// it are an SMTP client, which adds a dependency to a crate whose seven-dependency tokio-free
+/// posture is a security property, and this — which adds none and lets an operator front anything
+/// with a five-line script.
+///
+/// The objection to this shape is real: it turns *anything that can write `notify.json`* into a
+/// code-execution primitive, and per §2.4 the supervised agent shares this UID. An agent that wrote
+/// a command here would get execution at a later time, in the operator's context, from a file that
+/// looks like configuration — which is persistence, not merely execution it already had.
+///
+/// So **the configuration alone does nothing.** A command runs only when the invocation was armed
+/// with `--allow-notify-command`, which is a flag on a command line the agent cannot reach into.
+/// Config-only writes are inert, and a config carrying commands on an unarmed invocation says so
+/// out loud rather than silently ignoring them: an operator who configured a notifier and is not
+/// getting notifications is the one outcome this whole feature exists to prevent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NotifyCommand {
+    /// The program to run. Resolved by the OS, so a bare name uses `PATH`.
+    pub program: String,
+    /// Arguments, verbatim. The notification itself arrives on stdin as JSON rather than in argv,
+    /// because an argv is readable by other users on a default Linux and a notification carries a
+    /// warrant's goal and subject.
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Which events this command wants. Empty means all of them.
+    #[serde(default)]
+    pub events: BTreeSet<String>,
+}
+
 /// The notification configuration, hand-written by the operator at `<root>/notify.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NotifyConfig {
@@ -81,6 +130,9 @@ pub struct NotifyConfig {
     pub format: String,
     /// Every destination. An empty list is the same as no config: nothing is sent.
     pub webhooks: Vec<Webhook>,
+    /// Programs to run per event. Inert unless the invocation is armed; see [`NotifyCommand`].
+    #[serde(default)]
+    pub commands: Vec<NotifyCommand>,
 }
 
 /// Where the notification config lives under a store root.
@@ -111,6 +163,7 @@ impl NotifyConfig {
             return Ok(Self {
                 format: NOTIFY_CONFIG_FORMAT.to_string(),
                 webhooks: Vec::new(),
+                commands: Vec::new(),
             });
         };
         let config: NotifyConfig = serde_json::from_slice(&bytes)
@@ -143,7 +196,42 @@ impl NotifyConfig {
                 }
             }
         }
+        for (index, command) in config.commands.iter().enumerate() {
+            if command.program.trim().is_empty() {
+                return Err(format!(
+                    "{} command {} names no program. An entry that runs nothing is one an operator \
+                     believes is running something.",
+                    path.display(),
+                    index + 1
+                ));
+            }
+            for event in &command.events {
+                if !EVENTS.contains(&event.as_str()) {
+                    return Err(format!(
+                        "{} command {} asks for event {:?}, and this build knows only {}.",
+                        path.display(),
+                        index + 1,
+                        event,
+                        EVENTS.join(", ")
+                    ));
+                }
+            }
+        }
         Ok(config)
+    }
+
+    /// The commands that want this event.
+    ///
+    /// Returns them whether or not the caller is armed. Arming is the caller's decision and this
+    /// function's job is to say what was configured — a filter here would make an unarmed
+    /// invocation indistinguishable from an empty config, and the operator would never learn why
+    /// nothing ran.
+    #[must_use]
+    pub fn commands_for(&self, event: &str) -> Vec<&NotifyCommand> {
+        self.commands
+            .iter()
+            .filter(|c| c.events.is_empty() || c.events.contains(event))
+            .collect()
     }
 
     /// Does this webhook want this event? An empty `events` set means all of them.

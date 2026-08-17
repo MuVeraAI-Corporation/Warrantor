@@ -37,8 +37,19 @@ const el = {
   grantCommand: document.getElementById('first-run-command'),
   copyButton: document.getElementById('copy-command'),
   detail: document.getElementById('detail'),
+  shortcuts: document.getElementById('shortcuts'),
+  shortcutList: document.getElementById('shortcut-list'),
+  shortcutsClose: document.getElementById('shortcuts-close'),
   viewWarrants: document.getElementById('view-warrants'),
   viewSummary: document.getElementById('view-summary'),
+  viewQueue: document.getElementById('view-queue'),
+  queue: document.getElementById('queue'),
+  queueHeadline: document.getElementById('queue-headline'),
+  queueWho: document.getElementById('queue-who'),
+  queueRows: document.getElementById('queue-rows'),
+  queueEmpty: document.getElementById('queue-empty'),
+  queueError: document.getElementById('queue-error'),
+  queueUnreadable: document.getElementById('queue-unreadable'),
   summary: document.getElementById('summary'),
   summaryForm: document.getElementById('summary-form'),
   summaryMonth: document.getElementById('summary-month'),
@@ -59,6 +70,7 @@ const el = {
   summaryGuardCaveats: document.getElementById('summary-guard-caveats'),
   summaryCoverage: document.getElementById('summary-coverage'),
   summaryCoverageNote: document.getElementById('summary-coverage-note'),
+  summaryRuns: document.getElementById('summary-runs'),
   health: document.getElementById('health'),
   authority: document.getElementById('authority'),
   toast: document.getElementById('toast'),
@@ -172,6 +184,10 @@ function node(tag, className, text) {
 }
 
 function toast(message) {
+  // Cleared before it is set, so an identical consecutive message is still announced: a
+  // live region whose text does not change says nothing, and "Settle refused." twice in a
+  // row is two facts a reviewer needs both of.
+  el.toast.textContent = '';
   el.toast.textContent = message;
   el.toast.hidden = false;
   clearTimeout(toast.timer);
@@ -332,9 +348,12 @@ function applyEmptyState(kind) {
   // two-column layout survives having four children.
   const explain = kind === 'first-run';
   const summary = state.view === 'summary';
+  const queue = state.view === 'queue';
+  const elsewhere = summary || queue;
   el.summary.hidden = !summary;
-  el.firstRun.hidden = summary || !explain;
-  el.detail.hidden = summary || explain;
+  el.queue.hidden = !queue;
+  el.firstRun.hidden = elsewhere || !explain;
+  el.detail.hidden = elsewhere || explain;
 
   // A selection cannot survive a store that holds nothing: leaving it set would make the next
   // poll fetch an id this store does not have and render the 404 as if it were news.
@@ -374,10 +393,268 @@ function setFilter(value) {
  */
 async function setView(value) {
   state.view = value;
-  el.viewWarrants.classList.toggle('is-on', value === 'warrants');
-  el.viewSummary.classList.toggle('is-on', value === 'summary');
+  // `is-on` is a CLASS, which is a fact about paint and nothing else: a screen reader cannot see it,
+  // so which destination was showing was announced to nobody. `aria-pressed` is the property that
+  // carries it, and it goes on all three every time rather than only on the new one — a toggle
+  // group where two buttons carry the attribute and one does not reads as a group of two.
+  for (const [button, name] of [
+    [el.viewWarrants, 'warrants'],
+    [el.viewQueue, 'queue'],
+    [el.viewSummary, 'summary'],
+  ]) {
+    button.classList.toggle('is-on', value === name);
+    button.setAttribute('aria-pressed', String(value === name));
+  }
   applyEmptyState(state.lastKind);
   if (value === 'summary') await loadSummary();
+  if (value === 'queue') await loadQueue();
+}
+
+// ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
+
+/**
+ * Read `/v1/queue` into the shape the pane renders.
+ *
+ * # What this function deliberately does not do
+ *
+ * It derives nothing. `you_can` arrives from the server, computed by the same code the settle gate
+ * agrees with — `tests/review.rs` asserts that agreement against the gate itself. A console that
+ * decided for itself which buttons to show would be a second implementation of the approval rules,
+ * and the two would drift the first time either changed. That is the mistake the whole product is
+ * built on not making, and `renderCustody` exists because of it.
+ *
+ * Every failure collapses to `readable: false`. A queue that could not be read must not render as
+ * an empty queue: "nothing is waiting on you" and "this console could not find out" are the two
+ * sentences a reviewer must never see confused, because the first one ends their day.
+ *
+ * @param {boolean} answered Whether the request completed at all.
+ * @param {number} status The HTTP status.
+ * @param {any} payload The parsed body.
+ */
+export function queueFacts(answered, status, payload) {
+  const unusable = { readable: false, waiting: [], undetermined: [], you: null, yours: 0, counts: {}, unreadableRecords: 0 };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data;
+  if (!data || typeof data !== 'object') return unusable;
+  if (!Array.isArray(data.waiting)) return unusable;
+  return {
+    readable: true,
+    waiting: data.waiting,
+    undetermined: Array.isArray(data.undetermined) ? data.undetermined : [],
+    you: data.you ?? null,
+    yours: Number.isFinite(data.waiting_on_you) ? data.waiting_on_you : 0,
+    counts: data.counts && typeof data.counts === 'object' ? data.counts : {},
+    unreadableRecords: Number.isFinite(data.unreadable_records) ? data.unreadable_records : 0,
+  };
+}
+
+/**
+ * The sentence at the top of the queue, and the one place a count becomes prose.
+ *
+ * Four states, not one. "Nothing is waiting" and "nothing is waiting **on you**" are different
+ * facts about the same store, and rendering the second as the first tells a reviewer their work is
+ * done when eleven warrants are sitting behind a scope they do not hold.
+ *
+ * @param {{readable: boolean, waiting: any[], yours: number, you: any}} facts
+ */
+export function queueHeadline(facts) {
+  if (!facts.readable) {
+    return 'This queue could not be read. That is not the same as nothing waiting.';
+  }
+  const total = facts.waiting.length;
+  if (total === 0) return 'Nothing is waiting on a decision.';
+  if (facts.yours === 0) {
+    return `${total} waiting on a decision, none of which you can act on.`;
+  }
+  if (facts.yours === total) return `${total} waiting on you.`;
+  return `${facts.yours} of ${total} waiting on you.`;
+}
+
+/** Whether the reader holds a scope, from the server's own answer. Never inferred. */
+function readerHolds(you, scope) {
+  return Array.isArray(you?.scopes) && you.scopes.includes(scope);
+}
+
+async function loadQueue() {
+  const { answered, status, payload } = await call('/v1/queue');
+  if (answered && status === 401) {
+    showGate('That token was not accepted.');
+    return;
+  }
+  renderQueue(queueFacts(answered, status, payload));
+}
+
+function renderQueue(facts) {
+  el.queueError.hidden = facts.readable;
+  el.queueRows.replaceChildren();
+  el.queueHeadline.textContent = queueHeadline(facts);
+
+  if (!facts.readable) {
+    el.queueWho.textContent = '';
+    el.queueEmpty.hidden = true;
+    el.queueUnreadable.textContent = '';
+    return;
+  }
+
+  // Who the server thinks this reader is, in the server's own words. A console that printed the
+  // operator name it remembered from the gate would be asserting an identity nobody checked.
+  el.queueWho.textContent = facts.you?.name
+    ? `You are ${facts.you.name}, holding ${(facts.you.scopes ?? []).join(', ')}.`
+    : 'You are the unnamed session principal — this store has no operator registry, so nothing here can say which human you are.';
+
+  el.queueEmpty.hidden = facts.waiting.length > 0 || facts.undetermined.length > 0;
+  el.queueUnreadable.textContent =
+    facts.unreadableRecords > 0
+      ? `${facts.unreadableRecords} warrant record(s) could not be read and are NOT counted here.`
+      : '';
+
+  for (const entry of facts.waiting) {
+    el.queueRows.append(queueRow(entry, facts.you));
+  }
+  for (const entry of facts.undetermined) {
+    el.queueRows.append(undeterminedRow(entry));
+  }
+}
+
+/** One waiting warrant, with only the acts the server said this reader can take. */
+function queueRow(entry, you) {
+  const row = document.createElement('li');
+  const blocker = entry?.blocker ?? {};
+  const word = typeof blocker.blocker === 'string' ? blocker.blocker : 'unknown';
+  row.className = `queue-row is-${word}`;
+
+  const head = document.createElement('div');
+  head.className = 'queue-head';
+  const id = document.createElement('button');
+  id.type = 'button';
+  id.className = 'queue-id';
+  id.textContent = entry?.warrant_id ?? '(no id)';
+  // The queue answers "what needs me"; the warrant view answers "what is it". Clicking crosses
+  // between them rather than duplicating the second inside the first.
+  id.addEventListener('click', () => {
+    setView('warrants').then(() => select(entry?.warrant_id));
+  });
+  head.append(id);
+
+  const badge = document.createElement('span');
+  badge.className = 'queue-blocker';
+  // Glyph as well as colour. The same rule the verdict badges follow: a reader who cannot
+  // distinguish the hues must still be able to distinguish the states.
+  badge.textContent =
+    word === 'deadlocked' ? '⨯ deadlocked'
+    : word === 'awaiting-decision' ? '● awaiting a decision'
+    : '◐ awaiting approval';
+  head.append(badge);
+  row.append(head);
+
+  const staged = document.createElement('p');
+  staged.className = 'queue-note';
+  staged.textContent =
+    entry?.staged_effects === null || entry?.staged_effects === undefined
+      ? 'Staged effects could not be counted — the log did not read. Do not settle this without looking.'
+      : `${entry.staged_effects} staged effect(s).`;
+  row.append(staged);
+
+  if (word === 'deadlocked') {
+    const why = document.createElement('p');
+    why.className = 'queue-note error';
+    why.textContent = blocker.why ?? 'No act by anybody can clear this.';
+    row.append(why);
+  } else if (word === 'awaiting-approval') {
+    const who = document.createElement('p');
+    who.className = 'queue-note';
+    const could = Array.isArray(blocker.could_approve) ? blocker.could_approve : [];
+    who.textContent =
+      could.length > 0
+        ? `Waiting on ${could.join(', ')} — ${blocker.still_needed ?? '?'} more approval(s).`
+        : 'Waiting on nobody this store can name.';
+    row.append(who);
+  }
+
+  const approved = Array.isArray(blocker.approved_by) ? blocker.approved_by : [];
+  if (approved.length > 0) {
+    const line = document.createElement('p');
+    line.className = 'queue-note';
+    line.textContent = `Approved by ${approved
+      .map((a) => (a === null ? '(anonymous)' : a))
+      .join(', ')}.`;
+    row.append(line);
+  }
+
+  // Only what the server offered. `you_can` is never recomputed here; see `queueFacts`.
+  const acts = Array.isArray(entry?.you_can) ? entry.you_can : [];
+  if (acts.length > 0) {
+    const bar = document.createElement('div');
+    bar.className = 'queue-acts';
+    for (const act of acts) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'act';
+      button.textContent = act === 'approve' ? 'Approve' : 'Settle';
+      button.addEventListener('click', () => actOnQueue(entry.warrant_id, act, button));
+      bar.append(button);
+    }
+    row.append(bar);
+  } else if (word !== 'deadlocked') {
+    const nothing = document.createElement('p');
+    nothing.className = 'queue-note quiet';
+    nothing.textContent = readerHolds(you, 'settle')
+      ? 'Nothing for you to do yet — this needs its approvals first.'
+      : 'Nothing for you to do here.';
+    row.append(nothing);
+  }
+  return row;
+}
+
+/** A warrant that is outstanding and cannot be described. Never omitted to shorten the list. */
+function undeterminedRow(entry) {
+  const row = document.createElement('li');
+  row.className = 'queue-row is-undetermined';
+  const head = document.createElement('div');
+  head.className = 'queue-head';
+  const id = document.createElement('span');
+  id.className = 'queue-id';
+  id.textContent = entry?.warrant_id ?? '(no id)';
+  head.append(id);
+  const badge = document.createElement('span');
+  badge.className = 'queue-blocker';
+  badge.textContent = '? undetermined';
+  head.append(badge);
+  row.append(head);
+  const why = document.createElement('p');
+  why.className = 'queue-note error';
+  why.textContent = entry?.why ?? 'This warrant needs a decision and could not be described.';
+  row.append(why);
+  return row;
+}
+
+/**
+ * Take one act from the queue, then re-read the queue.
+ *
+ * Re-read rather than patched in place: an act changes what *other* rows offer — a settle empties a
+ * row, an approval can move a warrant from awaiting-approval to awaiting-decision and hand a
+ * settler a button they did not have a moment ago. Editing this row alone would leave the rest of
+ * the page describing a store that no longer exists.
+ */
+async function actOnQueue(id, act, button) {
+  button.disabled = true;
+  const { answered, status } = await call(`/v1/warrants/${encodeURIComponent(id)}/${act}`, {
+    method: 'POST',
+  });
+  if (answered && status === 401) {
+    showGate('That token was not accepted.');
+    return;
+  }
+  if (!answered || status < 200 || status >= 300) {
+    // The refusal is shown and the queue is re-read anyway: a 403 here means the queue and the
+    // server disagreed, and the next read is what shows which of them was stale.
+    el.queueError.hidden = false;
+    el.queueError.textContent = answered
+      ? `That ${act} was refused (${status}). Re-reading the queue.`
+      : `That ${act} did not reach the server. Re-reading the queue.`;
+  }
+  await loadQueue();
+  await loadList();
 }
 
 // ── the summary: bounds that refused, and what a model said about what they allowed ──
@@ -441,6 +718,9 @@ export function summaryFacts(answered, status, payload) {
     window: data.window ?? null,
     note: typeof data.note === 'string' ? data.note : '',
     unreadableLines: data.unreadable_lines,
+    // `null` when the server said nothing about runs, which an older server does. `runsSentence`
+    // renders that as "unknown", never as zero.
+    runs: data.runs ?? null,
   };
 }
 
@@ -464,6 +744,7 @@ function guardEvidence(guard) {
     'backend_unavailable',
     'unparseable',
     'skipped_over_budget',
+    'permitted_no_route',
     'deduplicated',
   ].some((key) => Number.isFinite(coverage?.[key]) && coverage[key] > 0);
   const listed = ['sessions', 'counters'].some(
@@ -619,6 +900,9 @@ function renderSummary(facts) {
     el.summaryGuardNote.textContent = '';
     el.summaryGuardCaveats.textContent = '';
     el.summaryCoverageNote.textContent = '';
+    // Emptied with the rest: a run count left over from a previous month, sitting under an error,
+    // would read as this month's answer.
+    el.summaryRuns.textContent = '';
     el.summaryRefusalsEmpty.hidden = true;
     el.summaryGuardUnknown.hidden = true;
     el.summaryGuardNone.hidden = true;
@@ -661,6 +945,12 @@ function renderSummary(facts) {
   }
 
   renderGuardBlock(facts.guard);
+  // Rendered here rather than inside `renderGuardBlock`, and not by accident: everything that
+  // block draws is counted FROM guard records, and this is the count of sessions the guard was
+  // never in. Putting it there would have made the guard block partly a statement about its own
+  // absence -- and the first attempt did exactly that, which the tests caught as a `facts` that
+  // was not in scope.
+  el.summaryRuns.textContent = runsSentence(facts.runs);
 }
 
 function renderGuardBlock(guard) {
@@ -725,6 +1015,11 @@ function renderGuardBlock(guard) {
     ['calls nothing looked at: the backend was unreachable', coverage.backend_unavailable],
     ['calls nothing looked at: the answer was not a verdict', coverage.unparseable],
     ["calls nothing looked at: the session's cap was spent", coverage.skipped_over_budget],
+    // The fourth reason, found by running a live guarded session: a call the warrant PERMITTED
+    // that had no upstream to be forwarded to. It never became an action, so it was never
+    // classified — and before this row it was counted nowhere at all, so the three rows above
+    // read as a complete account of what the guard missed when they were not.
+    ['calls nothing looked at: permitted, but no upstream to forward to', coverage.permitted_no_route],
     ['repeats that cost no backend call', coverage.deduplicated],
   ];
   for (const [label, value] of rows) {
@@ -734,6 +1029,38 @@ function renderGuardBlock(guard) {
   }
   el.summaryCoverageNote.textContent =
     'Counted from end-of-session records only. A session that attached and never finished contributes nothing to the call counts above, so where the two session numbers differ those runs are unaccounted for here rather than accounted for as zero.';
+}
+
+/**
+ * How many supervised sessions ran in this window with nothing watching them.
+ *
+ * # Why this is its own block and not a coverage row
+ *
+ * Everything above it is counted from guard records, and therefore says nothing about sessions the
+ * guard was never in. This is the opposite population, and until the server grew a run log it could
+ * not be counted at all: an unguarded session left no record, so "nobody was watching" and "nothing
+ * ran" were the same observation.
+ *
+ * `unguarded` is deliberately not called "missed". An unguarded run produced no signal, so nothing
+ * is known about what happened inside it beyond what the bounds refused — which is a gap in
+ * observation, not a count of failures.
+ *
+ * @param {{total?: number, guarded?: number, unguarded?: number, warrants?: number}|null} runs
+ */
+export function runsSentence(runs) {
+  if (!runs || !Number.isFinite(runs.total)) {
+    // The server did not answer about runs at all. An older server is exactly this case, and
+    // rendering it as "0 runs" would be this console inventing a fact about a month.
+    return 'This server did not report run counts, so how many sessions ran unwatched is unknown — not zero.';
+  }
+  if (runs.total === 0) {
+    return 'No supervised session started in this window.';
+  }
+  const s = (n) => (n === 1 ? '' : 's');
+  if (runs.unguarded === 0) {
+    return `${runs.total} supervised session${s(runs.total)} started, across ${runs.warrants} warrant${s(runs.warrants)}. Every one had a guard attached.`;
+  }
+  return `${runs.total} supervised session${s(runs.total)} started, across ${runs.warrants} warrant${s(runs.warrants)} — ${runs.unguarded} with NO guard attached. Nothing is known about what happened inside those beyond what the bounds refused.`;
 }
 
 // ── list ────────────────────────────────────────────────────────────────────
@@ -788,6 +1115,10 @@ async function loadList() {
     const id = w.id ?? '(unknown id)';
     const item = document.createElement('li');
     const row = node('button', `row${state.selected === id ? ' is-on' : ''}`);
+    row.dataset.warrantId = id;
+    // aria-current, not aria-selected: this is the item the view is showing, which is
+    // what `current` means. `selected` would imply a selection set the list does not have.
+    if (state.selected === id) row.setAttribute('aria-current', 'true');
     row.type = 'button';
 
     const top = node('div', 'row-top');
@@ -866,7 +1197,13 @@ async function refresh() {
  * second interval would double the poll rate every time someone reconnected.
  */
 let refreshTimer = null;
+let keyboardInstalled = false;
+
 function startRefreshing() {
+  if (!keyboardInstalled) {
+    keyboardInstalled = true;
+    installKeyboard();
+  }
   if (refreshTimer !== null) return;
   refreshTimer = setInterval(refresh, REFRESH_MS);
   // A reader coming back to the tab should not wait out the remainder of a tick.
@@ -938,6 +1275,15 @@ async function loadDetail(id, { quiet = false } = {}) {
 
   // The sub-resources load after the shell so a slow report cannot hold up the verdict —
   // the verdict is the thing a reviewer came for.
+  // Custody first among the appended sections, because "who may release this, and has"
+  // is the question a reviewer opens a warrant to answer.
+  {
+    const { answered: a, status: st, payload: pl } = await call(
+      `/v1/warrants/${encodeURIComponent(id)}/custody`,
+    );
+    view.append(renderCustody(id, custodyFacts(a, st, pl)));
+  }
+
   for (const [title, path] of sections.slice(1)) {
     const { answered: a, status: s, payload: p } = await call(path);
     if (a && s === 404) continue;
@@ -1039,6 +1385,263 @@ async function act(id, path, label, prompt) {
     toast(`${label} accepted.`);
   }
   await select(id);
+}
+
+// ── custody: who acted, and what the store requires ─────────────────────────
+
+/**
+ * Decide what a custody payload established, without deriving anything the server did not say.
+ *
+ * The same discipline `listFacts` follows, for the same reason: an optimistic read
+ * (`payload?.data?.acts ?? []`) turns "the request failed" and "nobody has acted" into the same
+ * empty array — and on this surface those are opposite facts. One means the approval requirement
+ * cannot be evaluated; the other means it is genuinely unmet.
+ *
+ * `chain_intact` is read, never computed. The server checks the hash chain; a console that checked
+ * it too would be a second implementation of a check, which is the one thing this codebase forbids
+ * everywhere.
+ */
+export function custodyFacts(answered, status, payload) {
+  const unusable = { readable: false, acts: [], approvers: [], required: 0, chainIntact: null };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data;
+  if (!data || !Array.isArray(data.acts) || !Array.isArray(data.approvers)) return unusable;
+  return {
+    readable: true,
+    acts: data.acts,
+    approvers: data.approvers,
+    required: Number(data.required_approvals ?? 0),
+    settlerMayApprove: data.settler_may_approve === true,
+    distinct: Number(data.distinct_approvers ?? data.approvers.length),
+    chainIntact: data.chain_intact === true,
+    chainFault: data.chain_fault ?? null,
+  };
+}
+
+/**
+ * The sentence describing where a warrant stands against its approval requirement.
+ *
+ * Returns a `{ kind, text }` pair rather than a string, so the caller styles by kind and the wording
+ * lives in one place. Five kinds, because five different things are true and collapsing any two of
+ * them would tell a reviewer they are done when they are not.
+ */
+export function approvalStanding(facts) {
+  if (!facts.readable) {
+    return {
+      kind: 'unknown',
+      text: 'This custody record could not be read, so whether this warrant has been approved is unknown. That is an absence of an answer, not the answer "no".',
+    };
+  }
+  if (facts.chainIntact === false) {
+    return {
+      kind: 'broken',
+      text: `The chain of recorded acts does not hold: ${facts.chainFault ?? 'a line has been edited, removed or reordered'}. Until that is explained, nothing here can be relied on as a record of who acted.`,
+    };
+  }
+  if (facts.required === 0) {
+    return {
+      kind: 'none',
+      text: 'This store requires no approvals before a settle, so the acts below are accountability rather than a gate. Write approvals.json to make it a gate.',
+    };
+  }
+  if (facts.distinct >= facts.required) {
+    return {
+      kind: 'met',
+      text: `${facts.distinct} of ${facts.required} required approval(s) recorded. A settle by anyone who is not themselves one of the approvers will be permitted${facts.settlerMayApprove ? ' — and this store lets the settler count as one' : ''}.`,
+    };
+  }
+  return {
+    kind: 'short',
+    text: `${facts.distinct} of ${facts.required} required approval(s) recorded. A settle is refused until the rest are, by someone holding the approve scope.`,
+  };
+}
+
+/** Render the custody section: the standing, the acts, and what none of it is. */
+function renderCustody(id, facts) {
+  const wrap = node('div', 'section');
+  wrap.append(node('h3', null, 'Custody — who acted'));
+
+  const standing = approvalStanding(facts);
+  const pillFor = { met: 'pill-ok', broken: 'pill-bad', unknown: 'pill-unknown' };
+  const box = node('div', 'verdict');
+  const head = node('div', 'verdict-head');
+  head.append(
+    node('span', `pill ${pillFor[standing.kind] ?? 'pill-quiet'}`, {
+      met: 'approved',
+      short: 'awaiting approval',
+      none: 'no requirement',
+      broken: 'chain broken',
+      unknown: 'unreadable',
+    }[standing.kind]),
+  );
+  box.append(head);
+  box.append(node('p', 'verdict-why', standing.text));
+  wrap.append(box);
+
+  if (facts.readable && facts.acts.length > 0) {
+    const list = node('ol', 'acts-log');
+    for (const act of facts.acts) {
+      const item = document.createElement('li');
+      const row = node('div', 'act-row');
+      row.append(node('span', `pill pill-quiet`, act.act));
+      // `null` is rendered as a sentence and never as a name. A placeholder here would be the
+      // console inventing a principal the store deliberately declined to invent.
+      row.append(
+        node(
+          'span',
+          'act-actor',
+          act.actor ?? 'no operator named (the session token)',
+        ),
+      );
+      row.append(node('span', 'act-meta', `${act.via} · ${act.at}`));
+      item.append(row);
+      list.append(item);
+    }
+    wrap.append(list);
+  } else if (facts.readable) {
+    wrap.append(node('p', 'note', 'Nothing has been settled, voided, stopped or approved on this warrant.'));
+  }
+
+  const approve = node('button', 'act', 'Record an approval');
+  approve.type = 'button';
+  approve.addEventListener('click', () => act(id, 'approve', 'Approve', 'Record your approval of this warrant? This is a decision, not a verification: it says you looked.'));
+  const acts = node('div', 'acts');
+  acts.append(approve);
+  wrap.append(acts);
+
+  wrap.append(
+    node(
+      'p',
+      'note',
+      'These acts are a store-local hash chain, NOT signed evidence. They record who this store believes acted; they are not in any receipt, and an approval is never a verification result. Check evidence with warrantor verify.',
+    ),
+  );
+  return wrap;
+}
+
+// ── keyboard: an oversight console a reviewer can work without a mouse ──────
+
+/**
+ * Which key does what, in one table, so the sheet and the handler cannot disagree.
+ *
+ * A shortcut sheet maintained separately from its handler is a sheet that lies within two commits.
+ * `?` renders this list; the handler dispatches from it.
+ */
+export const SHORTCUTS = [
+  ['j / ↓', 'next warrant'],
+  ['k / ↑', 'previous warrant'],
+  ['Enter', 'open the selected warrant'],
+  ['g / G', 'first / last warrant'],
+  ['/', 'jump to the state filters'],
+  ['1 / 2 / 3', 'Warrants / Waiting on you / Refusals & guard'],
+  ['?', 'this sheet'],
+  ['Escape', 'close this sheet'],
+];
+
+/** The rows currently in the list, as their warrant ids, in display order. */
+function listedIds() {
+  return Array.from(document.querySelectorAll('.row')).map((row) => row.dataset.warrantId).filter(Boolean);
+}
+
+/**
+ * Move the selection by `delta`, or to an absolute end.
+ *
+ * Selecting also loads the detail, which is the same thing a click does — so the keyboard path and
+ * the mouse path go through one function and cannot drift.
+ */
+function moveSelection(delta, absolute) {
+  const ids = listedIds();
+  if (ids.length === 0) return;
+  let next;
+  if (absolute === 'first') next = 0;
+  else if (absolute === 'last') next = ids.length - 1;
+  else {
+    const current = ids.indexOf(state.selected);
+    next = current === -1 ? (delta > 0 ? 0 : ids.length - 1) : current + delta;
+  }
+  if (next < 0 || next >= ids.length) return;
+  const id = ids[next];
+  select(id);
+  const row = document.querySelector(`.row[data-warrant-id="${CSS.escape(id)}"]`);
+  // Focus follows selection, so a screen reader announces the row and the browser scrolls it into
+  // view without a scroll calculation of our own.
+  row?.focus();
+}
+
+/** Whether a keystroke belongs to whatever the user is typing in. */
+function typingInto(target) {
+  const tag = target?.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable === true;
+}
+
+function toggleShortcuts(show) {
+  if (!el.shortcuts) return;
+  el.shortcuts.hidden = !show;
+  if (show) el.shortcuts.querySelector('button')?.focus();
+}
+
+function installKeyboard() {
+  if (el.shortcutList && el.shortcutList.childElementCount === 0) {
+    for (const [keys, what] of SHORTCUTS) {
+      const item = document.createElement('li');
+      item.append(node('kbd', null, keys));
+      item.append(node('span', null, what));
+      el.shortcutList.append(item);
+    }
+  }
+  el.shortcutsClose?.addEventListener('click', () => toggleShortcuts(false));
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      toggleShortcuts(false);
+      return;
+    }
+    // Never steal a keystroke from a field, and never from a modified chord the browser or the
+    // desktop shell owns.
+    if (typingInto(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
+    switch (event.key) {
+      case 'j':
+      case 'ArrowDown':
+        event.preventDefault();
+        moveSelection(1);
+        break;
+      case 'k':
+      case 'ArrowUp':
+        event.preventDefault();
+        moveSelection(-1);
+        break;
+      case 'g':
+        moveSelection(0, 'first');
+        break;
+      case 'G':
+        moveSelection(0, 'last');
+        break;
+      case '/':
+        event.preventDefault();
+        document.querySelector('.chip')?.focus();
+        break;
+      // Numbered by VISUAL ORDER, which rebinds `2` from the summary to the queue. Worth doing
+      // rather than appending `3` to the queue and leaving `2` on the summary: a number key that
+      // does not match the position of the thing it selects is a shortcut people stop trusting,
+      // and this console has had three destinations for exactly one commit on an unmerged branch,
+      // so there is no muscle memory to protect yet.
+      case '1':
+        setView('warrants');
+        break;
+      case '2':
+        setView('queue');
+        break;
+      case '3':
+        setView('summary');
+        break;
+      case '?':
+        event.preventDefault();
+        toggleShortcuts(el.shortcuts?.hidden !== false);
+        break;
+      default:
+        break;
+    }
+  });
 }
 
 // ── the grant line ──────────────────────────────────────────────────────────
@@ -1182,6 +1785,7 @@ el.copyButton.addEventListener('click', copyGrantCommand);
 el.summaryMonth.value = currentMonth();
 el.viewWarrants.addEventListener('click', () => setView('warrants'));
 el.viewSummary.addEventListener('click', () => setView('summary'));
+el.viewQueue.addEventListener('click', () => setView('queue'));
 el.summaryForm.addEventListener('submit', (event) => {
   event.preventDefault?.();
   loadSummary();

@@ -7,7 +7,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -264,17 +264,43 @@ test('desktop is not a member of the typescript npm workspace', () => {
  * safely used in file paths" — and it does so AFTER downloading Electron and packaging the app, so
  * it costs a whole platform leg to find out.
  *
- * That is what killed the first-ever run of desktop-release. Windows and macOS derive theirs from
- * `productName` and were unaffected, which is precisely why a config that reads fine could sit
- * unexecuted with this in it.
+ * That is what killed the first-ever run of desktop-release.
+ *
+ * The fix belongs to LINUX ONLY, and for one release it was not scoped. A top-level
+ * `executableName` applies to every platform, so Windows took it as well and the app installed to
+ * `%LOCALAPPDATA%\Programs\warrantor-desktop\warrantor-desktop.exe` with an
+ * `Uninstall warrantor-desktop.exe` beside it, while Add/Remove Programs listed `Warrantor 1.0.0`
+ * and pointed at a directory named something else.
+ *
+ * Nothing broke. The app launched, resolved its bundled agent ahead of an empty PATH and loaded the
+ * console — which is exactly why it survived a comment asserting Windows was unaffected. Only
+ * RUNNING the installer showed it, on 2026-08-17.
  */
-test('executableName is set explicitly and is path-safe', () => {
-  assert.ok(builderConfig.executableName, 'executableName must be set, not derived from a scoped name');
-  assert.match(
+test('executableName is scoped to linux, so Windows keeps productName', () => {
+  assert.equal(
     builderConfig.executableName,
+    undefined,
+    'a top-level executableName renames the Windows install directory and executable too: it must ' +
+      'live under `linux`, which is the only platform that needs it',
+  );
+  assert.ok(
+    builderConfig.linux.executableName,
+    'linux still needs it explicitly — the scoped package name @warrantor/desktop is not path-safe',
+  );
+  assert.match(
+    builderConfig.linux.executableName,
     /^[A-Za-z0-9._ -]+$/,
     'executableName must contain only letters, digits, hyphens, underscores, dots and spaces',
   );
+  // Windows and macOS must have nothing overriding productName, or the install directory and the
+  // Add/Remove entry go back to disagreeing.
+  for (const platform of ['win', 'mac']) {
+    assert.equal(
+      builderConfig[platform].executableName,
+      undefined,
+      `${platform} must derive its executable name from productName (${builderConfig.productName})`,
+    );
+  }
 });
 
 /**
@@ -288,7 +314,10 @@ test('executableName is set explicitly and is path-safe', () => {
  */
 test('the linux desktop entry is named after the executable', () => {
   assert.equal(builderConfig.linux.syncDesktopName, true);
-  assert.equal(manifest.desktopName, `${builderConfig.executableName}.desktop`);
+  // `linux.executableName` now, not the top-level one. This assertion is what makes the scoping
+  // safe: the desktop entry must keep matching whatever Linux's executable is called, wherever
+  // that name is configured.
+  assert.equal(manifest.desktopName, `${builderConfig.linux.executableName}.desktop`);
   assert.equal(
     builderConfig.linux.desktopName,
     undefined,
@@ -328,4 +357,98 @@ test('artifact names never derive from the scoped package name', () => {
   // is the form that put a slash in the path; AppImage's default comes from productName and is why
   // only half of the Linux leg failed the first time.
   assert.ok(builderConfig.linux.artifactName, 'linux must set artifactName; the deb default is unsafe');
+});
+
+/**
+ * The tray icon has to be inside the app bundle, not only in the build resources.
+ *
+ * `build/` is electron-builder's own resources directory: it is read at build time to make the
+ * window and installer icons, and it is NOT copied into the app. So the path `installTray` resolves
+ * — `join(app.getAppPath(), 'build', 'icon.png')` — exists in development and does not exist in a
+ * packaged build, and `installTray` skips silently when the image is empty.
+ *
+ * That is exactly what the first launch of a packaged app traced: `tray skipped: no icon`. No unit
+ * test could have caught it, because every one of them asserts against the config, and the config
+ * was correct for the build and wrong for the runtime. This one asserts the overlap: the file the
+ * runtime opens has to be in the list the packager copies.
+ */
+test('the tray icon is in the packaged file list, not only in the build resources', () => {
+  const listed = builderConfig.files ?? [];
+  assert.ok(
+    listed.some((pattern) => pattern.includes('build/icon.png')),
+    `the icon installTray opens must be packaged, or the tray silently never appears: ${listed}`,
+  );
+  // And it has to actually be there to be packaged.
+  assert.ok(
+    existsSync(join(here, '..', 'build', 'icon.png')),
+    'build/icon.png is missing from the repository',
+  );
+});
+
+// ── SIGNING.md's one checkable promise ───────────────────────────────────────────────
+
+test('every certificate extension SIGNING.md promises is ignored', () => {
+  // The document told the operator "the root .gitignore already excludes a .p12, a .pfx, or a
+  // private key". It excluded `*.key` and `*.pem` and NEITHER of the first two — so the two file
+  // types a purchased code-signing certificate actually arrives as were exactly the two the
+  // sentence covered and the file did not.
+  //
+  // That claim is load-bearing at one moment: when somebody acts on the document, drops the
+  // certificate they just paid for next to the thing it signs, and runs `git add -A`. A signing
+  // key in history is not revocable by deleting the commit.
+  //
+  // Asserted against the file rather than against the prose, so the two cannot drift apart again.
+  const root = join(here, '..', '..', '.gitignore');
+  const ignore = readFileSync(root, 'utf8');
+  for (const pattern of ['*.p12', '*.pfx', '*.cer', '*.crt', '*.key', '*.pem']) {
+    assert.ok(
+      ignore.split(/\r?\n/).some((line) => line.trim() === pattern),
+      `.gitignore must carry ${pattern}: SIGNING.md promises a certificate cannot be committed`,
+    );
+  }
+});
+
+/**
+ * electron-builder 26 does not run on Node 18, and nothing in this repository said so.
+ *
+ * `app-builder-lib` does `require('@noble/hashes/blake2.js')`, which is ESM — legal only where
+ * `require(esm)` is supported, i.e. Node 20.19+. On Node 18 the build dies with `ERR_REQUIRE_ESM`
+ * from inside a transitive dependency, naming neither Node nor a version. Found by building the
+ * Linux target in WSL2 on Node 18.19, which is still an active LTS a contributor may well have.
+ *
+ * CI pinned `node-version: 22.x` and therefore never saw it. That pin was the only thing enforcing
+ * the requirement, and a pin is not a declaration: it protects CI and tells a human nothing.
+ */
+test('the Node requirement is declared, and CI satisfies it', () => {
+  const engines = manifest.engines;
+  assert.ok(engines?.node, 'package.json must declare engines.node — electron-builder 26 needs 20.19+');
+
+  // The range is compound, and it has to be: `require(esm)` landed in 20.19 and in 22.12, but NOT
+  // in 22.0-22.11 — every one of which satisfies a naive `>=20.19` and then fails with exactly the
+  // error the declaration exists to prevent. Node 22.11 disproved that first draft before this
+  // test did.
+  assert.match(
+    engines.node,
+    /20\.19/,
+    'the 20.x line needs an explicit 20.19 floor: require(esm) landed there',
+  );
+  assert.match(
+    engines.node,
+    /22\.12/,
+    'a bare >=20.19 admits Node 22.0-22.11, which do NOT have require(esm) and fail the build',
+  );
+
+  // The workflow's pin and the declaration must not disagree: a declaration CI violates is worse
+  // than none, because it would fail for contributors and pass for the only build that matters.
+  const workflow = readFileSync(
+    join(here, '..', '..', '.github', 'workflows', 'desktop-release.yml'),
+    'utf8',
+  );
+  const pinned = workflow.match(/node-version:\s*"?(\d+)/);
+  assert.ok(pinned, 'desktop-release.yml must pin a node-version');
+  assert.ok(
+    Number(pinned[1]) >= 22,
+    `CI pins Node ${pinned[1]}; the declared range needs 20.19+ or 22.12+, and the 22.x line is ` +
+      'the one CI is on',
+  );
 });

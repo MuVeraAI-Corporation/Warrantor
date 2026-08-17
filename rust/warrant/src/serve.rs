@@ -119,7 +119,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{BufRead, Read, Write};
-use std::net::{SocketAddr, TcpListener};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -1596,6 +1596,653 @@ pub fn handle<A: Api>(api: &mut A, token: &SessionToken, request: &HttpRequest) 
     route(api, request)
 }
 
+/// Who is making a request, and what they are allowed to do.
+///
+/// Two kinds, and the distinction is recorded rather than smoothed over:
+///
+/// * an **operator**, holding a token minted by `warrantor operator add`, with an explicit scope
+///   set and a name that appears in the actor log; and
+/// * the **session**, holding the one process token, unnamed and unscoped — which is exactly what
+///   this server had and all it had, and remains the default on any machine with no operator
+///   registry.
+///
+/// A reader of an actor log must be able to tell those apart, which is why `name` is an `Option` and
+/// is never filled with a placeholder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Principal {
+    /// The operator's name, or `None` for the session token.
+    pub name: Option<String>,
+    /// What this principal may do.
+    pub scopes: std::collections::BTreeSet<crate::operators::Scope>,
+    /// How it was authenticated, for the actor log.
+    pub via: &'static str,
+}
+
+impl Principal {
+    /// The session token: unnamed, and holding everything this server was started with.
+    ///
+    /// Unscoped is the honest description. `--allow-settle` already decides whether this server has
+    /// a settle key at all, and a scope check on top of a key that is not loaded would be a second
+    /// gate on the same door.
+    #[must_use]
+    pub fn session() -> Self {
+        use crate::operators::Scope;
+        Self {
+            name: None,
+            scopes: [Scope::Read, Scope::Stop, Scope::Settle, Scope::Approve]
+                .into_iter()
+                .collect(),
+            via: "session-token",
+        }
+    }
+
+    /// The session token, narrowed to the scopes the registry allows it.
+    ///
+    /// # What this closes and what it does not
+    ///
+    /// §2.4: the supervised agent shares this UID, so it can read `serve/token` and present it.
+    /// Narrowing the session token to `read` makes that a **viewer** even on a server started with
+    /// `--allow-settle` — the agent can watch its own run and cannot release it.
+    ///
+    /// It closes nothing about the filesystem. The agent can still read the store directly, and no
+    /// arrangement of tokens changes that: same UID is same UID. What it removes is the one
+    /// escalation this product's central claim depends on, which is the agent settling its own
+    /// work through the API.
+    ///
+    /// `via` stays `session-token`, because the actor log must record *how* a caller
+    /// authenticated, and a narrowed session token is still the session token. Writing something
+    /// else would invent a third principal kind that does not exist.
+    #[must_use]
+    pub fn session_scoped(scopes: std::collections::BTreeSet<crate::operators::Scope>) -> Self {
+        Self {
+            name: None,
+            scopes,
+            via: "session-token",
+        }
+    }
+
+    /// An operator resolved from the registry.
+    #[must_use]
+    pub fn operator(operator: &crate::operators::Operator) -> Self {
+        Self {
+            name: Some(operator.name.clone()),
+            scopes: operator.scopes.clone(),
+            via: "operator-token",
+        }
+    }
+
+    /// Whether this principal holds a scope.
+    #[must_use]
+    pub fn allows(&self, scope: crate::operators::Scope) -> bool {
+        self.scopes.contains(&scope)
+    }
+
+    /// How this principal is named in a message. Never invents a name.
+    ///
+    /// # Why the parenthetical went away
+    ///
+    /// This used to read "the session token (no operator registry on this machine)", which was true
+    /// while the only way to be unnamed was to have no registry. `session_scoped` broke that: a
+    /// narrowed session token is unnamed *on a machine with a full registry*, and the first live
+    /// 403 after that change asserted there was no registry on a store holding a registered
+    /// operator who could have performed the very act being refused.
+    ///
+    /// A `Principal` cannot see the registry, so it must not describe one. The caller that holds
+    /// the registry adds that context — see [`handle_scoped`]'s scope refusal.
+    #[must_use]
+    pub fn describe(&self) -> String {
+        match &self.name {
+            Some(name) => format!("operator {name:?}"),
+            None => "the unnamed session token".to_string(),
+        }
+    }
+}
+
+/// The scope a request path requires, or `None` when it only reads.
+fn required_scope(segments: &[String]) -> Option<crate::operators::Scope> {
+    use crate::operators::Scope;
+    match segments {
+        [v1, warrants, _id, verb] if v1 == "v1" && warrants == "warrants" => match verb.as_str() {
+            "settle" | "void" => Some(Scope::Settle),
+            "stop" => Some(Scope::Stop),
+            "approve" => Some(Scope::Approve),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// The act a request path performs, for the actor log.
+fn act_of(segments: &[String]) -> Option<(String, crate::operators::Act)> {
+    use crate::operators::Act;
+    match segments {
+        [v1, warrants, id, verb] if v1 == "v1" && warrants == "warrants" => {
+            let act = match verb.as_str() {
+                "settle" => Act::Settle,
+                "void" => Act::Void,
+                "stop" => Act::Stop,
+                "approve" => Act::Approve,
+                _ => return None,
+            };
+            Some((id.clone(), act))
+        }
+        _ => None,
+    }
+}
+
+/// Authenticate against operators as well as the session token, enforce scopes, and record who
+/// acted.
+///
+/// [`handle`] is this without any of it, and is kept: every existing caller and every test that
+/// predates §2.2 drives that path, and a machine that has never run `warrantor operator add`
+/// behaves through this function exactly as it did through that one.
+///
+/// # The order, and why each step is where it is
+///
+/// 1. **Console assets first**, unchanged — they carry no store data.
+/// 2. **Authenticate.** An operator token wins over the session token when both would match, which
+///    they cannot, and a caller presenting neither gets the same 401 as before.
+/// 3. **Scope, before the route runs.** A 403 for a missing scope must not be reachable *after* the
+///    act; there is no partial settle.
+/// 4. **Approvals, before the route runs**, for the same reason.
+/// 5. **Record, after a successful act only.** An actor log that recorded refused attempts as acts
+///    would say a warrant was settled when it was not. Refused attempts are worth recording and are
+///    a different record; this one is the register of what happened.
+pub fn handle_scoped<A: Api>(
+    api: &mut A,
+    token: &SessionToken,
+    registry: &crate::operators::OperatorRegistry,
+    approvals: &crate::operators::ApprovalPolicy,
+    root: &Path,
+    request: &HttpRequest,
+) -> Response {
+    use crate::operators::{Act, ApprovalVerdict};
+
+    if let Some(response) = console_asset(request) {
+        return response;
+    }
+
+    let presented = request.authorization.as_deref().and_then(bearer_of);
+    let Some(presented) = presented else {
+        return unauthorized(api.now());
+    };
+    let principal = if let Some(operator) = registry.authenticate(presented) {
+        Principal::operator(operator)
+    } else if token.matches(presented) {
+        // Narrowed only when the registry says so. `session_scopes: None` is the shipped state and
+        // means unscoped, so a machine that has never run `warrantor operator session-scope`
+        // behaves exactly as it did — including the case §2.2 pinned with a test, that registering
+        // an operator must not lock out whoever started the server.
+        match &registry.session_scopes {
+            Some(scopes) => Principal::session_scoped(scopes.clone()),
+            None => Principal::session(),
+        }
+    } else {
+        return unauthorized(api.now());
+    };
+
+    if let Some(scope) = required_scope(&request.segments) {
+        if !principal.allows(scope) {
+            // The registry context is added HERE rather than inside `describe`, because this is the
+            // function that can see the registry. There are three genuinely different situations
+            // and a caller reading a 403 needs to know which one they are in: a named operator
+            // lacking a scope, an unscoped session token on a machine with no operators, and a
+            // deliberately narrowed session token on a machine that has them. The third was
+            // previously described as the second, which told the reader there was nobody who could
+            // perform the act on a store that had somebody.
+            let context = if principal.name.is_some() {
+                String::new()
+            } else if registry.session_scopes.is_some() {
+                format!(
+                    " The session token was deliberately narrowed by `warrantor operator \
+                     session-scope`, so this act needs an operator token -- {} registered \
+                     operator(s) hold one.",
+                    registry.operators.len()
+                )
+            } else {
+                " There is no operator registry on this machine, so every caller is this one \
+                 unnamed principal."
+                    .to_string()
+            };
+            return Response::error(
+                status::FORBIDDEN,
+                "scope_required",
+                &format!(
+                    "this act needs the {:?} scope and {} does not hold it (it holds {}).{context} \
+                     Scopes are separate on purpose: the person who can stop a runaway agent is \
+                     not necessarily the person who can release its work.",
+                    scope.word(),
+                    principal.describe(),
+                    principal
+                        .scopes
+                        .iter()
+                        .map(|s| s.word())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ),
+                &Verification::not_attempted(api.now()),
+            );
+        }
+    }
+
+    let act = act_of(&request.segments);
+
+    // The approval gate, checked before the act and only for a settle. Void is deliberately not
+    // gated: discarding staged work is the *safe* direction, and requiring review to throw away an
+    // agent's output would mean a runaway's work sits queued while approvals are collected.
+    if let Some((id, Act::Settle)) = &act {
+        match crate::operators::read_log(root, id) {
+            Ok(records) => {
+                if let ApprovalVerdict::Refused(why) = crate::operators::approval_verdict(
+                    approvals,
+                    &records,
+                    principal.name.as_deref(),
+                ) {
+                    return Response::error(
+                        status::FORBIDDEN,
+                        "approval_required",
+                        &why,
+                        &Verification::not_attempted(api.now()),
+                    );
+                }
+            }
+            // An unreadable actor log is not an absent one. Settling on top of a log that cannot be
+            // read would be releasing effects while unable to say whether the review that this
+            // store requires ever happened.
+            Err(e) => {
+                return Response::error(
+                    status::INTERNAL,
+                    "actor_log_unreadable",
+                    &format!(
+                        "this store requires approvals and {id}'s actor log cannot be read ({e}), \
+                         so whether it was approved is unknown. Refusing rather than settling on an \
+                         unknown."
+                    ),
+                    &Verification::not_attempted(api.now()),
+                );
+            }
+        }
+    }
+
+    // The custody read, answered here for the same reason `approve` is written here: it needs
+    // nothing from the `Api`. It is the surface for everything §2.2 records, and without it the
+    // identity work would be a backend with no viewer -- the [[wire before widen]] mistake made
+    // against my own change.
+    // The review queue, answered here for the same reason custody is: it needs the registry, the
+    // policy and the root, and nothing from the `Api`. Placed before the custody arm because it is
+    // the shallower path and neither can match the other's segments.
+    if let [v1, queue] = request.segments.as_slice() {
+        if v1 == "v1" && queue == "queue" {
+            if request.method != "GET" {
+                return refuse(
+                    status::METHOD_NOT_ALLOWED,
+                    "method_not_allowed",
+                    "the review queue is a GET",
+                )
+                .with_header("Allow", "GET")
+                .stamped(api.now());
+            }
+            if let Err(response) = no_query(request) {
+                return response.stamped(api.now());
+            }
+            return queue_response(root, approvals, registry, &principal, api.now());
+        }
+    }
+
+    if let [v1, warrants, id, verb] = request.segments.as_slice() {
+        if v1 == "v1" && warrants == "warrants" && verb == "custody" {
+            if request.method != "GET" {
+                return refuse(
+                    status::METHOD_NOT_ALLOWED,
+                    "method_not_allowed",
+                    "custody is a GET",
+                )
+                .with_header("Allow", "GET")
+                .stamped(api.now());
+            }
+            return custody_response(root, id, approvals, api.now());
+        }
+    }
+
+    // Approve is answered here rather than in `dispatch`, because it touches no warrant state and
+    // needs nothing from the `Api`: it appends one line to the actor log. Routing it through the
+    // trait would mean a new method on every implementation to record a fact this function already
+    // holds.
+    if let Some((id, Act::Approve)) = &act {
+        if request.method != "POST" {
+            return refuse(
+                status::METHOD_NOT_ALLOWED,
+                "method_not_allowed",
+                "approve is a POST",
+            )
+            .with_header("Allow", "POST")
+            .stamped(api.now());
+        }
+        return match crate::operators::record(
+            root,
+            id,
+            Act::Approve,
+            principal.name.as_deref(),
+            principal.via,
+            api.now(),
+        ) {
+            Ok(entry) => Response::json(
+                status::OK,
+                &Verification::unsigned(
+                    api.now(),
+                    "an approval is one line appended to a store-local hash chain. Nothing signs \
+                     it, so there is nothing here to verify.",
+                ),
+                serde_json::json!({
+                    "approved": id,
+                    "actor": entry.actor,
+                    "via": entry.via,
+                    "at": entry.at,
+                    "digest": entry.digest,
+                    "not_a_verdict": "An approval is a recorded human decision, not a verification \
+                                      result. It says somebody with the approve scope looked; it \
+                                      says nothing about whether the evidence checks out. Verify \
+                                      evidence with `warrantor verify`.",
+                }),
+            ),
+            Err(e) => Response::error(
+                status::INTERNAL,
+                "approval_not_recorded",
+                &format!(
+                    "the approval could not be written down ({e}), so it did not happen. Nothing \
+                     was recorded, rather than an approval existing only in this reply."
+                ),
+                &Verification::not_attempted(api.now()),
+            ),
+        };
+    }
+
+    let response = route(api, request);
+
+    // Recorded only for an act that succeeded. A register of what happened must not contain
+    // attempts that were refused.
+    if let Some((id, act)) = act {
+        if (200..300).contains(&response.status) {
+            if let Err(e) = crate::operators::record(
+                root,
+                &id,
+                act,
+                principal.name.as_deref(),
+                principal.via,
+                api.now(),
+            ) {
+                // The act is done and durable. Losing its actor record costs accountability, not
+                // correctness, so it is said out loud rather than turned into a failure that would
+                // report the act as not having happened.
+                eprintln!(
+                    "warrantor: {} {} succeeded and its actor record could not be written ({e}). \
+                     The act stands; who performed it is now only in this line.",
+                    act.word(),
+                    id
+                );
+            }
+        }
+    }
+    response
+}
+
+/// The custody view: who acted on a warrant, whether the chain holds, and what the policy requires.
+///
+/// **Not signed, and it says so.** The actor log is a store-local hash chain, not part of the
+/// evidence envelope — see [`crate::operators`] for why that trade was taken rather than bumping the
+/// receipt format. A client rendering this must not present it as verification, so the payload
+/// carries the same `not_a_verdict` field the archive's listings carry, for the same reason.
+///
+/// The chain is checked here rather than in the client, and the result is reported as a value. A
+/// console deriving "the chain holds" itself would be a second implementation of a check the server
+/// already performs, which is the rule the whole product is built on.
+fn custody_response(
+    root: &Path,
+    warrant_id: &str,
+    approvals: &crate::operators::ApprovalPolicy,
+    now: u64,
+) -> Response {
+    let records = match crate::operators::read_log(root, warrant_id) {
+        Ok(records) => records,
+        Err(e) => {
+            return Response::error(
+                status::INTERNAL,
+                "actor_log_unreadable",
+                &format!("{warrant_id}'s actor log cannot be read: {e}"),
+                &Verification::not_attempted(now),
+            )
+            .stamped(now)
+        }
+    };
+    // Checked, and the fault reported rather than swallowed: an unreadable or edited chain is
+    // exactly the state a reader of this view needs to know about, and it is the one state a
+    // "0 acts" rendering would hide.
+    let fault = crate::operators::verify_chain(&records).err();
+    let approvers: Vec<serde_json::Value> = crate::operators::approvers(&records)
+        .into_iter()
+        .map(|a| match a {
+            Some(name) => serde_json::Value::String(name),
+            None => serde_json::Value::Null,
+        })
+        .collect();
+    let acts: Vec<serde_json::Value> = records
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "act": r.act,
+                "actor": r.actor,
+                "via": r.via,
+                "at": r.at,
+                "digest": r.digest,
+            })
+        })
+        .collect();
+    // `unsigned` rather than `not_attempted`, whose reason sentence is "the request was refused
+    // before any record was read" — false on a 200 that just read the whole actor log. The custody
+    // view shipped with it, and the same mistake was about to be repeated on `/v1/queue`.
+    Response::json(
+        status::OK,
+        &Verification::unsigned(
+            now,
+            "the actor log is a store-local hash chain, not part of any evidence envelope. There \
+             is nothing here to verify against an issuer key.",
+        ),
+        serde_json::json!({
+            "warrant_id": warrant_id,
+            "acts": acts,
+            "approvers": approvers,
+            "distinct_approvers": approvers.len(),
+            "required_approvals": approvals.required,
+            "settler_may_approve": approvals.settler_may_approve,
+            "chain_intact": fault.is_none(),
+            "chain_fault": fault,
+            "not_a_verdict": "This is a store-local hash-chained record of human acts, NOT signed                               evidence. It shows who this store believes acted; it is not part of                               any receipt, and it proves nothing to somebody who does not already                               hold an earlier copy of its head. An approval is a recorded decision,                               never a verification result.",
+        }),
+    )
+    .stamped(now)
+}
+
+/// The review queue: what is waiting on a human, and what *this* caller can do about it.
+///
+/// # Why it is answered here and not through [`Api`]
+///
+/// The same reason `custody` and `approve` are: it needs the operator registry, the approval policy
+/// and the store root, and nothing an `Api` implementation holds that a path does not. Routing it
+/// through the trait would add a method to every implementation and every test double to compute
+/// something from files this function can already open.
+///
+/// # Why it is per-principal
+///
+/// "Waiting on a decision" and "waiting on **you**" are different sentences. A reviewer handed
+/// twelve warrants they hold no scope for stops reading the list, and the list is the only thing
+/// standing between an outstanding warrant and nobody looking at it. `you_can` is computed per
+/// entry from this caller's own scopes, and names only acts that would not be refused for a reason
+/// the queue already had the facts to predict.
+///
+/// # What it refuses to hide
+///
+/// Two populations are counted separately from the queue and never folded into it: warrant records
+/// that will not parse, and warrants whose actor log will not read. The second is the sharper one —
+/// a warrant whose accountability log is unreadable is *outstanding*, *needs a human*, and cannot
+/// be described, which makes it the most urgent row on the page rather than an absent one.
+fn queue_response(
+    root: &Path,
+    approvals: &crate::operators::ApprovalPolicy,
+    registry: &crate::operators::OperatorRegistry,
+    principal: &Principal,
+    now: u64,
+) -> Response {
+    use crate::review::{available_acts, standing, Candidate};
+
+    let store = match crate::store::WarrantStore::open(root) {
+        Ok(store) => store,
+        Err(e) => {
+            return Response::error(
+                status::INTERNAL,
+                "store_unreadable",
+                &format!(
+                    "the warrant store cannot be opened: {}",
+                    safe_warrant_message(&e)
+                ),
+                &Verification::not_attempted(now),
+            )
+            .stamped(now);
+        }
+    };
+    let (all, unreadable) = match store.list_counting_unreadable() {
+        Ok(pair) => pair,
+        Err(e) => {
+            return Response::error(
+                status::INTERNAL,
+                "store_unreadable",
+                &format!(
+                    "the warrant store cannot be listed: {}",
+                    safe_warrant_message(&e)
+                ),
+                &Verification::not_attempted(now),
+            )
+            .stamped(now);
+        }
+    };
+
+    let mut waiting = Vec::new();
+    let mut undetermined = Vec::new();
+    let mut counts: BTreeMap<&'static str, usize> = BTreeMap::new();
+    let mut yours = 0usize;
+
+    for stored in &all {
+        let state = match stored.warrant.state {
+            WarrantState::Open => "open",
+            WarrantState::Held => "held",
+            // Settled and void warrants are decided. They are not waiting on anybody.
+            WarrantState::Settled | WarrantState::Void => continue,
+        };
+        let id = &stored.warrant.claims.id;
+
+        let records = match crate::operators::read_log(root, id) {
+            Ok(records) => records,
+            Err(e) => {
+                undetermined.push(serde_json::json!({
+                    "warrant_id": id,
+                    "state": state,
+                    "why": format!(
+                        "this warrant is outstanding and its actor log cannot be read ({e}), so \
+                         what is blocking it cannot be established. It is listed here rather than \
+                         omitted: a warrant nobody can describe is the one most in need of a look."
+                    ),
+                }));
+                continue;
+            }
+        };
+
+        // Counted through the same witnessed path every other reader uses, so a staged log that was
+        // removed reaches `None` -- "cannot say" -- rather than being reported as an empty queue.
+        let staged_effects = crate::staging::StagingQueue::open_witnessed(
+            store.staged_path(id),
+            id,
+            EffectRegistry::github(),
+            stored.staged_chain.as_ref(),
+        )
+        .ok()
+        .map(|q| q.effects().len());
+
+        let Some(entry) = standing(
+            approvals,
+            registry,
+            &Candidate {
+                warrant_id: id,
+                state,
+                issued_at: stored.warrant.claims.issued_at,
+                records: &records,
+                staged_effects,
+            },
+        ) else {
+            continue;
+        };
+        let acts = available_acts(
+            &entry,
+            principal.name.as_deref(),
+            &principal.scopes,
+            approvals,
+        );
+        if !acts.is_empty() {
+            yours += 1;
+        }
+        *counts.entry(entry.blocker.word()).or_insert(0) += 1;
+        let mut value = serde_json::to_value(&entry).unwrap_or(serde_json::Value::Null);
+        if let serde_json::Value::Object(map) = &mut value {
+            map.insert("you_can".to_string(), serde_json::json!(acts));
+        }
+        waiting.push(value);
+    }
+
+    // `unsigned`, not `not_attempted`. The first live response carried the latter, whose reason
+    // reads "the request was refused before any record was read" — on a 200 that had just read
+    // every record in the store. `unsigned` is the verdict this actually is: the data exists and
+    // nothing signs it.
+    Response::json(
+        status::OK,
+        &Verification::unsigned(
+            now,
+            "the review queue is derived from store state, the approval policy and each warrant's \
+             actor log. None of those is signed, so there is nothing here to verify -- an entry \
+             says a decision is owed, never that the evidence checks out.",
+        ),
+        serde_json::json!({
+            "waiting": waiting,
+            "waiting_on_you": yours,
+            "counts": counts,
+            "undetermined": undetermined,
+            "unreadable_records": unreadable,
+            "policy": {
+                "required": approvals.required,
+                "settler_may_approve": approvals.settler_may_approve,
+            },
+            "you": {
+                "name": principal.name,
+                "via": principal.via,
+                "scopes": principal.scopes.iter().map(|s| s.word()).collect::<Vec<_>>(),
+            },
+            "not_a_verdict": "This is a derived list of warrants awaiting a human decision. It is \
+                              computed from store state, the approval policy and each warrant's \
+                              actor log; it is not signed, and an entry appearing here says a \
+                              decision is owed, never that the evidence checks out. Verify \
+                              evidence with `warrantor verify`.",
+        }),
+    )
+    .stamped(now)
+}
+
+fn unauthorized(now: u64) -> Response {
+    Response::error(
+        status::UNAUTHORIZED,
+        "unauthorized",
+        "this request carried no usable bearer token",
+        &Verification::not_attempted(now),
+    )
+    .with_header("WWW-Authenticate", "Bearer")
+}
+
 /// Read one request, answer it, and stop.
 ///
 /// Generic over the reader and writer, so the whole parse → authenticate → route → write path is
@@ -2033,8 +2680,26 @@ pub struct StoreApi {
     issuer: SigningKey,
     settle_key: Option<SigningKey>,
     performer: fn() -> Box<dyn EffectPerformer>,
+    notifier: Notifier,
     now: fn() -> u64,
 }
+
+/// How this server tells anybody that a warrant was settled, voided or stopped.
+///
+/// # Why this is injected rather than called directly
+///
+/// [`crate::notify`] needs a transport, and the only transport in this repository is `ureq`-backed
+/// and lives in the binary. The library has no HTTP client and is not getting one — the tokio-free,
+/// seven-dependency posture of `rust/warrant` is a security property rather than an accident. So
+/// this is a plain function pointer, exactly like `performer`: the library decides *when* to
+/// notify and the binary owns *how*.
+pub type Notifier = fn(&Path, &str, &StoredWarrant, Value);
+
+/// The notifier a server uses when its caller configured none: it tells nobody.
+///
+/// The honest default for a library that cannot reach a network. Every test and every embedder
+/// that predates notification from this surface gets exactly the behaviour it had.
+pub fn silent_notifier(_root: &Path, _event: &str, _stored: &StoredWarrant, _detail: Value) {}
 
 impl StoreApi {
     /// Build the API over a store root.
@@ -2042,6 +2707,9 @@ impl StoreApi {
     /// `performer` is injected rather than constructed here so the GitHub adapter and its
     /// credentials stay in the binary that owns them, and so a test can settle against a stub
     /// without a network.
+    ///
+    /// Notifications default to [`silent_notifier`]; see [`Self::with_notifier`] for why that is a
+    /// builder rather than a seventh parameter.
     #[must_use]
     pub fn new(
         store: WarrantStore,
@@ -2057,8 +2725,40 @@ impl StoreApi {
             issuer,
             settle_key,
             performer,
+            notifier: silent_notifier,
             now,
         }
+    }
+
+    /// Attach the notifier this server should use.
+    ///
+    /// # The gap this closes
+    ///
+    /// `notify.json` was read by the CLI alone, so a settle, void or stop performed over HTTP told
+    /// nobody. That was survivable while the API was a read surface with three write routes nobody
+    /// used interactively. It stopped being survivable the moment the console grew a review queue:
+    /// the browser is now the *expected* place to settle, and it was the one place that went
+    /// silent. An off-site overseer watching `notify.json` would have seen a machine where warrants
+    /// stopped being decided on the day people started deciding them.
+    ///
+    /// A builder rather than a seventh parameter to [`Self::new`], because every existing caller
+    /// and every test that predates this constructs the six-argument form, and a machine that
+    /// never attaches a notifier must behave exactly as it did.
+    #[must_use]
+    pub fn with_notifier(mut self, notifier: Notifier) -> Self {
+        self.notifier = notifier;
+        self
+    }
+
+    /// Tell whoever is configured, if anybody is.
+    ///
+    /// Called only after the act is durable, and its result is discarded on purpose: the event
+    /// already happened, and a webhook is downstream of it rather than a gate on it. That is the
+    /// rule the CLI path already follows, restated here because the tempting mistake is to let a
+    /// delivery failure fail the settle — which would make the feature that reports outages the
+    /// cause of one.
+    fn announce(&self, event: &str, stored: &StoredWarrant, detail: Value) {
+        (self.notifier)(&self.root, event, stored, detail);
     }
 
     fn issuer_key(&self) -> VerifyingKey {
@@ -2214,6 +2914,7 @@ impl StoreApi {
             now,
             &contained,
             Some(spend::section(&ledger)),
+            custody_section(&self.root, id),
         );
         built
             .sign(&self.issuer, "issuer")
@@ -2673,6 +3374,11 @@ impl Api for StoreApi {
         // attached says so even when one attached in another month.
         let guard_log =
             crate::guard::read_all_guard_logs(&self.root).within(window.since, window.until);
+        // The same window, on the same axis. A run is stamped at its start, so windowing it is a
+        // straight comparison rather than the session-grouping the guard log needs.
+        let run_tally = crate::runs::read_all(&self.root)
+            .within(window.since, window.until)
+            .tally();
         Response::json(
             status::OK,
             &Verification::unsigned(now, REFUSAL_PROVENANCE),
@@ -2701,6 +3407,31 @@ impl Api for StoreApi {
                 // Additive and adjacent: `total_occurrences` and `bounds_probably_wrong` above are
                 // computed from refusals alone and no guard signal may move either.
                 "guard": guard_object(&guard_log, GuardScope::Store),
+                // The half of §4.3 the guard block could not answer: how many supervised sessions
+                // ran in this window with NOTHING watching them.
+                //
+                // It is a THIRD block rather than a field on `guard`, for the same reason refusals
+                // and guard signals are separate: a guard log is what a model thought about calls
+                // that happened, and this is the count of sessions the model was never in. Putting
+                // `unguarded` inside `guard` would make the guard object partly a statement about
+                // its own absence.
+                //
+                // `unguarded` is not "runs the guard missed things in". An unguarded run produced
+                // no signal at all, so nothing is known about what happened inside it beyond what
+                // the bounds refused -- which is why this number belongs beside the refusal counts
+                // rather than under the classifier's.
+                "runs": {
+                    "total": run_tally.total,
+                    "guarded": run_tally.guarded,
+                    "unguarded": run_tally.unguarded,
+                    "warrants": run_tally.warrants,
+                    "unreadable_lines": run_tally.unreadable_lines,
+                    "caveat": "A run is recorded when a supervised session STARTS, so this counts \
+                               sessions begun in the window rather than sessions completed in it. \
+                               Sessions started before Warrantor recorded runs at all are absent \
+                               from every one of these numbers, and no absence here can be read as \
+                               a zero.",
+                },
             }),
         )
     }
@@ -2896,6 +3627,13 @@ impl Api for StoreApi {
             return self.internal("persist a settled warrant", &e);
         }
 
+        // The same event, with the same detail, as the CLI's settle fires. Deliberately identical:
+        // a receiver must not be able to tell which surface a decision was taken from, because the
+        // decision is the fact and the surface is not. An incomplete settle notifies too, carrying
+        // `complete: false` — a partial release is exactly the state an off-site overseer most
+        // needs pushed at them, and suppressing it would make the quiet case the alarming one.
+        self.announce("settled", &stored, json!({ "complete": report.complete }));
+
         let verdict = self.warrant_verdict(&stored, now);
         let data = json!({
             "warrant_id": id,
@@ -2954,6 +3692,7 @@ impl Api for StoreApi {
         if let Err(e) = self.store.save(&stored) {
             return self.internal("persist a voided warrant", &e);
         }
+        self.announce("voided", &stored, json!({ "staged_effects": "discarded" }));
         let verdict = self.warrant_verdict(&stored, now);
         Response::json(
             status::OK,
@@ -3025,6 +3764,15 @@ impl Api for StoreApi {
                 &Verification::not_attempted(now),
             );
         }
+
+        // Announced once the record is kept, and only then. A stop notification for a run whose
+        // record failed to save would tell an overseer a containment fact this machine cannot
+        // support — the branch above returns before reaching here for exactly that reason.
+        self.announce(
+            "stopped",
+            &stored,
+            json!({ "contained": stop::contained(&signed) }),
+        );
 
         let verified = stop::verify_stop(&signed).is_ok();
         let verdict = Verification {
@@ -3263,6 +4011,150 @@ pub fn bind_warning(addr: SocketAddr, root: &Path, release_authority: bool) -> O
     ))
 }
 
+/// The flag that acknowledges a cleartext bind beyond loopback.
+///
+/// Named after the thing it *accepts* rather than the thing it enables, so it cannot be typed as a
+/// convenience. The house pattern: see `--guard-enforce-untested-do-not-use`.
+pub const CLEARTEXT_ACK_FLAG: &str = "i-accept-cleartext-on-this-network";
+
+/// The refusal a non-loopback bind earns when it has not been acknowledged.
+///
+/// [`bind_warning`] said all of this already, and the server started anyway. That was the wrong
+/// default for this product, and the argument is not about how loud a warning is:
+///
+/// * The **token crosses the network in the clear on every request.** Anyone who can watch the
+///   traffic takes it — and with `--allow-settle` a stolen token releases staged effects, which is
+///   the one act this entire design exists to keep in human hands.
+/// * A warning is read once, by the person who typed the command, in a terminal they then close. A
+///   server left running behind it is a permanent exposure justified by a sentence nobody can see
+///   any more.
+/// * The failure is silent by nature. Nothing about an intercepted token looks like an incident: the
+///   traffic is well formed, the token is valid, and the audit trail — which cannot say *which
+///   human* did anything, per §2.2 — records a legitimate settle.
+///
+/// So a bind beyond loopback is a **refusal**, and the acknowledgement is a flag whose name is the
+/// admission. This adds no TLS and does not pretend to: the fix is still a reverse proxy, and the
+/// refusal says so.
+///
+/// Returns `None` for a loopback address, which needs no acknowledgement and never did.
+#[must_use]
+pub fn bind_refusal(addr: SocketAddr, root: &Path, release_authority: bool) -> Option<String> {
+    if addr.ip().is_loopback() {
+        return None;
+    }
+    Some(format!(
+        "refusing to bind {addr}, which is NOT loopback, because there is no TLS here.\n  \
+         The session token crosses the network in the clear on every request, so anyone who can \
+         watch the traffic can take it and use it{}.\n  \
+         Everything under {} would be readable by anything that can reach that address and holds \
+         the token.\n\n  \
+         The fix is a reverse proxy terminating TLS in front of a loopback bind. If you have one, \
+         or the network is genuinely trusted, say so explicitly:\n    \
+         --{CLEARTEXT_ACK_FLAG}\n  \
+         That flag is named after what it accepts rather than what it enables, because it is not a \
+         convenience.",
+        if release_authority {
+            " -- and this server was started with release authority, so a stolen token can settle \
+             staged effects, void work, and terminate a running agent"
+        } else {
+            ", and stop a running agent (settle and void refuse: no release authority was granted)"
+        },
+        root.display()
+    ))
+}
+
+/// The server configuration TLS is served with. A unit type without the `tls` feature, so every
+/// signature below is written once rather than twice.
+#[cfg(feature = "tls")]
+pub type TlsConfig = rustls::ServerConfig;
+/// Placeholder in a default build: no value of it is ever constructed.
+#[cfg(not(feature = "tls"))]
+pub type TlsConfig = ();
+
+/// The actor log's position, for a report served to a human.
+///
+/// Failure is `None`, never an error: a report must still be produced when the log cannot be read,
+/// and `None` says "not consulted" — which is exactly what happened. Inventing an empty section
+/// instead would erase the distinction the report's own limitations line rests on.
+fn custody_section(root: &Path, warrant_id: &str) -> Option<crate::report::CustodySection> {
+    let records = crate::operators::read_log(root, warrant_id).ok()?;
+    let policy = crate::operators::ApprovalPolicy::load(root).unwrap_or_default();
+    Some(crate::report::CustodySection {
+        acts: records.len(),
+        head: records.last().map(|r| r.digest.clone()),
+        chain_intact: crate::operators::verify_chain(&records).is_ok(),
+        approvers: crate::operators::approvers(&records).len(),
+        approvals_required: policy.required,
+    })
+}
+
+/// One client connection: a plain socket, or a TLS session over one.
+///
+/// The accept loop used to clone the socket for independent read and write halves. A TLS stream
+/// cannot be cloned — its session state is one object, and two handles would be two encryptors over
+/// one connection — so the reader is scoped instead and the wire is used sequentially. Nothing is
+/// lost: this server closes every connection after one response.
+///
+/// An enum rather than `Box<dyn Read + Write>` so the plain path keeps its static dispatch and the
+/// TLS variant does not exist at all in a default build.
+enum Wire {
+    /// The transport this server has always used.
+    Plain(TcpStream),
+    /// A TLS session, present only with the `tls` feature.
+    #[cfg(feature = "tls")]
+    Tls(Box<rustls::StreamOwned<rustls::ServerConnection, TcpStream>>),
+}
+
+impl Read for Wire {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        match self {
+            Self::Plain(stream) => stream.read(buffer),
+            #[cfg(feature = "tls")]
+            Self::Tls(stream) => stream.read(buffer),
+        }
+    }
+}
+
+impl Write for Wire {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        match self {
+            Self::Plain(stream) => stream.write(buffer),
+            #[cfg(feature = "tls")]
+            Self::Tls(stream) => stream.write(buffer),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            Self::Plain(stream) => stream.flush(),
+            #[cfg(feature = "tls")]
+            Self::Tls(stream) => stream.flush(),
+        }
+    }
+}
+
+/// Wrap an accepted socket, performing the TLS handshake when one is configured.
+///
+/// A handshake that fails yields `None` and the connection is dropped **without a reply**. That is
+/// the only correct answer: a client that could not complete a handshake cannot read an HTTP
+/// response either, and writing plaintext onto a socket the client expects to be encrypted would
+/// send a server-generated error in the clear to something that may not be the client at all.
+#[allow(unused_variables)]
+fn wrap(stream: TcpStream, tls: Option<&Arc<TlsConfig>>) -> Option<Wire> {
+    #[cfg(feature = "tls")]
+    if let Some(config) = tls {
+        let connection = rustls::ServerConnection::new(Arc::clone(config)).ok()?;
+        let mut wire = rustls::StreamOwned::new(connection, stream);
+        // Completed here rather than lazily on first read, so a handshake failure is one dropped
+        // connection instead of a half-open one the accept loop is still holding a slot for.
+        if wire.conn.complete_io(&mut wire.sock).is_err() {
+            return None;
+        }
+        return Some(Wire::Tls(Box::new(wire)));
+    }
+    Some(Wire::Plain(stream))
+}
+
 // ── stopping ──────────────────────────────────────────────────────────────────────────
 
 /// How often the accept loop wakes to ask whether it has been told to stop.
@@ -3471,9 +4363,11 @@ pub fn listen<A: Api + Send + 'static>(
     api: A,
     token: SessionToken,
     addr: SocketAddr,
+    root: PathBuf,
+    tls: Option<Arc<TlsConfig>>,
     shutdown: &Shutdown,
 ) -> Result<Drain, ServeError> {
-    serve_on(api, token, bind(addr)?, shutdown)
+    serve_on(api, token, bind(addr)?, root, tls, shutdown)
 }
 
 /// Bind the listener, separately from serving on it.
@@ -3510,10 +4404,13 @@ pub fn serve_on<A: Api + Send + 'static>(
     api: A,
     token: SessionToken,
     listener: TcpListener,
+    root: PathBuf,
+    tls: Option<Arc<TlsConfig>>,
     shutdown: &Shutdown,
 ) -> Result<Drain, ServeError> {
     let api = Arc::new(Mutex::new(api));
     let token = Arc::new(token);
+    let root = Arc::new(root);
     let live = Arc::new(AtomicUsize::new(0));
 
     while !shutdown.stopping() {
@@ -3559,7 +4456,9 @@ pub fn serve_on<A: Api + Send + 'static>(
             );
             continue;
         }
-        let Ok(read_half) = stream.try_clone() else {
+        // Wrapped here, on the accept thread, so a failed handshake costs one dropped
+        // connection rather than a worker slot.
+        let Some(wire) = wrap(stream, tls.as_ref()) else {
             continue;
         };
 
@@ -3569,24 +4468,64 @@ pub fn serve_on<A: Api + Send + 'static>(
         };
         let api = Arc::clone(&api);
         let token = Arc::clone(&token);
+        let root = Arc::clone(&root);
         let spawned = std::thread::Builder::new()
             .name("warrantor-serve".to_string())
             .spawn(move || {
                 // Decremented by `Drop`, so an early return or an unwind cannot leak a slot and
                 // walk the server down to a permanent 503.
                 let _slot = slot;
-                let mut input = std::io::BufReader::new(read_half);
-                let mut output = stream;
+                let mut output = wire;
 
                 // Read outside the lock, decide inside it, write outside it. A slow client can
                 // stall its own read and its own write, and neither one holds the store while it
                 // does: the lock covers exactly the window where the store is being touched. That
                 // is the whole reason this uses `parse_request` + `handle` rather than
                 // `serve_conn`, which is the same three steps fused for tests.
-                let response = match parse_request(&mut input) {
+                // Scoped: the reader borrows the wire, and the borrow ends before anything
+                // is written back over it. A TLS session cannot be split into halves, and this
+                // server closes every connection after one response, so sequencing costs nothing.
+                let parsed = {
+                    let mut input = std::io::BufReader::new(&mut output);
+                    parse_request(&mut input)
+                };
+                let response = match parsed {
                     Ok(request) => {
+                        // The operator registry and the approval policy are read PER REQUEST rather
+                        // than once at startup. That is one small file read on a server whose
+                        // busiest client is a person refreshing a console, and it buys the property
+                        // a credential system needs most: `warrantor operator remove` takes effect
+                        // on the next request, not on the next restart. A revocation that requires
+                        // restarting the server is a revocation nobody performs during an incident.
+                        //
+                        // An unreadable registry or policy is a REFUSAL, never a fallback: see
+                        // `OperatorRegistry::load`. Falling back would turn a corrupt permissions
+                        // file into the silent removal of every restriction in it.
+                        let identity = crate::operators::OperatorRegistry::load(&root)
+                            .and_then(|registry| {
+                                crate::operators::ApprovalPolicy::load(&root)
+                                    .map(|approvals| (registry, approvals))
+                            });
                         let mut guard = lock_or_recover(&api);
-                        handle(&mut *guard, &token, &request)
+                        match identity {
+                            Ok((registry, approvals)) => handle_scoped(
+                                &mut *guard,
+                                &token,
+                                &registry,
+                                &approvals,
+                                &root,
+                                &request,
+                            ),
+                            Err(e) => Response::error(
+                                status::INTERNAL,
+                                "identity_unreadable",
+                                &format!(
+                                    "this store's operator registry or approval policy cannot be                                      read ({e}), so who may do what is unknown. Every request is                                      refused until that is fixed -- serving them unrestricted would                                      turn a corrupt permissions file into the removal of every                                      restriction in it."
+                                ),
+                                &Verification::not_attempted(guard.now()),
+                            )
+                            .stamped(guard.now()),
+                        }
                     }
                     Err(response) => {
                         let now = lock_or_recover(&api).now();
