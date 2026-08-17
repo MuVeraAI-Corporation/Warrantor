@@ -274,19 +274,31 @@ organisation.
 
 What is still missing here: TLS.
 
-The other needs: **approval routing** unbuilt (and inert until notifications landed with #57 had
-a decision to carry); **fleet summary** shipped at the custody level (§3.3); the trust directory
-local-only; **time anchoring** unbuilt and now with its options written down — an external RFC
-3161 timestamp authority (a real external clock, at the cost of a new trust root: the TSA's
-certificate chain, and ASN.1/CMS verification this tokio-free agent has no dependency for yet), a
-transparency log (the strongest third-party proof, the heaviest infrastructure), or countersigned
-custody times from the archive operator (the cheapest, and only as strong as the operator's
-clock — the `submitted_at` every filing already records is exactly this, undocumented as
-anchoring). Filing to an archive run by someone else already gives weak clock-independence
-today; making any stronger claim is a design decision deliberately not rushed, for the same
-reason the network trust directory was not. And `serve.rs` still binds loopback, so a second person on
-another machine still sees nothing at all. The console makes oversight usable for someone at the
-same keyboard, which is not the claim.
+**The other four needs are now built, and each took the shape that adds no trust root.**
+
+- **Fleet summary** — shipped at the custody level (§3.3).
+- **Approval routing** — shipped (§2.2b), on top of the named operators in §2.2, which is what it
+  was waiting for: a requirement of "two approvers" is meaningless without principals that can be
+  told apart.
+- **Time anchoring** — shipped as `anchor.rs` and `warrantor anchor show|verify`. Not one of the
+  three options previously written down here. An RFC 3161 authority, a transparency log and
+  countersigned archive times all buy *absolute* time and all cost a new trust root or new
+  infrastructure. What shipped instead is a per-store append-only hash-chained ledger that
+  establishes **relative order** — if A precedes B in the chain, A was signed first, whatever
+  timestamps either carries — and makes a **clock that went backwards visible** as a fault of its
+  own kind. The bridge to absolute time is deliberately a human step: the head digest is
+  publishable, and pasting it into a commit message or a ticket binds everything before it to a
+  clock somebody else keeps. What it does not establish is printed under every rendering.
+- **Trust directory** — shipped as `bundle.rs` and `warrantor issuer export|import`: a *carried
+  signed file* rather than a queried service. A bundle is one machine's pins signed by that
+  machine's issuer key, and it can only be imported against a key the importer had **already**
+  pinned out of band. One out-of-band check buys everything the signing machine trusts; the trust
+  root stays an Ed25519 key a human checked, and only the fan-out improves. A local pin is never
+  overwritten by a bundle, imports are not transitive, and there is no revocation channel — because
+  a channel is a service, which is the thing being refused. Every import says all three.
+
+What is still missing here: **TLS**, and a second person on another machine still cannot reach a
+loopback bind — see §2.3, where the bind is now fail-closed rather than merely warned about.
 
 This remains the largest single gap in the product, and everything in Tier 3 assumes it.
 
