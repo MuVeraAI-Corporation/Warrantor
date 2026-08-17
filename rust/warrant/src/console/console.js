@@ -70,6 +70,7 @@ const el = {
   summaryGuardCaveats: document.getElementById('summary-guard-caveats'),
   summaryCoverage: document.getElementById('summary-coverage'),
   summaryCoverageNote: document.getElementById('summary-coverage-note'),
+  summaryRuns: document.getElementById('summary-runs'),
   health: document.getElementById('health'),
   authority: document.getElementById('authority'),
   toast: document.getElementById('toast'),
@@ -708,6 +709,9 @@ export function summaryFacts(answered, status, payload) {
     window: data.window ?? null,
     note: typeof data.note === 'string' ? data.note : '',
     unreadableLines: data.unreadable_lines,
+    // `null` when the server said nothing about runs, which an older server does. `runsSentence`
+    // renders that as "unknown", never as zero.
+    runs: data.runs ?? null,
   };
 }
 
@@ -886,6 +890,9 @@ function renderSummary(facts) {
     el.summaryGuardNote.textContent = '';
     el.summaryGuardCaveats.textContent = '';
     el.summaryCoverageNote.textContent = '';
+    // Emptied with the rest: a run count left over from a previous month, sitting under an error,
+    // would read as this month's answer.
+    el.summaryRuns.textContent = '';
     el.summaryRefusalsEmpty.hidden = true;
     el.summaryGuardUnknown.hidden = true;
     el.summaryGuardNone.hidden = true;
@@ -928,6 +935,12 @@ function renderSummary(facts) {
   }
 
   renderGuardBlock(facts.guard);
+  // Rendered here rather than inside `renderGuardBlock`, and not by accident: everything that
+  // block draws is counted FROM guard records, and this is the count of sessions the guard was
+  // never in. Putting it there would have made the guard block partly a statement about its own
+  // absence -- and the first attempt did exactly that, which the tests caught as a `facts` that
+  // was not in scope.
+  el.summaryRuns.textContent = runsSentence(facts.runs);
 }
 
 function renderGuardBlock(guard) {
@@ -1001,6 +1014,38 @@ function renderGuardBlock(guard) {
   }
   el.summaryCoverageNote.textContent =
     'Counted from end-of-session records only. A session that attached and never finished contributes nothing to the call counts above, so where the two session numbers differ those runs are unaccounted for here rather than accounted for as zero.';
+}
+
+/**
+ * How many supervised sessions ran in this window with nothing watching them.
+ *
+ * # Why this is its own block and not a coverage row
+ *
+ * Everything above it is counted from guard records, and therefore says nothing about sessions the
+ * guard was never in. This is the opposite population, and until the server grew a run log it could
+ * not be counted at all: an unguarded session left no record, so "nobody was watching" and "nothing
+ * ran" were the same observation.
+ *
+ * `unguarded` is deliberately not called "missed". An unguarded run produced no signal, so nothing
+ * is known about what happened inside it beyond what the bounds refused — which is a gap in
+ * observation, not a count of failures.
+ *
+ * @param {{total?: number, guarded?: number, unguarded?: number, warrants?: number}|null} runs
+ */
+export function runsSentence(runs) {
+  if (!runs || !Number.isFinite(runs.total)) {
+    // The server did not answer about runs at all. An older server is exactly this case, and
+    // rendering it as "0 runs" would be this console inventing a fact about a month.
+    return 'This server did not report run counts, so how many sessions ran unwatched is unknown — not zero.';
+  }
+  if (runs.total === 0) {
+    return 'No supervised session started in this window.';
+  }
+  const s = (n) => (n === 1 ? '' : 's');
+  if (runs.unguarded === 0) {
+    return `${runs.total} supervised session${s(runs.total)} started, across ${runs.warrants} warrant${s(runs.warrants)}. Every one had a guard attached.`;
+  }
+  return `${runs.total} supervised session${s(runs.total)} started, across ${runs.warrants} warrant${s(runs.warrants)} — ${runs.unguarded} with NO guard attached. Nothing is known about what happened inside those beyond what the bounds refused.`;
 }
 
 // ── list ────────────────────────────────────────────────────────────────────

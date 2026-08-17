@@ -3310,6 +3310,11 @@ impl Api for StoreApi {
         // attached says so even when one attached in another month.
         let guard_log =
             crate::guard::read_all_guard_logs(&self.root).within(window.since, window.until);
+        // The same window, on the same axis. A run is stamped at its start, so windowing it is a
+        // straight comparison rather than the session-grouping the guard log needs.
+        let run_tally = crate::runs::read_all(&self.root)
+            .within(window.since, window.until)
+            .tally();
         Response::json(
             status::OK,
             &Verification::unsigned(now, REFUSAL_PROVENANCE),
@@ -3338,6 +3343,31 @@ impl Api for StoreApi {
                 // Additive and adjacent: `total_occurrences` and `bounds_probably_wrong` above are
                 // computed from refusals alone and no guard signal may move either.
                 "guard": guard_object(&guard_log, GuardScope::Store),
+                // The half of §4.3 the guard block could not answer: how many supervised sessions
+                // ran in this window with NOTHING watching them.
+                //
+                // It is a THIRD block rather than a field on `guard`, for the same reason refusals
+                // and guard signals are separate: a guard log is what a model thought about calls
+                // that happened, and this is the count of sessions the model was never in. Putting
+                // `unguarded` inside `guard` would make the guard object partly a statement about
+                // its own absence.
+                //
+                // `unguarded` is not "runs the guard missed things in". An unguarded run produced
+                // no signal at all, so nothing is known about what happened inside it beyond what
+                // the bounds refused -- which is why this number belongs beside the refusal counts
+                // rather than under the classifier's.
+                "runs": {
+                    "total": run_tally.total,
+                    "guarded": run_tally.guarded,
+                    "unguarded": run_tally.unguarded,
+                    "warrants": run_tally.warrants,
+                    "unreadable_lines": run_tally.unreadable_lines,
+                    "caveat": "A run is recorded when a supervised session STARTS, so this counts \
+                               sessions begun in the window rather than sessions completed in it. \
+                               Sessions started before Warrantor recorded runs at all are absent \
+                               from every one of these numbers, and no absence here can be read as \
+                               a zero.",
+                },
             }),
         )
     }

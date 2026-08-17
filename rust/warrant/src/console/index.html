@@ -241,6 +241,12 @@
           </p>
           <ul id="summary-coverage" class="rows"></ul>
           <p id="summary-coverage-note" class="note"></p>
+          <!-- The opposite population to everything above it. Those rows are counted FROM guard
+               records and so are silent about sessions the guard was never in; this one counts
+               sessions that ran with nothing watching. Until the server grew a run log it could not
+               be counted at all -- an unguarded session left no record, so "nobody was watching"
+               and "nothing ran" were one observation. -->
+          <p id="summary-runs" class="note"></p>
         </div>
       </section>
 

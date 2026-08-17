@@ -87,6 +87,7 @@ const ELEMENT_IDS = [
   'summary-guard-caveats',
   'summary-coverage',
   'summary-coverage-note',
+  'summary-runs',
 ];
 
 function element(tag = 'div', id = '') {
@@ -1059,4 +1060,41 @@ test('the reader is described in the SERVER\'s words, including having no name a
 test('warrant records that could not be read are counted separately and said out loud', async () => {
   const app = await openQueue(queueBody({ unreadable_records: 2 }));
   assert.match(textOf(app.el('queue-unreadable')), /2 warrant record\(s\) could not be read/);
+});
+
+// ── unguarded runs ───────────────────────────────────────────────────────────────────
+
+test('an unguarded run is reported as a fact, not as an absence', async () => {
+  // §4.3's gap. Everything in the coverage block is counted FROM guard records, so it is silent
+  // about sessions the guard was never in — and before the server kept a run log, an unguarded
+  // session left no record at all, making "nobody was watching" and "nothing ran" one observation.
+  const { module } = await boot(() => HEALTH_OK);
+  const sentence = module.runsSentence({ total: 5, guarded: 2, unguarded: 3, warrants: 2 });
+  assert.match(sentence, /3 with NO guard attached/);
+  // Never "missed". An unguarded run produced no signal, so nothing is known about what happened
+  // in it — that is a gap in observation, not a count of failures.
+  assert.doesNotMatch(sentence, /missed/i);
+});
+
+test('a server that says nothing about runs is unknown, never zero', async () => {
+  // An older server is exactly this case, and rendering it as "0 unguarded" would be this console
+  // inventing a fact about a month.
+  const { module } = await boot(() => HEALTH_OK);
+  for (const runs of [null, undefined, {}, { guarded: 1 }]) {
+    assert.match(module.runsSentence(runs), /unknown — not zero/);
+  }
+  assert.match(module.runsSentence({ total: 0, guarded: 0, unguarded: 0, warrants: 0 }), /No supervised session started/);
+  assert.match(
+    module.runsSentence({ total: 2, guarded: 2, unguarded: 0, warrants: 1 }),
+    /Every one had a guard attached/,
+  );
+});
+
+test('the runs sentence is cleared when the summary could not be read', async () => {
+  const app = await openSummary({ status: 200, unparseable: true });
+  assert.equal(
+    app.el('summary-runs').textContent,
+    '',
+    'a run count left over from a previous month would read as this one under the error',
+  );
 });

@@ -46,6 +46,7 @@ use warrantor_warrant::operators::{self, Act, ApprovalPolicy, Operator, Operator
 use warrantor_warrant::proxy::{host_of, ProxyMode};
 use warrantor_warrant::report;
 use warrantor_warrant::retention;
+use warrantor_warrant::runs;
 use warrantor_warrant::serve as http;
 use warrantor_warrant::settle::{settle, void, EffectOutcome, EffectPerformer, SettleReport};
 use warrantor_warrant::spend::{self, SpendStore, SpendVerdict};
@@ -4455,8 +4456,55 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
         }
         // Absent by default. `build_guard` returns `None` unless `--guard` was passed, and also
         // whenever attaching failed -- an absent guard produces no signals and never "all clear".
+        let mut guard_session: Option<String> = None;
         if let Some(sink) = build_guard(args, id, root) {
+            guard_session = Some(sink.session_id().to_string());
             endpoint = endpoint.with_guard(sink);
+        }
+
+        // The run record, written before the session serves a single call.
+        //
+        // This is the fact `docs/W1-delivery-gaps.md` §4.3 could not establish. The guard writes an
+        // attach record when it attaches, so a GUARDED run is visible -- and an unguarded run left
+        // nothing behind at all, which made "nobody was watching" and "nothing ran" the same
+        // observation. This record is written either way, and `guard` is None exactly when nothing
+        // was watching.
+        //
+        // Written AFTER the guard decision so that field is accurate, and BEFORE `serve` so a
+        // session that dies on its first call is still counted. A failure to write it is said out
+        // loud and does not stop the session: refusing to supervise an agent because a bookkeeping
+        // file would not open would turn an observability feature into an outage.
+        match runs::new_run_id() {
+            Ok(run_id) => {
+                let record = runs::RunRecord {
+                    format: runs::RUN_FORMAT.to_string(),
+                    warrant_id: id.clone(),
+                    run_id,
+                    at: now(),
+                    mode: if mode == ProxyMode::Observe {
+                        "observe".to_string()
+                    } else {
+                        "enforce".to_string()
+                    },
+                    guard: guard_session,
+                    upstreams: endpoint.upstream_count(),
+                    note: runs::RUN_NOTE.to_string(),
+                };
+                if let Err(e) = runs::record(root, &record) {
+                    eprintln!(
+                        "warrantor: this run could not be recorded ({e}). The session is starting \
+                         anyway; it will be missing from run counts, and an unguarded run that is \
+                         not counted is indistinguishable from one that never happened."
+                    );
+                }
+            }
+            // No placeholder id. Two runs sharing one would make the count silently wrong, and a
+            // run recorded under a fabricated identity is worse than a run not recorded: the first
+            // is a false statement and the second is a known gap.
+            Err(e) => eprintln!(
+                "warrantor: this run could not be given an id ({e}), so it is not recorded. It \
+                 will be missing from run counts."
+            ),
         }
         // stderr, not stdout: stdout is the JSON-RPC channel and a stray line there desynchronises
         // every client reading it line by line.

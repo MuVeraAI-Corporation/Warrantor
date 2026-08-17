@@ -784,6 +784,20 @@ impl AgentEndpoint {
             .map(|_| (self.forwarded, self.forward_failures))
     }
 
+    /// How many upstream servers are attached.
+    ///
+    /// Zero covers both "none were asked for" and "none attached", which is right for its one
+    /// caller: [`crate::runs::RunRecord`] records a *count* rather than names, because a server
+    /// name can carry a hostname or a path and a run record is meant to be safe to hand to
+    /// somebody counting runs. A caller that needs the distinction has [`Self::forwarding_counts`],
+    /// which keeps it.
+    #[must_use]
+    pub fn upstream_count(&self) -> usize {
+        self.upstreams
+            .as_ref()
+            .map_or(0, crate::upstream::UpstreamSet::len)
+    }
+
     /// A one-line account of what is attached, for the session banner.
     #[must_use]
     pub fn describe_upstreams(&self) -> String {
