@@ -87,6 +87,49 @@ fn class(holdings: &retention::Holdings, which: ArtifactClass) -> &retention::Cl
         .expect("every class is always reported, present or not")
 }
 
+/// A store must never lose a warrant to a name collision, whatever produced one.
+///
+/// `save` renames over an existing file without complaint, which is right for a state transition —
+/// `settle` and `void` rewrite a record they just read — and destroys evidence on a *grant*. The
+/// record replaced is the only place that warrant's bounds, its worktree and its staged-effect
+/// chain witness live, so a collision leaves anything staged under it unreachable and uncheckable.
+///
+/// Reached in practice because warrant ids came from a one-second clock. The ids are random now,
+/// which is a probability argument; this is the defence that is not one.
+#[test]
+fn creating_a_warrant_over_an_existing_one_refuses_rather_than_replacing_it() {
+    let dir = tempdir("no-clobber");
+    let store = WarrantStore::open(&dir).expect("open");
+    let record = |subject: &str| StoredWarrant {
+        warrant: warrant("wrt_collide", subject),
+        worktree: None,
+        repo: None,
+        branch: None,
+        base_commit: None,
+        staged_chain: Some(StagedChainMark::genesis(NOW)),
+    };
+
+    store
+        .create(&record("spiffe://muveraai.com/agent/first"))
+        .expect("the first create succeeds");
+
+    let error = store
+        .create(&record("spiffe://muveraai.com/agent/second"))
+        .expect_err("the second must refuse");
+    let rendered = error.to_string();
+    assert!(rendered.contains("already stored"), "{rendered}");
+    assert!(
+        rendered.contains("chain witness"),
+        "the refusal must say what would have been lost: {rendered}"
+    );
+
+    let held = store.load("wrt_collide").expect("still there");
+    assert_eq!(
+        held.warrant.claims.subject, "spiffe://muveraai.com/agent/first",
+        "the warrant that was already there must be untouched"
+    );
+}
+
 /// Every class every time, including the ones this machine has never created. A listing that only
 /// showed what happened to exist would answer "what do you keep" with "whatever I have used".
 #[test]

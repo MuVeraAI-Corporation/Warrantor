@@ -223,7 +223,13 @@ impl ControlEndpoint {
             // first staged effect would have a window in which a deleted log still read as empty.
             staged_chain: Some(crate::staging::StagedChainMark::genesis(now)),
         };
-        if let Err(e) = self.store.save(&stored) {
+        // `create`, not `save`. This id is derived from a one-second clock — `now` is injected so
+        // callers and tests own it, which is why it is not randomised the way the CLI's is — so two
+        // grants inside one second collide, and `save` renames over the first warrant's record
+        // without a word: its bounds, its worktree and its staged-effect chain witness, replaced by
+        // a different warrant's. A model driving this endpoint is exactly the caller that grants
+        // twice in a second. It is now a refusal the model can read and retry.
+        if let Err(e) = self.store.create(&stored) {
             return ToolResult::error(format!("could not persist the warrant: {e}"));
         }
 

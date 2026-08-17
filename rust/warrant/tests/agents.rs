@@ -284,6 +284,33 @@ fn wiring_against_a_settled_warrant_refuses() {
 }
 
 #[test]
+fn two_grants_in_the_same_second_are_two_warrants() {
+    // Found by the test above, intermittently, depending on where the second boundary fell.
+    //
+    // Warrant ids were `format!("wrt_{:016x}", now().wrapping_mul(GOLDEN_RATIO))` over a
+    // ONE-SECOND clock, and `WarrantStore::save` renames over an existing file without complaint.
+    // So two grants in the same second produced the same id and the second REPLACED the first
+    // warrant's record — its bounds, its worktree pointer and its staged-effect chain witness,
+    // which is the only place that warrant's staged effects could be found or checked. Nothing
+    // said anything. Scripting two grants was enough.
+    let root = tempdir("collide");
+    let work = repo("collide-repo");
+    let mut ids = std::collections::BTreeSet::new();
+    for _ in 0..8 {
+        ids.insert(grant(&root, &work, "selftest.echo"));
+    }
+    assert_eq!(ids.len(), 8, "eight grants must be eight warrants: {ids:?}");
+
+    let listed = stdout(&run(&root, &["list"]));
+    for id in &ids {
+        assert!(
+            listed.contains(id),
+            "{id} is missing from the store: {listed}"
+        );
+    }
+}
+
+#[test]
 fn an_unknown_harness_is_refused_with_a_pointer_to_the_list() {
     let root = tempdir("unknown");
     let output = run(&root, &["agents", "show", "not-a-harness"]);

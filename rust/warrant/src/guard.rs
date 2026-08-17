@@ -141,6 +141,25 @@ pub enum GuardError {
 
 // ── policy knobs and provenance ───────────────────────────────────────────────────────
 
+/// The context window every published guard figure was measured at.
+///
+/// `python/warrantor_ml/src/warrantor_ml/evaluate.py` defaults `num_ctx` to 8192 and
+/// `baselines.py` records 8192 in the pinned configuration of both baselines — WildGuardTest and
+/// ExpGuardTest — whose numbers this product quotes: 0.8152 adversarial recall, 0.0923 adversarial
+/// false-positive rate. That file's own opening line is *"``num_ctx`` changes the number."*
+///
+/// This crate shipped 4096. The consequence is not that the guard was worse; it is that **nobody
+/// knew what it was**, because the configuration in production was not the configuration any
+/// measurement was taken under, while the console, the roadmap and the CLI's own help text went on
+/// quoting the measured figures as though it were. The parity discipline this repository applies
+/// to fine-tuned adapters — a promoted model must beat a baseline measured under a pinned
+/// configuration — was not being applied to the shipped one.
+///
+/// Changing it here is the smaller half. Anything that changes this constant invalidates every
+/// quoted figure until the benchmarks are re-run under the new value, and the test below exists to
+/// make that a decision rather than an edit.
+pub const MEASURED_NUM_CTX: u32 = 8192;
+
 /// The sampling and policy settings a signal was produced under.
 ///
 /// Every field is an integer, a bool or a string. Deliberately: `serde_json`'s float rendering is
@@ -161,6 +180,10 @@ pub struct GuardKnobs {
     /// Cap on generated tokens. A guard verdict is two lines; anything longer is a malfunction.
     pub num_predict: u32,
     /// Context window requested of the backend.
+    ///
+    /// Must equal [`MEASURED_NUM_CTX`]. This shipped at 4096 while every measurement behind the
+    /// figures the product quotes was made at 8192, so the console and the roadmap were reporting
+    /// a recall for a configuration the product did not run.
     pub num_ctx: u32,
     /// Per-request timeout. A hung daemon must not wedge the agent forever.
     pub timeout_seconds: u64,
@@ -181,7 +204,7 @@ impl Default for GuardKnobs {
             top_k: 1,
             seed: 0,
             num_predict: 64,
-            num_ctx: 4096,
+            num_ctx: MEASURED_NUM_CTX,
             timeout_seconds: 20,
             controversial_is_harmful: true,
             gating_categories: default_gating_categories(),
@@ -1701,5 +1724,49 @@ mod tests {
         let (text, truncated) = cap_bytes("héllo", 2);
         assert!(truncated);
         assert_eq!(text, "h");
+    }
+
+    #[test]
+    fn the_shipped_context_window_is_the_one_the_figures_were_measured_at() {
+        // The defect this pins: the crate shipped `num_ctx: 4096` while every published figure --
+        // 0.8152 adversarial recall, 0.0923 adversarial FPR -- was measured at 8192, which is what
+        // `evaluate.py` defaults to and what `baselines.py` records in both pinned baselines. The
+        // consequence was not that the guard was worse. It was that nobody knew what it was, while
+        // the console, the roadmap and the CLI's help all quoted a figure for a configuration that
+        // was not running.
+        //
+        // 8192 appears here as a literal on purpose. Reading the constant on both sides would
+        // assert only that a value equals itself, which is precisely the test that would have kept
+        // 4096 green.
+        assert_eq!(MEASURED_NUM_CTX, 8192);
+        assert_eq!(
+            GuardKnobs::default().num_ctx,
+            MEASURED_NUM_CTX,
+            "the shipped context window must be the measured one, or the figures this product \
+             quotes describe a configuration it does not run"
+        );
+    }
+
+    #[test]
+    fn every_knob_that_moves_a_measurement_is_recorded_in_the_signal() {
+        // Provenance is only worth having if it carries the settings that change the answer. A
+        // knob absent from the recorded provenance is a knob that can drift without anything
+        // showing it drifted -- which is exactly how the context window left parity and stayed
+        // out of it.
+        let rendered = serde_json::to_string(&GuardKnobs::default()).expect("knobs serialise");
+        for knob in [
+            "temperature_milli",
+            "top_p_milli",
+            "top_k",
+            "seed",
+            "num_predict",
+            "num_ctx",
+            "controversial_is_harmful",
+        ] {
+            assert!(
+                rendered.contains(knob),
+                "{knob} is not recorded: {rendered}"
+            );
+        }
     }
 }
