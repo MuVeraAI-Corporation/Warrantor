@@ -429,3 +429,96 @@ fn a_principal_never_describes_itself_with_a_name_it_does_not_have() {
     assert!(Principal::session().describe().contains("session token"));
     assert!(Principal::session().allows(Scope::Settle));
 }
+
+// ── §2.4: narrowing the session token ─────────────────────────────────────────────────
+
+/// Set the registry's session-token scopes, as `warrantor operator session-scope` does.
+fn narrow_session(dir: &Path, scopes: &str) {
+    let mut registry = OperatorRegistry::load(dir).expect("load");
+    registry.session_scopes = Some(Scope::parse_list(scopes).expect("scopes"));
+    registry.save(dir).expect("saved");
+}
+
+#[test]
+fn a_narrowed_session_token_reads_and_cannot_settle() {
+    // §2.4: the supervised agent shares this UID, so it can read `serve/token` and present it. This
+    // does not stop that -- nothing here can, same UID is same UID -- it removes the one escalation
+    // the product's central claim depends on, which is the agent settling its own work.
+    //
+    // Note the server holds a settle key throughout: this is the `--allow-settle` case, which is
+    // the only one where the escalation exists at all.
+    let dir = tempdir("session-narrowed");
+    store_with_warrant(&dir, "wrt_1");
+    let _cleo = operator(&dir, "cleo", "read,settle");
+    narrow_session(&dir, "read");
+
+    let (read, _) = call(&dir, &get(&["v1", "warrants"], SESSION));
+    assert_eq!(read, 200, "a viewer is still a viewer");
+
+    let (settle, body) = call(&dir, &post(&["v1", "warrants", "wrt_1", "settle"], SESSION));
+    assert_eq!(settle, 403, "{body}");
+    assert!(body.contains("scope_required"), "{body}");
+}
+
+#[test]
+fn an_operator_token_still_settles_when_the_session_token_cannot() {
+    // Otherwise this would not be a narrowing, it would be an outage.
+    let dir = tempdir("session-narrowed-operator");
+    store_with_warrant(&dir, "wrt_1");
+    let cleo = operator(&dir, "cleo", "read,settle");
+    narrow_session(&dir, "read");
+
+    let (status, body) = call(&dir, &post(&["v1", "warrants", "wrt_1", "settle"], &cleo));
+    assert_eq!(status, 200, "{body}");
+}
+
+#[test]
+fn registering_an_operator_still_does_not_narrow_anything_by_itself() {
+    // The compatibility hinge, and the decision §2.2 took deliberately: registering somebody must
+    // not lock out the person who started the server. Narrowing is a separate, explicit act -- so
+    // `session_scopes: None` has to survive `operator add`.
+    let dir = tempdir("session-default");
+    store_with_warrant(&dir, "wrt_1");
+    let _cleo = operator(&dir, "cleo", "read,settle");
+
+    assert!(
+        OperatorRegistry::load(&dir)
+            .expect("load")
+            .session_scopes
+            .is_none(),
+        "adding an operator must not narrow the session token as a side effect"
+    );
+    let (status, _) = call(&dir, &post(&["v1", "warrants", "wrt_1", "settle"], SESSION));
+    assert_eq!(status, 200, "the session token still settles by default");
+}
+
+#[test]
+fn the_refusal_says_which_of_the_three_situations_the_caller_is_in() {
+    // The defect the first live run of this feature produced: the 403 read "the session token (no
+    // operator registry on this machine)" on a store that HAD a registry holding somebody who could
+    // have performed the act. `Principal` cannot see the registry, so it must not describe one.
+    let narrowed = tempdir("refusal-narrowed");
+    store_with_warrant(&narrowed, "wrt_1");
+    let _cleo = operator(&narrowed, "cleo", "read,settle");
+    narrow_session(&narrowed, "read");
+    let (_, body) = call(
+        &narrowed,
+        &post(&["v1", "warrants", "wrt_1", "settle"], SESSION),
+    );
+    assert!(body.contains("deliberately narrowed"), "{body}");
+    assert!(
+        !body.contains("no operator registry"),
+        "this store HAS a registry, and somebody in it can settle: {body}"
+    );
+
+    // A named operator missing a scope gets neither sentence: the registry is not the reason.
+    let named = tempdir("refusal-named");
+    store_with_warrant(&named, "wrt_1");
+    let viewer = operator(&named, "viewer", "read");
+    let (_, body) = call(
+        &named,
+        &post(&["v1", "warrants", "wrt_1", "settle"], &viewer),
+    );
+    assert!(!body.contains("deliberately narrowed"), "{body}");
+    assert!(!body.contains("no operator registry"), "{body}");
+}

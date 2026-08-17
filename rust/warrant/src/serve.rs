@@ -1636,6 +1636,31 @@ impl Principal {
         }
     }
 
+    /// The session token, narrowed to the scopes the registry allows it.
+    ///
+    /// # What this closes and what it does not
+    ///
+    /// §2.4: the supervised agent shares this UID, so it can read `serve/token` and present it.
+    /// Narrowing the session token to `read` makes that a **viewer** even on a server started with
+    /// `--allow-settle` — the agent can watch its own run and cannot release it.
+    ///
+    /// It closes nothing about the filesystem. The agent can still read the store directly, and no
+    /// arrangement of tokens changes that: same UID is same UID. What it removes is the one
+    /// escalation this product's central claim depends on, which is the agent settling its own
+    /// work through the API.
+    ///
+    /// `via` stays `session-token`, because the actor log must record *how* a caller
+    /// authenticated, and a narrowed session token is still the session token. Writing something
+    /// else would invent a third principal kind that does not exist.
+    #[must_use]
+    pub fn session_scoped(scopes: std::collections::BTreeSet<crate::operators::Scope>) -> Self {
+        Self {
+            name: None,
+            scopes,
+            via: "session-token",
+        }
+    }
+
     /// An operator resolved from the registry.
     #[must_use]
     pub fn operator(operator: &crate::operators::Operator) -> Self {
@@ -1653,11 +1678,22 @@ impl Principal {
     }
 
     /// How this principal is named in a message. Never invents a name.
+    ///
+    /// # Why the parenthetical went away
+    ///
+    /// This used to read "the session token (no operator registry on this machine)", which was true
+    /// while the only way to be unnamed was to have no registry. `session_scoped` broke that: a
+    /// narrowed session token is unnamed *on a machine with a full registry*, and the first live
+    /// 403 after that change asserted there was no registry on a store holding a registered
+    /// operator who could have performed the very act being refused.
+    ///
+    /// A `Principal` cannot see the registry, so it must not describe one. The caller that holds
+    /// the registry adds that context — see [`handle_scoped`]'s scope refusal.
     #[must_use]
     pub fn describe(&self) -> String {
         match &self.name {
             Some(name) => format!("operator {name:?}"),
-            None => "the session token (no operator registry on this machine)".to_string(),
+            None => "the unnamed session token".to_string(),
         }
     }
 }
@@ -1733,20 +1769,48 @@ pub fn handle_scoped<A: Api>(
     let principal = if let Some(operator) = registry.authenticate(presented) {
         Principal::operator(operator)
     } else if token.matches(presented) {
-        Principal::session()
+        // Narrowed only when the registry says so. `session_scopes: None` is the shipped state and
+        // means unscoped, so a machine that has never run `warrantor operator session-scope`
+        // behaves exactly as it did — including the case §2.2 pinned with a test, that registering
+        // an operator must not lock out whoever started the server.
+        match &registry.session_scopes {
+            Some(scopes) => Principal::session_scoped(scopes.clone()),
+            None => Principal::session(),
+        }
     } else {
         return unauthorized(api.now());
     };
 
     if let Some(scope) = required_scope(&request.segments) {
         if !principal.allows(scope) {
+            // The registry context is added HERE rather than inside `describe`, because this is the
+            // function that can see the registry. There are three genuinely different situations
+            // and a caller reading a 403 needs to know which one they are in: a named operator
+            // lacking a scope, an unscoped session token on a machine with no operators, and a
+            // deliberately narrowed session token on a machine that has them. The third was
+            // previously described as the second, which told the reader there was nobody who could
+            // perform the act on a store that had somebody.
+            let context = if principal.name.is_some() {
+                String::new()
+            } else if registry.session_scopes.is_some() {
+                format!(
+                    " The session token was deliberately narrowed by `warrantor operator \
+                     session-scope`, so this act needs an operator token -- {} registered \
+                     operator(s) hold one.",
+                    registry.operators.len()
+                )
+            } else {
+                " There is no operator registry on this machine, so every caller is this one \
+                 unnamed principal."
+                    .to_string()
+            };
             return Response::error(
                 status::FORBIDDEN,
                 "scope_required",
                 &format!(
-                    "this act needs the {:?} scope and {} does not hold it (it holds {}). Scopes \
-                     are separate on purpose: the person who can stop a runaway agent is not \
-                     necessarily the person who can release its work.",
+                    "this act needs the {:?} scope and {} does not hold it (it holds {}).{context} \
+                     Scopes are separate on purpose: the person who can stop a runaway agent is \
+                     not necessarily the person who can release its work.",
                     scope.word(),
                     principal.describe(),
                     principal

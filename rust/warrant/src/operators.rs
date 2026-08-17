@@ -189,6 +189,34 @@ pub struct OperatorRegistry {
     /// The operators, in the order they were added.
     #[serde(default)]
     pub operators: Vec<Operator>,
+    /// What the unnamed session token may do, when the operator wants it narrowed.
+    ///
+    /// # The problem this addresses, and the part of it that stays open
+    ///
+    /// `docs/W1-delivery-gaps.md` §2.4: a supervised agent runs as the same user as the server, so
+    /// it can read `serve/token` and call the API with it. Act-scoped capability tokens do **not**
+    /// fix that — the agent reads a scoped token off disk exactly as easily as an unscoped one.
+    /// What narrows the blast radius is the *write* path requiring a secret that is not on this
+    /// filesystem at all, which is what an operator token is: minted once, printed once, stored
+    /// only as a SHA-256, and carried by a person.
+    ///
+    /// Setting this to `read` makes a stolen session token a **viewer** even on a server started
+    /// with `--allow-settle`. It does not stop the agent reading the store directly, and nothing
+    /// here can: same UID is same UID. It removes one specific escalation — the agent settling its
+    /// own work through the API — which is the one this product's central claim depends on.
+    ///
+    /// # Why `None` rather than a default set
+    ///
+    /// `None` means "unscoped", which is exactly what this server had and all it had. A machine
+    /// that has never set this behaves identically, including the case §2.2 pinned with a test:
+    /// registering an operator must not lock out the person who started the server. Narrowing is
+    /// therefore always a deliberate act, never a consequence of using the identity feature.
+    ///
+    /// Read per request with the rest of the registry, so `warrantor operator session-scope`
+    /// takes effect on the next call rather than the next restart — the same property revocation
+    /// needs, and for the same reason.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_scopes: Option<BTreeSet<Scope>>,
 }
 
 fn default_format() -> String {
@@ -200,6 +228,7 @@ impl Default for OperatorRegistry {
         Self {
             format: default_format(),
             operators: Vec::new(),
+            session_scopes: None,
         }
     }
 }

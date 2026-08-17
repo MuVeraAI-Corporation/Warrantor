@@ -533,6 +533,9 @@ mod tests {
         OperatorRegistry {
             format: crate::operators::OPERATORS_FORMAT.to_string(),
             operators,
+            // The queue is indifferent to it: `session_scopes` decides what the SESSION token may
+            // do, and every principal the queue reasons about is a named operator.
+            session_scopes: None,
         }
     }
 

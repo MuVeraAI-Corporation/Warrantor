@@ -454,7 +454,7 @@ warrantor — bounded authority for coding agents
           | bench --cases <file.jsonl>
           | export-corpus --out <file.jsonl> [--min-labelled N]
   operator list | add <name> --scope read,stop,settle,approve --note \"...\"
-           | remove <name>
+           | remove <name> | session-scope <read[,stop,approve] | unscoped>
   approve <warrant-id>
   queue   [--notify]
   agents  list | detect | show <harness>
@@ -3323,11 +3323,104 @@ fn cmd_operator(args: &Args, root: &Path) -> ExitCode {
         Some("list") | None => cmd_operator_list(root),
         Some("add") => cmd_operator_add(args, root),
         Some("remove") => cmd_operator_remove(args, root),
+        Some("session-scope") => cmd_operator_session_scope(args, root),
         Some(other) => fail(&format!(
             "unknown operator subcommand {other:?}. Try: list, add <name> --scope ... --note \
-             \"...\", remove <name>"
+             \"...\", remove <name>, session-scope <words|unscoped>"
         )),
     }
+}
+
+/// `warrantor operator session-scope <words|unscoped>` — narrow what the session token may do.
+///
+/// # The gap, and the part of it nothing can close
+///
+/// `docs/W1-delivery-gaps.md` §2.4: the supervised agent runs as the same user as the server, so it
+/// can read `serve/token` and call the API with it. Act-scoped capability tokens do not fix that —
+/// an agent reads a scoped token off disk exactly as easily as an unscoped one. What narrows the
+/// blast radius is the *write* path requiring a secret that is not on this filesystem: an operator
+/// token, minted once, printed once, stored only as a SHA-256, carried by a person.
+///
+/// Setting `read` makes a stolen session token a viewer even on a server started with
+/// `--allow-settle`. It does not stop the agent reading the store directly and nothing here can.
+///
+/// # Why the empty-registry refusal is not a nicety
+///
+/// Narrowing the session token on a machine with no operators removes the only principal that can
+/// settle anything, and leaves no way to add one over the API — a store nobody can release.
+/// Refused up front rather than discovered at the moment somebody needs to settle.
+fn cmd_operator_session_scope(args: &Args, root: &Path) -> ExitCode {
+    let Some(word) = args.positional.get(1) else {
+        return fail(
+            "usage: warrantor operator session-scope <read[,stop,approve] | unscoped>\n\n  \
+             `read` is the useful one: it makes a session token stolen from serve/token a VIEWER, \
+             so a supervised agent sharing this UID cannot settle its own work through the API.\n  \
+             `unscoped` restores the shipped behaviour, which is what every machine that has never \
+             run this command already has.",
+        );
+    };
+    let mut registry = match OperatorRegistry::load(root) {
+        Ok(r) => r,
+        Err(e) => return fail(&e),
+    };
+
+    if word == "unscoped" {
+        registry.session_scopes = None;
+        if let Err(e) = registry.save(root) {
+            return fail(&e);
+        }
+        println!("The session token is unscoped again: it may read, stop, settle and approve.");
+        println!();
+        println!(
+            "This is the shipped behaviour. A supervised agent that can read {} can now do all four through the API.",
+            root.join("serve").join("token").display()
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    let scopes = match Scope::parse_list(word) {
+        Ok(s) => s,
+        Err(e) => return fail(&e),
+    };
+
+    // Refused before anything is written. Narrowing with no operators registered produces a store
+    // nobody can release.
+    if registry.is_empty() {
+        return fail(
+            "refusing: no operators are registered, so narrowing the session token would leave this store with NO principal that can settle anything -- and no way to add one over the API, because that is not a route this server serves.\n\n  Register somebody first:\n    warrantor operator add <name> --scope settle --note \"how you bound this name to a human\"",
+        );
+    }
+    // A narrowed session token that keeps `settle` closes nothing, and somebody typing it has
+    // almost certainly misread what this command is for.
+    if scopes.contains(&Scope::Settle) {
+        return fail(
+            "refusing: keeping `settle` on the session token closes nothing. The whole point is that a token readable from serve/token -- by any process sharing this UID, including the supervised agent -- must not be able to release staged work.\n\n  Use `read`, or `read,stop` if you want the session token able to halt a runaway without being able to release one.",
+        );
+    }
+
+    let words = scopes
+        .iter()
+        .map(|s| s.word())
+        .collect::<Vec<_>>()
+        .join(",");
+    registry.session_scopes = Some(scopes);
+    if let Err(e) = registry.save(root) {
+        return fail(&e);
+    }
+
+    println!("The session token is now scoped to: {words}");
+    println!();
+    println!(
+        "Settling and voiding now require an OPERATOR token, which is not stored on this machine in any recoverable form -- only its SHA-256 is. A process that reads {} gets a viewer.",
+        root.join("serve").join("token").display()
+    );
+    println!();
+    println!(
+        "What this does NOT do: it does not stop a process sharing this UID reading the store directly. Same UID is same UID, and no arrangement of tokens changes it. What it removes is the supervised agent settling its own work through the API."
+    );
+    println!();
+    println!("Undo with: warrantor operator session-scope unscoped");
+    ExitCode::SUCCESS
 }
 
 fn cmd_operator_list(root: &Path) -> ExitCode {
