@@ -646,6 +646,65 @@ pre.json::-webkit-scrollbar-track { background: transparent; }
 
 .view.is-on { border-color: var(--accent); color: var(--ink); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
+/* ── the review queue ────────────────────────────────────────────────── */
+
+.queue { overflow-y: auto; padding: 20px 24px; }
+.queue h2 { font-size: var(--text-lg); margin: 0 0 6px; }
+.queue > .note { color: var(--ink-soft); font-size: var(--text-sm); margin: 8px 0 0; }
+.queue .empty { padding: 14px 0; text-align: left; }
+
+.queue-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 12px 0;
+  background: var(--panel);
+  /* The left edge carries the state, so a row is identifiable while scrolling past at speed and
+     before any text is read. Colour never carries it alone -- the badge repeats the same fact as
+     a glyph and a word, the rule the verdict badges already follow. */
+  border-left: 3px solid var(--line-strong);
+}
+.queue-row.is-awaiting-decision { border-left-color: var(--accent); }
+.queue-row.is-awaiting-approval { border-left-color: var(--unknown); }
+.queue-row.is-deadlocked,
+.queue-row.is-undetermined { border-left-color: var(--bad); }
+
+.queue-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+
+.queue-id {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-strong);
+}
+.queue-id:hover { text-decoration-color: var(--accent); }
+span.queue-id { cursor: default; text-decoration: none; color: var(--ink-soft); }
+
+.queue-blocker {
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.is-awaiting-decision .queue-blocker { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.is-awaiting-approval .queue-blocker { background: var(--unknown-bg); border-color: var(--unknown-line); color: var(--unknown); }
+.is-deadlocked .queue-blocker,
+.is-undetermined .queue-blocker { background: var(--bad-bg); border-color: var(--bad-line); color: var(--bad); }
+
+.queue-note { font-size: var(--text-sm); color: var(--ink-soft); margin: 6px 0 0; overflow-wrap: anywhere; }
+.queue-note.error { color: var(--bad); }
+.queue-note.quiet { color: var(--ink-faint); font-style: italic; }
+
+.queue-acts { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
 /* ── the month summary ───────────────────────────────────────────────── */
 
 .summary { overflow-y: auto; padding: 20px 24px; }

@@ -59,6 +59,14 @@ const ELEMENT_IDS = [
   'toast',
   'view-warrants',
   'view-summary',
+  'view-queue',
+  'queue',
+  'queue-headline',
+  'queue-who',
+  'queue-rows',
+  'queue-empty',
+  'queue-error',
+  'queue-unreadable',
   'summary',
   'summary-form',
   'summary-month',
@@ -858,4 +866,197 @@ test('the shortcut sheet and its handler are generated from one table', async ()
     assert.equal(row.length, 2, 'every row is keys + what it does');
     assert.ok(row[1].length > 3, `${row}`);
   }
+});
+
+// ── the review queue ─────────────────────────────────────────────────────────────────
+
+const QUEUE_ENTRY = {
+  warrant_id: 'wrt_a',
+  state: 'open',
+  issued_at: 1_786_000_000,
+  staged_effects: 3,
+  blocker: {
+    blocker: 'awaiting-approval',
+    still_needed: 1,
+    could_approve: ['ben'],
+    approved_by: ['ana'],
+  },
+  you_can: ['approve'],
+};
+
+const queueBody = (over = {}) => ({
+  status: 200,
+  body: {
+    data: {
+      waiting: [QUEUE_ENTRY],
+      waiting_on_you: 1,
+      counts: { 'awaiting-approval': 1 },
+      undetermined: [],
+      unreadable_records: 0,
+      you: { name: 'ben', via: 'operator-token', scopes: ['read', 'approve'] },
+      ...over,
+    },
+  },
+});
+
+async function openQueue(queue) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/queue') return queue;
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-queue').fire('click');
+  await settle();
+  return app;
+}
+
+test('the queue view actually calls the queue route', async () => {
+  const app = await openQueue(queueBody());
+  assert.ok(app.calls.includes('/v1/queue'), 'the destination must read its own route');
+});
+
+test('a queue nobody could read is never rendered as nothing waiting', async () => {
+  // The two sentences a reviewer must never see confused. "Nothing is waiting on you" ends their
+  // day; "this console could not find out" does not.
+  const { module } = await boot(() => HEALTH_OK);
+  for (const facts of [
+    module.queueFacts(false, 0, null),
+    module.queueFacts(true, 500, { data: { waiting: [] } }),
+    module.queueFacts(true, 200, null),
+    module.queueFacts(true, 200, { data: { waiting: 'none' } }),
+    module.queueFacts(true, 200, {}),
+  ]) {
+    assert.equal(facts.readable, false);
+  }
+
+  const app = await openQueue({ status: 200, unparseable: true });
+  assert.equal(app.el('queue-error').hidden, false);
+  assert.equal(
+    app.el('queue-empty').hidden,
+    true,
+    '"nothing is waiting" is a claim about a store, and an unreadable answer supports none',
+  );
+  assert.match(textOf(app.el('queue-headline')), /could not be read/);
+});
+
+test('the headline separates "nothing waiting" from "nothing waiting on YOU"', async () => {
+  // Different facts about the same store. Rendering the second as the first tells a reviewer their
+  // work is done while warrants sit behind a scope they do not hold.
+  const { module } = await boot(() => HEALTH_OK);
+  const facts = (waiting, yours) => ({ readable: true, waiting, yours, you: null });
+  assert.match(module.queueHeadline(facts([], 0)), /Nothing is waiting on a decision/);
+  assert.match(
+    module.queueHeadline(facts([1, 2, 3], 0)),
+    /none of which you can act on/,
+    'three waiting and none yours is not an empty queue',
+  );
+  assert.match(module.queueHeadline(facts([1, 2], 2)), /^2 waiting on you/);
+  assert.match(module.queueHeadline(facts([1, 2, 3], 1)), /^1 of 3 waiting on you/);
+  assert.match(module.queueHeadline({ readable: false, waiting: [], yours: 0 }), /not the same as/);
+});
+
+test('the acts offered are exactly the ones the SERVER named, and nothing is recomputed', async () => {
+  // The rule the whole product rests on: the server decides, the client renders. A console that
+  // worked out its own buttons would be a second implementation of the approval rules, drifting
+  // from the settle gate the first time either changed.
+  // Scoped to the acts bar. The warrant id is itself a button — it crosses to the warrant view —
+  // so a blanket "every button in the row" would have counted navigation as an act, which is the
+  // kind of assertion that passes for the wrong reason.
+  const actsIn = (row) =>
+    (row.children.find((c) => c.className === 'queue-acts')?.children ?? []).map(
+      (b) => b.textContent,
+    );
+
+  const app = await openQueue(queueBody());
+  assert.deepEqual(
+    actsIn(app.el('queue-rows').children[0]),
+    ['Approve'],
+    'you_can was ["approve"], so exactly one act appears',
+  );
+
+  // The same store, the same reader scopes, but the server offers nothing: the console must offer
+  // nothing, even though this reader plainly holds `approve`.
+  const none = await openQueue(
+    queueBody({ waiting: [{ ...QUEUE_ENTRY, you_can: [] }], waiting_on_you: 0 }),
+  );
+  assert.deepEqual(
+    actsIn(none.el('queue-rows').children[0]),
+    [],
+    'an empty you_can renders no acts, whatever the reader holds',
+  );
+
+  // And a `you_can` naming both is rendered as both, in the server's order.
+  const both = await openQueue(
+    queueBody({
+      waiting: [
+        {
+          ...QUEUE_ENTRY,
+          you_can: ['approve', 'settle'],
+          blocker: { blocker: 'awaiting-decision', approved_by: ['ana'] },
+        },
+      ],
+    }),
+  );
+  assert.deepEqual(actsIn(both.el('queue-rows').children[0]), ['Approve', 'Settle']);
+});
+
+test('a deadlocked row carries its reason and offers nobody anything', async () => {
+  const app = await openQueue(
+    queueBody({
+      waiting: [
+        {
+          ...QUEUE_ENTRY,
+          you_can: [],
+          blocker: { blocker: 'deadlocked', why: 'this store requires 2 approval(s) and ...' },
+        },
+      ],
+      waiting_on_you: 0,
+      counts: { deadlocked: 1 },
+    }),
+  );
+  const row = app.el('queue-rows').children[0];
+  assert.match(row.className, /is-deadlocked/);
+  assert.match(textOf(row), /this store requires 2 approval\(s\)/);
+  // No "nothing for you to do yet" consolation on a deadlock: "yet" would be false.
+  assert.doesNotMatch(textOf(row), /yet/);
+});
+
+test('a warrant that cannot be described is listed rather than dropped', async () => {
+  // A warrant that is outstanding, needs a human and cannot be described is the most urgent row on
+  // the page. Omitting it makes the queue quietly shorter and the store quietly worse.
+  const app = await openQueue(
+    queueBody({
+      waiting: [],
+      waiting_on_you: 0,
+      counts: {},
+      undetermined: [{ warrant_id: 'wrt_broken', state: 'open', why: 'its actor log will not parse' }],
+    }),
+  );
+  assert.equal(app.el('queue-rows').children.length, 1);
+  assert.match(textOf(app.el('queue-rows')), /wrt_broken/);
+  assert.match(textOf(app.el('queue-rows')), /will not parse/);
+  assert.equal(
+    app.el('queue-empty').hidden,
+    true,
+    'an undetermined warrant is not an empty queue',
+  );
+});
+
+test('the reader is described in the SERVER\'s words, including having no name at all', async () => {
+  const named = await openQueue(queueBody());
+  assert.match(textOf(named.el('queue-who')), /You are ben, holding read, approve/);
+
+  const anonymous = await openQueue(
+    queueBody({ you: { name: null, via: 'session-token', scopes: ['read', 'settle'] } }),
+  );
+  assert.match(
+    textOf(anonymous.el('queue-who')),
+    /unnamed session principal/,
+    'a console that printed a remembered name would assert an identity nobody checked',
+  );
+});
+
+test('warrant records that could not be read are counted separately and said out loud', async () => {
+  const app = await openQueue(queueBody({ unreadable_records: 2 }));
+  assert.match(textOf(app.el('queue-unreadable')), /2 warrant record\(s\) could not be read/);
 });
