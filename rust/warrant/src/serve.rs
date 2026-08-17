@@ -1596,6 +1596,298 @@ pub fn handle<A: Api>(api: &mut A, token: &SessionToken, request: &HttpRequest) 
     route(api, request)
 }
 
+/// Who is making a request, and what they are allowed to do.
+///
+/// Two kinds, and the distinction is recorded rather than smoothed over:
+///
+/// * an **operator**, holding a token minted by `warrantor operator add`, with an explicit scope
+///   set and a name that appears in the actor log; and
+/// * the **session**, holding the one process token, unnamed and unscoped — which is exactly what
+///   this server had and all it had, and remains the default on any machine with no operator
+///   registry.
+///
+/// A reader of an actor log must be able to tell those apart, which is why `name` is an `Option` and
+/// is never filled with a placeholder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Principal {
+    /// The operator's name, or `None` for the session token.
+    pub name: Option<String>,
+    /// What this principal may do.
+    pub scopes: std::collections::BTreeSet<crate::operators::Scope>,
+    /// How it was authenticated, for the actor log.
+    pub via: &'static str,
+}
+
+impl Principal {
+    /// The session token: unnamed, and holding everything this server was started with.
+    ///
+    /// Unscoped is the honest description. `--allow-settle` already decides whether this server has
+    /// a settle key at all, and a scope check on top of a key that is not loaded would be a second
+    /// gate on the same door.
+    #[must_use]
+    pub fn session() -> Self {
+        use crate::operators::Scope;
+        Self {
+            name: None,
+            scopes: [Scope::Read, Scope::Stop, Scope::Settle, Scope::Approve]
+                .into_iter()
+                .collect(),
+            via: "session-token",
+        }
+    }
+
+    /// An operator resolved from the registry.
+    #[must_use]
+    pub fn operator(operator: &crate::operators::Operator) -> Self {
+        Self {
+            name: Some(operator.name.clone()),
+            scopes: operator.scopes.clone(),
+            via: "operator-token",
+        }
+    }
+
+    /// Whether this principal holds a scope.
+    #[must_use]
+    pub fn allows(&self, scope: crate::operators::Scope) -> bool {
+        self.scopes.contains(&scope)
+    }
+
+    /// How this principal is named in a message. Never invents a name.
+    #[must_use]
+    pub fn describe(&self) -> String {
+        match &self.name {
+            Some(name) => format!("operator {name:?}"),
+            None => "the session token (no operator registry on this machine)".to_string(),
+        }
+    }
+}
+
+/// The scope a request path requires, or `None` when it only reads.
+fn required_scope(segments: &[String]) -> Option<crate::operators::Scope> {
+    use crate::operators::Scope;
+    match segments {
+        [v1, warrants, _id, verb] if v1 == "v1" && warrants == "warrants" => match verb.as_str() {
+            "settle" | "void" => Some(Scope::Settle),
+            "stop" => Some(Scope::Stop),
+            "approve" => Some(Scope::Approve),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// The act a request path performs, for the actor log.
+fn act_of(segments: &[String]) -> Option<(String, crate::operators::Act)> {
+    use crate::operators::Act;
+    match segments {
+        [v1, warrants, id, verb] if v1 == "v1" && warrants == "warrants" => {
+            let act = match verb.as_str() {
+                "settle" => Act::Settle,
+                "void" => Act::Void,
+                "stop" => Act::Stop,
+                "approve" => Act::Approve,
+                _ => return None,
+            };
+            Some((id.clone(), act))
+        }
+        _ => None,
+    }
+}
+
+/// Authenticate against operators as well as the session token, enforce scopes, and record who
+/// acted.
+///
+/// [`handle`] is this without any of it, and is kept: every existing caller and every test that
+/// predates §2.2 drives that path, and a machine that has never run `warrantor operator add`
+/// behaves through this function exactly as it did through that one.
+///
+/// # The order, and why each step is where it is
+///
+/// 1. **Console assets first**, unchanged — they carry no store data.
+/// 2. **Authenticate.** An operator token wins over the session token when both would match, which
+///    they cannot, and a caller presenting neither gets the same 401 as before.
+/// 3. **Scope, before the route runs.** A 403 for a missing scope must not be reachable *after* the
+///    act; there is no partial settle.
+/// 4. **Approvals, before the route runs**, for the same reason.
+/// 5. **Record, after a successful act only.** An actor log that recorded refused attempts as acts
+///    would say a warrant was settled when it was not. Refused attempts are worth recording and are
+///    a different record; this one is the register of what happened.
+pub fn handle_scoped<A: Api>(
+    api: &mut A,
+    token: &SessionToken,
+    registry: &crate::operators::OperatorRegistry,
+    approvals: &crate::operators::ApprovalPolicy,
+    root: &Path,
+    request: &HttpRequest,
+) -> Response {
+    use crate::operators::{Act, ApprovalVerdict};
+
+    if let Some(response) = console_asset(request) {
+        return response;
+    }
+
+    let presented = request.authorization.as_deref().and_then(bearer_of);
+    let Some(presented) = presented else {
+        return unauthorized(api.now());
+    };
+    let principal = if let Some(operator) = registry.authenticate(presented) {
+        Principal::operator(operator)
+    } else if token.matches(presented) {
+        Principal::session()
+    } else {
+        return unauthorized(api.now());
+    };
+
+    if let Some(scope) = required_scope(&request.segments) {
+        if !principal.allows(scope) {
+            return Response::error(
+                status::FORBIDDEN,
+                "scope_required",
+                &format!(
+                    "this act needs the {:?} scope and {} does not hold it (it holds {}). Scopes \
+                     are separate on purpose: the person who can stop a runaway agent is not \
+                     necessarily the person who can release its work.",
+                    scope.word(),
+                    principal.describe(),
+                    principal
+                        .scopes
+                        .iter()
+                        .map(|s| s.word())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ),
+                &Verification::not_attempted(api.now()),
+            );
+        }
+    }
+
+    let act = act_of(&request.segments);
+
+    // The approval gate, checked before the act and only for a settle. Void is deliberately not
+    // gated: discarding staged work is the *safe* direction, and requiring review to throw away an
+    // agent's output would mean a runaway's work sits queued while approvals are collected.
+    if let Some((id, Act::Settle)) = &act {
+        match crate::operators::read_log(root, id) {
+            Ok(records) => {
+                if let ApprovalVerdict::Refused(why) = crate::operators::approval_verdict(
+                    approvals,
+                    &records,
+                    principal.name.as_deref(),
+                ) {
+                    return Response::error(
+                        status::FORBIDDEN,
+                        "approval_required",
+                        &why,
+                        &Verification::not_attempted(api.now()),
+                    );
+                }
+            }
+            // An unreadable actor log is not an absent one. Settling on top of a log that cannot be
+            // read would be releasing effects while unable to say whether the review that this
+            // store requires ever happened.
+            Err(e) => {
+                return Response::error(
+                    status::INTERNAL,
+                    "actor_log_unreadable",
+                    &format!(
+                        "this store requires approvals and {id}'s actor log cannot be read ({e}), \
+                         so whether it was approved is unknown. Refusing rather than settling on an \
+                         unknown."
+                    ),
+                    &Verification::not_attempted(api.now()),
+                );
+            }
+        }
+    }
+
+    // Approve is answered here rather than in `dispatch`, because it touches no warrant state and
+    // needs nothing from the `Api`: it appends one line to the actor log. Routing it through the
+    // trait would mean a new method on every implementation to record a fact this function already
+    // holds.
+    if let Some((id, Act::Approve)) = &act {
+        if request.method != "POST" {
+            return refuse(
+                status::METHOD_NOT_ALLOWED,
+                "method_not_allowed",
+                "approve is a POST",
+            )
+            .with_header("Allow", "POST")
+            .stamped(api.now());
+        }
+        return match crate::operators::record(
+            root,
+            id,
+            Act::Approve,
+            principal.name.as_deref(),
+            principal.via,
+            api.now(),
+        ) {
+            Ok(entry) => Response::json(
+                status::OK,
+                &Verification::not_attempted(api.now()),
+                serde_json::json!({
+                    "approved": id,
+                    "actor": entry.actor,
+                    "via": entry.via,
+                    "at": entry.at,
+                    "digest": entry.digest,
+                    "not_a_verdict": "An approval is a recorded human decision, not a verification \
+                                      result. It says somebody with the approve scope looked; it \
+                                      says nothing about whether the evidence checks out. Verify \
+                                      evidence with `warrantor verify`.",
+                }),
+            ),
+            Err(e) => Response::error(
+                status::INTERNAL,
+                "approval_not_recorded",
+                &format!(
+                    "the approval could not be written down ({e}), so it did not happen. Nothing \
+                     was recorded, rather than an approval existing only in this reply."
+                ),
+                &Verification::not_attempted(api.now()),
+            ),
+        };
+    }
+
+    let response = route(api, request);
+
+    // Recorded only for an act that succeeded. A register of what happened must not contain
+    // attempts that were refused.
+    if let Some((id, act)) = act {
+        if (200..300).contains(&response.status) {
+            if let Err(e) = crate::operators::record(
+                root,
+                &id,
+                act,
+                principal.name.as_deref(),
+                principal.via,
+                api.now(),
+            ) {
+                // The act is done and durable. Losing its actor record costs accountability, not
+                // correctness, so it is said out loud rather than turned into a failure that would
+                // report the act as not having happened.
+                eprintln!(
+                    "warrantor: {} {} succeeded and its actor record could not be written ({e}). \
+                     The act stands; who performed it is now only in this line.",
+                    act.word(),
+                    id
+                );
+            }
+        }
+    }
+    response
+}
+
+fn unauthorized(now: u64) -> Response {
+    Response::error(
+        status::UNAUTHORIZED,
+        "unauthorized",
+        "this request carried no usable bearer token",
+        &Verification::not_attempted(now),
+    )
+    .with_header("WWW-Authenticate", "Bearer")
+}
+
 /// Read one request, answer it, and stop.
 ///
 /// Generic over the reader and writer, so the whole parse → authenticate → route → write path is
@@ -3523,9 +3815,10 @@ pub fn listen<A: Api + Send + 'static>(
     api: A,
     token: SessionToken,
     addr: SocketAddr,
+    root: PathBuf,
     shutdown: &Shutdown,
 ) -> Result<Drain, ServeError> {
-    serve_on(api, token, bind(addr)?, shutdown)
+    serve_on(api, token, bind(addr)?, root, shutdown)
 }
 
 /// Bind the listener, separately from serving on it.
@@ -3562,10 +3855,12 @@ pub fn serve_on<A: Api + Send + 'static>(
     api: A,
     token: SessionToken,
     listener: TcpListener,
+    root: PathBuf,
     shutdown: &Shutdown,
 ) -> Result<Drain, ServeError> {
     let api = Arc::new(Mutex::new(api));
     let token = Arc::new(token);
+    let root = Arc::new(root);
     let live = Arc::new(AtomicUsize::new(0));
 
     while !shutdown.stopping() {
@@ -3621,6 +3916,7 @@ pub fn serve_on<A: Api + Send + 'static>(
         };
         let api = Arc::clone(&api);
         let token = Arc::clone(&token);
+        let root = Arc::clone(&root);
         let spawned = std::thread::Builder::new()
             .name("warrantor-serve".to_string())
             .spawn(move || {
@@ -3637,8 +3933,41 @@ pub fn serve_on<A: Api + Send + 'static>(
                 // `serve_conn`, which is the same three steps fused for tests.
                 let response = match parse_request(&mut input) {
                     Ok(request) => {
+                        // The operator registry and the approval policy are read PER REQUEST rather
+                        // than once at startup. That is one small file read on a server whose
+                        // busiest client is a person refreshing a console, and it buys the property
+                        // a credential system needs most: `warrantor operator remove` takes effect
+                        // on the next request, not on the next restart. A revocation that requires
+                        // restarting the server is a revocation nobody performs during an incident.
+                        //
+                        // An unreadable registry or policy is a REFUSAL, never a fallback: see
+                        // `OperatorRegistry::load`. Falling back would turn a corrupt permissions
+                        // file into the silent removal of every restriction in it.
+                        let identity = crate::operators::OperatorRegistry::load(&root)
+                            .and_then(|registry| {
+                                crate::operators::ApprovalPolicy::load(&root)
+                                    .map(|approvals| (registry, approvals))
+                            });
                         let mut guard = lock_or_recover(&api);
-                        handle(&mut *guard, &token, &request)
+                        match identity {
+                            Ok((registry, approvals)) => handle_scoped(
+                                &mut *guard,
+                                &token,
+                                &registry,
+                                &approvals,
+                                &root,
+                                &request,
+                            ),
+                            Err(e) => Response::error(
+                                status::INTERNAL,
+                                "identity_unreadable",
+                                &format!(
+                                    "this store's operator registry or approval policy cannot be                                      read ({e}), so who may do what is unknown. Every request is                                      refused until that is fixed -- serving them unrestricted would                                      turn a corrupt permissions file into the removal of every                                      restriction in it."
+                                ),
+                                &Verification::not_attempted(guard.now()),
+                            )
+                            .stamped(guard.now()),
+                        }
                     }
                     Err(response) => {
                         let now = lock_or_recover(&api).now();

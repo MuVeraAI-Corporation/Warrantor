@@ -103,6 +103,8 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "arg",
     // prune / agents
     "apply",
+    // operator
+    "scope",
     // mcp
     "agent",
     "observe",

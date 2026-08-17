@@ -38,6 +38,7 @@ use warrantor_warrant::harness;
 use warrantor_warrant::mcp::serve;
 use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
 use warrantor_warrant::notify::{self, Notification, NotifyConfig, NotifyTransport};
+use warrantor_warrant::operators::{self, Act, ApprovalPolicy, Operator, OperatorRegistry, Scope};
 use warrantor_warrant::proxy::{host_of, ProxyMode};
 use warrantor_warrant::report;
 use warrantor_warrant::retention;
@@ -402,6 +403,9 @@ warrantor — bounded authority for coding agents
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
           [--upstream 'name=command args' ...] [--upstream-timeout 30s]
   guard   doctor [--guard-endpoint URL] [--guard-model M] [--guard-num-ctx N]
+  operator list | add <name> --scope read,stop,settle,approve --note \"...\"
+           | remove <name>
+  approve <warrant-id>
   agents  list | detect | show <harness>
           | wire <harness> <warrant-id> [--repo .] [--apply] [--replace]
                  [--upstream 'name=command args' ...]
@@ -410,6 +414,38 @@ warrantor — bounded authority for coding agents
           [--i-accept-cleartext-on-this-network]
   console [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
           [--i-accept-cleartext-on-this-network]
+
+Operator registers a NAMED principal holding a scoped token, which is what makes
+the audit trail able to say WHICH HUMAN settled a warrant instead of only that
+someone holding the one session token did. Four scopes -- read, stop, settle,
+approve -- separate because the person you want able to stop a runaway agent at
+3am is not necessarily the person you want able to release its work. The token is
+printed ONCE and stored only as a SHA-256: a registry that could reprint it would
+be a credential store whose single theft hands over everything in it. A token
+authenticates a TOKEN, not a person; --note is required because it is where you
+record how you bound that name to a human, out of band, and that binding is the
+only thing making the name mean anything. Revocation takes effect on the revoked
+operator's NEXT REQUEST -- the registry is read per request, not at startup,
+because a revocation needing a restart is one nobody performs during an incident.
+With no operators registered, nothing changes: one unscoped session token, one
+anonymous principal, exactly as before.
+
+Every settle, void, stop and approve is appended to actors/<warrant-id>.jsonl,
+hash-chained, naming the operator or recording null when there was none -- never
+an invented name. The chain makes an edited or removed line detectable to anyone
+holding a later copy of the head. It is NOT in the signed evidence envelope: that
+needs a receipt format bump, which is an owner-level decision, so this is stated
+as the weaker guarantee it is rather than dressed as a signature.
+
+Approve records a human decision towards approvals.json's requirement. A settle
+is refused until it is met, on the CLI path as well as the API path -- gating only
+the console would have made the mechanism decorative, since the same person could
+settle from a terminal. By default the settler does not count as an approver:
+separation of duties is the whole reason to require review, and one person doing
+both is not review. A one-person team can set settler_may_approve. Anonymous
+approvals cannot satisfy a requirement above one, because every terminal caller on
+one machine is the same unnamed principal and they cannot be told apart. An
+approval is a recorded decision, NOT a verification result.
 
 Agents is the harness registry: which coding agents, general-purpose agents and
 SDKs can be pointed at a warranted session, and -- the column that matters -- how
@@ -2429,6 +2465,33 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(q) => q,
         Err(e) => return fail(&e),
     };
+
+    // The approval gate, on the CLI path as well as the API path.
+    //
+    // Only checking it in `serve.rs` would have made the whole mechanism decorative: an operator who
+    // was refused in the console could settle the same warrant from a terminal on the same machine.
+    // The CLI settler is anonymous -- there is no token to authenticate at a terminal -- so a policy
+    // requiring more than one distinct approver correctly refuses here until named operators exist.
+    match operators::ApprovalPolicy::load(root) {
+        Ok(policy) if policy.requires_approval() => match operators::read_log(root, id) {
+            Ok(records) => {
+                if let operators::ApprovalVerdict::Refused(why) =
+                    operators::approval_verdict(&policy, &records, None)
+                {
+                    return fail(&format!("{why}
+  (settling from a terminal is an ANONYMOUS act: there is no token to authenticate here.)"));
+                }
+            }
+            Err(e) => {
+                return fail(&format!(
+                    "this store requires approvals and {id}'s actor log cannot be read ({e}), so                      whether it was approved is unknown. Refusing rather than settling on an unknown."
+                ))
+            }
+        },
+        Ok(_) => {}
+        Err(e) => return fail(&e),
+    }
+
     let settle_key = match load_or_create_key(&root.join("keys/settle.key"), KeyKind::Settle) {
         Ok(k) => k,
         Err(e) => return fail(&e),
@@ -2706,6 +2769,203 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         }
         Err(e) => fail(&e),
     }
+}
+
+// ── operators and approvals: §2.2, who did it and what they were allowed to do ─────────
+
+fn cmd_operator(args: &Args, root: &Path) -> ExitCode {
+    match args.positional.first().map(String::as_str) {
+        Some("list") | None => cmd_operator_list(root),
+        Some("add") => cmd_operator_add(args, root),
+        Some("remove") => cmd_operator_remove(args, root),
+        Some(other) => fail(&format!(
+            "unknown operator subcommand {other:?}. Try: list, add <name> --scope ... --note \
+             \"...\", remove <name>"
+        )),
+    }
+}
+
+fn cmd_operator_list(root: &Path) -> ExitCode {
+    let registry = match OperatorRegistry::load(root) {
+        Ok(r) => r,
+        Err(e) => return fail(&e),
+    };
+    if registry.is_empty() {
+        println!("No operators are registered on this machine.");
+        println!();
+        println!(
+            "That is not a broken state -- it is what this server has always been: one unscoped\n\
+             session token per `warrantor serve` run, one anonymous principal, and an audit trail\n\
+             that can say an act happened but not WHICH HUMAN performed it. Every mutating act is\n\
+             still recorded in <root>/actors/<warrant-id>.jsonl, with the actor written as null,\n\
+             because inventing a name there would be worse than admitting there is none."
+        );
+        println!();
+        println!(
+            "  warrantor operator add ana --scope settle,approve --note \"video call 2026-08-16\""
+        );
+        return ExitCode::SUCCESS;
+    }
+    println!("{:<20} {:<24} {:<12} NOTE", "OPERATOR", "SCOPES", "ADDED");
+    for operator in &registry.operators {
+        println!(
+            "{:<20} {:<24} {:<12} {}",
+            operator.name,
+            operator.scope_words(),
+            operator.added_at,
+            operator.note
+        );
+    }
+    println!();
+    println!(
+        "A token authenticates a TOKEN, not a person. The name above is bound to a human by the\n\
+         note beside it and by nothing else -- trust on first use, checked out of band, exactly as\n\
+         `warrantor issuer add` records an issuer key. Every actor line this store writes carries\n\
+         that name, and every rendering of it carries this caveat."
+    );
+    ExitCode::SUCCESS
+}
+
+fn cmd_operator_add(args: &Args, root: &Path) -> ExitCode {
+    let Some(name) = args.positional.get(1) else {
+        return fail(
+            "usage: warrantor operator add <name> --scope read,stop,settle,approve --note \"how you \
+             bound this name to a person\"",
+        );
+    };
+    let Some(raw_scopes) = args.flags.get("scope") else {
+        return fail(
+            "--scope is required: one or more of read, stop, settle, approve. There is no default, \
+             because an absent limit means none here as it does everywhere else in this system.",
+        );
+    };
+    let scopes = match Scope::parse_list(raw_scopes) {
+        Ok(s) => s,
+        Err(e) => return fail(&e),
+    };
+    let note = args.flags.get("note").cloned().unwrap_or_default();
+
+    let mut registry = match OperatorRegistry::load(root) {
+        Ok(r) => r,
+        Err(e) => return fail(&e),
+    };
+    let token = match registry.add(name, scopes, &note, now()) {
+        Ok(token) => token,
+        Err(e) => return fail(&e),
+    };
+    if let Err(e) = registry.save(root) {
+        return fail(&e);
+    }
+
+    let scope_words = registry
+        .by_name(name)
+        .map(Operator::scope_words)
+        .unwrap_or_default();
+    println!("operator  {name}");
+    println!("scopes    {scope_words}");
+    println!("note      {note}");
+    println!();
+    // Printed exactly once, and the sentence saying so is not a formality: the registry stores only
+    // a digest, so there is no command that can print it again.
+    println!("token     {token}");
+    println!();
+    println!(
+        "THIS IS THE ONLY TIME THAT TOKEN IS PRINTED. The registry holds its SHA-256 and not the\n\
+         token, so nothing can reprint it -- a registry that could would be a credential store\n\
+         whose single theft hands over every operator's authority at once. If it is lost, remove\n\
+         this operator and add them again."
+    );
+    println!();
+    println!(
+        "Hand it over out of band. It is presented as `Authorization: Bearer <token>` to\n\
+         `warrantor serve`, and the console takes it in the URL fragment the same way the session\n\
+         token does: http://<addr>/#t=<token>"
+    );
+    ExitCode::SUCCESS
+}
+
+fn cmd_operator_remove(args: &Args, root: &Path) -> ExitCode {
+    let Some(name) = args.positional.get(1) else {
+        return fail("usage: warrantor operator remove <name>");
+    };
+    let mut registry = match OperatorRegistry::load(root) {
+        Ok(r) => r,
+        Err(e) => return fail(&e),
+    };
+    let removed = match registry.remove(name) {
+        Ok(o) => o,
+        Err(e) => return fail(&e),
+    };
+    if let Err(e) = registry.save(root) {
+        return fail(&e);
+    }
+    println!(
+        "Revoked {name} ({}). A running `warrantor serve` reads the registry on every request, so \
+         this takes effect on their next one -- no restart.",
+        removed.scope_words()
+    );
+    println!();
+    println!(
+        "What is NOT undone: every act they already performed stays in the actor logs, which is the \
+         point of those logs. Their token was never stored, so there is nothing left of it here."
+    );
+    ExitCode::SUCCESS
+}
+
+fn cmd_approve(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
+    let Some(id) = args.positional.first() else {
+        return fail("usage: warrantor approve <warrant-id>");
+    };
+    // The warrant has to exist. Approving one that does not is a line in a log that can never be
+    // reconciled with anything.
+    let stored = match store.load(id) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+
+    let policy = match ApprovalPolicy::load(root) {
+        Ok(p) => p,
+        Err(e) => return fail(&e),
+    };
+    let entry = match operators::record(root, id, Act::Approve, None, "cli", now()) {
+        Ok(entry) => entry,
+        Err(e) => return fail(&e),
+    };
+
+    println!("Approved {id} ({:?}).", stored.warrant.state);
+    println!("  actor    (anonymous -- there is no token to authenticate at a terminal)");
+    println!("  at       {}", entry.at);
+    println!("  digest   {}", entry.digest);
+    println!();
+    if policy.requires_approval() {
+        let records = operators::read_log(root, id).unwrap_or_default();
+        let distinct = operators::approvers(&records).len();
+        println!(
+            "This store requires {} approval(s); {distinct} distinct approver(s) recorded.",
+            policy.required
+        );
+        if policy.required > 1 {
+            println!(
+                "  An anonymous approval cannot satisfy a requirement above one: every terminal\n  \
+                 caller on this machine is the same unnamed principal, so they cannot be told\n  \
+                 apart. Register operators and approve through `warrantor serve` instead."
+            );
+        }
+    } else {
+        println!(
+            "This store requires NO approvals (no approvals.json, or it asks for zero), so this\n\
+             record is accountability and not a gate. Write one to make it a gate:\n  \
+             {{\"format\":\"{}\",\"required\":2}}",
+            operators::APPROVALS_FORMAT
+        );
+    }
+    println!();
+    println!(
+        "An approval is a recorded human decision, NOT a verification result. It says somebody\n\
+         looked; it says nothing about whether the evidence checks out. Check that with\n\
+         `warrantor verify <exported-report.json> --issuer <key>`."
+    );
+    ExitCode::SUCCESS
 }
 
 // ── agents: the harnesses, and pointing them at a warranted session ───────────────────
@@ -3774,7 +4034,7 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) 
         build_performer,
         now,
     );
-    let outcome = http::serve_on(api, token, listener, &shutdown);
+    let outcome = http::serve_on(api, token, listener, root.to_path_buf(), &shutdown);
     // Removed whether the drain completed or not, and whether or not the loop ended in an error:
     // the token is a per-session secret and this session is over either way.
     let removed = std::fs::remove_file(&token_path);
@@ -4855,6 +5115,8 @@ fn main() -> ExitCode {
         "supervise" => cmd_supervise(&args, &store, &root),
         "status" => cmd_status(&store, &root),
         "mcp" => cmd_mcp(&args, store, &root),
+        "operator" => cmd_operator(&args, &root),
+        "approve" => cmd_approve(&args, &store, &root),
         "agents" => cmd_agents(&args, &store),
         "guard" => cmd_guard(&args),
         "selftest-upstream" => cmd_selftest_upstream(),

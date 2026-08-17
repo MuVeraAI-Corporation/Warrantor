@@ -134,6 +134,10 @@ fn a_real_listener_answers_and_a_shutdown_stops_it_without_cutting_anything_off(
             api,
             SessionToken::from_value(TOKEN),
             format!("127.0.0.1:{PORT}").parse().expect("addr"),
+            // The store root, for the operator registry and the approval policy -- read per
+            // request so a revocation takes effect without a restart. This test's store has
+            // neither file, which is the unscoped-session-token behaviour that predates them.
+            dir.clone(),
             &watched,
         )
     });

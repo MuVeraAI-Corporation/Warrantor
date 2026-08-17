@@ -42,6 +42,7 @@ pub mod harness;
 pub mod mcp;
 pub mod mcp_endpoints;
 pub mod notify;
+pub mod operators;
 pub mod proxy;
 pub mod report;
 pub mod retention;

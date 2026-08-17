@@ -290,17 +290,73 @@ same keyboard, which is not the claim.
 
 This remains the largest single gap in the product, and everything in Tier 3 assumes it.
 
-### 2.2 No identity, no per-person authorisation
+### 2.2 Identity and per-person authorisation — **built, with one half deliberately left undone**
 
-There is one bearer token per server run, unscoped. Everyone who has it is the same principal, and
-the audit trail cannot say which human settled a warrant — only that someone holding the token did.
-`serve.rs` names this: the token "is a single unscoped value, and scoping it the same way is the
-right next fix."
+For every release before this one: one bearer token per server run, unscoped. Everyone holding it
+was the same principal, `--allow-settle` was all-or-nothing, and the audit trail could not say which
+human settled a warrant — only that someone holding the token did.
 
-### 2.3 No TLS anywhere
+**Built.** `warrantor operator add <name> --scope read,stop,settle,approve --note "..."` registers a
+named principal holding its own token. Four scopes, separated because the person you want able to
+stop a runaway agent at 3am is not necessarily the person you want able to release its work. Tokens
+are stored as SHA-256 and printed exactly once: a registry that could reprint one would be a
+credential store whose single theft hands over everything in it. The registry is read **per
+request**, not at startup, so `operator remove` takes effect on the revoked operator's next request
+— a revocation needing a restart is one nobody performs during an incident.
 
-Stated plainly in `serve.rs`: the token protects access, not bytes on the wire. Loopback makes that
-acceptable today and unacceptable the moment anything binds beyond it. `--bind` already warns.
+Every settle, void, stop and approve is appended to `actors/<warrant-id>.jsonl`, hash-chained,
+naming the operator — or recording `null` when there was none, because inventing a name is worse
+than admitting there is none. Verified end to end over HTTP: an approve-scoped operator is refused a
+settle, a settle-scoped one is refused an approve, and a two-approval policy refuses the settle
+until two *distinct named* approvers have recorded one.
+
+**Not done, and the reason differs in each case.**
+
+- **The actor is not in the signed evidence envelope.** That needs a `WAR` receipt format bump,
+  which is an owner-level decision with migration consequences and was recorded as an open question
+  rather than a task. So the actor record is a separate hash-chained log, and that is a **weaker
+  guarantee, stated as one**: the chain makes an edited or removed line detectable to anyone holding
+  a later copy of the head, and it proves nothing to a third party who has never seen one.
+- **A token authenticates a token, not a person.** The name is bound to a human out of band by
+  whoever minted it — the same trust-on-first-use posture `warrantor issuer add` takes for issuer
+  keys — and `--note` is required because that binding is the only thing making the name mean
+  anything. Every rendering carries the caveat.
+- **The session token still works, unscoped**, and must: otherwise registering an operator would
+  lock out whoever started the server.
+
+### 2.2b Approval routing — **built on top of 2.2**
+
+`approvals.json` (`required`, `settler_may_approve`) and `warrantor approve <warrant-id>`. A settle
+is refused until the requirement is met — **on the CLI path as well as the API path**, because
+gating only the console would have made the mechanism decorative: the same person could settle from
+a terminal on the same machine. By default the settler does not count as an approver. Anonymous
+approvals cannot satisfy a requirement above one, because every terminal caller on one machine is
+the same unnamed principal and they cannot be told apart; the refusal names that and names the
+remedy. A **void is never gated** — discarding staged work is the safe direction, and requiring
+review to throw a runaway's output away would leave its staged effects queued while approvals are
+collected.
+
+Notifications (§3.2) already exist, so a human who is not watching the window can be told a decision
+is waiting. What is still absent is any *routing* of that decision to a particular person: the
+webhook fires, and who picks it up is an organisational question this build does not model.
+
+### 2.3 No TLS anywhere — **still true; the bind is now fail-closed**
+
+There is still no TLS. The token protects access, not bytes on the wire.
+
+What changed is the default. A bind beyond loopback used to print a thorough warning and start the
+server anyway; it is now a **refusal**, and the acknowledgement is
+`--i-accept-cleartext-on-this-network`, named after what it admits rather than what it enables. The
+argument is not about how loud a warning is: the token crosses in the clear on every request, a
+warning is read once by the person who typed the command and then their terminal closes while the
+server keeps running, and an intercepted token produces no incident to notice — the traffic is well
+formed, the token is valid, and until §2.2 the audit trail could not say which human acted. The
+refusal is checked before the keys are loaded and before a token is minted, so a refused bind leaves
+no token file behind.
+
+The fix is still a reverse proxy terminating TLS in front of a loopback bind, and the refusal says
+so. Native TLS would mean adding a TLS stack to a crate that carries seven external dependencies and
+no async runtime; that is a dependency decision for the owner rather than one to take unilaterally.
 
 ### 2.4 The agent can reach the API
 
