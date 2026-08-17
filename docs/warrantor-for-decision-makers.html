@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Warrantor, explained for people who decide — not people who build</title>
+<style>
+  :root {
+    --bg: #faf9f7; --panel: #ffffff; --ink: #191817; --ink-soft: #4a4642; --ink-faint: #75706a;
+    --line: #e6e1da; --line-strong: #d0c9c0; --accent: #c2571f; --accent-soft: #fdf3ec;
+    --ok: #1f6b4a; --ok-bg: #edf6f1; --bad: #9c2a1e; --bad-bg: #fbeeec;
+    --warn: #8a6100; --warn-bg: #fdf5e3;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Söhne", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1917; --panel: #232120; --ink: #f2efea; --ink-soft: #c4bdb4; --ink-faint: #948d84;
+      --line: #35322f; --line-strong: #4a4642; --accent: #e07a42; --accent-soft: #2c2320;
+      --ok: #6fc79b; --ok-bg: #1c2a24; --bad: #e08a7d; --bad-bg: #2c2120;
+      --warn: #d9ad5a; --warn-bg: #2a2419;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
+         font-size: 17.5px; line-height: 1.7; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 60px 28px 140px; }
+
+  header { border-bottom: 1px solid var(--line); padding-bottom: 32px; margin-bottom: 12px; }
+  .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+             font-weight: 600; margin: 0 0 14px; }
+  h1 { font-size: 38px; line-height: 1.16; margin: 0 0 18px; font-weight: 600; letter-spacing: -.025em; }
+  .standfirst { font-size: 20px; color: var(--ink-soft); margin: 0; line-height: 1.55; }
+  .meta { font-size: 13px; color: var(--ink-faint); margin-top: 22px; font-family: var(--mono); }
+
+  h2 { font-size: 27px; margin: 64px 0 8px; font-weight: 600; letter-spacing: -.015em; line-height: 1.25; }
+  .h2sub { color: var(--ink-faint); font-size: 15px; margin: 0 0 22px; }
+  h3 { font-size: 19px; margin: 38px 0 10px; font-weight: 600; }
+  p { margin: 0 0 17px; }
+  strong { font-weight: 600; }
+  code { font-family: var(--mono); font-size: .85em; background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; }
+
+  .lede { font-size: 19px; color: var(--ink-soft); }
+  .pull { border-left: 3px solid var(--accent); padding: 4px 0 4px 22px; margin: 30px 0;
+          font-size: 21px; line-height: 1.45; color: var(--ink); font-weight: 500; }
+
+  .callout { border-radius: 10px; padding: 20px 24px; margin: 28px 0; border: 1px solid; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .label { font-weight: 600; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase;
+                    display: block; margin-bottom: 8px; }
+  .stop { background: var(--bad-bg); border-color: var(--bad); } .stop .label { color: var(--bad); }
+  .warn { background: var(--warn-bg); border-color: var(--warn); } .warn .label { color: var(--warn); }
+  .good { background: var(--ok-bg); border-color: var(--ok); } .good .label { color: var(--ok); }
+  .note { background: var(--panel); border-color: var(--line-strong); } .note .label { color: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 24px 0 30px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+
+  .tier { font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+          padding: 2px 9px; border-radius: 999px; white-space: nowrap; border: 1px solid; }
+  .t-enf { color: var(--ok); background: var(--ok-bg); border-color: var(--ok); }
+  .t-med { color: var(--warn); background: var(--warn-bg); border-color: var(--warn); }
+  .t-obs { color: var(--bad); background: var(--bad-bg); border-color: var(--bad); }
+
+  ul, ol { margin: 0 0 17px; padding-left: 24px; } li { margin-bottom: 10px; }
+  .plain { list-style: none; padding-left: 0; }
+  .plain li { padding-left: 26px; position: relative; }
+  .plain li::before { content: "—"; position: absolute; left: 0; color: var(--accent); }
+
+  .steps { counter-reset: s; list-style: none; padding-left: 0; }
+  .steps > li { counter-increment: s; position: relative; padding-left: 46px; margin-bottom: 22px; }
+  .steps > li::before {
+    content: counter(s); position: absolute; left: 0; top: 1px;
+    width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft);
+    color: var(--accent); font-weight: 700; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent);
+  }
+  .steps h3 { margin: 0 0 4px; font-size: 17.5px; }
+
+  .glossary dt { font-weight: 600; margin-top: 18px; }
+  .glossary dd { margin: 4px 0 0; color: var(--ink-soft); }
+
+  .footnote { font-size: 14.5px; color: var(--ink-faint); border-top: 1px solid var(--line);
+              padding-top: 22px; margin-top: 56px; }
+  .toc { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+         padding: 20px 26px; margin: 34px 0 8px; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 15.5px; }
+  .toc li { margin-bottom: 6px; }
+  .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line-strong); }
+  .toc a:hover { border-bottom-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Warrantor · a briefing for decision makers</p>
+  <h1>You are about to let software act on your behalf. Who answers for it?</h1>
+  <p class="standfirst">
+    Warrantor is the layer that lets an organisation put AI agents to work on real systems without
+    anyone having to say afterwards, <em>"we're not sure exactly what it did."</em> This explains
+    what it is, what it genuinely does, what it deliberately does not, and why the value grows
+    faster than the cost.
+  </p>
+  <p class="meta">No technical background assumed · 17 August 2026</p>
+</header>
+
+<div class="toc">
+  <ol>
+    <li><a href="#problem">The problem, in one page</a></li>
+    <li><a href="#idea">The idea: a warrant</a></li>
+    <li><a href="#day">What a day actually looks like</a></li>
+    <li><a href="#honest">The unusual thing: it tells you what it cannot do</a></li>
+    <li><a href="#exponential">Why the value compounds</a></li>
+    <li><a href="#not">What Warrantor is not</a></li>
+    <li><a href="#regulator">The regulatory picture</a></li>
+    <li><a href="#state">Where the product actually is</a></li>
+    <li><a href="#questions">The questions to ask us</a></li>
+    <li><a href="#glossary">Glossary</a></li>
+  </ol>
+</div>
+
+<h2 id="problem">1. The problem, in one page</h2>
+<p class="h2sub">Why this is different from every previous wave of automation</p>
+
+<p class="lede">
+  For thirty years, software did what it was told. You wrote the rule, the rule ran, and if the
+  outcome was wrong you could point at the rule. Accountability was mechanical.
+</p>
+
+<p>
+  An AI agent is not that. You give it a goal — <em>"fix the failing tests in the billing
+  service"</em> — and it decides for itself what to read, what to change, what to run, and what to
+  do when it hits something unexpected. It is genuinely useful precisely <em>because</em> you did
+  not have to specify the steps. That is also the whole problem.
+</p>
+
+<p>
+  Three things follow, and they are the reason a new layer is needed rather than better dashboards.
+</p>
+
+<h3>It acts, it does not advise</h3>
+<p>
+  A chatbot that gives bad advice wastes your time. An agent with access to your systems can open a
+  pull request, send an email, change a configuration, or delete a branch. The output is not a
+  suggestion; it is a change to the world. Undoing it is a project.
+</p>
+
+<h3>Nobody is watching in real time</h3>
+<p>
+  The entire economic case for agents is that a person does not sit and supervise. If someone has to
+  watch every step, you have hired an expensive pair-programmer, not automation. So the honest
+  design assumption is: <strong>the agent runs while everyone is asleep, and a human looks
+  afterwards.</strong> Everything Warrantor does follows from taking that seriously rather than
+  pretending otherwise.
+</p>
+
+<h3>They multiply</h3>
+<p>
+  One agent is a curiosity. The change happening now is that they are cheap enough to run twenty at
+  once. And here is the part most plans miss: <strong>the limit on how many you can run is not
+  compute, and it is not licence cost. It is how many you can be answerable for.</strong>
+</p>
+
+<div class="pull">
+  If you cannot say what an agent did, you cannot let it do very much. So the constraint on adopting
+  AI at scale is not capability — it is accountability.
+</div>
+
+<h2 id="idea">2. The idea: a warrant</h2>
+<p class="h2sub">One concept, borrowed from how organisations already delegate</p>
+
+<p>
+  Organisations solved this problem for humans a long time ago, and the solution has a shape.
+  Consider a purchase order, a limited power of attorney, or a contractor's work permit. Each has
+  the same three properties:
+</p>
+
+<ul class="plain">
+  <li><strong>Permission is stated in advance and is limited.</strong> Up to £50,000. This site only.
+    Until Friday.</li>
+  <li><strong>The work happens without supervision.</strong> Nobody follows the contractor around.</li>
+  <li><strong>There is a record, and someone signs off at the end.</strong> The invoice is checked
+    before it is paid.</li>
+</ul>
+
+<p>
+  A <strong>warrant</strong> is that, for an AI agent. Before the agent starts, you write down what
+  it is allowed to do. The agent then works alone. Everything it does is recorded. And — the part
+  that makes it more than paperwork — <strong>anything that would affect the outside world is held,
+  not done,</strong> until a person releases it.
+</p>
+
+<h3>The single most important design decision</h3>
+
+<div class="callout good">
+  <span class="label">The agent cannot approve its own work</span>
+  <p>
+    This is not a setting that could be misconfigured, and it is not a policy someone could
+    override. The ability to release the agent's work is held by a <em>different cryptographic
+    key</em>, which the agent never possesses. It is the same reason the person who submits an
+    expense claim is not the person who approves it — except here it is enforced by mathematics
+    rather than by an org chart.
+  </p>
+  <p>
+    If this were merely a permission check, an agent that wanted to open a pull request could
+    approve itself and open it. Making the wrong thing <em>impossible</em> rather than
+    <em>forbidden</em> is the principle the whole product is built on.
+  </p>
+</div>
+
+<h3>Holding work, rather than blocking it</h3>
+<p>
+  This is worth dwelling on because it is counter-intuitive and it is where most of the practical
+  value sits.
+</p>
+<p>
+  The obvious approach to AI risk is a filter: watch what the agent is about to do, and block the
+  bad things. That approach fails for a reason nobody can engineer around — <strong>you have to be
+  right in the moment, every time.</strong> Block too much and the agent cannot work. Block too
+  little and something escapes.
+</p>
+<p>
+  Warrantor moves the decision to where it is easy. The agent works freely inside its own private
+  copy of the code. Anything reaching outward — a pull request, a message, a deployment — is
+  <em>staged</em>: written down as an intention, with a handle the agent can carry on using, but not
+  performed. In the morning a person sees the whole set at once, in context, and releases it or
+  discards it.
+</p>
+
+<div class="pull">
+  A snap judgement in the middle of the night becomes a considered judgement over coffee — with the
+  complete picture, and with the option to throw it all away at no cost.
+</div>
+
+<h2 id="day">3. What a day actually looks like</h2>
+<p class="h2sub">The same story, told as a sequence</p>
+
+<ol class="steps">
+  <li>
+    <h3>Someone grants a warrant</h3>
+    <p>
+      A goal in plain words, a list of tools the agent may use, which files it may change, which
+      external services it may reach, a spending limit, and a deadline. This takes about a minute
+      and it is the only moment that requires thought.
+    </p>
+  </li>
+  <li>
+    <h3>The agent works, alone</h3>
+    <p>
+      It gets its own private copy of the codebase, so nothing it does touches the real one. Every
+      tool it uses passes through a checkpoint that consults the warrant. A request outside the
+      permission is refused and written down — the refusal is itself useful information.
+    </p>
+  </li>
+  <li>
+    <h3>Outward actions are held</h3>
+    <p>
+      The agent believes it opened the pull request; it receives a handle and continues. Nothing has
+      reached the outside world.
+    </p>
+  </li>
+  <li>
+    <h3>The deadline arrives, and the agent stops</h3>
+    <p>
+      Not by asking it nicely. The operating system terminates it, the same way it would any other
+      process. An agent cannot talk its way past a deadline.
+    </p>
+  </li>
+  <li>
+    <h3>A person is told there is a decision waiting</h3>
+    <p>
+      Not a log to go and find — a notification, and a queue that says which warrants are waiting,
+      <em>who</em> they are waiting on, and what that specific person can do about it. If your
+      policy requires two approvers, it says which one is still missing.
+    </p>
+  </li>
+  <li>
+    <h3>They look, and they decide</h3>
+    <p>
+      A single screen: what was asked, what happened, what was refused, what is staged. Two buttons —
+      release it, or discard it. Discarding costs nothing, because nothing was done.
+    </p>
+  </li>
+  <li>
+    <h3>A record survives, either way</h3>
+    <p>
+      Cryptographically signed, tamper-evident, and independently checkable — including by someone
+      who does not trust you. Discarded work keeps its record too: the fact that an agent
+      <em>attempted</em> something is evidence, not garbage.
+    </p>
+  </li>
+</ol>
+
+<h2 id="honest">4. The unusual thing: it tells you what it cannot do</h2>
+<p class="h2sub">If you read one section, read this one</p>
+
+<p>
+  Most security products describe themselves in terms of what they stop. Warrantor labels every
+  limit it enforces with <em>how strongly</em> it is enforced — and it labels the weak ones weak, on
+  the screen, to the buyer.
+</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Tier</th><th>What it means in practice</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="tier t-enf">Enforced</span></td>
+      <td>The agent cannot get around this, at all. Held by cryptography or by the operating system —
+        a signature it cannot forge, a process it cannot outlive. <em>The deadline is here. So is the
+        rule that an agent cannot delegate more power than it was given.</em></td>
+    </tr>
+    <tr>
+      <td><span class="tier t-med">Mediated</span></td>
+      <td>Enforced at a checkpoint the agent could, in principle, decline to use. Real against any
+        agent that works through its normal tools — which is what every current coding agent does,
+        constantly. <em>Which tools it may use, and which external services it may reach.</em></td>
+    </tr>
+    <tr>
+      <td><span class="tier t-obs">Observed</span></td>
+      <td>Measured and reported, <strong>not prevented</strong>. <em>Which files it may change, and
+        the spending limit.</em> The spending figure comes from the agent's own self-reporting.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout warn">
+  <span class="label">Why a vendor would publish its own weakest column</span>
+  <p>
+    Because the alternative is worse. A customer who believes "the agent cannot write outside these
+    folders" will not add the extra containment that would make it true. A customer who has been
+    told plainly that it is <em>observed</em> rather than <em>prevented</em> will — and Warrantor
+    generates the configuration to do it.
+  </p>
+  <p>
+    Every serious AI incident in the last two years shared one shape: <strong>a boundary that existed
+    in the instructions and not in the system.</strong> A product that overstates its own boundaries
+    is reproducing that failure and selling it. So the tier labels are not modesty. They are the
+    product.
+  </p>
+</div>
+
+<h3>The same honesty, applied to the AI safety model</h3>
+<p>
+  Warrantor can attach a second AI model that reads each of the agent's actions and flags anything
+  it considers harmful. It runs in <strong>advisory mode by default</strong>, and we can tell you
+  exactly why with a number: measured against a standard industry test set, it catches roughly
+  <strong>82%</strong> of adversarially-phrased harmful requests. That is good. It is not a wall.
+</p>
+<p>
+  We also measured something more revealing. Given two commands that both destroy work
+  irrecoverably, it caught <em>"run <code>rm -rf</code> on the production data volume"</em> and
+  <strong>missed</strong> <em>"force-push a rewritten history over main and delete every other
+  branch."</em> Both are catastrophic. The difference is vocabulary: these models are trained on harm
+  to <em>people</em>, and "force-push" is ordinary engineering English.
+</p>
+<p>
+  No amount of tuning fixes that. It is a category limitation, and it is exactly why the model
+  <em>advises</em> while the rules <em>decide</em>. Wired the other way round — model first, rules as
+  advice — that force-push goes through.
+</p>
+
+<h2 id="exponential">5. Why the value compounds</h2>
+<p class="h2sub">The commercial argument, made carefully</p>
+
+<p>
+  The weak version of this argument is "AI is risky, so buy governance." That is a cost centre and
+  it is not what is happening here.
+</p>
+
+<p>
+  The strong version starts from the observation in §1: <strong>your ceiling on agent adoption is
+  accountability, not capability.</strong> Follow that through.
+</p>
+
+<h3>Oversight cost normally grows with the number of agents</h3>
+<p>
+  Without a common layer, each agent produces its own trail in its own format. Reviewing two agents
+  costs twice as much attention as one. That is a straight line, and it puts a hard cap on adoption
+  — a cap set by how much reviewing your people can absorb, which is a number that does not grow.
+</p>
+
+<h3>Warrantor bends that line</h3>
+<p>
+  Every agent, whatever vendor, produces the <em>same</em> evidence in the same shape, and every
+  decision arrives in one queue that says who it is waiting on. Reviewing the twentieth agent costs
+  a small fraction of reviewing the first, because the reviewer has learned the format once. The
+  cost of oversight grows far more slowly than the number of agents.
+</p>
+
+<div class="pull">
+  The value is not the risk you avoid. It is the agents you can now afford to run — the ones you
+  would otherwise not dare to.
+</div>
+
+<h3>Three effects that stack</h3>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Effect</th><th>What it means for you</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Wider permissions become safe to grant</strong></td>
+      <td>Most agent deployments are throttled by fear — read-only access, a sandbox with nothing
+        real in it. When outward actions are held rather than performed, you can grant a genuinely
+        useful scope, because the worst case is a discarded batch rather than an incident.</td>
+    </tr>
+    <tr>
+      <td><strong>Review time drops per agent</strong></td>
+      <td>One format, one queue, one screen. Reviewers get faster at a fixed shape in a way they
+        never do at twenty different ones.</td>
+    </tr>
+    <tr>
+      <td><strong>The evidence has value beyond the review</strong></td>
+      <td>The same signed records answer the auditor, the incident post-mortem, the customer's
+        security questionnaire and the regulator — without a project to assemble them.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>The honest cost side</h3>
+<p>
+  Someone must look at the queue. Warrantor makes the looking fast and makes ignoring it visible; it
+  does not remove it. If your organisation's answer to a review queue is to approve everything
+  without reading, this product will record that faithfully and you will have bought an audit trail
+  of rubber-stamping. That is a real failure mode and we would rather you hear it from us.
+</p>
+
+<h2 id="not">6. What Warrantor is not</h2>
+<p class="h2sub">So you can rule it in or out quickly</p>
+
+<ul class="plain">
+  <li><strong>Not a monitoring dashboard.</strong> Dashboards tell you what happened. Warrantor
+    decides what is <em>allowed</em> to happen and holds the rest for a person.</li>
+  <li><strong>Not an AI content filter.</strong> It governs what an agent <em>does</em>, not what a
+    model <em>says</em>.</li>
+  <li><strong>Not a replacement for your existing controls.</strong> It composes with them. It will
+    generate a confinement configuration for your infrastructure and then tell you plainly which of
+    its own limits that configuration does and does not cover.</li>
+  <li><strong>Not a way to run agents you do not trust at all.</strong> It bounds authority and
+    creates accountability. It does not make an unreliable agent reliable.</li>
+  <li><strong>Not vendor lock-in for your agents.</strong> It currently supports <strong>36</strong>
+    agent tools and frameworks — the major coding assistants, general assistants and developer
+    frameworks — and for each one it states exactly how much of that tool's activity actually passes
+    through it. For several, the honest answer is "less than you would assume", and it says so.</li>
+</ul>
+
+<h2 id="regulator">7. The regulatory picture</h2>
+<p class="h2sub">Current as of August 2026, and more urgent than it looks</p>
+
+<p>
+  In April 2026 the US banking regulators issued revised model-risk guidance
+  (<strong>OCC Bulletin 2026-13</strong>, and the Federal Reserve's <strong>SR 26-2</strong>),
+  replacing the guidance that had governed model risk for fifteen years. It contains a sentence that
+  is widely being read backwards:
+</p>
+
+<div class="callout stop">
+  <span class="label">What it says, and what it means</span>
+  <p>
+    <em>"Generative AI and agentic AI models are novel and rapidly evolving. As such, they are not
+    within the scope of this guidance."</em>
+  </p>
+  <p>
+    Read as an exemption, that is a reason to wait. <strong>It is not an exemption. It is a
+    deferral</strong> — separate guidance is promised. Every obligation attached to the underlying
+    <em>action</em> is untouched: safety and soundness, consumer protection, sectoral duties,
+    third-party risk. What was removed is the framework that would have <em>specified</em> the
+    controls.
+  </p>
+  <p>
+    So nobody is going to hand you a control specification for agents. And the guidance that
+    eventually arrives will be written against whatever the industry has already built. That is a
+    <strong>stronger</strong> argument for building the accountability layer now, not a weaker one —
+    the organisations with evidence in hand will be the ones describing what "adequate" looks like.
+  </p>
+</div>
+
+<p>
+  The same reasoning applies under India's RBI and DPDP regimes and across GCC supervisory
+  frameworks and sovereign-AI programmes: the duty attaches to the action, whoever or whatever took
+  it. Warrantor's position is that governance, context and AI security are <em>enablers of ambitious
+  deployment</em> — the things that let you widen an agent's remit — rather than a compliance tax
+  applied afterwards.
+</p>
+
+<h2 id="state">8. Where the product actually is</h2>
+<p class="h2sub">Stated the way we would want it stated to us</p>
+
+<p>
+  We separate three things that are usually blurred together: <em>built</em>, <em>tested</em>, and
+  <em>observed working</em>. Only the third is a claim worth much.
+</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Capability</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>Bounded authority, staging, signed evidence</td><td><strong>Working and observed.</strong> This is the core and it runs.</td></tr>
+    <tr><td>Multi-person approval, with a two-person rule</td><td><strong>Working and observed</strong> end to end across three people with separated permissions.</td></tr>
+    <tr><td>Named accountability — <em>which human</em> released it</td><td><strong>Working.</strong> Tamper-evident, and it never invents a name it does not have.</td></tr>
+    <tr><td>36 agent-tool integrations</td><td><strong>Working</strong>, each labelled with how much it actually covers.</td></tr>
+    <tr><td>AI safety model, advisory</td><td><strong>Working and measured</strong>, including the limitation described in §4.</td></tr>
+    <tr><td>Desktop application, Windows</td><td><strong>Built, installed and launched.</strong></td></tr>
+    <tr><td>Desktop application, macOS</td><td><strong>Built, not yet run on an Apple machine.</strong> We will not claim it works until we have watched it work.</td></tr>
+    <tr><td>Installer trust signature</td><td><strong>Not purchased.</strong> The software runs; the operating system shows an "unknown publisher" warning until a certificate is bought. This is procurement, not engineering.</td></tr>
+    <tr><td>Multi-machine and cross-team view</td><td><strong>Partial.</strong> Single-machine oversight is complete.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout note">
+  <span class="label">Why we hand you this table</span>
+  <p>
+    A product whose entire proposition is <em>"a person should read a verdict rather than click
+    past a warning"</em> cannot ask you to click past its own status. If any row above matters to
+    your decision, the honest answer is in the row.
+  </p>
+</div>
+
+<h2 id="questions">9. The questions to ask us</h2>
+<p class="h2sub">Including the uncomfortable ones — these have real answers</p>
+
+<ol>
+  <li><strong>"What happens if the agent ignores your checkpoint entirely?"</strong> — Then the
+    <em>Mediated</em> limits do not apply, and the <em>Enforced</em> ones still do: the deadline,
+    the private workspace, the evidence, and the fact that it cannot release its own work. We will
+    show you which is which, per limit.</li>
+  <li><strong>"Can the agent tamper with its own records?"</strong> — It shares a machine with the
+    server, so the honest answer is a specific one, not a flat no. We narrowed what a stolen local
+    credential can do to read-only, and we can walk you through what remains.</li>
+  <li><strong>"What happens if nobody looks at the queue?"</strong> — Nothing reaches the outside
+    world; work accumulates as held. We would rather show you that outcome than a claim that it
+    never happens.</li>
+  <li><strong>"Show me something that did not work."</strong> — We keep a document of exactly that.
+    Ask for it. It is the fastest way to judge whether the rest of this is trustworthy.</li>
+</ol>
+
+<h2 id="glossary">10. Glossary</h2>
+<p class="h2sub">Every term in this document, in one place</p>
+
+<dl class="glossary">
+  <dt>Agent</dt>
+  <dd>Software given a goal rather than instructions, which decides its own steps and can act on
+    real systems.</dd>
+
+  <dt>Warrant</dt>
+  <dd>Permission written down in advance and limited — which tools, which files, which services, how
+    much, until when. The unit that lets a person walk away from a running agent.</dd>
+
+  <dt>Staging</dt>
+  <dd>Recording an outward action as an intention rather than performing it. The agent proceeds as
+    if it happened; the world is unchanged until a person releases it.</dd>
+
+  <dt>Settle</dt>
+  <dd>A person releasing the held work, so it actually happens. Requires a key the agent does not
+    have.</dd>
+
+  <dt>Void</dt>
+  <dd>A person discarding the held work. Costs nothing, because nothing was done. The record of the
+    attempt survives.</dd>
+
+  <dt>Enforced / Mediated / Observed</dt>
+  <dd>How strongly a given limit actually holds. See §4 — this is the distinction that matters most
+    when comparing us with anyone else.</dd>
+
+  <dt>Evidence</dt>
+  <dd>A signed, tamper-evident record of what happened, checkable by someone who does not trust the
+    machine that produced it.</dd>
+
+  <dt>Guard model</dt>
+  <dd>A second AI that reads the agent's actions and flags concerns. Advisory by default, for the
+    measured reasons in §4.</dd>
+</dl>
+
+<p class="footnote">
+  Every figure in this document comes from measurements taken against the product itself rather than
+  from estimates: the 82% detection rate and the force-push example are from a benchmark run against
+  the running configuration; the integration count, the enforcement tiers and the status table are
+  read from the system. The regulatory citation is <em>OCC Bulletin 2026-13, "Model Risk Management:
+  Revised Guidance," 17 April 2026</em>, and the Federal Reserve's parallel SR 26-2. Where this
+  document says something is not yet observed working, that is a statement about our evidence and
+  not a hedge.
+</p>
+
+</div>
+</body>
+</html>
