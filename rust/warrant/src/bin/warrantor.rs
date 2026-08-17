@@ -30,6 +30,7 @@ use warrantor_warrant::archive_client::{self, ArchiveAnswer, ArchiveConfig, Arch
 use warrantor_warrant::autofile;
 use warrantor_warrant::bench;
 use warrantor_warrant::bundle;
+use warrantor_warrant::corpus;
 use warrantor_warrant::daemon::{
     process_is_alive, supervise_run, DaemonState, Reconciliation, SuperviseRequest,
 };
@@ -450,6 +451,7 @@ warrantor — bounded authority for coding agents
   anchor  show | verify
   guard   doctor [--guard-endpoint URL] [--guard-model M] [--guard-num-ctx N]
           | bench --cases <file.jsonl>
+          | export-corpus --out <file.jsonl> [--min-labelled N]
   operator list | add <name> --scope read,stop,settle,approve --note \"...\"
            | remove <name>
   approve <warrant-id>
@@ -2279,10 +2281,11 @@ fn guard_settings(args: &Args, warrant_id: &str) -> (guard::GuardConfig, OllamaG
     (config, transport)
 }
 
-fn cmd_guard(args: &Args) -> ExitCode {
+fn cmd_guard(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     match args.positional.first().map(String::as_str) {
         Some("doctor") | None => cmd_guard_doctor(args),
         Some("bench") => cmd_guard_bench(args),
+        Some("export-corpus") => cmd_guard_export_corpus(args, store, root),
         Some(other) => fail(&format!("unknown guard subcommand {other:?}. Try: doctor")),
     }
 }
@@ -2558,6 +2561,74 @@ fn cmd_guard_bench(args: &Args) -> ExitCode {
         return fail(
             "no case was classified, so nothing was measured. That is a backend problem, not a              guard score -- run `warrantor guard doctor` first.",
         );
+    }
+    ExitCode::SUCCESS
+}
+
+/// Export this store's own history as training rows, refusing to invent labels.
+///
+/// Four of the eight planned guard models are recorded as cold-start blocked on real warrant
+/// history. That was true and it was only half the blockage: nothing read this store, so the moment
+/// history accumulated somebody would still have had to write this. The wait and the work were
+/// stacked and only the wait was written down.
+///
+/// See [`warrantor_warrant::corpus`] for the trap it avoids: exporting the guard's own verdict as a
+/// label would train the next model on this one's misses, and the miss would then be invisible.
+fn cmd_guard_export_corpus(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
+    let Some(out) = args.flags.get("out") else {
+        return fail(
+            "usage: warrantor guard export-corpus --out <file.jsonl> [--min-labelled N]
+
+               Writes what this store knows about calls a guard classified, labelled ONLY by human              decisions it already recorded -- a settle or a void on a warrant the guard watched. A              guard verdict is never a label: that would train the next model on this one's misses.",
+        );
+    };
+    // Read across every warrant, because a corpus is a cross-warrant object and a per-warrant read
+    // could not tell a settled run from an open one.
+    let log = guard::read_all_guard_logs(root);
+    let mut states = BTreeMap::new();
+    match store.list() {
+        Ok(listed) => {
+            for stored in listed {
+                states.insert(stored.warrant.claims.id.clone(), stored.warrant.state);
+            }
+        }
+        // Reported, not fatal: every row then carries "this warrant's state could not be read",
+        // which is a different sentence from "no decision was made" and is the true one.
+        Err(e) => eprintln!(
+            "warrantor: the warrant list could not be read ({e}), so no row can carry a human              decision. Every row will be unlabelled, and will say why."
+        ),
+    }
+
+    let rows = corpus::rows_from(&log, &states);
+    let summary = corpus::summarise(&rows);
+    if let Err(e) = corpus::write_jsonl(&rows, Path::new(out)) {
+        return fail(&e);
+    }
+
+    println!("exported  {out}");
+    println!();
+    println!("{}", summary.caveat());
+    if !summary.by_source.is_empty() {
+        println!();
+        println!("LABELS BY SOURCE");
+        for (source, count) in &summary.by_source {
+            println!("  {source:<20} {count}");
+        }
+    }
+
+    // The readiness question, answered rather than left to a recipe to discover.
+    let minimum = guard_number(args, "min-labelled", 500usize);
+    println!();
+    match corpus::sufficient_for_training(&summary, minimum) {
+        Ok(()) => println!(
+            "READY: {} labelled row(s) meets the {minimum} this check was given.",
+            summary.labelled
+        ),
+        Err(why) => {
+            println!("NOT READY: {why}");
+            // Exit zero: the export succeeded and the answer is a fact about the store, not a
+            // failure of the command. A script that wants the gate reads the count.
+        }
     }
     ExitCode::SUCCESS
 }
@@ -5673,7 +5744,7 @@ fn main() -> ExitCode {
         "operator" => cmd_operator(&args, &root),
         "approve" => cmd_approve(&args, &store, &root),
         "agents" => cmd_agents(&args, &store),
-        "guard" => cmd_guard(&args),
+        "guard" => cmd_guard(&args, &store, &root),
         "anchor" => cmd_anchor(&args, &root),
         "selftest-upstream" => cmd_selftest_upstream(),
         "serve" => cmd_serve(&args, store, &root, false),

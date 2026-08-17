@@ -671,8 +671,22 @@ count buys nothing on general safety and 4.5 points of recall on professional-ve
 so for a product aimed at regulated verticals, **the 4B earns its 3.2 GB**. Quoting either corpus
 alone gives a confident wrong answer to the packaging question.
 
-Still open here: seven of the eight models are untrained, four of them cold-start blocked on real
-warrant history rather than on engineering. And `Unqualified Professional Advice` — the weakest
+Still open here: seven of the eight models are untrained. Four are cold-start blocked on real
+warrant history — and **the pipeline for that history now exists**, which it did not.
+`build_corpus.py` builds from Hugging Face parquet and nothing read this store, so the wait and the
+work were stacked and only the wait was written down. `warrantor guard export-corpus` is the missing
+half: the cold start is blocked on data *arriving* rather than on data arriving and then a module
+being built.
+
+It refuses the obvious implementation. Exporting the guard's own verdict as a label would train the
+next model on this one's misses — one adversarial case in five at the measured recall — and the miss
+would become invisible, because the model and its labels would agree. The only labels are human
+decisions the store already holds (a settle, a void), they are **warrant-level supervision on
+call-level examples**, and every row carries that granularity so a recipe can weight or discard it.
+The first real export showed the weakness at once: one harmful and one benign call, both labelled
+harmful by a single void, with `guard_said` recording that the guard had them right. No content is
+exported, only digests. `sufficient_for_training` counts *labelled* rows and says the thing that
+actually closes the gap: using the product. And `Unqualified Professional Advice` — the weakest
 measured class at 0.4298 and the headline target of both weak-category recipes — is **unreachable
 from WildGuardMix**, which has no such category; reaching it needs an ExpGuard corpus, and the
 gate refuses cross-corpus scoring until an ExpGuard baseline is bound to a recipe.

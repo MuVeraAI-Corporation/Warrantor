@@ -38,6 +38,7 @@ pub mod archive_client;
 pub mod autofile;
 pub mod bench;
 pub mod bundle;
+pub mod corpus;
 pub mod daemon;
 pub mod egress;
 pub mod guard;
