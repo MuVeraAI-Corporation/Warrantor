@@ -454,6 +454,337 @@ pub fn registry() -> Vec<Harness> {
             coverage: Coverage::McpOnly,
             note: "Tools are whatever the agent's toolsets contain.",
         },
+        // ── terminal coding agents added 2026-08-17 ──────────────────────────────────
+        //
+        // Every entry below whose configuration path this build cannot verify is
+        // `Wiring::Manual`. That is not a placeholder: a registry that guessed a path would write
+        // a file into a tool it has never been tested against, and the failure mode of a wrong MCP
+        // config is an agent that starts and then cannot call anything -- which reads to the user
+        // as Warrantor being broken. A printed block that a person pastes is strictly better than
+        // a written file that is wrong.
+        Harness {
+            id: "windsurf",
+            display: "Windsurf (Codeium)",
+            kind: Kind::CodingAgent,
+            command: Some("windsurf"),
+            wiring: Wiring::Json {
+                scope: Scope::Home,
+                path: ".codeium/windsurf/mcp_config.json",
+                key: "mcpServers",
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "Cascade's own file, terminal and search tools do not traverse MCP",
+            ),
+            note:
+                "Per-user like Codex, so an entry written here applies to every repository until \
+                   it is removed, and it names ONE warrant id. Re-wire when you grant a new \
+                   warrant. Windsurf reloads MCP servers from its settings pane rather than \
+                   watching the file, so restart or press refresh after wiring.",
+        },
+        Harness {
+            id: "roo-code",
+            display: "Roo Code",
+            kind: Kind::CodingAgent,
+            command: None,
+            wiring: Wiring::Json {
+                scope: Scope::Project,
+                path: ".roo/mcp.json",
+                key: "mcpServers",
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "its read_file, write_to_file, apply_diff, execute_command and browser tools are \
+                 built in and do not traverse MCP",
+            ),
+            note:
+                "A Cline fork, and it keeps Cline's project-scoped MCP file at a different path. \
+                   There is no command to detect: it is a VS Code extension, so `warrantor agents \
+                   detect` cannot see it and reports nothing rather than guessing.",
+        },
+        Harness {
+            id: "amp",
+            display: "Amp (Sourcegraph)",
+            kind: Kind::CodingAgent,
+            command: Some("amp"),
+            wiring: Wiring::Manual {
+                where_to: "Amp's settings under `amp.mcpServers` -- in VS Code settings.json for \
+                           the extension, or the CLI's own settings file",
+                format: Format::Json,
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "its built-in edit, read and Bash tools do not traverse MCP",
+            ),
+            note: "Manual because the settings location differs between the CLI and the editor \
+                   extension, and this build cannot tell which one you are wiring from here.",
+        },
+        Harness {
+            id: "qwen-code",
+            display: "Qwen Code",
+            kind: Kind::CodingAgent,
+            command: Some("qwen"),
+            wiring: Wiring::Manual {
+                where_to: "`.qwen/settings.json` under `mcpServers`, project or home scope",
+                format: Format::Json,
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "it is a Gemini CLI fork and carries the same built-in shell, read and edit tools",
+            ),
+            note: "Manual rather than written: this build has not been tested against Qwen Code's \
+                   settings file, and the two scopes it accepts mean a wrong guess writes a file \
+                   that silently does nothing.",
+        },
+        Harness {
+            id: "crush",
+            display: "Crush (Charm)",
+            kind: Kind::CodingAgent,
+            command: Some("crush"),
+            wiring: Wiring::Manual {
+                where_to: "`crush.json` in the project, under `mcp`",
+                format: Format::Json,
+            },
+            coverage: Coverage::McpAndBuiltins("its own file and shell tools do not traverse MCP"),
+            note: "Crush's server entries carry a `type` discriminator like OpenCode's; the block \
+                   printed here sets it to `stdio`. Manual because the key name has moved between \
+                   releases and a wrong key is a config that parses and does nothing.",
+        },
+        // ── the fleet this operator actually runs ────────────────────────────────────
+        //
+        // Named because they are in use, not because they are wired. Four of the six speak no MCP
+        // this build can verify, and saying so is the entry's whole value: an operator who assumed
+        // otherwise would believe a warrant was mediating calls it has never seen.
+        Harness {
+            id: "factory-droid",
+            display: "Factory Droid",
+            kind: Kind::CodingAgent,
+            command: Some("droid"),
+            wiring: Wiring::Manual {
+                where_to: "Factory's MCP configuration, under `mcpServers`",
+                format: Format::Json,
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "its own file, shell and PR tools do not traverse MCP",
+            ),
+            note: "Manual: this build has not been tested against Factory's config location, and \
+                   Droid is normally driven from Factory's own session rather than from a \
+                   worktree, so the deadline and evidence bounds are the ones that apply.",
+        },
+        Harness {
+            id: "warp",
+            display: "Warp",
+            kind: Kind::CodingAgent,
+            command: Some("warp"),
+            wiring: Wiring::Manual {
+                where_to: "Warp's Settings -> AI -> MCP Servers, which takes a JSON object per \
+                           server and has no file this build can safely edit",
+                format: Format::Json,
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "Warp's agent runs commands in your real terminal, and none of those traverse MCP",
+            ),
+            note: "The most important entry in this list to read carefully. Warp's agent acts in \
+                   YOUR shell, in whatever directory that shell is in -- not in the worktree the \
+                   warrant created. Wiring the MCP server gives the warrant a view of MCP calls \
+                   and NOTHING else: the containment a `warrantor run` child gets does not apply.",
+        },
+        Harness {
+            id: "grok-cli",
+            display: "Grok CLI",
+            kind: Kind::CodingAgent,
+            command: Some("grok"),
+            wiring: Wiring::Manual {
+                where_to: "the CLI's MCP settings, under `mcpServers`",
+                format: Format::Json,
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "its built-in file and shell tools do not traverse MCP",
+            ),
+            note: "Manual: this build has not been tested against it. New and fast-moving, so \
+                   verify the printed block is accepted before relying on a run.",
+        },
+        Harness {
+            id: "glm-coding",
+            display: "GLM (z.ai coding plan)",
+            kind: Kind::CodingAgent,
+            command: None,
+            wiring: Wiring::Manual {
+                where_to: "whichever harness you point at the z.ai endpoint -- GLM is a MODEL, so \
+                           wire the harness (`claude-code`, `opencode`, ...) and not this entry",
+                format: Format::Json,
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "whatever the harness you run it through has built in",
+            ),
+            note: "Listed to prevent a category error, not because it is wired. GLM is a model \
+                   served over an API; the thing that calls tools is the harness in front of it. \
+                   Wire that harness, and this warrant then covers exactly what that harness \
+                   routes through MCP -- no more and no less, whichever model is behind it.",
+        },
+        Harness {
+            id: "minimax",
+            display: "MiniMax Agent",
+            kind: Kind::GeneralAgent,
+            command: None,
+            wiring: Wiring::None,
+            coverage: Coverage::ProcessOnly,
+            note: "A hosted agent product driven from its own desktop and web surfaces. There is \
+                   no local stdio MCP client this build can point at a warrant, so nothing it does \
+                   passes through the proxy. Treat its output as unwarranted work and review it as \
+                   such -- or have it produce a patch and settle that under a warrant of your own.",
+        },
+        Harness {
+            id: "kimi-cli",
+            display: "Kimi CLI (Moonshot)",
+            kind: Kind::CodingAgent,
+            command: Some("kimi"),
+            wiring: Wiring::Manual {
+                where_to: "the CLI's MCP configuration, under `mcpServers`",
+                format: Format::Json,
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "its built-in file and shell tools do not traverse MCP",
+            ),
+            note: "Manual: untested from here. As with every per-user config, the entry names ONE \
+                   warrant id and a stale entry fails closed rather than running unwarranted.",
+        },
+        // ── general-purpose agents ───────────────────────────────────────────────────
+        Harness {
+            id: "chatgpt-desktop",
+            display: "ChatGPT desktop",
+            kind: Kind::GeneralAgent,
+            command: None,
+            wiring: Wiring::Manual {
+                where_to: "Settings -> Connectors, which takes a server definition through the \
+                           app's own UI and has no file this build may edit",
+                format: Format::Json,
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "its own browsing, code interpreter and file tools do not traverse MCP",
+            ),
+            note: "A general assistant rather than a coding agent: it has no worktree and no \
+                   process this warrant supervises, so the deadline and the OS lifetime link do \
+                   NOT apply. What a warrant covers here is the MCP calls alone.",
+        },
+        Harness {
+            id: "librechat",
+            display: "LibreChat",
+            kind: Kind::GeneralAgent,
+            command: None,
+            wiring: Wiring::Manual {
+                where_to: "`librechat.yaml`, under `mcpServers`",
+                format: Format::Yaml,
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "its own file upload and code interpreter tools do not traverse MCP",
+            ),
+            note: "YAML is never written by this build: splicing it by string loses comments and \
+                   anchors, and a config file an operator hand-maintains is one they must be able \
+                   to keep reading. The block is printed to paste.",
+        },
+        Harness {
+            id: "open-webui",
+            display: "Open WebUI",
+            kind: Kind::GeneralAgent,
+            command: None,
+            wiring: Wiring::Manual {
+                where_to: "an MCP-to-OpenAPI bridge such as `mcpo` in front of this server, whose \
+                           resulting URL goes in Open WebUI's `Settings -> Tools`",
+                format: Format::Json,
+            },
+            coverage: Coverage::McpAndBuiltins(
+                "anything the bridge does not forward, and Open WebUI's own tools",
+            ),
+            note:
+                "The only entry here that needs a translator rather than a config line. A bridge \
+                   is another process between the agent and the warrant, so what the warrant sees \
+                   is what the bridge chose to forward -- verify that before trusting the coverage.",
+        },
+        // ── agent SDKs and frameworks ────────────────────────────────────────────────
+        Harness {
+            id: "crewai",
+            display: "CrewAI",
+            kind: Kind::Sdk,
+            command: None,
+            wiring: Wiring::Manual {
+                where_to: "an `MCPServerAdapter` from `crewai-tools`, whose tools are handed to \
+                           the Agent",
+                format: Format::Code,
+            },
+            coverage: Coverage::McpOnly,
+            note: "Full mediation is reachable: give the agent the adapter's tools and nothing \
+                   else, and every call it makes is decided by the warrant. Adding one Python \
+                   function as a tool alongside them ends that, silently.",
+        },
+        Harness {
+            id: "autogen",
+            display: "AutoGen / AG2",
+            kind: Kind::Sdk,
+            command: None,
+            wiring: Wiring::Manual {
+                where_to: "an `StdioServerParams` passed to `mcp_server_tools`, whose result is \
+                           the agent's tool list",
+                format: Format::Code,
+            },
+            coverage: Coverage::McpOnly,
+            note: "Same rule as CrewAI, with one extra hazard: a multi-agent conversation can \
+                   route a task to an agent wired to a DIFFERENT tool list. The warrant covers the \
+                   agent you wired, not the group.",
+        },
+        Harness {
+            id: "llamaindex",
+            display: "LlamaIndex",
+            kind: Kind::Sdk,
+            command: None,
+            wiring: Wiring::Manual {
+                where_to: "`BasicMCPClient` plus `McpToolSpec` from `llama-index-tools-mcp`",
+                format: Format::Code,
+            },
+            coverage: Coverage::McpOnly,
+            note: "Retrieval is not a tool call: an index built before the run is read without \
+                   passing through the warrant, and nothing here refuses that. What the warrant \
+                   decides is the tools, not the context.",
+        },
+        Harness {
+            id: "semantic-kernel",
+            display: "Semantic Kernel",
+            kind: Kind::Sdk,
+            command: None,
+            wiring: Wiring::Manual {
+                where_to: "a plugin built with `MCPStdioPlugin` (Python) or \
+                           `McpClientFactory.CreateAsync` (.NET) and added via `Kernel.Plugins`",
+                format: Format::Code,
+            },
+            coverage: Coverage::McpAndBuiltins("every other plugin registered on the same Kernel"),
+            note: "A Kernel usually carries several plugins, and only the MCP one traverses the \
+                   warrant. That is why this is not McpOnly: the default shape of a Semantic \
+                   Kernel application has native functions beside the MCP tools.",
+        },
+        Harness {
+            id: "mastra",
+            display: "Mastra",
+            kind: Kind::Sdk,
+            command: None,
+            wiring: Wiring::Manual {
+                where_to: "an `MCPClient` whose `getTools()` result is the Agent's `tools`",
+                format: Format::Code,
+            },
+            coverage: Coverage::McpOnly,
+            note: "TypeScript. Full mediation is reachable and, as everywhere in this list, ends \
+                   the moment a locally-defined tool is added beside the MCP ones.",
+        },
+        Harness {
+            id: "vercel-ai-sdk",
+            display: "Vercel AI SDK",
+            kind: Kind::Sdk,
+            command: None,
+            wiring: Wiring::Manual {
+                where_to: "`experimental_createMCPClient` with a stdio transport, whose tools are \
+                           spread into `generateText`/`streamText`",
+                format: Format::Code,
+            },
+            coverage: Coverage::McpOnly,
+            note: "The MCP client here is marked experimental upstream, so the function name may \
+                   move. Verify the printed block compiles against the version you have rather \
+                   than trusting this entry's spelling of it.",
+        },
     ]
 }
 
@@ -834,6 +1165,63 @@ mod tests {
                     harness.id
                 );
             }
+        }
+    }
+
+    #[test]
+    fn no_two_harnesses_claim_the_same_command() {
+        // `agents detect` resolves each command on PATH and reports what it found. Two harnesses
+        // sharing one would make a single binary on PATH report as two installed agents, and an
+        // operator would wire the wrong one. Worth asserting now that the registry has grown past
+        // the point where a collision is obvious by reading it.
+        let mut seen: std::collections::BTreeMap<&str, &str> = std::collections::BTreeMap::new();
+        for harness in registry() {
+            if let Some(command) = harness.command {
+                if let Some(previous) = seen.insert(command, harness.id) {
+                    panic!(
+                        "{previous} and {} both claim the command {command:?}",
+                        harness.id
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn every_manual_entry_says_where_to_put_it_specifically_enough_to_act_on() {
+        // A `Manual` entry exists because this build will not guess a path. That is only honest if
+        // the entry then says where the operator should look -- "somewhere in its settings" would
+        // be the refusal without the remedy, which is the shape of the `--upstream` defect.
+        for harness in registry() {
+            if let Wiring::Manual { where_to, .. } = harness.wiring {
+                assert!(
+                    where_to.len() > 25,
+                    "{}'s where_to is too vague to act on: {where_to:?}",
+                    harness.id
+                );
+                assert!(
+                    where_to.contains('`')
+                        || where_to.contains("Settings")
+                        || where_to.contains("settings")
+                        || where_to.contains("option"),
+                    "{}'s where_to names no concrete file, setting or API: {where_to:?}",
+                    harness.id
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn every_harness_carries_a_note_that_says_something() {
+        // The note is where an entry earns its place: what an operator needs that the structured
+        // fields do not carry. An empty or boilerplate one means the entry was added to make a
+        // list longer.
+        for harness in registry() {
+            assert!(
+                harness.note.len() > 40,
+                "{} has no substantive note",
+                harness.id
+            );
         }
     }
 
