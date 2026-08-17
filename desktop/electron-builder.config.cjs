@@ -45,7 +45,15 @@ module.exports = {
   // everything the window shows is served by the agent over HTTP, which is what keeps this shell
   // substitutable for a browser. A `node_modules` entry appearing here would mean that stopped
   // being true, so `test/packaging.test.js` fails if one does.
-  files: ['src/**/*', 'package.json'],
+  // `build/icon.png` is in here for the TRAY, and it took a packaged launch to find out why it
+  // had to be. `build/` is electron-builder's own resources directory: it is read at BUILD time to
+  // make the window and installer icons, and it is not copied into the app. So
+  // `join(app.getAppPath(), 'build', 'icon.png')` exists in development and does not exist in a
+  // packaged build — and `installTray` skips silently when the image is empty, which is the right
+  // behaviour for a missing icon and the wrong outcome here. The first launch of a packaged app
+  // traced `tray skipped: no icon`, and nothing else would have said so: every unit test asserts
+  // against the config, and the config was correct for the build and wrong for the runtime.
+  files: ['src/**/*', 'package.json', 'build/icon.png'],
 
   asar: true,
 

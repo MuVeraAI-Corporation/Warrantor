@@ -7,7 +7,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -328,4 +328,30 @@ test('artifact names never derive from the scoped package name', () => {
   // is the form that put a slash in the path; AppImage's default comes from productName and is why
   // only half of the Linux leg failed the first time.
   assert.ok(builderConfig.linux.artifactName, 'linux must set artifactName; the deb default is unsafe');
+});
+
+/**
+ * The tray icon has to be inside the app bundle, not only in the build resources.
+ *
+ * `build/` is electron-builder's own resources directory: it is read at build time to make the
+ * window and installer icons, and it is NOT copied into the app. So the path `installTray` resolves
+ * — `join(app.getAppPath(), 'build', 'icon.png')` — exists in development and does not exist in a
+ * packaged build, and `installTray` skips silently when the image is empty.
+ *
+ * That is exactly what the first launch of a packaged app traced: `tray skipped: no icon`. No unit
+ * test could have caught it, because every one of them asserts against the config, and the config
+ * was correct for the build and wrong for the runtime. This one asserts the overlap: the file the
+ * runtime opens has to be in the list the packager copies.
+ */
+test('the tray icon is in the packaged file list, not only in the build resources', () => {
+  const listed = builderConfig.files ?? [];
+  assert.ok(
+    listed.some((pattern) => pattern.includes('build/icon.png')),
+    `the icon installTray opens must be packaged, or the tray silently never appears: ${listed}`,
+  );
+  // And it has to actually be there to be packaged.
+  assert.ok(
+    existsSync(join(here, '..', 'build', 'icon.png')),
+    'build/icon.png is missing from the repository',
+  );
 });

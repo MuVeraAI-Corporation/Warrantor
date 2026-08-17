@@ -124,7 +124,7 @@ lines that change are written down in [../desktop/SIGNING.md](../desktop/SIGNING
 Until then, a tagged release publishes per-platform SHA256SUMS and a build-provenance attestation.
 Those say where a file came from, not who stands behind it, and the difference is not papered over.
 
-### 1.2 The desktop app bundles no agent — **resolver done, bundling unobserved**
+### 1.2 The desktop app bundles an agent, and has been seen to start one — **observed**
 
 Not "done", because half of this is configuration that has never been executed. See 1.1.
 
@@ -136,12 +136,41 @@ silently re-pointed at a different one by an environment variable any parent pro
 is no fallthrough either — a missing bundled agent or a `WARRANTOR_BIN` that does not exist stops
 the app with a message naming the path, rather than quietly running whatever is on `PATH`.
 
-**Partly observed:** the workflow has now run (run 31875701622, all four platforms green), and
-each packaging job's own assertion — the `warrantor` binary present and executable inside
-`dist/`, compiled on the same runner that packaged it — passed inside those green jobs. Not yet
-observed: an installer actually **installed** and the app **launched** from it, which is the step
-no gate can perform: RELEASING.md step 3 asks for an install on a machine with no `warrantor` on
-`PATH`.
+**Now observed on Windows — the app has been packaged, launched, and shown to start its own
+bundled agent.** A release `warrantor.exe` was staged into `vendor/x64`, `electron-builder --dir`
+produced `dist/win-unpacked`, and the app was launched with `PATH` scrubbed to `C:\Windows\system32`
+and `C:\Windows` — nothing on it that could supply a `warrantor` other than the copy inside the app.
+The trace records the whole chain:
+
+```
+agent binary: ...\dist\win-unpacked\resources\warrantor.exe (bundled with the app)
+agent ready on http://127.0.0.1:61803
+window constructed
+console loaded
+tray skipped: no icon          <-- the defect
+```
+
+So the packaged app **does** contain an agent, **does** resolve the bundled copy ahead of `PATH`,
+starts it, and loads the console. The token was redacted in the forwarded output, as `redactToken`
+intends.
+
+**That last line is the find, and no unit test could have produced it.** `build/` is
+electron-builder's own *resources* directory — read at build time to make the window and installer
+icons, and **not copied into the app** — so the path `installTray` opens exists in development and
+does not exist in a packaged build. `installTray` skips silently when the image is empty, which is
+right for a missing icon and wrong here: the tray shipped earlier the same day and had never
+appeared in a packaged build. Every packaging test asserts against the *config*, and the config was
+correct for the build and wrong for the runtime.
+
+`build/icon.png` is in `files` now, with a test asserting the overlap — the file the runtime opens
+must be in the list the packager copies — and a second packaged launch confirms it: the
+`tray skipped` line is gone. Found and fixed by the same method, which is the argument for the
+method.
+
+**Still not observed**, and it is a smaller gap than it was: the **NSIS installer** — rather than the
+unpacked directory — being run, and being run on somebody *else's* machine. That is RELEASING.md
+step 3, and no automation can stand in for it, because the point of it is whether the packaging
+assumption holds somewhere this repository has never been.
 
 ### 1.3 There is no first-run experience — **done**
 
@@ -575,6 +604,23 @@ with the product is a set the product can be tuned against. It says "consistent 
 8192; the CLI kept its own literal `4096` fallback, so every guard the CLI attached still ran at the
 unmeasured configuration — the fix surviving its own fix, one layer up. Only a command that prints
 the running configuration could have caught it. Both sites now read the constant, pinned by a test.
+
+### 4.1c Re-measuring against the corpora is blocked on a credential, not on compute
+
+`warrantor guard bench` measures the shipped configuration against cases an operator supplies. What
+it cannot do is re-run **WildGuardTest** and **ExpGuardTest**, which is what would confirm the
+published 0.8152 / 0.0923 under the corrected context window.
+
+The blocker is stated by the code that would do it. `warrantor_ml.datasets` opens with *"Both primary
+corpora are gated behind Hugging Face click-through terms"*, and the WildGuardMix spec records:
+*"Gate is auto-approved on submit — no human reviewer — but still requires a logged-in account, an
+accepted form, and a read token on the machine."* There is no `HF_TOKEN` on this machine and no
+Hugging Face cache at all, so the fetch fails with HTTP 401 before any model is called.
+
+That makes it a **credential step, not a compute step**: accepting terms under an account is
+something only the account holder can do. Once a token is present the run is one command per corpus
+against the local Ollama, and it is the only outstanding item on this page that is a task rather than
+a decision or a wait.
 
 ### 4.2 A fine-tune has been run, and the gate rejected it — **done, and informative**
 
