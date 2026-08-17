@@ -486,3 +486,46 @@ export function redactToken(text, token) {
   if (!token) return text;
   return text.split(token).join('<redacted>');
 }
+
+/**
+ * The command that gives this machine an identity, when the agent refused for want of one.
+ *
+ * # The failure this turns into a path
+ *
+ * Found by launching the packaged Linux app against a home directory that had never run
+ * `warrantor`: the bundled agent resolved, started, and exited 1 with *"no issuer key was found …
+ * `warrantor serve` loads keys and never creates them"*. That refusal is correct and deliberate — a
+ * server that minted an identity on first use would sign evidence with a key nobody chose — but it
+ * is also the reviewer's exact path. Install, double-click, dead.
+ *
+ * The desktop app cannot fix that by minting the key itself without making the same mistake one
+ * layer up, and it must not: `warrantor issuer show-hex` refuses for the same reason, saying *"a key
+ * created by the act of looking for it has signed nothing"*. Only `grant` creates one, alongside the
+ * first warrant, which is a deliberate act by a person.
+ *
+ * So what this returns is not a fix, it is a **route out of a dead dialog** — the exact command,
+ * ready to copy, with a goal and bounds narrow enough that running it commits the user to nothing.
+ *
+ * @param {string} stderr The agent's own output, as captured at startup.
+ * @returns {{title: string, detail: string, command: string}|null} `null` when the failure is
+ *   something else, and the generic error must be shown instead. A first-run screen shown for an
+ *   unrelated crash would send somebody to create a key they already have.
+ */
+export function firstRunRemedy(stderr) {
+  if (!stderr || !/no issuer key was found/i.test(stderr)) {
+    return null;
+  }
+  return {
+    title: 'Warrantor needs an identity before it can start',
+    detail:
+      'This machine has no issuer key yet.\n\n' +
+      'The agent refuses to create one when it starts, on purpose: a server that minted an ' +
+      'identity on first use would sign evidence with a key nobody chose. The key is created ' +
+      'deliberately, by granting your first warrant.\n\n' +
+      'Run this once in a terminal, then open Warrantor again:',
+    // Narrow on purpose. `read_file` and the current directory commit the holder to nothing, and a
+    // one-hour deadline means a warrant created only to mint a key expires by itself rather than
+    // sitting Open in a queue as the first thing the reviewer ever sees.
+    command: 'warrantor grant --goal "first run" --tools read_file --write . --deadline 1h',
+  };
+}

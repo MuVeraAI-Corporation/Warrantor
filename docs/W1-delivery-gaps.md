@@ -207,7 +207,7 @@ the resolver prefers that copy over an empty `PATH`, the agent starts, the windo
 loads, and the installer builds into a valid NSIS artifact with a recorded digest. The residue is one
 double-click by a person.
 
-### 1.5 The desktop app cannot start on a machine that has never run `warrantor` — **found 2026-08-17, half fixed**
+### 1.5 The desktop app cannot start on a machine that has never run `warrantor` — **found and routed 2026-08-17**
 
 Found by building the Linux AppImage and launching it in WSL2 against a home directory with no
 `~/.warrantor`. The bundled agent resolved correctly, started, and **exited 1**:
@@ -232,17 +232,28 @@ the failure leaves a half-made store behind.
 bounded, token-redacted tail and appends *"The agent said: …"* to the failure, so the dialog carries
 the sentence that names the remedy.
 
-**Still open, and it is a design question rather than a bug:** what should a first launch on a clean
-machine actually do? The three candidates, none of which should be chosen by default:
+**Also fixed: the dead end is now a route.** Calling the remainder "a design question" was half a
+dodge — the app minting a key silently would repeat the mistake one layer up, but leaving a reviewer
+with a dialog and no next step was not the only alternative.
 
-1. **The app mints the key** as an explicit, announced first-run act — the user launching their own
-   local install *is* the person choosing the identity. This is the only option that makes
-   double-click work, and it moves an identity decision into a click.
-2. **A real first-run screen** that explains what is missing and offers a button. §1.3's first-run
-   experience exists but is unreachable here: the agent dies before the window loads, so the screen
-   that would explain it never renders.
-3. **Ship nothing and document it** — the reviewer runs one CLI command first, which contradicts the
-   entire point of bundling the agent.
+`firstRunRemedy()` in `desktop/src/policy.js` recognises this one refusal and turns it into a
+screen: what is missing, **why the agent refuses on purpose**, and the exact command, with a *Copy
+the command* button. Everything else falls through to the generic error — a first-run screen shown
+for `EADDRINUSE` would send somebody to create a key they already have, and a test asserts it does
+not fire for five other failures.
+
+The command it offers is narrow on purpose:
+`warrantor grant --goal "first run" --tools read_file --write . --deadline 1h`. Read-only tools
+commit the holder to nothing, and a one-hour deadline means a warrant created only to mint a key
+expires by itself rather than becoming the first thing waiting in the reviewer's queue. Verified in
+the rebuilt Linux app: the process now stays up with the dialog rather than exiting.
+
+**What remains genuinely open** is narrower than it looked, and it is a product decision rather than
+a defect: whether a GUI-first user should ever have to open a terminal at all. Every alternative
+moves an identity decision into a click, and `warrantor issuer show-hex` already refuses to mint for
+the same stated reason — *"a key created by the act of looking for it has signed nothing"*. That
+sentence is the constraint, and it is the right one; the question is whether the desktop app is
+allowed to be the place a person deliberately answers it.
 
 ### 1.3 There is no first-run experience — **done**
 

@@ -40,6 +40,7 @@ import {
   Tray,
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   nativeImage,
   nativeTheme,
@@ -53,6 +54,7 @@ import {
   agentExitMessage,
   consoleUrl,
   describeBinarySource,
+  firstRunRemedy,
   isNavigationAllowed,
   isPermissionGranted,
   menuTemplate,
@@ -66,10 +68,10 @@ import {
   waitingNotification,
 } from './policy.js';
 
-/** How long to wait for the agent to announce itself before giving up, in milliseconds. */
 /** How much of the agent's stderr to keep for a failure message. A dialog is not a log. */
 const AGENT_STDERR_TAIL = 900;
 
+/** How long to wait for the agent to announce itself before giving up, in milliseconds. */
 const AGENT_STARTUP_TIMEOUT_MS = 20_000;
 
 /**
@@ -314,6 +316,32 @@ function reportFatal(message) {
   } catch {
     // A log that cannot be written must not replace the dialog with a crash.
   }
+  // One failure has a known remedy, and showing it as a generic error is what made a clean machine
+  // a dead end: the agent refuses to start without an issuer key — correctly — and a reviewer who
+  // has just double-clicked an installer has no way to know that means "grant a warrant first".
+  const remedy = firstRunRemedy(message);
+  if (remedy) {
+    try {
+      const choice = dialog.showMessageBoxSync({
+        type: 'info',
+        title: remedy.title,
+        message: remedy.title,
+        detail: `${remedy.detail}\n\n    ${remedy.command}`,
+        buttons: ['Copy the command', 'Quit'],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+      });
+      if (choice === 0) {
+        clipboard.writeText(remedy.command);
+      }
+      return;
+    } catch {
+      // No display, or too early for a dialog. Falls through to the plain error path below rather
+      // than swallowing the failure: a first-run screen that cannot render must not silence it.
+    }
+  }
+
   try {
     dialog.showErrorBox('Warrantor could not start', message);
   } catch {
