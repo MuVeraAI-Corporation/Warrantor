@@ -75,8 +75,8 @@
     been sentences that were true when written and stopped being true, in a document nobody re-read.
   </p>
   <p class="meta">
-    17 August 2026 · branch <code>feat/agent-integrations</code>, 51 commits over <code>b6557bb</code>
-    · 678 Rust tests (681 with <code>--features tls</code>) · 42 console · 68 desktop
+    17 August 2026 · branch <code>feat/agent-integrations</code>, 52 commits over <code>b6557bb</code>
+    · 678 Rust tests (681 with <code>--features tls</code>) · 44 console · 68 desktop
   </p>
 </header>
 
@@ -302,6 +302,24 @@
   Four headline states, not one: "nothing is waiting" and "nothing is waiting <em>on you</em>" are
   different facts about the same store, and a queue that could not be read is never rendered as an
   empty queue.
+</p>
+
+<h3>Accessibility, audited rather than assumed</h3>
+<p>
+  Every input carries an accessible name &mdash; one by <code>&lt;label for&gt;</code>, one by
+  <code>aria-label</code>, which is why counting <code>&lt;label&gt;</code> elements is not the
+  check. The three destinations carry <code>aria-pressed</code> so the current one is announced and
+  not merely painted. Verdicts carry a glyph and a word beside the colour.
+</p>
+<p>
+  The audit found one real gap: the <strong>health</strong> and <strong>authority</strong> pills are
+  re-rendered by the poller with nobody clicking anything, and had no live region &mdash; so their
+  two facts reached no screen reader at all. <code>authority</code> is the security-relevant one: it
+  says whether this server holds <em>release</em> authority, and a reader who cannot see it change
+  cannot know the surface in front of them stopped being read-only. Both are now
+  <code>role="status"</code>, <code>aria-live="polite"</code>, <code>aria-atomic="true"</code> &mdash;
+  polite because they re-render several times a minute and an assertive region would interrupt
+  whatever is being read to repeat something that usually has not changed.
 </p>
 
 <h2>6. What is actually open</h2>

@@ -13,8 +13,19 @@
         <span>Warrantor</span>
       </div>
       <div class="bar-meta">
-        <span id="authority" class="pill pill-quiet" title="Whether this server holds release authority">authority &hellip;</span>
-        <span id="health" class="pill pill-quiet">connecting&hellip;</span>
+        <!-- Both pills change on a poll, with nobody clicking anything, so without a live region
+             the two facts they carry are announced to no screen reader at all. `authority` is the
+             security-relevant one: it says whether this server holds RELEASE authority, and a
+             reader who cannot see it changing cannot know the surface in front of them stopped
+             being read-only.
+
+             `polite` rather than `assertive` because they are re-rendered on every poll and an
+             assertive region would interrupt whatever is being read, several times a minute, to
+             repeat something that usually has not changed. `aria-atomic` so the whole pill is read
+             rather than the one word that differs, which out of context is not a sentence. -->
+        <span id="authority" class="pill pill-quiet" role="status" aria-live="polite" aria-atomic="true"
+              title="Whether this server holds release authority">authority &hellip;</span>
+        <span id="health" class="pill pill-quiet" role="status" aria-live="polite" aria-atomic="true">connecting&hellip;</span>
       </div>
     </header>
 

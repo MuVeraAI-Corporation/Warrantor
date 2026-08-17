@@ -1172,3 +1172,43 @@ test('the destination showing is announced, not only painted', async () => {
     ['true', 'false', 'false'],
   );
 });
+
+test('state that changes on a poll is announced, not only painted', async () => {
+  // The health and authority pills are re-rendered by the poller with nobody clicking anything.
+  // Without a live region their two facts reach no screen reader, and `authority` is the
+  // security-relevant one: it says whether this server holds RELEASE authority. A reader who cannot
+  // see it change cannot know the surface in front of them stopped being read-only.
+  const { readFileSync } = await import('node:fs');
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const html = readFileSync(path.join(here, 'index.html'), 'utf8');
+
+  for (const id of ['authority', 'health']) {
+    const tag = html.match(new RegExp(`<span id="${id}"[^>]*>`));
+    assert.ok(tag, `${id} must exist`);
+    assert.match(tag[0], /aria-live="polite"/, `${id} changes on a poll and must announce it`);
+    assert.match(tag[0], /aria-atomic="true"/, `${id} must be read whole, not by the word that differs`);
+  }
+
+  // Polite, never assertive: these re-render several times a minute and an assertive region would
+  // interrupt whatever is being read to repeat something that usually has not changed.
+  assert.doesNotMatch(html, /aria-live="assertive"/);
+});
+
+test('every input carries a name a screen reader can read', async () => {
+  // Two inputs, one <label>. The gate's token field is labelled by aria-label instead, which is
+  // correct for a field whose visible text is a placeholder — but it means counting <label>
+  // elements is not the check, and a naive audit would report a false gap here.
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html'), 'utf8');
+  const inputs = [...html.matchAll(/<input\b[\s\S]*?>/g)].map((m) => m[0]);
+  assert.ok(inputs.length >= 2, 'expected at least the gate and the month inputs');
+  for (const input of inputs) {
+    const id = input.match(/id="([^"]+)"/)?.[1];
+    const named =
+      /aria-label=/.test(input) ||
+      /aria-labelledby=/.test(input) ||
+      new RegExp(`<label[^>]*for="${id}"`).test(html);
+    assert.ok(named, `input ${id} has no accessible name`);
+  }
+});
+
