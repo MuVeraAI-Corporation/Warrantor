@@ -555,7 +555,7 @@ the escalation the product's central claim depends on.
 
 ## Tier 3 — needed before anyone trusts this with real oversight
 
-### 3.1 Bounds are weaker than they read — **a profile can now be derived; nothing has run one**
+### 3.1 Bounds are weaker than they read — **a profile is derived AND was run; one kernel, one claim disproved**
 
 Per [[three enforcement tiers]]: `write_paths` and `budget_cents_observed` are **Observed**, not
 enforced. There is no netns, no seccomp and no firewall. The console shows `bound_strengths`
