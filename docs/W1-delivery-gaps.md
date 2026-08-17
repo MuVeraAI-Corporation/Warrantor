@@ -574,7 +574,7 @@ confines nothing, and this process cannot tell whether the operator launched it.
 running an agent under one of these profiles on Linux and watching a write outside the worktree fail
 at the syscall.
 
-### 3.2 Notifications — **webhooks ship, every surface fires them; email and push do not exist**
+### 3.2 Notifications — **closed 2026-08-17**
 
 **What exists:** `notify.json` in the store root names webhook destinations (optionally with an
 HMAC-SHA256 secret, so a receiver can tell Warrantor's POSTs from anyone else's), and the CLI
@@ -600,8 +600,24 @@ to the CLI's, since a receiver must not be able to tell which surface a decision
 warrant needs a decision — now that there is a decision to make and a way to make it from where
 the notification lands.
 
-**What is still missing:** email and mobile push. A webhook can front both, and nothing here speaks
-them directly.
+*Email and mobile push.* `notify.json` may now carry `commands` — a program, its args, and an event
+filter — with the notification delivered on **stdin** as JSON. Email becomes a five-line script, and
+so does a push provider or an SMS gateway. No SMTP client was added: seven external crates and no
+async runtime is a security property of `rust/warrant`, not an accident.
+
+**The objection, and why the answer is argv.** A program named in a config file turns anything able
+to *write* that file into a code-execution primitive — and per §2.4 the supervised agent shares this
+UID, so it would gain execution later, in the operator's context, out of something that looks like
+configuration. So the configuration alone does nothing: a command runs only when the invocation
+carried `--allow-notify-command`. Nothing on the filesystem can arm it, and that is not a
+preference — any file the operator could create to enable this, the agent could create too. The
+operator's command line is the only signal the agent cannot reach.
+
+An unarmed invocation with commands configured says so loudly rather than skipping quietly, and a
+failed command is reported but **not** queued: a queue of pending local process launches is a thing
+that runs later without anybody asking.
+
+**Nothing in this section is now open.**
 
 ### 3.3 No multi-machine or multi-repo view — **the custody-level half shipped**
 
@@ -872,9 +888,13 @@ renders from. The recurring shape named above was broken once on purpose in the 
 shipped with a CLI and a route and no client, and that was caught and fixed *one commit later*
 rather than one release later.
 
-**What now decides whether it is trustworthy is §3.1.** `write_paths` and `budget_cents_observed`
-are Observed, not enforced; there is no netns, no seccomp and no firewall. Every other open item is
-smaller than it: §2.4 is a token-scoping change on one surface, §3.4 is a retention window for
-`logs/`, §3.2's remainder is two transports a webhook can already front, and §1.1 is a purchase.
-§3.1 is the only one where the product's central sentence — "the agent is bounded" — is stronger
-than what the code earns without composing with a sandbox.
+**What now decides whether it is trustworthy is still §3.1, and it is no longer untouched.**
+`write_paths` and `budget_cents_observed` remain Observed in this store's own report, and that has
+not changed and must not: a profile that is never launched confines nothing. What changed is that
+the profile now exists, and has been *run* — on a 6.18 kernel under bubblewrap, where a write to
+`$HOME` and `/etc` failed with `EROFS` and DNS did not resolve with no egress granted. That run also
+disproved one of its own claims (`/tmp` is a tmpfs: writes there succeed and are discarded), which
+is the argument for running things rather than deriving them.
+
+Every other item is closed or is a purchase: §2.1, §2.4, §3.2, §3.4 and §4.3's unguarded-run gap all
+landed on 2026-08-17, and §1.1 is a certificate.
