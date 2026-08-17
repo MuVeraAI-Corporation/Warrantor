@@ -55,7 +55,7 @@ jobs:
       # Python
       - name: Python setup
         if: inputs.language == 'python'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Python ruff + pytest
@@ -152,7 +152,7 @@ jobs:
           cargo install cargo-cyclonedx --locked || true
           cargo cyclonedx --all --format json || true
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: "**/bom.json"

@@ -6,7 +6,7 @@ Drop-in GitHub Action for secret scanning, SBOM generation, and compliance gatin
 
 ```yaml
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v7
   - uses: MuVeraAI/aumos/.github/actions/aumos-security-action@v1
     with:
       scan-secrets: true

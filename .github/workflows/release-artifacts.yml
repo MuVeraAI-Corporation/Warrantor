@@ -101,7 +101,7 @@ jobs:
           "rust/target/${{ matrix.target }}/release/warrantor${{ matrix.ext }}" --help \
             | head -5
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: binaries-${{ matrix.target }}
           # Block scalar, not a folded string: upload-artifact splits on
@@ -167,7 +167,7 @@ jobs:
     permissions:
       contents: write   # creating a release is a write to the repository
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: binaries-*
           merge-multiple: true

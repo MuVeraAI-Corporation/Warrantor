@@ -185,7 +185,7 @@ jobs:
           fi
           cat SHA256SUMS-${{ matrix.platform }}-${{ matrix.arch }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: installers-${{ matrix.platform }}-${{ matrix.arch }}
           # Block scalar, not a folded string: upload-artifact splits on newlines, so `a\n  b`
@@ -211,7 +211,7 @@ jobs:
       id-token: write      # sigstore signing of the attestation
       attestations: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: installers-*
           merge-multiple: true

@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -144,7 +144,7 @@ jobs:
         run: python tools/ci/run_python_checks.py format --report evidence/python-format.json
       - name: Upload Python evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: python-gate-evidence
           path: evidence/python-*.json
@@ -155,7 +155,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - uses: actions/setup-go@v7
@@ -170,7 +170,7 @@ jobs:
         run: test -z "$(gofmt -l $(find go -type f -name '*.go'))"
       - name: Upload Go evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: go-gate-evidence
           path: evidence/go-*.json
@@ -208,7 +208,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - uses: actions/setup-go@v7
@@ -232,7 +232,7 @@ jobs:
         run: python tools/conformance/run.py --report evidence/conformance.json
       - name: Upload conformance evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conformance-evidence
           path: evidence/conformance.json
@@ -243,7 +243,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Run documentation checks
@@ -251,7 +251,7 @@ jobs:
       - name: Generate exhaustive implementation tracker
         run: python tools/implementation/generate_tracker.py --output evidence/implementation-tracker.json
       - name: Upload implementation inventory
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: implementation-tracker
           path: evidence/implementation-tracker.json

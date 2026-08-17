@@ -59,7 +59,7 @@ jobs:
         continue-on-error: true  # findings filed, not pipeline-failing
       - name: Upload regression corpus
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-corpus
           path: rust/trust-core/fuzz/artifacts/

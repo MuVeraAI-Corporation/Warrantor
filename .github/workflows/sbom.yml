@@ -55,7 +55,7 @@ jobs:
           echo "Aggregated $found crate SBOMs."
           ls -la sbom/
       - name: Upload SBOMs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cyclonedx-sboms
           path: sbom/
@@ -68,7 +68,7 @@ jobs:
         working-directory: python/cuda_gram
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install cyclonedx-bom
@@ -79,7 +79,7 @@ jobs:
       - name: Generate SBOM from environment
         run: cyclonedx-py environment -o aumos-python-cuda-gram.bom.json
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: python-cyclonedx-sbom
           path: python/cuda_gram/aumos-python-cuda-gram.bom.json
