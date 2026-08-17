@@ -131,3 +131,13 @@ adapter_model/
 .notary_interop_bundle.json
 .evidence_interop.json
 .bounds_interop.json
+
+# The per-repository warrant store. `warrantor grant --repo .` creates `.warrantor/<id>/`, which is
+# a real git WORKTREE of the repository it is granted in — so `git add -A` stages it as an embedded
+# repository and commits a gitlink to a directory nobody else has. That happened once on this
+# branch: a smoke test for `warrantor sandbox` granted against `.`, and the next commit carried it.
+#
+# The stronger reason is `keys/`. A repository-local store holds the issuer and settle keys, so a
+# store one `git add -A` from being pushed is exactly the failure the three interop fixtures above
+# are already ignored for.
+.warrantor/
