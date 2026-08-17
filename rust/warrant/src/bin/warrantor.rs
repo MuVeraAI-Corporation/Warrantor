@@ -2766,10 +2766,11 @@ fn build_guard(args: &Args, warrant_id: &str, root: &Path) -> Option<Box<dyn gua
         match mode {
             guard::GuardMode::Observe => "observe-only: it records and never blocks.",
             guard::GuardMode::Enforce =>
-                "ENFORCING: a call it calls harmful is refused before anything is staged. This \
-                 mode is untested in production and denies roughly one benign adversarially- \
-                 phrased call in eleven, and it bounds only calls through this endpoint -- it is \
-                 not containment. Turn it off.",
+                // One literal, not a `\`-continued one. `cargo fmt` reflows these, and a reflow that
+                // lands on a hyphen turns "adversarially-phrased" into "adversarially- phrased" in
+                // the operator's terminal. Third time on this branch: nothing checks rendered
+                // output, only that it compiles.
+                "ENFORCING: a call it calls harmful is refused before anything is staged. This mode is untested in production and denies roughly one benign adversarially-phrased call in eleven, and it bounds only calls through this endpoint -- it is not containment. Turn it off.",
         }
     );
     Some(Box::new(adapter))

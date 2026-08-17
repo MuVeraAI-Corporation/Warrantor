@@ -355,3 +355,26 @@ test('the tray icon is in the packaged file list, not only in the build resource
     'build/icon.png is missing from the repository',
   );
 });
+
+// ── SIGNING.md's one checkable promise ───────────────────────────────────────────────
+
+test('every certificate extension SIGNING.md promises is ignored', () => {
+  // The document told the operator "the root .gitignore already excludes a .p12, a .pfx, or a
+  // private key". It excluded `*.key` and `*.pem` and NEITHER of the first two — so the two file
+  // types a purchased code-signing certificate actually arrives as were exactly the two the
+  // sentence covered and the file did not.
+  //
+  // That claim is load-bearing at one moment: when somebody acts on the document, drops the
+  // certificate they just paid for next to the thing it signs, and runs `git add -A`. A signing
+  // key in history is not revocable by deleting the commit.
+  //
+  // Asserted against the file rather than against the prose, so the two cannot drift apart again.
+  const root = join(here, '..', '..', '.gitignore');
+  const ignore = readFileSync(root, 'utf8');
+  for (const pattern of ['*.p12', '*.pfx', '*.cer', '*.crt', '*.key', '*.pem']) {
+    assert.ok(
+      ignore.split(/\r?\n/).some((line) => line.trim() === pattern),
+      `.gitignore must carry ${pattern}: SIGNING.md promises a certificate cannot be committed`,
+    );
+  }
+});

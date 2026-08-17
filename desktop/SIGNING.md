@@ -167,8 +167,14 @@ extra line.
 
 ## 6. What not to do
 
-- **Never commit a `.p12`, a `.pfx`, or a private key.** The root `.gitignore` already excludes
-  `*.key` and `*.pem`; neither pattern catches `.p12`. Certificates go in repository secrets.
+- **Never commit a `.p12`, a `.pfx`, or a private key.** The root `.gitignore` excludes them — as
+  of 2026-08-17. It did **not** when this line was written: it carried `*.key` and `*.pem` and
+  neither `*.p12` nor `*.pfx`, so the two file types a purchased certificate actually arrives as
+  were the two this document promised were covered and were not. Verified now with
+  `git check-ignore` for `.p12`, `.pfx`, `.cer`, `.crt`, `.key` and `.pem`. The claim mattered
+  exactly at the moment somebody acted on this document, and a signing key in git history is not
+  revocable by deleting the commit. Certificates belong in repository secrets regardless: an ignore
+  rule stops an accident, not a decision.
 - **Never document "right-click → Open", `xattr -dr com.apple.quarantine`, or "More info → Run
   anyway" as the recommended install path.** That is the click-through habit this product exists to
   break, and putting it in our own README makes it ours. Point reviewers at the published
@@ -189,16 +195,26 @@ extra line.
 `desktop-release.yml` has **never run**: `workflow_dispatch` is unavailable until the workflow file
 is on the default branch, so nothing below has been produced by CI. The only build performed by hand
 was a Windows `electron-builder --dir` run against a dummy stand-in for the agent — an unpacked
-directory, not an installer. **No installer has been produced, installed or launched on any
-platform.** The table says configured where the configuration exists and the build has not been
-exercised; RELEASING.md step 1 is the dispatch that changes those rows.
+directory, not an installer.
+
+**Updated 2026-08-17.** That paragraph was true when written and is no longer. A full Windows NSIS
+installer has been produced locally: `Warrantor-1.0.0-x64-setup.exe`, 101,239,598 bytes, sha256
+`f7f6cd68517de7d01929579c6bdee5bcb938e3bd0c1cd99bd8a170d0d3b151d2`. The packaged app was also
+*launched* from `dist/win-unpacked`, twice — which is how the tray defect in `135df7a` was found,
+since `build/` is electron-builder's own resources directory and is not copied into the app, so
+`installTray` skipped silently in every packaged build while every config assertion passed.
+
+What has still never happened: **no installer has been run**, on any platform. Producing an artifact
+and executing it are different claims and this document has to keep them apart. The table says
+`configured` where the configuration exists and the build has not been exercised; RELEASING.md step
+1 is the dispatch that changes the CI rows.
 
 | Item | State |
 | --- | --- |
-| Windows NSIS installer, per-user, no elevation | configured; only an unpacked `--dir` build has run, never an installer |
+| Windows NSIS installer, per-user, no elevation | **built locally** (sha256 `f7f6cd68…`); never executed, and never built by CI |
 | macOS dmg, arm64 and x64 | configured, never built — and until this branch it was configured to skip signing entirely (§1) |
 | Linux AppImage and deb, x64 | configured, never built |
-| `warrantor` agent bundled inside the app | configured, and preferred over `WARRANTOR_BIN` and `PATH`; asserted by a test against the builder config, never observed in a produced installer |
+| `warrantor` agent bundled inside the app | **observed in a packaged build**: `dist/win-unpacked` contains it, resolves it ahead of an empty `PATH`, starts it and loads the console. Not yet observed in an *installed* app |
 | SHA256SUMS published per platform | in the workflow, never executed |
 | Build provenance attestation | in the workflow, never executed — tagged releases only |
 | Code signature / notarisation | no — needs the certificates in §3 |

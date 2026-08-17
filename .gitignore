@@ -65,6 +65,15 @@ Thumbs.db
 .env.*
 *.key
 *.pem
+# Code-signing certificates. `desktop/SIGNING.md` told the operator "the root .gitignore already
+# excludes a .p12, a .pfx, or a private key" -- and it excluded neither of the first two. The claim
+# becomes load-bearing at exactly the moment somebody acts on that document: a paid certificate
+# arrives as a .p12 or a .pfx, gets dropped next to the thing it signs, and is one `git add -A` from
+# a public repository. A signing key in history is not revocable by deleting the commit.
+*.p12
+*.pfx
+*.cer
+*.crt
 secrets/
 
 # Build outputs
