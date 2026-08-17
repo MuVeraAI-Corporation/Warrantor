@@ -105,6 +105,8 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "apply",
     // operator
     "scope",
+    // issuer export
+    "as",
     // mcp
     "agent",
     "observe",

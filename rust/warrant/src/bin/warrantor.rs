@@ -28,6 +28,7 @@ use ed25519_dalek::{SigningKey, VerifyingKey};
 use warrantor_warrant::anchor;
 use warrantor_warrant::archive_client::{self, ArchiveAnswer, ArchiveConfig, ArchiveTransport};
 use warrantor_warrant::autofile;
+use warrantor_warrant::bundle;
 use warrantor_warrant::daemon::{
     process_is_alive, supervise_run, DaemonState, Reconciliation, SuperviseRequest,
 };
@@ -390,6 +391,7 @@ warrantor — bounded authority for coding agents
   report  <warrant-id> [--export <path> [--archive [<url>]]]
   verify  <exported-report.json | exported-stop.json | exported-spend.json>
   issuer  add <name> <hex> [--note \"...\"] | list | remove <name> | show-hex
+          | export --out <file> [--as <label>] | import <file> [--apply]
   archive enrol --url <url> --code <code> [--replace] | push <file>
                 | fetch <sha256> --out <path> | list <warrant-id> | auto [settle|off]
                 | summary
@@ -1204,9 +1206,11 @@ fn cmd_issuer(args: &Args, root: &Path) -> ExitCode {
         Some("list") => cmd_issuer_list(root),
         Some("remove" | "unpin") => cmd_issuer_remove(args, root),
         Some("show-hex" | "show") => cmd_issuer_show_hex(root),
+        Some("export") => cmd_issuer_export(args, root),
+        Some("import") => cmd_issuer_import(args, root),
         Some(other) => fail(&format!(
-            "unknown issuer verb {other:?}. warrantor issuer has four: add, list, remove, \
-             show-hex."
+            "unknown issuer verb {other:?}. warrantor issuer has six: add, list, remove, \
+             show-hex, export, import."
         )),
         None => fail(
             "usage: warrantor issuer add <name> <hex> [--note \"...\" | --replace]\n       \
@@ -2836,6 +2840,141 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         }
         Err(e) => fail(&e),
     }
+}
+
+/// Export this machine's pins as a signed bundle.
+fn cmd_issuer_export(args: &Args, root: &Path) -> ExitCode {
+    let Some(out) = args.flags.get("out") else {
+        return fail(
+            "usage: warrantor issuer export --out trust-bundle.json [--as <a-name-for-this-machine>]",
+        );
+    };
+    let directory = match trust::Directory::load(root) {
+        Ok(d) => d,
+        Err(e) => return fail(&e),
+    };
+    if directory.issuers.is_empty() {
+        return fail(
+            "this machine has no pinned issuers, so a bundle would carry nothing. Pin some first              with `warrantor issuer add <name> <hex> --note \"how you checked it\"`.",
+        );
+    }
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    // A label, not an identity. The key that signs is the authenticated part.
+    let issued_by = args
+        .flags
+        .get("as")
+        .cloned()
+        .unwrap_or_else(|| "this-machine".to_string());
+
+    let bundle_value = bundle::export(&directory, &issued_by, now(), &issuer);
+    let bytes = match bundle::write(&bundle_value, Path::new(out)) {
+        Ok(bytes) => bytes,
+        Err(e) => return fail(&e.to_string()),
+    };
+
+    println!("exported  {out}");
+    println!("pins      {}", directory.issuers.len());
+    println!("signed by {}", bundle_value.signed_by);
+    println!("digest    {}", report::sha256_hex(&bytes));
+    println!();
+    println!(
+        "Hand this to whoever needs your pins. They can import it ONLY if they have already pinned
+         the key above, out of band -- which is the point: one out-of-band check buys everything
+         this machine trusts, and the trust root is still a key a human checked rather than a host
+         somebody configured. Nothing is fetched, by anybody, ever."
+    );
+    println!();
+    println!(
+        "They run:
+  warrantor issuer add <a-name-they-choose> {} --note \"how they checked it\"
+           warrantor issuer import {out}",
+        bundle_value.signed_by
+    );
+    ExitCode::SUCCESS
+}
+
+/// Merge a signed bundle into this machine's pins.
+fn cmd_issuer_import(args: &Args, root: &Path) -> ExitCode {
+    let Some(path) = args.positional.get(1) else {
+        return fail("usage: warrantor issuer import <trust-bundle.json> [--apply]");
+    };
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(e) => return fail(&format!("cannot read {path}: {e}")),
+    };
+    let parsed = match bundle::parse(&bytes) {
+        Ok(b) => b,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let mut directory = match trust::Directory::load(root) {
+        Ok(d) => d,
+        Err(e) => return fail(&e),
+    };
+    // Merged into a COPY first, so a dry run is the real computation rather than a description of
+    // one. The house pattern from `prune` and `agents wire`: this writes into the file that decides
+    // which signatures this machine will believe, and a command that edited that the first time it
+    // was typed is a command people run once and then distrust.
+    let report = match bundle::import(&mut directory, &parsed, &bytes) {
+        Ok(r) => r,
+        Err(e) => return fail(&e.to_string()),
+    };
+
+    let apply = args.flags.contains_key("apply");
+    println!(
+        "{} bundle {:?} signed by `{}` (issued at {})",
+        if apply { "IMPORTING" } else { "DRY RUN --" },
+        report.issued_by,
+        report.signer_name,
+        report.issued_at
+    );
+    println!("bundle digest {}", report.bundle_digest);
+    println!();
+    for (name, outcome) in &report.outcomes {
+        match outcome {
+            bundle::ImportOutcome::Added => println!("  + {name:<24} pinned from this bundle"),
+            bundle::ImportOutcome::AlreadyAgreed => {
+                println!("  = {name:<24} already pinned to the same key");
+            }
+            bundle::ImportOutcome::Conflict { local, incoming } => {
+                println!("  ! {name:<24} CONFLICT -- left alone");
+                println!("      this machine holds {local}");
+                println!("      the bundle carries {incoming}");
+            }
+        }
+    }
+    println!();
+    let conflicts = report.conflicts();
+    if !conflicts.is_empty() {
+        println!(
+            "{} name(s) conflict and were NOT changed. A local pin is something a human checked out
+             of band on THIS machine; a bundle silently redefining it is exactly the substitution a
+             signed bundle otherwise prevents. There is no --replace here on purpose: resolve each
+             one by hand, having decided which key is right.",
+            conflicts.len()
+        );
+        println!();
+    }
+    if !apply {
+        println!(
+            "{} name(s) would be pinned. Nothing has been written. Run again with --apply.",
+            report.added()
+        );
+        return ExitCode::SUCCESS;
+    }
+    match directory.save(root) {
+        Ok(path) => println!(
+            "{} name(s) pinned. Wrote {}",
+            report.added(),
+            path.display()
+        ),
+        Err(e) => return fail(&e),
+    }
+    println!();
+    println!("{}", report.caveat());
+    ExitCode::SUCCESS
 }
 
 // ── time anchoring: order without a trust root ─────────────────────────────────
