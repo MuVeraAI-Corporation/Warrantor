@@ -47,6 +47,7 @@ use warrantor_warrant::proxy::{host_of, ProxyMode};
 use warrantor_warrant::report;
 use warrantor_warrant::retention;
 use warrantor_warrant::runs;
+use warrantor_warrant::sandbox;
 use warrantor_warrant::serve as http;
 use warrantor_warrant::settle::{settle, void, EffectOutcome, EffectPerformer, SettleReport};
 use warrantor_warrant::spend::{self, SpendStore, SpendVerdict};
@@ -457,6 +458,7 @@ warrantor — bounded authority for coding agents
            | remove <name> | session-scope <read[,stop,approve] | unscoped>
   approve <warrant-id>
   queue   [--notify]
+  sandbox <warrant-id> [--kind bubblewrap|firejail]
   agents  list | detect | show <harness>
           | wire <harness> <warrant-id> [--repo .] [--apply] [--replace]
                  [--upstream 'name=command args' ...]
@@ -3874,6 +3876,99 @@ fn named(approvers: &[Option<String>]) -> String {
         .join(", ")
 }
 
+// ── sandbox: turning bounds into something else's enforcement ─────────────────────────
+
+/// `warrantor sandbox <warrant-id> [--kind bubblewrap|firejail]`
+///
+/// The buildable half of §3.1. `write_paths` is Observed and the honest advice has always been
+/// "compose with a real sandbox" — advice that was unactionable, because the hard part is not
+/// typing a `bwrap` line, it is knowing which bounds a sandbox cannot express at all.
+///
+/// It prints a command and changes nothing. `warrantor report` will still say `write_paths` is
+/// Observed after this runs, because from the store's point of view it is: a profile that is never
+/// launched confines nothing, and this process cannot tell whether the operator launched it.
+fn cmd_sandbox(args: &Args, store: &WarrantStore) -> ExitCode {
+    let Some(id) = args.positional.first() else {
+        return fail("usage: warrantor sandbox <warrant-id> [--kind bubblewrap|firejail]");
+    };
+    let stored = match store.load(id) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let kind = match args.flags.get("kind") {
+        Some(word) => match sandbox::Confinement::parse(word) {
+            Ok(k) => k,
+            Err(e) => return fail(&e),
+        },
+        None => sandbox::Confinement::Bubblewrap,
+    };
+    // The worktree is the one path that must be writable. Without one there is nothing to bind, and
+    // a profile over a guessed path would be a command that silently confines the wrong directory.
+    let Some(worktree) = stored.worktree.as_ref() else {
+        return fail(&format!(
+            "{id} has no worktree, so there is no path to bind read-write and no profile to \
+             write. A warrant granted with --repo has one; one granted without it was never going \
+             to be confined by a filesystem sandbox, because it has no filesystem boundary."
+        ));
+    };
+
+    let path = worktree.display().to_string();
+    // Checked BEFORE the profile is written, so a command that cannot work is never printed as
+    // though it could. The first live run of this command on Windows emitted a syntactically
+    // perfect `bwrap --bind 'M:\wt-depth\...'` -- a path that cannot exist on the only platform
+    // bwrap runs on, failing later with bwrap's own error about a missing directory, which names
+    // the symptom and not the cause.
+    if let Err(e) = sandbox::check_worktree(&path) {
+        return fail(&e);
+    }
+
+    let profile = sandbox::profile(&stored.warrant.claims.bounds, &path, kind);
+
+    println!("{} profile for {id}", kind.word());
+    println!("  platform  {} only", kind.platform());
+    println!();
+    println!("{} <your agent command>", profile.shell_line());
+    println!();
+
+    let over = profile.overreaches();
+    if !over.is_empty() {
+        println!("READ THIS BEFORE RUNNING IT -- this profile is STRICTER than the warrant:");
+        for divergence in &over {
+            if let sandbox::Divergence::Overreach { bound, why } = divergence {
+                println!("  {bound}");
+                println!("    {why}");
+            }
+        }
+        println!();
+    }
+
+    println!("What this profile holds:");
+    for divergence in profile.held() {
+        if let sandbox::Divergence::Held { bound, how } = divergence {
+            println!("  {bound}");
+            println!("    {how}");
+        }
+    }
+    println!();
+    println!("What it cannot hold, and what does:");
+    for divergence in &profile.divergences {
+        if let sandbox::Divergence::Gap { bound, why } = divergence {
+            println!("  {bound}");
+            println!("    {why}");
+        }
+    }
+    println!();
+    println!("{}", profile.caveat);
+    println!();
+    println!(
+        "NOT EXECUTED FROM THIS REPOSITORY. The derivation above is unit-tested; whether {} then \
+         confines what it says it confines is its claim and not Warrantor's, and no test here has \
+         run it. Verify it on your own host before relying on it.",
+        kind.word()
+    );
+    ExitCode::SUCCESS
+}
+
 // ── agents: the harnesses, and pointing them at a warranted session ───────────────────
 
 /// The home directory, for the harnesses whose configuration is per-user rather than per-project.
@@ -6160,6 +6255,7 @@ fn main() -> ExitCode {
         "operator" => cmd_operator(&args, &root),
         "approve" => cmd_approve(&args, &store, &root),
         "queue" => cmd_queue(&args, &store, &root),
+        "sandbox" => cmd_sandbox(&args, &store),
         "agents" => cmd_agents(&args, &store),
         "guard" => cmd_guard(&args, &store, &root),
         "anchor" => cmd_anchor(&args, &root),

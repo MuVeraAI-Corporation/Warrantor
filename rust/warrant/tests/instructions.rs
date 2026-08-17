@@ -113,6 +113,8 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "min-labelled",
     // queue
     "notify",
+    // sandbox
+    "kind",
     // upstream tool classes
     "upstream-class",
     "upstream-refuse-unclassified",
