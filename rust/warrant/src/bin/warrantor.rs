@@ -4806,12 +4806,14 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                     // --guard-enforce-untested-do-not-use, where flagged calls WERE refused.
                     eprintln!(
                         "warrantor: guard -- {} classified, {} flagged, {} backend-unavailable, {} \
-                         unparseable, {} skipped over budget. {}",
+                         unparseable, {} skipped over budget, {} permitted with no upstream to \
+                         forward to. {}",
                         counters.classified,
                         counters.flagged,
                         counters.backend_unavailable,
                         counters.unparseable,
                         counters.skipped_over_budget,
+                        counters.permitted_no_route,
                         match endpoint.guard_mode() {
                             Some(guard::GuardMode::Enforce) =>
                                 "ENFORCING: every flagged call was refused at this endpoint before \

@@ -433,6 +433,25 @@ pub struct GuardCounters {
     pub skipped_over_budget: u32,
     /// How many repeated a `(tool, content_digest)` already seen, and cost no backend call.
     pub deduplicated: u32,
+    /// Calls the warrant PERMITTED that never became an action, so were never classified.
+    ///
+    /// # The hole this closes
+    ///
+    /// Found by running a live guarded session against a real model. A call the warrant permits,
+    /// whose decision is `Forward`, with no upstream attached, returns an error saying so — and it
+    /// was counted **nowhere**. Not in `classified`, not in any of the three "nothing looked at"
+    /// buckets, and not in the refusals log either, because a bound did not refuse it.
+    ///
+    /// The operator then reads `1 classified, 0 flagged, 0 backend-unavailable, 0 unparseable, 0
+    /// skipped` and concludes the guard saw every call the warrant allowed. In the session that
+    /// found this it had seen one of two.
+    ///
+    /// Counting it does **not** mean classifying it. The rule that a call which did not happen is
+    /// never classified is the same rule that keeps a bound-refused call out of the signal log, and
+    /// it stays: classifying a non-event would inflate `flagged` with things nobody did. What was
+    /// wrong was that the non-event was invisible rather than that it was unclassified.
+    #[serde(default)]
+    pub permitted_no_route: u32,
 }
 
 /// The line written when a guard attaches, before the run starts.
@@ -713,6 +732,9 @@ impl GuardLog {
             coverage.deduplicated = coverage
                 .deduplicated
                 .saturating_add(u64::from(counters.deduplicated));
+            coverage.permitted_no_route = coverage
+                .permitted_no_route
+                .saturating_add(u64::from(counters.permitted_no_route));
         }
         coverage
     }
@@ -743,6 +765,8 @@ pub struct GuardCoverage {
     pub skipped_over_budget: u64,
     /// Repeats of a `(tool, content_digest)` already seen, which cost no backend call.
     pub deduplicated: u64,
+    /// Calls the warrant permitted that never became an action, so were never classified.
+    pub permitted_no_route: u64,
 }
 
 impl BlockingPosture {
@@ -1089,6 +1113,17 @@ pub trait GuardSink {
         arguments: &BTreeMap<String, String>,
         at: u64,
     ) -> GuardObservation;
+    /// Record that the warrant PERMITTED a call which never became an action, so was never
+    /// classified.
+    ///
+    /// Deliberately not `observe`: this call did not happen, and classifying a non-event would put
+    /// things nobody did into `flagged`. See [`GuardCounters::permitted_no_route`] for the live
+    /// session that found this counted nowhere at all.
+    ///
+    /// Defaulted so every existing implementation, including test doubles, keeps compiling and
+    /// keeps behaving as it did.
+    fn note_no_route(&mut self) {}
+
     /// Who this guard is and how it is configured.
     fn provenance(&self) -> &GuardProvenance;
     /// The mode it attached in.
@@ -1325,6 +1360,10 @@ impl<T: GuardTransport> GuardSink for GuardAdapter<T> {
 
     fn signals(&self) -> Vec<GuardSignal> {
         self.signals.values().cloned().collect()
+    }
+
+    fn note_no_route(&mut self) {
+        self.counters.permitted_no_route = self.counters.permitted_no_route.saturating_add(1);
     }
 
     fn counters(&self) -> GuardCounters {

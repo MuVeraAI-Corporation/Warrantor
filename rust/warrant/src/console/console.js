@@ -735,6 +735,7 @@ function guardEvidence(guard) {
     'backend_unavailable',
     'unparseable',
     'skipped_over_budget',
+    'permitted_no_route',
     'deduplicated',
   ].some((key) => Number.isFinite(coverage?.[key]) && coverage[key] > 0);
   const listed = ['sessions', 'counters'].some(
@@ -1005,6 +1006,11 @@ function renderGuardBlock(guard) {
     ['calls nothing looked at: the backend was unreachable', coverage.backend_unavailable],
     ['calls nothing looked at: the answer was not a verdict', coverage.unparseable],
     ["calls nothing looked at: the session's cap was spent", coverage.skipped_over_budget],
+    // The fourth reason, found by running a live guarded session: a call the warrant PERMITTED
+    // that had no upstream to be forwarded to. It never became an action, so it was never
+    // classified — and before this row it was counted nowhere at all, so the three rows above
+    // read as a complete account of what the guard missed when they were not.
+    ['calls nothing looked at: permitted, but no upstream to forward to', coverage.permitted_no_route],
     ['repeats that cost no backend call', coverage.deduplicated],
   ];
   for (const [label, value] of rows) {

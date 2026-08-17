@@ -1119,13 +1119,28 @@ impl Endpoint for AgentEndpoint {
             // saying so is the only honest answer -- returning success would be the exact
             // success-shaped-mock failure this codebase already fixed once. The remedy the message
             // names is now a flag that exists; for one release it was not.
-            Decision::Forward if self.upstreams.is_none() => ToolResult::error(format!(
-                "{tool} is permitted by warrant {}, but no upstream MCP server is attached to \
-                 forward it to. Start the agent endpoint with --upstream '<name>=<command>' so \
-                 calls have somewhere to go, or see `warrantor agents wire` to have that written \
-                 for the harness you use.",
-                self.warrant_id
-            )),
+            Decision::Forward if self.upstreams.is_none() => {
+                // Counted, and deliberately NOT classified. A live guarded session found this
+                // recorded nowhere at all: not in `classified`, not in any of the three "nothing
+                // looked at" buckets, and not in the refusals log either, because no bound refused
+                // it. The operator read "1 classified, 0 flagged, 0 everywhere else" and would have
+                // concluded the guard saw every call the warrant allowed; it had seen one of two.
+                //
+                // Not classified because the call did not happen — the same rule that keeps a
+                // bound-refused call out of the signal log. Classifying a non-event would put
+                // things nobody did into `flagged`. What was wrong was the invisibility, not the
+                // absence of a verdict.
+                if let Some(guard) = self.guard.as_mut() {
+                    guard.note_no_route();
+                }
+                ToolResult::error(format!(
+                    "{tool} is permitted by warrant {}, but no upstream MCP server is attached to \
+                     forward it to. Start the agent endpoint with --upstream '<name>=<command>' so \
+                     calls have somewhere to go, or see `warrantor agents wire` to have that \
+                     written for the harness you use.",
+                    self.warrant_id
+                ))
+            }
             Decision::Forward => {
                 // BEFORE the call, exactly as in the `Stage` arm above, and for the same reason:
                 // a denial that arrives after the effect has happened is theatre. This is the debt
