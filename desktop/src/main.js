@@ -32,19 +32,22 @@
  */
 
 import { spawn } from 'node:child_process';
-import { appendFileSync, existsSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Menu, app, BrowserWindow, dialog, session, shell } from 'electron';
+import { Menu, app, BrowserWindow, dialog, nativeTheme, screen, session, shell } from 'electron';
 
 import {
   agentBinaryCandidates,
+  agentExitMessage,
   consoleUrl,
   describeBinarySource,
   isNavigationAllowed,
   isPermissionGranted,
+  menuTemplate,
   originFromLine,
   redactToken,
   resolveAgentBinary,
+  sanitiseWindowState,
   tokenFromLine,
 } from './policy.js';
 
@@ -82,6 +85,58 @@ trace('module evaluated');
 let agent = null;
 /** The session token, held only to redact it from forwarded output. */
 let sessionToken = null;
+/** True from the first deliberate quit, so a dying agent does not raise a dialog on the way out. */
+let quitting = false;
+/**
+ * Where a post-startup agent death is routed.
+ *
+ * A mutable indirection rather than a parameter, because the `exit` handler is attached inside
+ * `startAgent` — before the window it would report to exists.
+ */
+let onAgentExit = () => {};
+
+/** Where the remembered window geometry lives. */
+function windowStatePath() {
+  return join(app.getPath('userData'), 'window-state.json');
+}
+
+/**
+ * Read the remembered geometry, sanitised against the displays that exist *now*.
+ *
+ * Every failure path returns the default rather than throwing. A corrupt state file must never be
+ * the reason an application will not open — that is a support problem with no user-visible cause,
+ * created entirely by a convenience feature.
+ */
+function readWindowState() {
+  let saved = null;
+  try {
+    saved = JSON.parse(readFileSync(windowStatePath(), 'utf8'));
+  } catch {
+    saved = null;
+  }
+  const workAreas = screen.getAllDisplays().map((display) => display.workArea);
+  return sanitiseWindowState(saved, workAreas);
+}
+
+/**
+ * Remember where the window is.
+ *
+ * `getNormalBounds` rather than `getBounds`, so a window that was maximised when it closed
+ * remembers the size it will return to when it is un-maximised, instead of remembering the size of
+ * the screen and reopening at that size un-maximised on a smaller one.
+ */
+function saveWindowState(window) {
+  if (!window || window.isDestroyed()) return;
+  try {
+    const bounds = window.getNormalBounds();
+    writeFileSync(
+      windowStatePath(),
+      JSON.stringify({ ...bounds, maximized: window.isMaximized() }),
+    );
+  } catch {
+    // Losing a remembered position costs a person one drag. Nothing here may be a reason to fail.
+  }
+}
 
 /**
  * Start `warrantor serve` and resolve once it has announced an origin and a token.
@@ -147,7 +202,7 @@ function startAgent() {
       if (settled || !origin || !token) return;
       settled = true;
       clearTimeout(timer);
-      resolve({ child, origin, token });
+      resolve({ child, origin, token, binaryPath: binary.path });
     };
 
     child.stdout.setEncoding('utf8');
@@ -179,8 +234,14 @@ function startAgent() {
       reject(new Error(`could not start ${binary.path} (${binarySource}): ${error.message}`));
     });
 
-    child.on('exit', (code) => {
-      if (settled) return;
+    child.on('exit', (code, signal) => {
+      if (settled) {
+        // The window is already open, so this is a death rather than a failed start, and it is
+        // reported rather than swallowed. The handler is attached here rather than after the
+        // promise resolves because a child can die in the gap between the two.
+        onAgentExit(code, signal);
+        return;
+      }
       settled = true;
       clearTimeout(timer);
       reject(
@@ -237,31 +298,80 @@ function reportFatal(message) {
  * The rest of the default menu is dropped. This window shows a verdict; it is not a document
  * editor, and File/Window items that do nothing here are worse than absent.
  */
-function installMenu(window, origin, token) {
-  const reload = () => window.loadURL(consoleUrl(origin, token));
+function installMenu(window, origin, token, binaryPath) {
   Menu.setApplicationMenu(
-    Menu.buildFromTemplate([
-      {
-        label: 'Warrantor',
-        submenu: [
-          { label: 'Reload', accelerator: 'CmdOrCtrl+R', click: reload },
-          { type: 'separator' },
-          { role: 'zoomIn' },
-          { role: 'zoomOut' },
-          { role: 'resetZoom' },
-          { type: 'separator' },
-          { role: 'copy' },
-          { role: 'selectAll' },
-          { type: 'separator' },
-          // Kept for support: "what does the console actually say" is answered here, and the
-          // renderer has no privileges for it to expose.
-          { role: 'toggleDevTools' },
-          { type: 'separator' },
-          { role: 'quit' },
-        ],
-      },
-    ]),
+    Menu.buildFromTemplate(
+      menuTemplate({
+        platform: process.platform,
+        appName: 'Warrantor',
+        handlers: {
+          reload: () => window.loadURL(consoleUrl(origin, token)),
+          about: () => showAbout(window, origin, binaryPath),
+        },
+      }),
+    ),
   );
+}
+
+/**
+ * What this window is showing, and which agent is showing it.
+ *
+ * Not decoration. The one question support cannot answer about a desktop install is *which binary
+ * is this actually running* — the resolution order in `policy.js` has three possible answers and
+ * the window looks identical under all of them. The version reported is the shell's; the agent's
+ * own version is on the console's status line, served by the agent itself, because a shell that
+ * printed a version it had derived would be a second source of truth about the thing that
+ * verifies.
+ */
+function showAbout(window, origin, binaryPath) {
+  dialog.showMessageBox(window, {
+    type: 'info',
+    title: 'About Warrantor',
+    message: `Warrantor ${app.getVersion()}`,
+    detail:
+      `This window is a shell around the console served by a local agent. Verification happens ` +
+      `only in that agent, never here.\n\n` +
+      `Agent binary: ${binaryPath}\n` +
+      `Serving: ${origin}\n` +
+      `Profile: ${app.getPath('userData')}`,
+    buttons: ['OK'],
+  });
+}
+
+/**
+ * The agent died after the window opened.
+ *
+ * Previously nothing happened at all: the `exit` handler returned once startup had settled, so a
+ * crashed or killed agent left a window rendering a console that could reach nothing. The console
+ * recovers *silently* when an agent comes back, which is right for a hiccup and wrong for a death —
+ * so the death is the shell's to report, and it is the only party that knows the child is gone.
+ *
+ * Relaunching starts a **new agent with a new session token**, which is why it re-enters
+ * `createWindow` rather than reloading the page: the old URL carries a token no longer valid for
+ * anything.
+ */
+function reportAgentDeath(window, code, signal) {
+  if (quitting) return;
+  agent = null;
+  const choice = dialog.showMessageBoxSync(window, {
+    type: 'error',
+    title: 'The agent stopped',
+    message: 'Warrantor is not running',
+    detail: agentExitMessage(code, signal),
+    buttons: ['Relaunch', 'Quit'],
+    defaultId: 0,
+    cancelId: 1,
+  });
+  if (choice === 0) {
+    if (window && !window.isDestroyed()) window.destroy();
+    createWindow().catch((error) => {
+      reportFatal(`relaunch failed: ${error?.stack ?? error}`);
+      app.exit(1);
+    });
+    return;
+  }
+  quitting = true;
+  app.quit();
 }
 
 /** Apply the policy to a window, and to the session it uses. */
@@ -312,14 +422,25 @@ async function createWindow() {
   agent = started.child;
   sessionToken = started.token;
 
+  const remembered = readWindowState();
   const window = new BrowserWindow({
-    width: 1280,
-    height: 860,
+    width: remembered.width,
+    height: remembered.height,
+    ...(remembered.x === undefined ? {} : { x: remembered.x, y: remembered.y }),
     minWidth: 720,
     minHeight: 480,
     title: 'Warrantor',
-    backgroundColor: '#0f1115',
+    // Follows the OS, and matches the console's own `color-scheme: light dark`. A window painted
+    // dark under a light console flashes white on first paint, which is the one moment a user is
+    // deciding whether this application is finished.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1115' : '#fbfbfd',
     show: false,
+    // The standard frame on every platform, including macOS. An inset title bar would look better
+    // and cannot be done correctly from here: the console is served by the agent and rendered with
+    // no preload, so it has no way to know it is inside this shell — it could neither reserve the
+    // space the traffic lights occupy nor mark its top bar as a drag region. The result would be a
+    // window with its brand under the close button and no way to move it. Deferred to whenever the
+    // shell can tell the page what chrome it is in, which is a change to the page.
     webPreferences: {
       // The three that matter, stated explicitly rather than relied on as defaults: a default that
       // changes between Electron majors is not a security property.
@@ -334,17 +455,34 @@ async function createWindow() {
 
   trace('window constructed');
   lockDown(window, started.origin);
-  installMenu(window, started.origin, started.token);
+  installMenu(window, started.origin, started.token, started.binaryPath);
+  onAgentExit = (code, signal) => reportAgentDeath(window, code, signal);
+
+  // Geometry is written on every move and resize rather than only on close, because the close a
+  // user cares about remembering is often the one where the machine went to sleep or the process
+  // was killed — neither of which fires a close event.
+  const remember = () => saveWindowState(window);
+  window.on('resize', remember);
+  window.on('move', remember);
+  window.on('close', remember);
 
   // Shown on first paint rather than immediately, so the first thing a reviewer sees is the
   // console and not a white rectangle.
-  window.once('ready-to-show', () => window.show());
+  window.once('ready-to-show', () => {
+    if (remembered.maximized) window.maximize();
+    window.show();
+  });
   await window.loadURL(consoleUrl(started.origin, started.token));
   trace('console loaded');
 }
 
 /** Stop the agent. Called on every path that ends the process. */
 function stopAgent() {
+  // Set before the kill, so the child's own `exit` does not raise "the agent stopped" over an
+  // application that is already closing — which is what it would look like to a user who had just
+  // pressed Quit.
+  quitting = true;
+  onAgentExit = () => {};
   if (agent && !agent.killed) {
     agent.kill();
     agent = null;
@@ -387,8 +525,24 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   trace('window-all-closed');
+  // Quitting on the last window closing, on every platform including macOS. The macOS convention
+  // is the opposite, and it is the wrong one here: this application owns a *child process* holding
+  // an open port and a session token, and an app that stayed resident in the Dock with a live
+  // agent behind no window would leave an oversight surface running that its operator believes
+  // they closed. Reopening from the Dock starts a fresh agent in a second or two; a token nobody
+  // can see does not expire on its own.
   stopAgent();
   app.quit();
+});
+
+// macOS: clicking the Dock icon with no window open. Unreachable in practice given the quit above,
+// and wired anyway, because the two behaviours have to agree — if `window-all-closed` is ever
+// relaxed, this is what the Dock icon must already do.
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length > 0) return;
+  createWindow().catch((error) => {
+    reportFatal(`could not reopen: ${error?.stack ?? error}`);
+  });
 });
 
 // `before-quit` and `will-quit` both fire on paths the other does not, and killing an already dead

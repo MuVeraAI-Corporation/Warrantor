@@ -6,57 +6,158 @@
  * The palette carries one idea: a verdict must never be mistaken for chrome. Verified,
  * failed and unknown are three colours, never two, because the API keeps `unknown`
  * distinct from `failed` and a console that folded them would be lying about which
- * question was answered. */
+ * question was answered.
+ *
+ * Three rules follow from that idea and constrain everything below.
+ *
+ * ONE. A verdict is never encoded in colour alone. Every verdict pill carries a glyph
+ * as well as a hue, because roughly one man in twelve cannot reliably separate the
+ * green from the red — and this is the surface on which somebody decides whether to
+ * release an agent's work. WCAG 1.4.1 is the floor here, not the ambition.
+ *
+ * TWO. The three verdict hues are the ONLY saturated colour in the interface. Chrome,
+ * actions, selection and emphasis are all built from --accent and the neutral ramp. An
+ * inviting green button anywhere would put verdict semantics on furniture.
+ *
+ * THREE. Nothing moves in a way that could be mistaken for a state change. Transitions
+ * are on hover and focus only, they are short, and they are switched off entirely under
+ * prefers-reduced-motion — a verdict that fades in is a verdict that was, for a moment,
+ * a different verdict. */
 
 :root {
   color-scheme: light dark;
 
-  --bg: #fbfbfd;
-  --panel: #ffffff;
-  --ink: #16181d;
-  --ink-soft: #5b6270;
-  --line: #e3e6ec;
-  --accent: #2f5bd0;
+  /* Neutrals, as a ramp rather than as three ad-hoc values. Surfaces are numbered by
+     elevation: --surface-0 is the page, --surface-1 is a panel resting on it, and
+     --surface-2 is something resting on the panel. A ramp is what makes the dark theme
+     a translation rather than a second design. */
+  --surface-0: #f7f8fa;
+  --surface-1: #ffffff;
+  --surface-2: #fbfbfd;
+  --ink: #14161b;
+  --ink-soft: #565d6b;
+  --ink-faint: #7d848f;
+  --line: #e2e5eb;
+  --line-strong: #cfd4dd;
+  --accent: #2b53c4;
+  --accent-soft: #eef2fd;
 
-  --ok: #17734a;
-  --ok-bg: #e7f5ee;
-  --bad: #a51d2d;
-  --bad-bg: #fdeaec;
-  --unknown: #8a6100;
-  --unknown-bg: #fdf3dd;
+  --ok: #10643f;
+  --ok-bg: #e6f4ed;
+  --ok-line: #a9d8c1;
+  --bad: #9c1a29;
+  --bad-bg: #fce9eb;
+  --bad-line: #eeb2ba;
+  --unknown: #7d5700;
+  --unknown-bg: #fcf2da;
+  --unknown-line: #e3ca8a;
+
+  /* Elevation. Two levels only: a raised thing and a floating thing. More than two and
+     depth stops meaning anything. */
+  --lift-1: 0 1px 2px rgb(16 22 32 / 6%);
+  --lift-2: 0 6px 20px -6px rgb(16 22 32 / 18%), 0 1px 2px rgb(16 22 32 / 6%);
+
+  /* A modular scale, so sizes are chosen from a set rather than typed. */
+  --text-xs: 11.5px;
+  --text-sm: 12.5px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+
+  /* Spacing on a 4px grid, for the same reason. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 22px;
+  --space-6: 30px;
 
   --radius: 10px;
+  --radius-sm: 7px;
+  --radius-pill: 999px;
+
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+  --ease: 120ms cubic-bezier(0.2, 0, 0.13, 1);
+
+  /* Kept as aliases so every rule written against the previous names still resolves.
+     Renaming a variable across 400 lines of CSS with no build step and no type checker
+     is exactly the change that silently drops one rule. */
+  --bg: var(--surface-0);
+  --panel: var(--surface-1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1115;
-    --panel: #161920;
-    --ink: #e8eaef;
-    --ink-soft: #99a1b0;
-    --line: #262b35;
-    --accent: #7ba1ff;
+    --surface-0: #0d0f13;
+    --surface-1: #14171d;
+    --surface-2: #1a1e26;
+    --ink: #e9ebf0;
+    --ink-soft: #9aa2b1;
+    --ink-faint: #737b8a;
+    --line: #242932;
+    --line-strong: #333a46;
+    --accent: #86a8ff;
+    --accent-soft: #16203a;
 
-    --ok: #6ee7a8;
-    --ok-bg: #10291d;
-    --bad: #ff9ba6;
-    --bad-bg: #2e1418;
-    --unknown: #f0c964;
-    --unknown-bg: #2c2411;
+    --ok: #74e5ac;
+    --ok-bg: #0e2a1e;
+    --ok-line: #1f5c40;
+    --bad: #ff9ea9;
+    --bad-bg: #2d1519;
+    --bad-line: #6d2a33;
+    --unknown: #f3cd6b;
+    --unknown-bg: #2b2411;
+    --unknown-line: #5f4d1c;
+
+    /* Shadows do almost nothing on a dark ground; the border ramp carries depth instead. */
+    --lift-1: 0 1px 2px rgb(0 0 0 / 30%);
+    --lift-2: 0 10px 28px -10px rgb(0 0 0 / 60%);
   }
 }
 
 * { box-sizing: border-box; }
+
+::selection { background: var(--accent-soft); color: var(--ink); }
 
 body {
   margin: 0;
   font-family: var(--sans);
   background: var(--bg);
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-base);
   line-height: 1.5;
+  /* Contextual alternates off, tabular figures on. Every number on this surface is data
+     that is read in a column — timestamps, counts, cents, digests — and proportional
+     figures make two counts of the same magnitude look like different magnitudes. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Monospace anywhere on this surface is an identifier or a digest, and both are read
+   character by character to compare against another copy. Ligatures actively harm that. */
+code, pre, .row-id, .kv dd, #gate-input {
+  font-variant-ligatures: none;
+}
+
+/* One focus treatment for everything focusable, defined once. A focus ring that differs
+   between a chip and a button is a focus ring somebody will forget to add to the next
+   control. */
+:where(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ── top bar ─────────────────────────────────────────────────────────── */
@@ -65,10 +166,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
   padding: 10px 18px;
   border-bottom: 1px solid var(--line);
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  /* Translucent and blurred where it is supported, opaque where it is not: the `background`
+     above is a real colour, so a browser that ignores `backdrop-filter` gets a solid bar
+     rather than a transparent one with text scrolling under it. */
+  backdrop-filter: saturate(1.6) blur(12px);
   position: sticky;
   top: 0;
   z-index: 5;
@@ -98,17 +203,54 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 9px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 550;
+  letter-spacing: 0.005em;
   white-space: nowrap;
+  border: 1px solid transparent;
 }
 
-.pill-quiet { background: var(--bg); color: var(--ink-soft); border: 1px solid var(--line); }
-.pill-ok { background: var(--ok-bg); color: var(--ok); }
-.pill-bad { background: var(--bad-bg); color: var(--bad); }
-.pill-unknown { background: var(--unknown-bg); color: var(--unknown); }
+/* The glyph is the point of these three rules, not the colour.
+ *
+ * Roughly one man in twelve cannot reliably separate this green from this red, and this
+ * is the surface on which somebody decides whether an agent's work is released. A pill
+ * that carried only a hue would be, for those readers, three identical grey badges — and
+ * `unknown` and `failed` are precisely the pair this console exists to keep apart.
+ *
+ * A pseudo-element rather than text in the markup, because the markup is written by
+ * `console.js` from what the server answered, and a glyph is a rendering decision. The
+ * shapes are deliberately distinct in outline as well as in name: a tick, a cross and a
+ * query read differently at a glance even in monochrome, which a filled circle in three
+ * colours would not. `aria-hidden` is unnecessary: generated content is not exposed as
+ * text by screen readers, and the pill's own label already carries the verdict. */
+.pill-ok::before,
+.pill-bad::before,
+.pill-unknown::before {
+  font-weight: 700;
+  font-size: var(--text-xs);
+  line-height: 1;
+}
+
+.pill-quiet {
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  border-color: var(--line);
+}
+
+.pill-ok { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-line); }
+.pill-ok::before { content: "\2713"; }
+
+.pill-bad { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-line); }
+.pill-bad::before { content: "\2715"; }
+
+.pill-unknown {
+  background: var(--unknown-bg);
+  color: var(--unknown);
+  border-color: var(--unknown-line);
+}
+.pill-unknown::before { content: "?"; }
 
 /* ── token gate ──────────────────────────────────────────────────────── */
 
@@ -170,23 +312,43 @@ main {
 
 .chip {
   padding: 3px 11px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink-soft);
-  font-size: 12px;
+  font-size: var(--text-sm);
   cursor: pointer;
   font-family: inherit;
+  transition: border-color var(--ease), background-color var(--ease), color var(--ease);
 }
 
-.chip.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip:hover:not(.is-on) { border-color: var(--line-strong); color: var(--ink); }
+
+/* A filter that is on has to be unmistakable. §1.3 of the delivery-gaps roadmap records the
+   bug this styling belongs to: a chip that matched nothing rendered the same empty list as a
+   store with no history, so a filter looked like data loss. The console distinguishes those
+   states in prose now; the chip has to make it obvious which one is in force before the
+   reader gets as far as the prose. */
+.chip.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 550;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* The dark accent is a light blue; white on it fails contrast. The ground it sits on is
+     what changes, not the idea. */
+  .chip.is-on { color: var(--surface-0); }
+}
 
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
 
 .row {
-  padding: 9px 11px;
+  position: relative;
+  padding: 9px 11px 9px 13px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   background: transparent;
   display: block;
@@ -195,14 +357,50 @@ main {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
+  transition: border-color var(--ease), background-color var(--ease);
 }
 
-.row:hover { border-color: var(--accent); }
-.row.is-on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+/* Selection is a bar on the leading edge as well as a tint. A tint alone is a ~8% colour
+   difference, which is below the threshold at which some displays and some readers can
+   see it at all — and "which warrant am I looking at" is the question every release
+   decision starts from. */
+.row::before {
+  content: "";
+  position: absolute;
+  inset: 7px auto 7px 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: transparent;
+  transition: background-color var(--ease);
+}
+
+.row:hover { border-color: var(--line-strong); background: var(--surface-2); }
+.row.is-on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.row.is-on::before { background: var(--accent); }
 
 .row-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
-.row-id { font-family: var(--mono); font-size: 12px; font-weight: 600; }
-.row-sub { color: var(--ink-soft); font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+.row-id {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.row-sub {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  /* Two lines of goal, then an ellipsis. A goal is free text an operator typed and can be
+     a paragraph; letting one row grow to eight lines pushes every other warrant off the
+     screen, which is a list that hides its own contents. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 /* ── detail ──────────────────────────────────────────────────────────── */
 
@@ -218,53 +416,149 @@ main {
    only ever add slack below the sidebar list. */
 .empty { margin: 0; }
 
-.detail h2 { font-family: var(--mono); font-size: 16px; margin: 0 0 4px; overflow-wrap: anywhere; }
+.detail h2 {
+  font-family: var(--mono);
+  font-size: var(--text-lg);
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
 
+/* The verdict is the one element on this surface that is allowed to be loud. Everything
+   else is a supporting fact about it: the whole page exists so that a human can read this
+   block and decide. It is given the elevation, the size and the leading edge, and nothing
+   else is. */
 .verdict {
+  position: relative;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 13px 15px;
-  margin: 14px 0;
+  padding: 14px 16px 14px 18px;
+  margin: var(--space-4) 0;
   background: var(--panel);
+  box-shadow: var(--lift-1);
+  overflow: hidden;
 }
 
-.verdict-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 7px; }
-.verdict-why { color: var(--ink-soft); margin: 0; }
+/* Coloured by whichever verdict pill the head carries, so the edge cannot disagree with
+   the badge — there is no second place for the console to decide what the verdict was. */
+.verdict::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--line-strong);
+}
+.verdict:has(.pill-ok)::before { background: var(--ok); }
+.verdict:has(.pill-bad)::before { background: var(--bad); }
+.verdict:has(.pill-unknown)::before { background: var(--unknown); }
 
-.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 10px 0 0; }
-.kv dt { color: var(--ink-soft); font-size: 12px; }
-.kv dd { margin: 0; font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.verdict-head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+.verdict-why { color: var(--ink-soft); margin: 0; max-width: 68ch; }
 
-.section { margin-top: 22px; }
-.section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin: 0 0 9px; }
+.kv {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 5px var(--space-4);
+  margin: var(--space-3) 0 0;
+}
+.kv dt { color: var(--ink-faint); font-size: var(--text-sm); }
+.kv dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.section { margin-top: var(--space-5); }
+.section h3 {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 650;
+  color: var(--ink-faint);
+  margin: 0 0 var(--space-2);
+}
 
 pre.json {
-  background: var(--panel);
+  background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
   overflow-x: auto;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-sm);
+  line-height: 1.55;
   margin: 0;
+  /* Bounded, with the bundle scrolling inside its own box. An evidence bundle can be
+     hundreds of lines, and letting it set the page height puts the release controls
+     below a fold nobody knows is there. */
+  max-height: 60vh;
+  overflow-y: auto;
+  tab-size: 2;
 }
+
+/* Scrollbars that do not repaint the page's edges in the browser's own grey. Firefox
+   takes the two-value form; WebKit takes the pseudo-elements; both are ignored where
+   unsupported, which is the whole reason it is safe to write both. */
+.side, .detail, .first-run, pre.json {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.side::-webkit-scrollbar,
+.detail::-webkit-scrollbar,
+.first-run::-webkit-scrollbar,
+pre.json::-webkit-scrollbar { width: 10px; height: 10px; }
+.side::-webkit-scrollbar-thumb,
+.detail::-webkit-scrollbar-thumb,
+.first-run::-webkit-scrollbar-thumb,
+pre.json::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.side::-webkit-scrollbar-track,
+.detail::-webkit-scrollbar-track,
+.first-run::-webkit-scrollbar-track,
+pre.json::-webkit-scrollbar-track { background: transparent; }
 
 .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 
+/* Release controls. Deliberately plain: no filled primary, no colour of their own.
+ *
+ * The convention would be a solid accent button on the affirmative action, and it is wrong
+ * here. `settle` performs every staged effect for real, and a button styled to be the
+ * obvious next click is a design that recommends the irreversible one. These read as three
+ * equal choices, and the destructive pair earn their colour only on hover — at which point
+ * the pointer is already on them and the warning is timely rather than ambient. */
 .act {
   padding: 7px 14px;
-  border-radius: 7px;
-  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
   background: var(--panel);
   color: var(--ink);
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  box-shadow: var(--lift-1);
+  transition: border-color var(--ease), color var(--ease), background-color var(--ease);
 }
 
-.act:hover:not(:disabled) { border-color: var(--accent); }
-.act:disabled { opacity: 0.45; cursor: not-allowed; }
-.act-danger:hover:not(:disabled) { border-color: var(--bad); color: var(--bad); }
+.act:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-2); }
+.act:active:not(:disabled) { box-shadow: none; transform: translateY(0.5px); }
+.act:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.act-danger:hover:not(:disabled) {
+  border-color: var(--bad);
+  color: var(--bad);
+  background: var(--bad-bg);
+}
 
 .note { color: var(--ink-soft); font-size: 12px; margin: 8px 0 0; }
 .error { color: var(--bad); }

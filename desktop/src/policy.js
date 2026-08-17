@@ -209,6 +209,189 @@ export function consoleUrl(origin, token) {
 }
 
 /**
+ * The application menu, per platform.
+ *
+ * Written here rather than inline because two of its items are correctness rather than decoration,
+ * and both were missing:
+ *
+ * **Paste.** On macOS the standard editing shortcuts are delivered *through the menu*. A window
+ * with no Edit menu containing `role: 'paste'` cannot paste, at all, with ⌘V — the keystroke has
+ * nowhere to go. The first version of this menu had `copy` and `selectAll` and neither `paste` nor
+ * `cut` nor `undo`, so the console's token field could be typed into and not pasted into, on the
+ * one platform where that is the difference between working and not.
+ *
+ * **The application menu.** On macOS the first submenu is the app menu whatever it is called, and
+ * it is where `about`, `hide`, `services` and `quit` live. Replacing the whole menu without one
+ * removes Hide, Services and the standard Quit item from an application that has no other route to
+ * them.
+ *
+ * Reload survives from the first version and keeps its reason: the console takes its token from the
+ * URL fragment and erases it, so reloading the document's own URL lands on the token gate in a
+ * window whose entire purpose is that nobody has to paste a token. The handler re-loads the
+ * *authenticated* URL, which the shell can do and the page cannot, because the token lives in this
+ * process.
+ *
+ * The rest of Electron's default menu is still dropped. This window shows a verdict; File and
+ * Window items that do nothing here are worse than absent.
+ *
+ * @param {{platform: string, appName: string,
+ *          handlers: {reload: () => void, about: () => void}}} options
+ * @returns {Array<object>} an Electron menu template
+ */
+export function menuTemplate({ platform, appName, handlers }) {
+  const isMac = platform === 'darwin';
+  const template = [];
+
+  if (isMac) {
+    template.push({
+      label: appName,
+      submenu: [
+        { label: `About ${appName}`, click: handlers.about },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    });
+  }
+
+  template.push({
+    label: 'View',
+    submenu: [
+      { label: 'Reload', accelerator: 'CmdOrCtrl+R', click: handlers.reload },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' },
+      // Kept for support: "what does the console actually say" is answered here, and the renderer
+      // has no privileges for it to expose.
+      { role: 'toggleDevTools' },
+    ],
+  });
+
+  template.push({
+    label: 'Edit',
+    submenu: [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      { role: 'selectAll' },
+    ],
+  });
+
+  template.push({
+    label: 'Window',
+    submenu: isMac
+      ? [{ role: 'minimize' }, { role: 'zoom' }, { type: 'separator' }, { role: 'front' }]
+      : [{ role: 'minimize' }, { role: 'close' }],
+  });
+
+  if (!isMac) {
+    template.push({
+      label: 'Help',
+      submenu: [{ label: `About ${appName}`, click: handlers.about }],
+    });
+  }
+
+  return template;
+}
+
+/** The window geometry used when nothing has been remembered. */
+export const DEFAULT_WINDOW_STATE = Object.freeze({ width: 1280, height: 860 });
+
+/**
+ * Turn a remembered window position into one that is safe to open.
+ *
+ * Restoring geometry verbatim is the standard way an application becomes unopenable: a window
+ * remembered on a second monitor, restored after that monitor is gone, opens at coordinates no
+ * display contains — visible nowhere, focusable by nothing, and with no way for the user to get it
+ * back other than deleting a file they do not know exists.
+ *
+ * So a remembered position is kept only when it lands inside some display's work area, with enough
+ * of the title bar reachable to drag. Anything else falls back to centring, which every platform
+ * does correctly on its own when `x`/`y` are absent.
+ *
+ * Size is clamped rather than discarded: a window larger than the current display is a nuisance, a
+ * window at the wrong place is a support ticket.
+ *
+ * @param {unknown} saved - whatever was in the state file, which may be anything at all
+ * @param {Array<{x: number, y: number, width: number, height: number}>} workAreas
+ * @returns {{width: number, height: number, x?: number, y?: number, maximized: boolean}}
+ */
+export function sanitiseWindowState(saved, workAreas) {
+  const state = saved && typeof saved === 'object' ? saved : {};
+  const number = (value, fallback) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+  const areas = Array.isArray(workAreas) ? workAreas : [];
+  const widest = areas.reduce((max, a) => Math.max(max, number(a?.width, 0)), 0);
+  const tallest = areas.reduce((max, a) => Math.max(max, number(a?.height, 0)), 0);
+
+  let width = Math.max(720, Math.round(number(state.width, DEFAULT_WINDOW_STATE.width)));
+  let height = Math.max(480, Math.round(number(state.height, DEFAULT_WINDOW_STATE.height)));
+  if (widest > 0) width = Math.min(width, widest);
+  if (tallest > 0) height = Math.min(height, tallest);
+
+  const result = { width, height, maximized: state.maximized === true };
+
+  const x = number(state.x, null);
+  const y = number(state.y, null);
+  if (x === null || y === null) return result;
+
+  // "Enough of it is reachable": the top-left corner plus a strip of title bar has to be inside
+  // some work area. Requiring the whole window to fit would refuse a window the user had
+  // deliberately hung off the edge of their screen, which is theirs to do.
+  const REACHABLE = 80;
+  const landsSomewhere = areas.some((area) => {
+    const ax = number(area?.x, 0);
+    const ay = number(area?.y, 0);
+    const aw = number(area?.width, 0);
+    const ah = number(area?.height, 0);
+    return (
+      x + REACHABLE > ax && x < ax + aw && y + 24 > ay && y < ay + ah - 24
+    );
+  });
+  if (!landsSomewhere) return result;
+
+  return { ...result, x: Math.round(x), y: Math.round(y) };
+}
+
+/**
+ * The sentence shown when the agent dies *after* the window has opened.
+ *
+ * Previously nothing was shown at all. The child's `exit` handler returned early once startup had
+ * settled, so an agent that crashed or was killed left a window rendering a console that could not
+ * reach anything — and because the console recovers silently when the agent comes back, its
+ * "no answer" state is deliberately quiet. Quiet is right for a hiccup and wrong for a death.
+ *
+ * @param {number|null} code
+ * @param {string|null} signal
+ * @returns {string}
+ */
+export function agentExitMessage(code, signal) {
+  const how = signal
+    ? `was terminated by ${signal}`
+    : code === 0
+      ? 'exited normally'
+      : `exited with code ${code}`;
+  return (
+    `The Warrantor agent ${how}.\n\n` +
+    'This window is now showing a console that cannot reach anything. Nothing has been lost: ' +
+    'warrants, evidence and staged effects live in the store on disk, not in this process. ' +
+    'Relaunching starts a new agent and a new session.'
+  );
+}
+
+/**
  * Redact a token wherever it appears in text bound for a log.
  *
  * `warrantor serve` prints the token three times — on its own line, in the console URL and in the
