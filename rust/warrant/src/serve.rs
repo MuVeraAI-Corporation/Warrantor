@@ -1804,6 +1804,27 @@ pub fn handle_scoped<A: Api>(
     // nothing from the `Api`. It is the surface for everything §2.2 records, and without it the
     // identity work would be a backend with no viewer -- the [[wire before widen]] mistake made
     // against my own change.
+    // The review queue, answered here for the same reason custody is: it needs the registry, the
+    // policy and the root, and nothing from the `Api`. Placed before the custody arm because it is
+    // the shallower path and neither can match the other's segments.
+    if let [v1, queue] = request.segments.as_slice() {
+        if v1 == "v1" && queue == "queue" {
+            if request.method != "GET" {
+                return refuse(
+                    status::METHOD_NOT_ALLOWED,
+                    "method_not_allowed",
+                    "the review queue is a GET",
+                )
+                .with_header("Allow", "GET")
+                .stamped(api.now());
+            }
+            if let Err(response) = no_query(request) {
+                return response.stamped(api.now());
+            }
+            return queue_response(root, approvals, registry, &principal, api.now());
+        }
+    }
+
     if let [v1, warrants, id, verb] = request.segments.as_slice() {
         if v1 == "v1" && warrants == "warrants" && verb == "custody" {
             if request.method != "GET" {
@@ -1843,7 +1864,11 @@ pub fn handle_scoped<A: Api>(
         ) {
             Ok(entry) => Response::json(
                 status::OK,
-                &Verification::not_attempted(api.now()),
+                &Verification::unsigned(
+                    api.now(),
+                    "an approval is one line appended to a store-local hash chain. Nothing signs \
+                     it, so there is nothing here to verify.",
+                ),
                 serde_json::json!({
                     "approved": id,
                     "actor": entry.actor,
@@ -1948,9 +1973,16 @@ fn custody_response(
             })
         })
         .collect();
+    // `unsigned` rather than `not_attempted`, whose reason sentence is "the request was refused
+    // before any record was read" — false on a 200 that just read the whole actor log. The custody
+    // view shipped with it, and the same mistake was about to be repeated on `/v1/queue`.
     Response::json(
         status::OK,
-        &Verification::not_attempted(now),
+        &Verification::unsigned(
+            now,
+            "the actor log is a store-local hash chain, not part of any evidence envelope. There \
+             is nothing here to verify against an issuer key.",
+        ),
         serde_json::json!({
             "warrant_id": warrant_id,
             "acts": acts,
@@ -1961,6 +1993,177 @@ fn custody_response(
             "chain_intact": fault.is_none(),
             "chain_fault": fault,
             "not_a_verdict": "This is a store-local hash-chained record of human acts, NOT signed                               evidence. It shows who this store believes acted; it is not part of                               any receipt, and it proves nothing to somebody who does not already                               hold an earlier copy of its head. An approval is a recorded decision,                               never a verification result.",
+        }),
+    )
+    .stamped(now)
+}
+
+/// The review queue: what is waiting on a human, and what *this* caller can do about it.
+///
+/// # Why it is answered here and not through [`Api`]
+///
+/// The same reason `custody` and `approve` are: it needs the operator registry, the approval policy
+/// and the store root, and nothing an `Api` implementation holds that a path does not. Routing it
+/// through the trait would add a method to every implementation and every test double to compute
+/// something from files this function can already open.
+///
+/// # Why it is per-principal
+///
+/// "Waiting on a decision" and "waiting on **you**" are different sentences. A reviewer handed
+/// twelve warrants they hold no scope for stops reading the list, and the list is the only thing
+/// standing between an outstanding warrant and nobody looking at it. `you_can` is computed per
+/// entry from this caller's own scopes, and names only acts that would not be refused for a reason
+/// the queue already had the facts to predict.
+///
+/// # What it refuses to hide
+///
+/// Two populations are counted separately from the queue and never folded into it: warrant records
+/// that will not parse, and warrants whose actor log will not read. The second is the sharper one —
+/// a warrant whose accountability log is unreadable is *outstanding*, *needs a human*, and cannot
+/// be described, which makes it the most urgent row on the page rather than an absent one.
+fn queue_response(
+    root: &Path,
+    approvals: &crate::operators::ApprovalPolicy,
+    registry: &crate::operators::OperatorRegistry,
+    principal: &Principal,
+    now: u64,
+) -> Response {
+    use crate::review::{available_acts, standing, Candidate};
+
+    let store = match crate::store::WarrantStore::open(root) {
+        Ok(store) => store,
+        Err(e) => {
+            return Response::error(
+                status::INTERNAL,
+                "store_unreadable",
+                &format!(
+                    "the warrant store cannot be opened: {}",
+                    safe_warrant_message(&e)
+                ),
+                &Verification::not_attempted(now),
+            )
+            .stamped(now);
+        }
+    };
+    let (all, unreadable) = match store.list_counting_unreadable() {
+        Ok(pair) => pair,
+        Err(e) => {
+            return Response::error(
+                status::INTERNAL,
+                "store_unreadable",
+                &format!(
+                    "the warrant store cannot be listed: {}",
+                    safe_warrant_message(&e)
+                ),
+                &Verification::not_attempted(now),
+            )
+            .stamped(now);
+        }
+    };
+
+    let mut waiting = Vec::new();
+    let mut undetermined = Vec::new();
+    let mut counts: BTreeMap<&'static str, usize> = BTreeMap::new();
+    let mut yours = 0usize;
+
+    for stored in &all {
+        let state = match stored.warrant.state {
+            WarrantState::Open => "open",
+            WarrantState::Held => "held",
+            // Settled and void warrants are decided. They are not waiting on anybody.
+            WarrantState::Settled | WarrantState::Void => continue,
+        };
+        let id = &stored.warrant.claims.id;
+
+        let records = match crate::operators::read_log(root, id) {
+            Ok(records) => records,
+            Err(e) => {
+                undetermined.push(serde_json::json!({
+                    "warrant_id": id,
+                    "state": state,
+                    "why": format!(
+                        "this warrant is outstanding and its actor log cannot be read ({e}), so \
+                         what is blocking it cannot be established. It is listed here rather than \
+                         omitted: a warrant nobody can describe is the one most in need of a look."
+                    ),
+                }));
+                continue;
+            }
+        };
+
+        // Counted through the same witnessed path every other reader uses, so a staged log that was
+        // removed reaches `None` -- "cannot say" -- rather than being reported as an empty queue.
+        let staged_effects = crate::staging::StagingQueue::open_witnessed(
+            store.staged_path(id),
+            id,
+            EffectRegistry::github(),
+            stored.staged_chain.as_ref(),
+        )
+        .ok()
+        .map(|q| q.effects().len());
+
+        let Some(entry) = standing(
+            approvals,
+            registry,
+            &Candidate {
+                warrant_id: id,
+                state,
+                issued_at: stored.warrant.claims.issued_at,
+                records: &records,
+                staged_effects,
+            },
+        ) else {
+            continue;
+        };
+        let acts = available_acts(
+            &entry,
+            principal.name.as_deref(),
+            &principal.scopes,
+            approvals,
+        );
+        if !acts.is_empty() {
+            yours += 1;
+        }
+        *counts.entry(entry.blocker.word()).or_insert(0) += 1;
+        let mut value = serde_json::to_value(&entry).unwrap_or(serde_json::Value::Null);
+        if let serde_json::Value::Object(map) = &mut value {
+            map.insert("you_can".to_string(), serde_json::json!(acts));
+        }
+        waiting.push(value);
+    }
+
+    // `unsigned`, not `not_attempted`. The first live response carried the latter, whose reason
+    // reads "the request was refused before any record was read" — on a 200 that had just read
+    // every record in the store. `unsigned` is the verdict this actually is: the data exists and
+    // nothing signs it.
+    Response::json(
+        status::OK,
+        &Verification::unsigned(
+            now,
+            "the review queue is derived from store state, the approval policy and each warrant's \
+             actor log. None of those is signed, so there is nothing here to verify -- an entry \
+             says a decision is owed, never that the evidence checks out.",
+        ),
+        serde_json::json!({
+            "waiting": waiting,
+            "waiting_on_you": yours,
+            "counts": counts,
+            "undetermined": undetermined,
+            "unreadable_records": unreadable,
+            "policy": {
+                "required": approvals.required,
+                "settler_may_approve": approvals.settler_may_approve,
+            },
+            "you": {
+                "name": principal.name,
+                "via": principal.via,
+                "scopes": principal.scopes.iter().map(|s| s.word()).collect::<Vec<_>>(),
+            },
+            "not_a_verdict": "This is a derived list of warrants awaiting a human decision. It is \
+                              computed from store state, the approval policy and each warrant's \
+                              actor log; it is not signed, and an entry appearing here says a \
+                              decision is owed, never that the evidence checks out. Verify \
+                              evidence with `warrantor verify`.",
         }),
     )
     .stamped(now)

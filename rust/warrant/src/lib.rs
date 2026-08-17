@@ -50,6 +50,7 @@ pub mod operators;
 pub mod proxy;
 pub mod report;
 pub mod retention;
+pub mod review;
 pub mod serve;
 pub mod settle;
 pub mod spend;

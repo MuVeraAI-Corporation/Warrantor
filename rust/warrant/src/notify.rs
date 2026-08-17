@@ -57,7 +57,23 @@ pub const NOTIFICATION_FORMAT: &str = "warrantor.notification/1";
 pub const PENDING_FORMAT: &str = "warrantor.pending-notification/1";
 
 /// The event kinds v1 knows. Anything else in a config is refused rather than guessed at.
-pub const EVENTS: [&str; 4] = ["settled", "voided", "stopped", "filing-queued"];
+///
+/// **`review-requested` is the only one that fires before a decision rather than after one.** The
+/// other four report something that already happened, which is useful for an archive and useless
+/// for a reviewer: by the time "settled" arrives, the moment to look has passed. See
+/// [`crate::review`] for why a warrant needing a human was previously something nobody could be
+/// told about.
+///
+/// Adding a word here is backward-compatible in the direction that matters — an old config naming
+/// only the original four still parses — and deliberately *not* in the other: a config naming
+/// `review-requested` is refused by an older build rather than silently subscribing to nothing.
+pub const EVENTS: [&str; 5] = [
+    "settled",
+    "voided",
+    "stopped",
+    "filing-queued",
+    crate::review::REVIEW_EVENT,
+];
 
 /// One webhook destination.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

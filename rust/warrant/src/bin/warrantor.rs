@@ -455,6 +455,7 @@ warrantor — bounded authority for coding agents
   operator list | add <name> --scope read,stop,settle,approve --note \"...\"
            | remove <name>
   approve <warrant-id>
+  queue   [--notify]
   agents  list | detect | show <harness>
           | wire <harness> <warrant-id> [--repo .] [--apply] [--replace]
                  [--upstream 'name=command args' ...]
@@ -3470,6 +3471,35 @@ fn cmd_approve(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(p) => p,
         Err(e) => return fail(&e),
     };
+    // Refused before it is recorded, because recording it is irreversible and strictly harmful.
+    //
+    // `approval_verdict` refuses every settle whose actor log holds an anonymous approval when the
+    // policy requires more than one — and it reads the LOG, not the registry, so this line trips it
+    // even on a store with named operators. The log is append-only by design, so no number of named
+    // approvals afterwards removes it: the warrant becomes settleable never, voidable only.
+    //
+    // What shipped here was a warning printed *after* the append, which told the operator they had
+    // achieved nothing. They had achieved worse than nothing. There is no reading of this command
+    // under this policy that helps anybody, so it is a refusal rather than a caution.
+    if policy.required > 1 {
+        return fail(&format!(
+            "refusing: this store requires {} distinct approvals, and an approval typed at a \
+             terminal is recorded with NO operator name.\n\n  \
+             Every caller here is the same unnamed principal, so an anonymous line can never be one \
+             of {} distinct approvers -- and because the actor log is append-only, its presence \
+             makes this warrant PERMANENTLY unsettleable. Voiding would become the only way to \
+             close it.\n\n  \
+             Approve with an operator token instead:\n    \
+             warrantor operator add <name> --scope approve --note \"how you bound this name to a \
+             human\"\n    warrantor serve --allow-settle\n    curl -X POST -H \"Authorization: \
+             Bearer <that-token>\" http://127.0.0.1:{}/v1/warrants/{id}/approve\n\n  \
+             Or set \"required\": 1 in {} if a single recorded look is the posture you want.",
+            policy.required,
+            policy.required,
+            http::DEFAULT_PORT,
+            operators::approvals_path(root).display()
+        ));
+    }
     let entry = match operators::record(root, id, Act::Approve, None, "cli", now()) {
         Ok(entry) => entry,
         Err(e) => return fail(&e),
@@ -3487,13 +3517,8 @@ fn cmd_approve(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             "This store requires {} approval(s); {distinct} distinct approver(s) recorded.",
             policy.required
         );
-        if policy.required > 1 {
-            println!(
-                "  An anonymous approval cannot satisfy a requirement above one: every terminal\n  \
-                 caller on this machine is the same unnamed principal, so they cannot be told\n  \
-                 apart. Register operators and approve through `warrantor serve` instead."
-            );
-        }
+        // `required > 1` is refused above, before anything is recorded, so the only requirement
+        // reachable here is exactly one — which one anonymous approval does satisfy.
     } else {
         println!(
             "This store requires NO approvals (no approvals.json, or it asks for zero), so this\n\
@@ -3509,6 +3534,250 @@ fn cmd_approve(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
          `warrantor verify <exported-report.json> --issuer <key>`."
     );
     ExitCode::SUCCESS
+}
+
+// ── the review queue: what is waiting on a human ──────────────────────────────────────
+
+/// `warrantor queue [--notify]` — what is waiting on a decision, and who it is waiting on.
+///
+/// # Why this command exists
+///
+/// Everything needed to *make* a decision shipped before it: scopes, a hash-chained actor log, a
+/// two-person rule, and a settle gate that reads all three. Nothing told anybody a decision was
+/// wanted. `warrantor approve <id>` requires already knowing the id, and the four notification
+/// events all fire *after* a decision — by the time `settled` arrives, the moment to look has
+/// passed. This is the surface that closes it, and `--notify` is the part that reaches somebody
+/// who is not at this terminal.
+///
+/// # `--notify` announces transitions, not states
+///
+/// A warrant moving from `awaiting-approval` to `awaiting-decision` is news — the approvals came
+/// in and somebody must now release or discard the work — so it is announced again. A warrant
+/// sitting in the same state across two runs is not, and is silent. See
+/// `warrantor_warrant::review::last_announced` for why a plain "already notified" flag was wrong.
+fn cmd_queue(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
+    use warrantor_warrant::review::{self, standing, Blocker, Candidate};
+
+    let announce = args.flags.contains_key("notify");
+    let policy = match ApprovalPolicy::load(root) {
+        Ok(p) => p,
+        Err(e) => return fail(&e),
+    };
+    let registry = match operators::OperatorRegistry::load(root) {
+        Ok(r) => r,
+        Err(e) => return fail(&e),
+    };
+    let (all, unreadable) = match store.list_counting_unreadable() {
+        Ok(pair) => pair,
+        Err(e) => return fail(&e.to_string()),
+    };
+
+    let mut rows = Vec::new();
+    let mut undetermined = Vec::new();
+    for stored in &all {
+        let state = match stored.warrant.state {
+            WarrantState::Open => "open",
+            WarrantState::Held => "held",
+            WarrantState::Settled | WarrantState::Void => continue,
+        };
+        let id = &stored.warrant.claims.id;
+        let records = match operators::read_log(root, id) {
+            Ok(records) => records,
+            Err(e) => {
+                undetermined.push((id.clone(), e));
+                continue;
+            }
+        };
+        let staged = store
+            .open_queue(id, EffectRegistry::github())
+            .ok()
+            .map(|q| q.effects().len());
+        if let Some(entry) = standing(
+            &policy,
+            &registry,
+            &Candidate {
+                warrant_id: id,
+                state,
+                issued_at: stored.warrant.claims.issued_at,
+                records: &records,
+                staged_effects: staged,
+            },
+        ) {
+            rows.push((entry, stored));
+        }
+    }
+
+    if rows.is_empty() && undetermined.is_empty() {
+        println!("Nothing is waiting on a decision.");
+        println!();
+        println!(
+            "Every warrant in this store is settled or void. A warrant appears here from the \
+             moment it is granted until somebody releases or discards it."
+        );
+        if unreadable > 0 {
+            println!();
+            println!(
+                "{unreadable} warrant record(s) could not be read and are NOT counted above. They \
+                 are neither present nor absent from this queue -- run `warrantor holdings`."
+            );
+        }
+        return ExitCode::SUCCESS;
+    }
+
+    println!(
+        "{} warrant(s) waiting on a decision.",
+        rows.len() + undetermined.len()
+    );
+    println!();
+
+    for (entry, stored) in &rows {
+        let staged = match entry.staged_effects {
+            Some(n) => format!("{n} staged effect(s)"),
+            None => "staged effects UNCOUNTABLE (the log could not be read)".to_string(),
+        };
+        println!("{}  [{}]  {}", entry.warrant_id, entry.state, staged);
+        println!("  goal     {}", stored.warrant.claims.goal);
+        match &entry.blocker {
+            Blocker::AwaitingDecision { approved_by } => {
+                println!("  blocker  awaiting a decision -- somebody must settle or void it");
+                if !approved_by.is_empty() {
+                    println!("  approved {}", named(approved_by));
+                }
+            }
+            Blocker::AwaitingApproval {
+                still_needed,
+                could_approve,
+                approved_by,
+            } => {
+                println!(
+                    "  blocker  awaiting {still_needed} more approval(s) of the {} this store \
+                     requires",
+                    policy.required
+                );
+                if !approved_by.is_empty() {
+                    println!("  approved {}", named(approved_by));
+                }
+                if could_approve.is_empty() {
+                    println!("  waiting  on nobody this store can name");
+                } else {
+                    println!("  waiting  on {}", could_approve.join(", "));
+                }
+            }
+            Blocker::Deadlocked { why } => {
+                println!("  blocker  DEADLOCKED -- no act by anybody can clear this");
+                println!("           {why}");
+            }
+        }
+        println!();
+    }
+
+    for (id, why) in &undetermined {
+        println!("{id}  [outstanding]  UNDETERMINED");
+        println!("  This warrant needs a decision and its actor log cannot be read ({why}),");
+        println!("  so what is blocking it cannot be established. Listed rather than omitted:");
+        println!("  a warrant nobody can describe is the one most in need of a look.");
+        println!();
+    }
+
+    if unreadable > 0 {
+        println!(
+            "{unreadable} warrant record(s) could not be read and are NOT in the count above."
+        );
+        println!();
+    }
+
+    // The deadlock summary is repeated at the bottom because it is the one line in this output
+    // that means "nothing you do at this terminal will help", and a long queue buries it.
+    let deadlocked = rows
+        .iter()
+        .filter(|(e, _)| e.blocker.is_deadlocked())
+        .count();
+    if deadlocked > 0 {
+        println!(
+            "{deadlocked} of these are DEADLOCKED: this store's approval policy cannot be \
+             satisfied by the operators registered on it. Nothing moves until approvals.json or \
+             the registry changes -- see the sentence on each warrant above for which."
+        );
+        println!();
+    }
+
+    if !announce {
+        println!(
+            "Nobody has been told about any of this. `warrantor queue --notify` posts a {:?} \
+             event to whatever notify.json names, once per warrant per blocker.",
+            review::REVIEW_EVENT
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    // ── --notify ──────────────────────────────────────────────────────────────────────
+    let config = match NotifyConfig::load(root) {
+        Ok(config) => config,
+        Err(e) => return fail(&e),
+    };
+    if config.webhooks.is_empty() {
+        println!(
+            "--notify was asked for and there is nowhere to send it: {} names no webhooks. \
+             Nothing was sent, and no warrant was marked as announced -- so adding a webhook and \
+             running this again still tells you about everything above.",
+            notify::config_path(root).display()
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    let mut announced = 0usize;
+    let mut skipped = 0usize;
+    for (entry, stored) in &rows {
+        let blocker = entry.blocker.word();
+        if !review::should_announce(root, &entry.warrant_id, blocker) {
+            skipped += 1;
+            continue;
+        }
+        notify_event(
+            root,
+            review::REVIEW_EVENT,
+            stored,
+            serde_json::json!({
+                "blocker": blocker,
+                "staged_effects": entry.staged_effects,
+                "required_approvals": policy.required,
+            }),
+        );
+        // Recorded after the attempt, never before. `notify_event` queues a failed delivery for
+        // retry rather than losing it, so a marker written here means "this blocker has been
+        // handed to the notification path", which is the fact this file exists to remember. A
+        // marker that could not be written costs a duplicate next run and is said out loud.
+        if let Err(e) = review::record_request(root, &entry.warrant_id, now(), blocker) {
+            eprintln!(
+                "warrantor: {} was announced and the marker could not be written ({e}). It will \
+                 be announced again next run.",
+                entry.warrant_id
+            );
+        }
+        announced += 1;
+    }
+    println!("announced {announced}, already announced {skipped}.");
+    if !undetermined.is_empty() {
+        println!(
+            "{} warrant(s) were NOT announced because their actor log could not be read. A \
+             notification naming a blocker this machine could not establish would be worse than \
+             none.",
+            undetermined.len()
+        );
+    }
+    ExitCode::SUCCESS
+}
+
+/// Render an approver list, keeping the unnamed session principal distinguishable from a name.
+fn named(approvers: &[Option<String>]) -> String {
+    approvers
+        .iter()
+        .map(|a| match a {
+            Some(name) => name.clone(),
+            None => "(anonymous -- no operator registry)".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 // ── agents: the harnesses, and pointing them at a warranted session ───────────────────
@@ -5743,6 +6012,7 @@ fn main() -> ExitCode {
         "mcp" => cmd_mcp(&args, store, &root),
         "operator" => cmd_operator(&args, &root),
         "approve" => cmd_approve(&args, &store, &root),
+        "queue" => cmd_queue(&args, &store, &root),
         "agents" => cmd_agents(&args, &store),
         "guard" => cmd_guard(&args, &store, &root),
         "anchor" => cmd_anchor(&args, &root),

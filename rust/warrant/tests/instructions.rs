@@ -111,6 +111,8 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "cases",
     // guard export-corpus
     "min-labelled",
+    // queue
+    "notify",
     // upstream tool classes
     "upstream-class",
     "upstream-refuse-unclassified",
