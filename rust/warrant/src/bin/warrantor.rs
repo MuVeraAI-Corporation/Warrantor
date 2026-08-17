@@ -407,7 +407,9 @@ warrantor — bounded authority for coding agents
                  [--upstream 'name=command args' ...]
   selftest-upstream
   serve   [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
+          [--i-accept-cleartext-on-this-network]
   console [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
+          [--i-accept-cleartext-on-this-network]
 
 Agents is the harness registry: which coding agents, general-purpose agents and
 SDKs can be pointed at a warranted session, and -- the column that matters -- how
@@ -3624,6 +3626,18 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) 
         Ok(addr) => addr,
         Err(e) => return fail(&e),
     };
+    // Before the keys are loaded and before a token is minted: a refused bind must not leave a
+    // token file behind, and must not have read the settle key into this process at all.
+    //
+    // `release_authority` is not yet known here, so the refusal is asked for the *worst* case when
+    // the flag is present. That is deliberate -- the refusal's wording differs by how much a stolen
+    // token could do, and reading `--allow-settle` from the args is exactly as reliable as the
+    // decision made from it forty lines below.
+    if let Some(refusal) = http::bind_refusal(addr, root, args.flags.contains_key("allow-settle")) {
+        if !args.flags.contains_key(http::CLEARTEXT_ACK_FLAG) {
+            return fail(&refusal);
+        }
+    }
     let token_file = match resolve_token_file(args) {
         Ok(path) => path,
         Err(e) => return fail(&e),

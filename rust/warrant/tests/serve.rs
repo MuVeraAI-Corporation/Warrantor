@@ -21,9 +21,9 @@ use serde_json::Value;
 use warrantor_warrant::egress::{DenyReason, EgressRefusal};
 use warrantor_warrant::proxy::AuthorityRequest;
 use warrantor_warrant::serve::{
-    aggregate_refusals, bind_warning, default_token_path, handle, no_adapter, read_all_refusals,
-    record_refusals, route, serve_conn, status, HttpRequest, Integrity, Liveness, RefusalSignal,
-    SessionToken, Shutdown, StoreApi,
+    aggregate_refusals, bind_refusal, bind_warning, default_token_path, handle, no_adapter,
+    read_all_refusals, record_refusals, route, serve_conn, status, HttpRequest, Integrity,
+    Liveness, RefusalSignal, SessionToken, Shutdown, StoreApi,
 };
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds, WarrantState};
@@ -1107,6 +1107,68 @@ fn the_non_loopback_warning_names_what_became_reachable_and_never_implies_tls() 
         bind_warning("0.0.0.0:8787".parse().expect("addr"), root, false).expect("warning");
     assert!(read_only.contains("settle and void refuse"));
     assert!(read_only.contains("stop is reachable"));
+}
+
+/// A non-loopback bind is a REFUSAL, not a warning, and this is the argument for that in test form.
+///
+/// The warning above said everything true and the server started anyway. Three reasons that was the
+/// wrong default, all of which the refusal's wording has to carry: the token crosses the wire in the
+/// clear on every request; a warning is read once by the person who typed the command and then their
+/// terminal closes while the server keeps running; and an intercepted token produces no incident to
+/// notice, because the traffic is well formed and the audit trail cannot say which human acted.
+#[test]
+fn a_non_loopback_bind_is_refused_and_the_refusal_names_the_acknowledgement() {
+    let root = Path::new("/home/dev/.warrantor");
+
+    assert!(
+        bind_refusal("127.0.0.1:8787".parse().expect("addr"), root, true).is_none(),
+        "loopback needs no acknowledgement and never did"
+    );
+    assert!(bind_refusal("[::1]:8787".parse().expect("addr"), root, true).is_none());
+
+    let refusal = bind_refusal("0.0.0.0:8787".parse().expect("addr"), root, true)
+        .expect("a non-loopback bind must be refused");
+    assert!(refusal.contains("refusing to bind"), "{refusal}");
+    assert!(refusal.contains("no TLS"), "{refusal}");
+    assert!(refusal.contains("in the clear"), "{refusal}");
+    // The way out has to be named, or a refusal is just a wall.
+    assert!(
+        refusal.contains("--i-accept-cleartext-on-this-network"),
+        "{refusal}"
+    );
+    assert!(
+        refusal.contains("reverse proxy"),
+        "the real fix must be named alongside the escape hatch: {refusal}"
+    );
+    // With release authority, the refusal has to say what a stolen token could DO -- the one act
+    // this whole design exists to keep in human hands.
+    assert!(refusal.contains("settle staged effects"), "{refusal}");
+
+    let read_only =
+        bind_refusal("0.0.0.0:8787".parse().expect("addr"), root, false).expect("refusal");
+    assert!(read_only.contains("settle and void refuse"), "{read_only}");
+}
+
+/// The acknowledgement flag is named after what it admits, not what it turns on.
+///
+/// A flag called `--insecure` or `--allow-remote` reads as a capability and gets typed. This one is
+/// a sentence the operator has to assert about their network.
+#[test]
+fn the_cleartext_acknowledgement_is_named_after_what_it_accepts() {
+    assert_eq!(
+        warrantor_warrant::serve::CLEARTEXT_ACK_FLAG,
+        "i-accept-cleartext-on-this-network"
+    );
+    let refusal = bind_refusal(
+        "10.0.0.5:8787".parse().expect("addr"),
+        Path::new("/r"),
+        false,
+    )
+    .expect("refusal");
+    assert!(
+        refusal.contains(warrantor_warrant::serve::CLEARTEXT_ACK_FLAG),
+        "the refusal must name the flag it requires: {refusal}"
+    );
 }
 
 #[test]

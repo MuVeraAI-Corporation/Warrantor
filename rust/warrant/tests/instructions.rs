@@ -123,6 +123,7 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "port",
     "token-file",
     "allow-settle",
+    "i-accept-cleartext-on-this-network",
 ];
 
 #[test]

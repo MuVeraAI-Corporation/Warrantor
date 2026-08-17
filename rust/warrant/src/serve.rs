@@ -3263,6 +3263,58 @@ pub fn bind_warning(addr: SocketAddr, root: &Path, release_authority: bool) -> O
     ))
 }
 
+/// The flag that acknowledges a cleartext bind beyond loopback.
+///
+/// Named after the thing it *accepts* rather than the thing it enables, so it cannot be typed as a
+/// convenience. The house pattern: see `--guard-enforce-untested-do-not-use`.
+pub const CLEARTEXT_ACK_FLAG: &str = "i-accept-cleartext-on-this-network";
+
+/// The refusal a non-loopback bind earns when it has not been acknowledged.
+///
+/// [`bind_warning`] said all of this already, and the server started anyway. That was the wrong
+/// default for this product, and the argument is not about how loud a warning is:
+///
+/// * The **token crosses the network in the clear on every request.** Anyone who can watch the
+///   traffic takes it — and with `--allow-settle` a stolen token releases staged effects, which is
+///   the one act this entire design exists to keep in human hands.
+/// * A warning is read once, by the person who typed the command, in a terminal they then close. A
+///   server left running behind it is a permanent exposure justified by a sentence nobody can see
+///   any more.
+/// * The failure is silent by nature. Nothing about an intercepted token looks like an incident: the
+///   traffic is well formed, the token is valid, and the audit trail — which cannot say *which
+///   human* did anything, per §2.2 — records a legitimate settle.
+///
+/// So a bind beyond loopback is a **refusal**, and the acknowledgement is a flag whose name is the
+/// admission. This adds no TLS and does not pretend to: the fix is still a reverse proxy, and the
+/// refusal says so.
+///
+/// Returns `None` for a loopback address, which needs no acknowledgement and never did.
+#[must_use]
+pub fn bind_refusal(addr: SocketAddr, root: &Path, release_authority: bool) -> Option<String> {
+    if addr.ip().is_loopback() {
+        return None;
+    }
+    Some(format!(
+        "refusing to bind {addr}, which is NOT loopback, because there is no TLS here.\n  \
+         The session token crosses the network in the clear on every request, so anyone who can \
+         watch the traffic can take it and use it{}.\n  \
+         Everything under {} would be readable by anything that can reach that address and holds \
+         the token.\n\n  \
+         The fix is a reverse proxy terminating TLS in front of a loopback bind. If you have one, \
+         or the network is genuinely trusted, say so explicitly:\n    \
+         --{CLEARTEXT_ACK_FLAG}\n  \
+         That flag is named after what it accepts rather than what it enables, because it is not a \
+         convenience.",
+        if release_authority {
+            " -- and this server was started with release authority, so a stolen token can settle \
+             staged effects, void work, and terminate a running agent"
+        } else {
+            ", and stop a running agent (settle and void refuse: no release authority was granted)"
+        },
+        root.display()
+    ))
+}
+
 // ── stopping ──────────────────────────────────────────────────────────────────────────
 
 /// How often the accept loop wakes to ask whether it has been told to stop.
