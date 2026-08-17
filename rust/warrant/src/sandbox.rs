@@ -31,13 +31,33 @@
 //! sandbox holds *harder than the warrant asked* is a break. Neither may be silent, and the second
 //! is the one nobody expects.
 //!
-//! # Not verified end to end, and where that line falls
+//! # Verified against a real kernel, and what that found
 //!
-//! The derivation below is unit-tested exhaustively. Whether `bubblewrap` then confines what it
-//! says it confines is bubblewrap's claim and not this crate's, and it has **not** been executed
-//! from this repository — the branch this was written on had no Linux host. That boundary is
-//! stated in the emitted profile itself, not only here, because the person who most needs to know
-//! it is the one about to run the command.
+//! The derivation below is unit-tested. It has also, since 2026-08-17, been **executed**: built for
+//! Linux and run under bubblewrap on a 6.18 kernel with unprivileged user namespaces, against a
+//! warrant granted with `--write 'src/**'` on a real git worktree.
+//!
+//! Three of the four claims held on the first run. The fourth did not, and it was mine:
+//!
+//! | claim | result |
+//! |---|---|
+//! | a write inside the worktree succeeds and persists to the host | held |
+//! | a write to `$HOME` or `/etc` fails at the syscall | held — `EROFS`, "Read-only file system" |
+//! | with no egress granted, DNS does not resolve | held — `getent` exits 2 inside, 0 outside |
+//! | *"a write outside the worktree FAILS at the syscall"* | **false for `/tmp`** |
+//!
+//! `--tmpfs /tmp` gives the sandbox a private `/tmp`, so a write there **succeeds**, stays readable
+//! for the rest of the session, and is silently discarded at exit. That is a third outcome the
+//! sentence did not have a word for: not refused, not persisted. An operator told "fails at the
+//! syscall" would wait for an error that never arrives, and an agent using `/tmp` as durable
+//! scratch is never told its work evaporated. The `write_paths` sentence now names it.
+//!
+//! Finding that required running it. Every unit test in this file passed before and after; nothing
+//! in a derivation can tell you what a kernel does with it.
+//!
+//! What remains outside this crate's claim: whether bubblewrap is correct is bubblewrap's claim,
+//! not Warrantor's, and one kernel is not every kernel — WSL2's 6.18 is not a hardened distro
+//! kernel with `unprivileged_userns_clone` disabled, where `bwrap` will refuse to start at all.
 
 use std::collections::BTreeSet;
 
@@ -250,11 +270,16 @@ pub fn profile(bounds: &WarrantBounds, worktree: &str, confinement: Confinement)
     divergences.push(Divergence::Held {
         bound: "write_paths".to_string(),
         how: format!(
-            "everything outside {worktree} is mounted read-only, so a write outside the worktree \
-             FAILS at the syscall rather than being noticed at settle. The glob refinement inside \
-             the worktree ({}) is NOT expressed here and stays where it already is: settle does not \
-             stage out-of-bounds paths. Binding each glob's directory read-write would make the \
-             sandbox LOOSER than the bound while appearing to enforce it.",
+            "everything outside {worktree} is mounted read-only, so a write to a real path outside \
+             the worktree FAILS at the syscall with EROFS rather than being noticed at settle -- \
+             verified against bubblewrap on Linux 6.18, where $HOME and /etc both refuse with \
+             \"Read-only file system\". THE EXCEPTION IS /tmp, which this profile replaces with a \
+             private tmpfs: a write there SUCCEEDS, stays visible to the agent for the rest of the \
+             session, and is discarded when the sandbox exits. That is contained, and it is NOT \
+             refused -- an agent treating /tmp as durable scratch is not told otherwise. The glob \
+             refinement inside the worktree ({}) is NOT expressed here and stays where it already \
+             is: settle does not stage out-of-bounds paths. Binding each glob's directory \
+             read-write would make the sandbox LOOSER than the bound while appearing to enforce it.",
             if bounds.write_paths.is_empty() {
                 "none granted".to_string()
             } else {
@@ -542,6 +567,40 @@ mod tests {
         };
         assert!(how.contains("NOT expressed here"), "{how}");
         assert!(how.contains("settle"), "{how}");
+    }
+
+    #[test]
+    fn the_write_paths_sentence_names_the_tmpfs_exception() {
+        // Found by RUNNING the profile, not by deriving it. `--tmpfs /tmp` means a write under
+        // /tmp succeeds, stays readable for the session, and is discarded at exit -- a third
+        // outcome the original sentence ("a write outside the worktree FAILS at the syscall") had
+        // no word for. Not refused, not persisted.
+        //
+        // Every unit test in this file passed before that run and after it. Nothing in a
+        // derivation can tell you what a kernel does with it.
+        let profile = profile(
+            &bounds(&["src/**"], &[]),
+            "/home/u/wt",
+            Confinement::Bubblewrap,
+        );
+        let Some(Divergence::Held { how, .. }) = profile
+            .divergences
+            .iter()
+            .find(|d| d.bound() == "write_paths")
+        else {
+            panic!("write_paths must be spoken about");
+        };
+        assert!(
+            how.contains("/tmp"),
+            "the profile mounts a tmpfs over /tmp and must say what that means: {how}"
+        );
+        assert!(
+            how.contains("discarded"),
+            "a write that succeeds and vanishes is neither refused nor persisted, and the              sentence has to say which: {how}"
+        );
+        // The tmpfs is in the argv, so the sentence is describing this profile and not a general
+        // fact about bubblewrap.
+        assert!(profile.argv.iter().any(|a| a == "--tmpfs"));
     }
 
     #[test]

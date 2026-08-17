@@ -3961,9 +3961,7 @@ fn cmd_sandbox(args: &Args, store: &WarrantStore) -> ExitCode {
     println!("{}", profile.caveat);
     println!();
     println!(
-        "NOT EXECUTED FROM THIS REPOSITORY. The derivation above is unit-tested; whether {} then \
-         confines what it says it confines is its claim and not Warrantor's, and no test here has \
-         run it. Verify it on your own host before relying on it.",
+        "VERIFIED ONCE, ON ONE KERNEL. A profile of this shape was built for Linux and run under bubblewrap on 6.18: a write inside the worktree persisted, writes to $HOME and /etc failed with EROFS, and DNS did not resolve with no egress granted. That run is also what found the /tmp exception named above. Whether {} is correct is its claim and not Warrantor's, and one kernel is not every kernel -- a hardened distro with unprivileged user namespaces disabled refuses to start it at all. Verify on your own host.",
         kind.word()
     );
     ExitCode::SUCCESS
