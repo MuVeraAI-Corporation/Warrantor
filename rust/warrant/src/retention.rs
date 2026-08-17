@@ -128,10 +128,16 @@ pub enum ArtifactClass {
     TrustedIssuers,
     /// `notify.json`, `notify/pending.jsonl`
     Notifications,
+    /// `actors/<id>.jsonl`
+    Actors,
+    /// `runs/<id>.jsonl`
+    Runs,
+    /// `reviews/<id>.json`
+    Reviews,
 }
 
 /// Every class, in the order an operator should read them: evidence first, machinery last.
-pub const ALL_CLASSES: [ArtifactClass; 17] = [
+pub const ALL_CLASSES: [ArtifactClass; 20] = [
     ArtifactClass::Warrants,
     ArtifactClass::Staged,
     ArtifactClass::Witness,
@@ -139,10 +145,13 @@ pub const ALL_CLASSES: [ArtifactClass; 17] = [
     ArtifactClass::Spend,
     ArtifactClass::Refusals,
     ArtifactClass::Guard,
+    ArtifactClass::Actors,
+    ArtifactClass::Runs,
     ArtifactClass::Exports,
     ArtifactClass::PendingFilings,
     ArtifactClass::TrustedIssuers,
     ArtifactClass::Notifications,
+    ArtifactClass::Reviews,
     ArtifactClass::Daemons,
     ArtifactClass::Logs,
     ArtifactClass::Keys,
@@ -163,6 +172,9 @@ impl ArtifactClass {
             Self::Spend => "spend",
             Self::Daemons => "daemons",
             Self::Logs => "logs",
+            Self::Actors => "actors",
+            Self::Runs => "runs",
+            Self::Reviews => "reviews",
             Self::Refusals => "refusals",
             Self::Guard => "guard",
             Self::Keys => "keys",
@@ -187,6 +199,9 @@ impl ArtifactClass {
             Self::Spend => "spend/<id>.json",
             Self::Daemons => "daemons/<id>[.done].json",
             Self::Logs => "logs/<id>.log",
+            Self::Actors => "actors/<id>.jsonl",
+            Self::Runs => "runs/<id>.jsonl",
+            Self::Reviews => "reviews/<id>.json",
             Self::Refusals => "refusals/<id>.jsonl",
             Self::Guard => "guard/<id>.jsonl",
             Self::Keys => "keys/*.key",
@@ -211,6 +226,9 @@ impl ArtifactClass {
             Self::Spend => root.join("spend"),
             Self::Daemons => root.join("daemons"),
             Self::Logs => root.join("logs"),
+            Self::Actors => root.join("actors"),
+            Self::Runs => root.join("runs"),
+            Self::Reviews => root.join("reviews"),
             Self::Refusals => root.join("refusals"),
             Self::Guard => root.join("guard"),
             Self::Keys => root.join("keys"),
@@ -233,6 +251,9 @@ impl ArtifactClass {
                  lifecycle state, its worktree, and the chain mark taken at grant"
             }
             Self::Staged => "every outward-facing effect an agent queued and did not perform",
+            Self::Actors => "who settled, voided, stopped or approved each warrant -- hash-chained, and the only place a name is attached to a decision",
+            Self::Runs => "when each supervised session started, and whether anything was watching it. The `guard: null` lines are the only positive record that a session ran unwatched",
+            Self::Reviews => "which blocker was last announced for each warrant, so a repeated check does not repeatedly notify. Bookkeeping, not evidence",
             Self::Witness => {
                 "how far each warrant's staged-effect chain reached, recorded outside the log it                  describes"
             }
@@ -294,6 +315,19 @@ impl ArtifactClass {
             Self::PendingFilings | Self::TrustedIssuers => DeletionEffect::FlipsAVerdict,
             Self::Notifications => DeletionEffect::LosesEvidenceSilently,
             Self::Logs => DeletionEffect::NoIntegrityConsequence,
+            // Removing an act loses the only record of WHO settled a warrant. The chain makes the
+            // removal detectable to somebody holding a later head, which is not the same as
+            // preventing it -- see `operators` for why that is stated as the weaker guarantee it is.
+            Self::Actors => DeletionEffect::LosesEvidence,
+            // Removing a run record makes an UNGUARDED run indistinguishable from a run that never
+            // happened, which is the exact confusion `runs` was written to end. A store missing
+            // these reads as better supervised than it was.
+            Self::Runs => DeletionEffect::LosesEvidence,
+            // The one genuinely disposable class added since `holdings` was written: a review
+            // marker records that a notification went out, and losing it costs a DUPLICATE
+            // notification. Nothing downstream of it is a verdict, and nothing is lost that was
+            // not also derivable.
+            Self::Reviews => DeletionEffect::NoIntegrityConsequence,
             Self::Keys | Self::Serve | Self::Run | Self::Backends => {
                 DeletionEffect::BreaksTheInstallation
             }
@@ -318,6 +352,9 @@ impl ArtifactClass {
                 "it is what makes a deleted staged log detectable rather than silent; delete both \
                  and the pair is back to the absence the witness exists to close"
             }
+            Self::Actors => "the chain makes a removal DETECTABLE to somebody holding a later head, which is not the same as preventing it -- and a reader with no earlier copy cannot tell",
+            Self::Runs => "an unguarded run and a run that never happened become the same observation again, which is precisely the confusion this class was added to end",
+            Self::Reviews => "the next check re-announces whatever is still waiting. A duplicate notification is the whole cost, and a duplicate is something a human can see and dismiss",
             Self::Stops => {
                 "containment is decided by this file existing: remove it and the notary's gate goes \
                  from deny to pass"

@@ -574,10 +574,10 @@ covers the path and no archive route reads a query parameter — a deliberate li
 route design takes that on), and any aggregation of local-machine data (`/v1/summary/daily`
 covers one store on one machine, unchanged).
 
-### 3.4 No retention or export policy — **the inventory half is done; nothing prunes**
+### 3.4 Retention — **the inventory and the prune both ship; `logs/` is covered**
 
 `warrantor holdings` now answers "what do you keep, where, and how much of it": every one of the
-twelve locations the store writes to, what each contains, whether it is signed and hash-chained, how
+twenty locations the store writes to, what each contains, whether it is signed and hash-chained, how
 many files and bytes, how old the oldest is, how many could not be read (counted separately, never
 folded into the total), plus the warrants by state and by recorded subject, and the worktrees that
 are still on disk in each repository.
@@ -594,7 +594,18 @@ Three things it makes visible that nothing reported before:
   granted against; `holdings` counts them.
 - **`logs/<id>.log` is the class most worth a window and the one with no integrity consequence**:
   raw agent stdout and stderr, unsigned, in no evidence bundle, and the most likely to hold source,
-  prompts and secrets.
+  prompts and secrets. It is `NoIntegrityConsequence`, so `warrantor prune` deletes it under a
+  `retention.json` window — verified against a backdated log. That heading said "nothing prunes"
+  for longer than it was true.
+
+**Three classes were added on 2026-08-17 and the inventory had to grow with them.** `actors/`,
+`runs/` and `reviews/` are store locations `holdings` did not know about, which would have made its
+"every location" claim quietly false. The compiler is what caught it: `ArtifactClass` is matched
+exhaustively in four places, so a new variant cannot be added without stating what it holds, where,
+and what deleting it costs. `actors/` and `runs/` are `LosesEvidence` — deleting a run record makes
+an unguarded run indistinguishable from one that never happened, which is the exact confusion
+`runs` was added to end. `reviews/` is the one genuinely disposable class: losing a marker costs a
+duplicate notification.
 
 **The prune half has shipped, gated to the only classes it can honestly delete.**
 `retention.json` (the archive's `retention_policy` shape: `enabled` separate from
