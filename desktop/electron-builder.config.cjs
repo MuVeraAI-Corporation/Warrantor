@@ -32,9 +32,17 @@ module.exports = {
   // cannot be safely used in file paths", which is where the first-ever run of desktop-release
   // died — after the Electron download and the packaging, so it costs a full leg to discover.
   //
-  // Windows and macOS derive theirs from productName and were unaffected, which is exactly why
-  // this could sit in a config that reads fine and had never been executed.
-  executableName: 'warrantor-desktop',
+  // The sentence that used to sit here — "Windows and macOS derive theirs from productName and were
+  // unaffected" — was FALSE, and running the installer is what showed it. A top-level
+  // `executableName` applies to every platform, so Windows took it too: the app installed to
+  // `%LOCALAPPDATA%\Programs\warrantor-desktop\warrantor-desktop.exe`, the uninstaller was named
+  // `Uninstall warrantor-desktop.exe`, and Add/Remove Programs listed `Warrantor 1.0.0` pointing at
+  // a directory called something else.
+  //
+  // Nothing was broken by it — the app launched, found its bundled agent and loaded the console —
+  // which is precisely why it survived: a packaging defect that produces a working install is one
+  // only an install reveals. It is now scoped to `linux`, the platform that needed it, and Windows
+  // and macOS genuinely do derive theirs from productName.
 
   directories: {
     output: 'dist',
@@ -137,5 +145,9 @@ module.exports = {
     // this is set — `linux.desktopName` is NOT a key in this version's schema, and setting it
     // fails validation for EVERY platform, not just Linux.
     syncDesktopName: true,
+    // Scoped here rather than at the top level, where it silently renamed the Windows install
+    // directory and executable as well. See the note above `directories` for what running the
+    // installer showed.
+    executableName: 'warrantor-desktop',
   },
 };

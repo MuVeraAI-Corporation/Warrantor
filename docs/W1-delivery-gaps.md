@@ -91,7 +91,24 @@ generator remains reachable by anyone who finds it first.
 
 ## Tier 1 — blocks a non-developer using this at all
 
-### 1.1 No installer has been built yet, and none of them will be signed
+### 1.1 Signing — **a publication requirement, not a delivery gap** (reclassified 2026-08-17)
+
+**Owner's call, 2026-08-17: signing is not needed to run this in a development environment.** An
+unsigned build installs and runs; SmartScreen shows a warning and that is the whole cost. Signing
+becomes required when the product is distributed to an audience that has no reason to trust the
+publisher — which is a release decision, not an engineering one, and it does not gate anything
+below.
+
+This section is therefore **out of the delivery gaps** and lives on a pre-publication checklist. The
+work that supports it is done and inert: `desktop/SIGNING.md` carries the procedure, the
+`electron-builder.config.cjs` hooks exist, `build/entitlements.mac.plist` is committed, and
+`forceCodeSigning: false` is an explicit decision rather than a default. None of it is executed, and
+none of it needs to be until a release.
+
+**The installer itself is no longer unbuilt or unrun.** It was built
+(`Warrantor-1.0.0-x64-setup.exe`, sha256 `f7f6cd68…`) and, on 2026-08-17, **installed and
+launched** — see §1.2. What remains genuinely untouched here is the certificate.
+
 
 Two separable things, and the first was written here as finished when it was not.
 

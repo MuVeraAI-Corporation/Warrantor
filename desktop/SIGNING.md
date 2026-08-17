@@ -193,9 +193,16 @@ extra line.
 ## 7. Current status
 
 `desktop-release.yml` has **never run**: `workflow_dispatch` is unavailable until the workflow file
-is on the default branch, so nothing below has been produced by CI. The only build performed by hand
-was a Windows `electron-builder --dir` run against a dummy stand-in for the agent — an unpacked
-directory, not an installer.
+is on the default branch, so nothing below had been produced by CI when it was written. The only
+build performed by hand was a Windows `electron-builder --dir` run against a dummy stand-in for the
+agent — an unpacked directory, not an installer.
+
+**That premise is stale, and correcting it is the point of the two updates below.** CI *has* run:
+`docs/W1-delivery-gaps.md` §1.1 records dispatch 2026-08-15, run `31875701622`, with all four
+packaging jobs green — mac x64, mac arm64, linux x64, win x64 — each carrying one installer
+artifact (win 101 MB, mac ~243 MB per arch, linux ~230 MB). This document went on saying nothing had
+been built by CI for two days after that, which is the same failure it exists to catch, pointed the
+other way: a status table that understates is still a status table nobody can trust.
 
 **Updated 2026-08-17.** That paragraph was true when written and is no longer. A full Windows NSIS
 installer has been produced locally: `Warrantor-1.0.0-x64-setup.exe`, 101,239,598 bytes, sha256
@@ -204,18 +211,30 @@ installer has been produced locally: `Warrantor-1.0.0-x64-setup.exe`, 101,239,59
 since `build/` is electron-builder's own resources directory and is not copied into the app, so
 `installTray` skipped silently in every packaged build while every config assertion passed.
 
-What has still never happened: **no installer has been run**, on any platform. Producing an artifact
-and executing it are different claims and this document has to keep them apart. The table says
-`configured` where the configuration exists and the build has not been exercised; RELEASING.md step
-1 is the dispatch that changes the CI rows.
+**Updated again 2026-08-17, after the install.** The installer was run. It completed, created its
+Start Menu and Desktop shortcuts and its Add/Remove entry, and the installed app launched, resolved
+its bundled agent ahead of an empty `PATH` and loaded the console. The tray — the defect
+`135df7a` fixed, and one only a packaged launch can find — installed without a `tray skipped` or
+`tray failed` line.
+
+It also found a packaging defect that no configuration test could: a **top-level `executableName`**
+applies to every platform, so Windows took the Linux fix too and the app installed to
+`%LOCALAPPDATA%\Programs\warrantor-desktop\` with an `Uninstall warrantor-desktop.exe`, while
+Add/Remove Programs listed `Warrantor 1.0.0`. Nothing broke, which is why it survived a config
+comment asserting Windows was unaffected. It is now scoped to `linux`.
+
+What has still never happened: **no installer has been run on macOS or Linux.** Producing an
+artifact, installing it and executing it are three different claims and this document keeps them
+apart — all four platforms are built, exactly one is installed, and the macOS ad-hoc signature
+that Apple Silicon requires has never been observed executing.
 
 | Item | State |
 | --- | --- |
-| Windows NSIS installer, per-user, no elevation | **built locally** (sha256 `f7f6cd68…`); never executed, and never built by CI |
-| macOS dmg, arm64 and x64 | configured, never built — and until this branch it was configured to skip signing entirely (§1) |
-| Linux AppImage and deb, x64 | configured, never built |
-| `warrantor` agent bundled inside the app | **observed in a packaged build**: `dist/win-unpacked` contains it, resolves it ahead of an empty `PATH`, starts it and loads the console. Not yet observed in an *installed* app |
-| SHA256SUMS published per platform | in the workflow, never executed |
+| Windows NSIS installer, per-user, no elevation | **built by CI** (run `31875701622`), **built locally**, **installed and launched** 2026-08-17 (sha256 `f7f6cd68…`) |
+| macOS dmg, arm64 and x64 | **built by CI** (run `31875701622`, both arches). Never installed and never launched, so the `identity: '-'` fix in §1 is still unobserved on Apple Silicon |
+| Linux AppImage and deb, x64 | **built by CI** (run `31875701622`). Never installed and never launched |
+| `warrantor` agent bundled inside the app | **observed in an INSTALLED app**: the trace reads `agent binary: …\resources\warrantor.exe (bundled with the app)`, resolved ahead of an empty `PATH`, agent ready, console loaded |
+| SHA256SUMS published per platform | in the workflow; the 2026-08-15 run was a dry run, so this step is still unexecuted |
 | Build provenance attestation | in the workflow, never executed — tagged releases only |
 | Code signature / notarisation | no — needs the certificates in §3 |
 | Update channel | none, and none until signing exists |

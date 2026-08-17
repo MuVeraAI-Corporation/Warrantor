@@ -264,17 +264,43 @@ test('desktop is not a member of the typescript npm workspace', () => {
  * safely used in file paths" — and it does so AFTER downloading Electron and packaging the app, so
  * it costs a whole platform leg to find out.
  *
- * That is what killed the first-ever run of desktop-release. Windows and macOS derive theirs from
- * `productName` and were unaffected, which is precisely why a config that reads fine could sit
- * unexecuted with this in it.
+ * That is what killed the first-ever run of desktop-release.
+ *
+ * The fix belongs to LINUX ONLY, and for one release it was not scoped. A top-level
+ * `executableName` applies to every platform, so Windows took it as well and the app installed to
+ * `%LOCALAPPDATA%\Programs\warrantor-desktop\warrantor-desktop.exe` with an
+ * `Uninstall warrantor-desktop.exe` beside it, while Add/Remove Programs listed `Warrantor 1.0.0`
+ * and pointed at a directory named something else.
+ *
+ * Nothing broke. The app launched, resolved its bundled agent ahead of an empty PATH and loaded the
+ * console — which is exactly why it survived a comment asserting Windows was unaffected. Only
+ * RUNNING the installer showed it, on 2026-08-17.
  */
-test('executableName is set explicitly and is path-safe', () => {
-  assert.ok(builderConfig.executableName, 'executableName must be set, not derived from a scoped name');
-  assert.match(
+test('executableName is scoped to linux, so Windows keeps productName', () => {
+  assert.equal(
     builderConfig.executableName,
+    undefined,
+    'a top-level executableName renames the Windows install directory and executable too: it must ' +
+      'live under `linux`, which is the only platform that needs it',
+  );
+  assert.ok(
+    builderConfig.linux.executableName,
+    'linux still needs it explicitly — the scoped package name @warrantor/desktop is not path-safe',
+  );
+  assert.match(
+    builderConfig.linux.executableName,
     /^[A-Za-z0-9._ -]+$/,
     'executableName must contain only letters, digits, hyphens, underscores, dots and spaces',
   );
+  // Windows and macOS must have nothing overriding productName, or the install directory and the
+  // Add/Remove entry go back to disagreeing.
+  for (const platform of ['win', 'mac']) {
+    assert.equal(
+      builderConfig[platform].executableName,
+      undefined,
+      `${platform} must derive its executable name from productName (${builderConfig.productName})`,
+    );
+  }
 });
 
 /**
@@ -288,7 +314,10 @@ test('executableName is set explicitly and is path-safe', () => {
  */
 test('the linux desktop entry is named after the executable', () => {
   assert.equal(builderConfig.linux.syncDesktopName, true);
-  assert.equal(manifest.desktopName, `${builderConfig.executableName}.desktop`);
+  // `linux.executableName` now, not the top-level one. This assertion is what makes the scoping
+  // safe: the desktop entry must keep matching whatever Linux's executable is called, wherever
+  // that name is configured.
+  assert.equal(manifest.desktopName, `${builderConfig.linux.executableName}.desktop`);
   assert.equal(
     builderConfig.linux.desktopName,
     undefined,
