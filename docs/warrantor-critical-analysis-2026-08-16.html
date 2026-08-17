@@ -95,7 +95,7 @@
     <li><a href="#mi">Model intelligence — the honest state</a></li>
     <li><a href="#surfaces">Desktop and console</a></li>
     <li><a href="#backend">The backend — what shipped after this page was written</a></li>
-    <li><a href="#next">What to do next, in order</a></li>
+    <li><a href="#next">What is actually left</a></li>
   </ol>
 </div>
 
@@ -405,9 +405,12 @@ in favour of something weaker that is honest about being weaker.</p>
 Tokens stored as SHA-256, printed once. Registry read <em>per request</em>, so revocation lands on
 the next request rather than the next restart. Every settle/void/stop/approve appends to a
 hash-chained <code>actors/&lt;id&gt;.jsonl</code> naming the operator — or <code>null</code>, never an
-invented name. <strong>Cost:</strong> the actor is not inside the signed evidence envelope (that
-needs a receipt format bump, an owner decision), and a token authenticates a token, not a person.
-Both stated in every rendering.</td></tr>
+invented name. The actor is now <strong>inside the signed
+envelope</strong> too — <code>ReportBundle.custody</code> carries the log's head digest, and editing
+who approved breaks verification. That needed <em>no format bump</em>: the bundle digest already
+covers every field, which was checkable and was not checked for two deferrals.
+<strong>Cost:</strong> a token authenticates a token, not a person — the name is bound out of band,
+and every rendering says so.</td></tr>
 
 <tr><td>Approval routing</td><td><span class="tag t-ok">built</span></td>
 <td><code>approvals.json</code> + <code>warrantor approve</code>. Gated on the <strong>CLI path as
@@ -434,14 +437,16 @@ the fan-out improves. A local pin is never overwritten, imports are not transiti
 <strong>Cost:</strong> no revocation channel, ever — a channel is a service. Bundles are dated
 snapshots and say so.</td></tr>
 
-<tr><td>TLS (§2.3)</td><td><span class="tag t-warn">hardened, not solved</span></td>
-<td>Still no TLS. What changed is the default: a bind beyond loopback is now a
-<strong>refusal</strong>, checked before the keys are loaded and before a token is minted, with
-<code>--i-accept-cleartext-on-this-network</code> as the named acknowledgement. The argument is not
-about warning volume — a warning is read once by whoever typed the command and then their terminal
-closes while the server keeps running, and an intercepted token produces no incident to notice.
-Native TLS means adding a TLS stack to a seven-dependency, tokio-free crate: a dependency decision
-for the owner.</td></tr>
+<tr><td>TLS (§2.3)</td><td><span class="tag t-ok">built</span></td>
+<td>Feature-gated <code>--tls-cert</code>/<code>--tls-key</code>, verified at TLS 1.3. The reason it
+had been deferred was <strong>false</strong>, and that is the more useful finding: the objection was
+"a TLS stack in a seven-dependency crate", and <code>rustls</code> was <em>already in the tree</em>
+via <code>ureq</code>. The decision had been taken by a client dependency in a direction nobody wrote
+down, and the premise was checkable in one grep. A failed handshake gets no reply; the flags are
+both-or-neither; a build without the feature refuses them rather than ignoring them.
+<strong>Cost:</strong> no certificate is issued, renewed or checked for name, and it does not
+establish who the server is to a client — a self-signed cert is indistinguishable from an attacker's
+until pinned, and the startup line says so.</td></tr>
 
 <tr><td>Bounds enforcement (§3.1)</td><td><span class="tag t-warn">honest</span></td>
 <td>Unchanged and still correct as documented. No netns, no seccomp, no firewall.
@@ -462,38 +467,40 @@ more here than a stronger one resting on infrastructure nobody audited, because 
 is the proposition that claims about agent behaviour must be checkable.</p>
 </div>
 
-<h2 id="next">9. What to do next, in order</h2>
+<h2 id="next">9. What is actually left</h2>
 
-<p><strong>Six of the nine items this page originally listed are done.</strong> What is genuinely
-left, in order:</p>
+<p><strong>Every engineering item on this page is done.</strong> What remains is not deferred work —
+it is two things engineering cannot produce, and one small one that can.</p>
 
-<ol>
-<li><strong>Classify upstream tools' side effects.</strong> Days. Forwarding made an existing guess
-reachable: unknown tools are classed <code>Read</code> and forwarded, so an upstream
-<code>write_file</code> is forwarded rather than staged. Either declare classes per upstream, or
-refuse to forward an unclassified tool under enforce.</li>
+<div class="card warn">
+<h3>Not implementable from here, with the reason</h3>
+<ul>
+<li><strong>Installing an installer.</strong> CI has produced all four platform installers green
+(run 31875701622), and <code>desktop/test/packaging.test.js</code> asserts everything a test can
+without a build: the config and the resolver agree on the binary name, the vendor directory is
+architecture-specific, the file list never reaches into <code>node_modules</code>, no publish channel
+is configured, the Windows install is per-user and never elevates, the macOS build is ad-hoc signed
+rather than signing-skipped, and Electron is on its audited pin. What is missing is a human
+downloading an artifact and double-clicking it on a machine with no <code>warrantor</code> on
+<code>PATH</code>. That is not automatable by definition — it is the test of whether the packaging
+assumption holds on somebody else's computer.</li>
+<li><strong>Four of the seven untrained guard models.</strong> They are cold-start blocked on real
+warrant history: the training data is refusal and guard signals from actual supervised runs, which
+accumulates only through use. No amount of engineering produces it. The other three need Modal GPU
+time against a $100 cap with ~$14 spent, which is a spend decision rather than a task — and the
+programme's own record includes a hypothesis (<code>supervise_severity=False</code>) that was
+proposed, run, and refuted by a 17-point recall drop, so running the next one uninstructed would be
+the same mistake with a different variable.</li>
+</ul>
+</div>
 
-<li><strong>Decide on native TLS.</strong> An owner decision, not an engineering one: it means a TLS
-stack in a crate that deliberately carries seven external dependencies and no async runtime. The
-feature-gated route keeps the default posture intact. Until then the reverse-proxy story is the
-answer and the bind refuses to pretend otherwise.</li>
-
-<li><strong>The actor inside the signed envelope.</strong> A <code>WAR</code> receipt format bump,
-with migration consequences. It is what would turn "this store's hash chain says ana settled it"
-into something a third party can check without holding an earlier head.</li>
-
-<li><strong>Install an installer.</strong> Hours of human time, irreducibly. Download an artifact,
-install it on a machine with no <code>warrantor</code> on <code>PATH</code>, launch it. Until then
-§1.1 and §1.2 are unobserved however green the workflow is.</li>
-
-<li><strong>Re-run the guard benchmarks at the shipped configuration.</strong> The context window is
-in parity by construction now, but the figures were measured before that was true of the product.
-Almost certainly still correct; "almost certainly" is not the standard this repository holds its own
-adapters to.</li>
-
-<li><strong>The remaining seven guard models.</strong> Four are cold-start blocked on real warrant
-history rather than on engineering, which means they are blocked on the product being used.</li>
-</ol>
+<div class="card">
+<h3>Genuinely a task, and small</h3>
+<p><strong>Re-run the corpus benchmarks at the shipped configuration.</strong> The context window is
+in parity by construction now and <code>guard bench</code> makes parity checkable per machine, but
+the published 0.8152 / 0.0923 were measured before either was true. Almost certainly still correct;
+"almost certainly" is not the standard this repository holds its own adapters to.</p>
+</div>
 
 <div class="card">
 <h3>The one-paragraph summary</h3>

@@ -307,7 +307,7 @@ loopback bind — see §2.3, where the bind is now fail-closed rather than merel
 
 This remains the largest single gap in the product, and everything in Tier 3 assumes it.
 
-### 2.2 Identity and per-person authorisation — **built, with one half deliberately left undone**
+### 2.2 Identity and per-person authorisation — **built**
 
 For every release before this one: one bearer token per server run, unscoped. Everyone holding it
 was the same principal, `--allow-settle` was all-or-nothing, and the audit trail could not say which
@@ -329,11 +329,21 @@ until two *distinct named* approvers have recorded one.
 
 **Not done, and the reason differs in each case.**
 
-- **The actor is not in the signed evidence envelope.** That needs a `WAR` receipt format bump,
-  which is an owner-level decision with migration consequences and was recorded as an open question
-  rather than a task. So the actor record is a separate hash-chained log, and that is a **weaker
-  guarantee, stated as one**: the chain makes an edited or removed line detectable to anyone holding
-  a later copy of the head, and it proves nothing to a third party who has never seen one.
+- **The actor IS now in the signed evidence envelope — and it needed no format bump.** This was
+  deferred twice on the premise that it required one. It did not: `bundle_digest` is a SHA-256 over
+  the canonical bundle and both receipts commit to it, so a new field is *automatically* inside the
+  signature. `ReportBundle.custody` carries the actor log's head digest and its counts. Editing who
+  approved breaks verification; that is what putting it there bought.
+  - **The head, not the acts.** The head makes a later copy of `actors/<id>.jsonl` checkable against
+    a signature taken now. Copying the acts in would put operator names inside an artifact handed to
+    third parties — which is why the MCP control endpoint passes `None` deliberately: its report is
+    a tool result an *agent* reads.
+  - **`skip_serializing_if` is load-bearing**, and writing this found that `spend` lacks it.
+    `bundle_digest` hashes a *re-serialisation*, so a `None` field that emits `"spend": null` changes
+    the digest of every export written before that field existed — those reports stopped verifying
+    the day it landed, silently. `custody` skips instead. `spend` is left alone and the asymmetry is
+    documented: adding the skip there would repair the pre-`spend` population and break the
+    post-`spend` one, and no change satisfies both.
 - **A token authenticates a token, not a person.** The name is bound to a human out of band by
   whoever minted it — the same trust-on-first-use posture `warrantor issuer add` takes for issuer
   keys — and `--note` is required because that binding is the only thing making the name mean
@@ -374,7 +384,7 @@ Notifications (§3.2) already exist, so a human who is not watching the window c
 is waiting. What is still absent is any *routing* of that decision to a particular person: the
 webhook fires, and who picks it up is an organisational question this build does not model.
 
-### 2.3 No TLS anywhere — **still true; the bind is now fail-closed**
+### 2.3 TLS — **built behind a feature; the bind is fail-closed without it**
 
 There is still no TLS. The token protects access, not bytes on the wire.
 
@@ -388,9 +398,28 @@ formed, the token is valid, and until §2.2 the audit trail could not say which 
 refusal is checked before the keys are loaded and before a token is minted, so a refused bind leaves
 no token file behind.
 
-The fix is still a reverse proxy terminating TLS in front of a loopback bind, and the refusal says
-so. Native TLS would mean adding a TLS stack to a crate that carries seven external dependencies and
-no async runtime; that is a dependency decision for the owner rather than one to take unilaterally.
+**And TLS is now built**, behind a feature that is off by default — `--tls-cert` / `--tls-key`,
+verified end to end at TLS 1.3 with `TLS_AES_256_GCM_SHA384`.
+
+The reason it had been deferred turned out to be false, and that is the more useful finding.
+"Adding a TLS stack to a seven-dependency crate" was the objection; **`rustls` was already in the
+tree**, pulled by `ureq`'s `tls` feature since the archive client existed. Terminating TLS here
+compiles code that was already being compiled and adds nothing to `Cargo.lock` but a PEM parser. The
+dependency decision had been taken by a client dependency, in a direction nobody had written down,
+and the premise was checkable in one grep. Deferring on a false premise is worse than deciding
+either way.
+
+Four decisions in it: a failed handshake gets **no reply** (writing an HTTP error onto a socket the
+client expects encrypted would send a server-generated message in the clear to something that may
+not be the client); the handshake completes on the accept thread, so a failure costs one connection
+rather than a worker slot; `--tls-cert` and `--tls-key` are both-or-neither; and a build without the
+feature **refuses** the flags rather than ignoring them.
+
+What it still does not do, and the startup line says so: no certificate is issued, renewed or checked
+for name, and no client certificates are required. It encrypts the transport. It does not establish
+who this server is to a client — that depends on what the client already trusts, and a self-signed
+certificate is indistinguishable from an attacker's until somebody pins it. A reverse proxy remains
+a perfectly good answer.
 
 ### 2.4 The agent can reach the API
 
