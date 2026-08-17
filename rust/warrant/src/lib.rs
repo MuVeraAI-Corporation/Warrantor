@@ -56,6 +56,10 @@ pub mod staging;
 pub mod stop;
 pub mod store;
 pub mod supervise;
+/// Server-side TLS. Present only with the `tls` feature; see the module docs for why it is off by
+/// default and why enabling it adds nothing to the dependency graph.
+#[cfg(feature = "tls")]
+pub mod tls;
 pub mod trust;
 pub mod upstream;
 pub mod worktree;

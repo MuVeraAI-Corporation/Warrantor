@@ -459,8 +459,10 @@ warrantor — bounded authority for coding agents
   selftest-upstream
   serve   [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
           [--i-accept-cleartext-on-this-network]
+          [--tls-cert <file.pem> --tls-key <file.pem>]   (tls-feature builds only)
   console [--bind <addr>] [--port <n>] [--token-file <path>] [--allow-settle]
           [--i-accept-cleartext-on-this-network]
+          [--tls-cert <file.pem> --tls-key <file.pem>]   (tls-feature builds only)
 
 Operator registers a NAMED principal holding a scoped token, which is what makes
 the audit trail able to say WHICH HUMAN settled a warrant instead of only that
@@ -4362,6 +4364,50 @@ fn open_console_when_ready(addr: std::net::SocketAddr, token: String, root: &Pat
     });
 }
 
+/// Load a TLS configuration from `--tls-cert` and `--tls-key`, or `None` when neither is given.
+///
+/// Both or neither. One alone is a configuration an operator believes is on and is not: a server
+/// with a certificate and no key binds, accepts, and fails every handshake — which reads to a
+/// client as the server being down and to whoever started it as TLS working.
+///
+/// Without the `tls` feature the flags are refused rather than ignored. Silently serving plaintext
+/// to somebody who typed `--tls-cert` is the worst available answer.
+fn resolve_tls(args: &Args) -> Result<Option<std::sync::Arc<http::TlsConfig>>, String> {
+    let cert = args.flags.get("tls-cert");
+    let key = args.flags.get("tls-key");
+    match (cert, key) {
+        (None, None) => Ok(None),
+        (Some(_), None) => Err(
+            "--tls-cert needs --tls-key. A server with a certificate and no key binds, accepts              connections and fails every handshake -- which reads to a client as the server being              down and to you as TLS being on."
+                .to_string(),
+        ),
+        (None, Some(_)) => Err("--tls-key needs --tls-cert.".to_string()),
+        (Some(cert), Some(key)) => resolve_tls_pair(cert, key),
+    }
+}
+
+#[cfg(feature = "tls")]
+fn resolve_tls_pair(
+    cert: &str,
+    key: &str,
+) -> Result<Option<std::sync::Arc<http::TlsConfig>>, String> {
+    let (config, loaded) = warrantor_warrant::tls::server_config(Path::new(cert), Path::new(key))
+        .map_err(|e| e.to_string())?;
+    eprintln!("{}", warrantor_warrant::tls::describe(&loaded));
+    Ok(Some(config))
+}
+
+#[cfg(not(feature = "tls"))]
+fn resolve_tls_pair(
+    _cert: &str,
+    _key: &str,
+) -> Result<Option<std::sync::Arc<http::TlsConfig>>, String> {
+    Err(
+        "this build has no TLS: it was compiled without the `tls` feature. Refusing rather than ignoring the flags -- serving plaintext to somebody who typed --tls-cert is the worst available answer. Either rebuild this crate with the tls feature enabled, or put a reverse proxy terminating TLS in front of a loopback bind."
+            .to_string(),
+    )
+}
+
 fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) -> ExitCode {
     let addr = match resolve_bind(args) {
         Ok(addr) => addr,
@@ -4374,8 +4420,18 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) 
     // the flag is present. That is deliberate -- the refusal's wording differs by how much a stolen
     // token could do, and reading `--allow-settle` from the args is exactly as reliable as the
     // decision made from it forty lines below.
+    // Loaded before the keys and before the token, for the same reason the bind refusal is checked
+    // there: a server that cannot serve must not leave a token file behind.
+    let tls = match resolve_tls(args) {
+        Ok(tls) => tls,
+        Err(e) => return fail(&e),
+    };
     if let Some(refusal) = http::bind_refusal(addr, root, args.flags.contains_key("allow-settle")) {
-        if !args.flags.contains_key(http::CLEARTEXT_ACK_FLAG) {
+        // TLS answers the refusal outright: the whole objection is that the token and every byte
+        // cross in the clear, and with a certificate loaded they do not. The acknowledgement flag
+        // remains for the operator who has a reverse proxy in front, or a network they are
+        // asserting something about.
+        if tls.is_none() && !args.flags.contains_key(http::CLEARTEXT_ACK_FLAG) {
             return fail(&refusal);
         }
     }
@@ -4515,7 +4571,7 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) 
         build_performer,
         now,
     );
-    let outcome = http::serve_on(api, token, listener, root.to_path_buf(), &shutdown);
+    let outcome = http::serve_on(api, token, listener, root.to_path_buf(), tls, &shutdown);
     // Removed whether the drain completed or not, and whether or not the loop ended in an error:
     // the token is a per-session secret and this session is over either way.
     let removed = std::fs::remove_file(&token_path);

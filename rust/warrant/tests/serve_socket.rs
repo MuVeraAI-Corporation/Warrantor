@@ -138,6 +138,9 @@ fn a_real_listener_answers_and_a_shutdown_stops_it_without_cutting_anything_off(
             // request so a revocation takes effect without a restart. This test's store has
             // neither file, which is the unscoped-session-token behaviour that predates them.
             dir.clone(),
+            // No TLS: this test drives the plain transport, which is what a loopback bind uses and
+            // what every default build has.
+            None,
             &watched,
         )
     });

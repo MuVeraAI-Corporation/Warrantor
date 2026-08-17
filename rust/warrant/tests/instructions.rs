@@ -133,6 +133,11 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "token-file",
     "allow-settle",
     "i-accept-cleartext-on-this-network",
+    // TLS, behind the `tls` feature. Listed unconditionally: the usage text names them in every
+    // build, and a build without the feature REFUSES them rather than ignoring them -- so the flag
+    // is real either way, which is exactly what this test asserts.
+    "tls-cert",
+    "tls-key",
 ];
 
 #[test]

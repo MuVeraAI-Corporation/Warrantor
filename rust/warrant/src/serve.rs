@@ -119,7 +119,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{BufRead, Read, Write};
-use std::net::{SocketAddr, TcpListener};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -3695,6 +3695,81 @@ pub fn bind_refusal(addr: SocketAddr, root: &Path, release_authority: bool) -> O
     ))
 }
 
+/// The server configuration TLS is served with. A unit type without the `tls` feature, so every
+/// signature below is written once rather than twice.
+#[cfg(feature = "tls")]
+pub type TlsConfig = rustls::ServerConfig;
+/// Placeholder in a default build: no value of it is ever constructed.
+#[cfg(not(feature = "tls"))]
+pub type TlsConfig = ();
+
+/// One client connection: a plain socket, or a TLS session over one.
+///
+/// The accept loop used to clone the socket for independent read and write halves. A TLS stream
+/// cannot be cloned — its session state is one object, and two handles would be two encryptors over
+/// one connection — so the reader is scoped instead and the wire is used sequentially. Nothing is
+/// lost: this server closes every connection after one response.
+///
+/// An enum rather than `Box<dyn Read + Write>` so the plain path keeps its static dispatch and the
+/// TLS variant does not exist at all in a default build.
+enum Wire {
+    /// The transport this server has always used.
+    Plain(TcpStream),
+    /// A TLS session, present only with the `tls` feature.
+    #[cfg(feature = "tls")]
+    Tls(Box<rustls::StreamOwned<rustls::ServerConnection, TcpStream>>),
+}
+
+impl Read for Wire {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        match self {
+            Self::Plain(stream) => stream.read(buffer),
+            #[cfg(feature = "tls")]
+            Self::Tls(stream) => stream.read(buffer),
+        }
+    }
+}
+
+impl Write for Wire {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        match self {
+            Self::Plain(stream) => stream.write(buffer),
+            #[cfg(feature = "tls")]
+            Self::Tls(stream) => stream.write(buffer),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            Self::Plain(stream) => stream.flush(),
+            #[cfg(feature = "tls")]
+            Self::Tls(stream) => stream.flush(),
+        }
+    }
+}
+
+/// Wrap an accepted socket, performing the TLS handshake when one is configured.
+///
+/// A handshake that fails yields `None` and the connection is dropped **without a reply**. That is
+/// the only correct answer: a client that could not complete a handshake cannot read an HTTP
+/// response either, and writing plaintext onto a socket the client expects to be encrypted would
+/// send a server-generated error in the clear to something that may not be the client at all.
+#[allow(unused_variables)]
+fn wrap(stream: TcpStream, tls: Option<&Arc<TlsConfig>>) -> Option<Wire> {
+    #[cfg(feature = "tls")]
+    if let Some(config) = tls {
+        let connection = rustls::ServerConnection::new(Arc::clone(config)).ok()?;
+        let mut wire = rustls::StreamOwned::new(connection, stream);
+        // Completed here rather than lazily on first read, so a handshake failure is one dropped
+        // connection instead of a half-open one the accept loop is still holding a slot for.
+        if wire.conn.complete_io(&mut wire.sock).is_err() {
+            return None;
+        }
+        return Some(Wire::Tls(Box::new(wire)));
+    }
+    Some(Wire::Plain(stream))
+}
+
 // ── stopping ──────────────────────────────────────────────────────────────────────────
 
 /// How often the accept loop wakes to ask whether it has been told to stop.
@@ -3904,9 +3979,10 @@ pub fn listen<A: Api + Send + 'static>(
     token: SessionToken,
     addr: SocketAddr,
     root: PathBuf,
+    tls: Option<Arc<TlsConfig>>,
     shutdown: &Shutdown,
 ) -> Result<Drain, ServeError> {
-    serve_on(api, token, bind(addr)?, root, shutdown)
+    serve_on(api, token, bind(addr)?, root, tls, shutdown)
 }
 
 /// Bind the listener, separately from serving on it.
@@ -3944,6 +4020,7 @@ pub fn serve_on<A: Api + Send + 'static>(
     token: SessionToken,
     listener: TcpListener,
     root: PathBuf,
+    tls: Option<Arc<TlsConfig>>,
     shutdown: &Shutdown,
 ) -> Result<Drain, ServeError> {
     let api = Arc::new(Mutex::new(api));
@@ -3994,7 +4071,9 @@ pub fn serve_on<A: Api + Send + 'static>(
             );
             continue;
         }
-        let Ok(read_half) = stream.try_clone() else {
+        // Wrapped here, on the accept thread, so a failed handshake costs one dropped
+        // connection rather than a worker slot.
+        let Some(wire) = wrap(stream, tls.as_ref()) else {
             continue;
         };
 
@@ -4011,15 +4090,21 @@ pub fn serve_on<A: Api + Send + 'static>(
                 // Decremented by `Drop`, so an early return or an unwind cannot leak a slot and
                 // walk the server down to a permanent 503.
                 let _slot = slot;
-                let mut input = std::io::BufReader::new(read_half);
-                let mut output = stream;
+                let mut output = wire;
 
                 // Read outside the lock, decide inside it, write outside it. A slow client can
                 // stall its own read and its own write, and neither one holds the store while it
                 // does: the lock covers exactly the window where the store is being touched. That
                 // is the whole reason this uses `parse_request` + `handle` rather than
                 // `serve_conn`, which is the same three steps fused for tests.
-                let response = match parse_request(&mut input) {
+                // Scoped: the reader borrows the wire, and the borrow ends before anything
+                // is written back over it. A TLS session cannot be split into halves, and this
+                // server closes every connection after one response, so sequencing costs nothing.
+                let parsed = {
+                    let mut input = std::io::BufReader::new(&mut output);
+                    parse_request(&mut input)
+                };
+                let response = match parsed {
                     Ok(request) => {
                         // The operator registry and the approval policy are read PER REQUEST rather
                         // than once at startup. That is one small file read on a server whose

@@ -58,6 +58,28 @@ warrantor-spend = { path = "../spend", version = "1.0.0" }
 getrandom = { version = "0.4", features = ["sys_rng"] }
 ureq = { version = "2", default-features = false, features = ["tls", "json"] }
 
+# Server-side TLS, behind a feature that is OFF by default.
+#
+# `rustls` is ALREADY in this crate's dependency tree: `ureq`'s `tls` feature pulls it, and has
+# since the archive client existed. So terminating TLS here adds no crate to the graph and no line
+# to Cargo.lock -- it compiles code that was already being compiled. That is the whole reason this
+# is a small change rather than the dependency decision it was previously deferred as.
+#
+# Off by default anyway. The default build of this crate should be the smallest thing that can
+# verify a receipt, and a server that binds loopback needs no TLS at all -- `bind_refusal` makes
+# that the only unacknowledged binding a default build permits.
+#
+# `rustls-pemfile` IS new, and it is 300 lines of PEM parsing with no dependencies of its own beyond
+# the pki-types crate rustls already carries. Writing that by hand to avoid one dev-shaped
+# dependency would be the wrong trade on a file format where a parsing mistake means loading the
+# wrong key.
+rustls = { version = "0.23", optional = true, default-features = false, features = ["std", "ring"] }
+rustls-pemfile = { version = "2", optional = true }
+
+[features]
+default = []
+tls = ["dep:rustls", "dep:rustls-pemfile"]
+
 [[bin]]
 name = "warrantor"
 path = "src/bin/warrantor.rs"
