@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warrantor — critical implementation analysis, 2026-08-16</title>
+<style>
+  :root{
+    color-scheme: light dark;
+    --s0:#f6f7f9; --s1:#fff; --s2:#fbfbfd;
+    --ink:#14161b; --soft:#565d6b; --faint:#7d848f;
+    --line:#e2e5eb; --line2:#cfd4dd; --accent:#2b53c4; --accent-soft:#eef2fd;
+    --bad:#9c1a29; --bad-bg:#fce9eb; --bad-line:#eeb2ba;
+    --ok:#10643f; --ok-bg:#e6f4ed; --ok-line:#a9d8c1;
+    --warn:#7d5700; --warn-bg:#fcf2da; --warn-line:#e3ca8a;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --s0:#0d0f13; --s1:#14171d; --s2:#1a1e26;
+      --ink:#e9ebf0; --soft:#9aa2b1; --faint:#737b8a;
+      --line:#242932; --line2:#333a46; --accent:#86a8ff; --accent-soft:#16203a;
+      --bad:#ff9ea9; --bad-bg:#2d1519; --bad-line:#6d2a33;
+      --ok:#74e5ac; --ok-bg:#0e2a1e; --ok-line:#1f5c40;
+      --warn:#f3cd6b; --warn-bg:#2b2411; --warn-line:#5f4d1c;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--s0);color:var(--ink);font:15px/1.62 var(--sans);
+       font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:44px 22px 90px}
+  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:34px}
+  h1{font-size:30px;line-height:1.18;letter-spacing:-0.022em;margin:0 0 10px}
+  .sub{color:var(--soft);margin:0;max-width:74ch}
+  .meta{color:var(--faint);font-size:12.5px;margin-top:14px;font-family:var(--mono)}
+  h2{font-size:21px;letter-spacing:-0.015em;margin:52px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
+  h3{font-size:16px;margin:28px 0 8px}
+  p,li{max-width:78ch}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--s2);border:1px solid var(--line);
+       border-radius:5px;padding:1px 5px;font-variant-ligatures:none}
+  pre{background:var(--s2);border:1px solid var(--line);border-radius:8px;padding:13px;
+      overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55}
+  pre code{background:none;border:none;padding:0}
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--faint);font-weight:650}
+  .tag{display:inline-flex;align-items:center;gap:5px;padding:1px 9px;border-radius:999px;
+       font-size:11.5px;font-weight:600;border:1px solid transparent;white-space:nowrap}
+  .t-bad{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-line)}
+  .t-bad::before{content:"\2715";font-weight:700}
+  .t-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line)}
+  .t-ok::before{content:"\2713";font-weight:700}
+  .t-warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line)}
+  .t-warn::before{content:"?";font-weight:700}
+  .t-quiet{background:var(--s2);color:var(--soft);border-color:var(--line)}
+  .card{background:var(--s1);border:1px solid var(--line);border-radius:10px;
+        padding:16px 18px 16px 20px;margin:18px 0;position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--line2)}
+  .card.bad::before{background:var(--bad)}
+  .card.ok::before{background:var(--ok)}
+  .card.warn::before{background:var(--warn)}
+  .card h3{margin:0 0 8px;font-size:15.5px}
+  .card p:last-child{margin-bottom:0}
+  .lede{font-size:16.5px}
+  blockquote{margin:16px 0;padding:2px 0 2px 16px;border-left:3px solid var(--line2);
+             color:var(--soft);font-style:italic}
+  .toc{background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:14px 20px;margin:26px 0}
+  .toc ol{margin:6px 0 0;padding-left:20px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--faint);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Warrantor — critical implementation analysis</h1>
+  <p class="sub lede">What is actually built, what was claimed and is not true, and what the five
+  defects found this session have in common. Written against the code and against live runs, not
+  against the roadmap.</p>
+  <p class="meta">2026-08-16 · main at <code>b6557bb</code> → branch <code>feat/agent-integrations</code>
+  · 515 workspace tests · verified on Windows 11 with a live Ollama backend</p>
+</header>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#method">Method — what was verified rather than read</a></li>
+    <li><a href="#real">What is genuinely real</a></li>
+    <li><a href="#defects">Five defects, and the evidence for each</a></li>
+    <li><a href="#pattern">The pattern underneath them</a></li>
+    <li><a href="#integrations">The integration surface, classified by coverage</a></li>
+    <li><a href="#mi">Model intelligence — the honest state</a></li>
+    <li><a href="#surfaces">Desktop and console</a></li>
+    <li><a href="#backend">The backend that is not there</a></li>
+    <li><a href="#next">What to do next, in order</a></li>
+  </ol>
+</div>
+
+<h2 id="method">1. Method — what was verified rather than read</h2>
+
+<p>This repository's documentation is unusually honest, which creates its own risk: it is trusted.
+So nothing below rests on a document. Each claim is one of three kinds, and they are marked:</p>
+
+<table>
+<tr><th>Kind</th><th>Means</th></tr>
+<tr><td><span class="tag t-ok">verified</span></td><td>Observed running, on this machine, this session.</td></tr>
+<tr><td><span class="tag t-quiet">read</span></td><td>Established from the source, not executed.</td></tr>
+<tr><td><span class="tag t-warn">unknown</span></td><td>Cannot be established from here.</td></tr>
+</table>
+
+<p>The single most useful thing done was cheap: <strong>grep for every flag the code tells a user
+to pass.</strong> That found the defect the roadmap could not, because the roadmap can only record
+gaps somebody noticed.</p>
+
+<h2 id="real">2. What is genuinely real</h2>
+
+<p><span class="tag t-ok">verified</span> The single-machine loop works end to end. A warrant is
+granted against a repository, a git worktree is cut, an agent runs under an OS-enforced lifetime
+link, tool calls traverse a policy engine, staged effects are hash-chained, a signed evidence
+bundle is written, and it verifies offline. That is not a demo — it is 515 passing tests over
+~21,000 lines of Rust in the spine crate, with seven external dependencies and no async runtime.
+The small dependency surface on a security component is a real engineering achievement and is
+rarely held to.</p>
+
+<p><span class="tag t-ok">verified</span> The doctrine is load-bearing rather than decorative.
+Three separations are enforced structurally, not by convention:</p>
+
+<ul>
+<li><strong>Grant never crosses the wire.</strong> Minting authority requires a human at a terminal
+holding the issuer key. There is no HTTP route for it.</li>
+<li><strong>Verification happens only in Rust.</strong> Every viewer renders a verdict; none derives
+one. A second verifier could disagree with the first, and a human would then have to decide which
+to believe — the exact situation the product exists to prevent.</li>
+<li><strong>The agent endpoint does not publish lifecycle tools.</strong> Not denied — absent. A
+refusal can be misconfigured; a name that does not exist cannot be called.</li>
+</ul>
+
+<p><span class="tag t-quiet">read</span> The distinction between <em>Enforced</em>, <em>Mediated</em>
+and <em>Observed</em> bounds is stated on every warrant and is accurate. <code>write_paths</code>
+and <code>budget_cents_observed</code> are observed and say so. Most products in this space would
+call all of it "enforced".</p>
+
+<h2 id="defects">3. Five defects, and the evidence for each</h2>
+
+<div class="card bad">
+<h3>3.1 The MCP proxy could not forward — and the error told you to pass a flag that did not exist</h3>
+<p><span class="tag t-ok">verified</span> <code>proxy::decide()</code> has returned
+<code>Decision::Forward</code> since the proxy was written. The endpoint answered it with:</p>
+<pre><code>"{tool} is permitted by the warrant, but no upstream MCP server is configured
+ to forward it to. Start the agent endpoint with --upstream &lt;command&gt;..."</code></pre>
+<p><code>--upstream</code> appeared nowhere else in the binary. Grep returned exactly one hit: the
+sentence recommending it.</p>
+<p><strong>What it cost.</strong> Of everything an agent could ask a warranted session to do,
+<em>four</em> calls worked — the GitHub effects the staging registry knows how to queue. Every other
+permitted tool returned a failure whose remedy could not be performed. And <code>tools/list</code>
+published the warrant's tool <em>names</em> with <code>{"type":"object","additionalProperties":true}</code>:
+no properties, no required fields, so a model could not have composed a correct call even to a tool
+that worked.</p>
+<p><strong>Why it survived.</strong> It had a passing test. The test asserted that the arm returned
+an error. It did.</p>
+<p><span class="tag t-ok">verified fixed</span> A synchronous stdio MCP client
+(<code>upstream.rs</code>), tokio-free, with per-call deadlines from a reader thread. Live proof:
+<code>selftest.echo</code> round-tripped through the proxy, <code>selftest.now</code> was refused by
+the tools bound, the upstream's real JSON Schema was published, and the refusal was written to the
+store.</p>
+</div>
+
+<div class="card bad">
+<h3>3.2 The shipped "integration" wrote security claims that were false</h3>
+<p><span class="tag t-ok">verified</span> <code>warrantor-harness config --agent claude_code</code>
+wrote a <code>CLAUDE.md</code> containing:</p>
+<blockquote>Every action is recorded as an Agent Action Receipt (P2 AAR)<br>
+Secret exposure triggers kill-switch (invariant I-09)<br>
+File access is tracked and logged</blockquote>
+<p>Nothing in the system made any of those true. They are <strong>instructions to a model</strong> —
+a security boundary written into the context window while the substrate permits whatever it permits.
+That is the failure mode of all five frontier-lab intrusions in this repository's own README, and
+the reason the product exists.</p>
+<p>This is a worse class than a missing feature. It is a false claim, generated by us, into the file
+the agent reads first, in a product whose entire value proposition is that claims about agent
+behaviour must be checkable.</p>
+<p><span class="tag t-ok">verified fixed</span> Replaced by <code>warrantor agents</code>: sixteen
+harnesses, each carrying real MCP client configuration <em>and</em> a coverage class naming what does
+not go through it. The Python generator still exists and has not been removed.</p>
+</div>
+
+<div class="card bad">
+<h3>3.3 Two grants in the same second were one warrant</h3>
+<p><span class="tag t-ok">verified</span> Warrant ids were
+<code>format!("wrt_{:016x}", now().wrapping_mul(GOLDEN_RATIO))</code> — a bijection over a
+<strong>one-second</strong> clock. <code>WarrantStore::save</code> writes to a temp file and renames
+over the target, which succeeds silently when the target exists.</p>
+<p>So two grants in the same second produced the same id, and the second <strong>replaced the first
+warrant's record</strong>: its bounds, its worktree pointer, and its staged-effect chain witness —
+the only place that warrant's staged effects could be found or checked. Nothing announced it.
+Scripting two grants, or typing them quickly, was enough. A model driving the MCP control endpoint
+is precisely the caller that grants twice in a second.</p>
+<p>Found by a test that granted twice in a row and failed <em>intermittently</em>, depending on where
+the second boundary fell — which is why it had never been seen.</p>
+<p><span class="tag t-ok">verified fixed</span> Twice over, because the first fix is a probability
+argument and the second is not: ids now come from the system CSPRNG (same <code>wrt_</code> +
+16-hex shape, so nothing already printed changes), and <code>WarrantStore::create</code> refuses to
+write over an existing record at all, naming what would have been lost.</p>
+</div>
+
+<div class="card bad">
+<h3>3.4 The guard ran at a context window no measurement was taken at</h3>
+<p><span class="tag t-ok">verified</span> The Rust guard shipped <code>num_ctx: 4096</code>. Every
+published figure — 0.8152 adversarial recall, 0.0923 adversarial false-positive rate — was measured
+at <code>8192</code>: <code>evaluate.py</code>'s default, and what <code>baselines.py</code> records
+in both pinned baselines. That file's own opening line reads
+<em>"<code>num_ctx</code> changes the number."</em></p>
+<p>The consequence is not that the guard was worse. It is that <strong>nobody knew what it was</strong>,
+while the console, the roadmap and the CLI help all quoted the measured figures as though they
+described what was running. The parity discipline this repository applies rigorously to fine-tuned
+adapters — a promoted model must beat a baseline measured under a pinned configuration — was not
+being applied to the shipped one.</p>
+<p><span class="tag t-ok">verified fixed</span> <code>MEASURED_NUM_CTX = 8192</code>, pinned by a
+test that asserts against a literal. Asserting the constant against itself is exactly the test that
+would have kept 4096 green.</p>
+</div>
+
+<div class="card bad">
+<h3>3.5 macOS could not paste, and the desktop agent could die behind a live window</h3>
+<p><span class="tag t-quiet">read</span> The Electron shell replaced the entire application menu with
+one custom submenu containing <code>copy</code> and <code>selectAll</code> — and neither
+<code>paste</code>, <code>cut</code>, <code>undo</code> nor <code>redo</code>. On macOS the standard
+editing shortcuts are delivered <em>through the menu</em>: a window without those roles cannot paste
+with ⌘V at all. The console has a token field. Replacing the menu also removed Hide, Services and
+the standard Quit item from an application with no other route to them.</p>
+<p>Separately, the child's <code>exit</code> handler returned early once startup had settled — so a
+crashed or killed agent left a window rendering a console that could reach nothing, silently,
+because the console's recovery-when-the-agent-returns behaviour is deliberately quiet.</p>
+<p><span class="tag t-ok">verified fixed</span> Platform-correct menu with the Edit roles asserted on
+all three platforms; agent death now offers Relaunch or Quit; window geometry is remembered and
+sanitised against the displays that exist <em>now</em> (a position on an unplugged monitor is
+discarded rather than restored, which is the standard way an application becomes unopenable).
+Desktop tests 39 → 56.</p>
+</div>
+
+<h2 id="pattern">4. The pattern underneath them</h2>
+
+<p>The roadmap already names it and had counted three instances: <em>a component is built, is
+correct, and is not wired to anything that would exercise it.</em> The ~20 substrate crates orphaned
+from the warrant; the guard benchmarked but never called during a run; the evidence archive with no
+client.</p>
+
+<p>The forwarding gap is the fourth, and it is worse than the other three in one specific way that
+is worth isolating, because it generalises:</p>
+
+<div class="card warn">
+<p><strong>The other three were <em>absences</em>. This one was an absence with a test that made it
+look present.</strong> The test asserted the failure arm returned an error. It did. What no test
+asserted was that the error named a remedy the binary could perform — because "the error message is
+actionable" is not usually a testable property, so nobody writes it, so a message can rot for eight
+releases while the tests stay green.</p>
+<p>The generalisation: <strong>every instruction this codebase gives a user is an untested
+assertion.</strong> Error messages, help text, README commands, the sentences in a verdict panel.
+The three defects above that were <em>claims</em> rather than <em>code</em> — the impossible flag,
+the CLAUDE.md, the quoted recall figure — all shipped for the same reason.</p>
+<p>The cheap countermeasure, applied this session and worth institutionalising: a test that greps
+the binary's own output for the flags and commands it recommends.</p>
+</div>
+
+<p>Two further observations about how the defects were found, since the method transfers:</p>
+
+<ul>
+<li><strong>Three of five were found by writing tests, not by reading code.</strong> The grant
+collision surfaced as an <em>intermittent</em> failure in a test written for something else. Reading
+that id derivation would not have raised an eyebrow; running it twice did.</li>
+<li><strong>The lifecycle-tool check failed on its first target.</strong> A refusal was written for
+upstreams publishing <code>settle</code> — the obvious instance being this repository's own control
+endpoint. The first implementation split on <code>.</code> and took the last segment; the control
+endpoint publishes <code>warrant_settle</code>. It passed. A check that misses the one server it was
+written for is worse than no check, because it is believed. Only the test caught it.</li>
+</ul>
+
+<h2 id="integrations">5. The integration surface, classified by coverage</h2>
+
+<p>The registry's second column is the point of it. For every terminal coding agent, the honest
+answer to "is this agent bounded" is <em>partly</em>, and the previous surface said "every action is
+tracked".</p>
+
+<table>
+<tr><th>Harness</th><th>Kind</th><th>Wiring</th><th>What the warrant decides</th></tr>
+<tr><td>Claude Code</td><td>coding</td><td><code>.mcp.json</code> (written)</td><td>MCP calls. <strong>Not</strong> Bash, Read, Write, Edit, Glob, Grep, WebFetch</td></tr>
+<tr><td>OpenAI Codex CLI</td><td>coding</td><td><code>~/.codex/config.toml</code> (written)</td><td>MCP calls. <strong>Not</strong> its shell or apply_patch</td></tr>
+<tr><td>Cursor</td><td>coding</td><td><code>.cursor/mcp.json</code> (written)</td><td>MCP calls. <strong>Not</strong> editor-native edits, terminal, codebase search</td></tr>
+<tr><td>Gemini CLI</td><td>coding</td><td><code>.gemini/settings.json</code> (written)</td><td>MCP calls. <strong>Not</strong> built-in file, shell, web tools</td></tr>
+<tr><td>OpenCode</td><td>coding</td><td><code>opencode.json</code> (written)</td><td>MCP calls. <strong>Not</strong> built-in edit/read/bash</td></tr>
+<tr><td>Copilot CLI, Cline, Continue, Zed</td><td>coding</td><td>block printed</td><td>MCP calls only; paths are version- or install-dependent</td></tr>
+<tr><td>Aider</td><td>coding</td><td><span class="tag t-bad">none</span></td><td>No MCP client. Process bounds only — and it is told so, not given a file</td></tr>
+<tr><td>Claude Desktop</td><td>general</td><td>block printed</td><td><span class="tag t-ok">all tool calls</span> — its only tools are MCP servers</td></tr>
+<tr><td>Goose</td><td>general</td><td>block printed</td><td>MCP calls. <strong>Not</strong> its developer extension's shell</td></tr>
+<tr><td>OpenAI Agents SDK, LangChain/LangGraph, Pydantic AI</td><td>SDK</td><td>snippet</td><td><span class="tag t-ok">all tool calls</span>, if this is the only toolset attached</td></tr>
+<tr><td>Claude Agent SDK</td><td>SDK</td><td>snippet</td><td>MCP calls; full mediation reachable by restricting allowed tools — a decision in <em>your</em> code, so it is reported as possible rather than claimed</td></tr>
+</table>
+
+<p><strong>The structural conclusion, which the table makes unavoidable:</strong> full mediation of a
+terminal coding agent is <em>not achievable through MCP</em>, by anybody, because those agents do not
+route their own file and shell tools through it. The strong cases are general assistants and
+SDK-built agents. For coding agents the correct claim is "bounded deadline, isolated worktree, staged
+external effects, signed evidence, mediated MCP tools" — and composing with a sandbox for the rest.
+That claim is defensible. "Every action is tracked" was not.</p>
+
+<h3>The one other honest gap in this layer</h3>
+<p><span class="tag t-quiet">read</span> An unknown tool's side-effect class is guessed. Anything the
+effect registry does not know is classified <code>Read</code> and forwarded — so an upstream
+<code>write_file</code> is forwarded rather than staged. Unchanged behaviour, but newly
+<em>reachable</em>, which makes it newly worth naming: the staging boundary covers four registered
+GitHub effects and nothing else.</p>
+
+<h2 id="mi">6. Model intelligence — the honest state</h2>
+
+<p><span class="tag t-ok">verified</span> The chain works. <code>warrantor guard doctor</code>, run
+against a live local Ollama serving <code>Qwen3Guard-Gen-4B-GGUF:Q4_K_M</code>, attached, resolved
+the model digest, and classified three probes correctly — including the jailbreak case that exists
+because the model answers <code>Safety: Safe</code> on line one and <code>Categories: Jailbreak</code>
+on line two, so a parser reading only the severity line lets every jailbreak through.</p>
+
+<p>What that does <em>not</em> establish, and the command says so in its own output:</p>
+
+<ul>
+<li>Three probes are not a measurement. The measured figures remain 0.8152 adversarial recall
+(≈ one adversarial case in five missed) and 0.0923 adversarial FPR (≈ one benign call in eleven
+flagged).</li>
+<li>Those figures are why the guard <strong>observes and does not enforce</strong>. An enforcing
+guard at that FPR trains the operator to override it, and an operator who overrides twice stops
+reading it. The enforcement path exists behind a flag named so it cannot be typed by accident.</li>
+<li><span class="tag t-quiet">read</span> Seven of the eight planned models are untrained, four of
+them cold-start blocked on real warrant history rather than on engineering.</li>
+<li><span class="tag t-quiet">read</span> The weakest measured class,
+<em>Unqualified Professional Advice</em> at 0.4298 recall, is unreachable from WildGuardMix, which
+has no such category.</li>
+<li><span class="tag t-quiet">read</span> One fine-tune has been run and the parity gate
+<strong>rejected</strong> it — correctly, and informatively: it diagnosed its own cause (the target
+vocabulary extinguished a third severity class and silently turned a documented policy knob into a
+no-op).</li>
+</ul>
+
+<p>That rejection is the strongest single signal in this repository. A gate that rejects your own
+model is a gate somebody built to be believed.</p>
+
+<h2 id="surfaces">7. Desktop and console</h2>
+
+<p><span class="tag t-quiet">read</span> The Electron shell is deliberately thin and should stay
+thin: it is a window, a child process and a policy. Its refusal to re-render anything is correct —
+a second viewer is a second thing that can misrender a verdict at the moment a human is deciding
+whether to release an agent's work.</p>
+
+<p><span class="tag t-ok">verified</span> The console's palette carried one good idea — <em>a verdict
+must never be mistaken for chrome</em> — whose consequences the CSS had not yet carried. Verdicts
+were encoded in colour alone. Roughly one man in twelve cannot reliably separate that green from
+that red, on the one surface where <code>unknown</code> and <code>failed</code> must never collapse
+into each other. Every verdict pill now carries a glyph as well as a hue (verified live in a
+browser), the verdict block takes a leading edge coloured from its own badge via <code>:has()</code>
+so the two cannot disagree, and release controls are deliberately plain — a filled primary button on
+<code>settle</code> would be a design that recommends the irreversible action.</p>
+
+<p><span class="tag t-warn">unknown</span> No installer has been installed or launched on any
+machine. The packaging workflow has run green in dry-run and produced artifacts; nobody has
+downloaded one and double-clicked it. Installers remain unsigned, which means SmartScreen on Windows
+and Gatekeeper on macOS — and a security product that teaches a user to click through
+"developer cannot be verified" on first contact has taught them the wrong lesson. That is
+procurement, not engineering.</p>
+
+<h2 id="backend">8. The backend that is not there</h2>
+
+<p>This remains the largest gap and none of this session's work touched it. Stated precisely:</p>
+
+<table>
+<tr><th>Gap</th><th>State</th><th>Why it is the product claim</th></tr>
+<tr><td>Per-person identity (§2.2)</td><td><span class="tag t-bad">absent</span></td><td>One unscoped bearer token per server run. The audit trail cannot say <em>which human</em> settled a warrant — only that someone holding the token did. For a product whose output is evidence, this is the load-bearing gap.</td></tr>
+<tr><td>TLS (§2.3)</td><td><span class="tag t-bad">absent</span></td><td>The token protects access, not bytes. Loopback makes that acceptable and it becomes unacceptable the moment anything binds beyond it.</td></tr>
+<tr><td>Trust directory</td><td><span class="tag t-bad">absent</span></td><td><code>--issuer</code> is still a hex string pasted by hand, or a local TOFU pin. A network directory is a new trust root, deliberately not taken.</td></tr>
+<tr><td>Approval routing</td><td><span class="tag t-bad">absent</span></td><td>Unblocked by notifications, but needs identity's shape first.</td></tr>
+<tr><td>Time anchoring</td><td><span class="tag t-bad">absent</span></td><td>Options written down; it is a trust-root decision, not an implementation task.</td></tr>
+<tr><td>Bounds enforcement (§3.1)</td><td><span class="tag t-warn">honest</span></td><td>No netns, no seccomp, no firewall. <code>write_paths</code> is observed. The system says so on every warrant, which is the right behaviour and not a substitute for the thing.</td></tr>
+</table>
+
+<h2 id="next">9. What to do next, in order</h2>
+
+<ol>
+<li><strong>Delete <code>warrantor-harness config</code>.</strong> Hours. The old generator still
+writes false security claims and is still reachable by anyone who finds it first. Nothing that stays
+in the repository should assert something the substrate does not do.</li>
+
+<li><strong>Test the instructions, not just the code.</strong> Hours. A test that extracts every
+flag and command the binary recommends in its own error and help text, and asserts each is
+dispatchable. This is the specific countermeasure for the class that produced three of the five
+defects above.</li>
+
+<li><strong>Classify upstream tools' side effects.</strong> Days. Forwarding made an existing guess
+reachable: unknown tools are classed <code>Read</code>. Either declare classes per upstream, or
+refuse to forward an unclassified tool under enforce.</li>
+
+<li><strong>§2.2 identity.</strong> Weeks, and the one that decides whether this is a product. Its
+two blockers — device-key-restart semantics and the format bump — are decisions to be taken
+deliberately with the owner, not coded around. Everything in Tier 3 assumes it.</li>
+
+<li><strong>Install an installer.</strong> Hours of human time, irreducibly. Download an artifact,
+install it on a machine with no <code>warrantor</code> on <code>PATH</code>, launch it. Until then
+§1.1 and §1.2 remain unobserved regardless of how green the workflow is.</li>
+
+<li><strong>Re-run the guard benchmarks at the shipped configuration.</strong> The context window is
+now in parity by construction, but the figures were measured before this was true of the product.
+They are almost certainly still correct; "almost certainly" is not the standard this repository
+holds its own adapters to.</li>
+</ol>
+
+<div class="card">
+<h3>The one-paragraph summary</h3>
+<p>The substrate is real, the doctrine is enforced structurally rather than by convention, and the
+single-machine loop is complete and well tested. What this session found is that the failures are
+concentrated not in the code but in the <em>claims</em>: a flag that did not exist, a generated file
+asserting protections that were not in force, a recall figure quoted for a configuration that was
+not running, and a warrant id that silently destroyed its predecessor. Each was invisible to the
+test suite because each was a statement rather than a branch. The code is more trustworthy than the
+sentences around it — which, for a product whose entire thesis is that claims about agent behaviour
+must be checkable, is the finding that matters most.</p>
+</div>
+
+<footer>
+Warrantor — the open authority and evidence substrate for autonomous AI.<br>
+Analysis written 2026-08-16 against <code>feat/agent-integrations</code>. Companion to
+<code>docs/W1-delivery-gaps.md</code>, which remains the roadmap of record.
+</footer>
+
+</div>
+</body>
+</html>
