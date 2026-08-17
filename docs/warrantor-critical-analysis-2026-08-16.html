@@ -383,11 +383,27 @@ cannot raise because the renderer is granted no permissions at all. Both are pur
 <code>newlyWaiting</code> notifies on transitions rather than levels — notifying on a level is how a
 person learns to dismiss notifications unread.</p>
 
-<p><span class="tag t-warn">unknown</span> No installer has been installed or launched on any
-machine. The packaging workflow has run green in dry-run and produced artifacts; nobody has
-downloaded one and double-clicked it. Installers remain unsigned, which means SmartScreen on Windows
-and Gatekeeper on macOS — and a security product that teaches a user to click through
-"developer cannot be verified" on first contact has taught them the wrong lesson. That is
+<p><span class="tag t-ok">verified</span> <strong>The packaged app has been launched and shown to
+start its own bundled agent</strong> — the observation §1.2 said had never been made. Packaged with
+<code>electron-builder --dir</code>, launched with <code>PATH</code> scrubbed to the two Windows
+system directories, and the trace records the bundled binary resolved ahead of that empty
+<code>PATH</code>, the agent started on a port, the window constructed, the console loaded, and the
+token redacted in forwarded output.</p>
+
+<p><strong>The same trace found a defect: <code>tray skipped: no icon</code>.</strong>
+<code>build/</code> is electron-builder's own <em>resources</em> directory — read at build time to
+make the icons, and not copied into the app — so the path <code>installTray</code> opens exists in
+development and not in a packaged build, and it skips silently when the image is empty. The tray had
+shipped earlier the same day and had never once appeared in a packaged build. No unit test could have
+caught it: every packaging test asserts against the <em>config</em>, and the config was correct for
+the build and wrong for the runtime. That gap has no representation in either artifact, which is why
+only starting the packaged app finds it. Fixed, pinned by a test asserting the <em>overlap</em>, and
+confirmed by a second launch.</p>
+
+<p><span class="tag t-warn">unknown</span> Still not observed: the NSIS <strong>installer</strong>
+rather than the unpacked directory, run on somebody <em>else's</em> machine. Installers remain
+unsigned, which means SmartScreen and Gatekeeper — a security product that teaches a user to click
+through "developer cannot be verified" on first contact has taught them the wrong lesson. That is
 procurement, not engineering.</p>
 
 <h2 id="backend">8. The backend — what shipped after this page was first written</h2>
