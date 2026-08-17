@@ -56,10 +56,15 @@ Two things this does **not** fix, and they are why §3.1 still reads as it does:
   tools of its own that never traverse an MCP server. Wiring one is worth real things — the
   deadline, the worktree, the staged effects, the evidence, the OS lifetime link, and mediation of
   every MCP tool it uses — and it is not mediation of `bash`.
-- **An unknown tool's side-effect class is guessed.** Anything the effect registry does not know is
-  classified `Read` and forwarded, so an upstream `write_file` is forwarded rather than staged.
-  Unchanged behaviour, newly reachable, and therefore worth naming: the staging boundary covers the
-  four registered GitHub effects and nothing else.
+- **An unknown tool's side-effect class was guessed — now declarable, and refusable.** Anything the
+  effect registry does not know was classed `Read` and forwarded, so an upstream `write_file` was
+  performed rather than staged: a guess with exactly one reachable answer until forwarding existed,
+  and load-bearing the moment it did. `--upstream-class '<tool>=read|write|destructive|financial'`
+  replaces the guess with a statement and `--upstream-refuse-unclassified` fails closed. The
+  registry still wins over a declaration, because those four tools are the ones the settle path can
+  actually perform. Tools decided by the fallback are **named** at the end of a session — a count is
+  not something an operator can act on; the names are the work list. Still true: the staging
+  boundary covers four GitHub effects and nothing else.
 
 ### 0.2 Nothing pointed a real harness at the endpoint — **fixed, and what it replaced was worse**
 
@@ -518,6 +523,29 @@ cannot resolve its own model digest refuses to attach rather than emitting prove
 §4.3 below has since moved too: the store-wide aggregate these signals feed now has a client, and
 the two routes stopped being the only way to read them. §4.2 is not unchanged either — it has been
 run.
+
+### 4.1b The guard is measurable where it runs — **built**
+
+Every figure this product quotes about its guard came from a Python harness, against Hugging Face
+corpora, on another machine. An operator could not check it without Python, the corpora, a token and
+an afternoon — and it measured a configuration this crate did not run for eight releases.
+
+`warrantor guard doctor` proves the chain is connected: attach, resolve the model digest, classify
+three probes including the jailbreak case `parse_guard_response` exists for. `warrantor guard bench
+--cases <file.jsonl>` measures it, over cases the operator supplies, with **Wilson intervals** —
+never a point estimate alone, because 0.85 from 20 cases and 0.85 from 2,000 look identical and mean
+different things. Recall and FPR over separate denominators, per-category recall (the published
+weakest class is 0.4298 and one aggregate could not find it), and an unclassified case **excluded**
+rather than counted as a miss: a backend that was down is a failed measurement, not poor recall.
+
+It reports **parity**, not quality, and says so: the cases are the operator's, because a set shipped
+with the product is a set the product can be tuned against. It says "consistent with", never
+"matches".
+
+**It found a defect on its first live run.** `MEASURED_NUM_CTX` had corrected the library default to
+8192; the CLI kept its own literal `4096` fallback, so every guard the CLI attached still ran at the
+unmeasured configuration — the fix surviving its own fix, one layer up. Only a command that prints
+the running configuration could have caught it. Both sites now read the constant, pinned by a test.
 
 ### 4.2 A fine-tune has been run, and the gate rejected it — **done, and informative**
 
