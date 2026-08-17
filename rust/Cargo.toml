@@ -73,7 +73,7 @@ publish = false  # Local dev releases only during Wave-1 (per scope boundary)
 
 [workspace.dependencies]
 # Shared across crates. Pin to avoid surprise upgrades.
-thiserror = "1"
+thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 serde_cbor = "0.11"
 zeroize = { version = "1", features = ["derive"] }
