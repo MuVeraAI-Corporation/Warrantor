@@ -167,10 +167,28 @@ must be in the list the packager copies — and a second packaged launch confirm
 `tray skipped` line is gone. Found and fixed by the same method, which is the argument for the
 method.
 
-**Still not observed**, and it is a smaller gap than it was: the **NSIS installer** — rather than the
-unpacked directory — being run, and being run on somebody *else's* machine. That is RELEASING.md
-step 3, and no automation can stand in for it, because the point of it is whether the packaging
-assumption holds somewhere this repository has never been.
+**The installer itself has now been built locally too**: `Warrantor-1.0.0-x64-setup.exe`,
+101,239,598 bytes, sha256 `f7f6cd68517de7d01929579c6bdee5bcb938e3bd0c1cd99bd8a170d0d3b151d2`, a
+valid NSIS PE. One local finding came with it, and it is about the *pipeline* rather than the
+product: electron-builder derives the `.ico` at build time with a **WebAssembly** icon tool, and on a
+memory-pressured Windows box that step dies with `WebAssembly.Memory(): could not allocate memory` —
+after the app has packaged, so the failure lands on the last step of a long build. Passing a
+pre-generated `.ico` on the CLI got past it. The committed config was deliberately **not** changed:
+the OOM is a machine being short of memory, not a defect, and committing a binary `.ico` would
+contradict `build/make-icon.mjs`'s own reason for existing ("a binary in the source tree that nobody
+can diff is a small version of the problem the whole product is about"). Worth knowing before a
+release is cut on a small runner.
+
+**Still not observed:** the installer being *run*. Two separate reasons, and neither is engineering.
+Executing an installer is a system-changing action that this repository's own tooling gates, and
+correctly so. And the step RELEASING.md actually asks for is an install on somebody *else's* machine
+— which no automation can stand in for, because the point of it is whether the packaging assumption
+holds somewhere this repository has never been.
+
+What *is* now established, and was not before: the app packages, the bundled agent arrives inside it,
+the resolver prefers that copy over an empty `PATH`, the agent starts, the window opens, the console
+loads, and the installer builds into a valid NSIS artifact with a recorded digest. The residue is one
+double-click by a person.
 
 ### 1.3 There is no first-run experience — **done**
 
