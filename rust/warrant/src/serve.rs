@@ -2594,6 +2594,7 @@ impl StoreApi {
             now,
             &contained,
             Some(spend::section(&ledger)),
+            custody_section(&self.root, id),
         );
         built
             .sign(&self.issuer, "issuer")
@@ -3702,6 +3703,23 @@ pub type TlsConfig = rustls::ServerConfig;
 /// Placeholder in a default build: no value of it is ever constructed.
 #[cfg(not(feature = "tls"))]
 pub type TlsConfig = ();
+
+/// The actor log's position, for a report served to a human.
+///
+/// Failure is `None`, never an error: a report must still be produced when the log cannot be read,
+/// and `None` says "not consulted" — which is exactly what happened. Inventing an empty section
+/// instead would erase the distinction the report's own limitations line rests on.
+fn custody_section(root: &Path, warrant_id: &str) -> Option<crate::report::CustodySection> {
+    let records = crate::operators::read_log(root, warrant_id).ok()?;
+    let policy = crate::operators::ApprovalPolicy::load(root).unwrap_or_default();
+    Some(crate::report::CustodySection {
+        acts: records.len(),
+        head: records.last().map(|r| r.digest.clone()),
+        chain_intact: crate::operators::verify_chain(&records).is_ok(),
+        approvers: crate::operators::approvers(&records).len(),
+        approvals_required: policy.required,
+    })
+}
 
 /// One client connection: a plain socket, or a TLS session over one.
 ///

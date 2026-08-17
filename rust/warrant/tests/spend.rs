@@ -814,6 +814,9 @@ fn the_report_carries_the_observed_spend_and_says_whose_figures_they_are() {
         NOW,
         &[],
         Some(spend::section(&led)),
+        // No custody section: this test is about the spend ledger, and an unconsulted actor log is
+        // the shape of every report exported before that section existed.
+        None,
     );
     let bundle = built.bundle();
     let section = bundle.spend.as_ref().expect("the section is carried");
@@ -1088,6 +1091,9 @@ fn the_spend_section_survives_a_lifecycle_transition() {
         NOW,
         &[],
         Some(spend::section(&led)),
+        // No custody section: this test is about the spend ledger, and an unconsulted actor log is
+        // the shape of every report exported before that section existed.
+        None,
     );
     assert_eq!(
         built.bundle().spend.as_ref().expect("carried").spent_micros,

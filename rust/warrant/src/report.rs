@@ -264,6 +264,35 @@ pub struct AuthorityCheck {
     pub capabilities_requested: Vec<String>,
 }
 
+/// The actor log's position at the moment the report was signed.
+///
+/// **What crosses into signed evidence is the head digest, not the acts.** The head is what makes a
+/// later copy of `actors/<id>.jsonl` checkable against a signature taken now: a log edited or
+/// truncated since no longer hashes to it. Copying the acts themselves in would put operator names
+/// inside an artifact that gets handed to third parties, which is a disclosure decision nobody
+/// asked for and one this bundle could not un-make.
+///
+/// `None` on the bundle means the log was **not consulted**, which is the true statement about
+/// every report exported before this section existed. Absent is never "there were no acts": those
+/// are different claims, and the limitations say which is being made.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CustodySection {
+    /// How many acts the log held.
+    pub acts: usize,
+    /// The head entry's digest, or `None` for an empty log.
+    pub head: Option<String>,
+    /// Whether the chain verified at the moment of signing.
+    ///
+    /// A report over a warrant whose actor chain is broken is still a valid report — the evidence
+    /// is unaffected — and it must say so rather than refusing, because refusing to report on a
+    /// warrant is how a broken chain hides.
+    pub chain_intact: bool,
+    /// Distinct named approvers recorded.
+    pub approvers: usize,
+    /// The approval requirement in force when the report was taken.
+    pub approvals_required: usize,
+}
+
 /// Everything `warrantor report` knows, in one signable object.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReportBundle {
@@ -301,6 +330,23 @@ pub struct ReportBundle {
     /// which is the true statement about such a file.
     #[serde(default)]
     pub spend: Option<SpendSection>,
+    /// Where the actor log stood when this report was signed. See [`CustodySection`].
+    ///
+    /// `#[serde(default)]` so a bundle exported before this section existed still parses, and
+    /// reads as "not consulted".
+    ///
+    /// **`skip_serializing_if` is the load-bearing half, and `spend` does not have it.**
+    /// [`bundle_digest`] hashes a *re-serialisation* of the parsed bundle, not the bytes on disk.
+    /// Without the skip, an older export — which has no `custody` key at all — parses as `None`,
+    /// re-serialises as `"custody": null`, and hashes to something other than what its receipts
+    /// cover. Every report signed before this field existed would stop verifying, on a surface
+    /// whose entire purpose is that old evidence keeps checking out.
+    ///
+    /// With the skip, an absent field stays absent through the round trip and the digest is
+    /// unchanged. A present one is inside the signature exactly as much as any other field: editing
+    /// it breaks verification, which is the point of putting it here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custody: Option<CustodySection>,
     /// Staged effects awaiting a settle decision.
     pub staged: StagedSection,
     /// How many effects are staged. `None` when the queue could not be read.
@@ -418,7 +464,21 @@ fn limitations(
     stored: &StoredWarrant,
     contained_scopes: &[String],
     spend: Option<&SpendSection>,
+    custody: Option<&CustodySection>,
 ) -> Vec<String> {
+    // Said whether or not a section is present, because the absence is itself a claim a reader
+    // would otherwise fill in wrongly.
+    let custody_line = match custody {
+        None => "This report does not say who acted on this warrant: the actor log was not consulted when it was built. That is not a statement that nobody acted.".to_string(),
+        Some(section) if !section.chain_intact => format!(
+            "The actor log for this warrant does NOT verify ({} act(s) recorded). Somebody has edited, removed or reordered a line in the record of who settled, voided, stopped or approved it. The evidence in this bundle is unaffected -- signatures are checked separately -- but who acted is now unknown.",
+            section.acts
+        ),
+        Some(section) => format!(
+            "Who acted is committed to by the actor log's head digest, not by its contents: {} act(s) and {} distinct approver(s) against a requirement of {}. The head lets a later copy of that log be checked against this signature; it carries no operator names, and it establishes nothing to a reader who has never seen the log itself.",
+            section.acts, section.approvers, section.approvals_required
+        ),
+    };
     // The budget caveat is the one that changes with what was actually read, so it is stated from
     // the input. Before there was a ledger the honest sentence was "no spend figure appears here";
     // now that one can, the sentence has to say where the figure came from -- which is the agent,
@@ -476,6 +536,7 @@ fn limitations(
          establish that the signing key is trusted; that has to come from somewhere else."
             .to_string(),
     ];
+    out.push(custody_line);
     // Containment is the one gate whose caveat changes with the input, so it is stated from the
     // input rather than from a fixed sentence. A build that was handed no contained scope has to
     // say the gate passed for want of anything to check, and a build that was handed one has to say
@@ -544,7 +605,8 @@ pub fn build_with_containment(
     now: u64,
     contained_scopes: &[String],
 ) -> Report {
-    build_observed(stored, queue, issuer, now, contained_scopes, None)
+    // `None` for both observed sections: a caller wanting them uses `build_observed`.
+    build_observed(stored, queue, issuer, now, contained_scopes, None, None)
 }
 
 /// Build the report, honouring containment and carrying the budget bound's observed spend.
@@ -564,6 +626,7 @@ pub fn build_observed(
     now: u64,
     contained_scopes: &[String],
     spend: Option<SpendSection>,
+    custody: Option<CustodySection>,
 ) -> Report {
     let claims = &stored.warrant.claims;
     let bounds = &claims.bounds;
@@ -754,8 +817,9 @@ pub fn build_observed(
                 strength,
             })
             .collect(),
-        limitations: limitations(stored, contained_scopes, spend.as_ref()),
+        limitations: limitations(stored, contained_scopes, spend.as_ref(), custody.as_ref()),
         spend,
+        custody,
         staged,
         staged_count,
         chain_head,

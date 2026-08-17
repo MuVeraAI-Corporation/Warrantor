@@ -327,6 +327,10 @@ impl ControlEndpoint {
             (self.now)(),
             &stops.contained_scopes(&id),
             Some(crate::spend::section(&ledger)),
+            // No custody section here, deliberately: this report is a tool result an AGENT reads,
+            // and the actor log names the humans who acted on the warrant. `None` is honest -- the
+            // log was not consulted -- and the limitations line says so.
+            None,
         );
         let mut out = vec![crate::report::render_mcp(built.bundle())];
         out.push(String::new());

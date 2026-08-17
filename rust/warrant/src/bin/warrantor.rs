@@ -1006,6 +1006,7 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         now(),
         &contained,
         Some(spend::section(&ledger)),
+        custody_section(root, id),
     );
     print!("{}", report::render_cli(built.bundle()));
 
@@ -3153,6 +3154,22 @@ fn cmd_issuer_import(args: &Args, root: &Path) -> ExitCode {
     println!();
     println!("{}", report.caveat());
     ExitCode::SUCCESS
+}
+
+/// The actor log's position, for the report `--export` signs.
+///
+/// Failure is `None`, never an error: `None` says "not consulted", which is what happened, and a
+/// report must still be produced. See [`warrantor_warrant::report::CustodySection`].
+fn custody_section(root: &Path, warrant_id: &str) -> Option<report::CustodySection> {
+    let records = operators::read_log(root, warrant_id).ok()?;
+    let policy = ApprovalPolicy::load(root).unwrap_or_default();
+    Some(report::CustodySection {
+        acts: records.len(),
+        head: records.last().map(|r| r.digest.clone()),
+        chain_intact: operators::verify_chain(&records).is_ok(),
+        approvers: operators::approvers(&records).len(),
+        approvals_required: policy.required,
+    })
 }
 
 // ── time anchoring: order without a trust root ─────────────────────────────────
@@ -5336,6 +5353,7 @@ fn build_final_report(
         now(),
         &contained,
         Some(spend::section(&ledger)),
+        custody_section(root, id),
     );
     let signed = built
         .sign(&issuer, "issuer")

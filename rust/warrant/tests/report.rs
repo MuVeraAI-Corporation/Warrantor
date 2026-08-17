@@ -858,3 +858,116 @@ fn an_unreadable_worktree_is_reported_as_unreadable_not_as_clean() {
         "{text}"
     );
 }
+
+// ── the custody section, and the round-trip invariant it rests on ─────────────────────
+
+/// An absent custody section must survive the canonical round trip **as absent**.
+///
+/// `bundle_digest` hashes a *re-serialisation* of the parsed bundle, not the bytes on disk. So a
+/// field that serialises as `"custody": null` when it is `None` changes the digest of every export
+/// written before the field existed, and every one of those reports stops verifying — on a surface
+/// whose entire purpose is that old evidence keeps checking out.
+///
+/// `skip_serializing_if` is what prevents it, and this test is what keeps the attribute there: it
+/// is one word, it looks decorative beside `default`, and removing it breaks nothing that any other
+/// test observes.
+#[test]
+fn an_absent_custody_section_does_not_appear_in_the_canonical_bundle() {
+    let dir = tempdir("custody-absent");
+    let queue = queue_at(&dir);
+    let built = warrantor_warrant::report::build_observed(
+        &stored(),
+        Ok(&queue),
+        &issuer().verifying_key(),
+        NOW,
+        &[],
+        None,
+        None,
+    );
+    let canonical = warrantor_warrant::report::canonical_bundle(built.bundle()).expect("canonical");
+    assert!(
+        !canonical.contains("custody"),
+        "an absent section must not appear at all, or every pre-existing export changes digest"
+    );
+}
+
+/// A present custody section is inside the signature, exactly as much as any other field.
+#[test]
+fn a_custody_section_is_covered_by_the_bundle_digest() {
+    let dir = tempdir("custody-signed");
+    let queue = queue_at(&dir);
+    let section = warrantor_warrant::report::CustodySection {
+        acts: 2,
+        head: Some("abc".to_string()),
+        chain_intact: true,
+        approvers: 2,
+        approvals_required: 2,
+    };
+    let built = warrantor_warrant::report::build_observed(
+        &stored(),
+        Ok(&queue),
+        &issuer().verifying_key(),
+        NOW,
+        &[],
+        None,
+        Some(section.clone()),
+    );
+    let before = warrantor_warrant::report::bundle_digest(built.bundle()).expect("digest");
+
+    let mut edited = built.bundle().clone();
+    edited.custody = Some(warrantor_warrant::report::CustodySection {
+        approvers: 99,
+        ..section
+    });
+    let after = warrantor_warrant::report::bundle_digest(&edited).expect("digest");
+    assert_ne!(
+        before, after,
+        "editing who approved must change the digest, or putting it here bought nothing"
+    );
+
+    // And the limitations say what the section does and does not establish.
+    assert!(
+        built
+            .bundle()
+            .limitations
+            .iter()
+            .any(|l| l.contains("head digest") && l.contains("carries no operator names")),
+        "{:?}",
+        built.bundle().limitations
+    );
+}
+
+/// A broken actor chain is reported in the limitations, not turned into a refusal.
+///
+/// Refusing to report on a warrant whose actor log has been edited is how a broken chain hides: the
+/// evidence is unaffected — signatures are checked separately — and the reader needs both facts.
+#[test]
+fn a_broken_actor_chain_is_said_rather_than_refused() {
+    let dir = tempdir("custody-broken");
+    let queue = queue_at(&dir);
+    let built = warrantor_warrant::report::build_observed(
+        &stored(),
+        Ok(&queue),
+        &issuer().verifying_key(),
+        NOW,
+        &[],
+        None,
+        Some(warrantor_warrant::report::CustodySection {
+            acts: 3,
+            head: Some("abc".to_string()),
+            chain_intact: false,
+            approvers: 1,
+            approvals_required: 2,
+        }),
+    );
+    let said = built
+        .bundle()
+        .limitations
+        .iter()
+        .find(|l| l.contains("does NOT verify"))
+        .expect("the broken chain must be stated");
+    assert!(
+        said.contains("evidence in this bundle is unaffected"),
+        "{said}"
+    );
+}
