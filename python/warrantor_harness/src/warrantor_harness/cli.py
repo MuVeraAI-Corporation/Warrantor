@@ -107,9 +107,7 @@ def _removed_config() -> int:
     Kept as an explicit refusal rather than deleted outright, so anyone who finds the old command
     in a script or a blog post reads this instead of a bare "invalid choice".
     """
-    sys.stderr.write(
-        _REMOVED_MESSAGE
-    )
+    sys.stderr.write(_REMOVED_MESSAGE)
     return 2
 
 
