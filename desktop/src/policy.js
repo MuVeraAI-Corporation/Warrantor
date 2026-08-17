@@ -392,6 +392,85 @@ export function agentExitMessage(code, signal) {
 }
 
 /**
+ * What the tray should say, from a list response.
+ *
+ * A pure function over the payload, so the one thing that could be wrong here — deciding a run is
+ * finished when the read merely failed — is testable without an Electron process.
+ *
+ * `null` means **the count is unknown**, and it is a distinct return from zero. A read that failed
+ * and a store with nothing open are opposite facts: the first must not quietly render as "no agents
+ * running", because that is the sentence somebody closes their laptop on.
+ *
+ * @param {{answered: boolean, status: number, payload: unknown}} response
+ * @returns {{open: number|null, label: string}}
+ */
+export function traySummary({ answered, status, payload }) {
+  if (!answered || status !== 200) {
+    return { open: null, label: 'Warrantor — cannot reach the agent' };
+  }
+  const warrants = payload?.data?.warrants;
+  if (!Array.isArray(warrants)) {
+    return { open: null, label: 'Warrantor — the agent answered unreadably' };
+  }
+  const open = warrants.filter((w) => w?.state === 'open').length;
+  if (open === 0) return { open: 0, label: 'Warrantor — no agent running' };
+  return {
+    open,
+    label: `Warrantor — ${open} warrant${open === 1 ? '' : 's'} open`,
+  };
+}
+
+/**
+ * Which warrants have newly become "waiting for a decision" since the last look.
+ *
+ * Transitions, not levels. Notifying on a level means one held warrant produces a notification every
+ * poll until somebody acts on it, which is how a person learns to dismiss them without reading — and
+ * the one that mattered goes with the rest.
+ *
+ * A read that failed yields **no** transitions and does not clear what is known. Treating an
+ * unreadable answer as "nothing is waiting any more" would re-notify for every warrant the moment
+ * the agent came back.
+ *
+ * @param {{answered: boolean, status: number, payload: unknown}} response
+ * @param {Set<string>} alreadyNotified - mutated: ids that have already produced a notification
+ * @returns {Array<{id: string, goal: string}>}
+ */
+export function newlyWaiting({ answered, status, payload }, alreadyNotified) {
+  if (!answered || status !== 200) return [];
+  const warrants = payload?.data?.warrants;
+  if (!Array.isArray(warrants)) return [];
+
+  // `held` is the state a warrant reaches when its deadline or budget ended the run with staged
+  // effects waiting for a human. That is precisely "a decision is waiting", and it is the only
+  // state that means it: `open` is still running, and settled/void are decided.
+  const waiting = warrants.filter((w) => w?.state === 'held' && typeof w?.id === 'string');
+  const fresh = waiting.filter((w) => !alreadyNotified.has(w.id));
+
+  // Ids that have left the waiting state are forgotten, so a warrant that is held, decided, and
+  // somehow held again notifies twice — which is correct, because it is two decisions.
+  const stillWaiting = new Set(waiting.map((w) => w.id));
+  for (const id of [...alreadyNotified]) {
+    if (!stillWaiting.has(id)) alreadyNotified.delete(id);
+  }
+  for (const w of fresh) alreadyNotified.add(w.id);
+
+  return fresh.map((w) => ({
+    id: w.id,
+    goal: typeof w.goal === 'string' ? w.goal : '',
+  }));
+}
+
+/** The body of the notification raised for a warrant that is waiting on a human. */
+export function waitingNotification({ id, goal }) {
+  return {
+    title: 'A warrant is waiting for a decision',
+    // The goal, then the id. A reviewer recognises their own task before they recognise a hex id,
+    // and a notification is read in about a second.
+    body: goal ? `${goal}\n${id}` : id,
+  };
+}
+
+/**
  * Redact a token wherever it appears in text bound for a log.
  *
  * `warrantor serve` prints the token three times — on its own line, in the console URL and in the

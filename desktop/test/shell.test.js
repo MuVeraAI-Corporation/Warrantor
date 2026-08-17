@@ -14,7 +14,10 @@ import {
   DEFAULT_WINDOW_STATE,
   agentExitMessage,
   menuTemplate,
+  newlyWaiting,
   sanitiseWindowState,
+  traySummary,
+  waitingNotification,
 } from '../src/policy.js';
 
 const handlers = { reload: () => {}, about: () => {} };
@@ -162,4 +165,121 @@ test('an agent that exited cleanly is still reported as gone', () => {
   const message = agentExitMessage(0, null);
   assert.match(message, /exited normally/);
   assert.match(message, /cannot reach anything/);
+});
+
+// ── the tray and the notification ───────────────────────────────────────────
+
+test('an unreachable agent is never counted as zero open warrants', () => {
+  // "No agent running" is the sentence somebody closes their laptop on. A failed read must not
+  // produce it: unknown and zero are opposite facts here.
+  for (const response of [
+    { answered: false, status: 0, payload: null },
+    { answered: true, status: 500, payload: null },
+    { answered: true, status: 200, payload: { data: {} } },
+  ]) {
+    const summary = traySummary(response);
+    assert.equal(summary.open, null, JSON.stringify(response));
+    assert.doesNotMatch(summary.label, /no agent running/i);
+  }
+});
+
+test('the tray counts only open warrants and says so in words', () => {
+  const summary = traySummary({
+    answered: true,
+    status: 200,
+    payload: {
+      data: {
+        warrants: [
+          { id: 'a', state: 'open' },
+          { id: 'b', state: 'settled' },
+          { id: 'c', state: 'open' },
+        ],
+      },
+    },
+  });
+  assert.equal(summary.open, 2);
+  assert.match(summary.label, /2 warrants open/);
+
+  const one = traySummary({
+    answered: true,
+    status: 200,
+    payload: { data: { warrants: [{ id: 'a', state: 'open' }] } },
+  });
+  assert.match(one.label, /1 warrant open/, 'singular, because a tooltip is read as a sentence');
+});
+
+test('a waiting warrant notifies once, not every poll', () => {
+  // Notifying on a level rather than a transition is how somebody learns to dismiss notifications
+  // without reading them, and the one that mattered goes with the rest.
+  const seen = new Set();
+  const held = {
+    answered: true,
+    status: 200,
+    payload: { data: { warrants: [{ id: 'w1', state: 'held', goal: 'fix the parser' }] } },
+  };
+  assert.equal(newlyWaiting(held, seen).length, 1);
+  assert.equal(newlyWaiting(held, seen).length, 0, 'the second poll is silent');
+  assert.equal(newlyWaiting(held, seen).length, 0);
+});
+
+test('a failed read neither notifies nor forgets what is waiting', () => {
+  // Treating an unreadable answer as "nothing is waiting any more" would re-notify for every
+  // warrant the moment the agent came back.
+  const seen = new Set();
+  const held = {
+    answered: true,
+    status: 200,
+    payload: { data: { warrants: [{ id: 'w1', state: 'held', goal: 'g' }] } },
+  };
+  assert.equal(newlyWaiting(held, seen).length, 1);
+  assert.equal(newlyWaiting({ answered: false, status: 0, payload: null }, seen).length, 0);
+  assert.ok(seen.has('w1'), 'the failed read must not clear what is known');
+  assert.equal(newlyWaiting(held, seen).length, 0, 'and must not cause a re-notify');
+});
+
+test('a warrant that is decided and held again notifies again, because that is two decisions', () => {
+  const seen = new Set();
+  const held = {
+    answered: true,
+    status: 200,
+    payload: { data: { warrants: [{ id: 'w1', state: 'held', goal: 'g' }] } },
+  };
+  const settled = {
+    answered: true,
+    status: 200,
+    payload: { data: { warrants: [{ id: 'w1', state: 'settled', goal: 'g' }] } },
+  };
+  assert.equal(newlyWaiting(held, seen).length, 1);
+  assert.equal(newlyWaiting(settled, seen).length, 0);
+  assert.ok(!seen.has('w1'), 'leaving the waiting state forgets it');
+  assert.equal(newlyWaiting(held, seen).length, 1);
+});
+
+test('only held warrants are treated as waiting for a decision', () => {
+  // `open` is still running and settled/void are decided. Notifying on any of those would make the
+  // notification mean "something happened", which is not actionable.
+  const seen = new Set();
+  const response = {
+    answered: true,
+    status: 200,
+    payload: {
+      data: {
+        warrants: [
+          { id: 'a', state: 'open' },
+          { id: 'b', state: 'settled' },
+          { id: 'c', state: 'void' },
+        ],
+      },
+    },
+  };
+  assert.deepEqual(newlyWaiting(response, seen), []);
+});
+
+test('the notification leads with the goal, because a hex id is not recognisable in a second', () => {
+  const { title, body } = waitingNotification({ id: 'wrt_abc', goal: 'fix the parser' });
+  assert.match(title, /waiting for a decision/);
+  assert.ok(body.startsWith('fix the parser'), body);
+  assert.match(body, /wrt_abc/);
+  // A warrant with no goal still names itself rather than showing an empty line.
+  assert.equal(waitingNotification({ id: 'wrt_abc', goal: '' }).body, 'wrt_abc');
 });

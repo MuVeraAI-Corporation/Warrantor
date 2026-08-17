@@ -51,6 +51,9 @@ const ELEMENT_IDS = [
   'first-run-command',
   'copy-command',
   'detail',
+  'shortcuts',
+  'shortcut-list',
+  'shortcuts-close',
   'health',
   'authority',
   'toast',
@@ -105,6 +108,24 @@ function element(tag = 'div', id = '') {
     },
     get childElementCount() {
       return self.children.length;
+    },
+    attributes: {},
+    // Needed for `aria-current`, which is how the list tells assistive technology which
+    // row the detail pane is showing. Modelled as a plain map: nothing reads it back yet,
+    // and a stub that pretended to be more would invite tests that assert on the stub.
+    setAttribute(name, value) {
+      self.attributes[name] = String(value);
+    },
+    getAttribute(name) {
+      return Object.prototype.hasOwnProperty.call(self.attributes, name)
+        ? self.attributes[name]
+        : null;
+    },
+    // Selection follows the keyboard, and a focused row is how a screen reader is told
+    // which one it is. Recorded rather than performed: there is no focus in a stub.
+    focused: false,
+    focus() {
+      self.focused = true;
     },
     append(...kids) {
       self.children.push(...kids);
@@ -740,4 +761,101 @@ test('a store that empties while the console is open takes the detail pane with 
     /Acts requiring a human/,
     'release controls for a warrant this store no longer holds must not survive in the hidden pane',
   );
+});
+
+// ── custody: the surface for §2.2's record of who acted ─────────────────────
+
+test('an unreadable custody record is never rendered as "nobody has approved"', async () => {
+  // The same distinction `listFacts` exists for, on the surface where it decides whether a release
+  // is permitted. An optimistic read turns "the request failed" and "nobody acted" into one empty
+  // array, and here those are opposite facts: one means the requirement cannot be evaluated.
+  const { module } = await boot(() => HEALTH_OK);
+  const { custodyFacts, approvalStanding } = module;
+
+  for (const [answered, status, payload] of [
+    [false, 0, null],
+    [true, 500, { error: {} }],
+    [true, 200, { data: {} }],
+    [true, 200, { data: { acts: 'not an array', approvers: [] } }],
+  ]) {
+    const facts = custodyFacts(answered, status, payload);
+    assert.equal(facts.readable, false);
+    assert.equal(approvalStanding(facts).kind, 'unknown');
+  }
+});
+
+test('a broken act chain outranks every other standing', async () => {
+  // A store whose record of who acted has been edited must not report "approved" on the strength of
+  // that record. The fault is the finding.
+  const { module } = await boot(() => HEALTH_OK);
+  const { custodyFacts, approvalStanding } = module;
+  const facts = custodyFacts(true, 200, {
+    data: {
+      acts: [{ act: 'approve', actor: 'ana', via: 'operator-token', at: 1, digest: 'd' }],
+      approvers: ['ana'],
+      distinct_approvers: 1,
+      required_approvals: 1,
+      chain_intact: false,
+      chain_fault: 'line 2 has been edited',
+    },
+  });
+  const standing = approvalStanding(facts);
+  assert.equal(standing.kind, 'broken');
+  assert.match(standing.text, /line 2 has been edited/);
+});
+
+test('the standing distinguishes met, short and no-requirement', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  const { custodyFacts, approvalStanding } = module;
+  const make = (required, approvers) =>
+    approvalStanding(
+      custodyFacts(true, 200, {
+        data: {
+          acts: [],
+          approvers,
+          distinct_approvers: approvers.length,
+          required_approvals: required,
+          chain_intact: true,
+        },
+      }),
+    );
+
+  assert.equal(make(0, []).kind, 'none');
+  assert.match(make(0, []).text, /accountability rather than a gate/);
+  assert.equal(make(2, ['ana']).kind, 'short');
+  assert.match(make(2, ['ana']).text, /1 of 2/);
+  assert.equal(make(2, ['ana', 'bo']).kind, 'met');
+});
+
+test('an anonymous actor is rendered as a sentence and never as a name', async () => {
+  // The store deliberately declines to invent a principal; a console that printed a placeholder
+  // would invent one on its behalf.
+  const { module } = await boot(() => HEALTH_OK);
+  const { custodyFacts } = module;
+  const facts = custodyFacts(true, 200, {
+    data: {
+      acts: [{ act: 'settle', actor: null, via: 'session-token', at: 1, digest: 'd' }],
+      approvers: [null],
+      distinct_approvers: 1,
+      required_approvals: 0,
+      chain_intact: true,
+    },
+  });
+  assert.equal(facts.acts[0].actor, null, 'the fact stays null; only the rendering is a sentence');
+});
+
+// ── keyboard ────────────────────────────────────────────────────────────────
+
+test('the shortcut sheet and its handler are generated from one table', async () => {
+  // A sheet maintained separately from its handler is a sheet that lies within two commits.
+  const { module } = await boot(() => HEALTH_OK);
+  const { SHORTCUTS } = module;
+  const keys = SHORTCUTS.map(([k]) => k);
+  assert.ok(keys.some((k) => k.startsWith('j')), `${keys}`);
+  assert.ok(keys.includes('?'), `${keys}`);
+  assert.ok(keys.includes('Escape'), `${keys}`);
+  for (const row of SHORTCUTS) {
+    assert.equal(row.length, 2, 'every row is keys + what it does');
+    assert.ok(row[1].length > 3, `${row}`);
+  }
 });

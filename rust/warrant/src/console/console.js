@@ -37,6 +37,9 @@ const el = {
   grantCommand: document.getElementById('first-run-command'),
   copyButton: document.getElementById('copy-command'),
   detail: document.getElementById('detail'),
+  shortcuts: document.getElementById('shortcuts'),
+  shortcutList: document.getElementById('shortcut-list'),
+  shortcutsClose: document.getElementById('shortcuts-close'),
   viewWarrants: document.getElementById('view-warrants'),
   viewSummary: document.getElementById('view-summary'),
   summary: document.getElementById('summary'),
@@ -172,6 +175,10 @@ function node(tag, className, text) {
 }
 
 function toast(message) {
+  // Cleared before it is set, so an identical consecutive message is still announced: a
+  // live region whose text does not change says nothing, and "Settle refused." twice in a
+  // row is two facts a reviewer needs both of.
+  el.toast.textContent = '';
   el.toast.textContent = message;
   el.toast.hidden = false;
   clearTimeout(toast.timer);
@@ -788,6 +795,10 @@ async function loadList() {
     const id = w.id ?? '(unknown id)';
     const item = document.createElement('li');
     const row = node('button', `row${state.selected === id ? ' is-on' : ''}`);
+    row.dataset.warrantId = id;
+    // aria-current, not aria-selected: this is the item the view is showing, which is
+    // what `current` means. `selected` would imply a selection set the list does not have.
+    if (state.selected === id) row.setAttribute('aria-current', 'true');
     row.type = 'button';
 
     const top = node('div', 'row-top');
@@ -866,7 +877,13 @@ async function refresh() {
  * second interval would double the poll rate every time someone reconnected.
  */
 let refreshTimer = null;
+let keyboardInstalled = false;
+
 function startRefreshing() {
+  if (!keyboardInstalled) {
+    keyboardInstalled = true;
+    installKeyboard();
+  }
   if (refreshTimer !== null) return;
   refreshTimer = setInterval(refresh, REFRESH_MS);
   // A reader coming back to the tab should not wait out the remainder of a tick.
@@ -938,6 +955,15 @@ async function loadDetail(id, { quiet = false } = {}) {
 
   // The sub-resources load after the shell so a slow report cannot hold up the verdict —
   // the verdict is the thing a reviewer came for.
+  // Custody first among the appended sections, because "who may release this, and has"
+  // is the question a reviewer opens a warrant to answer.
+  {
+    const { answered: a, status: st, payload: pl } = await call(
+      `/v1/warrants/${encodeURIComponent(id)}/custody`,
+    );
+    view.append(renderCustody(id, custodyFacts(a, st, pl)));
+  }
+
   for (const [title, path] of sections.slice(1)) {
     const { answered: a, status: s, payload: p } = await call(path);
     if (a && s === 404) continue;
@@ -1039,6 +1065,255 @@ async function act(id, path, label, prompt) {
     toast(`${label} accepted.`);
   }
   await select(id);
+}
+
+// ── custody: who acted, and what the store requires ─────────────────────────
+
+/**
+ * Decide what a custody payload established, without deriving anything the server did not say.
+ *
+ * The same discipline `listFacts` follows, for the same reason: an optimistic read
+ * (`payload?.data?.acts ?? []`) turns "the request failed" and "nobody has acted" into the same
+ * empty array — and on this surface those are opposite facts. One means the approval requirement
+ * cannot be evaluated; the other means it is genuinely unmet.
+ *
+ * `chain_intact` is read, never computed. The server checks the hash chain; a console that checked
+ * it too would be a second implementation of a check, which is the one thing this codebase forbids
+ * everywhere.
+ */
+export function custodyFacts(answered, status, payload) {
+  const unusable = { readable: false, acts: [], approvers: [], required: 0, chainIntact: null };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data;
+  if (!data || !Array.isArray(data.acts) || !Array.isArray(data.approvers)) return unusable;
+  return {
+    readable: true,
+    acts: data.acts,
+    approvers: data.approvers,
+    required: Number(data.required_approvals ?? 0),
+    settlerMayApprove: data.settler_may_approve === true,
+    distinct: Number(data.distinct_approvers ?? data.approvers.length),
+    chainIntact: data.chain_intact === true,
+    chainFault: data.chain_fault ?? null,
+  };
+}
+
+/**
+ * The sentence describing where a warrant stands against its approval requirement.
+ *
+ * Returns a `{ kind, text }` pair rather than a string, so the caller styles by kind and the wording
+ * lives in one place. Five kinds, because five different things are true and collapsing any two of
+ * them would tell a reviewer they are done when they are not.
+ */
+export function approvalStanding(facts) {
+  if (!facts.readable) {
+    return {
+      kind: 'unknown',
+      text: 'This custody record could not be read, so whether this warrant has been approved is unknown. That is an absence of an answer, not the answer "no".',
+    };
+  }
+  if (facts.chainIntact === false) {
+    return {
+      kind: 'broken',
+      text: `The chain of recorded acts does not hold: ${facts.chainFault ?? 'a line has been edited, removed or reordered'}. Until that is explained, nothing here can be relied on as a record of who acted.`,
+    };
+  }
+  if (facts.required === 0) {
+    return {
+      kind: 'none',
+      text: 'This store requires no approvals before a settle, so the acts below are accountability rather than a gate. Write approvals.json to make it a gate.',
+    };
+  }
+  if (facts.distinct >= facts.required) {
+    return {
+      kind: 'met',
+      text: `${facts.distinct} of ${facts.required} required approval(s) recorded. A settle by anyone who is not themselves one of the approvers will be permitted${facts.settlerMayApprove ? ' — and this store lets the settler count as one' : ''}.`,
+    };
+  }
+  return {
+    kind: 'short',
+    text: `${facts.distinct} of ${facts.required} required approval(s) recorded. A settle is refused until the rest are, by someone holding the approve scope.`,
+  };
+}
+
+/** Render the custody section: the standing, the acts, and what none of it is. */
+function renderCustody(id, facts) {
+  const wrap = node('div', 'section');
+  wrap.append(node('h3', null, 'Custody — who acted'));
+
+  const standing = approvalStanding(facts);
+  const pillFor = { met: 'pill-ok', broken: 'pill-bad', unknown: 'pill-unknown' };
+  const box = node('div', 'verdict');
+  const head = node('div', 'verdict-head');
+  head.append(
+    node('span', `pill ${pillFor[standing.kind] ?? 'pill-quiet'}`, {
+      met: 'approved',
+      short: 'awaiting approval',
+      none: 'no requirement',
+      broken: 'chain broken',
+      unknown: 'unreadable',
+    }[standing.kind]),
+  );
+  box.append(head);
+  box.append(node('p', 'verdict-why', standing.text));
+  wrap.append(box);
+
+  if (facts.readable && facts.acts.length > 0) {
+    const list = node('ol', 'acts-log');
+    for (const act of facts.acts) {
+      const item = document.createElement('li');
+      const row = node('div', 'act-row');
+      row.append(node('span', `pill pill-quiet`, act.act));
+      // `null` is rendered as a sentence and never as a name. A placeholder here would be the
+      // console inventing a principal the store deliberately declined to invent.
+      row.append(
+        node(
+          'span',
+          'act-actor',
+          act.actor ?? 'no operator named (the session token)',
+        ),
+      );
+      row.append(node('span', 'act-meta', `${act.via} · ${act.at}`));
+      item.append(row);
+      list.append(item);
+    }
+    wrap.append(list);
+  } else if (facts.readable) {
+    wrap.append(node('p', 'note', 'Nothing has been settled, voided, stopped or approved on this warrant.'));
+  }
+
+  const approve = node('button', 'act', 'Record an approval');
+  approve.type = 'button';
+  approve.addEventListener('click', () => act(id, 'approve', 'Approve', 'Record your approval of this warrant? This is a decision, not a verification: it says you looked.'));
+  const acts = node('div', 'acts');
+  acts.append(approve);
+  wrap.append(acts);
+
+  wrap.append(
+    node(
+      'p',
+      'note',
+      'These acts are a store-local hash chain, NOT signed evidence. They record who this store believes acted; they are not in any receipt, and an approval is never a verification result. Check evidence with warrantor verify.',
+    ),
+  );
+  return wrap;
+}
+
+// ── keyboard: an oversight console a reviewer can work without a mouse ──────
+
+/**
+ * Which key does what, in one table, so the sheet and the handler cannot disagree.
+ *
+ * A shortcut sheet maintained separately from its handler is a sheet that lies within two commits.
+ * `?` renders this list; the handler dispatches from it.
+ */
+export const SHORTCUTS = [
+  ['j / ↓', 'next warrant'],
+  ['k / ↑', 'previous warrant'],
+  ['Enter', 'open the selected warrant'],
+  ['g / G', 'first / last warrant'],
+  ['/', 'jump to the state filters'],
+  ['1 / 2', 'Warrants / Refusals & guard'],
+  ['?', 'this sheet'],
+  ['Escape', 'close this sheet'],
+];
+
+/** The rows currently in the list, as their warrant ids, in display order. */
+function listedIds() {
+  return Array.from(document.querySelectorAll('.row')).map((row) => row.dataset.warrantId).filter(Boolean);
+}
+
+/**
+ * Move the selection by `delta`, or to an absolute end.
+ *
+ * Selecting also loads the detail, which is the same thing a click does — so the keyboard path and
+ * the mouse path go through one function and cannot drift.
+ */
+function moveSelection(delta, absolute) {
+  const ids = listedIds();
+  if (ids.length === 0) return;
+  let next;
+  if (absolute === 'first') next = 0;
+  else if (absolute === 'last') next = ids.length - 1;
+  else {
+    const current = ids.indexOf(state.selected);
+    next = current === -1 ? (delta > 0 ? 0 : ids.length - 1) : current + delta;
+  }
+  if (next < 0 || next >= ids.length) return;
+  const id = ids[next];
+  select(id);
+  const row = document.querySelector(`.row[data-warrant-id="${CSS.escape(id)}"]`);
+  // Focus follows selection, so a screen reader announces the row and the browser scrolls it into
+  // view without a scroll calculation of our own.
+  row?.focus();
+}
+
+/** Whether a keystroke belongs to whatever the user is typing in. */
+function typingInto(target) {
+  const tag = target?.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable === true;
+}
+
+function toggleShortcuts(show) {
+  if (!el.shortcuts) return;
+  el.shortcuts.hidden = !show;
+  if (show) el.shortcuts.querySelector('button')?.focus();
+}
+
+function installKeyboard() {
+  if (el.shortcutList && el.shortcutList.childElementCount === 0) {
+    for (const [keys, what] of SHORTCUTS) {
+      const item = document.createElement('li');
+      item.append(node('kbd', null, keys));
+      item.append(node('span', null, what));
+      el.shortcutList.append(item);
+    }
+  }
+  el.shortcutsClose?.addEventListener('click', () => toggleShortcuts(false));
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      toggleShortcuts(false);
+      return;
+    }
+    // Never steal a keystroke from a field, and never from a modified chord the browser or the
+    // desktop shell owns.
+    if (typingInto(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
+    switch (event.key) {
+      case 'j':
+      case 'ArrowDown':
+        event.preventDefault();
+        moveSelection(1);
+        break;
+      case 'k':
+      case 'ArrowUp':
+        event.preventDefault();
+        moveSelection(-1);
+        break;
+      case 'g':
+        moveSelection(0, 'first');
+        break;
+      case 'G':
+        moveSelection(0, 'last');
+        break;
+      case '/':
+        event.preventDefault();
+        document.querySelector('.chip')?.focus();
+        break;
+      case '1':
+        setView('warrants');
+        break;
+      case '2':
+        setView('summary');
+        break;
+      case '?':
+        event.preventDefault();
+        toggleShortcuts(el.shortcuts?.hidden !== false);
+        break;
+      default:
+        break;
+    }
+  });
 }
 
 // ── the grant line ──────────────────────────────────────────────────────────

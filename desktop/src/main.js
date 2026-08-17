@@ -34,7 +34,19 @@
 import { spawn } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Menu, app, BrowserWindow, dialog, nativeTheme, screen, session, shell } from 'electron';
+import {
+  Menu,
+  Notification,
+  Tray,
+  app,
+  BrowserWindow,
+  dialog,
+  nativeImage,
+  nativeTheme,
+  screen,
+  session,
+  shell,
+} from 'electron';
 
 import {
   agentBinaryCandidates,
@@ -44,11 +56,14 @@ import {
   isNavigationAllowed,
   isPermissionGranted,
   menuTemplate,
+  newlyWaiting,
   originFromLine,
   redactToken,
   resolveAgentBinary,
   sanitiseWindowState,
   tokenFromLine,
+  traySummary,
+  waitingNotification,
 } from './policy.js';
 
 /** How long to wait for the agent to announce itself before giving up, in milliseconds. */
@@ -474,6 +489,139 @@ async function createWindow() {
   });
   await window.loadURL(consoleUrl(started.origin, started.token));
   trace('console loaded');
+
+  // After the window exists, so a notification has something to raise itself over,
+  // and after the console has loaded, so the first poll does not race the first render.
+  installTray(window);
+  startWatching(window, started.origin, started.token);
+}
+
+// ── the tray, and telling somebody a decision is waiting ────────────────────
+
+/** The tray icon, held so it is not garbage-collected — Electron requires the reference. */
+let tray = null;
+/** Warrant ids that have already produced a "waiting" notification. */
+const notified = new Set();
+/** The polling handle, cleared when the agent goes. */
+let watcher = null;
+
+/**
+ * Read the warrant list as an ordinary client.
+ *
+ * The same origin and the same token the console uses. Nothing is derived here beyond counting, and
+ * counting is arithmetic rather than a judgement — the rule this shell is built on is that it
+ * renders nothing the agent did not compute, and a count of rows is not a verdict about any of them.
+ */
+async function readWarrants(origin, token) {
+  try {
+    const response = await fetch(`${origin}/v1/warrants`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+    return { answered: true, status: response.status, payload };
+  } catch {
+    // A refused connection is the likeliest way a loopback agent fails, and it is an outcome
+    // rather than an exception: `traySummary` renders it as "cannot reach", never as zero.
+    return { answered: false, status: 0, payload: null };
+  }
+}
+
+/**
+ * Watch the store, keep the tray honest, and notify once per decision.
+ *
+ * Five seconds, matching the console's own poll: two clients at the same cadence against a loopback
+ * server whose documented consumer is "one console polling at human speed".
+ */
+function startWatching(window, origin, token) {
+  const tick = async () => {
+    const response = await readWarrants(origin, token);
+    const summary = traySummary(response);
+    if (tray && !tray.isDestroyed()) tray.setToolTip(summary.label);
+
+    for (const waiting of newlyWaiting(response, notified)) {
+      if (!Notification.isSupported()) break;
+      const { title, body } = waitingNotification(waiting);
+      const note = new Notification({ title, body });
+      note.on('click', () => {
+        if (window && !window.isDestroyed()) {
+          if (window.isMinimized()) window.restore();
+          window.show();
+          window.focus();
+        }
+      });
+      note.show();
+    }
+  };
+  void tick();
+  watcher = setInterval(() => void tick(), 5000);
+}
+
+/**
+ * A tray presence, so a run that is minimised is still visible.
+ *
+ * A supervised agent runs for hours; the window gets minimised and the run becomes invisible, which
+ * is the state in which somebody forgets an agent is running at all. This is the smallest fix, and
+ * it is a thing a browser tab cannot do — which is the only reason it belongs in this shell.
+ *
+ * The icon is the app's own, resolved through Electron rather than shipped separately: a second
+ * image to keep in step with the first is a second image that goes stale.
+ */
+function installTray(window) {
+  try {
+    const image = nativeImage.createFromPath(
+      join(app.getAppPath(), 'build', process.platform === 'darwin' ? 'icon.png' : 'icon.png'),
+    );
+    // An empty image is not an error on every platform, but a tray with no icon is a tray nobody
+    // can find. Skipping is better than an invisible control.
+    if (image.isEmpty()) {
+      trace('tray skipped: no icon');
+      return;
+    }
+    tray = new Tray(image.resize({ width: 18, height: 18 }));
+    tray.setToolTip('Warrantor');
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        {
+          label: 'Show Warrantor',
+          click: () => {
+            if (window.isMinimized()) window.restore();
+            window.show();
+            window.focus();
+          },
+        },
+        { type: 'separator' },
+        // Quit, not hide. This shell owns a child process holding an open port and a session
+        // token; a tray that only hid the window would leave that running behind an icon most
+        // people read as "closed".
+        { label: 'Quit', click: () => app.quit() },
+      ]),
+    );
+    tray.on('click', () => {
+      if (window.isMinimized()) window.restore();
+      window.show();
+      window.focus();
+    });
+  } catch (error) {
+    // A missing tray costs visibility, never startup.
+    trace(`tray failed: ${error?.message ?? error}`);
+  }
+}
+
+function stopWatching() {
+  if (watcher) {
+    clearInterval(watcher);
+    watcher = null;
+  }
+  notified.clear();
+  if (tray && !tray.isDestroyed()) {
+    tray.destroy();
+    tray = null;
+  }
 }
 
 /** Stop the agent. Called on every path that ends the process. */
@@ -483,6 +631,7 @@ function stopAgent() {
   // pressed Quit.
   quitting = true;
   onAgentExit = () => {};
+  stopWatching();
   if (agent && !agent.killed) {
     agent.kill();
     agent = null;

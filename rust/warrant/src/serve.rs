@@ -1800,6 +1800,25 @@ pub fn handle_scoped<A: Api>(
         }
     }
 
+    // The custody read, answered here for the same reason `approve` is written here: it needs
+    // nothing from the `Api`. It is the surface for everything §2.2 records, and without it the
+    // identity work would be a backend with no viewer -- the [[wire before widen]] mistake made
+    // against my own change.
+    if let [v1, warrants, id, verb] = request.segments.as_slice() {
+        if v1 == "v1" && warrants == "warrants" && verb == "custody" {
+            if request.method != "GET" {
+                return refuse(
+                    status::METHOD_NOT_ALLOWED,
+                    "method_not_allowed",
+                    "custody is a GET",
+                )
+                .with_header("Allow", "GET")
+                .stamped(api.now());
+            }
+            return custody_response(root, id, approvals, api.now());
+        }
+    }
+
     // Approve is answered here rather than in `dispatch`, because it touches no warrant state and
     // needs nothing from the `Api`: it appends one line to the actor log. Routing it through the
     // trait would mean a new method on every implementation to record a fact this function already
@@ -1876,6 +1895,75 @@ pub fn handle_scoped<A: Api>(
         }
     }
     response
+}
+
+/// The custody view: who acted on a warrant, whether the chain holds, and what the policy requires.
+///
+/// **Not signed, and it says so.** The actor log is a store-local hash chain, not part of the
+/// evidence envelope — see [`crate::operators`] for why that trade was taken rather than bumping the
+/// receipt format. A client rendering this must not present it as verification, so the payload
+/// carries the same `not_a_verdict` field the archive's listings carry, for the same reason.
+///
+/// The chain is checked here rather than in the client, and the result is reported as a value. A
+/// console deriving "the chain holds" itself would be a second implementation of a check the server
+/// already performs, which is the rule the whole product is built on.
+fn custody_response(
+    root: &Path,
+    warrant_id: &str,
+    approvals: &crate::operators::ApprovalPolicy,
+    now: u64,
+) -> Response {
+    let records = match crate::operators::read_log(root, warrant_id) {
+        Ok(records) => records,
+        Err(e) => {
+            return Response::error(
+                status::INTERNAL,
+                "actor_log_unreadable",
+                &format!("{warrant_id}'s actor log cannot be read: {e}"),
+                &Verification::not_attempted(now),
+            )
+            .stamped(now)
+        }
+    };
+    // Checked, and the fault reported rather than swallowed: an unreadable or edited chain is
+    // exactly the state a reader of this view needs to know about, and it is the one state a
+    // "0 acts" rendering would hide.
+    let fault = crate::operators::verify_chain(&records).err();
+    let approvers: Vec<serde_json::Value> = crate::operators::approvers(&records)
+        .into_iter()
+        .map(|a| match a {
+            Some(name) => serde_json::Value::String(name),
+            None => serde_json::Value::Null,
+        })
+        .collect();
+    let acts: Vec<serde_json::Value> = records
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "act": r.act,
+                "actor": r.actor,
+                "via": r.via,
+                "at": r.at,
+                "digest": r.digest,
+            })
+        })
+        .collect();
+    Response::json(
+        status::OK,
+        &Verification::not_attempted(now),
+        serde_json::json!({
+            "warrant_id": warrant_id,
+            "acts": acts,
+            "approvers": approvers,
+            "distinct_approvers": approvers.len(),
+            "required_approvals": approvals.required,
+            "settler_may_approve": approvals.settler_may_approve,
+            "chain_intact": fault.is_none(),
+            "chain_fault": fault,
+            "not_a_verdict": "This is a store-local hash-chained record of human acts, NOT signed                               evidence. It shows who this store believes acted; it is not part of                               any receipt, and it proves nothing to somebody who does not already                               hold an earlier copy of its head. An approval is a recorded decision,                               never a verification result.",
+        }),
+    )
+    .stamped(now)
 }
 
 fn unauthorized(now: u64) -> Response {
