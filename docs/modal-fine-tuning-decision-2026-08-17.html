@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fine-tuning on Modal — what it buys, and what it does not</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --panel: #ffffff;
+    --ink: #191817;
+    --ink-soft: #4a4642;
+    --ink-faint: #75706a;
+    --line: #e6e1da;
+    --line-strong: #d0c9c0;
+    --accent: #c2571f;
+    --accent-soft: #fdf3ec;
+    --ok: #1f6b4a;
+    --ok-bg: #edf6f1;
+    --bad: #9c2a1e;
+    --bad-bg: #fbeeec;
+    --warn: #8a6100;
+    --warn-bg: #fdf5e3;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Söhne", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1917; --panel: #232120; --ink: #f2efea; --ink-soft: #c4bdb4;
+      --ink-faint: #948d84; --line: #35322f; --line-strong: #4a4642;
+      --accent: #e07a42; --accent-soft: #2c2320;
+      --ok: #6fc79b; --ok-bg: #1c2a24; --bad: #e08a7d; --bad-bg: #2c2120;
+      --warn: #d9ad5a; --warn-bg: #2a2419;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 17px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 56px 28px 120px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 40px; }
+  .eyebrow {
+    font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin: 0 0 12px;
+  }
+  h1 { font-size: 34px; line-height: 1.2; margin: 0 0 14px; font-weight: 600; letter-spacing: -.02em; }
+  .standfirst { font-size: 19px; color: var(--ink-soft); margin: 0; }
+  .meta { font-size: 13px; color: var(--ink-faint); margin-top: 18px; font-family: var(--mono); }
+  h2 {
+    font-size: 24px; margin: 52px 0 16px; font-weight: 600; letter-spacing: -.01em;
+    padding-top: 8px; border-top: 1px solid var(--line);
+  }
+  h3 { font-size: 18px; margin: 32px 0 10px; font-weight: 600; }
+  p { margin: 0 0 16px; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 13px; }
+  pre code { background: none; padding: 0; }
+  .verdict {
+    background: var(--panel); border: 1px solid var(--line-strong);
+    border-left: 4px solid var(--accent); border-radius: 8px;
+    padding: 22px 26px; margin: 32px 0;
+  }
+  .verdict h3 { margin-top: 0; }
+  .callout { border-radius: 8px; padding: 16px 20px; margin: 22px 0; border: 1px solid; font-size: 16px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .label { font-weight: 600; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+  .stop { background: var(--bad-bg); border-color: var(--bad); color: var(--ink); }
+  .stop .label { color: var(--bad); }
+  .warn { background: var(--warn-bg); border-color: var(--warn); }
+  .warn .label { color: var(--warn); }
+  .good { background: var(--ok-bg); border-color: var(--ok); }
+  .good .label { color: var(--ok); }
+  .tablewrap { overflow-x: auto; margin: 22px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  td.num { font-family: var(--mono); white-space: nowrap; }
+  .yes { color: var(--ok); font-weight: 600; }
+  .no { color: var(--bad); font-weight: 600; }
+  ul, ol { margin: 0 0 16px; padding-left: 24px; }
+  li { margin-bottom: 8px; }
+  .footnote { font-size: 14px; color: var(--ink-faint); border-top: 1px solid var(--line); padding-top: 20px; margin-top: 48px; }
+  .prov { font-family: var(--mono); font-size: 12.5px; color: var(--ink-faint); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Decision brief · Warrantor guard programme</p>
+  <h1>Fine-tuning on Modal: what it buys, and what it does not</h1>
+  <p class="standfirst">
+    You asked what benefit you get from fine-tuning three models on Modal before you approve the
+    spend. The short answer is that the spend is not the binding constraint, and approving it today
+    would buy you nothing at all — because every one of these runs fails at its data step before a
+    GPU is touched.
+  </p>
+  <p class="meta">17 August 2026 · every figure below read from this repository, not estimated</p>
+</header>
+
+<div class="verdict">
+  <h3>The recommendation, up front</h3>
+  <p>
+    <strong>Do not approve Modal spend yet.</strong> Two things must happen first, and neither costs
+    money:
+  </p>
+  <ol>
+    <li>
+      <strong>Accept the two Hugging Face corpus licences and export a token.</strong> Every guard
+      recipe in this repository is blocked on it. Without it the run fails with HTTP&nbsp;401 at the
+      data step — before any GPU time is billed, but also before anything is learned.
+    </li>
+    <li>
+      <strong>Measure the 0.6B's severity exposure.</strong> It is recorded nowhere. Without that
+      number, a rejected run cannot be attributed between <em>"the adapter did not learn"</em> and
+      <em>"the adapter flattened severity"</em> — which is precisely the ambiguity that made the two
+      previous runs cost time and teach less than they should have.
+    </li>
+  </ol>
+  <p style="margin-bottom:0">
+    After those, the honest case for <em>Modal specifically</em> is <strong>wall-clock and
+    reliability, not capability</strong>: 1.8 hours instead of 4.6, on a machine that is not the one
+    you are working on.
+  </p>
+</div>
+
+<h2>1. Modal is not required for any of these runs</h2>
+
+<p>
+  This is the finding that most changes the question. I resolved every guard recipe against every
+  compute lane using the repository's own <code>warrantor_ml.lanes</code> planner, which estimates
+  VRAM from the model profile rather than from a rule of thumb.
+</p>
+
+<div class="tablewrap">
+<table>
+  <thead>
+    <tr><th>Recipe</th><th>VRAM needed</th><th>RTX 5080 (14.7 GiB)</th><th>Modal A100 (78 GiB)</th><th>Kaggle</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>guard-0.6b-weak-category</code></td><td class="num">6.15 GiB</td><td class="yes">fits · 4.58 h</td><td class="yes">fits · 1.78 h</td><td class="no">unsuitable</td></tr>
+    <tr><td><code>guard-0.6b-adversarial</code></td><td class="num">6.15 GiB</td><td class="yes">fits · 4.58 h</td><td class="yes">fits · 1.78 h</td><td class="no">unsuitable</td></tr>
+    <tr><td><code>guard-0.6b-expguard-weak</code></td><td class="num">6.15 GiB</td><td class="yes">fits · 4.58 h</td><td class="yes">fits · 1.78 h</td><td class="no">unsuitable</td></tr>
+    <tr><td><code>guard-4b-weak-category</code></td><td class="num">8.57 GiB</td><td class="yes">fits · 4.58 h</td><td class="yes">fits · 1.78 h</td><td class="no">unsuitable</td></tr>
+    <tr><td><code>guard-4b-adversarial</code></td><td class="num">8.57 GiB</td><td class="yes">fits · 4.58 h</td><td class="yes">fits · 1.78 h</td><td class="no">unsuitable</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+  All five fit the development box. Kaggle is unsuitable for all five — its T4 (sm_75) and P100
+  (sm_60) predate native bf16, so the free tier is not an option here regardless of its 30 hours a
+  week. Modal is roughly <strong>2.6× faster</strong> and nothing more.
+</p>
+
+<div class="callout warn">
+  <span class="label">The one real argument for Modal</span>
+  <p>
+    The planner attaches this warning to every 0.6B run on the local lane: <em>"LoRA over an
+    unquantised base leaves very little margin on a 16 GB card and will OOM when the desktop
+    compositor spikes."</em> A 4.6-hour run on the machine you are also using is a run that can die
+    at hour four because something opened a window. That is a reliability argument, and it is a
+    legitimate one — but it is an argument about <em>where</em> to run, not about <em>whether</em>
+    the runs are worth doing.
+  </p>
+</div>
+
+<h2>2. Why approving spend today buys nothing</h2>
+
+<p>
+  Every guard recipe carries the same blocking warning, emitted by the planner itself:
+</p>
+
+<pre><code>wildguardmix is GATED on Hugging Face. Accept the form and export a read
+token before this run, or the data step fails with HTTP 401.</code></pre>
+
+<p>
+  And for the ExpGuard recipe, the same for <code>expguardmix</code>. This is the identical
+  credential you deferred in the earlier question — and it turns out the Modal decision is
+  <em>downstream</em> of it, not parallel to it. There is no ordering in which the spend comes first.
+</p>
+
+<div class="callout stop">
+  <span class="label">Sequencing</span>
+  <p>
+    A Modal approval granted today would be spent on a job that downloads nothing, trains nothing,
+    and exits non-zero. The token is free, takes about ten minutes, and unblocks the local lane as
+    well — at which point you can run the first candidate on the 5080 for nothing and decide about
+    Modal with a result in hand.
+  </p>
+</div>
+
+<h2>3. What the fine-tunes would actually buy, per recipe</h2>
+
+<p>
+  These are the measured weaknesses each recipe targets, taken from the baselines this repository has
+  already recorded. This is where the real benefit lives, and it is specific.
+</p>
+
+<h3>The adversarial gap — the most valuable one</h3>
+<p>
+  The guard's recall falls from <strong>0.8886 to 0.8152</strong> under adversarial phrasing, and its
+  false-positive rate rises <strong>0.0224 → 0.0923</strong>, four times higher. That is the single
+  number that most limits what this product can claim: an agent's tool call is exactly the kind of
+  text an attacker phrases carefully. Closing part of that gap is what would let the guard move from
+  advisory toward something an operator could weight more heavily.
+</p>
+
+<h3>The weak categories — three reachable classes</h3>
+<p>
+  On WildGuardTest the measured weak classes are
+  <code>social_stereotypes_and_unfair_discrimination</code> at <strong>0.7237</strong>,
+  <code>fraud_assisting_illegal_activities</code> at <strong>0.7833</strong>, and
+  <code>others</code> at <strong>0.7857</strong>. The recipes train on these three with a benign
+  ratio of 1.0 — deliberately, because training on missed positives alone buys recall by
+  manufacturing false positives, and the gate rejects a candidate whose FPR regresses.
+</p>
+
+<h3>Unqualified Professional Advice — the weakest class, and the most constrained</h3>
+<p>
+  UPA is the weakest measured class on both sizes: <strong>0.3719</strong> on the 0.6B and
+  <strong>0.4298</strong> on the 4B. It exists only in ExpGuardMix. The bar for promotion is already
+  computed: <strong>≥ 942 caught</strong> (recall ≥ 0.7500, i.e. +44 rows) <em>and</em> fewer than
+  <strong>116 false positives</strong> (FPR below 0.1138). The minimum detectable delta is 0.0353 —
+  anything smaller is <code>within_noise</code> and is a reject.
+</p>
+
+<div class="callout stop">
+  <span class="label">ExpGuardMix is not cleared for commercial use</span>
+  <p>
+    Its licence is CC-BY-4.0 but its gate form requires affirming <strong>research-only</strong> use,
+    and the click-through is the narrower agreement — it is the one that was signed. Its corpus was
+    GPT-4o-generated upstream. A promotion from this recipe is a <em>quality verdict and never a
+    clearance</em> for a shipped vertical pack. If your intent for these models is commercial, this
+    recipe cannot serve it whatever it scores.
+  </p>
+</div>
+
+<h2>4. What the two previous runs cost, and what they taught</h2>
+
+<p>
+  This is the part that should temper any expectation of a clean win. Two runs have been executed and
+  <strong>both were rejected by the gate</strong>.
+</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Run</th><th>Change</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="num">weak-2026-08-13a</td>
+      <td>Severity supervised</td>
+      <td>
+        Taught the adapter a binary Unsafe/Safe vocabulary and <strong>extinguished the third
+        severity value</strong>, <code>Controversial</code>: 49 verdicts to 0 over 1,699 samples.
+        Recall 0.8488 → 0.8329 <em>with the false-positive rate falling</em> — a more permissive
+        gate — and it silently made the <code>Controversial=SAFE</code> policy knob a no-op.
+      </td>
+    </tr>
+    <tr>
+      <td class="num">run 2</td>
+      <td><code>supervise_severity=False</code></td>
+      <td>
+        The proposed fix, <strong>refuted</strong>. Recall 0.8329 → <strong>0.6804</strong> overall
+        and 0.7947 → <strong>0.5572</strong> adversarial — far worse than the flattening it was meant
+        to prevent.
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+  The root cause is worth understanding before funding a third attempt, because it rules out a whole
+  family of cheap fixes. LoRA adapts <code>q/k/v/o/gate/up/down</code> across every layer — weights
+  that <em>both</em> output fields share. Not computing a loss on severity never held it still; it
+  only stopped correcting it while training moved it anyway. The field came unmoored and filled with
+  its neighbour's vocabulary: the 0.6B began emitting category names — <code>violent</code>,
+  <code>others</code> — into the severity slot.
+</p>
+
+<p>
+  The repository's own conclusion, recorded in the recipe notes: a real fix needs
+  <strong>separate parameters</strong> — a second adapter, or target modules that do not carry
+  severity — or a corpus that can supervise all three severity values.
+  <em>It is not a third setting of this flag.</em>
+</p>
+
+<h2>5. The risk that is still unmeasured</h2>
+
+<div class="callout warn">
+  <span class="label">Severity exposure on the 0.6B</span>
+  <p>
+    On ExpGuardTest, the 4B's <code>Controversial</code> verdicts carry <strong>235 of 954 true
+    positives</strong>. Losing them drops recall <strong>0.7596 → 0.5725</strong> — four times what
+    flattening cost on WildGuard. <strong>The 0.6B's equivalent exposure is recorded nowhere:</strong>
+    no ExpGuard result document is committed in this repository.
+  </p>
+  <p>
+    That matters for your money specifically. Without the number, a rejected run tells you only that
+    it was rejected — you cannot separate <em>"the adapter did not learn"</em> from <em>"the adapter
+    flattened severity"</em>, which are different failures with different next steps. You would be
+    buying a result you cannot act on.
+  </p>
+</div>
+
+<h2>6. The honest expected value</h2>
+
+<p>
+  Setting the blockers aside and assuming they are cleared, here is what a third run is actually
+  worth:
+</p>
+
+<ul>
+  <li>
+    <strong>The gate is strict, and that is the point.</strong> Promotion needs a measurable
+    improvement on the target slice <em>and</em> no regression on six per-category floors. Two of
+    those floors — Fraud/Scams/Deception (603 positives) and Criminal Planning (356) — are not
+    trained for by the ExpGuard recipe and <em>can only fall</em>. An aggregate that improves while a
+    class collapses is exactly what the floors exist to refuse.
+  </li>
+  <li>
+    <strong>A reject is a real outcome, not a wasted run</strong> — provided you can attribute it.
+    That is what §5 is about. Both previous rejects were informative; the second was informative
+    because someone had a specific hypothesis to refute.
+  </li>
+  <li>
+    <strong>The upside is bounded and known.</strong> For the ExpGuard recipe: 127 recoverable misses
+    across four classes (UPA 76, Privacy Violation 13, Violence &amp; Incitement 19, Self-Harm 19),
+    of which about a third clears the bar. This is not a run that might transform the guard; it is a
+    run that might move one slice above a threshold that was computed in advance.
+  </li>
+</ul>
+
+<div class="callout good">
+  <span class="label">What is already true without spending anything</span>
+  <p>
+    The guard works end to end today. A live Qwen3Guard-Gen-4B classifies real tool calls in observe
+    mode and refuses them in enforce mode; <code>warrantor guard bench</code> measures the running
+    configuration at recall <strong>0.875 [0.529, 0.978]</strong> and FPR <strong>0.000 [0.000,
+    0.390]</strong>, both consistent with the published figures. None of the decisions below block
+    the product.
+  </p>
+</div>
+
+<h2>7. What I recommend, in order</h2>
+
+<ol>
+  <li>
+    <strong>Accept the two licences, export <code>HF_TOKEN</code>.</strong> Free, ~10 minutes,
+    unblocks everything including the local lane. Then
+    <code>python ml/run_corpus_benchmarks.py --check</code> tells you it is clear.
+  </li>
+  <li>
+    <strong>Measure the 0.6B's ExpGuard severity exposure</strong> and commit the result document.
+    This is a scoring run, not a training run — cheap, and it is the difference between an
+    interpretable reject and an uninterpretable one.
+  </li>
+  <li>
+    <strong>Run one candidate on the RTX 5080 for free</strong> — <code>guard-0.6b-adversarial</code>
+    is the one I would pick, because the adversarial gap is the most valuable and the recipe is not
+    encumbered by ExpGuardMix's research-only clause. Expect ~4.6 hours; run it when you are not
+    using the machine, or with <code>technique=qlora</code> to widen the margin.
+  </li>
+  <li>
+    <strong>Then decide about Modal with a result in hand.</strong> If the local run is rejected for
+    a reason you can attribute, Modal buys you faster iteration on the fix. If it is promoted, you
+    have your answer for free. Either way you will be deciding with evidence rather than in advance
+    of it.
+  </li>
+</ol>
+
+<p class="footnote">
+  <span class="prov">Provenance.</span> Lane fits, VRAM estimates and hour estimates were computed by
+  running <code>warrantor_ml.lanes.resolve()</code> against each recipe in
+  <code>warrantor_ml.recipes.RECIPES</code> at 11,272 corpus rows. Baseline figures, gate bars, the
+  two rejected runs and the licence constraint are quoted from
+  <code>python/warrantor_ml/src/warrantor_ml/recipes.py</code>. The live guard measurement is from
+  <code>warrantor guard bench</code> against
+  <code>hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M</code>
+  (<code>sha256:6a88b46b…</code>) at <code>num_ctx</code> 8192 on 17 August 2026. Nothing here is
+  estimated from outside the repository.
+</p>
+
+</div>
+</body>
+</html>
