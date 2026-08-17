@@ -44,6 +44,7 @@ fn config(secret: &str) -> NotifyConfig {
     NotifyConfig {
         format: NOTIFY_CONFIG_FORMAT.to_string(),
         webhooks: vec![webhook(secret)],
+        commands: Vec::new(),
     }
 }
 
@@ -139,6 +140,7 @@ fn a_config_with_a_bad_url_or_unknown_event_is_refused() {
             secret: String::new(),
             events: Default::default(),
         }],
+        commands: Vec::new(),
     };
     std::fs::write(
         notify::config_path(&root),
@@ -155,6 +157,7 @@ fn a_config_with_a_bad_url_or_unknown_event_is_refused() {
             secret: String::new(),
             events: ["exploded".to_string()].into_iter().collect(),
         }],
+        commands: Vec::new(),
     };
     std::fs::write(
         notify::config_path(&root),
@@ -275,6 +278,7 @@ fn a_webhook_that_asked_for_some_events_gets_only_those() {
     let config = NotifyConfig {
         format: NOTIFY_CONFIG_FORMAT.to_string(),
         webhooks: vec![selective],
+        commands: Vec::new(),
     };
     let mut transport = Scripted::always_ok();
     let root = tempdir("filtered");

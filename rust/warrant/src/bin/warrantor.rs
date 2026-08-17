@@ -241,6 +241,33 @@ fn parse_verifying_key(text: &str) -> Result<VerifyingKey, String> {
 
 // ── argument parsing ──────────────────────────────────────────────────────────────────
 
+/// Flags that take no value, so the token after them is a positional and not their argument.
+///
+/// The parser is otherwise "a flag consumes the next non-flag token", which is right for `--goal`
+/// and silently wrong for `--apply`. Listed rather than inferred because there is nothing to infer
+/// from: this binary has no flag registry, and a heuristic ("if the next token looks like an id")
+/// would be a guess about the user's intent in the one place a wrong guess is invisible.
+///
+/// `--archive` is deliberately ABSENT. It takes an OPTIONAL url (`--export <p> --archive [<url>]`),
+/// so it is neither valueless nor value-taking, and putting it here would break
+/// `--archive https://...`. A flag with an optional value has to be typed last, and that is a
+/// property of the flag rather than something this table can fix.
+const VALUELESS_FLAGS: &[&str] = &[
+    "help",
+    "apply",
+    "quote",
+    "replace",
+    "observe",
+    "guard",
+    "notify",
+    "allow-settle",
+    "allow-notify-command",
+    "i-accept-cleartext-on-this-network",
+    "upstream-refuse-unclassified",
+    "upstream-allow-lifecycle-tools-i-accept-this",
+    "guard-enforce-untested-do-not-use",
+];
+
 struct Args {
     command: String,
     positional: Vec<String>,
@@ -307,6 +334,20 @@ fn parse_tokens<I: IntoIterator<Item = String>>(tokens: I) -> Option<Args> {
             }
             if let Some((name, value)) = name.split_once('=') {
                 record(&mut flags, name.to_string(), value.to_string());
+            } else if VALUELESS_FLAGS.contains(&name) {
+                // Recorded immediately rather than left pending, so the following token stays a
+                // positional. Without this the parser has no notion of a boolean flag at all: it
+                // takes the next non-flag token as the flag's value, so
+                // `warrantor void --allow-notify-command wrt_1` swallowed the warrant id and the
+                // command answered with its usage line.
+                //
+                // Latent for EVERY boolean flag in this binary, not only the new one. It stayed
+                // hidden because every documented example puts them last, where there is no
+                // following token to swallow -- `prune --apply`, `queue --notify`,
+                // `agents wire <h> <id> --apply`. `--allow-notify-command` is the first flag whose
+                // usage says "on any command", which is the first invitation to type one in front
+                // of a positional.
+                record(&mut flags, name.to_string(), "true".to_string());
             } else {
                 pending = Some(name.to_string());
             }
@@ -425,6 +466,11 @@ warrantor — bounded authority for coding agents
 
   --root <path>   the store to use, on any command. Without it the store is
                   ~/.warrantor, derived from HOME (USERPROFILE on Windows).
+  --allow-notify-command
+                  on any command, permit notify.json's `commands` to RUN. Without
+                  it they are configuration and nothing more. The flag is the
+                  arming and there is no file form of it: any file that could
+                  enable this, a process sharing this UID could also write.
 
   grant   --goal G --tools T,T --write P,P [--deadline 8h] [--repo .] [--egress H,H]
           [--budget CENTS] [--subject <id>]
@@ -6161,9 +6207,110 @@ impl NotifyTransport for WebhookDelivery {
 /// an operator asked for notifications and silently not getting them is the one outcome this
 /// feature exists to prevent. A failed delivery never changes the caller's exit code — the event
 /// already happened; the webhook is downstream of it, not a gate on it.
+/// Whether this invocation may run the programs `notify.json` names.
+///
+/// # Why this is a process-wide switch set from argv, and not a config field
+///
+/// §3.2's last item is email and mobile push, and the zero-dependency way to close it is to let
+/// `notify.json` name a program. The objection is that this turns *anything able to write that
+/// file* into a code-execution primitive — and per §2.4 the supervised agent shares this UID, so an
+/// agent could write one and get execution later, in the operator's context, out of something that
+/// looks like configuration.
+///
+/// Nothing on the filesystem can arm this, for exactly that reason: any file the operator could
+/// create to enable it, the agent could create too. The only signal the agent cannot reach is the
+/// operator's own command line, so `--allow-notify-command` is the arming and there is no
+/// alternative form of it.
+///
+/// A static rather than a threaded parameter because `notify_event` is called from six places and
+/// is itself passed to the server as a plain function pointer, which cannot carry state. Set once
+/// in `main` before any command runs.
+static NOTIFY_COMMANDS_ARMED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Arm command notifications for this invocation.
+fn arm_notify_commands(on: bool) {
+    NOTIFY_COMMANDS_ARMED.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Run the programs configured for this event, if this invocation is armed.
+///
+/// Never fails the caller. The event already happened; a notifier is downstream of it and not a
+/// gate on it — the same rule the webhook path follows, for the same reason.
+///
+/// The payload goes on **stdin**, never in argv: an argv is readable by other users on a default
+/// Linux, and a notification carries the warrant's goal and subject.
+fn run_notify_commands(config: &NotifyConfig, event: &str, notification: &Notification) {
+    let wanted = config.commands_for(event);
+    if wanted.is_empty() {
+        return;
+    }
+    if !NOTIFY_COMMANDS_ARMED.load(std::sync::atomic::Ordering::Relaxed) {
+        // Said out loud rather than silently skipped. An operator who configured a notifier and is
+        // quietly not getting notifications is the single outcome this feature exists to prevent,
+        // and "you did not arm it" is a fix they can apply in one flag.
+        eprintln!(
+            "\nwarrantor: {} notify command(s) are configured for {event} and were NOT run: this \
+             invocation was not started with --allow-notify-command.\n  \
+             The flag is the arming, and there is no file form of it: any file that could enable \
+             this, a process sharing this UID could also write -- see docs/W1-delivery-gaps.md \
+             §2.4.",
+            wanted.len()
+        );
+        return;
+    }
+    let Ok(payload) = serde_json::to_vec(notification) else {
+        eprintln!("warrantor: a notification could not be encoded for a command; none was run.");
+        return;
+    };
+    for command in wanted {
+        let spawned = std::process::Command::new(&command.program)
+            .args(&command.args)
+            .stdin(std::process::Stdio::piped())
+            .spawn();
+        let mut child = match spawned {
+            Ok(child) => child,
+            Err(e) => {
+                eprintln!(
+                    "\nNOTIFICATION COMMAND NOT RUN — the {event} above is done; {:?} did not \
+                     start: {e}",
+                    command.program
+                );
+                continue;
+            }
+        };
+        if let Some(mut stdin) = child.stdin.take() {
+            use std::io::Write as _;
+            let _ = stdin.write_all(&payload);
+            let _ = stdin.write_all(b"\n");
+        }
+        // Waited on rather than detached: a notifier that outlives this process would keep the
+        // terminal open and, worse, could still be running when the next one starts. Its exit
+        // status is reported and never acted on.
+        match child.wait() {
+            Ok(status) if status.success() => println!("notified  {}", command.program),
+            Ok(status) => eprintln!(
+                "\nNOTIFICATION COMMAND FAILED — the {event} above is done; {:?} exited {status}. \
+                 Unlike a webhook, this is NOT queued for retry: a program that failed once will \
+                 fail the same way, and a queue of local process launches is a thing that runs \
+                 without anybody asking.",
+                command.program
+            ),
+            Err(e) => eprintln!(
+                "\nwarrantor: {:?} was started for the {event} above and could not be waited on: \
+                 {e}",
+                command.program
+            ),
+        }
+    }
+}
+
 fn notify_event(root: &Path, event: &str, stored: &StoredWarrant, detail: serde_json::Value) {
     let config = match NotifyConfig::load(root) {
-        Ok(config) if config.webhooks.is_empty() => return,
+        // Both empty is a machine that never asked for notifications, and it stays byte-for-byte
+        // silent. Commands alone is a real configuration, so the early return had to learn about
+        // them or a config with only commands would be dropped before it was read.
+        Ok(config) if config.webhooks.is_empty() && config.commands.is_empty() => return,
         Ok(config) => config,
         Err(e) => {
             eprintln!(
@@ -6202,6 +6349,9 @@ fn notify_event(root: &Path, event: &str, stored: &StoredWarrant, detail: serde_
         }
         Err(e) => eprintln!("\nwarrantor: notifications could not be processed: {e}"),
     }
+    // After the webhooks, deliberately: a webhook reaches somebody off this machine and a local
+    // program does not, so the off-site path goes first and a slow notifier cannot delay it.
+    run_notify_commands(&config, event, &notification);
 }
 
 fn main() -> ExitCode {
@@ -6209,6 +6359,10 @@ fn main() -> ExitCode {
         println!("{USAGE}");
         return ExitCode::SUCCESS;
     };
+    // Read before any command runs, because `notify_event` is reachable from six commands and is
+    // also handed to the server as a bare function pointer, which cannot carry state. See
+    // `NOTIFY_COMMANDS_ARMED` for why the arming has to be argv and cannot be a file.
+    arm_notify_commands(args.flags.contains_key("allow-notify-command"));
     // `--root` names the store explicitly; without it the store is derived from the home
     // directory, as it always has been.
     //
@@ -6401,5 +6555,99 @@ mod serve_cli {
             super::USAGE.contains("Ctrl-C"),
             "usage must say how it stops"
         );
+    }
+}
+
+/// The parser's own behaviour, and the one class of defect it had.
+#[cfg(test)]
+mod argument_parsing {
+    use super::{parse_tokens, VALUELESS_FLAGS};
+
+    fn args(tokens: &[&str]) -> super::Args {
+        parse_tokens(tokens.iter().map(|t| (*t).to_string()).collect::<Vec<_>>())
+            .expect("a command")
+    }
+
+    #[test]
+    fn a_boolean_flag_before_a_positional_does_not_swallow_it() {
+        // The defect. This parser is otherwise "a flag consumes the next non-flag token", which is
+        // right for `--goal` and silently wrong for `--apply`: `void --allow-notify-command wrt_1`
+        // recorded the warrant id as the FLAG'S VALUE, leaving no positional, and `void` answered
+        // with its usage line while looking like the user had mistyped.
+        let parsed = args(&["void", "--allow-notify-command", "wrt_1"]);
+        assert_eq!(
+            parsed.positional,
+            vec!["wrt_1".to_string()],
+            "the warrant id must survive a boolean flag in front of it"
+        );
+        assert_eq!(
+            parsed.flags.get("allow-notify-command").map(String::as_str),
+            Some("true")
+        );
+    }
+
+    #[test]
+    fn every_boolean_flag_has_the_property_not_only_the_newest_one() {
+        // It was latent for all of them and stayed hidden because every documented example puts
+        // them last. Asserted over the whole table so a flag added to it is actually covered, and
+        // a boolean flag added WITHOUT being added to it fails here rather than in somebody's
+        // terminal.
+        for flag in VALUELESS_FLAGS {
+            let parsed = args(&["settle", &format!("--{flag}"), "wrt_1"]);
+            assert_eq!(
+                parsed.positional,
+                vec!["wrt_1".to_string()],
+                "--{flag} swallowed the positional after it"
+            );
+        }
+    }
+
+    #[test]
+    fn a_value_taking_flag_still_takes_its_value() {
+        // The other direction, which the fix must not break: `--goal` genuinely consumes the next
+        // token, and a table that listed it would turn every goal into a positional.
+        let parsed = args(&["grant", "--goal", "tidy the docs", "--tools", "read_file"]);
+        assert_eq!(
+            parsed.flags.get("goal").map(String::as_str),
+            Some("tidy the docs")
+        );
+        assert_eq!(
+            parsed.flags.get("tools").map(String::as_str),
+            Some("read_file")
+        );
+        assert!(parsed.positional.is_empty());
+    }
+
+    #[test]
+    fn an_optional_value_flag_is_deliberately_not_in_the_table() {
+        // `--archive` takes an OPTIONAL url, so it is neither valueless nor value-taking. Listing
+        // it would break `--archive https://...` by making the url a positional; leaving it out
+        // means it must be typed last, which is a property of the flag rather than a defect here.
+        assert!(!VALUELESS_FLAGS.contains(&"archive"));
+        let parsed = args(&["report", "wrt_1", "--archive", "https://a.example"]);
+        assert_eq!(
+            parsed.flags.get("archive").map(String::as_str),
+            Some("https://a.example")
+        );
+    }
+
+    #[test]
+    fn a_trailing_boolean_flag_still_records_true() {
+        // The shape every documented example uses, and the reason the defect stayed hidden.
+        let parsed = args(&["prune", "--apply"]);
+        assert_eq!(parsed.flags.get("apply").map(String::as_str), Some("true"));
+    }
+
+    #[test]
+    fn everything_after_a_bare_separator_is_the_agents_own_command_line() {
+        // Unchanged by the fix, and worth pinning beside it: the agent's argv must not be
+        // re-parsed, or a `--apply` inside it would become a flag on `warrantor run`.
+        let parsed = args(&["run", "wrt_1", "--", "npm", "test", "--apply"]);
+        assert_eq!(parsed.positional, vec!["wrt_1".to_string()]);
+        assert_eq!(
+            parsed.trailing,
+            vec!["npm".to_string(), "test".to_string(), "--apply".to_string()]
+        );
+        assert!(!parsed.flags.contains_key("apply"));
     }
 }

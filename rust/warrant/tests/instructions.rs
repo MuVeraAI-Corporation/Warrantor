@@ -115,6 +115,8 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "notify",
     // sandbox
     "kind",
+    // notify commands
+    "allow-notify-command",
     // upstream tool classes
     "upstream-class",
     "upstream-refuse-unclassified",
