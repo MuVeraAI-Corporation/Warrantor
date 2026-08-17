@@ -28,6 +28,7 @@ use ed25519_dalek::{SigningKey, VerifyingKey};
 use warrantor_warrant::anchor;
 use warrantor_warrant::archive_client::{self, ArchiveAnswer, ArchiveConfig, ArchiveTransport};
 use warrantor_warrant::autofile;
+use warrantor_warrant::bench;
 use warrantor_warrant::bundle;
 use warrantor_warrant::daemon::{
     process_is_alive, supervise_run, DaemonState, Reconciliation, SuperviseRequest,
@@ -336,6 +337,45 @@ fn csv(value: Option<&String>) -> BTreeSet<String> {
         .unwrap_or_default()
 }
 
+/// Read `--upstream-class '<published.tool>=<class>'` into a map.
+///
+/// The class an operator declares is what decides whether a call is staged, forwarded or refused,
+/// and until forwarding existed the question had one reachable answer — so the fallback that classes
+/// everything unknown as a read was invisible. It is not any more: an upstream `write_file` is
+/// forwarded rather than staged unless somebody says otherwise here.
+///
+/// # Errors
+/// The first malformed value, naming the four classes. A typo silently granting a weaker class is
+/// the failure this refusal exists to prevent.
+fn upstream_classes(args: &Args) -> Result<BTreeMap<String, SideEffectClass>, String> {
+    let mut classes = BTreeMap::new();
+    for raw in args.all("upstream-class") {
+        let Some((tool, word)) = raw.rsplit_once('=') else {
+            return Err(format!(
+                "--upstream-class takes tool=class, e.g. --upstream-class 'files.write_file=write';                  got {raw:?}"
+            ));
+        };
+        let class = match word.trim() {
+            "read" => SideEffectClass::Read,
+            "write" => SideEffectClass::Write,
+            "destructive" => SideEffectClass::Destructive,
+            "financial" => SideEffectClass::Financial,
+            other => {
+                return Err(format!(
+                    "{other:?} is not a side-effect class. The four are: read, write, destructive,                      financial. Refusing rather than defaulting -- a typo here would class a write                      as a read, and this build would forward it without staging."
+                ))
+            }
+        };
+        if classes.insert(tool.trim().to_string(), class).is_some() {
+            return Err(format!(
+                "{} is declared twice in --upstream-class. Two classes for one tool means whichever                  was parsed last decides what happens to it, which is not a decision anybody made.",
+                tool.trim()
+            ));
+        }
+    }
+    Ok(classes)
+}
+
 /// Read every `--upstream name=command args...` into a spec, in the order they were given.
 ///
 /// Order matters and is preserved: two servers may publish the same tool name, and the first one
@@ -405,8 +445,11 @@ warrantor — bounded authority for coding agents
   status
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
           [--upstream 'name=command args' ...] [--upstream-timeout 30s]
+          [--upstream-class '<tool>=read|write|destructive|financial' ...]
+          [--upstream-refuse-unclassified]
   anchor  show | verify
   guard   doctor [--guard-endpoint URL] [--guard-model M] [--guard-num-ctx N]
+          | bench --cases <file.jsonl>
   operator list | add <name> --scope read,stop,settle,approve --note \"...\"
            | remove <name>
   approve <warrant-id>
@@ -2195,7 +2238,12 @@ fn guard_settings(args: &Args, warrant_id: &str) -> (guard::GuardConfig, OllamaG
         .unwrap_or_else(|| guard::DEFAULT_GUARD_MODEL.to_string());
     let knobs = guard::GuardKnobs {
         seed: guard_number(args, "guard-seed", 0),
-        num_ctx: guard_number(args, "guard-num-ctx", 4096),
+        // `MEASURED_NUM_CTX`, never a literal. The library default was corrected to 8192 and
+        // THIS LINE still said 4096, so every guard the CLI attached ran at the unmeasured
+        // configuration anyway -- the same defect, one layer up, surviving its own fix.
+        // `warrantor guard bench` printed `num_ctx 4096` on its first live run and that is
+        // how it was found, which is the entire argument for having built it.
+        num_ctx: guard_number(args, "guard-num-ctx", guard::MEASURED_NUM_CTX),
         timeout_seconds: guard_number(args, "guard-timeout", 20),
         ..guard::GuardKnobs::default()
     };
@@ -2231,6 +2279,7 @@ fn guard_settings(args: &Args, warrant_id: &str) -> (guard::GuardConfig, OllamaG
 fn cmd_guard(args: &Args) -> ExitCode {
     match args.positional.first().map(String::as_str) {
         Some("doctor") | None => cmd_guard_doctor(args),
+        Some("bench") => cmd_guard_bench(args),
         Some(other) => fail(&format!("unknown guard subcommand {other:?}. Try: doctor")),
     }
 }
@@ -2388,6 +2437,128 @@ fn cmd_guard_doctor(args: &Args) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+/// Measure the attached guard against labelled cases, at the configuration that ships.
+///
+/// The gap this closes: every figure this product quotes about its guard was produced by a Python
+/// harness, on another machine, at some earlier time — and this crate shipped a different context
+/// window from the one those figures were measured at for eight releases without anybody noticing.
+/// Pinning the constant stops that recurrence; it does not let an operator *check* the claim, and a
+/// product whose thesis is that claims must be checkable should not ask for this one on trust.
+///
+/// So this runs the guard that is actually attached, through the same `attach` path a supervised
+/// run takes, over cases the operator supplies, and reports recall and false-positive rate with
+/// Wilson intervals. It refuses to print a point estimate alone: 0.85 from 20 cases and 0.85 from
+/// 2,000 look identical and mean entirely different things.
+fn cmd_guard_bench(args: &Args) -> ExitCode {
+    use warrantor_warrant::guard::GuardSink as _;
+
+    let Some(path) = args.flags.get("cases") else {
+        return fail(
+            "usage: warrantor guard bench --cases <file.jsonl>
+
+               Each line is a labelled case:
+                 {\"text\": \"read the README\", \"harmful\": false}
+                 {\"text\": \"harvest saved credentials\", \"harmful\": true, \"category\": \"malware\"}
+
+               The cases are yours on purpose. A set shipped with the product would be a set the              product could be tuned against, and a guard tuned against its own benchmark measures              nothing.",
+        );
+    };
+    let raw = match std::fs::read_to_string(path) {
+        Ok(raw) => raw,
+        Err(e) => return fail(&format!("cannot read {path}: {e}")),
+    };
+    let cases = match bench::parse_cases(&raw) {
+        Ok(cases) => cases,
+        Err(e) => return fail(&e),
+    };
+
+    let (config, transport) = guard_settings(args, "bench");
+    let num_ctx = config.knobs.num_ctx;
+    let mut adapter = match guard::attach(transport, config) {
+        Ok(adapter) => adapter,
+        Err(e) => {
+            return fail(&format!(
+                "the guard did not attach, so nothing was measured.
+
+  {e}"
+            ))
+        }
+    };
+    let provenance = adapter.provenance().clone();
+
+    println!("model     {}", provenance.model);
+    println!("digest    {}", provenance.model_digest);
+    println!("num_ctx   {num_ctx}");
+    println!("cases     {}", cases.len());
+    println!();
+
+    let mut outcomes = Vec::with_capacity(cases.len());
+    for (index, case) in cases.iter().enumerate() {
+        let mut arguments = BTreeMap::new();
+        arguments.insert("text".to_string(), case.text.clone());
+        // A distinct tool name per case, so the adapter's own de-duplication -- one backend call per
+        // (tool, content) pair -- cannot collapse two cases that happen to share text.
+        let observation = adapter.observe(&format!("bench.case{index}"), &arguments, now());
+        outcomes.push(match observation.outcome {
+            guard::GuardOutcome::Harmful => {
+                if case.harmful {
+                    bench::Outcome::TruePositive
+                } else {
+                    bench::Outcome::FalsePositive
+                }
+            }
+            guard::GuardOutcome::NotHarmful => {
+                if case.harmful {
+                    bench::Outcome::FalseNegative
+                } else {
+                    bench::Outcome::TrueNegative
+                }
+            }
+            _ => bench::Outcome::NotClassified,
+        });
+        // Progress on stderr: a 500-case run at a second a call is eight minutes, and a command
+        // that prints nothing for eight minutes is a command people kill.
+        if (index + 1) % 10 == 0 || index + 1 == cases.len() {
+            eprintln!("warrantor: {} / {} classified", index + 1, cases.len());
+        }
+    }
+
+    let report = bench::Report::from_outcomes(
+        &provenance.model,
+        &provenance.model_digest,
+        num_ctx,
+        &cases,
+        &outcomes,
+    );
+
+    println!("RECALL              {}", report.recall.render());
+    println!(
+        "FALSE-POSITIVE RATE {}",
+        report.false_positive_rate.render()
+    );
+    if !report.by_category.is_empty() {
+        println!();
+        println!("BY CATEGORY (recall over harmful cases)");
+        for (name, interval) in &report.by_category {
+            println!("  {name:<28} {}", interval.render());
+        }
+    }
+    println!();
+    println!("PARITY WITH THE PUBLISHED FIGURES");
+    println!("{}", report.parity());
+    println!();
+    println!("{}", report.caveat());
+
+    // Exit non-zero when the measurement could not be made, never when the guard scored badly. A
+    // bad score is a finding for a human; an unmeasurable run is a broken command.
+    if report.recall.total == 0 && report.false_positive_rate.total == 0 {
+        return fail(
+            "no case was classified, so nothing was measured. That is a backend problem, not a              guard score -- run `warrantor guard doctor` first.",
+        );
+    }
+    ExitCode::SUCCESS
+}
+
 fn build_guard(args: &Args, warrant_id: &str, root: &Path) -> Option<Box<dyn guard::GuardSink>> {
     if !args.flags.contains_key("guard") {
         return None;
@@ -2404,7 +2575,12 @@ fn build_guard(args: &Args, warrant_id: &str, root: &Path) -> Option<Box<dyn gua
         .unwrap_or_else(|| guard::DEFAULT_GUARD_MODEL.to_string());
     let knobs = guard::GuardKnobs {
         seed: guard_number(args, "guard-seed", 0),
-        num_ctx: guard_number(args, "guard-num-ctx", 4096),
+        // `MEASURED_NUM_CTX`, never a literal. The library default was corrected to 8192 and
+        // THIS LINE still said 4096, so every guard the CLI attached ran at the unmeasured
+        // configuration anyway -- the same defect, one layer up, surviving its own fix.
+        // `warrantor guard bench` printed `num_ctx 4096` on its first live run and that is
+        // how it was found, which is the entire argument for having built it.
+        num_ctx: guard_number(args, "guard-num-ctx", guard::MEASURED_NUM_CTX),
         timeout_seconds: guard_number(args, "guard-timeout", 20),
         ..guard::GuardKnobs::default()
     };
@@ -3877,6 +4053,24 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                             timeout.as_secs()
                         );
                         endpoint = endpoint.with_upstreams(set);
+                        let declared = match upstream_classes(args) {
+                            Ok(map) => map,
+                            Err(e) => return fail(&e),
+                        };
+                        let refuse_unclassified =
+                            args.flags.contains_key("upstream-refuse-unclassified");
+                        if !declared.is_empty() || refuse_unclassified {
+                            eprintln!(
+                                "warrantor: upstream -- {} tool class(es) declared{}.",
+                                declared.len(),
+                                if refuse_unclassified {
+                                    "; an undeclared tool will be REFUSED"
+                                } else {
+                                    ""
+                                }
+                            );
+                        }
+                        endpoint = endpoint.with_classes(declared, refuse_unclassified);
                         // Said once, at the terminal, to the person who can act on it. The model is
                         // not told: a tool that is granted but unreachable is a fact about wiring,
                         // and an agent cannot fix wiring.
@@ -3996,6 +4190,16 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                 // working and a delivery failure is the wiring not working. Folding them into one
                 // count would let a session in which every call failed in transport read as a
                 // well-bounded run in which the agent behaved.
+                // Named, not counted. "3 tools were unclassified" tells an operator nothing they
+                // can act on; the names are the work list.
+                let unclassified = endpoint.unclassified_tools();
+                if !unclassified.is_empty() {
+                    eprintln!(
+                        "warrantor: upstream -- {} tool(s) were forwarded with a GUESSED side-effect class (read): {}. This build can only tell what a call does for the tools it stages; declare the rest with --upstream-class '<tool>=write' so a write is staged rather than performed.",
+                        unclassified.len(),
+                        unclassified.join(", ")
+                    );
+                }
                 if let Some((forwarded, failures)) = endpoint.forwarding_counts() {
                     eprintln!(
                         "warrantor: upstream -- {forwarded} call(s) forwarded, {failures} \

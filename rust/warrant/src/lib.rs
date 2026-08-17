@@ -36,6 +36,7 @@ pub mod adapters;
 pub mod anchor;
 pub mod archive_client;
 pub mod autofile;
+pub mod bench;
 pub mod bundle;
 pub mod daemon;
 pub mod egress;

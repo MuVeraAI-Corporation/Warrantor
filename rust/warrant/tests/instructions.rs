@@ -107,6 +107,11 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "scope",
     // issuer export
     "as",
+    // guard bench
+    "cases",
+    // upstream tool classes
+    "upstream-class",
+    "upstream-refuse-unclassified",
     // mcp
     "agent",
     "observe",
@@ -266,4 +271,24 @@ fn the_removed_python_generator_is_not_reachable_from_the_rust_binary() {
              security claim into a prompt, which nothing in the substrate enforces."
         );
     }
+}
+
+#[test]
+fn the_cli_attaches_a_guard_at_the_measured_context_window() {
+    // The defect this pins survived its own fix. `GuardKnobs::default().num_ctx` was corrected to
+    // 8192; `guard_settings` in the binary kept its own literal 4096 fallback, so every guard the
+    // CLI attached still ran at the unmeasured configuration. `warrantor guard bench` printed
+    // `num_ctx 4096` on its first live run, which is how it was found.
+    //
+    // Asserted from the SOURCE rather than by attaching a guard, because attaching needs a live
+    // backend and this must fail in CI on a machine with none.
+    let source = include_str!("../src/bin/warrantor.rs");
+    assert!(
+        !source.contains("guard_number(args, \"guard-num-ctx\", 4096)"),
+        "the CLI must not carry its own context-window literal: every published guard figure was          measured at MEASURED_NUM_CTX, and a second copy of the number is a second thing to          forget"
+    );
+    assert!(
+        source.contains("guard_number(args, \"guard-num-ctx\", guard::MEASURED_NUM_CTX)"),
+        "the fallback must read the constant"
+    );
 }

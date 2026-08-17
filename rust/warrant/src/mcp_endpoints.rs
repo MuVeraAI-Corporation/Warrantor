@@ -678,6 +678,17 @@ pub struct AgentEndpoint {
     /// is the same answer this endpoint has always given — except that the remedy it names is now
     /// a flag that exists.
     upstreams: Option<crate::upstream::UpstreamSet>,
+    /// Side-effect classes an operator declared for upstream tools, by published tool name.
+    ///
+    /// Empty by default, which is the shipped behaviour: everything the staging registry does not
+    /// know is classed `Read`. That fallback is a **guess**, and it became reachable the moment
+    /// forwarding did — an upstream `write_file` is forwarded rather than staged. This map is how
+    /// an operator replaces the guess with a statement.
+    classes: BTreeMap<String, SideEffectClass>,
+    /// Whether a tool with no declared class is refused rather than guessed at.
+    refuse_unclassified: bool,
+    /// Tools this session decided by the fallback, so the closing line can name them.
+    unclassified: std::collections::BTreeSet<String>,
     /// How many calls this session actually forwarded, and how many failed in transport.
     ///
     /// Counted separately from the proxy's refusals because they are different facts about the
@@ -706,6 +717,9 @@ impl AgentEndpoint {
             allowed,
             guard: None,
             witness: None,
+            classes: BTreeMap::new(),
+            refuse_unclassified: false,
+            unclassified: std::collections::BTreeSet::new(),
             upstreams: None,
             forwarded: 0,
             forward_failures: 0,
@@ -724,6 +738,33 @@ impl AgentEndpoint {
     pub fn with_upstreams(mut self, upstreams: crate::upstream::UpstreamSet) -> Self {
         self.upstreams = Some(upstreams);
         self
+    }
+
+    /// Declare side-effect classes for upstream tools, and whether an undeclared one is refused.
+    ///
+    /// A builder, like [`Self::with_upstreams`], and for the same reason: which tools an operator
+    /// has classified is a property of the session they started, not of the signed warrant. Putting
+    /// a class map inside granted claims would mean re-issuing a warrant whenever a server added a
+    /// tool.
+    #[must_use]
+    pub fn with_classes(
+        mut self,
+        classes: BTreeMap<String, SideEffectClass>,
+        refuse_unclassified: bool,
+    ) -> Self {
+        self.classes = classes;
+        self.refuse_unclassified = refuse_unclassified;
+        self
+    }
+
+    /// Tools this session decided by the fallback rather than by a declaration.
+    ///
+    /// Reported at the end of a run. An empty set on a session that forwarded nothing is not the
+    /// same fact as an empty set on a session where every tool was declared, so the caller pairs
+    /// this with [`Self::forwarding_counts`] rather than reading it alone.
+    #[must_use]
+    pub fn unclassified_tools(&self) -> Vec<String> {
+        self.unclassified.iter().cloned().collect()
     }
 
     /// How many calls were forwarded, and how many failed in transport.
@@ -968,15 +1009,37 @@ impl Endpoint for AgentEndpoint {
             })
             .collect();
 
+        // What CLASS of action is this? The answer decides whether the call is staged, forwarded or
+        // refused, and until forwarding existed the question had one reachable answer, so the guess
+        // below was invisible.
+        //
+        // The order is: what the staging registry knows, then what the operator declared, then the
+        // fallback. The registry wins because those four tools are the ones this build can actually
+        // stage; a declaration that contradicted it would promise staging for something the settle
+        // path cannot perform.
+        let declared = self.classes.get(tool).copied();
+        let side_effect = if EffectRegistry::github().get(tool).is_some() {
+            SideEffectClass::Write
+        } else if let Some(class) = declared {
+            class
+        } else {
+            // UNCLASSIFIED. `Read` is the shipped fallback and it is a guess: an upstream
+            // `write_file` is forwarded rather than staged, and nothing about the call says so.
+            // Counted here so the end of the session can report how many calls were decided by a
+            // guess, and refusable outright with `--upstream-refuse-unclassified`.
+            self.unclassified.insert(tool.to_string());
+            if self.refuse_unclassified {
+                return ToolResult::error(format!(
+                    "{tool} has no declared side-effect class, and this session was started with --upstream-refuse-unclassified. This build can only tell what a call DOES for the tools it stages; for everything else the class is whatever an operator declared, and an undeclared tool would be forwarded as if it only read. Declare it: --upstream-class '{tool}=write' (or =read, =destructive, =financial)."
+                ));
+            }
+            SideEffectClass::Read
+        };
+
         let call = ToolCall {
             tool: tool.to_string(),
             arguments: flattened,
-            // Anything the registry knows how to stage is a write; the proxy decides from there.
-            side_effect: if EffectRegistry::github().get(tool).is_some() {
-                SideEffectClass::Write
-            } else {
-                SideEffectClass::Read
-            },
+            side_effect,
         };
 
         // The warrant decides first, and its decision is never reconsidered below: no arm of the
