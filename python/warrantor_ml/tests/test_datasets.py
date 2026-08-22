@@ -224,3 +224,36 @@ def test_cli_preflight_exits_nonzero_when_blocked(
         ["--dataset", "wildguardmix", "--preflight", "--cache", str(tmp_path)]
     )
     assert exit_code == 1
+
+
+def test_fetch_continues_past_a_reference_only_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A reference-only entry must not block the fetch of datasets sorted after it.
+
+    `--fetch` used to `return 1` on the first per-dataset failure, and the reference-only
+    entries (`halo-guard-bench`, `local-smoke`) always fail -- so `wildguardmix`, sorted last,
+    never downloaded while `expguardmix`, sorted first, looked like success. Found the first
+    time the fetch was run to completion. The fix continues and reports every outcome; the exit
+    code still names the failure.
+    """
+    monkeypatch.setenv("HF_TOKEN", "token-for-the-test")
+
+    def fake_ensure_available(spec: datasets.DatasetSpec, cache_override=None):
+        if spec.splits == ():
+            raise datasets.DatasetAccessError("declares no downloadable splits")
+        return {name: tmp_path / f"{spec.dataset_id}-{name}.parquet" for name in ("train", "test")}
+
+    monkeypatch.setattr(datasets, "ensure_available", fake_ensure_available)
+
+    exit_code = datasets.main(["--preflight", "--fetch"])
+
+    captured = capsys.readouterr()
+    printed = captured.out + captured.err
+    assert exit_code == 1, "the reference-only entries still fail, and the exit code says so"
+    assert "wildguardmix:train" in printed, (
+        "the fetch of a real dataset sorted after a reference-only entry must still happen"
+    )
+    assert "[BLOCKED] halo-guard-bench" in printed, (
+        "and the reference entry's refusal is still reported"
+    )
