@@ -20,7 +20,7 @@ hex = "0.4"
 sha2 = "0.11"
 # Cross-platform advisory file locking (flock on POSIX, LockFileEx on Windows). Needed so two
 # recorders cannot share an evidence log and hand out contradictory durability proofs.
-fs4 = "0.8"
+fs4 = "1.1"
 uuid = { version = "1", features = ["v4"] }
 prost-types = "0.14"
 warrantor-api = { path = "../warrantor-api" }

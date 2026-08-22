@@ -38,7 +38,6 @@
 //! record anywhere else is a hard [`RecorderError::ChainCorrupt`] — that is tampering, not a
 //! crash.
 
-use fs4::FileExt;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -167,21 +166,22 @@ impl FileEvidenceStore {
                 source,
             })?;
 
-        lock_file
-            .try_lock_exclusive()
-            .map_err(|source| RecorderError::Io {
-                path: path.display().to_string(),
-                source: std::io::Error::new(
-                    std::io::ErrorKind::WouldBlock,
-                    format!(
-                        "evidence log {} is already open by another flight recorder \
+        // fs4 1.x renamed the advisory-lock methods: `try_lock_exclusive` became `try_lock`,
+        // exclusive by default — which is what this always wanted. Same OS-level lock, same
+        // open-file-description semantics the doc comment above relies on.
+        lock_file.try_lock().map_err(|source| RecorderError::Io {
+            path: path.display().to_string(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::WouldBlock,
+                format!(
+                    "evidence log {} is already open by another flight recorder \
                          (lock held on {}); two recorders sharing one log assign the same \
                          sequence number to different records and corrupt the chain: {source}",
-                        path.display(),
-                        lock_path.display()
-                    ),
+                    path.display(),
+                    lock_path.display()
                 ),
-            })?;
+            ),
+        })?;
 
         Ok(lock_file)
     }
