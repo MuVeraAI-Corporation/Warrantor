@@ -507,15 +507,22 @@ def main(argv: list[str] | None = None) -> int:
     specs = (get_dataset(arguments.dataset),) if arguments.dataset else list_datasets()
 
     if arguments.fetch:
+        # Continue past a per-dataset failure and report every outcome, rather than aborting on
+        # the first: `halo-guard-bench` and `local-smoke` are reference-only entries that always
+        # raise here, and with an early return they permanently blocked the fetch of every
+        # dataset sorted after them -- wildguardmix never downloaded, silently, while expguardmix
+        # (sorted first) looked like success. Found the first time the fetch was run to completion.
+        failed = 0
         for spec in specs:
             try:
                 resolved = ensure_available(spec, cache_override=arguments.cache)
             except DatasetAccessError as error:
+                failed += 1
                 print(f"[BLOCKED] {spec.dataset_id}\n{error}\n", file=sys.stderr)
-                return 1
+                continue
             for name, path in sorted(resolved.items()):
                 print(f"[ok] {spec.dataset_id}:{name} -> {path}")
-        return 0
+        return 1 if failed else 0
 
     if arguments.preflight:
         reports = [preflight(spec, arguments.cache) for spec in specs]

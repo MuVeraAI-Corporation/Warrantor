@@ -43,6 +43,7 @@ import os
 import shutil
 import subprocess
 import sys
+import urllib.parse
 from datetime import date
 from pathlib import Path
 
@@ -119,6 +120,22 @@ def preflight(endpoint: str) -> list[str]:
     return problems
 
 
+def chat_url(endpoint: str) -> str:
+    """Normalise a base-or-full endpoint to the chat URL the benchmarks post to.
+
+    The benchmarks pass ``--endpoint`` to the classifier verbatim, and the classifier posts to
+    exactly that URL -- their own defaults are the full chat route
+    (``http://127.0.0.1:11434/api/chat``). This runner's default is the bare host, which is what
+    a person types; without this normalisation every call posted to ``/`` and the server answered
+    405 until the benchmark gave up. Found the first time the runner was ever executed: it was
+    written behind a gated-corpus blocker and never run before that.
+    """
+    parsed = urllib.parse.urlparse(endpoint)
+    if parsed.path in ("", "/"):
+        return endpoint.rstrip("/") + "/api/chat"
+    return endpoint
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
@@ -136,7 +153,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    problems = preflight(args.endpoint)
+    endpoint = chat_url(args.endpoint)
+    problems = preflight(endpoint)
     fatal = [p for p in problems if not p.startswith("NOTE")]
     for problem in problems:
         print(f"  {problem}\n", file=sys.stderr)
@@ -161,7 +179,7 @@ def main() -> int:
             sys.executable,
             str(ML_DIRECTORY / script),
             "--endpoint",
-            args.endpoint,
+            endpoint,
             "--num-ctx",
             str(NUM_CTX),
             "--seed",

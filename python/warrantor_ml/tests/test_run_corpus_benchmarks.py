@@ -94,6 +94,22 @@ def test_the_gate_urls_are_the_two_corpora_and_nothing_else() -> None:
         assert url.startswith("https://huggingface.co/datasets/")
 
 
+def test_a_bare_host_becomes_the_chat_url_the_benchmarks_post_to() -> None:
+    """The runner's own default is a bare host; the classifier posts to the URL verbatim.
+
+    Without this normalisation every call posted to `/` and the server answered 405 until the
+    benchmark gave up -- found the first time the runner was ever executed, because it was
+    written behind a gated-corpus blocker and never run before that. A full chat URL passes
+    through untouched, and a trailing slash on a bare host is not a second route.
+    """
+    assert runner.chat_url("http://127.0.0.1:11434") == "http://127.0.0.1:11434/api/chat"
+    assert runner.chat_url("http://127.0.0.1:11434/") == "http://127.0.0.1:11434/api/chat"
+    assert (
+        runner.chat_url("http://127.0.0.1:11434/api/chat")
+        == "http://127.0.0.1:11434/api/chat"
+    )
+
+
 def test_the_launcher_shim_stays_a_launcher() -> None:
     """`ml/README.md`'s rule, asserted rather than described.
 
