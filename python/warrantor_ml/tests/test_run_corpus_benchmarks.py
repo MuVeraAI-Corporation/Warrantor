@@ -104,10 +104,7 @@ def test_a_bare_host_becomes_the_chat_url_the_benchmarks_post_to() -> None:
     """
     assert runner.chat_url("http://127.0.0.1:11434") == "http://127.0.0.1:11434/api/chat"
     assert runner.chat_url("http://127.0.0.1:11434/") == "http://127.0.0.1:11434/api/chat"
-    assert (
-        runner.chat_url("http://127.0.0.1:11434/api/chat")
-        == "http://127.0.0.1:11434/api/chat"
-    )
+    assert runner.chat_url("http://127.0.0.1:11434/api/chat") == "http://127.0.0.1:11434/api/chat"
 
 
 def test_the_launcher_shim_stays_a_launcher() -> None:

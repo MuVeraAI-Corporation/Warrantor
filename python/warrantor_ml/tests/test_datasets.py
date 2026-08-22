@@ -254,4 +254,6 @@ def test_fetch_continues_past_a_reference_only_entry(
     assert "wildguardmix:train" in printed, (
         "the fetch of a real dataset sorted after a reference-only entry must still happen"
     )
-    assert "[BLOCKED] halo-guard-bench" in printed, "and the reference entry's refusal is still reported"
+    assert "[BLOCKED] halo-guard-bench" in printed, (
+        "and the reference entry's refusal is still reported"
+    )
