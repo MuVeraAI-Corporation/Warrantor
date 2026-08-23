@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warrantor — Pending Items, 2026-08-22</title>
+<style>
+  :root {
+    --bg: #faf9f7; --panel: #ffffff; --ink: #191817; --ink-soft: #4a4642; --ink-faint: #75706a;
+    --line: #e6e1da; --line-strong: #d0c9c0; --accent: #c2571f; --accent-soft: #fdf3ec;
+    --ok: #1f6b4a; --ok-bg: #edf6f1; --bad: #9c2a1e; --bad-bg: #fbeeec;
+    --warn: #8a6100; --warn-bg: #fdf5e3; --info: #1d5a8a; --info-bg: #eef4fa;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Söhne", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1917; --panel: #232120; --ink: #f2efea; --ink-soft: #c4bdb4; --ink-faint: #948d84;
+      --line: #35322f; --line-strong: #4a4642; --accent: #e07a42; --accent-soft: #2c2320;
+      --ok: #6fc79b; --ok-bg: #1c2a24; --bad: #e08a7d; --bad-bg: #2c2120;
+      --warn: #d9ad5a; --warn-bg: #2a2419; --info: #7ab3d6; --info-bg: #16222c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
+         font-size: 17px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 56px 28px 120px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+             font-weight: 600; margin: 0 0 12px; }
+  h1 { font-size: 34px; line-height: 1.2; margin: 0 0 14px; font-weight: 600; letter-spacing: -.02em; }
+  .standfirst { font-size: 19px; color: var(--ink-soft); margin: 0; }
+  .meta { font-size: 13px; color: var(--ink-faint); margin-top: 18px; font-family: var(--mono); }
+  h2 { font-size: 24px; margin: 52px 0 14px; font-weight: 600; letter-spacing: -.01em;
+       padding-top: 10px; border-top: 1px solid var(--line); }
+  h3 { font-size: 17px; margin: 28px 0 8px; font-weight: 600; }
+  p { margin: 0 0 15px; }
+  code { font-family: var(--mono); font-size: .87em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+        padding: 14px 16px; overflow-x: auto; font-size: 13px; }
+  pre code { background: none; padding: 0; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; margin: 20px 0 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .d-now { background: var(--accent); } .d-code { background: var(--info); }
+  .d-ext { background: var(--warn); } .d-des { background: var(--ink-faint); }
+  .tablewrap { overflow-x: auto; margin: 18px 0 26px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  td.num { font-family: var(--mono); white-space: nowrap; font-size: 13.5px; }
+  .tag { font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+         padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid var(--line-strong); }
+  .t-now { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .t-code { color: var(--info); border-color: var(--info); background: var(--info-bg); }
+  .t-ext { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+  .t-des { color: var(--ink-faint); }
+  .t-done { color: var(--ok); border-color: var(--ok); background: var(--ok-bg); }
+  .callout { border-radius: 8px; padding: 16px 20px; margin: 22px 0; border: 1px solid; font-size: 16px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .label { font-weight: 600; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+                    margin-bottom: 6px; }
+  .c-verdict { background: var(--panel); border-color: var(--line-strong); border-left: 4px solid var(--ok); }
+  .c-verdict .label { color: var(--ok); }
+  .c-finding { background: var(--panel); border-color: var(--line-strong); border-left: 4px solid var(--warn); }
+  .c-finding .label { color: var(--warn); }
+  .c-note { background: var(--panel); border-color: var(--line-strong); border-left: 4px solid var(--info); }
+  .c-note .label { color: var(--info); }
+  .verdict-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 20px 0; }
+  .vcard { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+  .vcard h4 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .vcard .nums { font-family: var(--mono); font-size: 13px; color: var(--ink-soft); }
+  .vcard .why { font-size: 14px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5; }
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--line);
+           font-size: 14px; color: var(--ink-faint); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Warrantor · Open-source AI-security substrate</p>
+  <h1>What is left, precisely</h1>
+  <p class="standfirst">Every pending item, classified by what kind of action it needs — with the evidence for each claim and the cost of closing it.</p>
+  <p class="meta">Written 2026-08-22, end of the fine-tune sweep session · main at 2fb8e54 + uncommitted session work · supersedes the open-items table in warrantor-state-2026-08-17.html §7</p>
+</header>
+
+<div class="legend">
+  <span><span class="dot d-now"></span> Immediate — this session's output, one PR</span>
+  <span><span class="dot d-code"></span> Codeable — no blocker, just not done</span>
+  <span><span class="dot d-ext"></span> External — money, hardware, credentials</span>
+  <span><span class="dot d-des"></span> Design decision — owner's call, options written</span>
+</div>
+
+<h2>0. Where this stands</h2>
+<p>Everything in Tiers 1–3 of the delivery-gaps roadmap has shipped across five agent sessions
+(60+ merged PRs, seven dependency PRs cleared, CI green throughout at
+<strong>1,287 tests / 127 suites</strong>). The model-intelligence programme completed its first
+full five-recipe fine-tuning sweep today — one promotion, four refusals, every verdict recorded
+with decision digests. What remains falls into four classes, and only the first three classes
+contain work an agent can start without your input.</p>
+
+<div class="callout c-verdict">
+  <p class="label">The sweep's one promotion</p>
+  <p><strong>guard-0.6b-expguard-weak</strong> (run <code>exp06-2026-08-22a</code>): recall
+  0.7150 → <strong>0.7818</strong> beyond sampling noise, false-positive rate
+  0.0873 → <strong>0.0550</strong> (improved), zero train/eval leakage, full provenance
+  (recipe digest, corpus manifest, lane record). The first guard fine-tune the parity gate has
+  ever promoted. It is registered in local Ollama as
+  <code>warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a</code>.</p>
+</div>
+
+<h2>1. Immediate — the closing PR (Section A)</h2>
+<p>Sitting uncommitted in the working tree, tested and verified. One PR closes all of it.</p>
+
+<div class="tablewrap"><table>
+  <tr><th>Item</th><th>What it is</th><th>Effort</th></tr>
+  <tr><td class="num">A1</td>
+      <td><strong>Modal lane fixes in <code>lane_export.py</code></strong> — the image now
+      installs <code>bitsandbytes</code> and <code>trl</code> (the 4B QLoRA recipes died at
+      container start without them; the 0.6B bf16 recipes never tripped it, so the gap survived
+      until a QLoRA recipe actually shipped); and the overwrite guard is preemption-safe — it
+      refuses only when a <em>completed</em> run (<code>run_record.json</code>) exists, not on
+      the residue of a preempted container, which Modal restarts with the same input. The old
+      guard turned one A100 preemption into a dead app and ~$10 of lost GPU time.</td>
+      <td>Written, tested</td></tr>
+  <tr><td class="num">A2</td>
+      <td><strong>Four regenerated Modal trainers</strong> (<code>ml/modal/train_guard_0_6b_*.py</code>,
+      <code>train_guard_4b_*.py</code>) carrying the fixed image — plus the naming fix
+      (Modal rejects source filenames containing extra dots; <code>0.6b</code> became
+      <code>0_6b</code>).</td>
+      <td>Generated, dispatched, all four trained with them</td></tr>
+  <tr><td class="num">A3</td>
+      <td><strong>Five gate-evaluation result documents</strong> under
+      <code>eval_results/</code> — the complete sweep's evidence, each with per-sample records,
+      determinism fields, and digests.</td>
+      <td>On disk</td></tr>
+  <tr><td class="num">A4</td>
+      <td><strong>The findings, written down</strong> — state-document rows updated: the sweep
+      complete, the verdict table, and the two corpus-level findings below.</td>
+      <td>This document + state doc edit</td></tr>
+</table></div>
+
+<div class="callout c-finding">
+  <p class="label">Finding 1 — the weak-category recipe is 0-for-3</p>
+  <p>Three independent runs across two model sizes and two recipe revisions, three refusals,
+  same direction: the corpus trades targeted-category recall for overall recall. 0.6B:
+  0.8488 → 0.7374 (real regression). 4B: 0.8554 → 0.8541 (noise) with per-category floors
+  broken. Historical <code>weak-2026-08-13a</code>: 0.8488 → 0.8329. The corpus composition is
+  the defect — catastrophic forgetting, not a training accident. <strong>Disposition: retire,
+  or redesign with a retention mix</strong> (a general-corpus fraction in the selector so the
+  model cannot forget what it is not being taught).</p>
+</div>
+
+<div class="callout c-finding">
+  <p class="label">Finding 2 — the adversarial resolution ceiling is a property of the corpus</p>
+  <p>WildGuardMix's train split holds 20,567 adversarial-positive rows. The adversarial corpus
+  selector consumed <strong>20,566</strong> of them for training. The unselected pool contains
+  exactly <strong>one</strong>. The test split's 341 adversarial-positive rows are therefore the
+  only evaluation pool that exists, and at n=341 the set resolves ~0.058 — both adversarial
+  adapters moved +0.7 to +3.2 points, indistinguishable from zero at that resolution.
+  <strong>No larger held-out adversarial set can be built from this corpus.</strong> Any future
+  adversarial claim requires a new eval corpus (HarmBench-class, or an ExpGuard adversarial
+  slice) with fresh baselines measured for both arms on it.</p>
+</div>
+
+<h2>2. Model intelligence — codeable next builds (Section C)</h2>
+
+<div class="tablewrap"><table>
+  <tr><th>Item</th><th>What</th><th>Why it matters</th><th>Cost</th></tr>
+  <tr><td class="num">C1</td>
+      <td><strong>Deploy the promoted exp06 adapter</strong> — <code>ml/deploy_model.py</code>
+      with a generated model card, behind ContentScanner.</td>
+      <td>The gate said promote; deployment is the point. First promoted guard model in the
+      product.</td>
+      <td>~1 h, local, free</td></tr>
+  <tr><td class="num">C2</td>
+      <td><strong>Measure the base 0.6B on ExpGuardTest</strong> — the exposure figure the
+      decision brief flagged as "recorded nowhere", now that the expguard path promotes.</td>
+      <td>Quantifies what the promoted adapter bought vs its own baseline; the 0.6B ExpGuard
+      baseline is the missing row in the fleet table.</td>
+      <td>~25 min eval, free</td></tr>
+  <tr><td class="num">C3</td>
+      <td><strong>New adversarial eval corpus + fresh baselines</strong> — identify a
+      HarmBench-class set (or an ExpGuard adversarial slice), measure both base models on it,
+      then re-gate the existing adv06/adv4b adapters.</td>
+      <td>Converts two "within noise" verdicts into statistically real ones — or establishes
+      the ceiling honestly at 10× the resolution. The adapters already exist; only the ruler
+      is missing.</td>
+      <td>Corpus identification + 4 eval passes ≈ 2–3 h</td></tr>
+  <tr><td class="num">C4</td>
+      <td><strong>Extend the winning path</strong> — more domain corpora on the 0.6B through
+      the expguard-weak recipe (healthcare-only, finance-only, law-only per-vertical).</td>
+      <td>The only promoting recipe; each vertical is cheap and compounds the domain strength
+      the general guard lacks.</td>
+      <td>~$2–5/run Modal + ~25 min gate each</td></tr>
+  <tr><td class="num">C5</td>
+      <td><strong>Retire or redesign <code>guard-*-weak-category</code></strong> — recipe-table
+      edit + docs (retirement), or a retention-mix selector + one run (redesign).</td>
+      <td>0-for-3 is a demonstrated corpus failure; leaving it attractively available invites
+      a fourth attempt that the evidence predicts will fail.</td>
+      <td>Retirement: 1 h. Redesign: ~8 h + one run</td></tr>
+  <tr><td class="num">C6</td>
+      <td><strong>Private HF upload of the five adapters + model cards</strong>.</td>
+      <td>Backup and portfolio at zero licence risk (private repos are not distribution).
+      Public upload of four of five contradicts the registry's recorded
+      <code>redistributable: False</code>; only exp06's CC-BY lineage could go public, as a
+      research release, on your explicit call.</td>
+      <td>~15 min</td></tr>
+</table></div>
+
+<h2>3. Product surface residuals (Section D)</h2>
+<p>Each scoped, none blocked, none started. Ordered by leverage on the multi-user claim.</p>
+
+<div class="tablewrap"><table>
+  <tr><th>Item</th><th>What</th><th>Constraint that shapes it</th></tr>
+  <tr><td class="num">D1</td>
+      <td><strong>Bind a device key into the settle record</strong> — "who settled this" at the
+      cryptographic level (W2 item 6, §2.2's remaining half).</td>
+      <td>Designed in the W2 RFC; the named-operator layer shipped above it, but the settle
+      record itself carries no operator binding yet.</td></tr>
+  <tr><td class="num">D2</td>
+      <td><strong>Time-bounded fleet summaries</strong> — <code>/v1/summary/since/&lt;epoch&gt;</code>
+      or per-day routes.</td>
+      <td>No archive route reads a query parameter — the device signature covers the path.
+      The window must live in the path; a route design decision, then mechanical.</td></tr>
+  <tr><td class="num">D3</td>
+      <td><strong>Per-repo views</strong> — which repository a warrant ran against.</td>
+      <td>The data exists in the warrant record (worktree/repo fields); no surface aggregates
+      it. Console or archive-side; small either way.</td></tr>
+  <tr><td class="num">D4</td>
+      <td><strong><code>staged/</code> prune with chain-witness tombstones</strong> — extend
+      #58's code-gated prune to the staged logs.</td>
+      <td>The hard prerequisite is pre-written in §3.4: a pruned log must read as a refusal,
+      not an empty queue — the witness mark must be written forward into a tombstone at
+      deletion time or the hole #49 closed reopens.</td></tr>
+  <tr><td class="num">D5</td>
+      <td><strong>OS-level notifications</strong> — the HTTP webhook layer (#57) fronted by a
+      local program (email and push shipped via a fronting program on the parallel track;
+      native OS toasts did not).</td>
+      <td>Desktop integration; the notification contract already exists.</td></tr>
+  <tr><td class="num">D6</td>
+      <td><strong>Approval routing beyond the shipped loop</strong> — approve-from-mobile,
+      delegated scopes, quorum variants past the two-person rule.</td>
+      <td>The two-person rule and named scoped operators shipped; the richer routing shapes
+      are extensions of the same surface.</td></tr>
+</table></div>
+
+<h2>4. Design decisions deliberately left open (Section E)</h2>
+<p>These are not blocked — they are <em>reserved</em>. Each has its options written down; each
+adds a trust root or a public commitment, which is why they are yours.</p>
+
+<div class="tablewrap"><table>
+  <tr><th>Decision</th><th>Options on the table</th><th>Where written</th></tr>
+  <tr><td><strong>Time anchoring</strong></td>
+      <td>RFC 3161 TSA (real external clock; new trust root = the TSA's certificate chain;
+      ASN.1 verification this tokio-free agent has no dependency for) · transparency log
+      (strongest third-party proof, heaviest infrastructure) · countersigned custody times
+      from the archive operator (cheapest; only as strong as the operator's clock —
+      <code>submitted_at</code> already is this).</td>
+      <td>W1-delivery-gaps §2.1</td></tr>
+  <tr><td><strong>Network trust directory</strong></td>
+      <td>Signed directory files distributed out of band · organisational vouching ·
+      rotation semantics. Local TOFU pins shipped; the network form adds who-vouches as a
+      root.</td>
+      <td>W1-delivery-gaps §2.1, trust.rs</td></tr>
+  <tr><td><strong>Public model release</strong></td>
+      <td>exp06 is the only adapter whose corpus lineage (CC-BY-4.0) could support a public
+      research release with attribution and the recorded click-through conflict stated. The
+      WildGuard-trained four are <code>redistributable: False</code> per the registry.</td>
+      <td>datasets.py registry, this sweep</td></tr>
+</table></div>
+
+<h2>5. External blockers (Section B)</h2>
+
+<div class="tablewrap"><table>
+  <tr><th>Item</th><th>Blocked by</th><th>Cost</th></tr>
+  <tr><td><strong>Code-signing certificate</strong> (EV for Windows SmartScreen, Apple
+      Developer ID for Gatekeeper/notarisation)</td>
+      <td>Purchase — exactly what to buy is in <code>desktop/SIGNING.md</code></td>
+      <td>~$300–500/yr; reclassified pre-publication, blocks nothing in development</td></tr>
+  <tr><td><strong>macOS / Linux install observation</strong></td>
+      <td>A machine of each — installers are built by CI (all four legs green), never
+      installed or launched on those OSes</td>
+      <td>Free; RELEASING.md step 3 is the checklist</td></tr>
+  <tr><td><strong>§3.1 second-kernel validation</strong></td>
+      <td>Another kernel — bwrap confinement is verified on this one; a hardened distro
+      refuses bwrap outright (itself a finding)</td>
+      <td>Free</td></tr>
+</table></div>
+
+<h2>6. The order that closes the most first</h2>
+<ol>
+  <li><strong>Land Section A</strong> — the closing PR: fixes, trainers, results, findings,
+  state-doc rows. Everything else builds on the evidence being in the repo.</li>
+  <li><strong>C1 + C2</strong> (~90 min combined, free, local) — deploy the promoted adapter;
+  measure the 0.6B ExpGuard baseline. The fleet table completes.</li>
+  <li><strong>C3</strong> — the new adversarial ruler. Converts two noise verdicts into
+  answers.</li>
+  <li><strong>C4</strong> — extend the domain path per vertical, on Modal, in parallel.</li>
+  <li><strong>D1</strong> — the settle-record device binding, the last cryptographic gap in
+  the multi-user claim.</li>
+  <li>Everything else in D, in leverage order.</li>
+</ol>
+
+<footer>
+  <p>Every claim above is backed by an artifact in the repository or a command run this
+  session: five parity decision documents with digests, five evaluation result files, three
+  lane-export fixes with regression tests, and the corpus arithmetic in Finding 2. Nothing is
+  listed as done that a test, a gate verdict, or a command output does not show.</p>
+</footer>
+
+</div>
+</body>
+</html>
