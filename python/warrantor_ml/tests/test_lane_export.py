@@ -395,10 +395,18 @@ def test_the_modal_entrypoint_verifies_the_weights_landed_before_reporting_succe
 
 
 def test_the_modal_entrypoint_refuses_to_overwrite_an_existing_adapter() -> None:
-    """An adapter replaced by a later run is indistinguishable from one that trained badly."""
+    """An adapter replaced by a later run is indistinguishable from one that trained badly.
+
+    Updated with the preemption fix: the guard refuses only when a COMPLETED run exists
+    (`run_record.json` is written after training, weight verification and volume commit). A
+    bare directory is the residue of a preempted container — which Modal restarts with the
+    same input — and the old any-directory guard turned every preemption into a dead app that
+    collided with its own partial output.
+    """
 
     text = _modal_text()
-    assert "already exists on the volume" in text
+    assert "holds a completed run" in text
+    assert "run_record.json" in text
     assert "run_id" in text
 
 
