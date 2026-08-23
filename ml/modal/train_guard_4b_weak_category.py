@@ -1,124 +1,6 @@
-"""Render the standalone Kaggle and Modal runners from a recipe, rather than hand-writing them.
-
-``ml/README.md`` states the rule this module exists to satisfy: ``tools/ci/run_python_checks.py``
-discovers projects by globbing ``python/*/pyproject.toml``, so nothing under ``ml/`` is ever
-linted, formatted or tested. Code that lives there is unverified, which is the anti-pattern
-``rust/self-governance`` exists to name. A Modal entrypoint hand-written under ``ml/`` would be
-the same mistake with a different filename.
-
-So the lane scripts are *generated* from linted package code, the way ``deploy_model`` already
-generates a Rust adapter from Python. The generator is inside the gate; its output is a file the
-orchestrator uploads. Tests ``compile()`` the generated text and assert it retains the three
-behaviours that must survive any edit to the template: no CPU fallback, the fp16 calibration
-warning on the Kaggle lanes, and the gated-data message.
-
-Compiling is not running, and that gap cost a session
------------------------------------------------------
-Putting the generator inside the gate says nothing about whether its output works. The first
-version of this template tokenised prompt+target into a dataset with no ``labels`` column and
-handed it to ``Trainer`` with no data collator: valid Python, three refusals intact, and dead at
-step 0 with *"The model did not return a loss"* -- after the download and the quantisation, with
-the Kaggle session already spent. That is precisely the wasted session ``lanes.py`` exists to
-prevent, arriving through the one part of the runner nothing asserted anything about.
-
-The data path is therefore written as pure functions -- :func:`build_training_rows` and
-:func:`pad_batch` in the generated text -- that take and return plain Python. The test suite
-``exec``s the generated script and calls them with a stub tokenizer, so the code that will run on
-the lane is exercised in CI without a GPU, without a corpus and without the ``train`` extra.
-
-**Nothing here executes or dispatches anything.** :func:`render_modal_entrypoint` produces text
-containing Modal decorators; it does not import ``modal``, does not authenticate, and does not
-submit a job. Running it is the orchestrator's decision, not this module's.
-"""
-
-from __future__ import annotations
-
-import json
-from typing import Any
-
-from ._canonical import canonical_json, sha256_text
-from .lanes import LaneResolution
-from .recipes import Recipe
-
-__all__ = [
-    "GATED_DATA_MESSAGE",
-    "NO_CPU_FALLBACK_MESSAGE",
-    "NO_TRAINABLE_ROWS_MESSAGE",
-    "render_kaggle_script",
-    "render_modal_entrypoint",
-]
-
-#: Must survive into every generated script. Asserted by a test, because the whole reason the
-#: original Kaggle script says this is that a silent CPU fallback produces an artifact nobody
-#: can tell apart from a real one until it is in front of a deny gate.
-NO_CPU_FALLBACK_MESSAGE = (
-    "FATAL: no CUDA device is available.\\n\\n"
-    "This script has NO CPU fallback by design. A guard-model fine-tune that silently drops to "
-    "CPU does not fail -- it appears to work, takes days, and produces an artifact "
-    "indistinguishable from a real one until it is in front of a deny gate."
-)
-
-#: Also required in every generated script. Both corpora are gated behind auto-approved
-#: click-through forms and there is no anonymous download path; a script that fails with a bare
-#: HTTP 401 wastes a session on a problem whose fix is a manual human step.
-GATED_DATA_MESSAGE = (
-    "WildGuardMix and ExpGuardMix are GATED. Accept the form on the Hub and set HF_TOKEN, or "
-    "attach the parquet as a dataset input. There is no anonymous download path."
-)
-
-#: Emitted when tokenisation leaves nothing to train on -- every row's target overflowed
-#: SEQUENCE_LENGTH, or the corpus is not in the prompt/target shape the recipe was built for.
-#: An empty training set does not fail; Trainer runs zero steps and saves an untrained adapter
-#: that is indistinguishable from a trained one until it is in front of a deny gate. That is the
-#: same failure NO_CPU_FALLBACK_MESSAGE exists to prevent, arriving through the data path.
-NO_TRAINABLE_ROWS_MESSAGE = (
-    "FATAL: tokenising the corpus produced no trainable rows.\\n\\n"
-    "Every row was dropped -- either the corpus is not in the {prompt, target} shape this recipe "
-    "was built for, or every target overflowed SEQUENCE_LENGTH. Training zero rows would save an "
-    "UNTRAINED adapter that looks exactly like a trained one. Check the corpus with "
-    "`warrantor-ml-build-corpus --describe-only` before spending the session again."
-)
-
-#: Emitted on lanes with no bf16. A guard model's product is a calibrated logit and fp16 loss
-#: scaling is exactly where calibration goes quietly wrong.
-FP16_CALIBRATION_WARNING = (
-    "WARNING: this lane has NO bf16. Qwen3Guard ships torch_dtype=bfloat16, so weights are cast "
-    "to fp16 and training inherits fp16 loss-scaling behaviour. A guard model's product is a "
-    "CALIBRATED LOGIT -- verify loss-scale stability on a short run before committing the "
-    "weekly budget, and do not compare this adapter against a bf16-measured baseline."
-)
-
-
-def _run_manifest(recipe: Recipe, resolution: LaneResolution) -> dict[str, Any]:
-    """The block every generated script writes beside its adapter.
-
-    Carrying the recipe digest, the lane and the precision into the artifact is what lets the
-    parity gate refuse a cross-lane comparison later. A run record that omits them describes a
-    result nobody can place.
-    """
-
-    return {
-        "recipe_id": recipe.recipe_id,
-        "recipe_digest": recipe.recipe_digest,
-        "lane": resolution.lane.key,
-        "precision": resolution.precision,
-        "precision_reason": resolution.precision_reason,
-        "estimated_vram_gib": resolution.estimated_vram_gib,
-        "estimated_hours": resolution.estimated_hours,
-        "save_steps": resolution.save_steps,
-        "warnings": list(resolution.warnings),
-    }
-
-
-def _shared_preamble(recipe: Recipe, resolution: LaneResolution) -> str:
-    """The header, the refusals and the run manifest, shared by both lane templates."""
-
-    lane = resolution.lane
-    manifest = json.dumps(_run_manifest(recipe, resolution), indent=4)
-    fp16_block = f'print("""{FP16_CALIBRATION_WARNING}""")\n' if not lane.supports_bf16 else ""
-    return f'''#!/usr/bin/env python3
+#!/usr/bin/env python3
 """GENERATED -- do not edit. Rendered by warrantor_ml.lane_export from recipe
-{recipe.recipe_id!r} for lane {lane.key!r}.
+'guard-4b-weak-category' for lane 'modal-a100'.
 
 Edit the recipe in python/warrantor_ml/src/warrantor_ml/recipes.py and regenerate. This file is
 deliberately standalone: the lane does not have this repository checked out, so it imports
@@ -126,7 +8,7 @@ nothing from warrantor_ml. It is generated rather than hand-written because code
 never discovered by tools/ci/run_python_checks.py -- no ruff, no pytest -- and an ungoverned
 code surface inside a governance substrate is the anti-pattern rust/self-governance names.
 
-Recipe digest: {recipe.recipe_digest}
+Recipe digest: sha256:e8ef70cfce0cfc44fbca69e4f0002cd795fe51d86b848963aa2f4d2ea0b7614a
 """
 
 from __future__ import annotations
@@ -142,28 +24,40 @@ from pathlib import Path
 # cleanly and then died with `NameError: name 'null' is not defined` the moment it was imported.
 # A test that only compiles the text cannot see that; one that executes it can.
 RUN_MANIFEST = json.loads(
-    """{manifest}"""
+    """{
+    "recipe_id": "guard-4b-weak-category",
+    "recipe_digest": "sha256:e8ef70cfce0cfc44fbca69e4f0002cd795fe51d86b848963aa2f4d2ea0b7614a",
+    "lane": "modal-a100",
+    "precision": "bf16",
+    "precision_reason": "sm_8x supports bf16 natively; matching the base model's dtype.",
+    "estimated_vram_gib": 8.575,
+    "estimated_hours": 6.11,
+    "save_steps": null,
+    "warnings": [
+        "wildguardmix is GATED on Hugging Face. Accept the form and export a read token before this run, or the data step fails with HTTP 401. Run `warrantor-ml-datasets --preflight` first."
+    ]
+}"""
 )
 
-BASE_REPO = "{recipe.config.profile().repo_id}"
-TARGET_MODULES = {list(recipe.config.profile().target_modules)!r}
-SEQUENCE_LENGTH = {recipe.config.sequence_length}
-BATCH_SIZE = {recipe.config.batch_size}
-GRAD_ACCUM = {recipe.config.gradient_accumulation_steps}
-LEARNING_RATE = {recipe.config.learning_rate}
-EPOCHS = {recipe.config.epochs}
-LORA_RANK = {recipe.config.lora_rank}
-LORA_ALPHA = {recipe.config.lora_alpha}
-SEED = {recipe.config.seed}
-SAVE_STEPS = {resolution.save_steps!r}
-PRECISION = "{resolution.precision}"
-SUPERVISE_SEVERITY = {recipe.config.supervise_severity!r}
+BASE_REPO = "Qwen/Qwen3Guard-Gen-4B"
+TARGET_MODULES = ['q_proj', 'k_proj', 'v_proj', 'o_proj', 'gate_proj', 'up_proj', 'down_proj']
+SEQUENCE_LENGTH = 2048
+BATCH_SIZE = 2
+GRAD_ACCUM = 8
+LEARNING_RATE = 0.0001
+EPOCHS = 1.0
+LORA_RANK = 16
+LORA_ALPHA = 32
+SEED = 20260813
+SAVE_STEPS = None
+PRECISION = "bf16"
+SUPERVISE_SEVERITY = True
 
-NO_GPU_MESSAGE = """{NO_CPU_FALLBACK_MESSAGE}"""
+NO_GPU_MESSAGE = """FATAL: no CUDA device is available.\n\nThis script has NO CPU fallback by design. A guard-model fine-tune that silently drops to CPU does not fail -- it appears to work, takes days, and produces an artifact indistinguishable from a real one until it is in front of a deny gate."""
 
-GATED_DATA_MESSAGE = """{GATED_DATA_MESSAGE}"""
+GATED_DATA_MESSAGE = """WildGuardMix and ExpGuardMix are GATED. Accept the form on the Hub and set HF_TOKEN, or attach the parquet as a dataset input. There is no anonymous download path."""
 
-NO_TRAINABLE_ROWS_MESSAGE = """{NO_TRAINABLE_ROWS_MESSAGE}"""
+NO_TRAINABLE_ROWS_MESSAGE = """FATAL: tokenising the corpus produced no trainable rows.\n\nEvery row was dropped -- either the corpus is not in the {prompt, target} shape this recipe was built for, or every target overflowed SEQUENCE_LENGTH. Training zero rows would save an UNTRAINED adapter that looks exactly like a trained one. Check the corpus with `warrantor-ml-build-corpus --describe-only` before spending the session again."""
 
 
 def require_cuda() -> None:
@@ -194,22 +88,7 @@ def load_pairs(path: Path) -> list[dict]:
     return rows
 
 
-{fp16_block}'''
 
-
-def _training_body() -> str:
-    """The training call, identical on both lanes so a lane cannot change the arithmetic.
-
-    The data path is deliberately split into two pure functions -- ``build_training_rows`` and
-    ``pad_batch`` -- that take plain Python and return plain Python. Neither imports torch,
-    transformers or datasets, so ``test_lane_export`` can execute the GENERATED script and
-    exercise the exact code that will run on the lane, without a GPU and without the ``train``
-    extra installed. Asserting that the text ``compile()``s proves the file parses; it proves
-    nothing about whether the dataset it builds can be trained on, and the first version of this
-    template died at step 0 with "The model did not return a loss" for exactly that reason.
-    """
-
-    return '''
 #: Positions the loss ignores. Any value torch's cross-entropy treats as "skip"; -100 is the
 #: convention every transformers example uses and the one the Trainer expects.
 LABEL_MASK = -100
@@ -240,7 +119,7 @@ def build_training_rows(pairs: list[dict], tokenizer) -> list[dict]:
     eos = getattr(tokenizer, "eos_token_id", None)
     rows = []
     for pair in pairs:
-        prompt_ids = list(tokenizer(pair["prompt"] + "\\n", add_special_tokens=False)["input_ids"])
+        prompt_ids = list(tokenizer(pair["prompt"] + "\n", add_special_tokens=False)["input_ids"])
         target_ids = list(tokenizer(pair["target"], add_special_tokens=False)["input_ids"])
         if eos is not None:
             target_ids = target_ids + [eos]
@@ -254,9 +133,9 @@ def build_training_rows(pairs: list[dict], tokenizer) -> list[dict]:
         # BPE token can straddle the newline and a character offset would mask a partial token.
         supervised_from = 0
         if not SUPERVISE_SEVERITY:
-            severity_line, _, _ = pair["target"].partition("\\n")
+            severity_line, _, _ = pair["target"].partition("\n")
             supervised_from = len(
-                tokenizer(severity_line + "\\n", add_special_tokens=False)["input_ids"]
+                tokenizer(severity_line + "\n", add_special_tokens=False)["input_ids"]
             )
             # Drop a row whose target is severity and nothing else. The comparison allows for the
             # appended eos: supervising only "stop here" is not a training signal, and an
@@ -421,65 +300,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--dry-run", action="store_true", help="print the plan and exit")
     return parser
-'''
 
-
-def render_kaggle_script(recipe: Recipe, resolution: LaneResolution) -> str:
-    """Render the standalone Kaggle notebook script for a recipe.
-
-    Kaggle sessions are killed at 12 hours, so the generated script always takes
-    ``--resume-from`` and always writes checkpoints at the interval
-    :func:`warrantor_ml.lanes.resolve` computed. That is the difference between a killed session
-    costing an hour and costing the week's budget.
-    """
-
-    if not resolution.lane.key.startswith("kaggle"):
-        raise ValueError(
-            f"render_kaggle_script was given lane {resolution.lane.key!r}. Resolve the recipe "
-            "against a kaggle lane first -- the session cap and the precision differ, and a "
-            "script that claims the wrong lane produces a run record that lies about it."
-        )
-    return (
-        _shared_preamble(recipe, resolution)
-        + _training_body()
-        + '''
-
-def main(argv: list[str] | None = None) -> int:
-    """Entry point. On Kaggle: Settings -> Accelerator -> GPU T4 x2 or P100, then run."""
-
-    arguments = build_parser().parse_args(argv)
-    print(json.dumps(RUN_MANIFEST, indent=2))
-    if arguments.dry_run:
-        print("PLAN ONLY -- no GPU was touched and no training was performed.")
-        return 0
-    written = train(arguments.corpus, arguments.output_dir, arguments.resume_from)
-    print(f"adapter: {written}")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-'''
-    )
-
-
-def render_modal_entrypoint(recipe: Recipe, resolution: LaneResolution) -> str:
-    """Render the Modal entrypoint for a recipe. Produces text; dispatches nothing.
-
-    The generated file declares a Modal app and a GPU function. This module does not import
-    ``modal`` -- it is an optional extra and CI does not install it -- and calling
-    ``modal run`` is the orchestrator's decision.
-    """
-
-    lane = resolution.lane
-    if lane.key != "modal-a100":
-        raise ValueError(
-            f"render_modal_entrypoint was given lane {lane.key!r}; resolve against modal-a100."
-        )
-    return (
-        _shared_preamble(recipe, resolution)
-        + _training_body()
-        + f'''
 
 # Modal wiring. Declaring an app is not running one: this file is uploaded by the orchestrator
 # and invoked with `modal run`. Nothing in warrantor_ml dispatches it.
@@ -504,7 +325,7 @@ if modal is not None:
         "trl>=0.9",
         "bitsandbytes>=0.46.1",
     )
-    APP = modal.App("warrantor-{recipe.recipe_id}")
+    APP = modal.App("warrantor-guard-4b-weak-category")
 
     # The adapter outlives the container or the run bought nothing. A Modal function's
     # filesystem is ephemeral: writing weights to /tmp and returning a run record produces a
@@ -520,7 +341,7 @@ if modal is not None:
         image=IMAGE,
         gpu="A100-80GB",
         timeout=60 * 60 * 8,
-        volumes={{str(ADAPTER_ROOT): ADAPTER_VOLUME}},
+        volumes={str(ADAPTER_ROOT): ADAPTER_VOLUME},
     )
     def train_remote(corpus_bytes: bytes, run_id: str) -> dict:
         """Train on a Modal A100, persist the adapter, and return the run record.
@@ -536,7 +357,7 @@ if modal is not None:
 
         corpus = Path("/tmp/corpus.jsonl")
         corpus.write_bytes(corpus_bytes)
-        output = ADAPTER_ROOT / "{recipe.recipe_id}" / run_id
+        output = ADAPTER_ROOT / "guard-4b-weak-category" / run_id
         # Refuse only when the directory holds a COMPLETED run (run_record.json is written
         # after training, weight verification and volume commit). A bare directory is the
         # residue of an interrupted attempt -- a preempted container, which Modal restarts
@@ -547,7 +368,7 @@ if modal is not None:
         # this now allows.
         if (output / "run_record.json").exists():
             raise SystemExit(
-                f"refusing to train: {{output}} holds a completed run. Pick a new "
+                f"refusing to train: {output} holds a completed run. Pick a new "
                 "run_id rather than overwriting an adapter whose evaluation may already be "
                 "recorded against its digest."
             )
@@ -560,7 +381,7 @@ if modal is not None:
         weights = sorted(output.glob("adapter_model.*"))
         if not weights:
             raise SystemExit(
-                f"trained, but no adapter weights are present at {{output}} after commit. "
+                f"trained, but no adapter weights are present at {output} after commit. "
                 "The run record would otherwise report success for a session that produced "
                 "no model."
             )
@@ -589,16 +410,16 @@ if modal is not None:
 
         corpus_path = Path(corpus)
         if not corpus_path.is_file():
-            raise SystemExit(f"no corpus at {{corpus_path}} -- build it before dispatching a run.")
+            raise SystemExit(f"no corpus at {corpus_path} -- build it before dispatching a run.")
 
         record = train_remote.remote(corpus_path.read_bytes(), run_id)
         text = json.dumps(record, indent=2)
         print(text)
         destination = Path(record_out) if record_out else corpus_path.with_name(
-            f"run_record_{{run_id}}.json"
+            f"run_record_{run_id}.json"
         )
-        destination.write_text(text + "\\n", encoding="utf-8")
-        print(f"run record: {{destination}}")
+        destination.write_text(text + "\n", encoding="utf-8")
+        print(f"run record: {destination}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -610,17 +431,9 @@ def main(argv: list[str] | None = None) -> int:
         print("PLAN ONLY -- no GPU was touched and no training was performed.")
         return 0
     written = train(arguments.corpus, arguments.output_dir, arguments.resume_from)
-    print(f"adapter: {{written}}")
+    print(f"adapter: {written}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-'''
-    )
-
-
-def script_digest(text: str) -> str:
-    """Digest of a generated script, so a run record can pin the exact file that ran."""
-
-    return sha256_text(canonical_json({"script": text}))
