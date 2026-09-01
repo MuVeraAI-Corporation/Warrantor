@@ -112,9 +112,31 @@ def test_a_resume_checkpoint_permits_a_run_over_the_cap() -> None:
     assert resolution.save_steps is not None
 
 
-def test_no_session_cap_means_no_save_steps_contract() -> None:
+def test_a_lane_that_cannot_be_interrupted_needs_no_save_steps() -> None:
+    """The local lane has no cap AND cannot be preempted, so checkpointing buys nothing.
+
+    Named for the real rule. This test used to be called `no_session_cap_means_no_save_steps`,
+    which stated the WRONG contract -- it passed only because the lane it happens to use is also
+    not preemptible. See the test below for the case that name let through.
+    """
     resolution = resolve(_small_config(), "local-rtx5080", corpus_rows=500)
+    assert LANES["local-rtx5080"].preemptible is False
     assert resolution.save_steps is None
+
+
+def test_a_preemptible_lane_checkpoints_even_without_a_session_cap() -> None:
+    """The regression that cost a run on 2026-09-01.
+
+    Modal declares no session cap, so the old rule gave it `save_steps = None`. It then preempted
+    a T1 arm at step 323 of 705 and restarted from step 1 -- with no checkpoint to resume from,
+    the grant paid for 46% of a run twice and kept none of it. A cap is a deadline; preemption is
+    an unpredictable kill. Both need checkpoints, and only the first used to get them.
+    """
+    lane = LANES["modal-a100"]
+    assert lane.session_cap_hours is None and lane.preemptible is True
+    resolution = resolve(_small_config(), "modal-a100", corpus_rows=11_272)
+    assert resolution.save_steps is not None, "a preemptible lane must checkpoint"
+    assert resolution.save_steps > 0
 
 
 def test_exceeding_the_weekly_budget_is_a_warning_not_a_refusal() -> None:

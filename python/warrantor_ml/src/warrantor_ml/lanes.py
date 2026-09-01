@@ -75,6 +75,16 @@ class Lane:
     weekly_budget_hours: float | None
     throughput_tokens_per_second: float
     device_count: int
+    #: True when the lane can terminate a run at any moment without warning.
+    #:
+    #: DISTINCT FROM ``session_cap_hours``, and conflating the two cost a run. A cap is a known
+    #: deadline you can plan segments around; preemption is an unpredictable kill. Modal has no
+    #: cap and preempts anyway -- observed 2026-09-01, when a container died at step 323 of 705
+    #: with ``Container terminated due to preemption`` and restarted from step 1, because
+    #: ``save_steps`` was ``None`` on the reasoning that a lane without a cap cannot be
+    #: interrupted. It can.
+    preemptible: bool = False
+
     notes: tuple[str, ...] = ()
 
     @property
@@ -141,6 +151,7 @@ LANES: dict[str, Lane] = {
         usable_vram_gib=78.0,
         supports_bf16=True,
         compute_capability=(8, 0),
+        preemptible=True,
         session_cap_hours=None,
         weekly_budget_hours=None,
         throughput_tokens_per_second=3600.0,
@@ -262,17 +273,28 @@ def resolve(
 
     hours = _estimated_hours(config, lane, corpus_rows)
     save_steps: int | None = None
-    if lane.session_cap_hours is not None:
+    if lane.session_cap_hours is not None or lane.preemptible:
         steps_per_epoch = max(
             1, corpus_rows // max(config.batch_size * config.gradient_accumulation_steps, 1)
         )
         total_steps = max(1, int(steps_per_epoch * max(config.epochs, 1.0)))
-        # Aim for a checkpoint roughly every tenth of a session cap, so at most ~1.2 hours of
-        # compute is lost to a kill. Bounded below so a short run does not checkpoint every step.
-        segments = max(1, int(hours / (lane.session_cap_hours / 10)) or 1)
+        if lane.session_cap_hours is not None:
+            # Aim for a checkpoint roughly every tenth of a session cap, so at most ~1.2 hours of
+            # compute is lost to a kill. Bounded below so a short run does not checkpoint every
+            # step.
+            segments = max(1, int(hours / (lane.session_cap_hours / 10)) or 1)
+        else:
+            # A preemptible lane has no deadline to divide, so divide the RUN instead: ten
+            # checkpoints means a preemption costs at most a tenth of the work. The alternative
+            # is what happened on 2026-09-01 -- a kill at 46% that cost all of it.
+            segments = 10
         save_steps = max(20, total_steps // max(segments, 1))
 
-        if hours > lane.session_cap_hours and resume_from is None:
+        if (
+            lane.session_cap_hours is not None
+            and hours > lane.session_cap_hours
+            and resume_from is None
+        ):
             raise LaneUnsuitableError(
                 f"estimated {hours:.1f} h exceeds {lane.key}'s {lane.session_cap_hours:.0f} h "
                 "session cap and no --resume-from was given. The session WILL be killed and the "
