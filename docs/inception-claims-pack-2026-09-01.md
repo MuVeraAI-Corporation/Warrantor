@@ -69,10 +69,14 @@ is free and non-exclusive; there is no reason to sequence them behind anything.
 
 ---
 
-## What I still need from you
+## Confirmed by the owner, 2026-09-01
 
-- **AWS account contact email** — confirm it is `vikram@muveraai.com` and not a
-  gmail address, before the AWS application.
-- **Institutional funding position** — I have assumed bootstrapped from the
-  Founders Hub milestone documentation. If you have raised, the AWS $25k tier and
-  parts of Google Cloud's banding change.
+- **Bootstrapped** — no institutional funding. This is why the AWS $100k tier is
+  out of reach and why the $10k Start Tier is the correct application. It is also
+  why the Founders Hub ladder matters: that track explicitly does **not** require
+  institutional funding, and progresses on technical usage alone.
+- **AWS account contact email is correct** (`vikram@muveraai.com`, not a generic
+  domain), so the most common decline cause does not apply.
+
+Both were the open questions blocking the AWS application. Nothing else is
+outstanding on the claims.

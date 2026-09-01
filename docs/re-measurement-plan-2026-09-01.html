@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Re-measurement Plan</title>
+<style>
+  :root {
+    --bg:#faf9f7; --panel:#fff; --ink:#191817; --ink-soft:#4a4642; --ink-faint:#75706a;
+    --line:#e6e1da; --line-strong:#d0c9c0; --accent:#c2571f; --accent-soft:#fdf3ec;
+    --ok:#1f6b4a; --ok-bg:#edf6f1; --bad:#9c2a1e; --bad-bg:#fbeeec; --warn:#8a6100; --warn-bg:#fdf5e3;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:"Söhne",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#1a1917;--panel:#232120;--ink:#f2efea;--ink-soft:#c4bdb4;--ink-faint:#948d84;
+    --line:#35322f;--line-strong:#4a4642;--accent:#e07a42;--accent-soft:#2c2320;
+    --ok:#6fc79b;--ok-bg:#1c2a24;--bad:#e08a7d;--bad-bg:#2c2120;--warn:#d9ad5a;--warn-bg:#2a2419;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:60px 28px 140px}
+  header{border-bottom:1px solid var(--line);padding-bottom:30px;margin-bottom:10px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 14px}
+  h1{font-size:38px;line-height:1.14;margin:0 0 18px;font-weight:600;letter-spacing:-.025em}
+  .standfirst{font-size:20px;color:var(--ink-soft);margin:0;line-height:1.5}
+  .meta{font-size:13px;color:var(--ink-faint);margin-top:20px;font-family:var(--mono)}
+  h2{font-size:27px;margin:60px 0 8px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+  .h2sub{color:var(--ink-faint);font-size:15px;margin:0 0 22px}
+  h3{font-size:19px;margin:34px 0 10px;font-weight:600}
+  h4{font-size:16.5px;margin:24px 0 8px;font-weight:600;color:var(--ink-soft)}
+  p{margin:0 0 17px}
+  code{font-family:var(--mono);font-size:.85em;background:var(--accent-soft);padding:1px 6px;border-radius:4px}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.55}
+  pre code{background:none;padding:0}
+  .pull{border-left:3px solid var(--accent);padding:4px 0 4px 22px;margin:30px 0;font-size:21px;line-height:1.45;font-weight:500}
+  .callout{border-radius:10px;padding:20px 24px;margin:26px 0;border:1px solid}
+  .callout p:last-child{margin-bottom:0}
+  .callout .label{font-weight:600;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:8px}
+  .stop{background:var(--bad-bg);border-color:var(--bad)} .stop .label{color:var(--bad)}
+  .warn{background:var(--warn-bg);border-color:var(--warn)} .warn .label{color:var(--warn)}
+  .good{background:var(--ok-bg);border-color:var(--ok)} .good .label{color:var(--ok)}
+  .note{background:var(--panel);border-color:var(--line-strong)} .note .label{color:var(--accent)}
+  .tablewrap{overflow-x:auto;margin:24px 0 30px}
+  table{border-collapse:collapse;width:100%;font-size:15.5px}
+  th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  ul,ol{margin:0 0 17px;padding-left:24px} li{margin-bottom:9px}
+  .steps{counter-reset:s;list-style:none;padding-left:0}
+  .steps>li{counter-increment:s;position:relative;padding-left:46px;margin-bottom:22px}
+  .steps>li::before{content:counter(s);position:absolute;left:0;top:1px;width:30px;height:30px;border-radius:50%;
+    background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;border:1px solid var(--accent)}
+  .steps h3,.steps h4{margin:0 0 6px}
+  .footnote{font-size:14.5px;color:var(--ink-faint);border-top:1px solid var(--line);padding-top:22px;margin-top:54px}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 26px;margin:32px 0 8px}
+  .toc ol{margin:0;padding-left:20px;font-size:15.5px} .toc li{margin-bottom:6px}
+  .toc a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line-strong)}
+  .toc a:hover{border-bottom-color:var(--accent);color:var(--accent)}
+  .big{font-family:var(--mono);font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Plan only · nothing has been run</p>
+  <h1>Batch inference does not buy you a bigger corpus. Here is what it does buy.</h1>
+  <p class="standfirst">
+    I recommended &ldquo;re-measure every published figure at scale, turning 14-case benches into
+    properly powered measurements.&rdquo; Reading the pinned baselines shows that recommendation was
+    half wrong: the corpus figures are <em>already</em> full-split with no sampling, and no amount
+    of compute adds a row to them. This plan is what re-measurement can actually deliver.
+  </p>
+  <p class="meta">1 September 2026 · plan for approval · no execution, no spend</p>
+</header>
+
+<div class="toc">
+  <ol>
+    <li><a href="#wrong">What I got wrong, and the real constraint</a></li>
+    <li><a href="#current">What is measured today, and how precisely</a></li>
+    <li><a href="#buys">What compute actually buys</a></li>
+    <li><a href="#runs">The five runs, specified</a></li>
+    <li><a href="#registration">Pre-registration, and what it must include this time</a></li>
+    <li><a href="#cost">Cost, and how it is bounded</a></li>
+    <li><a href="#fail">How this fails, and what I would do</a></li>
+    <li><a href="#approve">What you are approving</a></li>
+  </ol>
+</div>
+
+<h2 id="wrong">1. What I got wrong, and the real constraint</h2>
+<p class="h2sub">Correcting my own recommendation before acting on it</p>
+
+<p>
+  <code>baselines.py</code> says it in its own words: the pinned figures are measured
+  <strong>&ldquo;over the full held-out splits with no sampling&rdquo;</strong>, stored as counts
+  rather than rates, with a corpus digest over dataset identity and split file.
+</p>
+
+<div class="callout stop">
+  <span class="label">The constraint nothing can spend its way past</span>
+  <p>
+    <strong>WildGuardTest has 341 adversarial positives. In total. That is the corpus.</strong>
+    The 0.8152 adversarial recall is 278 caught of 341 — every one there is. ExpGuardTest has 1,256
+    positives, all used.
+  </p>
+  <p>
+    Halving a confidence interval requires roughly <strong>four times</strong> the sample. There is
+    no fourth WildGuardTest. Running the same split again on an H100 produces the same 341
+    denominators, faster.
+  </p>
+</div>
+
+<p class="pull">
+  Compute buys repeated runs, additional conditions, and judging throughput. It does not buy
+  statistical power on a fixed corpus, and a plan that promises otherwise is selling arithmetic that
+  does not exist.
+</p>
+
+<h2 id="current">2. What is measured today, and how precisely</h2>
+<p class="h2sub">Wilson intervals computed from the pinned counts</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Slice</th><th>Point</th><th>Counts</th><th>95% Wilson CI</th><th>Width</th></tr></thead>
+  <tbody>
+    <tr><td>WildGuard overall recall</td><td class="num">0.8552</td><td class="num">644 / 753</td><td class="num">[0.828, 0.879]</td><td class="num">0.050</td></tr>
+    <tr><td><strong>WildGuard adversarial recall</strong></td><td class="num">0.8152</td><td class="num">278 / 341</td><td class="num">[0.771, 0.853]</td><td class="num"><strong>0.082</strong></td></tr>
+    <tr><td>WildGuard plain recall</td><td class="num">0.8883</td><td class="num">366 / 412</td><td class="num">[0.854, 0.915]</td><td class="num">0.061</td></tr>
+    <tr><td>WildGuard adversarial FPR</td><td class="num">0.0923</td><td class="num">42 / 455</td><td class="num">[0.069, 0.122]</td><td class="num">0.053</td></tr>
+    <tr><td>ExpGuard overall recall</td><td class="num">0.7596</td><td class="num">954 / 1256</td><td class="num">[0.735, 0.782]</td><td class="num">0.047</td></tr>
+    <tr><td><strong><code>guard bench</code> local smoke</strong></td><td class="num">0.875</td><td class="num">7 / 8</td><td class="num"><strong>[0.529, 0.978]</strong></td><td class="num"><strong>0.448</strong></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout note">
+  <span class="label">Read the last row against the others</span>
+  <p>
+    The corpus figures are already tight — a 5 to 8 point interval on a fixed split. The only
+    genuinely under-powered number is <code>guard bench</code>'s local smoke set, whose interval is
+    <strong>0.448 wide</strong> and spans from &ldquo;barely better than a coin&rdquo; to
+    &ldquo;near perfect&rdquo;. That one is a <em>configuration check</em>, not a measurement, and
+    it should never be quoted as one.
+  </p>
+</div>
+
+<h2 id="buys">3. What compute actually buys</h2>
+<p class="h2sub">Four things, all real, none of them &ldquo;more corpus&rdquo;</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>What</th><th>Why it needs compute</th><th>Which paper it serves</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Repeated runs at fixed configuration</strong></td>
+      <td>The reproducibility floor is a property of <em>variance across runs</em>. One run cannot measure it; ten can. This is the one place where more compute is more statistics.</td>
+      <td><strong>P1</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Additional conditions on the same corpus</strong></td>
+      <td>Quantisation ladders, temperature settings, context windows — each is a full re-run of a fixed split. The corpus does not grow; the number of measured configurations does.</td>
+      <td><strong>P8</strong>, T-03</td>
+    </tr>
+    <tr>
+      <td><strong>Alternative labelling regimes</strong></td>
+      <td>The gap [LayeredEns] §11.6 exposed: survivors depend on the labelling regime. Majority-of-N grader labels means N judge calls per item — the single largest token consumer here, and exactly what GlobalBatch is for.</td>
+      <td><strong>P6</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Verification that the pinned baselines still reproduce</strong></td>
+      <td>Not new statistics — a regression test on published numbers. It is how a <code>num_ctx</code> drift gets caught in a day instead of eight releases.</td>
+      <td>All</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="runs">4. The five runs, specified</h2>
+<p class="h2sub">Ordered by value per token, with the stop condition for each</p>
+
+<ol class="steps">
+  <li>
+    <h3>R1 — Baseline reproduction (no new claim)</h3>
+    <p><strong>What:</strong> Re-run all four pinned baselines at their recorded configuration —
+    <code>Qwen3Guard-Gen-4B-GGUF:Q4_K_M</code> and the 0.6B, via Ollama, <code>num_ctx</code> 8192,
+    seed 0, temperature 0, <code>controversial_is_harmful=true</code>, fail-closed.</p>
+    <p><strong>Success:</strong> counts match the pinned values exactly. <strong>Failure is the
+    interesting outcome</strong> — it means something drifted, and finding that is worth more than
+    the run costs.</p>
+    <p><strong>Compute:</strong> local. ~4,000 items across both corpora and both models. No cloud
+    spend. <strong>This runs first and gates everything else.</strong></p>
+  </li>
+  <li>
+    <h3>R2 — Replace the 8-case smoke bench</h3>
+    <p><strong>What:</strong> The only genuinely under-powered figure. Build a real held-out case
+    file — several hundred items drawn from the same distribution as the deployed traffic, not from
+    WildGuard — so <code>guard bench</code> reports an interval a person can act on.</p>
+    <p><strong>Why it matters:</strong> at 7/8 the interval is [0.529, 0.978]. Any product decision
+    made on that number is being made on nothing.</p>
+    <p><strong>Compute:</strong> local for the guard; batch for any judging of the new items.</p>
+  </li>
+  <li>
+    <h3>R3 — P6's labelling-regime check <em>(the submission blocker)</em></h3>
+    <p><strong>What:</strong> Re-run the §5.5b difficulty stratification under
+    <strong>majority-of-N grader labels</strong>, matching [LayeredEns] §11.6's own regime, and
+    report whether P6's 10-of-15 survives.</p>
+    <p><strong>Why it is first among the new work:</strong> P6 currently makes a mechanism claim —
+    that association tracks training-family lineage — while its prior art explicitly
+    <em>declines</em> a mechanism claim <strong>because survivors were regime-unstable</strong>. If
+    P6's 10/15 is also unstable, the mechanism claim has the problem they backed away from. This is
+    the difference between a submittable paper and a retraction.</p>
+    <p><strong>Compute:</strong> N judge calls per item on GlobalBatch. Largest token consumer of
+    the five, and the reason batch exists.</p>
+  </li>
+  <li>
+    <h3>R4 — P1's reproducibility floor, properly replicated</h3>
+    <p><strong>What:</strong> Ten identical runs at fixed configuration, measuring run-to-run verdict
+    agreement. The one case where compute genuinely converts into statistics.</p>
+    <p><strong>Note:</strong> P1's figures sit at 0.9980–0.9993 — near ceiling. Distinguishing
+    0.9980 from 0.9993 requires large n <em>and</em> repeated runs, because at that scale a handful
+    of flips moves the fourth decimal.</p>
+  </li>
+  <li>
+    <h3>R5 — P8's quantisation ladder at full split</h3>
+    <p><strong>What:</strong> P8 currently runs at <code>n = 1,000</code>. Take it to the full split
+    and add the deployed <code>Q4_K_M</code> rung explicitly, since that is what actually serves
+    traffic.</p>
+    <p><strong>This is the one place &ldquo;more n&rdquo; is genuinely available</strong> — because
+    P8 subsampled, unlike the baselines.</p>
+  </li>
+</ol>
+
+<h2 id="registration">5. Pre-registration, and what it must include this time</h2>
+<p class="h2sub">Two lessons already paid for</p>
+
+<div class="callout warn">
+  <span class="label">Lesson 1 — register the significance test, not just the direction</span>
+  <p>
+    A pre-registered <em>monotonicity</em> check once fired on a 0.1867 &rarr; 0.1600 dip and
+    reported a reversal. McNemar on the same data: <strong>2 worse, 4 better, p = 0.688</strong>.
+    Noise, reported as a finding, because &ldquo;is it monotone&rdquo; has no notion of sample size.
+  </p>
+  <p>
+    Every ordering, trend or monotonicity claim in R1–R5 registers <strong>its significance test
+    alongside it</strong>, with the paired form where items recur across conditions.
+  </p>
+</div>
+
+<div class="callout warn">
+  <span class="label">Lesson 2 — pre-registration says nothing about novelty</span>
+  <p>
+    Every experiment in the last programme was frozen and hashed before its data existed, and a
+    prior-art check afterwards still killed one paper and three claims. <strong>The literature check
+    runs before the first draft</strong>, not after — and for R3 specifically, before the run,
+    because the design is a response to someone else's §11.6.
+  </p>
+</div>
+
+<h4>What gets frozen before any run</h4>
+<ul>
+  <li>The exact backend configuration, as a digest — model tag, quantisation, <code>num_ctx</code>, seed, temperature, <code>top_k</code>, <code>top_p</code>, and the <code>controversial_is_harmful</code> policy</li>
+  <li>The corpus digest over dataset identity and split file, so ExpGuard recall can never be scored against a WildGuard baseline</li>
+  <li>The slice definitions and their denominators</li>
+  <li>The hypothesis, the statistic, <strong>and the test</strong></li>
+  <li>The stop condition — what result would make us abandon the claim</li>
+</ul>
+
+<h2 id="cost">6. Cost, and how it is bounded</h2>
+<p class="h2sub">Estimated, and deliberately conservative</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Run</th><th>Where</th><th>Rough token cost</th><th>Spend</th></tr></thead>
+  <tbody>
+    <tr><td>R1 baseline reproduction</td><td>Local Ollama</td><td>—</td><td class="num">$0</td></tr>
+    <tr><td>R2 real bench set</td><td>Local + batch judging</td><td>Low hundreds of thousands</td><td class="num">Small</td></tr>
+    <tr><td><strong>R3 labelling regimes</strong></td><td>GlobalBatch</td><td><strong>N &times; items &times; ~1k tokens</strong> — the dominant cost</td><td class="num">Moderate</td></tr>
+    <tr><td>R4 reproducibility floor</td><td>Local, 10 runs</td><td>—</td><td class="num">$0</td></tr>
+    <tr><td>R5 quantisation ladder</td><td>Local per rung</td><td>—</td><td class="num">$0</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout good">
+  <span class="label">Three of five runs cost nothing</span>
+  <p>
+    R1, R4 and R5 run on hardware you own. Only R2's judging and R3's grader panel touch Foundry,
+    and both go through <strong>GlobalBatch at roughly half the Standard token price</strong>,
+    against <strong>200M enqueued tokens</strong> currently sitting at 0% utilisation.
+  </p>
+  <p>
+    Against ~$5,230 of remaining Azure credit and ~$390/month current burn, this is a small
+    fraction — and every run is an Azure workload toward M3.
+  </p>
+</div>
+
+<h2 id="fail">7. How this fails, and what I would do</h2>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Failure</th><th>Likelihood</th><th>Response</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>R1 does not reproduce</strong> — counts differ from the pinned baselines</td>
+      <td>Low, but it is why R1 runs first</td>
+      <td><strong>Stop everything.</strong> Every published figure becomes provisional until the drift is explained. Do not run R2–R5 against a baseline that moved.</td>
+    </tr>
+    <tr>
+      <td><strong>R3 shows P6's 10/15 is regime-unstable</strong></td>
+      <td>Genuinely uncertain — that is why it is worth running</td>
+      <td>Withdraw the mechanism claim and reposition P6 around what survives, exactly as [LayeredEns] did. Painful, correct, and far cheaper than a reviewer finding it.</td>
+    </tr>
+    <tr>
+      <td>Ollama throughput makes R4's ten runs slow</td>
+      <td>Moderate</td>
+      <td>Accept the wall-clock. It is unattended and costs nothing.</td>
+    </tr>
+    <tr>
+      <td>Batch queue exceeds 24 hours</td>
+      <td>Low</td>
+      <td>Expected behaviour, not a failure. Nothing here is latency-sensitive.</td>
+    </tr>
+    <tr>
+      <td>A corpus digest mismatches</td>
+      <td>Low</td>
+      <td>Hard stop. It means the split changed underneath a published number, which is a bigger finding than any of these runs.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="approve">8. What you are approving</h2>
+
+<p><strong>Nothing has run. Nothing is queued. No spend has occurred.</strong></p>
+
+<h4>If you approve, the order is:</h4>
+<ol>
+  <li><strong>R1 first, alone</strong> — free, local, and it gates the rest. I report whether the four pinned baselines reproduce before anything else starts.</li>
+  <li><strong>R3 next</strong>, because it is the submission blocker and the only one with a paper riding on it. Pre-registered before the run, with the significance test named.</li>
+  <li>R2, R4, R5 in parallel afterwards — all local except R2's judging.</li>
+</ol>
+
+<h4>What I need from you</h4>
+<ul>
+  <li><strong>Approval to run R1</strong> — costs nothing, and its result may change everything below it.</li>
+  <li><strong>A value of N for R3's majority-of-N grader panel.</strong> [LayeredEns] used majority-of-five. Matching them makes the comparison clean; a smaller N is cheaper and less comparable. <strong>I would use five.</strong></li>
+  <li><strong>A token ceiling for R3</strong>, after which I stop and report rather than continue.</li>
+  <li><code>HF_TOKEN</code> exported, for anything touching the corpora.</li>
+</ul>
+
+<p class="footnote">
+  <span class="big">Provenance.</span> Baseline counts, slices, corpus digests and backend
+  configuration read from <code>python/warrantor_ml/src/warrantor_ml/baselines.py</code> on
+  2026-09-01 — four pinned baselines across two models and two corpora. Wilson intervals computed
+  from those counts at z = 1.96. Foundry deployment capacity and 0% utilisation read from the
+  Foundry quota portal. The <code>guard bench</code> figure is from a local 8-case run and is
+  labelled a configuration check rather than a measurement throughout. The P6 blocker and
+  [LayeredEns] §11.6's regime instability are recorded in
+  <code>docs/content-program/drafts/PRIOR-ART-ASSESSMENT.md</code>. No run has been executed and no
+  spend has been incurred.
+</p>
+
+</div>
+</body>
+</html>
