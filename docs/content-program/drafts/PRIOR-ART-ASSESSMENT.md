@@ -185,6 +185,43 @@ call, and did three useful things: it prevented a false novelty claim, it suppli
 were missing (difficulty stratification), and running that control produced the result the paper now
 turns on. **The check is not a tax on drafting; it was the most productive step in this experiment.**
 
-⚠️ **Open: our read of [LayeredEns] is partial** — abstract, §1, §2, §4.2–4.3, §10.5. Their §11
-measurement sections are unread, and our contribution is defined by a contrast with their §11.6
-result. **This must be closed before submission.**
+~~⚠️ **Open: our read of [LayeredEns] is partial**~~ — **CLOSED, and this note was stale.**
+
+**Resolved 2026-09-01.** The blocker above described the state at Draft 1. It was already closed by
+**Draft 2**, which read §11 in full and withdrew three claims, and **Draft 3** went further — it
+re-ran the stratification with [LayeredEns]'s own CMH estimator (§5.5b), which turned the paper
+*from a contrast with their result into a convergence with it*. This document simply was not updated
+when the paper moved, which is the same staleness it exists to catch.
+
+**But the §11.6 read surfaced a DIFFERENT gap, and it is live.**
+
+§11.6 does not report one stable survivor count. It reports that *which* pairs survive stratification
+depends on the labelling regime, in their own words: *"under the reported labels it is a same-row
+probe pair, under majority-of-five grader labels **three pairs survive**, and under externally
+calibrated thresholds the survivor is a cross-row pair"* — i.e. **1 / 3 / 1 across three regimes.**
+
+Two consequences for P6:
+
+1. **P6 cites the sharpest number without its qualifier.** `R7` reads "10 of 15 pairs retain
+   significant association after conditioning, against **their 1 of 15**". That 1 is the
+   *reported-labels* figure. Under their majority-of-five regime it is **3**. The contrast survives
+   comfortably — 10 versus 3 is still decisive — but the paper should state which regime it is
+   comparing against, because a reviewer who has read §11.6 will know there are three answers.
+
+2. **The real exposure: P6 makes a mechanism claim on a stability it has not tested.**
+   [LayeredEns] explicitly *declines* a mechanism-specific reading, and the stated reason is that the
+   survivors are not stable across labelling regimes. P6 does make one — that the association tracks
+   **training-family lineage**. If P6's own 10/15 is regime-sensitive in the way theirs was, that
+   mechanism claim inherits precisely the instability they backed away from.
+
+   **P6 has not run its stratification under alternative labelling regimes.** Line 566's "majority
+   vote" refers to a *composition rule*, not a grader-labelling regime — different thing.
+
+**Recommended before submission:** re-run the §5.5b stratification under at least one alternative
+labelling regime (majority-of-N graders is the natural choice, since it is theirs) and report whether
+the 10/15 holds. If it does, the mechanism claim is materially stronger than theirs and that is the
+paper. If it does not, better found here than in review.
+
+**This is the third time the pattern has repeated:** reading the pre-empting paper's *controls*
+named our next missing experiment. §11.6 gave us the difficulty stratification; §11.6's own caveat
+now gives us the regime-sensitivity check.
