@@ -27,8 +27,13 @@ ADAPTER="$REPO/t1-staging/adapters/$RUN_ID"
 OUT="$REPO/eval_results/$RUN_ID"
 
 echo "== 1/4 fetch the adapter off the Modal volume"
+# The volume path is recipe-qualified (`<recipe_id>@<arm>/<run_id>`), not the bare run id, so it
+# is read from the run record rather than reconstructed -- a guessed path fails late and loudly.
+RECORD="$REPO/t1-staging/run_record_$RUN_ID.json"
+VOL_PATH=$(python -c "import json,sys;print(json.load(open(sys.argv[1]))['adapter_path'])" "$RECORD")
+echo "   volume path: $VOL_PATH"
 mkdir -p "$(dirname "$ADAPTER")"
-[ -d "$ADAPTER" ] || modal volume get warrantor-adapters "$RUN_ID" "$ADAPTER"
+[ -d "$ADAPTER" ] || modal volume get warrantor-adapters "$VOL_PATH" "$(dirname "$ADAPTER")/"
 
 echo "== 2/4 convert to GGUF and register with Ollama"
 python -m warrantor_ml.publish \
@@ -36,9 +41,11 @@ python -m warrantor_ml.publish \
   --recipe-id guard-0.6b-expguard-weak --run-id "$RUN_ID" --converter "$CONVERTER"
 
 echo "== 3/4 score on ExpGuardTest"
+# seed/num-ctx pinned to the BASELINE's recorded options (num_ctx 8192, seed 0, greedy). A guard
+# verdict is sensitive to context length, so an unpinned run is not comparable to the baseline.
 mkdir -p "$OUT"
-python -m warrantor_ml.benchmark_expguard \
-  --model "warrantor-guard-0.6b-expguard-weak-$RUN_ID" --out-dir "$OUT"
+MODEL="warrantor-guard-0.6b-expguard-weak-$(echo "$RUN_ID" | tr '[:upper:]' '[:lower:]')"
+python -m warrantor_ml.benchmark_expguard --backend ollama --model "$MODEL"   --seed 0 --num-ctx 8192 --out "$OUT/expguard-$RUN_ID.json"
 
 echo "== 4/4 pair against the 0.6B baseline (122 controversial)"
 python - "$OUT" "$BASELINE" "$RUN_ID" <<'PY'
