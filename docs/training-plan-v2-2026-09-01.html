@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Training Plan v2</title>
+<style>
+  :root {
+    --bg:#faf9f7; --panel:#fff; --ink:#191817; --ink-soft:#4a4642; --ink-faint:#75706a;
+    --line:#e6e1da; --line-strong:#d0c9c0; --accent:#c2571f; --accent-soft:#fdf3ec;
+    --ok:#1f6b4a; --ok-bg:#edf6f1; --bad:#9c2a1e; --bad-bg:#fbeeec; --warn:#8a6100; --warn-bg:#fdf5e3;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:"Söhne",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#1a1917;--panel:#232120;--ink:#f2efea;--ink-soft:#c4bdb4;--ink-faint:#948d84;
+    --line:#35322f;--line-strong:#4a4642;--accent:#e07a42;--accent-soft:#2c2320;
+    --ok:#6fc79b;--ok-bg:#1c2a24;--bad:#e08a7d;--bad-bg:#2c2120;--warn:#d9ad5a;--warn-bg:#2a2419;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:60px 28px 140px}
+  header{border-bottom:1px solid var(--line);padding-bottom:30px;margin-bottom:10px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 14px}
+  h1{font-size:38px;line-height:1.14;margin:0 0 18px;font-weight:600;letter-spacing:-.025em}
+  .standfirst{font-size:20px;color:var(--ink-soft);margin:0;line-height:1.5}
+  .meta{font-size:13px;color:var(--ink-faint);margin-top:20px;font-family:var(--mono)}
+  h2{font-size:27px;margin:60px 0 8px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+  .h2sub{color:var(--ink-faint);font-size:15px;margin:0 0 22px}
+  h3{font-size:19px;margin:34px 0 10px;font-weight:600}
+  h4{font-size:16.5px;margin:24px 0 8px;font-weight:600;color:var(--ink-soft)}
+  p{margin:0 0 17px}
+  code{font-family:var(--mono);font-size:.85em;background:var(--accent-soft);padding:1px 6px;border-radius:4px}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.55}
+  pre code{background:none;padding:0}
+  .pull{border-left:3px solid var(--accent);padding:4px 0 4px 22px;margin:30px 0;font-size:21px;line-height:1.45;font-weight:500}
+  .callout{border-radius:10px;padding:20px 24px;margin:26px 0;border:1px solid}
+  .callout p:last-child{margin-bottom:0}
+  .callout .label{font-weight:600;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:8px}
+  .stop{background:var(--bad-bg);border-color:var(--bad)} .stop .label{color:var(--bad)}
+  .warn{background:var(--warn-bg);border-color:var(--warn)} .warn .label{color:var(--warn)}
+  .good{background:var(--ok-bg);border-color:var(--ok)} .good .label{color:var(--ok)}
+  .note{background:var(--panel);border-color:var(--line-strong)} .note .label{color:var(--accent)}
+  .tablewrap{overflow-x:auto;margin:24px 0 30px}
+  table{border-collapse:collapse;width:100%;font-size:15px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  .tag{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap;border:1px solid}
+  .t-ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok)}
+  .t-no{color:var(--bad);background:var(--bad-bg);border-color:var(--bad)}
+  .t-mid{color:var(--warn);background:var(--warn-bg);border-color:var(--warn)}
+  ul,ol{margin:0 0 17px;padding-left:24px} li{margin-bottom:9px}
+  .steps{counter-reset:s;list-style:none;padding-left:0}
+  .steps>li{counter-increment:s;position:relative;padding-left:46px;margin-bottom:22px}
+  .steps>li::before{content:counter(s);position:absolute;left:0;top:1px;width:30px;height:30px;border-radius:50%;
+    background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;border:1px solid var(--accent)}
+  .steps h3,.steps h4{margin:0 0 6px}
+  .footnote{font-size:14.5px;color:var(--ink-faint);border-top:1px solid var(--line);padding-top:22px;margin-top:54px}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 26px;margin:32px 0 8px}
+  .toc ol{margin:0;padding-left:20px;font-size:15.5px} .toc li{margin-bottom:6px}
+  .toc a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line-strong)}
+  .toc a:hover{border-bottom-color:var(--accent);color:var(--accent)}
+  .big{font-family:var(--mono);font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Training plan v2 · supersedes the plan written six hours earlier</p>
+  <h1>One defect explains every result. Fix it before spending another GPU-hour.</h1>
+  <p class="standfirst">
+    v1 was written before the paired tests ran. Every conclusion in it about which adapters
+    succeeded has since been overturned. All four fine-tunes damaged the same thing, the mechanism
+    is now identified in the config, and the next run is a controlled test of one setting rather
+    than another attempt at a better model.
+  </p>
+  <p class="meta">1 September 2026 · all figures from paired tests against size-matched baselines</p>
+</header>
+
+<div class="toc">
+  <ol>
+    <li><a href="#changed">What changed since v1</a></li>
+    <li><a href="#defect">The single defect</a></li>
+    <li><a href="#mechanism">The mechanism, located in the config</a></li>
+    <li><a href="#experiment">T1 — the experiment that decides everything</a></li>
+    <li><a href="#after">What follows, conditional on T1</a></li>
+    <li><a href="#lanes">Lane routing</a></li>
+    <li><a href="#gate">The gate change, which is free</a></li>
+    <li><a href="#notdoing">What this plan refuses to do</a></li>
+    <li><a href="#open">Open decisions</a></li>
+  </ol>
+</div>
+
+<h2 id="changed">1. What changed since v1</h2>
+<p class="h2sub">v1 was six hours old and wrong in its central claim</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>v1 said</th><th>The paired tests say</th></tr></thead>
+  <tbody>
+    <tr><td>One adapter <em>clears every bar</em></td><td>It does — <strong>and it lost a severity class</strong>. Gain is real (+115 vs −31, <em>p</em> &lt; 0.0001), loss is real (122 → 0). A decision, not a win.</td></tr>
+    <tr><td>Three adapters <em>unresolved</em></td><td>Resolved. Two <strong>within noise</strong> (<em>p</em> = 0.55, 0.79); one <strong>VOID</strong>, class lost.</td></tr>
+    <tr><td>One <em>regression</em>, cause unknown</td><td>Cause found: severity contamination. 91 vs 9, <em>p</em> &lt; 1e-9.</td></tr>
+    <tr><td>A 0.6B problem</td><td><strong>Not size-specific.</strong> The 4B adapters lost 56% and 65% of their <code>controversial</code> verdicts.</td></tr>
+    <tr><td>Plan toward retraining</td><td><strong>Retraining the same recipe reproduces the damage.</strong> Fix the recipe first.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="defect">2. The single defect</h2>
+<p class="h2sub">Four fine-tunes, four different outcomes, one cause</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Adapter</th><th><code>controversial</code></th><th>Recall verdict</th><th>What it looks like</th></tr></thead>
+  <tbody>
+    <tr><td><code>0.6b-expguard-weak</code></td><td class="num">122 → <strong>0</strong></td><td class="num">+115 / −31, <em>p</em>&lt;0.0001</td><td>A win</td></tr>
+    <tr><td><code>0.6b-adversarial</code></td><td class="num">48 → <strong>0</strong></td><td class="num"><em>p</em> = 0.3368</td><td>Unremarkable</td></tr>
+    <tr><td><code>4b-adversarial</code></td><td class="num">68 → 30</td><td class="num"><em>p</em> = 0.5488</td><td>Within noise</td></tr>
+    <tr><td><code>4b-weak-category</code></td><td class="num">68 → 24</td><td class="num"><em>p</em> = 0.7905</td><td>Within noise</td></tr>
+    <tr><td><code>0.6b-weak-category</code></td><td class="num">48 → 231 <strong>+ junk</strong></td><td class="num">−91 / +9, <em>p</em>&lt;1e-9</td><td>A regression</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p class="pull">
+  Four adapters produced a win, two shrugs and a disaster on recall — and every single one damaged
+  the severity field. The recall metric was reporting noise on top of a consistent underlying
+  failure.
+</p>
+
+<div class="callout stop">
+  <span class="label">Why this is dangerous rather than merely disappointing</span>
+  <p>
+    Two of these <strong>pass every review this programme has.</strong> `4b-adversarial` and
+    `4b-weak-category` sit at <em>p</em> = 0.55 and <em>p</em> = 0.79 on recall, with per-category
+    floors intact, while quietly losing over half their <code>controversial</code> verdicts. Floors
+    measure <em>categories</em>. Nothing measured <em>severity</em>.
+  </p>
+  <p>
+    And when the class disappears, <code>Controversial=SAFE</code> becomes a <strong>silent
+    no-op</strong>: the knob still exists, still accepts a value, and changes nothing. That is the
+    same defect shape as a bound that reads <em>Enforced</em> and is <em>Observed</em> — the thing
+    this product exists to refuse.
+  </p>
+</div>
+
+<h2 id="mechanism">3. The mechanism, located in the config</h2>
+<p class="h2sub">Not a theory any more — a field with a value</p>
+
+<p>The recipe notes already reasoned it out, after <code>supervise_severity=False</code> was run and refuted:</p>
+
+<blockquote>
+  <p>
+    <em>"LoRA adapts q/k/v/o/gate/up/down across every layer, weights BOTH output fields share, so
+    not computing a loss on severity never held it still; it only stopped correcting it while
+    training moved it anyway… A real fix needs SEPARATE PARAMETERS — a second adapter, or target
+    modules that do not carry severity."</em>
+  </p>
+</blockquote>
+
+<p>That prescription is directly expressible, and the current value is the permissive one:</p>
+
+<pre><code>lora_rank            16
+lora_alpha           32
+lora_dropout         0.05
+lora_target_modules  None      &lt;-- adapts EVERY module
+learning_rate        0.0001
+epochs               1.0
+supervise_severity   True</code></pre>
+
+<div class="callout note">
+  <span class="label">The whole plan turns on this one line</span>
+  <p>
+    <code>lora_target_modules = None</code> means every attention and MLP projection is adapted.
+    The severity token and the category token are produced by the <em>same</em> weights, so any
+    update that moves one moves the other. <strong>Restricting the target modules is the first
+    testable form of the fix the notes call for</strong>, and it costs one config field.
+  </p>
+</div>
+
+<h2 id="experiment">4. T1 — the experiment that decides everything</h2>
+<p class="h2sub">One recipe, three arms, one question</p>
+
+<p>
+  <strong>Hypothesis.</strong> Severity damage is caused by LoRA adapting the shared projections. If
+  the adapted modules are restricted, the <code>controversial</code> class survives fine-tuning at
+  materially the same recall.
+</p>
+<p>
+  <strong>Refuted if:</strong> a restricted-module arm loses the class anyway, or preserves it only
+  by learning nothing (recall indistinguishable from the base). Both outcomes are informative and
+  both end this line.
+</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Arm</th><th><code>lora_target_modules</code></th><th>Tests</th></tr></thead>
+  <tbody>
+    <tr><td><strong>A — control</strong></td><td><code>None</code> (all modules)</td><td>Reproduces the known damage. Without it, nothing else is interpretable.</td></tr>
+    <tr><td><strong>B — attention only</strong></td><td><code>q_proj, k_proj, v_proj, o_proj</code></td><td>Whether routing/attention alone can learn the category task without disturbing severity.</td></tr>
+    <tr><td><strong>C — MLP only</strong></td><td><code>gate_proj, up_proj, down_proj</code></td><td>The complement. If B preserves and C does not, the shared representation is in the MLP, which is a mechanistic result worth publishing.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Registered before any arm runs</h4>
+<ul>
+  <li><strong>Primary outcome:</strong> is <code>controversial</code> still emitted, and at what count relative to the base? Binary present/absent first, magnitude second.</li>
+  <li><strong>Secondary:</strong> paired McNemar on positives against the size-matched base — <em>exact binomial</em>, because discordance here runs to tens of pairs, not hundreds.</li>
+  <li><strong>Both are reported for every arm</strong>, including arms that look bad. The whole failure mode here was a metric that hid a change.</li>
+  <li><strong>Precision and lane recorded per arm.</strong> fp16-on-Kaggle and bf16-on-local are different conditions and must never be pooled.</li>
+  <li><strong>Stop condition:</strong> if arm A does not reproduce the damage, the diagnosis is wrong and no further arm runs.</li>
+</ul>
+
+<p>
+  <strong>Recipe choice: <code>guard-0.6b-expguard-weak</code>.</strong> It is the only recipe with a
+  genuine, significant recall gain to protect, so it is the one where "did we keep the gain while
+  keeping the class" is a meaningful question. The others have nothing to preserve.
+</p>
+
+<h2 id="after">5. What follows, conditional on T1</h2>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>T1 outcome</th><th>Then</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>An arm preserves the class and the gain</strong></td>
+      <td>That arm becomes the recipe default. Re-run the other four recipes on it — <em>then</em> the programme has four candidates worth gating. This is the only branch where bulk training is justified.</td>
+    </tr>
+    <tr>
+      <td><strong>An arm preserves the class but learns nothing</strong></td>
+      <td>The category task and the severity field are not separable by module choice. Escalate to the second prescription: a <strong>separate adapter</strong> for severity, composed at inference.</td>
+    </tr>
+    <tr>
+      <td><strong>No arm preserves the class</strong></td>
+      <td>LoRA on this architecture cannot learn the category task without disturbing severity. That is a publishable negative result and it ends the fine-tuning line — the guard stays base, and the effort moves to prompt-level or ensemble approaches.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="lanes">6. Lane routing</h2>
+<p class="h2sub">Resolved from <code>warrantor_ml.lanes</code>; unchanged from v1 and re-verified</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Lane</th><th>0.6B</th><th>Precision</th><th>Cost</th><th>Assignment</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Local RTX 5080</strong></td><td class="num">4.6 h</td><td class="num">bf16</td><td class="num">free</td><td><strong>T1 arms A, B, C.</strong> bf16 matches every existing adapter, so the comparison stays clean. Three arms ≈ 14 h unattended.</td></tr>
+    <tr><td><strong>Modal A100</strong></td><td class="num">1.8 h</td><td class="num">bf16</td><td class="num">~$236</td><td>Only if T1 must finish same-day. 3 arms ≈ 5.4 h ≈ well inside the grant.</td></tr>
+    <tr><td><strong>Kaggle T4×2</strong></td><td class="num">12.3 h</td><td class="num"><strong>fp16</strong></td><td class="num">free, 30 h/wk</td><td>Exploration only. <strong>Requires <code>--resume-from</code></strong> (12 h cap). Never pooled with bf16 results.</td></tr>
+    <tr><td>Foundry managed</td><td class="num">—</td><td class="num">—</td><td class="num">Azure credit</td><td>32 accelerators idle, but Qwen3Guard is not in the catalog. Custom container is separate work.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout warn">
+  <span class="label">Local lane precondition</span>
+  <p>
+    Committed memory was <strong>84.4 GB of an 87.5 GB limit (96.5%)</strong> earlier tonight, which
+    is also what caused this session's fork exhaustion and compiler crashes. Unloading the Ollama
+    model returned it to 72.4 GB. <strong>Check commit charge is under ~85% before starting an
+    unattended run</strong>, and unload models first.
+  </p>
+</div>
+
+<h2 id="gate">7. The gate change, which is free</h2>
+
+<p>
+  <code>warrantor_ml.paired_analysis</code> now exists and does this: it reports the severity
+  distribution alongside the recall verdict, and returns <strong><code>VOID</code></strong> when a
+  class present in the baseline is absent in the candidate.
+</p>
+
+<p>
+  <strong><code>VOID</code> means the comparison is not automatable — not that the candidate is
+  bad.</strong> The ExpGuard adapter is the proof: a gate promoting on recall and FPR alone would
+  ship it, and a gate rejecting on class loss alone would discard a genuine +115. Neither is right
+  by itself, so the tool escalates to a human instead of pretending to decide.
+</p>
+
+<p>Adding this to the promotion gate costs nothing and would have caught all four adapters immediately.</p>
+
+<h2 id="notdoing">8. What this plan refuses to do</h2>
+
+<ul>
+  <li>
+    <strong>Retrain the four damaged recipes as they stand.</strong> Same recipe, same damage, GPU
+    spent to learn it twice. This is the change from v1.
+  </li>
+  <li>
+    <strong>Promote anything automatically.</strong> Including the ExpGuard adapter, whose gain is
+    real and whose loss is real.
+  </li>
+  <li>
+    <strong>Allocate GPU to the four substrate recipes.</strong> Verified genuinely blocked:
+    <code>guard export-corpus</code> returns <strong>0 rows from 0 warrants</strong> against a
+    minimum of 500. Product usage unblocks them; compute does not.
+  </li>
+  <li>
+    <strong>Pool fp16 and bf16 results.</strong> Different conditions. The same error as comparing
+    two benchmarks run at different <code>num_ctx</code> — which this repository has already made once.
+  </li>
+  <li>
+    <strong>Set <code>supervise_severity</code> to anything.</strong> Refuted in both directions:
+    <code>False</code> destroyed recall (0.8329 → 0.6804), <code>True</code> flattens the class.
+    There is no third setting; the fix is elsewhere, which is what T1 tests.
+  </li>
+</ul>
+
+<h2 id="open">9. Open decisions</h2>
+<p class="h2sub">Yours, and none of them blocks T1's design</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Decision</th><th>Why it matters</th><th>My recommendation</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>The ExpGuard adapter — promote, hold, or shelve?</strong></td>
+      <td>+115 catches and a lost class. Under the deployed <code>controversial_is_harmful=True</code> policy the class loss costs 11 true positives; it also silently disables the <code>Controversial=SAFE</code> knob.</td>
+      <td><strong>Hold</strong> until T1 says whether the gain is achievable <em>without</em> the loss. If it is, this adapter is superseded; if not, it becomes a real trade to weigh.</td>
+    </tr>
+    <tr>
+      <td><strong>Run T1 locally or on Modal?</strong></td>
+      <td>Local is free and unattended, 14 h for three arms. Modal is 5.4 h and ~$25 of a $236 grant.</td>
+      <td><strong>Local</strong>, once commit charge is under 85%. Nothing is waiting on it.</td>
+    </tr>
+    <tr>
+      <td><strong>Publish the negative result?</strong></td>
+      <td>"Four fine-tunes, four different recall outcomes, one shared silent failure" is a stronger paper than any single adapter would have been, and it fits the existing programme's thesis exactly.</td>
+      <td><strong>Yes</strong> — and prior-art check it <em>before</em> drafting, per the lesson that already cost this programme a paper.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p class="footnote">
+  <span class="big">Provenance.</span> Adapter verdicts from
+  <code>warrantor_ml.paired_analysis</code> — exact-binomial McNemar over shared sample ids,
+  positives only, errored items excluded — against size-matched baselines measured 2026-09-01
+  (0.6B) and the R1 reproduction (4B). Severity counts from the <code>samples</code> arrays of the
+  same result documents. Recipe configuration read from
+  <code>warrantor_ml.recipes.RECIPES['guard-0.6b-expguard-weak'].config</code>. Lane hours and
+  precision from <code>warrantor_ml.lanes.resolve()</code> at 11,272 corpus rows. Cold-start status
+  from <code>warrantor guard export-corpus</code>. Memory figures from Windows performance counters.
+  Nothing in this plan has been executed.
+</p>
+
+</div>
+</body>
+</html>
