@@ -474,7 +474,7 @@ class EvaluationResult:
                 "change nothing. This is expected for every fine-tuned guard in this "
                 "programme and is NOT expected for a base Qwen3Guard model."
                 if not bound
-                else f"The severity policy decided {len(bound)} verdicts in this run."
+                else f"The severity policy decided {len(bound)} verdict{'' if len(bound) == 1 else 's'} in this run."
             ),
         }
 
