@@ -1,0 +1,20 @@
+{
+  "recipe_id": "guard-0.6b-expguard-weak@T1-C-mlp",
+  "recipe_digest": "sha256:bd14328c2fb08f6b11cd8ac4a8c2b42a37537d65023289311031f29dd6d9cf69",
+  "lane": "modal-a100",
+  "precision": "bf16",
+  "precision_reason": "sm_8x supports bf16 natively; matching the base model's dtype.",
+  "estimated_vram_gib": 6.146,
+  "estimated_hours": 1.78,
+  "save_steps": 70,
+  "warnings": [
+    "LoRA over an unquantised base leaves very little margin on a 16 GB card and will OOM when the desktop compositor spikes. Prefer technique=qlora locally.",
+    "expguardmix is GATED on Hugging Face. Accept the form and export a read token before this run, or the data step fails with HTTP 401. Run `warrantor-ml-datasets --preflight` first.",
+    "ExpGuardMix's gate form requires affirming research-only use, which is NARROWER than its CC-BY-4.0 licence. Do not train a commercially shipped pack on it without a written read from counsel."
+  ],
+  "rows_read": 11272,
+  "rows_trained": 11272,
+  "adapter_volume": "warrantor-adapters",
+  "adapter_path": "guard-0.6b-expguard-weak@T1-C-mlp/T1-C-mlp-2026-09-01",
+  "adapter_bytes": 22041968
+}
