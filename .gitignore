@@ -150,3 +150,7 @@ adapter_model/
 # store one `git add -A` from being pushed is exactly the failure the three interop fixtures above
 # are already ignored for.
 .warrantor/
+
+# Merge artifacts -- never tracked. A .orig was committed once by a directory-wide `git add`.
+*.orig
+*.rej
