@@ -3,9 +3,14 @@
 **2026-09-01.** The roadmap says one fine-tune was attempted and rejected, three
 models are GPU-blocked and four are cold-start blocked on warrant history.
 
-**Six fine-tuned adapters exist, all six have been evaluated against the full
-corpora, and one of them clears every stated promotion criterion.** None of that
-is recorded anywhere.
+**Six fine-tuned adapters exist and all six have been evaluated against the full
+corpora.** None of that is recorded anywhere.
+
+> **Updated later the same day.** One adapter appeared to clear every promotion
+> criterion. It does not survive inspection — W1 found its severity field
+> flattened, and W3 found the two 4B adapters statistically within noise.
+> **Nothing here is promotable.** Findings in `W1-W3-findings-2026-09-01.md`;
+> corrections are marked in place below rather than rewritten away.
 
 ---
 
@@ -67,7 +72,15 @@ its own post-mortem — it is the same magnitude as the 17-point drop that refut
 
 ---
 
-## 4. The one that clears its bar
+## 4. The one that clears its bar — and why that is not enough
+
+> **SUPERSEDED IN PART, same day.** Everything in this section is arithmetically
+> correct and the conclusion drawn from it was wrong. W1 found that this adapter
+> emits **zero `controversial` verdicts** where the base model emits 266 — the
+> third severity class is extinguished. It clears every bar the gate states while
+> having quietly become a different instrument. **Do not promote.** See
+> `W1-W3-findings-2026-09-01.md`. The bars below are left unedited because the
+> point is that they all passed.
 
 `warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a`, ExpGuardTest,
 2,275 rows: **TP 982 · FN 274 · FP 56 · TN 963**.
@@ -110,15 +123,20 @@ doubled.
 ## 5. What this changes
 
 1. **The programme is further along than any document says.** Six adapters
-   trained, six evaluated, one apparently promotable. The roadmap's "one attempted
-   and rejected" describes August 13, not August 22.
-2. **Modal spend for the ExpGuard recipe is very likely unnecessary.** It was
-   listed among the GPU-blocked models. It has already been trained, on the local
-   5080, and it cleared its bar.
-3. **The cold-start framing needs re-checking too.** If ExpGuard-weak trained
-   without warrant history, the four "cold-start blocked" recipes deserve the same
-   scrutiny before anyone waits on product usage for them.
-4. **One adapter regressed 11 points** and nobody knows why.
+   trained, six evaluated. ~~one apparently promotable~~ — **none promotable**:
+   W1 showed the apparent winner flattened its severity field, and W3 showed the
+   two 4B adapters are statistically within noise (*p* = 0.55 and *p* = 0.79). The
+   roadmap's "one attempted and rejected" describes August 13, not August 22.
+2. **Modal spend for the ExpGuard recipe is still unnecessary**, for a different
+   reason than first given: not because the recipe succeeded, but because it can be
+   run locally and the result needs a severity fix rather than more GPU.
+3. ~~The cold-start framing needs re-checking~~ — **checked, and it is real.**
+   `guard export-corpus` returns **0 rows from 0 warrants** against a recipe
+   minimum of 500. All four substrate recipes are genuinely blocked on product
+   usage.
+4. ~~**One adapter regressed 11 points** and nobody knows why.~~ **Solved by W2**:
+   category vocabulary leaked into the severity slot and mass shifted from
+   `unsafe` to `controversial`. McNemar χ² = 66.01, *p* < 0.0001.
 
 ---
 
@@ -136,13 +154,16 @@ doubled.
   research-only use, narrower than its CC-BY-4.0 licence. A promotion here is a
   quality verdict and never a clearance for a shipped pack.
 
-## 7. Recommended next steps
+## 7. Next steps — status after W1–W3
 
-1. Run the real `parity_gate` on `0.6b-expguard-weak-exp06`, reconstructing the
-   lane and precision metadata from the run.
-2. McNemar on paired outcomes against the baseline, to convert +0.0668 from a
-   delta into a result.
-3. Post-mortem `0.6b-weak-category-local`'s 11-point regression.
-4. Correct the roadmap and `warrantor-build-decisions` memory, which both describe
-   a programme two weeks out of date.
-5. Re-check the four "cold-start blocked" recipes against what actually trained.
+| | Step | Status |
+|---|---|---|
+| 1 | `parity_gate` on the ExpGuard candidate | **Moot.** The severity check settles it: do not promote. |
+| 2 | McNemar to convert +0.0668 into a result | **Blocked** — needs a 0.6B ExpGuard baseline run, which does not exist on disk. Local and free. |
+| 3 | Post-mortem the 11-point regression | ✅ **Done.** Severity-field contamination; χ² = 66.01, *p* < 0.0001. |
+| 4 | Correct the roadmap and memory | Outstanding. |
+| 5 | Re-check the cold-start framing | ✅ **Done.** Genuinely blocked — 0 rows, 0 warrants. |
+
+**The cheapest useful work remaining** is two local baseline runs — the 0.6B on
+WildGuardTest and on ExpGuardTest — which make every 0.6B comparison paired and
+correctly size-matched. Free, no hypothesis required, and they unblock step 2.
