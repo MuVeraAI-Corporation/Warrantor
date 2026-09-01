@@ -86,12 +86,35 @@ def test_a_missing_ollama_binary_is_a_note_and_never_a_refusal() -> None:
 
 
 def test_the_gate_urls_are_the_two_corpora_and_nothing_else() -> None:
-    """A refusal that sends someone to the wrong licence form costs them a round trip."""
+    """A refusal that sends someone to the wrong licence form costs them a round trip.
+
+    THIS TEST USED TO PASS WHILE THE URL WAS WRONG. It asserted the substring "ExpGuardMix"
+    appeared somewhere in the tuple, which `Qwen/ExpGuardMix` satisfies -- while the loader fetched
+    `6rightjade/expguardmix`. A substring assertion cannot tell a right repository from a wrong one
+    that happens to share a name, so it is replaced with a comparison against the source of truth.
+    """
+    import re
+
+    loader = Path(runner.__file__).with_name("datasets.py").read_text(encoding="utf-8")
+    # Every `owner/name` literal the loader mentions for the two corpora.
+    fetched = set(
+        re.findall(
+            r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]*(?:wildguard|expguard)[A-Za-z0-9_.-]*", loader, re.I
+        )
+    )
+    assert fetched, (
+        "cannot read the repository ids out of datasets.py: this test is not comparing anything"
+    )
+
     assert len(runner.GATES) == 2
-    assert any("wildguardmix" in url for url in runner.GATES)
-    assert any("ExpGuardMix" in url for url in runner.GATES)
     for url in runner.GATES:
         assert url.startswith("https://huggingface.co/datasets/")
+        repo = url.removeprefix("https://huggingface.co/datasets/")
+        assert repo in fetched, (
+            f"GATES sends the reader to {repo!r}, which datasets.py never fetches. It fetches "
+            f"{sorted(fetched)}. Accepting terms on the wrong repository still returns HTTP 401, "
+            "and the reader has no way to tell the instruction was wrong rather than their account."
+        )
 
 
 def test_a_bare_host_becomes_the_chat_url_the_benchmarks_post_to() -> None:

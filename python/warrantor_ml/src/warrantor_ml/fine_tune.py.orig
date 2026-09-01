@@ -447,21 +447,9 @@ class FineTuneConfig:
     base_dtype: str = "nf4"
     dataset_id: str = "wildguardmix"
     dataset_split: str = "train"
-    #: Local parquet to train from, bypassing the registry. Set for corpora that are
-    #: constructed rather than downloaded -- an ablation split, for instance -- where the
-    #: provenance lives in a corpus manifest beside the file rather than in a dataset spec.
-    dataset_path: Path | None = None
     lora_rank: int = 16
     lora_alpha: int = 32
     lora_dropout: float = 0.05
-    #: Override the profile's LoRA target modules. Set when the target-module set is the
-    #: variable under test rather than a fixed property of the profile; None keeps the
-    #: profile's own tuple, which is what every ordinary run wants.
-    lora_target_modules: tuple[str, ...] | None = None
-    #: Continue training an EXISTING adapter instead of initialising a fresh one. Set when
-    #: the experiment needs a model that already behaves a certain way as its starting
-    #: point -- a second training stage, not a second run.
-    resume_adapter: Path | None = None
     sequence_length: int = 2048
     batch_size: int = 2
     gradient_accumulation_steps: int = 8
@@ -547,10 +535,6 @@ class TrainingPlan:
 
         config = asdict(self.config)
         config["output_dir"] = str(self.config.output_dir)
-        if self.config.dataset_path is not None:
-            config["dataset_path"] = str(self.config.dataset_path)
-        if self.config.resume_adapter is not None:
-            config["resume_adapter"] = str(self.config.resume_adapter)
         return {
             "config": config,
             "profile": {
@@ -599,13 +583,13 @@ def plan(config: FineTuneConfig) -> TrainingPlan:
             "LoRA over an unquantised base leaves very little margin on a 16 GB card and will "
             "OOM when the desktop compositor spikes. Prefer technique=qlora locally."
         )
-    if config.dataset_path is None and config.dataset_id in {"wildguardmix", "expguardmix"}:
+    if config.dataset_id in {"wildguardmix", "expguardmix"}:
         warnings.append(
             f"{config.dataset_id} is GATED on Hugging Face. Accept the form and export a read "
             "token before this run, or the data step fails with HTTP 401. Run "
             "`warrantor-ml-datasets --preflight` first."
         )
-    if config.dataset_path is None and config.dataset_id == "expguardmix":
+    if config.dataset_id == "expguardmix":
         warnings.append(
             "ExpGuardMix's gate form requires affirming research-only use, which is NARROWER "
             "than its CC-BY-4.0 licence. Do not train a commercially shipped pack on it without "
@@ -722,13 +706,7 @@ def run(
         model = stack["prepare_model_for_kbit_training"](
             model, use_gradient_checkpointing=config.gradient_checkpointing
         )
-    if config.resume_adapter is not None:
-        # Continue an existing adapter. is_trainable=True is essential: without it PEFT loads the
-        # adapter frozen and the stage would train nothing while reporting success.
-        from peft import PeftModel
-
-        model = PeftModel.from_pretrained(model, str(config.resume_adapter), is_trainable=True)
-    elif config.technique in {"qlora", "lora"}:
+    if config.technique in {"qlora", "lora"}:
         model = stack["get_peft_model"](
             model,
             stack["LoraConfig"](
@@ -737,7 +715,7 @@ def run(
                 lora_dropout=config.lora_dropout,
                 bias="none",
                 task_type="SEQ_CLS" if profile.task == "sequence-classification" else "CAUSAL_LM",
-                target_modules=list(config.lora_target_modules or profile.target_modules),
+                target_modules=list(profile.target_modules),
             ),
         )
     if config.gradient_checkpointing:
@@ -805,14 +783,6 @@ def _load_training_dataset(
 ) -> Any:  # pragma: no cover
     """Load and normalise the training corpus to ``text`` + ``labels`` columns."""
 
-    if config.dataset_path is not None:
-        dataset = stack["load_dataset"](
-            "parquet", data_files=str(config.dataset_path), split="train"
-        )
-        if config.max_samples is not None:
-            dataset = dataset.select(range(min(config.max_samples, len(dataset))))
-        return dataset
-
     from .datasets import ensure_available, get_dataset
 
     spec = get_dataset(config.dataset_id)
@@ -841,22 +811,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--technique", default="qlora", choices=("qlora", "lora", "full"))
     parser.add_argument("--base-dtype", default="nf4", choices=sorted(_BYTES_PER_PARAMETER))
     parser.add_argument("--dataset", default="wildguardmix")
-    parser.add_argument(
-        "--dataset-path",
-        type=Path,
-        help="train from this local parquet instead of the registry (text + labels columns)",
-    )
-    parser.add_argument(
-        "--resume-adapter",
-        type=Path,
-        help="continue training this existing adapter instead of initialising a fresh one",
-    )
-    parser.add_argument(
-        "--lora-target-modules",
-        help="comma-separated module names, overriding the profile's set. The VRAM estimate still "
-        "uses the profile's module count, so it is optimistic when this narrows the set; it is "
-        "a planning figure and the run is watched regardless.",
-    )
     parser.add_argument("--split", default="train")
     parser.add_argument("--lora-rank", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)
@@ -885,13 +839,6 @@ def _config_from_arguments(arguments: argparse.Namespace) -> FineTuneConfig:
         technique=arguments.technique,
         base_dtype=arguments.base_dtype,
         dataset_id=arguments.dataset,
-        dataset_path=arguments.dataset_path,
-        resume_adapter=arguments.resume_adapter,
-        lora_target_modules=(
-            tuple(m.strip() for m in arguments.lora_target_modules.split(",") if m.strip())
-            if arguments.lora_target_modules
-            else None
-        ),
         dataset_split=arguments.split,
         lora_rank=arguments.lora_rank,
         lora_alpha=arguments.lora_alpha,

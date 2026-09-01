@@ -72,9 +72,19 @@ BENCHMARKS = (
     ),
 )
 
+# The gate URLs must name the repositories `datasets.py` ACTUALLY FETCHES.
+#
+# This tuple previously pointed at `Qwen/ExpGuardMix` while the loader fetched
+# `6rightjade/expguardmix`. Anyone following the refusal message would have accepted terms on the
+# wrong repository and still been refused with HTTP 401 -- and would have had no way to tell that
+# the instruction, rather than their account, was wrong.
+#
+# It is the defect class this repository keeps finding: an instruction naming something that does
+# not exist, surviving because nothing compared the instruction to the code. `test_the_gate_urls_*`
+# now derives the expected repositories from `datasets.py` itself rather than asserting a substring.
 GATES = (
     "https://huggingface.co/datasets/allenai/wildguardmix",
-    "https://huggingface.co/datasets/Qwen/ExpGuardMix",
+    "https://huggingface.co/datasets/6rightjade/expguardmix",
 )
 
 
