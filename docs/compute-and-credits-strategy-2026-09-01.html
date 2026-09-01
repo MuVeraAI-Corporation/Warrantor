@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Compute and Credits Strategy</title>
+<style>
+  :root {
+    --bg:#faf9f7; --panel:#fff; --ink:#191817; --ink-soft:#4a4642; --ink-faint:#75706a;
+    --line:#e6e1da; --line-strong:#d0c9c0; --accent:#c2571f; --accent-soft:#fdf3ec;
+    --ok:#1f6b4a; --ok-bg:#edf6f1; --bad:#9c2a1e; --bad-bg:#fbeeec; --warn:#8a6100; --warn-bg:#fdf5e3;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:"Söhne",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#1a1917;--panel:#232120;--ink:#f2efea;--ink-soft:#c4bdb4;--ink-faint:#948d84;
+    --line:#35322f;--line-strong:#4a4642;--accent:#e07a42;--accent-soft:#2c2320;
+    --ok:#6fc79b;--ok-bg:#1c2a24;--bad:#e08a7d;--bad-bg:#2c2120;--warn:#d9ad5a;--warn-bg:#2a2419;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:60px 28px 140px}
+  header{border-bottom:1px solid var(--line);padding-bottom:30px;margin-bottom:10px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 14px}
+  h1{font-size:38px;line-height:1.14;margin:0 0 18px;font-weight:600;letter-spacing:-.025em}
+  .standfirst{font-size:20px;color:var(--ink-soft);margin:0;line-height:1.5}
+  .meta{font-size:13px;color:var(--ink-faint);margin-top:20px;font-family:var(--mono)}
+  h2{font-size:27px;margin:60px 0 8px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+  .h2sub{color:var(--ink-faint);font-size:15px;margin:0 0 22px}
+  h3{font-size:19px;margin:34px 0 10px;font-weight:600}
+  p{margin:0 0 17px}
+  code{font-family:var(--mono);font-size:.85em;background:var(--accent-soft);padding:1px 6px;border-radius:4px}
+  .pull{border-left:3px solid var(--accent);padding:4px 0 4px 22px;margin:30px 0;font-size:21px;line-height:1.45;font-weight:500}
+  .callout{border-radius:10px;padding:20px 24px;margin:26px 0;border:1px solid}
+  .callout p:last-child{margin-bottom:0}
+  .callout .label{font-weight:600;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:8px}
+  .stop{background:var(--bad-bg);border-color:var(--bad)} .stop .label{color:var(--bad)}
+  .warn{background:var(--warn-bg);border-color:var(--warn)} .warn .label{color:var(--warn)}
+  .good{background:var(--ok-bg);border-color:var(--ok)} .good .label{color:var(--ok)}
+  .note{background:var(--panel);border-color:var(--line-strong)} .note .label{color:var(--accent)}
+  .tablewrap{overflow-x:auto;margin:24px 0 30px}
+  table{border-collapse:collapse;width:100%;font-size:15.5px}
+  th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  .tag{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 9px;border-radius:999px;white-space:nowrap;border:1px solid}
+  .t-open{color:var(--ok);background:var(--ok-bg);border-color:var(--ok)}
+  .t-shut{color:var(--bad);background:var(--bad-bg);border-color:var(--bad)}
+  .t-part{color:var(--warn);background:var(--warn-bg);border-color:var(--warn)}
+  ul,ol{margin:0 0 17px;padding-left:24px} li{margin-bottom:9px}
+  .steps{counter-reset:s;list-style:none;padding-left:0}
+  .steps>li{counter-increment:s;position:relative;padding-left:46px;margin-bottom:20px}
+  .steps>li::before{content:counter(s);position:absolute;left:0;top:1px;width:30px;height:30px;border-radius:50%;
+    background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;border:1px solid var(--accent)}
+  .steps h3{margin:0 0 4px;font-size:17.5px}
+  .footnote{font-size:14.5px;color:var(--ink-faint);border-top:1px solid var(--line);padding-top:22px;margin-top:54px}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 26px;margin:32px 0 8px}
+  .toc ol{margin:0;padding-left:20px;font-size:15.5px} .toc li{margin-bottom:6px}
+  .toc a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line-strong)}
+  .toc a:hover{border-bottom-color:var(--accent);color:var(--accent)}
+  .big{font-family:var(--mono);font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Strategy · compute, credits and the research programme</p>
+  <h1>You are not working with $5,000. You are on rung two of a ladder to $150,000.</h1>
+  <p class="standfirst">
+    Every Azure figure below was read live from the control plane on 1 September 2026, not carried
+    forward from notes. The headline finding is that the credit posture is backwards: conserving the
+    balance is what keeps it small, and deploying real workloads is the documented qualification for
+    thirty times more.
+  </p>
+  <p class="meta">1 September 2026 · subscription <code>baa10a89…</code> · vikram@muveraai.com</p>
+</header>
+
+<div class="toc">
+  <ol>
+    <li><a href="#inversion">The inversion: spending is the qualification</a></li>
+    <li><a href="#verified">What is actually true today, verified</a></li>
+    <li><a href="#inception">What NVIDIA Inception is worth</a></li>
+    <li><a href="#lanes">The compute lanes, ranked</a></li>
+    <li><a href="#portfolio">The ten-workload portfolio</a></li>
+    <li><a href="#research">What to run first, and why</a></li>
+    <li><a href="#actions">Actions, split by who can take them</a></li>
+    <li><a href="#risks">Risks I would not paper over</a></li>
+  </ol>
+</div>
+
+<h2 id="inversion">1. The inversion: spending is the qualification</h2>
+<p class="h2sub">The single most important thing in this document</p>
+
+<p>
+  The $5,000 Azure credit did not originate with Azure. It came through <strong>NVIDIA Inception's
+  Benefit Explorer</strong>, which places you at <strong>Milestone 2</strong> of the Microsoft for
+  Startups Founders Hub ladder. The rungs above it are published, and they are earned by
+  <em>usage</em>:
+</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Milestone</th><th>Credit</th><th>Requirement</th></tr></thead>
+  <tbody>
+    <tr><td class="num">M2 &larr; you are here</td><td class="num"><strong>$5,000</strong></td><td>Business verification</td></tr>
+    <tr><td class="num">M3</td><td class="num"><strong>$25,000</strong></td><td><strong>5+ Azure workloads</strong> sustained over ~60 days</td></tr>
+    <tr><td class="num">M4</td><td class="num"><strong>$50,000</strong></td><td><strong>7+ Azure workloads</strong> sustained over ~60 days</td></tr>
+    <tr><td class="num">M5</td><td class="num"><strong>$150,000</strong></td><td><strong>10+ workloads</strong> AND <strong>~$3,000/month</strong> sustained over ~60 days</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout good">
+  <span class="label">Why this changes how to spend</span>
+  <p>
+    Progression is <strong>automatic</strong> — no application, no pitch, no demo video, and
+    <strong>no institutional funding requirement</strong>. Bootstrapped companies qualify on
+    technical usage metrics alone.
+  </p>
+  <p>
+    So the instinct to husband $5,000 is precisely wrong. A frugal month leaves you at $5,000
+    indefinitely. A month with ten live workloads and $3,000 of genuine usage converts the balance
+    into <strong>$150,000</strong> — a thirtyfold return on spending money you were given.
+  </p>
+</div>
+
+<p class="pull">
+  The question is not &ldquo;how do we make $5,000 last?&rdquo; It is &ldquo;what ten workloads do we
+  genuinely need, and can we honestly run $3,000/month through them?&rdquo;
+</p>
+
+<div class="callout warn">
+  <span class="label">A correction I owe you, recorded rather than buried</span>
+  <p>
+    Earlier today I recommended deleting the <code>AumOS</code> API Management service on the
+    evidence that it was ten hours old, fronted the Foundry endpoint, and had served
+    <strong>zero requests in its entire lifetime</strong> while billing roughly $150/month. On
+    zero-traffic grounds that was right, and it has been deleted — with its config snapshotted to
+    <code>docs/infra/apim-aumos-snapshot-2026-09-01.json</code>, so it is re-creatable.
+  </p>
+  <p>
+    <strong>On ladder grounds it was wrong.</strong> APIM is a workload, and $150/month is 5% of the
+    M5 threshold. The right move is not to leave a gateway running by accident — it is to
+    <strong>re-create it deliberately</strong> as one named component of the portfolio in §5, with
+    real traffic routed through it. An idle gateway is waste; a gateway enforcing per-consumer token
+    budgets is both a genuine workload and a live demonstration of what Warrantor argues for.
+  </p>
+</div>
+
+<h2 id="verified">2. What is actually true today, verified</h2>
+<p class="h2sub">Read from the ARM control plane on 2026-09-01, not from July notes</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Capability</th><th>State</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr><td>Foundry inference</td><td><span class="tag t-open">open</span></td><td>5 deployments live on <code>vikram-2093-resource</code>, westus3</td></tr>
+    <tr><td>Azure GPU — raw VMs</td><td><span class="tag t-shut">closed</span></td><td><strong>Every</strong> NC/ND/NV family at limit <strong>0</strong>, westus3 and eastus</td></tr>
+    <tr><td>Azure GPU — Foundry/AML managed compute</td><td><span class="tag t-shut">closed</span></td><td>All 15 GPU families at limit <strong>0</strong> in both regions</td></tr>
+    <tr><td>Spot / low-priority</td><td><span class="tag t-shut">closed</span></td><td><code>lowPriorityCores</code> = 3 — not enough for any GPU node</td></tr>
+    <tr><td>CPU cores</td><td><span class="tag t-open">open</span></td><td>eastus 152 vCPU · westus3 65 vCPU</td></tr>
+    <tr><td>APIM gateway</td><td><span class="tag t-part">deleted</span></td><td><code>provisioningState: Deleting</code> — see the correction above</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>The five Foundry deployments</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Deployment</th><th>Model</th><th>Tier</th><th>Capacity</th><th>Best used for</th></tr></thead>
+  <tbody>
+    <tr><td class="num">gpt-5-4-batch</td><td>gpt-5.4</td><td><strong>GlobalBatch</strong></td><td class="num">200</td><td>Blind judging, adversarial verification, large eval sweeps</td></tr>
+    <tr><td class="num">gpt-5-4-mini-batch</td><td>gpt-5.4-mini</td><td><strong>GlobalBatch</strong></td><td class="num">200</td><td>Bulk labelling, cheap first-pass triage</td></tr>
+    <tr><td class="num">gpt-5-4-mini-std</td><td>gpt-5.4-mini</td><td>GlobalStandard</td><td class="num">500</td><td>Interactive paths, product features</td></tr>
+    <tr><td class="num">deepseek-v4-pro</td><td>DeepSeek-V4-Pro</td><td>GlobalStandard</td><td class="num">1000</td><td>A second, independent judge — different training lineage</td></tr>
+    <tr><td class="num">kimi-k2-6</td><td>Kimi-K2.6</td><td>GlobalStandard</td><td class="num">100</td><td>A third lineage; long-context work</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout note">
+  <span class="label">Three lineages is an asset you may not have noticed you bought</span>
+  <p>
+    gpt-5.4, DeepSeek-V4-Pro and Kimi-K2.6 come from three <em>different training families</em>.
+    Your own P6 result turns on exactly that distinction — correlated failure tracked family
+    lineage, with no overlap between within-family and cross-family pairs. A judging panel drawn
+    from three lineages is materially stronger than three judges from one, and it is already
+    deployed.
+  </p>
+</div>
+
+<h2 id="inception">3. What NVIDIA Inception is worth</h2>
+<p class="h2sub">Verified against NVIDIA's own pages and partner documentation, 2026-09-01</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Benefit</th><th>Value</th><th>Condition</th><th>Priority</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>DGX Cloud credits</strong></td><td class="num">up to <strong>$100,000</strong></td>
+      <td>Dedicated H100 capacity, requested through the Inception portal. The separate <em>30% discount</em> needs 4 nodes and $75k committed — the credits themselves do not.</td>
+      <td><strong>Highest</strong> — the GPU lane Azure will not give you</td>
+    </tr>
+    <tr>
+      <td><strong>AWS Activate</strong></td><td class="num"><strong>$25,000</strong> basic<br/><strong>$100,000</strong> advanced</td>
+      <td>The $25k tier has <em>no funding requirement</em>. Your AWS Builder ID email must match the Inception registration email exactly.</td>
+      <td><strong>High</strong> — AWS GPU quota is 0, but credits plus a quota request is a real lane</td>
+    </tr>
+    <tr>
+      <td><strong>Azure via Benefit Explorer</strong></td><td class="num">$5,000 &rarr; <strong>$150,000</strong></td>
+      <td>Already claimed at M2. Ladder in §1.</td>
+      <td><strong>High</strong> — the compounding one</td>
+    </tr>
+    <tr>
+      <td><strong>NVIDIA Build / NIM</strong></td><td class="num">free</td>
+      <td>80–100+ hosted models on an OpenAI-compatible endpoint, <strong>40 RPM</strong> (raisable to ~200 on request). Prototyping, research and evaluation only — production serving needs an AI Enterprise licence.</td>
+      <td><strong>High</strong> — free third-party judges and baselines, zero credit burn</td>
+    </tr>
+    <tr><td>DLI training credits</td><td class="num">free courses</td><td>Early-stage members</td><td>Low</td></tr>
+    <tr><td>Preferred hardware pricing</td><td class="num">rebate</td><td>Applied through authorised suppliers; NVIDIA does not sell direct</td><td>Low unless buying silicon</td></tr>
+    <tr><td>Inception Capital Connect</td><td class="num">introductions</td><td>Eligibility-based VC network</td><td>Situational</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout stop">
+  <span class="label">The licence boundary that matters for Warrantor specifically</span>
+  <p>
+    NVIDIA Build's free tier is scoped to <strong>prototyping, research and evaluation</strong>.
+    Serving real end users or business transactions requires an NVIDIA AI Enterprise licence.
+  </p>
+  <p>
+    For a product whose entire thesis is honest boundaries, running production guard traffic on a
+    research-only tier would be the exact contradiction the enforcement-tier labels exist to
+    prevent. Use NVIDIA Build for <em>judging and baselines</em>; keep product inference on Foundry.
+  </p>
+</div>
+
+<h2 id="lanes">4. The compute lanes, ranked</h2>
+<p class="h2sub">Cheapest first, and what each is genuinely for</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>#</th><th>Lane</th><th>Cost</th><th>Use it for</th><th>Do not use it for</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td><strong>NVIDIA Build / NIM</strong></td><td>free, 40 RPM</td><td>Third-party judges, baselines, cross-family checks</td><td>Production traffic (licence); anything rate-sensitive</td></tr>
+    <tr><td class="num">2</td><td><strong>OpenRouter free tier</strong></td><td>free</td><td>Breadth — a fourth and fifth lineage for panels; quick comparisons</td><td>Reproducible published figures — free routes change silently</td></tr>
+    <tr><td class="num">3</td><td><strong>Kaggle</strong></td><td>free, 30h/wk</td><td>Training that fits T4/P100</td><td>bf16 recipes — that hardware predates it, and your guard recipes resolve as <em>unsuitable</em> there</td></tr>
+    <tr><td class="num">4</td><td><strong>Local RTX 5080</strong></td><td>free, 14.7 GiB</td><td>Every guard recipe (measured 6.15–8.57 GiB), sovereign data, hot inference</td><td>Long unattended runs while you use the machine</td></tr>
+    <tr><td class="num">5</td><td><strong>Foundry GlobalBatch</strong></td><td>~half Standard price</td><td>Eval sweeps, corpus labelling, judging — anything nobody waits on</td><td>Interactive work; 24-hour window</td></tr>
+    <tr><td class="num">6</td><td><strong>Foundry GlobalStandard</strong></td><td>full price</td><td>Product paths, interactive research</td><td>Bulk work batch would do at half the price</td></tr>
+    <tr><td class="num">7</td><td><strong>Modal</strong></td><td>$250 grant, ~$14 used</td><td>GPU training needing &gt;16 GiB, or parallel fan-out</td><td>Work the 5080 already fits</td></tr>
+    <tr><td class="num">8</td><td><strong>DGX Cloud</strong></td><td>up to $100k, unclaimed</td><td>Serious multi-node H100 training</td><td>Anything before the credits are actually granted</td></tr>
+    <tr><td class="num">9</td><td><strong>Azure GPU VMs</strong></td><td>blocked at 0</td><td>—</td><td>Everything, until a portal quota request is approved</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Azure serverless fine-tuning — the lane that sidesteps the quota wall</h3>
+<p>
+  Foundry offers hosted fine-tuning billed <em>per training token</em> with <strong>no GPU quota
+  required</strong>. That matters twice: it is the only Azure training path currently open to you,
+  and it counts as an Azure workload for the ladder. The trade is a narrower model selection than
+  open-weight LoRA on your own GPU, so it complements the 5080 rather than replacing it.
+</p>
+
+<h2 id="portfolio">5. The ten-workload portfolio</h2>
+<p class="h2sub">Useful first, ladder-qualifying second — in that order</p>
+
+<div class="callout warn">
+  <span class="label">The rule this list obeys</span>
+  <p>
+    Every entry must be something you would run <em>even if the ladder did not exist</em>. Deploying
+    hollow services to farm a milestone is the same failure as an audit trail of rubber-stamping: it
+    satisfies a counter while producing nothing, and it would be visible in the usage pattern
+    anyway.
+  </p>
+</div>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>#</th><th>Workload</th><th>Azure service</th><th>Real purpose</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Batch judging harness</td><td>Foundry GlobalBatch</td><td>Blind parity gate for every guard candidate</td></tr>
+    <tr><td class="num">2</td><td>Interactive eval endpoint</td><td>Foundry GlobalStandard</td><td>Fast iteration during experiment design</td></tr>
+    <tr><td class="num">3</td><td>Three-lineage judge panel</td><td>gpt-5.4 / DeepSeek / Kimi</td><td>Cross-family verification, per the P6 result</td></tr>
+    <tr><td class="num">4</td><td>AI gateway with token budgets</td><td>APIM (re-created)</td><td>Per-consumer limits — and a live demo of Warrantor's thesis</td></tr>
+    <tr><td class="num">5</td><td>Evidence archive</td><td>Blob Storage</td><td>Signed evidence bundles, off the developer machine</td></tr>
+    <tr><td class="num">6</td><td>Eval telemetry</td><td>App Insights + Log Analytics</td><td>Already provisioned; wire the harness to it</td></tr>
+    <tr><td class="num">7</td><td>Serverless fine-tune runs</td><td>Foundry fine-tuning</td><td>The only open Azure training path</td></tr>
+    <tr><td class="num">8</td><td>Corpus store</td><td>Blob / Data Lake</td><td>WildGuard, ExpGuard, exported warrant history</td></tr>
+    <tr><td class="num">9</td><td>Scheduled eval runner</td><td>Container Apps Job</td><td>Nightly regression of every published figure</td></tr>
+    <tr><td class="num">10</td><td>Paper artefact builder</td><td>Container Apps / Functions</td><td>Rebuild every figure from source data on demand</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+  Nine and ten are the ones I would defend hardest on merit alone. A <strong>nightly regression of
+  every published figure</strong> is the direct answer to this project's recurring defect — the
+  <code>num_ctx</code> 4096-versus-8192 divergence survived eight releases because nothing
+  re-measured the running configuration. And a builder that <strong>regenerates every paper figure
+  from source data</strong> makes reproducibility a property of the repository rather than a claim
+  in a methods section.
+</p>
+
+<h2 id="research">6. What to run first, and why</h2>
+<p class="h2sub">You asked for a recommendation rather than a menu</p>
+
+<ol class="steps">
+  <li>
+    <h3>Close P6's submission blocker — today, and it is nearly free</h3>
+    <p>
+      <code>PRIOR-ART-ASSESSMENT.md</code> states it plainly: our read of arXiv:2608.28327 covers the
+      abstract, §1, §2, §4.2–4.3 and §10.5; <strong>their §11 is unread, and P6's entire contribution
+      is a contrast with their §11.6 result</strong>. The document says this must be closed before
+      submission. It is one paper read. Everything else here is worth less until a submittable paper
+      is actually submittable.
+    </p>
+  </li>
+  <li>
+    <h3>Stand up the three-lineage judging panel on GlobalBatch</h3>
+    <p>
+      This is the infrastructure every later experiment reuses, it is the cheapest thing Foundry
+      does, and it implements the standing doctrine that open weights teach while frontier models
+      only judge. Three lineages give it the independence your own research showed matters.
+    </p>
+  </li>
+  <li>
+    <h3>Re-measure every published figure at scale</h3>
+    <p>
+      The current guard figures rest on a 14-case bench and a local Ollama. Batch inference lets you
+      run the full corpora with intervals that are actually narrow. Several claims would move from
+      &ldquo;consistent with&rdquo; to &ldquo;measured&rdquo;, and any that fail are far better found
+      now than by a reviewer.
+    </p>
+  </li>
+  <li>
+    <h3>Then, and only then, spend GPU time</h3>
+    <p>
+      Three of eight guard models need GPU. Modal fits all of them and $236 of the grant remains.
+      Do not authorise Modal spend before the Hugging Face token exists — every recipe fails at the
+      data step with HTTP 401 first, which the earlier brief established and nothing has changed.
+    </p>
+  </li>
+</ol>
+
+<h2 id="actions">7. Actions, split by who can take them</h2>
+
+<h3>Yours — none take more than about fifteen minutes</h3>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Action</th><th>Unlocks</th><th>Where</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Open the Inception portal benefits tab</strong> and tell me what DGX Cloud and AWS show</td><td class="num">up to $200,000</td><td>Inception portal &rarr; benefits request</td></tr>
+    <tr><td><strong>Claim AWS Activate</strong> using the <em>same email</em> as your Inception registration</td><td class="num">$25k–$100k</td><td>AWS Activate via Inception</td></tr>
+    <tr><td><strong>Accept the two Hugging Face corpus licences</strong> and export <code>HF_TOKEN</code></td><td>every guard fine-tune, both corpus benchmarks</td><td>huggingface.co</td></tr>
+    <tr><td><strong>File the Azure GPU quota request</strong> (free on any support plan)</td><td>the raw-VM lane</td><td>Portal &rarr; Help + support &rarr; quota</td></tr>
+    <tr><td>Get an NVIDIA Build API key</td><td>free judges and baselines</td><td>build.nvidia.com</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Mine, on your word</h3>
+<ul>
+  <li>Read §11 of arXiv:2608.28327 and close P6's blocker.</li>
+  <li>Build the batch judging harness and wire it to App Insights.</li>
+  <li>Draft the exact quota-request justification text, SKUs and regions for you to paste.</li>
+  <li>Re-create APIM deliberately, with token budgets enforced and real traffic routed through it.</li>
+  <li>Stand up workloads 5–10 as genuine infrastructure.</li>
+</ul>
+
+<h2 id="risks">8. Risks I would not paper over</h2>
+
+<ul>
+  <li><strong>The July GPU note in <code>CLAUDE.md</code> is wrong.</strong> It records 8×A100 / 8×H100 / 8×MI300 available on Foundry managed compute, verified in-portal. The ARM API says every GPU family is at 0 in both regions today. The portal was almost certainly listing <em>available SKUs</em>, not <em>granted quota</em>. Any plan built on that note fails at first contact.</li>
+  <li><strong>Milestone thresholds are reported, not contractual.</strong> The $25k/$50k/$150k figures come from Microsoft support answers, not a published SLA. Treat them as a strong plan rather than a guarantee, and re-check before betting on a specific number.</li>
+  <li><strong>DGX Cloud credits are &ldquo;up to&rdquo;.</strong> Awards vary by startup profile. Do not design a training programme around $100,000 before it is granted.</li>
+  <li><strong>OpenRouter free routes are not reproducible.</strong> Free endpoints change model versions and providers without notice. Fine for exploration, unusable for a figure you intend to publish.</li>
+  <li><strong>Sustained $3,000/month is real money if credits lapse.</strong> The ladder only works while credits cover the spend. Check the expiry on the current grant before committing to a burn rate that assumes it.</li>
+  <li><strong>Nothing here has been verified in your browser sessions.</strong> The Inception, OpenRouter, Hugging Face and NVIDIA Build figures are from public documentation, not from your accounts. What your membership actually grants can only be read from the portal.</li>
+</ul>
+
+<p class="footnote">
+  <span class="big">Provenance.</span> Azure facts read live from the ARM control plane on
+  2026-09-01: subscription <code>baa10a89-7e2c-47d4-b5c9-5f0b4eb01b57</code>; deployments via
+  <code>Microsoft.CognitiveServices</code>; quota via
+  <code>Microsoft.Compute/locations/*/usages</code> and
+  <code>Microsoft.MachineLearningServices/locations/*/quotas</code>; APIM traffic via
+  <code>Microsoft.Insights/metrics</code>, which returned an empty timeseries with
+  <code>errorCode: Success</code> — zero requests since creation. Inception, AWS Activate and
+  Founders Hub figures come from nvidia.com/en-us/startups, Microsoft Learn Q&amp;A threads on
+  milestone progression, and partner documentation, all retrieved 2026-09-01. Guard and paper
+  figures are from this repository. Where a number is &ldquo;up to&rdquo; or reported rather than
+  contractual, it says so.
+</p>
+
+</div>
+</body>
+</html>

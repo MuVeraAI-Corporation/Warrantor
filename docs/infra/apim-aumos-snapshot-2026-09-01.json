@@ -1,0 +1,66 @@
+# APIM AumOS — captured before deletion, 2026-09-01T04:53:13Z
+
+## service
+{"etag":"AAAAARuxG70=","properties":{"publisherEmail":"vikram_muveraai.com#EXT#@vikrammuveraai.onmicrosoft.com","publisherName":"vikram-2093-resource AI Gateway","notificationSenderEmail":"apimgmt-noreply@mail.windowsazure.com","provisioningState":"Succeeded","targetProvisioningState":"","createdAtUtc":"2026-08-31T18:49:14.4075104Z","gatewayUrl":"https://aumos.azure-api.net","gatewayRegionalUrl":null,"portalUrl":null,"developerPortalUrl":null,"dataApiUrl":null,"managementApiUrl":"https://smapi.api-blu-prod-scaleunit-006.p.azurewebsites.net/","scmUrl":null,"hostnameConfigurations":[{"type":"Proxy","hostName":"aumos.azure-api.net","encodedCertificate":null,"keyVaultId":null,"certificatePassword":null,"negotiateClientCertificate":false,"certificate":null,"defaultSslBinding":true,"identityClientId":null,"certificateSource":"BuiltIn","certificateStatus":null}],"publicIPAddresses":null,"privateIPAddresses":null,"additionalLocations":null,"virtualNetworkConfiguration":null,"customProperties":{"Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10":"False","Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11":"False","Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls10":"False","Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11":"False","Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Ssl30":"False","Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2":"False"},"virtualNetworkType":"None","certificates":null,"natGatewayState":"Enabled","outboundPublicIPAddresses":null,"apiVersionConstraint":{"minApiVersion":null},"publicIpAddressId":null,"publicNetworkAccess":"Enabled","privateEndpointConnections":null,"platformVersion":"undetermined","configurationApi":null,"legacyPortalStatus":"Disabled","developerPortalStatus":"Disabled"},"sku":{"name":"BasicV2","capacity":1},"identity":{"type":"SystemAssigned","principalId":"2c99682b-e384-47df-b384-762a4aabaa1d","tenantId":"a0944649-b0f9-46f2-a16c-8dd7014de96f"},"zones":null,"systemData":null,"location":"East US","tags":{},"id":"/subscriptions/baa10a89-7e2c-47d4-b5c9-5f0b4eb01b57/resourceGroups/rg-vikram-8897/providers/Microsoft.ApiManagement/service/AumOS","name":"AumOS","type":"Microsoft.ApiManagement/service"}
+## apis
+{
+  "value": [
+    {
+      "id": "/subscriptions/baa10a89-7e2c-47d4-b5c9-5f0b4eb01b57/resourceGroups/rg-vikram-8897/providers/Microsoft.ApiManagement/service/AumOS/apis/vikram-2093-resource",
+      "type": "Microsoft.ApiManagement/service/apis",
+      "name": "vikram-2093-resource",
+      "properties": {
+        "displayName": "vikram-2093-resource",
+        "apiRevision": "1",
+        "description": null,
+        "subscriptionRequired": true,
+        "serviceUrl": null,
+        "backendId": null,
+        "path": "vikram-2093-resource",
+        "protocols": [
+          "https"
+        ],
+        "mcpProperties": null,
+        "a2aProperties": null,
+        "isAgent": false,
+        "agent": null,
+        "jsonRpcProperties": null,
+        "authenticationSettings": {
+          "oAuth2": null,
+          "openid": null,
+          "oAuth2AuthenticationSettings": [],
+          "openidAuthenticationSettings": []
+        },
+        "subscriptionKeyParameterNames": {
+          "header": "api-key",
+          "query": "subscription-key",
+          "bearer": null
+        },
+        "isCurrent": true,
+        "effectivePath": null
+      }
+    }
+  ],
+  "count": 1
+}
+## products
+{
+  "value": [
+    {
+      "id": "/subscriptions/baa10a89-7e2c-47d4-b5c9-5f0b4eb01b57/resourceGroups/rg-vikram-8897/providers/Microsoft.ApiManagement/service/AumOS/products/vikram-2093-resource-vikram-2093-ai-tqrb8vkfwb",
+      "type": "Microsoft.ApiManagement/service/products",
+      "name": "vikram-2093-resource-vikram-2093-ai-tqrb8vkfwb",
+      "properties": {
+        "displayName": "vikram-2093-resource-vikram-2093-ai-tqrb8vkfwb",
+        "description": null,
+        "terms": null,
+        "subscriptionRequired": true,
+        "approvalRequired": false,
+        "subscriptionsLimit": null,
+        "state": "published",
+        "groups": []
+      }
+    }
+  ],
+  "count": 1
+}
