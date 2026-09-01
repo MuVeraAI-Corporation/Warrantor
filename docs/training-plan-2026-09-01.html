@@ -69,12 +69,13 @@
 
 <header>
   <p class="eyebrow">Training plan · local · Kaggle · Modal</p>
-  <h1>Every guard recipe is already trained. The plan is mostly about proving one of them and understanding another.</h1>
+  <h1>Every guard recipe is already trained, every one of them is damaged, and none of that was recorded anywhere.</h1>
   <p class="standfirst">
-    The roadmap describes a programme with three GPU-blocked models and four cold-start blocked. On
-    inspection, all five guard recipes have run, one clears every promotion criterion, one lost
-    eleven points, and two of the three &ldquo;blockers&rdquo; in the way of the rest were not what
-    they were recorded as.
+    The roadmap describes three GPU-blocked models and four cold-start blocked. In fact all five
+    guard recipes had run — and paired testing the same day showed <strong>every fine-tune damaged
+    its severity field</strong>, including two that scored <em>within noise</em> on recall while
+    losing more than half their <code>controversial</code> verdicts. Two of the three
+    &ldquo;blockers&rdquo; were also not what they were recorded as.
   </p>
   <p class="meta">1 September 2026 · every lane figure resolved from <code>warrantor_ml.lanes</code></p>
 </header>
@@ -99,24 +100,34 @@
 <table>
   <thead><tr><th>Recipe</th><th>Trained</th><th>Recall</th><th>Baseline</th><th>Delta</th><th>Reading</th></tr></thead>
   <tbody>
-    <tr><td><code>guard-0.6b-expguard-weak</code></td><td class="num">08-22</td><td class="num"><strong>0.7818</strong></td><td class="num">0.7150</td><td class="num"><strong>+0.0668</strong></td><td><span class="tag t-ok">clears every bar</span></td></tr>
-    <tr><td><code>guard-4b-adversarial</code></td><td class="num">08-22</td><td class="num">0.8607</td><td class="num">0.8554</td><td class="num">+0.0053</td><td><span class="tag t-mid">unresolved</span></td></tr>
-    <tr><td><code>guard-4b-weak-category</code></td><td class="num">08-22</td><td class="num">0.8541</td><td class="num">0.8554</td><td class="num">−0.0013</td><td><span class="tag t-mid">unresolved</span></td></tr>
-    <tr><td><code>guard-0.6b-adversarial</code></td><td class="num">08-22</td><td class="num">0.8369</td><td class="num">0.8488</td><td class="num">−0.0119</td><td><span class="tag t-mid">unresolved</span></td></tr>
-    <tr><td><code>guard-0.6b-weak-category</code></td><td class="num">08-22</td><td class="num">0.7374</td><td class="num">0.8488</td><td class="num"><strong>−0.1114</strong></td><td><span class="tag t-no">regression</span></td></tr>
+    <tr><td><code>guard-0.6b-expguard-weak</code></td><td class="num">08-22</td><td class="num"><strong>0.7818</strong></td><td class="num">0.7150</td><td class="num"><strong>+0.0668</strong></td><td><span class="tag t-no">severity class lost</span></td></tr>
+    <tr><td><code>guard-4b-adversarial</code></td><td class="num">08-22</td><td class="num">0.8607</td><td class="num">0.8554</td><td class="num">+0.0053</td><td><span class="tag t-no">noise; severity −56%</span></td></tr>
+    <tr><td><code>guard-4b-weak-category</code></td><td class="num">08-22</td><td class="num">0.8541</td><td class="num">0.8554</td><td class="num">−0.0013</td><td><span class="tag t-no">noise; severity −65%</span></td></tr>
+    <tr><td><code>guard-0.6b-adversarial</code></td><td class="num">08-22</td><td class="num">0.8369</td><td class="num">0.8488</td><td class="num">−0.0119</td><td><span class="tag t-no">VOID — class lost</span></td></tr>
+    <tr><td><code>guard-0.6b-weak-category</code></td><td class="num">08-22</td><td class="num">0.7374</td><td class="num">0.8488</td><td class="num"><strong>−0.1114</strong></td><td><span class="tag t-no">regression, <em>p</em> &lt; 1e-9</span></td></tr>
     <tr><td colspan="6" style="padding-top:14px"><strong>Substrate — none trained</strong></td></tr>
     <tr><td><code>bound-proposer</code> · <code>refusal-triage</code> · <code>effect-risk</code> · <code>report-summariser</code></td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><span class="tag t-no">genuinely blocked</span></td></tr>
   </tbody>
 </table>
 </div>
 
-<div class="callout warn">
-  <span class="label">The four middle rows are not small wins and losses</span>
+<div class="callout stop">
+  <span class="label">RESOLVED the same day — and the answer is worse than &ldquo;unresolved&rdquo;</span>
   <p>
-    They are <strong>unresolved</strong>. A delta without a significance test is not a finding — the
-    lesson this programme already paid for when a monotonicity check reported <em>p</em> = 0.688
-    noise as a reversal. On denominators of 753 and 754, a ±0.01 movement is a handful of items.
-    Nothing in this plan treats them as results until a paired test says so.
+    Paired McNemar against correct size-matched baselines settled all five, and a severity check
+    settled something the recall figures could not see: <strong>every one of the four fine-tunes
+    damaged its severity field.</strong> Two halved the <code>controversial</code> class, one
+    destroyed it, one flooded it with junk vocabulary (<code>others</code>, <code>unethical acts</code>).
+  </p>
+  <p>
+    <strong>The 4B adapters are the warning.</strong> Both scored <em>within noise</em> on recall
+    (<em>p</em> = 0.55 and <em>p</em> = 0.79) while losing <strong>56%</strong> and
+    <strong>65%</strong> of their <code>controversial</code> verdicts. A recall-and-category review
+    — which is every review this programme has — passes them.
+  </p>
+  <p>
+    <strong>Nothing here is promotable, and §4's W4 and W5 should not start until a recipe change
+    addresses severity.</strong> Details in <code>W1-W3-findings-2026-09-01.md</code>.
   </p>
 </div>
 
