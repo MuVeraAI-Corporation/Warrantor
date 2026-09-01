@@ -32,7 +32,7 @@ RUN_MANIFEST = json.loads(
     "precision_reason": "sm_8x supports bf16 natively; matching the base model's dtype.",
     "estimated_vram_gib": 6.146,
     "estimated_hours": 1.78,
-    "save_steps": null,
+    "save_steps": 70,
     "warnings": [
         "LoRA over an unquantised base leaves very little margin on a 16 GB card and will OOM when the desktop compositor spikes. Prefer technique=qlora locally.",
         "expguardmix is GATED on Hugging Face. Accept the form and export a read token before this run, or the data step fails with HTTP 401. Run `warrantor-ml-datasets --preflight` first.",
@@ -51,7 +51,7 @@ EPOCHS = 1.0
 LORA_RANK = 16
 LORA_ALPHA = 32
 SEED = 20260813
-SAVE_STEPS = None
+SAVE_STEPS = 70
 PRECISION = "bf16"
 SUPERVISE_SEVERITY = True
 
