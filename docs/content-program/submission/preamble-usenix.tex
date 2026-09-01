@@ -1,0 +1,108 @@
+% =====================================================================================
+% USENIX Security submission format — for P1 and P8.
+%
+% ⚠️ THIS IS A FAITHFUL REPRODUCTION OF THE DOCUMENTED USENIX LAYOUT, NOT THE OFFICIAL
+% STYLE FILE. No `usenix2019_v3.sty` (or the current cycle's equivalent) is installed on
+% this machine and it could not be fetched. Before submitting:
+%
+%   1. Download the official template for the CURRENT cycle from the USENIX Security CFP.
+%   2. Replace this file's geometry/font block with \usepackage{usenix-<version>}.
+%   3. Recompile and re-check the page count — the official file may differ from the
+%      geometry reproduced here by enough to change pagination.
+%
+% What this file reproduces from the published USENIX formatting instructions:
+%   - two-column, 10pt, US letter
+%   - Times Roman body text
+%   - 7in text width, 9in text height, 0.33in column separation
+%   - anonymous submission: no author block, no acknowledgements, scrubbed PDF metadata
+%
+% ⚠️ ALSO VERIFY AGAINST THE CURRENT CFP, which this machine cannot browse: the page limit
+% (recent cycles: 13 typeset pages excluding bibliography and well-marked appendices) and
+% whether the cycle requires any additional declaration block.
+% =====================================================================================
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{times}
+\usepackage{microtype}
+
+% USENIX geometry, per the published instructions.
+\usepackage[
+  letterpaper,
+  textwidth=7in, textheight=9in,
+  centering,
+  columnsep=0.33in
+]{geometry}
+
+\usepackage{amsmath,amssymb}
+\usepackage{textcomp}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{framed}
+\usepackage[normalem]{ulem}
+\usepackage{flushend}      % balance the final page's columns
+
+% Verbatim blocks MUST break lines here. A 3.33in column cannot hold the 62-character TOST
+% sizing formula in P8's method section: it ran 131pt past the column edge and into the gutter.
+% fvextra adds breaklines to fancyvrb, and RecustomVerbatimEnvironment routes pandoc's plain
+% `verbatim` through it so no change to the generated body is needed.
+\usepackage{fvextra}
+\RecustomVerbatimEnvironment{verbatim}{Verbatim}{breaklines,breakanywhere,fontsize=\scriptsize}
+
+% --- pandoc shims ---------------------------------------------------------------------
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\pandocbounded}[1]{#1}
+\providecommand{\st}[1]{\sout{#1}}
+\setlist{leftmargin=1.1em, itemsep=1pt, topsep=3pt, parsep=0pt}
+
+% --- paper idioms ---------------------------------------------------------------------
+% Monochrome here, unlike the preprint preamble: USENIX submissions are commonly printed
+% and reviewed in greyscale, and a marker that only reads in color is a marker that some
+% reviewers will not see.
+\newcommand{\warn}{\textbf{$\triangle$}\ }
+\newcommand{\rmark}[1]{\textbf{\textsf{\footnotesize #1}}\ }
+
+\newenvironment{callout}{\par\smallskip\begin{leftbar}\small}{\end{leftbar}\par\smallskip}
+\renewenvironment{quote}{\par\smallskip\begin{leftbar}\small\itshape}
+  {\end{leftbar}\par\smallskip}
+
+% --- tables ---------------------------------------------------------------------------
+% Dense tables at column width need tighter defaults than the preprint build.
+\renewcommand{\arraystretch}{1.08}
+\setlength{\tabcolsep}{3.5pt}
+
+% --- sectioning -----------------------------------------------------------------------
+% Numbering OFF: the papers carry their own section numbers in the heading text and
+% cross-reference them in prose. Letting LaTeX renumber breaks every such reference.
+\setcounter{secnumdepth}{-2}
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.5em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalfont\small\bfseries\itshape}{\thesubsubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{10pt}{4pt}
+\titlespacing*{\subsection}{0pt}{8pt}{2pt}
+
+% --- anonymous metadata ---------------------------------------------------------------
+% A submission whose PDF properties name the author is deanonymized regardless of its
+% title page, so these are scrubbed explicitly rather than left to the toolchain.
+\hypersetup{pdfauthor={}, pdftitle={Anonymous submission}, pdfsubject={},
+            pdfkeywords={}, pdfcreator={}, pdfproducer={}}
+\author{}
+\date{}
+
+% =====================================================================================
+% Last-resort line-breaking slack. TeX sets a paragraph by stretching interword space within
+% strict tolerance; when no break satisfies it -- a narrow two-column measure carrying tokens
+% like "10-of-15" or a math arrow that cannot be hyphenated -- it gives up and lets the line
+% run into the margin instead. \emergencystretch grants extra stretch ONLY on that final
+% desperate pass, so it costs nothing on any paragraph that already fits, and converts a
+% visible overflow into a slightly loose line. P6 ran 3.34pt and 2.66pt into the margin
+% without it.
+% =====================================================================================
+\emergencystretch=1.5em

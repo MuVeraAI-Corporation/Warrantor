@@ -1,0 +1,11 @@
+# LaTeX build byproducts. The .tex and .pdf are kept — they are the artifacts that get sent
+# somewhere — but these carry no information that the sources do not, and they churn on every
+# single rebuild. (*.log is already ignored repo-wide.)
+*.aux
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+*.bbl
+*.blg

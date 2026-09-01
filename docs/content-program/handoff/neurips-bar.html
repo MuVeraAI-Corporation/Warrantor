@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reaching the NeurIPS Bar</title>
+<style>
+
+  :root {
+    --bg: #faf9f7; --surface: #ffffff; --ink: #1a1a19; --muted: #6b6862;
+    --line: #e5e2dc; --accent: #b8552f; --accent-soft: #f5ede8;
+    --ok: #2f6b4f; --warn: #8a6d1f; --stop: #a33a2a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16150f; --surface: #1e1d17; --ink: #eceae4; --muted: #a09c92;
+      --line: #33302a; --accent: #e08356; --accent-soft: #2a221d;
+      --ok: #7fb99a; --warn: #d4b25e; --stop: #e08a78;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16150f; --surface: #1e1d17; --ink: #eceae4; --muted: #a09c92;
+    --line: #33302a; --accent: #e08356; --accent-soft: #2a221d;
+    --ok: #7fb99a; --warn: #d4b25e; --stop: #e08a78;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.65 ui-serif, Georgia, "Times New Roman", serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 56px 28px 96px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 28px; margin-bottom: 40px; }
+  h1 { font-size: 2.35rem; line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 1.02rem; margin: 0; }
+  h2 {
+    font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.09em;
+    font-family: ui-sans-serif, system-ui, sans-serif; font-weight: 650;
+    color: var(--accent); margin: 56px 0 18px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  h3 { font-size: 1.4rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+  p { margin: 0 0 14px; }
+  .lede { font-size: 1.1rem; color: var(--muted); }
+  .paper {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); border-radius: 3px;
+    padding: 26px 28px; margin: 0 0 22px;
+  }
+  .tag {
+    display: inline-block; font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 2px; margin: 0 6px 8px 0;
+    background: var(--accent-soft); color: var(--accent); font-weight: 650;
+  }
+  .tag.venue { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .field { margin: 16px 0 0; }
+  .field > .label {
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+    font-weight: 650; display: block; margin-bottom: 5px;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  th {
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: 0.74rem;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 650;
+  }
+  .scroll { overflow-x: auto; }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.87em;
+    background: var(--accent-soft); padding: 1px 5px; border-radius: 2px;
+  }
+  .note {
+    background: var(--accent-soft); border-radius: 3px; padding: 14px 18px;
+    margin: 16px 0; font-size: 0.95rem;
+  }
+  .note strong { color: var(--accent); }
+  .kill { border-left: 3px solid var(--stop); padding-left: 14px; margin: 14px 0; }
+    .shipped { border-left: 3px solid var(--ok); padding-left: 14px; margin: 14px 0; }
+    .tag.done { background: transparent; border: 1px solid var(--ok); color: var(--ok); }
+  .kill .label { color: var(--stop); }
+  ol, ul { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 7px; }
+  .foot { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line);
+          color: var(--muted); font-size: 0.9rem; }
+
+  /* additions for this document */
+  .step { display:flex; gap:16px; margin:0 0 18px; }
+  .step .n {
+    flex:0 0 30px; height:30px; border-radius:50%; background:var(--accent);
+    color:var(--bg); font-family:ui-sans-serif,system-ui,sans-serif; font-weight:700;
+    font-size:0.85rem; display:flex; align-items:center; justify-content:center;
+  }
+  .step .body { flex:1; }
+  .need { border-left:3px solid var(--warn); padding-left:14px; margin:14px 0; }
+  .ok-block { border-left:3px solid var(--ok); padding-left:14px; margin:14px 0; }
+  .cost { font-family:ui-sans-serif,system-ui,sans-serif; font-size:0.8rem;
+          text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); }
+  pre { background:var(--accent-soft); border:1px solid var(--line); border-radius:3px;
+        padding:14px 16px; overflow-x:auto; font-size:0.85rem; line-height:1.5;
+        font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .tag.stop { background:transparent; border:1px solid var(--stop); color:var(--stop); }
+  .tag.ok   { background:transparent; border:1px solid var(--ok);   color:var(--ok); }
+  .tag.warn { background:transparent; border:1px solid var(--warn); color:var(--warn); }
+  table { width:100%; border-collapse:collapse; font-size:0.92rem; margin:14px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-family:ui-sans-serif,system-ui,sans-serif; font-size:0.75rem;
+       text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); font-weight:650; }
+  .scroll { overflow-x:auto; }
+  ol.tight, ul.tight { margin:0 0 14px; padding-left:22px; }
+  ol.tight li, ul.tight li { margin-bottom:7px; }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Reaching the NeurIPS Bar</h1>
+  <p class="sub">Why none of the five papers is one, what the diagnosis actually is,
+  and six concrete concepts that could be &mdash; ranked by fit divided by cost.<br>
+  Prepared 2026-08-31 &middot; grounded in open problems the papers that beat us named in print.</p>
+</header>
+<h2>The bar, stated without flattery</h2>
+
+<div class="paper">
+  <h3>What NeurIPS main track actually accepts, and what we brought</h3>
+  <div class="scroll"><table>
+    <tr><th>NeurIPS wants</th><th>What the five papers have</th></tr>
+    <tr><td>A <strong>method, mechanism, or theory</strong></td><td>Four measurements and a simple defense. No theory. No mechanism &mdash; every mechanism question we hit, we explicitly deferred.</td></tr>
+    <tr><td><strong>Novelty</strong> that survives a related-work check</td><td><strong>Three of five were pre-empted within days.</strong> T-03 withdrew three of its four novelty claims after a prior-art check.</td></tr>
+    <tr><td><strong>Scale</strong> sufficient to convince</td><td>2&ndash;6 models, 1,000&ndash;1,800 items, <strong>under $100 of compute in total</strong>.</td></tr>
+    <tr><td><strong>Generality</strong> past one narrow setting</td><td>One defense type (input-side guard classifiers), one language, single-turn, one serving stack.</td></tr>
+  </table></div>
+
+  <div class="kill"><strong>The honest verdict is not close.</strong> The strongest single result in the
+  set &mdash; P8&rsquo;s empty gray zone &mdash; is a <em>domain transfer of someone else&rsquo;s
+  instrument</em>. The most novel &mdash; P2&rsquo;s input-variation defense &mdash; is a sensible
+  technique a reviewer would call obvious in hindsight, evaluated at small scale. Neither is a
+  NeurIPS main-track paper and no amount of rewriting makes them one.</div>
+
+  <div class="note"><strong>But the diagnosis that matters is not "not novel enough."</strong> It is
+  that <strong>we keep working on the right problems and arriving third.</strong> LongGuard beat P3 by
+  four days. LayeredEns beat P6 by three. Certify and QualityProxy beat P8 by weeks. That is not bad
+  luck four times &mdash; it is a structural position: <strong>we are reading the same arXiv feed as
+  better-resourced groups and racing them at their own game, which is speed and scale.</strong> Both
+  are the two things we do not have.</div>
+</div>
+
+<h2>The strategic move</h2>
+
+<div class="paper">
+  <h3>Stop racing on speed and scale. Compete on the thing that is actually scarce.</h3>
+
+  <p>Across four scoops, one pattern held: <strong>the papers that beat us named their own open
+  problems and did not solve them.</strong> Every one of them left, in writing, a gap they lacked the
+  time or the design to close:</p>
+
+  <div class="scroll"><table>
+    <tr><th>Paper that beat us</th><th>What they wrote was still open</th></tr>
+    <tr><td><strong>[LayeredEns]</strong></td><td><em>&ldquo;&phi; is a selection statistic, not a prediction statistic&hellip; It does not predict the residual or the refusal rate of the assembled pipeline, and we demonstrate that it does not, in both directions.&rdquo;</em> Their advice is therefore <em>&ldquo;measure the assembled stack to know what you have&rdquo;</em> &mdash; i.e. <strong>there is no predictor and you must measure every stack empirically.</strong></td></tr>
+    <tr><td><strong>[LayeredEns] &sect;11.6</strong></td><td>Its stratification is <em>&ldquo;underpowered by construction&rdquo;</em>; a larger behavior set is <em>&ldquo;the most valuable extension of this experiment.&rdquo;</em> <span class="tag ok">we did this in P6</span></td></tr>
+    <tr><td><strong>[QualityProxy] &sect;4.4</strong></td><td><strong>Four latent probes all failed</strong> to predict which checkpoint goes dangerous: entropy shift (<em>p</em>=0.606), refusal-direction geometry (cosine stays above 0.97), calibration drift (all |<em>r</em>|&lt;0.09), and safety-neuron error (real at 1.39&times; but <em>&ldquo;global rather than regime-specific&rdquo;</em>).</td></tr>
+    <tr><td><strong>[QualityProxy] &sect;5.3</strong></td><td>It does not run a formal equivalence procedure per cell. <span class="tag ok">we did this in P8</span></td></tr>
+    <tr><td><strong>[Certify] &sect;3.6</strong></td><td>Meeting a sample-size count <em>&ldquo;makes the test informative, it does not certify anything on its own &mdash; the test still has to be run and to pass.&rdquo;</em> <span class="tag ok">we did this in P8</span></td></tr>
+  </table></div>
+
+  <div class="ok-block"><strong>We have already closed three of these, and they became P6 and P8.</strong>
+  That is the proof the strategy works &mdash; and also the proof it is being applied too timidly.
+  <strong>We closed the small gaps. The two large ones are still open</strong>: nobody can predict a
+  stack&rsquo;s residual, and nobody can predict which model quantization will make unsafe. Those are
+  not measurement gaps. <strong>They are prediction problems, and prediction problems are what
+  NeurIPS publishes.</strong></div>
+
+  <div class="note"><strong>The reframe.</strong> Our scarce resource is not compute or speed &mdash;
+  it is <strong>the discipline to run a control that kills our own result</strong>, and the per-item
+  data to do it on. Four times now we have measured something and then measured the thing that could
+  invalidate it. <strong>That is exactly what a prediction paper needs and a measurement paper does
+  not</strong>, because a predictor is only worth anything if it holds out of sample, and holding out
+  of sample is a discipline problem before it is a modeling one.</div>
+</div>
+<h2>Six concepts, ranked by NeurIPS fit divided by what they cost us</h2>
+
+<p class="lede">Each is stated as the claim a reviewer would have to accept, the experiments that
+would establish it, the compute against our $100-class ceiling, what would kill it, and how likely
+someone else gets there first.</p>
+
+<div class="paper">
+  <div class="row"><span class="tag">rank 1</span><span class="tag ok">data already in hand</span><span class="tag venue">NeurIPS main track</span><span class="tag">~$0&ndash;15</span></div>
+  <h3>1. A predictor for stack residual risk &mdash; the gap [LayeredEns] named and could not close</h3>
+
+  <div class="field"><span class="label">The claim</span>
+  <strong>Given pairwise measurements over candidate guards, the false-negative rate of an assembled
+  stack is predictable within stated bounds &mdash; without assembling it.</strong> [LayeredEns] state
+  flatly that their statistic does not do this <em>&ldquo;in both directions&rdquo;</em>, and conclude
+  that a deployer must measure every stack empirically. <strong>That conclusion is a standing invitation.</strong></div>
+
+  <div class="field"><span class="label">Why this is NeurIPS-shaped and our measurements are not</span>
+  A measurement paper says <em>here is what happened</em>. This says <strong>here is an estimator,
+  here is its error bound, here is out-of-sample validation.</strong> That is a methods contribution
+  with theory attached, in a setting the security literature has just established as important and
+  unsolved. It is also <strong>immediately useful</strong>: composition is how every real deployment
+  is built, and the current advice &mdash; measure all 2<sup>n</sup> subsets &mdash; does not scale.</div>
+
+  <div class="field"><span class="label">The experiments</span>
+  <ol class="tight">
+    <li><strong>Fit on our existing panel.</strong> Six guards, 1,799 shared items, <strong>all 57
+    non-trivial subsets already measured</strong>. Fit candidate estimators &mdash; pairwise-only
+    (Kirkwood, which P8 showed breaks past size 4), a second-order maximum-entropy model, a copula on
+    per-item miss probabilities, and a latent-factor model where each guard loads on shared
+    difficulty plus lineage.</li>
+    <li><strong>Hold out by subset size.</strong> Fit on pairs and triples, predict quads through the
+    full panel. This is the honest test and the one that will hurt.</li>
+    <li><strong>Hold out by model.</strong> Leave one guard entirely out of the fit, predict every
+    stack containing it. This tests whether the estimator generalizes to a guard it has never seen
+    &mdash; which is what a deployer actually needs.</li>
+    <li><strong>Cross-corpus.</strong> Fit on the adversarial corpus, predict on the stratified one.
+    <strong>P8 showed the noise floor is corpus-dependent</strong>, so an estimator that does not
+    transfer across corpora is not a predictor.</li>
+    <li><strong>Extend the panel</strong> to 10&ndash;12 guards to widen the fit. This is the only
+    part that costs money: roughly 6 more models &times; 1,799 items on A10G, <strong>about $3</strong>.</li>
+  </ol></div>
+
+  <div class="ok-block"><strong>Why we are unusually well placed.</strong> The whole study is a
+  re-analysis of per-item verdicts we already hold, plus a small panel extension. <strong>P6 cost
+  $0.15 and produced the 57-subset dataset this needs.</strong> The marginal cost of the core result
+  is close to zero, and our pre-registration habit is exactly the discipline a predictor paper lives
+  or dies on.</div>
+
+  <div class="kill"><strong>What kills it.</strong> If no estimator beats the trivial baseline
+  out-of-sample, there is no paper &mdash; only a stronger negative result than [LayeredEns] already
+  published, which is a workshop note. <strong>Decide the success criterion before fitting anything</strong>,
+  or this becomes an exercise in finding the model that flatters the data. Also: our panel is one
+  defense type. A predictor validated only on input-side classifiers should say so in the title.</div>
+
+  <div class="field"><span class="label">Scoop risk</span> <strong>Moderate and rising.</strong>
+  [LayeredEns] named the gap in print three days before we read it; naming a gap is often what a group
+  does when it is already working on it. <strong>This has weeks, not months.</strong></div>
+</div>
+
+<div class="paper">
+  <div class="row"><span class="tag">rank 2</span><span class="tag venue">NeurIPS main track</span><span class="tag">theory + modest compute</span><span class="tag">~$20&ndash;60</span></div>
+  <h3>2. Certified robustness for guard models under paraphrase</h3>
+
+  <div class="field"><span class="label">The claim</span>
+  <strong>For a given input, a guard&rsquo;s verdict is provably stable under any paraphrase within a
+  defined semantic neighborhood &mdash; with a certificate, not an empirical rate.</strong></div>
+
+  <div class="field"><span class="label">Why this is the natural next move</span>
+  Everything this program has produced about paraphrase is <em>empirical and one-directional</em>:
+  we rephrase, we count flips, and the number is a lower bound because our transformation set is
+  frozen and non-adaptive. <strong>Every one of our papers carries that caveat.</strong> A certificate
+  removes it &mdash; it bounds <em>all</em> paraphrases in a neighborhood, including ones no attacker
+  has invented. Randomized smoothing gives certified radii in continuous spaces; the open problem is
+  doing it over a <em>semantic</em> neighborhood where the perturbation set is not a norm ball.
+  <strong>That is a real methods problem, and guards are the right first target because their output
+  is a single binary decision rather than a generation.</strong></div>
+
+  <div class="field"><span class="label">The experiments</span>
+  <ol class="tight">
+    <li><strong>Define the neighborhood operationally</strong> &mdash; paraphrases whose embedding lies
+    within &epsilon; of the original under a fixed encoder, with the encoder frozen and published.
+    The definition is the contribution&rsquo;s weakest joint and must be argued, not assumed.</li>
+    <li><strong>Smooth the guard</strong>: sample <em>k</em> paraphrases, majority-vote, derive a
+    certified radius via the standard smoothing bound adapted to a discrete perturbation set.</li>
+    <li><strong>Measure the certified fraction</strong> &mdash; what share of unsafe items carry a
+    non-trivial certificate, and at what false-positive cost. <strong>P2 already establishes the
+    baseline this must beat</strong> and the acceptability bound it must respect.</li>
+    <li><strong>Attack the certificate.</strong> Search for a paraphrase inside the certified radius
+    that flips the verdict. If one exists, the bound is wrong and that is the finding.</li>
+  </ol></div>
+
+  <div class="kill"><strong>What kills it.</strong> The semantic neighborhood may not admit a sound
+  certificate at all &mdash; embedding distance is a proxy for meaning, and <strong>our own
+  equivalence pack exists precisely because we do not trust automated meaning judgments</strong>. If
+  the certificate only holds under a definition nobody accepts, it is vacuous. <strong>This is the
+  highest-risk idea here and the highest-ceiling one.</strong></div>
+
+  <div class="field"><span class="label">Scoop risk</span> Low-moderate. Certified NLP robustness is
+  an active area, but guards specifically are not the usual target.</div>
+</div>
+<div class="paper">
+  <div class="row"><span class="tag">rank 3</span><span class="tag venue">NeurIPS main track</span><span class="tag warn">high risk</span><span class="tag">~$30&ndash;80</span></div>
+  <h3>3. Predicting <em>which way</em> a compressed guard breaks &mdash; where four published probes failed</h3>
+
+  <div class="field"><span class="label">The claim</span>
+  <strong>From the weights alone, before running a single evaluation item, predict whether quantizing
+  a given guard will make it safety-adverse or usability-adverse.</strong></div>
+
+  <div class="field"><span class="label">Why this is a genuine open problem and not a fishing trip</span>
+  P8 established the phenomenon and could not explain it: ShieldGemma&nbsp;9B loses almost only unsafe
+  detections (<strong>144 unsafe&rarr;safe against 4</strong>), Qwen3Guard&nbsp;4B almost only
+  over-blocks, and ShieldGemma&nbsp;2B <strong>reverses mid-ladder</strong> &mdash; purely
+  usability-adverse at <code>Q4_K_M</code> and <code>Q3_K_M</code>, then 47-to-1 safety-adverse at
+  <code>Q2_K</code>. <strong>Direction is a model property and nobody can predict it.</strong>
+  <br><br>Critically, <strong>[QualityProxy] &sect;4.4 already tried four instruments and all four
+  failed</strong>: first-token entropy shift (<em>p</em>=0.606), refusal-direction geometry (cosine to
+  the FP16 refusal direction <strong>stays above 0.97 in every quantized cell</strong> even as
+  behavior degrades), calibration drift (all |<em>r</em>|&lt;0.09), and safety-associated-neuron
+  quantization error &mdash; real at <strong>1.39&times;</strong>, <em>p</em>=4.89&times;10<sup>&minus;7</sup>,
+  but <em>&ldquo;global rather than regime-specific.&rdquo;</em>
+  <br><br><strong>Four failed probes is not a discouragement; it is a published map of where not to
+  dig.</strong> It also means a success is unambiguous.</div>
+
+  <div class="field"><span class="label">Why the failed probes failed, and what that suggests</span>
+  Every one of the four is a <strong>global, model-level</strong> statistic &mdash; an average over the
+  network or the corpus. The phenomenon is <strong>item-level and directional</strong>: specific items
+  flip, and which direction they flip in differs by model. <strong>A global average cannot predict a
+  per-item directional event</strong>; that is a type mismatch, not a weak signal. The natural move is
+  to ask what distinguishes <em>the items that flip</em> from the ones that do not, within a model,
+  and then ask what distinguishes <em>models whose flipping items are unsafe</em> from models whose
+  flipping items are benign.</div>
+
+  <div class="field"><span class="label">The experiments</span>
+  <ol class="tight">
+    <li><strong>Item-level localization.</strong> We hold the full ladder per-item for 5 guards
+    &times; 7 precisions. For each flipped item, measure the <strong>margin</strong> at f16 &mdash;
+    how close the decision was before compression. Hypothesis: flips concentrate near the boundary,
+    and <strong>the direction is set by which side of the boundary a model&rsquo;s mass sits on</strong>.</li>
+    <li><strong>The asymmetry test.</strong> If a model&rsquo;s unsafe items sit closer to the boundary
+    than its benign ones, quantization noise pushes more of them across &mdash; predicting
+    safety-adverse. This is <strong>directly computable from the f16 logits</strong> and needs no new
+    runs beyond re-scoring with logit capture.</li>
+    <li><strong>Causal intervention.</strong> Patch f16 activations into the quantized model at each
+    layer and find where the verdict is restored. This localizes <em>where</em> the damage happens,
+    which is the mechanism claim.</li>
+    <li><strong>Out-of-sample prediction.</strong> Fit the margin-asymmetry predictor on 4 guards,
+    predict direction for a held-out guard <strong>before running its ladder</strong>. Pre-register
+    the prediction. This is the whole paper &mdash; everything before it is setup.</li>
+  </ol></div>
+
+  <div class="kill"><strong>What kills it.</strong> If margin asymmetry does not predict direction,
+  we have a fifth failed probe, and a fifth failed probe is not publishable at NeurIPS. <strong>Set
+  the kill criterion before looking</strong>: if held-out direction prediction is no better than the
+  base rate, stop and write it up as a short note that saves the next group the attempt.</div>
+
+  <div class="field"><span class="label">Compute</span> Logit capture across the existing ladder is a
+  re-run with a different output hook &mdash; the ladder itself is 35 cells at roughly P8&rsquo;s cost.
+  Activation patching on 0.6B&ndash;4B runs on the local card or Kaggle&rsquo;s free tier. <strong>The
+  binding constraint is engineering time, not money.</strong></div>
+</div>
+
+<div class="paper">
+  <div class="row"><span class="tag">rank 4</span><span class="tag venue">NeurIPS D&amp;B</span><span class="tag warn">highest effort</span><span class="tag">~$150&ndash;400</span></div>
+  <h3>4. The first guard benchmark that reports what its own numbers cannot distinguish</h3>
+
+  <div class="field"><span class="label">The claim</span>
+  <strong>Every existing guard benchmark reports differences smaller than its own noise floor and
+  none measures that floor.</strong> This one ships with it.</div>
+
+  <div class="field"><span class="label">Why this is the most durable idea here, and the most expensive</span>
+  It is the one place where <strong>our accumulated methodology <em>is</em> the contribution</strong>
+  rather than a credibility wrapper around someone else&rsquo;s. Four findings, each already
+  established in our own work, become design requirements no existing benchmark meets:
+  <ul class="tight">
+    <li><strong>A measured per-corpus noise floor</strong> (P1, and P8&rsquo;s finding that it is
+    corpus-dependent: 0.09% stratified against 1.0&ndash;5.7% on verdict-selected sets).</li>
+    <li><strong>Mandatory per-item release</strong>, because aggregate rates conceal per-item churn
+    &mdash; [Certify] measured that at roughly 5&times; on benchmark accuracy, and P8 at 1.86&times; on
+    guard verdicts.</li>
+    <li><strong>Directional scoring</strong>, because <code>unsafe&rarr;safe</code> and
+    <code>safe&rarr;unsafe</code> are not the same event and a single churn number describes both
+    equally badly (P8 &sect;5.2).</li>
+    <li><strong>A declared equivalence margin</strong>, because [Certify]&rsquo;s audit found
+    <strong>none of 16 eligible published claims declares one</strong>.</li>
+  </ul>
+  <strong>No current benchmark does any of the four.</strong> A benchmark that does all four, at
+  scale, with adoption, is a D&amp;B paper and a durable citation base.</div>
+
+  <div class="kill"><strong>What kills it.</strong> Scale and adoption. A benchmark nobody runs is a
+  dataset nobody cites, and <strong>we cannot fund the scale that drives adoption</strong> &mdash;
+  multilingual, multi-turn, many models, a leaderboard someone maintains. <strong>This is the idea to
+  pursue with a collaborator who has compute</strong>, not alone. Treat it as an 18-month play, not a
+  next-cycle submission.</div>
+</div>
+<div class="paper">
+  <div class="row"><span class="tag">rank 5</span><span class="tag venue">S&amp;P / NeurIPS</span><span class="tag">upgrades P2</span><span class="tag">~$60&ndash;150</span></div>
+  <h3>5. An adaptive attacker, and a defense that survives it</h3>
+
+  <div class="field"><span class="label">The claim</span>
+  <strong>P2&rsquo;s input-variation defense holds against an attacker who optimizes against the
+  defense itself</strong> &mdash; not merely against a frozen transformation set.</div>
+
+  <div class="field"><span class="label">Why this is the single highest-value upgrade to existing work</span>
+  Every paper in this program carries the same caveat, stated as a strength: <em>the transformation
+  set is frozen and non-adaptive, so every effect is a lower bound.</em> That is honest, and it is
+  also <strong>the exact limitation [LayeredEns] show is decisive.</strong> They ran two adaptive
+  adversaries and found a defense&rsquo;s measured worth changes completely with the attack class
+  &mdash; a perplexity filter blocks 100/100 optimized suffixes and 0/100 fluent prompts, so
+  <em>&ldquo;a composition estimate assembled from per-defense figures obtained under different
+  attacks is not merely imprecise but can be optimistic without bound.&rdquo;</em>
+  <br><br><strong>P2 currently claims a defense works against an attacker who is not trying.</strong>
+  A defense that survives adaptive attack is a categorically stronger claim, and guards are the right
+  target because they are classifiers &mdash; white-box gradient attacks apply directly, unlike
+  attacks on a generation.</div>
+
+  <div class="field"><span class="label">The experiments</span>
+  <ol class="tight">
+    <li><strong>Build the adaptive attacker.</strong> Gradient-based search over paraphrase space
+    against the <em>smoothed</em> guard, not the bare one &mdash; the attacker must know the defense.
+    Open weights make this available for all six panel guards.</li>
+    <li><strong>Re-measure P2&rsquo;s defense</strong> under it, against the same pre-fixed
+    false-positive budget. <strong>The budget must not move</strong>; that is what made P2 credible.</li>
+    <li><strong>Attack-class matrix.</strong> Report each defense against each attack class, never a
+    single number &mdash; the precise error [LayeredEns] warn produces unbounded optimism.</li>
+    <li><strong>Transfer.</strong> Do adaptive attacks built against one guard transfer to another?
+    <strong>Our M1 panel already shows non-adaptive evasions transfer at 2.5&ndash;6&times; base rate</strong>;
+    whether adaptive ones transfer more or less is open and interesting either way.</li>
+  </ol></div>
+
+  <div class="kill"><strong>What kills it.</strong> The defense may simply not survive &mdash; which is
+  publishable, but as a negative result at a security venue rather than a NeurIPS method. Also:
+  optimization loops are the most compute-hungry idea here, and <strong>a weak attacker producing a
+  flattering result is worse than no experiment</strong>. Budget the attacker generously or do not run it.</div>
+</div>
+
+<div class="paper">
+  <div class="row"><span class="tag">rank 6</span><span class="tag venue">workshop &rarr; main track</span><span class="tag">~$40&ndash;100</span></div>
+  <h3>6. Scaling laws for guard fragility &mdash; and the one axis where scale does not help</h3>
+
+  <div class="field"><span class="label">The claim</span>
+  <strong>Guard fragility is predictable from scale on some perturbation axes and provably not on
+  others</strong>, and the exception is the one that matters most operationally.</div>
+
+  <div class="field"><span class="label">The result we already have that motivates it</span>
+  T-03 &sect;5.12 records that the 0.6B is less stable than the 4B under <strong>four independent
+  perturbations</strong> &mdash; rephrasing, evasion, quantization, and adversarial search &mdash;
+  &ldquo;four unrelated perturbations, one ordering.&rdquo; Then P3-X found a <strong>fifth that
+  breaks it</strong>: under long-input dilution, <strong>19 of 60 payloads degrade and 0 improve at
+  <em>both</em> scales, identically</strong>.
+  <br><br><strong>That is a genuinely interesting asymmetry</strong>, and we currently report it in a
+  single paragraph of a workshop note. The claim it supports &mdash; <em>scale buys robustness to
+  perturbations of the model&rsquo;s judgment, and buys nothing against perturbations of the input&rsquo;s
+  structure</em> &mdash; is a clean, testable, general statement. <strong>If it holds across families
+  and a real scale range, it is a paper.</strong></div>
+
+  <div class="field"><span class="label">The experiments</span>
+  <ol class="tight">
+    <li><strong>Widen the scale ladder</strong> within families: Qwen3Guard already spans 0.6B/4B/8B;
+    add every open guard family with three or more sizes.</li>
+    <li><strong>Run all five perturbation axes</strong> on every point &mdash; the harnesses exist and
+    are pre-registered.</li>
+    <li><strong>Fit the scaling relation per axis</strong> and test whether the structural axes
+    (length, position) genuinely have zero slope while the judgment axes have negative slope.</li>
+    <li><strong>Predict.</strong> Hold out a family, predict its fragility from its sizes. Same
+    discipline as concept&nbsp;1 &mdash; a scaling law that does not predict out of family is a curve fit.</li>
+  </ol></div>
+
+  <div class="kill"><strong>What kills it.</strong> Too few open guard families with enough sizes.
+  <strong>Check that inventory before committing</strong>; if there are only two usable families, this
+  is a workshop note about two families and should be built that way from the start.</div>
+</div>
+
+<h2>What to stop doing</h2>
+
+<div class="paper">
+  <div class="kill"><strong>Stop replicating.</strong> P3, P6 and P8 are each a careful replication of
+  work published days earlier. They are honest and they are worth submitting to the workshops they now
+  target &mdash; but <strong>three in one week is a pattern, not a coincidence</strong>, and the
+  pattern is that we are reading a feed and reacting to it. <strong>Reacting is structurally
+  second place.</strong></div>
+
+  <div class="kill"><strong>Stop treating pre-registration as the contribution.</strong> It is a
+  credibility asset and it makes our numbers trustworthy, which matters. <strong>It is not novelty</strong>,
+  and no reviewer accepts a paper because the hypotheses were hashed. Use it as the thing that makes a
+  <em>prediction</em> claim believable, which is the one place it converts into scientific weight.</div>
+
+  <div class="note"><strong>Keep doing the one thing that is genuinely rare.</strong> Four times in
+  this program we measured something and then ran the control that could destroy it &mdash; the
+  borderline floor against P8&rsquo;s effect, the significance test against P3-X&rsquo;s
+  non-monotonicity, the pooled ratio against P8&rsquo;s denominator, &phi;<sub>max</sub> against
+  P6&rsquo;s family contrast. <strong>Two of those four killed our own claim.</strong> That habit is
+  worth more in a prediction paper than in a measurement paper, because a predictor that has survived
+  its author&rsquo;s attempts to break it is the only kind anyone should believe.</div>
+</div>
+
+<h2>Sequencing, under a real budget</h2>
+
+<div class="scroll"><table>
+  <tr><th>when</th><th>do</th><th>cost</th><th>why now</th></tr>
+  <tr><td><strong>immediately</strong></td><td><strong>Concept 1</strong> &mdash; fit and hold out the composition predictor on data already held</td><td><strong>~$0</strong></td><td>The gap was named in print three days ago. Naming a gap often means someone is already working on it. <strong>Weeks, not months.</strong></td></tr>
+  <tr><td>in parallel</td><td><strong>Concept 3</strong> &mdash; margin-asymmetry direction predictor</td><td>~$30&ndash;80</td><td>Four published probes failed, so a success is unambiguous. Re-runs the existing ladder with logit capture.</td></tr>
+  <tr><td>next</td><td><strong>Concept 5</strong> &mdash; adaptive attacker, upgrading P2</td><td>~$60&ndash;150</td><td>Removes the caveat every paper in this program carries.</td></tr>
+  <tr><td>if 1 or 3 lands</td><td><strong>Concept 2</strong> &mdash; certified robustness</td><td>~$20&ndash;60</td><td>Highest ceiling, highest risk. Attempt from a position of strength, not as a first move.</td></tr>
+  <tr><td>with a partner</td><td><strong>Concept 4</strong> &mdash; the benchmark</td><td>$150&ndash;400+</td><td>Needs scale we cannot fund and adoption we cannot manufacture alone.</td></tr>
+  <tr><td>opportunistic</td><td><strong>Concept 6</strong> &mdash; scaling laws</td><td>~$40&ndash;100</td><td>Gated on whether enough open families have three or more sizes. <strong>Check first.</strong></td></tr>
+</table></div>
+
+<div class="note"><strong>The whole slate above fits inside a few hundred dollars</strong>, because
+every one of them is a re-analysis or a small extension of data already collected. <strong>That is
+not a coincidence &mdash; it is the only kind of NeurIPS-shaped work available at this budget.</strong>
+The ideas that need real compute (concepts 4 and 6) are correctly ranked last.</div>
+
+<div class="kill"><strong>The single sentence version.</strong> We have been writing careful papers
+about <em>what happens</em>, in a field where three better-resourced groups write the same papers
+faster. <strong>The way out is not to measure more things. It is to predict one thing nobody can
+currently predict</strong> &mdash; and two of those are sitting in print, named as open, with our data
+already collected against them.</div>
+
+<p class="cost" style="margin-top:48px; border-top:1px solid var(--line); padding-top:18px;">
+Prepared 2026-08-31 &middot; local document, not published &middot; grounded in the stated open
+problems of [LayeredEns], [QualityProxy] and [Certify], and in this program&rsquo;s own measured
+results.
+</p>
+
+</div>
+</body>
+</html>

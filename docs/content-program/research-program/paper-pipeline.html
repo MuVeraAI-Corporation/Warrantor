@@ -1,0 +1,547 @@
+<title>Guard Model Research Pipeline</title>
+<style>
+  :root {
+    --bg: #faf9f7; --surface: #ffffff; --ink: #1a1a19; --muted: #6b6862;
+    --line: #e5e2dc; --accent: #b8552f; --accent-soft: #f5ede8;
+    --ok: #2f6b4f; --warn: #8a6d1f; --stop: #a33a2a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16150f; --surface: #1e1d17; --ink: #eceae4; --muted: #a09c92;
+      --line: #33302a; --accent: #e08356; --accent-soft: #2a221d;
+      --ok: #7fb99a; --warn: #d4b25e; --stop: #e08a78;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16150f; --surface: #1e1d17; --ink: #eceae4; --muted: #a09c92;
+    --line: #33302a; --accent: #e08356; --accent-soft: #2a221d;
+    --ok: #7fb99a; --warn: #d4b25e; --stop: #e08a78;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.65 ui-serif, Georgia, "Times New Roman", serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 56px 28px 96px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 28px; margin-bottom: 40px; }
+  h1 { font-size: 2.35rem; line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 1.02rem; margin: 0; }
+  h2 {
+    font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.09em;
+    font-family: ui-sans-serif, system-ui, sans-serif; font-weight: 650;
+    color: var(--accent); margin: 56px 0 18px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  h3 { font-size: 1.4rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+  p { margin: 0 0 14px; }
+  .lede { font-size: 1.1rem; color: var(--muted); }
+  .paper {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); border-radius: 3px;
+    padding: 26px 28px; margin: 0 0 22px;
+  }
+  .tag {
+    display: inline-block; font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 2px; margin: 0 6px 8px 0;
+    background: var(--accent-soft); color: var(--accent); font-weight: 650;
+  }
+  .tag.venue { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .field { margin: 16px 0 0; }
+  .field > .label {
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+    font-weight: 650; display: block; margin-bottom: 5px;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  th {
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: 0.74rem;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 650;
+  }
+  .scroll { overflow-x: auto; }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.87em;
+    background: var(--accent-soft); padding: 1px 5px; border-radius: 2px;
+  }
+  .note {
+    background: var(--accent-soft); border-radius: 3px; padding: 14px 18px;
+    margin: 16px 0; font-size: 0.95rem;
+  }
+  .note strong { color: var(--accent); }
+  .kill { border-left: 3px solid var(--stop); padding-left: 14px; margin: 14px 0; }
+    .shipped { border-left: 3px solid var(--ok); padding-left: 14px; margin: 14px 0; }
+    .tag.done { background: transparent; border: 1px solid var(--ok); color: var(--ok); }
+  .kill .label { color: var(--stop); }
+  ol, ul { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 7px; }
+  .foot { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line);
+          color: var(--muted); font-size: 0.9rem; }
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Guard Model Research Pipeline</h1>
+  <p class="sub">Eight additional papers the completed experiments make reachable &mdash; with designs,
+  Modal costs, target venues, and what would kill each one.<br>Drafted 2026-08-31, after nine
+  pre-registered experiments.</p>
+</header>
+
+<p class="lede">Three papers are in flight. This document covers what the evidence already collected
+makes <em>newly</em> reachable &mdash; each entry is a paper whose central result is either already
+half-measured or one Modal run away.</p>
+
+<div class="note">
+  <strong>Status, 2026-08-31 evening &mdash; three of these shipped, and one did not survive contact
+  with the literature.</strong> P1 and P2 are written as proposed. <strong>P3 was pre-empted</strong>:
+  a prior-art check found <em>LongGuard</em> (arXiv&nbsp;2608.27580, published four days earlier)
+  covering the same phenomenon across 15 guardrails, with the mechanism P3 deferred and the defense
+  P3 only predicted. It is repositioned as a replication note, and a follow-up run (P3-X) tested the
+  one claim we had retracted &mdash; confirming the retraction was right.
+  <strong>P7 is substantially reduced by that same paper</strong> and is rewritten below.
+  Entries are updated in place rather than deleted, so what was proposed and what actually happened
+  stay comparable.
+</div>
+
+<div class="note">
+  <strong>The honest venue note.</strong> Most of these are security-measurement papers, whose homes
+  are IEEE S&amp;P, USENIX Security, CCS and SaTML. Three are genuinely NeurIPS-shaped &mdash; P2, P3
+  and P4 &mdash; because they contribute a <em>method</em> or a <em>mechanism</em> rather than a
+  measurement. P7 <em>was</em> the Datasets &amp; Benchmarks entry; <strong>it no longer is</strong> &mdash; the dataset it proposed to build now exists at greater scale (see P7). Aiming a measurement paper at the NeurIPS
+  main track costs a cycle for structural reasons, not quality ones.
+</div>
+
+<h2>What the completed work already gives away</h2>
+
+<p>Every paper below leans on a result that is measured, not hypothesized. The load-bearing ones:</p>
+
+<div class="scroll"><table>
+  <tr><th>Finding</th><th>Value</th><th>Which papers it feeds</th></tr>
+  <tr><td>Rephrasing makes guards blind, not trigger-happy</td><td>1.42&times;/1.46&times;, McNemar p&nbsp;&asymp;&nbsp;10<sup>&minus;5</sup></td><td>P2, P3</td></tr>
+  <tr><td>Asymmetry replicates across 3 families</td><td>p from 5.6&times;10<sup>&minus;7</sup> to 2.0&times;10<sup>&minus;9</sup></td><td>P2, P6</td></tr>
+  <tr><td>Evasions transfer between families</td><td>2.5&ndash;6&times; over base rate</td><td>P6</td></tr>
+  <tr><td>Guards agree on benign, disagree on unsafe</td><td>95&ndash;99% vs 35&ndash;83%</td><td>P4, P6</td></tr>
+  <tr><td>Adversarial ceiling</td><td>77.0% / 85.4% of caught items</td><td>P2, P3</td></tr>
+  <tr><td>Temperature &gt; budget for the attacker</td><td>+37.3 vs +14.3 points</td><td>P2, P3</td></tr>
+  <tr><td>Decoding-variation defense fails</td><td>H2&#8320; held; 3.4&times; FPR cost</td><td>P2</td></tr>
+  <tr><td>Guard near-deterministic at temp 1.0</td><td>81% / 74% unanimous over 16 draws</td><td>P2, P3</td></tr>
+  <tr><td>Quantization moves verdicts, direction model-specific</td><td>4&ndash;18 per 1000 at <code>Q4_K_M</code></td><td>P8</td></tr>
+  <tr><td>Family dominates scale (twice, unrelated axes)</td><td>2.5&times; evasion at equal 8B</td><td>P6, P8</td></tr>
+  <tr><td><strong>Quantization direction is model-specific</strong></td><td><strong>0.97 safety-adverse vs 0.33 usability-adverse, same ladder</strong></td><td><strong>P8</strong></td></tr>
+<tr><td><strong>Guard stacks fail together</strong></td><td><strong>51&times; independence penalty, CI [28.9, 99.7]</strong></td><td><strong>P6</strong></td></tr>
+<tr><td><strong>Long-input dilution, scale-invariant</strong></td><td><strong>19/60 payloads degrade, 0 improve, at BOTH scales</strong></td><td><strong>P7</strong></td></tr>
+<tr><td>Guard parses cleanly at 32k (42/42 cells)</td><td>0.000 unparsed</td><td>P7</td></tr>
+<tr><td><strong>Serving nondeterminism floor</strong></td><td><strong>1.0&ndash;5.7% verdict drift at fixed seed</strong></td><td><strong>P1</strong></td></tr>
+</table></div>
+
+<h2>P1 &mdash; The reproducibility floor of guard evaluation</h2>
+<div class="paper">
+  <div class="row"><span class="tag done">delivered</span><span class="tag">highest impact</span><span class="tag">cheapest</span>
+    <span class="tag venue">USENIX Security / S&amp;P</span></div>
+  <h3>Most published guard comparisons report differences smaller than their own noise floor</h3>
+
+  <div class="field"><span class="label">Where it came from</span>
+  D1 measured this by accident. Re-scoring the same items at <em>identical temperature and seed</em>
+  on different Modal containers drifted <strong>1.0% (4B) and 5.7% (0.6B)</strong> of verdicts. The
+  harness's own note predicts it: llama.cpp is deterministic for a fixed model file, context size
+  <em>and thread count</em> &mdash; and nobody pins thread count.</div>
+
+  <div class="field"><span class="label">The paper</span>
+  Measure the floor systematically &mdash; across serving stacks (llama.cpp, vLLM, transformers),
+  quantizations, thread counts, batch sizes, GPU architectures &mdash; then <strong>audit the
+  published guard-comparison literature against it</strong>. Any claimed improvement below the floor
+  is not a result.</div>
+
+  <div class="field"><span class="label">Why it lands</span>
+  It is a wrecking ball with a constructive ending: the deliverable is a reporting protocol and a
+  one-command floor estimator anyone can run before claiming an improvement. Cheap, unarguable, and
+  it makes every subsequent guard paper cite it.</div>
+
+  <div class="field"><span class="label">Modal</span> ~8 GPU-hours. Mostly repeated evaluation of a
+  fixed corpus under varied serving configuration.</div>
+
+  <div class="kill"><span class="label">What would kill it</span>
+  If the floor turns out to be &lt;0.5% under realistic configurations, the audit has no teeth.
+  Mitigate by measuring the floor <em>first</em> and only then deciding whether the audit is worth
+  writing.</div>
+
+  <div class="shipped"><strong>Delivered as proposed.</strong> &ldquo;How Reproducible Is a Guard
+  Evaluation?&rdquo; &mdash; eight runs at identical configuration, <strong>998 of 1,000 items
+  identical across all eight</strong>, mean pairwise disagreement <strong>0.09%</strong>.
+  <strong>Two of the three hypotheses were refuted</strong>, including the thread-count explanation
+  the serving stack&rsquo;s own note implicates (agreement 0.9993 within <em>and</em> across thread
+  counts; GPU architecture contributes nothing measurable).
+  <br><br><strong>The result cuts against the paper&rsquo;s own motivation, and that is reported.</strong>
+  The 1.0&ndash;5.7% drift that motivated this paper came from <em>evaded</em> sets &mdash; borderline
+  by construction, since every item was caught then evaded. The stratified floor is 0.09%, so the
+  floor is <strong>probably not a single number</strong>, and it remains unmeasured precisely where
+  perturbation effects are measured. Folded into T-03 as &sect;5.10.</div>
+  </div>
+
+<h2>P2 &mdash; Input-variation defenses</h2>
+<div class="paper">
+  <div class="row"><span class="tag done">delivered</span><span class="tag">NeurIPS-shaped</span><span class="tag">has a method</span>
+    <span class="tag venue">NeurIPS / ICML / S&amp;P</span></div>
+  <h3>The defender should vary the input, not the decoding</h3>
+
+  <div class="field"><span class="label">Where it came from</span>
+  D1 tested the obvious defense &mdash; sample the guard k times and aggregate &mdash; and it
+  <strong>failed</strong>, at 3.4&times; false-positive cost for 47% recovery. The mechanism is the
+  contribution: the guard is <strong>81% unanimous across 16 draws</strong>, so there is nothing to
+  aggregate. The attacker's temperature varies the <em>input</em>; the defender's varied only the
+  <em>decoding</em>. Different mechanisms wearing the same name.</div>
+
+  <div class="field"><span class="label">The paper</span>
+  Build the defense that follows from that diagnosis: <strong>paraphrase-and-vote</strong>. Generate
+  k paraphrases of the incoming text, score each, aggregate. This puts the defender on the axis the
+  model is actually sensitive to. Compare against: the failed decoding-sampling baseline (already
+  measured), a naive threshold shift, and an ensemble of distinct guards.</div>
+
+  <div class="field"><span class="label">Why it lands</span>
+  A negative result with a mechanism that predicts a positive one is the strongest shape a defense
+  paper can have. The failed baseline is already run and pre-registered, which makes the comparison
+  credible rather than convenient.</div>
+
+  <div class="field"><span class="label">Modal</span> ~25 GPU-hours &mdash; paraphrase generation
+  dominates, guard scoring is cheap.</div>
+
+  <div class="kill"><span class="label">What would kill it</span>
+  If paraphrase-and-vote also lands outside a pre-fixed FPR budget, the paper becomes a second
+  negative result. <strong>Fix the budget before running</strong>, as D1 did, so that outcome is
+  publishable rather than an embarrassment.</div>
+
+  <div class="shipped"><strong>Delivered as proposed.</strong> &ldquo;Vary the Input, Not the
+  Decoding&rdquo; &mdash; the defense that follows from the mechanism, measured rather than
+  argued.</div>
+  </div>
+
+<h2>P3 &mdash; Why benign framing works</h2>
+<div class="paper">
+  <div class="row"><span class="tag done">shipped, reframed</span><span class="tag">NeurIPS-shaped</span><span class="tag">mechanism</span>
+    <span class="tag venue">NeurIPS / ACL</span></div>
+  <h3>A causal account of the strongest evasion family</h3>
+
+  <div class="field"><span class="label">Where it came from</span>
+  Embedding unsafe content in an ordinary workplace email (<code>T4</code>) beats every other
+  transformation, at <strong>0.51&ndash;0.62 candidate-level miss rate across families</strong> &mdash;
+  roughly double the next best. It was <em>not</em> the strongest under deterministic decoding; its
+  advantage appears under sampling, which suggests variance in <em>where</em> the payload lands.</div>
+
+  <div class="field"><span class="label">The paper</span>
+  Decompose the effect into three candidate mechanisms and test them against each other:
+  <ol>
+    <li><strong>Length dilution</strong> &mdash; hold framing constant, vary filler length.</li>
+    <li><strong>Positional displacement</strong> &mdash; hold length constant, vary payload position.</li>
+    <li><strong>Genuine boundary crossing</strong> &mdash; measure the guard's verdict-token
+    probability shift, not just the argmax.</li>
+  </ol>
+  The three make different predictions and are separable by construction.</div>
+
+  <div class="field"><span class="label">Why it lands</span>
+  It converts the program's largest measured effect into a causal claim, which is what a top ML venue
+  rewards over another measurement.</div>
+
+  <div class="field"><span class="label">Modal</span> ~12 GPU-hours.</div>
+
+  <div class="note"><strong>Runtime caveat, carried from M3.</strong> Probability shifts need logits,
+  which means transformers or vLLM &mdash; a <em>different serving path</em> from every Ollama-based
+  verdict in this program. Those numbers cannot be compared against existing results without
+  reintroducing the runtime confound M3 was built to eliminate. Report it as a separate analysis with
+  its own baseline.</div>
+
+  <div class="kill"><strong>Pre-empted, and the delivered paper is not the proposed one.</strong>
+  The experiment ran and found that <strong>position, not length</strong>, orders the benign-framing
+  effect &mdash; so it shipped as &ldquo;Position, Not Length,&rdquo; not as the causal account of
+  framing proposed here. Then a prior-art check found <em>LongGuard</em>, which has every element at
+  greater scale (15 guardrails vs 2; 0.25k&ndash;32k vs ~1.2k), <em>plus</em> the attention&rarr;logit&rarr;behavior
+  mechanism this entry deferred and the chunked-detection defense it only predicted.
+  <strong>Repositioned as a workshop replication note. No novelty is claimed.</strong></div>
+
+  <div class="shipped"><strong>P3-X &mdash; the retraction, tested rather than conceded.</strong>
+  Draft 1 read a non-monotone miss rate as <em>refuting</em> length dilution. That was retracted as a
+  probable small-range artifact, and then the range was actually run: lengths
+  {0,&nbsp;1k,&nbsp;4k,&nbsp;16k,&nbsp;32k} &times; five positions, <strong>1,260 inputs per model at
+  both scales, zero unparsed output in all 42 cells</strong>.
+  <br><br><strong>The retraction was right.</strong> Over the endpoints both scales are identical and
+  one-directional &mdash; <strong>19 payloads of 60 degrade, 0 improve, <em>p</em>&nbsp;&lt;&nbsp;0.0001</strong>
+  &mdash; and the sole non-monotone step is the only step that fails significance
+  (<em>p</em>&nbsp;=&nbsp;0.688). <strong>Dilution was never refuted; it was untested.</strong>
+  The one design element LongGuard does not have is our <strong>0&times; control</strong> &mdash; the
+  payload with no frame at all &mdash; which anchors every cell to an absolute floor instead of a
+  relative baseline. Folded into T-03 as &sect;5.11. Cost: 0.77&nbsp;GPU-hours, $1.94.</div>
+  </div>
+
+<h2>P4 &mdash; Disagreement as a usable signal</h2>
+<div class="paper">
+  <div class="row"><span class="tag">NeurIPS-shaped</span><span class="tag venue">NeurIPS / ICLR</span></div>
+  <h3>Guards agree on benign content and disagree on unsafe content &mdash; can that be exploited?</h3>
+
+  <div class="field"><span class="label">Where it came from</span>
+  M1's cross-family agreement: <strong>95&ndash;99% on benign originals, 35&ndash;83% on unsafe ones.</strong>
+  Two well-configured guards from different publishers disagree on <strong>22% of unsafe items</strong>.</div>
+
+  <div class="field"><span class="label">The paper</span>
+  Two questions, both testable with data largely in hand:
+  <ol>
+    <li><strong>Is disagreement informative?</strong> Does it predict genuine label ambiguity, or is
+    one guard simply right? Requires human adjudication on a disagreement sample &mdash; which is also
+    the annotation T-03 already owes.</li>
+    <li><strong>Is it actionable?</strong> A cascade that routes disagreement to a stronger model or
+    to a human. Measure cost against a single-guard baseline at matched FPR.</li>
+  </ol></div>
+
+  <div class="field"><span class="label">Why it lands</span>
+  It turns an inconvenient observation into a system design, and the cascade framing is directly
+  deployable.</div>
+
+  <div class="field"><span class="label">Modal</span> ~10 GPU-hours plus human annotation
+  (~$300&ndash;500 on Prolific), which is <strong>the one cost Modal cannot absorb</strong>.</div>
+</div>
+
+<h2>P5 &mdash; The prevalence trap in safety fine-tuning</h2>
+<div class="paper">
+  <div class="row"><span class="tag venue">S&amp;P / CCS</span></div>
+  <h3>Concentrating training data on the harms you care about makes the guard worse</h3>
+
+  <div class="field"><span class="label">Where it came from</span>
+  E1: at equal data volume, reallocating toward a harm cluster cost <strong>8&ndash;20 points across
+  seven non-target categories</strong> and produced <strong>no gain on the targeted ones</strong>.
+  Recall fell from 0.9079 to 0.8276 while the false-positive rate <em>fell</em> &mdash; the model
+  shifted its operating point toward &ldquo;safe&rdquo; rather than sharpening.</div>
+
+  <div class="field"><span class="label">The paper</span>
+  The concentration sweep E1 could not afford: <strong>1&times; / 2&times; / 4&times; / 8&times;</strong>
+  target density, three harm clusters, three model scales, both replication splits. Separate
+  <em>reallocation</em> (fixed volume) from <em>addition</em> (more target data) &mdash; E1 tested only
+  the first, and they are different products.</div>
+
+  <div class="field"><span class="label">Why it lands</span>
+  It contradicts a widely sold practice: vendors offer domain-specialized guards, and this says the
+  reallocation version of that is actively harmful.</div>
+
+  <div class="field"><span class="label">Modal</span> ~35 GPU-hours (48 adapters, parallel).</div>
+</div>
+
+<h2>P6 &mdash; Guard composition and the independence assumption</h2>
+<div class="paper">
+  <div class="row"><span class="tag done">shipped, reframed</span><span class="tag">reaches T-12</span><span class="tag venue">CCS / USENIX</span></div>
+  <h3>Stacking guards buys much less than defense-in-depth assumes</h3>
+
+  <div class="field"><span class="label">Where it came from</span>
+  M1: an evasion defeating one guard defeats a guard from a different publisher at
+  <strong>2.5&ndash;4&times; its base rate</strong>, and within a family at nearly <strong>6&times;</strong>.
+  Failures are not independent, so a stack's miss rate is nowhere near the product of its members'.</div>
+
+  <div class="field"><span class="label">The paper</span>
+  A composition calculus for guard stacks: measure pairwise and higher-order failure correlation
+  across a full panel, derive a corrected estimator for stack FNR, and validate it against measured
+  stacks. Include the <em>selection</em> question &mdash; which pairs are most complementary, and does
+  complementarity track family distance?</div>
+
+  <div class="field"><span class="label">Why it lands</span>
+  Layered containment is asserted throughout the agent-security literature and, to our reading,
+  never measured. This supplies the number &mdash; and it is the same argument T-12 makes about
+  composition, which lets the two papers reinforce each other.</div>
+
+  <div class="field"><span class="label">Modal</span> ~20 GPU-hours, largely reusing M1 and M2-X artifacts.</div>
+
+  <div class="shipped"><strong>Experiments run 2026-08-31, pre-registered <code>364800ff</code>. Paper not yet written.</strong>
+  Six guards, 1,799 shared items, one configuration. <strong>Every one of 15 pairs fails
+  non-independently</strong>, intervals excluding 1. Stacking all six: measured FNR <strong>0.1591</strong>
+  against an independence prediction of <strong>0.0031</strong> &mdash; an independence penalty of
+  <strong>51&times;</strong>, 95% CI [28.9, 99.7].
+  <br><br><strong>The cost side runs the other way, and that is the more interesting half.</strong>
+  Stack FPR is <strong>0.50&times;</strong> what independence predicts, because guards also agree on
+  which benign items look unsafe. Correlation destroys the FNR benefit and discounts the FPR cost
+  simultaneously. Absolute cost is still real: 6.7% FPR, 1.54&times; the worst single member.
+  <br><br><strong>H2 was refuted where testable</strong> &mdash; the penalty is pairwise correlation
+  compounded, not higher-order structure, which makes it estimable from two guards instead of the
+  whole stack. <strong>H3 is narrower than proposed</strong>: the within-family effect rests on two
+  families, one strongly self-correlated and one not, so family distance is <em>not</em> established
+  as a general selection heuristic.
+  <br><br><strong>Cost: $0.15, not the ~20 GPU-hours estimated here.</strong> Under OR-composition a
+  stack misses an item only when every member misses it &mdash; a boolean function of per-item
+  verdicts already on disk. Only the two-model panel extension needed a GPU.</div>
+  
+  <div class="kill"><strong>Pre-empted, and the check caught it before the draft.</strong>
+  <em>Layered LLM Defenses as an Ensemble</em> (arXiv&nbsp;2608.28327, Alotaibi et al., KFUPM/SDAIA)
+  published <strong>2026-08-28, three days before this experiment ran</strong>. It states the
+  governing argument, measures failure correlation across a seven-layer stack, and reports
+  <strong>all fifteen pairs correlated</strong> with the joint residual above the multiplicative
+  prediction, plus false refusals accumulating as a union. <strong>That is P6&rsquo;s H1, H4 and
+  framing.</strong> No novelty is claimed on any of them.
+  <br><br><strong>The literature check ran BEFORE the first draft this time</strong> &mdash; the
+  discipline P3 learned the hard way. It cost one tool call and did three things: prevented a false
+  novelty claim, revealed the control we were missing, and running that control produced the result
+  the paper now turns on.</div>
+
+  <div class="shipped"><strong>Draft 3 &mdash; re-run with their own CMH estimator, and the thesis flipped from contrast to convergence.</strong>
+  Reading their &sect;11 in full withdrew three Draft&nbsp;1 claims (that &phi; carries no marginal
+  ceiling; that the family groups do not overlap; that our result was the <em>opposite</em> of theirs).
+  Re-running the stratification with their <strong>CMH common odds ratio</strong> then produced the
+  paper&rsquo;s strongest result:
+  <ul>
+    <li><strong>8 of 15 pairs survive</strong> as they specify it (10 cluster-robust), against their
+    1 of 15 &mdash; their &sect;11.6 is &ldquo;underpowered by construction&rdquo; by their own statement.</li>
+    <li><strong>The family split is clean on this statistic</strong>, which has no
+    &phi;<sub>max</sub>-style ceiling: geometric mean conditional OR <strong>32.24 within-family vs
+    1.75 cross-family</strong>, 4/4 vs 4/11 surviving.</li>
+    <li><strong>Their one survivor and our strongest agree.</strong> Two probes sharing &ldquo;an input
+    representation and a training pipeline&rdquo;: <strong>OR 158.7</strong>. Two scales of one guard
+    family: <strong>OR 158.00</strong>. Their same-row pair <em>without</em> shared training failed
+    (1.39); so do our cross-family pairs (1.75). <strong>Both studies: shared lineage survives
+    conditioning, shared category does not.</strong></li>
+    <li><strong>One genuinely complementary pair</strong> &mdash; OR 0.58, CI [0.38,&nbsp;0.96],
+    excluding 1 from below.</li>
+    <li>⚠️ <strong>An asymmetry recorded rather than smoothed:</strong> conditioning <em>strengthened</em>
+    their pair (68&rarr;159) and <em>weakened</em> all four of ours (789&rarr;158). Difficulty explains
+    part of ours and none of theirs.</li>
+  </ul>
+  <strong>Unchanged:</strong> all 15 pairs correlated; <strong>51&times;</strong> penalty
+  [28.9,&nbsp;99.7]; 15.9% missed where independence predicts 0.31%; FPR penalty 0.50&times; but
+  1.54&times; the worst member.
+  <br><br><strong>Draft 3: <code>P6-composition-independence-paper.md</code></strong>, 6,513 words, retitled <em>&ldquo;Shared Lineage, Not Shared Category, Makes Guards Fail Together&rdquo;</em> to lead with the convergence. Deliberately <strong>not</strong> titled on the 158.7-vs-158.00 match, which the paper itself calls a coincidence.
+  Total cost $0.15 &mdash; every analysis after the panel extension was a re-analysis of verdicts on disk.</div>
+  </div>
+
+<h2>P7 &mdash; The long-context guard benchmark</h2>
+
+<div class="paper">
+  <div class="row"><span class="tag done">largely pre-empted</span><span class="tag">builds an asset</span><span class="tag venue">workshop, not D&amp;B</span></div>
+  <h3 style="text-decoration: line-through; opacity: 0.55;">The benchmark suite the field uses cannot exhibit the failure mode it worries about</h3>
+
+  <div class="kill"><strong>The premise held; the paper did not.</strong> The motivating negative
+  result is real and unchanged &mdash; E3 found <strong>zero decision changes across a sixteenfold
+  context-window range</strong>, because no corpus item reaches even 2048 tokens (median 528, p99 1706).
+  <strong>But the benchmark this entry proposed to build has largely been built.</strong> <em>LongGuard</em>
+  (arXiv&nbsp;2608.27580, 2026-08-27) constructs a 0.25k&ndash;32k grid with position varied
+  independently of length, evaluates <strong>15 guardrails</strong> on it, traces an
+  attention&rarr;logit&rarr;behavior mechanism, and ships two training-free mitigations.
+  <strong>A D&amp;B submission whose dataset already exists at greater scale is not a D&amp;B
+  submission.</strong></div>
+
+  <div class="shipped"><strong>What we ran instead, and what it settled.</strong> P3-X replicated on
+  two models LongGuard did not test &mdash; 1,260 inputs per model across the same length and position
+  grid, <strong>zero unparsed output in all 42 cells</strong>. <strong>19 of 60 payloads degrade and 0
+  improve from 1k to 32k, identically at both scales</strong> (<em>p</em>&nbsp;&lt;&nbsp;0.0001).
+  Two things came out of it that are worth carrying forward:
+  <ul>
+    <li><strong>The 0&times; control is a real design contribution, and a small one.</strong> A
+    needle-in-haystack grid always has a haystack, so its cells are read against a relative baseline.
+    Ours includes the payload alone &mdash; 0/60 missed unframed at the 4B &mdash; which anchors every
+    cell to an <em>absolute</em> floor. That is a paragraph in someone&rsquo;s methods section, not a paper.</li>
+    <li><strong>Scale does not help here, and that is the unusual part.</strong> Across four other
+    perturbations the 0.6B is reliably less stable than the 4B. Under long-input dilution the
+    payload-level degradation is <em>identical</em> at both. This is the one hazard we measure where
+    reaching for a bigger guard buys nothing.</li>
+  </ul></div>
+
+  <div class="field"><span class="label">What is actually left</span> Narrow, and worth stating as
+  narrow. <strong>(a) Beyond 32k</strong> &mdash; LongGuard&rsquo;s grid stops there; the 128k regime
+  that real agent transcripts and retrieval contexts reach is untested by anyone we have read.
+  <strong>(b) Naturalistic filler</strong> &mdash; ours is one benign corpus reused by design, to hold
+  content constant; whether the effect survives filler that is topically adjacent to the payload is a
+  different and more deployment-relevant question. <strong>(c) Multi-turn and retrieval-stuffed
+  variants.</strong></div>
+
+  <div class="note"><strong>Check before building &mdash; we have not read LongGuard in full.</strong>
+  Our knowledge of it comes from a prior-art comparison, not a full-text read note like the ones backing
+  our other citations. <strong>Whether (c) is already covered by them is unverified</strong>, and this
+  program has now been bitten twice by treating a status marker as evidence of reading. Read the paper
+  before spending a GPU-hour on any of the above.</div>
+
+  <div class="field"><span class="label">Modal</span> The original ~15 GPU-hour estimate is void.
+  Scoped to (a) alone, at P3-X&rsquo;s measured throughput and 4&times; the context, roughly
+  <strong>3&ndash;5 GPU-hours</strong> &mdash; but only after the read above.</div>
+</div>
+
+<h2>P8 &mdash; Quantization-aware safety evaluation</h2>
+<div class="paper">
+  <div class="row"><span class="tag venue">S&amp;P / MLSys</span></div>
+  <h3>Every guard benchmark that omits its serving precision is under-specified</h3>
+
+  <div class="field"><span class="label">Where it came from</span>
+  M3 and M3-X: at <code>Q4_K_M</code> &mdash; the deployed default &mdash; <strong>4 to 18 verdicts per
+  thousand</strong> differ from each model's own f16 reference, in every one of five models across
+  three families. The <em>direction</em> is model-specific: one model is 84-to-0 safety-adverse at
+  <code>Q2_K</code>, another runs usability-adverse then reverses, a third is symmetric.</div>
+
+  <div class="field"><span class="label">The paper</span>
+  Extend to the full panel and to quantization schemes beyond GGUF K-quants (AWQ, GPTQ, bitsandbytes
+  NF4), and pair it with P1's noise floor so that verdict movement is separated from serving noise
+  &mdash; which the current M3 numbers, at 4&ndash;11 per thousand, cannot fully do.</div>
+
+  <div class="field"><span class="label">Why it lands</span>
+  It hands the field a protocol, and safety-critical deployment on quantized weights is universal
+  and undocumented.</div>
+
+  <div class="field"><span class="label">Modal</span> ~20 GPU-hours.</div>
+
+  <div class="note"><strong>Dependency.</strong> This paper is materially stronger <em>after</em> P1.
+  Several M3 effects sit near the reproducibility floor, and saying so honestly requires having
+  measured the floor first.</div>
+
+  <div class="kill"><strong>Two-thirds cut before a single GPU-second, by a check run before the DESIGN.</strong>
+  <em>Quality Is Not a Safety Proxy Under Quantization</em> (arXiv&nbsp;2606.10154) already ran the
+  cross-scheme safety audit &mdash; 51 rows, GGUF + AWQ + GPTQ. <em>Certifying Compressed Language
+  Models</em> (arXiv&nbsp;2608.15046) already built the equivalence toolkit, on an atlas of
+  <strong>1,707 paired cells</strong> where churn runs <strong>~5&times; the net delta</strong>.
+  <br><br><strong>The scheme extension was cut, and not for cost:</strong> [Certify] show the
+  GPTQ-vs-AWQ ordering <strong>reverses with the calibration draw alone</strong> in 5 of 8 cells, so
+  running it uncontrolled would have produced an artifact. <strong>Declining to run it is what the
+  check bought.</strong></div>
+
+  <div class="shipped"><strong>What remained &mdash; guards, which neither paper measures.</strong>
+  Their objects are generative refusal via an LLM judge, and benchmark accuracy. A guard&rsquo;s verdict
+  <em>is</em> the measurement.
+  <ul>
+    <li><strong>The ~5&times; ratio does not transfer.</strong> Guards run <strong>1.4&times;</strong>
+    &mdash; and we tested whether our arm-separated denominator explained it. It does not: the pooled,
+    directly comparable ratio is also 1.4&times;.</li>
+    <li><strong>Direction is a MODEL property, not a bit-width property.</strong> ShieldGemma&nbsp;9B is
+    <strong>0.97 safety-adverse</strong> (144 unsafe&rarr;safe vs 4 the other way); Qwen3Guard&nbsp;4B runs
+    <strong>usability-adverse</strong> (0.33). ShieldGemma&nbsp;2B <em>reverses mid-ladder</em>.
+    This is the decomposition their symmetric accuracy churn cannot have.</li>
+    <li><strong>Three of five models cannot support a &plusmn;1pp equivalence claim at n=1,000.</strong></li>
+    <li>⚠️ <strong>We raised a concern that would have killed the result, then measured it away.</strong>
+    Against T-03&rsquo;s borderline floor, 27 of 30 cells would have been indistinguishable from serving
+    noise. So we measured the floor on this corpus: <strong>0.107%, 2 unstable items of 1,000</strong>
+    &mdash; the stratified figure, not the borderline one. <strong>The concern was wrong and the
+    registered conclusion stands.</strong></li>
+  </ul>
+  <strong>Draft 2: <code>P8-quantization-equivalence-paper.md</code></strong>, 4,697 words, <em>&ldquo;One Ladder, Opposite Directions&rdquo;</em>. Cost <strong>$0.56</strong>.<br><br><strong>Finishing the [Certify] read corrected the draft three times and produced its best result.</strong> Corrections, all against us: we compared a cellwise median to their ratio-of-medians (real figures <strong>1.86&times; vs 3.85&times;</strong>, not 1.4 vs 5.4); we reported required sample sizes <em>without running the test they size</em>; and we had not fixed the population their atlas licenses.<br><br><strong>The addition: their gray zone is empty for guards.</strong> [Certify]&rsquo;s empirical core is that the modal compressed-model cell can be neither certified nor shown different &mdash; <strong>69.2%</strong> of their S1 and <strong>77.7%</strong> of S2. Running TOST on all 30 guard cells: <strong>70.0% certifiable, 30.0% detectable, 0.0% gray zone.</strong> Guards churn little enough that 1,000 items settles it. <strong>Certifying a quantized guard is cheap; certifying a quantized general model is not.</strong> Remaining read debt: [QualityProxy] is still a summary, not full text.</div>
+  </div>
+
+<h2>Sequencing</h2>
+
+<div class="scroll"><table>
+  <tr><th>Order</th><th>Paper</th><th>Status</th><th>GPU-hrs</th><th>Why here</th></tr>
+  <tr><td>1</td><td><strong>P1</strong> noise floor</td><td><strong>done</strong></td><td>est. 8</td><td>Cheapest, and several other papers need it to state their own limits honestly. Two of three hypotheses refuted.</td></tr>
+  <tr><td>2</td><td><strong>P2</strong> input-variation defense</td><td><strong>done</strong></td><td>est. 25</td><td>The failed baseline was already run; strongest NeurIPS shape</td></tr>
+  <tr><td>&mdash;</td><td><strong>P3</strong> mechanism</td><td><strong>shipped, reframed</strong></td><td>0.8 actual (P3-X)</td><td>Pre-empted by LongGuard. Shipped as a replication note; P3-X confirmed the retraction at $1.94.</td></tr>
+  <tr><td>&mdash;</td><td><strong>P6</strong> composition</td><td><strong>shipped, reframed</strong></td><td>0.13 actual ($0.15)</td><td>Pre-empted by arXiv 2608.28327, published three days before the run. Written as a replication-and-extension note: correlation persists with <em>no shared substrate</em> and survives the difficulty control theirs dissolves under.</td></tr>
+  <tr><td>&mdash;</td><td><strong>P8</strong> quantization</td><td><strong>shipped</strong></td><td>0.51 actual ($0.56)</td><td>Scheme extension CUT after a pre-design literature check: two 2026 papers own the cross-scheme audit and the equivalence toolkit, and one shows the AWQ/GPTQ ordering reverses with the calibration draw alone. What remains is guards, which neither measures.</td></tr>
+  <tr><td>5</td><td><strong>P5</strong> prevalence</td><td>open</td><td>35</td><td>Most expensive; E1 already carries the headline</td></tr>
+  <tr><td>6</td><td><strong>P4</strong> disagreement</td><td>gated</td><td>10 + annotation</td><td>Gated on human annotation, not compute</td></tr>
+  <tr><td>7</td><td><strong>P7</strong> long-context</td><td><strong>largely pre-empted</strong></td><td>3&ndash;5, after a read</td><td>Demoted from 5th. The dataset exists at greater scale; only the beyond-32k and naturalistic-filler slices remain, and LongGuard must be read in full first.</td></tr>
+</table></div>
+
+<div class="note">
+  <strong>The constraint that is not compute.</strong> P4 needs human adjudication, and T-03 owed an unperformed semantic-equivalence annotation. <strong>The T-03 half is now a bounded task rather than an open one</strong>: a blinded 40-item pack is built and verified &mdash; 24 evaded items, 12 caught, 4 attention checks, stratified across all five transformations, with the analyzer written before the pack was generated. It is <strong>roughly 35 minutes for one annotator</strong>, not $300&ndash;500.<br><br><strong>Why it cannot be automated away.</strong> Our transformation QC proves the rephrasings <em>differ</em> from their originals; the claim needs them to <em>mean the same thing</em>, which is the opposite direction. Cosine similarity cannot settle it &mdash; at T4&rsquo;s 5.93&times; median length ratio, similarity falls mechanically because text was <em>appended</em>. And an LLM judge would be circular in a paper about language models misjudging text. <strong>P4 still needs its own annotation budget.</strong></div>
+
+<div class="note">
+  <strong>What actually makes these citable.</strong> Not the experiment count. Nine pre-registered,
+  hashed experiments with published per-item outputs &mdash; including two withdrawn findings and a
+  defense that failed &mdash; is rare in this literature. The artifact is what makes a paper the
+  reference others measure against, and it is already mostly built.
+</div>
+
+<div class="foot">
+  Grounded in E1, E2, E2-B, E3, M1, M2, M3, M3-X and D1 &mdash; all pre-registered and hashed before
+  their data existed. Costs are A10G/A100-class GPU-hours; verify current Modal rates before
+  committing. WildGuardMix and Aegis are public corpora; no client or proprietary data enters any
+  design here.
+</div>
+</div>

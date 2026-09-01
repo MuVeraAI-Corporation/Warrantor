@@ -1,0 +1,73 @@
+% =====================================================================================
+% IEEE conference format — for P2 (IEEE S&P) and P3 (DLSP, an S&P workshop).
+%
+% This uses the OFFICIAL IEEEtran class, which is installed here — unlike the USENIX
+% build, nothing about the layout is reproduced or approximated.
+%
+% ⚠️ STILL CHECK BEFORE SUBMITTING:
+%   - the page limit for the specific venue and cycle (S&P and its workshops differ, and
+%     this machine cannot browse the CFP)
+%   - whether the cycle wants \documentclass[conference] or a venue-supplied variant
+%   - that anonymous submission is required for that track (it is for S&P; workshops vary)
+% =====================================================================================
+\documentclass[conference,10pt]{IEEEtran}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+
+\usepackage{amsmath,amssymb}
+\usepackage{textcomp}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{framed}
+\usepackage[normalem]{ulem}
+\usepackage{fvextra}
+
+% --- pandoc shims ---------------------------------------------------------------------
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\pandocbounded}[1]{#1}
+\providecommand{\st}[1]{\sout{#1}}
+\setlist{leftmargin=1.1em, itemsep=1pt, topsep=3pt, parsep=0pt}
+
+% Verbatim must break: a 3.4in column cannot hold a long monospace formula, and an
+% unbroken line runs into the gutter rather than failing loudly.
+\RecustomVerbatimEnvironment{verbatim}{Verbatim}{breaklines,breakanywhere,fontsize=\scriptsize}
+
+% --- paper idioms ---------------------------------------------------------------------
+% Monochrome: IEEE submissions are commonly reviewed in greyscale, and a marker that
+% only reads in color is a marker some reviewers will not see.
+\newcommand{\warn}{\textbf{$\triangle$}\ }
+\newcommand{\rmark}[1]{\textbf{\textsf{\footnotesize #1}}\ }
+
+\newenvironment{callout}{\par\smallskip\begin{leftbar}\small}{\end{leftbar}\par\smallskip}
+\renewenvironment{quote}{\par\smallskip\begin{leftbar}\small\itshape}
+  {\end{leftbar}\par\smallskip}
+
+\renewcommand{\arraystretch}{1.08}
+\setlength{\tabcolsep}{3.5pt}
+
+% --- sectioning -----------------------------------------------------------------------
+% Numbering OFF: the papers carry their own section numbers in the heading text and
+% cross-reference them in prose. Letting IEEEtran renumber breaks every such reference.
+\setcounter{secnumdepth}{-2}
+
+% --- anonymous metadata ---------------------------------------------------------------
+\hypersetup{pdfauthor={}, pdftitle={Anonymous submission}, pdfsubject={},
+            pdfkeywords={}, pdfcreator={}, pdfproducer={}}
+
+% =====================================================================================
+% Last-resort line-breaking slack. TeX sets a paragraph by stretching interword space within
+% strict tolerance; when no break satisfies it -- a narrow two-column measure carrying tokens
+% like "10-of-15" or a math arrow that cannot be hyphenated -- it gives up and lets the line
+% run into the margin instead. \emergencystretch grants extra stretch ONLY on that final
+% desperate pass, so it costs nothing on any paragraph that already fits, and converts a
+% visible overflow into a slightly loose line. P6 ran 3.34pt and 2.66pt into the margin
+% without it.
+% =====================================================================================
+\emergencystretch=1.5em
