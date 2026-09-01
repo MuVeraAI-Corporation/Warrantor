@@ -1,0 +1,47 @@
+{
+  "format": "warrantor.dataset-manifest/1",
+  "corpus_id": "guard-weak-category-expguardmix-train",
+  "task": "guard",
+  "built_for_split": "train",
+  "declared_rows": 11272,
+  "frontier_lineage": [
+    "openai/gpt-4o (upstream corpus generation, per the dataset card)"
+  ],
+  "commercially_cleared": false,
+  "csam_exclusion": {
+    "attested": true,
+    "filters": "Upstream corpus filtering by the dataset publishers (AI2 responsible-use terms for WildGuardMix; expert validation for ExpGuardMix) plus no image or binary content in any row -- these corpora are text-only. No new web crawl is performed by this pipeline.",
+    "attested_on": "2026-08-13",
+    "limitation": "This attests to the pipeline's own inputs and to the publishers' stated process. It is not an independent audit of either upstream corpus."
+  },
+  "sources": [
+    {
+      "source_id": "expguardmix:train",
+      "kind": "corpus",
+      "split": "train",
+      "row_count": 11272,
+      "content_digest": "sha256:5a12adf48ee777d4cdd84397711d70e86a1c50629c8aca6a3e041b3ab7931f86",
+      "licence": "CC-BY-4.0",
+      "commercial_use": "restricted-by-click-through",
+      "repo_id": "6rightjade/expguardmix",
+      "revision": "main",
+      "frontier_lineage": [
+        "openai/gpt-4o (upstream corpus generation, per the dataset card)"
+      ],
+      "generator": null,
+      "notes": [
+        "selector=weak-category, benign_ratio=1.0, 0 row(s) dropped for an absent or unrecognised label",
+        "categories targeted: Unqualified Professional Advice=1173, Privacy Violation=1584, Violence & Incitement=2284, Self-Harm & Suicide Promotion=595 -- each name with the number of unsafe rows it matched",
+        "built from recipe guard-0.6b-expguard-weak (sha256:61121912536e747a206d59f7f6fdd5c2da16f5aa07e3abc2c27c950b808bcb1a)",
+        "source file reconciled against the registry: --rows expguardtrain.parquet matches the file expguardmix:train declares (expguardtrain.parquet). FILENAME check only -- no published content digest exists to compare the bytes against, so this catches the wrong file and cannot catch a renamed one.",
+        "hold-out NOT verified at build time: no eval split was supplied to the builder. The parity gate performs its own leakage check and will refuse the candidate if this corpus overlaps the eval set.",
+        "LEGAL CONFLICT, UNRESOLVED. The licence is CC-BY-4.0 and permits commercial use, but the gate form requires affirming 'I agree to use this dataset solely for research purposes to advance AI safety and not for malicious use'. The click-through is what was actually agreed and it is narrower than the licence. Training a commercially shipped vertical pack on this corpus is NOT cleared by 'it's CC-BY'. Route past counsel before the finance/healthcare/law packs depend on it."
+      ]
+    }
+  ],
+  "notes": [
+    "Targets rendered in the exact two-line Safety:/Categories: shape that evaluate.parse_guard_response consumes, so the existing benchmarks can score the adapter without a second harness."
+  ],
+  "manifest_digest": "sha256:b1447b0d1db2e47ab2cadb8b528fc7ed7f3dae27bd485adae0bfa125c49fe2fa",
+  "generated_at": "2026-09-01T15:23:18.256874+00:00"
+}
