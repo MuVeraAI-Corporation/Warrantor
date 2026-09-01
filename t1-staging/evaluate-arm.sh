@@ -35,6 +35,31 @@ echo "   volume path: $VOL_PATH"
 mkdir -p "$(dirname "$ADAPTER")"
 [ -d "$ADAPTER" ] || modal volume get warrantor-adapters "$VOL_PATH" "$(dirname "$ADAPTER")/"
 
+echo "== 1b  verify the adapter trained the modules this arm is FOR"
+# Read back what was trained rather than trusting what was dispatched. The three arms were
+# identical once already, when `lane_export` silently discarded the target-modules override and
+# every arm rendered the control -- an experiment that would have bought three copies of one
+# result and looked entirely healthy. This refuses before spending an evaluation on it.
+python - "$ADAPTER" "$ARM" <<'PY'
+import json, sys
+from pathlib import Path
+EXPECTED = {
+    "A": {"q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"},
+    "B": {"q_proj", "k_proj", "v_proj", "o_proj"},
+    "C": {"gate_proj", "up_proj", "down_proj"},
+}
+adapter, arm = Path(sys.argv[1]), sys.argv[2]
+got = set(json.loads((adapter / "adapter_config.json").read_text())["target_modules"])
+want = EXPECTED[arm]
+if got != want:
+    raise SystemExit(
+        f"REFUSING: arm {arm} trained {sorted(got)} but this arm is defined by {sorted(want)}.
+"
+        "The adapter does not answer the question this arm was dispatched to answer."
+    )
+print(f"   arm {arm} trained exactly its {len(want)} modules: {sorted(want)}")
+PY
+
 echo "== 2/4 convert to GGUF and register with Ollama"
 python -m warrantor_ml.publish \
   --adapter "$ADAPTER" --base-snapshot "$BASE_SNAPSHOT" --ollama-base "$OLLAMA_BASE" \
