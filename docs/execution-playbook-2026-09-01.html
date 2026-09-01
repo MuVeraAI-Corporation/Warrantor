@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Execution Playbook</title>
+<style>
+  :root {
+    --bg:#faf9f7; --panel:#fff; --ink:#191817; --ink-soft:#4a4642; --ink-faint:#75706a;
+    --line:#e6e1da; --line-strong:#d0c9c0; --accent:#c2571f; --accent-soft:#fdf3ec;
+    --ok:#1f6b4a; --ok-bg:#edf6f1; --bad:#9c2a1e; --bad-bg:#fbeeec; --warn:#8a6100; --warn-bg:#fdf5e3;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:"Söhne",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#1a1917;--panel:#232120;--ink:#f2efea;--ink-soft:#c4bdb4;--ink-faint:#948d84;
+    --line:#35322f;--line-strong:#4a4642;--accent:#e07a42;--accent-soft:#2c2320;
+    --ok:#6fc79b;--ok-bg:#1c2a24;--bad:#e08a7d;--bad-bg:#2c2120;--warn:#d9ad5a;--warn-bg:#2a2419;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:60px 28px 140px}
+  header{border-bottom:1px solid var(--line);padding-bottom:30px;margin-bottom:10px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 14px}
+  h1{font-size:38px;line-height:1.14;margin:0 0 18px;font-weight:600;letter-spacing:-.025em}
+  .standfirst{font-size:20px;color:var(--ink-soft);margin:0;line-height:1.5}
+  .meta{font-size:13px;color:var(--ink-faint);margin-top:20px;font-family:var(--mono)}
+  h2{font-size:27px;margin:60px 0 8px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+  .h2sub{color:var(--ink-faint);font-size:15px;margin:0 0 22px}
+  h3{font-size:19px;margin:34px 0 10px;font-weight:600}
+  h4{font-size:16.5px;margin:24px 0 8px;font-weight:600;color:var(--ink-soft)}
+  p{margin:0 0 17px}
+  code{font-family:var(--mono);font-size:.85em;background:var(--accent-soft);padding:1px 6px;border-radius:4px}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.55}
+  pre code{background:none;padding:0}
+  .pull{border-left:3px solid var(--accent);padding:4px 0 4px 22px;margin:30px 0;font-size:21px;line-height:1.45;font-weight:500}
+  .callout{border-radius:10px;padding:20px 24px;margin:26px 0;border:1px solid}
+  .callout p:last-child{margin-bottom:0}
+  .callout .label{font-weight:600;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:8px}
+  .stop{background:var(--bad-bg);border-color:var(--bad)} .stop .label{color:var(--bad)}
+  .warn{background:var(--warn-bg);border-color:var(--warn)} .warn .label{color:var(--warn)}
+  .good{background:var(--ok-bg);border-color:var(--ok)} .good .label{color:var(--ok)}
+  .note{background:var(--panel);border-color:var(--line-strong)} .note .label{color:var(--accent)}
+  .tablewrap{overflow-x:auto;margin:24px 0 30px}
+  table{border-collapse:collapse;width:100%;font-size:15.5px}
+  th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  ul,ol{margin:0 0 17px;padding-left:24px} li{margin-bottom:9px}
+  .steps{counter-reset:s;list-style:none;padding-left:0}
+  .steps>li{counter-increment:s;position:relative;padding-left:46px;margin-bottom:22px}
+  .steps>li::before{content:counter(s);position:absolute;left:0;top:1px;width:30px;height:30px;border-radius:50%;
+    background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;border:1px solid var(--accent)}
+  .steps h3,.steps h4{margin:0 0 6px}
+  .footnote{font-size:14.5px;color:var(--ink-faint);border-top:1px solid var(--line);padding-top:22px;margin-top:54px}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 26px;margin:32px 0 8px}
+  .toc ol{margin:0;padding-left:20px;font-size:15.5px} .toc li{margin-bottom:6px}
+  .toc a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line-strong)}
+  .toc a:hover{border-bottom-color:var(--accent);color:var(--accent)}
+  .big{font-family:var(--mono);font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Execution playbook · every account verified in-portal</p>
+  <h1>Credits first, then the GPU programme that was never actually blocked.</h1>
+  <p class="standfirst">
+    All six accounts were read directly from your logged-in sessions on 1 September 2026. Three
+    things everyone believed turned out to be false, and the most expensive of them was mine.
+  </p>
+  <p class="meta">1 September 2026 · Azure · AWS · NVIDIA Inception · NVIDIA Build · OpenRouter · Hugging Face</p>
+</header>
+
+<div class="toc">
+  <ol>
+    <li><a href="#false">Three things that were false</a></li>
+    <li><a href="#ledger">The verified ledger</a></li>
+    <li><a href="#claims">Claiming the credits — order and gotchas</a></li>
+    <li><a href="#hf">The Hugging Face token, in full</a></li>
+    <li><a href="#gpu">The GPU programme — three phases in parallel</a></li>
+    <li><a href="#extra">Benefits you are not using yet</a></li>
+    <li><a href="#sequence">The sequence</a></li>
+  </ol>
+</div>
+
+<h2 id="false">1. Three things that were false</h2>
+<p class="h2sub">Each was believed, written down, and acted on</p>
+
+<div class="callout stop">
+  <span class="label">Mine, and the most expensive</span>
+  <p>
+    I reported that <strong>every Azure GPU lane was closed</strong>, from two ARM quota APIs that
+    both returned 0. Foundry's own portal shows <strong>8× A100_80GB, 8× H100_80GB,
+    8× MI300_192GB and 8× H200_141GB — total quota, zero used, all available.</strong>
+  </p>
+  <p>
+    <code>Microsoft.Compute/*/usages</code> and <code>MachineLearningServices/*/quotas</code> were
+    both accurate about the surfaces they cover — raw VMs and AML workspaces. Foundry managed
+    compute is a third surface neither describes. Two APIs are not a sweep.
+  </p>
+</div>
+
+<div class="callout warn">
+  <span class="label">The Hugging Face blocker that was already cleared</span>
+  <p>
+    The Modal brief, the handoff, the strategy document and three memory files all name
+    <em>&ldquo;accept the two corpus licences&rdquo;</em> as a blocker. Your gated-repos page:
+    <strong><code>allenai/wildguardmix</code> ACCEPTED 13 August</strong> and
+    <strong><code>6rightjade/expguardmix</code> ACCEPTED 13 August</strong>. Two weeks ago.
+  </p>
+  <p>
+    Six access tokens exist, two used in the last week. The only thing missing was an environment
+    variable on one machine — and that was described everywhere as a licensing problem.
+  </p>
+</div>
+
+<div class="callout warn">
+  <span class="label">DGX Cloud, which does not exist in your catalog</span>
+  <p>
+    Public write-ups describe &ldquo;up to $100,000 in DGX Cloud credits&rdquo; for Inception
+    members, and I listed it as your highest-priority GPU lane. Your actual Benefits Catalog is
+    <strong>19 items</strong> and does not contain it. What it does contain is considerably better.
+  </p>
+</div>
+
+<h2 id="ledger">2. The verified ledger</h2>
+<p class="h2sub">Read from your accounts, not from documentation</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Account</th><th>What is actually there</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Azure credit</strong></td>
+      <td>₹444,780.21 remaining of ~₹477,700 — <strong>6.90% used</strong>. August usage ₹32,986.69 (~$390), fully covered, ₹0 due.</td>
+      <td>~$5,230 left</td>
+    </tr>
+    <tr>
+      <td><strong>Foundry — inference</strong></td>
+      <td>5 deployments, <strong>all at 0% utilisation</strong>. gpt-5.4 and gpt-5.4-mini batch at <strong>200K/200M enqueued tokens</strong> each; gpt-5.4-mini std 500K/1M TPM; Kimi-K2.6 100K TPM; DeepSeek-V4-Pro 1K RPM.</td>
+      <td>Enormous headroom</td>
+    </tr>
+    <tr>
+      <td><strong>Foundry — GPU</strong></td>
+      <td><strong>A100_80GB 8 · H100_80GB 8 · MI300_192GB 8 · H200_141GB 8.</strong> All 0% used, 0 deployments.</td>
+      <td><strong>Open</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Azure GPU VMs</strong></td>
+      <td>Every NC/ND/NV family at limit 0; <code>lowPriorityCores</code> 3. eastus 152 vCPU / westus3 65 vCPU CPU-side.</td>
+      <td>Closed — quota ticket still worth filing</td>
+    </tr>
+    <tr>
+      <td><strong>AWS</strong></td>
+      <td>Activate <strong>FOUNDERS $1,000</strong> (exp. 07/31/2028, ~$763.78 est. remaining) + Free Tier $100 (exp. 10/20/2026, $15.60 left).</td>
+      <td>Base tier only</td>
+    </tr>
+    <tr>
+      <td><strong>NVIDIA Inception</strong></td>
+      <td><strong>19 benefits</strong> in the US &amp; Canada catalog. Azure $5,000 is the only one claimed.</td>
+      <td>18 unclaimed</td>
+    </tr>
+    <tr>
+      <td><strong>NVIDIA Build</strong></td>
+      <td><strong>40 free-endpoint models</strong>, incl. <code>kimi-k3</code> (~2.8T MoE), <code>deepseek-v4-pro-0813</code> (1M ctx), <code>nemotron-3.5-lightning-30b-a3b</code>, <code>nemotron-3-embed-1b</code>.</td>
+      <td>Free, 40 RPM</td>
+    </tr>
+    <tr>
+      <td><strong>OpenRouter</strong></td>
+      <td><strong>21 free of 425 models.</strong> Four at ≥1M context: <code>thinkingmachines/inkling:free</code>, <code>minimax/minimax-m3:free</code>, <code>nvidia/nemotron-3-ultra-550b-a55b:free</code>, <code>nvidia/nemotron-3.5-lightning:free</code>.</td>
+      <td>Free</td>
+    </tr>
+    <tr>
+      <td><strong>Hugging Face</strong></td>
+      <td>Both corpora <strong>ACCEPTED 13 Aug</strong>. 6 tokens. Orgs incl. MuVeraAI and <strong>ICML-2026-agent-repro</strong>. Free tier.</td>
+      <td>Unblocked</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="claims">3. Claiming the credits — order and gotchas</h2>
+<p class="h2sub">You asked for all four. This is the order that maximises what lands.</p>
+
+<p class="pull">
+  Claim before you spend. Several of these are eligibility-banded, and a bigger existing footprint
+  reads better than a smaller one — but none of them requires you to have spent the Azure credit
+  first.
+</p>
+
+<ol class="steps">
+  <li>
+    <h4>AWS — upgrade from $1,000 to the $10k / $25k / $100k tier</h4>
+    <p>
+      Highest certainty, because you already hold Activate FOUNDERS so the plumbing works. The
+      <strong>one gotcha that fails most applications</strong>: the email on your AWS Builder ID
+      must match your Inception registration email <em>exactly</em>. Check that before applying —
+      a mismatch is the single most common rejection. Apply for the $25,000 tier first if the
+      $100,000 tier asks for funding evidence you would rather not assemble; $25,000 has no funding
+      requirement.
+    </p>
+  </li>
+  <li>
+    <h4>Google Cloud — $2,000 to $350,000</h4>
+    <p>
+      The largest line in your catalog by an order of magnitude, and the spread tells you it is
+      banded. Open the benefit and read which band you qualify for before applying, because the
+      application usually fixes your tier. GCP also has genuine GPU and TPU availability, unlike
+      your current Azure VM position.
+    </p>
+  </li>
+  <li>
+    <h4>Nebius — $5,000 credits + $150,000 in GPU savings</h4>
+    <p>
+      The unusual shape here is the point: a modest credit paired with a very large <em>discount</em>.
+      That suits sustained training rather than bursts, and it is the best fit in the catalog for a
+      long fine-tuning programme. Worth reading the discount terms carefully — &ldquo;savings&rdquo;
+      usually implies a committed volume.
+    </p>
+  </li>
+  <li>
+    <h4>Scaleway — €40,000</h4>
+    <p>
+      European H100 capacity. Note the data-residency implication: Scaleway is an EU provider, which
+      suits open or synthetic corpora but should not hold sovereign or client data given your
+      standing India DPDP / CERT-In position.
+    </p>
+  </li>
+  <li>
+    <h4>Lambda $7,500 and Weights &amp; Biases Pro at 50%</h4>
+    <p>
+      Lambda is the fastest GPU in the catalog to actually get running on — minimal setup, H100s,
+      no quota dance. W&amp;B at half price is the one non-compute benefit worth claiming
+      immediately: the guard programme currently tracks experiments in commit messages and JSON
+      files, and eight papers with pre-registered runs is exactly the workload it exists for.
+    </p>
+  </li>
+</ol>
+
+<div class="callout note">
+  <span class="label">What I will not do without you</span>
+  <p>
+    Every one of these is a claim made in your company's name, and several involve accepting terms.
+    I will navigate to each benefit, read the eligibility and terms aloud, and prepare the exact
+    answers — but you press submit.
+  </p>
+</div>
+
+<h2 id="hf">4. The Hugging Face token, in full</h2>
+<p class="h2sub">You asked for maximum depth. The subtlety in step 3 is the one that will otherwise cost you an hour.</p>
+
+<h3>Why nothing has worked so far</h3>
+<p>
+  Three separate things must all be true to read a gated dataset. Only the first was ever the
+  problem people described:
+</p>
+<ol>
+  <li><strong>The licence must be accepted</strong> under your account. ✅ Done 13 August, both corpora.</li>
+  <li><strong>A token must exist.</strong> ✅ Six of them.</li>
+  <li><strong>That token must be scoped to those specific repositories</strong> — and this is where fine-grained tokens bite.</li>
+  <li><strong>The token must be visible to the process</strong> as an environment variable. ❌ This is what is actually missing.</li>
+</ol>
+
+<div class="callout stop">
+  <span class="label">The fine-grained gotcha</span>
+  <p>
+    All six of your tokens are <code>FINEGRAINED</code>. A fine-grained token does <em>not</em>
+    inherit your account's gated-repo acceptances automatically — it carries an explicit list of
+    repositories and permissions. If <code>allenai/wildguardmix</code> and
+    <code>6rightjade/expguardmix</code> are not in the token's <strong>Repositories permissions</strong>
+    list with <em>Read access to contents</em>, the download returns <strong>HTTP 401 or 403 even
+    though the licence is accepted</strong>.
+  </p>
+  <p>
+    That failure is indistinguishable from &ldquo;you have not accepted the terms&rdquo; unless you
+    know to look — which is very likely how this ended up recorded as a licensing blocker in the
+    first place.
+  </p>
+</div>
+
+<h3>The procedure</h3>
+
+<h4>Step 1 — verify or fix the token scope</h4>
+<p>
+  Go to <strong>huggingface.co → Settings → Access Tokens</strong>, and open the token you intend to
+  use. <code>Project AumOS</code> is the natural choice (refreshed 20 days ago, used 6 days ago).
+  Under <strong>Repositories permissions</strong>, confirm both datasets are listed with read access.
+  If they are not, either add them, or create a new fine-grained token with:
+</p>
+<ul>
+  <li><strong>Repositories:</strong> <code>allenai/wildguardmix</code>, <code>6rightjade/expguardmix</code> — <em>Read access to contents of selected repos</em></li>
+  <li><strong>Optionally</strong> the guard models you pull (<code>Qwen/Qwen3Guard-*</code> and any GGUF mirrors), so one token covers the whole programme</li>
+</ul>
+<p>
+  A <em>read</em> classic token also works and sidesteps this entirely — it inherits every acceptance
+  on the account. Fine-grained is the better security posture; classic is the faster unblock. Either
+  is defensible, and the trade is worth making deliberately rather than by accident.
+</p>
+
+<h4>Step 2 — export it, in your own terminal</h4>
+<p>
+  I never see the value. For the current PowerShell session:
+</p>
+<pre><code>$env:HF_TOKEN = "hf_xxxxxxxxxxxxxxxxxxxx"</code></pre>
+<p>To persist it for your user across sessions:</p>
+<pre><code>[Environment]::SetEnvironmentVariable("HF_TOKEN", "hf_xxxxxxxxxxxxxxxxxxxx", "User")</code></pre>
+<p>Git Bash, for the current shell:</p>
+<pre><code>export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxx</code></pre>
+
+<div class="callout warn">
+  <span class="label">Two things not to do</span>
+  <p>
+    <strong>Do not put it in a file inside the repository</strong>, even a gitignored one, without
+    checking <code>.gitignore</code> first — this repository has already shipped one defect where
+    <code>SIGNING.md</code> promised a <code>.gitignore</code> rule that did not exist.
+    <strong>Do not paste it into chat</strong>; I do not need it, and anything in a transcript is
+    harder to rotate than a variable.
+  </p>
+</div>
+
+<h4>Step 3 — verify without printing anything sensitive</h4>
+<pre><code>python ml/run_corpus_benchmarks.py --check</code></pre>
+<p>
+  This reports readiness and downloads nothing. With no token it names both gate URLs and the export
+  line; with a working token it prints <code>preconditions met</code>. It never echoes the value.
+</p>
+<p>A stronger check that proves the <em>scope</em> is right, not just that a variable exists:</p>
+<pre><code>python -c "from huggingface_hub import HfApi; \
+print(HfApi().dataset_info('allenai/wildguardmix').id)"</code></pre>
+<p>
+  Success means the licence, the token and the scope all line up. A <code>401</code> means the
+  variable is missing or wrong; a <code>403</code> means the token exists but is not scoped to that
+  repository — which is precisely the fine-grained trap above, and the two are worth telling apart.
+</p>
+
+<h4>Step 4 — what it unblocks, immediately</h4>
+<ul>
+  <li><code>python ml/run_corpus_benchmarks.py</code> — both corpus benchmarks at the pinned 8192/seed-0 configuration</li>
+  <li>All five guard fine-tune recipes, every one of which fails at its data step first</li>
+  <li>The re-measurement of every published figure in the eight paper drafts</li>
+</ul>
+
+<h4>Step 5 — rotation, since it will be used on more machines</h4>
+<p>
+  Fine-grained tokens can be refreshed in place from the same settings page, which invalidates the
+  old value without changing its name or scope. If a token ever reaches a log, a transcript or a
+  commit, refresh rather than delete — the scope configuration is the part that took the thought.
+</p>
+
+<h2 id="gpu">5. The GPU programme — three phases in parallel</h2>
+<p class="h2sub">You asked for the hybrid. These are ordered by dependency, not importance, and two run concurrently.</p>
+
+<ol class="steps">
+  <li>
+    <h3>Phase A — serve the guards on managed compute</h3>
+    <p>
+      Deploy Qwen3Guard-Gen-4B and the 0.6B to a <strong>dedicated H100 or A100 endpoint</strong>
+      instead of local Ollama. This is first because everything else depends on it and it is the
+      cheapest of the three.
+    </p>
+    <p>
+      It also removes a measurement hazard rather than just being faster: every published guard
+      figure currently comes from a local Ollama on a machine that has produced 2.86-second process
+      spawns, fork exhaustion and cache corruption in a single day. A dedicated endpoint makes the
+      serving configuration <em>stated and reproducible</em>, which is the exact property the
+      <code>num_ctx</code> 4096-versus-8192 defect destroyed for eight releases.
+    </p>
+    <p><strong>Cost shape:</strong> billed while the endpoint exists, so create, measure, delete.</p>
+  </li>
+  <li>
+    <h3>Phase B — re-measure every published figure, at scale</h3>
+    <p>
+      Run the full WildGuardTest and ExpGuardTest splits through the Phase A endpoints, and the
+      judging through <strong>GlobalBatch</strong> at roughly half the token price. Your current
+      figures rest on a 14-case bench; the batch lane has <strong>200M enqueued tokens</strong>
+      sitting unused.
+    </p>
+    <p>
+      Expect claims to move from &ldquo;consistent with&rdquo; to &ldquo;measured&rdquo;, and expect
+      at least one not to survive. Better here than in review — the prior-art check already killed
+      one paper and three claims, and a measurement check is cheaper than that was.
+    </p>
+  </li>
+  <li>
+    <h3>Phase C — the three blocked fine-tunes</h3>
+    <p>
+      Only after Phase B, because a fine-tune judged against an untrusted baseline teaches nothing.
+      The three GPU-blocked recipes now run on H100s against a credit rather than against the Modal
+      grant, and each is an Azure workload toward M3.
+    </p>
+    <p>
+      Carry the standing constraint: <code>supervise_severity=False</code> was proposed, run and
+      <strong>refuted</strong> by a 17-point recall drop. Do not spend GPU on a variable without a
+      hypothesis worth testing.
+    </p>
+  </li>
+</ol>
+
+<div class="callout note">
+  <span class="label">Why H200 matters more than it looks</span>
+  <p>
+    The H200's 141 GB — versus 80 GB on the H100 — is the difference between fitting a large
+    open-weight guard at full precision and quantising it to fit. Since one of your papers is
+    <em>about</em> whether quantisation changes verdicts, having a lane where you can run the
+    unquantised reference is directly load-bearing for that argument rather than merely convenient.
+  </p>
+</div>
+
+<h2 id="extra">6. Benefits you are not using yet</h2>
+<p class="h2sub">You asked what else is worth taking. These are the ones with a real claim on your time.</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Benefit</th><th>Why it matters here</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Foundry AI Gateway</strong></td><td>Visible in your Foundry left-nav, unused. This is the managed version of what the deleted APIM was doing — token budgets and routing across your five deployments, without a separate $150/month service.</td></tr>
+    <tr><td><strong>Provisioned Throughput Units</strong></td><td>A quota tab you have never allocated against. Relevant only if a product path needs guaranteed latency; noted so it is a decision rather than an oversight.</td></tr>
+    <tr><td><strong>40 free NVIDIA Build endpoints</strong></td><td>A free, lineage-diverse judging panel. <code>deepseek-v4-pro</code> exists on <em>both</em> Foundry and NVIDIA Build — the same model on two serving stacks is a free, controlled serving-variance experiment, which is a paper you already care about.</td></tr>
+    <tr><td><strong>21 free OpenRouter models</strong></td><td>Four at ≥1M context, including a 550B Nemotron. Good for exploration and breadth; unusable for published figures because free routes change providers silently.</td></tr>
+    <tr><td><strong>Hugging Face Jobs + ZeroGPU</strong></td><td>You are on the free tier with nine org memberships. Jobs gives short GPU runs without provisioning anything.</td></tr>
+    <tr><td><strong><code>ICML-2026-agent-repro</code> org</strong></td><td>You are already a member. For a programme with eight drafts and a reproducibility paper, an agent-reproducibility org is a distribution channel worth using deliberately.</td></tr>
+    <tr><td><strong>DLI training credits</strong></td><td>Free NVIDIA courses. Low priority, zero cost.</td></tr>
+    <tr><td><strong>Capital Connect</strong></td><td>VC introductions through the Inception alliance. Situational, but it is sitting unclaimed alongside the compute.</td></tr>
+    <tr><td><strong>NVIDIA Software / Hardware discounts</strong></td><td>Rebated through authorised suppliers. Only matters if you buy silicon — relevant given the RTX 5080 is currently a bottleneck.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="sequence">7. The sequence</h2>
+<p class="h2sub">Credits first, as you instructed</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>When</th><th>What</th><th>Who</th></tr></thead>
+  <tbody>
+    <tr><td class="num">Now</td><td>Check the AWS Builder ID email matches Inception; claim AWS, Google Cloud, Nebius, Scaleway, Lambda, W&amp;B</td><td>You submit, I prepare</td></tr>
+    <tr><td class="num">Now</td><td>Scope-check the HF token, export it, run <code>--check</code></td><td>You — I never see the value</td></tr>
+    <tr><td class="num">Then</td><td>Phase A: serve guards on managed compute</td><td>Me</td></tr>
+    <tr><td class="num">Then</td><td>Phase B: re-measure every published figure</td><td>Me</td></tr>
+    <tr><td class="num">Then</td><td>Phase C: the three blocked fine-tunes</td><td>Me</td></tr>
+    <tr><td class="num">Parallel</td><td>Workloads toward M3 (5+) then M4 (7+) — count-gated, no spend threshold</td><td>Me</td></tr>
+    <tr><td class="num">Later</td><td>M5's $3,000/month, once a larger credit makes it affordable</td><td>Decision</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p class="footnote">
+  <span class="big">Provenance.</span> Azure credit and Foundry quota read from portal.azure.com and
+  ai.azure.com; AWS credits from the Billing console; Inception catalog from the Benefits Catalog
+  (19 items, US &amp; Canada, both pages); NVIDIA Build model counts from build.nvidia.com filters;
+  OpenRouter counts computed from its public <code>/api/v1/models</code> endpoint (425 total, 21 at
+  zero prompt and completion price); Hugging Face gated-repo and token status from the account settings
+  pages. All on 2026-09-01. No credential value was read, copied or stored. Where a figure is an
+  estimate the source labels it so — AWS distinguishes <em>amount used</em> from <em>estimated
+  amount used</em>, and both are quoted.
+</p>
+
+</div>
+</body>
+</html>
