@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Training Plan</title>
+<style>
+  :root {
+    --bg:#faf9f7; --panel:#fff; --ink:#191817; --ink-soft:#4a4642; --ink-faint:#75706a;
+    --line:#e6e1da; --line-strong:#d0c9c0; --accent:#c2571f; --accent-soft:#fdf3ec;
+    --ok:#1f6b4a; --ok-bg:#edf6f1; --bad:#9c2a1e; --bad-bg:#fbeeec; --warn:#8a6100; --warn-bg:#fdf5e3;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:"Söhne",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#1a1917;--panel:#232120;--ink:#f2efea;--ink-soft:#c4bdb4;--ink-faint:#948d84;
+    --line:#35322f;--line-strong:#4a4642;--accent:#e07a42;--accent-soft:#2c2320;
+    --ok:#6fc79b;--ok-bg:#1c2a24;--bad:#e08a7d;--bad-bg:#2c2120;--warn:#d9ad5a;--warn-bg:#2a2419;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:60px 28px 140px}
+  header{border-bottom:1px solid var(--line);padding-bottom:30px;margin-bottom:10px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 14px}
+  h1{font-size:38px;line-height:1.14;margin:0 0 18px;font-weight:600;letter-spacing:-.025em}
+  .standfirst{font-size:20px;color:var(--ink-soft);margin:0;line-height:1.5}
+  .meta{font-size:13px;color:var(--ink-faint);margin-top:20px;font-family:var(--mono)}
+  h2{font-size:27px;margin:60px 0 8px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+  .h2sub{color:var(--ink-faint);font-size:15px;margin:0 0 22px}
+  h3{font-size:19px;margin:34px 0 10px;font-weight:600}
+  h4{font-size:16.5px;margin:24px 0 8px;font-weight:600;color:var(--ink-soft)}
+  p{margin:0 0 17px}
+  code{font-family:var(--mono);font-size:.85em;background:var(--accent-soft);padding:1px 6px;border-radius:4px}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.55}
+  pre code{background:none;padding:0}
+  .pull{border-left:3px solid var(--accent);padding:4px 0 4px 22px;margin:30px 0;font-size:21px;line-height:1.45;font-weight:500}
+  .callout{border-radius:10px;padding:20px 24px;margin:26px 0;border:1px solid}
+  .callout p:last-child{margin-bottom:0}
+  .callout .label{font-weight:600;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:8px}
+  .stop{background:var(--bad-bg);border-color:var(--bad)} .stop .label{color:var(--bad)}
+  .warn{background:var(--warn-bg);border-color:var(--warn)} .warn .label{color:var(--warn)}
+  .good{background:var(--ok-bg);border-color:var(--ok)} .good .label{color:var(--ok)}
+  .note{background:var(--panel);border-color:var(--line-strong)} .note .label{color:var(--accent)}
+  .tablewrap{overflow-x:auto;margin:24px 0 30px}
+  table{border-collapse:collapse;width:100%;font-size:15px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  .tag{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap;border:1px solid}
+  .t-ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok)}
+  .t-no{color:var(--bad);background:var(--bad-bg);border-color:var(--bad)}
+  .t-mid{color:var(--warn);background:var(--warn-bg);border-color:var(--warn)}
+  ul,ol{margin:0 0 17px;padding-left:24px} li{margin-bottom:9px}
+  .steps{counter-reset:s;list-style:none;padding-left:0}
+  .steps>li{counter-increment:s;position:relative;padding-left:46px;margin-bottom:22px}
+  .steps>li::before{content:counter(s);position:absolute;left:0;top:1px;width:30px;height:30px;border-radius:50%;
+    background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;border:1px solid var(--accent)}
+  .steps h3,.steps h4{margin:0 0 6px}
+  .footnote{font-size:14.5px;color:var(--ink-faint);border-top:1px solid var(--line);padding-top:22px;margin-top:54px}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 26px;margin:32px 0 8px}
+  .toc ol{margin:0;padding-left:20px;font-size:15.5px} .toc li{margin-bottom:6px}
+  .toc a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line-strong)}
+  .toc a:hover{border-bottom-color:var(--accent);color:var(--accent)}
+  .big{font-family:var(--mono);font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Training plan · local · Kaggle · Modal</p>
+  <h1>Every guard recipe is already trained. The plan is mostly about proving one of them and understanding another.</h1>
+  <p class="standfirst">
+    The roadmap describes a programme with three GPU-blocked models and four cold-start blocked. On
+    inspection, all five guard recipes have run, one clears every promotion criterion, one lost
+    eleven points, and two of the three &ldquo;blockers&rdquo; in the way of the rest were not what
+    they were recorded as.
+  </p>
+  <p class="meta">1 September 2026 · every lane figure resolved from <code>warrantor_ml.lanes</code></p>
+</header>
+
+<div class="toc">
+  <ol>
+    <li><a href="#state">Where the programme actually is</a></li>
+    <li><a href="#blockers">Three blockers, verified one by one</a></li>
+    <li><a href="#lanes">The lane matrix, computed</a></li>
+    <li><a href="#work">The work, in dependency order</a></li>
+    <li><a href="#routing">Which lane for which run</a></li>
+    <li><a href="#hypotheses">Every run needs a hypothesis</a></li>
+    <li><a href="#budget">Budget and stop conditions</a></li>
+    <li><a href="#objectives">How this serves the four objectives</a></li>
+  </ol>
+</div>
+
+<h2 id="state">1. Where the programme actually is</h2>
+<p class="h2sub">Read from Ollama and <code>eval_results/</code>, not from the roadmap</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Recipe</th><th>Trained</th><th>Recall</th><th>Baseline</th><th>Delta</th><th>Reading</th></tr></thead>
+  <tbody>
+    <tr><td><code>guard-0.6b-expguard-weak</code></td><td class="num">08-22</td><td class="num"><strong>0.7818</strong></td><td class="num">0.7150</td><td class="num"><strong>+0.0668</strong></td><td><span class="tag t-ok">clears every bar</span></td></tr>
+    <tr><td><code>guard-4b-adversarial</code></td><td class="num">08-22</td><td class="num">0.8607</td><td class="num">0.8554</td><td class="num">+0.0053</td><td><span class="tag t-mid">unresolved</span></td></tr>
+    <tr><td><code>guard-4b-weak-category</code></td><td class="num">08-22</td><td class="num">0.8541</td><td class="num">0.8554</td><td class="num">−0.0013</td><td><span class="tag t-mid">unresolved</span></td></tr>
+    <tr><td><code>guard-0.6b-adversarial</code></td><td class="num">08-22</td><td class="num">0.8369</td><td class="num">0.8488</td><td class="num">−0.0119</td><td><span class="tag t-mid">unresolved</span></td></tr>
+    <tr><td><code>guard-0.6b-weak-category</code></td><td class="num">08-22</td><td class="num">0.7374</td><td class="num">0.8488</td><td class="num"><strong>−0.1114</strong></td><td><span class="tag t-no">regression</span></td></tr>
+    <tr><td colspan="6" style="padding-top:14px"><strong>Substrate — none trained</strong></td></tr>
+    <tr><td><code>bound-proposer</code> · <code>refusal-triage</code> · <code>effect-risk</code> · <code>report-summariser</code></td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><span class="tag t-no">genuinely blocked</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout warn">
+  <span class="label">The four middle rows are not small wins and losses</span>
+  <p>
+    They are <strong>unresolved</strong>. A delta without a significance test is not a finding — the
+    lesson this programme already paid for when a monotonicity check reported <em>p</em> = 0.688
+    noise as a reversal. On denominators of 753 and 754, a ±0.01 movement is a handful of items.
+    Nothing in this plan treats them as results until a paired test says so.
+  </p>
+</div>
+
+<h2 id="blockers">2. Three blockers, verified one by one</h2>
+<p class="h2sub">Two were wrong. The third is real, and it is the only one that stops work.</p>
+
+<div class="callout stop">
+  <span class="label">Verified real — the substrate cold start</span>
+  <p>
+    <code>warrantor guard export-corpus</code>, run today:
+    <strong>0 rows from 0 warrants, 0 labelled</strong>, against a recipe minimum of 500. The tool's
+    own words: <em>&ldquo;this number grows by USING the product, not by exporting more
+    often.&rdquo;</em>
+  </p>
+  <p>
+    <strong>All four substrate recipes are genuinely blocked</strong>, and no amount of GPU changes
+    that. They are excluded from every run below and appear only in §4's last item.
+  </p>
+</div>
+
+<div class="callout good">
+  <span class="label">Wrong — Kaggle is usable</span>
+  <p>
+    I recorded Kaggle as unsuitable because its T4 (sm_75) and P100 (sm_60) predate native bf16.
+    That was my inference, not the planner's reason. The planner actually says:
+    <em>&ldquo;estimated 12.3 h exceeds kaggle-t4x2's 12 h session cap and <strong>no
+    --resume-from was given</strong>&rdquo;</em> — and names the remedy in the same sentence.
+  </p>
+  <p>
+    With <code>--resume-from</code>, <strong>every guard recipe fits Kaggle</strong>: 12.3 h on
+    T4×2, 15.3 h on P100, at <strong>fp16</strong>. That is 30 free GPU hours a week I had written
+    off.
+  </p>
+</div>
+
+<div class="callout good">
+  <span class="label">Wrong — the corpora were never licence-blocked</span>
+  <p>
+    Both gates were <strong>ACCEPTED on 13 August</strong>, and a working token has been in the
+    credential store all along. The preflight that said otherwise checked only environment
+    variables. Corpus access is not a blocker and has not been one for weeks.
+  </p>
+</div>
+
+<h2 id="lanes">3. The lane matrix, computed</h2>
+<p class="h2sub">Resolved from <code>warrantor_ml.lanes</code> at 11,272 corpus rows — not estimated</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Lane</th><th>Hardware</th><th>0.6B recipes</th><th>4B recipes</th><th>Precision</th><th>Cost</th><th>Caveat</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>local-rtx5080</strong></td><td>RTX 5080, 15.9 GB</td>
+      <td class="num">4.6 h</td><td class="num">4.6 h</td><td class="num">bf16</td><td class="num">free</td>
+      <td>VRAM fine (6.15 / 8.57 GiB of ~11.5 free). <strong>Commit charge is the real limit</strong> — see below.</td>
+    </tr>
+    <tr>
+      <td><strong>kaggle-t4x2</strong></td><td>2× T4, sm_75</td>
+      <td class="num">12.3 h</td><td class="num">12.3 h</td><td class="num">fp16</td><td class="num">free, 30 h/wk</td>
+      <td><strong>Requires <code>--resume-from</code></strong> — 12 h session cap against a 12.3 h run</td>
+    </tr>
+    <tr>
+      <td><strong>kaggle-p100</strong></td><td>1× P100, sm_60</td>
+      <td class="num">15.3 h</td><td class="num">15.3 h</td><td class="num">fp16</td><td class="num">free, 30 h/wk</td>
+      <td>Same cap, larger overshoot — two sessions minimum</td>
+    </tr>
+    <tr>
+      <td><strong>modal-a100</strong></td><td>A100 80 GB</td>
+      <td class="num"><strong>1.8 h</strong></td><td class="num"><strong>1.8 h</strong></td><td class="num">bf16</td><td class="num">~$236 left</td>
+      <td>Fastest and most reliable. Per-second billing.</td>
+    </tr>
+    <tr>
+      <td>foundry-managed</td><td>8× A100/H100/MI300/H200</td>
+      <td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">Azure credit</td>
+      <td><strong>Qwen3Guard is not in the Foundry catalog</strong> — needs a custom container first</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout stop">
+  <span class="label">The local lane is blocked right now, and not by VRAM</span>
+  <p>
+    Measured on this machine: <strong>committed memory 84.4 GB of an 87.5 GB limit — 96.5%</strong>,
+    with 10.0 GB available. VRAM has ~11.5 GB free and the recipes need 6.15–8.57 GiB, so the
+    <em>GPU</em> is fine.
+  </p>
+  <p>
+    Commit pressure is also the diagnosis for this session's <code>CreateProcessW failed</code>,
+    fork exhaustion, cranelift <code>STATUS_STACK_BUFFER_OVERRUN</code> and clippy OOM. Training on
+    top of that would page heavily. <strong>Free memory first</strong> — unloading the Ollama model
+    alone returns ~8.8 GB.
+  </p>
+</div>
+
+<p class="pull">
+  fp16 on Kaggle versus bf16 elsewhere is not a detail. Two adapters trained at different precisions
+  are two different experiments, and comparing them without saying so is the same error as running
+  two benchmarks at different <code>num_ctx</code>.
+</p>
+
+<h2 id="work">4. The work, in dependency order</h2>
+<p class="h2sub">Verification before training, because a run judged against an unproven baseline teaches nothing</p>
+
+<ol class="steps">
+  <li>
+    <h3>W1 — Prove the winner, or find out it is not one <span class="tag t-ok">no GPU</span></h3>
+    <p>
+      <code>guard-0.6b-expguard-weak</code> clears every stated bar: 982 caught against 942 required,
+      56 false positives against a 116 ceiling, +0.0668 against a 0.0353 minimum detectable delta,
+      and an FPR that <em>improved</em> from 0.0873 to 0.0550. Both untrained floors rose.
+    </p>
+    <p><strong>Three checks before anyone calls it promoted:</strong></p>
+    <ul>
+      <li>Run the real <code>parity_gate</code>, reconstructing the lane, precision and manifest digest the result documents do not carry</li>
+      <li><strong>McNemar on paired item-level outcomes</strong> — this is what converts +0.0668 from a delta into a result</li>
+      <li>A severity-distribution check. The recipe warns that flattening the third severity class can look like an aggregate win; the 4B's <code>Controversial</code> verdicts carry 235 of 954 true positives on this corpus, and losing them drops recall 0.7596 → 0.5725. <strong>If severity flattened here, the win is an artefact.</strong></li>
+    </ul>
+  </li>
+  <li>
+    <h3>W2 — Post-mortem the eleven-point regression <span class="tag t-ok">no GPU</span></h3>
+    <p>
+      <code>guard-0.6b-weak-category</code> fell 0.8488 → 0.7374. That is comparable to the 17-point
+      drop that refuted <code>supervise_severity=False</code>, and nothing records it.
+    </p>
+    <p>
+      Diagnose from the existing artefacts first: per-category recall against baseline, the severity
+      distribution, and whether <code>Controversial</code> verdicts collapsed. <strong>Do not retrain
+      until there is a named cause</strong> — the standing lesson is that running the next one
+      without a hypothesis worth testing repeats the last mistake with a different variable.
+    </p>
+  </li>
+  <li>
+    <h3>W3 — Resolve the three unresolved adapters <span class="tag t-ok">no GPU</span></h3>
+    <p>
+      Paired McNemar for <code>4b-adversarial</code> (+0.0053), <code>4b-weak-category</code>
+      (−0.0013) and <code>0.6b-adversarial</code> (−0.0119) against their baselines. Cheap, and it
+      converts three ambiguous rows into three verdicts — most likely three
+      <em>within-noise</em> answers, which is a real result and stops anyone treating +0.0053 as a
+      win.
+    </p>
+  </li>
+  <li>
+    <h3>W4 — Retrain, only where W2 produced a hypothesis <span class="tag t-mid">GPU</span></h3>
+    <p>
+      The first genuinely new training. Scope depends entirely on W2's cause, which is why it cannot
+      be specified further here — and specifying it anyway would be the error this plan exists to
+      avoid.
+    </p>
+  </li>
+  <li>
+    <h3>W5 — The untried variants <span class="tag t-mid">GPU</span></h3>
+    <p>
+      Two exist and have never run: the <strong>4B ExpGuard-weak</strong> variant, because the 0.6B
+      version is the programme's only clear success and the same recipe at 4B is unexplored; and a
+      <strong>second attempt at 0.6B weak-category</strong> once W2 explains the first.
+    </p>
+  </li>
+  <li>
+    <h3>W6 — Substrate models <span class="tag t-no">blocked</span></h3>
+    <p>
+      All four wait on warrant history. <strong>Zero rows exist.</strong> The unblock is product
+      usage, not compute, and the corpus exporter already exists to capture it the moment there is
+      any. No GPU time should be allocated to these.
+    </p>
+  </li>
+</ol>
+
+<h2 id="routing">5. Which lane for which run</h2>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Run</th><th>Lane</th><th>Why that lane</th></tr></thead>
+  <tbody>
+    <tr><td>W1, W2, W3</td><td><strong>CPU / local</strong></td><td>Statistics over existing result documents. No GPU, no cost, no queue.</td></tr>
+    <tr><td>W4 first attempt</td><td><strong>Modal A100</strong></td><td>1.8 h, bf16, ~$236 available. Matches the precision the existing adapters were trained at, so the comparison stays clean. Buys a same-day answer on a hypothesis.</td></tr>
+    <tr><td>W5 exploratory</td><td><strong>Kaggle T4×2</strong></td><td>Free, and exploration does not need to be fast. <strong>Requires <code>--resume-from</code></strong> and produces <strong>fp16</strong> adapters, which must be labelled as a different condition, not pooled with the bf16 ones.</td></tr>
+    <tr><td>Anything unattended overnight</td><td><strong>Local 5080</strong></td><td>4.6 h, bf16, free — <em>once commit pressure is resolved</em>. Best lane for a run nobody is waiting on.</td></tr>
+    <tr><td>Nothing yet</td><td>Foundry managed compute</td><td>32 accelerators sit unused, but Qwen3Guard is not in the catalog. A custom container is a real option and a separate piece of work.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="hypotheses">6. Every run needs a hypothesis</h2>
+<p class="h2sub">The rule this programme learned the expensive way</p>
+
+<div class="callout warn">
+  <span class="label">What happened last time</span>
+  <p>
+    <code>supervise_severity=False</code> was proposed as a fix, run, and <strong>refuted</strong> —
+    recall fell 0.8329 → 0.6804 overall and 0.7947 → 0.5572 adversarial. The reasoning was wrong in
+    a way that could have been reasoned about first: LoRA adapts weights <em>both</em> output fields
+    share, so not computing a loss on severity never held it still; it only stopped correcting it
+    while training moved it anyway.
+  </p>
+</div>
+
+<p>Before any W4 or W5 run is submitted, it registers:</p>
+<ul>
+  <li><strong>The hypothesis</strong>, in one sentence, and what would refute it</li>
+  <li><strong>The statistic and the test</strong> — not just the direction. &ldquo;Is it better&rdquo; is not a statistic.</li>
+  <li><strong>The precision and lane</strong>, because fp16-on-Kaggle and bf16-on-Modal are different conditions</li>
+  <li><strong>The severity-distribution check</strong>, since flattening is this programme's most repeated failure mode and it presents as a win</li>
+  <li><strong>The stop condition</strong> — what result abandons the line rather than extending it</li>
+</ul>
+
+<h2 id="budget">7. Budget and stop conditions</h2>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Resource</th><th>Available</th><th>Allocated here</th><th>Stop condition</th></tr></thead>
+  <tbody>
+    <tr><td>Modal grant</td><td class="num">~$236</td><td class="num">W4, one run</td><td>Stop after one run and report, whatever the result</td></tr>
+    <tr><td>Kaggle</td><td class="num">30 h/week</td><td class="num">W5 exploratory</td><td>Two sessions per run maximum; abandon rather than chain further</td></tr>
+    <tr><td>Local 5080</td><td class="num">free</td><td class="num">unattended runs</td><td><strong>Do not start while commit charge exceeds ~85%</strong></td></tr>
+    <tr><td>Azure batch</td><td class="num">$200 authorised</td><td class="num">judging, not training</td><td>Report at the ceiling rather than continuing</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout note">
+  <span class="label">The cheapest possible outcome</span>
+  <p>
+    W1, W2 and W3 need <strong>no GPU and no money</strong>, and they could resolve most of what
+    matters: whether the programme has a promotable model, why one regressed, and whether three
+    ambiguous results are anything at all. It is entirely possible the correct answer after those
+    three is <em>train nothing yet</em>.
+  </p>
+</div>
+
+<h2 id="objectives">8. How this serves the four objectives</h2>
+<p class="h2sub">You named all four; they do not conflict, but they do order</p>
+
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Objective</th><th>What this plan contributes</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Evidence for the eight papers</strong></td>
+      <td>W1's McNemar and severity check are publishable as they stand — a fine-tune that improves four trained categories by 18–26 points while two untrained floors rise is a result. W2's regression is equally publishable: this programme has already shown that a refuted hypothesis carries more weight than an unexamined win.</td>
+    </tr>
+    <tr>
+      <td><strong>A shippable guard</strong></td>
+      <td>W1 decides it. If the ExpGuard adapter survives the gate and the severity check, it is the first model with a defensible measurement behind it — with the standing caveat that ExpGuardMix is research-only, so promotion is a quality verdict and never a commercial clearance.</td>
+    </tr>
+    <tr>
+      <td><strong>Model Foundry portfolio</strong></td>
+      <td>This is Track-0 substrate. The lane matrix in §3 — measured rather than assumed — is directly reusable by every later vertical card, and it has already corrected two wrong entries.</td>
+    </tr>
+    <tr>
+      <td><strong>Proving the method</strong></td>
+      <td>The strongest contribution, and the cheapest. Three recorded blockers were checked today: two were false and one was real. A programme that verifies its own blockers before spending on them is the artefact — and the plan's most valuable possible outcome remains <em>train nothing yet</em>.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p class="footnote">
+  <span class="big">Provenance.</span> Lane hours, VRAM and precision resolved by calling
+  <code>warrantor_ml.lanes.resolve()</code> against each recipe at 11,272 corpus rows, with and
+  without <code>resume_from</code>. Adapter results read from the seven documents in
+  <code>eval_results/</code>; baselines from <code>warrantor_ml.baselines</code>. Cold-start status
+  from <code>warrantor guard export-corpus</code> run today — 0 rows, 0 warrants. Machine memory
+  from Windows performance counters: 84.4 GB committed of an 87.5 GB limit. Foundry catalog
+  searched for &ldquo;guard&rdquo; — 0 of 212 models. Nothing in this plan has been executed.
+</p>
+
+</div>
+</body>
+</html>
