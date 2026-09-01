@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azure GPU Quota: The Support Case</title>
+<style>
+
+  :root {
+    --bg: #faf9f7; --surface: #ffffff; --ink: #1a1a19; --muted: #6b6862;
+    --line: #e5e2dc; --accent: #b8552f; --accent-soft: #f5ede8;
+    --ok: #2f6b4f; --warn: #8a6d1f; --stop: #a33a2a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16150f; --surface: #1e1d17; --ink: #eceae4; --muted: #a09c92;
+      --line: #33302a; --accent: #e08356; --accent-soft: #2a221d;
+      --ok: #7fb99a; --warn: #d4b25e; --stop: #e08a78;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16150f; --surface: #1e1d17; --ink: #eceae4; --muted: #a09c92;
+    --line: #33302a; --accent: #e08356; --accent-soft: #2a221d;
+    --ok: #7fb99a; --warn: #d4b25e; --stop: #e08a78;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.65 ui-serif, Georgia, "Times New Roman", serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 56px 28px 96px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 28px; margin-bottom: 40px; }
+  h1 { font-size: 2.35rem; line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 1.02rem; margin: 0; }
+  h2 {
+    font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.09em;
+    font-family: ui-sans-serif, system-ui, sans-serif; font-weight: 650;
+    color: var(--accent); margin: 56px 0 18px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  h3 { font-size: 1.4rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+  p { margin: 0 0 14px; }
+  .lede { font-size: 1.1rem; color: var(--muted); }
+  .paper {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); border-radius: 3px;
+    padding: 26px 28px; margin: 0 0 22px;
+  }
+  .tag {
+    display: inline-block; font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 2px; margin: 0 6px 8px 0;
+    background: var(--accent-soft); color: var(--accent); font-weight: 650;
+  }
+  .tag.venue { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .field { margin: 16px 0 0; }
+  .field > .label {
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+    font-weight: 650; display: block; margin-bottom: 5px;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  th {
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: 0.74rem;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 650;
+  }
+  .scroll { overflow-x: auto; }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.87em;
+    background: var(--accent-soft); padding: 1px 5px; border-radius: 2px;
+  }
+  .note {
+    background: var(--accent-soft); border-radius: 3px; padding: 14px 18px;
+    margin: 16px 0; font-size: 0.95rem;
+  }
+  .note strong { color: var(--accent); }
+  .kill { border-left: 3px solid var(--stop); padding-left: 14px; margin: 14px 0; }
+    .shipped { border-left: 3px solid var(--ok); padding-left: 14px; margin: 14px 0; }
+    .tag.done { background: transparent; border: 1px solid var(--ok); color: var(--ok); }
+  .kill .label { color: var(--stop); }
+  ol, ul { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 7px; }
+  .foot { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line);
+          color: var(--muted); font-size: 0.9rem; }
+
+  /* additions for this document */
+  .step { display:flex; gap:16px; margin:0 0 18px; }
+  .step .n {
+    flex:0 0 30px; height:30px; border-radius:50%; background:var(--accent);
+    color:var(--bg); font-family:ui-sans-serif,system-ui,sans-serif; font-weight:700;
+    font-size:0.85rem; display:flex; align-items:center; justify-content:center;
+  }
+  .step .body { flex:1; }
+  .need { border-left:3px solid var(--warn); padding-left:14px; margin:14px 0; }
+  .ok-block { border-left:3px solid var(--ok); padding-left:14px; margin:14px 0; }
+  .cost { font-family:ui-sans-serif,system-ui,sans-serif; font-size:0.8rem;
+          text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); }
+  pre { background:var(--accent-soft); border:1px solid var(--line); border-radius:3px;
+        padding:14px 16px; overflow-x:auto; font-size:0.85rem; line-height:1.5;
+        font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .tag.stop { background:transparent; border:1px solid var(--stop); color:var(--stop); }
+  .tag.ok   { background:transparent; border:1px solid var(--ok);   color:var(--ok); }
+  .tag.warn { background:transparent; border:1px solid var(--warn); color:var(--warn); }
+  table { width:100%; border-collapse:collapse; font-size:0.92rem; margin:14px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-family:ui-sans-serif,system-ui,sans-serif; font-size:0.75rem;
+       text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); font-weight:650; }
+  .scroll { overflow-x:auto; }
+  ol.tight, ul.tight { margin:0 0 14px; padding-left:22px; }
+  ol.tight li, ul.tight li { margin-bottom:7px; }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Azure GPU Quota &mdash; The Support Case</h1>
+  <p class="sub">Everything needed to file this in the portal, plus the answer to
+  &ldquo;is anything else missing?&rdquo;<br>
+  Prepared 2026-08-31 &middot; quota read live from the ARM API &middot; three line items, not two.</p>
+</header>
+
+<p class="lede">I could not file this programmatically &mdash; the Support API requires a paid support
+plan, and upgrading costs money. <strong>The portal path is free on every plan, including
+Developer.</strong> This document is the case, ready to paste.</p>
+
+<div class="note">
+  <strong>One thing changed since the last write-up.</strong> You asked whether any other quota is
+  needed to run GPU instances. I checked rather than assumed, and the answer is <strong>yes &mdash;
+  one item, and it is arguably the most valuable of the three.</strong> It is item 3 below.
+</div>
+
+<h2>The three line items</h2>
+
+<div class="scroll"><table>
+  <tr><th>#</th><th>Quota</th><th>Now</th><th>Ask</th><th>What it buys</th></tr>
+  <tr>
+    <td><strong>1</strong></td>
+    <td><code>standardNCADSA100v4Family</code><br><span class="cost">dedicated cores &middot; East US</span></td>
+    <td><strong>0</strong></td>
+    <td><strong>48</strong></td>
+    <td>2 &times; NC24ads_A100_v4 &mdash; two A100 80GB on demand</td>
+  </tr>
+  <tr>
+    <td><strong>2</strong></td>
+    <td><code>standardNCADSH100v5Family</code><br><span class="cost">dedicated cores &middot; East US</span></td>
+    <td><strong>0</strong></td>
+    <td><strong>40</strong></td>
+    <td>1 &times; NC40ads_H100_v5 &mdash; one H100 80GB on demand</td>
+  </tr>
+  <tr style="background:var(--accent-soft)">
+    <td><strong>3</strong></td>
+    <td><strong>Total Low Priority Cores</strong><br><span class="cost">aggregate &middot; East US &middot; <strong>newly identified</strong></span></td>
+    <td><strong>0</strong></td>
+    <td><strong>96</strong></td>
+    <td><strong>Spot capacity on every GPU family at once</strong> &mdash; see below</td>
+  </tr>
+</table></div>
+
+<h2>Why item 3 matters more than it looks</h2>
+
+<div class="paper">
+  <div class="row"><span class="tag warn">newly found</span><span class="tag">one number</span><span class="tag ok">unlocks the whole catalog</span></div>
+  <h3>Low-priority GPU is gated by a single aggregate, not per family</h3>
+
+  <div class="field"><span class="label">What the API actually returns</span>
+  Each VM family appears <strong>twice</strong> in the Machine Learning quota list, distinguished by
+  the <code>type</code> field rather than by the name. For the A100:</div>
+
+<pre>type: .../vmFamily/dedicatedCores/usages     limit: 0
+type: .../vmFamily/lowPriorityCores/usages   limit: -1</pre>
+
+  <div class="field"><span class="label">Reading the &minus;1</span>
+  <strong>&minus;1 is Azure&rsquo;s convention for &ldquo;not enforced&rdquo;.</strong> Every GPU family
+  returns &minus;1 on its low-priority row. The binding constraint is the single subscription-level
+  aggregate, <code>TotalLowPriorityCores</code>, which is <strong>0</strong>. <strong>So one number
+  gates spot across A100, H100, H200, MI300 and everything else &mdash; and raising that one number
+  unlocks them all.</strong></div>
+
+  <div class="ok-block"><strong>Why this is the high-value ask under the no-overage rule.</strong>
+  Azure spot typically runs far below pay-as-you-go, so the same $5,000 credit stretches
+  substantially further on low-priority capacity. <strong>Research batch jobs are the ideal spot
+  workload</strong> &mdash; they are interruptible by nature, checkpoint cheaply, and carry no uptime
+  obligation. Nothing in this program needs a persistent endpoint.
+  <em>Verify the current rate in the Azure pricing calculator before planning spend; the discount
+  varies by region and family.</em></div>
+
+  <div class="kill"><strong>What I have not proven.</strong> I read the quota rows; I did not deploy a
+  spot cluster. The &ldquo;&minus;1 means unenforced&rdquo; reading is the standard one and is
+  consistent with the aggregate being the only nonzero gate, <strong>but it is inference from the API
+  rather than an observed successful deployment.</strong> If the aggregate is granted and a spot A100
+  still refuses to schedule, the per-family row is the next thing to check.</div>
+</div>
+
+<h2>What does <em>not</em> need raising</h2>
+
+<p>I checked the other dimensions that can silently block a GPU cluster. <strong>All have
+headroom</strong> &mdash; no action needed on any of these:</p>
+
+<div class="scroll"><table>
+  <tr><th>Dimension</th><th>Now</th><th>Needed</th><th>Verdict</th></tr>
+  <tr><td><code>TotalDedicatedCores</code> <span class="cost">AML aggregate</span></td><td>350</td><td>88</td><td><span class="tag ok">ample</span></td></tr>
+  <tr><td><code>TotalClusters</code></td><td>200</td><td>1&ndash;2</td><td><span class="tag ok">ample</span></td></tr>
+  <tr><td><code>cores</code> <span class="cost">regional vCPU, Microsoft.Compute</span></td><td>152</td><td>&mdash;</td><td><span class="tag ok">raised in July</span></td></tr>
+  <tr><td>Resource providers</td><td colspan="2"><code>MachineLearningServices</code>, <code>Compute</code>, <code>Quota</code>, <code>Network</code>, <code>Storage</code>, <code>KeyVault</code></td><td><span class="tag ok">all registered</span></td></tr>
+  <tr><td>Network scaffolding</td><td colspan="2">Resource group, VNet, subnet, NSG and SSH key all provisioned in East US</td><td><span class="tag ok">ready</span></td></tr>
+</table></div>
+
+<div class="note">
+  <strong>The raw-VM lane is a different ticket, and you do not need it.</strong> Microsoft.Compute
+  carries its own separate GPU family quotas, also all at 0. That lane is only for plain IaaS VMs.
+  <strong>Azure ML managed compute is the lane these experiments would use</strong>, so requesting
+  Compute-VM quota would be the wrong ticket &mdash; it would be granted and still not let an AML
+  cluster start.
+</div>
+
+<div class="note">
+  <strong>Azure OpenAI is unrelated.</strong> It has its own per-model quota and a separate access
+  approval. Nothing in this program calls it &mdash; the work runs open-weight models on our own
+  compute.
+</div>
+
+<h2>Filing it &mdash; about two minutes</h2>
+
+<div class="step"><div class="n">1</div><div class="body">
+  Azure portal &rarr; <strong>Help + support</strong> &rarr; <strong>Create a support request</strong>
+</div></div>
+
+<div class="step"><div class="n">2</div><div class="body">
+  <strong>Issue type:</strong> <em>Service and subscription limits (quotas)</em>
+</div></div>
+
+<div class="step"><div class="n">3</div><div class="body">
+  <strong>Subscription:</strong> Azure subscription 1 &mdash; the only subscription on the account,
+  so the portal picker has nothing to get wrong.
+  <div class="note" style="margin-top:10px"><strong>The subscription ID is redacted from this
+  file</strong> because it lives in a public repository. It is not a credential &mdash; you cannot
+  authenticate with it &mdash; but it identifies the tenant, so it does not belong in published text.
+  Read it straight off the portal blade you will already be on, or run
+  <code>az account show --query id -o tsv</code>.</div>
+</div></div>
+
+<div class="step"><div class="n">4</div><div class="body">
+  <strong>Quota type:</strong> <em>Machine Learning Service: Virtual Machine Quota</em>
+  <div class="kill" style="margin-top:10px"><strong>Not</strong> <em>Compute-VM (cores-vCPUs)</em>.
+  That is the raw-VM path. It would be granted and still leave AML managed compute unable to start
+  &mdash; and the failure would look like a capacity problem rather than a wrong-ticket problem.</div>
+</div></div>
+
+<div class="step"><div class="n">5</div><div class="body">
+  <strong>Region:</strong> East US. Request all three rows from the table above.
+</div></div>
+
+<h2>Justification &mdash; paste this</h2>
+
+<pre>Requesting GPU quota for Azure Machine Learning managed compute in East US.
+
+All GPU families currently show a dedicated-cores limit of 0 in both eastus and
+westus3; only the legacy standardNCFamily is nonzero, at 6 cores. Total Low
+Priority Cores is also 0, which blocks spot capacity across all families.
+
+Requested, East US:
+  - standardNCADSA100v4Family   48 dedicated cores
+  - standardNCADSH100v5Family   40 dedicated cores
+  - Total Low Priority Cores    96
+
+The quota supports an academic research program measuring the robustness of
+open-weight safety classifiers under quantization, paraphrase and long-context
+conditions. Work to date has produced five papers targeted at USENIX Security,
+IEEE S&amp;P and ACM/IEEE workshops. Workloads are short, batched inference and
+fine-tuning runs on open-weight models in the 0.6B-9B range. There is no
+persistent service and no production traffic, which is why low-priority
+capacity suits this work well.
+
+The automated Quota API was attempted first and returned only "Request failed."
+with no further detail (submitted 2026-09-01T01:46:20Z), which is why this is
+being raised as a support request. Microsoft.MachineLearningServices and
+Microsoft.Quota are both registered on the subscription.
+
+Spend is covered by an existing Azure credit. No overage or support-plan
+upgrade is being requested. Happy to reduce the amounts or change region if
+that assists approval.</pre>
+
+<h2>What happened when I tried to automate it</h2>
+
+<div class="scroll"><table>
+  <tr><th>Step</th><th>Result</th></tr>
+  <tr><td>Register <code>Microsoft.MachineLearningServices</code></td>
+      <td><span class="tag ok">worked</span> quota rows went from <strong>0 to 127</strong></td></tr>
+  <tr><td>Request A100 via the <strong>Quota API</strong></td>
+      <td><span class="tag stop">failed</span> accepted as <code>InProgress</code>, then <em>&ldquo;Request failed.&rdquo;</em> with no reason given</td></tr>
+  <tr><td>File a ticket via the <strong>Support API</strong></td>
+      <td><span class="tag stop">failed</span> <code>InvalidSupportPlan</code> &mdash; writes need a paid plan</td></tr>
+</table></div>
+
+<div class="kill"><strong>The Support API returned HTTP 202 Accepted, and no ticket was ever
+created.</strong> The truth was only in the <code>Azure-AsyncOperation</code> status endpoint.
+<strong>A 202 is a receipt, not a result.</strong> This is the same pattern that has cost this
+program time before &mdash; a check that reports on the transport rather than on the outcome it is
+meant to guarantee &mdash; turning up in a new place.</div>
+
+<h2>A correction to the earlier record</h2>
+
+<p>An earlier note recorded that Azure AI Foundry showed <strong>8&times; A100-80GB, 8&times;
+H100-80GB and 8&times; MI300-192GB all free</strong> in westus3. <strong>The API does not agree.</strong>
+With the provider registered, every modern GPU family reads <strong>0</strong> in both eastus and
+westus3. Only <code>standardNCFamily</code> and <code>standardNVFamily</code> are nonzero, at 6 cores
+each, and those are legacy K80- and M60-class hardware.</p>
+
+<div class="note"><strong>The $5,000 credit cannot buy GPU today.</strong> That is now measured
+rather than assumed &mdash; and registering the provider is what made it measurable, so the failed
+automation attempt still paid for itself.</div>
+
+<h2>Perspective on urgency</h2>
+
+<div class="ok-block"><strong>Nothing is blocked on this.</strong> The margin-shrinkage experiment
+ran on Modal for about <strong>$0.70</strong>, and every remaining cheap idea is a re-analysis of
+data already on disk. <strong>Azure matters only for the scale-dependent work</strong> &mdash; the
+benchmark and the scaling-laws study &mdash; which is exactly where the $100 Modal ceiling was the
+real constraint.</div>
+
+<p><strong>If the request stalls, ask for less.</strong> A single A100 &mdash; 24 cores &mdash; runs
+everything currently designed. The 48/40 above buys parallelism, not capability, and a smaller
+request is likelier to clear quickly. <strong>If you trim anything, keep item 3</strong>: the
+low-priority aggregate is the one that changes what the credit can afford.</p>
+
+<div class="foot">
+  Quota figures read live from the ARM REST API on 2026-08-31 via
+  <code>curl.exe --ipv4 --tlsv1.2</code> with a bearer token &mdash; the <code>az</code> CLI&rsquo;s
+  bundled TLS stack cannot complete ARM&rsquo;s renegotiation on this machine.
+  Read against the account&rsquo;s single subscription (ID redacted &mdash; this file is public),
+  regions eastus and westus3.
+</div>
+
+</div>
+</body>
+</html>
