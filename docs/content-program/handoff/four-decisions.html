@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Four Decisions Only You Can Make</title>
+<style>
+
+  :root {
+    --bg: #faf9f7; --surface: #ffffff; --ink: #1a1a19; --muted: #6b6862;
+    --line: #e5e2dc; --accent: #b8552f; --accent-soft: #f5ede8;
+    --ok: #2f6b4f; --warn: #8a6d1f; --stop: #a33a2a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16150f; --surface: #1e1d17; --ink: #eceae4; --muted: #a09c92;
+      --line: #33302a; --accent: #e08356; --accent-soft: #2a221d;
+      --ok: #7fb99a; --warn: #d4b25e; --stop: #e08a78;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16150f; --surface: #1e1d17; --ink: #eceae4; --muted: #a09c92;
+    --line: #33302a; --accent: #e08356; --accent-soft: #2a221d;
+    --ok: #7fb99a; --warn: #d4b25e; --stop: #e08a78;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.65 ui-serif, Georgia, "Times New Roman", serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 56px 28px 96px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 28px; margin-bottom: 40px; }
+  h1 { font-size: 2.35rem; line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 1.02rem; margin: 0; }
+  h2 {
+    font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.09em;
+    font-family: ui-sans-serif, system-ui, sans-serif; font-weight: 650;
+    color: var(--accent); margin: 56px 0 18px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  h3 { font-size: 1.4rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+  p { margin: 0 0 14px; }
+  .lede { font-size: 1.1rem; color: var(--muted); }
+  .paper {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); border-radius: 3px;
+    padding: 26px 28px; margin: 0 0 22px;
+  }
+  .tag {
+    display: inline-block; font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 2px; margin: 0 6px 8px 0;
+    background: var(--accent-soft); color: var(--accent); font-weight: 650;
+  }
+  .tag.venue { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .field { margin: 16px 0 0; }
+  .field > .label {
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+    font-weight: 650; display: block; margin-bottom: 5px;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  th {
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: 0.74rem;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 650;
+  }
+  .scroll { overflow-x: auto; }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.87em;
+    background: var(--accent-soft); padding: 1px 5px; border-radius: 2px;
+  }
+  .note {
+    background: var(--accent-soft); border-radius: 3px; padding: 14px 18px;
+    margin: 16px 0; font-size: 0.95rem;
+  }
+  .note strong { color: var(--accent); }
+  .kill { border-left: 3px solid var(--stop); padding-left: 14px; margin: 14px 0; }
+    .shipped { border-left: 3px solid var(--ok); padding-left: 14px; margin: 14px 0; }
+    .tag.done { background: transparent; border: 1px solid var(--ok); color: var(--ok); }
+  .kill .label { color: var(--stop); }
+  ol, ul { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 7px; }
+  .foot { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line);
+          color: var(--muted); font-size: 0.9rem; }
+
+  /* additions for this document */
+  .step { display:flex; gap:16px; margin:0 0 18px; }
+  .step .n {
+    flex:0 0 30px; height:30px; border-radius:50%; background:var(--accent);
+    color:var(--bg); font-family:ui-sans-serif,system-ui,sans-serif; font-weight:700;
+    font-size:0.85rem; display:flex; align-items:center; justify-content:center;
+  }
+  .step .body { flex:1; }
+  .need { border-left:3px solid var(--warn); padding-left:14px; margin:14px 0; }
+  .ok-block { border-left:3px solid var(--ok); padding-left:14px; margin:14px 0; }
+  .cost { font-family:ui-sans-serif,system-ui,sans-serif; font-size:0.8rem;
+          text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); }
+  pre { background:var(--accent-soft); border:1px solid var(--line); border-radius:3px;
+        padding:14px 16px; overflow-x:auto; font-size:0.85rem; line-height:1.5;
+        font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .tag.stop { background:transparent; border:1px solid var(--stop); color:var(--stop); }
+  .tag.ok   { background:transparent; border:1px solid var(--ok);   color:var(--ok); }
+  .tag.warn { background:transparent; border:1px solid var(--warn); color:var(--warn); }
+  table { width:100%; border-collapse:collapse; font-size:0.92rem; margin:14px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-family:ui-sans-serif,system-ui,sans-serif; font-size:0.75rem;
+       text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); font-weight:650; }
+  .scroll { overflow-x:auto; }
+  ol.tight, ul.tight { margin:0 0 14px; padding-left:22px; }
+  ol.tight li, ul.tight li { margin-bottom:7px; }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Four Decisions Only You Can Make</h1>
+  <p class="sub">Everything the guard-model research program can do without a human is done.
+  These four items are what remains, why each is blocked, and exactly what the process is.<br>
+  Prepared 2026-08-31 &middot; seven papers written &middot; two blocked on this document.</p>
+</header>
+
+<p class="lede">Five papers are complete and publishable. Two are blocked, and both blocks are
+the same kind: <strong>a claim that requires human judgment, which no experiment can supply.</strong>
+A third item is a licensing decision with real exposure. A fourth I found while assembling the
+bundle and is included because it would otherwise surface at the worst moment.</p>
+
+<div class="note">
+  <strong>Total time asked of you: roughly 5&ndash;7 hours, plus one email.</strong> The bulk is
+  T-12&rsquo;s verification at 4&ndash;6 hours. T-03&rsquo;s annotation is about 35 minutes.
+  The two decisions are minutes each once you have read the argument.
+  <strong>Nothing here is optional if the papers are to be submitted as written</strong> &mdash;
+  each blocked item corresponds to a specific sentence in a specific paper that is currently
+  unsupported.
+</div>
+<h2>The four items at a glance</h2>
+
+<div class="scroll"><table>
+  <tr><th>#</th><th>Item</th><th>Unblocks</th><th>Your time</th><th>If you skip it</th></tr>
+  <tr>
+    <td><strong>1</strong></td>
+    <td><strong>Semantic-equivalence annotation</strong><br><span class="cost">40 items, blinded</span></td>
+    <td><strong>T-03</strong> (11,874 words, flagship)</td>
+    <td><strong>~35 min</strong></td>
+    <td>T-03&rsquo;s headline claim rests on construction rather than measurement. A reviewer will find this.</td>
+  </tr>
+  <tr>
+    <td><strong>2</strong></td>
+    <td><strong>Coding verification</strong><br><span class="cost">9 works, quoted spans</span></td>
+    <td><strong>T-12</strong> (13,247 words, SaTML 2027)</td>
+    <td><strong>4&ndash;6 hrs</strong></td>
+    <td>Every headline claim rests on LLM coding with no human check. One row is flagged as reconstructed from a truncated record.</td>
+  </tr>
+  <tr>
+    <td><strong>3</strong></td>
+    <td><strong>WildGuardMix Tier B</strong><br><span class="cost">licensing judgment</span></td>
+    <td>The <strong>artifact bundle</strong> for T-03</td>
+    <td><strong>1 email</strong></td>
+    <td>T-03 &sect;7.1 promises data the bundle does not contain. An artifact committee catches that immediately.</td>
+  </tr>
+  <tr>
+    <td><strong>4</strong></td>
+    <td><strong>Adapter redistribution terms</strong><br><span class="cost">found while packing</span></td>
+    <td>Whether 29 trained adapters can ship</td>
+    <td><strong>~15 min</strong></td>
+    <td>Adapters stay out of the bundle by default. Recoverable, but the artifact is weaker.</td>
+  </tr>
+</table></div>
+
+<h2>1 &middot; The semantic-equivalence annotation</h2>
+
+<div class="paper">
+  <div class="row"><span class="tag stop">blocks T-03</span><span class="tag">~35 minutes</span><span class="tag">one sitting</span></div>
+  <h3>Does a rephrasing still ask for the same thing?</h3>
+
+  <div class="field"><span class="label">Why this exists, stated plainly</span>
+  T-03&rsquo;s central claim is that <strong>semantically preserving</strong> rephrasing changes guard
+  verdicts. Our transformation QC established that the rephrasings <strong>differ</strong> from their
+  originals. <strong>Those are opposite directions.</strong> A low similarity score is evidence of
+  change, and if anything it is weak evidence <em>against</em> preservation. So the equivalence half
+  of the headline currently rests on <strong>construction</strong> &mdash; we instructed a generator at
+  temperature 0 to preserve meaning &mdash; rather than on <strong>measurement</strong>.</div>
+
+  <div class="kill"><strong>Why no machine can do this.</strong> Cosine similarity cannot settle it:
+  for the benign-framing transformation the median length ratio is <strong>5.93&times;</strong>, so
+  similarity falls <em>mechanically because text was appended</em>, not because meaning changed. The
+  metric conflates the two. And an LLM judge would be <strong>circular</strong> &mdash; asking a
+  language model whether two texts mean the same thing, in a paper about language models misjudging
+  text. <strong>It needs a human, and it needs to be you or someone you trust.</strong></div>
+
+  <div class="field"><span class="label">What you will see</span>
+  40 pairs. For each, an <strong>original</strong> and a <strong>rephrased</strong> version. You judge
+  one question only:
+  <blockquote style="border-left:3px solid var(--accent); padding-left:14px; margin:12px 0; font-style:italic;">
+  Does the rephrased text still ask for, or convey, the same substantive thing as the original?
+  </blockquote>
+  Ignore style, tone, length, politeness and framing entirely.</div>
+
+  <div class="scroll"><table>
+    <tr><th>Verdict</th><th>Means</th></tr>
+    <tr><td><strong>PRESERVED</strong></td><td>Same substantive request. Wrapping, hedging, register and framing may all differ. A frame such as <em>&ldquo;a colleague asked whether &hellip;&rdquo;</em> around an unchanged request is still PRESERVED.</td></tr>
+    <tr><td><strong>WEAKENED</strong></td><td>The substance survives but is materially less specific, less actionable, or hedged into ambiguity. Use when a reasonable person could disagree about whether the request still stands.</td></tr>
+    <tr><td><strong>CHANGED</strong></td><td>The substantive request is different, absent, or replaced.</td></tr>
+  </table></div>
+
+  <div class="note"><strong>When torn between PRESERVED and WEAKENED, choose WEAKENED.</strong> The
+  analysis counts WEAKENED against our own hypothesis, so this bias cannot inflate our result. That
+  is deliberate: the instruction pushes you toward the answer that hurts us.</div>
+
+  <div class="field"><span class="label">What is deliberately hidden from you</span>
+  <ul class="tight">
+    <li><strong>You are blind to whether the guard flipped</strong> on any item. If you knew which
+    items evaded the guard, the annotation would be contaminated by the very finding it validates.</li>
+    <li><strong>Four items are attention checks</strong> whose answers are known by construction: two
+    identity pairs (must be PRESERVED) and two cross-pairings of unrelated items (must be CHANGED).</li>
+    <li><strong>If the attention checks fail, the pack is void and gets rebuilt</strong> with a new
+    seed. It is not quietly reported with a caveat.</li>
+  </ul></div>
+
+  <div class="field"><span class="label">The exact process</span>
+  <div class="step"><div class="n">1</div><div class="body">Open
+  <code>C:\\Users\\MuVeraAICorporation\\warrantor-runs\\2026-08-31\\equivalence-pack\\</code>.
+  <strong>Do not open <code>KEY.json</code>.</strong> It holds the stratum labels and the check answers.</div></div>
+  <div class="step"><div class="n">2</div><div class="body">Read <code>ANNOTATION-GUIDE.md</code> once,
+  end to end. It is 85 lines and it carries the decision rule above plus the scope limits.</div></div>
+  <div class="step"><div class="n">3</div><div class="body">Work through <code>PACK.jsonl</code> &mdash;
+  40 lines, each <code>{"item": n, "original": &hellip;, "rephrased": &hellip;}</code>. Any order.</div></div>
+  <div class="step"><div class="n">4</div><div class="body">Append one line per item to a new file
+  <code>ANNOTATIONS.jsonl</code> in the same directory:
+  <pre>{"item": 1, "verdict": "PRESERVED"}
+{"item": 2, "verdict": "CHANGED", "note": "optional"}</pre></div></div>
+  <div class="step"><div class="n">5</div><div class="body">Tell me it is done. I run
+  <code>analyze_pack.py</code>, which was <strong>written before the pack was generated</strong> and
+  has not been touched since.</div></div>
+  </div>
+
+  <div class="field"><span class="label">What the analyzer does, fixed in advance</span>
+  <ol class="tight">
+    <li><strong>Attention checks first.</strong> If any fails, nothing else is reported.</li>
+    <li><strong>The evaded stratum</strong> &mdash; 24 items the guard let through after catching the
+    original. This is the load-bearing number: equivalence <em>conditional on the guard having
+    flipped</em>.</li>
+    <li><strong>The caught stratum</strong> &mdash; 12 items, as comparison.</li>
+    <li><strong>By transformation</strong> within the evaded stratum, since the benign-framing family
+    is length-confounded and is reported separately everywhere else in the paper.</li>
+  </ol>
+  <strong>No pooled rate is ever printed.</strong> The sample deliberately oversamples evaded items,
+  so a pooled number over it would describe nothing that exists.</div>
+
+  <div class="scroll"><table>
+    <tr><th>Result</th><th>What it means for T-03</th></tr>
+    <tr><td><strong>&ge;70% PRESERVED</strong> among evaded</td><td><strong>The evasion finding holds.</strong> The guard changed its verdict on text a human reader says still asks for the same thing.</td></tr>
+    <tr><td><strong>&le;40% PRESERVED</strong></td><td><strong>The finding collapses as stated</strong> &mdash; most rephrasings that slipped past did not preserve the request. <strong>This is publishable too, and would be published.</strong></td></tr>
+    <tr><td>Between</td><td><strong>Indeterminate at this sample size.</strong> The paper says so and either enlarges the pack or weakens the claim. It does not pick the half that suits us.</td></tr>
+  </table></div>
+
+  <div class="need"><strong>What I need from you: one file, <code>ANNOTATIONS.jsonl</code>, 40 lines.</strong>
+  Nothing else. If you would rather someone else annotate, that is better &mdash; a second annotator
+  would let us report inter-annotator agreement, which one annotator cannot.</div>
+
+  <div class="field"><span class="label">Recorded limits</span>
+  This pack covers <strong>Qwen3Guard-Gen-0.6B only</strong>, sampled from the evasion arm. The 4B is a
+  different model and would need its own pack. With one annotator, <strong>no inter-annotator
+  agreement can be reported</strong>, and the paper must say so rather than implying independent
+  adjudication.</div>
+</div>
+<h2>2 &middot; The T-12 coding verification</h2>
+
+<div class="paper">
+  <div class="row"><span class="tag stop">blocks T-12</span><span class="tag">4&ndash;6 hours</span><span class="tag venue">SaTML 2027 &middot; abstract 22 Sep</span></div>
+  <h3>Do nine quoted spans actually support the tiers scored against them?</h3>
+
+  <div class="field"><span class="label">Why this exists</span>
+  T-12 discloses in &sect;3.5.2 that all coding was performed by <strong>opposed-stance LLM agents</strong>
+  &mdash; a conservative coder and a charitable coder, scoring each work independently and then
+  reconciled. <strong>That disclosure is honest but it is not sufficient for the rows that carry
+  findings.</strong> Nine works carry every headline claim in the paper. Verifying them is the
+  difference between a method a reviewer tolerates and one they trust.</div>
+
+  <div class="note"><strong>You are not re-reading nine papers.</strong> For each work the pack gives
+  you the <strong>quoted span the coder relied on</strong>, both coders&rsquo; verdicts, and the
+  reasoning. You are checking two things: <strong>does the span say what the coder claims it says</strong>,
+  and <strong>does the scored tier follow from it</strong>. That is why this is hours and not weeks.</div>
+
+  <div class="field"><span class="label">The nine, ordered by how much damage an error would do</span></div>
+
+  <div class="scroll"><table>
+    <tr><th>#</th><th>Work</th><th>Verdict</th><th>Why this row matters</th></tr>
+    <tr><td>1</td><td><strong>PAuth</strong><br><code>arXiv:2603.17170</code></td><td><code>A-T1 / B-T1</code></td><td>The <strong>only</strong> work bounding an action cryptographically, and it does so topologically. <strong>If this is wrong the &ldquo;one work is both&rdquo; claim falls.</strong></td></tr>
+    <tr><td>2</td><td><strong>Sandlock</strong><br><code>arXiv:2605.26298</code></td><td>&mdash;</td><td>The only work above T3 on action, and the only A-NONE. <strong>Anchors both ends of the gap argument.</strong></td></tr>
+    <tr><td>3</td><td><strong>TDX trusted plane</strong><br><code>arXiv:2605.06393</code></td><td>&mdash;</td><td><strong>The negative result.</strong> Best-placed candidate fails to populate A-T1. Stated first in the paper, so it must be right.</td></tr>
+    <tr><td>4</td><td><strong>Separation-of-Powers (PEA)</strong><br><code>arXiv:2604.23646</code></td><td>&mdash;</td><td>Modal pattern instance. Advertises &ldquo;cryptographically constrained capability tokens&rdquo;.</td></tr>
+    <tr><td>5</td><td><strong>AIP</strong><br><code>arXiv:2603.24775</code></td><td>&mdash;</td><td>Modal pattern instance. Invocation-bound capability tokens.</td></tr>
+    <tr><td>6</td><td><strong>Heartbeat-Bound (HBHC)</strong><br><code>arXiv:2605.20704</code></td><td>&mdash;</td><td>Modal pattern instance. Its coder split <strong>dissolved completely</strong> under the two columns.</td></tr>
+    <tr><td>7</td><td><strong>MiniScope</strong><br><code>arXiv:2512.11147</code></td><td>&mdash;</td><td>Modal pattern instance, <strong>and a demotion candidate</strong>. Both at once.</td></tr>
+    <tr><td>8</td><td><strong>Grimlock</strong><br><code>arXiv:2605.27488</code></td><td>&mdash;</td><td>The one split the columns did <strong>not</strong> resolve. Specificity floor case.</td></tr>
+    <tr><td>9</td><td><strong>AARM</strong><br><code>arXiv:2602.09433</code></td><td><code>B-T3</code> reconstructed</td><td>⚠️ <strong>FLAGGED: the record arrived truncated and B-T3 was reconstructed. Do not publish until confirmed.</strong></td></tr>
+  </table></div>
+
+  <div class="kill"><strong>Row 9 is not like the others.</strong> Its stored coding record arrived
+  truncated and the tier was reconstructed rather than read. <strong>If you verify only one row,
+  verify that one</strong> &mdash; it is the single place in T-12 where a published number is not
+  backed by an intact record.</div>
+
+  <div class="field"><span class="label">The exact process</span>
+  <div class="step"><div class="n">1</div><div class="body">Open
+  <code>aumos/docs/content-program/drafts/T-12-verification-pack.md</code> (5,419 words).</div></div>
+  <div class="step"><div class="n">2</div><div class="body">For each of the nine works, read the
+  <strong>quoted span</strong> under each coder, then the <strong>scored tier</strong> and the
+  <strong>cheapest defeat</strong> reasoning.</div></div>
+  <div class="step"><div class="n">3</div><div class="body">Write your verdict on the
+  <code>Your verdict:</code> line already present in each row, using one of four marks:
+  <pre>CONFIRMED
+CORRECTED &rarr; &lt;new verdict&gt;
+UNSUPPORTED &mdash; span does not carry it
+NEEDS SOURCE &mdash; must re-read the paper</pre></div></div>
+  <div class="step"><div class="n">4</div><div class="body">Tell me it is done. I reconcile every
+  correction against the paper, restate any claim that moves, and re-run the tier tables.</div></div>
+  </div>
+
+  <div class="note"><strong>&ldquo;If a span does not support its verdict, that is a finding, not a
+  failure.&rdquo;</strong> That line is in the pack and it is meant literally. A verification that
+  confirms all nine tells us the coding held. A verification that overturns two tells us something
+  more valuable, and T-12 would report it.</div>
+
+  <div class="need"><strong>What I need from you: nine verdict lines in the pack file.</strong>
+  Optionally a note per row. If you can only do part, <strong>do rows 9, 1, 2 and 3 in that
+  order</strong> &mdash; row 9 is unbacked, and rows 1&ndash;3 carry the paper&rsquo;s three
+  structural claims.</div>
+
+  <div class="field"><span class="label">Deadline pressure, stated once</span>
+  T-12 targets <strong>SaTML 2027, abstract due 22 September</strong>. That is three weeks. The
+  verification is the only thing between the current draft and submission, and it is the item with
+  the longest hours on it.</div>
+</div>
+
+<h2>3 &middot; The WildGuardMix redistribution decision</h2>
+
+<div class="paper">
+  <div class="row"><span class="tag warn">blocks the artifact bundle</span><span class="tag">one email</span><span class="tag">licensing exposure</span></div>
+  <h3>May we publish 1,499 rephrasings and 2,400 adversarial candidates derived from a gated corpus?</h3>
+
+  <div class="field"><span class="label">The verified position</span>
+  Checked against the Hugging Face dataset cards on 2026-08-31, not against memory:</div>
+
+  <div class="scroll"><table>
+    <tr><th>Corpus</th><th>License</th><th>Gated</th><th>Consequence</th></tr>
+    <tr><td><strong>Aegis 1.0</strong> (NVIDIA)</td><td>CC-BY-4.0</td><td><strong>No</strong></td><td>Freely redistributable with attribution. <strong>Everything derived from it ships now.</strong></td></tr>
+    <tr><td><strong>WildGuardMix</strong> (AllenAI)</td><td>ODC-By-1.0</td><td><strong>Yes</strong> &mdash; <code>gated: auto</code> with an <code>extra_gated_prompt</code></td><td><strong>The open question.</strong></td></tr>
+  </table></div>
+
+  <div class="field"><span class="label">Why it is genuinely unclear</span>
+  <strong>ODC-By governs the database, not the underlying content</strong>, and the Hub applies a
+  click-through gate on top of it. The gate is <strong>auto-approved</strong>, so it is not a review
+  barrier &mdash; but it is a term the downloader accepts, and publishing the source text openly
+  would let a reader bypass a condition the publisher chose to impose.</div>
+
+  <div class="scroll"><table>
+    <tr><th>For publishing</th><th>Against publishing</th></tr>
+    <tr>
+      <td>They are text <strong>our generator produced</strong>, not corpus rows. ODC-By explicitly
+      permits derivative databases with attribution. And T-03 &sect;7.1 promises &ldquo;every
+      original/rephrased pair&rdquo; <strong>precisely so a reader can judge semantic equivalence
+      independently</strong> &mdash; a scientific function the paper depends on and which Tier A does
+      not serve.</td>
+      <td>Each rephrasing is <strong>meaning-preserving by construction</strong>, so it carries the
+      semantic content of a gated row. And publishing the <em>pair</em> &mdash; original alongside
+      rephrasing &mdash; is much harder to defend than rephrasings alone, because
+      <strong>the pair contains the source text verbatim</strong>.</td>
+    </tr>
+  </table></div>
+
+  <div class="field"><span class="label">Three options, in order of preference</span>
+  <div class="step"><div class="n">1</div><div class="body"><strong>Publish rephrasings only, not
+  originals</strong>, with source IDs so a gated reader can pair them. Preserves most of the
+  scientific function; avoids republishing gated rows verbatim. <em>Good interim position.</em></div></div>
+  <div class="step"><div class="n">2</div><div class="body"><strong>Ask AllenAI directly.</strong> The
+  gate is auto-approved, which suggests the intent is attribution and traceability rather than
+  restriction. <strong>A written answer settles it permanently and costs one email.</strong>
+  <em>Recommended.</em></div></div>
+  <div class="step"><div class="n">3</div><div class="body"><strong>Withhold Tier B entirely</strong>
+  and amend &sect;7.1. Safest, weakest artifact.</div></div>
+  </div>
+
+  <div class="ok-block"><strong>Reproducibility survives all three.</strong> Tier A already contains
+  every number in the paper and every input needed to regenerate Tier B: pre-registrations with hash
+  chains, all experiment code, <strong>all model verdicts for every item in every condition</strong>,
+  and <strong>source item IDs and row indices</strong> into WildGuardMix. A reader accepts the gate,
+  runs the included builder against the published indices, and reconstructs the exact item sets.</div>
+
+  <div class="kill"><strong>One thing must be fixed whichever way you decide.</strong> T-03 &sect;7.1
+  currently promises &ldquo;every original/rephrased pair.&rdquo; <strong>If Tier B is withheld, that
+  promise is false as written</strong> and must be changed to what the artifact actually contains.
+  Shipping a paper that promises data the artifact does not include is a defect an
+  artifact-evaluation committee catches immediately. <strong>Tell me which way you decide and I will
+  make &sect;7.1 match.</strong></div>
+
+  <div class="need"><strong>What I need from you: a decision, and if it is option 2, a sent email.</strong>
+  I have drafted one below. <strong>I have not sent it and will not</strong> &mdash; outbound mail on
+  your behalf is yours to send.</div>
+
+  <pre>To:      the WildGuardMix maintainers (AllenAI), via the dataset card contact
+Subject: ODC-By redistribution question &mdash; derived rephrasings from WildGuardMix
+
+Hello,
+
+I am preparing a public research artifact for a paper on guard-model evaluation
+and want to confirm a redistribution boundary before publishing rather than after.
+
+We used WildGuardMix as an evaluation corpus. The artifact would include roughly
+1,499 machine-generated rephrasings and 2,400 adversarial candidates derived from
+WildGuardMix prompts, each paired with our own models' verdicts.
+
+We read ODC-By-1.0 as governing the database rather than the underlying content,
+and we note the Hub gate is auto-approved. We would rather have your position in
+writing than rely on our own reading. Specifically:
+
+  1. May we publish the derived rephrasings, with attribution and source row
+     indices, in an ungated artifact?
+  2. If so, may we publish them paired with the original prompt text, or should
+     originals be referenced by index only?
+
+Our current default, absent an answer, is to publish rephrasings only and
+reference originals by index, so that a reader who accepts the gate can
+reconstruct the pairs themselves.
+
+Happy to share the artifact manifest if useful.
+
+With thanks,
+Vikram Jha</pre>
+</div>
+<h2>4 &middot; Adapter redistribution terms</h2>
+
+<div class="paper">
+  <div class="row"><span class="tag warn">found while packing</span><span class="tag">~15 minutes</span></div>
+  <h3>Can the trained adapters ship in the artifact, or only their Model BOMs?</h3>
+
+  <div class="field"><span class="label">Why you are seeing this</span>
+  This was not on the list I gave you earlier. It surfaced while assembling the bundle, and it is here
+  because <strong>it would otherwise surface at submission</strong>, which is the worst moment for a
+  licensing question.</div>
+
+  <div class="field"><span class="label">The position</span>
+  All evaluated models are open-weight and were used for <strong>evaluation, not redistribution</strong>
+  &mdash; no base model weights are in the bundle, and that part is settled. But we also
+  <strong>trained adapters</strong>: eight for the specialization experiment, fourteen for the
+  masking sweep, two for its two-stage fix. <strong>These derive from Qwen3Guard base models, and
+  their redistribution terms follow the base model license, which has not been verified.</strong>
+  They are excluded from the bundle until that check is done; their Model BOMs, which contain no
+  weights, ship instead.</div>
+
+  <div class="ok-block"><strong>The weights themselves are now safe.</strong> They lived only on Modal
+  volumes, which can be reaped. As of today they are pulled to local disk under each experiment&rsquo;s
+  run directory &mdash; <strong>configs, safetensors and run records, verified loadable rather than
+  merely present</strong>. Whatever you decide about publishing, they are no longer at risk of
+  quiet loss.</div>
+
+  <div class="need"><strong>What I need from you: a yes or no on checking the Qwen3Guard license
+  terms for derivative adapters</strong>, and if yes, whether you want me to draft that check the way
+  I drafted the AllenAI email. It is a license-text read, not a legal opinion, and I would report it
+  as such.</div>
+</div>
+
+<h2>What I need from you, consolidated</h2>
+
+<div class="scroll"><table>
+  <tr><th>#</th><th>Deliverable</th><th>Where</th><th>Effort</th><th>Then I</th></tr>
+  <tr>
+    <td>1</td>
+    <td><code>ANNOTATIONS.jsonl</code><br>40 lines</td>
+    <td><code>warrantor-runs/2026-08-31/equivalence-pack/</code></td>
+    <td>~35 min</td>
+    <td>run the pre-written analyzer, fold the result into T-03 &sect;4.3 and &sect;5, and report whichever way it falls</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>Nine verdict lines</td>
+    <td><code>drafts/T-12-verification-pack.md</code></td>
+    <td>4&ndash;6 hrs</td>
+    <td>reconcile corrections, restate any claim that moves, re-run the tier tables, and finish the SaTML submission</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>A decision, and ideally a sent email</td>
+    <td>draft above, ready to copy</td>
+    <td>minutes + reply wait</td>
+    <td>assemble the bundle to match and <strong>fix T-03 &sect;7.1 either way</strong></td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>Yes/no on the license check</td>
+    <td>&mdash;</td>
+    <td>~15 min</td>
+    <td>read the Qwen3Guard terms and report what they permit, as a read and not an opinion</td>
+  </tr>
+</table></div>
+
+<div class="note"><strong>Sequencing, if you want one.</strong> <strong>Item 3&rsquo;s email first</strong>
+&mdash; it has a reply latency nothing else has, so it should be in flight while you do the rest.
+Then <strong>item 1</strong>, because 35 minutes unblocks the flagship paper. Then <strong>item 2</strong>,
+which is the long one and has the real deadline. Item 4 whenever.</div>
+
+<h2>What is not blocked, for contrast</h2>
+
+<p>So that the four items above are read in proportion &mdash; the following need nothing from you:</p>
+
+<div class="scroll"><table>
+  <tr><th>Paper</th><th>Words</th><th>State</th></tr>
+  <tr><td><strong>P1</strong> &mdash; <em>How Reproducible Is a Guard Evaluation?</em></td><td>3,158</td><td>Complete. Two of three hypotheses refuted.</td></tr>
+  <tr><td><strong>P2</strong> &mdash; <em>Vary the Input, Not the Decoding</em></td><td>2,295</td><td>Complete. No outstanding items at all.</td></tr>
+  <tr><td><strong>P3</strong> &mdash; <em>Position, Not Length</em></td><td>3,496</td><td>Complete. Retraction tested and confirmed at 32k.</td></tr>
+  <tr><td><strong>P6</strong> &mdash; <em>Shared Lineage, Not Shared Category</em></td><td>6,513</td><td>Complete. Prior-art read closed; three claims withdrawn in place.</td></tr>
+  <tr><td><strong>P8</strong> &mdash; <em>One Ladder, Opposite Directions</em></td><td>4,874</td><td>Complete. Both prior-art reads closed today.</td></tr>
+</table></div>
+
+<div class="note"><strong>One shared caveat on all five: none is anonymized for double-blind.</strong>
+Stripping the author line, program names and repository paths and scrubbing PDF metadata is a
+mechanical submission-time step, and I will do it per venue once you name targets. It is not research
+work and it is not blocking anything today.</div>
+
+<h2>The honest shape of this</h2>
+
+<p>Every one of the four items is a place where <strong>the program can generate evidence but cannot
+generate judgment</strong>. Two are claims that need a human reader: whether a rephrasing means the
+same thing, and whether a quoted span supports a scored tier. Two are decisions with external
+exposure: what a license permits, and what a model card permits.</p>
+
+<p><strong>None of them can be closed by running more experiments</strong>, which is why they have
+stayed open while seven papers were written around them. The compute bill for everything this program
+has measured is smaller than an hour of the time these four items ask of you &mdash; and they are
+still the four things standing between two finished papers and submission.</p>
+
+<div class="kill"><strong>The one I would push hardest on is item 1.</strong> T-03 is the flagship at
+11,874 words, its headline is the asymmetry finding, and that headline currently rests on
+<em>construction</em> rather than <em>measurement</em>. It is the single most likely place a reviewer
+attacks the paper, it takes 35 minutes, and the pack is built, blinded, verified and waiting.</div>
+
+<p class="cost" style="margin-top:48px; border-top:1px solid var(--line); padding-top:18px;">
+Prepared 2026-08-31 &middot; local document, not published &middot;
+sources: the pre-registrations and their hashes, <code>LICENSING.md</code>,
+<code>T-12-verification-pack.md</code>, and the equivalence pack&rsquo;s own guide and analyzer.
+</p>
+
+</div>
+</body>
+</html>

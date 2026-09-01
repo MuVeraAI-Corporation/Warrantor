@@ -1,0 +1,68 @@
+% =====================================================================================
+% ACM sigconf format — for P6 (ACM AISec, a CCS workshop).
+%
+% This uses the OFFICIAL acmart class, which is installed here.
+%
+% `anonymous` and `review` are both set: acmart's anonymous mode suppresses the author
+% block itself rather than relying on us to leave it empty, which is the safer way round.
+% `printacmref=false` drops the ACM reference block, which a submission does not carry.
+%
+% ⚠️ STILL CHECK BEFORE SUBMITTING:
+%   - the page limit for the specific workshop and cycle
+%   - whether the cycle requires CCS concepts and keywords (many ACM venues do; they are
+%     omitted here because a submission draft has none assigned yet)
+%   - the correct \acmConference line for the cycle, which is a placeholder below
+% =====================================================================================
+\documentclass[sigconf,anonymous,review,nonacm]{acmart}
+
+\settopmatter{printacmref=false}
+\setcopyright{none}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{framed}
+\usepackage[normalem]{ulem}
+\usepackage{fvextra}
+
+% --- pandoc shims ---------------------------------------------------------------------
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\pandocbounded}[1]{#1}
+\providecommand{\st}[1]{\sout{#1}}
+\setlist{leftmargin=1.1em, itemsep=1pt, topsep=3pt, parsep=0pt}
+
+\RecustomVerbatimEnvironment{verbatim}{Verbatim}{breaklines,breakanywhere,fontsize=\scriptsize}
+
+% --- paper idioms ---------------------------------------------------------------------
+\newcommand{\warn}{\textbf{$\triangle$}\ }
+\newcommand{\rmark}[1]{\textbf{\textsf{\footnotesize #1}}\ }
+
+\newenvironment{callout}{\par\smallskip\begin{leftbar}\small}{\end{leftbar}\par\smallskip}
+\renewenvironment{quote}{\par\smallskip\begin{leftbar}\small\itshape}
+  {\end{leftbar}\par\smallskip}
+
+\renewcommand{\arraystretch}{1.08}
+\setlength{\tabcolsep}{3.5pt}
+
+% Numbering OFF: the paper carries its own section numbers and cross-references them.
+\setcounter{secnumdepth}{-2}
+
+% acmart loads hyperref itself and populates the PDF metadata from its own macros, so this must
+% come after the class. The Author field is already empty under `anonymous`; Creator and Producer
+% are toolchain strings present in almost every LaTeX submission and are scrubbed for consistency
+% rather than because they deanonymize.
+\hypersetup{pdfauthor={}, pdfsubject={}, pdfkeywords={}, pdfcreator={}, pdfproducer={}}
+
+% =====================================================================================
+% Last-resort line-breaking slack. TeX sets a paragraph by stretching interword space within
+% strict tolerance; when no break satisfies it -- a narrow two-column measure carrying tokens
+% like "10-of-15" or a math arrow that cannot be hyphenated -- it gives up and lets the line
+% run into the margin instead. \emergencystretch grants extra stretch ONLY on that final
+% desperate pass, so it costs nothing on any paragraph that already fits, and converts a
+% visible overflow into a slightly loose line. P6 ran 3.34pt and 2.66pt into the margin
+% without it.
+% =====================================================================================
+\emergencystretch=1.5em

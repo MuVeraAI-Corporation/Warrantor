@@ -1,0 +1,112 @@
+% =====================================================================================
+% Shared preamble for the anonymized guard-model submissions.
+%
+% Compiles under pdflatex. Every non-ASCII character the papers use is mapped to a LaTeX
+% command in to_latex.py rather than relying on a Unicode engine, so the same source also
+% builds under xelatex/lualatex without change.
+%
+% Document class is `article` deliberately: the five papers target different venues
+% (USENIX/S&P, NeurIPS/ICML, and two workshops). Swapping in a venue class means changing
+% this file only -- the generated body .tex files carry no class-specific commands.
+% =====================================================================================
+% ONE-COLUMN, deliberately. pandoc emits `longtable` for every pipe table, and longtable cannot
+% operate in two-column mode -- all five papers failed to compile until this changed. These papers
+% are table-dense (P8 alone carries eight), and one column gives those tables room they do not have
+% in two. Moving to a two-column venue class therefore requires converting the longtables to
+% `tabular` inside `table*` floats first; that is a real change, not a class swap.
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=1.05in]{geometry}
+\usepackage{microtype}
+
+\usepackage{amsmath,amssymb}
+\usepackage{textcomp}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{fancyvrb}
+\usepackage{framed}
+\usepackage{calc}
+
+% --- pandoc compatibility shims -------------------------------------------------------
+% pandoc's latex writer emits these; defining them here keeps the generated body files
+% free of boilerplate.
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\pandocbounded}[1]{#1}
+% Strikethrough. pandoc emits \st for GFM ~~...~~, which these papers use to mark WITHDRAWN
+% claims -- struck text that is deliberately left visible so a reader can see what was retracted
+% and when. It is content, not decoration, so the package is added rather than the markup dropped.
+\usepackage[normalem]{ulem}
+\providecommand{\st}[1]{\sout{#1}}
+\setlist{leftmargin=1.2em, itemsep=2pt, topsep=4pt, parsep=0pt}
+
+% --- palette --------------------------------------------------------------------------
+\definecolor{accent}{HTML}{B8552F}
+\definecolor{warn}{HTML}{8A6D1F}
+\definecolor{rule}{HTML}{D8D4CC}
+
+% --- the paper-specific idioms --------------------------------------------------------
+% A warning marker. The source papers use a warning emoji to mark every place a claim is
+% bounded, withdrawn or qualified; that marker carries real meaning in these papers and is
+% preserved rather than dropped.
+\newcommand{\warn}{\textcolor{warn}{\textbf{$\triangle$}}\ }
+
+% Result markers (R1, R2, ...). In the source these are inline code spans that label a
+% numbered finding, and they are cross-referenced from the discussion sections.
+\newcommand{\rmark}[1]{\textcolor{accent}{\textbf{\textsf{\small #1}}}\ }
+
+% Callout used for the pre-registration / anonymization notes that open each paper.
+\newenvironment{callout}
+  {\par\medskip\noindent\begin{leftbar}\small}
+  {\end{leftbar}\par\medskip}
+
+% Blockquote: the papers use blockquotes for verbatim prior-art quotations, which must
+% remain visually distinct from the authors' own prose.
+\renewenvironment{quote}
+  {\par\medskip\begin{leftbar}\small\itshape}
+  {\end{leftbar}\par\medskip}
+
+% --- table defaults -------------------------------------------------------------------
+% The papers' tables are dense and narrow-column; ragged-right prevents overfull boxes in
+% two-column layout.
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{4pt}
+
+% --- sectioning -----------------------------------------------------------------------
+% LaTeX section numbering is OFF, deliberately. The papers carry their own section numbers in the
+% heading text ("5.4 Certification: ...") and cross-reference them throughout ("see §5.4", "§7.9").
+% Letting LaTeX renumber would produce "0.2 1. What this paper is" AND silently break every one of
+% those cross-references, since the numbers in the prose would no longer match the headings.
+% The author's numbering is authoritative here.
+\setcounter{secnumdepth}{-2}
+
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\large\bfseries\color{accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalfont\small\bfseries\itshape}{\thesubsubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{12pt}{5pt}
+\titlespacing*{\subsection}{0pt}{9pt}{3pt}
+
+% --- anonymous metadata ---------------------------------------------------------------
+% No author, no affiliation, no acknowledgements, and PDF metadata scrubbed. A submission
+% whose PDF properties still name the author is deanonymized regardless of the title page.
+\hypersetup{
+  pdfauthor={},
+  pdftitle={Anonymous submission},
+  pdfsubject={},
+  pdfkeywords={},
+  pdfcreator={},
+  pdfproducer={}
+}
+\author{}
+\date{}
