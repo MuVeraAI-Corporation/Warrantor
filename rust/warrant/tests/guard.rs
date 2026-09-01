@@ -1551,6 +1551,7 @@ fn coverage_counts_what_nothing_looked_at_without_double_counting_it() {
         skipped_over_budget: 3,
         deduplicated: 5,
         permitted_no_route: 0,
+        severity_policy_bound: 0,
     };
     let signals: Vec<GuardSignal> = [
         (GuardOutcome::BackendUnavailable, "backend_unavailable", "a"),
@@ -1659,4 +1660,45 @@ fn a_permitted_call_with_no_upstream_is_counted_and_never_classified() {
         !log.signals.iter().any(|s| s.tool == "git"),
         "a call that did not happen must produce no signal"
     );
+}
+
+// ---------------------------------------------------------------------------
+// The Controversial severity policy must never be silently inert
+// ---------------------------------------------------------------------------
+
+/// A model emitting only two severity values leaves the policy governing nothing.
+///
+/// Measured on 2026-09-01: three independently-targeted fine-tunes each took `controversial`
+/// from the base model's 122 verdicts to zero, so `controversial_is_harmful` read as set and
+/// decided nothing. The counters must be able to say that.
+#[test]
+fn a_session_that_never_saw_controversial_reports_the_policy_inoperative() {
+    let counters = warrantor_warrant::guard::GuardCounters {
+        classified: 40,
+        severity_policy_bound: 0,
+        ..Default::default()
+    };
+    assert!(counters.severity_policy_inoperative());
+}
+
+/// The control: on a model that emits three severities the policy is a real lever.
+#[test]
+fn a_session_that_saw_controversial_reports_the_policy_binding() {
+    let counters = warrantor_warrant::guard::GuardCounters {
+        classified: 40,
+        severity_policy_bound: 7,
+        ..Default::default()
+    };
+    assert!(!counters.severity_policy_inoperative());
+}
+
+/// An empty session has an UNEXERCISED policy, not an inert one.
+///
+/// Without this distinction every run that classified nothing would raise the alarm, and an
+/// alarm that fires on nothing is one operators learn to ignore.
+#[test]
+fn a_session_that_classified_nothing_does_not_claim_the_policy_is_inert() {
+    let counters = warrantor_warrant::guard::GuardCounters::default();
+    assert_eq!(counters.classified, 0);
+    assert!(!counters.severity_policy_inoperative());
 }

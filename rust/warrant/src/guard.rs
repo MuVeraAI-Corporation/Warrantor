@@ -452,6 +452,34 @@ pub struct GuardCounters {
     /// wrong was that the non-event was invisible rather than that it was unclassified.
     #[serde(default)]
     pub permitted_no_route: u32,
+    /// How many verdicts the `Controversial` severity policy actually decided.
+    ///
+    /// # The lever this keeps honest
+    ///
+    /// [`GuardKnobs::controversial_is_harmful`] is a real control on a model that emits three
+    /// severity values and a **silent no-op on one that emits two**. Measured 2026-09-01: three
+    /// independently-targeted fine-tunes of Qwen3Guard-Gen-0.6B each took `controversial` from
+    /// the base model's 122 verdicts to **zero** on the same 2,275-sample set. On any of them the
+    /// knob governs nothing, while still reading as set in the provenance record.
+    ///
+    /// The same hole as [`Self::permitted_no_route`], in a different place: the operator reads a
+    /// configured policy and concludes it is doing something. Counting the verdicts it decided is
+    /// what lets them tell *the policy allowed everything through* from *the policy was never
+    /// consulted*. Zero is not an error; it is a fact the summary is obliged to carry.
+    #[serde(default)]
+    pub severity_policy_bound: u32,
+}
+
+impl GuardCounters {
+    /// Whether the `Controversial` severity policy decided nothing in this session.
+    ///
+    /// True only once classification actually happened: a session that classified nothing has an
+    /// unexercised policy, not an inert one, and reporting those as the same thing would raise a
+    /// false alarm on every empty run.
+    #[must_use]
+    pub fn severity_policy_inoperative(&self) -> bool {
+        self.classified > 0 && self.severity_policy_bound == 0
+    }
 }
 
 /// The line written when a guard attaches, before the run starts.
@@ -1291,6 +1319,10 @@ impl<T: GuardTransport> GuardSink for GuardAdapter<T> {
         } else {
             self.calls_made = self.calls_made.saturating_add(1);
             let answer = self.classify(text);
+            if answer.1 == "controversial" {
+                self.counters.severity_policy_bound =
+                    self.counters.severity_policy_bound.saturating_add(1);
+            }
             match answer.0 {
                 GuardOutcome::Harmful => {
                     self.counters.classified = self.counters.classified.saturating_add(1);

@@ -113,8 +113,8 @@ def test_a_lost_severity_class_voids_the_comparison(tmp_path: Path) -> None:
 def test_a_preserved_severity_field_reports_the_recall_verdict(tmp_path: Path) -> None:
     """The control for the test above: no class lost, so the p-value decides."""
     rows = [_sample(str(i), True, True, "unsafe") for i in range(6)]
-    baseline = _write(tmp_path, "base.json", rows + [_sample("x", True, True, "controversial")])
-    candidate = _write(tmp_path, "cand.json", rows + [_sample("x", True, False, "controversial")])
+    baseline = _write(tmp_path, "base.json", [*rows, _sample("x", True, True, "controversial")])
+    candidate = _write(tmp_path, "cand.json", [*rows, _sample("x", True, False, "controversial")])
     verdict = compare(candidate, baseline, "preserved")
     assert verdict.severity_classes_lost == set()
     assert verdict.verdict == "within noise"

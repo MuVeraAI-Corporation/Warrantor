@@ -67,7 +67,11 @@ __all__ = [
     "write_smoke_set",
 ]
 
-SCHEMA_VERSION = 1
+#: Bumped to 2 on 2026-09-01, when the result document gained `controversial_policy`. The key
+#: sits inside the digested body, so a v2 document's `result_digest` is not comparable to a v1
+#: digest of the same run -- the version is what tells a reader that, rather than leaving them
+#: to discover two "identical" runs disagreeing.
+SCHEMA_VERSION = 2
 DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434/api/chat"
 DEFAULT_OLLAMA_MODEL = "hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M"
 
@@ -280,6 +284,7 @@ class OllamaGuardBackend:
             "model": self.model,
             "endpoint": self.endpoint,
             "seed": self.seed,
+            "controversial_is_harmful": self.controversial_is_harmful,
             "options": self._options(),
         }
 
@@ -441,6 +446,38 @@ class EvaluationResult:
 
         return tuple(outcome.sample_id for outcome in self.outcomes if outcome.errored)
 
+    @property
+    def controversial_policy(self) -> dict[str, Any]:
+        """Whether the `Controversial` severity policy actually decided anything here.
+
+        The knob is a real control on a model that emits three severity values, and a **silent
+        no-op on one that emits two**. Every fine-tune in this programme emits two: measured
+        2026-09-01, three independently-targeted adapters each took `controversial` from the
+        base model's 122 verdicts to zero, so the knob governed nothing while still reading as
+        set. An operator flipping it saw no behaviour change and no warning.
+
+        A lever that reads active and binds nothing is this repository's own named defect --
+        the same shape as a bound that reads enforced and is observed -- so the run states
+        plainly how many verdicts the policy actually decided. Zero is not an error; it is a
+        fact the result document is obliged to carry.
+        """
+
+        bound = tuple(o.sample_id for o in self.outcomes if o.severity == "controversial")
+        setting = self.backend.get("controversial_is_harmful")
+        return {
+            "controversial_is_harmful": setting,
+            "verdicts_bound": len(bound),
+            "inoperative": len(bound) == 0,
+            "note": (
+                "The severity policy decided no verdicts in this run: the model emitted no "
+                "`controversial` severity, so the setting had no effect and flipping it would "
+                "change nothing. This is expected for every fine-tuned guard in this "
+                "programme and is NOT expected for a base Qwen3Guard model."
+                if not bound
+                else f"The severity policy decided {len(bound)} verdicts in this run."
+            ),
+        }
+
     def to_dict(self) -> dict[str, Any]:
         """Serialise the full result document, recall first.
 
@@ -469,6 +506,7 @@ class EvaluationResult:
                 "false_negative_ids": list(self.false_negative_ids),
                 "false_positive_ids": list(self.false_positive_ids),
             },
+            "controversial_policy": self.controversial_policy,
             "backend_errors": {
                 "count": len(self.error_ids),
                 "fail_mode": self.fail_mode,
@@ -728,6 +766,17 @@ def _print_report(result: EvaluationResult) -> None:
         print(
             f"backend errors: {len(result.error_ids)} sample(s), scored "
             f"fail-{result.fail_mode}: {', '.join(result.error_ids[:10])}"
+        )
+    policy = result.controversial_policy
+    if policy["inoperative"]:
+        # Printed for every run where it applies, not hidden behind a verbose flag. The whole
+        # failure was that flipping this changed nothing and nothing said so.
+        print("-" * 68)
+        print(
+            f"SEVERITY POLICY INOPERATIVE: controversial_is_harmful="
+            f"{policy['controversial_is_harmful']} decided 0 verdicts. The model emitted no "
+            "'controversial' severity, so this setting had no effect and flipping it would "
+            "change nothing."
         )
     if result.false_negative_ids:
         print("-" * 68)

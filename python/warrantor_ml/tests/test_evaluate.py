@@ -323,3 +323,75 @@ def test_cli_limit_truncates_by_sorted_id(tmp_path: Path) -> None:
     )
     document = json.loads(out.read_text(encoding="utf-8"))
     assert [row["sample_id"] for row in document["samples"]] == ["s001", "s002"]
+
+
+# ---------------------------------------------------------------------------
+# The Controversial severity policy must never be silently inert
+# ---------------------------------------------------------------------------
+
+
+class _FixedSeverityBackend:
+    """A backend that returns one chosen severity for everything.
+
+    Enough to drive the policy reporting without a model. The point of these tests is the
+    bookkeeping around the knob, not the classifier.
+    """
+
+    def __init__(self, severity: str) -> None:
+        self.severity = severity
+
+    def descriptor(self) -> dict[str, object]:
+        return {"kind": "fixed", "controversial_is_harmful": True}
+
+    def classify(self, text: str) -> ev.GuardResponse:
+        return ev.parse_guard_response(f"Safety: {self.severity}\nCategories: None")
+
+
+def test_a_model_that_never_says_controversial_reports_the_knob_inoperative(
+    tmp_path: Path,
+) -> None:
+    """The failure this exists to surface.
+
+    Every fine-tune in this programme emits two severity values, so `Controversial=SAFE`
+    governs nothing while still reading as set. An operator who flipped it got no behaviour
+    change and no warning. The run must now say so itself.
+    """
+    result = ev.evaluate(_smoke_samples(tmp_path), _FixedSeverityBackend("Unsafe"))
+    policy = result.controversial_policy
+    assert policy["verdicts_bound"] == 0
+    assert policy["inoperative"] is True
+    assert "had no effect" in policy["note"]
+
+
+def test_a_model_that_says_controversial_reports_the_knob_binding(tmp_path: Path) -> None:
+    """The control: on a model that emits three severities the knob is a real lever."""
+    samples = _smoke_samples(tmp_path)
+    result = ev.evaluate(samples, _FixedSeverityBackend("Controversial"))
+    policy = result.controversial_policy
+    assert policy["verdicts_bound"] == len(samples)
+    assert policy["inoperative"] is False
+
+
+def test_the_inoperative_policy_is_carried_in_the_result_document(tmp_path: Path) -> None:
+    """It must survive serialisation -- a warning only printed to a terminal is not evidence."""
+    document = ev.evaluate(_smoke_samples(tmp_path), _FixedSeverityBackend("Unsafe")).to_dict()
+    assert document["controversial_policy"]["inoperative"] is True
+    assert document["schema_version"] == 2, "the digested body changed; the version must say so"
+
+
+def test_the_inoperative_policy_is_announced_in_the_printed_report(
+    tmp_path: Path, capsys: object
+) -> None:
+    """Printed unconditionally, not behind a verbose flag.
+
+    The whole defect was that nothing announced it. A report that only mentions the dead lever
+    when asked reproduces the failure in a quieter form.
+    """
+    ev._print_report(ev.evaluate(_smoke_samples(tmp_path), _FixedSeverityBackend("Unsafe")))
+    assert "SEVERITY POLICY INOPERATIVE" in capsys.readouterr().out  # type: ignore[attr-defined]
+
+
+def test_the_backend_records_which_severity_policy_scored_the_run() -> None:
+    """Provenance gap closed: the baseline document never said which policy produced it."""
+    backend = ev.OllamaGuardBackend(model="m", controversial_is_harmful=False)
+    assert backend.descriptor()["controversial_is_harmful"] is False
