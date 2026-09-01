@@ -146,7 +146,7 @@ RUN_MANIFEST = json.loads(
 )
 
 BASE_REPO = "{recipe.config.profile().repo_id}"
-TARGET_MODULES = {list(recipe.config.profile().target_modules)!r}
+TARGET_MODULES = {list(recipe.config.lora_target_modules or recipe.config.profile().target_modules)!r}
 SEQUENCE_LENGTH = {recipe.config.sequence_length}
 BATCH_SIZE = {recipe.config.batch_size}
 GRAD_ACCUM = {recipe.config.gradient_accumulation_steps}

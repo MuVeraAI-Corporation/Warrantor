@@ -465,3 +465,40 @@ def test_a_row_whose_target_is_severity_only_is_dropped_not_all_masked() -> None
         [{"prompt": "a prompt", "target": "Safety: Unsafe"}], _StubTokenizer()
     )
     assert rows == []
+
+
+def test_a_target_module_override_reaches_the_rendered_script() -> None:
+    """The renderer must honour `lora_target_modules`, not silently use the profile default.
+
+    THIS BUG WAS REAL AND WAS CAUGHT ONE COMMAND BEFORE DISPATCH. The preamble rendered
+    ``recipe.config.profile().target_modules`` while the trainer resolves
+    ``config.lora_target_modules or profile.target_modules`` (fine_tune.py). Three experiment arms
+    that differed only in their target modules therefore rendered *identically*, and dispatching
+    them would have bought three copies of the control while appearing to test a hypothesis.
+
+    That is the worst shape of failure available here: not a crash, not a wrong number, but a run
+    that looks correct and measures nothing. It survives every check that does not compare the
+    rendered artefact against the configuration it claims to express.
+    """
+    from dataclasses import replace
+
+    from warrantor_ml.lanes import resolve
+    from warrantor_ml.recipes import RECIPES
+
+    base = RECIPES["guard-0.6b-expguard-weak"]
+    restricted = ("q_proj", "k_proj", "v_proj", "o_proj")
+
+    overridden = replace(base, config=replace(base.config, lora_target_modules=restricted))
+    rendered = render_modal_entrypoint(overridden, resolve(overridden.config, "modal-a100", 11272))
+    assert f"TARGET_MODULES = {list(restricted)!r}" in rendered, (
+        "the rendered script does not carry the override: an experiment varying target modules "
+        "would dispatch identical arms"
+    )
+    # And the profile default must NOT appear, or the override was merely appended.
+    assert "gate_proj" not in rendered.split("TARGET_MODULES =")[1].split("\n")[0]
+
+    # Control arm: no override falls back to the profile, unchanged.
+    control = render_modal_entrypoint(base, resolve(base.config, "modal-a100", 11272))
+    assert f"TARGET_MODULES = {list(base.config.profile().target_modules)!r}" in control, (
+        "without an override the profile default must still be used"
+    )
