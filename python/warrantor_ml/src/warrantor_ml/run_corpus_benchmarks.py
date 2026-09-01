@@ -96,12 +96,35 @@ def preflight(endpoint: str) -> list[str]:
     """
     problems: list[str] = []
 
-    if not (os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")):
+    # Resolve the token the way the Hub library itself does, rather than by reading two
+    # environment variables.
+    #
+    # This check used to be `os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")`
+    # and it reported "HF_TOKEN is not set" on a machine where a perfectly good token was already
+    # sitting in the credential file that `huggingface-cli login` writes. Everything downstream
+    # would have worked; only the preflight said otherwise.
+    #
+    # A FALSE BLOCKER IS WORSE THAN A MISSING CHECK. It sends the reader to fix an authentication
+    # problem they do not have, and this one helped keep the corpora recorded as licence-blocked
+    # across four documents when the licences had been accepted weeks earlier. `get_token()`
+    # implements the documented precedence: HF_TOKEN, then HUGGING_FACE_HUB_TOKEN, then the
+    # credential file.
+    try:
+        from huggingface_hub import get_token
+
+        token = get_token()
+    except Exception:  # the hub library is optional at preflight time
+        token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+
+    if not token:
         problems.append(
-            "HF_TOKEN is not set. Both corpora are gated: accept the terms at\n"
+            "No Hugging Face token found. Checked HF_TOKEN, HUGGING_FACE_HUB_TOKEN and the\n"
+            "  credential file written by `huggingface-cli login`. Both corpora are gated:\n"
+            "  accept the terms at\n"
             + "".join(f"    {url}\n" for url in GATES)
-            + "  then `export HF_TOKEN=hf_...`. The gates are auto-approved on submit -- no human\n"
-            "  reviews them -- but they still require a logged-in account and an accepted form."
+            + "  then run `huggingface-cli login` -- preferred, because it persists and needs no\n"
+            "  shell restart -- or export HF_TOKEN. The gates are auto-approved on submit with no\n"
+            "  human reviewer, but they still require a logged-in account and an accepted form."
         )
 
     try:
