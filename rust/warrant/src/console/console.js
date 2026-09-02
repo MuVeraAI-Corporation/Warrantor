@@ -43,6 +43,16 @@ const el = {
   viewWarrants: document.getElementById('view-warrants'),
   viewSummary: document.getElementById('view-summary'),
   viewQueue: document.getElementById('view-queue'),
+  viewCoverage: document.getElementById('view-coverage'),
+  coverage: document.getElementById('coverage'),
+  coverageHeadline: document.getElementById('coverage-headline'),
+  coveragePercent: document.getElementById('coverage-percent'),
+  coverageRemainder: document.getElementById('coverage-remainder'),
+  coverageMatrix: document.getElementById('coverage-matrix'),
+  coverageBypasses: document.getElementById('coverage-bypasses'),
+  coverageEmpty: document.getElementById('coverage-empty'),
+  coverageError: document.getElementById('coverage-error'),
+  coverageUnreadable: document.getElementById('coverage-unreadable'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -349,9 +359,11 @@ function applyEmptyState(kind) {
   const explain = kind === 'first-run';
   const summary = state.view === 'summary';
   const queue = state.view === 'queue';
-  const elsewhere = summary || queue;
+  const coverage = state.view === 'coverage';
+  const elsewhere = summary || queue || coverage;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
+  el.coverage && (el.coverage.hidden = !coverage);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -401,13 +413,16 @@ async function setView(value) {
     [el.viewWarrants, 'warrants'],
     [el.viewQueue, 'queue'],
     [el.viewSummary, 'summary'],
+    [el.viewCoverage, 'coverage'],
   ]) {
+    if (!button) continue;
     button.classList.toggle('is-on', value === name);
     button.setAttribute('aria-pressed', String(value === name));
   }
   applyEmptyState(state.lastKind);
   if (value === 'summary') await loadSummary();
   if (value === 'queue') await loadQueue();
+  if (value === 'coverage') await loadCoverage();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -655,6 +670,237 @@ async function actOnQueue(id, act, button) {
   }
   await loadQueue();
   await loadList();
+}
+
+// ── the action-path coverage map: which effects traversed the boundary, and which did not
+//    (L8-22) ───────────────────────────────────────────────────────────
+
+/**
+ * Read `/v1/coverage-map` into the shape the pane renders.
+ *
+ * The shape is additive: the existing `Coverage` enum in `harness.rs` has
+ * three variants, and the matrix has four. The fourth — `bypassable` —
+ * is computed from the gap between a harness's declared coverage and
+ * the receipts that exist, NOT from the enum. A map that only
+ * reflected the enum would be a map that said "every declared path is
+ * mediated", which is the failure mode the exit gate exists to catch.
+ *
+ * @param {boolean} answered Whether the request completed at all.
+ * @param {number} status The HTTP status, meaningful only when `answered`.
+ * @param {any} payload The parsed body, or null when the body did not parse.
+ * @returns {{readable: boolean, asOf: number|null, rows: object[], summary:
+ *            {mediated: number, observed: number, unsupported: number,
+ *            bypassable: number, total: number}|null, computedAt: number}}
+ */
+export function coverageMapFacts(answered, status, payload) {
+  const unusable = {
+    readable: false,
+    asOf: null,
+    rows: [],
+    summary: null,
+    computedAt: Date.now(),
+  };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data ?? payload;
+  if (!data || typeof data !== 'object') return unusable;
+  if (data.format !== 'warrantor.coverage-map/1') return unusable;
+  if (!Array.isArray(data.matrix)) return unusable;
+  // A summary is required. The percentage + remainder line is the headline, and a
+  // page that shows the matrix without the headline is a page that hid the gap
+  // behind the rows.
+  if (!data.summary || typeof data.summary !== 'object') return unusable;
+  for (const key of ['mediated', 'observed', 'unsupported', 'bypassable', 'total']) {
+    if (!Number.isInteger(data.summary[key]) || data.summary[key] < 0) return unusable;
+  }
+  // Every row is validated; one bad row is one row the console cannot render, and
+  // a console that drops a bad row silently is a console whose count the operator
+  // could not trust.
+  for (const row of data.matrix) {
+    if (!row || typeof row !== 'object') return unusable;
+    if (typeof row.effect_class !== 'string') return unusable;
+    if (typeof row.harness !== 'string') return unusable;
+    if (typeof row.state !== 'string') return unusable;
+    if (!['mediated', 'observed', 'unsupported', 'bypassable'].includes(row.state)) {
+      return unusable;
+    }
+    if (row.state !== 'mediated' && (typeof row.named_bypass !== 'string' || row.named_bypass.length === 0)) {
+      // A non-mediated cell without a named bypass is a gap the operator has to
+      // guess at, and a guess is the same shape as a guarantee the server did
+      // not make. The page must NOT render such a row as a confident sentence.
+      return unusable;
+    }
+    if (row.state === 'mediated' && row.named_bypass !== null) {
+      // A mediated cell with a named bypass is contradictory. Refuse, do not
+      // paper over.
+      return unusable;
+    }
+    if (!Number.isInteger(row.receipts) || row.receipts < 0) return unusable;
+    if (!Number.isInteger(row.total) || row.total < 0) return unusable;
+    if (row.receipts > row.total) return unusable;
+  }
+  return {
+    readable: true,
+    asOf: Number.isInteger(data.as_of) ? data.as_of : null,
+    rows: data.matrix,
+    summary: data.summary,
+    computedAt: Date.now(),
+  };
+}
+
+/**
+ * Render one matrix row. The cell state is a small four-way vocabulary
+ * and each value gets a glyph, so a reader who cannot distinguish hues
+ * still can. The named bypass is rendered verbatim, never paraphrased.
+ */
+function coverageRow(row) {
+  const li = document.createElement('li');
+  li.className = `coverage-row is-${row?.state ?? 'unknown'}`;
+  const head = document.createElement('div');
+  head.className = 'coverage-row-head';
+  head.append(node('span', 'coverage-row-class', row?.effect_class ?? '(no class)'));
+  head.append(node('span', 'coverage-row-harness', row?.harness ?? '(no harness)'));
+  const glyph =
+    row?.state === 'mediated' ? '✓ mediated'
+    : row?.state === 'observed' ? '◐ observed'
+    : row?.state === 'unsupported' ? '◌ unsupported'
+    : row?.state === 'bypassable' ? '⨯ bypassable'
+    : '? unknown';
+  head.append(node('span', `coverage-row-state is-${row?.state ?? 'unknown'}`, glyph));
+  li.append(head);
+  if (row?.named_bypass) {
+    const bypass = document.createElement('p');
+    bypass.className = 'coverage-row-bypass';
+    bypass.textContent = row.named_bypass;
+    li.append(bypass);
+  }
+  if (Number.isInteger(row?.receipts) && Number.isInteger(row?.total)) {
+    const counts = document.createElement('p');
+    counts.className = 'coverage-row-counts';
+    // Verbatim. "12 of 50 left without a receipt" is the sentence a reader can act
+    // on. A percentage would lose the gap.
+    counts.textContent = `${row.receipts} of ${row.total} with a receipt.`;
+    li.append(counts);
+    if (row.receipts < row.total) {
+      const gap = document.createElement('p');
+      gap.className = 'coverage-row-gap error';
+      gap.textContent =
+        `${row.total - row.receipts} effect(s) left without a receipt. The declaration and the receipts disagree on this row.`;
+      li.append(gap);
+    }
+  }
+  return li;
+}
+
+/**
+ * Paint the coverage pane from the parsed facts.
+ *
+ * The headline is the percentage + the named remainder, in that order.
+ * The plan is explicit that the percentage is never published alone;
+ * a page that showed "100% mediated" without "0 effects outside
+ * mediated" would be the same shape as a competitor's marketing
+ * slide. The remainder is the load-bearing fact.
+ */
+export function renderCoverage(facts) {
+  if (!facts || !facts.readable) {
+    el.coverageError.hidden = false;
+    el.coverageError.textContent =
+      'This view could not be read: the server did not answer, refused, or replied with something this console could not parse. That is not the same as there being no coverage map on this machine.';
+    el.coverageHeadline.hidden = true;
+    el.coveragePercent.hidden = true;
+    el.coverageRemainder.hidden = true;
+    el.coverageMatrix.hidden = true;
+    el.coverageBypasses.hidden = true;
+    el.coverageEmpty.hidden = true;
+    el.coverageUnreadable.hidden = true;
+    return;
+  }
+  el.coverageError.hidden = true;
+  el.coverageHeadline.hidden = false;
+  el.coveragePercent.hidden = false;
+  el.coverageRemainder.hidden = false;
+  el.coverageMatrix.hidden = false;
+  el.coverageBypasses.hidden = false;
+  el.coverageUnreadable.hidden = true;
+
+  const summary = facts.summary;
+  const total = summary?.total ?? 0;
+  const mediated = summary?.mediated ?? 0;
+  const remainder = total - mediated;
+  // The percentage is a number, not a status. "92.4% mediated" with the
+  // comma in the right place is what the page says; the same number with
+  // a green tick would be the same shape as a confidence claim.
+  const percent = total > 0 ? (mediated / total) * 100 : null;
+  el.coverageHeadline.textContent = total > 0
+    ? 'What percentage of effects traverse the warrant, and what does not'
+    : 'No effects have been recorded in this window';
+  if (percent === null) {
+    el.coveragePercent.textContent = 'no receipts in this window';
+  } else {
+    el.coveragePercent.textContent = `${percent.toFixed(1)}% mediated`;
+  }
+  // The remainder sentence always follows the percentage, even when the
+  // remainder is zero. "0 effects outside mediated" is the load-bearing
+  // sentence; without it the page would be silent on the gap.
+  if (percent === null) {
+    el.coverageRemainder.textContent =
+      'The window has no receipts, so neither the percentage nor the remainder can be stated. That is not the same as zero uncovered effects.';
+  } else {
+    const observed = summary?.observed ?? 0;
+    const unsupported = summary?.unsupported ?? 0;
+    const bypassable = summary?.bypassable ?? 0;
+    const breakdown =
+      observed + unsupported + bypassable > 0
+        ? ` Of those ${remainder}, ${observed} are observed, ${unsupported} are unsupported, and ${bypassable} are bypassable.`
+        : '';
+    el.coverageRemainder.textContent = `${remainder} effect(s) outside mediated.${breakdown}`;
+  }
+
+  el.coverageMatrix.replaceChildren();
+  if (facts.rows.length === 0) {
+    el.coverageMatrix.append(node(
+      'p',
+      'coverage-empty',
+      'No matrix rows. The coverage map is empty for this window.',
+    ));
+  } else {
+    for (const row of facts.rows) {
+      el.coverageMatrix.append(coverageRow(row));
+    }
+  }
+
+  el.coverageBypasses.replaceChildren();
+  const bypassRows = facts.rows.filter((r) => r.state !== 'mediated');
+  if (bypassRows.length === 0) {
+    el.coverageBypasses.append(node(
+      'p',
+      'coverage-empty',
+      'No named bypasses. Every row in the matrix is mediated.',
+    ));
+  } else {
+    for (const row of bypassRows) {
+      const li = document.createElement('li');
+      li.className = 'coverage-bypass';
+      const head = document.createElement('div');
+      head.className = 'coverage-bypass-head';
+      head.append(node('span', 'coverage-bypass-class', row.effect_class));
+      head.append(node('span', 'coverage-bypass-harness', row.harness));
+      li.append(head);
+      li.append(node('p', 'coverage-bypass-text', row.named_bypass ?? ''));
+      el.coverageBypasses.append(li);
+    }
+  }
+}
+
+/**
+ * Read the coverage map once and paint it. The map is not polled: a
+ * pane that re-rendered under a reader would reorder a row while they
+ * were scanning it. Re-read with the keyboard shortcut, or by clicking
+ * the tab again.
+ */
+async function loadCoverage() {
+  if (!el.coverage) return;
+  const { answered, status, payload } = await call('/v1/coverage-map', { method: 'GET' });
+  renderCoverage(coverageMapFacts(answered, status, payload));
 }
 
 // ── the summary: bounds that refused, and what a model said about what they allowed ──
@@ -1533,7 +1779,7 @@ export const SHORTCUTS = [
   ['Enter', 'open the selected warrant'],
   ['g / G', 'first / last warrant'],
   ['/', 'jump to the state filters'],
-  ['1 / 2 / 3', 'Warrants / Waiting on you / Refusals & guard'],
+  ['1 / 2 / 3 / 4', 'Warrants / Waiting on you / Refusals & guard / Coverage map'],
   ['?', 'this sheet'],
   ['Escape', 'close this sheet'],
 ];
@@ -1633,6 +1879,9 @@ function installKeyboard() {
         break;
       case '3':
         setView('summary');
+        break;
+      case '4':
+        setView('coverage');
         break;
       case '?':
         event.preventDefault();
@@ -1786,6 +2035,7 @@ el.summaryMonth.value = currentMonth();
 el.viewWarrants.addEventListener('click', () => setView('warrants'));
 el.viewSummary.addEventListener('click', () => setView('summary'));
 el.viewQueue.addEventListener('click', () => setView('queue'));
+if (el.viewCoverage) el.viewCoverage.addEventListener('click', () => setView('coverage'));
 el.summaryForm.addEventListener('submit', (event) => {
   event.preventDefault?.();
   loadSummary();

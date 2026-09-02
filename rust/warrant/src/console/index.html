@@ -68,6 +68,7 @@
           <button id="view-warrants" class="view is-on" type="button">Warrants</button>
           <button id="view-queue" class="view" type="button">Waiting on you</button>
           <button id="view-summary" class="view" type="button">Refusals &amp; guard</button>
+          <button id="view-coverage" class="view" type="button">Coverage map</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -154,6 +155,71 @@
           This list is derived from store state, the approval policy and each warrant&rsquo;s actor
           log. None of those is signed. An entry says a decision is owed &mdash; never that the
           evidence checks out. Check that with <code>warrantor verify</code>.
+        </p>
+      </section>
+
+      <!-- The action-path coverage map (L8-22). A SIBLING of #queue, #summary and #detail,
+           so exactly one right-hand pane is in the grid cell at a time.
+
+           Order of blocks is part of the contract: the headline, the percentage, the
+           named remainder, then the matrix, then the named-bypass list. The plan is
+           explicit that the percentage is never published alone; a page that showed
+           "100% mediated" without "0 effects outside mediated" would be the same shape
+           as a marketing slide. Reading top-to-bottom should walk the reader from
+           "what fraction" to "what was left out" before "what row said so".
+
+           The matrix is computed from receipts, not from a static registry. A harness
+           that declares McpOnly but shows effects with no receipt renders as
+           `bypassable`, because the declaration is a claim and the receipts are the
+           evidence. A harness version this build does not know renders as
+           `unsupported`, because the previous version's claim does not transfer. -->
+      <section id="coverage" class="coverage" hidden>
+        <h2 id="coverage-headline">What percentage of effects traverse the warrant, and what does not</h2>
+        <p id="coverage-percent" class="coverage-percent"></p>
+        <p id="coverage-remainder" class="coverage-remainder"></p>
+        <p id="coverage-error" class="empty error" hidden>
+          This view could not be read: the server did not answer, refused, or replied
+          with something this console could not parse. That is not the same as there
+          being no coverage map on this machine.
+        </p>
+        <p id="coverage-empty" class="empty" hidden>
+          No effects have been recorded in this window. The map is empty, which is
+          not the same as zero uncovered effects.
+        </p>
+        <p id="coverage-unreadable" class="note error" hidden></p>
+
+        <div class="section">
+          <h3>Matrix &mdash; one row per (effect class, harness) pair</h3>
+          <p class="note">
+            A row's state is one of four: <strong>mediated</strong> (every effect
+            received a receipt), <strong>observed</strong> (MCP calls received
+            receipts, harness builtins did not), <strong>unsupported</strong> (no MCP
+            path exists for this pair), and <strong>bypassable</strong> (the harness
+            declared mediated, but the receipts show some effects left without one).
+            A row with receipts &lt; total is a gap the operator has to name; the
+            named bypass is the sentence that names it.
+          </p>
+          <ul id="coverage-matrix" class="rows"></ul>
+        </div>
+
+        <div class="section">
+          <h3>Named bypasses &mdash; every non-mediated cell, with its reason</h3>
+          <p class="note">
+            The percentage and the remainder are the headline; this list is the
+            receipt for the remainder. A reader who wants to know why a number is
+            what it is should be able to find the named bypass on this page, in
+            the operator's own words, without leaving the console.
+          </p>
+          <ul id="coverage-bypasses" class="rows"></ul>
+        </div>
+
+        <p class="note">
+          The map is computed from the receipts the warrant's queue produced. A row
+          with no receipt for an effect the harness claimed was mediated is a row
+          whose claim the operator has to investigate; a row with no receipt for
+          an effect the harness never claimed was mediated is a row the operator
+          has to compose a sandbox to cover. Both are the same shape on the page:
+          visible, named, and never summarized as a single green number.
         </p>
       </section>
 

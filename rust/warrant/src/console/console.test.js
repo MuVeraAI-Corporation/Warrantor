@@ -60,6 +60,16 @@ const ELEMENT_IDS = [
   'view-warrants',
   'view-summary',
   'view-queue',
+  'view-coverage',
+  'coverage',
+  'coverage-headline',
+  'coverage-percent',
+  'coverage-remainder',
+  'coverage-matrix',
+  'coverage-bypasses',
+  'coverage-empty',
+  'coverage-error',
+  'coverage-unreadable',
   'queue',
   'queue-headline',
   'queue-who',
@@ -1131,6 +1141,7 @@ test('every destination has a number key, and the sheet names the same ones', as
       ['1', 'warrants'],
       ['2', 'queue'],
       ['3', 'summary'],
+      ['4', 'coverage'],
     ],
     'the number keys must match the order the destinations appear in the nav',
   );
@@ -1143,7 +1154,11 @@ test('every destination has a number key, and the sheet names the same ones', as
     `the sheet documents ${row[0]} while ${bound.length} destinations are bound`,
   );
   for (const [, name] of bound) {
-    const shown = name === 'queue' ? 'Waiting on you' : name === 'summary' ? 'Refusals' : 'Warrants';
+    const shown =
+      name === 'queue' ? 'Waiting on you'
+      : name === 'summary' ? 'Refusals'
+      : name === 'coverage' ? 'Coverage map'
+      : 'Warrants';
     assert.ok(
       row[1].includes(shown),
       `the sheet's destination row does not mention ${name}: ${row[1]}`,
@@ -1210,5 +1225,267 @@ test('every input carries a name a screen reader can read', async () => {
       new RegExp(`<label[^>]*for="${id}"`).test(html);
     assert.ok(named, `input ${id} has no accessible name`);
   }
+});
+
+// ── the action-path coverage map (L8-22) ───────────────────────────────────────
+//
+// These tests pin the contract the Rust side will fill in once it grows a
+// `warrantor coverage` subcommand emitting `warrantor.coverage-map/1`. The
+// map's load-bearing rule: it is computed from receipts, not from a static
+// registry. A harness that declares mediated but shows effects with no
+// receipt renders as `bypassable`, because the declaration is a claim and
+// the receipts are the evidence. The exit gate is "the percentage AND the
+// remainder together, never the percentage alone" — a page that showed
+// "100% mediated" without "0 effects outside mediated" would be the same
+// shape as a marketing slide.
+
+import {
+  allMediated,
+  mixedCoverage,
+  bypassableDeclared,
+  unknownHarness,
+  emptyMap,
+} from './coverage.fixtures.js';
+
+const COVERAGE_OK = (body) => ({ status: 200, body: { data: body } });
+
+test('coverageMapFacts: a 200 with a valid map produces a readable fact set', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(allMediated).body);
+  assert.equal(facts.readable, true);
+  assert.equal(facts.asOf, allMediated.as_of);
+  assert.equal(facts.rows.length, 3);
+  assert.equal(facts.summary.mediated, 1_724);
+  assert.equal(facts.summary.total, 1_724);
+  // `kind: 'fixture'` is a frozen-contract tag, not a server field; it must not leak.
+  assert.equal(facts.kind, undefined);
+});
+
+test('coverageMapFacts: any non-200 is unreadable, never an empty pane', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  for (const status of [404, 500, 502, 503]) {
+    const facts = module.coverageMapFacts(true, status, null);
+    assert.equal(facts.readable, false, `status ${status} should be unreadable`);
+    assert.equal(facts.rows.length, 0);
+    assert.equal(facts.summary, null);
+  }
+  const down = module.coverageMapFacts(false, 0, null);
+  assert.equal(down.readable, false);
+});
+
+test('coverageMapFacts: a 200 with a bad format string is unreadable, not silent-empty', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  const bad = { ...allMediated, format: 'warrantor.coverage-map/2' };
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(bad).body);
+  assert.equal(facts.readable, false);
+});
+
+test('coverageMapFacts: a non-mediated cell without a named bypass is refused', async () => {
+  // A non-mediated cell without a named bypass is a gap the operator has to
+  // guess at, and a guess is the same shape as a guarantee the server did not
+  // make. The page must NOT render such a row as a confident sentence.
+  const { module } = await boot(() => HEALTH_OK);
+  const row = mixedCoverage.matrix.find((r) => r.state === 'observed');
+  const bad = { ...mixedCoverage, matrix: [{ ...row, named_bypass: null }] };
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(bad).body);
+  assert.equal(facts.readable, false, 'a non-mediated cell without a named bypass must not render');
+});
+
+test('coverageMapFacts: a mediated cell with a named bypass is refused', async () => {
+  // Contradictory. A mediated cell does not need a bypass; if the server
+  // claims one exists, the cell is not mediated. Refuse, do not paper over.
+  const { module } = await boot(() => HEALTH_OK);
+  const row = allMediated.matrix[0];
+  const bad = { ...allMediated, matrix: [{ ...row, named_bypass: 'this should be null' }] };
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(bad).body);
+  assert.equal(facts.readable, false);
+});
+
+test('coverageMapFacts: receipts > total is refused (it is a malformed cell)', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  const row = allMediated.matrix[0];
+  const bad = { ...allMediated, matrix: [{ ...row, receipts: row.total + 1 }] };
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(bad).body);
+  assert.equal(facts.readable, false);
+});
+
+test('coverageMapFacts: an unknown state is refused', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  const row = allMediated.matrix[0];
+  const bad = { ...allMediated, matrix: [{ ...row, state: 'kinda_mediated' }] };
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(bad).body);
+  assert.equal(facts.readable, false);
+});
+
+test('renderCoverage: the all-mediated case paints the percentage AND the named remainder', async () => {
+  // The exit gate's load-bearing rule: the percentage is never published alone.
+  // "100% mediated" without "0 effects outside mediated" would be the same
+  // shape as a marketing slide. The remainder is rendered even when zero.
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(allMediated).body);
+  module.renderCoverage(facts);
+  const percent = textOf(el('coverage-percent'));
+  const remainder = textOf(el('coverage-remainder'));
+  assert.match(percent, /100\.0% mediated/);
+  assert.match(remainder, /0 effect\(s\) outside mediated/);
+});
+
+test('renderCoverage: a mixed map paints the percentage, the breakdown, and a bypass per non-mediated row', async () => {
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(mixedCoverage).body);
+  module.renderCoverage(facts);
+  // 482 / (482 + 31 + 0 + 0) = 93.96%, which the page renders to 1 dp.
+  assert.match(textOf(el('coverage-percent')), /94\.0% mediated/);
+  // The remainder sentence names the breakdown so a reader who skipped the
+  // matrix still knows what the 31 are.
+  const remainder = textOf(el('coverage-remainder'));
+  assert.match(remainder, /31 effect\(s\) outside mediated/);
+  assert.match(remainder, /31 are observed/);
+  // The named-bypass list carries one entry per non-mediated row.
+  const bypasses = el('coverage-bypasses').children;
+  assert.equal(bypasses.length, 2);
+  // The observed row's bypass is the codex.builtin_bash sentence, verbatim.
+  assert.match(textOf(bypasses[0]), /codex\.builtin_bash and codex\.builtin_edit/);
+  // The unsupported row's bypass is the no-MCP-egress-proxy sentence.
+  assert.match(textOf(bypasses[1]), /no MCP client/);
+});
+
+test('renderCoverage: a bypassable row paints the gap, the counts, AND the named bypass', async () => {
+  // This is the load-bearing case for the exit gate. A row where the
+  // declaration said mediated but the receipts show a gap must render with
+  // the gap visible, the named bypass, and a sentence that says the
+  // declaration and the receipts disagree.
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(bypassableDeclared).body);
+  module.renderCoverage(facts);
+  const row = el('coverage-matrix').children.find((r) =>
+    r.className?.includes('is-bypassable'),
+  );
+  assert.ok(row, 'bypassable row is present');
+  const text = textOf(row);
+  // The 12 effects that left without a receipt are named, not summarized.
+  assert.match(text, /12 effect\(s\) left without a receipt/);
+  // The named bypass is rendered verbatim.
+  assert.match(text, /declarations and the receipts disagree/);
+  // The percentage drops: 90 of 140 is 64.3%, and the page must say so.
+  const percent = textOf(el('coverage-percent'));
+  assert.match(percent, /64\.3% mediated/);
+  // The remainder sentence includes the bypassable count, because that is
+  // where the gap lives.
+  const remainder = textOf(el('coverage-remainder'));
+  assert.match(remainder, /50 effect\(s\) outside mediated/);
+  assert.match(remainder, /50 are bypassable/);
+});
+
+test('renderCoverage: an unknown-harness row paints the unsupported state and the downgrades-do-not-inherit reason', async () => {
+  // Step 4 of the plan: an unknown harness version downgrades the claim
+  // rather than inheriting the previous one. A competitor that swaps the
+  // harness for a new one cannot inherit the coverage assertion.
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(unknownHarness).body);
+  module.renderCoverage(facts);
+  const row = el('coverage-matrix').children.find((r) =>
+    r.className?.includes('is-unsupported'),
+  );
+  assert.ok(row, 'unsupported row is present');
+  const text = textOf(row);
+  assert.match(text, /this build does not know claude-code@2\.0\.0-beta/);
+  assert.match(text, /The previous version was McpOnly; new versions may differ/);
+  // The percentage still drops: 482 / 499 is 96.6%.
+  const percent = textOf(el('coverage-percent'));
+  assert.match(percent, /96\.6% mediated/);
+});
+
+test('renderCoverage: an empty map renders the empty sentence, not "0% mediated"', async () => {
+  // Zero rows is a fact about a window, and the operator should not read it
+  // as a clean bill of health. A page that said "0% mediated" with no
+  // receipts would be the same shape as "every path is uncovered" — neither
+  // is what the data says.
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(emptyMap).body);
+  module.renderCoverage(facts);
+  const percent = textOf(el('coverage-percent'));
+  const remainder = textOf(el('coverage-remainder'));
+  assert.match(percent, /no receipts in this window/);
+  assert.match(remainder, /not the same as zero uncovered effects/);
+});
+
+test('renderCoverage: an unreadable response keeps the error block visible and hides every fact-bearing block', async () => {
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.coverageMapFacts(false, 0, null);
+  module.renderCoverage(facts);
+  assert.equal(el('coverage-error').hidden, false);
+  assert.equal(el('coverage-headline').hidden, true);
+  assert.equal(el('coverage-percent').hidden, true);
+  assert.equal(el('coverage-remainder').hidden, true);
+  assert.equal(el('coverage-matrix').hidden, true);
+  assert.equal(el('coverage-bypasses').hidden, true);
+  const err = textOf(el('coverage-error'));
+  assert.match(err, /not the same as there being no coverage map/);
+});
+
+test('renderCoverage: every matrix row carries a glyph matching the state, for readers who cannot distinguish hues', async () => {
+  // Same discipline as the queue row and the settings transport row. The
+  // four states have four glyphs, distinguished by word and shape.
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(mixedCoverage).body);
+  module.renderCoverage(facts);
+  const glyphs = el('coverage-matrix').children.map((row) =>
+    textOf(row.children[0]?.children[2] ?? {}),
+  );
+  assert.equal(glyphs[0], '✓ mediated');
+  assert.equal(glyphs[1], '◐ observed');
+  assert.equal(glyphs[2], '◌ unsupported');
+});
+
+test('renderCoverage: the percentage is a number, never a green badge', async () => {
+  // The same discipline the queue and the settings surface follow. A number
+  // is a number; a color is an opinion. The page says "94.0% mediated", not
+  // "94.0% (green) mediated".
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(mixedCoverage).body);
+  module.renderCoverage(facts);
+  const percent = textOf(el('coverage-percent'));
+  assert.match(percent, /\b94\.0%/);
+  // The class on the percent paragraph is the plain one, not a status.
+  assert.ok(!el('coverage-percent').className?.includes('is-ok'));
+  assert.ok(!el('coverage-percent').className?.includes('is-good'));
+});
+
+test('renderCoverage: the named-bypass list contains one entry per non-mediated row, never more, never less', async () => {
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.coverageMapFacts(true, 200, COVERAGE_OK(mixedCoverage).body);
+  module.renderCoverage(facts);
+  const bypasses = el('coverage-bypasses').children;
+  const nonMediated = mixedCoverage.matrix.filter((r) => r.state !== 'mediated');
+  assert.equal(bypasses.length, nonMediated.length, 'one entry per non-mediated row');
+  for (let i = 0; i < nonMediated.length; i += 1) {
+    assert.match(
+      textOf(bypasses[i]),
+      new RegExp(nonMediated[i].named_bypass.split('.')[0], 'i'),
+      `bypass ${i} carries the named bypass from the row`,
+    );
+  }
+});
+
+test('the coverage map is computed from receipts, not from a static registry', async () => {
+  // Step 3 of the plan. The same shape and total across two fixtures, but
+  // with different receipt counts, must produce different percentage lines.
+  // A map computed from a static registry would render the same percentage
+  // for both.
+  const { module, el } = await boot(() => HEALTH_OK);
+  const allFacts = module.coverageMapFacts(true, 200, COVERAGE_OK(allMediated).body);
+  module.renderCoverage(allFacts);
+  const allPercent = textOf(el('coverage-percent'));
+
+  const bypassFacts = module.coverageMapFacts(true, 200, COVERAGE_OK(bypassableDeclared).body);
+  module.renderCoverage(bypassFacts);
+  const bypassPercent = textOf(el('coverage-percent'));
+
+  assert.notEqual(allPercent, bypassPercent, 'a static registry would render the same percentage');
+  // The all-mediated case is 100.0%; the bypassable case is 64.3%. The page
+  // is honest about the gap.
+  assert.match(allPercent, /100\.0%/);
+  assert.match(bypassPercent, /64\.3%/);
 });
 
