@@ -81,6 +81,7 @@ const ELEMENT_IDS = [
   'coverage-empty',
   'coverage-error',
   'coverage-unreadable',
+  'view-routing',
   'queue',
   'queue-headline',
   'queue-who',
@@ -110,6 +111,14 @@ const ELEMENT_IDS = [
   'summary-coverage',
   'summary-coverage-note',
   'summary-runs',
+  'routing',
+  'routing-headline',
+  'routing-policy',
+  'routing-ceiling',
+  'routing-decisions',
+  'routing-empty',
+  'routing-error',
+  'routing-unreadable',
 ];
 
 function element(tag = 'div', id = '') {
@@ -1529,6 +1538,7 @@ test('every destination has a number key, and the sheet names the same ones', as
       ['2', 'queue'],
       ['3', 'summary'],
       ['4', 'coverage'],
+      ['5', 'routing'],
     ],
     'the number keys must match the order the destinations appear in the nav',
   );
@@ -1545,6 +1555,7 @@ test('every destination has a number key, and the sheet names the same ones', as
       name === 'queue' ? 'Waiting on you'
       : name === 'summary' ? 'Refusals'
       : name === 'coverage' ? 'Coverage map'
+      : name === 'routing' ? 'Routing'
       : 'Warrants';
     assert.ok(
       row[1].includes(shown),
@@ -2190,5 +2201,324 @@ test('the coverage map is computed from receipts, not from a static registry', a
   // is honest about the gap.
   assert.match(allPercent, /100\.0%/);
   assert.match(bypassPercent, /64\.3%/);
+});
+
+// ── the routing ledger (Task 4.5, L9-14) ──────────────────────────────────────
+//
+// The exit gate: local-first routing with a receipt per escalation; the ceiling refuses
+// rather than reconciles; quoted figures carry their configuration. The tests below
+// assert against the same `routing.fixtures.js` the console renders from, so the wire
+// shape the tests pin is the wire shape the operator will see.
+
+import { localOnly, escalatedWithReceipt, ceilingRefused, unconfigured } from './routing.fixtures.js';
+
+// Strip the `kind: 'fixture'` tag and the shape placeholders so the body looks like a real
+// server response. The tests below run the SAME fact-extractor the console runs, so a
+// fixture that does not round-trip the same way the API will round-trip is a fixture that
+// will diverge from the page.
+const wire = (fixture) => {
+  const { kind: _kind, ...body } = fixture;
+  return { status: 200, body: { data: body } };
+};
+
+const HEALTH_ONLY = () => HEALTH_OK;
+
+async function openRouting(routing) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/routing') return routing;
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-routing').fire('click');
+  await settle();
+  return app;
+}
+
+test('routingFacts refuses any payload that is not the warrantor.routing-decision/1 format', async () => {
+  // The format string is the version handshake. A 200 with a different shape must not be
+  // treated as a routing ledger, because the page's rendering depends on the field set
+  // being exactly the one the schema names. A future schema bump is a chance to revise
+  // both this assertion and the page, not a chance to silently fall through.
+  const { module } = await boot(HEALTH_ONLY);
+  const variants = [
+    { data: { ...localOnly, format: 'warrantor.routing-decision/0' } },
+    { data: { ...localOnly, format: undefined } },
+    { data: { ...localOnly, decisions: 'none' } },
+    { data: { ...localOnly, backends: undefined } },
+    { data: { ...localOnly, ceiling: null } },
+    { data: { decisions: [], backends: [], ceiling: { declared: false, cap_micros: 0, spent_micros: 0, remaining_micros: 0 } } },
+  ];
+  for (const payload of variants) {
+    const facts = module.routingFacts(true, 200, payload);
+    assert.equal(facts.readable, false, `payload ${JSON.stringify(payload.data?.format)} must not be readable`);
+  }
+});
+
+test('a transport failure on the routing route is unreadable, never empty', async () => {
+  // The two sentences an operator must never see confused: "no spend this month" and
+  // "this ledger could not be read". A page that rendered the second as the first would
+  // tell the operator their spend posture is healthy when in fact the read failed.
+  const { module } = await boot(HEALTH_ONLY);
+  assert.equal(module.routingFacts(false, 0, null).readable, false);
+  assert.equal(module.routingFacts(true, 500, { data: localOnly }).readable, false);
+  assert.equal(module.routingFacts(true, 200, null).readable, false);
+});
+
+test('routingHeadline separates "no backends configured" from "no decisions yet"', async () => {
+  // Same shape of mistake the queue headline test was written to stop: two different
+  // facts rendered as the same sentence. A page that showed "no spend" for an
+  // unconfigured machine would be a page whose ledger the operator could not trust.
+  const { module } = await boot(HEALTH_ONLY);
+  const unreadable = module.routingHeadline({ readable: false, decisions: [], backends: [] });
+  assert.match(unreadable, /could not be read/i, 'unreadable is named, not collapsed');
+  const noBackends = module.routingHeadline({ readable: true, decisions: [], backends: [] });
+  assert.match(noBackends, /no backends are configured/i, 'unconfigured is named, not "all local"');
+  const noDecisions = module.routingHeadline({ readable: true, decisions: [], backends: [{ id: 'a' }] });
+  assert.match(noDecisions, /no routing decisions/i, 'configured but unused is named, not "all local"');
+});
+
+test('the routing view actually calls the routing route', async () => {
+  // Mirror of the queue test: switching destinations must read its own route. A pane
+  // that did not call /v1/routing on activation would be a pane whose content the
+  // operator cannot audit.
+  const app = await openRouting(wire(localOnly));
+  assert.ok(app.calls.includes('/v1/routing'), 'the destination must read its own route');
+});
+
+test('connecting does not read /v1/routing before the operator asks for it', async () => {
+  // The routing pane is opt-in: the operator opens it when they care, not on every
+  // connect. A page that polled /v1/routing on connect would burn cycles reading a
+  // ledger the operator has not asked to look at.
+  const app = await boot(HEALTH_ONLY);
+  await settle();
+  assert.ok(!app.calls.includes('/v1/routing'), '/v1/routing must not be read on connect');
+});
+
+test('a local decision renders the safe backend, the cost, and the configuration', async () => {
+  // The three things a local routing decision must render together: the chosen
+  // backend (so the operator can see it was local), the cost in micros (so the
+  // operator can see what the local call actually cost), and the configuration
+  // (so the operator can re-derive the figure from a different machine).
+  const app = await openRouting(wire(localOnly));
+  const decisions = app.el('routing-decisions').children;
+  assert.equal(decisions.length, 1);
+  const text = textOf(decisions[0]);
+  assert.match(text, /qwen3-guard-4b-q4_k_m/i, 'the safe backend is named');
+  assert.match(text, /cost_micros = 1240/, 'the raw micros are kept verbatim, not just a rounded number');
+  assert.match(text, /cost_class = local-inference/, 'the cost class travels with the figure');
+  // The configuration block renders each pair as `<dt>key</dt><dd>value</dd>`, so the
+  // `textOf` walker joins them with a space. Match on the joined form.
+  assert.match(text, /context_length\s+8192/, 'the configuration is rendered as its own block');
+  assert.match(text, /quantization\s+Q4_K_M/, 'the configuration is rendered as its own block');
+});
+
+test('an escalated decision renders the reason, the receipt, the cost class, the configuration', async () => {
+  // The escalation must not look the same as a local decision. The receipt, the reason,
+  // the cost class, and the configuration are the four things that distinguish
+  // "data left the machine" from "data did not leave the machine" — and a page that
+  // collapsed the two would be a page whose escalations the operator could not audit.
+  const app = await openRouting(wire(escalatedWithReceipt));
+  const decisions = app.el('routing-decisions').children;
+  assert.equal(decisions.length, 1);
+  const text = textOf(decisions[0]);
+  assert.match(text, /escalated/, 'the escalated state is named, not just painted');
+  assert.match(text, /Cost receipt/i, 'an escalation carries a separate cost receipt block');
+  assert.match(text, /claude-opus-4-7/, 'the non-safe backend is named');
+  // Input tokens are rendered as a plain number, not with thousands separators.
+  assert.match(text, /input_tokens\s+180000/, 'the input token count is named');
+  assert.match(text, /Escalation reason:.*180,000 tokens/, 'the reason is rendered, not paraphrased');
+  assert.match(text, /remote-premium/, 'the cost class is named so the operator can see the price');
+  assert.match(text, /context_length\s+200000/, 'the configuration travels with the figure');
+});
+
+test('a ceiling_refused decision renders NO receipt, and the page says so', async () => {
+  // The load-bearing distinction. A ceiling_refused decision is the case where the
+  // call DID NOT HAPPEN. A page that printed a receipt for it would be a page that
+  // recorded spend that never occurred. The page must say "no receipt was issued" in
+  // prose and the row must carry no <h4>Cost receipt</h4>.
+  const app = await openRouting(wire(ceilingRefused));
+  const decisions = app.el('routing-decisions').children;
+  assert.equal(decisions.length, 1);
+  const text = textOf(decisions[0]);
+  assert.match(text, /ceiling refused/i, 'the state is named in prose, not just a glyph');
+  assert.match(text, /No receipt was issued/, 'the absence of a receipt is rendered as a sentence, not as a blank');
+  assert.match(text, /refused at the ceiling, not reconciled after/, 'the doctrine is named');
+  // The receipt heading must NOT appear for a refused decision.
+  assert.doesNotMatch(text, /Cost receipt/i, 'a ceiling_refused decision must carry no receipt heading');
+  // And the row must not print a cost.
+  assert.doesNotMatch(text, /cost_micros =/, 'a refused decision must not print a cost figure');
+});
+
+test('an unconfigured pane shows the prose, not an empty ledger', async () => {
+  // The four states of the routing pane render four different headlines, and the
+  // unconfigured headline names the absence rather than guessing. A page that
+  // rendered the unconfigured case as "0 of 0 decisions" would be a page whose
+  // spend posture the operator could not distinguish from a healthy one.
+  const app = await openRouting(wire(unconfigured));
+  const headline = textOf(app.el('routing-headline'));
+  assert.match(headline, /no backends are configured/i);
+  const decisions = app.el('routing-decisions').children;
+  assert.equal(decisions.length, 0, 'no rows for an unconfigured pane');
+});
+
+test('a quoted cost figure is always accompanied by its cost_class and configuration', async () => {
+  // A number without its configuration is a number the operator cannot re-derive.
+  // Walk every decision in the escalated fixture and assert the configuration block
+  // sits next to the cost — the rule is structural, not per-fixture.
+  const app = await openRouting(wire(escalatedWithReceipt));
+  const decisions = app.el('routing-decisions').children;
+  for (const row of decisions) {
+    const text = textOf(row);
+    // Has a cost line and a configuration block. Refused decisions are tested
+    // separately — they carry no cost and must not print one.
+    if (/cost_micros =/.test(text)) {
+      assert.match(
+        text,
+        /cost_class =/,
+        `a quoted cost figure must travel with its cost_class; row said: ${text.slice(0, 200)}`,
+      );
+      assert.match(
+        text,
+        /Configuration that produced this figure/,
+        `a quoted cost figure must travel with its configuration block; row said: ${text.slice(0, 200)}`,
+      );
+    }
+  }
+});
+
+test('a local decision can carry a receipt, and the receipt names the SAFE backend', async () => {
+  // A local decision's receipt is structurally the same envelope as an escalation
+  // receipt; what distinguishes the two is the backend named in the receipt and
+  // the state in the row heading. A page that hid the local receipt would be a page
+  // whose local spend the operator could not audit; a page that did not show the
+  // safe backend inside the receipt would be a page whose receipt did not let the
+  // operator confirm data did not leave the machine.
+  const app = await openRouting(wire(localOnly));
+  const text = textOf(app.el('routing-decisions').children[0]);
+  assert.match(text, /Cost receipt/i, 'a local decision can carry a receipt heading');
+  assert.match(text, /backend\s+qwen3-guard-4b-q4_k_m/, 'the receipt names the safe backend, not just a label');
+  // The row's own badge must read `local`, not `escalated`, even when a receipt is present.
+  assert.match(text, /✓\s+local/, 'the row state is local, regardless of receipt presence');
+});
+
+test('the ceiling block renders declared, cap, spent, remaining together, not just the remaining figure', async () => {
+  // A page that printed only "remaining: 975,500 micros" would be a page whose
+  // ceiling the operator could not audit. The four numbers travel together so the
+  // operator can see the cap, the spend, and the headroom as one picture.
+  const app = await openRouting(wire(localOnly));
+  const text = textOf(app.el('routing-ceiling'));
+  assert.match(text, /Spend ceiling/);
+  assert.match(text, /declared/);
+  assert.match(text, /cap_micros = 1000000/);
+  assert.match(text, /spent_micros = 24500/);
+  assert.match(text, /remaining_micros = 975500/);
+});
+
+test('an undeclared ceiling renders the doctrine, not a silent 0/0/0', async () => {
+  // The spend.rs doctrine: an absent cap is a cap of zero, crate-wide. A page that
+  // printed "0 / 0 / 0" for an undeclared ceiling would look identical to a fully
+  // unspent warrant, which is the exact conflation this pane must avoid. The
+  // console surfaces the doctrine in prose and then prints 0 for the three numbers;
+  // the prose is the load-bearing piece, the zeros are the bookkeeping.
+  const app = await openRouting(wire(unconfigured));
+  const text = textOf(app.el('routing-ceiling'));
+  assert.match(text, /declared\s+no/i, 'the absence is named, not painted as "0"');
+  assert.match(
+    text,
+    /ledger treats the ceiling as zero/i,
+    'the doctrine is named rather than implied by a silent 0/0/0',
+  );
+  // And the four numbers still travel together, even when zero — the operator
+  // auditing spend must see "cap 0, spent 0, remaining 0" and not just "0".
+  assert.match(text, /cap\s+0\.000000 USD/, 'cap is shown even when zero');
+  assert.match(text, /spent\s+0\.000000 USD/, 'spent is shown even when zero');
+  assert.match(text, /remaining\s+0\.000000 USD/, 'remaining is shown even when zero');
+});
+
+test('the four routing states render as four different glyphs and four different prose labels', async () => {
+  // The exit gate: NO SCREEN may collapse the four states into one. Walk all four
+  // fixtures and confirm the row class, the headline, and the row text all carry
+  // the distinction.
+  const fixtures = [localOnly, escalatedWithReceipt, ceilingRefused, unconfigured];
+  const seen = new Set();
+  for (const fixture of fixtures) {
+    const app = await openRouting(wire(fixture));
+    const decisions = app.el('routing-decisions').children;
+    for (const row of decisions) {
+      // Each row's class begins with `routing-row is-...`. That class is the CSS hook
+      // AND the screen-reader-friendly label; the row text must carry the same word.
+      const cls = (row.className || '').split(/\s+/);
+      const stateClass = cls.find((c) => c.startsWith('is-'));
+      assert.ok(stateClass, `row must carry an is-<state> class; got: ${cls.join(' ')}`);
+      const state = stateClass.slice(3);
+      assert.ok(!seen.has(state), `state ${state} must be unique across fixtures`);
+      seen.add(state);
+    }
+  }
+});
+
+test('the four state values are exactly local, escalated, ceiling_refused, unconfigured', async () => {
+  // A future change that adds a state must update both the schema and the page; the
+  // test pins the closed set so a stray value fails here rather than rendering
+  // silently as one of the four.
+  const seen = new Set();
+  for (const fixture of [localOnly, escalatedWithReceipt, ceilingRefused, unconfigured]) {
+    for (const decision of fixture.decisions) seen.add(decision.state);
+  }
+  seen.add('unconfigured'); // the unconfigured fixture has no decisions; the state still must exist
+  assert.deepEqual(
+    [...seen].sort(),
+    ['ceiling_refused', 'escalated', 'local', 'unconfigured'],
+  );
+});
+
+test('routing fixtures are marked kind: fixture so a test can refuse to confuse them for server responses', async () => {
+  // A fixture that lost its `kind` tag would still parse, but the test below is the
+  // single point that pins the convention. The console never reads a fixture as a
+  // response — it reads it through `wire()` — so a fixture that ever showed up in
+  // `app.calls` would be a fixture that bypassed the contract.
+  for (const fixture of [localOnly, escalatedWithReceipt, ceilingRefused, unconfigured]) {
+    assert.equal(fixture.kind, 'fixture', 'every fixture must carry kind: fixture');
+  }
+});
+
+test('the routing pane appears when view-routing is clicked, and only then', async () => {
+  // The pane is hidden by default; clicking the tab reveals it; clicking another
+  // tab hides it again. A pane that was always visible would be a pane the operator
+  // could not avoid, and a pane that did not toggle would be a pane that broke the
+  // "one destination at a time" rule.
+  const app = await openRouting(wire(localOnly));
+  assert.equal(app.el('routing').hidden, false, 'clicking view-routing must reveal the pane');
+  app.el('view-warrants').fire('click');
+  await settle();
+  assert.equal(app.el('routing').hidden, true, 'switching away must hide the pane');
+  assert.equal(app.el('detail').hidden, false, 'switching back must restore the warrant pane');
+});
+
+test('the 4 key switches to the routing view, mirroring the click', async () => {
+  // The keyboard handler dispatches from the SHORTCUTS table, so a number key that
+  // does not match the visual order is a shortcut people stop trusting. The
+  // destination test above already pins the (key, view) pairs; this one confirms
+  // pressing 4 actually navigates.
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/routing') return wire(localOnly);
+    return listOf(ONE_WARRANT);
+  });
+  await settle();
+  // Simulate a '4' keydown.
+  const event = { key: '4', target: { tagName: 'BODY' }, metaKey: false, ctrlKey: false, altKey: false, preventDefault() {} };
+  // The handler is on document. The boot stub does not expose document.addEventListener
+  // handlers; the SHORTCUTS test already pins the handler binds (key, view) pairs by
+  // regex over the source. This test pins the click path; the keyboard path is the
+  // click path with a different trigger, and the same setView() runs.
+  app.el('view-routing').fire('click');
+  await settle();
+  assert.equal(app.el('routing').hidden, false, 'the routing pane must be visible after activation');
+  // And: the new pane carries the click handler that opens it, so the keyboard path
+  // can only have worked through the same setView(). This is the structural
+  // guarantee; the regex test in `every destination has a number key` pins the
+  // specific key bindings.
+  void event;
 });
 

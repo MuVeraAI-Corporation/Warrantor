@@ -54,6 +54,15 @@ const el = {
   coverageEmpty: document.getElementById('coverage-empty'),
   coverageError: document.getElementById('coverage-error'),
   coverageUnreadable: document.getElementById('coverage-unreadable'),
+  viewRouting: document.getElementById('view-routing'),
+  routing: document.getElementById('routing'),
+  routingHeadline: document.getElementById('routing-headline'),
+  routingPolicy: document.getElementById('routing-policy'),
+  routingCeiling: document.getElementById('routing-ceiling'),
+  routingDecisions: document.getElementById('routing-decisions'),
+  routingEmpty: document.getElementById('routing-empty'),
+  routingError: document.getElementById('routing-error'),
+  routingUnreadable: document.getElementById('routing-unreadable'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -373,11 +382,13 @@ function applyEmptyState(kind) {
   const queue = state.view === 'queue';
   const settings = state.view === 'settings';
   const coverage = state.view === 'coverage';
-  const elsewhere = summary || queue || settings || coverage;
+  const routing = state.view === 'routing';
+  const elsewhere = summary || queue || settings || coverage || routing;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
   el.settings && (el.settings.hidden = !settings);
   el.coverage && (el.coverage.hidden = !coverage);
+  el.routing && (el.routing.hidden = !routing);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -421,7 +432,7 @@ async function setView(value) {
   state.view = value;
   // `is-on` is a CLASS, which is a fact about paint and nothing else: a screen reader cannot see it,
   // so which destination was showing was announced to nobody. `aria-pressed` is the property that
-  // carries it, and it goes on all three every time rather than only on the new one — a toggle
+  // carries it, and it goes on all four every time rather than only on the new one — a toggle
   // group where two buttons carry the attribute and one does not reads as a group of two.
   for (const [button, name] of [
     [el.viewWarrants, 'warrants'],
@@ -429,6 +440,7 @@ async function setView(value) {
     [el.viewSummary, 'summary'],
     [el.viewSettings, 'settings'],
     [el.viewCoverage, 'coverage'],
+    [el.viewRouting, 'routing'],
   ]) {
     if (!button) continue;
     button.classList.toggle('is-on', value === name);
@@ -439,6 +451,7 @@ async function setView(value) {
   if (value === 'queue') await loadQueue();
   if (value === 'settings') await loadSettings();
   if (value === 'coverage') await loadCoverage();
+  if (value === 'routing') await loadRouting();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -1527,6 +1540,301 @@ async function loadCoverage() {
   renderCoverage(coverageMapFacts(answered, status, payload));
 }
 
+// ── the routing ledger: where the agent's work went, with a receipt for every escalation ─────
+
+/**
+ * Read `/v1/routing` into the shape the pane renders.
+ *
+ * # What this function deliberately does not do
+ *
+ * It derives nothing. The four state values arrive from the server — `local`, `escalated`,
+ * `ceiling_refused`, `unconfigured` — and this file never re-derives them. A console that
+ * recomputed the state from the cost would be a second implementation of the routing layer, and
+ * a second implementation can disagree with the first the moment the routing policy changes. That
+ * is the same mistake the queue pane was built to avoid, and the rule carries.
+ *
+ * Every failure collapses to `readable: false`. A routing page that could not be read must not
+ * render as "no backends configured" or "the ceiling is fine": the operator reading this pane is
+ * auditing spend, and a silent server is not the same as an empty ledger.
+ *
+ * @param {boolean} answered Whether the request completed at all.
+ * @param {number} status The HTTP status.
+ * @param {any} payload The parsed body.
+ */
+export function routingFacts(answered, status, payload) {
+  const unusable = { readable: false, decisions: [], backends: [], ceiling: null, policy: '', asOf: 0 };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data;
+  if (!data || typeof data !== 'object') return unusable;
+  if (data.format !== 'warrantor.routing-decision/1') return unusable;
+  if (!Array.isArray(data.decisions)) return unusable;
+  if (!Array.isArray(data.backends)) return unusable;
+  if (!data.ceiling || typeof data.ceiling !== 'object') return unusable;
+  return {
+    readable: true,
+    decisions: data.decisions,
+    backends: data.backends,
+    ceiling: data.ceiling,
+    policy: typeof data.policy === 'string' ? data.policy : '',
+    asOf: Number.isFinite(data.as_of) ? data.as_of : 0,
+  };
+}
+
+/**
+ * The sentence at the top of the routing pane.
+ *
+ * Four states, not one. "Everything was local" and "no backends are configured" are different
+ * facts about the same machine, and rendering the second as the first tells the operator the
+ * spend posture is healthy when in fact no routing is happening at all.
+ *
+ * @param {{readable: boolean, decisions: any[], backends: any[]}} facts
+ */
+export function routingHeadline(facts) {
+  if (!facts.readable) {
+    return 'This routing ledger could not be read. That is not the same as no spend.';
+  }
+  if (facts.backends.length === 0) {
+    return 'No backends are configured. The routing layer cannot pick anything until at least one is.';
+  }
+  if (facts.decisions.length === 0) {
+    return `${facts.backends.length} backend(s) configured, no routing decisions to show.`;
+  }
+  return `${facts.decisions.length} routing decision(s), newest first.`;
+}
+
+async function loadRouting() {
+  const { answered, status, payload } = await call('/v1/routing');
+  if (answered && status === 401) {
+    showGate('That token was not accepted.');
+    return;
+  }
+  renderRouting(routingFacts(answered, status, payload));
+}
+
+function renderRouting(facts) {
+  el.routingError.hidden = facts.readable;
+  el.routingDecisions.replaceChildren();
+  el.routingHeadline.textContent = routingHeadline(facts);
+  el.routingPolicy.textContent = facts.readable
+    ? facts.policy
+    : '';
+
+  if (!facts.readable) {
+    el.routingEmpty.hidden = true;
+    el.routingUnreadable.textContent = '';
+    el.routingCeiling.replaceChildren();
+    return;
+  }
+
+  el.routingUnreadable.textContent =
+    facts.decisions.length === 0 && facts.backends.length === 0
+      ? 'No backends configured. The operator-facing pane for routing has nothing to show until a backend is wired in.'
+      : '';
+
+  el.routingEmpty.hidden = facts.decisions.length > 0;
+  el.routingCeiling.replaceChildren(renderCeiling(facts.ceiling, facts.asOf));
+
+  for (const decision of facts.decisions) {
+    el.routingDecisions.append(routingRow(decision));
+  }
+}
+
+/**
+ * The ceiling line, rendered as a small table: declared / cap / spent / remaining.
+ *
+ * Rendered as its own block rather than as a paragraph so the four numbers stay aligned. A line
+ * that mixed prose and figures is a line the operator's eye would have to parse before it could
+ * trust any of the numbers on it.
+ */
+function renderCeiling(ceiling, asOf) {
+  const block = document.createElement('div');
+  block.className = 'routing-ceiling';
+  const heading = node('h3', null, 'Spend ceiling');
+  block.append(heading);
+
+  const list = document.createElement('dl');
+  list.className = 'routing-ceiling-list';
+
+  const add = (term, definition) => {
+    list.append(node('dt', null, term));
+    list.append(node('dd', null, definition));
+  };
+
+  if (ceiling?.declared === true) {
+    add('declared', 'yes — a cap was set on this warrant');
+    add('cap', `${formatMicros(ceiling.cap_micros)} (cap_micros = ${ceiling.cap_micros})`);
+    add('spent', `${formatMicros(ceiling.spent_micros)} (spent_micros = ${ceiling.spent_micros})`);
+    add(
+      'remaining',
+      `${formatMicros(ceiling.remaining_micros)} (remaining_micros = ${ceiling.remaining_micros})`,
+    );
+  } else {
+    // Mirrors the spend.rs doctrine: an absent cap is a cap of zero, crate-wide. The page says so
+    // rather than showing 0/0/0 silently, which would look identical to a warrant that is fully
+    // unspent.
+    add('declared', 'no — the ledger treats the ceiling as zero. Only free backends can be picked.');
+    add('cap', formatMicros(0));
+    add('spent', formatMicros(0));
+    add('remaining', formatMicros(0));
+  }
+  if (asOf > 0) {
+    add('as of', new Date(asOf * 1000).toISOString());
+  }
+  block.append(list);
+
+  // PLACEHOLDER. Task 1.4 owns the wire-level ceiling contract; this line is the additive
+  // surface the console renders until that lands. If 1.4 picks a different shape, this block is
+  // the part that needs revising — see the evidence file for the cross-reference.
+  const note = node('p', 'routing-note', 'Ceiling contract is the Phase 1 placeholder; Task 1.4 owns the semantics.');
+  block.append(note);
+  return block;
+}
+
+/**
+ * One routing decision, rendered so the four states can never look like one.
+ *
+ * The glyph at the head of every row is the same vocabulary the queue and settings panes use, so
+ * a reader trained on one pane sees the same shape on another: ✓ for what landed, ◌ for what did
+ * not happen, ⨯ for what was refused. The state word is then printed as prose underneath, so the
+ * color is never the only thing carrying the distinction.
+ */
+function routingRow(decision) {
+  const row = document.createElement('li');
+  const state = typeof decision?.state === 'string' ? decision.state : 'unknown';
+  row.className = `routing-row is-${state}`;
+
+  const head = document.createElement('div');
+  head.className = 'routing-head';
+  const id = node('span', 'routing-id', decision?.warrant_id ?? '(no id)');
+  head.append(id);
+  const badge = document.createElement('span');
+  badge.className = 'routing-state';
+  badge.textContent = stateGlyph(state);
+  head.append(badge);
+  row.append(head);
+
+  // The task, in the operator's own words. A line that did not render the work would be a line
+  // whose escalations the operator could not audit.
+  row.append(node('p', 'routing-task', decision?.task ?? 'No task description was provided.'));
+
+  // The cost, the cost class, and the configuration that produced the figure. A number without
+  // its configuration is a number the operator cannot re-derive, so the three travel together
+  // or not at all. `ceiling_refused` and `unconfigured` decisions carry no cost, and the page
+  // says so rather than printing 0.
+  if (state === 'ceiling_refused' || state === 'unconfigured' || decision?.cost_micros == null) {
+    row.append(node('p', 'routing-note', 'No cost recorded — the call did not happen.'));
+  } else {
+    const cost = node(
+      'p',
+      'routing-cost',
+      `Cost: ${formatMicros(decision.cost_micros)} (cost_micros = ${decision.cost_micros}) — \
+priced against cost_class = ${decision.cost_class ?? 'unspecified'}.`,
+    );
+    row.append(cost);
+  }
+
+  // The configuration block, when one is present. A quoted figure without its configuration is
+  // a number the operator cannot re-derive, so the configuration is rendered as its own block
+  // rather than being folded into the cost sentence.
+  if (decision?.configuration && typeof decision.configuration === 'object') {
+    row.append(renderConfiguration(decision.configuration));
+  }
+
+  // The reason for the escalation, when the state is `escalated`. The reason is one of the
+  // operator's own sentences; the page renders it verbatim rather than paraphrasing.
+  if (state === 'escalated' && typeof decision?.reason === 'string') {
+    row.append(node('p', 'routing-reason', `Escalation reason: ${decision.reason}`));
+  }
+  if (state === 'ceiling_refused' && typeof decision?.reason === 'string') {
+    row.append(node('p', 'routing-reason', `Refusal reason: ${decision.reason}`));
+  }
+
+  // The receipt, or its absence. A `ceiling_refused` decision carries no receipt, because the
+  // call never happened — refused at the ceiling, not reconciled after. The page says so rather
+  // than printing an empty ledger.
+  if (decision?.receipt && typeof decision.receipt === 'object') {
+    row.append(renderReceipt(decision.receipt));
+  } else if (state === 'ceiling_refused') {
+    row.append(
+      node(
+        'p',
+        'routing-receipt-empty',
+        'No receipt was issued. The call was refused at the ceiling, not reconciled after — there is nothing to record against the ledger.',
+      ),
+    );
+  } else if (state === 'local') {
+    row.append(
+      node(
+        'p',
+        'routing-receipt-empty',
+        'No separate receipt was issued. The chosen backend was safe (no data left the machine); the cost is recorded in the ceiling block.',
+      ),
+    );
+  }
+  return row;
+}
+
+/** A cost receipt, rendered verbatim from the server payload. Never recomputed. */
+function renderReceipt(receipt) {
+  const block = document.createElement('div');
+  block.className = 'routing-receipt';
+  block.append(node('h4', null, 'Cost receipt'));
+  const list = document.createElement('dl');
+  list.className = 'routing-receipt-list';
+  const add = (term, definition) => {
+    list.append(node('dt', null, term));
+    list.append(node('dd', null, String(definition)));
+  };
+  add('format', receipt.format ?? 'unspecified');
+  add('at', receipt.at ? new Date(receipt.at * 1000).toISOString() : 'unspecified');
+  add('backend', receipt.backend ?? 'unspecified');
+  add('cost_micros', formatMicros(receipt.cost_micros));
+  if (receipt.input_tokens != null) add('input_tokens', String(receipt.input_tokens));
+  if (receipt.output_tokens != null) add('output_tokens', String(receipt.output_tokens));
+  block.append(list);
+  return block;
+}
+
+/** The configuration that produced a quoted figure, rendered as a small key-value list. */
+function renderConfiguration(configuration) {
+  const block = document.createElement('div');
+  block.className = 'routing-configuration';
+  block.append(node('h4', null, 'Configuration that produced this figure'));
+  const list = document.createElement('dl');
+  list.className = 'routing-configuration-list';
+  for (const [key, value] of Object.entries(configuration)) {
+    list.append(node('dt', null, key));
+    list.append(node('dd', null, value === null ? 'unspecified' : String(value)));
+  }
+  block.append(list);
+  return block;
+}
+
+/** Map the four routing states to the glyph vocabulary the queue and settings panes already use. */
+function stateGlyph(state) {
+  switch (state) {
+    case 'local':
+      return '✓ local';
+    case 'escalated':
+      return '◐ escalated';
+    case 'ceiling_refused':
+      return '⨯ ceiling refused';
+    case 'unconfigured':
+      return '◌ not configured';
+    default:
+      return '? unrecognized';
+  }
+}
+
+/** Format micros as a human-readable figure without losing the raw number the operator can re-derive. */
+function formatMicros(micros) {
+  if (!Number.isFinite(micros)) return 'unspecified';
+  // Divide by 1,000,000 to land in USD (the cost class is named in the cost sentence). The raw
+  // micros are kept on the same line so the operator never has to do the conversion to know
+  // what was actually recorded against the ledger.
+  return `${(micros / 1_000_000).toFixed(6)} USD`;
+}
+
 // ── the summary: bounds that refused, and what a model said about what they allowed ──
 
 /**
@@ -2427,7 +2735,11 @@ export const SHORTCUTS = [
   ['Enter', 'open the selected warrant'],
   ['g / G', 'first / last warrant'],
   ['/', 'jump to the state filters'],
-  ['1 / 2 / 3 / 4', 'Warrants / Waiting on you / Refusals & guard / Coverage map'],
+  ['1 / 2 / 3 / 4 / 5', 'Warrants / Waiting on you / Refusals & guard / Coverage map / Routing'],
+  // The settings pane is click-only: the source carries six destinations and the
+  // keyboard has only five digits. The pane is reached by clicking the
+  // "Notifications" tab in the right-hand column.
+
   ['?', 'this sheet'],
   ['Escape', 'close this sheet'],
 ];
@@ -2531,6 +2843,10 @@ function installKeyboard() {
       case '4':
         setView('coverage');
         break;
+      case '5':
+        setView('routing');
+        break;
+
       case '?':
         event.preventDefault();
         toggleShortcuts(el.shortcuts?.hidden !== false);
@@ -2685,6 +3001,9 @@ el.viewSummary.addEventListener('click', () => setView('summary'));
 el.viewQueue.addEventListener('click', () => setView('queue'));
 if (el.viewSettings) el.viewSettings.addEventListener('click', () => setView('settings'));
 if (el.viewCoverage) el.viewCoverage.addEventListener('click', () => setView('coverage'));
+
+el.viewRouting.addEventListener('click', () => setView('routing'));
+
 el.summaryForm.addEventListener('submit', (event) => {
   event.preventDefault?.();
   loadSummary();
