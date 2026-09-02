@@ -442,3 +442,139 @@ mod windows_job {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `describe_linkage` and the `cfg` gates in this module must agree about the platform this
+    /// binary was compiled for; a mismatch would report a link that is not the one in force.
+    #[test]
+    fn describe_linkage_names_the_mechanism_this_binary_was_compiled_for() {
+        let linkage = describe_linkage();
+        if cfg!(windows) {
+            assert_eq!(linkage.mechanism, "job-object");
+            assert!(linkage.survives_supervisor_death);
+        } else if cfg!(target_os = "linux") {
+            assert_eq!(linkage.mechanism, "setsid+pdeathsig");
+            assert!(linkage.survives_supervisor_death);
+        } else {
+            assert_eq!(linkage.mechanism, "setsid");
+            assert!(!linkage.survives_supervisor_death);
+        }
+    }
+
+    /// A two-level tree: `cmd.exe /C ping -n 60 127.0.0.1 >NUL` -- cmd is the child, ping the
+    /// grandchild. Only the tree shape matters; the redirect keeps ping's output out of the log.
+    #[cfg(windows)]
+    const TREE_ARGS: [&str; 6] = ["/C", "ping", "-n", "60", "127.0.0.1", ">NUL"];
+
+    #[cfg(windows)]
+    fn tree_args() -> Vec<String> {
+        TREE_ARGS.iter().map(|arg| (*arg).to_string()).collect()
+    }
+
+    /// Poll `process_is_alive` for up to `budget`; true when the pid went away in time.
+    #[cfg(windows)]
+    fn gone_within(pid: u32, budget: std::time::Duration) -> bool {
+        let deadline = std::time::Instant::now() + budget;
+        while std::time::Instant::now() < deadline {
+            if !crate::daemon::process_is_alive(pid) {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        !crate::daemon::process_is_alive(pid)
+    }
+
+    /// The `ping.exe` children of `parent`, via CIM. `wmic` is gone from current Windows images;
+    /// `powershell.exe` is on every supported one. The image-name filter matters: when the test
+    /// process has no attached console (a CI runner leg is one such case) `cmd.exe` allocates one
+    /// and a `conhost.exe` appears with cmd's pid as `ParentProcessId`; without the filter the
+    /// "grandchild" under test could be conhost, which dies with its client and would prove
+    /// nothing about `/T`. WQL string comparison is case-insensitive; the doubled `''` is
+    /// PowerShell's escape for a single quote inside a single-quoted string, so no double quote
+    /// has to survive `Command`'s argument quoting.
+    #[cfg(windows)]
+    fn ping_pids_under(parent: u32) -> Vec<u32> {
+        let query = format!(
+            "(Get-CimInstance Win32_Process -Filter 'ParentProcessId={parent} AND Name=''PING.EXE''').ProcessId"
+        );
+        let output = Command::new("powershell")
+            .args(["-NoProfile", "-Command", &query])
+            .stdin(Stdio::null())
+            .output()
+            .expect("powershell.exe is present on every supported Windows");
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter_map(|line| line.trim().parse::<u32>().ok())
+            .collect()
+    }
+
+    /// `cmd.exe` needs a moment to start `ping`; wait for the ping grandchild specifically.
+    #[cfg(windows)]
+    fn grandchild_of(parent: u32) -> u32 {
+        for _ in 0..50 {
+            if let Some(pid) = ping_pids_under(parent).first().copied() {
+                return pid;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        panic!("cmd.exe {parent} never started ping.exe");
+    }
+
+    /// The kill-on-close link is the whole promise of this module on Windows: closing the job
+    /// handle -- which `Drop` does on a tidy exit, a panic and a crash alike -- must take the
+    /// grandchild with it, not only the process that was assigned to the job.
+    #[cfg(windows)]
+    #[test]
+    fn job_object_kills_the_child_tree_when_the_supervisor_drops() {
+        let mut supervisor = Supervisor::new().expect("job object with KILL_ON_JOB_CLOSE");
+        let pid = supervisor
+            .spawn("cmd.exe", &tree_args(), None)
+            .expect("spawn cmd.exe inside the job");
+        let grandchild = grandchild_of(pid);
+        assert!(crate::daemon::process_is_alive(pid));
+        assert!(crate::daemon::process_is_alive(grandchild));
+
+        // `Job` is dropped before `child` (field order), and its `CloseHandle` is the kill.
+        drop(supervisor);
+
+        let budget = std::time::Duration::from_secs(5);
+        assert!(
+            gone_within(pid, budget),
+            "cmd.exe {pid} survived the job handle closing"
+        );
+        assert!(
+            gone_within(grandchild, budget),
+            "ping {grandchild} (grandchild) survived the job handle closing"
+        );
+    }
+
+    /// `terminate_group` is what `stop` reaches for; on Windows it is `taskkill /T /F`, and the
+    /// `/T` is the claim under test.
+    #[cfg(windows)]
+    #[test]
+    fn terminate_group_kills_the_grandchild_too() {
+        let mut child = Command::new("cmd.exe")
+            .args(TREE_ARGS)
+            .stdin(Stdio::null())
+            .spawn()
+            .expect("spawn cmd.exe");
+        let pid = child.id();
+        let grandchild = grandchild_of(pid);
+
+        terminate_group(pid);
+
+        let budget = std::time::Duration::from_secs(5);
+        assert!(
+            gone_within(pid, budget),
+            "cmd.exe {pid} survived taskkill /T"
+        );
+        assert!(
+            gone_within(grandchild, budget),
+            "ping {grandchild} (grandchild) survived taskkill /T"
+        );
+        let _ = child.wait();
+    }
+}
