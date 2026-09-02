@@ -9,19 +9,18 @@
 > work by the same authors and are anonymized accordingly; **all third-party citations are
 > intact**. Pre-registration hashes are retained deliberately: they are this paper's evidence
 > of pre-registration, and a SHA-256 identifies a frozen document rather than a person.
-*Draft 2 revised Draft 1 throughout after reading [LayeredEns] §11 in full; three claims were withdrawn. Draft 3 re-runs the stratification with their own CMH estimator (§5.5b), which turned the paper from a contrast with their result into a convergence with it. All withdrawals are marked in place.*
 
 ---
 
 > ⚠️ **This is a replication and extension, not a novel contribution, and the framing is not ours.**
-> A literature check run **before** this draft surfaced **Alotaibi et al. [LayeredEns]**, published
+> A literature check run **before** this analysis surfaced **Alotaibi et al. [LayeredEns]**, published
 > **2026-08-28 — three days before our experiment ran** — which states the governing argument (a
 > defense stack is a multiple-classifier system that compounds only under failure independence),
 > measures it on a seven-layer stack, and reports **all fifteen pairs correlated** with a joint
 > residual above the multiplicative prediction. **That is our headline result, published first and
-> developed considerably further.** Their §11 is read in full for this draft.
+> developed considerably further.** Their §11 is read in full.
 >
-> **What is left, and it is narrower than Draft 1 claimed.** Their §11.6 runs the difficulty
+> **What is left is narrower than a first reading suggested.** Their §11.6 runs the difficulty
 > stratification that decides whether correlation is shared blind spots or common cause, and finds
 > that after correction **one pair of fifteen survives**. They also state plainly that this analysis
 > is **"underpowered by construction"** — *n* = 100 behaviors across about six strata — and nominate
@@ -38,9 +37,9 @@
 > (geometric mean 1.75). **Both studies find that shared training lineage survives conditioning on
 > difficulty while shared defense category does not.**
 >
-> ⚠️ **Draft 1 claimed our result was the *opposite* of theirs. That claim is withdrawn** (§5.5,
-> §5.5b). It was wrong twice over: their §11.6 is underpowered by their own statement, and once the
-> same estimator is used the two findings agree.
+> **Our result is not the opposite of theirs, though an initial analysis read it that way** (§5.5,
+> §5.5b). That reading was wrong twice over: their §11.6 is underpowered by their own statement, and
+> once the same estimator is used the two findings agree.
 
 ---
 
@@ -308,8 +307,7 @@ their product is 0.623 and **π cannot exceed 1.60 however correlated they are.*
 | **π** | what does stacking buy me over independence? | **1 / Π FNR** |
 | **φ** | do these two guards fail on the same inputs? | **φ_max = √(p₁(1−p₂) / p₂(1−p₁))** |
 
-⚠️ **Draft 1 of this paper asserted that φ carries no such ceiling. That was wrong, and the correction
-comes from [LayeredEns] §11.1**, which gives the bound above, notes that "a raw ordering by φ is
+**φ carries a ceiling too, and the bound comes from [LayeredEns] §11.1**, which gives the bound above, notes that "a raw ordering by φ is
 therefore not an ordering by dependence," and reports normalized φ/φ_max wherever pairs are ranked.
 Their marginals span 0.35–0.68, giving φ_max between 0.503 and 1.000. **Ours span 0.20–0.85, so our
 spread is far wider and the correction matters more for us than for them.** §5.5 applies it.
@@ -375,14 +373,14 @@ effect.
 | cross-family | 0.070 | **0.144** |
 | ratio | 7.1× | **4.0×** |
 
-⚠️ **Draft 1 claimed the two groups do not overlap. That claim is withdrawn.** On the normalized
+**The two groups overlap.** On the normalized
 statistic the lowest within-family pair (0.384) falls *below* the highest cross-family pair
 (llamaguard + ShieldGemma 2B, 0.402). **The fourfold mean difference is the result; the separation is
 not.** Normalized values are also least stable exactly where φ_max is smallest, which is the
 cross-family pairs.
 
-**Reading it against their result.** Ours is not the opposite of theirs, and Draft 1 was wrong to say
-so. **Given their stated power limitation, 10-of-15 against 1-of-15 is consistent with a sample-size
+**Reading it against their result.** Ours is not the opposite of theirs. **Given their stated power
+limitation, 10-of-15 against 1-of-15 is consistent with a sample-size
 difference alone.** What can be said is narrower and still useful:
 
 1. **At nine times the item count, the negative half of their §11.6 does not reproduce.** Their own
@@ -454,7 +452,7 @@ conditioning on difficulty, one guard's miss makes the other's *less* likely. Th
 negative association in the panel and the only pair in this study that beats independence rather than
 falling short of it.
 
-#### Where this converges with [LayeredEns], which Draft 1 missed entirely
+#### Where this converges with [LayeredEns]
 
 **Their one surviving pair and our strongest surviving pair land on the same odds ratio.** Theirs:
 probe₁₆ × probe₈, **CMH OR 158.7**. Ours: Qwen3Guard 4B + 8B, **CMH OR 158.00**.
@@ -489,7 +487,7 @@ them to conclude that "same-row membership is therefore not sufficient on its ow
 failure that survives conditioning." **Our cross-family pairs behave identically**: all six guards are
 the same *kind* of defense, and mere category membership buys them a geometric mean of 1.75.
 
-**So both studies find the same thing, and Draft 1's framing was wrong.** Shared training
+**So both studies find the same thing.** Shared training
 lineage survives conditioning on difficulty; shared defense *category* does not. **We are not
 contradicting their §11.6 — we are supplying the sample size at which its positive half becomes
 visible across more than one pair**, which is what they asked for.
@@ -558,12 +556,11 @@ statistic, and a similarity statistic cannot be read off it.
 ## 7. Limitations
 
 1. **The headline is a replication.** [LayeredEns] published it first and developed it further (§0).
-2. ~~Our reading of [LayeredEns] is partial.~~ **Closed. Their §11 is now read in full, and it
-   changed three things in this paper**: it supplied the φ_max bound we had denied existed (§5.4), it
-   showed the family contrast is confounded with that bound (§5.5), and it revealed that their §11.6
-   is underpowered by their own account — which retired Draft 1's claim that our result was the
-   opposite of theirs. **Every correction ran against us**, which is the expected direction when a
-   claim is checked against the source rather than a summary of it.
+2. **Three claims were withdrawn on a full reading of [LayeredEns] §11**: that φ carries no
+   marginal ceiling (§5.4), that the family groups do not overlap (§5.5), and that our
+   stratification result is the opposite of theirs — their §11.6 is underpowered by their own
+   account. **Every correction ran against us**, which is the expected direction when a claim is
+   checked against the source rather than a summary of it.
 3. **H1's direction was not a blind prediction.** The panel data existed and its transfer result was
    known (pre-registration §0).
 4. **The adversary is non-adaptive**, so all effects are lower bounds and we cannot speak to adaptive
@@ -608,12 +605,11 @@ King Fahd University of Petroleum and Minerals; SDAIA-KFUPM Joint Research Cente
 Intelligence. arXiv:2608.28327v1 [cs.CR], 28 August 2026. Preprint submitted to Elsevier, 58 pages.
 
 [Kuncheva] L. I. Kuncheva and C. J. Whitaker. *Measures of Diversity in Classifier Ensembles and Their
-Relationship with the Ensemble Accuracy.* Machine Learning 51(2), 2003. — cited via [LayeredEns] §4.3;
-not read in the original for this draft.
+Relationship with the Ensemble Accuracy.* Machine Learning 51(2), 2003. — cited via [LayeredEns] §4.3.
 
 [Biggio] B. Biggio, G. Fumera, and F. Roli. *Multiple Classifier Systems for Robust Classifier Design
 in Adversarial Environments.* International Journal of Machine Learning and Cybernetics 1, 2010. —
-cited via [LayeredEns] §4.3; not read in the original for this draft.
+cited via [LayeredEns] §4.3.
 
 [Anon-A] Anonymous. *Companion submission; title withheld for review.* Under review, 2026. — source of the corpus, the transformation set, and four of the six
 per-item verdict sets.

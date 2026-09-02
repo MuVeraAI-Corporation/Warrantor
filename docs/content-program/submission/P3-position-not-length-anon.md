@@ -9,17 +9,17 @@
 > of pre-registration, and a SHA-256 identifies a frozen document rather than a person.
 *Catalog ref: P3 · target: workshop / short-paper track — **not** a full-venue submission*
 
-> ⚠️ **Drafted as a novel-contribution paper; it is not one.** A prior-art check run after Draft 1
-> found **LongGuard** [LongGuard], published 2026-08-27 — four days before this work — which
+> **This note is a replication, not a novel contribution.** A prior-art check found
+> **LongGuard** [LongGuard], published 2026-08-27 — four days before this work — which
 > establishes the same positional finding across **15 guardrails** over a **0.25k–32k** grid,
 > supplies the attention→logit→behavior mechanism this note defers, and implements the
 > chunked-detection defense this note only predicts.
 >
-> **The measurements below stand; the novelty claim does not.** Draft 2 repositions this as a
-> replication at short context on two models LongGuard did not test, and **retracts Draft 1's claim
-> to have refuted length dilution** (§4.2). Full assessment in `PRIOR-ART-ASSESSMENT.md`.
+> **The measurements below stand; the novelty claim does not.** This note is positioned as a
+> replication at short context on two models LongGuard did not test, and **retracts an initial
+> claim to have refuted length dilution** (§4.2).
 >
-> **Draft 3 tests that retraction instead of conceding it.** A follow-up run (P3-X, §4.2.1) extends
+> **The retraction is then tested instead of conceded.** A follow-up run (P3-X, §4.2.1) extends
 > the grid to LongGuard's full 0–32k range at both scales, 1,260 inputs per model, zero unparsed
 > output. **The retraction was correct**: over the endpoints, 19 payloads out of 60 degrade and 0
 > improve at both scales (*p* < 0.0001), and the 0.6B's one non-monotone step is the single step that
@@ -49,8 +49,8 @@ its frame is missed 4.33× more often than one at the end. **This replicates Lon
 lost-in-the-middle finding** [LongGuard] on two models they did not test, in a length regime
 (≈0.3k–1.2k tokens) at the very bottom of their grid.
 
-**We retract a claim, and then test the retraction.** Draft 1 reported miss rate as non-monotone in
-length — rising to 9.3% at 4× filler then falling at 16× — and concluded that dilution is refuted.
+**We retract a claim, and then test the retraction.** the short-range grid showed miss rate non-monotone in
+length — rising to 9.3% at 4× filler then falling at 16× — and we initially concluded that dilution is refuted.
 LongGuard attributes failure *to* proportional dilution over a range 25× longer, with an edge–middle
 gap growing from +6.67% at 0.25k to +30.88% at 16k. Our grid never left their weakest regime, so the
 non-monotonicity was retracted as a probable small-range artifact. **We then ran the range** (§4.2.1):
@@ -135,7 +135,9 @@ and then across their full 0–32k range — each against a **0× unframed contr
 design element their needle-in-haystack setup does not have and which anchors every cell to an
 absolute floor rather than a relative baseline. Plus a **retraction** of a dilution refutation our
 range could not support, and a **test of that retraction** at the range where it is testable.
-**We claim no novelty on the positional phenomenon, its mechanism, or its mitigation.**
+**We claim no novelty on the positional phenomenon, its mechanism, or its mitigation.** This
+note was drafted before its prior-art check; LongGuard predates it by four days and supersedes
+its central claim, which is recorded here rather than absorbed.
 
 ---
 
@@ -214,7 +216,7 @@ Miss rate pooled over position:
 
 **Both models peak at 4× and decline at 16×.**
 
-⚠️ **Draft 1 read this as refuting dilution. That reading is retracted.** Our largest cell is
+**Read alone, this appears to refute dilution. That reading is retracted.** Our largest cell is
 ≈1.2k tokens; LongGuard's grid runs to 32k and finds dilution dominating, with the edge–middle gap
 growing from +6.67% at 0.25k to +30.88% at 16k. At 0.25k — the point closest to our range — their
 effect is also small. **We did not test a range where dilution would be expected to dominate**, and
@@ -253,7 +255,7 @@ The edge–middle gap grows with length at the 4B — +7.2% at 1k to +28.3% at 3
 LongGuard's +6.67% at 0.25k to +30.88% at 16k.
 
 **So the retraction was correct, and is now supported by measurement rather than by deference.**
-Draft 1's non-monotonicity was a small-range artifact. **M-A is not refuted; it was untested**, and
+The short-range non-monotonicity was a small-range artifact. **M-A is not refuted; it was untested**, and
 over the range where it is testable it holds.
 
 ### 4.3 M-B supported: position orders the effect
@@ -407,6 +409,3 @@ Contexts.* arXiv:2510.05310, 2025.
 [WildGuard] *WildGuard: Open One-Stop Moderation Tools for Safety Risks, Jailbreaks, and Refusals of
 LLMs.* arXiv:2406.18495, 2024. — source of the payloads.
 
-> **On the sequencing.** Draft 1 was written before any prior-art check. LongGuard predates it by
-> four days and supersedes its central claim. This is recorded rather than quietly absorbed, and the
-> program has since added a literature gate before first draft rather than after.

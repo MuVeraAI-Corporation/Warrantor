@@ -2,8 +2,7 @@
 
 ### Directional churn in quantized guard classifiers, and what a paired equivalence standard costs when applied to them
 
-**Draft 2 · 2026-08-31 · Vikram Jha**
-*Draft 2 follows a complete read of [Certify]. Three claims corrected, all against us, and one result added that Draft 1 could not have found. Corrections are marked in place.*
+**Research paper · 2026-08-31 · Vikram Jha**
 
 ---
 
@@ -30,11 +29,10 @@
 > infers from a generation — and whose two error directions are not interchangeable, which is where
 > this paper's contribution lives.
 >
-> ⚠️ **Draft 1 was written on a partial read of [Certify] and was wrong three times.** Finishing
-> §3.5–§3.8, §4 and §9 corrected: the ratio we compared against (§5.1), the fact that we reported
-> required sample sizes **without ever running the test they size** (§5.4), and the population we may
-> extrapolate from (§7). **Every correction ran against us.** It also produced §5.5, the strongest
-> result in the paper, which a partial read could not have reached.
+> **A full reading of [Certify] §3.5–§3.8, §4 and §9 corrected three things in this analysis**: the
+> comparison statistic (§5.1), the requirement that a sized test actually be run rather than merely
+> sized (§5.4–§5.5), and the population we may extrapolate from (§7). **Every correction ran against
+> us.** The full reading also produced §5.5, the strongest result in the paper.
 
 ---
 
@@ -51,12 +49,11 @@ model's own `F16` reference.
 
 **Five results.**
 
-**First, their headline ratio does not transfer, though smaller than Draft 1 claimed.** Computed as
-they compute it — the median of finite cellwise ratios — guard verdict churn runs **1.86× the net
-accuracy delta** against their **3.85×**. ⚠️ Draft 1 reported 1.4× against their 5.40×, comparing a
-cellwise median to a ratio-of-medians and partitioning by verdict direction rather than by
-correctness. **Both figures are now computed both ways against their matching statistic** (ratio of
-medians: ours 2.75×, theirs 5.40×).
+**First, their headline ratio does not transfer.** Computed as they compute it — the median of
+finite cellwise ratios — guard verdict churn runs **1.86× the net accuracy delta** against their
+**3.85×**. **Both figures are computed both ways against their matching statistic** (ratio of
+medians: ours 2.75×, theirs 5.40×); comparing a cellwise median to a ratio-of-medians, or
+partitioning by verdict direction rather than by correctness, overstates the gap.
 
 **Second, and this is the strongest result here: the evidential crisis their paper documents does not
 occur in this domain.** They report the share of cells that are neither certifiable at the registered
@@ -117,7 +114,7 @@ decision rather than something a judge infers from a generation. Applying their 
 produces findings neither could have observed, and two of the three below are work the sources
 **named as outstanding and did not do**.
 
-**Three things remain, and we claim only these:**
+**Four things remain, and we claim only these:**
 
 1. **Directional churn** (§5.2). [Certify]'s churn is symmetric by construction, because
    correct→wrong and wrong→correct are the same kind of event on a benchmark. **On a guard they are
@@ -135,8 +132,7 @@ produces findings neither could have observed, and two of the three below are wo
 
 4. **A test of whether the known mechanism reaches this object** (§5.8). [MarginShrink]'s damage law
    is fitted entirely on generative instruct models. **Whether it governs a classifier whose verdict
-   *is* the decision was untested by them or by anyone**, and an earlier draft of this paper listed it
-   as a gap we could not close. We closed it. **The law is theirs; the measurement of its reach, and
+   *is* the decision was untested by them or by anyone.** **The law is theirs; the measurement of its reach, and
    one negative result inside it, are ours.**
 
 **We claim no novelty on:** the churn-versus-net-delta argument, the cancellation account, TOST
@@ -236,7 +232,7 @@ used. This differs from other corpora in this program and is stated because it c
 
 ## 5. Results
 
-### 5.1 The ratio does not transfer, and Draft 1 compared the wrong number
+### 5.1 The ratio does not transfer, and which statistic is compared matters
 
 `R1` [Certify] §4.2 is explicit that two different statistics are in play:
 
@@ -252,9 +248,9 @@ used. This differs from other corpora in this program and is stated because it c
 | median of finite **cellwise** ratios | **1.86×** | **3.85×** |
 | **ratio of medians** | **2.75×** | **5.40×** |
 
-⚠️ **Draft 1 reported 1.4× against 5.40×** — a cellwise median against a ratio-of-medians, and
-computed on a net delta partitioned by *verdict* direction rather than by *correctness*. Their net
-delta is an accuracy delta. **Corrected, the gap is about 2×, not about 4×.**
+**A cellwise median set against a ratio-of-medians, on a net delta partitioned by *verdict*
+direction rather than by *correctness*, reads as 1.4× against 5.40× — a gap of about 4×.** Their
+net delta is an accuracy delta. **Matched statistic to statistic, the gap is about 2×.**
 
 ⚠️ **We also tested whether arm separation explained the gap, and it does not.** The pre-registration
 keeps the FNR and FPR arms apart, and arm separation prevents exactly the cancellation their critique
@@ -344,7 +340,7 @@ claim. That is a fact about the evaluation, not a defect in the models.
 
 ⚠️ **What this table is not.** Following [Certify] §3.2, it is the planning size for 80% power under
 an assumed **true difference of zero**. **It does not tell you how many items would certify the delta
-we actually observed**, and must not be read that way. Their §3.6 adds the constraint Draft 1 missed:
+we actually observed**, and must not be read that way. Their §3.6 adds a further constraint:
 **meeting the count makes the test informative, it does not certify anything on its own — the test
 still has to be run and to pass.** §5.5 runs it.
 
@@ -356,9 +352,9 @@ extrapolation from their atlas.
 
 ### 5.5 The test, actually run — and a gray zone that is empty
 
-⚠️ **Draft 1 reported required sample sizes and stopped there.** [Certify] §3.6 forecloses that:
+**Reporting required sample sizes is not sufficient.** [Certify] §3.6 is explicit:
 *"any claim that a model meeting these counts is equivalent [is not supported], because meeting the
-count makes the test informative, and the test still has to be run and to pass."* **We ran it.**
+count makes the test informative, and the test still has to be run and to pass."* **So we ran it.**
 
 `R8` **The framework applies to guards by an identity worth stating.** Their §3.5 requires only that
 the harness assign each item a correct-or-incorrect state, and explicitly excludes LLM-as-judge
@@ -447,7 +443,6 @@ is not the finding.**
 
 ### 5.8 The mechanism reaches guards — measured, not assumed
 
-⚠️ **An earlier draft of this paper said we could not test this. We since did.**
 [MarginShrink]'s law is fitted on **16 generative instruct models** where every decision is a
 next-token choice between two continuations. **No guard classifier appears in their study, nor in
 [Certify] or [QualityProxy].** A guard's verdict *is* the decision rather than a token inside a
@@ -574,8 +569,7 @@ prior corpus we imported it from, and only measurement settled it (§5.5).
    the other four models' comparisons rest on an assumption.
 5. **The corpus is adversarially weighted** (§3), so absolute rates are not deployment rates.
 6. **H1's direction was known before the study was designed** (§1).
-7. **A mechanism exists and it is not ours; we do not test whether it reaches guards.** ⚠️ **An
-   earlier draft of this paper claimed the direction was unexplained. That was wrong.**
+7. **The mechanism is not ours, and our test of its reach ran on a different serving stack.**
    **[MarginShrink] supply the mechanism**: compression damage is **proportional, not additive** —
    the quantized margin follows *m′* = *c·m* + *b* + ε, with the surviving fraction *c* collapsing
    from a median 0.86 at 4 bits to 0.33 at 3 and **0.00 at 2**. Confident decisions therefore lose the
@@ -638,7 +632,7 @@ How to Predict Them.* Holistic AI; UCL Centre for Artificial Intelligence. arXiv
 non-archival track.
 
 [T-03] V. Jha. *Measuring Guard Models: Asymmetry, Transfer, and the Instruments That Cannot See
-Them.* Draft 4, 2026-08-31. — source of the corpus, the ladder, and all 35 cells of per-item verdicts.
+Them.* Manuscript, 2026. — source of the corpus, the ladder, and all 35 cells of per-item verdicts.
 
 ---
 

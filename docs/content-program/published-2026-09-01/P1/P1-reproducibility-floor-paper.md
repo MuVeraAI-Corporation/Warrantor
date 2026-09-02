@@ -1,6 +1,6 @@
 # How Reproducible Is a Guard Evaluation? A Measured Floor, and Where It Isn't Small
 
-**Research paper · Draft 1 · 2026-08-31 · Vikram Jha**
+**Research paper · 2026-08-31 · Vikram Jha**
 *Catalog ref: P1 · target: USENIX Security 2027 / IEEE S&P 2027*
 
 > **Pre-registered before any measurement.** Hypotheses, arms, the acceptability comparison and the

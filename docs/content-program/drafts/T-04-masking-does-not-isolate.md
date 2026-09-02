@@ -2,12 +2,8 @@
 
 ### Two rejected LoRA runs, and what an unsupervised output field does when its neighbor is tuned
 
-**Research paper (short) · Draft 2 · 2026-09-01 · Vikram Jha**
-*Draft 2 adds §5: a three-arm target-module ablation that discharges the principal limitation of Draft 1. One of the three isolation routes §6 offered is closed by it.*
+**Research paper (short) · 2026-09-01 · Vikram Jha**
 *Catalog ref: T-04 · ~5,300 words · target: SaTML 2027 short/position track, or an ML-safety workshop*
-
-> Written in third person for double-blind. Model, corpus and infrastructure names are given; no
-> author, institution or repository is identified.
 
 ---
 
@@ -64,10 +60,10 @@ usually get to make, because unsuccessful runs are rarely reported at all.
 
 **Contributions.**
 
-**⚠️ Novelty, bounded first.** That loss masking fails to isolate a field under a shared adapter is
+**Novelty, bounded first.** That loss masking fails to isolate a field under a shared adapter is
 **documented concurrently**, and that binary targets produce binary behavior is **established
-practice**. §8 withdraws the broader claim an earlier draft made and cites the work that refutes it.
-Four narrower contributions survive:
+practice**. §8 states the contribution at that narrower width and cites the concurrent work.
+Five narrower contributions survive:
 
 1. **The distributional signature.** The per-class distribution of a masked *categorical enum*
    measured against the base model's own counts — overproduction of one class, collapse of another,
@@ -204,10 +200,9 @@ That is a corpus-level constraint with a general shape: **the signal needed to s
 three-valued severity output exists where it cannot be trained on and is absent where it could be.**
 Any practitioner attempting a graded severity output from these corpora will hit the same wall.
 
-**Correction, 2026-08-30: the constraint is corpus-specific, not general.** The paragraph above is
-accurate about the two corpora in this program's mixture, and an earlier draft over-generalized it to
-"any practitioner attempting a graded severity output from these corpora." A survey of public
-alternatives refutes that. The Aegis AI Content Safety Dataset 1.0 carries an explicit third severity
+**The constraint is corpus-specific, not general.** The paragraph above is accurate about the two
+corpora in this mixture and does not generalize beyond them. A survey of public alternatives shows
+why. The Aegis AI Content Safety Dataset 1.0 carries an explicit third severity
 value, **`Needs Caution`**, in its **training** split -- 1,658 occurrences in a 4,000-row sample --
 alongside five per-annotator label columns that supply exactly the annotator-agreement signal this
 section reports as available only in WildGuardMix's test split.
@@ -217,8 +212,8 @@ is possible; it is not possible from the mixture used here.** The corpus-selecti
 produced the failure is the finding, not a property of the field. A practitioner who needs graded
 severity should choose a corpus that labels it, and one exists.
 
-*This correction does not rescue the runs. Both were trained on the mixture described above and both
-failed for the reasons given. It removes an over-claimed generalization from the analysis of why.*
+*This does not rescue the runs: both were trained on the mixture described above and both failed
+for the reasons given.*
 
 
 So supervising severity at all means supervising it binary. Which left the second option.
@@ -280,14 +275,10 @@ should not be reasoned about as one.
 
 ## 5. Runs 3–5 — retargeting the adapter, and the limitation that closes
 
-§7 of an earlier draft of this paper named a limitation and made a prediction under it:
-
-> *One adapter configuration tested. A different rank or a different target-module set might reduce
-> the leakage. **It should not eliminate it**, since the projections producing both fields overlap
-> under every standard configuration we are aware of — but we did not test that, and the claim is
-> therefore mechanistic rather than empirical.*
-
-We have now tested it. The prediction holds, and the route it was hedging is closed.
+The mechanistic account in §4.3 makes a prediction: a different target-module set might reduce the
+leakage but should not eliminate it, since the projections producing both fields overlap under every
+standard configuration we are aware of. Left there, the claim is mechanistic rather than empirical.
+This section tests it. The prediction holds, and the route it was hedging is closed.
 
 ### 5.1 Design
 
@@ -383,14 +374,15 @@ The mechanistic claim of §7 is now an empirical one, and the weaker reading of 
 and it at least keeps the severity line well-formed. **That is not a fix**, and we record it as a
 retreat rather than a resolution.
 
-**Isolation requires separate parameters, not a flag.** Three routes remain, and none of them is a
-third setting of the masking option:
+**Isolation requires separate parameters, not a flag.** Of three candidate routes, none is a third
+setting of the masking option, and §5 closes one:
 
-1. **A second adapter** carrying the severity field, with its own parameters.
-2. **Target modules that do not carry severity** — which requires knowing which projections produce
-   which field, and is a real open question at this scale.
-3. **A corpus that can supervise all three severity values** — which, per §3.5, does not currently
-   exist in the public guard mixtures.
+1. **A second adapter** carrying the severity field, with its own parameters — untested, and the
+   only surviving structural route.
+2. **Target modules that do not carry severity** — closed by §5: no such set exists among the
+   projections a LoRA adapter addresses here.
+3. **A corpus that can supervise all three severity values** — which, per §3.5, exists (Aegis
+   carries a third value in its train split) but is not the mixture used here.
 
 **A note on gates.** Both runs were stopped by an automated parity gate before a human decided
 anything. The gate's value here was not that it caught a bad model; it is that it produced two
@@ -406,19 +398,15 @@ emits a single boolean would have discarded the finding.
 size generalizes; we claim the mechanism does, because it follows from weight sharing rather than
 from any property of this model.
 
-**One adapter configuration tested — DISCHARGED for target modules, standing for rank.** This
-limitation previously read: *"A different rank or a different target-module set might reduce the
-leakage. It should not eliminate it... but we did not test that, and the claim is therefore
-mechanistic rather than empirical."* §5 tests the target-module half and the prediction holds:
-attention-only and MLP-only each eliminate nothing and each destroy the class outright, so for
-target modules the claim is now empirical. **The rank half is still untested.** All three arms ran
-at rank 16, alpha 32; we do not know what a much larger or much smaller adapter does, and §5's
-result gives no reason to expect rank to behave like target-module choice.
+**One adapter rank tested.** §5 tests target-module choice and the prediction holds: attention-only
+and MLP-only each destroy the class outright, so for target modules the claim is empirical. **The
+rank dimension is untested.** All three arms ran at rank 16, alpha 32; we do not know what a much
+larger or much smaller adapter does, and §5's result gives no reason to expect rank to behave like
+target-module choice.
 
-**The evaluations were re-run, and they reproduce.** An earlier version of this section reported that
-the raw per-item outputs no longer existed: the results directory had been excluded from version
-control and never committed, so every figure survived only as recorded prose and as hand-transcribed
-literals whose per-class counts were back-computed from published rates.
+**The baseline evaluations were re-run, and they reproduce.** The original per-item outputs were not
+retained — the results directory was never committed — so the figures in §2–§4 survived as recorded
+rates and as hand-transcribed counts back-computed from them.
 
 **Both baseline evaluations were re-executed on 2026-08-30** against the same pinned configuration --
 num_ctx 8192, seed 0, temperature 0, fail-closed, the full 1,699-item held-out split, both models at
@@ -442,8 +430,8 @@ for the reconstructed figures and had no way to verify at the time.
 
 **Consequence.** The per-item records exist again: 1,699 rows per model, each carrying the sample
 identifier, expected and predicted labels, emitted severity, gated categories and error state. This
-paper ships an artifact rather than an apology, and its baseline numbers are now measured twice, four
-months apart, on the same configuration.
+paper ships an artifact, and its baseline numbers are measured twice, seventeen days apart, on the
+same configuration.
 
 **What this does not restore.** The re-run regenerates the two *baseline* evaluations. The adapters
 from the two rejected training runs were not retained, so the tuned-model figures in sections 3 and 4
@@ -458,9 +446,8 @@ license and gate form disagree. Reproduction requires clearing that.
 
 ## 8. Related work
 
-An earlier draft of this section claimed that no treatment existed of what happens to an unsupervised
-output field when a neighboring field is tuned under a shared adapter. **That claim does not survive
-a literature check and has been withdrawn.** *Reasoning-Trace Collapse* (arXiv:2605.21127) runs the
+The closest prior treatment of what happens to an unsupervised output field when a neighboring
+field is tuned under a shared adapter is *Reasoning-Trace Collapse* (arXiv:2605.21127), which runs the
 same configuration — a rank-16 LoRA over the standard attention and MLP projections, four open-weight
 reasoning models, two-field completions of the form (reasoning, answer), the reasoning field excluded
 from the cross-entropy but left in the target while the answer field is supervised — and it measures
@@ -489,7 +476,7 @@ parameters *negative transfer*, and its anti-correlated signature the *seesaw ph
 separation of shared from task-specific parameters as the standard remedy (Tang et al., RecSys 2020).
 Continual learning gives the sharper form: under a moving backbone, classes receiving no loss term
 still have their feature distributions drift, which is why *semantic drift* compensation exists (Yu
-et al., CVPR 2020; Goswami et al., ECCV 2024). The same holds for LoRA specifically — adaptation
+et al., CVPR 2020; Gomez-Villa et al., ECCV 2024). The same holds for LoRA specifically — adaptation
 degrades held-out capability that no loss protects, and the working remedy is an explicit
 preservation term over the non-target distribution rather than its omission (Xu et al.,
 arXiv:2605.29498) — while interference under a single shared adapter is documented with uniformly
@@ -534,6 +521,57 @@ success.
 
 We publish both because they cost two runs and a week, the explanations are each one sentence, and we
 could not find either sentence written down.
+
+---
+
+## References
+
+[Twist et al. 2026] L. Twist et al. *Reasoning-Trace Collapse: Evaluating the Loss of Explicit
+Reasoning During Fine-Tuning.* arXiv:2605.21127, 2026.
+
+[Ghosh et al. 2025] S. Ghosh et al. *AEGIS2.0: A Diverse AI Safety Dataset and Risks Taxonomy for
+Alignment of LLM Guardrails.* NAACL 2025.
+
+[Fang et al. 2021] C. Fang, H. He, Q. Long and W. J. Su. *Exploring Deep Neural Networks via
+Layer-Peeled Model: Minority Collapse in Imbalanced Training.* PNAS 118(43), 2021.
+
+[Choudhary et al. 2026] A. Choudhary et al. *Asymmetric Collapse in Model Merging: When Refusal
+Overwrites Recognition.* COLM 2026; arXiv:2607.27240.
+
+[Tang et al. 2020] H. Tang, J. Liu, M. Zhao and X. Gong. *Progressive Layered Extraction (PLE): A
+Novel Multi-Task Learning (MTL) Model for Personalized Recommendations.* RecSys 2020.
+
+[Yu et al. 2020] L. Yu et al. *Semantic Drift Compensation for Class-Incremental Learning.* CVPR 2020.
+
+[Gomez-Villa et al. 2024] A. Gomez-Villa, D. Goswami, K. Wang, A. D. Bagdanov, B. Twardowski and
+J. van de Weijer. *Exemplar-Free Continual Representation Learning via Learnable Drift
+Compensation.* ECCV 2024.
+
+[Xu et al. 2026] R. Xu et al. *Mask the Target: A Plug-and-Play Regularizer Against LoRA Forgetting.*
+arXiv:2605.29498, 2026.
+
+[Zhang et al. 2025] J. Zhang et al. *LoRI: Reducing Cross-Task Interference in Multi-Task Low-Rank
+Adaptation.* arXiv:2504.07448, 2025.
+
+[Yang et al. 2026] Z. Yang et al. *Disentangling Task Conflicts in Multi-Task LoRA via Orthogonal
+Gradient Projection.* arXiv:2601.09684, 2026.
+
+[Kokkinos 2017] I. Kokkinos. *UberNet: Training a Universal Convolutional Neural Network for Low-,
+Mid-, and High-Level Vision Using Diverse Datasets and Limited Memory.* CVPR 2017.
+
+[Li et al. 2022] W.-H. Li, X. Liu and H. Bilen. *Learning Multiple Dense Prediction Tasks from
+Partially Annotated Data.* CVPR 2022.
+
+[Lin et al. 2024] Z. Lin et al. *Rho-1: Not All Tokens Are What You Need.* arXiv:2404.07965, 2024.
+
+[Huerta-Enochian and Ko 2024] M. Huerta-Enochian and S. Y. Ko. *Instruction Fine-Tuning: Does
+Prompt Loss Matter?* EMNLP 2024.
+
+[Betley et al. 2025] J. Betley et al. *Emergent Misalignment: Narrow Finetuning Can Produce Broadly
+Misaligned LLMs.* arXiv:2502.17424, 2025.
+
+[Zhang et al. 2026] Y. Zhang et al. *Where vs What: Decomposing Structural and Content Failures in
+LLM-Generated Structured Outputs.* arXiv:2608.25358, 2026.
 
 ---
 

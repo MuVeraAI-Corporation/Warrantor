@@ -31,9 +31,11 @@ import sys
 D = os.path.dirname(os.path.abspath(__file__))
 TEX = os.path.join(D, "tex")
 
+#: The publication set. P2 is deliberately absent: it was never in the published set, its novelty
+#: was assessed as weakened, and it has not had the draft-apparatus edits the others have -- so the
+#: gate below would fail on it for reasons nobody has decided to fix. Excluded, not silently built.
 PAPERS = [
     ("P1", "P1-reproducibility-floor-anon.md"),
-    ("P2", "P2-input-variation-defense-anon.md"),
     ("P3", "P3-position-not-length-anon.md"),
     ("P6", "P6-composition-independence-anon.md"),
     ("P8", "P8-quantization-equivalence-anon.md"),
@@ -106,15 +108,104 @@ def split_references(md: str):
     if not m:
         return md, []
     body, tail = md[:m.start()], md[m.end():]
+    # ⚠️ A blockquote after the last entry is NOT part of that entry. P1 and P3 each closed their
+    # reference list with a quoted paragraph about the scope of the prior-art check, and the
+    # lookahead below -- which stopped only at the next entry or heading -- swallowed it into the
+    # final bibliography item, complete with literal ">" markers rendered as \textgreater. The
+    # entry pattern now also stops at a blockquote line, and any quoted material in the tail is
+    # dropped rather than typeset: a bibliography holds references, and commentary about how the
+    # references were found belongs in the body or nowhere.
+    tail = re.sub(r"^>.*(?:\n>.*)*", "", tail, flags=re.M)
     # entries look like: [Key] Author. *Title.* Venue, year.
-    entries = re.findall(r"^\[([^\]]+)\]\s*(.+?)(?=\n\[|\n##|\Z)", tail, flags=re.M | re.S)
+    entries = re.findall(r"^\[([^\]]+)\]\s*(.+?)(?=\n\[|\n##|\n>|\Z)", tail, flags=re.M | re.S)
     return body, [(k, re.sub(r"\s+", " ", v).strip()) for k, v in entries]
 
 
 def strip_production_notes(md: str) -> str:
-    """Production notes are internal working notes, not part of a submission."""
-    m = re.search(r"^### Production notes\s*$", md, flags=re.M)
+    """Production notes are internal working notes, not part of a submission.
+
+    ⚠️ ANY heading level and ANY suffix. The original pattern matched only ``### Production notes``
+    on a line by itself, and T-04 carries ``## Production notes (strip before submission)`` -- a
+    heading that literally instructs the reader to remove it. The regex did not match, so the
+    section shipped in the published PDF, venue deadlines and all. A stripper that only strips the
+    exact spelling it was first shown is not a stripper.
+    """
+    m = re.search(r"^#{2,4}\s*Production notes\b.*$", md, flags=re.M | re.I)
     return md[:m.start()] if m else md
+
+
+# ---------------------------------------------------------------------------
+# Draft apparatus. The revision history of a paper is not part of the paper.
+#
+# ⚠️ WHY THIS EXISTS. Six papers were rejected by a preprint server. Not one rejection was about
+# the science. The published PDFs narrated their own drafting -- "Draft 1 was wrong three times",
+# "That claim is withdrawn", "Corrections are marked in place" -- carried dozens of warning glyphs
+# rendered as coloured triangles, kept struck-through text, shipped a section headed "strip before
+# submission", and in one case contained literal unfilled blanks ("___ of 9 rows verified"). A
+# moderator reading that sees a working document, and is right to.
+#
+# The honest disclosures those passages were making -- a claim was retracted, a range was
+# re-tested, a limitation stands -- BELONG in the paper. What does not belong is the version
+# bookkeeping around them. The source edits move the substance into plain statements; the
+# markers below are what must not survive into any built .tex, and the gate at the bottom refuses
+# to write one that contains them. Same shape as `residual_unicode`: a build that fails here is a
+# build that would have been rejected anyway, only later and by someone else.
+# ---------------------------------------------------------------------------
+
+#: Patterns that mark a document as a working draft. Checked against the generated LaTeX, because
+#: the LaTeX is what compiles into the thing that ships. Each carries the reason it is banned.
+DRAFT_APPARATUS = [
+    (r"\bDraft\s*[0-9]\b", "revision number in the body"),
+    (r"\bearlier (?:draft|version) of this (?:paper|section)", "revision history narrated"),
+    (r"\b(?:this|the first|a previous|an initial) draft\b", "draft self-reference"),
+    (r"Production notes", "internal working notes"),
+    (r"strip (?:before|at) (?:submission|camera-ready)", "an instruction to the author"),
+    (r"marked in place", "revision bookkeeping"),
+    (r"_{3,}", "an unfilled blank"),
+    (r"\\warn\b", "warning glyph"),
+    (r"\\(?:sout|st)\{", "struck-through text"),
+    (r"PRIOR-ART-ASSESSMENT", "link to an internal file"),
+    (r"ACTION-SURFACE-v1\.md", "link to an internal file"),
+    (r"Catalog ref", "internal routing line"),
+    (r"double-blind", "submission-mode note in a preprint"),  # named build only; see build_preprint
+    (r"\(Table A[0-9], appendix", "placeholder standing in for a table"),
+    (r"Deferred, and stated as deferred", "process language"),
+    (r"does not fit the present cycle", "process language"),
+]
+
+
+def strip_draft_apparatus(md: str) -> str:
+    """Remove the drafting markers that every build must drop, before pandoc sees them.
+
+    Only the markers. The sentences they decorated stay, because in every case the sentence
+    already carries the caution in its own words -- "This is still a hypothesis, not a result" does
+    not need a triangle in front of it. Struck-through text is removed with its markers: text an
+    author has struck is text the author has retracted, and a retraction does not ship as a
+    strike-through in a paper the way it does in a memo.
+    """
+    md = md.replace("\u26a0\ufe0f", "").replace("\u26a0", "").replace("\u26d4", "")
+    md = re.sub(r"~~[^~\n]+?~~\s*", "", md)
+    md = re.sub(r"^\*Catalog ref:[^\n]*\*\s*$", "", md, flags=re.M)
+    # A run of spaces left where a glyph was, at the start of bold text.
+    md = re.sub(r"\*\* +", "** ", md)
+    md = re.sub(r"^ +\*\*", "**", md, flags=re.M)
+    return md
+
+
+def residual_draft_apparatus(tex: str, *, named: bool):
+    """Return the banned patterns present in a generated .tex, with a context snippet each.
+
+    The double-blind rule applies to the NAMED build only: the anonymous build is a double-blind
+    submission and is entitled to say so.
+    """
+    hits = []
+    for pat, why in DRAFT_APPARATUS:
+        if pat == r"double-blind" and not named:
+            continue
+        for m in re.finditer(pat, tex):
+            ctx = re.sub(r"\s+", " ", tex[max(0, m.start() - 50):m.end() + 50])
+            hits.append((why, ctx))
+    return hits
 
 
 def to_latex(md: str) -> str:
@@ -389,7 +480,37 @@ ACM_CCS = {
         "keywords": ("guard models, quantization, model compression, equivalence testing, "
                      "safety evaluation, measurement study, LLM security"),
     },
+    # T04 and T12 carry no CCS concepts (neither targets an ACM venue) but do need keywords: the
+    # PDF metadata of every build now records them, and a preprint server indexes on that field.
+    "T04": {
+        "concepts": [],
+        "keywords": ("guard models, LoRA, fine-tuning, loss masking, negative result, "
+                     "AI safety, ablation"),
+    },
+    "T12": {
+        "concepts": [],
+        "keywords": ("systematization, SoK, AI agents, containment, authorization, "
+                     "execution control, reference monitor, security"),
+    },
 }
+
+
+def pdf_metadata_block(title: str, keywords: str, author: str | None = None) -> str:
+    """The `\\hypersetup` line that fills the PDF's document properties.
+
+    ⚠️ EVERY PUBLISHED PDF HAD EMPTY METADATA -- no title, no author, nothing. A preprint server
+    that reads document properties before a human does saw six untitled, unauthored documents. The
+    anonymous build sets title, subject and keywords and leaves the author EMPTY on purpose, which
+    `verify_submission.py` enforces; the named build passes the author in.
+
+    Plain ASCII only: hyperref's pdf strings are not TeX and do not take macros or accents.
+    """
+    plain = re.sub(r"\\[a-zA-Z]+\{?|[{}$]", "", title).replace("~", " ")
+    plain = plain.replace("\u2014", "-").replace("\u2013", "-").replace("\u2019", "'")
+    parts = [f"pdftitle={{{plain}}}", f"pdfsubject={{{plain}}}", f"pdfkeywords={{{keywords}}}"]
+    if author:
+        parts.insert(1, f"pdfauthor={{{author}}}")
+    return "\\hypersetup{" + ",".join(parts) + "}"
 
 
 def acm_topmatter(tag):
@@ -420,12 +541,16 @@ def frontmatter(target, title, subtitle, tag=None):
     a paper with no title, or with acmart's placeholder author.
     """
     t = title + (r"\\[0.3em]{\large\normalfont " + subtitle + "}" if subtitle else "")
+    # Document properties for the anonymous build: title, subject, keywords -- and NO author.
+    # hyperref is loaded by every preamble, so \hypersetup is valid before \begin{document}.
+    meta = pdf_metadata_block(title, (ACM_CCS.get(tag) or {}).get("keywords", ""))
     if target == "ieee":
         # IEEE uses its own keywords environment and does NOT use ACM's CCS taxonomy, so no
         # \ccsdesc is emitted here. IEEEkeywords sits directly after \maketitle.
         kw = (ACM_CCS.get(tag) or {}).get("keywords", "")
         block = ["\\begin{IEEEkeywords}", kw, "\\end{IEEEkeywords}"] if kw else []
-        return ["\\begin{document}",
+        return [meta,
+                "\\begin{document}",
                 "\\title{" + t + "}",
                 "\\author{\\IEEEauthorblockN{Anonymous Submission}\\\\"
                 "\\IEEEauthorblockA{\\textit{Under double-blind review}}}",
@@ -433,12 +558,13 @@ def frontmatter(target, title, subtitle, tag=None):
     if target == "acm":
         # acmart wants a plain title; a \\-broken subtitle fights its own \subtitle macro.
         # CCS concepts and \keywords must precede \maketitle or acmart silently drops them.
-        return (["\\title{" + title + "}",
+        return ([meta,
+                 "\\title{" + title + "}",
                  ("\\subtitle{" + subtitle + "}") if subtitle else "",
                  "\\author{Anonymous}"]
                 + acm_topmatter(tag)
                 + ["\\begin{document}", "\\maketitle"])
-    return ["\\title{\\vspace{-2em}" + t + "}", "\\begin{document}", "\\maketitle"]
+    return [meta, "\\title{\\vspace{-2em}" + t + "}", "\\begin{document}", "\\maketitle"]
 
 
 def build(tag: str, name: str) -> bool:
@@ -456,6 +582,7 @@ def build(tag: str, name: str) -> bool:
     subtitle = sub.group(1).strip() if sub else ""
 
     md = strip_production_notes(md)
+    md = strip_draft_apparatus(md)
     md = re.sub(r"^# .+$", "", md, count=1, flags=re.M)      # title handled by \maketitle
     if sub:
         md = md.replace("### " + subtitle, "", 1)
@@ -505,6 +632,7 @@ def build(tag: str, name: str) -> bool:
     out = "\n".join(doc)
 
     bad = residual_unicode(out)
+    apparatus = residual_draft_apparatus(out, named=False)
     os.makedirs(TEX, exist_ok=True)
     dest = os.path.join(TEX, f"{tag}.tex")
     io.open(dest, "w", encoding="utf-8", newline="\n").write(out)
@@ -514,7 +642,15 @@ def build(tag: str, name: str) -> bool:
         print(f"   RESIDUAL UNICODE: {
               {repr(k): v for k, v in list(bad.items())[:6]} }")
         return False
-    print("   unicode: clean")
+    if apparatus:
+        # The .tex is still written so the failure can be inspected, but the build is FAILED:
+        # a document that narrates its own drafting is not a submission, and the last set that
+        # shipped this way was rejected for exactly that.
+        print(f"   DRAFT APPARATUS: {len(apparatus)} hit(s)")
+        for why, ctx in apparatus[:6]:
+            print(f"      [{why}] ...{ctx}...")
+        return False
+    print("   unicode: clean   apparatus: clean")
     return True
 
 
@@ -523,7 +659,8 @@ def main():
     print("Converting anonymized markdown to LaTeX")
     for tag, name in PAPERS:
         ok &= build(tag, name)
-    print("\nAll converted." if ok else "\nFAILED: residual unicode -- fix UNI map before compiling.")
+    print("\nAll converted." if ok
+          else "\nFAILED: at least one paper did not pass the build gates above (unicode or draft apparatus).")
     return 0 if ok else 1
 
 

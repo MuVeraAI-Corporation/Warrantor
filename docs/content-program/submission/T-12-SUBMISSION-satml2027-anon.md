@@ -12,15 +12,10 @@
 
 > **Open Science.** The corpus table with per-cell verbatim spans, the full inter-coder disagreement
 > record, the compatibility-matrix derivation, the frozen action-surface enumeration and the coding
-> instrument are released as an anonymized artifact. No component of this work requires access to
+> instrument are released as an artifact. No component of this work requires access to
 > non-public data.
 
----
-### Where agent containment actually binds
-
-### Adjudicating the guarantees of execution controls for autonomous coding agents
-
-
+### Where agent containment actually binds: adjudicating the guarantees of execution controls for autonomous coding agents
 
 ---
 
@@ -270,9 +265,10 @@ from the source. Disagreements between coders are adjudicated on the record and 
 authors describe what their control mediates rather than what fraction of the agent's action surface
 that represents. So the SoK derives it.
 
-**The frozen action surface.** Seven effectors, frozen 2026-08-30 as [`ACTION-SURFACE-v1.0`](ACTION-SURFACE-v1.md)
-and published with the artifact. That document also reconciles this enumeration with [Anon-D]’s
-instrumentation classes, so the derived scores here and the measured score in §9 share a denominator:
+**The frozen action surface.** Seven effectors, frozen 2026-08-30 as `ACTION-SURFACE-v1.0` and
+published with the artifact. That document also reconciles this enumeration with the
+instrumentation classes used to measure the §9 system, so the derived scores here and the measured
+score in §9 share a denominator:
 
 | | Effector | Note |
 |---|---|---|
@@ -346,7 +342,7 @@ L1?** Across the 15 works: **L0 claim-only 4, L1 source-inspection 0, L2 behavio
 
 ---
 
-### 3.5.2 Coding method: machine coding, disclosed, with human verification on load-bearing rows
+### 3.5 Coding method: machine coding, disclosed, with human verification on load-bearing rows
 
 SaTML requires an **LLM usage considerations** section. Ours is not incidental, so it is stated here
 as method rather than confessed in a limitations paragraph.
@@ -362,9 +358,9 @@ agreement figure in this paper is labeled accordingly, and a Cohen's kappa is re
 marginals support one — which for the coverage axis they do not.
 
 **The verification layer.** Machine coding alone is insufficient for rows that carry findings. Every
-work supporting a headline claim — nine of fifteen — is **verified by a human coder against the
+work supporting a headline claim — nine of fifteen — is **designated for verification by a human coder against the
 recorded spans**, who confirms, corrects or rejects each verdict. The count of **overturned rows is
-reported** in this section. A non-zero count is evidence the layer is real rather than ceremonial; a
+reported in §10**. A non-zero count is evidence the layer is real rather than ceremonial; a
 zero count would itself require explanation.
 
 **Three things the machine layer does that a human layer would not.**
@@ -407,9 +403,9 @@ not scored, so the corpus is a stated population rather than a moving one.
 
 ## 5. The corpus
 
-> **Pilot-populated 2026-08-30.** Numbers below carry their sample size. The full coverage pass runs
-> October–November; corpus freeze 15 November. Nothing here is a final result and every figure is
-> labeled with what produced it.
+> **Scope of this version.** Numbers below carry their sample size: fifteen works scored in full,
+> selected for tier-axis power. The full coverage pass runs October–November and the corpus freezes
+> on 15 November; every figure is labeled with what produced it.
 
 ### 5.1 Screening
 
@@ -726,7 +722,7 @@ axioms about the same component, not differing emphases.
 Each row below pairs with both A4 works, giving the twenty. The full per-pair justification with
 quoted spans from both sides is in the artifact.
 
-*(Table A1, appendix — 10 rows.)*
+*The ten rows are given in Table A1 (Appendix).*
 
 ##### Robustness of the count
 
@@ -841,7 +837,7 @@ event presented is the event that will occur. The last trait is where §6.3.1 at
 
 #### 7.4.2 The objectives fall into four shapes, and eleven of fifteen carry an information-flow conjunct
 
-*(Table A2, appendix — 4 rows.)*
+*The four shapes are given in Table A2 (Appendix).*
 
 #### 7.4.3 The pairing matrix: sixteen cells available, eight occupied
 
@@ -861,7 +857,7 @@ of one observation — they are two independent measurements that converge on th
 
 #### 7.4.4 Per work: the surrogate enforced against the objective advertised
 
-*(Table A3, appendix — 15 rows.)*
+*The fifteen rows are given in Table A3 (Appendix).*
 
 #### 7.4.5 The residual surface: five shapes, and two of them are the gap
 
@@ -869,7 +865,7 @@ The distance between surrogate and objective is not undifferentiated. It resolve
 residual shapes; every work falls into at least one and most into two or three. Quotations are
 verbatim from the codings, which in turn quote their sources.
 
-*(Table A4, appendix — 5 rows.)*
+*The five shapes are given in Table A4 (Appendix).*
 
 **R1 and R2 are the two halves of the authorization–execution gap.** R1 is what remains when acceptance
 is bound correctly and action is unbounded *within* the accepted scope; R2 is what remains when the
@@ -903,21 +899,15 @@ correctly coded split; each is evidence that the shape vocabulary needs four ent
 A small demonstration, one representative system per tier, showing bypass of the advertised
 guarantee.
 
-**Deferred, and stated as deferred.** A bypass demonstration on representative systems, one per tier, would convert this paper from analysis into analysis-with-evidence, and it does not fit the present cycle. It is named here rather than omitted because the weakest-link rule makes a falsifiable prediction — a system scored B-T3 should fall to a subprocess spawn that never traverses its chokepoint — and the honest position is that the prediction is published before the demonstration, not after.
-
-**Why this exists.** It converts the paper from analysis into analysis-with-evidence, and it is the
-difference between a borderline and a clear accept. It also disciplines the weakest-link rule: if the
-rule predicts a system is proxy-tier, a subprocess spawn should defeat it, and that is demonstrable
-rather than argued.
+**Not included in this version.** A bypass demonstration on representative systems, one per tier, would convert this paper from analysis into analysis-with-evidence. It is named here rather than omitted because the weakest-link rule makes a falsifiable prediction — a system scored B-T3 should fall to a subprocess spawn that never traverses its chokepoint — and the prediction is published before the demonstration, not after.
 
 ---
 
 ## 9. Applying the rule to a system the authors know well
 
-> **Double-blind note (strip at camera-ready, replace with disclosure).** This section is written in
-> third person per §3.5.1. One scored system is the authors'; the relationship is declared to the
-> chair through the conflict-of-interest mechanism and disclosed in the camera-ready. Nothing in the
-> scoring procedure differs for it.
+> **Double-blind note.** This section is written in third person. One scored system is the
+> authors'; the relationship is declared to the chair through the conflict-of-interest mechanism and
+> will be disclosed in the camera-ready. Nothing in the scoring procedure differs for it.
 
 **System W** issues cryptographically signed warrants and produces tamper-evident action receipts.
 Those are genuine T1 mechanisms and they constrain what a verifier will accept. **They do not
@@ -965,9 +955,10 @@ specific rather than general.
 the mitigation; they are not a solution, and a reader should weight the scoring accordingly.
 
 **Machine coding with human verification.** All coding was performed by opposed-stance LLM agents;
-the nine works carrying headline findings are human-verified against recorded spans (§3.5.2).
+the nine works carrying headline findings are designated for human verification against recorded
+spans (§3.5).
 Agreement figures are reported as stance-divergence measurements and as upper bounds on reliability,
-never as inter-coder reliability. **Human verification: ___ of 9 load-bearing rows verified, ___ overturned.** The nine works carrying headline claims are verified by a human coder against the recorded verbatim spans before submission. The overturned count is reported here whatever it is; a count of zero is stated together with the reason it is credible, since a verification layer that never overturns anything is indistinguishable from one that was not performed.
+never as inter-coder reliability. **Human verification of the nine load-bearing rows is not complete in this version.** The nine works carrying headline claims are designated for verification by a human coder against the recorded verbatim spans. The overturned count will be reported whatever it is; a count of zero will be stated together with the reason it is credible, since a verification layer that never overturns anything is indistinguishable from one that was not performed.
 
 **Corpus size and selection.** Fifteen works, selected for tier-axis power rather than sampled. The
 contribution is adjudication rather than enumeration, and the population is stated rather than
@@ -1108,10 +1099,6 @@ invoked* is what a partial coverage vector denies. The claim is not that these p
 agents, which is uncontroversial, but that a corpus can be scored against them with a per-cell audit
 trail — which orders the literature differently than its abstracts do.
 
-**Reads that discharge debt elsewhere in the companion studies.** HCP (arXiv:2606.29073), DEMM-Bench
-(arXiv:2606.20634) and ClawGuard (arXiv:2604.11790) are all in-corpus rows under G1–G4. Reading them
-inside this schedule costs nothing additional and settles open positioning questions for two other
-papers at the same time.
 
 ---
 
@@ -1185,7 +1172,7 @@ released artifact.*
 ## References
 
 Every entry was resolved against the arXiv API on 2026-09-01; titles and author lists are
-as recorded there, not as summarised in this paper's tables.
+as recorded there, not as summarized in this paper's tables.
 
 **This list is not the corpus.** The screened corpus is *n* = 49 (§5.2). The 23 works below
 are those identified by arXiv identifier somewhere in this paper or its coding records —

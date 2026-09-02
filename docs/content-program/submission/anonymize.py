@@ -36,9 +36,9 @@ import sys
 SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "drafts")
 OUT = os.path.dirname(os.path.abspath(__file__))
 
+#: The publication set. P2 excluded on purpose; see to_latex.py for why.
 PAPERS = [
     "P1-reproducibility-floor-paper.md",
-    "P2-input-variation-defense-paper.md",
     "P3-position-not-length-paper.md",
     "P6-composition-independence-paper.md",
     "P8-quantization-equivalence-paper.md",
@@ -51,8 +51,10 @@ ANON_BYLINE = "**Anonymous submission — under double-blind review**"
 #: (pattern, replacement) applied in order. Order matters: reference-list entries before inline
 #: citation keys, specific phrasings before the backstops.
 RULES = [
+    # The companion entry reads "Manuscript, 2026." in the named sources (it once read
+    # "Draft 4, 2026-08-31", which was revision bookkeeping and was removed from every paper).
     (r"\[T-03\] V\. Jha\. \*Measuring Guard Models: Asymmetry, Transfer, and the Instruments That\s+"
-     r"Cannot See\s+Them\.\* Draft 4, 2026-08-31\.",
+     r"Cannot See\s+Them\.\* Manuscript, 2026\.",
      "[Anon-A] Anonymous. *Companion submission; title withheld for review.* Under review, 2026."),
     (r"\[T-03([^\]]*)\]", "[Anon-A\\g<1>]"),
     (r"\[T-04([^\]]*)\]", "[Anon-B\\g<1>]"),
