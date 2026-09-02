@@ -53,3 +53,41 @@ the automated **Review** stage returned, verbatim:
 No reason is given. The review is automated. This is the same outcome as the first round, on a
 PDF with none of the first round's packaging defects — so the packaging cannot be *confirmed* as the
 cause, and the remaining five were **not** submitted pending an answer from alphaXiv.
+
+## Diagnosis — 2026-09-02, from the account settings page
+
+The automated review is not judging the PDF. It is trying to bind the submitter to the author, and
+it has nothing to bind with:
+
+| | value |
+|---|---|
+| alphaXiv account email (only one) | `vikram01.jha@gmail.com` |
+| Author email printed in all six PDFs | `vikram@muveraai.com` |
+| Researcher profile linked | **none** — "We couldn't find a profile to link for Vikram Jha" |
+| Google Scholar connected | **no** |
+
+alphaXiv's identity model matches the account's verified email against author emails in the PDF, or
+uses a verified researcher profile (its feedback tracker and a 2024 HN thread on claiming both say
+so). Neither exists here, so every submission falls to "could not be published automatically" — in
+both rounds. **The packaging defects fixed in revision 2 were real; they were not this gate.**
+
+## What unblocks it — one of these, done by the account holder
+
+1. **Add `vikram@muveraai.com` to the alphaXiv account** (Settings → Account → Email → Add) and
+   verify it from that inbox. Cheapest, and matches the PDFs exactly. Then resubmit.
+2. **Connect Google Scholar** and link a researcher profile (Settings → Connections).
+3. **Appeal as a false positive** to <contact@alphaxiv.org> — draft below.
+
+Do (1) regardless; (3) only if (1) still fails.
+
+### Draft appeal (send only if adding the email does not resolve it)
+
+> Subject: Automated rejection — false positive on author verification
+>
+> Hello — my submission "How Reproducible Is a Guard Evaluation? A Measured Floor, and Where It
+> Isn't Small" (author Vikram Jha, MuVeraAI, ORCID 0009-0004-3959-6099) was rejected at the
+> automated Review step with "could not be published automatically". I believe the cause is that
+> my account email (vikram01.jha@gmail.com) differs from the corresponding-author email in the PDF
+> (vikram@muveraai.com); I have since added and verified the latter on the account. I am the sole
+> author. Five further papers by the same author are queued behind this one. Could you clear the
+> false positive, or tell me what the check requires? Thank you.
