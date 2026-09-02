@@ -16722,59 +16722,138 @@ containment verb within a stated bound with no operator in the path.
 
 ### Task 3.1: Agent principals at five grains from SPIFFE SVIDs
 
-**Anchor.** L6-02, and the Five Eyes joint guidance of 2026-05-01: each agent a distinct principal with a
+Anchor (L6-02, and the Five Eyes joint guidance of 2026-05-01): each agent a distinct principal with a
 cryptographically anchored key or certificate. The incident's enabling condition was a *shared* service credential;
-a principal that is a string constant is not a principal. The catalog's own falsification test for L6-02 is that no
-agent action authenticates with a credential shared across two workloads.
+14 valid third-party write tokens became collective property within minutes of being posted. A principal that is a
+string constant is not a principal, and the catalog's falsification test for L6-02 is that no agent action
+authenticates with a credential shared across two workloads.
 
-**Step 0 — establish the ground truth before writing anything.** Read `deploy/spire/` in full (or record that it
-does not exist on `origin/main`, which changes this task from "wire" to "introduce"). Grep the workspace for
-`DEFAULT_CLI_SUBJECT` and record every call site with file and line. Record whether `rust/agent-identity-graph` is
-on `origin/main` (verified 2026-09-02: **it is not**). Capture the verbatim output of each command into the task
-log; later Steps assert against these strings.
+**What the code actually shows (read 2026-09-02, all paths under `M:/Project AumOS - Open Secure AI Alliance/aumos`,
+verified against `origin/main` not the dirty checkout).** The premise holds and the codebase has already diagnosed
+itself. `rust/warrant/src/lib.rs:88` declares `pub const DEFAULT_CLI_SUBJECT: &str = "spiffe://muveraai.com/agent/local";`
+and its own doc comment (lines 85-87) says, verbatim: *"A placeholder, not an identity. Named as a constant because
+anything answering 'what does this machine hold, and for whom' has to be able to say how much of its answer is this
+one string: a per-person breakdown of warrants that all carry the same default is a fabricated answer."* There is a
+**second** default this task's stub did not name: `DEFAULT_MCP_SUBJECT = "spiffe://muveraai.com/agent/mcp"`
+(`lib.rs:91`), whose doc comment records the harder half — *"The subject the MCP `warrant_grant` tool records. That
+path takes no subject argument at all."*
 
-**The five grains.** A principal must be addressable at: (1) the human operator, (2) the run, (3) the agent
-instance, (4) the task within the run, and (5) the delegated child. Grains 3-5 are what make L6-01's intersection
-checkable from a receipt alone; without them the chain has nothing to name.
+Fifteen call sites across four files, all on `origin/main` (`git grep -c DEFAULT_CLI_SUBJECT origin/main -- '*.rs'`
+→ `warrantor.rs:2`, `lib.rs:1`, `retention.rs:2`, `holdings.rs:10`): the constant at `lib.rs:88`; the CLI fallback at
+`warrantor.rs:797` (`.map_or(DEFAULT_CLI_SUBJECT, String::as_str)` — so `--subject` already exists and the constant is
+only the fallback); the MCP path at `mcp_endpoints.rs:188`, which passes `DEFAULT_MCP_SUBJECT` unconditionally; the
+retention special-case at `retention.rs:540`; and ten uses in `tests/holdings.rs`.
 
-**Non-goals.** Do not build an identity provider — anti-goal 2 in the specification. Consume SPIFFE/SPIRE for
-workload identity and build only the binding from an SVID to a warrant principal. Do not reconcile the two
-`ReputationEvent` types (Task 0.1's non-goal still stands). Do not touch delegation *intersection* semantics; that
-is L6-01 and landed in Task 1.5.
+**The exit ratchet already exists — do not build a new one.** `retention.rs` counts defaults today:
+`pub default_subjects: usize` (line 443), incremented at line 541 when a warrant's subject equals either default,
+surfaced through `holdings.subjects.default_subjects` (line 770) and asserted at `tests/holdings.rs:270`
+(`assert_eq!(holdings.subjects.default_subjects, 2)`). That counter *is* this task's gate. Success is new grants no
+longer incrementing it, and the existing assertion changing to reflect the new behavior rather than being deleted.
 
-**Files.**
-- Modify `rust/warrant/src/lib.rs` and every site holding `DEFAULT_CLI_SUBJECT` — replace the constant with a
-  manifest-bound principal resolved at grant time.
-- Modify `rust/agent-manifest/` — the manifest gains the principal grains it must carry.
+**`deploy/spire/` exists** (4 files, 2026-08-12): `spire-server.yaml`, `spire-agent.yaml`, `trust-domain-config.yaml`,
+`README.md`. Trust domain is `muveraai.com` in all three configs, which is the same authority already encoded in both
+constants — so the SPIFFE shape is right and only the *per-workload* half is missing. This is a wiring task, not an
+introduction. **`rust/agent-manifest` is on `origin/main`; `rust/agent-identity-graph` is not** (untracked, dirty
+checkout only) — so this task must not depend on the identity graph. If a grain needs it, stop and report rather than
+carrying a second crate in under this task's name.
+
+**Decision: narrow the constants, do not delete them.** Both stay as the *declared* fallback for a deployment with no
+SPIRE, because a deployment that silently invents an identity is worse than one that says it has none. What changes is
+that they become reachable only on an explicit, disclosed path, and the counter proves how often that path is taken.
+
+**Non-goals, stated so nobody widens this.** Do not build an identity provider (anti-goal 2) — consume SPIRE. Do not
+touch delegation *intersection* semantics; that is L6-01 and landed in Task 1.5. Do not carry in
+`agent-identity-graph`. Do not change `DEFAULT_MCP_SUBJECT`'s value. Do not delete `tests/holdings.rs:270` — amend it.
+
+**Files:**
+- Modify `rust/warrant/src/lib.rs` — the `Principal` type and the five grains; constants keep their values, gain
+  `#[doc]` stating they are a disclosed fallback.
+- Modify `rust/warrant/src/bin/warrantor.rs` — line 797's `map_or` resolves a principal before falling back.
+- Modify `rust/warrant/src/mcp_endpoints.rs` — line 188, the path that takes no subject argument at all.
+- Modify `rust/warrant/src/retention.rs` — the counter gains a per-grain breakdown; line 540's equality test survives.
+- Modify `rust/warrant/tests/holdings.rs` — line 270's assertion amended, the other nine call sites carry real
+  principals.
 - Create `rust/warrant/tests/principals.rs` — the consumer-path integration test.
-- Modify `deploy/spire/` — SVID issuance configuration, if present; otherwise create it and say so in the ledger.
-- Modify `docs/W1-delivery-gaps.md` — the identity row, with its honest tier.
+- Modify `docs/W1-delivery-gaps.md` — identity row, with its honest tier.
+- Test: `cargo test -p warrantor-warrant --test principals --test holdings -j 2`, then the full workspace gate.
 
-**Interfaces.** *Consumes:* the SVID from SPIRE; the agent manifest. *Produces:* a `Principal` type carrying the
-five grains, serialized into the settle record; no new wire format — this rides the existing envelope.
+**Interfaces:**
+- Consumes (existing, quoted): `pub const DEFAULT_CLI_SUBJECT: &str` (`lib.rs:88`);
+  `pub const DEFAULT_MCP_SUBJECT: &str` (`lib.rs:91`); `pub default_subjects: usize` (`retention.rs:443`);
+  `Warrant::grant(&id, goal, subject, bounds, now(), &verifying_key)` (`warrantor.rs:792-800`, subject is `&str`).
+- Produces: `pub struct Principal` carrying five grains — operator, run, agent instance, task, delegated child — with
+  `Display` rendering a SPIFFE ID so `Warrant::grant`'s `&str` signature is unchanged. **No wire-format change**: this
+  rides the existing envelope, so no `WAR` version bump. A `PrincipalSource` enum (`Svid`, `Flag`, `Fallback`)
+  recorded alongside, because the counter must distinguish a real identity from a disclosed default.
 
-- [ ] **Step 1 — Worktree from `origin/main`, capture the baseline.** `git worktree add`, separate
-      `CARGO_TARGET_DIR`, `-j 2`. Record the current `DEFAULT_CLI_SUBJECT` call-site list as a fixture.
-- [ ] **Step 2 — Failing test: two workloads must not share a key.** Write `principals.rs::two_workloads_never_share_a_signing_identity`,
-      granting two warrants and asserting their principals differ at grain 3. It must fail today, because the
-      constant makes them identical. Capture the verbatim failure.
-- [ ] **Step 3 — Failing test: a principal survives serialization into the settle record** and is recoverable by a
-      third party holding only the bundle and the pinned key.
-- [ ] **Step 4 — Introduce the `Principal` type** with the five grains. Minimum implementation to pass Step 2.
-- [ ] **Step 5 — Bind the manifest.** Resolve the principal from the manifest at grant time; delete the constant.
-      Assert the grep from Step 1 now returns zero call sites.
-- [ ] **Step 6 — SVID binding behind a trait**, so a deployment without SPIRE degrades to a local principal that
-      *states* it is local. Never silently.
-- [ ] **Step 7 — Tier the claim.** The principal is Tier A only where the key is hardware-held (Task 3.2). Until
-      then it renders as Tier B chokepoint. Write the disclosure text and the test that asserts the rendering.
-- [ ] **Step 8 — Full workspace gate**, both lint gates, ledger entry, `git commit -s`.
+- [ ] **Step 1 — Worktree from `origin/main`; capture the baseline the later steps assert against.**
+  ```bash
+  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin
+  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-task-3.1 -b feat/task-3.1-agent-principals origin/main
+  cd M:/wt-task-3.1
+  export CARGO_TARGET_DIR=M:/wt-task-3.1-target
+  git grep -n "DEFAULT_CLI_SUBJECT\|DEFAULT_MCP_SUBJECT" -- '*.rs' | tee /tmp/task31-baseline.txt | wc -l   # expected: 17
+  ```
+  Record the file:line list as a fixture. Step 6 asserts against it. If the count is not 17, `origin/main` has moved —
+  re-read before continuing rather than adjusting the number.
 
-**Exit gate.** Two concurrently granted warrants produce distinct principals at grain 3; `DEFAULT_CLI_SUBJECT` has
-zero call sites; a settle record names its principal and a second machine can read it from the bundle alone.
+- [ ] **Step 2 — Failing test: two concurrently granted warrants must not share a subject.**
+  Create `rust/warrant/tests/principals.rs` with `two_workloads_never_share_a_subject`: grant two warrants through the
+  same path with no `--subject`, and assert `a.claims.subject != b.claims.subject`. Run:
+  ```bash
+  cargo test -p warrantor-warrant --test principals -j 2
+  ```
+  It must fail, and it must fail *on the assertion* — both subjects being `spiffe://muveraai.com/agent/local` — not on
+  a compile error. Capture the verbatim assertion output; it is the defect this task exists to close.
 
-**Hazards.** SPIRE may not exist in `deploy/`; do not fake it — introduce it or state its absence. The principal
-must not become a new trust root: it establishes *who the substrate believed was acting*, not an externally
-verifiable identity, and the limitation text must say so.
+- [ ] **Step 3 — Failing test: the MCP path is worse than the CLI path.**
+  Add `mcp_grant_records_a_resolvable_principal`, driving `mcp_endpoints.rs:188`. The CLI at least accepts `--subject`;
+  this path takes none. Assert the recorded subject is not `DEFAULT_MCP_SUBJECT`. Expect failure. This is the half that
+  matters most: a tool surface an agent can reach, minting warrants under one shared identity.
+
+- [ ] **Step 4 — Introduce `Principal` and `PrincipalSource`.** Minimum implementation to pass Step 2: the five grains,
+  `Display` to a SPIFFE ID under trust domain `muveraai.com` (matching `deploy/spire/*.yaml`), and the source enum.
+  Do not wire SPIRE yet. Assert the existing 500+ workspace tests still pass — the `&str` signature is unchanged, so a
+  regression here means the rendering diverged.
+
+- [ ] **Step 5 — Resolve from the manifest, then fall back with disclosure.**
+  `warrantor.rs:797`'s `map_or` becomes: explicit `--subject` flag → manifest-bound principal → declared fallback.
+  Same order in `mcp_endpoints.rs:188`. The fallback still yields the existing constant, and records
+  `PrincipalSource::Fallback` beside it.
+
+- [ ] **Step 6 — The counter grows a source breakdown, and the ratchet is stated.**
+  `retention.rs:443` gains a per-source count alongside `default_subjects`; line 540's equality test is unchanged, so
+  the existing meaning is preserved. Amend `tests/holdings.rs:270` from `assert_eq!(…default_subjects, 2)` to the new
+  expected value and add an assertion that a manifest-resolved grant does **not** increment it. Do not delete the
+  original assertion — the fixture it rests on is what proves the counter still works.
+
+- [ ] **Step 7 — SVID binding behind a trait, with honest degradation.**
+  A deployment with SPIRE resolves grains 3-5 from the SVID; one without resolves what it can and *says so* through
+  `PrincipalSource`. Never silently. Read `deploy/spire/README.md` before wiring and follow its trust-domain
+  configuration rather than inventing one.
+
+- [ ] **Step 8 — Tier the claim, and write the limitation before the feature ships.**
+  The principal is **Tier B chokepoint** until Task 3.2 puts the key in hardware — it establishes who the substrate
+  *believed* was acting, not an externally verifiable identity. Add a test asserting the rendering carries that text.
+  Labeling this Tier A before 3.2 lands would be the `write_paths` defect repeated: a bound signed stronger than the
+  code supports.
+
+- [ ] **Step 9 — Full gate, ledger, evidence, commit.**
+  ```bash
+  cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test --workspace -j 2
+  node "M:/Project AumOS - Linkedin Blitzkrieg/scripts/verify-us-english.mjs" docs/W1-delivery-gaps.md
+  ```
+  Write `docs/task-evidence/task-3.1.md` with the exit gate quoted and the real command output. A merge without it
+  reports UNEVIDENCED and fails `python scripts/task_status.py --check`. Then `git commit -s`.
+
+**Exit gate.** Two concurrently granted warrants carry distinct subjects; the MCP grant path records a resolvable
+principal; `default_subjects` no longer increments for manifest-resolved grants and the existing holdings assertion is
+amended rather than removed; every principal renders its `PrincipalSource`; the tier text ships with it.
+
+**Hazards.** `agent-identity-graph` is not on `origin/main` — do not carry it in under this task. The MCP path is
+agent-reachable, so a bug here is directly exploitable by the thing being governed; Step 3 before Step 5, always.
+`retention.rs:540` is a plain equality against both constants: if you change either value, that check silently stops
+matching and the counter reads zero for the wrong reason — which would look exactly like success.
 
 ---
 

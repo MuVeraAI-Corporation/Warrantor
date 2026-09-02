@@ -6,7 +6,7 @@
 > of the evidence, which is the one job `docs/W1-delivery-gaps.md` names for a
 > ledger. Regenerate with `python scripts/task_status.py --write`.
 
-**36 tasks · 306 steps · 0 steps landed**
+**36 tasks · 307 steps · 0 steps landed**
 
 | State | Count | Meaning |
 |---|---|---|
@@ -36,7 +36,7 @@
 | **2.4** EXEC admission by content digest and declared exe... | 2 | `glm-5.3-flash` | BLOCKED | 15 | `feat/task-2.4` | — | phase 1 |
 | **2.5** Generic HTTP adapter over the destination catalog... | 2 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-2.5` | — | phase 1 |
 | **2.6** Provenance labels on tool outputs and peer-propos... | 2 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-2.6` | — | phase 1 |
-| **3.1** Agent principals at five grains from SPIFFE SVIDs | 3 | `glm-5.3-flash` | BLOCKED | 8 | `feat/task-3.1` | — | phase 2 |
+| **3.1** Agent principals at five grains from SPIFFE SVIDs | 3 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-3.1` | — | phase 2 |
 | **3.2** Hardware-backed custody adapter behind a `Signer`... | 3 | `human` | BLOCKED | 7 | `feat/task-3.2` | — | phase 2 |
 | **3.3** Operator device-key binding in settle records | 3 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-3.3` | — | phase 2 |
 | **3.4** Broker-side flight recorder behind a `Recorder` t... | 3 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-3.4` | — | phase 2 |
