@@ -1,0 +1,464 @@
+[
+ {
+  "run_id": "R1-2026-09-01/expguard-2026-08-31",
+  "corpus": "ExpGuardTest",
+  "model": "hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M",
+  "n": 2275,
+  "metrics": {
+   "recall": 0.7587579617834395,
+   "miss_rate": 0.2412420382165605,
+   "precision": 0.9635995955510617,
+   "f1": 0.8489977728285077,
+   "false_positive_rate": 0.03532875368007851,
+   "accuracy": 0.850989010989011,
+   "confusion_matrix": {
+    "true_positive": 953,
+    "false_negative": 303,
+    "false_positive": 36,
+    "true_negative": 983,
+    "total": 2275
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:6819a5662c80ada1955384d420512b937a8c0e5be40db7fa7bada7789b25d3ec",
+  "generated_at": "2026-09-01T07:12:17.585932+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "R1-2026-09-01/wildguard-2026-08-31",
+  "corpus": "WildGuardTest",
+  "model": "hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M",
+  "n": 1699,
+  "metrics": {
+   "recall": 0.8567639257294429,
+   "miss_rate": 0.14323607427055704,
+   "precision": 0.9241773962804005,
+   "f1": 0.8891947694425326,
+   "false_positive_rate": 0.056084656084656084,
+   "accuracy": 0.9052383755150089,
+   "confusion_matrix": {
+    "true_positive": 646,
+    "false_negative": 108,
+    "false_positive": 53,
+    "true_negative": 892,
+    "total": 1699
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:0a84e3d087ad9edf6e1906ecfdfe3105ecac4c97112015baaf402a396478e116",
+  "generated_at": "2026-09-01T06:50:40.131622+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "T1-A-control-2026-09-01/expguard-T1-A-control-2026-09-01",
+  "corpus": "ExpGuardTest",
+  "model": "warrantor-guard-0.6b-expguard-weak-t1-a-control-2026-09-01",
+  "n": 2275,
+  "metrics": {
+   "recall": 0.7842356687898089,
+   "miss_rate": 0.2157643312101911,
+   "precision": 0.9425837320574163,
+   "f1": 0.8561495002172969,
+   "false_positive_rate": 0.058881256133464184,
+   "accuracy": 0.8545054945054945,
+   "confusion_matrix": {
+    "true_positive": 985,
+    "false_negative": 271,
+    "false_positive": 60,
+    "true_negative": 959,
+    "total": 2275
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:d637a0e62119c36d32e89c2e13fa2fe2300177b681ad1f0ea3b998b0af8b52c2",
+  "generated_at": "2026-09-01T17:01:51.925233+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "T1-B-attention-2026-09-01/expguard-T1-B-attention-2026-09-01",
+  "corpus": "ExpGuardTest",
+  "model": "warrantor-guard-0.6b-expguard-weak-t1-b-attention-2026-09-01",
+  "n": 2275,
+  "metrics": {
+   "recall": 0.8439490445859873,
+   "miss_rate": 0.15605095541401273,
+   "precision": 0.8631921824104235,
+   "f1": 0.8534621578099839,
+   "false_positive_rate": 0.1648675171736997,
+   "accuracy": 0.84,
+   "confusion_matrix": {
+    "true_positive": 1060,
+    "false_negative": 196,
+    "false_positive": 168,
+    "true_negative": 851,
+    "total": 2275
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:576883eb50ae966e4a32055e5b11284dee6f6c1f08e3493733d67f75b6600f31",
+  "generated_at": "2026-09-01T18:26:44.884269+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "T1-C-mlp-2026-09-01/expguard-T1-C-mlp-2026-09-01",
+  "corpus": "ExpGuardTest",
+  "model": "warrantor-guard-0.6b-expguard-weak-t1-c-mlp-2026-09-01",
+  "n": 2275,
+  "metrics": {
+   "recall": 0.7929936305732485,
+   "miss_rate": 0.2070063694267516,
+   "precision": 0.9188191881918819,
+   "f1": 0.8512820512820513,
+   "false_positive_rate": 0.08635917566241413,
+   "accuracy": 0.847032967032967,
+   "confusion_matrix": {
+    "true_positive": 996,
+    "false_negative": 260,
+    "false_positive": 88,
+    "true_negative": 931,
+    "total": 2275
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:375f81270ddabc7780df3778044cfb0e30a6c29526ffbe762a525a292d8693c1",
+  "generated_at": "2026-09-01T19:00:13.433871+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "baseline-0.6b-2026-09-01/expguard-2026-09-01",
+  "corpus": "ExpGuardTest",
+  "model": "hf.co/mradermacher/Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M",
+  "n": 2275,
+  "metrics": {
+   "recall": 0.714968152866242,
+   "miss_rate": 0.28503184713375795,
+   "precision": 0.9116751269035533,
+   "f1": 0.8014279339580545,
+   "false_positive_rate": 0.08537782139352307,
+   "accuracy": 0.8043956043956044,
+   "confusion_matrix": {
+    "true_positive": 898,
+    "false_negative": 358,
+    "false_positive": 87,
+    "true_negative": 932,
+    "total": 2275
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:5ff1dd5c0a01d7abf7abdeda5c69e9b46c286a63380ffc3825509d642900aacf",
+  "generated_at": "2026-09-01T07:43:15.613528+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "baseline-0.6b-2026-09-01/wildguard-2026-09-01",
+  "corpus": "WildGuardTest",
+  "model": "hf.co/mradermacher/Qwen3Guard-Gen-0.6B-GGUF:Q4_K_M",
+  "n": 1699,
+  "metrics": {
+   "recall": 0.8461538461538461,
+   "miss_rate": 0.15384615384615385,
+   "precision": 0.9153515064562411,
+   "f1": 0.8793935217091661,
+   "false_positive_rate": 0.06243386243386243,
+   "accuracy": 0.8969982342554443,
+   "confusion_matrix": {
+    "true_positive": 638,
+    "false_negative": 116,
+    "false_positive": 59,
+    "true_negative": 886,
+    "total": 1699
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:dcd541e7475984f8476ba21ce930ac7cf4ac5a2c93cac0689286638ee71597a3",
+  "generated_at": "2026-09-01T07:29:42.932264+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "expguard-2026-08-21",
+  "corpus": "ExpGuardTest",
+  "model": "hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M",
+  "n": 2275,
+  "metrics": {
+   "recall": 0.7587579617834395,
+   "miss_rate": 0.2412420382165605,
+   "precision": 0.9635995955510617,
+   "f1": 0.8489977728285077,
+   "false_positive_rate": 0.03532875368007851,
+   "accuracy": 0.850989010989011,
+   "confusion_matrix": {
+    "true_positive": 953,
+    "false_negative": 303,
+    "false_positive": 36,
+    "true_negative": 983,
+    "total": 2275
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:6819a5662c80ada1955384d420512b937a8c0e5be40db7fa7bada7789b25d3ec",
+  "generated_at": "2026-08-22T02:07:09.401336+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "warrantor-guard-0.6b-adversarial-adv06-2026-08-22a",
+  "corpus": "WildGuardTest",
+  "model": "warrantor-guard-0.6b-adversarial-adv06-2026-08-22a",
+  "n": 1699,
+  "metrics": {
+   "recall": 0.8368700265251989,
+   "miss_rate": 0.16312997347480107,
+   "precision": 0.9079136690647482,
+   "f1": 0.8709454796411319,
+   "false_positive_rate": 0.06772486772486773,
+   "accuracy": 0.8899352560329605,
+   "confusion_matrix": {
+    "true_positive": 631,
+    "false_negative": 123,
+    "false_positive": 64,
+    "true_negative": 881,
+    "total": 1699
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:5c4d431e4b0adcd11fdffeee670674a656352dd966fa86be5c367bac088d366e",
+  "generated_at": "2026-08-22T09:48:26.602366+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a",
+  "corpus": "ExpGuardTest",
+  "model": "warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a",
+  "n": 2275,
+  "metrics": {
+   "recall": 0.7818471337579618,
+   "miss_rate": 0.21815286624203822,
+   "precision": 0.9460500963391136,
+   "f1": 0.8561464690496949,
+   "false_positive_rate": 0.0549558390578999,
+   "accuracy": 0.8549450549450549,
+   "confusion_matrix": {
+    "true_positive": 982,
+    "false_negative": 274,
+    "false_positive": 56,
+    "true_negative": 963,
+    "total": 2275
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:58e3ca3258cb7cdb2da1145258e155bfadac21cdfff8ccffce493d22dcf38721",
+  "generated_at": "2026-08-22T09:09:37.245683+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "warrantor-guard-0.6b-weak-category-local-2026-08-22a",
+  "corpus": "WildGuardTest",
+  "model": "warrantor-guard-0.6b-weak-category-local-2026-08-22a",
+  "n": 1699,
+  "metrics": {
+   "recall": 0.7374005305039788,
+   "miss_rate": 0.2625994694960212,
+   "precision": 0.9011345218800648,
+   "f1": 0.8110867979576951,
+   "false_positive_rate": 0.06455026455026455,
+   "accuracy": 0.8475573866980577,
+   "confusion_matrix": {
+    "true_positive": 556,
+    "false_negative": 198,
+    "false_positive": 61,
+    "true_negative": 884,
+    "total": 1699
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:f1ba7b98a9edb5bf02e4506d81bce95b458d6df379234dee717794391509ff50",
+  "generated_at": "2026-08-22T09:21:28.774939+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "warrantor-guard-4b-adversarial-adv4b-2026-08-22a",
+  "corpus": "WildGuardTest",
+  "model": "warrantor-guard-4b-adversarial-adv4b-2026-08-22a",
+  "n": 1699,
+  "metrics": {
+   "recall": 0.8607427055702918,
+   "miss_rate": 0.13925729442970822,
+   "precision": 0.9231863442389758,
+   "f1": 0.8908716540837337,
+   "false_positive_rate": 0.05714285714285714,
+   "accuracy": 0.9064155385520895,
+   "confusion_matrix": {
+    "true_positive": 649,
+    "false_negative": 105,
+    "false_positive": 54,
+    "true_negative": 891,
+    "total": 1699
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:3c84d5af0416b2be70f94ee7f32817acb552a2fc71c46690f58c5c176b67b6d1",
+  "generated_at": "2026-08-22T09:38:12.577717+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "warrantor-guard-4b-weak-category-weak4b-2026-08-22b",
+  "corpus": "WildGuardTest",
+  "model": "warrantor-guard-4b-weak-category-weak4b-2026-08-22b",
+  "n": 1699,
+  "metrics": {
+   "recall": 0.8541114058355438,
+   "miss_rate": 0.14588859416445624,
+   "precision": 0.9279538904899135,
+   "f1": 0.8895027624309392,
+   "false_positive_rate": 0.05291005291005291,
+   "accuracy": 0.9058269570335491,
+   "confusion_matrix": {
+    "true_positive": 644,
+    "false_negative": 110,
+    "false_positive": 50,
+    "true_negative": 895,
+    "total": 1699
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:64067f90a040a6f2223b126b496a91d0acfc2f3be97fb0fecdbc59500639d294",
+  "generated_at": "2026-08-22T11:31:51.670620+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ },
+ {
+  "run_id": "wildguard-2026-08-21",
+  "corpus": "WildGuardTest",
+  "model": "hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M",
+  "n": 1699,
+  "metrics": {
+   "recall": 0.8567639257294429,
+   "miss_rate": 0.14323607427055704,
+   "precision": 0.9241773962804005,
+   "f1": 0.8891947694425326,
+   "false_positive_rate": 0.056084656084656084,
+   "accuracy": 0.9052383755150089,
+   "confusion_matrix": {
+    "true_positive": 646,
+    "false_negative": 108,
+    "false_positive": 53,
+    "true_negative": 892,
+    "total": 1699
+   }
+  },
+  "options": {
+   "temperature": 0.0,
+   "top_p": 1.0,
+   "top_k": 1,
+   "seed": 0,
+   "num_predict": 64,
+   "num_ctx": 8192
+  },
+  "result_digest": "sha256:0a84e3d087ad9edf6e1906ecfdfe3105ecac4c97112015baaf402a396478e116",
+  "generated_at": "2026-08-22T01:48:54.925281+00:00",
+  "schema_version": 1,
+  "controversial_policy": null
+ }
+]

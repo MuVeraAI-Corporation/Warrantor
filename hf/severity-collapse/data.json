@@ -1,0 +1,78 @@
+{
+ "base": {
+  "severity": {
+   "unsafe": 863,
+   "safe": 1290,
+   "controversial": 122
+  },
+  "recall": 0.714968152866242,
+  "n": 2275,
+  "controversial_tp": 76,
+  "fpr": 0.08537782139352307
+ },
+ "arms": [
+  {
+   "id": "T1-A",
+   "short": "all seven modules",
+   "modules": "q,k,v,o,gate,up,down",
+   "slug": "guard-lora-t1a-all-modules",
+   "severity": {
+    "unsafe": 1038,
+    "safe": 1230,
+    "error": 7
+   },
+   "recall": 0.7842356687898089,
+   "fpr": 0.058881256133464184,
+   "base_only": 31,
+   "cand_only": 116,
+   "p": 9.394227978955015e-13,
+   "moved": {
+    "safe": 43,
+    "unsafe": 78,
+    "error": 1
+   },
+   "caught_now": 65
+  },
+  {
+   "id": "T1-B",
+   "short": "attention only",
+   "modules": "q,k,v,o",
+   "slug": "guard-lora-t1b-attention",
+   "severity": {
+    "unsafe": 1227,
+    "safe": 1047,
+    "error": 1
+   },
+   "recall": 0.8439490445859873,
+   "fpr": 0.1648675171736997,
+   "base_only": 2,
+   "cand_only": 164,
+   "p": 2.9639891529038413e-46,
+   "moved": {
+    "unsafe": 112,
+    "safe": 10
+   },
+   "caught_now": 75
+  },
+  {
+   "id": "T1-C",
+   "short": "MLP only",
+   "modules": "gate,up,down",
+   "slug": "guard-lora-t1c-mlp",
+   "severity": {
+    "unsafe": 1084,
+    "safe": 1191
+   },
+   "recall": 0.7929936305732485,
+   "fpr": 0.08635917566241413,
+   "base_only": 19,
+   "cand_only": 117,
+   "p": 2.0689342554664887e-18,
+   "moved": {
+    "unsafe": 92,
+    "safe": 30
+   },
+   "caught_now": 69
+  }
+ ]
+}

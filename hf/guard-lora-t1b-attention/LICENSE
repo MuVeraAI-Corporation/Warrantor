@@ -1,0 +1,12 @@
+Research and evaluation use only. Not for commercial use.
+
+These weights are a LoRA adapter trained on data derived from ExpGuardMix
+(6rightjade/expguardmix). That dataset's access gate requires affirming research-only
+use, a restriction narrower than its CC-BY-4.0 licence. This artifact passes that
+restriction forward.
+
+The base model, Qwen/Qwen3Guard-Gen-0.6B, is Apache-2.0. This adapter is not.
+
+No part of the training corpus is redistributed with these weights.
+
+(c) 2026 Vikram Jha, MuVeraAI. vikram@muveraai.com

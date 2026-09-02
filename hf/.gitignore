@@ -1,0 +1,7 @@
+# Artifacts that live on the Hub, not in git. These are uploaded from here and are large;
+# the repo keeps the cards, the licences and the code that generates them.
+*.safetensors
+tokenizer.json
+verdicts.jsonl
+runs/
+__pycache__/
