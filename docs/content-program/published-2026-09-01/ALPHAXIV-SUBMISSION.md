@@ -39,3 +39,17 @@ warning glyphs, struck-through text, unfilled blanks, a section headed "strip be
 and (T-04) no reference list. All of it is gone; the build now refuses to emit any of it. If a
 rejection recurs, **copy the rejection text into the repo** — the earlier ones were never recorded,
 which is why this review had to reconstruct the cause from the PDFs.
+
+## Rejection record
+
+**2026-09-02 ~08:50 PDT — P1 (`P1-named.pdf`, rebuilt 2026-09-02, verified).** Form fully completed:
+title and abstract auto-extracted correctly; author "Vikram Jha" linked with "This is me"; publication
+date 2026-08-31; categories computer-science / cs.CR / cs.LG; rights attestation ticked. Submitted;
+the automated **Review** stage returned, verbatim:
+
+> **Submission rejected.** This paper could not be published automatically. For false positives,
+> contact contact@alphaxiv.org.
+
+No reason is given. The review is automated. This is the same outcome as the first round, on a
+PDF with none of the first round's packaging defects — so the packaging cannot be *confirmed* as the
+cause, and the remaining five were **not** submitted pending an answer from alphaXiv.
