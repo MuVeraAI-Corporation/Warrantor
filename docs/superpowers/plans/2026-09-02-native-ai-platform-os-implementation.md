@@ -17066,21 +17066,205 @@ assertion in prose.
 
 ## Phase 4 — The buyer's surface
 
-> **Status of this phase.** The task stubs below are the spine's own decomposition, each naming its files and its
-> catalog item. They have NOT yet been expanded into the step-by-step form Phases 0-2 carry, because the expansion
-> run was stopped at the session limit. Expand a phase before executing it, using any Phase 0-2 section as the
-> template: exact files with line ranges, Consumes/Produces signatures quoted from the code, then failing test ->
-> run -> minimal implementation -> run -> commit.
+> **Status of this phase.** Expanded 2026-09-02 to task-structural form. One level less granular than Phases 0-2:
+> no verbatim error strings or line ranges, because those come from running the commands. Capturing them is Step 0.
 
-**Task 4.1** Approval queue with latency budget and default-deny timeout (operators.rs/review.rs; p50/p99 + disagreement rate published). 
+> ### STACK CORRECTION — read before writing a line of UI code
+>
+> **This is not a TypeScript or React codebase, and any prompt that says otherwise is wrong about this repository.**
+> Verified 2026-09-02 against `origin/main`:
+>
+> - **Console** is vanilla JavaScript served from Rust: `rust/warrant/src/console/console.js` (1,824 lines),
+>   `console.test.js` (1,214 lines), `index.html` (365 lines), `console.css`. No bundler, no framework, no JSX,
+>   no build step. Tests are plain JS and live beside the source.
+> - **Desktop** is Electron: `desktop/package.json` declares `electron` and `electron-builder` as devDependencies
+>   and **zero runtime dependencies**. `electron-builder.config.cjs` is the packaging config.
+>
+> Do not introduce TypeScript, a bundler, a framework, or a runtime dependency in this phase. If a task seems to
+> need one, that is a design decision the plan does not make: stop and report. Adding React to a 1,824-line vanilla
+> console is not a UI task, it is a migration, and it is not what any of these five tasks ask for.
 
-**Task 4.2** Notification fabric decision + push/email transports fronted by the existing webhook (notify.rs; tap-to-approve < 30 s). 
+> **The disclosure machinery already exists — extend it, do not invent it.** `rust/warrant/src/harness.rs:67`
+> defines `pub enum Coverage { McpOnly, McpAndBuiltins(&'static str), ProcessOnly }`, and each variant carries a
+> `sentence()` returning operator-facing prose that states what is and is not mediated — for example *"MCP tool
+> calls are decided by the warrant. This harness's OWN built-in tools do not…"*. Tasks 4.3 and 4.4 both render
+> that enum. Neither invents a new vocabulary for coverage.
 
-**Task 4.3** Coverage disclosure surface in console and desktop (L8-13; Task 0.4's tier rendering carried everywhere the console and desktop show a guarantee; user-study checklist). **This is the only Phase 4 task that collides with Task 0.4 — it must land after it.**
+**Phase entry condition.** Contracts frozen. Build against fixtures, not a running backend — Phase 4 sits after
+Phase 3 in the spine, but contracts-first decouples it so this lane runs concurrently with the Rust lane.
+**Only Task 4.3 is gated on Task 0.4.** Tasks 4.1, 4.2, 4.4 and 4.5 touch different files and may start immediately.
 
-**Task 4.4** Action-path coverage map computed from receipts × harness `Coverage` registry (`warrantor coverage` → `warrantor.coverage-map/1`). 
+**Phase exit gate (from the phase map).** A second person approves from a device with no terminal, and the coverage
+map recomputes from receipts.
 
-**Task 4.5** Local-first inference routing with receipted escalation (guard.rs/spend.rs backend pricing → routing decision receipt).
+---
+
+### Task 4.1: Approval queue with a latency budget and default-deny timeout
+
+**Anchor.** L8-01. The approval queue's failure mode is not slowness — it is becoming ceremony. Queue volume and
+urgency produce automatic approval, which turns proof into a record of governance theater. The incident never had to
+defeat this control because it was never in the path.
+
+**Step 0.** Read `rust/warrant/src/operators.rs` (1,170 lines) and `review.rs` (932 lines) in full. Record the
+existing approval state machine, who may approve, and what is recorded at approval time. Record whether a timeout
+exists today and what it defaults to.
+
+**Non-goals.** Not identity-provider integration (L6-06). Not the notification transports (that is 4.2). Do not
+change the two-person rule's enforcement — it is enforced by the same code path that renders the queue, and that
+coupling is the property, not an accident.
+
+**Files.** `rust/warrant/src/operators.rs`, `rust/warrant/src/review.rs`, `rust/warrant/src/console/console.js`,
+`console.test.js`, `index.html`, a fixture set, `docs/task-evidence/task-4.1.md`.
+
+- [ ] **Step 1 — Worktree; capture the current approval path and its timeout behavior.**
+- [ ] **Step 2 — Failing test: a timeout denies.** Assert that an approval request that expires resolves to DENY,
+      never to approve, and never escalates to a wider group. Capture what it does today.
+- [ ] **Step 3 — Failing test: the approver sees the effect, the authority chain and prior receipts BEFORE the
+      approve control is reachable.** This is the anti-ceremony property and it is testable: assert ordering in the
+      rendered DOM, not merely presence.
+- [ ] **Step 4 — Failing test: dependency-aware partial approval.** Releasing part of a staged batch must not
+      release dependent effects. Seed a batch with a dependency and assert the dependent stays staged.
+- [ ] **Step 5 — Implement against fixtures.** No backend required to render.
+- [ ] **Step 6 — Latency budget published as p50/p99,** plus a disagreement rate. A queue whose disagreement rate
+      trends to zero while latency improves is rubber-stamping, and the metric exists to make that visible.
+- [ ] **Step 7 — Nothing in the UI rewards approval rate.** Assert no counter, badge or ordering favors approving.
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
+**Exit gate.** A second person approves from a device with no terminal; timeout denies; partial approval does not
+release dependents; p50/p99 and disagreement rate are published.
+
+**Hazards.** `operators.rs` and `review.rs` are large and on the critical path for the Rust lane's Phase 1 work.
+Read before editing and keep the diff narrow.
+
+---
+
+### Task 4.2: Notification fabric — decision, then transports
+
+**Anchor.** L8-11. Webhooks ship and can front email and push; nothing speaks them directly. The delivery-gaps
+ledger classifies this as *a decision, not a build* — so make the decision explicit and record it, then build the
+transports behind the existing webhook rather than beside it.
+
+**Step 0.** Read `rust/warrant/src/notify.rs` (558 lines) in full. Record the existing webhook surface and every
+event class it already emits.
+
+**Non-goals.** Do not add a runtime dependency to `desktop/package.json`. Do not build an email service — front an
+existing one. Do not change the event vocabulary.
+
+**Files.** `rust/warrant/src/notify.rs`, console settings surface, `docs/task-evidence/task-4.2.md`.
+
+- [ ] **Step 1 — Worktree; enumerate current event classes and webhook payloads.**
+- [ ] **Step 2 — Write the decision down first:** which transports are first-class, what each guarantees about
+      delivery, and what happens when one fails. A transport with unstated delivery semantics is a transport the
+      operator will over-trust.
+- [ ] **Step 3 — Failing test: an approval request reaches a device and is actionable in under 30 seconds** from
+      emission, measured, with the measurement recorded rather than asserted.
+- [ ] **Step 4 — Failing test: a failed transport does not silently drop the notification** — it degrades to the
+      next transport and records that it did.
+- [ ] **Step 5 — Implement behind the existing webhook.**
+- [ ] **Step 6 — Gates, evidence file, commit.**
+
+**Exit gate.** Tap-to-approve under 30 seconds, measured; transport failure is visible, never silent.
+
+---
+
+### Task 4.3: Coverage disclosure surface in console and desktop — **BLOCKED ON TASK 0.4**
+
+**Anchor.** L8-13. Every surface that renders a guarantee must also render what that guarantee does not cover, per
+harness and per bound strength. This is the product's differentiator rendered in pixels: a competitor asserting
+uniform enforcement either is wrong or has not looked.
+
+**Gate.** Task 0.4 lints tier disclosure across report, status and console. This task carries that rendering
+everywhere the console and desktop show a guarantee. **Do not start until `python scripts/task_status.py --next`
+shows 0.4 landed.** Starting early collides on the same console files.
+
+**Step 0.** Read Task 0.4's landed diff first — the lint it introduces defines the contract this task renders
+against. Then read `console.js`, `index.html` and the desktop renderer. Record every place a guarantee is currently
+shown and whether it states its tier.
+
+**Non-goals.** Do not restyle the console. Do not introduce a framework. Do not soften a tier to make a layout work.
+
+**Files.** `rust/warrant/src/console/console.js`, `console.css`, `index.html`, `console.test.js`, the desktop
+renderer, `docs/task-evidence/task-4.3.md`.
+
+- [ ] **Step 1 — Worktree from a base that includes 0.4; verify the lint is present.**
+- [ ] **Step 2 — Failing test: every rendered guarantee carries its tier** — Tier A cryptographic/OS, Tier B
+      chokepoint, Tier C observed — and the `Coverage::sentence()` text for its harness.
+- [ ] **Step 3 — Failing test: an observed bound is not visually identical to an enforced one.** Assert a class or
+      attribute difference, so the distinction survives a stylesheet change.
+- [ ] **Step 4 — Failing test: nothing collapses observed, advisory, mediated and enforced into one green state.**
+      Enumerate every status indicator and assert none of them can render green for a merely-observed bound.
+- [ ] **Step 5 — Implement in console and desktop.**
+- [ ] **Step 6 — User-study checklist:** can a non-developer say, from the screen alone, which limits are refused
+      and which are only recorded? Record the answers, including the ones that are no.
+- [ ] **Step 7 — Gates, evidence file, commit.**
+
+**Exit gate.** Every guarantee in console and desktop renders its tier and its coverage sentence; no indicator can
+show green for an observed bound; the checklist is recorded with its failures visible.
+
+**Hazards.** This is the task where a design instinct to simplify is a correctness failure. If the screen looks
+better with the distinction hidden, the design is wrong, and the plan says so on purpose.
+
+---
+
+### Task 4.4: Action-path coverage map computed from receipts
+
+**Anchor.** L8-22. The one number worth publishing above all others: the share of consequential effects that
+provably traverse the boundary, and the named remainder that does not. It is checkable by a customer against their
+own estate, and a competitor asserting uniform enforcement cannot produce it.
+
+**Step 0.** Read `rust/warrant/src/harness.rs` from line 60 — the `Coverage` enum and its `sentence()` — and record
+all three variants. Record how many harnesses are registered and what each declares. Record the receipt fields that
+identify an effect's path.
+
+**Non-goals.** Do not invent a coverage vocabulary; the enum is it. Do not estimate — a path with no receipt is
+uncovered, and saying so is the product.
+
+**Files.** New `warrantor coverage` subcommand emitting `warrantor.coverage-map/1`, `rust/warrant/src/harness.rs`,
+console rendering, `docs/task-evidence/task-4.4.md`.
+
+- [ ] **Step 1 — Worktree; enumerate registered harnesses and their `Coverage` variants.**
+- [ ] **Step 2 — Write the `warrantor.coverage-map/1` schema first:** effect class × harness × mediated | observed |
+      unsupported | bypassable, with the named bypass for every non-mediated cell.
+- [ ] **Step 3 — Failing test: the map is computed from receipts,** not from a static registry. A harness that
+      declares MCP-only but shows effects with no receipt must render as a gap, because the declaration is a claim
+      and the receipt is the evidence.
+- [ ] **Step 4 — Failing test: an unknown harness version downgrades the claim** rather than inheriting the
+      previous one.
+- [ ] **Step 5 — Implement; publish the percentage and the named remainder together.** Never the percentage alone.
+- [ ] **Step 6 — Render in console beside the disclosure surface.**
+- [ ] **Step 7 — Gates, evidence file, commit.**
+
+**Exit gate.** `warrantor coverage` emits a map computed from receipts, naming every uncovered path; the console
+shows the percentage and the remainder together.
+
+---
+
+### Task 4.5: Local-first inference routing with receipted escalation
+
+**Anchor.** L9-14. Routing a call to a larger or remote model is a consequential act with cost and data-exposure
+consequences, and it should produce a receipt like any other effect rather than happening inside a helper.
+
+**Step 0.** Read `rust/warrant/src/guard.rs` (1,843 lines) and `spend.rs` (921 lines). Record the existing backend
+selection and pricing surface, and where a routing decision is currently made.
+
+**Non-goals.** Do not change guard verdict semantics. Do not add a model provider. Do not make routing depend on a
+network call in the decision path.
+
+**Files.** `rust/warrant/src/guard.rs`, `spend.rs`, a routing-decision receipt, console rendering,
+`docs/task-evidence/task-4.5.md`.
+
+- [ ] **Step 1 — Worktree; record current backend selection and pricing inputs.**
+- [ ] **Step 2 — Failing test: local is tried first** where a local backend is configured and capable.
+- [ ] **Step 3 — Failing test: escalation emits a receipt** naming the backend, the reason, and the cost class.
+      An escalation with no receipt is a spend the operator cannot audit.
+- [ ] **Step 4 — Failing test: escalation respects the spend ceiling from Task 1.4** and is refused at the ceiling,
+      not reconciled afterward.
+- [ ] **Step 5 — Implement; measurement configuration travels with any quoted guard figure** — context length,
+      seed, quantization. Each moves the number.
+- [ ] **Step 6 — Gates, evidence file, commit.**
+
+**Exit gate.** Local-first routing with a receipt per escalation; the ceiling refuses rather than reconciles;
+quoted figures carry their configuration.
 
 ---
 

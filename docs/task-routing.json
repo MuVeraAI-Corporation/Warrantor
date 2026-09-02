@@ -34,16 +34,15 @@
     "3": [
       "2"
     ],
-    "4": [
-      "3"
-    ],
+    "4": [],
     "5": [
       "3"
     ],
     "6": [
       "4",
       "5"
-    ]
+    ],
+    "_note_phase_4": "Deliberately empty. Phase 4 sits after Phase 3 in the plan's dependency spine, but MiniMax builds against frozen contract fixtures rather than a running backend, which is what makes the two lanes parallel. Only Task 4.3 is gated, on Task 0.4, via the gates block."
   },
   "expansion_required": [
     "3",
@@ -86,7 +85,12 @@
     "6.3": "glm-5.3-flash",
     "6.4": "glm-5.3-flash",
     "6.5": "glm-5.3-flash",
-    "6.6": "glm-5.3-flash"
+    "6.6": "glm-5.3-flash",
+    "4.1": "minimax-m3",
+    "4.2": "minimax-m3",
+    "4.3": "minimax-m3",
+    "4.4": "minimax-m3",
+    "4.5": "minimax-m3"
   },
   "routing_notes": {
     "1.1": "Keystone. Evidence and notary into the report path; everything in Phases 1-2 is meaningless until it lands. Review hardest.",
@@ -94,7 +98,9 @@
     "2.1": "The effect decomposition registry is the architectural keystone of the syscall model. A wrong decomposition silently under-governs an effect.",
     "3.2": "Needs a TPM or an OS keystore observed executing. macOS has never been installed or launched in this project.",
     "5.3": "Do not delegate to a fast model. The value is an adversary that genuinely tries; one that fails trivially yields a green result and a false guarantee.",
-    "5.4": "The drills are mechanical; naming shared failure domains is judgment."
+    "5.4": "The drills are mechanical; naming shared failure domains is judgment.",
+    "4.3": "Blocked on 0.4. It carries 0.4's tier rendering into the console and desktop; starting early collides on the same files.",
+    "4.1": "The console is vanilla JavaScript (console.js, 1,824 lines) and desktop is Electron with zero runtime dependencies. Not TypeScript, not React. Do not introduce a framework or a bundler."
   },
   "minimax_phase_4": {
     "blocked_until": "Phase 4 expanded to step form (it is still stubs, so the board shows zero Phase 4 tasks); then 0.4 landed, but only for Task 4.3",

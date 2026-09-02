@@ -6,16 +6,16 @@
 > of the evidence, which is the one job `docs/W1-delivery-gaps.md` names for a
 > ledger. Regenerate with `python scripts/task_status.py --write`.
 
-**36 tasks · 307 steps · 0 steps landed**
+**41 tasks · 341 steps · 0 steps landed**
 
 | State | Count | Meaning |
 |---|---|---|
 | DONE | 0 | Merged into `origin/main` **and** exit-gate evidence recorded |
 | UNEVIDENCED | 0 | Merged with no evidence file. **This is a defect, not a state.** |
 | IN-FLIGHT | 0 | Branch exists, not yet merged |
-| READY | 5 | Expanded, unblocked, nobody has started it |
+| READY | 9 | Expanded, unblocked, nobody has started it |
 | NEEDS-EXPANSION | 0 | Task structure exists; Step-0 detail not yet captured |
-| BLOCKED | 31 | A predecessor has not landed |
+| BLOCKED | 32 | A predecessor has not landed |
 
 | Task | Ph | Owner | State | Steps | Branch | SHA | Blocked by |
 |---|---|---|---|---|---|---|---|
@@ -43,6 +43,11 @@
 | **3.5** Machine-speed response policy — `warrantor.respon... | 3 | `glm-5.3-flash` | BLOCKED | 8 | `feat/task-3.5` | — | phase 2 |
 | **3.6** Improvised-channel detection and the shared-surfa... | 3 | `glm-5.3-flash` | BLOCKED | 8 | `feat/task-3.6` | — | phase 2 |
 | **3.7** Generalize warrant-lifecycle self-protection | 3 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-3.7` | — | phase 2 |
+| **4.1** Approval queue with a latency budget and default-... | 4 | `minimax-m3` | READY | 8 | `feat/task-4.1` | — | — |
+| **4.2** Notification fabric — decision, then transports | 4 | `minimax-m3` | READY | 6 | `feat/task-4.2` | — | — |
+| **4.3** Coverage disclosure surface in console and deskto... | 4 | `minimax-m3` | BLOCKED | 7 | `feat/task-4.3` | — | task 0.4 |
+| **4.4** Action-path coverage map computed from receipts | 4 | `minimax-m3` | READY | 7 | `feat/task-4.4` | — | — |
+| **4.5** Local-first inference routing with receipted esca... | 4 | `minimax-m3` | READY | 6 | `feat/task-4.5` | — | — |
 | **5.1** Invariant attack corpus in CI | 5 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-5.1` | — | phase 3 |
 | **5.2** Egress-closure prover — `warrantor prove-egress` | 5 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-5.2` | — | phase 3 |
 | **5.3** Evidence-integrity adversary | 5 | `opus` | BLOCKED | 7 | `feat/task-5.3` | — | phase 3 |
@@ -63,3 +68,7 @@
 - **Task 0.3** — Orphan census as a ratcheting CI number (seed of L8-22) → `glm-5.3-flash`
 - **Task 0.4** — Tier disclosure lint across report, status and console (L8-13, partial → tested) → `glm-5.3-flash`
 - **Task 0.5** — Invariant ledger I-01…I-12 with honest status → `glm-5.3-flash`
+- **Task 4.1** — Approval queue with a latency budget and default-deny timeout → `minimax-m3`
+- **Task 4.2** — Notification fabric — decision, then transports → `minimax-m3`
+- **Task 4.4** — Action-path coverage map computed from receipts → `minimax-m3`
+- **Task 4.5** — Local-first inference routing with receipted escalation → `minimax-m3`
