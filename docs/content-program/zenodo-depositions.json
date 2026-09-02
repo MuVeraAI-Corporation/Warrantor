@@ -36,6 +36,11 @@
      "relation": "isSupplementedBy",
      "resource_type": "dataset"
     }
+   ],
+   "communities": [
+    {
+     "identifier": "muveraai"
+    }
    ]
   }
  },
@@ -75,6 +80,11 @@
      "identifier": "https://huggingface.co/datasets/MuVeraAI/guard-verdicts",
      "relation": "isSupplementedBy",
      "resource_type": "dataset"
+    }
+   ],
+   "communities": [
+    {
+     "identifier": "muveraai"
     }
    ]
   }
@@ -116,6 +126,11 @@
      "relation": "isSupplementedBy",
      "resource_type": "dataset"
     }
+   ],
+   "communities": [
+    {
+     "identifier": "muveraai"
+    }
    ]
   }
  },
@@ -156,6 +171,11 @@
      "relation": "isSupplementedBy",
      "resource_type": "dataset"
     }
+   ],
+   "communities": [
+    {
+     "identifier": "muveraai"
+    }
    ]
   }
  },
@@ -195,6 +215,11 @@
      "relation": "isSupplementedBy",
      "resource_type": "dataset"
     }
+   ],
+   "communities": [
+    {
+     "identifier": "muveraai"
+    }
    ]
   }
  },
@@ -233,6 +258,11 @@
      "identifier": "https://huggingface.co/datasets/MuVeraAI/guard-verdicts",
      "relation": "isSupplementedBy",
      "resource_type": "dataset"
+    }
+   ],
+   "communities": [
+    {
+     "identifier": "muveraai"
     }
    ]
   }

@@ -117,11 +117,33 @@ def main(argv=None):
         help="PUBLISH, minting permanent DOIs. A published Zenodo record cannot be deleted.",
     )
     ap.add_argument("--only", help="comma-separated tags, e.g. P1,T04")
+    ap.add_argument("--community", default="muveraai",
+                    help="Zenodo community slug to submit to; '' to submit to none")
     a = ap.parse_args(argv)
 
     api = SANDBOX if a.sandbox else LIVE
     token = _token()
     entries = json.load(io.open(a.manifest, encoding="utf-8"))
+
+    # Verify the community before creating anything. Zenodo accepts a deposition naming a
+    # community that does not exist and simply never surfaces it, which would leave six drafts
+    # looking fine and belonging nowhere -- the failure is silent, so the check is not optional.
+    for e in entries:
+        if a.community:
+            e["metadata"]["communities"] = [{"identifier": a.community}]
+        else:
+            e["metadata"].pop("communities", None)
+    if a.community:
+        base = api.replace("/api", "")
+        probe = _request("GET", f"{api}/communities/{a.community}", token)
+        if probe.status_code == 404:
+            raise SystemExit("\n".join([
+                f"Zenodo community '{a.community}' does not exist on {base}.",
+                f"  Create it at {base}/communities/new "
+                f"(the slug you choose IS the identifier),",
+                f"  then re-run. Or pass --community '' to deposit without one.",
+            ]))
+        print(f"community: {a.community} (exists)")
     if a.only:
         want = {t.strip() for t in a.only.split(",")}
         entries = [e for e in entries if e["tag"] in want]
