@@ -51,11 +51,19 @@ def _token() -> str:
 
 
 def _request(method, url, token, **kw):
-    """One retry loop for every call. Zenodo rate-limits and occasionally resets a connection."""
+    """One retry loop for every call. Zenodo rate-limits and occasionally resets a connection.
+
+    ⚠️ THE TOKEN GOES IN A HEADER, NOT `?access_token=`. Zenodo accepts both, and the query-string
+    form is what its older docs show -- but a secret in a URL is written to every access log,
+    proxy log and browser history it passes through, and shows up in `Referer` headers. The
+    header form is not logged by default. This mattered enough to change after the fact.
+    """
+    headers = dict(kw.pop("headers", {}))
+    headers["Authorization"] = f"Bearer {token}"
     for attempt in range(4):
         try:
             r = requests.request(
-                method, url, params={"access_token": token}, timeout=120, **kw
+                method, url, headers=headers, timeout=120, **kw
             )
             if r.status_code < 500:
                 return r
@@ -117,7 +125,7 @@ def main(argv=None):
         help="PUBLISH, minting permanent DOIs. A published Zenodo record cannot be deleted.",
     )
     ap.add_argument("--only", help="comma-separated tags, e.g. P1,T04")
-    ap.add_argument("--community", default="muveraai",
+    ap.add_argument("--community", default="warrantor",
                     help="Zenodo community slug to submit to; '' to submit to none")
     a = ap.parse_args(argv)
 
