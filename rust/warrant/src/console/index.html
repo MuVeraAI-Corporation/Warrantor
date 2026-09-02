@@ -149,6 +149,9 @@
           releases or discards it.
         </p>
         <p id="queue-unreadable" class="note error"></p>
+        <!-- The per-queue latency and disagreement block. Additive: the console renders whatever
+             the server sends and shows nothing when the field is absent. -->
+        <div id="queue-latency" class="queue-latency"></div>
         <ul id="queue-rows" class="rows"></ul>
         <p class="note">
           This list is derived from store state, the approval policy and each warrant&rsquo;s actor
