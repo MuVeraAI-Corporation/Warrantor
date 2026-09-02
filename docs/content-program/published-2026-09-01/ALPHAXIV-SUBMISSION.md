@@ -91,3 +91,20 @@ Do (1) regardless; (3) only if (1) still fails.
 > (vikram@muveraai.com); I have since added and verified the latter on the account. I am the sole
 > author. Five further papers by the same author are queued behind this one. Could you clear the
 > false positive, or tell me what the check requires? Thank you.
+
+## Update — 2026-09-02 ~09:05 PDT: the MuVeraAI email belongs to a second account
+
+Attempting to add `vikram@muveraai.com` to the `vikram01.jha@gmail.com` account returned, verbatim:
+
+> Could not send verification code: That email is already in use.
+
+So there are **two alphaXiv accounts**: this one (Gmail, Google sign-in, Claude MCP authorized) and
+another registered under `vikram@muveraai.com`. The second is the one whose email matches every
+PDF's corresponding-author line, and is therefore the one that will pass the automated author check.
+
+Routes, in order of cost:
+1. **Sign in to the `vikram@muveraai.com` account and publish from there.** The six PDFs are
+   unchanged; the P1 draft in the Gmail account's library is not needed.
+2. Ask <contact@alphaxiv.org> to merge the two accounts (or move the email), then publish from
+   whichever survives.
+3. Appeal as above.
