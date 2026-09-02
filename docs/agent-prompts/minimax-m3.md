@@ -74,6 +74,20 @@ APPROVAL UX — the specific failure mode to design against
   - Nothing in the UI may reward approval rate.
   - The approver must be able to decide from a device with no terminal.
 
+LANE IDENTITY — SET THIS BEFORE YOUR FIRST COMMIT
+  Every lane currently commits as `AumOS Wave-1 <aumos@local>`, so author attribution
+  is useless across four concurrent lanes. Set yours with ENVIRONMENT VARIABLES:
+      export GIT_AUTHOR_NAME="MiniMax M3"
+      export GIT_AUTHOR_EMAIL="minimax@local"
+      export GIT_COMMITTER_NAME="MiniMax M3"
+      export GIT_COMMITTER_EMAIL="minimax@local"
+  Set both pairs: `git commit -s` derives the DCO sign-off from the COMMITTER.
+  Verify with `git var GIT_AUTHOR_IDENT && git var GIT_COMMITTER_IDENT`.
+
+  NEVER run `git config user.name` to do this. Linked worktrees SHARE .git/config in
+  this repository, so it would rewrite the identity for every lane at once and race
+  the other lanes. See docs/agent-prompts/lane-identity.md.
+
 ISOLATION
   Other agent sessions commit to this repository every 15-30 minutes. Work only in
   your own git worktree:

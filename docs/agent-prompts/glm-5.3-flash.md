@@ -40,6 +40,20 @@ BRANCH NAME
   impl/. The tracker matches any branch containing task-N.M as a segment, so the
   prefix is advisory and the plan is authoritative on the exact name.
 
+LANE IDENTITY — SET THIS BEFORE YOUR FIRST COMMIT
+  Every lane currently commits as `AumOS Wave-1 <aumos@local>`, so author attribution
+  is useless across four concurrent lanes. Set yours with ENVIRONMENT VARIABLES:
+      export GIT_AUTHOR_NAME="GLM 5.3 Flash (zcode)"
+      export GIT_AUTHOR_EMAIL="glm@local"
+      export GIT_COMMITTER_NAME="GLM 5.3 Flash (zcode)"
+      export GIT_COMMITTER_EMAIL="glm@local"
+  Set both pairs: `git commit -s` derives the DCO sign-off from the COMMITTER.
+  Verify with `git var GIT_AUTHOR_IDENT && git var GIT_COMMITTER_IDENT`.
+
+  NEVER run `git config user.name` to do this. Linked worktrees SHARE .git/config in
+  this repository, so it would rewrite the identity for every lane at once and race
+  the other lanes. See docs/agent-prompts/lane-identity.md.
+
 ISOLATION — NON-NEGOTIABLE
   Other agent sessions work in this repository concurrently and commit every 15-30
   minutes. You MUST NOT work in the shared working tree.
