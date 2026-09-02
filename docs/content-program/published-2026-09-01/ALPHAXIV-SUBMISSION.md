@@ -108,3 +108,5 @@ Routes, in order of cost:
 2. Ask <contact@alphaxiv.org> to merge the two accounts (or move the email), then publish from
    whichever survives.
 3. Appeal as above.
+
+**Status 2026-09-02 09:10 PDT: alphaXiv deferred by decision.** When resumed, sign in as `vikram@muveraai.com` and publish the six unchanged PDFs from that account (route 1 above).
