@@ -118,7 +118,24 @@ jobs:
       - name: Run clippy with warnings denied
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Run tests
-        run: cargo test --workspace --all-targets
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --workspace --all-targets 2>&1 | tee "$RUNNER_TEMP/cargo-test.log"
+      # A platform-conditional test that is compiled out reports nothing at all -- not "skipped",
+      # nothing -- so a green run cannot distinguish "ran and passed" from "never existed on this
+      # OS". This step makes that distinction: the named tests must appear as executed.
+      - name: Prove the platform-conditional tests executed
+        shell: bash
+        run: |
+          for name in \
+            "supervise::tests::job_object_kills_the_child_tree_when_the_supervisor_drops" \
+            "tests::local_process_engine_actually_kills_a_real_process_ax05"; do
+            if ! grep -F "test ${name} ... ok" "$RUNNER_TEMP/cargo-test.log"; then
+              echo "::error::expected 'test ${name} ... ok' in the cargo test log; the platform-conditional path did not execute"
+              exit 1
+            fi
+          done
       - name: Build all targets
         run: cargo build --workspace --all-targets
 
