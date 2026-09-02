@@ -32,6 +32,7 @@ grounds them.
 | [`05-sequencing-90day.md`](05-sequencing-90day.md) | The burst-mode sequencing plan | ✅ |
 | [`06-piece-depth.md`](06-piece-depth.md) | **Depth addendum** — figures, objections, distribution/CTA, targeting | ⚠️ needs rewrite to 5 objections + counter-rebuttals, and to cover B-14/B-15/B-16 |
 | [`07-routing-and-metrics.md`](07-routing-and-metrics.md) | **Routing rubric** (five named lanes) + **quantified cold-start targets** | ✅ |
+| [`09-incident-fold.md`](09-incident-fold.md) | **The July 2026 agent-collective incident** — corpus additions, six new pieces (T-15…T-17, B-17…B-19), and the existing pieces it strengthens | ⚠️ four corpus rows are second-hand and need clearing |
 | **drafts/** | **Written pieces — 16,442 words** | |
 | [`T-07 — NSA advisory as engineering spec`](drafts/T-07-nsa-mcp-advisory-as-engineering-specification.md) | **Technical whitepaper**, 4,919w — 25-row control mapping, four gaps disclosed | ⚠️ read the CSI in full first |
 | [`B-14 — Two regulators, opposite choices`](drafts/B-14-two-regulators-opposite-choices-identical-gap.md) | **Business whitepaper**, 3,428w — the flagship comparative | ⚠️ obtain the RBI PDF |
