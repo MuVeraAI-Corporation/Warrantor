@@ -15,7 +15,7 @@ Three LoRA fine-tunes of `Qwen3Guard-Gen-0.6B`, varying **only** which projectio
 touches. All three destroyed the model's third severity class, and a recall-only review cannot see it.
 
 Traced on 2,275 measured items from
-[`invincible-jha/guard-verdicts`](https://huggingface.co/datasets/invincible-jha/guard-verdicts).
+[`MuVeraAI/guard-verdicts`](https://huggingface.co/datasets/MuVeraAI/guard-verdicts).
 
 Static by design: the measurements are fixed, so a pre-computed page has no cold start and cannot
 drift from the dataset it was built from.

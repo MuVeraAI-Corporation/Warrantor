@@ -86,7 +86,7 @@ errored row inflates recall. Exclude these rows before any paired comparison; th
 from datasets import load_dataset
 import itertools, math
 
-d = load_dataset("invincible-jha/guard-verdicts", split="train")
+d = load_dataset("MuVeraAI/guard-verdicts", split="train")
 base = {r["sample_id"]: r for r in d if r["run_id"].startswith("baseline-0.6b")
         and r["corpus"] == "ExpGuardTest"}
 cand = {r["sample_id"]: r for r in d if r["run_id"].startswith("T1-A")}
@@ -120,6 +120,6 @@ licences and gates, which this dataset does not alter and does not redistribute.
   title  = {Guard Model Verdicts: per-item results for Qwen3Guard baselines and LoRA fine-tunes},
   year   = {2026},
   note   = {ORCID 0009-0004-3959-6099},
-  howpublished = {\url{https://huggingface.co/datasets/invincible-jha/guard-verdicts}}
+  howpublished = {\url{https://huggingface.co/datasets/MuVeraAI/guard-verdicts}}
 }
 ```

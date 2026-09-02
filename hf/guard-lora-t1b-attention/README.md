@@ -40,11 +40,11 @@ Author: **Vikram Jha**, MuVeraAI · ORCID [0009-0004-3959-6099](https://orcid.or
 
 It is a **negative result**, and the useful kind. Three arms were trained, varying *only* which projections the adapter touches. All three destroyed the class. Attention-only and MLP-only are disjoint families and each is independently sufficient, so the loss is **not attributable to a module family**. The cause is the training target: the corpus renders the `Safety:` field as a boolean, so ~11,272 gradient updates teach a two-valued field.
 
-- [`guard-lora-t1a-all-modules`](https://huggingface.co/invincible-jha/guard-lora-t1a-all-modules) — control, all seven
-- [`guard-lora-t1b-attention`](https://huggingface.co/invincible-jha/guard-lora-t1b-attention) — attention only
-- [`guard-lora-t1c-mlp`](https://huggingface.co/invincible-jha/guard-lora-t1c-mlp) — MLP only
+- [`guard-lora-t1a-all-modules`](https://huggingface.co/MuVeraAI/guard-lora-t1a-all-modules) — control, all seven
+- [`guard-lora-t1b-attention`](https://huggingface.co/MuVeraAI/guard-lora-t1b-attention) — attention only
+- [`guard-lora-t1c-mlp`](https://huggingface.co/MuVeraAI/guard-lora-t1c-mlp) — MLP only
 
-Per-item verdicts for every run: [`invincible-jha/guard-verdicts`](https://huggingface.co/datasets/invincible-jha/guard-verdicts).
+Per-item verdicts for every run: [`MuVeraAI/guard-verdicts`](https://huggingface.co/datasets/MuVeraAI/guard-verdicts).
 
 ## Training
 
@@ -74,6 +74,6 @@ The training corpus itself is **not** redistributed here or anywhere else in thi
   title  = {guard-lora-t1b-attention: a guard adapter that lost an output class},
   year   = {2026},
   note   = {ORCID 0009-0004-3959-6099},
-  howpublished = {\url{https://huggingface.co/invincible-jha/guard-lora-t1b-attention}}
+  howpublished = {\url{https://huggingface.co/MuVeraAI/guard-lora-t1b-attention}}
 }
 ```
