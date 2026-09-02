@@ -43,6 +43,7 @@ const el = {
   viewWarrants: document.getElementById('view-warrants'),
   viewSummary: document.getElementById('view-summary'),
   viewQueue: document.getElementById('view-queue'),
+  viewSettings: document.getElementById('view-settings'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -50,6 +51,16 @@ const el = {
   queueEmpty: document.getElementById('queue-empty'),
   queueError: document.getElementById('queue-error'),
   queueUnreadable: document.getElementById('queue-unreadable'),
+  settings: document.getElementById('settings'),
+  settingsHeadline: document.getElementById('settings-headline'),
+  settingsDecision: document.getElementById('settings-decision'),
+  settingsTransports: document.getElementById('settings-transports'),
+  settingsOrder: document.getElementById('settings-order'),
+  settingsLedger: document.getElementById('settings-ledger'),
+  settingsPending: document.getElementById('settings-pending'),
+  settingsEmpty: document.getElementById('settings-empty'),
+  settingsError: document.getElementById('settings-error'),
+  settingsUnreadable: document.getElementById('settings-unreadable'),
   summary: document.getElementById('summary'),
   summaryForm: document.getElementById('summary-form'),
   summaryMonth: document.getElementById('summary-month'),
@@ -349,9 +360,11 @@ function applyEmptyState(kind) {
   const explain = kind === 'first-run';
   const summary = state.view === 'summary';
   const queue = state.view === 'queue';
-  const elsewhere = summary || queue;
+  const settings = state.view === 'settings';
+  const elsewhere = summary || queue || settings;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
+  el.settings && (el.settings.hidden = !settings);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -401,13 +414,16 @@ async function setView(value) {
     [el.viewWarrants, 'warrants'],
     [el.viewQueue, 'queue'],
     [el.viewSummary, 'summary'],
+    [el.viewSettings, 'settings'],
   ]) {
+    if (!button) continue;
     button.classList.toggle('is-on', value === name);
     button.setAttribute('aria-pressed', String(value === name));
   }
   applyEmptyState(state.lastKind);
   if (value === 'summary') await loadSummary();
   if (value === 'queue') await loadQueue();
+  if (value === 'settings') await loadSettings();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -655,6 +671,273 @@ async function actOnQueue(id, act, button) {
   }
   await loadQueue();
   await loadList();
+}
+
+// ── the notification fabric: which transports the operator chose, what each guarantees, and what
+//    the running ledger says about each delivery (L8-11) ─────────────────────────
+
+/**
+ * Read `/v1/notify` into the shape the settings pane renders.
+ *
+ * Three of the four answer values are deliberately un-stated rather than
+ * guessed at. A fabric that answered "no degradation" when the server did
+ * not say would be a fabric whose color the operator could not trust,
+ * and a transport that is "delivered" without a `last_attempt_at` is
+ * "delivered at the time the operator never asked for" — same falsehood.
+ *
+ * @param {boolean} answered Whether the request completed at all.
+ * @param {number} status The HTTP status, meaningful only when `answered`.
+ * @param {any} payload The parsed body, or null when the body did not parse.
+ * @returns {{readable: boolean, configured: boolean|null, order: string[], transports: object[],
+ *            ledger: object[], pending: number|null, decision: string|null, unreadable: number}}
+ */
+export function settingsFacts(answered, status, payload) {
+  const unusable = {
+    readable: false,
+    configured: null,
+    order: [],
+    transports: [],
+    ledger: [],
+    pending: null,
+    decision: null,
+    unreadable: 0,
+  };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data ?? payload;
+  if (!data || typeof data !== 'object') return unusable;
+  if (data.format !== 'warrantor.notify/1') return unusable;
+  const configured = data.configured === true;
+  const order = Array.isArray(data.order)
+    ? data.order.filter((name) => typeof name === 'string')
+    : [];
+  const transports = Array.isArray(data.transports) ? data.transports : [];
+  const ledger = Array.isArray(data.ledger) ? data.ledger : [];
+  // `pending === null` is the server's honest "I do not know"; `undefined` is a server that
+  // pre-dates the field and is treated as not-stated rather than as zero, for the same reason
+  // `unreadable_records` is in listFacts.
+  const pending = data.pending === undefined ? null : data.pending;
+  if (pending !== null && (!Number.isInteger(pending) || pending < 0)) return unusable;
+  const decision = typeof data.fabric_decision === 'string' ? data.fabric_decision : null;
+  return {
+    readable: true,
+    configured,
+    order,
+    transports,
+    ledger,
+    pending,
+    decision,
+    unreadable: 0,
+  };
+}
+
+/**
+ * One row of the per-transport table. The guarantee sentence is
+ * rendered verbatim from the server; the console adds the time
+ * and result, and never the color. A delivered transport in 4s
+ * is the same shape as a delivered transport in 28s.
+ */
+function transportRow(transport) {
+  const row = document.createElement('li');
+  row.className = 'settings-transport';
+  const head = document.createElement('div');
+  head.className = 'settings-transport-head';
+  head.append(node('span', 'settings-transport-name', transport?.name ?? '(unnamed)'));
+  // `last_result` is a small three-way vocabulary; each value gets a glyph
+  // so a reader who cannot distinguish the hues still can.
+  const result = transport?.last_result ?? null;
+  const glyph =
+    result === 'delivered' ? '✓ delivered'
+    : result === 'degraded' ? '→ degraded'
+    : result === 'failed' ? '⨯ failed'
+    : '◌ not yet attempted';
+  head.append(node('span', `settings-transport-result is-${result ?? 'unknown'}`, glyph));
+  row.append(head);
+  if (typeof transport?.guarantees === 'string') {
+    row.append(node('p', 'settings-transport-guarantee', transport.guarantees));
+  } else {
+    row.append(node(
+      'p',
+      'settings-transport-guarantee error',
+      'The server did not state what this transport guarantees. Do not infer from the name.',
+    ));
+  }
+  if (transport?.degraded_to) {
+    const arrow = document.createElement('p');
+    arrow.className = 'settings-transport-arrow';
+    arrow.textContent =
+      `degraded to ${transport.degraded_to}. the notification reached the next transport; it did not reach the approver pool through this one.`;
+    row.append(arrow);
+  }
+  if (transport?.last_reason) {
+    const reason = document.createElement('p');
+    reason.className = 'settings-transport-reason error';
+    reason.textContent = `last failure: ${transport.last_reason}`;
+    row.append(reason);
+  }
+  return row;
+}
+
+/**
+ * One row of the running delivery ledger. Every row says what the
+ * fabric actually did, including the rows that did not reach an
+ * approver. The exit gate requires that a failed transport is
+ * visible, never silent, and the ledger is the place that visibility
+ * lands on the page.
+ */
+function ledgerRow(entry) {
+  const row = document.createElement('li');
+  row.className = `settings-ledger is-${entry?.result ?? 'unknown'}`;
+  const head = document.createElement('div');
+  head.className = 'settings-ledger-head';
+  head.append(node('span', 'settings-ledger-event', entry?.event ?? '(no event)'));
+  head.append(node('span', 'settings-ledger-warrant', entry?.warrant_id ?? '(no warrant)'));
+  head.append(node('span', 'settings-ledger-transport', entry?.transport ?? '(no transport)'));
+  row.append(head);
+  const when = document.createElement('p');
+  when.className = 'settings-ledger-when';
+  when.textContent = `at ${
+    Number.isFinite(entry?.at) ? new Date(entry.at * 1000).toLocaleString() : 'unknown'
+  } — ${Number.isFinite(entry?.latency_ms) ? `${entry.latency_ms} ms` : 'latency not stated'}.`;
+  row.append(when);
+  if (entry?.reason) {
+    const reason = document.createElement('p');
+    reason.className = 'settings-ledger-reason error';
+    reason.textContent = `reason: ${entry.reason}`;
+    row.append(reason);
+  }
+  return row;
+}
+
+/**
+ * Paint the settings pane from the parsed facts.
+ *
+ * Order is part of the contract: the decision sentence, then the
+ * per-transport table, then the configured order, then the ledger,
+ * then the pending count. The pending count is rendered LAST so a
+ * reader who scans top-to-bottom reads the fact "what the fabric
+ * decided" before the fact "what it has not yet delivered".
+ *
+ * Empty / error / unreadable states are mutually exclusive and
+ * chosen exactly once. The empty state is the configured-everything
+ * case with no recent activity; the unreadable state is the
+ * configured case where the ledger exists but the line count could
+ * not be read; the error state is the unreachable case.
+ */
+export function renderSettings(facts) {
+  if (!facts || !facts.readable) {
+    el.settingsError.hidden = false;
+    el.settingsError.textContent =
+      'This view could not be read: the server did not answer, refused, or replied with something this console could not parse. That is not the same as there being no notification config on this machine.';
+    el.settingsHeadline.hidden = true;
+    el.settingsDecision.hidden = true;
+    el.settingsTransports.hidden = true;
+    el.settingsOrder.hidden = true;
+    el.settingsLedger.hidden = true;
+    el.settingsPending.hidden = true;
+    el.settingsEmpty.hidden = true;
+    el.settingsUnreadable.hidden = true;
+    return;
+  }
+  el.settingsError.hidden = true;
+  el.settingsHeadline.hidden = false;
+  el.settingsDecision.hidden = false;
+  el.settingsTransports.hidden = false;
+  el.settingsOrder.hidden = false;
+  el.settingsLedger.hidden = false;
+  el.settingsPending.hidden = false;
+  el.settingsUnreadable.hidden = true;
+  el.settingsEmpty.hidden = true;
+
+  el.settingsHeadline.textContent = facts.configured
+    ? 'What leaves this machine, and where it goes'
+    : 'No notification config is on this machine';
+  el.settingsDecision.textContent = facts.decision
+    ?? 'The server did not state what the fabric decided. Do not infer a guarantee from the lack of words.';
+
+  el.settingsTransports.replaceChildren();
+  if (facts.transports.length === 0) {
+    el.settingsTransports.append(node(
+      'p',
+      'settings-empty',
+      'No transports are configured. The fabric will not send anything until a `notify.json` is written.',
+    ));
+  } else {
+    for (const transport of facts.transports) {
+      el.settingsTransports.append(transportRow(transport));
+    }
+  }
+
+  el.settingsOrder.replaceChildren();
+  if (facts.order.length === 0) {
+    el.settingsOrder.append(node(
+      'p',
+      'settings-empty',
+      facts.configured
+        ? 'No order was stated. The fabric will not pick a transport on its own.'
+        : 'No order: nothing is configured.',
+    ));
+  } else {
+    const line = document.createElement('p');
+    line.className = 'settings-order-line';
+    // Verbatim. The order is the operator-facing decision; reordering it for readability
+    // would mean the fabric could disagree with what the page shows.
+    line.textContent = `Order: ${facts.order.join(' → ')}.`;
+    el.settingsOrder.append(line);
+    const sub = document.createElement('p');
+    sub.className = 'settings-order-sub note';
+    sub.textContent = facts.configured
+      ? 'A transport that fails hands the notification to the next one in this order. The approver pool does not change.'
+      : 'No `notify.json` is on this machine, so this order is not in force.';
+    el.settingsOrder.append(sub);
+  }
+
+  el.settingsLedger.replaceChildren();
+  if (facts.ledger.length === 0) {
+    el.settingsLedger.append(node(
+      'p',
+      'settings-empty',
+      facts.configured
+        ? 'No deliveries have been recorded in this window. The fabric is wired; nothing has been sent.'
+        : 'No deliveries: nothing is configured to deliver.',
+    ));
+  } else {
+    for (const entry of facts.ledger) {
+      el.settingsLedger.append(ledgerRow(entry));
+    }
+  }
+
+  el.settingsPending.replaceChildren();
+  if (facts.pending === null) {
+    el.settingsPending.append(node(
+      'p',
+      'settings-pending note error',
+      'The server did not state how many notifications are queued for the next drain. Do not read this as zero.',
+    ));
+  } else if (facts.pending === 0) {
+    el.settingsPending.append(node(
+      'p',
+      'settings-pending note',
+      'No notifications are queued for the next drain. Every recent delivery landed or was recorded as degraded.',
+    ));
+  } else {
+    el.settingsPending.append(node(
+      'p',
+      `settings-pending note error`,
+      `${facts.pending} notification(s) are queued for the next drain. They will be retried before the next new delivery, and the reason for the original failure is in the ledger above.`,
+    ));
+  }
+}
+
+/**
+ * Read the notification fabric once and paint it. The settings view
+ * is not polled: a pane that re-rendered under a reader would
+ * reorder a transport while they were scanning it. Re-read with
+ * the keyboard shortcut, or by clicking the tab again.
+ */
+async function loadSettings() {
+  if (!el.settings) return;
+  const { answered, status, payload } = await call('/v1/notify', { method: 'GET' });
+  renderSettings(settingsFacts(answered, status, payload));
 }
 
 // ── the summary: bounds that refused, and what a model said about what they allowed ──
@@ -1533,7 +1816,7 @@ export const SHORTCUTS = [
   ['Enter', 'open the selected warrant'],
   ['g / G', 'first / last warrant'],
   ['/', 'jump to the state filters'],
-  ['1 / 2 / 3', 'Warrants / Waiting on you / Refusals & guard'],
+  ['1 / 2 / 3 / 4', 'Warrants / Waiting on you / Refusals & guard / Notifications'],
   ['?', 'this sheet'],
   ['Escape', 'close this sheet'],
 ];
@@ -1633,6 +1916,9 @@ function installKeyboard() {
         break;
       case '3':
         setView('summary');
+        break;
+      case '4':
+        setView('settings');
         break;
       case '?':
         event.preventDefault();
@@ -1786,6 +2072,7 @@ el.summaryMonth.value = currentMonth();
 el.viewWarrants.addEventListener('click', () => setView('warrants'));
 el.viewSummary.addEventListener('click', () => setView('summary'));
 el.viewQueue.addEventListener('click', () => setView('queue'));
+if (el.viewSettings) el.viewSettings.addEventListener('click', () => setView('settings'));
 el.summaryForm.addEventListener('submit', (event) => {
   event.preventDefault?.();
   loadSummary();

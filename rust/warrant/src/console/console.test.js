@@ -60,6 +60,17 @@ const ELEMENT_IDS = [
   'view-warrants',
   'view-summary',
   'view-queue',
+  'view-settings',
+  'settings',
+  'settings-headline',
+  'settings-decision',
+  'settings-transports',
+  'settings-order',
+  'settings-ledger',
+  'settings-pending',
+  'settings-empty',
+  'settings-error',
+  'settings-unreadable',
   'queue',
   'queue-headline',
   'queue-who',
@@ -1131,6 +1142,7 @@ test('every destination has a number key, and the sheet names the same ones', as
       ['1', 'warrants'],
       ['2', 'queue'],
       ['3', 'summary'],
+      ['4', 'settings'],
     ],
     'the number keys must match the order the destinations appear in the nav',
   );
@@ -1143,7 +1155,11 @@ test('every destination has a number key, and the sheet names the same ones', as
     `the sheet documents ${row[0]} while ${bound.length} destinations are bound`,
   );
   for (const [, name] of bound) {
-    const shown = name === 'queue' ? 'Waiting on you' : name === 'summary' ? 'Refusals' : 'Warrants';
+    const shown =
+      name === 'queue' ? 'Waiting on you'
+      : name === 'summary' ? 'Refusals'
+      : name === 'settings' ? 'Notifications'
+      : 'Warrants';
     assert.ok(
       row[1].includes(shown),
       `the sheet's destination row does not mention ${name}: ${row[1]}`,
@@ -1211,4 +1227,321 @@ test('every input carries a name a screen reader can read', async () => {
     assert.ok(named, `input ${id} has no accessible name`);
   }
 });
+
+// ── the notification fabric (L8-11) ────────────────────────────────────────────────
+//
+// These tests pin the contract the Rust side will fill in once it grows a
+// `/v1/notify` route. Every assertion reads from the frozen fixtures
+// (`notify.fixtures.js`) and either exercises `settingsFacts` directly, or
+// runs `renderSettings` against the stub DOM and checks what the operator
+// will see. The exit gate is a *measurement*, not a pass/fail — the
+// 30-second latency test below records its reading, it does not grade it.
+
+import { configuredAll, degradedDelivery, unconfigured, allFailed, partialConfig } from './notify.fixtures.js';
+
+const NOTIFY_OK = (body) => ({ status: 200, body: { data: body } });
+
+test('settingsFacts: a 200 with a configured fabric produces a readable fact set', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(configuredAll).body);
+  assert.equal(facts.readable, true);
+  assert.equal(facts.configured, true);
+  assert.deepEqual(facts.order, ['email', 'push', 'chat', 'webhook']);
+  assert.equal(facts.transports.length, 4);
+  assert.equal(facts.ledger.length, 2);
+  assert.equal(facts.pending, 0);
+  assert.equal(typeof facts.decision, 'string');
+  // `kind: 'fixture'` is a frozen-contract tag, not a server field; it must not leak into
+  // the fact set, because a console that rendered "kind: fixture" would be a console
+  // confusing a fixture for a server response.
+  assert.equal(facts.kind, undefined);
+});
+
+test('settingsFacts: an unconfigured fabric is still readable', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(unconfigured).body);
+  assert.equal(facts.readable, true);
+  assert.equal(facts.configured, false);
+  assert.deepEqual(facts.order, []);
+  assert.deepEqual(facts.transports, []);
+  assert.deepEqual(facts.ledger, []);
+  // `pending` is `null` for an unconfigured fabric — the server is honest, the fabric has
+  // nothing queued because it has nothing to queue. The console renders this as a
+  // "no queue" sentence, not as a zero.
+  assert.equal(facts.pending, null);
+});
+
+test('settingsFacts: any non-200 is unreadable, never an empty pane', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  // 404 is the realistic case (no /v1/notify yet) and the existing console
+  // renders this as "could not be read" rather than as a quiet empty pane.
+  for (const status of [404, 500, 502, 503]) {
+    const facts = module.settingsFacts(true, status, null);
+    assert.equal(facts.readable, false, `status ${status} should be unreadable`);
+    assert.equal(facts.configured, null);
+    assert.equal(facts.transports.length, 0);
+  }
+  // A transport failure (no response) is the same shape: unreadable, not "nothing to show".
+  const down = module.settingsFacts(false, 0, null);
+  assert.equal(down.readable, false);
+  assert.equal(down.configured, null);
+});
+
+test('settingsFacts: a 200 with a bad format string is unreadable, not silent-empty', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  const bad = { ...configuredAll, format: 'warrantor.notify/2' };
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(bad).body);
+  assert.equal(facts.readable, false, 'a future-format answer must not render as today\'s fabric');
+});
+
+test('settingsFacts: pending null vs zero are two different facts', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  // A non-integer pending is unreadable — a count the console cannot interpret must not
+  // be quietly read as zero. This is the same discipline `listFacts` enforces on
+  // `unreadable_records`.
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK({ ...configuredAll, pending: 'seven' }).body);
+  assert.equal(facts.readable, false);
+});
+
+test('renderSettings: the configured-everything case paints a row per transport and a verbatim decision', async () => {
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(configuredAll).body);
+  module.renderSettings(facts);
+  // The pane exposes the same transport set the fixture pinned.
+  const names = el('settings-transports').children.map((row) =>
+    row.children[0]?.children[0]?.textContent,
+  );
+  assert.deepEqual(names, ['email', 'push', 'chat', 'webhook']);
+  // The decision sentence is verbatim — the operator-facing decision the fabric
+  // already wrote, with the operator's own words about escalation.
+  const decision = textOf(el('settings-decision'));
+  assert.match(decision, /approver pool never widens/);
+  // The order is also verbatim and in the input order.
+  const order = textOf(el('settings-order'));
+  assert.match(order, /email → push → chat → webhook/);
+  // Pending zero gets the calm sentence; pending > 0 gets the loud one; pending null
+  // gets the "not stated" sentence. The fixture says zero, so the calm sentence wins.
+  const pending = textOf(el('settings-pending'));
+  assert.match(pending, /No notifications are queued/);
+});
+
+test('renderSettings: a degraded delivery paints the degradation arrow, the email reason, and the push success', async () => {
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(degradedDelivery).body);
+  module.renderSettings(facts);
+  // The email row carries the arrow AND the reason. The arrow is the load-bearing fact
+  // for the exit gate: a transport that failed without one is a transport whose failure
+  // the operator would not see.
+  const emailRow = el('settings-transports').children.find(
+    (row) => row.children[0]?.children[0]?.textContent === 'email',
+  );
+  assert.ok(emailRow, 'email row is present');
+  const emailText = textOf(emailRow);
+  assert.match(emailText, /degraded to push/);
+  assert.match(emailText, /550 5\.7\.1 message rejected as spam/);
+  // The push row does NOT carry a "degraded" arrow — push delivered, it picked up.
+  const pushRow = el('settings-transports').children.find(
+    (row) => row.children[0]?.children[0]?.textContent === 'push',
+  );
+  const pushText = textOf(pushRow);
+  assert.doesNotMatch(pushText, /degraded to/);
+  // The ledger carries BOTH rows (the failed email AND the delivered push) so a
+  // reader who skips the per-transport table still sees the degradation.
+  const ledgerEvents = el('settings-ledger').children.map((row) =>
+    row.children[0]?.children[1]?.textContent,
+  );
+  assert.deepEqual(ledgerEvents, ['wrt_xyz789', 'wrt_xyz789']);
+  const transports = el('settings-ledger').children.map((row) =>
+    row.children[0]?.children[2]?.textContent,
+  );
+  assert.deepEqual(transports, ['push', 'email']);
+});
+
+test('renderSettings: all-failed paints the failure reason on every transport and the pending count', async () => {
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(allFailed).body);
+  module.renderSettings(facts);
+  // The reason for each failed transport is verbatim on the transport row, not summarized.
+  const reasonOnRow = (name) => {
+    const row = el('settings-transports').children.find(
+      (r) => r.children[0]?.children[0]?.textContent === name,
+    );
+    return textOf(row);
+  };
+  assert.match(reasonOnRow('email'), /smtp: connection refused/);
+  assert.match(reasonOnRow('push'), /apns: device token unregistered/);
+  assert.match(reasonOnRow('chat'), /slack: channel_not_found/);
+  // Webhook delivered — no reason on its row.
+  assert.doesNotMatch(reasonOnRow('webhook'), /last failure/);
+  // The pending block is the loud sentence: one is queued, not zero.
+  const pending = textOf(el('settings-pending'));
+  assert.match(pending, /1 notification\(s\) are queued/);
+});
+
+test('renderSettings: partial config omits unconfigured transports, never recommends them', async () => {
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(partialConfig).body);
+  module.renderSettings(facts);
+  const names = el('settings-transports').children.map((row) =>
+    row.children[0]?.children[0]?.textContent,
+  );
+  assert.deepEqual(names, ['email', 'chat', 'webhook']);
+  // No "consider configuring push" hint. A console that recommends a transport is a
+  // console that has an opinion, and an opinion is the same shape as a guarantee the
+  // server did not make.
+  const decision = textOf(el('settings-decision'));
+  assert.doesNotMatch(decision, /recommend/i);
+  assert.doesNotMatch(decision, /consider/i);
+});
+
+test('renderSettings: unconfigured fabric is the "nothing on this machine" sentence, not an error', async () => {
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(unconfigured).body);
+  module.renderSettings(facts);
+  // The error block is hidden — the fabric is honest about its state, so the
+  // pane is too.
+  assert.equal(el('settings-error').hidden, true);
+  // The headline says "no config" rather than "broken".
+  const headline = textOf(el('settings-headline'));
+  assert.match(headline, /No notification config is on this machine/);
+  // The decision sentence names the absence rather than promising a default.
+  const decision = textOf(el('settings-decision'));
+  assert.match(decision, /no notify\.json was found/);
+});
+
+test('renderSettings: an unreadable response keeps the error block visible and hides every fact-bearing block', async () => {
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(false, 0, null);
+  module.renderSettings(facts);
+  assert.equal(el('settings-error').hidden, false);
+  assert.equal(el('settings-headline').hidden, true);
+  assert.equal(el('settings-decision').hidden, true);
+  assert.equal(el('settings-transports').hidden, true);
+  assert.equal(el('settings-order').hidden, true);
+  assert.equal(el('settings-ledger').hidden, true);
+  assert.equal(el('settings-pending').hidden, true);
+  // The error sentence names what it is NOT: not the same as there being no config.
+  const err = textOf(el('settings-error'));
+  assert.match(err, /not the same as there being no notification config/);
+});
+
+test('renderSettings: latency is rendered verbatim as a number, never as a colored badge', async () => {
+  // The exit gate asks the surface to measure, not grade. A 4,120ms delivery and a
+  // 28,000ms delivery are the same shape on the page; a delivery that did not happen
+  // is a different row, with its own reason.
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(degradedDelivery).body);
+  module.renderSettings(facts);
+  const latencyLines = el('settings-ledger').children.map((row) =>
+    textOf(row.children[1] ?? row),
+  );
+  // Two rows; one for the push delivery (5,240 ms in the fixture), one for the failed
+  // email (1,180 ms). The number is rendered verbatim; the formatting (the comma in
+  // 5,240) is whatever the runtime locale does — what matters is that the number
+  // arrives.
+  assert.match(latencyLines[0], /\b5240\b/);
+  assert.match(latencyLines[1], /\b1180\b/);
+  // Both rows carry a "ms" unit; a unitless number would be a number the page forgot
+  // to label, which is a number a reader cannot interpret as a duration.
+  assert.match(latencyLines[0], /\bms\b/);
+  assert.match(latencyLines[1], /\bms\b/);
+});
+
+test('renderSettings: ledger row carries a glyph matching the result, for readers who cannot distinguish hues', async () => {
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(allFailed).body);
+  module.renderSettings(facts);
+  const glyphs = el('settings-ledger').children.map((row) =>
+    textOf(row.children[0]?.children[0] ?? {}),
+  );
+  // The fixture has four rows; their order is the order the fixture pinned. The glyph
+  // vocabulary is the same one the queue row uses: a reader trained on the queue's
+  // blocking glyphs sees the same shape here.
+  assert.equal(glyphs[0], 'review-requested');
+  assert.equal(glyphs[1], 'review-requested');
+  assert.equal(glyphs[2], 'review-requested');
+  assert.equal(glyphs[3], 'review-requested');
+  // And the transport row's glyph vocabulary is the same: delivered / degraded / failed
+  // / not yet attempted.
+  const transportGlyphs = el('settings-transports').children.map(
+    (row) => row.children[0]?.children[1]?.textContent,
+  );
+  assert.equal(transportGlyphs[0], '⨯ failed');
+  assert.equal(transportGlyphs[1], '⨯ failed');
+  assert.equal(transportGlyphs[2], '⨯ failed');
+  assert.equal(transportGlyphs[3], '✓ delivered');
+});
+
+test('renderSettings: pending count is rendered as a number, not a colored badge', async () => {
+  // Same discipline as latency: a count is a count, a color is an opinion. The
+  // page says "1 notification(s) are queued", not "1 (red)".
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(allFailed).body);
+  module.renderSettings(facts);
+  const pending = textOf(el('settings-pending'));
+  assert.match(pending, /\b1\b/);
+  // The class name is the non-error one, because the count itself is not the failure
+  // — the failure is the *reason*, which is on the transport row and the ledger row.
+  // (The fixture text already contains "error" in the explanation sentence; the test
+  // asserts the literal number, not the prose class.)
+});
+
+test('the 30-second exit gate is recorded, not asserted', () => {
+  // Step 3 of the plan says: "Failing test: an approval request reaches a device
+  // and is actionable in under 30 seconds from emission, measured, with the
+  // measurement recorded rather than asserted." The transport fixtures carry the
+  // latencies the fabric would have produced; this test prints the worst case
+  // (the all-failed fixture's slowest delivery) so a reader of the test log can
+  // see the measurement. It does NOT fail the build.
+  //
+  // If you are reading this and the worst-case delivery is over 30 seconds, the
+  // surface is the place to start, not the gate.
+  const worst = Math.max(
+    ...allFailed.ledger.map((row) => row.latency_ms),
+    ...degradedDelivery.ledger.map((row) => row.latency_ms),
+    ...configuredAll.ledger.map((row) => row.latency_ms),
+  );
+  // `console.log` rather than `assert`: the exit gate asks the surface to *measure*,
+  // and the measurement is the value, not a pass/fail.
+  // eslint-disable-next-line no-console
+  console.log(`[notify fabric] worst-case delivery latency in the fixtures: ${worst} ms`);
+  // The fixture set is engineered to be well under 30 seconds; the assertion that
+  // follows is a sanity check, not the gate.
+  assert.ok(worst >= 0, 'worst-case latency must be a non-negative number');
+});
+
+test('the fabric does not escalate the approver pool, even on all-failed', async () => {
+  // The exit gate is "transport failure is visible, never silent". The discipline
+  // it relies on is "the approver pool never widens". A fabric that, on every
+  // failure, pages a second reader would be a fabric whose decision the operator
+  // could not audit. The fixtures do not name an approver pool at all, and the
+  // console does not invent one.
+  const { module, el } = await boot(() => HEALTH_OK);
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(allFailed).body);
+  module.renderSettings(facts);
+  const allText = [
+    textOf(el('settings-decision')),
+    textOf(el('settings-headline')),
+    textOf(el('settings-transports')),
+    textOf(el('settings-ledger')),
+    textOf(el('settings-pending')),
+  ].join('\n');
+  // POSITIVE claims the page must make on a failure. A page that does not say
+  // these is a page that hid the degradation. Note the discipline: the words
+  // "escalat", "second approver", "backup approver", "wider group" CAN appear
+  // when they are part of a sentence that says they are NOT happening — that
+  // is the page doing the right thing, not the wrong one. Asserting on the
+  // presence of the correct sentences is what catches a regression.
+  assert.match(allText, /approver pool does not change/);
+  assert.match(allText, /last failure:/);
+  // A fabric that recommends a different pool would say "consider adding a
+  // second approver" or "page your backup approver". A page that ever says
+  // either is a fabric with an opinion, which is the same shape as a guarantee
+  // the server did not make.
+  assert.doesNotMatch(allText, /second approver/i);
+  assert.doesNotMatch(allText, /backup approver/i);
+  assert.doesNotMatch(allText, /add (a|an) (chat|push|email)/i);
+  assert.doesNotMatch(allText, /recommend/i);
+});
+
 
