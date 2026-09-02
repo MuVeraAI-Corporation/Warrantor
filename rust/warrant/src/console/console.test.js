@@ -67,6 +67,7 @@ const ELEMENT_IDS = [
   'queue-empty',
   'queue-error',
   'queue-unreadable',
+  'queue-latency',
   'summary',
   'summary-form',
   'summary-month',
@@ -104,6 +105,17 @@ function element(tag = 'div', id = '') {
     children: [],
     listeners: new Map(),
     classList: {
+      add(name) {
+        const has = self.className.split(/\s+/).includes(name);
+        if (!has) self.className = `${self.className} ${name}`.trim();
+      },
+      remove(name) {
+        self.className = self.className
+          .split(/\s+/)
+          .filter((c) => c !== name)
+          .join(' ')
+          .trim();
+      },
       toggle(name, on) {
         const has = self.className.split(/\s+/).includes(name);
         if (on === true && !has) self.className = `${self.className} ${name}`.trim();
@@ -137,10 +149,32 @@ function element(tag = 'div', id = '') {
       self.focused = true;
     },
     append(...kids) {
-      self.children.push(...kids);
+      // A DocumentFragment in the stub exposes its children the same way an Element does, so
+      // a real browser's `parent.append(frag)` flattens the fragment's children into `parent`.
+      // The production code relies on that flattening (a queue row builds each disclosure
+      // block as a fragment and then appends it). Without this, the row's direct children
+      // would all be fragments, and the per-section classNames would be invisible to the
+      // tests that read `row.children`.
+      const flat = [];
+      for (const k of kids) {
+        if (k && (k.id === '#fragment' || k.tagName === '#fragment')) {
+          flat.push(...(k.children ?? []));
+        } else {
+          flat.push(k);
+        }
+      }
+      self.children.push(...flat);
     },
     replaceChildren(...kids) {
-      self.children = [...kids];
+      const flat = [];
+      for (const k of kids) {
+        if (k && (k.id === '#fragment' || k.tagName === '#fragment')) {
+          flat.push(...(k.children ?? []));
+        } else {
+          flat.push(k);
+        }
+      }
+      self.children = [...flat];
     },
     addEventListener(name, handler) {
       const existing = self.listeners.get(name) ?? [];
@@ -1082,6 +1116,328 @@ test('the reader is described in the SERVER\'s words, including having no name a
 test('warrant records that could not be read are counted separately and said out loud', async () => {
   const app = await openQueue(queueBody({ unreadable_records: 2 }));
   assert.match(textOf(app.el('queue-unreadable')), /2 warrant record\(s\) could not be read/);
+});
+
+// ── Task 4.1: the L8-01 anti-ceremony properties of the queue row ──────────────────────
+//
+// Each test below is a property the L8-01 plan demands, asserted against the DOM, not against
+// the payload. The plan's failure mode is "the queue becomes ceremony": reviewers approving
+// everything under time pressure. The properties are the ones that, when they fail, make the
+// queue ceremony rather than judgment.
+
+const { baselineQueue, dependencyQueue, timedOutQueue, minimalQueue } = await import(
+  './queue.fixtures.js'
+);
+
+/** A `waiting` entry with the additive L8-01 fields merged onto the existing QUEUE_ENTRY. */
+function fixtureBody(fixture) {
+  return {
+    status: 200,
+    body: { data: fixture.data },
+  };
+}
+
+/** Open the queue view against a fixture body. The console renders that body without a backend. */
+async function openFixture(fixture) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/queue') return fixtureBody(fixture);
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-queue').fire('click');
+  await settle();
+  return app;
+}
+
+/** Every interactive child (`<button>`) of a row, in document order. */
+function interactiveChildren(row) {
+  const buttons = [];
+  const walk = (node) => {
+    for (const child of node.children ?? []) {
+      if (child.tagName === 'button') buttons.push(child);
+      walk(child);
+    }
+  };
+  walk(row);
+  return buttons;
+}
+
+test('the approver sees the effect, the chain and the receipts BEFORE the approve control', async () => {
+  // The anti-ceremony property. The plan: "The approver must see the proposed effect, the
+  // authority chain and the prior receipts, before the approve control." A renderer that put
+  // the act bar at the top would pass a "contains an Approve button" test and fail this one.
+  const app = await openFixture(baselineQueue);
+  const row = app.el('queue-rows').children[0];
+  const buttons = interactiveChildren(row);
+  const approve = buttons.find((b) => b.textContent === 'Approve');
+  assert.ok(approve, 'the baseline queue must offer an Approve button');
+  // The Approve button is the LAST interactive child of the row. Every interactive thing before
+  // it is the warrant id, which crosses to the warrant view (navigation, not an act).
+  assert.equal(buttons[buttons.length - 1], approve, 'Approve is the last button on the row');
+  // The proposed-effects, authority-chain and prior-receipts sections all render and all
+  // appear before the act bar in document order. The className is a single token ("queue-acts",
+  // "proposed-effects", etc.), so the check is on a word boundary, not a substring — otherwise
+  // "queue-acts" would match "queue-acts-note" and the indices would be off by one.
+  const all = row.children;
+  const hasClass = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+  const indices = (cls) => all.findIndex((c) => hasClass(c, cls));
+  const effIdx = indices('proposed-effects');
+  const chainIdx = indices('authority-chain');
+  const recIdx = indices('prior-receipts');
+  const actsIdx = indices('queue-acts');
+  assert.ok(effIdx >= 0, 'proposed-effects block is rendered');
+  assert.ok(chainIdx >= 0, 'authority-chain block is rendered');
+  assert.ok(recIdx >= 0, 'prior-receipts block is rendered');
+  assert.ok(actsIdx >= 0, 'act bar is rendered');
+  assert.ok(effIdx < actsIdx, 'effects render before the act bar');
+  assert.ok(chainIdx < actsIdx, 'chain renders before the act bar');
+  assert.ok(recIdx < actsIdx, 'receipts render before the act bar');
+});
+
+test('each rendered effect names its tier and the tier\'s caveat; an unknown tier says so', async () => {
+  const app = await openFixture(baselineQueue);
+  const walked = [];
+  const hasClass = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+  const walk = (n) => {
+    if (hasClass(n, 'proposed-effect')) walked.push(n);
+    for (const c of n.children ?? []) walk(c);
+  };
+  walk(app.el('queue-rows').children[0]);
+  assert.equal(walked.length, 2, 'two effects in the baseline fixture');
+  // First effect: enforced, with a caveat that names "Held by".
+  assert.match(walked[0].className, /is-enforced/);
+  const tier1 = walked[0].children.find((c) => hasClass(c, 'proposed-effect-meta'));
+  assert.match(textOf(tier1), /tier: enforced/);
+  const caveat1 = walked[0].children.find((c) => hasClass(c, 'proposed-effect-caveat'));
+  assert.match(textOf(caveat1), /What this tier does not cover: Held by the MCP proxy/);
+  // Second effect: mediated, with a caveat that names "traverse".
+  assert.match(walked[1].className, /is-mediated/);
+  const tier2 = walked[1].children.find((c) => hasClass(c, 'proposed-effect-meta'));
+  assert.match(textOf(tier2), /tier: mediated/);
+  const caveat2 = walked[1].children.find((c) => hasClass(c, 'proposed-effect-caveat'));
+  assert.match(textOf(caveat2), /traverse/);
+});
+
+test('an effect whose tier is unknown is rendered as "not stated", never as enforced', async () => {
+  // The product rule: a renderer must never collapse observed/mediated/enforced into one
+  // state, and must never supply the strongest tier. A missing or unknown tier renders as
+  // "not stated" with a sentence the reader cannot mistake for an enforcement claim.
+  const { module } = await boot(() => HEALTH_OK);
+  const frag = module.proposedEffectsBlock([
+    { summary: 'do the thing', tier: 'unbreakable', covered_by: 'x' },
+    { summary: 'another thing' },
+  ]);
+  const walked = [];
+  const hasClass = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+  const walk = (n) => {
+    if (hasClass(n, 'proposed-effect')) walked.push(n);
+    for (const c of n.children ?? []) walk(c);
+  };
+  walk(frag);
+  assert.equal(walked.length, 2);
+  for (const item of walked) {
+    const meta = item.children.find((c) => hasClass(c, 'proposed-effect-meta'));
+    assert.match(textOf(meta), /not stated/);
+    // The meta line must not name the strongest tier word. A row whose server has not
+    // classified an effect must read as a row whose tier is unknown, not as a row whose
+    // tier is enforced.
+    assert.doesNotMatch(textOf(meta), /\benforced\b/);
+  }
+});
+
+test('the authority chain renders root first and the parent digest on a non-root link', async () => {
+  const app = await openFixture(baselineQueue);
+  const walked = [];
+  const hasClass = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+  const walk = (n) => {
+    if (hasClass(n, 'authority-link')) walked.push(n);
+    for (const c of n.children ?? []) walk(c);
+  };
+  walk(app.el('queue-rows').children[0]);
+  assert.equal(walked.length, 2, 'two links in the baseline chain');
+  // Root link.
+  assert.match(textOf(walked[0]), /root: spiffe:\/\/muveraai\.com\/agent\/orchestrator/);
+  assert.doesNotMatch(textOf(walked[0]), /parent grant/);
+  // Delegated link.
+  assert.match(textOf(walked[1]), /delegated: spiffe:\/\/muveraai\.com\/agent\/coder/);
+  assert.match(textOf(walked[1]), /parent grant sha256:9a7c/);
+  assert.match(textOf(walked[1]), /delegated by orchestrator/);
+});
+
+test('the prior receipts list is newest first and the kind carries its own marker class', async () => {
+  const app = await openFixture(baselineQueue);
+  const walked = [];
+  const hasClass = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+  const walk = (n) => {
+    if (hasClass(n, 'prior-receipt')) walked.push(n);
+    for (const c of n.children ?? []) walk(c);
+  };
+  walk(app.el('queue-rows').children[0]);
+  assert.equal(walked.length, 2, 'two prior receipts on the baseline warrant');
+  // First receipt: approve by ana.
+  assert.match(walked[0].className, /is-approve/);
+  assert.match(textOf(walked[0]), /ana — approve/);
+  // Second receipt: refuse, with the bound that triggered it.
+  assert.match(walked[1].className, /is-refuse/);
+  assert.match(textOf(walked[1]), /write_paths/);
+});
+
+test('a queue with no prior receipts says so, and never invents one', async () => {
+  // A renderer that filled the empty list with a generic sentence about "no recent activity"
+  // would be answering a question the server did not ask.
+  const { module } = await boot(() => HEALTH_OK);
+  const frag = module.priorReceiptsBlock([]);
+  assert.match(textOf(frag), /No prior receipts on this warrant\./);
+});
+
+test('a row whose response budget has expired offers no act, even if the server said you_can', async () => {
+  // The plan: "Timeout defaults to DENY, never to approve, and never escalates to a wider group."
+  // The fixture sends you_can: ["approve"] with a remaining_seconds of -120. The console must
+  // not show the button.
+  const app = await openFixture(timedOutQueue);
+  const row = app.el('queue-rows').children[0];
+  const buttons = interactiveChildren(row);
+  const approve = buttons.find((b) => b.textContent === 'Approve');
+  assert.equal(approve, undefined, 'no Approve button on a timed-out row');
+  // The timeout block says so in plain language.
+  const timeoutParas = [];
+  const walk = (n) => {
+    if ((n.className ?? '').includes('queue-timeout')) timeoutParas.push(n);
+    for (const c of n.children ?? []) walk(c);
+  };
+  walk(row);
+  assert.equal(timeoutParas.length, 1);
+  assert.match(timeoutParas[0].textContent, /timed out 120 s ago/);
+  assert.match(timeoutParas[0].textContent, /never approves and never escalates/);
+});
+
+test('a row whose budget is still open reports the remaining seconds and the on-expiry rule', async () => {
+  const app = await openFixture(baselineQueue);
+  const row = app.el('queue-rows').children[0];
+  const paras = [];
+  const walk = (n) => {
+    if ((n.className ?? '').includes('queue-timeout')) paras.push(n);
+    for (const c of n.children ?? []) walk(c);
+  };
+  walk(row);
+  assert.equal(paras.length, 1);
+  assert.match(paras[0].textContent, /within 900 s/);
+  assert.match(paras[0].textContent, /On expiry: deny/);
+});
+
+test('partial release names the independently-releasable effects and the refused dependents', async () => {
+  // The plan: "Dependency-aware partial approval: releasing part of a batch must not silently
+  // release dependent effects." The fixture ships a batch of three where releasing the test
+  // effect without the two writes would be a code change that is not on disk.
+  const app = await openFixture(dependencyQueue);
+  const row = app.el('queue-rows').children[0];
+  const rel = row.children.find((c) => (c.className ?? '').includes('queue-partial'));
+  assert.ok(rel, 'partial block is rendered');
+  const relP = rel.children.find((c) => (c.className ?? '').includes('queue-partial-rel'));
+  const refP = rel.children.find((c) => (c.className ?? '').includes('queue-partial-refused'));
+  const why = rel.children.find((c) => (c.className ?? '').includes('queue-partial-reason'));
+  assert.match(textOf(relP), /Releasable independently: Add the new signing entry point; Add the matching key-parsing path/);
+  assert.match(textOf(refP), /Refused if a dependency is unreleased: Run the new signer tests against a recorded fixture set/);
+  assert.match(textOf(why), /releasing it without effects 0 and 1 would test code that is not on disk/);
+});
+
+test('a queue with no additive fields renders "not stated" placeholders, never inferred content', async () => {
+  // The server may not have shipped the L8-01 fields. The console must not invent them. Every
+  // section that depends on the additive payload either renders nothing or renders a single
+  // "not stated" sentence, and the act bar still works against the existing `you_can`.
+  const { module } = await boot(() => HEALTH_OK);
+  // Pure functions, no row.
+  const latency = module.latencyBlock(null);
+  assert.equal(latency.children.length, 0, 'no latency block when the field is absent');
+  const effects = module.proposedEffectsBlock(null);
+  assert.equal(effects.children.length, 0);
+  const chain = module.authorityChainBlock(null);
+  assert.equal(chain.children.length, 0);
+  const receiptsAbsent = module.priorReceiptsBlock(undefined);
+  assert.equal(receiptsAbsent.children.length, 0, 'no receipts block when the field is absent');
+  // An empty receipts list still renders the section with the honest "no prior receipts" line.
+  const receiptsEmpty = module.priorReceiptsBlock([]);
+  assert.match(textOf(receiptsEmpty), /No prior receipts on this warrant\./);
+  // The DOM row against a minimal payload still offers the Approve button and the act bar
+  // is still the last interactive child.
+  const app = await openFixture(minimalQueue);
+  const row = app.el('queue-rows').children[0];
+  const buttons = interactiveChildren(row);
+  const approve = buttons.find((b) => b.textContent === 'Approve');
+  assert.ok(approve, 'Approve button is still rendered for a minimal payload');
+  assert.equal(buttons[buttons.length - 1], approve);
+});
+
+test('the latency block renders p50, p99 and disagreement rate, with a counter-metric note', async () => {
+  // The L8-01 verification clause: "p50 and p99 approval latency are published per queue
+  // alongside the disagreement rate, so a queue that gets faster while disagreement falls to
+  // zero is flagged, not celebrated."
+  const { module } = await boot(() => HEALTH_OK);
+  const frag = module.latencyBlock(baselineQueue.data.policy.latency);
+  assert.match(textOf(frag), /p50 approval latency/);
+  assert.match(textOf(frag), /42 s/);
+  assert.match(textOf(frag), /p99 approval latency/);
+  assert.match(textOf(frag), /312 s/);
+  assert.match(textOf(frag), /disagreement rate/);
+  assert.match(textOf(frag), /12% of recent decisions disagreed with the agent/);
+  assert.match(textOf(frag), /A disagreement rate trending to zero while latency improves is rubber-stamping/);
+});
+
+test('the latency block shows "not stated" when the server has too few samples', async () => {
+  // disagreement_rate === null is the server's signal that there are not enough samples to
+  // publish a percentage. The console must show that as a fact, not as 0%.
+  const { module } = await boot(() => HEALTH_OK);
+  const frag = module.latencyBlock({ p50_seconds: 30, p99_seconds: 90, sample_size: 0, disagreement_rate: null });
+  assert.match(textOf(frag), /not stated — too few samples in the window to publish/);
+  assert.doesNotMatch(textOf(frag), /0% of recent/);
+});
+
+test('the queue latency block is rendered above the rows, not inside one of them', async () => {
+  const app = await openFixture(baselineQueue);
+  const latency = app.el('queue-latency');
+  assert.ok(latency, 'queue-latency element exists');
+  // The latency block has its own heading and its own dl, not just a stray paragraph.
+  const text = textOf(latency);
+  assert.match(text, /How fast this queue answers/);
+  // The rows themselves do not contain the latency text.
+  for (const row of app.el('queue-rows').children) {
+    assert.doesNotMatch(textOf(row), /How fast this queue answers/);
+  }
+});
+
+test('the queue does not reward approval rate: no count, no badge, no per-user leaderboard', async () => {
+  // The plan: "Nothing in the UI may reward approval rate." A regression here is easy to miss
+  // because each individual element looks harmless; the test scans the rendered queue text
+  // for the patterns that would reward a fast approver.
+  const app = await openFixture(baselineQueue);
+  const queueText = textOf(app.el('queue'));
+  // No phrase that links a count to a time window for the reader's own behavior.
+  assert.doesNotMatch(queueText, /you (have )?approved \d+/i);
+  assert.doesNotMatch(queueText, /approvals? (today|this hour|this week|per hour)/i);
+  assert.doesNotMatch(queueText, /your (rate|speed|throughput)/i);
+  // No "fastest approver" or "approval streak" wording.
+  assert.doesNotMatch(queueText, /streak|fastest|top approver|leaderboard/i);
+});
+
+test('the L8-01 act button is the last interactive child of the row, after every disclosure', async () => {
+  // Belt-and-braces version of the anti-ceremony test: the act bar's position in the
+  // interactive-children array, not just its class. A regression that swaps two sections
+  // around the act bar would still pass the first test; this one would not.
+  for (const fixture of [baselineQueue, dependencyQueue]) {
+    const app = await openFixture(fixture);
+    const row = app.el('queue-rows').children[0];
+    const buttons = interactiveChildren(row);
+    // `findLast` because the dependency fixture ships both `approve` and `settle`; the last
+    // interactive child is whichever one is the trailing act, and the assertion is that
+    // whichever it is, it is the trailing act.
+    const acts = buttons.findLast((b) => b.textContent === 'Approve' || b.textContent === 'Settle');
+    assert.ok(acts, `${fixture.data.waiting[0].warrant_id} must offer an act button`);
+    assert.equal(
+      buttons[buttons.length - 1],
+      acts,
+      `${fixture.data.waiting[0].warrant_id}: the act button is the last interactive child`,
+    );
+  }
 });
 
 // ── unguarded runs ───────────────────────────────────────────────────────────────────

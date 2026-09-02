@@ -50,6 +50,7 @@ const el = {
   queueEmpty: document.getElementById('queue-empty'),
   queueError: document.getElementById('queue-error'),
   queueUnreadable: document.getElementById('queue-unreadable'),
+  queueLatency: document.getElementById('queue-latency'),
   summary: document.getElementById('summary'),
   summaryForm: document.getElementById('summary-form'),
   summaryMonth: document.getElementById('summary-month'),
@@ -432,7 +433,17 @@ async function setView(value) {
  * @param {any} payload The parsed body.
  */
 export function queueFacts(answered, status, payload) {
-  const unusable = { readable: false, waiting: [], undetermined: [], you: null, yours: 0, counts: {}, unreadableRecords: 0 };
+  const unusable = {
+    readable: false,
+    waiting: [],
+    undetermined: [],
+    you: null,
+    yours: 0,
+    counts: {},
+    unreadableRecords: 0,
+    policy: null,
+    latency: null,
+  };
   if (!answered || status !== 200) return unusable;
   const data = payload?.data;
   if (!data || typeof data !== 'object') return unusable;
@@ -445,6 +456,13 @@ export function queueFacts(answered, status, payload) {
     yours: Number.isFinite(data.waiting_on_you) ? data.waiting_on_you : 0,
     counts: data.counts && typeof data.counts === 'object' ? data.counts : {},
     unreadableRecords: Number.isFinite(data.unreadable_records) ? data.unreadable_records : 0,
+    // The policy block carries `required` and `settler_may_approve` (the existing fields) and
+    // `latency` (the additive L8-01 field). The renderer reads each independently; `latency` being
+    // absent is not the same as latency being zero.
+    policy: data.policy && typeof data.policy === 'object' ? data.policy : null,
+    latency: data.policy && data.policy.latency && typeof data.policy.latency === 'object'
+      ? data.policy.latency
+      : null,
   };
 }
 
@@ -493,6 +511,7 @@ function renderQueue(facts) {
     el.queueWho.textContent = '';
     el.queueEmpty.hidden = true;
     el.queueUnreadable.textContent = '';
+    el.queueLatency.replaceChildren();
     return;
   }
 
@@ -508,12 +527,316 @@ function renderQueue(facts) {
       ? `${facts.unreadableRecords} warrant record(s) could not be read and are NOT counted here.`
       : '';
 
+  // The per-queue latency block: p50/p99 and disagreement rate, surfaced only when the server
+  // supplied them. An absent block is itself a fact — a server that has not shipped the metric
+  // cannot be misread as "0 disagreement".
+  el.queueLatency.replaceChildren(latencyBlock(facts.latency));
+
   for (const entry of facts.waiting) {
     el.queueRows.append(queueRow(entry, facts.you));
   }
   for (const entry of facts.undetermined) {
     el.queueRows.append(undeterminedRow(entry));
   }
+}
+
+// ── L8-01 additive rendering (Task 4.1) ────────────────────────────────────────────────
+//
+// Every function in this section is pure: it takes the server's payload, returns a DOM node or
+// fragment, and never recomputes what the server already said. A renderer that "fixed" a tier
+// or an authority chain would be a second implementation of the rules, and the two would
+// drift the first time either changed — the mistake this product is built on not making.
+//
+// Tier vocabulary is the report's vocabulary: enforced, mediated, observed. Each rendered tier
+// is followed by the caveat the server sent, because the tier word alone is read as the
+// strongest thing it could mean. Where the server has not sent the field, the row says
+// "not stated" rather than guessing.
+
+/**
+ * The latency block at the top of the queue. `latency` is the additive `policy.latency` field
+ * the L8-01 contract adds; the existing policy block still carries `required` and
+ * `settler_may_approve`.
+ *
+ * Returns the empty fragment when the field is absent, which is the honest answer for a
+ * server that has not shipped the metric. A block that printed "0 disagreement" instead
+ * would be a queue that gets faster and friendlier on its way to rubber-stamping.
+ */
+export function latencyBlock(latency) {
+  const frag = document.createDocumentFragment();
+  if (!latency || typeof latency !== 'object') return frag;
+  const heading = document.createElement('h3');
+  heading.className = 'queue-latency-head';
+  heading.textContent = 'How fast this queue answers, and how often it disagrees';
+  frag.append(heading);
+
+  const dl = document.createElement('dl');
+  dl.className = 'queue-latency';
+  const add = (term, definition) => {
+    const dt = document.createElement('dt');
+    dt.textContent = term;
+    const dd = document.createElement('dd');
+    dd.textContent = definition;
+    dl.append(dt, dd);
+  };
+
+  if (Number.isFinite(latency.p50_seconds)) add('p50 approval latency', `${latency.p50_seconds} s`);
+  if (Number.isFinite(latency.p99_seconds)) add('p99 approval latency', `${latency.p99_seconds} s`);
+  if (latency.disagreement_rate === null) {
+    add('disagreement rate', 'not stated — too few samples in the window to publish');
+  } else if (Number.isFinite(latency.disagreement_rate)) {
+    const pct = Math.round(latency.disagreement_rate * 100);
+    add('disagreement rate', `${pct}% of recent decisions disagreed with the agent's request`);
+  } else {
+    add('disagreement rate', 'not stated');
+  }
+  if (Number.isFinite(latency.sample_size)) {
+    add('sample size', `${latency.sample_size} decision(s) in the window`);
+  }
+  if (typeof latency.window === 'string' && latency.window.length > 0) {
+    add('window', latency.window);
+  }
+  frag.append(dl);
+
+  if (typeof latency.note === 'string' && latency.note.length > 0) {
+    const note = document.createElement('p');
+    note.className = 'queue-latency-note';
+    note.textContent = latency.note;
+    frag.append(note);
+  }
+  return frag;
+}
+
+/**
+ * The proposed-effect list for one waiting warrant: the tool, the target, the one-sentence
+ * summary, the tier, and the tier's caveat. Exported and pure so the test pins the shape and
+ * the tier words.
+ */
+export function proposedEffectsBlock(effects) {
+  const frag = document.createDocumentFragment();
+  if (!Array.isArray(effects) || effects.length === 0) return frag;
+  const heading = document.createElement('h4');
+  heading.className = 'queue-section-head';
+  heading.textContent = 'What the warrant wants to do';
+  frag.append(heading);
+  const list = document.createElement('ol');
+  list.className = 'proposed-effects';
+  for (const effect of effects) {
+    list.append(proposedEffectItem(effect));
+  }
+  frag.append(list);
+  return frag;
+}
+
+function proposedEffectItem(effect) {
+  const item = document.createElement('li');
+  item.className = 'proposed-effect';
+  if (typeof effect?.tier === 'string' && effect.tier.length > 0) {
+    item.classList.add(`is-${effect.tier}`);
+  }
+  const summary = document.createElement('p');
+  summary.className = 'proposed-effect-summary';
+  summary.textContent = effect?.summary ?? 'No description supplied.';
+  item.append(summary);
+
+  const meta = document.createElement('p');
+  meta.className = 'proposed-effect-meta';
+  const tier = effect?.tier;
+  if (tier === 'enforced' || tier === 'mediated' || tier === 'observed') {
+    meta.textContent = `tier: ${tier}`;
+  } else {
+    meta.classList.add('quiet');
+    // The word "enforced" is deliberately not on this line. A reader who skims the meta
+    // block would otherwise see the strongest tier word on a row the server has not
+    // classified, and that is the exact rendering the product rule forbids.
+    meta.textContent = 'tier: not stated — do not read this as the strongest tier';
+  }
+  item.append(meta);
+
+  if (typeof effect?.covered_by === 'string' && effect.covered_by.length > 0) {
+    const caveat = document.createElement('p');
+    caveat.className = 'proposed-effect-caveat';
+    caveat.textContent = `What this tier does not cover: ${effect.covered_by}`;
+    item.append(caveat);
+  }
+  return item;
+}
+
+/**
+ * The authority chain behind a warrant, root first. Each link is a paragraph naming the
+ * principal, the goal, the grant time, and (for non-root links) the parent's grant digest and
+ * the delegating principal. The approver's right to act depends on this chain being visible.
+ */
+export function authorityChainBlock(chain) {
+  const frag = document.createDocumentFragment();
+  if (!Array.isArray(chain) || chain.length === 0) return frag;
+  const heading = document.createElement('h4');
+  heading.className = 'queue-section-head';
+  heading.textContent = 'Authority chain (root to this warrant)';
+  frag.append(heading);
+  const list = document.createElement('ol');
+  list.className = 'authority-chain';
+  for (const link of chain) {
+    list.append(authorityChainItem(link));
+  }
+  frag.append(list);
+  return frag;
+}
+
+function authorityChainItem(link) {
+  const item = document.createElement('li');
+  item.className = 'authority-link';
+  const line = document.createElement('p');
+  const role = link?.parent_digest ? 'delegated' : 'root';
+  const subject = link?.subject ?? 'unknown principal';
+  const goal = link?.goal ?? 'no goal stated';
+  line.textContent = `${role}: ${subject} — "${goal}"`;
+  item.append(line);
+  if (link?.parent_digest || link?.delegated_by) {
+    const meta = document.createElement('p');
+    meta.className = 'authority-link-meta';
+    const bits = [];
+    if (link.delegated_by) bits.push(`delegated by ${link.delegated_by}`);
+    if (link.parent_digest) bits.push(`parent grant ${link.parent_digest}`);
+    meta.textContent = bits.join(' · ');
+    item.append(meta);
+  }
+  return item;
+}
+
+/**
+ * The prior receipts the approver should see before releasing a new effect. A list of
+ * one-paragraph items, newest first. An empty list renders as a single sentence that says so
+ * — an absent list is a fact about the warrant, not a fact about the renderer.
+ */
+export function priorReceiptsBlock(receipts) {
+  const frag = document.createDocumentFragment();
+  if (!Array.isArray(receipts)) return frag;
+  const heading = document.createElement('h4');
+  heading.className = 'queue-section-head';
+  heading.textContent = 'Prior receipts on this warrant';
+  frag.append(heading);
+  if (receipts.length === 0) {
+    const none = document.createElement('p');
+    none.className = 'queue-note quiet';
+    none.textContent = 'No prior receipts on this warrant.';
+    frag.append(none);
+    return frag;
+  }
+  const list = document.createElement('ol');
+  list.className = 'prior-receipts';
+  for (const receipt of receipts) {
+    list.append(priorReceiptItem(receipt));
+  }
+  frag.append(list);
+  return frag;
+}
+
+function priorReceiptItem(receipt) {
+  const item = document.createElement('li');
+  item.className = 'prior-receipt';
+  if (typeof receipt?.kind === 'string') item.classList.add(`is-${receipt.kind}`);
+  const head = document.createElement('p');
+  head.className = 'prior-receipt-head';
+  head.textContent = `${receipt?.by ?? '(unknown)'} — ${receipt?.kind ?? 'unknown'}`;
+  item.append(head);
+  if (typeof receipt?.bound === 'string' && receipt.bound.length > 0) {
+    const bound = document.createElement('p');
+    bound.className = 'prior-receipt-bound';
+    bound.textContent = `bound: ${receipt.bound}`;
+    item.append(bound);
+  }
+  if (typeof receipt?.summary === 'string' && receipt.summary.length > 0) {
+    const sum = document.createElement('p');
+    sum.className = 'prior-receipt-summary';
+    sum.textContent = receipt.summary;
+    item.append(sum);
+  }
+  if (typeof receipt?.receipt_digest === 'string' && receipt.receipt_digest.length > 0) {
+    const dig = document.createElement('p');
+    dig.className = 'prior-receipt-digest';
+    dig.textContent = `receipt: ${receipt.receipt_digest}`;
+    item.append(dig);
+  }
+  return item;
+}
+
+/**
+ * The response budget for the entry. A row whose budget has already elapsed renders the
+ * expiry line in plain language and the act bar is empty; the timeout rule is "deny, never
+ * approve, never escalate to a wider group", and that sentence is part of the rendered
+ * block.
+ */
+export function timeoutBlock(timeout, youCan) {
+  const frag = document.createDocumentFragment();
+  if (!timeout || typeof timeout !== 'object') return frag;
+  const heading = document.createElement('h4');
+  heading.className = 'queue-section-head';
+  heading.textContent = 'Response budget';
+  frag.append(heading);
+  const p = document.createElement('p');
+  p.className = 'queue-timeout';
+  const remaining = Number(timeout.remaining_seconds);
+  if (Number.isFinite(remaining) && remaining < 0) {
+    p.classList.add('error');
+    p.textContent = `This approval timed out ${Math.abs(remaining)} s ago and was denied by default. The plan rule: a timeout never approves and never escalates to a wider group.`;
+  } else if (Number.isFinite(remaining)) {
+    p.textContent = `Approve or settle within ${remaining} s. On expiry: ${timeout.on_expiry ?? 'deny'}.`;
+  } else {
+    p.textContent = `On expiry: ${timeout.on_expiry ?? 'deny'}.`;
+  }
+  frag.append(p);
+  // When the budget is past, force the act bar to be empty even if the server sent `you_can`
+  // entries. The console never offers a button the server's policy has already resolved.
+  if (Number.isFinite(remaining) && remaining < 0 && Array.isArray(youCan) && youCan.length > 0) {
+    const note = document.createElement('p');
+    note.className = 'queue-timeout-note';
+    note.textContent = 'The server still reports acts you could take, but the budget has expired and the default is deny. Confirm the live state with a refresh.';
+    frag.append(note);
+  }
+  return frag;
+}
+
+/**
+ * The dependency block: which effects the server would release independently, and which
+ * dependents the server would refuse if a dependency is unreleased. Empty on a warrant with
+ * no dependencies.
+ */
+export function partialReleaseBlock(partial, effects) {
+  const frag = document.createDocumentFragment();
+  if (!partial || typeof partial !== 'object') return frag;
+  const heading = document.createElement('h4');
+  heading.className = 'queue-section-head';
+  heading.textContent = 'Dependency-aware partial approval';
+  frag.append(heading);
+  const wrap = document.createElement('div');
+  wrap.className = 'queue-partial';
+  const rel = Array.isArray(partial.independently_releasable) ? partial.independently_releasable : [];
+  const refused = Array.isArray(partial.refused_when_unreleased) ? partial.refused_when_unreleased : [];
+  const names = (indexes) => indexes
+    .filter((i) => Number.isInteger(i) && effects && effects[i])
+    .map((i) => (effects[i].summary ?? `effect ${i}`).replace(/[.\s]+$/, ''));
+  const relNames = names(rel);
+  const refusedNames = names(refused);
+  const relP = document.createElement('p');
+  relP.className = 'queue-partial-rel';
+  relP.textContent = relNames.length > 0
+    ? `Releasable independently: ${relNames.join('; ')}.`
+    : 'No effects are releasable independently of the others.';
+  wrap.append(relP);
+  const refP = document.createElement('p');
+  refP.className = 'queue-partial-refused';
+  refP.textContent = refusedNames.length > 0
+    ? `Refused if a dependency is unreleased: ${refusedNames.join('; ')}.`
+    : 'No dependent effect would be refused by a partial release.';
+  wrap.append(refP);
+  if (typeof partial.reason === 'string' && partial.reason.length > 0) {
+    const why = document.createElement('p');
+    why.className = 'queue-partial-reason';
+    why.textContent = `Why: ${partial.reason}`;
+    wrap.append(why);
+  }
+  frag.append(wrap);
+  return frag;
 }
 
 /** One waiting warrant, with only the acts the server said this reader can take. */
@@ -581,9 +904,23 @@ function queueRow(entry, you) {
     row.append(line);
   }
 
+  // L8-01 anti-ceremony order. The approver must see (1) the proposed effect, (2) the authority
+  // chain, (3) the prior receipts, (4) the dependency and timeout context, BEFORE the act bar.
+  // The act bar is appended last, in the same place it always was, so a test that pinned
+  // "the act bar is the last interactive child" still holds.
+  row.append(proposedEffectsBlock(entry?.proposed_effects));
+  row.append(authorityChainBlock(entry?.authority_chain));
+  row.append(priorReceiptsBlock(entry?.prior_receipts));
+  row.append(timeoutBlock(entry?.timeout, entry?.you_can));
+  row.append(partialReleaseBlock(entry?.partial_release, entry?.proposed_effects));
+
   // Only what the server offered. `you_can` is never recomputed here; see `queueFacts`.
   const acts = Array.isArray(entry?.you_can) ? entry.you_can : [];
-  if (acts.length > 0) {
+  // A timed-out row never offers an act. The plan: "Timeout defaults to DENY, never to approve,
+  // and never escalates to a wider group." A button that says Approve on a row whose budget
+  // has expired would be a UI that rewards ignoring the timeout.
+  const expired = entry?.timeout && Number.isFinite(entry.timeout.remaining_seconds) && entry.timeout.remaining_seconds < 0;
+  if (acts.length > 0 && !expired) {
     const bar = document.createElement('div');
     bar.className = 'queue-acts';
     for (const act of acts) {
@@ -595,7 +932,12 @@ function queueRow(entry, you) {
       bar.append(button);
     }
     row.append(bar);
-  } else if (word !== 'deadlocked') {
+  } else if (word === 'awaiting-approval' && expired) {
+    const line = document.createElement('p');
+    line.className = 'queue-note error';
+    line.textContent = 'This row offers no act: the response budget has expired and the default is deny. Refresh to confirm the live state.';
+    row.append(line);
+  } else if (word !== 'deadlocked' && !expired) {
     const nothing = document.createElement('p');
     nothing.className = 'queue-note quiet';
     nothing.textContent = readerHolds(you, 'settle')
