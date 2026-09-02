@@ -18,7 +18,7 @@ submission. It is irrevocable per released version; future versions may be licen
 | **P1** | How Reproducible Is a Guard Evaluation? A Measured Floor, and Where It Isn't Small | Novel | 8 pp | 5 pp |
 | **P8** | One Ladder, Opposite Directions | Novel, narrowed | 13 pp | 8 pp |
 | **T04** | Masking a Field's Loss Does Not Isolate That Field | Novel, bounded | 11 pp | — |
-| **T12** | SoK: Acceptance Is Not Action | Systematization | 30 pp | 16 pp |
+| **T12** | SoK: Acceptance Is Not Action | Systematization | 31 pp | 16 pp |
 | **P3** | Positional Guard Evasion at Short Context: A Replication Note | Replication note | 8 pp | 5 pp |
 | **P6** | Shared Lineage, Not Shared Category, Makes Guards Fail Together | Replication + extension | 13 pp | 7 pp |
 
@@ -64,8 +64,14 @@ Suggested     cs.CR (primary), cs.LG (secondary)
 
 ## Known gap
 
-**T12 has no reference section.** It cites four arXiv identifiers inline and its 48-work
-corpus lives in companion artifacts (`T-12-corpus-v1.md`, `-v2.md`), which carry no arXiv
-identifiers of their own. A systematization submitted without a bibliography will draw a
-reviewer comment. Building one means recovering each work's identity from
-`drafts/corpus-codings/` — real work, and not something to guess at.
+**T12's bibliography covers 23 of the 49 screened works.** A `References` section was built on
+2026-09-01 by resolving every arXiv identifier appearing in the paper or its coding records against
+the arXiv API — 23 entries, comprising all 15 works that carry a full two-coder record plus 8 cited
+in the text. Titles and author lists are as arXiv records them, not as this paper's tables summarise
+them.
+
+**The other 26 screened works are not enumerated anywhere in the released material.** §5.1 discloses
+why: the screening payload truncated at the 55th of 322 candidate records, and its output was never
+persisted. That is a disclosed process defect in the paper itself, not something introduced here, and
+the corpus is explicitly **not closed** until the November freeze. The References section says so in
+its own header rather than presenting 23 entries as though they were the corpus.

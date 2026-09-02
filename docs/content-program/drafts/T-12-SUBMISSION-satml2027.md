@@ -1174,3 +1174,63 @@ released artifact.*
 | **R4 — Uncomputable referent** | The objective names a set no monitor can decide membership in: the oracle-minimal action set, the user's true intent | SEAgent, PAuth, Separation-of-Powers, AARM, MiniScope, TDX trusted plane | 6 | "T_q is oracle-defined and often not known in advance, making defense against such attacks challenging" — SEAgent |
 | **R5 — Cooperation dependence** | The upward half of the protocol depends on the agent volunteering true information about itself | AgentCgroup, the section 9 system | 2 | "Declarations are advisory; the feedback loop corrects underestimates." — AgentCgroup |
 
+---
+
+## References
+
+Every entry was resolved against the arXiv API on 2026-09-01; titles and author lists are
+as recorded there, not as summarised in this paper's tables.
+
+**This list is not the corpus.** The screened corpus is *n* = 49 (§5.2). The 23 works below
+are those identified by arXiv identifier somewhere in this paper or its coding records —
+all 15 works carrying a full two-coder record, plus 8 cited in the text. **The remaining 26
+screened works are not enumerated anywhere in the released material**, because the screening
+payload that produced them was truncated at the 55th record (§5.1) and its output was not
+persisted. Closing that gap is part of the November corpus freeze, and until it closes this
+bibliography under-represents the corpus it is drawn from.
+
+[CaMeL] Edoardo Debenedetti et al. *Defeating Prompt Injections by Design.* arXiv:2503.18813, 2025.
+
+[Progent] Tianneng Shi et al. *Progent: Securing AI Agents with Privilege Control.* arXiv:2504.11703, 2025.
+
+[DesignPatterns] Luca Beurer-Kellner et al. *Design Patterns for Securing LLM Agents against Prompt Injections.* arXiv:2506.08837, 2025.
+
+[AgentArmor] Peiran Wang et al. *AgentArmor: Enforcing Program Analysis on Agent Runtime Trace to Defend Against Prompt Injection.* arXiv:2508.01249, 2025.
+
+[MiniScope] Jinhao Zhu et al. *MiniScope: A Least Privilege Framework for Authorizing Tool Calling Agents.* arXiv:2512.11147, 2025.
+
+[MCP-SandboxScan] Zhuoran Tan et al. *MCP-SandboxScan: WASM-based Secure Execution and Runtime Analysis for MCP Tools.* arXiv:2601.01241, 2026.
+
+[CaMeLs Can Use Computers Too] Hanna Foerster et al. *CaMeLs Can Use Computers Too: System-level Security for Computer Use Agents.* arXiv:2601.09923, 2026.
+
+[SEAgent] Zimo Ji et al. *Taming Various Privilege Escalation in LLM-Based Agent Systems: A Mandatory Access Control Framework.* arXiv:2601.11893, 2026.
+
+[AgentCgroup] Yusheng Zheng et al. *AgentCgroup: Understanding and Controlling OS Resources of AI Agents.* arXiv:2602.09345, 2026.
+
+[AARM] Herman Errico. *Autonomous Action Runtime Management(AARM):A System Specification for Securing AI-Driven Actions at Runtime.* arXiv:2602.09433, 2026.
+
+[PAuth] Reshabh K Sharma et al. *Beyond OAuth: Task-Scoped Authorization for AI Agents via Natural Language Slices.* arXiv:2603.17170, 2026.
+
+[Caging the Agents] Saikat Maiti. *Caging the Agents: A Zero Trust Security Architecture for Autonomous AI in Healthcare.* arXiv:2603.17419, 2026.
+
+[AIP] Sunil Prakash. *AIP: Agent Identity Protocol for Verifiable Delegation Across MCP and A2A.* arXiv:2603.24775, 2026.
+
+[ClawGuard] Wei Zhao et al. *ClawGuard: A Runtime Security Framework for Tool-Augmented LLM Agents Against Indirect Prompt Injection.* arXiv:2604.11790, 2026.
+
+[From Craft to Kernel] Xiangyu Wen et al. *From Craft to Kernel: A Governance-First Execution Architecture and Semantic ISA for Agentic Computers.* arXiv:2604.18652, 2026.
+
+[Separation-of-Powers] Rong Xiang. *Structural Enforcement of Goal Integrity in AI Agents via Separation-of-Powers Architecture.* arXiv:2604.23646, 2026.
+
+[TDX trusted plane] Di Lu et al. *Constraining Host-Level Abuse in Self-Hosted Computer-Use Agents via TEE-Backed Isolation.* arXiv:2605.06393, 2026.
+
+[Heartbeat-Bound Credentials] Saurabh Deochake. *Heartbeat-Bound Hierarchical Credentials: Cryptographic Revocation for AI Agent Swarms.* arXiv:2605.20704, 2026.
+
+[Sandlock] Cong Wang, Yusheng Zheng. *Sandlock: Confining AI Agent Code with Unprivileged Linux Primitives.* arXiv:2605.26298, 2026.
+
+[Grimlock] Qiancheng Wu et al. *Grimlock: Guarding High-Agency Systems with eBPF and Attested Channels.* arXiv:2605.27488, 2026.
+
+[DEMM-Bench] Oleg Solozobov. *DEMM-Bench: A Cross-Regime Benchmark for Agent-Runtime Governance-Evidence Sufficiency.* arXiv:2606.20634, 2026.
+
+[HCP] Ting Liu. *From Tool Connection to Execution Control: Benchmarking Security Invariants in MCP-Style Agent Runtimes.* arXiv:2606.29073, 2026.
+
+[PriorSoK] Mohammadreza Rashidi. *The Balkanization of Execution-Security Research for AI Coding Agents: Isolation, Access Control, and Time-of-Check-to-Time-of-Use Vulnerabilities.* arXiv:2607.05743, 2026.
