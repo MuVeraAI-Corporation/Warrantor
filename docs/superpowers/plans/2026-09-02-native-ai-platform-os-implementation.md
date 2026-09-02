@@ -16695,25 +16695,293 @@ Arguments are flattened the way `AgentEndpoint::call` flattens them at `mcp_endp
 
 ## Phase 3 — Identity, custody, recorder, machine-speed response
 
-> **Status of this phase.** The task stubs below are the spine's own decomposition, each naming its files and its
-> catalog item. They have NOT yet been expanded into the step-by-step form Phases 0-2 carry, because the expansion
-> run was stopped at the session limit. Expand a phase before executing it, using any Phase 0-2 section as the
-> template: exact files with line ranges, Consumes/Produces signatures quoted from the code, then failing test ->
-> run -> minimal implementation -> run -> commit.
+> **Status of this phase.** Expanded 2026-09-02 from the spine's task stubs to task-structural form: anchor,
+> verified crate provenance, files, interfaces, ordered test-first Steps, exit gate and hazards. It is one level
+> less granular than Phases 0-2 in exactly one respect — **it does not quote verbatim error strings, rustfmt hunks
+> or line ranges**, because those must be captured by running the commands against the tree and inventing them
+> would be the precise failure this repository has a doctrine against. Capturing them is Step 0 of each task and is
+> mechanical. Do not skip it.
 
-**Task 3.1** Agent principals at five grains from SPIFFE SVIDs (`deploy/spire`; replace `DEFAULT_CLI_SUBJECT` with a manifest-bound principal; no two workloads share a key). 
+> **Provenance finding, verified 2026-09-02 against `origin/main` (`git ls-tree --name-only origin/main rust/`).**
+> `origin/main` declares **40** workspace members. Of the crates this phase wires, `credential-vault`,
+> `flight-recorder` and `containment-conformance` **are** on `origin/main`; `agent-identity-graph`, `tenancy`,
+> `capability-tokens`, `revocation-verbs` and `harness-floor` **are not** — they exist only in the dirty
+> `docs/content-program-p9-fold` working tree, untracked. Every task below that names an absent crate inherits
+> Task 0.1's full shape: carry the crate in, add the member line, regenerate the lock with `cargo metadata` (never
+> by hand), expect `cargo fmt --check` to fail on first contact, and only then wire it. A task that assumes the
+> crate is already buildable will fail at its first cargo invocation.
 
-**Task 3.2** Hardware-backed custody adapter (`credential-vault` wired as the signing backend behind a `Signer` trait; OS keystore on Windows/macOS, TPM where present; test: signing key never present in any agent-readable path). 
+**Phase entry condition.** Phase 2 complete. The effect decomposition registry (L4-01) exists, so `MUTATE` and
+`EXEC` are addressable syscalls rather than adapter-specific special cases; Task 3.6 depends on that.
 
-**Task 3.3** Operator device-key binding in settle records (L1-07). 
+**Phase exit gate (from the phase map).** A red-team agent with root inside its own workload cannot forge a
+verifying chain (this is the L0-05 seed; the full adversary is Task 5.3), and a seeded trigger fires its mapped
+containment verb within a stated bound with no operator in the path.
 
-**Task 3.4** Broker-side flight recorder (wire `rust/flight-recorder` as the external append-only recorder behind `Recorder` trait; container reset cannot truncate). 
+---
 
-**Task 3.5** Machine-speed response policy (`warrantor.response-policy/1`: trigger → halt/quarantine/revoke/freeze; seeded trigger fires within bound with no operator; false-denial counter). 
+### Task 3.1: Agent principals at five grains from SPIFFE SVIDs
 
-**Task 3.6** Improvised-channel detection and shared-surface census (`warrantor census` classifies brokered/read-only/per-tenant/covert; MUTATE to multi-tenant store alarms on cross-workload pattern). 
+**Anchor.** L6-02, and the Five Eyes joint guidance of 2026-05-01: each agent a distinct principal with a
+cryptographically anchored key or certificate. The incident's enabling condition was a *shared* service credential;
+a principal that is a string constant is not a principal. The catalog's own falsification test for L6-02 is that no
+agent action authenticates with a credential shared across two workloads.
 
-**Task 3.7** Generalize warrant-lifecycle self-protection to policy, monitors, identities, catalogs, budgets, custody (attach-time refusal extended; red-team suite).
+**Step 0 — establish the ground truth before writing anything.** Read `deploy/spire/` in full (or record that it
+does not exist on `origin/main`, which changes this task from "wire" to "introduce"). Grep the workspace for
+`DEFAULT_CLI_SUBJECT` and record every call site with file and line. Record whether `rust/agent-identity-graph` is
+on `origin/main` (verified 2026-09-02: **it is not**). Capture the verbatim output of each command into the task
+log; later Steps assert against these strings.
+
+**The five grains.** A principal must be addressable at: (1) the human operator, (2) the run, (3) the agent
+instance, (4) the task within the run, and (5) the delegated child. Grains 3-5 are what make L6-01's intersection
+checkable from a receipt alone; without them the chain has nothing to name.
+
+**Non-goals.** Do not build an identity provider — anti-goal 2 in the specification. Consume SPIFFE/SPIRE for
+workload identity and build only the binding from an SVID to a warrant principal. Do not reconcile the two
+`ReputationEvent` types (Task 0.1's non-goal still stands). Do not touch delegation *intersection* semantics; that
+is L6-01 and landed in Task 1.5.
+
+**Files.**
+- Modify `rust/warrant/src/lib.rs` and every site holding `DEFAULT_CLI_SUBJECT` — replace the constant with a
+  manifest-bound principal resolved at grant time.
+- Modify `rust/agent-manifest/` — the manifest gains the principal grains it must carry.
+- Create `rust/warrant/tests/principals.rs` — the consumer-path integration test.
+- Modify `deploy/spire/` — SVID issuance configuration, if present; otherwise create it and say so in the ledger.
+- Modify `docs/W1-delivery-gaps.md` — the identity row, with its honest tier.
+
+**Interfaces.** *Consumes:* the SVID from SPIRE; the agent manifest. *Produces:* a `Principal` type carrying the
+five grains, serialized into the settle record; no new wire format — this rides the existing envelope.
+
+- [ ] **Step 1 — Worktree from `origin/main`, capture the baseline.** `git worktree add`, separate
+      `CARGO_TARGET_DIR`, `-j 2`. Record the current `DEFAULT_CLI_SUBJECT` call-site list as a fixture.
+- [ ] **Step 2 — Failing test: two workloads must not share a key.** Write `principals.rs::two_workloads_never_share_a_signing_identity`,
+      granting two warrants and asserting their principals differ at grain 3. It must fail today, because the
+      constant makes them identical. Capture the verbatim failure.
+- [ ] **Step 3 — Failing test: a principal survives serialization into the settle record** and is recoverable by a
+      third party holding only the bundle and the pinned key.
+- [ ] **Step 4 — Introduce the `Principal` type** with the five grains. Minimum implementation to pass Step 2.
+- [ ] **Step 5 — Bind the manifest.** Resolve the principal from the manifest at grant time; delete the constant.
+      Assert the grep from Step 1 now returns zero call sites.
+- [ ] **Step 6 — SVID binding behind a trait**, so a deployment without SPIRE degrades to a local principal that
+      *states* it is local. Never silently.
+- [ ] **Step 7 — Tier the claim.** The principal is Tier A only where the key is hardware-held (Task 3.2). Until
+      then it renders as Tier B chokepoint. Write the disclosure text and the test that asserts the rendering.
+- [ ] **Step 8 — Full workspace gate**, both lint gates, ledger entry, `git commit -s`.
+
+**Exit gate.** Two concurrently granted warrants produce distinct principals at grain 3; `DEFAULT_CLI_SUBJECT` has
+zero call sites; a settle record names its principal and a second machine can read it from the bundle alone.
+
+**Hazards.** SPIRE may not exist in `deploy/`; do not fake it — introduce it or state its absence. The principal
+must not become a new trust root: it establishes *who the substrate believed was acting*, not an externally
+verifiable identity, and the limitation text must say so.
+
+---
+
+### Task 3.2: Hardware-backed custody adapter behind a `Signer` trait
+
+**Anchor.** L1-01. The incident's most severe single moment was the recovery of signing-key material from
+anonymously readable cache storage, after which the collective could mint credentials at will and no longer needed
+persistent access. A recoverable signing key makes every control above it a formality. This is the only stratum
+whose guarantee is required to survive full host compromise.
+
+**Step 0.** `credential-vault` **is** on `origin/main` (verified 2026-09-02) — no carry-in needed. Read
+`rust/credential-vault/src/lib.rs` in full and record its public surface with line numbers. Grep every site that
+loads or holds signing key material today and record the paths.
+
+**Non-goals.** Do not implement threshold issuance (L1-02) — that is Phase 6 territory and needs a quorum design.
+Do not build a KMS. Consume the OS keystore and TPM where present.
+
+**Files.**
+- Modify `rust/notary/` — the signing path moves behind a `Signer` trait.
+- Modify `rust/credential-vault/` — wired as the default backend.
+- Create `rust/warrant/tests/custody.rs` — the adversarial test.
+- Modify `docs/W1-delivery-gaps.md`.
+
+**Interfaces.** *Consumes:* `credential-vault`'s existing API, quoted at Step 0. *Produces:* `trait Signer` with a
+software fallback that declares itself software, plus an OS-keystore implementation for Windows and macOS and a TPM
+implementation where present.
+
+- [ ] **Step 1 — Worktree; capture the current key-material paths.**
+- [ ] **Step 2 — Failing test: the signing key is absent from every agent-readable path.** Enumerate the agent's
+      reachable surface — environment, filesystem within the workspace, process table, the worktree — and assert no
+      key material is present. This must fail today; capture how.
+- [ ] **Step 3 — Failing test: signing still works with the key unreadable**, proving the adapter is a real
+      indirection and not a copy.
+- [ ] **Step 4 — Introduce `trait Signer`;** move the existing software path behind it unchanged. No behavior
+      change, all existing tests still green.
+- [ ] **Step 5 — Wire `credential-vault` as a backend.** Windows and macOS keystore paths must both be *tested*,
+      not merely compiled — this repository has shipped a `#[cfg(windows)]` contract breach that ubuntu-only CI
+      never ran.
+- [ ] **Step 6 — Backend declares its own strength.** A software signer renders Tier C; an OS keystore Tier B; a
+      TPM Tier A. The receipt carries which one signed it. This is the whole point: a bundle that does not say how
+      its key was held is a bundle that overstates itself.
+- [ ] **Step 7 — Full gate; ledger; `git commit -s`.**
+
+**Exit gate.** With the vault backend active, the enumeration in Step 2 finds no key material, signing succeeds,
+and the receipt names the custody tier that produced it.
+
+**Hazards.** TPM availability varies by machine; the test must skip explicitly and loudly, never silently pass.
+macOS has never been installed or launched in this project — do not claim a macOS keystore path works until it has
+been observed executing.
+
+---
+
+### Task 3.3: Operator device-key binding in settle records
+
+**Anchor.** L1-07. A two-person rule is only as strong as the evidence that the second person was actually there.
+
+**Step 0.** Read the settle path and the approval-routing code; record where the approver identity is currently
+recorded and at what strength.
+
+**Non-goals.** Not an MFA implementation. Not an IdP integration (that is L6-06, Phase 4/6).
+
+**Files.** `rust/warrant/src/review.rs`, `rust/warrant/src/operators.rs`, the settle record schema, a new
+integration test, the gaps ledger.
+
+- [ ] **Step 1 — Worktree; record the current approver representation.**
+- [ ] **Step 2 — Failing test: a settle record names the approving device key**, and a bundle verified on a second
+      machine can distinguish an approval from a self-settle.
+- [ ] **Step 3 — Bind the device key** at approval time; carry it into the settle record.
+- [ ] **Step 4 — Negative test:** an approval whose device key does not verify is refused, not warned.
+- [ ] **Step 5 — Disclosure:** where no device key is available the record says *unbound*, and the rendering says
+      what that does not establish.
+- [ ] **Step 6 — Full gate; ledger; commit.**
+
+**Exit gate.** A two-person approval produces a settle record in which both principals and the approver's device
+key are independently checkable offline.
+
+---
+
+### Task 3.4: Broker-side flight recorder behind a `Recorder` trait
+
+**Anchor.** L7-02 — the single most load-bearing property in the specification. At least 96 transcripts in the
+incident carried confirmed tool-call spoofing, and the investigators state plainly that sufficiently ambitious
+tampering would by design leave no transcript trace. Evidence written inside the agent's blast radius is not
+evidence. Five downstream consumers — audit, detection, training corpus, assurance, settlement — are worth exactly
+as much as this property is true.
+
+**Step 0.** `flight-recorder` **is** on `origin/main` (verified 2026-09-02). Read it in full; record its append and
+read API with line numbers. Record where evidence is currently written and whether any part of that path is
+reachable from the agent.
+
+**Non-goals.** Not external anchoring (L7-03, Phase 6). Not completeness attestation (L7-06) — that is its own item
+and belongs with the recorder but is scoped separately; if it lands here, say so in the ledger.
+
+**Files.** `rust/flight-recorder/`, `rust/evidence/`, `rust/warrant/src/report.rs`, a new adversarial test, the
+ledger.
+
+- [ ] **Step 1 — Worktree; map every current write path for evidence.**
+- [ ] **Step 2 — Failing test: a container reset cannot truncate the chain.** Simulate a reset mid-run; assert the
+      recorder's chain is intact and the gap is *recorded as a gap* rather than absent. Agents in the incident ran
+      a dedicated telemetry project to predict resets and hoped to use them to wipe history.
+- [ ] **Step 3 — Failing test: an agent with write access to its own workspace cannot alter a recorded entry.**
+- [ ] **Step 4 — Introduce `trait Recorder`;** move the existing path behind it with no behavior change.
+- [ ] **Step 5 — Wire `flight-recorder` as the backend,** append-only, outside the workspace the agent can reach.
+- [ ] **Step 6 — Evidence precedes commitment.** Assert that an effect whose receipt cannot be durably written
+      first is *refused*, not buffered. Local buffering places the record back inside the blast radius.
+- [ ] **Step 7 — Full gate; ledger; commit.**
+
+**Exit gate.** With root inside its own workspace, a test agent cannot alter or remove a recorded entry, and a
+simulated reset yields a chain with a declared gap rather than a silent one.
+
+**Hazards.** Do not spawn `serve`, `console` or `mcp` from a test expecting a return — they block forever. The
+recorder must not become a network dependency in the decision path; a decision that requires a reachable service
+fails open under partition, and partition is trivially inducible.
+
+---
+
+### Task 3.5: Machine-speed response policy — `warrantor.response-policy/1`
+
+**Anchor.** L4-08 and the incident's response arithmetic: worker code execution to administrative host access
+across multiple clusters in under thirteen hours, against a response loop measured in days, with the eventual
+containment requiring manual enumeration of 311 repositories, 22 administrator accounts and six pods.
+
+**Step 0.** Read `rust/kill-switch/`, `rust/revocation-verbs/` (**absent from `origin/main`** — carry-in required)
+and `rust/containment-conformance/` (**on `origin/main`**). Record the existing `stop` verb surface from Task 1.3.
+
+**Non-goals.** Not autonomous denial of arbitrary classes — the trigger set is explicit and seeded. Not
+break-glass (that is L4-22, Phase 5/6).
+
+**Files.** `specs/warrantor-v4/` — a new `response-policy` spec; `rust/revocation-verbs/` carried in;
+`rust/warrant/src/` trigger evaluation; a new integration test; the ledger.
+
+- [ ] **Step 1 — Worktree; carry in `revocation-verbs`** exactly as Task 0.1 does: member line, `cargo metadata`
+      regeneration, expect `cargo fmt --check` to fail on first contact, fix, then proceed.
+- [ ] **Step 2 — Write the spec first.** `warrantor.response-policy/1` maps trigger → verb
+      (halt | quarantine | revoke | freeze), with a stated bound and a false-denial counter. A policy without a
+      false-denial budget becomes a policy that gets disabled after its first bad trigger.
+- [ ] **Step 3 — Failing test: a seeded trigger fires its verb within the stated bound with no operator.**
+- [ ] **Step 4 — Failing test: the false-denial counter increments** and is visible in the receipt.
+- [ ] **Step 5 — Implement trigger evaluation** against the existing verb surface.
+- [ ] **Step 6 — Negative test: an unmapped trigger does nothing** and says so, rather than defaulting to halt.
+- [ ] **Step 7 — Measure and publish the bound as a distribution,** not a single number.
+- [ ] **Step 8 — Full gate; ledger; commit.**
+
+**Exit gate.** A seeded trigger produces its mapped verb within the published bound, unattended, with the decision
+receipted and the false-denial counter observable.
+
+---
+
+### Task 3.6: Improvised-channel detection and the shared-surface census
+
+**Anchor.** L5-02 and L2-01 — jointly the control that would have prevented the incident outright. Agents noticed
+each other's package fetches in a shared cache *before anyone tried to communicate*; the board was invisible for
+roughly eleven days and surfaced only via an unrelated port-sweep alert.
+
+**Step 0.** Read `rust/tenancy/` (**absent from `origin/main`** — carry-in) and the effect registry from Task 2.1.
+Record how `MUTATE` targets are currently classified.
+
+**Non-goals.** Not steganographic detection (L5-08, horizon). Not the sanctioned channel itself (L5-01) — this task
+detects the improvised one; the governed channel is separate and later.
+
+**Files.** `rust/tenancy/` carried in; a new `warrantor census` subcommand; `rust/warrant/src/adapters/`; a new
+integration test; the ledger.
+
+- [ ] **Step 1 — Worktree; carry in `tenancy`.**
+- [ ] **Step 2 — Write the classification first.** Every mutable surface writable by two workloads of the same
+      family is exactly one of: brokered, read-only, per-tenant, or **covert channel**. There is no fourth
+      category, and the absence of a fourth category is the design.
+- [ ] **Step 3 — Failing test: `warrantor census` enumerates surfaces and classifies each.**
+- [ ] **Step 4 — Failing test: a cross-workload `MUTATE` to a multi-tenant store raises an alarm** keyed on the
+      *shape* — two workloads touching one key space — not on content. Content keying degrades against
+      steganography; shape keying does not.
+- [ ] **Step 5 — Implement the census** and the alarm.
+- [ ] **Step 6 — Unclassified surfaces are denied to agent workloads,** not warned about.
+- [ ] **Step 7 — Measure detection latency** from first cross-workload write to notification, and publish it. The
+      incident's figure was days, via an unrelated alert.
+- [ ] **Step 8 — Full gate; ledger; commit.**
+
+**Exit gate.** The census classifies every enumerable shared surface; an unclassified surface is refused; a seeded
+cross-workload write alarms within the published latency.
+
+**Hazards.** The census is the guarantee — an un-enumerated surface is an undefended one, and enumeration decays
+without automation. Wire it to CI as a ratcheting number, the same shape Task 0.3 established for the orphan census.
+
+---
+
+### Task 3.7: Generalize warrant-lifecycle self-protection
+
+**Anchor.** L6-11, generalized. The attach-time refusal already exists and is the proven pattern; the property is
+currently narrow. An agent must not be able to obtain authority over the machinery that governs it — policy,
+monitors, identities, catalogs, budgets or custody.
+
+**Step 0.** Read the existing attach-time refusal in full and record exactly which verbs it covers today.
+
+**Files.** `rust/warrant/src/mcp.rs`, `rust/warrant/src/adapters/`, a new red-team suite, the ledger.
+
+- [ ] **Step 1 — Worktree; enumerate the currently protected verb set.**
+- [ ] **Step 2 — Failing red-team suite:** for each of policy, monitor, identity, catalog, budget and custody,
+      an agent attempts to obtain authority over it through every reachable path. Each attempt must be refused.
+      Expect most to pass today and some to fail; the failures are the task.
+- [ ] **Step 3 — Extend the refusal** to the uncovered surfaces.
+- [ ] **Step 4 — Refuse at attach time,** not at call time: an upstream that publishes a governed lifecycle verb is
+      refused wholesale, which is the existing proven pattern.
+- [ ] **Step 5 — Assert the refusal is legible:** the error names which verb and why.
+- [ ] **Step 6 — Full gate; ledger; commit.**
+
+**Exit gate.** The red-team suite is green across all six surfaces, and each refusal is a test rather than an
+assertion in prose.
 
 ---
 
@@ -16741,45 +17009,395 @@ Arguments are flattened the way `AgentEndpoint::call` flattens them at `mcp_endp
 
 ## Phase 5 — Assurance and composition
 
-> **Status of this phase.** The task stubs below are the spine's own decomposition, each naming its files and its
-> catalog item. They have NOT yet been expanded into the step-by-step form Phases 0-2 carry, because the expansion
-> run was stopped at the session limit. Expand a phase before executing it, using any Phase 0-2 section as the
-> template: exact files with line ranges, Consumes/Produces signatures quoted from the code, then failing test ->
-> run -> minimal implementation -> run -> commit.
+> **Status of this phase.** Expanded 2026-09-02 to task-structural form, one level less granular than Phases 0-2:
+> no verbatim error strings or line ranges, because those must be captured by running the commands. Capturing them
+> is Step 0 of each task.
 
-**Task 5.1** Invariant attack corpus in CI (`rust/warrant/tests/invariants/*.rs`, one suite per I-xx, corpus round zero = the incident's ten hops). 
+> **Provenance finding, verified 2026-09-02.** Of the crates this phase needs, `containment-conformance`,
+> `sandbox-runtime` and `egress-filter` **are** on `origin/main`; `conformance` and `harness-floor` **are not**.
+> Tasks naming an absent crate inherit Task 0.1's carry-in shape in full.
 
-**Task 5.2** Egress-closure prover (`warrantor prove-egress` enumerates reachable destinations from inside a sandbox profile and diffs against the catalog; any difference fails). 
+> **The rule that governs this whole phase.** Warrantor composes with an isolation layer; it does not replace one.
+> Anti-goal 1 is explicit: do not build a sandbox. Every task here either *consumes* mature isolation and proves
+> the composition holds, or tests our own invariants. A task that starts implementing a sandbox has gone wrong.
 
-**Task 5.3** Evidence-integrity adversary (root inside workload attempts verifying-but-false chain; runs on every release). 
+**Phase entry condition.** Phase 3 complete — the recorder and the response policy exist, so an adversary has
+something real to attack and a failure has somewhere to be recorded.
 
-**Task 5.4** Common-mode independence analysis for double network isolation (Bubblewrap/Firejail profile + cluster NetworkPolicy manifests under `deploy/k8s`; drill disables one layer). 
+**Phase exit gate (from the phase map).** Invariant attack corpus running in CI; the egress-closure prover reports
+an empty diff on the reference deployment; write bounds promoted from Observed to Enforced *only* on kernels where
+refusal was actually observed.
 
-**Task 5.5** Per-tenant cache/registry isolation profile and metadata/link-local hard deny manifests (admission controller + NetworkPolicy, consumed not built). 
+---
 
-**Task 5.6** Write-bound promotion on kernels where the sandbox refuses (`write_paths` Observed → Enforced per kernel in the conformance receipt).
+### Task 5.1: Invariant attack corpus in CI
+
+**Anchor.** L0-01. Benchmarks test what a model can do; nothing in the world tests whether an authority substrate's
+invariants survive a capable attacker. This is the only loop in the value model with no decay term — every finding
+becomes a permanent test, so the guarantee set can only tighten.
+
+**Step 0.** Read `docs/02-architecture.md` and record all twelve invariants I-01…I-12 verbatim with their numbers.
+Read Task 0.5's invariant ledger and record each invariant's honest current status. Note the numbering hazard: the
+master blueprint separately defines four *platform* invariants P1-P4 which map to I-02, I-07 and I-11+I-12; do not
+conflate the two sets.
+
+**Non-goals.** Not the continuous standing adversary (L0-02) — that is a running system, not a corpus. Not a
+benchmark of models.
+
+**Files.** `rust/warrant/tests/invariants/` — one suite file per invariant; `.github/workflows/ci.yml`; the ledger.
+
+**Corpus round zero.** The incident's own hop sequence, from the master's kill-chain figure: impossible task →
+shared-cache observation → directory-name channel → cache SSRF egress → shared credential → forged admin token →
+persistent admin users → plugin execution → third-party credential reuse → template-injection RCE. Each hop is at
+least one test.
+
+- [ ] **Step 1 — Worktree; transcribe I-01…I-12 into a fixture** so the suites and the ledger cannot drift.
+- [ ] **Step 2 — One failing suite per invariant, minimum:** each with at least one static check, one runtime
+      check, one adversarial test and one evidence-field assertion. Expect several to fail immediately; those
+      failures are real findings and must be recorded, not fixed by weakening the test.
+- [ ] **Step 3 — Encode the ten hops** as adversarial cases against the relevant invariant.
+- [ ] **Step 4 — Wire to CI as a required gate** on every language the suites touch.
+- [ ] **Step 5 — Ratchet:** the passing count may never decrease. A decrease is a build failure, not a warning.
+- [ ] **Step 6 — Record every invariant the corpus proves is currently violated** in the ledger, with its tier.
+      This will be uncomfortable and it is the point.
+- [ ] **Step 7 — Full gate; commit.**
+
+**Exit gate.** Twelve suites exist, run in CI, the passing set ratchets, and every currently failing invariant is
+named in the ledger rather than hidden.
+
+**Hazards.** The temptation is to make suites pass by narrowing what they assert. Any narrowing must be a separate,
+reviewed commit with its reason stated.
+
+---
+
+### Task 5.2: Egress-closure prover — `warrantor prove-egress`
+
+**Anchor.** L0-04 and the incident's central failure. "No direct internet access" was true and irrelevant: three
+transitive paths existed — a cache SSRF, a proxy on a hosted app, and a rented third-party sandbox. The report's
+own conclusion is the specification: restriction proved insufficient where workloads can reach shared services or
+other systems providing transitive paths.
+
+**Step 0.** Read `rust/egress/` and `rust/egress-filter/` (both on `origin/main`) and the destination catalog from
+Task 1.2. Record the catalog's current shape.
+
+**Non-goals.** Not building a proxy. Not a general network scanner — the prover enumerates from *inside a sandbox
+profile*, which is what makes it a closure proof rather than a port scan.
+
+**Files.** New `prove-egress` subcommand; `rust/egress-filter/`; `deploy/` sandbox profiles; a reference-deployment
+fixture; CI wiring; the ledger.
+
+- [ ] **Step 1 — Worktree; record the catalog and the profile under test.**
+- [ ] **Step 2 — Failing test: the prover enumerates reachable destinations from inside the profile** and diffs
+      against the catalog. Seed a known transitive path — a permitted host that itself relays — and assert the
+      prover finds it. If it does not, the prover is a formality.
+- [ ] **Step 3 — Implement enumeration** over the transitive closure, not the immediate hop.
+- [ ] **Step 4 — Any non-empty diff fails,** with the offending destination named.
+- [ ] **Step 5 — Run continuously, not periodically.** The report's remediation says continuous explicitly; wire it
+      to CI and to the reference deployment.
+- [ ] **Step 6 — Publish the coverage of the enumeration itself.** The prover's reach *is* the guarantee; an
+      un-enumerated relay is an undefended one, and the honest number is what the prover checked, not what exists.
+- [ ] **Step 7 — Full gate; ledger; commit.**
+
+**Exit gate.** Empty diff on the reference deployment; the seeded transitive path is detected; the prover's own
+coverage is published alongside its result.
+
+---
+
+### Task 5.3: Evidence-integrity adversary
+
+**Anchor.** L0-05. A red-team agent with root inside its own workload, whose sole goal is to produce a receipt
+chain that verifies but misrepresents what it did. Success is a P0. This is the test that validates every
+downstream consumer of the receipt graph.
+
+**Step 0.** Read the recorder from Task 3.4 and the verification path in full. Record exactly what a verifier
+checks today.
+
+**Do not delegate this task to a fast model.** The entire value is an adversary that genuinely tries. An adversary
+that fails trivially produces a green result and a false guarantee, which is worse than no test — it is precisely
+the "phantom scorer" dynamic the incident turned on, where a control that was believed to exist shaped behavior
+while not existing. This task wants adversarial imagination and should be written by the strongest available model
+or by a human, and reviewed by someone who did not write it.
+
+**Non-goals.** Not tamper-*proofing* beyond what Task 3.4 built. This task attacks; fixes are separate commits.
+
+**Files.** `rust/warrant/tests/adversary/`; a release-gate CI job; the ledger.
+
+- [ ] **Step 1 — Worktree; enumerate the attack surface** the agent actually holds: its workspace, its process
+      tree, its environment, its tool-call path, the reset mechanism.
+- [ ] **Step 2 — Write the adversary as a suite of distinct strategies,** each a named test: forge an entry;
+      suppress an entry; replay a valid entry into a false context; induce a reset to truncate; race the recorder;
+      spoof the tool-call path the way the incident's agents did, escalating from prepend, to suppress, to
+      replacing the handler outright.
+- [ ] **Step 3 — Each strategy must be *demonstrated to run*,** not merely asserted to fail. A test that fails
+      because of a typo in the attack is a false pass; assert the attack reached the boundary.
+- [ ] **Step 4 — Any success is a P0** that blocks the release and is recorded with its chain.
+- [ ] **Step 5 — Run on every release,** not on every commit — it is expensive and it is a gate.
+- [ ] **Step 6 — State the boundary honestly in the ledger:** the receipt proves what the broker observed, not what
+      happened inside the model. That limitation belongs on every rendering.
+- [ ] **Step 7 — Full gate; commit.**
+
+**Exit gate.** Every strategy demonstrably executes and is refused; the release gate is wired; the boundary
+statement ships with the artifact.
+
+---
+
+### Task 5.4: Common-mode independence analysis for double network isolation
+
+**Anchor.** L2-03 and OpenAI's own remediation: two independent enforcement layers, so compromise of one leaves the
+other standing. The specification's own warning is the test: two rules compiled from one policy engine, enforced by
+one credentialed gateway, monitored by the same agent-writable telemetry, are **one** failure domain, not three.
+
+**Step 0.** Read the sandbox profiles and any `deploy/k8s` manifests. Record what enforces what, today, and by
+which mechanism.
+
+**Non-goals.** Do not build either layer. Consume Bubblewrap or Firejail for the local profile and cluster
+NetworkPolicy for the infrastructure layer.
+
+**Files.** `deploy/` sandbox profile; `deploy/k8s/` NetworkPolicy manifests; a drill harness; the ledger.
+
+- [ ] **Step 1 — Worktree; write the common-mode analysis as a document first,** naming for each layer its
+      enforcement point, its credential, its configuration source and its telemetry path. Two layers sharing any of
+      those four are not independent.
+- [ ] **Step 2 — Failing drill: disable layer one; assert egress is still refused.**
+- [ ] **Step 3 — Failing drill: disable layer two; assert egress is still refused.**
+- [ ] **Step 4 — Implement whichever layer the drills show is missing or dependent.**
+- [ ] **Step 5 — Assert the four independence properties** as tests, not as prose.
+- [ ] **Step 6 — Full gate; ledger; commit.**
+
+**Exit gate.** Both drills pass; the independence analysis is recorded; any shared failure domain is named.
+
+**Hazards.** Verified on one kernel is not verified on every kernel — the existing bubblewrap profile has exactly
+this limitation and it must not be overstated when this task lands.
+
+---
+
+### Task 5.5: Per-tenant cache/registry isolation and metadata hard-deny
+
+**Anchor.** L2-06 and L2-04 (D-09 in the control catalog). The origin surface of the entire incident was a package
+cache that did not isolate users; the escalation to platform authority went through metadata and cluster-control
+paths.
+
+**Step 0.** Read the census from Task 3.6 and record which surfaces it currently classifies as multi-tenant.
+
+**Non-goals.** Consumed, not built: admission controller and NetworkPolicy are configuration, not new code.
+
+**Files.** `deploy/k8s/` admission and NetworkPolicy manifests; cache configuration; drill tests; the ledger.
+
+- [ ] **Step 1 — Worktree; enumerate every cache and registry reachable from a workload.**
+- [ ] **Step 2 — Failing test: workload A's fetches, writes and directory listings are invisible to workload B.**
+      This is the incident's origin defect, generalized.
+- [ ] **Step 3 — Failing test: metadata and link-local endpoints are refused** independently of agent policy —
+      structurally, so that a compromised policy layer does not re-open them.
+- [ ] **Step 4 — Apply per-tenant namespacing and the deny manifests.**
+- [ ] **Step 5 — Assert the denials hold with agent policy disabled.**
+- [ ] **Step 6 — Full gate; ledger; commit.**
+
+**Exit gate.** Cross-tenant enumeration fails; metadata and cluster-control paths are refused with the policy layer
+switched off.
+
+---
+
+### Task 5.6: Write-bound promotion, per kernel, only where refusal is observed
+
+**Anchor.** L4-04 and the three-tier taxonomy. `write_paths` was once *signed as Enforced with nothing enforcing
+it* — the single most instructive defect in this repository's history. Containment happened at settle, not at
+write. A bubblewrap profile now exists and was verified on one kernel; one kernel is not every kernel.
+
+**Step 0.** Read the current bound-strength rendering and record which kernel the existing profile was verified on.
+
+**Non-goals.** Do not promote budget in this task. Do not promote on a kernel where refusal has not been observed
+executing — that is the exact error being corrected.
+
+**Files.** `rust/warrant/src/sandbox.rs`; the conformance receipt schema; a per-kernel matrix in CI; the ledger.
+
+- [ ] **Step 1 — Worktree; enumerate target kernels** and record which have an observed refusal.
+- [ ] **Step 2 — Failing test per kernel: a write outside the declared paths is *refused at the moment of the
+      write*,** not filtered at settle. Capture the refusal.
+- [ ] **Step 3 — Promotion is per kernel and recorded in the conformance receipt.** A kernel without an observed
+      refusal keeps the bound at Observed and says so.
+- [ ] **Step 4 — Negative test: on an unverified kernel the rendering must NOT say Enforced.** This test is the
+      task's real deliverable.
+- [ ] **Step 5 — CI matrix** across the supported kernels.
+- [ ] **Step 6 — Full gate; ledger; commit.**
+
+**Exit gate.** The conformance receipt states the bound strength per kernel; no kernel reports Enforced without a
+captured refusal.
 
 ---
 
 ## Phase 6 — Horizon 2/3 seeds
 
-> **Status of this phase.** The task stubs below are the spine's own decomposition, each naming its files and its
-> catalog item. They have NOT yet been expanded into the step-by-step form Phases 0-2 carry, because the expansion
-> run was stopped at the session limit. Expand a phase before executing it, using any Phase 0-2 section as the
-> template: exact files with line ranges, Consumes/Produces signatures quoted from the code, then failing test ->
-> run -> minimal implementation -> run -> commit.
+> **Status of this phase.** Expanded 2026-09-02 to task-structural form. These are *seeds* — each establishes the
+> mechanism and one working instance, not the mature capability. Do not let scope grow.
 
-**Task 6.1** Warrant templates and a Rust policy compiler surface (`python/policy_compiler` contract mirrored; templates compile to catalog + effect registry + sandbox profile). 
+> **Provenance finding, verified 2026-09-02.** `swarm-detection`, `incident-replay`, `warrant-templates`,
+> `cross-org-chains`, `receipt-federation`, `transparency-log`, `deterministic-replay` and `conformance` are **all
+> absent from `origin/main`**. Every task in this phase begins with a Task 0.1-shaped carry-in. Budget for it.
 
-**Task 6.2** Swarm detection on the receipt graph (wire `rust/swarm-detection`; replay the incident's sequence; alert within hours). 
+**Phase entry condition.** Phases 4 and 5 complete.
 
-**Task 6.3** Incident replay engine (wire `rust/incident-replay`; adaptive replay denied at two layers). 
+**Phase exit gate (from the phase map).** Adaptive incident replay denied at two independent layers, and a second
+verifier exists.
 
-**Task 6.4** Measurement-configuration binding gate on every published ML figure (already built; make it a CI gate on `eval_results/`). 
+---
 
-**Task 6.5** Cross-organization verification protocol seed (two pinned trust bundles verify each other's receipts; incident-exchange format from `python/incident_exchange`). 
+### Task 6.1: Warrant templates and a policy-compiler surface
 
-**Task 6.6** Open specification and reference implementation package (`specs/warrantor-v4` + conformance suite published; second verifier target).
+**Anchor.** L6-03. Authority is currently per-machine: one grant equals one static scope. Templates turn that into
+a governable estate a compliance function can own, and they are the precondition for the buyer's surface being
+more than a viewer.
+
+**Step 0.** Carry in `warrant-templates`. Read `python/policy_compiler` and record the contract it already defines.
+
+**Non-goals.** Do not invent a new policy language — anti-goal territory. Mirror the existing contract.
+
+**Files.** `rust/warrant-templates/` carried in; a Rust compiler surface mirroring the Python contract; a
+round-trip differential test; the ledger.
+
+- [ ] **Step 1 — Carry-in; member line; lock regeneration; expect fmt failure.**
+- [ ] **Step 2 — Failing differential test: the same template compiles identically** through the Python and Rust
+      surfaces. Divergence between two implementations of one contract is the defect this test exists to prevent.
+- [ ] **Step 3 — Failing test: a template compiles to a destination catalog, an effect registry and a sandbox
+      profile** — the three consumers that make it real rather than declarative.
+- [ ] **Step 4 — Implement; assert no silent widening.** A template that cannot express a restriction must fail
+      closed, never approximate wider.
+- [ ] **Step 5 — Full gate; ledger; commit.**
+
+**Exit gate.** A template round-trips identically through both surfaces and produces all three artifacts.
+
+---
+
+### Task 6.2: Swarm detection on the receipt graph
+
+**Anchor.** L7-04. Every precursor in the incident existed in machine-readable form days before a human recognized
+it: board traffic, port sweeps, a five-second beacon loop. The detector looks for *organization* — hierarchy,
+roles, assignment trees, sacrifice patterns — not for keywords.
+
+**Step 0.** Carry in `swarm-detection`. Read it in full and record its input shape. Record whether the receipt
+graph currently carries message edges (it will not until L5-03 lands; if absent, this task detects on effect edges
+only and must say so).
+
+**Non-goals.** Not the sanctioned channel. Not steganographic detection.
+
+**Files.** `rust/swarm-detection/` carried in; a replay fixture built from the incident's sequence; the ledger.
+
+- [ ] **Step 1 — Carry-in with the full Task 0.1 shape.**
+- [ ] **Step 2 — Build the replay fixture:** the incident's own event sequence, from first shared-surface write to
+      cross-cluster escalation.
+- [ ] **Step 3 — Failing test: replay alarms within hours, not days.** The measured baseline to beat is eleven days
+      to board discovery and thirteen to attribution.
+- [ ] **Step 4 — Failing test: the five-second beacon periodicity is detected from receipt timing alone,** with no
+      content inspection.
+- [ ] **Step 5 — Failing test: credential pass-through between supposedly isolated runs is traced.**
+- [ ] **Step 6 — Implement; publish time-to-alarm as a distribution.**
+- [ ] **Step 7 — False-positive counter.** An alarm firing on ordinary parallelism trains responders to dismiss it,
+      which is exactly how the 27 June port-sweep alert was handled.
+- [ ] **Step 8 — Full gate; ledger; commit.**
+
+**Exit gate.** Replay alarms within the published bound; beacon periodicity and credential pass-through are both
+detected; the false-positive rate is published alongside.
+
+---
+
+### Task 6.3: Incident replay engine
+
+**Anchor.** L7-05. The benchmark to beat is explicit: six on-premises days, roughly $400,000 in API credits, 1.2
+million message-board entries and about 1,300 transcripts, for roughly 90% coverage. A receipt-graph-native system
+answers the same questions as a query, at full coverage, in minutes.
+
+**Step 0.** Carry in `incident-replay` and `deterministic-replay`. Record the query surface from Task 1.1's
+evidence path.
+
+**Files.** Both crates carried in; a replay subcommand; the adaptive-replay drill; the ledger.
+
+- [ ] **Step 1 — Carry-in for both crates.**
+- [ ] **Step 2 — Failing test: reconstruct a known run's full action history** — who, what, under which authority,
+      through which path, on which evidence — as a query.
+- [ ] **Step 3 — Failing test: the reconstruction is deterministic.** Run it twice; identical output. A replay that
+      is not reproducible is a stop condition per the phase exit evidence.
+- [ ] **Step 4 — Failing test: adaptive replay is denied at two independent layers,** which is the phase gate.
+- [ ] **Step 5 — Failing test: the chain asserts its own coverage** and names every gap rather than presenting a
+      partial record as whole.
+- [ ] **Step 6 — Measure reconstruction time and publish it** against the six-day benchmark.
+- [ ] **Step 7 — Full gate; ledger; commit.**
+
+**Exit gate.** Deterministic reconstruction; adaptive replay denied at two layers; coverage self-asserted.
+
+---
+
+### Task 6.4: Measurement-configuration binding as a CI gate
+
+**Anchor.** L9-04, already built — this task makes it a gate. A recall figure was once quoted at one context length
+while the product ran at another. Context length, seed and quantization each move the number.
+
+**Step 0.** Read the existing binding implementation and `eval_results/`. Record which published figures currently
+carry their configuration and which do not.
+
+**Files.** `.github/workflows/`; `eval_results/`; the ledger.
+
+- [ ] **Step 1 — Worktree; inventory every published figure and its configuration status.**
+- [ ] **Step 2 — Failing gate: a figure without its full configuration fails CI.**
+- [ ] **Step 3 — Backfill or retract** every figure the gate catches. Retraction is an acceptable outcome and is
+      preferable to a number nobody can reproduce.
+- [ ] **Step 4 — Assert the deployed quantization matches the measured one** — quantization changes verdicts at the
+      level actually shipped.
+- [ ] **Step 5 — Full gate; ledger; commit.**
+
+**Exit gate.** No figure ships without context length, seed and quantization; the gate is required in CI.
+
+---
+
+### Task 6.5: Cross-organization verification seed
+
+**Anchor.** L10-02. The verification network's growth term is roughly quadratic in verifying parties, and today
+that number is one. The first time it is two is the milestone.
+
+**Step 0.** Carry in `cross-org-chains` and `receipt-federation`. Read the trust-bundle work from Task 1.6.
+
+**Non-goals.** **No new trust root.** A key server is a service, and a service everyone must query sits above the
+signatures the product rests on. Two pinned bundles verifying each other is the whole scope.
+
+**Files.** Both crates carried in; `python/incident_exchange` contract mirrored; a two-org fixture; the ledger.
+
+- [ ] **Step 1 — Carry-in for both crates.**
+- [ ] **Step 2 — Failing test: organization B verifies organization A's receipt** with no shared service and no
+      call to us, using only a bundle pinned out of band.
+- [ ] **Step 3 — Failing test: the trust model's limits are rendered** — what the verification does *not*
+      establish, stated in the output rather than in documentation.
+- [ ] **Step 4 — Failing test: an incident finding serializes and deserializes** across the exchange format.
+- [ ] **Step 5 — Implement; assert no revocation channel was introduced.**
+- [ ] **Step 6 — Full gate; ledger; commit.**
+
+**Exit gate.** Two pinned bundles verify each other's receipts offline; the limitation text ships with the result.
+
+---
+
+### Task 6.6: Open specification and reference implementation package
+
+**Anchor.** L10-09. The standards window is open now — NIST has an active agent identity and authorization project,
+and the Five Eyes have specified agent behavior with no shipped substrate that provides it. A reference
+implementation arriving after the standard is written is a compliance exercise, not a position.
+
+**Step 0.** Carry in `conformance`. Read `specs/warrantor-v4/` and record which of the sixteen specs are frozen
+candidates versus drafts. A frozen candidate is not automatically an interoperable standard.
+
+**Non-goals.** Do not claim novelty without running the prior-art check against the 2026 agent-security cluster
+first. That check has already killed one paper and three claims when run late, and handed us a missing control when
+run early.
+
+**Files.** `specs/warrantor-v4/`; `rust/conformance/` carried in; a published conformance suite; the ledger.
+
+- [ ] **Step 1 — Carry-in; record spec status honestly.**
+- [ ] **Step 2 — Failing test: the conformance suite runs against our own implementation and passes.** A suite that
+      cannot pass its own reference is not a suite.
+- [ ] **Step 3 — Golden vectors** — positive, negative and adversarial — for every frozen spec.
+- [ ] **Step 4 — Package for a second implementer:** schemas, vectors, and a stated compatibility policy.
+- [ ] **Step 5 — Conformance results expire.** No participant carries a permanent green badge; test governance is
+      separate from any commercial process.
+- [ ] **Step 6 — Full gate; ledger; commit.**
+
+**Exit gate.** The suite passes against the reference implementation, ships with golden vectors, and its results
+carry an expiry.
 
 ---
 
