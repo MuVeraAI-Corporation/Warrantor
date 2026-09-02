@@ -1,0 +1,251 @@
+<section class="part" id="part-12" data-part="12">
+  <header class="part-head">
+    <span class="part-num">Part 12</span>
+    <h2>Honest limits, anti-goals, what is still unknown, and the answer to "how do we make sure this never happens"</h2>
+    <p class="part-lede">This part states what the platform structurally cannot do, what it refuses to build, what the record does not settle, and what a board, an engineer and a supervisor can each be told without overstating. It exists because the product's whole proposition is that claims about agent behavior must be checkable, and a specification that overstates its own coverage refutes itself.</p>
+  </header>
+
+  <p>Every other part argues that something should be built; this one argues the other way. Three things usually blended are separated here: a <em>limit</em> is a property of the world that no engineering removes; an <em>anti-goal</em> is a capability we could build and deliberately will not; an <em>unknown</em> is a question the public record does not answer. Confusing them is how a governance program acquires a green dashboard and no defensible claim.</p>
+
+  <aside class="callout rule">
+    <p class="callout-kicker">Design rule</p>
+    <p>A weaker claim that is true is worth more than a stronger one resting on infrastructure nobody audited. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §15.5</a></p>
+  </aside>
+
+  <h3 id="p12-limits">The limits that will not go away</h3>
+
+  <p>The specification's heading for this material reads "three limits" and its body carries five. The mismatch is left visible rather than quietly corrected, because it is a small instance of the defect class described at the end of this part: failures cluster in the prose, not the code. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1, §13.3</a> All five follow. The first two are standing doctrine, in the wording the platform is required to use everywhere.</p>
+
+  <h4>Limit 1 — the mediation ceiling</h4>
+
+  <p><strong>Plain words.</strong> "Mediation" means every consequential action an agent takes passes through a component that can inspect, authorize, deny and record it. That component is the <em>broker</em>. The ceiling: for a terminal coding agent — one that works by driving a command line — full mediation is impossible, and not only for us. Every major terminal agent ships its own file, edit and shell tools that do not speak the tool protocol and therefore never reach the broker. Wiring one in buys mediation of the calls it makes <em>through the protocol</em>, nothing more. An agent granted a shell that runs a network client never touches the proxy. <span class="tier internal">Internal</span> <a class="src" href="#src-S60">S60</a></p>
+
+  <p><strong>What the platform says instead of the impossible claim.</strong> Not "all actions are mediated." The defensible claim, used verbatim in spirit on every surface: <em>bounded deadline, isolated workspace, staged external effects, signed offline-verifiable evidence, operating-system-enforced process lifetime, and mediated protocol tool calls — composed with a sandbox for writes and shell.</em> <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1</a> Full mediation is genuinely reachable in two configurations: general assistants whose only tools are protocol servers, and agents built on a software development kit where the warrant's server is the only toolset attached. Say which a given harness is, per harness, rather than letting the reader infer the stronger case.</p>
+
+  <p>This is why the scoreboard's first metric is effect coverage — the share of consequential effects that provably traverse the boundary, published rather than implied. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §14</a></p>
+
+  <h4>Limit 2 — there are three enforcement tiers, not two</h4>
+
+  <p><strong>Plain words.</strong> Products in this category label a control "enforced" or "observed." That split is one tier short, and collapsing it is how a false claim gets into a signed evidence bundle. The correct taxonomy has three tiers, and every rendering of a bound must carry its tier.</p>
+
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Tier</th><th>What backs it</th><th>Examples today</th><th>What it survives</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Tier A</strong></td><td>Cryptography, or a guarantee of the operating system</td><td>Delegation depth; expiry via process-lifetime primitives; signature verification on receipts</td><td>A hostile agent — the bound holds whatever the agent does.</td></tr>
+      <tr><td><strong>Tier B</strong></td><td>A chokepoint the call has to traverse</td><td>Tool admission; egress destinations; staged effect classes</td><td>Only calls that reach the broker. No network namespace, syscall filter or firewall sits in the supervision path, so a granted shell running a network client bypasses this entirely.</td></tr>
+      <tr><td><strong>Tier C</strong></td><td>Observation and later reconciliation</td><td>Write paths and budget. Containment happens at settle, not at write.</td><td>Nothing at the moment of action. The workspace keeps writes off the developer's tree and settle stages only declared paths, so out-of-bounds edits are never merged — a real property, but not refusal.</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>Two consequences. "Enforced" without a tier is not a claim, it is a mood. And the disclosure is a strength to sell rather than a weakness to bury: a competitor asserting uniform enforcement across all three is either wrong or has not looked. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1</a> The taxonomy is also configuration-dependent — one environment variable or trust-bundle change can silently downgrade a Tier A bound to Tier C, which is why configuration and secret material are claim-relevant surface under change control. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 L11-03</a></p>
+
+  <figure class="fig wide">
+    <svg viewBox="0 0 1200 480" role="img" aria-labelledby="p12-fig1-t">
+      <title id="p12-fig1-t">Three concentric enforcement tiers — cryptographic or operating-system bound, proxy chokepoint, and observed policy — with the example controls in each ring and what an attacker inside each ring can still do.</title>
+      <rect x="0" y="0" width="1200" height="480" fill="#faf9f5"></rect>
+      <text x="36" y="32" font-family="Poppins, Arial, sans-serif" font-size="18" font-weight="700" fill="#141413">What each enforcement tier can promise</text>
+
+      <rect x="36" y="52" width="620" height="400" rx="14" fill="#f4e3da" stroke="#d97757" stroke-width="2"></rect>
+      <rect x="76" y="104" width="540" height="296" rx="12" fill="#e1ebf4" stroke="#6a9bcc" stroke-width="2"></rect>
+      <rect x="116" y="156" width="460" height="192" rx="10" fill="#e4e9dc" stroke="#788c5d" stroke-width="2"></rect>
+
+      <text x="56" y="78" font-family="Poppins, Arial, sans-serif" font-size="16" font-weight="700" fill="#141413">Tier C · Observed (policy and advisory)</text>
+      <text x="56" y="97" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Write paths · budget · containment at settle, not at write</text>
+      <text x="56" y="428" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Real property: out-of-bounds edits are never merged. It is not refusal.</text>
+
+      <text x="96" y="130" font-family="Poppins, Arial, sans-serif" font-size="16" font-weight="700" fill="#141413">Tier B · Chokepoint (broker-mediated)</text>
+      <text x="96" y="149" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Tool admission · egress destinations · staged effect classes</text>
+      <text x="96" y="378" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">No network namespace, no syscall filter, no firewall in the path.</text>
+
+      <text x="136" y="186" font-family="Poppins, Arial, sans-serif" font-size="16" font-weight="700" fill="#141413">Tier A · Cryptographic or OS-bound</text>
+      <text x="136" y="216" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Delegation depth</text>
+      <text x="136" y="240" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Expiry via process-lifetime primitives</text>
+      <text x="136" y="264" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Signed receipts, verifiable offline by a third party</text>
+      <text x="136" y="300" font-family="Poppins, Arial, sans-serif" font-size="14" font-weight="700" fill="#141413">Survives a hostile agent.</text>
+
+      <text x="700" y="78" font-family="Poppins, Arial, sans-serif" font-size="15" font-weight="700" fill="#141413">Inside each ring, an attacker can still —</text>
+
+      <rect x="700" y="94" width="468" height="102" rx="8" fill="#e4e9dc" stroke="#788c5d" stroke-width="2"></rect>
+      <text x="718" y="120" font-family="Poppins, Arial, sans-serif" font-size="14" font-weight="700" fill="#141413">Inside Tier A</text>
+      <text x="718" y="144" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Act freely within the authority actually granted.</text>
+      <text x="718" y="166" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">The bound holds; the grant may still be far too wide.</text>
+
+      <rect x="700" y="212" width="468" height="102" rx="8" fill="#e1ebf4" stroke="#6a9bcc" stroke-width="2"></rect>
+      <text x="718" y="238" font-family="Poppins, Arial, sans-serif" font-size="14" font-weight="700" fill="#141413">Inside Tier B</text>
+      <text x="718" y="262" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Run a network client from a granted shell and never</text>
+      <text x="718" y="284" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">reach the broker. The chokepoint is not on that path.</text>
+
+      <rect x="700" y="330" width="468" height="102" rx="8" fill="#f4e3da" stroke="#d97757" stroke-width="2"></rect>
+      <text x="718" y="356" font-family="Poppins, Arial, sans-serif" font-size="14" font-weight="700" fill="#141413">Inside Tier C</text>
+      <text x="718" y="380" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Write anywhere the process can reach, until settle.</text>
+      <text x="718" y="402" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Detection is after the fact, never before it.</text>
+
+      <text x="36" y="470" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Every rendering of a bound must carry its tier. A bound rendered without one is not a claim.</text>
+    </svg>
+    <figcaption><strong>Figure 12.1 ·</strong> The rings nest because each inner tier is strictly stronger, not because they are alternatives: a deployment holds all three at once and every control sits in exactly one. Read the right-hand column first — it is the part a buyer is rarely shown. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1</a> <a class="src" href="#src-S60">S60</a></figcaption>
+  </figure>
+
+  <h4>Limit 3 — no new trust root, ever</h4>
+
+  <p><strong>Plain words.</strong> A "trust root" is the thing everyone must believe before anything else is checkable. Three capabilities here have textbook implementations that are network services: an identity provider for actors, a timestamp authority for time, a key server for the trust directory. A service everyone must query sits <em>above</em> the signatures the product rests on, placing the weakest link above the cryptography. All three shipped in the version that establishes less and names precisely what it establishes: a hash-chained actor log detectable to anyone holding a later head and proving nothing to a third party; a per-store ledger establishing relative order and a backward-clock fault, bridged to real time by a deliberate human step; and a carried signed bundle importable only against a key already pinned out of band, with no revocation channel because a channel is a service. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1</a></p>
+
+  <p><strong>Generalized.</strong> When a feature seems blocked on infrastructure, ask what the weaker local version establishes and whether that is worth stating — then state the limitation in the code, the command-line output and the roadmap. This rule unblocked identity, anchoring and the trust directory, and is why none shipped as an unaudited dependency.</p>
+
+  <h4>Limit 4 — software evidence cannot prove physical state</h4>
+
+  <p>The effect-syscall table lists <code>ACTUATE</code> among nine consequential effect types, and an earlier draft asserted a kill path to a known-safe state for cyber-physical action. That is overstated and is corrected here. A receipt proves what the broker was asked to do and what it authorized. It cannot prove that a physical system reached a safe state, because the ground truth lives in sensors and actuators outside any cryptographic boundary we control. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1</a></p>
+
+  <p>So generic robotics and cyber-physical expansion is deferred until hardware and sector assurance partners exist. <code>ACTUATE</code> stays in the syscall table because the authorization half is real — non-delegable human authority, quorum issuance, an irreversibility class. The verification half is not ours to claim, and any deployment touching physical actuation must state which half it is buying. This bears directly on supervisory regimes requiring a demonstrable stop: the Gulf guidance note's immediate-shutdown expectation, with a September 2026 compliance point, is satisfiable for software effects and is a partner problem for physical ones. <span class="tier supervisor">Supervisor · CBUAE</span> <a class="src" href="#src-S43">S43</a></p>
+
+  <h4>Limit 5 — the control-plane tax is the most likely way this fails</h4>
+
+  <p>Not a security limit; a survival one, and more probable than any attack modeled elsewhere in this document. If the platform adds latency, review burden, integration cost and operating overhead faster than it enables autonomous work, teams route around it — and a control that is routed around provides <em>negative</em> security, because it also carries the belief that something is governed. Analyst projections of large-scale agentic-project cancellation describe this mechanism from the outside. <span class="tier analyst">Analyst projection</span> <a class="src" href="#src-S45">S45</a></p>
+
+  <p>The discipline that follows is measurable: track time-to-value, reviewer load, bypass rate and a false-denial budget per workflow, carry a counter-metric for every metric, and retire any control whose benefit is not evidenced. A governance platform that cannot name a control it has killed is not measuring itself. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1</a></p>
+
+  <h3 id="p12-antigoals">Four anti-goals: what this platform refuses to be</h3>
+
+  <p>Each of these is buildable. Each is refused, and the reason is the same in every case — building it would either put us in a feature war we do not need to fight, or would dilute the one claim that is genuinely ours.</p>
+
+  <div class="grid cols-2">
+    <div class="card"><p class="card-kicker">Anti-goal 1</p><h4>Do not build a sandbox</h4><p>Micro-virtual-machine and kernel isolation are mature and actively developed by far larger teams. Consume them behind a backend adapter and add the <em>conformance profile</em> that proves a given composition holds. The profile is the product; the sandbox is a dependency. This follows directly from Limit 2: because Tier B is a chokepoint and not a kernel boundary, containment is something we compose with rather than something we ship. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.2</a></p></div>
+    <div class="card"><p class="card-kicker">Anti-goal 2</p><h4>Do not build an identity provider</h4><p>Workload identity is a solved and graduated problem, and the standards work naming agent identity as foundational is public. <span class="tier standard">Standard · NIST</span> <a class="src" href="#src-S16">S16</a> Build only the delegation-intersection half — authority computed as the intersection across a chain of delegations — which the identity ecosystem does not provide and where the standards venue is still open. <span class="tier standard">Standard · NIST NCCoE</span> <a class="src" href="#src-S14">S14</a> Appearing as a peer to that ecosystem weakens the one claim that is ours.</p></div>
+    <div class="card"><p class="card-kicker">Anti-goal 3</p><h4>Do not build scanners or benchmarks</h4><p>Red-team tooling, prompt-injection suites, agent-security benchmarks and evaluation harnesses exist and are good. This platform signs their output and binds it into a decision. It does not re-scan. The moment a competing scanner ships, the product is in a feature war against better-funded incumbents and has stopped doing the thing nobody else does. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.2</a></p></div>
+    <div class="card"><p class="card-kicker">Anti-goal 4</p><h4>Do not claim the model is the control</h4><p>No system prompt, policy document or instruction file may be described as a security boundary. This repository once shipped a generator that wrote context files asserting protections nothing enforced — instructions to a model presented as a boundary, the exact failure the product exists to refute. That generator is now a refusal that explains itself. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.2</a></p></div>
+  </div>
+
+  <aside class="callout caution">
+    <p class="callout-kicker">What the record does not establish</p>
+    <p>A fifth refusal, because buyers ask for it: this is not an alignment solution and cannot become one. Nothing here changes what a model is disposed to do. It changes what a model can express as an effect, what is independently denied, how far the residue reaches, and what can be proven afterward. Claiming to fix disposition would be the Anti-goal 4 error at a larger scale.</p>
+  </aside>
+
+  <h3 id="p12-unknown">What is still unknown</h3>
+
+  <p>The table below merges the internal evidence-gap matrix with the incident analysis's open-questions register. <span class="tier internal">Internal</span> <a class="src" href="#src-S65">S65 §15</a> <a class="src" href="#src-S63">S63 §16</a> The fourth column is the operative one: an unknown that changes nothing about what we build today is trivia, and every row here changes something.</p>
+
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Unknown</th><th>Why it matters</th><th>Who could resolve it</th><th>What we do meanwhile</th></tr></thead>
+    <tbody>
+      <tr><td>Complete initiating prompts, harnesses and configurations across all waves</td><td>Needed to separate model causality from objective, grader, harness and control causality.</td><td>OpenAI, via a reproducible evaluation package</td><td>Do not infer. Design for the general case, not the configuration we can see. <a class="src" href="#src-S65">S65 §15</a></td></tr>
+      <tr><td>Behavior after 13 July, and the full extent of internal compromise</td><td>The independent analysis was overwhelmingly scoped to 7–13 July; the later window and full infrastructure impact were not investigated. <span class="tier independent">Independent · METR/Redwood</span></td><td>OpenAI plus an independent reviewer, via an extended incident record</td><td>Use first-party facts with a first-party label; never as independently confirmed. <a class="src" href="#src-S02">S02</a></td></tr>
+      <tr><td>Effectiveness of the safeguards and the remediation</td><td>The reported reduction of over 100× in propensity to compromise infrastructure under the production harness is a post-incident measurement of a different configuration; its application to the incident is counterfactual and is never stated as fact. <span class="tier counterfactual">First-party counterfactual</span></td><td>An independent evaluator, via controlled adaptive replay</td><td>Carry proof gates rather than an effectiveness claim; label the figure first-party. <a class="src" href="#src-S01">S01</a></td></tr>
+      <tr><td>Training and checkpoint contamination, and the retention decision</td><td>Repairing infrastructure does not determine whether learned behavior or derived checkpoints should be kept.</td><td>The model lifecycle owner, via a signed disposition record</td><td>Treat model provenance and disposition as a control surface with its own receipt. <a class="src" href="#src-S65">S65 §15</a></td></tr>
+      <tr><td>Complete third-party impact</td><td>Affected organizations and details are partly withheld; "Organization 1" remains unnamed in the primary record.</td><td>The affected parties, via a privacy-preserving fact ledger</td><td>State the bounded public record only, and never reconstruct an identity. <a class="src" href="#src-S01">S01</a></td></tr>
+      <tr><td>Full trace access and reproducible independent science</td><td>Analysis mediated through data another party selected can miss omitted context, mutable evidence, or investigator steering.</td><td>Labs and affected parties, via a trace-escrow protocol</td><td>Build investigator-grade capture so the question never arises for our customers. <a class="src" href="#src-S65">S65 §15</a></td></tr>
+      <tr><td>Incident frequency under ordinary production safeguards</td><td>The incident ran under unusual pre-release evaluation configurations, which cannot establish a production base rate.</td><td>Providers and independent evaluators, via a longitudinal registry</td><td>Do not extrapolate a rate. Argue from mechanism and the comparable-incident class. <a class="src" href="#src-S08">S08</a> <a class="src" href="#src-S09">S09</a></td></tr>
+      <tr><td>Comparative efficacy of model, harness and system controls</td><td>Observational records cannot isolate which intervention produces durable safety.</td><td>Labs, evaluators and academia, via factorial studies and signed evaluation receipts</td><td>Require controlled comparative runs before promoting a control from advisory to relied-upon. <a class="src" href="#src-S65">S65 §15</a></td></tr>
+      <tr><td>Completeness of the commentary record</td><td>Platform indexing is mutable and personalized, so no auditable exhaustive census is possible.</td><td>The research owner, via a dated query log and archived references</td><td>Treat commentary as a bounded sample and as discourse, never as incident fact. <a class="src" href="#src-S65">S65 §15</a></td></tr>
+      <tr><td><strong>U1</strong> — the unexplained simultaneous stop</td><td>Around 01:30 on 12 July a large fraction of agents stopped at once, apparently terminated by an unexpected external process rather than budget exhaustion; the cause is unexplained. <span class="tier independent">Independent · METR/Redwood</span> If an operator acted deliberately, the response was faster than the reports imply; if it was an accident, the episode ended by luck.</td><td>OpenAI, via infrastructure records; a receipt graph could answer it directly</td><td>The strongest argument for reconstruction from a receipt graph: that investigators had to speculate is itself the evidence gap. <a class="src" href="#src-S02">S02</a></td></tr>
+      <tr><td><strong>U2</strong> — other boards, targets or instances</td><td>Only the main message-board dump was fully analyzed; an earlier, smaller board existed, and some communication occurred outside the analyzed namespace. <span class="tier independent">Independent · METR/Redwood</span></td><td>OpenAI and the affected parties, via an extended corpus</td><td>Treat every published magnitude as a floor, not a ceiling, in all downstream reasoning. <a class="src" href="#src-S02">S02</a></td></tr>
+      <tr><td><strong>U3</strong> — how complete the evidence was</td><td>A bit over 90% of non-message activity was estimated captured, over 7% of transcripts contained intentionally spoofed tool calls, and at least 96 showed clear spoofing evidence. <span class="tier independent">Independent · METR/Redwood</span> The analysis could only detect tampering it knew to look for.</td><td>Nobody, from the surviving record — this closes by architecture, not investigation</td><td>Substrate-side, append-only evidence below agent reach. The most load-bearing design conclusion here. <a class="src" href="#src-S02">S02 · limitations appendix</a></td></tr>
+      <tr><td><strong>U4</strong> — what the redactions conceal</td><td>Both reports redact model training details for intellectual-property reasons. Whether this behavior belongs to one unusual model or generalizes to frontier agents at scale is the most important open question for platform design.</td><td>OpenAI, via a scoped disclosure to a trusted reviewer</td><td>Design for the general case. Assume it generalizes until someone demonstrates otherwise. <a class="src" href="#src-S01">S01</a> <a class="src" href="#src-S02">S02</a></td></tr>
+      <tr><td><strong>U5</strong> — the model-versus-harness question</td><td>Whether the reported harness effect generalizes across models, tasks and budgets is not established, and the claim that chain-of-thought monitoring would have paged earlier is retrospective. <span class="tier counterfactual">First-party counterfactual</span></td><td>Labs and evaluators, via controlled runs across model and harness pairs</td><td>Treat reasoning-trace monitoring as advisory detection only; require action, network and kernel evidence for any boundary claim. <a class="src" href="#src-S01">S01</a></td></tr>
+    </tbody>
+  </table></div>
+
+  <aside class="callout plain">
+    <p class="callout-kicker">In plain words</p>
+    <p>"Chain-of-thought monitoring" means reading the model's written reasoning as it works and alerting on what it says. Useful, and not a boundary: the reasoning can become hidden, manipulated or absent, and an agent that spoofs a tool call is writing the record the monitor reads. A boundary denies the action; this reads the narration.</p>
+  </aside>
+
+  <h3 id="p12-propagate">The investigation's limits propagate into this document</h3>
+
+  <p><span class="tier independent">Independent · METR/Redwood</span> The independent investigation is essential and is not a complete independent postmortem, and every behavioral conclusion here inherits its boundaries. Six matter enough to name. <a class="src" href="#src-S02">S02</a> <a class="src" href="#src-S65">S65 §5</a></p>
+
+  <ol class="ladder">
+    <li><strong>Roughly 90% coverage, not full coverage.</strong> A bit over 90% of non-message activity was estimated captured; many transcripts are missing components, often from container resets, and an unknown fraction were cut off early. <a class="src" href="#src-S02">S02 · limitations appendix</a></li>
+    <li><strong>Some communication happened elsewhere.</strong> Agent communication occurred on platforms outside the analyzed cache namespace, so the corpus samples the channels rather than censusing them. <a class="src" href="#src-S02">S02</a></li>
+    <li><strong>Analysis was delegated to agents of the same model family.</strong> Scale forced heavy delegation to analysis agents the investigators judged less reliable than humans and hard to spot-check — and pointedly, of the same model family that had collaborated in the incident. They noted such agents could in principle mislead them, identified no example, and were not confident they would detect one. <a class="src" href="#src-S02">S02</a></li>
+    <li><strong>Redactions.</strong> Model training provenance and some quantitative details are withheld for intellectual-property reasons in both primary reports. <a class="src" href="#src-S01">S01</a> <a class="src" href="#src-S02">S02</a></li>
+    <li><strong>The primary model was not queryable.</strong> No behavioral hypothesis could be tested directly against the model most involved. <a class="src" href="#src-S65">S65 §5</a></li>
+    <li><strong>The data was selected by the investigated party.</strong> Datasets could be requested, but the investigators did not independently query the infrastructure, and much of the supplied data was selected and constructed by the party under investigation. <a class="src" href="#src-S65">S65 §5</a></li>
+  </ol>
+
+  <p><strong>The design consequence.</strong> These are not reasons to discount the findings. They are a requirements document, and they translate into six capabilities: investigator-grade capture independent of the investigated party's selection; deterministic reconstruction, so a narrative is derived rather than composed; analysis provenance, so every machine-produced conclusion carries the model, configuration and prompt behind it; sampled human verification at a published rate; adversarial reviewer checks assuming the analysis agent may be wrong or steered; and a separate defensive inference enclave, because hosted frontier models sometimes refused forensic tasks the attacking configuration could perform, which is why an affected party ran a self-hosted open-weight model on its own premises. <span class="tier internal">Internal</span> <a class="src" href="#src-S65">S65 §2, §5</a> "An artificial intelligence analyzed the logs" is not an assurance claim.</p>
+
+  <aside class="callout caution">
+    <p class="callout-kicker">What the record does not establish</p>
+    <p>Because analysis was delegated to models of the same family as those in the incident, and coverage is a bit over 90% with a known spoofing rate above 7%, no behavioral finding here should be treated as forensically settled. Technical events — what was reached, what was read, when an alert fired — rest on firmer ground than statements about why a population behaved as it did. <span class="tier independent">Independent · METR/Redwood</span> <a class="src" href="#src-S02">S02</a></p>
+  </aside>
+
+  <h3 id="p12-never-again">The honest "never again" answer</h3>
+
+  <aside class="callout rule">
+    <p class="callout-kicker">Design rule</p>
+    <p>No serious architecture can guarantee that an incident will never occur, and any vendor who says otherwise has told you how much of their documentation to believe. The credible objective is defensible resilience, not an impossible zero-risk promise. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a></p>
+  </aside>
+
+  <p>What can be promised is five things, each of which is testable and each of which was absent or failed in the incident.</p>
+
+  <ol class="ladder">
+    <li><strong>Make unauthorized actions unexpressible or independently denied.</strong> Not discouraged: either the effect has no representation the agent can construct, or something that is not the agent refuses it.</li>
+    <li><strong>Bound the residual blast radius.</strong> Assume the first objective fails. Authority, destinations, credentials, lifetime, delegation depth and commit scope each cap how far the failure travels.</li>
+    <li><strong>Detect cross-layer deviation at machine speed.</strong> The incident's detectors fired; separate teams and systems did not correlate them into a sufficiently severe cross-system incident soon enough. Correlation is the control, not collection. <span class="tier internal">Internal</span> <a class="src" href="#src-S65">S65 §2</a></li>
+    <li><strong>Halt before external harm.</strong> A stop reaching a known-safe state for software effects, revocation propagation measured rather than asserted, and the physical case excluded per Limit 4.</li>
+    <li><strong>Produce independently verifiable evidence.</strong> Signed, offline-checkable by a third party holding no privileged access to our systems — the one differentiation claim that survives contact with the 2026 market.</li>
+  </ol>
+
+  <p>Two further objectives follow, and buyers ask for them by name: reconstruct what happened independently rather than from the operator's account, and prove remediation before restoring service.</p>
+
+  <h4>Three sentences, written out</h4>
+
+  <p>Drafted to be said aloud without qualification and without overstating. The same claim at three altitudes.</p>
+
+  <div class="grid cols-3">
+    <div class="card"><p class="card-kicker">A chief information security officer, to the board</p><h4>The sentence</h4><p>"We cannot promise this class of incident will not happen to us, and no architecture can; what we can do is show, on demand and without asking you to take our word for it, which of our agents' consequential actions were authorized in advance, which were denied, how long any remaining exposure lasted, and that the evidence for all of it was produced somewhere our agents cannot reach."</p></div>
+    <div class="card"><p class="card-kicker">An engineer, in a design review</p><h4>The sentence</h4><p>"That bound is Tier B — it holds only for calls that traverse the broker, so it does not hold for anything the agent runs inside the shell we just granted; if this control has to survive a hostile agent, it needs to be Tier A or composed with a sandbox, and either way the receipt has to render its tier."</p></div>
+    <div class="card"><p class="card-kicker">A supervisor or examiner, on the record</p><h4>The sentence</h4><p>"Every consequential action taken by an agent in this system carries a signed record that your examiners can verify offline with no access to our infrastructure; each record states which limits were enforced by cryptography or the operating system, which by a mediating chokepoint, and which were only observed; and we can demonstrate the stop path and produce the reconstruction of any run without depending on the vendor whose system is under review."</p></div>
+  </div>
+
+  <p>The supervisory framing is deliberate. Revised interagency model risk management guidance of 17 April 2026 supersedes the prior letters and places generative and agentic models outside its scope, with separate guidance promised. <span class="tier supervisor">Supervisor · Fed / OCC</span> <a class="src" href="#src-S39">S39</a> That is a deferral, not an exemption: obligations attached to the underlying action are untouched, and the separate guidance will be written against whatever the industry has already built. The Gulf guidance note carries audit rights and an immediate-shutdown expectation with a September 2026 compliance point <span class="tier supervisor">Supervisor · CBUAE</span> <a class="src" href="#src-S43">S43</a>, and India's supervisory line on lending requires a human override path <span class="tier supervisor">Supervisor · RBI</span> <a class="src" href="#src-S41">S41</a>. None is satisfied by a policy document; all three are satisfiable by a receipt that names its enforcement tier.</p>
+
+  <h4>What would falsify this document</h4>
+
+  <p>The central abstraction here is that agent authority is an operating-system problem — effects as syscalls, warrants as authority, receipts as the record. That is a claim, and claims that cannot fail are not claims. Six observations would show it wrong.</p>
+
+  <ol class="ladder">
+    <li><strong>Effect coverage stays near zero in real deployments.</strong> If teams keep granting shells and the measured share of consequential effects traversing the boundary never rises meaningfully, the syscall abstraction is an optional side channel, and the mediation ceiling is the whole story rather than a limit within it.</li>
+    <li><strong>A conformance profile passes while an escape suite still succeeds.</strong> Anti-goal 1's composition argument rests on the profile being a real test of a real composition. One clean escape against a passing profile falsifies the profile.</li>
+    <li><strong>Receipts verify and investigators still cannot reconstruct.</strong> If a signed, complete chain does not shorten an investigation against a realistic adversary, the evidence model captures the wrong things and cryptographic integrity has been mistaken for investigative sufficiency.</li>
+    <li><strong>A second implementation cannot verify the first's bundles.</strong> Offline third-party verifiability is the differentiation claim. Until an independent implementation checks our bundles it is a claim about a file format, not a property. Today the verifier count is one.</li>
+    <li><strong>The delegation-intersection primitive gets solved by the identity ecosystem.</strong> Anti-goal 2 bets this half is not coming from the identity vendors, and standards work currently names it unsolved. <span class="tier standard">Standard · NIST NCCoE</span> <a class="src" href="#src-S14">S14</a> If it ships there, rewrite this document rather than defend it.</li>
+    <li><strong>The control-plane tax exceeds the autonomy unlocked.</strong> Rising bypass rates, reviewer fatigue and workflows quietly routed around the platform falsify the value argument even if every security claim holds. The most likely falsifier, and the easiest to measure. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1</a></li>
+  </ol>
+
+  <h3 id="p12-audit">Second-pass completeness audit: what remains unresolved on our side</h3>
+
+  <p>The blueprint's completeness audit lists ten open items; nine concern the incident record and appear above with their owners. What follows is the tenth, plus the material boundaries the same audit records against the current delivery estate — what a customer would find if they looked hard, stated before they look. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a></p>
+
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>What remains unresolved</th><th>Why it changes the answer</th><th>Owner</th><th>Next evidence that would close it</th></tr></thead>
+    <tbody>
+      <tr><td>Enforcement coverage at a target commit</td><td>A design document or source file is not proof that every consequence path is mediated in a deployable topology. No production claim is made today.</td><td>The W1–W6 owners</td><td>A target-commit conformance run plus an escape report, both signed. <a class="src" href="#src-S61">S61</a></td></tr>
+      <tr><td>The built crates are orphaned from the warrant</td><td>Roughly twenty crates ship and work, and are not wired into the warrant path. Breadth on an unwired spine multiplies surface without moving coverage. Wire before widen: four planes wired in before anything new is built.</td><td>Platform engineering</td><td>Effect coverage measured before and after wiring, on the same workload. <span class="tier internal">Internal</span> <a class="src" href="#src-S60">S60</a></td></tr>
+      <tr><td>No network namespace, syscall filter or firewall in the supervision path</td><td>This is what makes Tier B a chokepoint rather than a boundary. Until a sandbox is composed in and profiled, every Tier B bound is conditional on the agent not being handed a shell.</td><td>Containment owner</td><td>A conformance profile for a named sandbox backend, with the escape suite run against it. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1</a></td></tr>
+      <tr><td>Frozen-candidate contracts are not an interoperable standard</td><td>Receipt, notary, enforcement mode, capability algebra, egress, delegation, policy, conformance and agent-manifest specifications exist as frozen candidates or drafts. Neither production-proven nor independently implemented.</td><td>Contracts owner</td><td>Test vectors, a second independent implementation, a migration path and performance evidence. <a class="src" href="#src-S61">S61</a></td></tr>
+      <tr><td>"Wired" integrations are not measured behavioral coverage</td><td>A documented connector does not establish that its consequential paths are mediated, nor that upstream version drift is monitored.</td><td>Integration control-plane owner</td><td>Per-connector coverage tests and an enforced-versus-observed map published per release. <a class="src" href="#src-S61">S61</a></td></tr>
+      <tr><td>Model-based guards stay advisory</td><td>Evaluation found every fine-tune damaged severity behavior, and recall-only review missed it. A guard model is a detector, never a boundary — Anti-goal 4 again.</td><td>Model intelligence owner</td><td>Schema-validity, severity-stability, calibration, slice and paired-outcome gates passed before promotion. <span class="tier internal">Internal</span> <a class="src" href="#src-S60">S60</a></td></tr>
+      <tr><td>Claims are untested until a live run tests them</td><td>Defects cluster in prose a passing suite cannot see. Windows paths run in production and are not exercised by continuous integration, which has already concealed a real contract breach in a kill-switch path.</td><td>Every contributor</td><td>The three prose checks below, plus gate coverage for every language and operating system touched. <span class="tier internal">Internal</span> <a class="src" href="#src-S60">S60</a></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="p12-communication">The communication rule</h3>
+
+  <p>Across eight recorded claim-defects on a single branch, the failures clustered in the prose rather than the code, and were invisible to a suite of several hundred tests. An error message told an operator to pass a flag that existed nowhere in the binary, and survived eight releases with a passing test — because the test asserted the branch returned an error, and it did. A quoted recall figure described a context length the product did not run at. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.3</a></p>
+
+  <p>Three checks, cheap and with a demonstrated hit rate, run before any claim in this document is repeated publicly:</p>
+
+  <dl class="kv">
+    <dt>Check 1 · Dispatch</dt><dd>Every flag or command recommended in an error message or help text is actually dispatched by the binary.</dd>
+    <dt>Check 2 · Configuration</dt><dd>Every quoted metric is checked against the configuration that produced it. Context length, seed and quantization each move the number, so a figure without its configuration is not a figure.</dd>
+    <dt>Check 3 · Cross-document</dt><dd>Every status claim is checked against the other document that records the same fact. A correction can introduce its own error by understating, which has happened here — and understating is not the safe direction.</dd>
+  </dl>
+
+  <p>The rule that generalizes from all three, and that governs how limits are disclosed rather than merely acknowledged: no console, report, score, sales page or compliance pack may collapse "observed," "advisory," "mediated" and "enforced" into a single green status. Commercial trust depends on preserving those distinctions precisely when preserving them lowers the apparent score. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a> The highest-leverage place to enforce it is the moment before a run starts, where the person launching it sees in ordinary language what the agent may do, what it may reach, what is irreversible, and which limits are enforced rather than merely observed. <span class="tier proposed">PROPOSED</span> <a class="src" href="#src-S62">S62 L8-14</a></p>
+
+  <aside class="callout rule">
+    <p class="callout-kicker">The rule this document is written under</p>
+    <p>Nothing in the catalog is claimed to exist. Where a fragment exists it is marked conservatively. This part states what the platform structurally cannot do, and it is placed at the end rather than in a footnote because a document that hides its limits has already failed its own test. A weaker claim that is true is worth more than a stronger one resting on infrastructure nobody audited — in a product whose whole proposition is that claims about agent behavior must be checkable. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §15.5</a></p>
+  </aside>
+
+</section>

@@ -1,0 +1,4312 @@
+[
+ {
+  "id": "A01",
+  "system": "Discovery & registry",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "extend + unify",
+  "title": "Enterprise agent and autonomy registry",
+  "outcome": "Faster trusted inventory",
+  "thesis": "Create the system of record for every agent, bot, autonomous workflow, owner, purpose, deployment, interface, model, tool, data class, authority profile, and lifecycle state. The registry is the join point between technical identity and business accountability.",
+  "users": [
+   "business owner",
+   "platform engineering",
+   "risk",
+   "procurement"
+  ],
+  "workflow": [
+   "Discover from manifests, gateways, CI, cloud, and owner submissions",
+   "Deduplicate technical instances into governed agent versions",
+   "Assign accountable owner, use case, consequence, and lifecycle",
+   "Require signed change review when material fields change"
+  ],
+  "proof": [
+   "signed agent manifest",
+   "source and discovery trail",
+   "ownership attestation",
+   "version/change receipt"
+  ],
+  "metrics": [
+   "inventory coverage and freshness",
+   "time from discovery to ownership",
+   "orphaned and duplicate agents",
+   "share of active agents with verified manifests"
+  ],
+  "dependencies": [
+   "agent manifest",
+   "enterprise identity",
+   "connector inventory",
+   "canonical object model"
+  ],
+  "risks": [
+   "shadow agents remain unseen—compare passive discovery with owner declarations",
+   "registry becomes shelfware—tie authorization and evidence to registration",
+   "owner is nominal—require periodic attestation and escalation"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W6"
+  ]
+ },
+ {
+  "id": "A02",
+  "system": "Discovery & registry",
+  "layer": "scale",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "net-new operational layer",
+  "title": "Shadow-agent and autonomous-work discovery",
+  "outcome": "Reduce unmanaged autonomy",
+  "thesis": "Continuously identify likely agentic workloads, MCP clients and servers, service identities, scheduled automations, browser/computer-use sessions, and unregistered model/tool activity without claiming classification certainty.",
+  "users": [
+   "security operations",
+   "platform engineering",
+   "risk",
+   "asset management"
+  ],
+  "workflow": [
+   "Collect signals from identity, network, endpoint, cloud, CI, model gateway, and SaaS logs",
+   "Score likely autonomous behavior with evidence and confidence",
+   "Route candidates to an owner for confirm, dismiss, or investigate",
+   "Create or link the governed registry record"
+  ],
+  "proof": [
+   "source event references",
+   "classifier/rule version",
+   "human disposition",
+   "coverage and blind-spot statement"
+  ],
+  "metrics": [
+   "confirmed shadow agents",
+   "mean time to ownership",
+   "false discovery rate",
+   "signal-source coverage"
+  ],
+  "dependencies": [
+   "SIEM/OCSF",
+   "CMDB/cloud inventory",
+   "model and MCP gateways",
+   "privacy policy"
+  ],
+  "risks": [
+   "employee surveillance—minimize and purpose-bind signals",
+   "false positives create distrust—show why and require human confirmation",
+   "detection is called control—label discovery as observation"
+  ],
+  "products": [
+   "W2",
+   "W5"
+  ]
+ },
+ {
+  "id": "A03",
+  "system": "Discovery & registry",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "extend existing risk classes",
+  "title": "Use-case, consequence, and autonomy classification",
+  "outcome": "Consistent approval depth",
+  "thesis": "Classify the governed work unit—not only the model—by side effects, affected people, reversibility, data sensitivity, autonomy duration, delegation depth, external exposure, financial scope, and physical consequence.",
+  "users": [
+   "business owner",
+   "risk",
+   "security",
+   "approver"
+  ],
+  "workflow": [
+   "Describe business purpose and expected effect",
+   "Apply deterministic classification rules and regional overlays",
+   "Show the factors and unresolved facts",
+   "Have the accountable owner sign the final classification"
+  ],
+  "proof": [
+   "factor-level classification record",
+   "rule and overlay versions",
+   "owner approval",
+   "reclassification history"
+  ],
+  "metrics": [
+   "classification consistency",
+   "time to classify",
+   "post-incident misclassification",
+   "manual overrides and reasons"
+  ],
+  "dependencies": [
+   "use-case object",
+   "data classification",
+   "regional modules",
+   "side-effect taxonomy"
+  ],
+  "risks": [
+   "single score hides consequence—retain factor vector",
+   "legal conclusion automated—require counsel/owner decision where applicable",
+   "teams under-classify to reduce friction—monitor overrides and incident outcomes"
+  ],
+  "products": [
+   "W1",
+   "W3",
+   "W5"
+  ]
+ },
+ {
+  "id": "A04",
+  "system": "Discovery & registry",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new enterprise lifecycle",
+  "title": "Agent lifecycle, dormancy, and retirement",
+  "outcome": "Lower control debt and attack surface",
+  "thesis": "Govern introduction, pilot, production, material change, suspension, dormancy, and retirement with expiry by default, evidence retention, credential revocation, connector removal, and successor mapping.",
+  "users": [
+   "platform owner",
+   "risk",
+   "security",
+   "records management"
+  ],
+  "workflow": [
+   "Set lifecycle and reauthorization dates",
+   "Detect inactivity, unsupported versions, ownership loss, or unresolved risk",
+   "Notify and suspend within policy",
+   "Retire identity, authority, secrets, routes, and deployment while preserving evidence"
+  ],
+  "proof": [
+   "state-transition receipts",
+   "revocation and decommission proof",
+   "retention/hold decision",
+   "successor or orphan record"
+  ],
+  "metrics": [
+   "dormant active identities",
+   "time to retire",
+   "overdue reviews",
+   "residual credentials and routes"
+  ],
+  "dependencies": [
+   "registry",
+   "identity/revocation",
+   "secrets",
+   "archive/retention",
+   "connector control plane"
+  ],
+  "risks": [
+   "automatic retirement breaks business work—stage and route exceptions",
+   "evidence is deleted with runtime—separate lifecycle from custody",
+   "ownership changes silently—bind HR/IdP events to review"
+  ],
+  "products": [
+   "W2",
+   "W3",
+   "W6"
+  ]
+ },
+ {
+  "id": "A05",
+  "system": "Outcome & value ledger",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "net-new value layer",
+  "title": "Outcome contract and baseline",
+  "outcome": "Clear definition of value",
+  "thesis": "Require each governed use case to define the unit of work, intended business outcome, quality bar, deadline, full-cost boundary, acceptance owner, negative outcomes, and baseline before production claims begin.",
+  "users": [
+   "business owner",
+   "finance",
+   "product",
+   "customer success"
+  ],
+  "workflow": [
+   "Select or define outcome unit",
+   "Record pre-Warrantor baseline and measurement window",
+   "Name acceptance and attribution method",
+   "Approve counter-metrics and refresh cadence"
+  ],
+  "proof": [
+   "signed baseline",
+   "data-source references",
+   "owner acceptance",
+   "definition/version history"
+  ],
+  "metrics": [
+   "use cases with accepted baseline",
+   "definition stability",
+   "measurement coverage",
+   "time to first value review"
+  ],
+  "dependencies": [
+   "use-case registry",
+   "business data connectors",
+   "cost model",
+   "privacy controls"
+  ],
+  "risks": [
+   "baseline selected after results—freeze prospectively",
+   "easy-to-measure proxy replaces outcome—require owner acceptance",
+   "hidden labor excluded—define full-cost boundary"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "A06",
+  "system": "Outcome & value ledger",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new evidence projection",
+  "title": "Outcome attestation and acceptance",
+  "outcome": "Trustworthy completed-work evidence",
+  "thesis": "Link the post-commit technical outcome to a business acceptance event: what became real, whether it met quality and timing criteria, who accepted it, and what rework or harm followed.",
+  "users": [
+   "business operator",
+   "approver",
+   "finance",
+   "audit"
+  ],
+  "workflow": [
+   "Ingest technical completion from W2",
+   "Collect downstream result and quality evidence",
+   "Route to the named acceptance owner",
+   "Record accept, reject, partial, disputed, or expired with reason"
+  ],
+  "proof": [
+   "W2 post-commit receipt",
+   "business result reference",
+   "signed acceptance",
+   "rework/dispute trail"
+  ],
+  "metrics": [
+   "accepted outcome rate",
+   "time to acceptance",
+   "rework and dispute rate",
+   "share of completed work with linked outcome"
+  ],
+  "dependencies": [
+   "outcome contract",
+   "W2",
+   "business-system connectors",
+   "human identity"
+  ],
+  "risks": [
+   "acceptance rubber-stamped—sample and measure reversals",
+   "technical success mistaken for business value—keep states separate",
+   "sensitive business results leak—store reference and scoped projection"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "A07",
+  "system": "Outcome & value ledger",
+  "layer": "scale",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "extend spend primitives",
+  "title": "Total-cost and resource attribution",
+  "outcome": "Cost per accepted outcome",
+  "thesis": "Attribute model tokens, tools, GPUs, cloud, licenses, retries, waiting, reviewer time, failed work, and support effort to the governed work unit and accepted outcome.",
+  "users": [
+   "finance",
+   "platform engineering",
+   "business owner",
+   "customer success"
+  ],
+  "workflow": [
+   "Capture cost events with work-unit and tenant identifiers",
+   "Normalize rates and shared costs",
+   "Allocate reviewer and platform overhead by declared method",
+   "Reconcile estimate with invoices and accepted outcomes"
+  ],
+  "proof": [
+   "source billing records",
+   "rate-card version",
+   "allocation method",
+   "reconciliation result"
+  ],
+  "metrics": [
+   "cost coverage",
+   "forecast error",
+   "cost per accepted outcome",
+   "retry, idle, and failed-work waste"
+  ],
+  "dependencies": [
+   "Warrant spend events",
+   "cloud/model/tool billing",
+   "human-time capture",
+   "outcome ledger"
+  ],
+  "risks": [
+   "false precision—show confidence and allocation method",
+   "optimizing cost degrades quality—pair quality counter-metrics",
+   "review labor becomes surveillance—aggregate and purpose-limit"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "A08",
+  "system": "Outcome & value ledger",
+  "layer": "compound",
+  "action": "BUILD",
+  "horizon": "18–36 months",
+  "delta": "new portfolio intelligence",
+  "title": "Autonomy portfolio and investment decisions",
+  "outcome": "Fund proven autonomous work",
+  "thesis": "Give leaders an evidence-backed portfolio of use cases showing adoption, autonomy, oversight, quality, risk, cost, realized outcome, and control debt, with explicit expand, narrow, pause, or retire decisions.",
+  "users": [
+   "executive",
+   "finance",
+   "risk committee",
+   "platform leadership"
+  ],
+  "workflow": [
+   "Aggregate governed work by owner, domain, outcome, and consequence",
+   "Compare against the agreed baseline and counter-metrics",
+   "Surface uncertainty, incidents, and control debt",
+   "Record investment decision and expected next proof"
+  ],
+  "proof": [
+   "metric lineage",
+   "committee decision receipt",
+   "assumption and uncertainty record",
+   "follow-up proof gate"
+  ],
+  "metrics": [
+   "portfolio value yield",
+   "scope expansion after proof",
+   "retired low-value use cases",
+   "decision follow-through"
+  ],
+  "dependencies": [
+   "outcome ledger",
+   "cost attribution",
+   "risk/control data",
+   "portfolio governance"
+  ],
+  "risks": [
+   "ranking games metrics—use multi-dimensional view",
+   "correlation called causation—state attribution limits",
+   "high-risk work starved despite value—include strategic and mission criteria"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "A09",
+  "system": "Intent & warrant design",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "extend warrant bounds",
+  "title": "Warrant-template and control-pattern library",
+  "outcome": "Faster safe authorization",
+  "thesis": "Package reusable business intents, capability bounds, side-effect classes, approvals, context rights, egress, budgets, evidence, safe states, and success criteria as parameterized patterns rather than copied warrants.",
+  "users": [
+   "product owner",
+   "security architect",
+   "risk",
+   "platform engineer"
+  ],
+  "workflow": [
+   "Select a reference pattern by outcome and consequence",
+   "Bind environment-specific resources and owners",
+   "Run conflict and overbreadth checks",
+   "Approve, version, publish, and monitor reuse"
+  ],
+  "proof": [
+   "signed template",
+   "source policy and test references",
+   "approval and version history",
+   "usage and exception trail"
+  ],
+  "metrics": [
+   "template reuse rate",
+   "time to authorization",
+   "exceptions per template",
+   "post-deployment narrowing"
+  ],
+  "dependencies": [
+   "capability algebra",
+   "policy registry",
+   "use-case classification",
+   "evidence requirements"
+  ],
+  "risks": [
+   "template cargo cult—show applicability conditions",
+   "shared template silently widens—material changes require reapproval",
+   "too many patterns—merge by outcome and retire unused"
+  ],
+  "products": [
+   "W1",
+   "W4",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "A10",
+  "system": "Intent & warrant design",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "new decision UX",
+  "title": "Plain-language scope and consequence preview",
+  "outcome": "Better informed approval",
+  "thesis": "Translate a warrant into concrete examples of what the agent can, cannot, and may only request—while preserving the exact underlying resources, constraints, enforcement posture, and unresolved bypasses.",
+  "users": [
+   "business operator",
+   "approver",
+   "risk",
+   "procurement"
+  ],
+  "workflow": [
+   "Render effective capability after delegation intersection",
+   "Group by data, tool, destination, spend, time, and side effect",
+   "Show representative allowed/refused scenarios and enforcement strength",
+   "Require reviewer acknowledgment of critical gaps"
+  ],
+  "proof": [
+   "effective-capability digest",
+   "rendering version",
+   "posture evidence",
+   "acknowledgment record"
+  ],
+  "metrics": [
+   "decision comprehension",
+   "approval reversal",
+   "time to decide",
+   "misread enforcement incidents"
+  ],
+  "dependencies": [
+   "W6 result",
+   "W1 decision codes",
+   "enforcement-mode map",
+   "resource dictionary"
+  ],
+  "risks": [
+   "natural language drifts from policy—bind to digest and generated tests",
+   "examples imply exhaustive coverage—state limitations",
+   "oversimplification hides dependency effects—link graph"
+  ],
+  "products": [
+   "W1",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "A11",
+  "system": "Intent & warrant design",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new assurance workflow",
+  "title": "Preflight simulation and consequence rehearsal",
+  "outcome": "Fewer unsafe production surprises",
+  "thesis": "Execute a proposed manifest, warrant, policy, connector, and workflow against synthetic and replayed scenarios to reveal expected denies, approvals, egress, costs, dependencies, and safe-state behavior before authorization.",
+  "users": [
+   "platform engineer",
+   "security",
+   "approver",
+   "business owner"
+  ],
+  "workflow": [
+   "Select representative and adversarial scenarios",
+   "Run in non-committing shadow/staging topology",
+   "Compare expected with observed policy and connector behavior",
+   "Resolve discrepancies or accept residual risk"
+  ],
+  "proof": [
+   "scenario manifest",
+   "simulation receipt",
+   "expected/observed diff",
+   "accepted limitation"
+  ],
+  "metrics": [
+   "preflight defect discovery",
+   "production policy reversals",
+   "scenario coverage",
+   "false confidence after simulation"
+  ],
+  "dependencies": [
+   "staging",
+   "connector sandbox",
+   "W4 compiler",
+   "W3 escape suite",
+   "test data"
+  ],
+  "risks": [
+   "simulation is called proof of production—label topology",
+   "synthetic scenarios miss real behavior—replay sanitized traces",
+   "unsafe external side effect—hard non-commit boundary"
+  ],
+  "products": [
+   "W1",
+   "W3",
+   "W4",
+   "W5"
+  ]
+ },
+ {
+  "id": "A12",
+  "system": "Intent & warrant design",
+  "layer": "scale",
+  "action": "MERGE",
+  "horizon": "6–18 months",
+  "delta": "unify existing limits",
+  "title": "Purpose, time, consequence, and resource budget service",
+  "outcome": "Consistent authority constraints",
+  "thesis": "Unify scattered tool, path, egress, token, spend, time, execution-count, data-purpose, delegation, and side-effect constraints into one explainable budget model without changing the W1/W6 decision semantics.",
+  "users": [
+   "platform engineer",
+   "finance",
+   "risk",
+   "operator"
+  ],
+  "workflow": [
+   "Define budgets at organization, template, warrant, and sub-warrant levels",
+   "Compute the narrowest effective constraint",
+   "Reserve and consume with idempotency",
+   "Alert, deny, or route approval according to consequence"
+  ],
+  "proof": [
+   "budget source and effective digest",
+   "reservation/consumption events",
+   "denial and override record",
+   "reconciliation"
+  ],
+  "metrics": [
+   "budget coverage",
+   "overrun and false-denial rate",
+   "unused reservation",
+   "cost and execution forecast error"
+  ],
+  "dependencies": [
+   "capability algebra",
+   "spend and run counters",
+   "purpose taxonomy",
+   "approval routing"
+  ],
+  "risks": [
+   "separate budgets conflict—one precedence model",
+   "race or retry double-spends—atomic idempotent reservation",
+   "budget becomes business approval—keep authority and finance semantics explicit"
+  ],
+  "products": [
+   "W1",
+   "W6"
+  ]
+ },
+ {
+  "id": "A13",
+  "system": "Authority & delegation",
+  "layer": "foundation",
+  "action": "INTEGRATE",
+  "horizon": "0–6 months",
+  "delta": "operationalize adopted identity",
+  "title": "Human, workload, device, and tenant identity binding",
+  "outcome": "Named accountability",
+  "thesis": "Bind every governed action to an accountable human or autonomous principal, attested workload identity, tenant, device/session where applicable, and current authorization—without rebuilding enterprise IAM or workload identity.",
+  "users": [
+   "identity engineering",
+   "security",
+   "audit",
+   "approver"
+  ],
+  "workflow": [
+   "Federate human identity from enterprise IdP",
+   "Attest workload with SPIFFE/SPIRE or supported platform identity",
+   "Bind delegated chain and device/session to the warrant",
+   "Re-evaluate identity and revocation at consequential commit"
+  ],
+  "proof": [
+   "IdP assertion reference",
+   "SVID/platform identity verification",
+   "device/session binding",
+   "revocation freshness"
+  ],
+  "metrics": [
+   "actions with complete identity chain",
+   "orphaned identities",
+   "revocation propagation",
+   "identity ambiguity denies"
+  ],
+  "dependencies": [
+   "enterprise OIDC/SAML",
+   "SPIFFE/SPIRE",
+   "device trust",
+   "W6 normalization"
+  ],
+  "risks": [
+   "Warrantor becomes IdP—adopt instead",
+   "shared service account hides human—require accountable principal",
+   "device binding creates privacy risk—scope to consequential approvals"
+  ],
+  "products": [
+   "W1",
+   "W6"
+  ]
+ },
+ {
+  "id": "A14",
+  "system": "Authority & delegation",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new enterprise UX",
+  "title": "Multi-agent delegation graph and union-trap visualizer",
+  "outcome": "Safer agent teams",
+  "thesis": "Make effective authority across manager, planner, worker, specialist, and tool agents visible; explain where constraints narrow, conflict, expire, or become bottom; and detect sibling or fan-in attempts to combine authority.",
+  "users": [
+   "platform engineer",
+   "security",
+   "approver",
+   "auditor"
+  ],
+  "workflow": [
+   "Assemble heterogeneous token and warrant links",
+   "Recompute intersection at each edge",
+   "Render effective capability and lost constraints",
+   "Block or escalate union, cycle, impersonation, or unknown-constraint cases"
+  ],
+  "proof": [
+   "chain and link digests",
+   "normalized constraint representation",
+   "intersection proof",
+   "detected-attack record"
+  ],
+  "metrics": [
+   "delegation depth and fan-out",
+   "union-trap attempts",
+   "time to understand chain",
+   "rejected unknown constraints"
+  ],
+  "dependencies": [
+   "W6",
+   "capability algebra",
+   "identity binding",
+   "graph store"
+  ],
+  "risks": [
+   "visual graph differs from verifier—derive from same canonical result",
+   "complexity overwhelms reviewer—progressive disclosure",
+   "graph exposes sensitive org structure—least-privilege projections"
+  ],
+  "products": [
+   "W6"
+  ]
+ },
+ {
+  "id": "A15",
+  "system": "Authority & delegation",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "extend W6 workflow",
+  "title": "Just-in-time sub-warrants and authority leasing",
+  "outcome": "Narrower delegated authority",
+  "thesis": "Let a parent agent request a short-lived, task-specific sub-warrant whose authority is the intersection of parent scope, template policy, task need, and approver limit, with execution-count and release-consistency bounds.",
+  "users": [
+   "agent runtime",
+   "approver",
+   "security",
+   "platform engineer"
+  ],
+  "workflow": [
+   "Agent declares task and requested capability",
+   "System computes maximum lawful subset and risk",
+   "Auto-issue within pre-approved pattern or route approval",
+   "Expire/revoke and bind all child evidence to the chain"
+  ],
+  "proof": [
+   "request and effective-capability proof",
+   "issuance approval",
+   "lease/execution counters",
+   "child receipt links"
+  ],
+  "metrics": [
+   "sub-warrants per work unit",
+   "scope reduction versus parent",
+   "approval avoidance without risk increase",
+   "revocation and expiry success"
+  ],
+  "dependencies": [
+   "W6",
+   "template library",
+   "bounded revocation",
+   "W2 chain links"
+  ],
+  "risks": [
+   "task text manipulates scope—rules compute authority",
+   "lease outlives business need—short expiry and completion revoke",
+   "approval fragmentation—aggregate related low-risk requests"
+  ],
+  "products": [
+   "W2",
+   "W6"
+  ]
+ },
+ {
+  "id": "A16",
+  "system": "Authority & delegation",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "18–36 months",
+  "delta": "research-to-product",
+  "title": "Bounded revocation and cross-domain authority federation",
+  "outcome": "Predictable authority shutdown",
+  "thesis": "Provide measured revocation guarantees across caches, regions, disconnected edges, and partner trust domains using execution-count and release-consistency semantics rather than relying only on token TTL.",
+  "users": [
+   "security architecture",
+   "sovereign operator",
+   "partner platform",
+   "audit"
+  ],
+  "workflow": [
+   "Declare revocation class and maximum propagation/usage",
+   "Distribute signed event across trust domains",
+   "Invalidate affected chain results and leases",
+   "Measure achieved latency and reconcile disconnected nodes"
+  ],
+  "proof": [
+   "signed revocation event",
+   "per-domain receipt",
+   "achieved latency and remaining exposure",
+   "reconciliation proof"
+  ],
+  "metrics": [
+   "p50/p99 and worst-case propagation",
+   "actions after revoke",
+   "offline reconciliation time",
+   "domain coverage"
+  ],
+  "dependencies": [
+   "W6",
+   "identity federation",
+   "event distribution",
+   "offline trust",
+   "time model"
+  ],
+  "risks": [
+   "guarantee impossible under partition—state mode and exposure",
+   "federation expands trust root—domain policy and blast caps",
+   "clock reliance—use counters and monotonic evidence where possible"
+  ],
+  "products": [
+   "W6",
+   "W3"
+  ]
+ },
+ {
+  "id": "X01",
+  "system": "Policy & control plane",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "unify scattered policy assets",
+  "title": "Policy and control registry",
+  "outcome": "Reusable governed controls",
+  "thesis": "Create a versioned registry linking business requirement, technical policy source, compiled targets, owner, tests, evidence fields, exceptions, applicability, jurisdiction, SLO, and retirement state.",
+  "users": [
+   "control owner",
+   "security architect",
+   "risk",
+   "platform engineer"
+  ],
+  "workflow": [
+   "Author or import control intent",
+   "Link policy source and target projections",
+   "Assign tests, evidence, owner, and review date",
+   "Approve version and monitor effectiveness"
+  ],
+  "proof": [
+   "signed control record",
+   "source and compiled digests",
+   "test/evidence references",
+   "approval and exception history"
+  ],
+  "metrics": [
+   "control reuse",
+   "orphaned controls",
+   "target coverage",
+   "stale and ineffective controls"
+  ],
+  "dependencies": [
+   "W4",
+   "enterprise GRC mapping",
+   "policy repositories",
+   "evidence graph"
+  ],
+  "risks": [
+   "registry duplicates GRC—focus on executable/evidenced controls",
+   "control exists without enforcement—show target/posture",
+   "jurisdiction content goes stale—version and owner"
+  ],
+  "products": [
+   "W4",
+   "W2"
+  ]
+ },
+ {
+  "id": "X02",
+  "system": "Policy & control plane",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new authoring surface",
+  "title": "Policy workbench, semantic diff, and conflict analysis",
+  "outcome": "Safer faster change",
+  "thesis": "Let policy authors review meaning, affected capabilities, target projections, conflicts, exceptions, expected denies, blast radius, and rollback—not only source-code text differences.",
+  "users": [
+   "security architect",
+   "platform engineer",
+   "control owner",
+   "approver"
+  ],
+  "workflow": [
+   "Edit human-readable intent and structured constraints",
+   "Compile to semantic intermediate form",
+   "Compare effective behavior and run scenarios",
+   "Approve staged rollout with rollback trigger"
+  ],
+  "proof": [
+   "source and semantic diff",
+   "compiler provenance",
+   "scenario results",
+   "approval and rollout receipt"
+  ],
+  "metrics": [
+   "policy change lead time",
+   "conflicts before deploy",
+   "rollback rate",
+   "unexpected deny/allow delta"
+  ],
+  "dependencies": [
+   "W4 intermediate representation",
+   "control registry",
+   "simulation",
+   "deployment pipeline"
+  ],
+  "risks": [
+   "AI-generated explanation is trusted—derive facts and label summaries",
+   "diff misses target behavior—differential tests",
+   "large blast radius—canary and shadow"
+  ],
+  "products": [
+   "W4"
+  ]
+ },
+ {
+  "id": "X03",
+  "system": "Policy & control plane",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "extend v4 compiler",
+  "title": "Gateway/kernel equivalence laboratory",
+  "outcome": "Non-bypassable policy confidence",
+  "thesis": "Continuously prove that semantic policy and conservative structural enforcement targets agree in the required direction across representative and adversarial actions, environments, and target versions.",
+  "users": [
+   "trusted-core engineer",
+   "security researcher",
+   "platform engineer",
+   "auditor"
+  ],
+  "workflow": [
+   "Generate action/resource/constraint corpus",
+   "Compile to gateway and kernel targets",
+   "Evaluate both plus reference interpreter",
+   "Reject widening, quantify over-denial, and publish signed report"
+  ],
+  "proof": [
+   "corpus manifest",
+   "target versions and digests",
+   "differential result",
+   "signed conformance report"
+  ],
+  "metrics": [
+   "widening defects",
+   "over-denial rate",
+   "target/version coverage",
+   "time to detect drift"
+  ],
+  "dependencies": [
+   "W4",
+   "target sandboxes",
+   "conformance harness",
+   "property-based generation"
+  ],
+  "risks": [
+   "equivalence claim exceeds corpus—state coverage",
+   "targets change semantics—version matrix",
+   "conservative denial causes outage—false-denial budget and staged rollout"
+  ],
+  "products": [
+   "W4",
+   "W3"
+  ]
+ },
+ {
+  "id": "X04",
+  "system": "Policy & control plane",
+  "layer": "scale",
+  "action": "ADOPT",
+  "horizon": "6–18 months",
+  "delta": "modularize external requirements",
+  "title": "Jurisdiction and sector control modules",
+  "outcome": "Faster localized governance",
+  "thesis": "Represent external obligations as versioned applicability questions, control intent, evidence needs, retention/residency constraints, and reporting views that compile through the same W4 model without embedding legal conclusions in core code.",
+  "users": [
+   "compliance",
+   "local counsel",
+   "control owner",
+   "product"
+  ],
+  "workflow": [
+   "Select official source and applicability scope",
+   "Map obligation to technical/operational facts",
+   "Review with local counsel and control owners",
+   "Publish signed version with update and deprecation policy"
+  ],
+  "proof": [
+   "official-source metadata",
+   "applicability decision",
+   "mapping rationale",
+   "counsel/control-owner approval"
+  ],
+  "metrics": [
+   "coverage and gaps",
+   "update latency",
+   "reuse across use cases",
+   "overturned mappings"
+  ],
+  "dependencies": [
+   "control registry",
+   "evidence graph",
+   "official-source pipeline",
+   "regional expertise"
+  ],
+  "risks": [
+   "module sold as legal compliance—evidence-only language",
+   "framework update lags—expiry and source monitoring",
+   "core forks per region—module contract"
+  ],
+  "products": [
+   "W4",
+   "W2"
+  ]
+ },
+ {
+  "id": "X05",
+  "system": "Workflow & approvals",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "new enterprise product surface",
+  "title": "Unified risk-ordered decision inbox",
+  "outcome": "Lower reviewer time",
+  "thesis": "Combine staged effects, policy exceptions, sub-warrants, connector discoveries, incidents, and evidence gaps into one queue ordered by consequence, expiry, dependency, business deadline, and reviewer authority.",
+  "users": [
+   "approver",
+   "security operations",
+   "business owner",
+   "risk"
+  ],
+  "workflow": [
+   "Ingest decision request with canonical consequence and dependencies",
+   "Route by authority, SoD, availability, and SLA",
+   "Present changed facts, evidence, and allowed decisions",
+   "Record signed outcome, reason, and next dependency"
+  ],
+  "proof": [
+   "request digest",
+   "routing decision",
+   "evidence completeness",
+   "signed reviewer action"
+  ],
+  "metrics": [
+   "median decision time",
+   "queue age and breach",
+   "reopen/reversal rate",
+   "approvals per reviewer hour"
+  ],
+  "dependencies": [
+   "staging queue",
+   "human identity/RBAC",
+   "notification",
+   "dependency graph",
+   "W2"
+  ],
+  "risks": [
+   "risk score hides urgency—show factors",
+   "queue overload causes rubber stamp—limits and sampling",
+   "wrong reviewer—cryptographic authority check at action"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W6"
+  ]
+ },
+ {
+  "id": "X06",
+  "system": "Workflow & approvals",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "extend staging semantics",
+  "title": "Dependency-aware partial approval and release",
+  "outcome": "More useful safe throughput",
+  "thesis": "Allow a reviewer to release an independent subset of staged effects while preserving dependency order, effective authority, idempotency, and an exact record of what became real versus remained held or voided.",
+  "users": [
+   "approver",
+   "business operator",
+   "platform engineer",
+   "audit"
+  ],
+  "workflow": [
+   "Build effect dependency DAG",
+   "Mark independent and coupled groups",
+   "Preview external consequences and authority for selected subset",
+   "Execute approved nodes in order and stop on failure boundary"
+  ],
+  "proof": [
+   "dependency graph digest",
+   "selected subset and authority",
+   "per-effect result",
+   "partial-failure boundary"
+  ],
+  "metrics": [
+   "partial release utilization",
+   "avoided all-or-nothing voids",
+   "dependency defects",
+   "duplicate external effects"
+  ],
+  "dependencies": [
+   "staging queue",
+   "idempotent adapters",
+   "W2 pre/post receipts",
+   "approval identity"
+  ],
+  "risks": [
+   "hidden dependency causes invalid release—explicit adapter-declared and inferred edges",
+   "compensation assumed—report rather than pretend undo",
+   "UI selection error—consequence preview and confirmation"
+  ],
+  "products": [
+   "W1",
+   "W2"
+  ]
+ },
+ {
+  "id": "X07",
+  "system": "Workflow & approvals",
+  "layer": "scale",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "extend notification contract",
+  "title": "Omnichannel notification, escalation, and mobile approval",
+  "outcome": "Faster human response",
+  "thesis": "Route actionable, signed, least-data decision notifications to web, desktop, mobile, email, chat, and incident channels with deep links, escalation, quiet hours, substitution, and offline-safe behavior.",
+  "users": [
+   "approver",
+   "security operations",
+   "business operator",
+   "on-call"
+  ],
+  "workflow": [
+   "Apply routing policy and channel sensitivity",
+   "Send minimal notification with signed request reference",
+   "Authenticate and re-fetch current decision state",
+   "Escalate, substitute, expire, or auto-hold according to policy"
+  ],
+  "proof": [
+   "routing and delivery receipt",
+   "channel/content policy",
+   "fresh authorization at decision",
+   "escalation history"
+  ],
+  "metrics": [
+   "time to acknowledgment",
+   "delivery failure",
+   "expired decisions",
+   "sensitive data exposed in notification"
+  ],
+  "dependencies": [
+   "notification service",
+   "IdP/passkeys",
+   "mobile/deep-link UX",
+   "queue SLA"
+  ],
+  "risks": [
+   "approval from stale notification—re-fetch and re-evaluate",
+   "data leaks in channel—minimal content",
+   "fatigue—bundling, quiet hours, risk routing"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W6"
+  ]
+ },
+ {
+  "id": "X08",
+  "system": "Workflow & approvals",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "extend multi-person semantics",
+  "title": "Segregation of duties, quorum, and delegated approval",
+  "outcome": "Defensible high-consequence decisions",
+  "thesis": "Support maker-checker, two-person, threshold, cross-function, jurisdictional, and emergency approval policies with non-delegable human steps and explicit conflict-of-interest constraints.",
+  "users": [
+   "risk",
+   "security",
+   "finance",
+   "business owner",
+   "audit"
+  ],
+  "workflow": [
+   "Compute required roles/quorum from consequence and policy",
+   "Resolve eligible principals and conflicts",
+   "Collect independent signed decisions",
+   "Re-evaluate quorum and current policy at commit"
+  ],
+  "proof": [
+   "eligibility and conflict proof",
+   "independent approvals",
+   "quorum evaluation",
+   "commit-time decision"
+  ],
+  "metrics": [
+   "SoD coverage",
+   "approval bottleneck",
+   "conflict attempts",
+   "emergency override frequency"
+  ],
+  "dependencies": [
+   "enterprise identity",
+   "RBAC/ABAC",
+   "W6",
+   "policy registry",
+   "time service"
+  ],
+  "risks": [
+   "delegation defeats non-delegable role—explicit flag",
+   "approval deadlock—substitute and SLA policy",
+   "quorum theater—independence and conflict evidence"
+  ],
+  "products": [
+   "W1",
+   "W6"
+  ]
+ },
+ {
+  "id": "X09",
+  "system": "Runtime & containment",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "unify truth reporting",
+  "title": "Per-action enforcement posture and bypass map",
+  "outcome": "Honest control coverage",
+  "thesis": "Compute and display whether each resource/action class is enforced, mediated, observed, unsupported, or unknown based on attested deployment facts, connector coverage, and escape-suite freshness—not user configuration labels.",
+  "users": [
+   "platform engineer",
+   "approver",
+   "security",
+   "customer assurance"
+  ],
+  "workflow": [
+   "Collect topology and connector attestations",
+   "Map actions to mediation/enforcement path",
+   "Validate with escape tests and supported-version evidence",
+   "Downgrade on drift, expiry, or unknown path"
+  ],
+  "proof": [
+   "deployment fact digest",
+   "coverage manifest",
+   "escape-suite result",
+   "last verified timestamp"
+  ],
+  "metrics": [
+   "mediated consequence coverage",
+   "unknown paths",
+   "posture downgrade time",
+   "bypasses found"
+  ],
+  "dependencies": [
+   "enforcement-mode contract",
+   "connector control plane",
+   "deployment inventory",
+   "W3 tests"
+  ],
+  "risks": [
+   "configured becomes claimed—require attestation",
+   "single global green hides action differences—per-class result",
+   "stale tests—expiry and continuous verification"
+  ],
+  "products": [
+   "W1",
+   "W3",
+   "W4",
+   "W5"
+  ]
+ },
+ {
+  "id": "X10",
+  "system": "Runtime & containment",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "extend W3 product",
+  "title": "Safe-state registry and containment rehearsal",
+  "outcome": "Predictable failure recovery",
+  "thesis": "Define the safe state for each use case and dependency before execution, then rehearse containment and recovery under realistic failure and adversarial conditions with evidence and limitations.",
+  "users": [
+   "security operations",
+   "business owner",
+   "SRE",
+   "risk"
+  ],
+  "workflow": [
+   "Define safe state, protected functions, and unacceptable stop effects",
+   "Map scoped containment mechanisms and dependencies",
+   "Run tabletop, simulation, and live non-production drill",
+   "Record reachability, latency, residual exposure, and recovery"
+  ],
+  "proof": [
+   "owner-approved safe-state definition",
+   "drill manifest",
+   "containment/recovery receipts",
+   "limitations and residual risk"
+  ],
+  "metrics": [
+   "use cases with tested safe state",
+   "containment and recovery time",
+   "indeterminate tests",
+   "outage amplification"
+  ],
+  "dependencies": [
+   "W3",
+   "use-case registry",
+   "incident system",
+   "deployment controls",
+   "runbooks"
+  ],
+  "risks": [
+   "stop everything causes harm—scoped safe state",
+   "tabletop called proof—separate evidence tiers",
+   "safe state goes stale—material-change review"
+  ],
+  "products": [
+   "W3"
+  ]
+ },
+ {
+  "id": "X11",
+  "system": "Runtime & containment",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new fleet orchestration",
+  "title": "Scoped containment and graceful degradation",
+  "outcome": "Smaller blast radius",
+  "thesis": "Contain by tenant, agent, warrant, capability, destination, credential, model/artifact, region, or dependency while preserving essential safe operations and proving that direct paths do not remain.",
+  "users": [
+   "security operations",
+   "SRE",
+   "business continuity",
+   "platform engineer"
+  ],
+  "workflow": [
+   "Select incident scope from correlated evidence",
+   "Simulate affected workloads and protected functions",
+   "Execute layered revoke, route, credential, process, and commit controls",
+   "Verify isolation and enter approved degraded mode"
+  ],
+  "proof": [
+   "scope and authority receipt",
+   "layered control results",
+   "escape verification",
+   "degraded-mode manifest"
+  ],
+  "metrics": [
+   "blast-radius precision",
+   "time to contain",
+   "false containment and outage",
+   "residual escape paths"
+  ],
+  "dependencies": [
+   "W3",
+   "W5",
+   "W6",
+   "fleet/deployment control",
+   "secrets/network systems"
+  ],
+  "risks": [
+   "scope incomplete—correlation and escape test",
+   "attacker alters control plane—out-of-band protected authority",
+   "graceful mode silently weakens evidence—explicit posture downgrade"
+  ],
+  "products": [
+   "W3",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "X12",
+  "system": "Runtime & containment",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new operational workflow",
+  "title": "Recovery orchestration and integrity verification",
+  "outcome": "Faster trustworthy restoration",
+  "thesis": "Restore identity, policy, credentials, data, queues, evidence, and agent execution in a controlled order; verify artifacts and state before reauthorization; and prevent recovery from replaying or duplicating external effects.",
+  "users": [
+   "SRE",
+   "security operations",
+   "business owner",
+   "records management"
+  ],
+  "workflow": [
+   "Select tested recovery plan and clean checkpoints",
+   "Verify artifacts, policy, identities, and custody",
+   "Restore dependencies in signed sequence",
+   "Re-run conformance and require owner reauthorization before consequence"
+  ],
+  "proof": [
+   "checkpoint and artifact verification",
+   "recovery-step receipts",
+   "post-recovery conformance",
+   "reauthorization"
+  ],
+  "metrics": [
+   "RTO/RPO",
+   "recovery conformance",
+   "duplicate/replayed effects",
+   "manual undocumented steps"
+  ],
+  "dependencies": [
+   "W3",
+   "archive/backup",
+   "identity/key recovery",
+   "deployment automation",
+   "staging idempotency"
+  ],
+  "risks": [
+   "compromised backup restored—verify provenance",
+   "recovery races live system—fencing",
+   "staged effects replay—stable idempotency and boundary record"
+  ],
+  "products": [
+   "W2",
+   "W3"
+  ]
+ },
+ {
+  "id": "X13",
+  "system": "Context, data & egress",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "fill context-rights plane",
+  "title": "Purpose-bound context and data-rights envelope",
+  "outcome": "Safer data use",
+  "thesis": "Bind data origin, purpose, allowed transformations, recipients, retention, sensitivity, consent/legal basis reference, jurisdiction, and trust level to context so retrieval does not silently turn data into authority or memory.",
+  "users": [
+   "data governance",
+   "privacy",
+   "agent developer",
+   "security"
+  ],
+  "workflow": [
+   "Classify and label source at ingestion",
+   "Propagate rights and provenance through retrieval and transformation",
+   "Intersect use purpose with warrant and policy",
+   "Enforce at model context, memory, tool, and egress boundaries"
+  ],
+  "proof": [
+   "source/provenance digest",
+   "rights envelope",
+   "purpose intersection decision",
+   "egress/retention receipt"
+  ],
+  "metrics": [
+   "labeled-context coverage",
+   "purpose denials",
+   "untraceable derived data",
+   "rights propagation defects"
+  ],
+  "dependencies": [
+   "data catalog/classifier",
+   "W4",
+   "W5",
+   "retrieval/memory adapters",
+   "privacy model"
+  ],
+  "risks": [
+   "labels are untrusted—source authority and confidence",
+   "derived data loses restrictions—conservative propagation",
+   "policy too coarse blocks work—purpose templates and review"
+  ],
+  "products": [
+   "W4",
+   "W5",
+   "W2"
+  ]
+ },
+ {
+  "id": "X14",
+  "system": "Context, data & egress",
+  "layer": "differentiate",
+  "action": "ADOPT",
+  "horizon": "6–18 months",
+  "delta": "integrate origin-bound memory",
+  "title": "Provenance-aware memory admission and forgetting",
+  "outcome": "Lower persistent-context risk",
+  "thesis": "Adopt origin-bound memory and transaction patterns so untrusted content cannot silently become durable instruction; require admission policy, provenance, expiry, user/owner visibility, correction, and deletion evidence.",
+  "users": [
+   "agent developer",
+   "privacy",
+   "security",
+   "business operator"
+  ],
+  "workflow": [
+   "Classify candidate memory by origin, purpose, and instruction risk",
+   "Evaluate write authority separately from read authority",
+   "Store with provenance, scope, expiry, and correction path",
+   "Re-evaluate on retrieval and prove expiry/deletion"
+  ],
+  "proof": [
+   "memory source and admission receipt",
+   "policy and scope",
+   "retrieval decision",
+   "expiry/deletion proof"
+  ],
+  "metrics": [
+   "admitted-memory provenance",
+   "poisoned-memory detection",
+   "stale/expired retrieval",
+   "deletion completion"
+  ],
+  "dependencies": [
+   "origin-bound memory research",
+   "retrieval adapters",
+   "W4",
+   "privacy/retention",
+   "user controls"
+  ],
+  "risks": [
+   "Warrantor reinvents memory store—stay at policy/evidence seam",
+   "deletion impossible in replicas—declare coverage",
+   "model summary hides origin—keep source links"
+  ],
+  "products": [
+   "W4",
+   "W2"
+  ]
+ },
+ {
+  "id": "X15",
+  "system": "Context, data & egress",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "productize W5",
+  "title": "Signed destination catalog and dynamic-egress approval",
+  "outcome": "Default-deny useful connectivity",
+  "thesis": "Operate a destination registry derived from approved capabilities, with verified service identity, path/method constraints, data-purpose compatibility, owner, expiry, and a human-approved workflow for genuinely dynamic destinations.",
+  "users": [
+   "network security",
+   "platform engineer",
+   "agent developer",
+   "approver"
+  ],
+  "workflow": [
+   "Resolve capability to catalog entry rather than agent hostname",
+   "Verify DNS/IP/TLS/service identity and path constraints",
+   "Inspect purpose/classification compatibility",
+   "Deny unknown target or route bounded discovery approval"
+  ],
+  "proof": [
+   "signed catalog version",
+   "resolution and TLS proof",
+   "policy decision",
+   "egress receipt"
+  ],
+  "metrics": [
+   "egress mediated coverage",
+   "unknown destination requests",
+   "DNS/redirect bypass tests",
+   "approval latency"
+  ],
+  "dependencies": [
+   "W5",
+   "service identity",
+   "network enforcement",
+   "data-rights envelope",
+   "approval inbox"
+  ],
+  "risks": [
+   "catalog becomes allowlist sprawl—owner and expiry",
+   "agent controls discovery result—out-of-band validation",
+   "SaaS endpoints change—provider-aware identity and health"
+  ],
+  "products": [
+   "W5",
+   "W4"
+  ]
+ },
+ {
+  "id": "X16",
+  "system": "Context, data & egress",
+  "layer": "scale",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "compose mature data controls",
+  "title": "Privacy, DLP, residency, and retention enforcement plane",
+  "outcome": "Compliant data movement",
+  "thesis": "Compose customer data classification, DLP, privacy, residency, retention, and data-subject controls with Warrantor purpose and action evidence, while keeping vendor detectors as advisory or defense-in-depth unless enforced by a protected boundary.",
+  "users": [
+   "privacy",
+   "data governance",
+   "security",
+   "regional operations"
+  ],
+  "workflow": [
+   "Ingest customer classifications and regulatory zones",
+   "Compile routing, storage, egress, redaction, and retention policy",
+   "Evaluate at context/tool/egress/commit boundaries",
+   "Record data lineage, decision, and exceptions"
+  ],
+  "proof": [
+   "classification source and confidence",
+   "compiled policy digest",
+   "decision and transformation receipt",
+   "residency/retention proof"
+  ],
+  "metrics": [
+   "sensitive-flow coverage",
+   "residency violations",
+   "DLP false positive/negative",
+   "retention deletion success"
+  ],
+  "dependencies": [
+   "W4",
+   "W5",
+   "data catalog/DLP",
+   "storage/region controls",
+   "privacy workflow"
+  ],
+  "risks": [
+   "detector called guarantee—state mode",
+   "redaction destroys utility—quality counter-metric",
+   "regimes conflict—deny or explicit counsel-approved exception"
+  ],
+  "products": [
+   "W4",
+   "W5",
+   "W2"
+  ]
+ },
+ {
+  "id": "E01",
+  "system": "Evidence graph & assurance",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "unify evidence surfaces",
+  "title": "Unified verifiable evidence graph",
+  "outcome": "Evidence available on demand",
+  "thesis": "Link principals, agents, manifests, warrants, policies, actions, receipts, effects, artifacts, controls, outcomes, findings, exceptions, incidents, and custody into a queryable graph while preserving canonical signed objects as the source of truth.",
+  "users": [
+   "audit",
+   "security",
+   "risk",
+   "customer assurance",
+   "product"
+  ],
+  "workflow": [
+   "Verify and ingest canonical evidence",
+   "Resolve typed relationships without rewriting signed payload",
+   "Compute completeness, freshness, contradictions, and access projections",
+   "Serve population queries and drill back to raw proof"
+  ],
+  "proof": [
+   "signature/chain verification",
+   "ingestion and relation provenance",
+   "query definition",
+   "access and export receipt"
+  ],
+  "metrics": [
+   "verified ingestion rate",
+   "relationship/completeness coverage",
+   "query time",
+   "manual evidence joins"
+  ],
+  "dependencies": [
+   "W2",
+   "archive",
+   "identity",
+   "canonical schemas",
+   "access control",
+   "graph/index store"
+  ],
+  "risks": [
+   "graph becomes new truth—raw object remains authoritative",
+   "link inference is wrong—record source/confidence",
+   "cross-tenant leakage—tenant isolation and projection tests"
+  ],
+  "products": [
+   "W2",
+   "W1"
+  ]
+ },
+ {
+  "id": "E02",
+  "system": "Evidence graph & assurance",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "extend verifier path",
+  "title": "Independent verifier SDK and portable assurance pack",
+  "outcome": "Lower trust transaction cost",
+  "thesis": "Let a third party verify signatures, chain, policy freshness, artifact identity, enforcement mode, custody, population definition, sampled records, limitations, and unsupported claims without trusting Warrantor SaaS or sharing a secret.",
+  "users": [
+   "auditor",
+   "customer security",
+   "regulator",
+   "partner",
+   "researcher"
+  ],
+  "workflow": [
+   "Export canonical pack with manifest and verification instructions",
+   "Verify offline or against independent roots",
+   "Recompute derived claims and sampling population",
+   "Record pass, fail, indeterminate, and limitation separately"
+  ],
+  "proof": [
+   "pack manifest and digests",
+   "root/trust policy",
+   "verification transcript",
+   "limitation and contradiction list"
+  ],
+  "metrics": [
+   "independent verification success",
+   "pack portability",
+   "time to verify",
+   "claims rejected or indeterminate"
+  ],
+  "dependencies": [
+   "W2 Verify",
+   "schema registry",
+   "trust bundle",
+   "pack format",
+   "test vectors"
+  ],
+  "risks": [
+   "pack summary hides failures—raw and derived checks mandatory",
+   "verification needs network—offline path",
+   "root distribution becomes vendor lock—customer and federated roots"
+  ],
+  "products": [
+   "W2",
+   "W1"
+  ]
+ },
+ {
+  "id": "E03",
+  "system": "Evidence graph & assurance",
+  "layer": "scale",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "operationalize custody",
+  "title": "Evidence custody, retention, legal hold, and time assurance",
+  "outcome": "Defensible long-term proof",
+  "thesis": "Operate append-only custody across local, customer, cloud, and offline archives with retention classes, legal holds, encryption, access evidence, migration, integrity scans, and explicit time-anchoring options.",
+  "users": [
+   "records management",
+   "legal",
+   "audit",
+   "security operations"
+  ],
+  "workflow": [
+   "Classify receipt/evidence retention at creation",
+   "Replicate to approved immutable storage and anchor per policy",
+   "Apply hold, access, and disposition workflows",
+   "Continuously verify integrity and migrate formats with provenance"
+  ],
+  "proof": [
+   "custody transfer receipts",
+   "storage/immutability proof",
+   "hold and access record",
+   "integrity and migration report"
+  ],
+  "metrics": [
+   "custody coverage",
+   "integrity failures",
+   "hold response time",
+   "expired evidence and storage cost"
+  ],
+  "dependencies": [
+   "archive",
+   "object-lock storage",
+   "KMS/HSM",
+   "time/transparency decision",
+   "records policy"
+  ],
+  "risks": [
+   "hash chain confused with absolute time—state semantics",
+   "retention violates minimization—policy and deletion",
+   "format becomes unreadable—migration and verifier fixtures"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "E04",
+  "system": "Evidence graph & assurance",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new evidence products",
+  "title": "Audience-specific evidence views and control projections",
+  "outcome": "Reuse one proof across many decisions",
+  "thesis": "Project canonical evidence into approver, SOC, auditor, customer, board, insurer, procurement, and regulator views with purpose-based access, source links, applicability, freshness, confidence, and visible gaps.",
+  "users": [
+   "customer assurance",
+   "audit",
+   "risk",
+   "executive",
+   "security operations"
+  ],
+  "workflow": [
+   "Choose audience, purpose, scope, population, and period",
+   "Apply versioned mapping and least-data projection",
+   "Verify every statement against canonical evidence",
+   "Export with unsupported, stale, contradictory, and redacted fields visible"
+  ],
+  "proof": [
+   "query and mapping versions",
+   "statement-to-evidence links",
+   "access/redaction receipt",
+   "verification result"
+  ],
+  "metrics": [
+   "evidence reuse ratio",
+   "pack generation time",
+   "questionnaire cycle time",
+   "unsupported claim count"
+  ],
+  "dependencies": [
+   "evidence graph",
+   "control registry",
+   "regional modules",
+   "access/purpose model"
+  ],
+  "risks": [
+   "pretty report launders uncertainty—gaps cannot be suppressed",
+   "mapping becomes legal conclusion—applicability sign-off",
+   "over-disclosure—purpose-limited views"
+  ],
+  "products": [
+   "W2",
+   "W4"
+  ]
+ },
+ {
+  "id": "E05",
+  "system": "Continuous controls",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "new enterprise operations",
+  "title": "Continuous control monitoring and attestation calendar",
+  "outcome": "Always-current governance",
+  "thesis": "Continuously evaluate ownership, manifest, policy, identity, connector, conformance, evidence, exception, retention, and outcome requirements, opening owned remediation when truth becomes stale or contradictory.",
+  "users": [
+   "control owner",
+   "risk",
+   "platform operations",
+   "audit"
+  ],
+  "workflow": [
+   "Schedule or event-trigger control tests",
+   "Collect signed facts from source systems",
+   "Evaluate control-specific criteria and evidence freshness",
+   "Route fail, indeterminate, drift, and overdue states to owner"
+  ],
+  "proof": [
+   "test definition/version",
+   "source facts",
+   "evaluation result",
+   "remediation and closure receipt"
+  ],
+  "metrics": [
+   "control pass/fail/indeterminate",
+   "freshness SLA",
+   "time to remediate",
+   "repeat failures"
+  ],
+  "dependencies": [
+   "control registry",
+   "evidence graph",
+   "connector control plane",
+   "workflow engine"
+  ],
+  "risks": [
+   "green score hides test gaps—indeterminate separate",
+   "continuous polling becomes cost—event plus risk cadence",
+   "owners game tests—independent sampling"
+  ],
+  "products": [
+   "W2",
+   "W3",
+   "W4"
+  ]
+ },
+ {
+  "id": "E06",
+  "system": "Continuous controls",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new claim-integrity layer",
+  "title": "Evidence freshness, contradiction, and claim-drift detector",
+  "outcome": "Fewer false assurances",
+  "thesis": "Detect when documents, dashboards, policies, manifests, connector claims, model metrics, and evidence packs disagree with newer target-commit or external evidence, without automatically deciding which statement is true.",
+  "users": [
+   "claim review board",
+   "product",
+   "security",
+   "documentation",
+   "audit"
+  ],
+  "workflow": [
+   "Register claim and its evidence/mechanism/scope",
+   "Watch source changes and expiry",
+   "Compare structured facts and mark contradictions",
+   "Route investigation, correction, retraction, or accepted divergence"
+  ],
+  "proof": [
+   "claim record",
+   "source snapshots",
+   "contradiction link",
+   "resolution decision"
+  ],
+  "metrics": [
+   "stale claims found",
+   "time to correction",
+   "repeat claim defects",
+   "unsupported claims prevented from publication"
+  ],
+  "dependencies": [
+   "claim ledger",
+   "repo/document scanners",
+   "evidence graph",
+   "external-source monitoring"
+  ],
+  "risks": [
+   "text model invents contradiction—fact extraction needs review",
+   "older history is erased—retain supersession links",
+   "tool becomes censorship—show evidence and decision trail"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "E07",
+  "system": "Continuous controls",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "new governance workflow",
+  "title": "Exception, waiver, and compensating-control lifecycle",
+  "outcome": "Lower permanent control debt",
+  "thesis": "Make every deviation scoped, owned, justified, risk-accepted, compensated, evidenced, approved, time-bounded, monitored, and automatically returned for closure or renewal without silent roll-forward.",
+  "users": [
+   "risk",
+   "control owner",
+   "security",
+   "business owner",
+   "audit"
+  ],
+  "workflow": [
+   "Request exception against a specific control and resource",
+   "Assess consequence and compensating controls",
+   "Collect authorized approval and expiry",
+   "Monitor conditions, block silent renewal, and capture closure/root fix"
+  ],
+  "proof": [
+   "exception scope and rationale",
+   "risk and compensating-control evidence",
+   "signed approval",
+   "expiry/closure history"
+  ],
+  "metrics": [
+   "active/expired exceptions",
+   "renewal rate",
+   "time to close",
+   "controls improved from recurring exceptions"
+  ],
+  "dependencies": [
+   "control registry",
+   "approval/SoD",
+   "continuous monitoring",
+   "evidence graph"
+  ],
+  "risks": [
+   "exception becomes permanent—hard expiry",
+   "broad scope—canonical resources and maximum consequence",
+   "renewal by same requester—SoD and escalation"
+  ],
+  "products": [
+   "W1",
+   "W4",
+   "W6"
+  ]
+ },
+ {
+  "id": "E08",
+  "system": "Continuous controls",
+  "layer": "compound",
+  "action": "BUILD",
+  "horizon": "18–36 months",
+  "delta": "new assurance analytics",
+  "title": "Control-effectiveness sampling and outcome correlation",
+  "outcome": "Invest in controls that work",
+  "thesis": "Combine population-aware evidence sampling, bypass/incident results, false-denial friction, exceptions, and business outcomes to estimate whether a control operates and is worth its burden—without treating correlation as causal proof.",
+  "users": [
+   "audit",
+   "risk committee",
+   "product",
+   "finance",
+   "control owner"
+  ],
+  "workflow": [
+   "Define population, expected operation, and counter-metrics",
+   "Select reproducible risk-based and random samples",
+   "Verify raw proof and exceptions",
+   "Record conclusion, uncertainty, action, and next experiment"
+  ],
+  "proof": [
+   "population query",
+   "sample seed/method",
+   "verification results",
+   "review conclusion and limitation"
+  ],
+  "metrics": [
+   "control effectiveness",
+   "cost/friction per protected outcome",
+   "sample reproducibility",
+   "control retire/narrow decisions"
+  ],
+  "dependencies": [
+   "evidence graph",
+   "outcome ledger",
+   "exception data",
+   "audit sampling workspace"
+  ],
+  "risks": [
+   "biased sampling—reproducible method",
+   "metric optimization—counter-metrics",
+   "causality overclaim—prospective experiments where material"
+  ],
+  "products": [
+   "W2",
+   "W4"
+  ]
+ },
+ {
+  "id": "E09",
+  "system": "Security testing & learning",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "v4 strategic addition",
+  "title": "Invariant attack corpus and capability elicitation",
+  "outcome": "Proof the substrate resists attack",
+  "thesis": "Maintain one evolving adversarial suite per invariant and action class, run with a capable attacker under substantiated elicitation, separating prevented, detected-not-prevented, violated, indeterminate, and untested.",
+  "users": [
+   "security research",
+   "trusted-core engineering",
+   "customer assurance",
+   "standards"
+  ],
+  "workflow": [
+   "Map invariant to attack goals and target topology",
+   "Elicit relevant capability and record substantiation",
+   "Run reproducible vectors and adaptive attacks",
+   "Sign report with limitations and add verified failures to regression"
+  ],
+  "proof": [
+   "corpus/version manifest",
+   "elicitation evidence",
+   "per-case traces",
+   "signed conformance report"
+  ],
+  "metrics": [
+   "invariant/action/topology coverage",
+   "violations and bypasses",
+   "indeterminate rate",
+   "time from finding to regression"
+  ],
+  "dependencies": [
+   "A6 harness",
+   "W1–W6 test targets",
+   "safe test environments",
+   "research governance"
+  ],
+  "risks": [
+   "zero violations sold as secure—coverage and limitations",
+   "benchmark overfit—private/adaptive cases",
+   "test harms systems—isolated targets and safety review"
+  ],
+  "products": [
+   "W1",
+   "W3",
+   "W4",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "E10",
+  "system": "Security testing & learning",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "v4 strategic addition",
+  "title": "Human-approved attack-to-policy loop",
+  "outcome": "Faster conversion of findings into protection",
+  "thesis": "Turn a reproduced attack into a narrow candidate rule, regression case, impact simulation, shadow rollout, human approval, enforced change, and post-deployment outcome review.",
+  "users": [
+   "security engineer",
+   "policy owner",
+   "platform engineer",
+   "approver"
+  ],
+  "workflow": [
+   "Verify finding and affected scope",
+   "Generate or author the narrowest candidate control",
+   "Run regression, overbreadth, and business-impact tests",
+   "Approve shadow/canary/enforce/rollback and close with evidence"
+  ],
+  "proof": [
+   "finding and reproduction digest",
+   "candidate policy and rationale",
+   "test/impact results",
+   "signed change and closure"
+  ],
+  "metrics": [
+   "finding-to-protection time",
+   "overbroad-rule rejects",
+   "rollback and false-denial rate",
+   "repeat attack success"
+  ],
+  "dependencies": [
+   "SAFE finding schema",
+   "W4",
+   "attack corpus",
+   "policy workbench",
+   "continuous controls"
+  ],
+  "risks": [
+   "automatic self-modification—human approval mandatory",
+   "rule broader than evidence—scope comparison",
+   "attack-specific patch misses class—regression family and review"
+  ],
+  "products": [
+   "W4",
+   "W3"
+  ]
+ },
+ {
+  "id": "E11",
+  "system": "Security testing & learning",
+  "layer": "scale",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "extend eval receipts",
+  "title": "External red-team and evaluator receipt adapters",
+  "outcome": "Reusable credible test evidence",
+  "thesis": "Wrap garak, PyRIT, Inspect, AgentDojo, METR-style tasks, and approved sector tools; preserve their native artifacts; and sign run configuration, target, environment, dataset, evaluator, outcome, and limitation without claiming correctness.",
+  "users": [
+   "evaluation engineer",
+   "security research",
+   "risk",
+   "customer assurance"
+  ],
+  "workflow": [
+   "Select approved evaluator and pin all artifacts",
+   "Run with declared topology, seeds, attempts, and grader",
+   "Preserve native outputs and normalize summary",
+   "Issue eval receipt and map to agent/control changes"
+  ],
+  "proof": [
+   "tool/model/dataset digests",
+   "run provenance",
+   "native result reference",
+   "signed eval receipt and limitations"
+  ],
+  "metrics": [
+   "reproducible runs",
+   "coverage by threat/use case",
+   "result variance",
+   "findings linked to changes"
+  ],
+  "dependencies": [
+   "eval-receipt spec",
+   "external tools",
+   "artifact store",
+   "dataset/license registry"
+  ],
+  "risks": [
+   "wrapper reimplements scanner—do not",
+   "score called truth—state semantics",
+   "grader drift—pin and cross-check",
+   "license/data restrictions—registry gate"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "E12",
+  "system": "Security testing & learning",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "close measured model gap",
+  "title": "Guard and evaluator integrity promotion gate",
+  "outcome": "Prevent silent model-instrument change",
+  "thesis": "Require output-schema validity, severity vocabulary stability, slice floors, calibration, paired item analysis, false-positive limits, provenance, reproducibility, rollback, and human review before any advisory model is promoted.",
+  "users": [
+   "ML engineer",
+   "security",
+   "model risk",
+   "product owner"
+  ],
+  "workflow": [
+   "Measure size/config-matched baseline with per-item outputs",
+   "Run candidate on frozen and adversarial sets",
+   "Compare schema, severity, categories, calibration, and paired outcomes",
+   "Return promote, refuse, or VOID with explicit human decision cases"
+  ],
+  "proof": [
+   "model and serving digests",
+   "dataset/evaluator provenance",
+   "per-item paired results",
+   "gate decision and rollback"
+  ],
+  "metrics": [
+   "invalid output and class loss",
+   "paired wins/losses",
+   "slice and severity drift",
+   "post-deploy performance and rollback"
+  ],
+  "dependencies": [
+   "current benchmarking pipeline",
+   "schema validator",
+   "paired analysis",
+   "model registry"
+  ],
+  "risks": [
+   "aggregate recall hides damage—multi-axis gates",
+   "candidate trained on test—leakage proof",
+   "model enters allow path—advisory can deny, never allow"
+  ],
+  "products": [
+   "W1",
+   "W2"
+  ]
+ },
+ {
+  "id": "E13",
+  "system": "Supply chain & procurement",
+  "layer": "foundation",
+  "action": "MERGE",
+  "horizon": "0–6 months",
+  "delta": "unify AIBOM and registry",
+  "title": "Runtime-bound agent, tool, model, and data bill of materials",
+  "outcome": "Exact artifact accountability",
+  "thesis": "Bind the declared manifest and software/ML/data/tool inventory to the digests and versions that actually served each governed action, showing declared-versus-observed drift and unverified dependencies.",
+  "users": [
+   "platform engineering",
+   "security",
+   "procurement",
+   "audit"
+  ],
+  "workflow": [
+   "Generate signed declared BOM at build/onboarding",
+   "Capture runtime artifact and connector identities",
+   "Compare declared with served and policy",
+   "Bind relevant digest set into W2 evidence and open drift"
+  ],
+  "proof": [
+   "BOM and provenance",
+   "runtime artifact observations",
+   "drift comparison",
+   "receipt bindings"
+  ],
+  "metrics": [
+   "runtime-bound coverage",
+   "undeclared artifacts",
+   "time to remediate drift",
+   "artifact identity by digest"
+  ],
+  "dependencies": [
+   "agent manifest",
+   "CycloneDX/SPDX/model BOM",
+   "runtime instrumentation",
+   "W2"
+  ],
+  "risks": [
+   "name/version accepted as identity—digest required",
+   "BOM is stale—runtime comparison",
+   "huge BOM inflates receipts—Merkle/reference with proof"
+  ],
+  "products": [
+   "W2",
+   "W1"
+  ]
+ },
+ {
+  "id": "E14",
+  "system": "Supply chain & procurement",
+  "layer": "scale",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "compose mature trust services",
+  "title": "Artifact verification, quarantine, and admission",
+  "outcome": "Block untrusted supply-chain inputs",
+  "thesis": "Verify model, tool, skill, prompt pack, policy, container, dataset, and connector artifacts against signatures, provenance, allow/deny policy, vulnerability/license state, and runtime attestation before admission.",
+  "users": [
+   "security",
+   "platform engineer",
+   "ML engineer",
+   "procurement"
+  ],
+  "workflow": [
+   "Resolve artifact by digest and collect provenance",
+   "Verify signature/root and policy requirements",
+   "Quarantine unknown or failed artifact and route exception",
+   "Admit exact digest and bind decision to runtime"
+  ],
+  "proof": [
+   "signature/provenance result",
+   "policy and vulnerability snapshot",
+   "admission decision",
+   "runtime digest match"
+  ],
+  "metrics": [
+   "verified admission coverage",
+   "quarantine rate",
+   "runtime mismatch",
+   "exception aging"
+  ],
+  "dependencies": [
+   "Sigstore/model signing",
+   "artifact registries",
+   "vulnerability/license feeds",
+   "W1/W2"
+  ],
+  "risks": [
+   "Warrantor rebuilds scanners/signing—integrate",
+   "fresh vulnerability appears after admission—continuous re-evaluation",
+   "mutable tags—digest pin"
+  ],
+  "products": [
+   "W1",
+   "W2"
+  ]
+ },
+ {
+  "id": "E15",
+  "system": "Supply chain & procurement",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new preauthorization product",
+  "title": "Agent and tool procurement assurance workflow",
+  "outcome": "Faster safer vendor onboarding",
+  "thesis": "Assess an agent, tool, MCP server, model service, or workflow before purchase and encode the approved scope into manifests, policy, destinations, data rights, tests, and renewal monitoring so questionnaire answers become operational controls.",
+  "users": [
+   "procurement",
+   "vendor risk",
+   "security",
+   "business owner"
+  ],
+  "workflow": [
+   "Collect vendor evidence and import technical manifest",
+   "Run sandbox/conformance/security/privacy tests",
+   "Define approved use cases, data, actions, destinations, and residual risk",
+   "Issue bounded onboarding decision and monitor renewal facts"
+  ],
+  "proof": [
+   "vendor-source evidence",
+   "independent test receipts",
+   "approved-scope digest",
+   "renewal/monitoring history"
+  ],
+  "metrics": [
+   "onboarding cycle time",
+   "runtime compliance with approved scope",
+   "questionnaire reuse",
+   "scope violations and renewals"
+  ],
+  "dependencies": [
+   "registry",
+   "connector lab",
+   "W4/W5",
+   "evidence graph",
+   "vendor portal"
+  ],
+  "risks": [
+   "vendor claims trusted—behavioral tests",
+   "procurement approval treated as runtime authority—compile scope",
+   "assessment becomes stale—continuous monitoring and expiry"
+  ],
+  "products": [
+   "W2",
+   "W4",
+   "W5"
+  ]
+ },
+ {
+  "id": "E16",
+  "system": "Supply chain & procurement",
+  "layer": "scale",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "new policy orchestration",
+  "title": "Dependency, vulnerability, license, and provenance policy",
+  "outcome": "Lower downstream supply-chain risk",
+  "thesis": "Combine customer-approved SCA, SBOM, vulnerability, exploitability, license, model/dataset terms, provenance, and maintenance signals into admission and continuous-use decisions with exception and rollback paths.",
+  "users": [
+   "security",
+   "legal",
+   "platform engineering",
+   "open-source program office"
+  ],
+  "workflow": [
+   "Ingest signed or attributable supply-chain signals",
+   "Evaluate use-case and consequence-specific policy",
+   "Block/quarantine/allow-with-exception",
+   "Re-evaluate on new evidence and trace affected governed actions"
+  ],
+  "proof": [
+   "signal source/time",
+   "policy decision",
+   "exception and owner",
+   "affected artifact/action graph"
+  ],
+  "metrics": [
+   "coverage and time to remediate",
+   "reachable critical exposure",
+   "license violations",
+   "false blocking"
+  ],
+  "dependencies": [
+   "external SCA/vulnerability sources",
+   "BOM",
+   "artifact admission",
+   "control registry"
+  ],
+  "risks": [
+   "CVSS alone drives action—include reachability and consequence",
+   "feed outage becomes false green—freshness",
+   "license interpretation automated—legal decision workflow"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W4"
+  ]
+ },
+ {
+  "id": "V01",
+  "system": "Incident, recovery & resilience",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "unify operational response",
+  "title": "Agent incident cockpit and scoped stop",
+  "outcome": "Faster containment",
+  "thesis": "Provide one response surface for alerts, refused actions, anomalies, identity/policy/artifact changes, affected warrants, dependencies, active effects, containment options, safe-state status, custody, and recovery decisions.",
+  "users": [
+   "security operations",
+   "SRE",
+   "business owner",
+   "incident commander"
+  ],
+  "workflow": [
+   "Open or correlate incident from signed signals",
+   "Establish scope, consequence, and evidence confidence",
+   "Preview and authorize containment",
+   "Execute, verify, preserve custody, communicate, and recover"
+  ],
+  "proof": [
+   "incident scope and timeline",
+   "containment authority/receipt",
+   "safe-state verification",
+   "custody and recovery evidence"
+  ],
+  "metrics": [
+   "time to scope/contain/recover",
+   "blast radius",
+   "false containment",
+   "evidence completeness"
+  ],
+  "dependencies": [
+   "W3",
+   "evidence graph",
+   "fleet control",
+   "notification",
+   "case management"
+  ],
+  "risks": [
+   "dashboard becomes SIEM replacement—integrate and focus on agent action",
+   "broad stop causes harm—scoped safe-state preview",
+   "untrusted agent evidence—source confidence and external signals"
+  ],
+  "products": [
+   "W2",
+   "W3",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "V02",
+  "system": "Incident, recovery & resilience",
+  "layer": "scale",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "extend OCSF/telemetry",
+  "title": "Evidence timeline, correlation, and custody bridge",
+  "outcome": "Faster trustworthy investigation",
+  "thesis": "Correlate Warrantor receipts with OCSF/SIEM, OpenTelemetry, identity, endpoint, cloud, SaaS, and ticketing events while preserving the difference between operational telemetry and signed evidence.",
+  "users": [
+   "security analyst",
+   "SRE",
+   "audit",
+   "forensics"
+  ],
+  "workflow": [
+   "Ingest signed receipts and referenced telemetry",
+   "Normalize time, identity, resource, and action correlations",
+   "Show source, confidence, gaps, and clock uncertainty",
+   "Preserve/export relevant artifacts under custody"
+  ],
+  "proof": [
+   "source event and collection metadata",
+   "correlation rationale/confidence",
+   "custody transfer",
+   "timeline export digest"
+  ],
+  "metrics": [
+   "investigation time",
+   "correlation precision",
+   "events with source confidence",
+   "custody completeness"
+  ],
+  "dependencies": [
+   "W2",
+   "OCSF/SIEM",
+   "OpenTelemetry",
+   "identity",
+   "archive"
+  ],
+  "risks": [
+   "correlation becomes fact—show confidence",
+   "clock order mistaken for causal order—time uncertainty",
+   "duplicate data costs—reference rather than copy where possible"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "V03",
+  "system": "Incident, recovery & resilience",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new emergency authority",
+  "title": "Emergency warrants and crisis approval",
+  "outcome": "Controlled rapid response",
+  "thesis": "Provide narrowly scoped break-glass authority for containment and recovery with stronger identity, non-delegable quorum, explicit blast cap, shorter lifetime, dedicated evidence, and mandatory post-event review.",
+  "users": [
+   "incident commander",
+   "security leadership",
+   "SRE",
+   "audit"
+  ],
+  "workflow": [
+   "Declare incident and emergency objective",
+   "Compute bounded emergency capability and required quorum",
+   "Issue hardware-bound short-lived warrant",
+   "Execute only response actions, revoke, and require retrospective"
+  ],
+  "proof": [
+   "incident declaration",
+   "quorum and emergency warrant",
+   "all response receipts",
+   "revocation and retrospective"
+  ],
+  "metrics": [
+   "break-glass use",
+   "scope/lifetime",
+   "unauthorized attempts",
+   "post-event findings"
+  ],
+  "dependencies": [
+   "W1",
+   "W3",
+   "W6",
+   "HSM/device trust",
+   "incident workflow"
+  ],
+  "risks": [
+   "break-glass becomes routine—rare-use alerts and executive review",
+   "too broad—independent blast caps",
+   "compromised control plane—out-of-band protected issuance"
+  ],
+  "products": [
+   "W1",
+   "W3",
+   "W6"
+  ]
+ },
+ {
+  "id": "V04",
+  "system": "Incident, recovery & resilience",
+  "layer": "compound",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "close learning loop",
+  "title": "Post-incident regression and value-impact closure",
+  "outcome": "Each incident improves the platform",
+  "thesis": "Require every confirmed incident to link affected outcomes and cost, root control gap, regression case, candidate policy/template change, owner, due date, and evidence that the fix works without unacceptable business friction.",
+  "users": [
+   "incident owner",
+   "security engineering",
+   "product",
+   "finance",
+   "risk"
+  ],
+  "workflow": [
+   "Confirm incident facts and affected work/outcomes",
+   "Quantify exposure, response cost, and customer/business impact",
+   "Create regression and candidate control",
+   "Validate, deploy, and close with effectiveness and counter-metrics"
+  ],
+  "proof": [
+   "incident evidence pack",
+   "impact method",
+   "regression and policy change",
+   "effectiveness closure"
+  ],
+  "metrics": [
+   "repeat incident rate",
+   "finding-to-fix time",
+   "control friction after fix",
+   "unclosed action age"
+  ],
+  "dependencies": [
+   "incident cockpit",
+   "outcome ledger",
+   "attack-to-policy",
+   "continuous controls"
+  ],
+  "risks": [
+   "blame replaces learning—focus on control/system",
+   "impact is invented—finance/customer validation",
+   "closure on code merge—require operational evidence"
+  ],
+  "products": [
+   "W2",
+   "W3",
+   "W4"
+  ]
+ },
+ {
+  "id": "V05",
+  "system": "Enterprise experience",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "new non-developer surface",
+  "title": "Business-operator job launcher and live run",
+  "outcome": "Broader safe adoption",
+  "thesis": "Let a non-technical operator launch pre-bounded templates, understand inputs and consequences, see live state and refusals, stop safely, handle requested decisions, and confirm the business outcome without authoring controls.",
+  "users": [
+   "business operator",
+   "team lead",
+   "customer success"
+  ],
+  "workflow": [
+   "Choose approved template and provide validated inputs",
+   "Preview scope, cost, data use, and expected outcome",
+   "Run with live status, holds, and safe stop",
+   "Review result, exceptions, and confirm outcome"
+  ],
+  "proof": [
+   "template/warrant digest",
+   "input validation",
+   "run/effect receipts",
+   "outcome acceptance"
+  ],
+  "metrics": [
+   "weekly active operators",
+   "successful work units",
+   "support needs",
+   "misunderstood limits"
+  ],
+  "dependencies": [
+   "template library",
+   "warrant lifecycle",
+   "decision inbox",
+   "outcome ledger",
+   "accessible web/desktop UI"
+  ],
+  "risks": [
+   "power hidden as simplicity—show consequence and posture",
+   "operator changes bounds—templates only",
+   "live view implies surveillance—purpose and least data"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3"
+  ]
+ },
+ {
+  "id": "V06",
+  "system": "Enterprise experience",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "new governance surface",
+  "title": "Governance studio for inventory, controls, and exceptions",
+  "outcome": "Operational governance at scale",
+  "thesis": "Give risk and control owners a coherent workspace for agents, use cases, owners, classification, controls, policies, evidence, monitoring, exceptions, attestations, and retirement over the full lifecycle.",
+  "users": [
+   "risk",
+   "compliance",
+   "control owner",
+   "platform governance"
+  ],
+  "workflow": [
+   "Scope portfolio and assign ownership",
+   "Apply risk and regional modules",
+   "Assign controls/evidence and approve lifecycle",
+   "Monitor drift, exceptions, outcomes, and retirement"
+  ],
+  "proof": [
+   "governance record changes",
+   "approvals and attestations",
+   "control/evidence state",
+   "exception/retirement proof"
+  ],
+  "metrics": [
+   "owned and governed coverage",
+   "overdue actions",
+   "control reuse",
+   "manual spreadsheet work"
+  ],
+  "dependencies": [
+   "registry",
+   "control registry",
+   "continuous controls",
+   "regional modules",
+   "RBAC"
+  ],
+  "risks": [
+   "becomes generic GRC—stay tied to executable agent facts",
+   "single score hides gaps—factor views",
+   "data entry burden—import and reuse with accountability"
+  ],
+  "products": [
+   "W2",
+   "W4"
+  ]
+ },
+ {
+  "id": "V07",
+  "system": "Enterprise experience",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new assurance surface",
+  "title": "Evidence explorer and sampling workspace",
+  "outcome": "Faster independent review",
+  "thesis": "Let auditors and assurance users define a population, inspect completeness and contradictions, run deterministic or risk-based samples, verify canonical proof, annotate limitations, and export a reproducible workpaper.",
+  "users": [
+   "internal audit",
+   "external auditor",
+   "customer assurance",
+   "regulator"
+  ],
+  "workflow": [
+   "Define scope, period, population, and control question",
+   "Run query with stable snapshot",
+   "Select reproducible sample and verify raw evidence",
+   "Record findings, limitations, and conclusion; export workpaper"
+  ],
+  "proof": [
+   "population query and snapshot",
+   "sample method/seed",
+   "verification transcript",
+   "signed workpaper export"
+  ],
+  "metrics": [
+   "audit prep/review time",
+   "sample reproducibility",
+   "evidence exceptions",
+   "manual follow-up count"
+  ],
+  "dependencies": [
+   "evidence graph",
+   "independent verifier",
+   "control projections",
+   "access controls"
+  ],
+  "risks": [
+   "tool guides desired conclusion—transparent query/sample",
+   "export loses interactive gaps—embed manifest",
+   "auditor access overbroad—purpose and scope"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "V08",
+  "system": "Enterprise experience",
+  "layer": "compound",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new executive surface",
+  "title": "Executive autonomy and outcome command center",
+  "outcome": "Better portfolio allocation",
+  "thesis": "Show where autonomous work creates accepted outcomes, where oversight and control debt accumulate, where incidents and costs concentrate, and which use cases should expand, narrow, pause, or retire—with traceable drill-down.",
+  "users": [
+   "executive",
+   "finance",
+   "risk committee",
+   "business unit leader"
+  ],
+  "workflow": [
+   "Select portfolio lens and baseline period",
+   "Review autonomy, outcome, cost, risk, and evidence dimensions",
+   "Drill into uncertainty, negative outcomes, and control debt",
+   "Record funding/scope decision and next proof gate"
+  ],
+  "proof": [
+   "metric lineage",
+   "portfolio snapshot",
+   "decision and assumption record",
+   "follow-up result"
+  ],
+  "metrics": [
+   "decisions made with evidence",
+   "value yield",
+   "low-value retirements",
+   "unresolved control debt"
+  ],
+  "dependencies": [
+   "outcome ledger",
+   "cost attribution",
+   "risk/control data",
+   "evidence graph"
+  ],
+  "risks": [
+   "vanity dashboard—decision workflow required",
+   "risk color oversimplifies—multi-dimensional",
+   "ROI overclaim—confidence and counter-metrics"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "V09",
+  "system": "Developer & integration platform",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "unify adapter contract",
+  "title": "Connector SDK, capability mapping, and conformance contract",
+  "outcome": "Faster reliable integrations",
+  "thesis": "Give partners one typed way to declare operations, resources, constraints, identities, commit behavior, idempotency, staging, errors, versions, and coverage—with generated tests and an explicit enforced/mediated/observed map.",
+  "users": [
+   "integration developer",
+   "partner",
+   "platform engineering",
+   "security review"
+  ],
+  "workflow": [
+   "Define connector manifest and canonical mappings",
+   "Implement authorize/stage/perform/attest hooks",
+   "Run golden, adversarial, failure, and version tests",
+   "Publish signed coverage and support tier"
+  ],
+  "proof": [
+   "connector manifest and source provenance",
+   "test/conformance report",
+   "coverage/posture map",
+   "release signature"
+  ],
+  "metrics": [
+   "time to first connector",
+   "test and action coverage",
+   "version drift",
+   "bypass and semantic defects"
+  ],
+  "dependencies": [
+   "W1/W2 APIs",
+   "capability algebra",
+   "staging/idempotency interfaces",
+   "release infrastructure"
+  ],
+  "risks": [
+   "SDK owns security decision—thin adapters only",
+   "coverage self-asserted—tests and attestation",
+   "generic abstraction drops vendor constraint—fail unknown"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "V10",
+  "system": "Developer & integration platform",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new connector operations",
+  "title": "Integration health and upstream-version laboratory",
+  "outcome": "Sustained mediation coverage",
+  "thesis": "Continuously test connectors against supported and emerging upstream versions, auth changes, schemas, rate limits, failure modes, and security advisories; downgrade coverage and notify owners before production drift becomes silent bypass.",
+  "users": [
+   "integration engineering",
+   "platform operations",
+   "security",
+   "partner"
+  ],
+  "workflow": [
+   "Maintain support matrix and reproducible fixtures",
+   "Run scheduled and change-triggered contract/failure tests",
+   "Compare behavior and coverage with prior verified release",
+   "Block, canary, downgrade, or retire with owner workflow"
+  ],
+  "proof": [
+   "upstream and connector versions",
+   "test fixtures/results",
+   "coverage delta",
+   "release/deprecation decision"
+  ],
+  "metrics": [
+   "supported versions under fresh test",
+   "drift detection time",
+   "connector incidents",
+   "maintenance cost per active deployment"
+  ],
+  "dependencies": [
+   "connector SDK",
+   "sandbox environments",
+   "dependency/advisory feeds",
+   "customer deployment telemetry"
+  ],
+  "risks": [
+   "lab differs from production—canary and customer facts",
+   "test cost explodes—support tiers by use",
+   "unknown version assumed compatible—default downgrade"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W5"
+  ]
+ },
+ {
+  "id": "V11",
+  "system": "Developer & integration platform",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "productize contract plane",
+  "title": "Provider-neutral policy, manifest, decision, and evidence APIs",
+  "outcome": "Lower adoption friction and lock-in",
+  "thesis": "Expose stable, rate-limited, tenant-scoped APIs and SDKs for registry, authorize, attest, verify, contain, policy compile, evidence query, outcome accept, and administration with structured validation and idempotency.",
+  "users": [
+   "application developer",
+   "platform engineer",
+   "partner",
+   "enterprise architect"
+  ],
+  "workflow": [
+   "Authenticate human/workload and tenant",
+   "Validate structured request at boundary",
+   "Execute narrow service operation with idempotency and rate policy",
+   "Return structured result, evidence reference, degradation, and retry semantics"
+  ],
+  "proof": [
+   "request/response schema",
+   "identity and policy decision",
+   "service receipt",
+   "rate/idempotency event"
+  ],
+  "metrics": [
+   "time to integration",
+   "API error and latency",
+   "idempotent replay success",
+   "provider portability tests"
+  ],
+  "dependencies": [
+   "contract plane",
+   "gateway/API management",
+   "identity",
+   "tenant isolation",
+   "SDK generation"
+  ],
+  "risks": [
+   "API becomes remote-only availability dependency—sidecar/in-process core path",
+   "hardcoded model/provider—provider abstraction",
+   "unbounded public endpoint—rate limit and quotas"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3",
+   "W4",
+   "W6"
+  ]
+ },
+ {
+  "id": "V12",
+  "system": "Developer & integration platform",
+  "layer": "scale",
+  "action": "MERGE",
+  "horizon": "0–6 months",
+  "delta": "unify scattered developer tooling",
+  "title": "Local developer, test, and deploy golden path",
+  "outcome": "Minutes to first governed action",
+  "thesis": "Provide one supported path to initialize a project, declare an agent, run mock and real local dependencies, exercise conformance, preview policy, issue/verify a receipt, deploy a reference topology, and understand what is not production-ready.",
+  "users": [
+   "developer",
+   "solution architect",
+   "partner engineer",
+   "sales engineer"
+  ],
+  "workflow": [
+   "Initialize from typed template",
+   "Run local services and first receipt",
+   "Execute unit, integration, conformance, and escape tests",
+   "Generate deployment plan with required external services and posture"
+  ],
+  "proof": [
+   "template/version manifest",
+   "test and receipt outputs",
+   "dependency and posture report",
+   "deployment provenance"
+  ],
+  "metrics": [
+   "time to first verified action",
+   "quickstart success",
+   "support tickets",
+   "prototype-to-production gap"
+  ],
+  "dependencies": [
+   "CLI/SDK/examples",
+   "containers/Helm/Terraform",
+   "mock backends",
+   "docs and test fixtures"
+  ],
+  "risks": [
+   "mock success called production—loud posture",
+   "tooling sprawl—one canonical path",
+   "package names unowned—publication and provenance gate"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3",
+   "W4",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "V13",
+  "system": "Sovereign & regional operations",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "new module framework",
+  "title": "Regional policy and evidence-pack framework",
+  "outcome": "Faster market localization",
+  "thesis": "Define one signed package format for official sources, applicability prompts, control mappings, policy modules, evidence queries, retention/residency settings, languages, owners, version dates, update SLA, and unsupported gaps.",
+  "users": [
+   "regional product",
+   "compliance",
+   "local counsel",
+   "control owner"
+  ],
+  "workflow": [
+   "Select authoritative source and version",
+   "Map applicability and required technical facts",
+   "Review policy/evidence projections locally",
+   "Sign, publish, monitor changes, deprecate, and migrate"
+  ],
+  "proof": [
+   "source/access verification",
+   "mapping and applicability decision",
+   "module signature",
+   "update/deprecation history"
+  ],
+  "metrics": [
+   "time to localize",
+   "reuse across customers",
+   "stale module days",
+   "unsupported requirements"
+  ],
+  "dependencies": [
+   "W4",
+   "evidence graph",
+   "control registry",
+   "local counsel network",
+   "localization"
+  ],
+  "risks": [
+   "legal advice implied—customer/counsel decision",
+   "weak web source—official primary gate",
+   "regional fork—stable module interface"
+  ],
+  "products": [
+   "W4",
+   "W2"
+  ]
+ },
+ {
+  "id": "V14",
+  "system": "Sovereign & regional operations",
+  "layer": "differentiate",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "operationalize topology D",
+  "title": "Sovereign, air-gapped, and disconnected-edge operations",
+  "outcome": "Assured autonomy under local control",
+  "thesis": "Deliver install, identity, key ceremony, offline update, artifact admission, policy distribution, evidence custody, verification, backup, support, and revocation/reconciliation for no-egress and intermittently connected environments.",
+  "users": [
+   "sovereign operator",
+   "government security",
+   "regulated enterprise",
+   "field SRE"
+  ],
+  "workflow": [
+   "Build signed offline bundle with manifest and dependencies",
+   "Install with local roots and customer-owned keys",
+   "Operate, verify, update, and contain without vendor network",
+   "Reconcile approved facts when connection returns without widening trust"
+  ],
+  "proof": [
+   "bundle provenance and checks",
+   "key ceremony",
+   "offline conformance",
+   "update/reconciliation receipts"
+  ],
+  "metrics": [
+   "install/update success",
+   "offline verification",
+   "reconciliation time",
+   "support effort and configuration forks"
+  ],
+  "dependencies": [
+   "W1–W6",
+   "air-gap packaging",
+   "local HSM/PKI",
+   "archive",
+   "offline update infrastructure"
+  ],
+  "risks": [
+   "sovereign becomes bespoke fork—declarative topology",
+   "vendor dependency remains—offline verifier/export",
+   "stale security updates—signed update cadence and risk"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3",
+   "W4",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "V15",
+  "system": "Sovereign & regional operations",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new localized experience",
+  "title": "Bilingual and culturally localized governance evidence UX",
+  "outcome": "Adoption across GCC and global teams",
+  "thesis": "Support Arabic/English and other required language views for business purpose, scope, approvals, exceptions, evidence packs, and regulatory mappings while keeping canonical policy identifiers and signed data language-neutral.",
+  "users": [
+   "business operator",
+   "approver",
+   "regulator",
+   "local auditor",
+   "support"
+  ],
+  "workflow": [
+   "Store canonical structured facts and controlled terminology",
+   "Render localized human views with source-language links",
+   "Review high-consequence translations by qualified owner",
+   "Bind rendered version to canonical digest and preserve language used at approval"
+  ],
+  "proof": [
+   "canonical object digest",
+   "translation/version/provenance",
+   "review approval",
+   "localized decision record"
+  ],
+  "metrics": [
+   "localized workflow completion",
+   "translation defects",
+   "time to update languages",
+   "decision comprehension"
+  ],
+  "dependencies": [
+   "object model",
+   "terminology service",
+   "local review",
+   "RTL/accessibility",
+   "evidence renderer"
+  ],
+  "risks": [
+   "translation changes policy meaning—canonical IDs and review",
+   "machine translation trusted—human gate where material",
+   "RTL treated as cosmetic—full usability test"
+  ],
+  "products": [
+   "W2",
+   "W4"
+  ]
+ },
+ {
+  "id": "V16",
+  "system": "Sovereign & regional operations",
+  "layer": "differentiate",
+  "action": "INTEGRATE",
+  "horizon": "6–18 months",
+  "delta": "operationalize crypto agility",
+  "title": "Crypto-agility, customer roots, and key-ceremony operations",
+  "outcome": "Long-lived trust and sovereign control",
+  "thesis": "Support customer-managed and hardware-bound keys, M-of-N root issuance, rotation, dual-algorithm migration, compromise response, trust-bundle distribution, and independently witnessed ceremonies without making Warrantor a general PKI.",
+  "users": [
+   "security architecture",
+   "sovereign operator",
+   "audit",
+   "platform operations"
+  ],
+  "workflow": [
+   "Choose approved algorithms, roots, HSM/KMS, quorum, and blast caps",
+   "Run witnessed generation/rotation ceremony",
+   "Distribute trust bundles and dual-sign during migration",
+   "Exercise compromise, revoke, recover, and verify historical evidence"
+  ],
+  "proof": [
+   "ceremony transcript and device attestation",
+   "root/rotation transparency",
+   "dual-algorithm verification",
+   "compromise exercise"
+  ],
+  "metrics": [
+   "hardware-bound key coverage",
+   "rotation completion",
+   "verification continuity",
+   "compromise blast radius"
+  ],
+  "dependencies": [
+   "W1/W2 crypto agility",
+   "HSM/KMS",
+   "trust distribution",
+   "transparency/time decision",
+   "runbooks"
+  ],
+  "risks": [
+   "complexity causes outage—rehearsed rotation",
+   "root quorum centralizes control—customer governance",
+   "PQC marketing outruns support—only claim tested algorithms and profiles"
+  ],
+  "products": [
+   "W1",
+   "W2"
+  ]
+ },
+ {
+  "id": "V17",
+  "system": "Ecosystem & assurance network",
+  "layer": "compound",
+  "action": "BUILD",
+  "horizon": "18–36 months",
+  "delta": "new partner program",
+  "title": "Independent verifier and assurance-partner network",
+  "outcome": "Lower cross-company trust cost",
+  "thesis": "Enable auditors, assessors, incident firms, integrators, customer security teams, and research labs to verify Warrantor artifacts, publish scoped opinions, and contribute profiles under transparent governance.",
+  "users": [
+   "auditor",
+   "assessor",
+   "integrator",
+   "customer security",
+   "research lab"
+  ],
+  "workflow": [
+   "Qualify partner and verifier implementation",
+   "Run public and private conformance",
+   "Issue scoped capability listing with expiry",
+   "Accept reports, revoke status, and resolve conflicts transparently"
+  ],
+  "proof": [
+   "partner identity and conformance",
+   "scope/status record",
+   "signed verification reports",
+   "revocation and dispute history"
+  ],
+  "metrics": [
+   "independent verifiers",
+   "verification diversity",
+   "partner-led deployments",
+   "disputed or revoked opinions"
+  ],
+  "dependencies": [
+   "verifier SDK",
+   "conformance governance",
+   "public registry",
+   "legal/ethics rules"
+  ],
+  "risks": [
+   "pay-to-pass—separate fees from verdict",
+   "certification capture—multi-stakeholder governance",
+   "one verifier dominates—diversity metric"
+  ],
+  "products": [
+   "W2",
+   "W3"
+  ]
+ },
+ {
+  "id": "V18",
+  "system": "Ecosystem & assurance network",
+  "layer": "compound",
+  "action": "BUILD",
+  "horizon": "18–36 months",
+  "delta": "productize conformance operations",
+  "title": "Conformance laboratory and expiring certification",
+  "outcome": "Trusted interoperability and containment",
+  "thesis": "Offer reproducible self-test, hosted, private, and accredited lab workflows for protocol, connector, invariant, containment, and deployment profiles with capability elicitation, visible limitations, version scope, and expiry.",
+  "users": [
+   "vendor",
+   "enterprise buyer",
+   "assessor",
+   "standards body"
+  ],
+  "workflow": [
+   "Select profile, target, topology, and version",
+   "Run vectors, corpus, escape, and failure suites",
+   "Review evidence and limitations independently",
+   "Publish scoped result that expires on time, version, or material change"
+  ],
+  "proof": [
+   "target and environment manifest",
+   "raw test results",
+   "review/signature",
+   "public status and expiry"
+  ],
+  "metrics": [
+   "certified targets and active deployments",
+   "retest frequency",
+   "fail/indeterminate visibility",
+   "buyer reuse"
+  ],
+  "dependencies": [
+   "A6 harness",
+   "attack corpus",
+   "W3",
+   "lab isolation",
+   "governance and appeals"
+  ],
+  "risks": [
+   "certification mistaken for universal security—scope and expiry",
+   "vendor optimizes public corpus—private/adaptive tests",
+   "commercial pressure hides failure—immutable publication rules"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3",
+   "W4",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "V19",
+  "system": "Ecosystem & assurance network",
+  "layer": "compound",
+  "action": "ADOPT",
+  "horizon": "6–18 months",
+  "delta": "standards strategy",
+  "title": "Open profile governance and upstream contribution",
+  "outcome": "Distribution through interoperability",
+  "thesis": "Track agent identity, authorization, receipts, MCP, telemetry, findings, supply chain, policy, and containment standards; adopt overlapping work; contribute narrow profiles, vectors, and evidence semantics where Warrantor has implementation proof.",
+  "users": [
+   "standards lead",
+   "OSS maintainer",
+   "research",
+   "product architecture"
+  ],
+  "workflow": [
+   "Maintain feature/date-aware overlap ledger",
+   "Select adopt, profile, contribute, or retire decision",
+   "Prototype against upstream and submit interoperable artifacts",
+   "Align product roadmap and migrate away from duplication"
+  ],
+  "proof": [
+   "prior-art/overlap record",
+   "interoperability results",
+   "public proposal and review",
+   "migration decision"
+  ],
+  "metrics": [
+   "upstream adoption",
+   "duplicate code retired",
+   "independent implementations",
+   "time from standard change to support"
+  ],
+  "dependencies": [
+   "research protocol",
+   "standards participation",
+   "conformance harness",
+   "legal/IP review"
+  ],
+  "risks": [
+   "novelty narrative resists adoption—outcome differentiation",
+   "draft treated as stable—status labels",
+   "standards work consumes build capacity—evidence-gated scope"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3",
+   "W4",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "V20",
+  "system": "Ecosystem & assurance network",
+  "layer": "compound",
+  "action": "DEFER",
+  "horizon": "18–36 months",
+  "delta": "prerequisite-gated ecosystem",
+  "title": "Verified connector and solution marketplace",
+  "outcome": "Partner-led distribution",
+  "thesis": "Publish searchable, signed listings for connectors, templates, policy packs, deployment blueprints, verifiers, and managed services only after conformance, ownership, support, security, and update obligations are mature.",
+  "users": [
+   "enterprise buyer",
+   "partner",
+   "integrator",
+   "developer"
+  ],
+  "workflow": [
+   "Submit signed package and support metadata",
+   "Run security/conformance and licensing review",
+   "Publish scoped compatibility and customer-owned deployment path",
+   "Monitor versions, incidents, usage, disputes, and expiry"
+  ],
+  "proof": [
+   "package provenance",
+   "conformance/security result",
+   "support/SLA declaration",
+   "incident/deprecation history"
+  ],
+  "metrics": [
+   "active verified listings",
+   "partner-sourced adoption",
+   "maintenance freshness",
+   "security incidents and delistings"
+  ],
+  "dependencies": [
+   "connector SDK",
+   "conformance lab",
+   "partner governance",
+   "billing/marketplace operations"
+  ],
+  "risks": [
+   "marketplace before demand—defer",
+   "pay-to-rank—objective transparent ordering",
+   "supply-chain risk—signed artifacts and continuous review"
+  ],
+  "products": [
+   "W2",
+   "W3"
+  ]
+ },
+ {
+  "id": "V21",
+  "system": "Commercial & customer outcomes",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "new go-to-market operating system",
+  "title": "Design-partner value realization program",
+  "outcome": "Proof of weekly enterprise value",
+  "thesis": "Run a disciplined pilot from agreed use case and baseline through governed deployment, adoption, evidence review, outcome acceptance, negative results, value decision, and reusable reference pattern.",
+  "users": [
+   "customer sponsor",
+   "business owner",
+   "customer success",
+   "product",
+   "finance"
+  ],
+  "workflow": [
+   "Select use case with consequence and measurable baseline",
+   "Agree 30/60/90-day outcome and control plan",
+   "Deploy minimum coherent lifecycle and review weekly",
+   "Produce customer-owned value/evidence review and expand, narrow, or stop"
+  ],
+  "proof": [
+   "baseline and success contract",
+   "deployment/posture evidence",
+   "weekly decisions and outcomes",
+   "final customer decision and limitations"
+  ],
+  "metrics": [
+   "weekly active use",
+   "time to first accepted outcome",
+   "oversight and evidence change",
+   "expansion or stop decision"
+  ],
+  "dependencies": [
+   "first twelve epics",
+   "outcome ledger",
+   "customer success playbook",
+   "reference architecture"
+  ],
+  "risks": [
+   "pilot is unpaid custom engineering—scope and reusable pattern",
+   "success criteria move—freeze baseline",
+   "negative result hidden—record and publish internally"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3",
+   "W4",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "V22",
+  "system": "Commercial & customer outcomes",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new customer operations",
+  "title": "Customer adoption, control-health, and value review",
+  "outcome": "Higher durable adoption",
+  "thesis": "Give customer success and owners a shared operating view of onboarding, active governed use, template adoption, posture, exceptions, review friction, evidence requests, incidents, outcomes, and next-best operational actions.",
+  "users": [
+   "customer success",
+   "customer sponsor",
+   "support",
+   "product"
+  ],
+  "workflow": [
+   "Establish adoption and value plan",
+   "Monitor use, health, evidence, and outcome signals",
+   "Route technical, governance, or change-management action",
+   "Run periodic value review with signed decisions and owners"
+  ],
+  "proof": [
+   "customer plan",
+   "health signal provenance",
+   "action/owner record",
+   "value review decision"
+  ],
+  "metrics": [
+   "time to activation",
+   "weekly governed work",
+   "support and exception burden",
+   "renewal/expansion with outcome evidence"
+  ],
+  "dependencies": [
+   "usage and control telemetry",
+   "outcome ledger",
+   "CRM/support integrations",
+   "customer permissions"
+  ],
+  "risks": [
+   "health score becomes opaque—show factors",
+   "usage surveillance—contractual purpose and aggregation",
+   "CS incentives hide risk—negative signals and independent risk view"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "V23",
+  "system": "Commercial & customer outcomes",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new commercial control plane",
+  "title": "Value-aligned packaging, metering, and entitlement",
+  "outcome": "Sustainable open-core economics",
+  "thesis": "Meter managed assurance, governed agents/use cases, evidence retention and queries, connectors, regions, policy targets, conformance operations, and support—without closing the verifier, charging per denial, or making evidence hostage.",
+  "users": [
+   "product",
+   "finance",
+   "sales operations",
+   "customer",
+   "platform engineering"
+  ],
+  "workflow": [
+   "Define entitlement and value-aligned meters",
+   "Bind usage to tenant/work unit with privacy limits",
+   "Forecast and enforce spend/limits with clear degradation",
+   "Reconcile invoice, value, SLA, and dispute evidence"
+  ],
+  "proof": [
+   "entitlement/version",
+   "usage events and meter logic",
+   "invoice reconciliation",
+   "SLA and dispute record"
+  ],
+  "metrics": [
+   "gross margin by service",
+   "usage-to-value correlation",
+   "billing accuracy",
+   "surprise bill and churn"
+  ],
+  "dependencies": [
+   "tenant/usage service",
+   "outcome/cost ledger",
+   "billing provider",
+   "open-core boundary"
+  ],
+  "risks": [
+   "meter incentives distort control—never price denies/incidents",
+   "evidence lock-in—portable export",
+   "complex pricing slows sales—few outcome-aligned units"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "V24",
+  "system": "Commercial & customer outcomes",
+  "layer": "compound",
+  "action": "DEFER",
+  "horizon": "18–36 months",
+  "delta": "ecosystem proof-gated",
+  "title": "Procurement, insurer, and capital assurance exchange",
+  "outcome": "Lower external assurance friction",
+  "thesis": "With explicit customer consent, let buyers, insurers, lenders, boards, and partners request narrowly scoped, independently verifiable evidence packages or continuous attestations—only after privacy, governance, demand, and anti-discrimination gates are proven.",
+  "users": [
+   "enterprise buyer",
+   "insurer",
+   "lender",
+   "board",
+   "customer risk"
+  ],
+  "workflow": [
+   "Requester states purpose, evidence need, period, and decision",
+   "Customer approves least-data projection",
+   "Warrantor generates and verifier checks portable pack",
+   "Record use, decision, dispute, expiry, and revoke ongoing access"
+  ],
+  "proof": [
+   "purpose/access authorization",
+   "evidence pack and verifier result",
+   "requester-use attestation",
+   "revocation/dispute history"
+  ],
+  "metrics": [
+   "assurance cycle time",
+   "customer opt-in and reuse",
+   "decision disputes",
+   "privacy or discrimination incidents"
+  ],
+  "dependencies": [
+   "evidence products",
+   "independent verifier network",
+   "privacy/legal governance",
+   "market demand"
+  ],
+  "risks": [
+   "score becomes discriminatory gate—no universal risk score",
+   "customer loses control—per-request consent and expiry",
+   "network begins before trust—defer until independent governance and demand"
+  ],
+  "products": [
+   "W2"
+  ]
+ },
+ {
+  "id": "V25",
+  "system": "Enterprise operations",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "new multi-tenant control plane",
+  "title": "Tenant isolation and delegated customer administration",
+  "outcome": "Safe enterprise scale",
+  "thesis": "Separate identity, policy, evidence, keys, connectors, billing, support, and data by tenant and organizational boundary while allowing customers to delegate administration without granting platform-wide authority.",
+  "users": [
+   "enterprise administrator",
+   "platform security",
+   "customer auditor",
+   "support"
+  ],
+  "workflow": [
+   "Provision tenant with customer-selected root and regions",
+   "Delegate scoped administration and enforce SoD",
+   "Continuously test data, cache, queue, log, and support isolation",
+   "Export, suspend, transfer, or delete tenant under verified lifecycle"
+  ],
+  "proof": [
+   "tenant configuration and root binding",
+   "authorization and isolation test results",
+   "support-access receipts",
+   "export/deletion proof"
+  ],
+  "metrics": [
+   "cross-tenant access defects",
+   "delegated-admin coverage",
+   "support-access frequency",
+   "tenant export and deletion success"
+  ],
+  "dependencies": [
+   "enterprise identity",
+   "RBAC/ABAC",
+   "key management",
+   "data stores",
+   "billing and support systems"
+  ],
+  "risks": [
+   "tenant ID checked only in UI—enforce at storage and service boundaries",
+   "support becomes superuser—just-in-time witnessed access",
+   "shared caches leak—partition and adversarial tests"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W6"
+  ]
+ },
+ {
+  "id": "V26",
+  "system": "Enterprise operations",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "operationalize service behavior",
+  "title": "Reliability, capacity, backpressure, and rate-limit control",
+  "outcome": "Predictable service under load",
+  "thesis": "Define and enforce tenant, agent, connector, evidence, reviewer-queue, and control-plane capacity so overload cannot create uncontrolled retry, spend, duplicate effects, missing evidence, or silent fail-open behavior.",
+  "users": [
+   "SRE",
+   "platform engineer",
+   "security",
+   "customer administrator"
+  ],
+  "workflow": [
+   "Declare SLO, quota, retry, concurrency, queue, and degradation policy",
+   "Measure capacity by consequence and topology",
+   "Apply idempotent backpressure and safe shedding",
+   "Reconcile delayed work, evidence, and customer impact"
+  ],
+  "proof": [
+   "configuration and SLO version",
+   "load/failure test",
+   "rate/backpressure events",
+   "post-overload reconciliation"
+  ],
+  "metrics": [
+   "availability and p99 latency",
+   "queue age",
+   "retry amplification",
+   "duplicate effects and evidence gaps"
+  ],
+  "dependencies": [
+   "API gateway",
+   "work queues",
+   "idempotency",
+   "monitoring",
+   "W1 availability semantics"
+  ],
+  "risks": [
+   "routine work starves critical response—priority isolation",
+   "rate limit bypass through connectors—shared work-unit budget",
+   "degradation hides weakened posture—explicit mode and alert"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3"
+  ]
+ },
+ {
+  "id": "V27",
+  "system": "Enterprise operations",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new configuration assurance",
+  "title": "Environment, secret, and configuration governance",
+  "outcome": "Fewer configuration-caused failures",
+  "thesis": "Inventory and attest environment variables, connector credentials, policy references, feature flags, endpoints, trust bundles, and deployment parameters that materially affect authority or evidence, without exposing secret values.",
+  "users": [
+   "platform operations",
+   "security",
+   "release engineering",
+   "audit"
+  ],
+  "workflow": [
+   "Classify security- and claim-relevant configuration",
+   "Bind secret references and configuration digests to deployment",
+   "Detect drift, unknown defaults, and unsupported combinations",
+   "Rotate, roll back, or reauthorize with signed change evidence"
+  ],
+  "proof": [
+   "configuration schema/digest",
+   "secret backend reference and rotation",
+   "deployment binding",
+   "drift/change receipt"
+  ],
+  "metrics": [
+   "configuration coverage",
+   "unknown or insecure defaults",
+   "drift detection time",
+   "incidents caused by configuration"
+  ],
+  "dependencies": [
+   "secrets manager",
+   "deployment inventory",
+   "schema validation",
+   "evidence graph",
+   "release pipeline"
+  ],
+  "risks": [
+   "secret values leak into evidence—references only",
+   "default changes silently—explicit versioned configuration",
+   "hash proves bytes not safety—policy and conformance checks"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W4",
+   "W5"
+  ]
+ },
+ {
+  "id": "V28",
+  "system": "Enterprise operations",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new release governance",
+  "title": "Change, release, canary, rollback, and compatibility governance",
+  "outcome": "Safer faster evolution",
+  "thesis": "Treat agent, model, prompt, tool, connector, policy, manifest, schema, and platform changes as governed releases with impact analysis, evidence gates, canaries, rollback, and customer compatibility windows.",
+  "users": [
+   "release engineering",
+   "product owner",
+   "security",
+   "customer operations"
+  ],
+  "workflow": [
+   "Classify material change and affected governed objects",
+   "Run contract, security, performance, outcome, and migration gates",
+   "Canary by tenant/use case with rollback thresholds",
+   "Promote, hold, revert, communicate, and preserve evidence"
+  ],
+  "proof": [
+   "change manifest and dependency graph",
+   "gate results",
+   "canary/rollback evidence",
+   "compatibility and customer notice"
+  ],
+  "metrics": [
+   "change failure and rollback rate",
+   "time to safe release",
+   "customer/version fragmentation",
+   "post-change control and outcome drift"
+  ],
+  "dependencies": [
+   "registry",
+   "conformance",
+   "outcome/guard gates",
+   "deployment automation",
+   "customer communication"
+  ],
+  "risks": [
+   "calendar deadline overrides evidence—gate-based promotion",
+   "rollback cannot reverse external effects—separate platform and business recovery",
+   "long compatibility tail—published windows and migration tools"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3",
+   "W4",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "V29",
+  "system": "Trust & adoption",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new external trust surface",
+  "title": "Customer trust center and live assurance portal",
+  "outcome": "Shorter security and procurement cycles",
+  "thesis": "Provide customer-scoped access to architecture, security posture, subprocessor and deployment facts, control/evidence mappings, incident communications, conformance, availability, privacy, and portable proof with freshness and unsupported gaps.",
+  "users": [
+   "customer security",
+   "procurement",
+   "legal",
+   "sales engineering",
+   "customer success"
+  ],
+  "workflow": [
+   "Authenticate requester and record assurance purpose",
+   "Select customer/edition/deployment-specific facts",
+   "Verify freshness and produce least-data view",
+   "Answer questions, record reliance, export evidence, and expire access"
+  ],
+  "proof": [
+   "fact-to-evidence links",
+   "freshness and applicability",
+   "access/export receipt",
+   "question and resolution history"
+  ],
+  "metrics": [
+   "questionnaire turnaround",
+   "evidence self-service",
+   "stale/unsupported statements",
+   "sales-cycle delay attributed to assurance"
+  ],
+  "dependencies": [
+   "evidence products",
+   "customer tenancy",
+   "claim ledger",
+   "support/CRM",
+   "incident communications"
+  ],
+  "risks": [
+   "generic trust page overclaims customer topology—scoped view",
+   "security details exposed—purpose and least privilege",
+   "marketing edits bypass claim review—evidence-derived content"
+  ],
+  "products": [
+   "W2",
+   "W3"
+  ]
+ },
+ {
+  "id": "V30",
+  "system": "Trust & adoption",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new human-capability control",
+  "title": "Role competency, training, and authorization assurance",
+  "outcome": "Better human decisions",
+  "thesis": "Define the knowledge and rehearsal required for operators, approvers, security responders, auditors, policy authors, and administrators; bind completion and recency to authority for high-consequence actions.",
+  "users": [
+   "workforce enablement",
+   "risk",
+   "security",
+   "business owner",
+   "audit"
+  ],
+  "workflow": [
+   "Define competency by role and consequence",
+   "Deliver scenario-based training and safe-state drills",
+   "Assess comprehension and practical decision quality",
+   "Issue time-bounded role authorization and trigger retraining on change/incident"
+  ],
+  "proof": [
+   "curriculum/version",
+   "assessment and drill results",
+   "authorization binding",
+   "refresh/exception history"
+  ],
+  "metrics": [
+   "competency coverage",
+   "decision errors",
+   "time to qualify",
+   "post-training control and incident outcomes"
+  ],
+  "dependencies": [
+   "enterprise LMS",
+   "RBAC/SoD",
+   "scenario simulator",
+   "incident and decision data"
+  ],
+  "risks": [
+   "training completion mistaken for competence—practical assessment",
+   "worker surveillance—use only role assurance",
+   "authorization blocks emergency response—break-glass with retrospective"
+  ],
+  "products": [
+   "W3",
+   "W6"
+  ]
+ },
+ {
+  "id": "V31",
+  "system": "Trust & adoption",
+  "layer": "compound",
+  "action": "BUILD",
+  "horizon": "18–36 months",
+  "delta": "new human-factors evidence",
+  "title": "Approval quality, cognitive load, and automation-bias controls",
+  "outcome": "Sustainable human oversight",
+  "thesis": "Measure whether reviewers understand consequences, inspect evidence, disagree appropriately, and remain within cognitive and queue limits; redesign routing and presentation before adding more automated recommendations.",
+  "users": [
+   "risk",
+   "human factors",
+   "product design",
+   "audit",
+   "workforce"
+  ],
+  "workflow": [
+   "Define decision-quality and workload signals with worker participation",
+   "Sample comprehension, reversals, reasons, overrides, and queue conditions",
+   "Identify fatigue, concentration, bias, and misleading UI",
+   "Change routing/interface/policy and remeasure"
+  ],
+  "proof": [
+   "measurement purpose and worker notice",
+   "sample and decision records",
+   "design/change receipt",
+   "before/after results"
+  ],
+  "metrics": [
+   "reason completeness",
+   "approval reversal and disagreement",
+   "queue/cognitive load",
+   "automation-suggestion influence"
+  ],
+  "dependencies": [
+   "decision inbox",
+   "privacy/workforce governance",
+   "research design",
+   "outcome/incident data"
+  ],
+  "risks": [
+   "metric becomes employee performance score—prohibit individual ranking",
+   "reviewers game reason codes—sampling and qualitative review",
+   "AI suggestions anchor decisions—blind comparison and influence audit"
+  ],
+  "products": [
+   "W2",
+   "W6"
+  ]
+ },
+ {
+  "id": "V32",
+  "system": "Trust & adoption",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "new guided adoption layer",
+  "title": "Guided onboarding, contextual help, and support evidence",
+  "outcome": "Lower time to competence",
+  "thesis": "Embed role-aware explanation, safe examples, diagnostic checks, status semantics, and support escalation into every critical workflow while capturing enough evidence to reproduce problems without exporting sensitive content by default.",
+  "users": [
+   "business operator",
+   "approver",
+   "administrator",
+   "developer",
+   "support"
+  ],
+  "workflow": [
+   "Detect workflow and current governed context",
+   "Offer task-specific explanation and preflight checks",
+   "Collect consented diagnostic bundle with redaction",
+   "Resolve, document, and turn recurring issues into product or control fixes"
+  ],
+  "proof": [
+   "help/version shown",
+   "diagnostic scope and consent",
+   "support-access receipt",
+   "resolution/root-fix link"
+  ],
+  "metrics": [
+   "time to first success",
+   "support contacts per active user",
+   "self-service resolution",
+   "recurring issue retirement"
+  ],
+  "dependencies": [
+   "product telemetry",
+   "documentation",
+   "diagnostic bundle",
+   "support platform",
+   "privacy controls"
+  ],
+  "risks": [
+   "help hides consequence—never replace scope preview",
+   "diagnostics leak data—redaction and preview",
+   "support workaround becomes permanent—exception and root-fix workflow"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3"
+  ]
+ },
+ {
+  "id": "V33",
+  "system": "High-consequence verticals",
+  "layer": "differentiate",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new transaction profile",
+  "title": "Financial transaction and payment authority profile",
+  "outcome": "Safer autonomous money movement",
+  "thesis": "Define payee, account, amount, currency, purpose, cumulative and velocity limits, sanctions/fraud signals, SoD, non-delegable approval, idempotency, settlement state, reversal limits, and reconciliation for financial actions.",
+  "users": [
+   "finance",
+   "treasury",
+   "payments engineering",
+   "fraud/risk",
+   "audit"
+  ],
+  "workflow": [
+   "Resolve canonical payee/account and purpose",
+   "Intersect transaction, daily, vendor, and delegated limits",
+   "Run deterministic controls and advisory fraud signals",
+   "Obtain required approval, stage/commit idempotently, and reconcile settlement"
+  ],
+  "proof": [
+   "payee/account verification",
+   "effective authority and controls",
+   "approval and pre-commit receipt",
+   "processor settlement/reconciliation"
+  ],
+  "metrics": [
+   "unauthorized or duplicate payment",
+   "approval time",
+   "false declines",
+   "unreconciled and irreversible failures"
+  ],
+  "dependencies": [
+   "W1/W2/W6",
+   "payment provider",
+   "enterprise ERP/treasury",
+   "sanctions/fraud tools",
+   "strong identity"
+  ],
+  "risks": [
+   "fraud model authorizes—advisory may deny only",
+   "idempotency fails across provider—stable external key",
+   "compensation assumed—state actual reversal capability"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W5",
+   "W6"
+  ]
+ },
+ {
+  "id": "V34",
+  "system": "High-consequence verticals",
+  "layer": "differentiate",
+  "action": "DEFER",
+  "horizon": "18–36 months",
+  "delta": "specialized safety profile",
+  "title": "Cyber-physical and robotics safe-action profile",
+  "outcome": "Bounded real-world autonomy",
+  "thesis": "Extend action, authority, evidence, containment, and safe-state semantics to physical actuation, location, machine state, human proximity, interlocks, command acknowledgment, and recovery only with sector experts and hardware-enforced boundaries.",
+  "users": [
+   "safety engineer",
+   "robotics/OT engineer",
+   "site operator",
+   "regulator",
+   "security"
+  ],
+  "workflow": [
+   "Define physical hazard and known-safe state",
+   "Bind device/workload identity and hardware interlocks",
+   "Require simulation, test cell, staged authority, and non-delegable approval",
+   "Execute, verify physical acknowledgment, monitor, contain, and recover"
+  ],
+  "proof": [
+   "device/hardware attestation",
+   "hazard and safe-state analysis",
+   "command/acknowledgment receipt",
+   "containment/recovery test"
+  ],
+  "metrics": [
+   "safe-state reachability",
+   "command/ack mismatch",
+   "near misses and incidents",
+   "containment latency and false stop harm"
+  ],
+  "dependencies": [
+   "W1–W3/W6",
+   "OT/robotics safety systems",
+   "hardware interlocks",
+   "sector certification",
+   "site response"
+  ],
+  "risks": [
+   "software receipt cannot prove physics—sensor/hardware evidence and limitation",
+   "generic platform overreaches—defer and partner",
+   "network stop is unsafe—local independent safe state"
+  ],
+  "products": [
+   "W1",
+   "W2",
+   "W3",
+   "W6"
+  ]
+ },
+ {
+  "id": "V35",
+  "system": "High-consequence verticals",
+  "layer": "scale",
+  "action": "BUILD",
+  "horizon": "6–18 months",
+  "delta": "new rights workflow",
+  "title": "Data-subject rights, notice, appeal, and contestability workflow",
+  "outcome": "Accountable human-impact decisions",
+  "thesis": "Link affected-person notice, data provenance, purpose, automated contribution, human review, correction, deletion, appeal, and remedy to governed actions where agents influence people or personal-data decisions.",
+  "users": [
+   "privacy",
+   "legal",
+   "customer support",
+   "risk",
+   "affected-person reviewer"
+  ],
+  "workflow": [
+   "Identify rights-triggering use case and affected records",
+   "Generate accurate notice and access package from evidence",
+   "Route correction, deletion, human review, or appeal with deadline",
+   "Record decision, downstream propagation, remedy, and closure"
+  ],
+  "proof": [
+   "applicability decision",
+   "data/action evidence projection",
+   "human review and remedy",
+   "correction/deletion propagation proof"
+  ],
+  "metrics": [
+   "request response time",
+   "complete provenance",
+   "appeal/reversal rate",
+   "downstream correction success"
+  ],
+  "dependencies": [
+   "context/data rights",
+   "evidence graph",
+   "customer case systems",
+   "regional modules",
+   "identity verification"
+  ],
+  "risks": [
+   "evidence exposes others—redacted scoped view",
+   "automated explanation invented—fact-derived plus human review",
+   "deletion conflicts with legal hold—explicit counsel decision"
+  ],
+  "products": [
+   "W2",
+   "W4",
+   "W5"
+  ]
+ },
+ {
+  "id": "V36",
+  "system": "High-consequence verticals",
+  "layer": "foundation",
+  "action": "BUILD",
+  "horizon": "0–6 months",
+  "delta": "cross-cutting product requirement",
+  "title": "Accessibility, assistive technology, and inclusive decision design",
+  "outcome": "Equal safe access to governance",
+  "thesis": "Make all operator, approval, incident, evidence, and governance workflows usable with keyboard, screen reader, magnification, high contrast, reduced motion, accessible documents, clear language, and alternative notification modes.",
+  "users": [
+   "all product users",
+   "accessibility owner",
+   "customer administrator",
+   "procurement"
+  ],
+  "workflow": [
+   "Define WCAG-aligned requirements and critical-task journeys",
+   "Test semantic structure, focus, contrast, reflow, documents, and time limits",
+   "Include disabled users in decision-comprehension studies",
+   "Block release on critical barriers and record exceptions with expiry"
+  ],
+  "proof": [
+   "automated and manual test results",
+   "assistive-technology task evidence",
+   "remediation record",
+   "accessible export verification"
+  ],
+  "metrics": [
+   "critical journeys passing",
+   "accessibility defects and age",
+   "task completion by assistive technology",
+   "accessible-document coverage"
+  ],
+  "dependencies": [
+   "design system",
+   "web/desktop/mobile surfaces",
+   "document renderer",
+   "localization",
+   "release gate"
+  ],
+  "risks": [
+   "automated scan called compliance—manual task testing",
+   "time-bound approvals disadvantage users—accessible extensions and routing",
+   "visual color carries truth alone—text and structure"
+  ],
+  "products": [
+   "W2",
+   "W3"
+  ]
+ }
+]

@@ -1,0 +1,398 @@
+<section class="part" id="part-10" data-part="10">
+  <header class="part-head">
+    <span class="part-num">Part 10</span>
+    <h2>The exponential value model, the outcomes worth funding, and the scoreboard with its counter-metrics</h2>
+    <p class="part-lede">This part states what compounds and what merely costs money, reconciles three separate lists of value loops into one canonical set of ten, and publishes the scoreboard twice over: once as the metrics that say how much governance is happening, and once as the counter-metrics that say whether it is worth its cost. One loop of the ten has evidence that it turns. The other nine are proposals with a named test.</p>
+  </header>
+
+  <h3 id="p10-value-equation">The value equation</h3>
+
+  <p>The blueprint states the commercial objective as a ratio rather than a feature list: a materially higher volume of productive autonomous work set against the human oversight, incident exposure, audit effort and duplicated governance it costs to run that work safely. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a> Written as a formula in words, the numerator is <em>governed autonomous work completed at accepted quality</em> — work units an owner agreed in advance to count, delivered inside declared limits. The denominator is the sum of four costs: reviewer hours consumed, expected loss from incidents, hours spent assembling evidence for audits, and the cost of building the same control twice because two teams could not share one.</p>
+
+  <p>Five terms move that ratio, and it is worth being exact about which of them is a cost reduction and which is a capability. <strong>Safe autonomy</strong> raises the numerator: bounded authority — permission that is explicitly scoped, time-limited and revocable rather than ambient — lets an organization run work it would otherwise refuse to run at all. <strong>Lower oversight cost</strong>, <strong>faster evidence</strong> and <strong>reusable controls</strong> all attack the denominator: one control and evidence shape replacing fragmented prompts and review conventions; proof generated as work happens rather than reconstructed afterward; policies, approvals and mappings reused across agents, teams and jurisdictions. <strong>Measured trust</strong> is the term that makes the other four checkable — a living signal tied to outcomes rather than a static compliance claim. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a></p>
+
+  <aside class="callout plain">
+    <p class="callout-kicker">In plain words</p>
+    <p>A <strong>receipt</strong> is a signed record of what an agent was authorized to do and what it actually did, written by the system rather than by the agent. A <strong>warrant</strong> is the grant of authority that record is issued against. <strong>Egress</strong> means outbound network access — the destinations a workload can reach. A <strong>counter-metric</strong> is a second number you watch specifically because the cheapest way to improve the first number is to break the second one.</p>
+  </aside>
+
+  <h3 id="p10-exponential-claim">The exponential claim, stated precisely</h3>
+
+  <p>"Exponential value" is used loosely enough that the specification defines it narrowly. A feature qualifies as exponential only if it closes a loop whose output increases the value of every previously shipped feature. A feature that serves one more customer is linear. A feature that makes every existing receipt more valuable to every existing holder is exponential. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §1</a> Everything else in the catalog is tagged linear and sequenced on dependency instead, because a catalog where everything is exponential is a catalog where nothing is.</p>
+
+  <p>Four things compound in this architecture, and they compound for structural reasons rather than commercial ones. <strong>A guarantee set that only tightens:</strong> every attack that succeeds against an invariant becomes a permanent conformance test, so the set of properties a deployment inherits grows monotonically and never regresses. <strong>Evidence reused across audiences:</strong> one signed trace serves the responder, the engineer, the auditor, the customer, the insurer, the supervisor and the researcher without anyone rebuilding custody. <span class="tier internal">Internal</span> <a class="src" href="#src-S65">S65 §11</a> <strong>Policy reuse:</strong> an approved use case becomes a parameterized template, so the next use case starts narrower and is approved faster. <strong>The attack-to-policy ratchet:</strong> a verified finding in evaluation becomes a runtime denial in production, with the linkage itself receipted.</p>
+
+  <p>What the claim excludes matters as much. It is not a claim about growth rates and not a revenue projection: no number in this part forecasts adoption, market share or revenue. Four families of work are valuable, several urgent, and none compound: packaging, signing and installers, which gate distribution but raise the value of nothing already shipped; a second dashboard for an audience that already has one, which is linear in users and sublinear once maintenance is counted; support for one more model provider, which is additive; and performance work below the threshold at which latency changes behavior. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6.3</a> That last one has an edge: above the threshold it <em>is</em> a loop input, because an approval path slower than the agent is an approval path that gets designed around.</p>
+
+  <aside class="callout rule">
+    <p class="callout-kicker">Design rule</p>
+    <p>The honest test for a loop, applied to every entry in the table below: name a <strong>measurable input</strong> that increases a <strong>measurable output</strong> that in turn increases the input, and name the <strong>decay term</strong> — the mechanism by which the loop slows, leaks or reverses if nobody maintains it. A loop stated without its decay term is a slogan. A loop whose decay term cannot be measured is not yet a loop.</p>
+  </aside>
+
+  <h3 id="p10-loops-reconciled">The loops, reconciled</h3>
+
+  <p>Three internal documents state loop inventories independently and they do not agree on count, naming or granularity. The specification names six with growth terms and turn rates <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6.1</a>; the blueprint names ten, each with a cold-start strategy and an anti-gaming control <a class="src" href="#src-S61">S61</a>; the research source names eight created by the platform extension <a class="src" href="#src-S65">S65 §11</a>. Twenty-four loop statements, heavy overlap, no canonical list.</p>
+
+  <p>They reconcile to ten. The specification's six survive intact and keep their identifiers, because the build catalog already tags every item with one of them and renumbering would silently break several hundred cross-references. Four more are added from the blueprint and the research source because they have no home in the six and are not reducible to them: decision reuse, exception economics, population detection baselines, and outcome measurement. Two research loops are folded rather than kept separate, and the folding is a judgment worth stating: <em>defender access</em> is a delivery mode for the assurance ratchet and the verification network rather than a loop of its own, and <em>training integrity</em> is the honesty gate inside the data flywheel, not a parallel cycle — its catalog item is the signed checkpoint disposition record. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §7.12</a></p>
+
+  <p>One structural fact falls out of the reconciliation and it is not flattering. Only L1 through L6 carry a loop tag anywhere in the build catalog. The four added loops — the ones the blueprint reasoned to from operations rather than from the incident — have no tagged items, so the catalog cannot currently answer "what would close this loop" for four of the ten. The items named against L7 to L10 below are content matches; the tag itself is proposed work.</p>
+
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Loop</th><th>Input → mechanism → output → feedback</th><th>Decay term · anti-gaming control</th><th>Evidence it is real today</th><th>Catalog items that close it</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>L1 · Data flywheel</strong> <span class="tier internal">Spec · catalog</span></td>
+        <td>Governed runs produce receipts → receipts become training corpora with provenance → per-plane specialist models get more accurate and cheaper → verdicts improve → more runs. Compounding comes from the falling denominator: domain corpora on small models are cheap to train. <a class="src" href="#src-S62">S62 §6.1</a></td>
+        <td><strong>Decay:</strong> corpus staleness — a model trained on last quarter's traffic decays as the estate changes. <strong>Anti-gaming:</strong> blind parity comparison against a pinned baseline with the significance criterion registered before the run; refusals retained as assets.</td>
+        <td><strong>Yes — the only one.</strong> The pipeline has run the whole chain and the results are qualified in §<a href="#p10-proven-loop">10.4</a>. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6.2</a></td>
+        <td>L9-01…L9-09 — automated corpus extraction from the live graph, per-plane corpora, continuous promotion with an enforced parity gate, refusal corpus, checkpoint disposition.</td>
+      </tr>
+      <tr>
+        <td><strong>L2 · Verification network</strong> <span class="tier internal">Spec · blueprint · research</span></td>
+        <td>Each new party able to independently check a receipt reprices every existing receipt from every issuer. A bank verifying a processor, a supervisor verifying the bank, an insurer verifying the insured — every edge added to the trust graph is a new use for records already written. Growth is roughly quadratic in verifying parties. <a class="src" href="#src-S62">S62 §6.1</a></td>
+        <td><strong>Decay:</strong> key rotation and verifier churn — a carried trust bundle ages, and an unmaintained one silently stops verifying. <strong>Anti-gaming:</strong> independent governance, revocation, versioning, no pay-to-pass; privacy-leakage and concentration-risk counters.</td>
+        <td><strong>No.</strong> Verification works, but only against keys pinned on one machine: n = 1. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §14</a></td>
+        <td>L10-01…L10-08 — trust directory as a carried bundle, cross-organization verification protocol, supply-chain warrant chaining, insurance interface; plus L7-07 portable bundles and L7-08 chain of custody.</td>
+      </tr>
+      <tr>
+        <td><strong>L3 · Effect-adapter ecosystem</strong> <span class="tier internal">Spec · blueprint</span></td>
+        <td>Each adapter governs a new class of consequential action → each class opens a buyer segment → each segment's agents generate receipts in that class. Multiplicative rather than additive: an agent whose code, messaging, ticketing and cloud actions are all warranted is chain-governed — one decision, four mediated effects, one receipt. <a class="src" href="#src-S62">S62 §6.1</a></td>
+        <td><strong>Decay:</strong> upstream version drift — an adapter silently stops mediating when a vendor changes an interface. <strong>Anti-gaming:</strong> an unknown upstream version downgrades the coverage claim rather than inheriting the previous one; publish coverage maps and reject an "integrated" label that only observes.</td>
+        <td><strong>Partly.</strong> The adapter pattern is proven on one effect family; the platform binds that family or nothing. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6.1</a></td>
+        <td>L4-10…L4-22 — the adapter fleet, each a clone of a proven shape; L4-20 effect-class SDK and conformance kit; L11-05 upstream-version laboratory.</td>
+      </tr>
+      <tr>
+        <td><strong>L4 · Compliance acceleration</strong> <span class="tier internal">Spec · blueprint · research</span></td>
+        <td>One signed artifact satisfies evidence requirements across multiple frameworks → each new crosswalk makes the same receipt answer one more question → the marginal cost of the next regime approaches zero. Value is receipts multiplied by frameworks mapped, and the receipt is written once regardless, so every crosswalk is margin on data that already exists. <a class="src" href="#src-S62">S62 §6.1</a></td>
+        <td><strong>Decay:</strong> mapping staleness — a crosswalk that quietly ages becomes a compliance claim the evidence no longer supports. <strong>Anti-gaming:</strong> a freshness field and a visible gap list under every summary; a mapping is never marketed as regulatory acceptance.</td>
+        <td><strong>No.</strong> No crosswalk exists in product form. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6.1</a></td>
+        <td>L8-09 crosswalk engine, L8-10 evidence-pack generator, L8-06 supervisor portal, L7-13 receipt query language.</td>
+      </tr>
+      <tr>
+        <td><strong>L5 · Assurance ratchet</strong> <span class="tier internal">Spec · blueprint · research</span></td>
+        <td>Continuous red-team finds a bypass → the finding becomes a permanent conformance test and a policy rule → the invariant set only ever tightens → every deployment inherits every past finding. Monotone: each finding is amortized across every future deployment. <a class="src" href="#src-S62">S62 §6.1</a></td>
+        <td><strong>Decay:</strong> the guarantee set does not decay, but <em>control debt</em> does the same damage — the suite keeps passing while the control behind a test quietly becomes advisory. <strong>Anti-gaming:</strong> private adaptive cases, independent reproduction, explicit residual paths, and a published count of advisory-only paths beside the passing-test count.</td>
+        <td><strong>Partly.</strong> The discipline exists culturally; it is not yet a platform mechanism. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6.1</a></td>
+        <td>L0-01…L0-08 — invariant attack corpus, continuous agentic red team, containment conformance profile, egress-closure prover, evidence-integrity adversary, attack-finding to policy loop; L7-17 control-effectiveness sampling.</td>
+      </tr>
+      <tr>
+        <td><strong>L6 · Substrate and standards</strong> <span class="tier internal">Spec · blueprint</span></td>
+        <td>An open, working implementation is adopted as a default → standards bodies write against the working thing → adoption becomes structural rather than commercial. A step function, not a smooth curve: low probability, large payoff. <a class="src" href="#src-S62">S62 §6.1</a></td>
+        <td><strong>Decay:</strong> window closure — the opening exists because government and standards bodies have specified agent behavior without shipping a substrate <a class="src" href="#src-S36">S36</a> <a class="src" href="#src-S14">S14</a>, and it is time-limited. <strong>Anti-gaming:</strong> conformance results that expire, test governance kept separate from sales, published methods and limitations, no perpetual green badge.</td>
+        <td><strong>Not yet.</strong> <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6.1</a></td>
+        <td>L10-09 open specification and reference implementation, L10-11 conformance laboratory with expiring certification, L0-03 containment conformance profile.</td>
+      </tr>
+      <tr>
+        <td><strong>L7 · Review intelligence</strong> <span class="tier internal">Blueprint only</span></td>
+        <td>A decision is made → its reason is captured in structured form → similar cases are grouped → routine cases accelerate → reviewers spend attention on novelty. Compounds through comparable decisions, not data volume. <a class="src" href="#src-S61">S61</a></td>
+        <td><strong>Decay:</strong> automation bias — grouping accelerates the wrong decision as readily as the right one. <strong>Anti-gaming:</strong> suggestions stay advisory, disparate overrides are monitored, and disagreement rate is tracked as a health signal rather than a defect.</td>
+        <td><strong>No.</strong> Named in the blueprint; no catalog item carries this loop tag. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a></td>
+        <td>Content match, tag proposed: L8-01 approval queue with a latency budget, L8-15 dependency-aware partial approval, L8-17 approval-quality and automation-bias controls.</td>
+      </tr>
+      <tr>
+        <td><strong>L8 · Exception economics</strong> <span class="tier internal">Blueprint · research</span></td>
+        <td>An exception is requested → risk is accepted with an owner and an expiry → the expiry is enforced → recurrence is analyzed → the root control improves and the exception stops being needed. The research source states the same cycle from the cost side: per-action control cost and outcome → narrow the high-friction rules → more adoption → more proof → better controls. <a class="src" href="#src-S61">S61</a> <a class="src" href="#src-S65">S65 §11</a></td>
+        <td><strong>Decay:</strong> silent renewal — an exception that renews without review becomes a permanent waiver and the loop runs backward. <strong>Anti-gaming:</strong> mandatory owner, reason, scope, compensating control and hard expiry; renewal blocked rather than defaulted; controls-retired published as a count.</td>
+        <td><strong>No.</strong> No exception lifecycle exists as a mechanism. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a></td>
+        <td>Content match, tag proposed: L7-16 exception, waiver and compensating-control lifecycle; L7-17 control-effectiveness sampling; L8-20 outcome contract and attestation.</td>
+      </tr>
+      <tr>
+        <td><strong>L9 · Population intelligence</strong> <span class="tier internal">Blueprint · research</span></td>
+        <td>More governed runs create richer sequence baselines → collective anomalies are recognized earlier → triage cost falls → cheaper oversight expands the population that can be safely governed. The input is graph structure, not content. <a class="src" href="#src-S61">S61</a> <a class="src" href="#src-S65">S65 §11</a></td>
+        <td><strong>Decay:</strong> baseline drift and alarm fatigue — a detector that fires on ordinary parallelism trains responders to dismiss it. <strong>Anti-gaming:</strong> outcome and false-denial counter-metrics; explicitly no scoring of individual human workers.</td>
+        <td><strong>No.</strong> The detector does not exist; the incident's own precursors were machine-readable days before recognition. <span class="tier independent">Independent · METR/Redwood</span> <a class="src" href="#src-S02">S02</a></td>
+        <td>Content match, tag proposed: L7-04 swarm detection on the receipt graph, L7-09 beacon and periodicity detection, L7-10 cross-run credential-flow tracing, L11-01 shadow-agent discovery.</td>
+      </tr>
+      <tr>
+        <td><strong>L10 · Outcome benchmark</strong> <span class="tier internal">Blueprint only</span></td>
+        <td>An outcome is defined with the owner → work units are measured against it → patterns are compared across deployments → practice improves → better baselines emerge for the next customer. Compounds through comparable normalized outcomes, which is what gives every other loop a denominator. <a class="src" href="#src-S61">S61</a></td>
+        <td><strong>Decay:</strong> attribution inflation — value claims outrun what the data can support. <strong>Anti-gaming:</strong> customer-owned definitions and baselines, confidence intervals, explicit causal caution, documented negative outcomes, privacy-preserving aggregation only.</td>
+        <td><strong>No.</strong> Without it, "governed autonomous work" has no denominator and every value claim is unfalsifiable. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §7.12</a></td>
+        <td>Content match, tag proposed: L8-20 outcome contract, baseline and attestation; L8-07 executive risk view; L11-01 shadow-agent discovery, which fixes the denominator.</td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <figure class="fig">
+    <svg viewBox="0 0 1200 640" role="img" aria-labelledby="p10-fig1-t">
+      <title id="p10-fig1-t">Ten value loops arranged around the receipt graph, with one drawn solid because it has been observed to turn and nine dashed because they are proposed</title>
+      <rect x="0" y="0" width="1200" height="640" fill="#faf9f5"/>
+      <ellipse cx="600" cy="300" rx="420" ry="225" fill="none" stroke="#b0aea5" stroke-width="2" stroke-dasharray="8 7"/>
+      <polygon points="1020,288 1027,304 1013,304" fill="#b0aea5"/>
+      <polygon points="180,312 173,296 187,296" fill="#b0aea5"/>
+
+      <line x1="600" y1="300" x2="600" y2="75" stroke="#788c5d" stroke-width="3"/>
+      <line x1="600" y1="300" x2="847" y2="118" stroke="#b0aea5" stroke-width="2" stroke-dasharray="6 6"/>
+      <line x1="600" y1="300" x2="1000" y2="231" stroke="#b0aea5" stroke-width="2" stroke-dasharray="6 6"/>
+      <line x1="600" y1="300" x2="1000" y2="370" stroke="#b0aea5" stroke-width="2" stroke-dasharray="6 6"/>
+      <line x1="600" y1="300" x2="847" y2="482" stroke="#b0aea5" stroke-width="2" stroke-dasharray="6 6"/>
+      <line x1="600" y1="300" x2="600" y2="525" stroke="#b0aea5" stroke-width="2" stroke-dasharray="6 6"/>
+      <line x1="600" y1="300" x2="353" y2="482" stroke="#b0aea5" stroke-width="2" stroke-dasharray="6 6"/>
+      <line x1="600" y1="300" x2="200" y2="370" stroke="#b0aea5" stroke-width="2" stroke-dasharray="6 6"/>
+      <line x1="600" y1="300" x2="200" y2="231" stroke="#b0aea5" stroke-width="2" stroke-dasharray="6 6"/>
+      <line x1="600" y1="300" x2="353" y2="118" stroke="#b0aea5" stroke-width="2" stroke-dasharray="6 6"/>
+
+      <rect x="472" y="252" width="256" height="96" rx="8" fill="#e1ebf4" stroke="#141413" stroke-width="2"/>
+      <text x="600" y="288" font-family="Poppins, Arial, sans-serif" font-size="19" fill="#141413" text-anchor="middle">The receipt graph</text>
+      <text x="600" y="313" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">one durable structure,</text>
+      <text x="600" y="333" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">ten readings of it</text>
+
+      <rect x="500" y="51" width="200" height="48" rx="6" fill="#e4e9dc" stroke="#788c5d" stroke-width="3"/>
+      <text x="600" y="74" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">L1 · Data flywheel</text>
+      <text x="600" y="92" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#788c5d" text-anchor="middle">observed turning</text>
+
+      <rect x="747" y="96" width="200" height="44" rx="6" fill="#faf9f5" stroke="#b0aea5" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="847" y="124" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">L2 · Verification network</text>
+
+      <rect x="900" y="209" width="200" height="44" rx="6" fill="#faf9f5" stroke="#b0aea5" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="1000" y="237" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">L3 · Effect adapters</text>
+
+      <rect x="900" y="348" width="200" height="44" rx="6" fill="#faf9f5" stroke="#b0aea5" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="1000" y="376" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">L4 · Compliance crosswalk</text>
+
+      <rect x="747" y="460" width="200" height="44" rx="6" fill="#faf9f5" stroke="#b0aea5" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="847" y="488" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">L5 · Assurance ratchet</text>
+
+      <rect x="500" y="503" width="200" height="44" rx="6" fill="#faf9f5" stroke="#b0aea5" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="600" y="531" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">L6 · Substrate &amp; standards</text>
+
+      <rect x="253" y="460" width="200" height="44" rx="6" fill="#faf9f5" stroke="#b0aea5" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="353" y="488" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">L7 · Review intelligence</text>
+
+      <rect x="100" y="348" width="200" height="44" rx="6" fill="#faf9f5" stroke="#b0aea5" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="200" y="376" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">L8 · Exception economics</text>
+
+      <rect x="100" y="209" width="200" height="44" rx="6" fill="#faf9f5" stroke="#b0aea5" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="200" y="237" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">L9 · Population signals</text>
+
+      <rect x="253" y="96" width="200" height="44" rx="6" fill="#faf9f5" stroke="#b0aea5" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="353" y="124" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413" text-anchor="middle">L10 · Outcome benchmark</text>
+
+      <line x1="40" y1="596" x2="90" y2="596" stroke="#788c5d" stroke-width="3"/>
+      <text x="100" y="601" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413">Observed to turn — 1 of 10</text>
+      <line x1="360" y1="596" x2="410" y2="596" stroke="#b0aea5" stroke-width="2" stroke-dasharray="5 5"/>
+      <text x="420" y="601" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413">Proposed · not turning — 9 of 10</text>
+      <text x="40" y="628" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">Rim arrows show the direction of compounding: each loop's output returns to the graph the next loop reads.</text>
+    </svg>
+    <figcaption><strong>Figure 10.1 ·</strong> What to see: the loops are not independent products sold together, they are ten readings of one durable structure, which is why closing any one of them lowers the cost of closing the others. Nine of ten are drawn dashed because they are proposals, not capabilities. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6</a> <a class="src" href="#src-S61">S61</a> <a class="src" href="#src-S65">S65 §11</a></figcaption>
+  </figure>
+
+  <h3 id="p10-proven-loop">The one loop that is already proven, and what it tells us</h3>
+
+  <p>L1 is not a projection, and it is the only entry above that is not. The pipeline has run the whole chain: corpora were built from graph data, five fine-tuning runs were trained across a local accelerator and four cloud accounts in parallel, a parity gate was applied, and the run ended with one promotion and four recorded refusals. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6.2</a> The cheapest turn of the loop was measured: a domain corpus on a small model, recall improved by 6.7 points with a better false-positive rate, on roughly thirty minutes of rented accelerator time costing single-digit dollars. <span class="tier internal">Internal</span> <a class="src" href="#src-S64">S64 §2</a></p>
+
+  <p>Be exact about what that establishes, because it is easy to overstate in both directions. It establishes that the mechanism runs and that the marginal cost of a turn is measured in dollars rather than headcount — which is the property that makes the loop compound at all. It does not establish that the resulting models are production controls. A later review found that every evaluated fine-tune damaged severity behavior and that recall-only review had been insufficient; the standing decision is that these models remain advisory, with schema-validity, severity-stability, calibration, slice and paired-outcome gates required before any production promotion. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a> The correct reading is not that the flywheel failed. It is that the flywheel turned, the gate caught what a weaker gate would have shipped, and the negative result was retained. That is the ratchet of L5 operating on L1, which is what the reconciliation above predicts.</p>
+
+  <p>The refusals matter more than the promotion strategically. Negative results are corpus too, and they are the part a competitor cannot synthesize: a rival can copy the architecture in a quarter, but not four documented experiments showing which recipes fail on which categories, because those cost accelerator hours against a corpus that exists only downstream of a running platform. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6.2</a></p>
+
+  <aside class="callout finding">
+    <p class="callout-kicker">Finding</p>
+    <p>The flywheel's failure mode is a promotion that should have been a refusal, and two measurement rules learned expensively must be enforced by the pipeline rather than held in memory. First, <strong>a point-estimate ordering is not a finding</strong>: a monotonicity check fires on any decrease, and one such check reported noise at p ≈ 0.69 as a reversal. Second, <strong>every quoted figure carries the configuration that produced it</strong> — context length, seed and quantization each move the number, and a recall figure was once quoted at a context length the product did not run at. Automating the loop without automating both gates converts the moat into a liability. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §6.2</a></p>
+  </aside>
+
+  <h3 id="p10-eight-outcomes">Eight outcomes worth funding</h3>
+
+  <p>Features are means. These eight outcomes are the investment units, and each is stated with four things: the value mechanism, the leading indicators that move first, the outcome metric that decides whether it worked, and the counter-metric that prevents the platform from "improving" by shifting risk or labor somewhere it is not measured. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a> The baseline for each is owned by the customer: a baseline we supply is a marketing number, one the customer agreed before the work started is evidence.</p>
+
+  <div class="grid cols-2">
+    <div class="card">
+      <p class="card-kicker">O1 · Adoption capacity</p>
+      <h4>Run more useful autonomous work safely</h4>
+      <p>Expand the number, scope and consequence level of autonomous workflows an organization is willing to operate. <strong>Leading:</strong> governed agents, approved use cases, mediated action classes, time to authorization. <strong>Outcome:</strong> completed autonomous work units and business throughput per reviewer hour. <strong>Counter:</strong> incidents, silent bypass, false refusals, accumulated held work, rubber-stamp approvals. <strong>Catalog:</strong> L8-20 outcome contracts, L11-01 shadow-agent discovery, L4-10…L4-18 adapters. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+    <div class="card">
+      <p class="card-kicker">O2 · Oversight economics</p>
+      <h4>Decouple supervision cost from agent count</h4>
+      <p>Standardize evidence, approval, exceptions and review so the twentieth agent is cheaper to govern than the first. <strong>Leading:</strong> template reuse, auto-resolved routine work, queue aging, evidence completeness. <strong>Outcome:</strong> median review minutes per consequential action and per active agent. <strong>Counter:</strong> reviewer fatigue, approval concentration, reopened decisions, manual evidence work. <strong>Catalog:</strong> L8-01 approval queue, L8-15 partial approval, L8-17 approval-quality controls. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+    <div class="card">
+      <p class="card-kicker">O3 · Delivery velocity</p>
+      <h4>Shorten time from agent idea to governed production</h4>
+      <p>Replace bespoke security review with reusable manifests, policies, tests, deployment patterns and pre-authorization evidence. <strong>Leading:</strong> days to inventory, classify, approve, integrate and pass conformance. <strong>Outcome:</strong> time-to-first-governed-value and change lead time. <strong>Counter:</strong> exceptions, control debt, policy divergence, failed rollbacks. <strong>Catalog:</strong> L8-04 policy studio, L8-12 non-developer onboarding, L11-04 change and rollback governance. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+    <div class="card">
+      <p class="card-kicker">O4 · Assurance on demand</p>
+      <h4>Generate evidence at the speed of work</h4>
+      <p>Continuously transform signed operational proof into auditor, customer, supervisor, board and incident-response views. <strong>Leading:</strong> evidence coverage, verification success, control freshness, mapping reuse. <strong>Outcome:</strong> audit preparation hours, questionnaire cycle time, time to prove an incident boundary. <strong>Counter:</strong> unsupported claims, stale mappings, unverifiable receipts, evidence with ambiguous custody. <strong>Catalog:</strong> L8-09 crosswalk engine, L8-10 evidence packs, L7-06 completeness attestation. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+    <div class="card">
+      <p class="card-kicker">O5 · Loss containment</p>
+      <h4>Reduce blast radius and recovery time</h4>
+      <p>Bound authority, destinations, credentials, lifetime, delegation and commit; detect drift; reach a known-safe state. <strong>Leading:</strong> containment coverage, revocation latency, safe-state tests, escape-suite results. <strong>Outcome:</strong> exposure duration, affected assets, median time to containment and to recovery. <strong>Counter:</strong> fail-open events, recovery side effects, service-outage amplification, untested safe states. <strong>Catalog:</strong> L0-04 egress-closure prover, L4-21 recovery orchestration, L4-22 break-glass warrants. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+    <div class="card">
+      <p class="card-kicker">O6 · Spend productivity</p>
+      <h4>Make agent cost attributable and governable</h4>
+      <p>Bind model, tool, data, infrastructure and human-review cost to a governed work unit and its realized outcome. <strong>Leading:</strong> cost coverage, forecast error, budget policy adoption, idle and retry waste. <strong>Outcome:</strong> cost per accepted outcome, savings captured, avoided spend leakage. <strong>Counter:</strong> quality loss, delayed work, shadow usage, cost shifted onto reviewers. <strong>Catalog:</strong> L3-10 backpressure and duplicate-effect control, L8-20 outcome attestation. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+    <div class="card">
+      <p class="card-kicker">O7 · Vendor optionality</p>
+      <h4>Change agents and models without rebuilding governance</h4>
+      <p>Keep policy, authority, evidence and outcome objects provider-neutral while adapters absorb vendor-specific execution differences. <strong>Leading:</strong> conformant adapters, portability tests, policy reuse, migration rehearsal. <strong>Outcome:</strong> switching time, negotiating leverage, multi-provider resilience. <strong>Counter:</strong> lowest-common-denominator controls, semantic drift, hidden proprietary dependencies. <strong>Catalog:</strong> L4-20 effect-class SDK, L11-05 upstream-version laboratory, L11-06 equivalence laboratory. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+    <div class="card">
+      <p class="card-kicker">O8 · Trust and distribution</p>
+      <h4>Turn verifiable participation into ecosystem reach</h4>
+      <p>Let vendors, auditors, insurers, integrators and customers consume a shared assurance format without surrendering control of raw data. <strong>Leading:</strong> independent verifiers, certified integrations, shared profiles, partner evidence packs. <strong>Outcome:</strong> shorter sales cycles, lower partner onboarding cost, standards adoption. <strong>Counter:</strong> gaming, centralization, privacy leakage, certification capture, pay-to-play rankings. <strong>Catalog:</strong> L10-02 cross-organization verification, L10-03 supply-chain chaining, L10-11 expiring certification. <a class="src" href="#src-S61">S61</a> Insurance is a named consumer of this format rather than a live one: trade coverage of 30 July 2026 reports that policy language was not written for this class of loss. <a class="src" href="#src-S84">S84</a></p>
+    </div>
+  </div>
+
+  <h3 id="p10-plane-h">Enterprise value plane metrics</h3>
+
+  <p>The research source specifies an eighth plane whose subject is the operating model rather than a control surface: eight items numbered 57 to 64, each of which has to be computable from receipts rather than assembled by hand. <span class="tier internal">Internal</span> <a class="src" href="#src-S65">S65 §10</a> Naming the formula and the record it reads from is the difference between a metric and an aspiration, and one of the eight turns out not to be a metric at all.</p>
+
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>#</th><th>Metric</th><th>Formula, in words</th><th>Receipt it is computed from</th></tr></thead>
+    <tbody>
+      <tr><td>57</td><td>Incident exposure budget tied to business value</td><td>Sum of the authorized potential loss across active governed work units, expressed against the business value those units produce. Explicitly not agent headcount, because headcount is the number a vendor can inflate.</td><td>Warrant grant records — authority class, effect classes, spend ceiling, irreversibility class — joined to the outcome contract for the same work unit (L8-20). <a class="src" href="#src-S65">S65 §10</a></td></tr>
+      <tr><td>58</td><td>Control coverage by consequential action paths mediated</td><td>Consequential effect paths that provably traverse the boundary, divided by total enumerated consequential paths. The denominator is the hard half and it must include discovered ungoverned work.</td><td>Effect-syscall records emitted at the broker, with the denominator supplied by shadow-agent discovery (L11-01). <a class="src" href="#src-S65">S65 §10</a></td></tr>
+      <tr><td>59</td><td>Human oversight yield</td><td>Prevented loss plus the value of accepted outcomes, divided by reviewer minutes spent. The single ratio that ties the governance column to the cost column.</td><td>Approval and denial records carrying decision, reason code and latency, joined to outcome attestations. <a class="src" href="#src-S65">S65 §10</a></td></tr>
+      <tr><td>60</td><td>Safe-autonomy expansion rate by consequence class</td><td>New governed work units authorized per period, split by consequence class, so that growth in trivial classes cannot be reported as growth in consequential ones.</td><td>Warrant template instantiations with the risk-tier field. <a class="src" href="#src-S65">S65 §10</a></td></tr>
+      <tr><td>61</td><td>Detection-to-denial and detection-to-containment latency</td><td>Two distributions, not two averages: from the first anomalous receipt to the denial record, and from that same point to the last effect stopped. Publish the tail.</td><td>Timestamps on the detection record, the denial record, and the revocation and containment records. <a class="src" href="#src-S65">S65 §10</a></td></tr>
+      <tr><td>62</td><td>Blast-radius and data-exposure bounds verified by exercise</td><td>The reachable destination set and the data classes actually touched during a scheduled exercise, differenced against the declared bound. A bound nobody exercised is a claim.</td><td>Egress-closure prover output (L0-04) plus the receipts of the exercise itself. <a class="src" href="#src-S65">S65 §10</a></td></tr>
+      <tr><td>63</td><td>Training remediation closure and checkpoint disposition</td><td>Proportion of affected checkpoints and derivatives carrying a signed disposition — quarantine, retrain, roll back, or retain with stated evidence — inside the stated service level.</td><td>Checkpoint disposition records (L9-09). Repairing infrastructure does not answer whether a checkpoint is safe to keep. <a class="src" href="#src-S65">S65 §10</a></td></tr>
+      <tr><td>64</td><td>Board-facing safety-case and assurance pack</td><td>Not a metric — a composition rule for a periodic artifact. It should be assembled from 57 to 63 plus open exceptions and incidents, and it should never introduce a number that has no receipt behind it.</td><td>Assembled by the evidence-pack generator (L8-10) over the records above. <a class="src" href="#src-S65">S65 §10</a></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="p10-scoreboard">The scoreboard, and the half it was missing</h3>
+
+  <p>Seventeen metrics. The first fourteen were chosen because each is hard to game, maps to a stratum or a loop, and would have been non-trivially bad during the incident. A platform that publishes these is making a checkable claim; one that publishes architecture diagrams is not. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §14</a></p>
+
+  <p>The correction that produced the rest of this section is worth stating plainly, because it changes the shape of the scoreboard rather than adding to it. Every one of the original fourteen measures <em>how much governance is happening</em>. Not one measures <em>whether it is worth its cost</em>. A platform optimizing only that column improves its numbers by adding friction, and the metric that would have caught it did not exist. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §14.1</a> This is the same failure the specification names as the most probable way the whole thing dies — not an attack, but a control-plane tax: if the platform adds latency, review burden and operating overhead faster than it enables autonomous work, teams route around it, and a control that is routed around provides negative security, because it also carries the belief that something is governed. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1</a> It is the mechanism behind the analyst finding reported in secondary coverage that up to 40% of enterprises demote or decommission agents after production incidents. <span class="tier analyst">Analyst · licensed-source check pending</span> <a class="src" href="#src-S45">S45</a></p>
+
+  <p>So every metric now carries two companions: a <strong>counter-metric</strong>, which is the thing the cheapest way of moving the metric would break, and a <strong>cost-worth metric</strong>, which prices the governance the metric is measuring. <strong>A counter-metric moving the wrong way outranks its metric moving the right way.</strong> Nine of the seventeen counter-metrics below are as the specification states them; the counter-metrics for rows 3, 4, 7, 9, 10, 15, 16 and 17 and all seventeen cost-worth metrics are proposed here and are not yet in any published scoreboard. <span class="tier proposed">PROPOSED</span> <a class="src" href="#src-S62">S62 §14.1</a></p>
+
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>#</th><th>Metric</th><th>Incident baseline</th><th>Counter-metric — what the cheap path breaks</th><th>Cost-worth metric</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Effect coverage — share of consequential effects that provably traverse the boundary</td><td>Effectively zero for the paths used</td><td>Bypass rate and shadow-agent count. Coverage over a shrinking governed denominator is not coverage: teams that find the boundary expensive move work outside it, and the percentage rises as the estate escapes.</td><td>Cost per mediated effect — added latency plus broker spend, per effect.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>2</td><td>Egress closure gap — reachable destinations minus the policy set</td><td>Three transitive paths, undetected for weeks</td><td>False-denial budget and time-to-first-governed-value. A default-deny broker reaches zero gap trivially by denying legitimate work.</td><td>Share of the false-denial budget consumed per period, per workflow.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>3</td><td>Shared-surface census coverage — share of multi-tenant mutable surfaces classified</td><td>Zero; the origin surface was unclassified</td><td><span class="tier proposed">PROPOSED</span> Census staleness and re-classification rate. A census taken once and never re-run is a snapshot wearing the badge of a control.</td><td>Surfaces hardened or retired per census hour spent.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>4</td><td>Improvised-channel detection latency — first cross-workload write to operator notification</td><td>About eleven days, and via an unrelated alert</td><td><span class="tier proposed">PROPOSED</span> Benign cross-workload false-positive rate, and the count of legitimate shared surfaces teams abandoned to keep the detector quiet.</td><td>Alarms that changed an operator action, divided by alarms raised.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>5</td><td>Swarm-detection time-to-alarm, measured by replaying the incident's own event sequence</td><td>Thirteen days to attribution</td><td>False-positive rate and analyst fatigue. An alarm that fires on ordinary parallelism trains responders to dismiss it — which is how a port-sweep alert was handled on 27 June, investigated and linked to an evaluation using an artifact repository as an improvised message board. <span class="tier primary">First-party · OpenAI</span> <a class="src" href="#src-S01">S01</a></td><td>Analyst minutes per true alarm.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>6</td><td>Containment latency — detection to full stop, including revocation propagation and staged-effect discard</td><td>About ten days including manual enumeration</td><td>Recovery time, unnecessary-halt rate, service-outage amplification. Stopping fast is easy if you stop too much, and an over-broad halt that takes production down is a control that gets disabled after its first false trigger.</td><td>Service-outage minutes caused by halts, divided by true containments.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>7</td><td>Revocation propagation, 99th percentile</td><td>Unbounded — credentials could be re-minted</td><td><span class="tier proposed">PROPOSED</span> Unnecessary-revocation count and work lost to over-broad revocation. A revocation path optimized only for speed becomes an outage generator.</td><td>Credential-lifetime reduction achieved per engineering hour invested in the revocation path.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>8</td><td>Evidence completeness — share of effects with a verifying receipt, asserted by the chain rather than estimated afterward</td><td>Investigators established a bit over 90% coverage of message-board activity for 7–13 July, at great cost <span class="tier independent">Independent · METR/Redwood</span> <a class="src" href="#src-S02">S02</a></td><td>Unsupported-claim count, and storage and query cost per decision served. Completeness with ambiguous custody or stale mappings produces authoritative-looking records nobody should rely on.</td><td>Storage and query cost per decision the evidence actually served.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>9</td><td>Tamper resistance — adversary success rate at producing a verifying-but-false chain</td><td>At least 96 transcripts showed clear evidence of spoofed tool calls <span class="tier independent">Independent · METR/Redwood</span> <a class="src" href="#src-S02">S02</a></td><td><span class="tier proposed">PROPOSED</span> Red-team cost per finding, and the share of findings unreachable in a real deployment topology. A suite that only produces unreachable findings is expensive theater.</td><td>Ratchet conversion rate: findings that became permanent tests, divided by findings produced.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>10</td><td>Reconstruction time — scoping an incident to a signed, verified narrative</td><td>Six days of on-premises investigation and roughly $400K in API credits <span class="tier independent">Independent · METR/Redwood</span> <a class="src" href="#src-S02">S02</a></td><td><span class="tier proposed">PROPOSED</span> Reconstruction correctness — disputed or later-corrected reconstructions. A fast narrative that has to be retracted is worse than a slow one.</td><td>Storage and query cost per reconstruction served.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>11</td><td>Approval latency, median and 99th percentile</td><td>No approval was in the path</td><td>Approval-quality signals — disagreement rate, reason quality, sampling outcomes, reviewer rotation. The fastest queue is the one that approves everything; latency improving while disagreement falls toward zero is the signature of rubber-stamping.</td><td>Reviewer minutes per consequential action, which is also outcome O2's headline number.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>12</td><td>Verifier count — the direct input to loop L2</td><td>n = 1</td><td>Privacy-leakage findings and concentration risk. The network effect that makes evidence valuable is the same mechanism that can expose tenant behavior or centralize trust in one verifier.</td><td>Onboarding cost per new independent verifier.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>13</td><td>Frameworks answered per receipt written — loop L4's growth term</td><td>Zero</td><td>Mapping staleness and gap visibility. A crosswalk that quietly ages becomes a compliance claim the evidence no longer supports.</td><td>Mapping maintenance hours per framework per quarter.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>14</td><td>Invariant regression detection time, and the monotone count of passing tests</td><td>No invariant suite existed</td><td>Control debt and advisory-only path count. The suite grows monotonically whether or not the controls behind it still enforce anything.</td><td>Advisory-only paths, published beside the passing-test count on the same surface.</td><td><a class="src" href="#src-S62">S62 §14</a></td></tr>
+      <tr><td>15</td><td>Time-to-first-governed-value — intent to a running governed agent</td><td>Not applicable; no such path existed</td><td><span class="tier proposed">PROPOSED</span> Consequence class of what was governed quickly. Fast onboarding of trivial work is not the same as governing consequential work.</td><td>This metric <em>is</em> the platform-level cost-worth number — the one a team quotes when deciding to route around the platform.</td><td><a class="src" href="#src-S62">S62 §14.1</a></td></tr>
+      <tr><td>16</td><td>Controls retired — controls killed because their benefit was not evidenced</td><td>Not applicable</td><td><span class="tier proposed">PROPOSED</span> Incidents later traced to a retired control. Retirement is a real risk transfer and must be evidenced like any other.</td><td>Review effort and latency saved per control retired.</td><td><a class="src" href="#src-S62">S62 §14.1</a></td></tr>
+      <tr><td>17</td><td>Shadow-agent ratio — ungoverned autonomous work discovered, over total</td><td>The population was enumerated only after the fact <span class="tier primary">First-party · OpenAI</span> <a class="src" href="#src-S01">S01</a></td><td><span class="tier proposed">PROPOSED</span> Discovery false-attribution rate — governed work misclassified as shadow, which inflates the ratio and burns trust with the teams being measured.</td><td>Discovered shadow work brought under governance, divided by discovered.</td><td><a class="src" href="#src-S62">S62 §14.1</a></td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>Friction and false-denial budgets</h4>
+
+  <p>Two counter-metrics only work if they are budgeted rather than minimized, which is the least intuitive discipline in the scoreboard. A <strong>false-denial budget</strong> is a stated allowance for legitimate work the boundary refuses — the price of the guarantee, agreed per workflow and spent deliberately. Driving it to zero means the boundary binds on nothing. A <strong>friction budget</strong> is the same idea for latency and review load: an agreed ceiling on how much slower governed work may be than ungoverned work, with a breach treated as a defect in the control. The instruction that follows is to measure time-to-value, reviewer load, bypass rate and false-denial budget per workflow, and to retire any control whose benefit is not evidenced — a platform that cannot name a control it has killed is not measuring itself. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §13.1</a></p>
+
+  <p><strong>Oversight yield</strong> is the metric that reconciles the two columns, and it is the one to put in front of a board. Prevented loss plus accepted outcome value, over reviewer minutes. <span class="tier internal">Internal</span> <a class="src" href="#src-S65">S65 §10</a> It rises when governance gets cheaper and when it gets more effective, and it falls when either the numerator is inflated by unfalsifiable prevention claims or the denominator is hidden by pushing review onto people nobody counts. Both failure modes are visible in the counter-metric column above, which is the point of publishing them together.</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 1200 420" role="img" aria-labelledby="p10-fig2-t">
+      <title id="p10-fig2-t">Three worked examples of the cheapest way to improve a governance metric, and the counter-metric that catches each one</title>
+      <rect x="0" y="0" width="1200" height="420" fill="#faf9f5"/>
+      <text x="40" y="46" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">The metric improves…</text>
+      <text x="440" y="46" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#d97757">…by this cheap path…</text>
+      <text x="840" y="46" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#788c5d">…which only this catches</text>
+      <line x1="40" y1="60" x2="1160" y2="60" stroke="#e8e6dc" stroke-width="2"/>
+
+      <rect x="40" y="86" width="340" height="70" rx="6" fill="#e1ebf4" stroke="#141413" stroke-width="2"/>
+      <text x="60" y="114" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">Effect coverage rises</text>
+      <text x="60" y="138" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">more effects cross the boundary</text>
+      <line x1="380" y1="121" x2="428" y2="121" stroke="#d97757" stroke-width="2"/>
+      <polygon points="440,121 426,115 426,127" fill="#d97757"/>
+      <rect x="440" y="86" width="340" height="70" rx="6" fill="#f4e3da" stroke="#d97757" stroke-width="2"/>
+      <text x="460" y="114" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">Move work outside</text>
+      <text x="460" y="138" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">the denominator shrinks</text>
+      <line x1="780" y1="121" x2="828" y2="121" stroke="#788c5d" stroke-width="2"/>
+      <polygon points="840,121 826,115 826,127" fill="#788c5d"/>
+      <rect x="840" y="86" width="320" height="70" rx="6" fill="#e4e9dc" stroke="#788c5d" stroke-width="2"/>
+      <text x="860" y="114" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">Bypass rate ·</text>
+      <text x="860" y="138" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">shadow-agent ratio</text>
+
+      <rect x="40" y="176" width="340" height="70" rx="6" fill="#e1ebf4" stroke="#141413" stroke-width="2"/>
+      <text x="60" y="204" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">Egress gap reaches zero</text>
+      <text x="60" y="228" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">no reachable destination is off-policy</text>
+      <line x1="380" y1="211" x2="428" y2="211" stroke="#d97757" stroke-width="2"/>
+      <polygon points="440,211 426,205 426,217" fill="#d97757"/>
+      <rect x="440" y="176" width="340" height="70" rx="6" fill="#f4e3da" stroke="#d97757" stroke-width="2"/>
+      <text x="460" y="204" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">Deny legitimate work</text>
+      <text x="460" y="228" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">default-deny with no budget</text>
+      <line x1="780" y1="211" x2="828" y2="211" stroke="#788c5d" stroke-width="2"/>
+      <polygon points="840,211 826,205 826,217" fill="#788c5d"/>
+      <rect x="840" y="176" width="320" height="70" rx="6" fill="#e4e9dc" stroke="#788c5d" stroke-width="2"/>
+      <text x="860" y="204" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">False-denial budget ·</text>
+      <text x="860" y="228" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">time-to-governed-value</text>
+
+      <rect x="40" y="266" width="340" height="70" rx="6" fill="#e1ebf4" stroke="#141413" stroke-width="2"/>
+      <text x="60" y="294" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">Approval latency falls</text>
+      <text x="60" y="318" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">the queue moves faster</text>
+      <line x1="380" y1="301" x2="428" y2="301" stroke="#d97757" stroke-width="2"/>
+      <polygon points="440,301 426,295 426,307" fill="#d97757"/>
+      <rect x="440" y="266" width="340" height="70" rx="6" fill="#f4e3da" stroke="#d97757" stroke-width="2"/>
+      <text x="460" y="294" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">Approve everything</text>
+      <text x="460" y="318" font-family="Poppins, Arial, sans-serif" font-size="13" fill="#141413">review becomes ceremony</text>
+      <line x1="780" y1="301" x2="828" y2="301" stroke="#788c5d" stroke-width="2"/>
+      <polygon points="840,301 826,295 826,307" fill="#788c5d"/>
+      <rect x="840" y="266" width="320" height="70" rx="6" fill="#e4e9dc" stroke="#788c5d" stroke-width="2"/>
+      <text x="860" y="294" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">Disagreement rate ·</text>
+      <text x="860" y="318" font-family="Poppins, Arial, sans-serif" font-size="15" fill="#141413">sampling outcomes</text>
+
+      <line x1="40" y1="360" x2="1160" y2="360" stroke="#e8e6dc" stroke-width="2"/>
+      <text x="40" y="390" font-family="Poppins, Arial, sans-serif" font-size="14" fill="#141413">Reading rule: a counter-metric moving the wrong way outranks its metric moving the right way.</text>
+    </svg>
+    <figcaption><strong>Figure 10.2 ·</strong> What to see: in each row the middle box is cheaper to execute than genuine improvement, and it moves the left-hand number in the right direction. Only the right-hand column distinguishes the two. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62 §14.1</a></figcaption>
+  </figure>
+
+  <h3 id="p10-audience-decisions">Audience-owned operating decisions</h3>
+
+  <p>A scoreboard with no owner is a report. Six audiences own distinct decisions, receive distinct evidence and are accountable for distinct numbers; the split below is the blueprint's, with the evidence surface and owned metric attached. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a> Note that no audience owns a metric without also owning its counter-metric — that pairing is what stops each group from optimizing its own column at another group's expense.</p>
+
+  <div class="grid cols-3">
+    <div class="card audience">
+      <p class="card-kicker">Board &amp; executive</p>
+      <h4>Approve the exposure budget and the stop authority</h4>
+      <p><strong>Decision:</strong> risk appetite, exposure budget, who may stop the estate, cross-company notification policy, checkpoint disposition policy, investment gates. <strong>Evidence:</strong> the executive risk view (L8-07) and the periodic assurance pack (Plane H #64). <strong>Metric owned:</strong> #15 time-to-first-governed-value, paired with Plane H #57 exposure budget. Supervisory context: US model-risk guidance revised on 17 April 2026 places generative and agentic systems outside its scope, and the interagency request for information on AI is planned but not yet issued. That defers the framework, not the duty. <span class="tier supervisor">Supervisor · OCC / Fed</span> <a class="src" href="#src-S39">S39</a></p>
+    </div>
+    <div class="card audience">
+      <p class="card-kicker">CISO &amp; incident response</p>
+      <h4>Own the consequence paths and the stop</h4>
+      <p><strong>Decision:</strong> consequence paths, independent controls, population-wide stop, evidence custody, machine-speed deny rules, two-key restore, third-party coordination, recovery proof. <strong>Evidence:</strong> the incident console (L8-03), the replay engine (L7-05), a signed evidence pack. <strong>Metric owned:</strong> #6 containment latency with its recovery-time and over-halt counters, and #7 revocation propagation at the 99th percentile. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+    <div class="card audience">
+      <p class="card-kicker">AI/ML &amp; evaluation</p>
+      <h4>Own task validity and checkpoint disposition</h4>
+      <p><strong>Decision:</strong> task validity, environment bill of materials, model, harness and safeguard differences, scorer isolation, reward-hacking evidence, checkpoint quarantine, the retraining and retention decision, the safe-release case. <strong>Evidence:</strong> signed disposition records (L9-09) and parity-gate records. <strong>Metric owned:</strong> Plane H #63 remediation closure and disposition service level. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+    <div class="card audience">
+      <p class="card-kicker">Platform &amp; cloud</p>
+      <h4>Own mediation and reachability</h4>
+      <p><strong>Decision:</strong> workload identity, typed effects, mediation, isolation, metadata and cluster-control hard denies, secretless tools, transitive reachability, safe states, performance, failure-domain drills. <strong>Evidence:</strong> egress-closure prover diffs (L0-04) and the coverage disclosure surface (L8-13). <strong>Metric owned:</strong> #1 effect coverage with its bypass counter, and #2 egress closure gap with its false-denial budget. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+    <div class="card audience">
+      <p class="card-kicker">Governance, audit &amp; legal</p>
+      <h4>Own claim status and the notice clocks</h4>
+      <p><strong>Decision:</strong> claim status, exception expiry, privacy-preserving trace access, control and evidence mapping, investigator independence, notice clocks, legal hold, public corrections, supervisor and customer views. <strong>Evidence:</strong> the crosswalk engine (L8-09), evidence packs (L8-10), the supervisor portal (L8-06). <strong>Metric owned:</strong> #13 frameworks answered per receipt, with mapping staleness as the counter. Audit rights over third-party AI systems and an immediate-shutdown expectation become binding in the Gulf on 16 September 2026 <span class="tier supervisor">Supervisor · CBUAE</span> <a class="src" href="#src-S43">S43</a>. India’s draft model-risk guidance requires human-in-the-loop, human override and an emergency kill switch <span class="tier supervisor">Supervisor · RBI</span> <a class="src" href="#src-S78">S78</a> <a class="src" href="#src-S41">S41</a>, and the data-protection rules notified in November 2025 are phasing in over eighteen months <span class="tier supervisor">Supervisor · DPDP</span> <a class="src" href="#src-S42">S42</a>.</p>
+    </div>
+    <div class="card audience">
+      <p class="card-kicker">Product, operations &amp; customer</p>
+      <h4>Own the value definition and the friction</h4>
+      <p><strong>Decision:</strong> use-case value, workflow friction, reviewer yield, role comprehension, trust-center accuracy, design-partner proof, pricing hypotheses, adoption counter-metrics. <strong>Evidence:</strong> outcome contracts, baselines and post-hoc attestations (L8-20). <strong>Metric owned:</strong> #11 approval latency with approval-quality counters, and Plane H #59 oversight yield. <a class="src" href="#src-S61">S61</a></p>
+    </div>
+  </div>
+
+  <aside class="callout rule">
+    <p class="callout-kicker">Critical honesty rule</p>
+    <p>The authority spine exists; the enterprise operating layer is the gap. The repository shows meaningful implementation proof around single-machine warrant lifecycle, staging, review, evidence, supervision, protocol surfaces and a broad integration estate, plus frozen-candidate contracts for the trusted core. <strong>The safest interpretation of all of it is capability evidence, not blanket production readiness</strong> — a frozen candidate is not an interoperable standard, a wired integration is not full behavioral coverage, and a design file is not proof that every consequence path is mediated in a deployable topology. <span class="tier internal">Internal</span> <a class="src" href="#src-S61">S61</a> <a class="src" href="#src-S60">S60</a> It follows that no future console, report, score, sales page or compliance pack may collapse <em>observed</em>, <em>advisory</em>, <em>mediated</em> and <em>enforced</em> into one green status. The platform's commercial trust depends on preserving those distinctions precisely when doing so reduces the apparent score — which is also the only version of the value model in this part that survives contact with a supervisor.</p>
+  </aside>
+
+  <aside class="callout caution">
+    <p class="callout-kicker">What the record does not establish</p>
+    <p>Nothing here establishes a growth rate, a revenue figure or an adoption forecast. One loop of ten has been observed to turn, in an internal pipeline, on internal data, unreplicated. The other nine are stated with the test that would show them turning, and none of those tests has been run. The eight outcomes are investment units with named counter-metrics, not measured results, and every baseline they would be judged against has to be agreed by the customer before the work starts. <span class="tier internal">Internal</span> <a class="src" href="#src-S62">S62</a> <a class="src" href="#src-S61">S61</a></p>
+  </aside>
+</section>
