@@ -114,9 +114,16 @@ def load_tasks() -> list[Task]:
         body = text[m.end(): matches[i + 1].start() if i + 1 < len(matches) else len(text)]
         phase = task_id.split(".")[0]
 
-        branch = convention.format(id=task_id)
-        exists = branch in all_branches
-        merged = branch in merged_into_main and exists
+        # Match any branch carrying this task id as a segment, because the plan's own
+        # steps use `feat/task-0.1-reputation-workspace` while other lanes may use a
+        # bare `impl/task-0.1`. Matching a single literal would have reported every
+        # task as unstarted forever, which is the failure this whole board exists to
+        # prevent, so the match is deliberately loose and the convention advisory.
+        pattern = re.compile(rf"(?:^|/)task-{re.escape(task_id)}(?:-|$)")
+        found = sorted(b for b in all_branches if pattern.search(b))
+        branch = found[0] if found else convention.format(id=task_id)
+        exists = bool(found)
+        merged = exists and any(pattern.search(b) for b in merged_into_main)
         sha = git("rev-parse", "--short", branch) if exists else ""
 
         # A task is blocked by an explicit gate, or by its phase's predecessors.

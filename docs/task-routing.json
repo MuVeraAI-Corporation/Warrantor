@@ -13,7 +13,8 @@
     "  human          requires hardware, a credential, or a machine nobody has run"
   ],
 
-  "branch_convention": "impl/task-{id}",
+  "branch_convention": "feat/task-{id}",
+  "branch_convention_note": "Advisory only. The tracker matches any branch containing task-{id} as a segment, so feat/task-0.1-reputation-workspace, impl/task-0.1 and fix/task-0.1-x all resolve to the same task. The plan is authoritative on the exact name.",
   "evidence_dir": "docs/task-evidence",
 
   "gates": {

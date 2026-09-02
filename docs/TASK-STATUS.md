@@ -19,42 +19,42 @@
 
 | Task | Ph | Owner | State | Steps | Branch | SHA | Blocked by |
 |---|---|---|---|---|---|---|---|
-| **0.1** Put `rust/reputation` under the workspace | 0 | `glm-5.3-flash` | READY | 9 | `impl/task-0.1` | — | — |
-| **0.2** Windows CI runner for the platform-conditional paths | 0 | `glm-5.3-flash` | READY | 10 | `impl/task-0.2` | — | — |
-| **0.3** Orphan census as a ratcheting CI number (seed of ... | 0 | `glm-5.3-flash` | READY | 9 | `impl/task-0.3` | — | — |
-| **0.4** Tier disclosure lint across report, status and co... | 0 | `glm-5.3-flash` | READY | 10 | `impl/task-0.4` | — | — |
-| **0.5** Invariant ledger I-01…I-12 with honest status | 0 | `glm-5.3-flash` | READY | 7 | `impl/task-0.5` | — | — |
-| **1.1** Evidence and notary into the report path (keyston... | 1 | `opus` | BLOCKED | 11 | `impl/task-1.1` | — | phase 0 |
-| **1.2** The egress broker into the `--egress` flag, with ... | 1 | `glm-5.3-flash` | BLOCKED | 13 | `impl/task-1.2` | — | phase 0 |
-| **1.3** Containment and the kill switch into the `stop` v... | 1 | `glm-5.3-flash` | BLOCKED | 12 | `impl/task-1.3` | — | phase 0 |
-| **1.4** Spend into the budget path, last (L3-03; label pr... | 1 | `glm-5.3-flash` | BLOCKED | 9 | `impl/task-1.4` | — | phase 0 |
-| **1.5** One delegation algebra: evidence delegates to del... | 1 | `opus` | BLOCKED | 14 | `impl/task-1.5` | — | phase 0 |
-| **1.6** Trust directory bundle export/import and second-m... | 1 | `glm-5.3-flash` | BLOCKED | 7 | `impl/task-1.6` | — | phase 0 |
-| **2.1** Effect decomposition registry with strict-mode re... | 2 | `opus` | BLOCKED | 14 | `impl/task-2.1` | — | phase 1 |
-| **2.2** Signed tool and skill admission manifests (L4-09) | 2 | `glm-5.3-flash` | BLOCKED | 9 | `impl/task-2.2` | — | phase 1 |
-| **2.3** Two-phase staged effects for every syscall with i... | 2 | `glm-5.3-flash` | BLOCKED | 13 | `impl/task-2.3` | — | phase 1 |
-| **2.4** EXEC admission by content digest and declared exe... | 2 | `glm-5.3-flash` | BLOCKED | 15 | `impl/task-2.4` | — | phase 1 |
-| **2.5** Generic HTTP adapter over the destination catalog... | 2 | `glm-5.3-flash` | BLOCKED | 9 | `impl/task-2.5` | — | phase 1 |
-| **2.6** Provenance labels on tool outputs and peer-propos... | 2 | `glm-5.3-flash` | BLOCKED | 9 | `impl/task-2.6` | — | phase 1 |
-| **3.1** Agent principals at five grains from SPIFFE SVIDs | 3 | `glm-5.3-flash` | BLOCKED | 8 | `impl/task-3.1` | — | phase 2 |
-| **3.2** Hardware-backed custody adapter behind a `Signer`... | 3 | `human` | BLOCKED | 7 | `impl/task-3.2` | — | phase 2 |
-| **3.3** Operator device-key binding in settle records | 3 | `glm-5.3-flash` | BLOCKED | 6 | `impl/task-3.3` | — | phase 2 |
-| **3.4** Broker-side flight recorder behind a `Recorder` t... | 3 | `glm-5.3-flash` | BLOCKED | 7 | `impl/task-3.4` | — | phase 2 |
-| **3.5** Machine-speed response policy — `warrantor.respon... | 3 | `glm-5.3-flash` | BLOCKED | 8 | `impl/task-3.5` | — | phase 2 |
-| **3.6** Improvised-channel detection and the shared-surfa... | 3 | `glm-5.3-flash` | BLOCKED | 8 | `impl/task-3.6` | — | phase 2 |
-| **3.7** Generalize warrant-lifecycle self-protection | 3 | `glm-5.3-flash` | BLOCKED | 6 | `impl/task-3.7` | — | phase 2 |
-| **5.1** Invariant attack corpus in CI | 5 | `glm-5.3-flash` | BLOCKED | 7 | `impl/task-5.1` | — | phase 3 |
-| **5.2** Egress-closure prover — `warrantor prove-egress` | 5 | `glm-5.3-flash` | BLOCKED | 7 | `impl/task-5.2` | — | phase 3 |
-| **5.3** Evidence-integrity adversary | 5 | `opus` | BLOCKED | 7 | `impl/task-5.3` | — | phase 3 |
-| **5.4** Common-mode independence analysis for double netw... | 5 | `opus` | BLOCKED | 6 | `impl/task-5.4` | — | phase 3 |
-| **5.5** Per-tenant cache/registry isolation and metadata ... | 5 | `glm-5.3-flash` | BLOCKED | 6 | `impl/task-5.5` | — | phase 3 |
-| **5.6** Write-bound promotion, per kernel, only where ref... | 5 | `glm-5.3-flash` | BLOCKED | 6 | `impl/task-5.6` | — | phase 3 |
-| **6.1** Warrant templates and a policy-compiler surface | 6 | `glm-5.3-flash` | BLOCKED | 5 | `impl/task-6.1` | — | phase 4, phase 5 |
-| **6.2** Swarm detection on the receipt graph | 6 | `glm-5.3-flash` | BLOCKED | 8 | `impl/task-6.2` | — | phase 4, phase 5 |
-| **6.3** Incident replay engine | 6 | `glm-5.3-flash` | BLOCKED | 7 | `impl/task-6.3` | — | phase 4, phase 5 |
-| **6.4** Measurement-configuration binding as a CI gate | 6 | `glm-5.3-flash` | BLOCKED | 5 | `impl/task-6.4` | — | phase 4, phase 5 |
-| **6.5** Cross-organization verification seed | 6 | `glm-5.3-flash` | BLOCKED | 6 | `impl/task-6.5` | — | phase 4, phase 5 |
-| **6.6** Open specification and reference implementation p... | 6 | `glm-5.3-flash` | BLOCKED | 6 | `impl/task-6.6` | — | phase 4, phase 5 |
+| **0.1** Put `rust/reputation` under the workspace | 0 | `glm-5.3-flash` | READY | 9 | `feat/task-0.1` | — | — |
+| **0.2** Windows CI runner for the platform-conditional paths | 0 | `glm-5.3-flash` | READY | 10 | `feat/task-0.2` | — | — |
+| **0.3** Orphan census as a ratcheting CI number (seed of ... | 0 | `glm-5.3-flash` | READY | 9 | `feat/task-0.3` | — | — |
+| **0.4** Tier disclosure lint across report, status and co... | 0 | `glm-5.3-flash` | READY | 10 | `feat/task-0.4` | — | — |
+| **0.5** Invariant ledger I-01…I-12 with honest status | 0 | `glm-5.3-flash` | READY | 7 | `feat/task-0.5` | — | — |
+| **1.1** Evidence and notary into the report path (keyston... | 1 | `opus` | BLOCKED | 11 | `feat/task-1.1` | — | phase 0 |
+| **1.2** The egress broker into the `--egress` flag, with ... | 1 | `glm-5.3-flash` | BLOCKED | 13 | `feat/task-1.2` | — | phase 0 |
+| **1.3** Containment and the kill switch into the `stop` v... | 1 | `glm-5.3-flash` | BLOCKED | 12 | `feat/task-1.3` | — | phase 0 |
+| **1.4** Spend into the budget path, last (L3-03; label pr... | 1 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-1.4` | — | phase 0 |
+| **1.5** One delegation algebra: evidence delegates to del... | 1 | `opus` | BLOCKED | 14 | `feat/task-1.5` | — | phase 0 |
+| **1.6** Trust directory bundle export/import and second-m... | 1 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-1.6` | — | phase 0 |
+| **2.1** Effect decomposition registry with strict-mode re... | 2 | `opus` | BLOCKED | 14 | `feat/task-2.1` | — | phase 1 |
+| **2.2** Signed tool and skill admission manifests (L4-09) | 2 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-2.2` | — | phase 1 |
+| **2.3** Two-phase staged effects for every syscall with i... | 2 | `glm-5.3-flash` | BLOCKED | 13 | `feat/task-2.3` | — | phase 1 |
+| **2.4** EXEC admission by content digest and declared exe... | 2 | `glm-5.3-flash` | BLOCKED | 15 | `feat/task-2.4` | — | phase 1 |
+| **2.5** Generic HTTP adapter over the destination catalog... | 2 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-2.5` | — | phase 1 |
+| **2.6** Provenance labels on tool outputs and peer-propos... | 2 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-2.6` | — | phase 1 |
+| **3.1** Agent principals at five grains from SPIFFE SVIDs | 3 | `glm-5.3-flash` | BLOCKED | 8 | `feat/task-3.1` | — | phase 2 |
+| **3.2** Hardware-backed custody adapter behind a `Signer`... | 3 | `human` | BLOCKED | 7 | `feat/task-3.2` | — | phase 2 |
+| **3.3** Operator device-key binding in settle records | 3 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-3.3` | — | phase 2 |
+| **3.4** Broker-side flight recorder behind a `Recorder` t... | 3 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-3.4` | — | phase 2 |
+| **3.5** Machine-speed response policy — `warrantor.respon... | 3 | `glm-5.3-flash` | BLOCKED | 8 | `feat/task-3.5` | — | phase 2 |
+| **3.6** Improvised-channel detection and the shared-surfa... | 3 | `glm-5.3-flash` | BLOCKED | 8 | `feat/task-3.6` | — | phase 2 |
+| **3.7** Generalize warrant-lifecycle self-protection | 3 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-3.7` | — | phase 2 |
+| **5.1** Invariant attack corpus in CI | 5 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-5.1` | — | phase 3 |
+| **5.2** Egress-closure prover — `warrantor prove-egress` | 5 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-5.2` | — | phase 3 |
+| **5.3** Evidence-integrity adversary | 5 | `opus` | BLOCKED | 7 | `feat/task-5.3` | — | phase 3 |
+| **5.4** Common-mode independence analysis for double netw... | 5 | `opus` | BLOCKED | 6 | `feat/task-5.4` | — | phase 3 |
+| **5.5** Per-tenant cache/registry isolation and metadata ... | 5 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-5.5` | — | phase 3 |
+| **5.6** Write-bound promotion, per kernel, only where ref... | 5 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-5.6` | — | phase 3 |
+| **6.1** Warrant templates and a policy-compiler surface | 6 | `glm-5.3-flash` | BLOCKED | 5 | `feat/task-6.1` | — | phase 4, phase 5 |
+| **6.2** Swarm detection on the receipt graph | 6 | `glm-5.3-flash` | BLOCKED | 8 | `feat/task-6.2` | — | phase 4, phase 5 |
+| **6.3** Incident replay engine | 6 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-6.3` | — | phase 4, phase 5 |
+| **6.4** Measurement-configuration binding as a CI gate | 6 | `glm-5.3-flash` | BLOCKED | 5 | `feat/task-6.4` | — | phase 4, phase 5 |
+| **6.5** Cross-organization verification seed | 6 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-6.5` | — | phase 4, phase 5 |
+| **6.6** Open specification and reference implementation p... | 6 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-6.6` | — | phase 4, phase 5 |
 
 ## Runnable right now
 
