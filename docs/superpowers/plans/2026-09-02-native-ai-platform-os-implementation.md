@@ -17076,9 +17076,7 @@ assertion in prose.
 
 **Task 4.2** Notification fabric decision + push/email transports fronted by the existing webhook (notify.rs; tap-to-approve < 30 s). 
 
-**Task 4.3** Coverage disclosure surface in console and desktop (
-
-**Task 0.4** rendering everywhere; user-study checklist). 
+**Task 4.3** Coverage disclosure surface in console and desktop (L8-13; Task 0.4's tier rendering carried everywhere the console and desktop show a guarantee; user-study checklist). **This is the only Phase 4 task that collides with Task 0.4 — it must land after it.**
 
 **Task 4.4** Action-path coverage map computed from receipts × harness `Coverage` registry (`warrantor coverage` → `warrantor.coverage-map/1`). 
 

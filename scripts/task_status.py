@@ -250,6 +250,22 @@ def main() -> int:
                 print(f"{t.task_id:5s} {t.owner:16s} {t.title}")
         return 0
 
+    # Routing may name tasks the plan has not defined as headings yet — Phase 4 is
+    # still bullet stubs, so the board cannot see it. Say so loudly rather than
+    # silently gating on tasks that do not exist.
+    known = {t.task_id for t in tasks}
+    routing_cfg = json.loads(ROUTING.read_text(encoding="utf-8")) if ROUTING.exists() else {}
+    declared = set(routing_cfg.get("routing", {}))
+    for gate in routing_cfg.get("gates", {}).values():
+        declared.update(gate.get("blocks", []))
+    undefined = sorted(declared - known, key=lambda x: [int(p) for p in x.split(".")])
+    if undefined:
+        phases = sorted({t.split(".")[0] for t in undefined})
+        print(f"NOTE: routing names {len(undefined)} task(s) the plan has not defined as "
+              f"`### Task` headings: {', '.join(undefined)} (phase {', '.join(phases)} "
+              f"is still stubs — expand it before those tasks can be tracked or run).",
+              file=sys.stderr)
+
     if args.check:
         current = BOARD.read_text(encoding="utf-8") if BOARD.exists() else ""
         if current != board:
