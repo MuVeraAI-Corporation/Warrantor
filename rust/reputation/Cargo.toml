@@ -1,0 +1,17 @@
+[package]
+name = "warrantor-reputation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "H-4 / catalogue Domain H — agent reputation computed from signed events alone: time-decayed, clamped aggregation of weighted attestations/violations/disputes into a score and trust tier, with no trust placed in the agent itself — the computation the identity graph (H-1) deliberately defers ('it links the events; H-4 scores them'), so a stranger can derive an agent's standing from the receipt record rather than from Warrantor's opinion"
+
+[lib]
+name = "warrantor_reputation"
+path = "src/lib.rs"
+
+[dependencies]
+hex = "0.4"
+serde.workspace = true
+serde_json = "1"
+sha2 = "0.11"
