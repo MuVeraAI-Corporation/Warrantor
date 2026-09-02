@@ -68,6 +68,7 @@
           <button id="view-warrants" class="view is-on" type="button">Warrants</button>
           <button id="view-queue" class="view" type="button">Waiting on you</button>
           <button id="view-summary" class="view" type="button">Refusals &amp; guard</button>
+          <button id="view-settings" class="view" type="button">Notifications</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -157,6 +158,69 @@
           This list is derived from store state, the approval policy and each warrant&rsquo;s actor
           log. None of those is signed. An entry says a decision is owed &mdash; never that the
           evidence checks out. Check that with <code>warrantor verify</code>.
+        </p>
+      </section>
+
+      <!-- The notification fabric (L8-11). A SIBLING of #queue, #summary, and #detail, so
+           exactly one right-hand pane is in the grid cell at a time. The pane renders from
+           `/v1/notify`, which the Rust side will add as an additive GET; until then it renders
+           from `notify.fixtures.js` and the headline flags the surface as a fixture.
+
+           Order of blocks is part of the contract: the decision sentence, then the per-transport
+           table, then the configured order, then the delivery ledger, then the pending count.
+           Reading top-to-bottom should walk the reader from "what the fabric decided" to "what
+           it has not yet delivered". A reader who scans the bottom first should be able to find
+           the unrecoverable facts (the pending count, the failed reasons) without scrolling back
+           to a sentence the pane does not contain. -->
+      <section id="settings" class="settings" hidden>
+        <h2 id="settings-headline">What leaves this machine, and where it goes</h2>
+        <p id="settings-decision" class="note"></p>
+        <p id="settings-error" class="empty error" hidden>
+          This view could not be read: the server did not answer, refused, or replied with
+          something this console could not parse. That is not the same as there being no
+          notification config on this machine.
+        </p>
+        <p id="settings-empty" class="empty" hidden>
+          No notification config is on this machine. The fabric will not send anything until a
+          <code>notify.json</code> is written.
+        </p>
+        <p id="settings-unreadable" class="note error" hidden></p>
+
+        <div class="section">
+          <h3>Transports &mdash; what each one guarantees</h3>
+          <p class="note">
+            A transport's guarantee sentence is rendered verbatim from the server. The console adds
+            nothing to it. A row with no guarantee sentence says &ldquo;not stated&rdquo; rather
+            than guessing from the transport's name.
+          </p>
+          <ul id="settings-transports" class="rows"></ul>
+        </div>
+
+        <div class="section">
+          <h3>Order &mdash; the fabric tries them in this sequence</h3>
+          <p id="settings-order" class="rows"></p>
+        </div>
+
+        <div class="section">
+          <h3>Delivery ledger &mdash; every notification, including the ones that did not arrive</h3>
+          <p class="note">
+            A fabric that recorded only successful deliveries would be a fabric whose failure
+            count the operator could not trust. The ledger is the visibility the exit gate asks
+            for: every event that left this machine is here, with the transport that took it,
+            the latency, and the reason when the transport did not deliver.
+          </p>
+          <ul id="settings-ledger" class="rows"></ul>
+        </div>
+
+        <div class="section">
+          <h3>Pending &mdash; what is queued for the next drain</h3>
+          <p id="settings-pending" class="rows"></p>
+        </div>
+
+        <p class="note">
+          A failed transport is logged and the next transport in the order is tried. The approver
+          pool never widens. The webhook is the durable underlying transport and is always tried
+          last; it does not replace the first-class transports, it backs them up.
         </p>
       </section>
 
