@@ -1,0 +1,240 @@
+[
+ {
+  "tag": "P1",
+  "file": "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\content-program\\published-2026-09-01\\P1\\P1-named.pdf",
+  "exists": true,
+  "metadata": {
+   "title": "How Reproducible Is a Guard Evaluation? A Measured Floor, and Where It Isn't Small",
+   "upload_type": "publication",
+   "publication_type": "preprint",
+   "description": "How reproducible is a guard evaluation? Same guard, same corpus, same seed, eighteen times. The floor is 0.09% mean pairwise disagreement, which refutes the hypothesis that motivated the experiment: effects routinely published as findings sit 4-12x above it and survive. Also refutes the standard folk explanation for guard nondeterminism. Pre-registered; two of three hypotheses refuted, including the one that motivated the paper.",
+   "creators": [
+    {
+     "name": "Jha, Vikram",
+     "affiliation": "MuVeraAI",
+     "orcid": "0009-0004-3959-6099"
+    }
+   ],
+   "keywords": [
+    "guard models",
+    "reproducibility",
+    "AI safety",
+    "evaluation",
+    "determinism",
+    "pre-registration"
+   ],
+   "license": "cc-by-4.0",
+   "access_right": "open",
+   "related_identifiers": [
+    {
+     "identifier": "https://github.com/MuVeraAI-Corporation/Warrantor",
+     "relation": "isSupplementedBy",
+     "resource_type": "software"
+    },
+    {
+     "identifier": "https://huggingface.co/datasets/MuVeraAI/guard-verdicts",
+     "relation": "isSupplementedBy",
+     "resource_type": "dataset"
+    }
+   ]
+  }
+ },
+ {
+  "tag": "P8",
+  "file": "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\content-program\\published-2026-09-01\\P8\\P8-named.pdf",
+  "exists": true,
+  "metadata": {
+   "title": "One Ladder, Opposite Directions",
+   "upload_type": "publication",
+   "publication_type": "preprint",
+   "description": "Directional churn in quantized guard classifiers. A net rate delta is the residue after opposing per-item changes cancel. Applies a paired equivalence standard to a dedicated guard classifier, whose verdict is the measurement rather than something a judge infers, and whose two error directions are not interchangeable.",
+   "creators": [
+    {
+     "name": "Jha, Vikram",
+     "affiliation": "MuVeraAI",
+     "orcid": "0009-0004-3959-6099"
+    }
+   ],
+   "keywords": [
+    "quantization",
+    "guard models",
+    "equivalence testing",
+    "TOST",
+    "AI safety",
+    "McNemar"
+   ],
+   "license": "cc-by-4.0",
+   "access_right": "open",
+   "related_identifiers": [
+    {
+     "identifier": "https://github.com/MuVeraAI-Corporation/Warrantor",
+     "relation": "isSupplementedBy",
+     "resource_type": "software"
+    },
+    {
+     "identifier": "https://huggingface.co/datasets/MuVeraAI/guard-verdicts",
+     "relation": "isSupplementedBy",
+     "resource_type": "dataset"
+    }
+   ]
+  }
+ },
+ {
+  "tag": "T04",
+  "file": "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\content-program\\published-2026-09-01\\T04\\T04-named.pdf",
+  "exists": true,
+  "metadata": {
+   "title": "Masking a Field's Loss Does Not Isolate That Field",
+   "upload_type": "publication",
+   "publication_type": "preprint",
+   "description": "Masking a field's loss does not isolate that field. Five LoRA runs on a 0.6B guard model. Runs 1-2 show a masked output field moving anyway. Runs 3-5 add a three-arm target-module ablation: attention-only and MLP-only are disjoint and each independently destroys the model's third severity class, so retargeting the adapter is not available as a repair. A documented operator control becomes a silent no-op.",
+   "creators": [
+    {
+     "name": "Jha, Vikram",
+     "affiliation": "MuVeraAI",
+     "orcid": "0009-0004-3959-6099"
+    }
+   ],
+   "keywords": [
+    "LoRA",
+    "fine-tuning",
+    "guard models",
+    "negative result",
+    "AI safety",
+    "ablation"
+   ],
+   "license": "cc-by-4.0",
+   "access_right": "open",
+   "related_identifiers": [
+    {
+     "identifier": "https://github.com/MuVeraAI-Corporation/Warrantor",
+     "relation": "isSupplementedBy",
+     "resource_type": "software"
+    },
+    {
+     "identifier": "https://huggingface.co/datasets/MuVeraAI/guard-verdicts",
+     "relation": "isSupplementedBy",
+     "resource_type": "dataset"
+    }
+   ]
+  }
+ },
+ {
+  "tag": "T12",
+  "file": "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\content-program\\published-2026-09-01\\T12\\T12-named.pdf",
+  "exists": true,
+  "metadata": {
+   "title": "SoK: Acceptance Is Not Action",
+   "upload_type": "publication",
+   "publication_type": "preprint",
+   "description": "A systematization of agent containment: where authority and containment actually bind. Three orthogonal partitioning axes rather than topical categories, a weakest-link tier rule applied to a screened corpus, and a frozen action-surface enumeration. 48 of 49 screened works are unreviewed preprints, which conditions every claim of provable or kernel-level enforcement in the literature.",
+   "creators": [
+    {
+     "name": "Jha, Vikram",
+     "affiliation": "MuVeraAI",
+     "orcid": "0009-0004-3959-6099"
+    }
+   ],
+   "keywords": [
+    "systematization",
+    "SoK",
+    "AI agents",
+    "containment",
+    "authorization",
+    "security"
+   ],
+   "license": "cc-by-4.0",
+   "access_right": "open",
+   "related_identifiers": [
+    {
+     "identifier": "https://github.com/MuVeraAI-Corporation/Warrantor",
+     "relation": "isSupplementedBy",
+     "resource_type": "software"
+    },
+    {
+     "identifier": "https://huggingface.co/datasets/MuVeraAI/guard-verdicts",
+     "relation": "isSupplementedBy",
+     "resource_type": "dataset"
+    }
+   ]
+  }
+ },
+ {
+  "tag": "P3",
+  "file": "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\content-program\\published-2026-09-01\\P3\\P3-named.pdf",
+  "exists": true,
+  "metadata": {
+   "title": "Positional Guard Evasion at Short Context: A Replication Note",
+   "upload_type": "publication",
+   "publication_type": "preprint",
+   "description": "Positional guard evasion at short context: a replication note. The positional effect reproduces on two models a concurrent and larger study did not test. Draft 1's claim to have refuted length dilution is retracted, and the retraction is then tested rather than conceded, over the full 0-32k range at both scales.",
+   "creators": [
+    {
+     "name": "Jha, Vikram",
+     "affiliation": "MuVeraAI",
+     "orcid": "0009-0004-3959-6099"
+    }
+   ],
+   "keywords": [
+    "guard models",
+    "evasion",
+    "long context",
+    "replication",
+    "AI safety"
+   ],
+   "license": "cc-by-4.0",
+   "access_right": "open",
+   "related_identifiers": [
+    {
+     "identifier": "https://github.com/MuVeraAI-Corporation/Warrantor",
+     "relation": "isSupplementedBy",
+     "resource_type": "software"
+    },
+    {
+     "identifier": "https://huggingface.co/datasets/MuVeraAI/guard-verdicts",
+     "relation": "isSupplementedBy",
+     "resource_type": "dataset"
+    }
+   ]
+  }
+ },
+ {
+  "tag": "P6",
+  "file": "M:\\Project AumOS - Open Secure AI Alliance\\aumos\\docs\\content-program\\published-2026-09-01\\P6\\P6-named.pdf",
+  "exists": true,
+  "metadata": {
+   "title": "Shared Lineage, Not Shared Category, Makes Guards Fail Together",
+   "upload_type": "publication",
+   "publication_type": "preprint",
+   "description": "Shared lineage, not shared category, makes guards fail together. A replication and extension of concurrent work on layered defenses, running the difficulty stratification its authors nominated as the most valuable extension: 899 unsafe items across 150 payload clusters against six guards sharing no substrate, roughly nine times the original behaviour count.",
+   "creators": [
+    {
+     "name": "Jha, Vikram",
+     "affiliation": "MuVeraAI",
+     "orcid": "0009-0004-3959-6099"
+    }
+   ],
+   "keywords": [
+    "defense in depth",
+    "guard models",
+    "failure independence",
+    "replication",
+    "AI safety"
+   ],
+   "license": "cc-by-4.0",
+   "access_right": "open",
+   "related_identifiers": [
+    {
+     "identifier": "https://github.com/MuVeraAI-Corporation/Warrantor",
+     "relation": "isSupplementedBy",
+     "resource_type": "software"
+    },
+    {
+     "identifier": "https://huggingface.co/datasets/MuVeraAI/guard-verdicts",
+     "relation": "isSupplementedBy",
+     "resource_type": "dataset"
+    }
+   ]
+  }
+ }
+]
