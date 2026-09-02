@@ -3,8 +3,8 @@
 Owns all UI/UX. Builds against contract fixtures so the lane runs parallel to the
 Rust work rather than waiting on it.
 
-**Blocked until Task 0.4 lands.** Verify with `python scripts/task_status.py --next`
-before starting — do not assume.
+**Phase 4 is expanded. Four of five tasks are READY now; only Task 4.3 waits on Task 0.4.**
+Verify with `python scripts/task_status.py --next` before starting — do not assume.
 
 ---
 
@@ -23,9 +23,9 @@ REPOSITORY
 TASK 4.3 ONLY — DO NOT START IT UNTIL TASK 0.4 SHOWS DONE
   Verify, do not assume:
       python scripts/task_status.py --next
-  If 4.3 still reads BLOCKED, 0.4 has not landed. The other four are not gated. Task 0.4 lints tier disclosure
-  across report, status and console; you own the console coverage surface for the
-  same catalog item (L8-13). Starting early collides on the same files.
+  If 4.3 still reads BLOCKED, 0.4 has not landed. The other four are not gated.
+  Task 0.4 lints tier disclosure across report, status and console; 4.3 carries that
+  rendering into the same console files, which is the whole reason it waits.
 
 READ FIRST
   1. The plan's "## Global Constraints" section, in full.
@@ -117,7 +117,8 @@ DEFINITION OF DONE
   1. Each surface renders from fixtures with no backend running.
   2. A non-developer completes the approval workflow end to end without a terminal.
   3. Every guarantee rendered anywhere also renders its coverage limits and its tier.
-  4. Language gate passes. Type check passes. Tests pass. Accessibility checks pass.
+  4. Language gate passes. Tests pass. Accessibility checks pass. (No type check:
+     this is vanilla JavaScript, not TypeScript.)
   5. docs/task-evidence/task-4.N.md written.
   6. Committed on the task branch, signed off, NOT merged.
 
@@ -131,7 +132,9 @@ OUTPUT
   - Do not merge. A human reviews before merge.
 
 STOP CONDITIONS — halt immediately and report
-  - Task 0.4 has not landed.
+  - You are on Task 4.3 and Task 0.4 has not landed.
+  - A task appears to require TypeScript, a framework, a bundler or a new runtime
+    dependency. That is a migration decision the plan does not make.
   - A contract field you need does not exist.
   - You would need to weaken the enforcement-mode distinction to make a design work.
   - Files change under you mid-task.
