@@ -5,11 +5,15 @@
 **Goal:** a single list of every line a human has to touch during the merge, and the
 recommended resolution for each. So the merge is a checklist, not a rebase.
 
+This file is committed on each of the four Phase-4 branches so it is visible from
+any review path. The canonical version lives on `feat/task-4.5-routing-receipts`
+at `259b1a8`; the copies here are byte-identical except for the commit footer.
+
 ## The four branches
 
 | Branch | Commit | Worktree | Pane added | `4` key maps to |
 |---|---|---|---|---|
-| `feat/task-4.1-buyers-surface` | `049be88` | `M:/wt-phase4` | `queue` (L8-01) | `queue` |
+| `feat/task-4.1-buyers-surface` | `049be88` | `M:/wt-phase4` | `queue` (L8-01) | `queue` (on key `2`) |
 | `feat/task-4.2-notify-fabric` | `ec51ae7` | `M:/wt-phase4-2` | `settings` (L8-11) | `settings` |
 | `feat/task-4.4-coverage-map` | `01f7505` | `M:/wt-phase4-4` | `coverage` (L8-22) | `coverage` |
 | `feat/task-4.5-routing-receipts` | `f93cb3d` | `M:/wt-phase4-5` | `routing` (L9-14) | `routing` |
@@ -19,19 +23,20 @@ since that base, verified 2026-09-02 12:22 PDT.
 
 ## The load-bearing problem
 
-Every Phase-4 branch added a new destination. The mechanism is the same in every branch:
-a `<button id="view-*">` in `index.html`, an `el.view*` lookup in `console.js`, a
-`[el.view*, '*']` row in the `setView` toggle loop, an `if (value === '*') await load*()`
-line in `setView`, a `case '4':` keyboard handler, and a `SHORTCUTS` sheet row that
-extends the key list from `1 / 2 / 3` to `1 / 2 / 3 / 4`. **The keyboard rebinding is
-the part that conflicts**, because the source can carry only one `case '4':` clause.
+Every Phase-4 branch added a new destination. The mechanism is the same in every
+branch: a `<button id="view-*">` in `index.html`, an `el.view*` lookup in
+`console.js`, a `[el.view*, '*']` row in the `setView` toggle loop, an
+`if (value === '*') await load*()` line in `setView`, a `case '4':` keyboard
+handler, and a `SHORTCUTS` sheet row that extends the key list from `1 / 2 / 3`
+to `1 / 2 / 3 / 4`. **The keyboard rebinding is the part that conflicts**, because
+the source can carry only one `case '4':` clause.
 
 4.1 used the `2` key for `queue` (it had no `4` conflict). 4.2, 4.4, and 4.5 all
-rebinding `4` to a different destination is the problem: the file ends up with one
-`case '4':` clause whichever branch is merged last, and the other two destinations
-lose their key. The pane stays in the DOM (the merge keeps the lookup, the toggle
-row, and the click wiring), but the keyboard is silently broken for whichever pane
-was overwritten.
+rebinding `4` to a different destination is the problem: the file ends up with
+one `case '4':` clause whichever branch is merged last, and the other two
+destinations lose their key. The pane stays in the DOM (the merge keeps the
+lookup, the toggle row, and the click wiring), but the keyboard is silently
+broken for whichever pane was overwritten.
 
 ## Merge order and the conflict shape
 
@@ -57,8 +62,8 @@ human will see:
 | 6 | Section banner, after the queue section | the notification-fabric section banner | the coverage-map section banner | the routing-ledger section banner | keep **all three** sections; insert them in the same order as their panes appear in the toggle |
 | 7 | `SHORTCUTS` array, row for the digit keys | `['1 / 2 / 3 / 4', '... / Notifications']` | `['1 / 2 / 3 / 4', '... / Coverage map']` | `['1 / 2 / 3 / 4', '... / Routing']` | **resolve to `1 / 2 / 3 / 4 / 5`** and the post-merge keyboard rebinding (below) |
 
-The first six are mechanical: keep all of each branch's lines. The seventh is where
-the keyboard story is decided.
+The first six are mechanical: keep all of each branch's lines. The seventh is
+where the keyboard story is decided.
 
 ### Conflicts in `rust/warrant/src/console/console.test.js`
 
@@ -69,15 +74,9 @@ Same shape. The keyboard test currently pins the (key, view) pairs by reading
 [['1', 'warrants'], ['2', 'queue'], ['3', 'summary'], ['4', 'routing']]
 ```
 
-After all four branches merge, this list must extend to:
-
-```js
-[['1', 'warrants'], ['2', 'queue'], ['3', 'summary'], ['4', 'coverage'], ['5', 'settings'], ['5', 'routing']]
-```
-
-— but the keyboard cannot carry two destinations on `5`. See "Resolution: rebind
-the keyboard to 1-5" below. The test must be updated to match whatever
-post-merge resolution the human picks.
+After all four branches merge, this list must extend to match the post-merge
+keyboard layout below. The test must be updated to whatever (key, view) pairs
+the human picks.
 
 ### Conflicts in `rust/warrant/src/console/index.html`
 
@@ -93,8 +92,7 @@ must do the following on the merged file. **None of the four branches makes this
 change** because each branch believed it owned the `4` key:
 
 1. In `rust/warrant/src/console/console.js`, the `setView` toggle loop and the
-   `case '4':` keyboard handler — change `case '4':` to `case '4':` (coverage)
-   `case '5':` (settings) `case '5':` (routing) **to a 1-5 spread**.
+   `case '4':` keyboard handler — extend to a `1-5` spread.
 2. The recommended mapping is:
    - `1` → `warrants` (existing)
    - `2` → `queue` (existing, from 4.1)
@@ -173,10 +171,11 @@ toggle, the click wiring, the keyboard handler, the DOM section).
 
 The alternative to the merge-and-rebind path is to rebase 4.4 and 4.5 onto 4.2
 before merging, so each branch is conflict-free on its own. The human owns the
-rebase (the task spec says "do not merge, a human reviews"). I am not
-rebasinig here because:
+rebase (the task spec says "do not merge, a human reviews"). The author of this
+plan is not rebasing because:
 
-- I do not want to push force-history on branches a human is about to review.
+- Force-pushing history on a branch the human is about to read is a
+  review-blocking action.
 - The conflict surface is small and well-understood, and the merge-and-rebind
   path is the same number of file touches as the rebase path (one rebind edit
   per file, post-merge).
@@ -195,27 +194,26 @@ The rebase path is one fewer post-merge edit if the human is comfortable with
 force-history. The merge path is the same number of file touches with no
 force-history. The plan above documents both; the human picks.
 
-## What I will not do
+## What the human reviewer is not asked to do
 
-- I will not rebase. The task spec is explicit: "A human reviews before merge."
+- Rebase. The task spec is explicit: "A human reviews before merge."
   Force-pushing history on a branch the human is about to read is a
-  human-review-blocking action.
-- I will not run the post-merge rebind on the four branches. Each branch
-  believed it owned the `4` key. The human picks the keyboard layout after
-  the merge.
-- I will not regenerate `docs/TASK-STATUS.md`. The file is script-owned and
+  review-blocking action.
+- Run the post-merge rebind on the four branches. Each branch believed it
+  owned the `4` key. The human picks the keyboard layout after the merge.
+- Regenerate `docs/TASK-STATUS.md`. The file is script-owned and
   `task_status.py --write` regenerates it from the merged branch state. The
-  current staleness is pre-existing and out of scope for 4.5.
+  current staleness is pre-existing and out of scope for the four Phase-4
+  branches.
 
-## What I have done
+## What has been done
 
-- I computed the conflict surface for every pair (4.1 vs 4.2, 4.2 vs 4.4,
+- The conflict surface was computed for every pair (4.1 vs 4.2, 4.2 vs 4.4,
   4.2 vs 4.5, 4.4 vs 4.5) using `git merge-tree` and `git merge-file`. The
   list above is what the human will see at merge time.
-- I wrote this plan to `docs/task-evidence/MERGE-PLAN.md` on the
-  `feat/task-4.5-routing-receipts` branch. The file is added in a follow-up
-  commit (not part of the 4.5 task itself) so the human can read it before
-  deciding the merge order.
-- I confirmed there are no other lanes touching these files. `origin/docs/content-program-p9-fold`
-  has zero new commits since `efd4d33`, and no other branch in the worktree
-  list claims any of the four SHAs.
+- This plan was written to `docs/task-evidence/MERGE-PLAN.md` on each of the
+  four Phase-4 branches as a separate commit, so the human can read it from
+  any branch review path.
+- It was confirmed there are no other lanes touching these files.
+  `origin/docs/content-program-p9-fold` has zero new commits since `efd4d33`,
+  and no other branch in the worktree list claims any of the four SHAs.
