@@ -68,6 +68,7 @@
           <button id="view-warrants" class="view is-on" type="button">Warrants</button>
           <button id="view-queue" class="view" type="button">Waiting on you</button>
           <button id="view-summary" class="view" type="button">Refusals &amp; guard</button>
+          <button id="view-routing" class="view" type="button">Routing</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -259,6 +260,30 @@
                and "nothing ran" were one observation. -->
           <p id="summary-runs" class="note"></p>
         </div>
+      </section>
+
+      <!-- The routing ledger. A SIBLING of the other right-hand panes, never a child, for the
+           same reason loadDetail()'s replaceChildren() would delete a nested panel. Exactly one
+           pane is visible at a time; `applyEmptyState` enforces that.
+
+           Four states — local, escalated, ceiling_refused, unconfigured — and every one is
+           rendered with both a glyph and a prose label, so the color is never the only thing
+           carrying the distinction. A `ceiling_refused` decision is rendered with no receipt and
+           a sentence saying why; a `local` decision is rendered with no separate receipt and a
+           sentence saying why. The four states cannot look the same on this page. -->
+      <section id="routing" class="routing" hidden aria-labelledby="routing-headline">
+        <h2 id="routing-headline">Routing decisions</h2>
+        <p id="routing-policy" class="note"></p>
+        <p id="routing-error" class="empty error" hidden>
+          This routing ledger could not be read. That is not the same as no spend — an unreadable
+          page is a page the operator cannot audit, and the page is shown blank on purpose.
+        </p>
+        <p id="routing-unreadable" class="note error"></p>
+        <div id="routing-ceiling" class="routing-ceiling-block"></div>
+        <ul id="routing-decisions" class="routing-list"></ul>
+        <p id="routing-empty" class="empty" hidden>
+          No routing decisions to show. Backends may be configured; nothing has been routed yet.
+        </p>
       </section>
 
       <!-- The first-run panel.
