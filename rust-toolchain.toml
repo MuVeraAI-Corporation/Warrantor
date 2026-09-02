@@ -1,6 +1,6 @@
 # Pins what CI and contributors actually install.
 #
-# `rust-version = "1.85"` in rust/Cargo.toml declares the floor and cargo enforces it. This file is
+# `rust-version = "1.94"` in rust/Cargo.toml declares the floor and cargo enforces it. This file is
 # the other half: without it CI builds on whatever its image happens to ship, so a toolchain bump
 # in the runner image can break or silently fix the build with no change in this repository.
 #
