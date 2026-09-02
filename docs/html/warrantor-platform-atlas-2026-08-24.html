@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warrantor Platform Atlas — Implementation, Electron Desktop, and In-House Agent Harness (2026-08-24)</title>
+<meta name="description" content="Local Anthropic-style atlas of the live Warrantor/AumOS tree: what is working, what is pending, the Electron desktop (not Tauri), and how the in-house agent harness is built.">
+<style>
+  :root{
+    --bg:#F0EEE6; --panel:#FAF9F5; --panel2:#F5F3EC;
+    --ink:#191919; --ink2:#29261B; --ink3:#4B463C; --ink4:#6E675A;
+    --clay:#C15F3C; --coral:#D97757; --coral-dark:#BD5D3A;
+    --line:#E0DBCE; --line2:#DAD5CB;
+    --green:#2F7A46; --green-bg:#DFEEE2;
+    --amber:#9A6B15; --amber-bg:#F7EDDA;
+    --red:#B33B3B; --red-bg:#F6E3DF;
+    --purple:#6D5A9E; --purple-bg:#EAE4F4;
+    --slate:#44637F; --slate-bg:#E0E9EF;
+    --orange:#B26A00;
+    --serif:'Tiempos Text',Georgia,'Times New Roman',serif;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Consolas,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-padding-top:1.2rem}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 28px 120px}
+  .cover{padding:72px 0 40px;border-bottom:1px solid var(--line2)}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--coral-dark);margin-bottom:18px}
+  h1{font-family:var(--serif);font-weight:600;font-size:42px;line-height:1.14;letter-spacing:-.01em;color:var(--ink);max-width:22ch}
+  .cover-sub{font-family:var(--serif);font-size:18.5px;color:var(--ink3);margin-top:16px;max-width:68ch;line-height:1.55}
+  .meta-strip{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+  .meta-chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 15px;font-size:12.5px;color:var(--ink3)}
+  .meta-chip b{color:var(--ink);font-weight:600}
+  nav.toc{margin:36px 0 8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 30px}
+  nav.toc h2{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink4);margin-bottom:14px;font-family:var(--sans)}
+  nav.toc ol{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:7px 34px;counter-reset:toc}
+  nav.toc a{color:var(--ink2);text-decoration:none;font-size:14px;display:flex;gap:10px;padding:3px 0}
+  nav.toc a:hover{color:var(--coral-dark)}
+  nav.toc li{counter-increment:toc}
+  nav.toc a::before{content:counter(toc,decimal-leading-zero);color:var(--coral);font-weight:700;font-size:11.5px;padding-top:2px}
+  section{padding-top:58px}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:6px}
+  .sec-num{font-family:var(--serif);font-size:15px;color:var(--coral);font-weight:700}
+  h2{font-family:var(--serif);font-weight:600;font-size:30px;letter-spacing:-.01em;line-height:1.2;color:var(--ink)}
+  h3{font-size:17px;font-weight:700;color:var(--ink);margin:30px 0 10px}
+  h4{font-size:14px;font-weight:700;color:var(--ink2);margin:20px 0 8px}
+  p{margin:12px 0;color:var(--ink2)}
+  p.lede{font-family:var(--serif);font-size:17.5px;color:var(--ink3);line-height:1.6;margin:14px 0 8px}
+  ul.plain{margin:10px 0 10px 4px;list-style:none}
+  ul.plain li{padding:5px 0 5px 22px;position:relative;color:var(--ink2)}
+  ul.plain li::before{content:"";position:absolute;left:2px;top:14px;width:7px;height:7px;border-radius:50%;background:var(--coral)}
+  ol.body{margin:10px 0 12px 22px;color:var(--ink2)}
+  ol.body li{margin:4px 0}
+  strong{font-weight:650;color:var(--ink)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:16px 0}
+  .callout{border-left:3px solid var(--coral);background:var(--panel);border-radius:0 12px 12px 0;padding:16px 22px;margin:18px 0}
+  .callout.warn{border-left-color:var(--red)}
+  .callout.good{border-left-color:var(--green)}
+  .callout.amber{border-left-color:var(--amber)}
+  .callout .lbl{font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--coral-dark);display:block;margin-bottom:6px}
+  .callout.warn .lbl{color:var(--red)} .callout.good .lbl{color:var(--green)} .callout.amber .lbl{color:var(--amber)}
+  blockquote{border-left:3px solid var(--coral);padding:4px 0 4px 20px;margin:16px 0;font-family:var(--serif);font-size:16.5px;color:var(--ink2);line-height:1.6}
+  blockquote cite{display:block;margin-top:8px;font-family:var(--sans);font-size:12px;color:var(--ink4);font-style:normal}
+  table{width:100%;border-collapse:collapse;margin:18px 0;background:var(--panel);border-radius:12px;overflow:hidden;border:1px solid var(--line);font-size:13.5px}
+  th{background:var(--panel2);text-align:left;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink4);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line)}
+  td{padding:11px 14px;border-bottom:1px solid #EBE7DC;vertical-align:top;color:var(--ink2)}
+  tr:last-child td{border-bottom:none}
+  td code,li code,p code,h3 code,h4 code{font-family:var(--mono);font-size:.86em;background:#ECE8DD;border-radius:5px;padding:1.5px 6px;color:#3E382E;word-break:break-word}
+  pre{background:#23211C;color:#EDE9DE;border-radius:12px;padding:18px 22px;overflow-x:auto;font-family:var(--mono);font-size:12.8px;line-height:1.6;margin:16px 0}
+  pre code{background:none;padding:0;color:inherit}
+  .b{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;border-radius:999px;padding:3px 10px;white-space:nowrap;vertical-align:middle}
+  .b-working{background:var(--green-bg);color:var(--green)}
+  .b-partial{background:var(--amber-bg);color:var(--amber)}
+  .b-pending{background:var(--red-bg);color:var(--red)}
+  .b-decision{background:var(--purple-bg);color:var(--purple)}
+  .b-procure{background:var(--slate-bg);color:var(--slate)}
+  .b-human{background:#FBEDD9;color:var(--orange)}
+  .b-unfix{background:#EAE7DF;color:#5A564E}
+  .score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:22px 0}
+  .score-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .score-card .lang{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink4)}
+  .score-card .big{font-family:var(--serif);font-size:32px;font-weight:600;color:var(--ink);margin:6px 0 2px}
+  .score-card .sub{font-size:12.5px;color:var(--ink3);line-height:1.5}
+  .item{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:0 0 .8rem;padding:16px 18px}
+  .item h3{margin-top:0}
+  .cite{font-family:var(--mono);font-size:12px;color:var(--ink4);margin-top:8px}
+  footer.doc-footer{margin-top:80px;padding-top:28px;border-top:1px solid var(--line2);font-size:12.5px;color:var(--ink4)}
+  @media(max-width:820px){h1{font-size:32px}nav.toc ol{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="cover">
+  <div class="kicker">Local document artifact · Open Secure AI Alliance · 2026-08-24</div>
+  <h1>Warrantor platform atlas — what works, what is pending, Electron desktop, and the in-house harness</h1>
+  <p class="cover-sub">A source-grounded survey of the live tree. Not a hosted artifact. Not a Tauri migration. Not the Grok Build goal harness. The three jobs are: inventory the platform as it stands, record that the desktop app is already Electron for Windows and macOS, and explain how this project’s own agent harness is built — enforced, mediated, observed, or instruction-to-the-model.</p>
+  <div class="meta-strip">
+    <span class="meta-chip"><b>Analysis date</b>&nbsp;2026-08-24</span>
+    <span class="meta-chip"><b>git HEAD</b>&nbsp;<code>dea7cdd</code></span>
+    <span class="meta-chip"><b>Full</b>&nbsp;<code>dea7cddf15813f056225038e1ecb0d1497d2b857</code></span>
+    <span class="meta-chip"><b>Desktop stack</b>&nbsp;Electron 43.x — no Tauri in tree</span>
+    <span class="meta-chip"><b>Harness</b>&nbsp;36 registry entries in <code>harness.rs</code></span>
+  </div>
+  <nav class="toc" id="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#exec">Executive scorecard</a></li>
+      <li><a href="#method">Method, HEAD, and honesty bar</a></li>
+      <li><a href="#disagreements">Where older documents disagree with the tree</a></li>
+      <li><a href="#observed-enforced">Observed, mediated, enforced</a></li>
+      <li><a href="#measured-tree">Measured tree</a></li>
+      <li><a href="#working">What is working</a></li>
+      <li><a href="#desktop">Electron desktop — Windows and macOS</a></li>
+      <li><a href="#harness">How the in-house agent harness is built</a></li>
+      <li><a href="#analysis-rust">Rust estate</a></li>
+      <li><a href="#analysis-python">Python estate</a></li>
+      <li><a href="#analysis-go">Go estate</a></li>
+      <li><a href="#analysis-typescript">TypeScript estate</a></li>
+      <li><a href="#analysis-ml-guard">ML and guard</a></li>
+      <li><a href="#analysis-specs">Specs, proto, CI, deploy</a></li>
+      <li><a href="#pending">Pending-items register</a></li>
+      <li><a href="#colophon">Colophon</a></li>
+    </ol>
+  </nav>
+</header>
+
+<!-- ================= 01 EXEC ================= -->
+<section id="exec">
+  <div class="sec-head"><span class="sec-num">§ 01</span><h2>Executive scorecard</h2></div>
+  <p class="lede">The single-machine loop — grant a warrant, run a supervised agent in an isolated worktree, watch it from CLI, browser, or the Electron desktop app, export a signed report, settle, void or stop, verify evidence offline — is complete in code and tested. What remains is distribution, multi-machine trust, model-training authorization, sandbox observation close-out, and a short list of engineering items already named in <code>aumos/docs/W1-delivery-gaps.md</code>.</p>
+
+  <div class="callout good">
+    <span class="lbl">Desktop requirement — verified, not a migration</span>
+    The desktop application <strong>is already Electron</strong> for Windows, macOS, and Linux. A case-insensitive sweep of manifests and source finds <strong>no Tauri implementation in tree</strong>: no <code>src-tauri/</code>, no <code>tauri.conf.json</code>, no Tauri dependency. Remaining desktop work is signing, install observation (especially macOS), and the blocked update channel — not a stack change. This atlas does not implement a Tauri port.
+  </div>
+
+  <div class="score-grid">
+    <div class="score-card"><div class="lang">Rust</div><div class="big">38 crates</div><div class="sub">Workspace members in <code>aumos/rust/Cargo.toml</code>. Product spine is <code>warrant</code> + <code>archive</code> plus libraries they call.</div></div>
+    <div class="score-card"><div class="lang">Python</div><div class="big">54 packages</div><div class="sub">Every directory under <code>aumos/python/</code> with <code>pyproject.toml</code>. Product-adjacent: harness, ml, adapters, SDK.</div></div>
+    <div class="score-card"><div class="lang">Go</div><div class="big">12 modules</div><div class="sub">Under <code>aumos/go/</code>. None sits on the single-machine warrant loop a developer runs today.</div></div>
+    <div class="score-card"><div class="lang">TypeScript</div><div class="big">5 packages</div><div class="sub">Zero runtime npm dependencies. Live UI is Rust <code>console/</code>, not <code>@warrantor/console</code>.</div></div>
+    <div class="score-card"><div class="lang">Desktop</div><div class="big">Electron</div><div class="sub">Windows installed and launched. macOS and Linux installers built by CI. Unsigned. No update channel.</div></div>
+    <div class="score-card"><div class="lang">Harness</div><div class="big">36 entries</div><div class="sub">MCP-only / MCP+builtins / process-only. No coding agent may claim McpOnly. Bash is not mediated.</div></div>
+  </div>
+</section>
+
+<!-- ================= 02 METHOD ================= -->
+<section id="method">
+  <div class="sec-head"><span class="sec-num">§ 02</span><h2>Method, HEAD, and honesty bar</h2></div>
+  <p>Written 2026-08-24 against <code>aumos/</code> at <code>HEAD</code> <code>dea7cdd</code> (“fix(kill-switch): the budget was being spent on process spawns, and the test was measuring the machine”). Counts are directory listings and source reads from this session. Test-pass numbers in <code>aumos/HANDOFF-2026-08-17.md</code> (678 Rust, 607 <code>warrantor_ml</code>, 220 conformance) are <strong>not re-run here</strong>.</p>
+  <p>The working tree is dirty relative to HEAD <code>dea7cdd</code>. Closable items marked working in §15 were closed in this working tree and are not yet a commit. This atlas treats that working tree as current for those items. HEAD itself still lacks them. Unclosable items stay open with their owner class.</p>
+  <div class="callout warn">
+    <span class="lbl">tracker.json is stale history</span>
+    <code>aumos/docs/implementation/tracker.json</code> was generated 2026-08-11 against commit <code>e0f9175c</code>, with <code>task_checkboxes_checked: 0</code> of 371. It is not current truth. Using it as the pending list would fail this atlas. Open-item authority is W1 re-read against HEAD, plus HANDOFF, plus the tree.
+  </div>
+  <p>This document does not implement remaining W1 gaps, does not buy certificates, does not train guard models, and does not document the Grok Build / xAI goal harness.</p>
+</section>
+
+<!-- ================= 03 DISAGREEMENTS ================= -->
+<section id="disagreements">
+  <div class="sec-head"><span class="sec-num">§ 03</span><h2>Where older documents disagree with the tree</h2></div>
+  <p>Where they disagree, the tree wins for “what exists.” W1 wins for “what must not be called shipped” unless the tree has closed the item on HEAD.</p>
+  <table>
+    <thead><tr><th>Claim</th><th>Older source</th><th>Tree at dea7cdd</th><th>This atlas</th></tr></thead>
+    <tbody>
+      <tr><td><code>warrantor-harness config</code> still generates CLAUDE.md</td><td>Older W1 leftover; README once showed generate as working</td><td><code>cli.py</code> registers <code>config</code> as an explicit refusal (exit 2). README now presents that refusal. CHANGELOG says thirty-six harnesses.</td><td>Closed this working tree. The subcommand remains so old scripts print the remedy.</td></tr>
+      <tr><td>Sixteen harnesses</td><td>Older <code>CHANGELOG.md</code> [Unreleased]</td><td><code>harness.rs</code> <code>registry()</code> has 36 <code>id:</code> lines. CHANGELOG now says thirty-six.</td><td>36. Count matches the live registry.</td></tr>
+      <tr><td>HTTP settle auto-file</td><td>Older W1 §2.1b: “the HTTP settle surface does not auto-file yet”</td><td>Working tree: <code>StoreApi::with_filer</code>, <code>cmd_serve</code> attaches <code>auto_file_at_settle</code>, tests drive <code>handle_scoped</code>.</td><td>Closed this working tree. HEAD <code>dea7cdd</code> still lacks the commit.</td></tr>
+      <tr><td>origin/main at <code>0edd869</code></td><td>HANDOFF 2026-08-17</td><td>HEAD is <code>dea7cdd</code> (kill-switch memo)</td><td>HEAD. HANDOFF merge SHA is history.</td></tr>
+      <tr><td>No macOS build executed</td><td><code>desktop/SIGNING.md</code> leftover sentence</td><td>W1: CI run 31875701622 built all four packaging jobs. No macOS <em>install</em> observed.</td><td>Build claimed by W1, not re-run here. Install observation remains open.</td></tr>
+      <tr><td>All checkboxes open</td><td><code>tracker.json</code> 2026-08-11</td><td>W1 loop is largely closed; remaining items are named below</td><td>Refuse tracker.json as current truth.</td></tr>
+      <tr><td>Need Electron instead of Tauri</td><td>This goal’s objective phrasing</td><td>Desktop is Electron. Zero Tauri</td><td>Document the fact. Do not migrate.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ================= 04 OBSERVED ENFORCED ================= -->
+<section id="observed-enforced">
+  <div class="sec-head"><span class="sec-num">§ 04</span><h2>Observed, mediated, enforced</h2></div>
+  <p>The warrant crate’s own type system is the honesty mechanism. <code>BoundStrength</code> in <code>aumos/rust/warrant/src/lib.rs</code> is three-valued on purpose. Collapsing Mediated into Enforced is how a developer reads “the agent is bounded” and believes there is a cage.</p>
+  <blockquote>"There were two, and two was one short in a way that mattered. Both were labeled Enforced. Both are real, and they are not the same promise." <cite>aumos/rust/warrant/src/lib.rs — BoundStrength module docs (paraphrase; source uses UK spelling of labeled)</cite></blockquote>
+  <table>
+    <thead><tr><th>Bound</th><th>Strength</th><th>What actually holds it</th><th>What does not</th></tr></thead>
+    <tbody>
+      <tr><td><code>tools</code></td><td>Mediated</td><td>MCP proxy <code>proxy::decide</code> on calls that traverse <code>warrantor mcp --agent</code></td><td>Any built-in file or shell tool a coding agent never sends through MCP</td></tr>
+      <tr><td><code>write_paths</code></td><td>Observed</td><td>Worktree isolation plus settle-time <code>Worktree::commit_all</code> staging only in-bounds paths</td><td>No refuse at write. <code>proxy.rs</code> contains no path logic.</td></tr>
+      <tr><td><code>egress_hosts</code></td><td>Mediated</td><td>Proxy plus <code>egress.rs</code> on MCP-routed destinations</td><td>No netns, no seccomp, no firewall. Shell access reaches the network without the broker.</td></tr>
+      <tr><td><code>staged_classes</code></td><td>Mediated</td><td>Four GitHub tools in <code>EffectRegistry::github()</code></td><td>Unknown tools are not staged. Forwarded upstream tools run rather than queue unless classified.</td></tr>
+      <tr><td><code>expires_at</code></td><td>Enforced</td><td>OS process link in <code>supervise.rs</code>: Windows job object, Linux <code>setsid</code> + <code>PR_SET_PDEATHSIG</code></td><td>In-flight MCP sessions outside the supervised tree; platforms with no parent-death signal</td></tr>
+      <tr><td><code>delegation_depth</code></td><td>Enforced</td><td>Ed25519 over warrant claims; a child cannot hold what its parent did not</td><td>—</td></tr>
+      <tr><td><code>budget_cents_observed</code></td><td>Observed</td><td><code>spend.rs</code> ledger of what the agent reports</td><td>Provider API calls never pass through Warrantor. An agent that does not report spends invisibly.</td></tr>
+    </tbody>
+  </table>
+  <p><code>warrantor sandbox</code> derives a confinement profile. It does not move a single entry in <code>bound_strengths()</code>. A profile that is never launched confines nothing. W1 §3.1 is not closed.</p>
+</section>
+
+<!-- ================= 05 MEASURED TREE ================= -->
+<section id="measured-tree">
+  <div class="sec-head"><span class="sec-num">§ 05</span><h2>Measured tree</h2></div>
+  <table>
+    <thead><tr><th>Surface</th><th>What is there</th><th>Live product spine?</th></tr></thead>
+    <tbody>
+      <tr><td>rust</td><td>38 Cargo members. <code>warrant</code> is the product binary. <code>archive</code> is the other large product crate. Recut leftovers still compile.</td><td>Warrant + archive + libraries they call</td></tr>
+      <tr><td>python</td><td>54 packages. Product-adjacent: <code>warrantor_harness</code>, <code>warrantor_ml</code>, <code>warrantor_adapters</code>, <code>warrantor</code> SDK, <code>open_harness_spec</code>.</td><td>harness + ml + adapters</td></tr>
+      <tr><td>go</td><td>12 modules. <code>agent-identity</code> is a real HTTP service. Several others are libraries with dry-run or missing binaries.</td><td>Not on the warrant single-machine loop</td></tr>
+      <tr><td>typescript</td><td>5 workspaces. Console React layer and Arena UI unstarted (“task 03”).</td><td>Gateway/contracts tests; not the live UI</td></tr>
+      <tr><td>desktop</td><td>Electron 43 shell: <code>src/main.js</code>, <code>src/policy.js</code>, three <code>node --test</code> files, unsigned NSIS/dmg/AppImage config.</td><td>Yes — viewer around <code>warrantor serve</code></td></tr>
+      <tr><td>ml / guard</td><td><code>ml/</code> is launchers only. Logic is <code>python/warrantor_ml/</code>. Runtime attach is <code>rust/warrant/src/guard.rs</code>.</td><td>Observe-only unless a forbidden flag is passed</td></tr>
+      <tr><td>specs</td><td>16 v4 contract-pack documents. Zero reached FROZEN from FROZEN CANDIDATE.</td><td>Normative intent; freeze exit unrun</td></tr>
+      <tr><td>CI</td><td>10 workflow files under <code>aumos/.github/workflows/</code></td><td>Gates languages; desktop-release is unsigned packaging</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ================= 06 WORKING ================= -->
+<section id="working">
+  <div class="sec-head"><span class="sec-num">§ 06</span><h2>What is working</h2></div>
+  <p class="lede">A developer on this tree can grant a warrant, run an agent under supervision in an isolated worktree, watch it from a CLI, a browser console or a desktop window, read a signed report, and settle, void or stop it. Evidence exports verify offline. That path is complete. Everything below is what that sentence actually contains.</p>
+
+  <h3>Authority spine</h3>
+  <ul class="plain">
+    <li>Warrant grant / settle / void / stop lifecycle in <code>aumos/rust/warrant/</code>. IDs are <code>wrt_</code> plus CSPRNG bytes.</li>
+    <li>Nine-gate composite verdict implemented in the notary library; the warrant report copies <code>bound_strengths()</code> verbatim and a test forbids upgrades.</li>
+    <li>Capability algebra and delegation-chain intersection: a child cannot hold what its parent did not (<code>WarrantBounds::contains</code>).</li>
+    <li>Ed25519 domain-separated signing. Issuer key mints; settle key releases; device key only after archive device pairing. <code>serve</code> deliberately does not mint keys.</li>
+    <li>Twenty-nine CLI commands plus help in <code>aumos/rust/warrant/src/bin/warrantor.rs</code>: grant, list, holdings, prune, report, verify, issuer, archive, egress, spend, stop, settle, void, stage, run, supervise, status, mcp, operator, approve, queue, sandbox, agents, guard, anchor, selftest-upstream, serve, console.</li>
+  </ul>
+
+  <h3>Oversight</h3>
+  <ul class="plain">
+    <li>Named operators with four scopes (<code>read,stop,settle,approve</code>), tokens stored as SHA-256 and printed once, registry reread per request — <code>aumos/rust/warrant/src/operators.rs</code>.</li>
+    <li>Hash-chained actor log. Two-person rule. Deadlock is a first-class answer. Queue derived in <code>review.rs</code> (no <code>queue.json</code>).</li>
+    <li>Notifications: settled, voided, stopped, filing-queued, review-requested. HTTP/console notify via <code>StoreApi::with_notifier</code>. Notify commands require <code>--allow-notify-command</code> on the invocation — a file write cannot arm them, because the supervised agent shares this UID.</li>
+  </ul>
+
+  <h3>Evidence and custody</h3>
+  <ul class="plain">
+    <li>WAR receipt envelope, tiered anchoring, relative-order time ledger in <code>anchor.rs</code>.</li>
+    <li>Local trust directory and carried signed bundles in <code>trust.rs</code> / <code>bundle.rs</code>. No network directory.</li>
+    <li>Postgres append-only archive in <code>aumos/rust/archive/</code>. CLI pairing / push / fetch / list / summary / auto settle. Automatic push on <em>CLI</em> settle exists; failed filing does not fail settle; queue is <code>archive/pending.jsonl</code>.</li>
+    <li>Holdings inventory plus prune of <code>NoIntegrityConsequence</code> classes only.</li>
+  </ul>
+
+  <h3>Surfaces</h3>
+  <ul class="plain">
+    <li>HTTP console compiled into the binary: <code>aumos/rust/warrant/src/console/</code>. Polls every five seconds. Token in the URL fragment. Distinguishes error / rows / filtered / unreadable / first-run.</li>
+    <li>Electron desktop viewer — see <a href="#desktop">§ 07</a>.</li>
+    <li>TLS for <code>warrantor serve</code> behind <code>--features tls</code> (<code>tls.rs</code>). Bind beyond loopback without TLS is a refusal unless <code>--i-accept-cleartext-on-this-network</code>.</li>
+  </ul>
+
+  <h3>Integrations and harness</h3>
+  <ul class="plain">
+    <li>MCP proxy with Forward / Stage / Deny. Upstream client in <code>upstream.rs</code>. <code>--upstream</code> exists. <code>selftest-upstream</code> is a two-tool server in this binary.</li>
+    <li>Registry of 36 harnesses with detect / show / wire. Coverage-class honesty is test-enforced. See <a href="#harness">§ 08</a>.</li>
+    <li>Python session harness with OS lifetime link. <code>config</code> is a refusal of prompt-as-boundary.</li>
+  </ul>
+
+  <h3>Guard measurement apparatus (models not the product yet)</h3>
+  <ul class="plain">
+    <li>Observe-only attach behind <code>--guard</code>. <code>guard doctor</code>, <code>guard bench</code> with Wilson intervals, <code>guard export-corpus</code> that refuses to label rows with the guard’s own verdict.</li>
+    <li><code>tests/guard_parity.rs</code> pins sampling knobs to <code>evaluate.py</code>.</li>
+    <li>One fine-tune was run and the parity gate rejected it. That path is exercised. Seven of eight models remain untrained.</li>
+  </ul>
+</section>
+
+<!-- ================= 07 DESKTOP ================= -->
+<section id="desktop">
+  <div class="sec-head"><span class="sec-num">§ 07</span><h2>Electron desktop — Windows and macOS</h2></div>
+  <p class="lede">The requirement “Electron based desktop app instead of Tauri for windows and macOS” is already satisfied by the tree. There is no Tauri implementation to remove and none to add. This section is the checkable record of that fact, the security policy, the packaging matrix, and what has been installed versus only built.</p>
+
+  <div class="callout good">
+    <span class="lbl">Verified — Electron, not Tauri</span>
+    Package <code>@warrantor/desktop</code> at <code>aumos/desktop/package.json</code> names <code>electron</code> <code>^43.4.0</code> and <code>electron-builder</code> <code>^26.15.3</code>. Scripts: <code>start</code> = <code>electron .</code>. A case-insensitive search of json/toml/yml/js/rs/ts manifests finds no Tauri. No <code>src-tauri</code>, no <code>tauri.conf.json</code>. Current work is not “migrate to Tauri” and not “replace Tauri.”
+  </div>
+
+  <h3>What the app is</h3>
+  <p><code>aumos/desktop/src/main.js</code> states the job: a window, a child process, and a policy. It starts <code>warrantor serve --port 0</code> on loopback, reads the session token from stdout, and points a locked-down window at the console the agent already serves. It is not a second implementation of the console. The console renders a verdict computed in Rust and never derives one. Everything visible is served by the agent.</p>
+  <p>Why it exists given <code>warrantor console</code>: that command already opens a browser and requires a terminal. This removes the terminal, which is the difference between a surface an engineer can use and one a reviewer can.</p>
+  <p>Spawn arguments are only <code>serve --port 0</code>. Nothing may add <code>--allow-settle</code>; that flag would undo the “viewer, not authority” decision. The shell must not hash the bundled binary either: verification happens only in Rust, and a check above that line would be a second verifier that can disagree with the first.</p>
+
+  <h3>Security policy (<code>aumos/desktop/src/policy.js</code>)</h3>
+  <p>The file imports nothing so <code>node --test</code> can gate it with no Electron and no display. Tests: <code>aumos/desktop/test/policy.test.js</code>, <code>packaging.test.js</code>, <code>shell.test.js</code>.</p>
+  <table>
+    <thead><tr><th>Decision</th><th>Rule</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Agent binary order</td><td>Packaged bundled copy first, then <code>WARRANTOR_BIN</code>, then PATH. Head wins; no fallthrough.</td><td>Substituting the binary substitutes the verifier. A packaged app must not be silently re-pointed by any parent process.</td></tr>
+      <tr><td>Navigation</td><td>Allowlist of one origin, compared after URL parse, not by string prefix.</td><td>Prefix tests admit <code>http://127.0.0.1:8787.evil.com/</code>.</td></tr>
+      <tr><td>Permissions</td><td><code>GRANTED_PERMISSIONS</code> is an empty frozen array. Always deny.</td><td>The console reads a local store and renders JSON. It has no use for camera, mic, location, notifications, or clipboard.</td></tr>
+      <tr><td>Token</td><td>In the URL fragment: <code>origin/#t=&lt;token&gt;</code>. Redacted from forwarded logs.</td><td>A fragment is never sent to a server, so it cannot reach an access log or a Referer.</td></tr>
+      <tr><td>Renderer</td><td>sandbox true, contextIsolation true, nodeIntegration false, no preload, webviewTag false, new windows denied.</td><td>The page has no route to the filesystem or a child process even if replaced.</td></tr>
+      <tr><td>First-run issuer key</td><td><code>firstRunRemedy()</code> recognizes “no issuer key was found” and offers a copyable <code>warrantor grant --goal "first run" --tools read_file --write . --deadline 1h</code>.</td><td>The app must not mint a key by looking for it. <code>serve</code> refuses to create identity. Whether a GUI-first user should ever open a terminal remains a product decision.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Packaging matrix (<code>aumos/desktop/electron-builder.config.cjs</code>)</h3>
+  <table>
+    <thead><tr><th>Platform</th><th>Target</th><th>Signing now</th><th>Observed?</th></tr></thead>
+    <tbody>
+      <tr><td>Windows</td><td>NSIS x64, per-user into %LOCALAPPDATA%, no elevation, artifact <code>Warrantor-${version}-${arch}-setup.${ext}</code></td><td><code>forceCodeSigning: false</code> (explicit)</td><td>Installed and launched 2026-08-17. Bundled <code>warrantor.exe</code> preferred over empty PATH. SHA256 of local installer recorded in W1 as <code>f7f6cd68…</code>. Not re-installed in this session.</td></tr>
+      <tr><td>macOS</td><td>DMG arm64 + x64</td><td><code>identity: '-'</code> (ad-hoc). <code>hardenedRuntime: false</code>. <code>null</code> is not a synonym: it skips signing and Apple Silicon refuses the bundle.</td><td>Built by CI. <strong>No installer has been installed or launched on macOS.</strong> Ad-hoc path on Apple Silicon is unobserved.</td></tr>
+      <tr><td>Linux</td><td>AppImage + deb x64, <code>executableName: warrantor-desktop</code> scoped to linux only</td><td>No publisher check equivalent</td><td>AppImage launched in WSL2 against a home with no issuer key — that is how first-run remedy was found. Native Linux desktop install not claimed.</td></tr>
+    </tbody>
+  </table>
+  <p><code>publish: null</code> is deliberate. An update channel over an unsigned artifact is an unauthenticated code-execution channel pointed at a machine that runs a supervised agent — strictly worse than having no updates at all. The updater comes after signing, never before. See <code>aumos/desktop/SIGNING.md</code>.</p>
+  <p>The bundled agent is compiled in the same GitHub Actions job that packages it (<code>aumos/.github/workflows/desktop-release.yml</code>) and staged to <code>desktop/vendor/${arch}/</code>. The workflow asserts the binary is inside the produced app. Four packaging jobs (mac x64, mac arm64, linux x64, win x64) are recorded green in W1 for run 31875701622 — not re-run here.</p>
+
+  <h3>What remains on desktop (not a stack change)</h3>
+  <ul class="plain">
+    <li><strong>Signing</strong> — procurement-or-credential. EV Windows cert and Apple Developer ID + notarisation. Config and entitlements are written and inert.</li>
+    <li><strong>macOS install observation</strong> — human-only. This Windows environment cannot perform it.</li>
+    <li><strong>Update channel</strong> — blocked until signing. Do not add <code>electron-updater</code> first.</li>
+    <li><strong>GUI issuer-key mint</strong> — product-decision. Every alternative moves an identity decision into a click. <code>warrantor issuer show-hex</code> already refuses: a key created by the act of looking for it has signed nothing.</li>
+  </ul>
+  <p>Linux <code>executableName</code> used to sit at top level and silently renamed the Windows install directory. That defect produced a working install, which is why only running the installer found it. It is now scoped to <code>linux</code>, with a test asserting the top-level key is absent.</p>
+</section>
+
+<!-- ================= 08 HARNESS ================= -->
+<section id="harness">
+  <div class="sec-head"><span class="sec-num">§ 08</span><h2>How the in-house agent harness is built</h2></div>
+  <p class="lede">This is the Warrantor/agent harness, not the Grok Build goal harness. It is a process-level warrant plus an MCP proxy, plus a Python session wrapper, plus a vendor-neutral spec. A previous “integration” wrote instruction files that claimed every action was recorded. Nothing made those sentences true. The current design refuses that class of boundary.</p>
+
+  <blockquote>There was already an “integration” surface in this repository before this file: a Python command that wrote CLAUDE.md, AGENTS.md or .cursorrules containing sentences like “Every action is tracked and recorded” and “Secret exposure triggers kill-switch”. Nothing in the system made those sentences true. They were instructions to a model.<cite>aumos/rust/warrant/src/harness.rs module docs</cite></blockquote>
+
+  <h3>The three coverage classes</h3>
+  <table>
+    <thead><tr><th>Class</th><th>What it means</th><th>What it is worth</th></tr></thead>
+    <tbody>
+      <tr><td><code>Coverage::McpOnly</code></td><td>Every tool the model can call is an MCP tool.</td><td>The warrant allowlist is the model’s whole reachable surface. The proxy sees every call. Applies to some SDKs and to Claude Desktop — never to a terminal coding agent.</td></tr>
+      <tr><td><code>Coverage::McpAndBuiltins</code></td><td>MCP calls are mediated; the harness’s own file, shell, and search tools are not.</td><td>Deadline, worktree, staged effects, evidence, OS lifetime link, and mediation of MCP tools. <strong>Not mediation of bash.</strong> Every terminal coding agent is in this class.</td></tr>
+      <tr><td><code>Coverage::ProcessOnly</code></td><td>No MCP client.</td><td>Process-level bounds still apply. No individual tool call is refusable. Aider and MiniMax. Wiring is <code>None</code>: a refusal, not a dummy config.</td></tr>
+    </tbody>
+  </table>
+  <p>A test in <code>harness.rs</code> states: a terminal coding agent ships its own shell and file tools; claiming McpOnly for one would be the CLAUDE.md lie in a struct. <code>ProcessOnly</code> must have <code>Wiring::None</code>.</p>
+
+  <h3>Registry: 36 harnesses, explicit not discovered</h3>
+  <p><code>registry()</code> in <code>aumos/rust/warrant/src/harness.rs</code> returns a vec that is deliberately explicit. A registry that guessed “if ~/.foo/ exists, write ~/.foo/mcp.json” would write files into tools it had never been tested against. The failure mode of a wrong MCP config is an agent that starts and then cannot call anything, which reads as Warrantor being broken.</p>
+  <table>
+    <thead><tr><th>Kind</th><th>Count</th><th>IDs</th></tr></thead>
+    <tbody>
+      <tr><td>coding agent</td><td>20</td><td>claude-code, codex, cursor, gemini-cli, opencode, aider, copilot-cli, cline, continue, zed, windsurf, roo-code, amp, qwen-code, crush, factory-droid, warp, grok-cli, glm-coding, kimi-cli</td></tr>
+      <tr><td>general-purpose agent</td><td>6</td><td>claude-desktop, goose, minimax, chatgpt-desktop, librechat, open-webui</td></tr>
+      <tr><td>agent SDK</td><td>10</td><td>claude-agent-sdk, openai-agents-sdk, langchain, pydantic-ai, crewai, autogen, llamaindex, semantic-kernel, mastra, vercel-ai-sdk</td></tr>
+    </tbody>
+  </table>
+  <p>McpOnly (9): claude-desktop, openai-agents-sdk, langchain, pydantic-ai, crewai, autogen, llamaindex, mastra, vercel-ai-sdk. Zero coding agents. ProcessOnly (2): aider, minimax. The rest are McpAndBuiltins (25).</p>
+  <p>Four entries exist to say no rather than to be wired:</p>
+  <ul class="plain">
+    <li><code>warp</code> — the agent acts in the operator’s real terminal, not in the warrant worktree. Wiring gives a view of MCP calls and nothing else.</li>
+    <li><code>glm-coding</code> — a model, not a harness. Wire the harness in front of it.</li>
+    <li><code>minimax</code> — hosted product, no local stdio MCP client this build can point at a warrant.</li>
+    <li><code>open-webui</code> — needs an MCP-to-OpenAPI bridge; coverage is whatever the bridge chooses to forward.</li>
+  </ul>
+  <p>CLI: <code>warrantor agents list | detect | show &lt;id&gt; | wire &lt;id&gt; &lt;warrant-id&gt;</code>. Wire is dry-run by default. Generated command is always <code>warrantor mcp --agent &lt;id&gt; --root &lt;store&gt;</code> plus optional <code>--upstream</code>. The warrant id is baked into the arguments: stale wiring points at a settled warrant and the endpoint refuses to start. Fail closed.</p>
+  <p>JSON wiring splices with serde and preserves the rest of the file. TOML is a section splicer that refuses multi-line string delimiters. YAML and unverified paths are printed, not written.</p>
+
+  <h3>MCP proxy and upstream forwarding</h3>
+  <p><code>aumos/rust/warrant/src/proxy.rs</code> <code>Decision</code> is Forward, Stage, or Deny — not “Refuse.” <code>decide()</code>:</p>
+  <ol class="body">
+    <li>Observe mode still denies Destructive and Financial: learning must not destroy or spend.</li>
+    <li>Observe otherwise records the tool and returns <code>Forward</code>. Observe does not stage ordinary writes; a pull request opened during observe is really opened.</li>
+    <li>Enforce: tool not in allowlist → Deny bound <code>tools</code>.</li>
+    <li>Every destination of the call is decided by the egress broker. Empty egress bound means none.</li>
+    <li>Side-effect in <code>staged_classes</code> and tool in the effect registry → Stage.</li>
+    <li>Else Forward.</li>
+  </ol>
+  <p>Staging registry knows four tools and only four: <code>github.create_pr</code>, <code>github.comment</code>, <code>github.request_review</code>, <code>github.add_label</code> — <code>aumos/rust/warrant/src/staging.rs</code>. The staging boundary covers those GitHub effects and nothing else.</p>
+  <p><code>aumos/rust/warrant/src/upstream.rs</code> is a synchronous MCP client over a child process’s stdio. No tokio. Per-call deadline via reader thread and <code>recv_timeout</code>. Tools published as <code>&lt;name&gt;.&lt;tool&gt;</code>. An upstream that publishes warrant lifecycle verbs is refused at attach — a check that split on <code>.</code> and took the last segment missed this repository’s own <code>warrant_settle</code>. Opt-in is named <code>--upstream-allow-lifecycle-tools-i-accept-this</code>.</p>
+  <p>Historically <code>Decision::Forward</code> existed while <code>--upstream</code> did not. The endpoint told the operator to pass a flag the binary did not have. A passing test asserted the error. That is fixed on HEAD. Forwarding still mediates MCP, and MCP only.</p>
+  <p><code>--upstream-class '&lt;tool&gt;=read|write|destructive|financial'</code> and <code>--upstream-refuse-unclassified</code> replace the old Read-guess. The registry still wins over a declaration, because those four tools are the ones settle can actually perform.</p>
+
+  <h3>Two MCP endpoints</h3>
+  <p><code>aumos/rust/warrant/src/mcp.rs</code>: the single most dangerous thing this file could do is expose settle to the wrong caller. Control endpoint (<code>warrantor mcp</code>) is the developer’s agent and publishes lifecycle tools. Agent endpoint (<code>warrantor mcp --agent &lt;id&gt;</code>) is the supervised agent and does not have those tools at all — it does not deny them; it does not publish them. Under enforce, an ungranted tool is not published. Guard attach is optional; a run record is written either way so “nobody was watching” and “nothing ran” are not the same observation (<code>runs.rs</code>).</p>
+
+  <h3>Worktree, supervise, stop, kill-switch</h3>
+  <p><code>worktree.rs</code> — isolated git worktree on <code>warrantor/&lt;id&gt;</code>. Isolation is filesystem-inside-the-repo only. Isolation of the declared bounds is a property of the bounds, not of the worktree. Settle never removes a worktree; only void does.</p>
+  <p><code>warrantor run</code> re-execs as <code>supervise</code> detached: closing the terminal ends the view, not the run. Deadline is Enforced by the OS link. Stop kills the supervisor group; the agent’s pid is never persisted; the warrant goes Open → Held, not Void. Enforcement mode on the stop record is advisory. There is no daemon control socket path; stop relies on the OS link.</p>
+  <p><code>aumos/rust/kill-switch/src/execution.rs</code> — <code>critical_image_memo</code> is why HEAD is <code>dea7cdd</code>. Windows <code>tasklist.exe</code> was spawned up to six times per kill (0.6–2.86 s each) against a 5 s budget. The memo consults the rail once per engine. Poisoned mutex skips the memo and evaluates the rail directly — never silently disable a safety rail.</p>
+
+  <h3>Sandbox profile — emits argv, enforces nothing</h3>
+  <blockquote>This module emits a command line. It enforces nothing. … bound_strengths is unchanged by this module and must stay unchanged by it.<cite>aumos/rust/warrant/src/sandbox.rs</cite></blockquote>
+  <p><code>warrantor sandbox &lt;id&gt; [--kind bubblewrap|firejail]</code> prints a prefix and names every bound the sandbox cannot express, and every bound where the profile would be stricter than the warrant. A no-egress warrant gets <code>--unshare-net</code>. A warrant permitting hosts gets none. Glob refinement inside the worktree is not expressed (that would loosen <code>src/**</code> into a read-write <code>src/</code>). Module docs record a 2026-08-17 Linux 6.18 run: writes to $HOME and /etc failed EROFS; DNS denied; the claim “a write outside the worktree fails at the syscall” was <strong>false for /tmp</strong> (private tmpfs, succeeds, discarded at exit). One kernel, once, is not closure. W1 §3.1 is not closed. A wrapper of the form <code>bwrap … agent || agent</code> turns a refused sandbox into an unconfined run.</p>
+
+  <h3>Python session harness — <code>config</code> is a refusal</h3>
+  <p><code>aumos/python/warrantor_harness/</code> still runs <code>warrantor-harness run</code>: tool allowlist via <code>shlex</code> + exact basename + <code>shell=False</code> (the previous <code>shell=True</code> plus first-token check was bypassable three ways), secret scan, Agent Action Receipts, OS lifetime link in <code>_lifetime.py</code>.</p>
+  <table>
+    <thead><tr><th>Platform</th><th>Mechanism</th><th>Survives supervisor death?</th><th>Covers descendants?</th></tr></thead>
+    <tbody>
+      <tr><td>Windows</td><td>Job object with KILL_ON_JOB_CLOSE</td><td>Yes — kernel closes the handle</td><td>Yes</td></tr>
+      <tr><td>Linux</td><td>setsid + PR_SET_PDEATHSIG</td><td>Yes for the direct child</td><td>Group signal; a grandchild can still be orphaned at the wrong moment; capability TTL is the belt</td></tr>
+      <tr><td>Other POSIX</td><td>setsid only</td><td>No — reported honestly</td><td>Yes via killpg</td></tr>
+    </tbody>
+  </table>
+  <p><code>warrantor-harness config</code> is kept as an explicit refusal (exit 2) in <code>aumos/python/warrantor_harness/src/warrantor_harness/cli.py</code>. It prints what the old command wrote, why nothing made those sentences true, and the <code>warrantor agents</code> commands to use instead. That is a refusal of prompt-as-boundary. The package README presents the same refusal, not a working generate recipe.</p>
+
+  <h3>open-harness-spec — five Protocols, not a runtime cage</h3>
+  <p><code>aumos/python/open_harness_spec/</code>, SPEC_VERSION 1.0.0, RFC X3. Interfaces: AgentIdentity, ToolPermission, AuditEvent, AttestationEnvelope, EvaluationReport, plus ConformanceChecker. This is a vendor-neutral contract. It does not itself refuse a tool call. The Rust binary is the in-house implementation.</p>
+
+  <h3>Composition map — what is enforced vs observed vs instruction</h3>
+  <table>
+    <thead><tr><th>Mechanism</th><th>Classification</th><th>Path</th></tr></thead>
+    <tbody>
+      <tr><td>Deadline / OS lifetime link</td><td>Enforced (Windows/Linux as stated)</td><td><code>supervise.rs</code>, Python <code>_lifetime.py</code></td></tr>
+      <tr><td>Delegation depth</td><td>Enforced (signature)</td><td><code>lib.rs</code> WarrantBounds</td></tr>
+      <tr><td>MCP tool allowlist, egress, staged classes</td><td>Mediated (chokepoint the agent can decline)</td><td><code>proxy.rs</code>, <code>mcp_endpoints.rs</code></td></tr>
+      <tr><td>Four GitHub effects staged until settle</td><td>Mediated</td><td><code>staging.rs</code></td></tr>
+      <tr><td>Upstream MCP forwarding</td><td>Mediated, MCP only</td><td><code>upstream.rs</code></td></tr>
+      <tr><td>write_paths / budget</td><td>Observed</td><td><code>bound_strengths()</code></td></tr>
+      <tr><td>Guard model</td><td>Observed; deliberately off for enforce</td><td><code>guard.rs</code>, flag <code>--guard-enforce-untested-do-not-use</code></td></tr>
+      <tr><td>Sandbox profile</td><td>Instruction-to-the-operator until launched; even then not a Warrantor bound</td><td><code>sandbox.rs</code></td></tr>
+      <tr><td>Coding-agent Bash/Read/Write/Edit</td><td>Not mediated. Instruction-to-the-model if you only wired MCP</td><td>Coverage column in <code>harness.rs</code></td></tr>
+      <tr><td>Old CLAUDE.md generator</td><td>Refused. Was instruction-to-the-model pretending to be a boundary</td><td><code>warrantor_harness/cli.py</code> <code>_removed_config</code></td></tr>
+      <tr><td>open-harness-spec Protocols</td><td>Instruction-to-the-implementer</td><td><code>python/open_harness_spec</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Harness gaps that remain</h3>
+  <ul class="plain">
+    <li>Forwarding mediates MCP, and MCP only. It is not mediation of bash.</li>
+    <li>W1 §3.1 is not closed. Derivation exists; live confinement of an agent under the printed prefix until an out-of-worktree write fails at the syscall is the closer. <code>bound_strengths()</code> stays Observed for write_paths.</li>
+    <li>Staging covers four GitHub effects. Unknown upstream tools run unless classified and refused.</li>
+    <li>HTTP settle auto-file is on the serve path in this working tree (<code>cmd_serve</code> attaches <code>auto_file_at_settle</code>). HEAD <code>dea7cdd</code> still lacks the commit.</li>
+    <li>Guard does not enforce by default.</li>
+    <li>Same-UID residue: the supervised agent can still read the store directly. Unfixable under the current model.</li>
+  </ul>
+</section>
+
+<!-- ================= 09 RUST ================= -->
+<section id="analysis-rust">
+  <div class="sec-head"><span class="sec-num">§ 09</span><h2>Rust estate</h2></div>
+  <p>Workspace members are listed in <code>aumos/rust/Cargo.toml</code>. rust-version floor is 1.94. Recut authority is <code>aumos/docs/03-portfolio-recut-v4.md</code>: 54 catalog components collapse to six products. Many killed or merged crates are still compiled. File-exists is not deployed.</p>
+
+  <h3>Product crate — warrantor-warrant</h3>
+  <p>Path <code>aumos/rust/warrant</code>. Tokio-free, small dependency set, custom CLI parser. Binary <code>aumos/rust/warrant/src/bin/warrantor.rs</code>. Serve is HTTP/1.1, thread per connection, <code>Connection: close</code>, any Transfer-Encoding is 400. No keep-alive, no HTTP/2, no grant route. Change observation is <code>GET /v1/warrants?changed_since=</code> plus a list <code>cursor</code>, not SSE. Bearer token is checked before route resolve. Unauthenticated assets: <code>/</code>, <code>/index.html</code>, <code>/console.css</code>, <code>/console.js</code> — compiled in, no store-derived templating.</p>
+  <p>Authenticated routes include health, warrants list/detail, report, effects, refusals, evidence, settle/void/stop/approve, queue, custody, summary/refusals, summary/daily. Unrecognized query keys are 400.</p>
+  <p><code>supervise</code> is implemented and not listed in the binary’s USAGE block — a documentation defect of the class <code>tests/instructions.rs</code> exists to catch for flags; it is not a missing command.</p>
+
+  <h3>Product-adjacent crates</h3>
+  <table>
+    <thead><tr><th>Crate</th><th>Path</th><th>What the code does</th><th>What it is not</th></tr></thead>
+    <tbody>
+      <tr><td>warrantor-archive</td><td><code>aumos/rust/archive</code></td><td>Postgres append-only custody of the three files <code>warrantor verify</code> already reads. Device pairing. Field literally named <code>not_a_verdict</code>. <code>apply_retention</code> deletes only when the policy grants it. Caddy in <code>deploy/evidence-archive</code> terminates TLS on 443.</td><td>Not an authority. Compromise degrades availability, never integrity (test: <code>tests/verification_does_not_depend_on_the_archive.rs</code>). Postgres on the compose network remains <code>NoTls</code> on purpose.</td></tr>
+      <tr><td>warrantor-trust-core</td><td><code>aumos/rust/trust-core</code></td><td>Canonical CBOR/JSON, RFC-6962 Merkle, Ed25519ph, Rekor hashedrekord client.</td><td>Sits beside <code>notary/</code>. Recut narrowed T1; both remain.</td></tr>
+      <tr><td>warrantor-notary / evidence</td><td><code>aumos/rust/notary</code>, <code>aumos/rust/evidence</code></td><td>Nine-gate verdict; W2 WAR envelope with DSSE-PAE.</td><td>Notary does not re-verify SVIDs itself. Parallel to the warrant report path.</td></tr>
+      <tr><td>warrantor-kill-switch</td><td><code>aumos/rust/kill-switch</code></td><td><code>LocalProcessEngine</code> really kills a process. Mock engine labeled <code>simulated = true</code>. HEAD <code>dea7cdd</code> is the memo fix.</td><td>Government API is a URL constant. Crate docs still cite a bill number that recut corrected.</td></tr>
+      <tr><td>warrantor-protocol-contracts</td><td><code>aumos/rust/protocol-contracts</code></td><td>P1–P12 structural/semantic/sig validation + TCK binary.</td><td>Does not make those protocols the live warrant wire format.</td></tr>
+      <tr><td>warrantor-api</td><td><code>aumos/rust/warrantor-api</code></td><td><code>build.rs</code> tonic-build of four protos into OUT_DIR.</td><td><code>proto/warrantor/notary/v1/notary.proto</code> is not in this build.rs.</td></tr>
+      <tr><td>agent-manifest</td><td><code>aumos/rust/agent-manifest</code></td><td>Signed agent.yaml reference impl + interop examples.</td><td>Not the live warrant grant path.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Recut leftovers that still compile</h3>
+  <ul class="plain">
+    <li><code>aumos/rust/sandbox-runtime</code> — Wasmtime policy sandbox. Recut KILL R8: consume a runtime, do not ship a peer.</li>
+    <li><code>aumos/rust/safe-tensors-pp</code> — provenance header. Recut KILL S1.</li>
+    <li><code>aumos/rust/inference-proxy</code> — in-process allowlist. No HTTP backend.</li>
+    <li><code>aumos/rust/egress-filter</code> and <code>aumos/rust/exfil-guard</code> — decision functions, zero eBPF, beside the actual <code>egress/</code> crate.</li>
+    <li><code>aumos/rust/flight-recorder</code> beside <code>evidence/</code> — two pre-commit stories.</li>
+    <li><code>aumos/rust/confidential-fabric</code> + mock-only <code>nvtrust-bridge</code>.</li>
+    <li><code>aumos/rust/defstack-cli</code> — prints install plans; <code>install</code> does not install.</li>
+    <li>Single-file in-memory planes: retrieval, spend (library), computer-use, self-governance, post-quantum (Ed25519 only; ML-DSA is an enum label), plugin-api, responsible-ai, data-plane, content-moderation, csam-defense, misinformation-defense, eval-guard, policy-bridge, credential-vault, gguf-ext, secure-workspace, provena-chain, containment-conformance, authority-spec.</li>
+  </ul>
+</section>
+
+<!-- ================= 10 PYTHON ================= -->
+<section id="analysis-python">
+  <div class="sec-head"><span class="sec-num">§ 10</span><h2>Python estate</h2></div>
+  <p>Fifty-four <code>python/*/pyproject.toml</code> projects. CI discovers them that way — which is why <code>ml/</code> must stay launchers. Every package has tests.</p>
+  <h3>Product-adjacent</h3>
+  <ul class="plain">
+    <li><code>aumos/python/warrantor_harness</code> — session wrapper. See § 08. Tests: <code>tests/test_harness.py</code>, <code>tests/test_lifetime_linkage.py</code>.</li>
+    <li><code>aumos/python/open_harness_spec</code> — five Protocols + ConformanceChecker.</li>
+    <li><code>aumos/python/warrantor_ml</code> — model-intelligence package. Twenty-seven test files.</li>
+    <li><code>aumos/python/warrantor_adapters</code> — LangChain / OpenAI Agents / Anthropic drop-ins against local cryptography. No live vendor network in CI.</li>
+    <li><code>aumos/python/warrantor</code> — one-import SDK (nine-gate verdict, DSSE-PAE, manifests). It is the portfolio SDK, not the Rust warrant CLI’s Python twin. Two different “authorize an action” stories live in this repository; only the Rust warrant is the W1 spine.</li>
+  </ul>
+  <h3>Thin verify-path mirrors</h3>
+  <p>Packages such as <code>warrantor_notary</code>, <code>warrantor_evidence</code>, <code>warrantor_egress</code>, <code>warrantor_spend</code>, <code>warrantor_content_moderation</code>, <code>warrantor_csam_defense</code>, <code>warrantor_data_plane</code>, <code>warrantor_misinformation_defense</code>, <code>warrantor_plugin_api</code>, <code>warrantor_post_quantum</code>, <code>warrantor_responsible_ai</code>, <code>warrantor_agent_manifest</code>, <code>warrantor_computer_use</code>, <code>warrantor_containment_conformance</code>, <code>warrantor_retrieval</code>, <code>warrantor_self_governance</code> implement canonicalize-and-verify. They are not empty scaffolds. They are also not services a non-developer runs.</p>
+  <h3>Portfolio leftovers still packaged</h3>
+  <p>Recut-killed or annex names that still have Python packages: adversaria, agentsec_lab, attesta_flow, bias_sentinel, bridge_rt, comply_gate, crypto_audit_ai, cuda_gram (docs: MOCK backend), data_provenance_kit, dp_crate, fed_core, incident_exchange, metr_bridge, model_sbom, nooa_ext, policy_compiler, red_team_cloud, retro_spec_kit, safe_eval, tamper_scan, train_guard, warrantor_admission, warrantor_agent, warrantor_backup, warrantor_hf_plugin, warrantor_jira, warrantor_langchain, warrantor_ocsf, warrantor_rbac, warrantor_retention, warrantor_sla, warrantor_vllm, protocol_contracts. Cite as catalog inhabitants, not as W1 delivery.</p>
+</section>
+
+<!-- ================= 11 GO ================= -->
+<section id="analysis-go">
+  <div class="sec-head"><span class="sec-num">§ 11</span><h2>Go estate</h2></div>
+  <p>Twelve modules under <code>aumos/go/</code>. None of them is on the single-machine warrant loop a developer runs today.</p>
+  <table>
+    <thead><tr><th>Module</th><th>Path</th><th>What exists</th><th>Limit</th></tr></thead>
+    <tbody>
+      <tr><td>agent-identity</td><td><code>aumos/go/agent-identity</code></td><td>HTTP/JSON I1 gateway, optional TLS, tests including hardening</td><td>Hand-mirrors proto; no buf generate for Go</td></tr>
+      <tr><td>identity-bindings</td><td><code>aumos/go/identity-bindings</code></td><td>SPIRE registration + Workload API library</td><td>Library, not a running SPIRE</td></tr>
+      <tr><td>open-serve-kit</td><td><code>aumos/go/open-serve-kit</code></td><td>OpenAI-compat proxy with mock or HTTP backends; cmd exists</td><td>Recut: serving is not an authority concern</td></tr>
+      <tr><td>tee-serve</td><td><code>aumos/go/tee-serve</code></td><td>UDS reverse-proxy + attestation envelope; cmd exists</td><td>Recut KILL C1-4 leftover</td></tr>
+      <tr><td>edge-sentinel</td><td><code>aumos/go/edge-sentinel</code></td><td>Attest loop + kill/alert interfaces; cmd exists</td><td>Mock attestor in cmd</td></tr>
+      <tr><td>fleet-marshal</td><td><code>aumos/go/fleet-marshal</code></td><td>Rollout math; cmd is dry-run</td><td>README: K8s binding task 03. Recut KILL F4</td></tr>
+      <tr><td>tenant-guard</td><td><code>aumos/go/tenant-guard</code></td><td>MIG/MPS scheduler library</td><td>No K8s operator</td></tr>
+      <tr><td>lightwell-bridge</td><td><code>aumos/go/lightwell-bridge</code></td><td>PatchBundle / rollout graph library + tests</td><td>No cmd/ despite docs mentioning one</td></tr>
+      <tr><td>protocol-contracts</td><td><code>aumos/go/protocol-contracts</code></td><td>Generated types + validator + TCK cmd</td><td>From <code>tools/protocols/generate.py</code></td></tr>
+      <tr><td>defstack-cloud</td><td><code>aumos/go/defstack-cloud</code></td><td>Tenant/plan/GPU quota logic</td><td>No operator binary</td></tr>
+      <tr><td>sovereign-stack</td><td><code>aumos/go/sovereign-stack</code></td><td>Bundle manifest + checksum</td><td>No packer</td></tr>
+      <tr><td>metrics</td><td><code>aumos/go/metrics</code></td><td>stdlib Prometheus /metrics</td><td>Library</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ================= 12 TYPESCRIPT ================= -->
+<section id="analysis-typescript">
+  <div class="sec-head"><span class="sec-num">§ 12</span><h2>TypeScript estate</h2></div>
+  <p>Root <code>aumos/typescript/package.json</code> name <code>warrantor-typescript</code>. Workspaces: console, mcp-gateway, arena, mcp-server, protocol-contracts. Vitest + eslint. No workspace has a <code>dependencies</code> key (zero runtime npm dependencies). No React in any package.json.</p>
+  <table>
+    <thead><tr><th>Package</th><th>Path</th><th>What it is</th><th>Relation to live product</th></tr></thead>
+    <tbody>
+      <tr><td><code>@warrantor/console</code></td><td><code>aumos/typescript/console</code></td><td>Data model, API client, view reducers. Header: “React/Next.js is task 03.”</td><td><strong>Not the live console.</strong> Live UI is <code>aumos/rust/warrant/src/console/</code>.</td></tr>
+      <tr><td><code>@warrantor/mcp-gateway</code></td><td><code>aumos/typescript/mcp-gateway</code></td><td>AAE authz middleware, confused-deputy checks, side-effect ladder</td><td>Parallel to, not used by, the Rust warrant MCP proxy.</td></tr>
+      <tr><td><code>@warrantor/mcp-server</code></td><td><code>aumos/typescript/mcp-server</code></td><td>stdio JSON-RPC server, bin <code>warrantor-mcp</code></td><td>Not <code>warrantor mcp</code>.</td></tr>
+      <tr><td><code>@warrantor/arena</code></td><td><code>aumos/typescript/arena</code></td><td>Elo engine. “HTTP/UI is task 03.”</td><td>Library only. UI unstarted.</td></tr>
+      <tr><td><code>@warrantor/protocol-contracts</code></td><td><code>aumos/typescript/protocol-contracts</code></td><td>Generated types + validator</td><td>Cross-language TCK sibling.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ================= 13 ML ================= -->
+<section id="analysis-ml-guard">
+  <div class="sec-head"><span class="sec-num">§ 13</span><h2>ML and guard</h2></div>
+  <p>Two layers, deliberately split. A model judgment can become a refusal signal recorded against a warrant, never a verification verdict (RFC W2).</p>
+  <h3>Runtime (Rust)</h3>
+  <p><code>aumos/rust/warrant/src/guard.rs</code> plus CLI <code>guard doctor|bench|export-corpus</code>. It enforces nothing, deliberately. At published 0.8152 adversarial recall it would miss roughly one adversarial case in five; FPR 0.0923 would train operators to override it. The enforcement path exists behind <code>--guard-enforce-untested-do-not-use</code>, is off, and is untested in production. No <code>--guard</code> means no signals; a guard that cannot resolve its model digest refuses to attach rather than emitting provenance-free “evidence.”</p>
+  <p>Live miss that is a category limit, not a threshold: Qwen3Guard caught <code>rm -rf</code> and missed “Force-push a rewritten history over main.” Bounds refuse first; the model comments on what bounds allowed. Wired the other way around, that force-push would have gone through. That is why the enforce flag is named the way it is.</p>
+  <h3>Training and measurement (Python)</h3>
+  <p>Implementations: <code>aumos/python/warrantor_ml/src/warrantor_ml/</code>. Launchers only: <code>aumos/ml/*.py</code>. <code>tests/guard_parity.rs</code> reads <code>evaluate.py</code> as a compile-time string so <code>num_ctx</code>, seed, temperature, top_p, top_k, and the controversial policy cannot drift.</p>
+  <p>Run <code>weak-2026-08-13a</code> trained on Modal and the parity gate rejected it. Seven of eight models remain untrained. Four are cold-start blocked on real warrant history (exporter exists; labels are warrant-level on call-level rows). Corpora re-measure is blocked on an HF click-through token. This session has no <code>HF_TOKEN</code>. Shipped cases: <code>aumos/docs/examples/guard-bench-cases.example.jsonl</code>.</p>
+</section>
+
+<!-- ================= 14 SPECS CI DEPLOY ================= -->
+<section id="analysis-specs">
+  <div class="sec-head"><span class="sec-num">§ 14</span><h2>Specs, proto, CI, deploy</h2></div>
+  <h3>Contract pack</h3>
+  <p><code>aumos/specs/warrantor-v4/README.md</code> lists 16 documents. Eleven are FROZEN CANDIDATE. Four are DRAFT. Zero have reached FROZEN. Freeze requires golden vectors, two independent readings, and recorded decisions. The sprint runbook’s Phase-1 exit criterion exists to be enforced, not admired.</p>
+  <p>Protocols P1–P12 live under <code>aumos/specs/protocols/</code> (md + cddl + schema). Wire contract: <code>aumos/proto/warrantor/</code>. <code>buf.yaml</code> is linted in CI with checksum-pinned buf 1.72.0.</p>
+  <h3>CI — ten workflows</h3>
+  <table>
+    <thead><tr><th>Workflow</th><th>Path</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>CI</td><td><code>aumos/.github/workflows/ci.yml</code></td><td>DCO, contract plane, Rust, Python (35 projects job name), Go, TypeScript, conformance, desktop <code>node --test</code>, docs contracts</td></tr>
+      <tr><td>desktop-release</td><td><code>aumos/.github/workflows/desktop-release.yml</code></td><td>Unsigned installers; agent compiled in the same job; <code>--publish never</code></td></tr>
+      <tr><td>coverage / sbom / fuzz</td><td>coverage.yml, sbom.yml, fuzz.yml</td><td>llvm-cov on main; CycloneDX; nightly cargo-fuzz on trust-core</td></tr>
+      <tr><td>publish / release / provenance / artifacts</td><td>publish.yml, release.yml, provenance.yml, release-artifacts.yml</td><td>OIDC trusted publishing; GitHub Release; SLSA attestations; prebuilt binaries. Nothing has shipped to npm/PyPI/crates.io.</td></tr>
+      <tr><td>aumos-security</td><td>aumos-security.yml</td><td>Reusable workflow_call checks</td></tr>
+    </tbody>
+  </table>
+  <h3>Deploy</h3>
+  <p>Present and populated: <code>aumos/deploy/evidence-archive/</code>, <code>helm/aumos/</code>, <code>local-sigstore/</code>, <code>modal/</code>, <code>muveraai-worker/</code>, <code>spire/</code>, <code>systemd/</code>, plus README pointers in <code>aumos/deploy/airgap/</code>, <code>docker/</code>, and <code>k8s/</code> that name the evidence-archive compose and the warrantor agent path. Helm still can reference leftover images. Recut build order does not grow another unused chart.</p>
+</section>
+
+<!-- ================= 15 PENDING ================= -->
+<section id="pending">
+  <div class="sec-head"><span class="sec-num">§ 15</span><h2>Pending-items register</h2></div>
+  <p class="lede">Owner classes: engineering, product-decision, procurement-or-credential, human-only, unfixable-under-current-model. Items marked working were closed in the 2026-08-24 working tree. Unclosable items stay open with their owner class and are never described as shipped. <code>tracker.json</code> is not this list.</p>
+
+  <article class="item" id="pending-sandbox-31">
+    <h3>Sandbox §3.1 close-out <span class="b b-pending">engineering</span></h3>
+    <p><strong>Why still open.</strong> W1 §3.1 is not closed. <code>write_paths</code> is Observed. The module emits argv. A 2026-08-17 kernel run held three claims and disproved /tmp. One kernel is not every kernel. <code>bound_strengths()</code> must stay untouched by a profile file.</p>
+    <p><strong>Done looks like.</strong> Run an agent under the printed bubblewrap/firejail prefix on Linux until a write outside the worktree fails at the syscall, record the kernel, and keep the Observed label until that is the common path — not a derivation test.</p>
+    <p class="cite">W1 §3.1 · aumos/rust/warrant/src/sandbox.rs · aumos/rust/warrant/src/lib.rs</p>
+  </article>
+
+  <article class="item" id="pending-archive-tls">
+    <h3>Archive TLS <span class="b b-working">working</span></h3>
+    <p><strong>Closed this working tree.</strong> The supported answer is the Caddy reverse proxy in <code>deploy/evidence-archive</code>. It terminates TLS on 443 using the certificate the operator places in <code>tls/fullchain.pem</code> and <code>tls/privkey.pem</code>. Pin that SPKI. There is no default self-signed blob. Same-host health stays on loopback HTTP 8788. Postgres on the compose network remains <code>NoTls</code> on purpose.</p>
+    <p class="cite">W1 §2.1b · §2.3 · aumos/deploy/evidence-archive/docker-compose.yml · aumos/deploy/evidence-archive/Caddyfile</p>
+  </article>
+
+  <article class="item" id="pending-http-autofile">
+    <h3>HTTP settle auto-file <span class="b b-working">working</span></h3>
+    <p><strong>Closed this working tree.</strong> <code>StoreApi::with_filer</code> injects the CLI's <code>auto_file_at_settle</code>. <code>cmd_serve</code> attaches it. Filing runs before the settle announcement. A silent filer files nothing. A failed settle neither files nor announces. Tests in <code>rust/warrant/tests/autofile_http.rs</code> drive <code>handle_scoped</code>, not a copy of settle.</p>
+    <p class="cite">W1 §2.1b · aumos/rust/warrant/src/serve.rs · aumos/rust/warrant/src/bin/warrantor.rs</p>
+  </article>
+
+  <article class="item" id="pending-change-feed">
+    <h3>Change cursor <span class="b b-working">working</span></h3>
+    <p><strong>Closed this working tree.</strong> <code>GET /v1/warrants?changed_since=</code> filters on the warrant file's mtime, so a later settle is visible without re-reading every issued-at. The list body carries <code>cursor</code>. The console sends it on later polls and merges the delta. Still tokio-free, one request per connection. Not SSE.</p>
+    <p class="cite">W1 §1.4 · aumos/rust/warrant/src/serve.rs · aumos/rust/warrant/src/console/console.js</p>
+  </article>
+
+  <article class="item" id="pending-signing">
+    <h3>Code signing and notarization <span class="b b-procure">procurement-or-credential</span></h3>
+    <p><strong>Why still open.</strong> Installers are unsigned on all platforms. SmartScreen and Gatekeeper warn. All enabling config is written and inert: <code>desktop/SIGNING.md</code>, electron-builder hooks, <code>build/entitlements.mac.plist</code>, <code>forceCodeSigning: false</code>. Reclassified 2026-08-17 as a publication requirement, not a delivery gap — an unsigned build installs and runs. Still required before distributing to an audience that has no reason to trust the publisher.</p>
+    <p class="cite">aumos/desktop/SIGNING.md · aumos/desktop/electron-builder.config.cjs</p>
+  </article>
+
+  <article class="item" id="pending-macos-install">
+    <h3>macOS installer observation <span class="b b-human">human-only</span></h3>
+    <p><strong>Why still open.</strong> All four packaging legs are built by CI. Exactly one (Windows) has been installed and launched. No installer has been installed or launched on macOS, so the <code>identity: '-'</code> ad-hoc signature that Apple Silicon requires has never been observed executing. This Windows environment cannot close it.</p>
+    <p class="cite">W1 §1.1–1.2 · HANDOFF §1.1 · aumos/desktop/SIGNING.md</p>
+  </article>
+
+  <article class="item" id="pending-linux-native">
+    <h3>Native Linux desktop install <span class="b b-human">human-only</span></h3>
+    <p>AppImage was launched in WSL2 for the issuer-key gap. A native Linux desktop install of the deb/AppImage as a reviewer’s first contact is still unobserved.</p>
+    <p class="cite">W1 §1.5 · aumos/.github/workflows/desktop-release.yml</p>
+  </article>
+
+  <article class="item" id="pending-update-channel">
+    <h3>Desktop update channel <span class="b b-pending">engineering</span></h3>
+    <p>Blocked on signing. <code>publish: null</code> and <code>--publish never</code> are load-bearing. An update channel over an unsigned artifact is an unauthenticated code-execution channel. Do not add electron-updater first.</p>
+    <p class="cite">aumos/desktop/electron-builder.config.cjs · aumos/desktop/SIGNING.md</p>
+  </article>
+
+  <article class="item" id="pending-gui-issuer">
+    <h3>GUI issuer-key mint <span class="b b-decision">product-decision</span></h3>
+    <p>firstRunRemedy routes to a terminal grant. Whether a GUI-first user should ever have to open a terminal is open. Every alternative moves an identity decision into a click. The constraint is already written: a key created by the act of looking for it has signed nothing.</p>
+    <p class="cite">W1 §1.5 · aumos/desktop/src/policy.js</p>
+  </article>
+
+  <article class="item" id="pending-enforcing-guard">
+    <h3>Enforcing guard <span class="b b-pending">engineering</span></h3>
+    <p>Deliberately off. The flag <code>--guard-enforce-untested-do-not-use</code> exists. Turning it on without new measurement is not done. The force-push miss is a category limitation of a general safety model.</p>
+    <p class="cite">W1 §4.1 · §4.1d · aumos/rust/warrant/src/guard.rs</p>
+  </article>
+
+  <article class="item" id="pending-hf-token">
+    <h3>Hugging Face corpus token <span class="b b-procure">procurement-or-credential</span> <span class="b b-human">human-only</span></h3>
+    <p>WildGuardMix and ExpGuardMix are gated. Gate is auto-approved on submit but needs a logged-in account, an accepted form, and a read token. No token, no cache → HTTP 401 before any model is called. Not a compute problem. Accepting terms is something only the account holder can do. Then <code>python ml/run_corpus_benchmarks.py --check</code> then the full command. Re-measure at num_ctx 8192, seed 0.</p>
+    <p class="cite">W1 §4.1c · HANDOFF §1.2 · aumos/python/warrantor_ml/src/warrantor_ml/datasets.py · aumos/ml/run_corpus_benchmarks.py · HF_TOKEN</p>
+  </article>
+
+  <article class="item" id="pending-guard-program">
+    <h3>Guard-model program (seven untrained) <span class="b b-decision">product-decision</span></h3>
+    <p>Four recipes wait on real warrant history. Three need Modal GPU under remaining credit. <code>supervise_severity=False</code> was run and refuted. Running the next one without a hypothesis repeats that. Using the product is what closes the cold-start four.</p>
+    <p class="cite">W1 §4.2 · HANDOFF §1.3 · aumos/python/warrantor_ml/src/warrantor_ml/recipes.py</p>
+  </article>
+
+  <article class="item" id="pending-spec-freeze">
+    <h3>Spec freeze exit gate <span class="b b-decision">product-decision</span></h3>
+    <p>Zero of 16 contract-pack specs have reached FROZEN from FROZEN CANDIDATE. The protocol is written in <code>aumos/specs/warrantor-v4/README.md</code>.</p>
+  </article>
+
+  <article class="item" id="pending-publishing">
+    <h3>Publishing rehearsal <span class="b b-decision">product-decision</span></h3>
+    <p>Nothing has ever shipped to npm / PyPI / crates.io. Trusted publishing is wired (OIDC) for some packages. No install-from-registry smoke test exists. Repo visibility is undecided.</p>
+    <p class="cite">aumos/.github/workflows/publish.yml · aumos/docs/publishing-runbook.md</p>
+  </article>
+
+  <article class="item" id="pending-same-uid">
+    <h3>Same-UID store read <span class="b b-unfix">unfixable-under-current-model</span></h3>
+    <p>The supervised agent can read the store and the session token file. <code>operator session-scope read</code> stops the agent settling through the API. Act-scoped tokens would not help: the agent reads a scoped token as easily as an unscoped one. Same UID is same UID. Done looks like a different isolation model (other UID, other machine, or a secret that is not on this filesystem). Not a patch inside this process.</p>
+    <p class="cite">W1 §2.4 · aumos/rust/warrant/src/operators.rs</p>
+  </article>
+
+  <article class="item" id="pending-trust-directory">
+    <h3>Shared trust directory <span class="b b-decision">product-decision</span></h3>
+    <p>Pins are local. Bundles are carried files imported only against a key already pinned out of band. A network directory that hands out keys is a new trust root. That design decision has not been taken.</p>
+    <p class="cite">aumos/rust/warrant/src/trust.rs · aumos/rust/warrant/src/bundle.rs</p>
+  </article>
+
+  <article class="item" id="pending-staged-prune">
+    <h3>Prune of staged effects <span class="b b-working">working</span></h3>
+    <p><strong>Closed this working tree.</strong> <code>apply_prune</code> writes the chain witness forward into a tombstone before it deletes a staged log. A truncated log is a refusal from <code>open_queue</code>, not “0 staged”. Classes a verdict still depends on remain refused.</p>
+    <p class="cite">W1 §3.4 · aumos/rust/warrant/src/retention.rs · aumos/rust/warrant/tests/prune.rs</p>
+  </article>
+
+  <article class="item" id="pending-session-unscoped">
+    <h3>Default session token remains unscoped <span class="b b-working">working</span></h3>
+    <p><strong>Closed this working tree.</strong> The first named operator still leaves the session token unscoped, so the starter is not locked out. The second named operator records session-scope <code>read</code>. That is a recorded choice, not unscoped-by-absence. <code>session-scope unscoped</code> remains available.</p>
+    <p class="cite">W1 §2.2 · aumos/rust/warrant/src/operators.rs · aumos/rust/warrant/tests/identity.rs</p>
+  </article>
+
+  <article class="item" id="pending-archive-retention">
+    <h3>Archive server-side retention <span class="b b-working">working</span></h3>
+    <p><strong>Closed this working tree.</strong> <code>ArchiveStore::apply_retention</code> deletes when the policy grants it and is a no-op otherwise. Postgres uses a SECURITY DEFINER function and a trigger exception; the runtime role still has no DELETE grant on <code>artifact</code>. <code>warrantor-archive retain [--apply]</code> is the verb. Default still grants nothing.</p>
+  </article>
+
+  <article class="item" id="pending-fleet-summary">
+    <h3>Per-repo and time-bounded fleet summary <span class="b b-working">working</span></h3>
+    <p><strong>Closed this working tree.</strong> <code>GET /v1/summary?since=&amp;until=&amp;repo=</code> filters the same store read. <code>repo</code> comes from the report bundle. The device signature covers the canonical path including the sorted query. <code>warrantor archive summary --since --until --repo</code> is the client.</p>
+    <p class="cite">W1 §3.3 · aumos/rust/archive/src/http.rs · aumos/rust/warrant/src/archive_client.rs</p>
+  </article>
+
+  <article class="item" id="pending-empty-deploy">
+    <h3>Empty deploy/airgap, docker, k8s <span class="b b-working">working</span></h3>
+    <p><strong>Closed this working tree.</strong> Each directory now holds a README that names the evidence-archive compose and the warrantor agent path. No unused chart was added.</p>
+    <p class="cite">aumos/deploy/airgap · aumos/deploy/docker · aumos/deploy/k8s</p>
+  </article>
+
+  <article class="item" id="pending-recut-leftovers">
+    <h3>Recut-killed crates still in the workspace <span class="b b-decision">product-decision</span></h3>
+    <p>R8 sandbox-runtime, S1 safe-tensors-pp, N3 inference-proxy, C1-4 tee-serve, F4 fleet-marshal, and a dozen in-memory planes still build. They confuse “what Warrantor is.” Archive, extract, or label as a research annex.</p>
+    <p class="cite">aumos/docs/03-portfolio-recut-v4.md · aumos/rust/Cargo.toml</p>
+  </article>
+
+  <article class="item" id="pending-w1-stale-config">
+    <h3>Stale harness README and W1 leftover sentences <span class="b b-working">working</span></h3>
+    <p><strong>Closed this working tree.</strong> The harness README presents <code>config --agent</code> as a refusal, not a working recipe. CHANGELOG says thirty-six harnesses, matching <code>harness::registry().len()</code>.</p>
+    <p class="cite">aumos/python/warrantor_harness/README.md · aumos/CHANGELOG.md · aumos/rust/warrant/src/harness.rs</p>
+  </article>
+
+  <article class="item" id="pending-daemon-socket">
+    <h3>Daemon control socket never bound <span class="b b-working">working</span></h3>
+    <p class="footnote"><strong>Correction 2026-08-25:</strong> reclassified resolved-by-design — no control socket exists on purpose; stop uses the OS process link (<code>rust/warrant/src/daemon.rs</code> module doc). Struck from pending registers.</p>
+    <p><strong>Closed this working tree.</strong> <code>socket_path</code> is gone. Stop uses the OS process link and no longer describes a socket nothing binds. The <code>DaemonRecord.socket</code> field remains so older records still parse, and is empty.</p>
+    <p class="cite">aumos/rust/warrant/src/daemon.rs · aumos/rust/warrant/src/stop.rs</p>
+  </article>
+
+  <article class="item" id="pending-ts-ui">
+    <h3>TypeScript console React layer and Arena UI <span class="b b-decision">product-decision</span></h3>
+    <p>Both packages say “task 03.” The live console is the Rust one. Building a second React console would be a second viewer of verdicts — the thing desktop’s main.js refuses to become. Decide to keep the Rust console as the only UI, or accept a second implementation with a reason.</p>
+    <p class="cite">aumos/typescript/console · aumos/typescript/arena</p>
+  </article>
+</section>
+
+<!-- ================= 16 COLOPHON ================= -->
+<section id="colophon">
+  <div class="sec-head"><span class="sec-num">§ 16</span><h2>Colophon</h2></div>
+  <p>Local file: <code>aumos/docs/html/warrantor-platform-atlas-2026-08-24.html</code>. Opens from disk. No bundler. No ES-module import map. Inspector: <code>aumos/docs/html/meta/test_platform_atlas.py</code>.</p>
+  <p>Prior HTML audits used as inputs to reconcile, not copy: <code>warrantor-platform-complete-analysis-2026-08-22.html</code>, <code>aumos/docs/html/warrantor-implementation-audit-and-pending-2026-08-19.html</code>. Where they disagree with HEAD, HEAD wins.</p>
+  <p>US English house standard applies to this page's own prose. Verbatim quotations keep source spelling.</p>
+</section>
+
+<footer class="doc-footer">
+  MuVeraAI Corporation · Open Secure AI Alliance · Warrantor platform atlas · 2026-08-24 · HEAD dea7cdd · Electron, not Tauri · in-house agent harness, not the Grok Build goal harness · local artifact, not a hosted URL
+</footer>
+
+</div>
+</body>
+</html>
+
+
