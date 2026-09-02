@@ -1,6 +1,12 @@
 # SoK: Acceptance Is Not Action
 
-**Systematization · Draft 1 · 2026-09-01 · Vikram Jha**
+**Anonymous submission — under double-blind review**
+
+> **Anonymization note.** Author, affiliation and the identity of companion submissions are
+> withheld for double-blind review. Citations of the form `[Anon-*]` are unpublished companion
+> work by the same authors and are anonymized accordingly; **all third-party citations are
+> intact**. Pre-registration hashes are retained deliberately: they are this paper's evidence
+> of pre-registration, and a SHA-256 identifies a frozen document rather than a person.
 
 *Submitted to IEEE SaTML 2027. Anonymized for double-blind review.*
 
@@ -265,7 +271,7 @@ authors describe what their control mediates rather than what fraction of the ag
 that represents. So the SoK derives it.
 
 **The frozen action surface.** Seven effectors, frozen 2026-08-30 as [`ACTION-SURFACE-v1.0`](ACTION-SURFACE-v1.md)
-and published with the artifact. That document also reconciles this enumeration with T-01’s
+and published with the artifact. That document also reconciles this enumeration with [Anon-D]’s
 instrumentation classes, so the derived scores here and the measured score in §9 share a denominator:
 
 | | Effector | Note |
@@ -388,7 +394,7 @@ full-text application of G1–G4. **Expected attrition 10–20%**, and the exclu
 the gate that excluded each.
 
 **Full-text only.** No work is scored from an abstract. This is stated as a method commitment because
-the failure mode is real and we have committed it elsewhere in this program: a related-work section
+the failure mode is real and we have committed it elsewhere in the companion studies: a related-work section
 built from abstracts is both a desk-reject risk and an integrity problem.
 
 **Coding.** Two coders, independent, on all three axes plus the evidence grade. Cohen's κ per axis.
@@ -1102,7 +1108,7 @@ invoked* is what a partial coverage vector denies. The claim is not that these p
 agents, which is uncontroversial, but that a corpus can be scored against them with a per-cell audit
 trail — which orders the literature differently than its abstracts do.
 
-**Reads that discharge debt elsewhere in this program.** HCP (arXiv:2606.29073), DEMM-Bench
+**Reads that discharge debt elsewhere in the companion studies.** HCP (arXiv:2606.29073), DEMM-Bench
 (arXiv:2606.20634) and ClawGuard (arXiv:2604.11790) are all in-corpus rows under G1–G4. Reading them
 inside this schedule costs nothing additional and settles open positioning questions for two other
 papers at the same time.

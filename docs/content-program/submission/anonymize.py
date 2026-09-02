@@ -42,9 +42,10 @@ PAPERS = [
     "P3-position-not-length-paper.md",
     "P6-composition-independence-paper.md",
     "P8-quantization-equivalence-paper.md",
+    "T-12-SUBMISSION-satml2027.md",
 ]
 
-BYLINE = re.compile(r"\*\*(?:Research paper|Replication note|Draft) [^\n]*?Vikram Jha\*\*")
+BYLINE = re.compile(r"\*\*(?:Research paper|Replication note|Systematization|Draft) [^\n]*?Vikram Jha\*\*")
 ANON_BYLINE = "**Anonymous submission — under double-blind review**"
 
 #: (pattern, replacement) applied in order. Order matters: reference-list entries before inline
@@ -62,6 +63,9 @@ RULES = [
     (r"(?<!\[)\bT-03\b", "[Anon-A]"),
     (r"(?<!\[)\bT-04\b", "[Anon-B]"),
     (r"(?<!\[)\bT-12\b", "[Anon-C]"),
+    # T-01 caught by the deny list on the first T-12 run, in prose rather
+    # than in brackets: "reconciles this enumeration with T-01's classes".
+    (r"(?<!\[)T-01(?![0-9])", "[Anon-D]"),
 
     (r"our own prior work documents", "companion work documents"),
     (r"What this means for our own prior work", "What this means for the companion studies"),
@@ -151,7 +155,14 @@ def main():
     failures = 0
     for name in PAPERS:
         out, log = anonymize(name)
-        dest = os.path.join(OUT, name.replace("-paper.md", "-anon.md"))
+        # Every anonymized output MUST be named distinctly from its source. The original
+        # rule only rewrote "-paper.md", so a differently-named draft kept its own
+        # filename -- harmless only because OUT is a different directory, and one layout
+        # change away from overwriting the draft it was generated from.
+        anon_name = (name.replace("-paper.md", "-anon.md") if name.endswith("-paper.md")
+                     else name[:-3] + "-anon.md")
+        assert anon_name != name, "anonymized output must not reuse the source filename"
+        dest = os.path.join(OUT, anon_name)
         io.open(dest, "w", encoding="utf-8", newline="\n").write(out)
         print("=" * 90)
         print(f"{name}\n   -> {os.path.basename(dest)}   ({len(out.split())} words)")

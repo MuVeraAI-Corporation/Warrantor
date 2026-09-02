@@ -1,0 +1,82 @@
+% =====================================================================================
+% Preprint format — the NON-ANONYMOUS build, for a preprint server.
+%
+% One column, deliberately: these papers are table-dense (P8 carries eight), and a
+% preprint is read on screen where a single wide column beats two narrow ones. It also
+% lets pandoc's `longtable` work natively, so no float conversion is needed here.
+%
+% ⚠️ THIS BUILD CARRIES THE AUTHOR NAME. It is the opposite of the submission build and
+% must never be confused with it. Check which tree a PDF came from before sending it
+% anywhere: tex/ is anonymous, tex-preprint/ is not.
+% =====================================================================================
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=1.05in]{geometry}
+\usepackage{microtype}
+
+\usepackage{amsmath,amssymb}
+\usepackage{textcomp}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{framed}
+\usepackage[normalem]{ulem}
+\usepackage{fvextra}
+
+% --- pandoc shims ---------------------------------------------------------------------
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\pandocbounded}[1]{#1}
+\providecommand{\st}[1]{\sout{#1}}
+\setlist{leftmargin=1.2em, itemsep=2pt, topsep=4pt, parsep=0pt}
+\RecustomVerbatimEnvironment{verbatim}{Verbatim}{breaklines,breakanywhere,fontsize=\small}
+
+\definecolor{accent}{HTML}{B8552F}
+\definecolor{warn}{HTML}{8A6D1F}
+
+% Color is kept here, unlike the submission builds: a preprint is read on screen.
+\newcommand{\warn}{\textcolor{warn}{\textbf{$\triangle$}}\ }
+\newcommand{\rmark}[1]{\textcolor{accent}{\textbf{\textsf{\small #1}}}\ }
+
+\newenvironment{callout}{\par\medskip\begin{leftbar}\small}{\end{leftbar}\par\medskip}
+\renewenvironment{quote}{\par\medskip\begin{leftbar}\small\itshape}
+  {\end{leftbar}\par\medskip}
+
+\renewcommand{\arraystretch}{1.15}
+% ⚠️ 3pt, not the 4pt this once was. `\tabcolsep` is applied on BOTH sides of every column, so a
+% six-column table spends 10*\tabcolsep on gaps alone -- 40pt at 4pt. P6's two widest tables keep
+% natural `l` columns (their cells are short, so widen_colspec correctly leaves them alone), and at
+% 4pt the content plus gaps ran 3.5-5.5pt past the measure. Dropping to 3pt frees 10pt, which
+% clears it with room to spare. Tables given explicit p{} widths are unaffected: their spec is
+% written as \dimexpr\textwidth-N\tabcolsep\relax, so it tracks this value automatically.
+\setlength{\tabcolsep}{3pt}
+
+% Numbering OFF: the papers carry their own section numbers and cross-reference them in
+% prose. Letting LaTeX renumber silently breaks every such reference.
+\setcounter{secnumdepth}{-2}
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\large\bfseries\color{accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalfont\small\bfseries\itshape}{\thesubsubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{12pt}{5pt}
+\titlespacing*{\subsection}{0pt}{9pt}{3pt}
+
+\date{}
+
+% =====================================================================================
+% Last-resort line-breaking slack. TeX sets a paragraph by stretching interword space within
+% strict tolerance; when no break satisfies it -- a narrow two-column measure carrying tokens
+% like "10-of-15" or a math arrow that cannot be hyphenated -- it gives up and lets the line
+% run into the margin instead. \emergencystretch grants extra stretch ONLY on that final
+% desperate pass, so it costs nothing on any paragraph that already fits, and converts a
+% visible overflow into a slightly loose line. P6 ran 3.34pt and 2.66pt into the margin
+% without it.
+% =====================================================================================
+\emergencystretch=1.5em

@@ -42,10 +42,30 @@ PAPERS = [
     ("P3", "P3-position-not-length-paper.md"),
     ("P6", "P6-composition-independence-paper.md"),
     ("P8", "P8-quantization-equivalence-paper.md"),
+    ("T04", "T-04-masking-does-not-isolate.md"),
+    ("T12", "T-12-SUBMISSION-satml2027.md"),
 ]
 
+# ---------------------------------------------------------------------------
+# Author identity. NAMED BUILD ONLY.
+#
+# These live here rather than in the shared `to_latex.py` on purpose: the anonymous
+# submission build imports that module, and a constant it can import is a constant it
+# can leak. Keeping identity in the named-only path makes anonymity a property of the
+# module graph rather than of anyone remembering to strip a field.
+#
+# The byline in each source markdown stays the authority for WHO wrote the paper -- the
+# build refuses if it cannot read one. What follows is the contact and licence detail a
+# markdown byline has nowhere to put.
+# ---------------------------------------------------------------------------
+AFFILIATION = "MuVeraAI"
+EMAIL = "vikram@muveraai.com"
+ORCID = "0009-0004-3959-6099"
+LICENCE_NAME = "CC BY 4.0"
+LICENCE_URL = "https://creativecommons.org/licenses/by/4.0/"
+
 BYLINE = re.compile(
-    r"\*\*(?:Research paper|Replication note|Draft)[^\n]*?·\s*(\d{4}-\d{2}-\d{2})\s*·\s*([^*\n]+?)\*\*")
+    r"\*\*(?:Research paper|Replication note|Systematization|Draft)[^\n]*?·\s*(\d{4}-\d{2}-\d{2})\s*·\s*([^*\n]+?)\*\*")
 
 NOTE = (
     "\n> **Preprint.** This is the named version of a paper prepared for peer review. The anonymized\n"
@@ -70,6 +90,10 @@ def build(tag, name):
     subtitle = sub.group(1).strip() if sub else ""
 
     md = T.strip_production_notes(md)
+    # The double-blind line is a submission artifact, not content. It must not survive
+    # into a named preprint that carries the author's name three lines above it.
+    md = re.sub(r"^\*Submitted to .*double-blind review\.\*\s*$", "",
+                md, flags=re.M)
     md = re.sub(r"^# .+$", "", md, count=1, flags=re.M)
     if sub:
         md = md.replace("### " + subtitle, "", 1)
@@ -109,10 +133,19 @@ def build(tag, name):
            "\\input{../preamble-preprint}",
            "\\title{\\vspace{-2em}" + t_title
            + (r"\\[0.35em]{\large\normalfont " + t_sub + "}" if t_sub else "") + "}",
-           "\\author{" + t_author + "}",
+           "\\author{" + t_author
+           + "\\\\[0.30em]{\\normalsize " + AFFILIATION + "}"
+           + "\\\\[0.18em]{\\small ORCID~\\href{https://orcid.org/"
+           + ORCID + "}{" + ORCID + "}}"
+           + "\\\\[0.18em]{\\small Corresponding author:~\\href{mailto:"
+           + EMAIL + "}{" + EMAIL + "}}}",
            "\\date{" + date + "}",
            "\\begin{document}",
            "\\maketitle",
+           "\\begin{center}\\small\\vspace{-1.1em}",
+           "\\textcopyright~" + date[:4] + " " + t_author
+           + ". Licensed under \\href{" + LICENCE_URL + "}{" + LICENCE_NAME + "}.",
+           "\\end{center}",
            body]
     if bib:
         doc.append(bib)

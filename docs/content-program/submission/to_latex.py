@@ -37,11 +37,16 @@ PAPERS = [
     ("P3", "P3-position-not-length-anon.md"),
     ("P6", "P6-composition-independence-anon.md"),
     ("P8", "P8-quantization-equivalence-anon.md"),
+    ("T12", "T-12-SUBMISSION-satml2027-anon.md"),
 ]
 
 #: Unicode -> LaTeX. Ordered longest-first where prefixes overlap.
 UNI = [
     ("\u26a0\ufe0f", r"\warn{}"), ("\u26a0", r"\warn{}"),
+    # T-12 marks its key sections with a star in the heading. Mapped rather than
+    # stripped: it is the author's own emphasis, and a reader of the PDF should
+    # still see what the author marked.
+    ("\u2b50\ufe0f", r"$\star$"), ("\u2b50", r"$\star$"),
     ("\u2014", "---"), ("\u2013", "--"),
     ("\u2018", "`"), ("\u2019", "'"), ("\u201c", "``"), ("\u201d", "''"),
     ("\u00a7", r"\S{}"), ("\u00b7", r"\textperiodcentered{}"),
@@ -309,6 +314,7 @@ TARGETS = {
     "P2": "ieee",      # IEEE S&P
     "P3": "ieee",      # DLSP (IEEE S&P workshop)
     "P6": "acm",       # ACM AISec (CCS workshop)
+    "T12": "ieee",     # IEEE SaTML 2027 -- the venue the draft names
 }
 
 #: Targets whose class is two-column, and therefore cannot hold a `longtable`.
