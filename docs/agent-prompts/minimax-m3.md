@@ -20,10 +20,10 @@ REPOSITORY
   Master: docs/html/warrantor-native-ai-platform-os-master-2026-09-01.html
   Board:  docs/TASK-STATUS.md   (generated; never edit by hand)
 
-DO NOT START UNTIL TASK 0.4 SHOWS DONE
+TASK 4.3 ONLY — DO NOT START IT UNTIL TASK 0.4 SHOWS DONE
   Verify, do not assume:
       python scripts/task_status.py --next
-  If 4.1-4.5 still read BLOCKED, 0.4 has not landed. Task 0.4 lints tier disclosure
+  If 4.3 still reads BLOCKED, 0.4 has not landed. The other four are not gated. Task 0.4 lints tier disclosure
   across report, status and console; you own the console coverage surface for the
   same catalog item (L8-13). Starting early collides on the same files.
 
@@ -33,6 +33,10 @@ READ FIRST
   3. In the master document, the catalog entries for L8-01, L8-11, L8-13, L8-22,
      L9-14 — these are what Phase 4 delivers.
   4. The existing console and desktop code, before changing any of it.
+
+START WITH 4.1, 4.2, 4.4 OR 4.5 — ONLY 4.3 IS GATED
+  Phase 4 is expanded as of 2026-09-02 and four of its five tasks are READY now.
+  Only Task 4.3 waits on Task 0.4. Confirm with `python scripts/task_status.py --next`.
 
 SCOPE — Phase 4, the buyer's surface
   L8-01  Approval queue with a latency budget and default-deny timeout
@@ -87,8 +91,15 @@ CONSTRAINTS
       node "M:/Project AumOS - Linkedin Blitzkrieg/scripts/verify-us-english.mjs" <files>
     Known false positives: the verb "forwards" and the noun plural "analyses" are
     correct US English. Everything else the gate reports is real.
-  - TypeScript strict mode. Never use `any`.
-  - Named exports over default exports.
+  - **STACK — corrected 2026-09-02 against origin/main. This is NOT a TypeScript or
+    React codebase.** The console is vanilla JavaScript served from Rust:
+    rust/warrant/src/console/console.js (1,824 lines), console.test.js (1,214),
+    index.html (365), console.css. No bundler, no framework, no build step. Desktop
+    is Electron with ZERO runtime dependencies in package.json. Do not introduce
+    TypeScript, a framework, a bundler or a runtime dependency. If a task seems to
+    need one, that is a design decision the plan does not make: stop and report.
+    Adding React to a 1,824-line vanilla console is a migration, not a UI task.
+  - Match the surrounding code's idiom. Tests are plain JS beside the source.
   - Accessibility is a release gate, not polish. Approval and incident response are
     safety-critical workflows; an access barrier in them is a control failure.
   - Tests alongside implementation, not afterward.
