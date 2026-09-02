@@ -3117,6 +3117,7 @@ fn warrant_error_status(error: &WarrantError) -> (u16, &'static str) {
         WarrantError::AuthorityExpanded(_) => (status::CONFLICT, "authority_expanded"),
         WarrantError::UnknownFormat(_) => (status::CONFLICT, "unknown_format"),
         WarrantError::Invalid(_) => (status::CONFLICT, "invalid"),
+        WarrantError::LockBusy { .. } => (status::CONFLICT, "warrant_locked"),
         WarrantError::Encode(_) => (status::INTERNAL, "internal"),
     }
 }

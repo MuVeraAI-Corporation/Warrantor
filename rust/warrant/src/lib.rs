@@ -43,6 +43,7 @@ pub mod daemon;
 pub mod egress;
 pub mod guard;
 pub mod harness;
+pub mod lock;
 pub mod mcp;
 pub mod mcp_endpoints;
 pub mod notify;
@@ -103,6 +104,17 @@ const CAPABILITY_DOMAIN: &[u8] = b"warrantor-capability-v1";
 /// Errors produced when constructing, validating or settling a warrant.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum WarrantError {
+    /// Another process holds this warrant's record and did not yield within the retry budget.
+    #[error(
+        "warrant {id} is locked by another process (waited {waited_ms} ms). A run killed \
+             mid-write leaves its lock behind; it ages out of locks/ and is stolen automatically."
+    )]
+    LockBusy {
+        /// The warrant whose record is contended.
+        id: String,
+        /// How long acquisition waited before refusing.
+        waited_ms: u64,
+    },
     /// The wire format is not one this build understands.
     #[error("unknown warrant format {0:?}; this build speaks {WARRANT_FORMAT}")]
     UnknownFormat(String),
