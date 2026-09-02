@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://warrantor.dev/schemas/research/rejection-ledger-v2.schema.json",
+  "title": "Warrantor Research Rejection Ledger v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "meta", "rejections"],
+  "properties": {
+    "$schema": { "type": "string", "format": "uri" },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "updated", "recordCount"],
+      "properties": {
+        "version": { "const": "2.0-working" },
+        "updated": { "type": "string", "format": "date" },
+        "recordCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "rejections": {
+      "type": "array",
+      "items": { "$ref": "https://warrantor.dev/schemas/research/rejection-record-v2.schema.json" }
+    }
+  }
+}

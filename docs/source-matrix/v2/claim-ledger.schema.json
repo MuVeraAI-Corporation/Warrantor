@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://warrantor.dev/schemas/research/claim-ledger-v2.schema.json",
+  "title": "Warrantor Repository Claim Ledger v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "meta", "claims"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "created", "status"],
+      "properties": {
+        "version": { "const": "2.0.0" },
+        "created": { "type": "string", "format": "date" },
+        "status": { "enum": ["researching", "reconciled", "verified"] }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": { "$ref": "https://warrantor.dev/schemas/research/claim-record-v2.schema.json" }
+    }
+  }
+}

@@ -1,0 +1,2178 @@
+{
+  "$schema": "claim-ledger.schema.json",
+  "meta": {
+    "version": "2.0.0",
+    "created": "2026-08-28",
+    "status": "researching"
+  },
+  "claims": [
+    {
+      "id": "CLM-0001",
+      "claim": "No Open Secure AI Alliance member contributed a non-bypassable layer that binds authority, evidence, orchestration, and incident exchange.",
+      "claimType": "nonexistence",
+      "repositoryEvidence": [
+        {
+          "path": "../README.md",
+          "locator": "lines 16-20",
+          "exactText": "No member contributed the layer that binds the pieces into a system an agent cannot bypass — authority, evidence, orchestration, incident exchange."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2",
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "integrated authority and evidence substrate"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "repository state 2026-08-28"
+        ],
+        "threatModel": "AI agent or operator attempts to bypass policy, suppress evidence, or exploit a seam between independently contributed controls."
+      },
+      "risk": "critical",
+      "status": "researching",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "mandato-2608-14074",
+          "aerf-draft-0-2",
+          "aevum-governance-kernel",
+          "crypto-verifiable-agent-auth-2607-21325",
+          "notarized-agents-sello-2606-04193",
+          "runtime-policy-enforcement-mcp-2026",
+          "governance-aware-agent-telemetry-2604-05119",
+          "cloudflare-agent-access-model-2026"
+        ],
+        "boundingSources": [
+          "nist-agent-identity-concept-2026",
+          "ietf-aiagent-auth-03",
+          "ietf-agent-operation-auth-02",
+          "alibaba-open-agent-auth-2026",
+          "openid-agent-identity-whitepaper-2025",
+          "aws-agentcore-policy-2026",
+          "openid-authzen-authorization-api-1-0",
+          "openid-authzen-coaz-framework-1-0",
+          "openid-authzen-coaz-mcp-1-0",
+          "mcp-authorization-2026-07-28",
+          "microsoft-entra-agent-id-2026",
+          "a2a-protocol-1-0-authorization",
+          "ietf-agent-authorization-envelope-00",
+          "open-policy-agent-current",
+          "cerbos-fastmcp-2026",
+          "cerbos-authzen-pdp-0-55",
+          "openfga-authzen-1-19",
+          "vengtoo-mcp-gateway-0-1-1",
+          "saga-ndss-2026",
+          "in-toto-attestation-framework-1-2",
+          "dsse-1-0-2",
+          "rfc9943-scitt-architecture",
+          "rfc9942-cose-receipts",
+          "rfc9711-entity-attestation-token",
+          "rfc9334-rats-architecture",
+          "rfc9999-rats-conceptual-message-wrapper",
+          "nsa-mcp-security-2026",
+          "les-dissonances-ndss-2026",
+          "toolhijacker-ndss-2026",
+          "oasis-cacao-security-playbooks-2-0",
+          "oasis-openc2-language-2-0",
+          "falco-talon-2026",
+          "nist-sp-800-61r3"
+        ]
+      },
+      "confidence": "unresolved",
+      "gaps": [
+        "Alliance member inventory and contribution dates are not yet independently verified.",
+        "Feature-level comparison now separates envelopes, predicates, attestation appraisal and transparency, but still must distinguish authorization, enforcement, orchestration, incident exchange and complete mediation. AuthZEN/COAZ standardize an external decision contract and protocol mapping, but their own trust model relies on a correct enforcing PEP and does not bind the decision to the exact forwarded operation or effect. Live Cerbos/OpenFGA evaluation confirms the decision seam while the two reviewed MCP paths demonstrate final-wire rejection, unmediated primitives, post-decision mutation and approval-correlation gaps. Alibaba Open Agent Auth integrates several adjacent layers, yet its reviewed MCP path is a bypassable wrapper, its audit store is deletable in memory, and it supplies no incident-exchange layer. NSA's 2026 MCP guidance independently establishes the need for layered identity, validation, proxy/DLP, sandbox, message-integrity and logging controls but supplies neither an implementation nor a completeness proof. Les Dissonances and ToolHijacker show that tool composition and registry metadata create additional seams an integrated layer must cover.",
+        "Publication and implementation dates must be compared against the Warrantor claim date."
+      ],
+      "nextQueries": [
+        "Open Secure AI Alliance member contributions authority evidence orchestration incident exchange",
+        "2024 2025 2026 agent governance proxy signed authorization receipt enforcement",
+        "Warrantor Mandato AERF Aevum feature comparison"
+      ],
+      "recommendation": {
+        "action": "unresolved",
+        "rationale": "Replace the broad claim only after a dated alliance-member inventory and feature-level comparison. Current evidence already shows adjacent and overlapping integrations. AuthZEN/COAZ plus live Cerbos/OpenFGA provide a standardized, executable decision seam but do not prove non-bypassable enforcement or action/effect evidence. Cerbos FastMCP and Vengtoo supply useful PEP patterns yet fail unchanged adoption gates. Alibaba Open Agent Auth is additional bounding evidence. NSA, Les Dissonances and ToolHijacker expand the required threat/control surface, but none establishes an alliance contribution or survives review as the complete non-bypassable authority/evidence/orchestration/incident-exchange layer.",
+        "alternatives": [
+          "Narrow the claim to Warrantor's precise composition and deployment invariants.",
+          "Describe the market gap without asserting universal nonexistence."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0002",
+      "claim": "All six additions in the v4 portfolio re-cut are genuinely unclaimed assets with no existing implementation anywhere.",
+      "claimType": "novelty",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "lines 20 and 74-85",
+          "exactText": "Six additions, each with no existing implementation anywhere."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W3",
+          "W4",
+          "W6"
+        ],
+        "capabilities": [
+          "SAFE schema",
+          "invariant attack corpus",
+          "kill-switch conformance",
+          "bounded revocation",
+          "machine-checked invariants",
+          "attack-to-policy loop"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "portfolio re-cut v4"
+        ],
+        "threatModel": "Prior art or an implementation exists under different terminology, invalidating an absolute novelty claim."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "sentinelagent-2604-02767",
+          "bureaucracy-speed-2603-09875",
+          "cloudflare-agent-access-model-2026",
+          "saga-ndss-2026",
+          "agent-security-bench-2025",
+          "owasp-virtual-patching-current",
+          "f5-big-ip-asm-vulnerability-assessment-2026"
+        ],
+        "boundingSources": [
+          "osaa-safe-rfc-proposal-2026",
+          "vigil-runtime-skill-enforcement-2606-26524",
+          "c-trace-runtime-compliance-2606-19242",
+          "ietf-agent-authorization-envelope-00",
+          "agentfuzz-usenix-2025",
+          "nist-agent-hijacking-evals-2025",
+          "les-dissonances-ndss-2026",
+          "toolhijacker-ndss-2026",
+          "firewall-benchmarks-2510-05244",
+          "falco-talon-2026",
+          "kubearmor-discovery-engine-2023",
+          "aws-agentcore-policy-2026",
+          "oasis-cacao-security-playbooks-2-0",
+          "oasis-openc2-language-2-0",
+          "cacao-roaster-1-3-0",
+          "automating-security-policies-2506-04838",
+          "nist-sp-800-61r3",
+          "microsoft-defender-automated-response-2026",
+          "datadog-application-security-automated-response-current",
+          "splunk-soar-approval-automation-2026",
+          "us8572750-web-exploit-mitigation",
+          "us7895649-dynamic-rule-generation",
+          "ep3035637-policy-based-network-security"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "Each addition still needs its own feature-bounded prior-art conclusion; contradicting the umbrella statement does not prove that every proposed residual composition is already implemented.",
+        "The attack-to-policy lane now directly contradicts universal absence through OWASP automated virtual-patch conversion and is further bounded by Falco Talon, KubeArmor policy discovery, AgentCore policy generation/signals/staging, CACAO/OpenC2, and policy-to-action research. The remaining opportunity is the evidence-bound R10 composition, not the generic category.",
+        "Commercial and patent prior art now separately establishes shipping scanner-to-policy, alert-to-containment, detection-to-temporary-block and approval/expiry workflows, plus historical disclosures of scanner-derived virtual patches, signed/aged response rules and policy-filtered adaptive response. Patent disclosures are not implementations, but they independently defeat broad unclaimed-asset rhetoric."
+      ],
+      "nextQueries": [
+        "AI security finding exchange schema agent incidents",
+        "authorization substrate invariant conformance adversarial corpus",
+        "AI kill switch conformance test suite",
+        "execution count bounded revocation capability tokens",
+        "TLA Lean formal verification AI agent authorization",
+        "commercial SOAR RASP red team finding automatic policy generation enforcement",
+        "attack derived policy safe generalization approval expiry regression receipt"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Retire the umbrella statement and prohibit 'anywhere' language. Multiple additions have direct or substantial prior art: SAGA, SentinelAgent and Cloudflare constrain authorization/revocation/invariants; ASB, AgentFuzz, NIST AgentDojo, Chord and ToolHijacker constrain attack corpora; and OWASP's automated scanner-to-virtual-patch path directly contradicts generic attack-to-policy absence. Falco Talon, KubeArmor Discovery Engine, AgentCore Policy, CACAO/OpenC2 and LLM policy-to-action synthesis further bound that lane. Defensible opportunities are exact evidence-bound compositions and conformance profiles, not six unclaimed categories.",
+        "alternatives": [
+          "Use a dated feature-bounded statement for each addition, such as 'no directly equivalent public implementation found in the searched source classes as of 2026-08-31'.",
+          "Position the additions as interoperable assurance profiles and hardened implementations rather than wholly novel categories."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0003",
+      "claim": "Nobody else builds a delegation-chain intersection engine equivalent to W6.",
+      "claimType": "nonexistence",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "lines 43-47",
+          "exactText": "Only the delegation-chain intersection engine — the part nobody else builds — survives."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W6"
+        ],
+        "capabilities": [
+          "delegation-chain intersection",
+          "capability attenuation",
+          "multi-agent delegation"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "portfolio re-cut v4"
+        ],
+        "threatModel": "Delegated agents expand authority, lose principal context, or exploit cross-domain and cross-agent trust seams."
+      },
+      "risk": "high",
+      "status": "challenged",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "authenticated-delegation-2501-09674",
+          "ietf-agent-operation-auth-02",
+          "ietf-opena2a-aap-00",
+          "ietf-aap-oauth-profile-01",
+          "capability-kernel-agent-auth-2026",
+          "sentinelagent-2604-02767",
+          "cloudflare-agent-access-model-2026",
+          "ietf-agent-authorization-envelope-00"
+        ],
+        "boundingSources": [
+          "ietf-aiagent-auth-03",
+          "nist-agent-identity-concept-2026",
+          "openid-agent-identity-whitepaper-2025",
+          "openid-authzen-authorization-api-1-0",
+          "openid-authzen-coaz-framework-1-0",
+          "openid-authzen-coaz-mcp-1-0",
+          "mcp-authorization-2026-07-28",
+          "microsoft-entra-agent-id-2026",
+          "a2a-protocol-1-0-authorization",
+          "spicedb-consistency-1-56",
+          "cerbos-fastmcp-2026",
+          "cerbos-authzen-pdp-0-55",
+          "openfga-authzen-1-19",
+          "vengtoo-mcp-gateway-0-1-1",
+          "saga-ndss-2026",
+          "spiffe-standard-current",
+          "alibaba-open-agent-auth-2026"
+        ]
+      },
+      "confidence": "medium",
+      "gaps": [
+        "Existing sources clearly cover chains, scoped delegation, context preservation, attenuation and revocation, but exact multi-principal set-intersection semantics and enforcement guarantees remain to be compared.",
+        "AuthZEN carries one subject plus action/resource/context and COAZ-MCP can separate human subject from agent context, but neither defines a delegation-chain algebra, monotone attenuation, holder proof, atomic consumption or exact initiating-principal/delegator/agent/resource-owner/tenant/environment intersection. Live Cerbos and OpenFGA implementations confirm that this API projects into materially different attribute/role and relationship-model semantics; neither is W6 by itself.",
+        "SentinelAgent's pinned artifact directly implements parent-child narrowing, manifest/output-set inheritance and finite cascade revocation, but it does not implement Warrantor's proposed initiating-principal, delegator, agent, resource-owner, tenant and environment intersection. Its unsigned output authority, expiry bypass and bearer-only delegation show why structural narrowing alone is not equivalent.",
+        "Alibaba Open Agent Auth carries optional delegation records but verifies only that each embedded authorization-server signature string is non-empty, computes no exact multi-principal intersection, and lists agent-to-agent authorization/delegation as future work. It is bounding protocol/implementation evidence, not a W6 equivalent.",
+        "A defensible W6 claim still requires a normative algebra, conflict/deny semantics, holder binding, cross-hop context integrity, complete chain state, receipt binding, proof-to-code correspondence and non-bypassable tool/network enforcement."
+      ],
+      "nextQueries": [
+        "delegation chain intersection capability attenuation formal semantics",
+        "multi-hop agent delegation authority intersection implementation",
+        "multi-principal authorization intersection resource owner tenant agent formal model"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Retire the unqualified 'nobody else builds' wording. Cloudflare explicitly intersects task-template, initiating-principal, agent-service, resource-owner and tenant authority into a capability ceiling, while OAuth/IETF proposals, AuthZEN/COAZ, SentinelAgent, SAGA and Alibaba cover identity/context transport, narrowing, delegation records, containment and runtime authorization. Live Cerbos and OpenFGA prove the AuthZEN seam works across attribute/role and relationship engines, but also expose semantic differences and supply no proposed chain algebra, holder proof, atomic permit or decision-to-forward binding. Alibaba's and SentinelAgent's reproduced boundaries likewise prevent equivalence. Claim novelty only for a published exact algebra plus cross-stack execution, receipt binding and independently checked proof-to-code correspondence.",
+        "alternatives": [
+          "Position W6 as an interoperable implementation/profile of emerging standards rather than a wholly novel category.",
+          "If the exact composition cannot be specified and independently evaluated, position W6 as a hardened implementation and conformance layer rather than a novel authorization calculus."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0004",
+      "claim": "The SAFE finding RFC has no schema, transport, or standards crosswalk.",
+      "claimType": "technical-fact",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "line 80",
+          "exactText": "The SAFE RFC is prose-only — no schema, no transport, no crosswalk."
+        }
+      ],
+      "scope": {
+        "products": [],
+        "capabilities": [
+          "SAFE finding schema",
+          "agent incident exchange"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "SAFE RFC version current on 2026-08-28"
+        ],
+        "threatModel": "Incident findings cannot interoperate or cross organizational boundaries without a machine-readable schema and transport mapping."
+      },
+      "risk": "high",
+      "status": "supported",
+      "evidence": {
+        "supportingSources": [
+          "osaa-safe-rfc-proposal-2026"
+        ],
+        "challengingSources": [],
+        "boundingSources": [
+          "ocsf-schema-1-9-0",
+          "etsi-aicie-global-framework-2026",
+          "etsi-aicie-common-container-2026",
+          "oecd-ai-incident-reporting-framework-2025",
+          "oasis-csaf-2-1-csd02",
+          "oasis-stix-2-1",
+          "oasis-taxii-2-1"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "Open SAFE issues and pull requests still require a final version check immediately before implementation begins.",
+        "The reviewed ETSI AICIE Part 2 normative JSON Schema is not executable as printed; a corrected authoritative artifact or a documented projection profile is still required.",
+        "At least two independent producer/consumer implementations must pass the conformance corpus before interoperability is claimed."
+      ],
+      "nextQueries": [
+        "SAFE AI security finding RFC schema transport crosswalk OCSF STIX TAXII",
+        "agent incident exchange schema 2025 2026"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Retain the accurate narrow diagnosis but do not infer an empty prior-art field. Build a thin SAFE governance and assurance profile over OCSF 1.9 Incident Finding, with explicit AICIE/OECD public-report, STIX threat-intelligence and CSAF advisory projections plus an authenticated producer/consumer conformance suite.",
+        "alternatives": [
+          "Contribute only the crosswalk, assurance extensions and transport profile upstream if the SAFE community develops its own schema before implementation starts.",
+          "Use ETSI AICIE as the canonical public-report export after an authoritative corrected schema is available, while retaining OCSF for operational events."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0005",
+      "claim": "No existing benchmark tests an authority substrate's invariants through a capability-elicited attack corpus.",
+      "claimType": "nonexistence",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "line 81",
+          "exactText": "Benchmarks test models; nothing tests an authority substrate's invariants."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "invariant attack corpus",
+          "security conformance"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "2024-08-28 to 2026-08-28"
+        ],
+        "threatModel": "An authority system passes model-focused benchmarks while its enforcement invariants fail under adversarial sequences."
+      },
+      "risk": "high",
+      "status": "challenged",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "agent-security-bench-2025",
+          "injecagent-acl-2024",
+          "sentinelagent-2604-02767"
+        ],
+        "boundingSources": [
+          "vigil-runtime-skill-enforcement-2606-26524",
+          "c-trace-runtime-compliance-2606-19242",
+          "les-dissonances-ndss-2026",
+          "toolhijacker-ndss-2026",
+          "agentfuzz-usenix-2025",
+          "struq-usenix-2025",
+          "nist-agent-hijacking-evals-2025",
+          "firewall-benchmarks-2510-05244",
+          "nsa-mcp-security-2026"
+        ]
+      },
+      "confidence": "medium",
+      "gaps": [
+        "Agent security benchmarks must be separated into application-code, model, workflow, tool-selection, cross-tool, protocol, policy-decision, enforcement, final-wire and external-effect targets.",
+        "SentinelAgent's DelegationBench and attack scripts directly test an authorization substrate, so the absolute 'nothing tests' wording is false. The defense, expected decisions and red-team suites share one author, many cases reduce to exact manifest/tag membership, and the artifact contains untested runtime defects; independent corpus construction, mutation coverage and cross-implementation transfer remain open.",
+        "AgentFuzz, ASB, NIST AgentDojo, Les Dissonances and ToolHijacker provide high-quality adjacent attack/corpus evidence but do not assert Warrantor's complete authority-to-effect invariant. ASB is especially unsafe as an unchanged oracle: a later method audit reports forced attacker-tool injection changing one GPT-4o ASR from 9.25 to 73.58 percent, while the pinned repository contains unresolved conflict markers.",
+        "No reviewed source combines independently authored ground truth, exact PDP/permit/PEP/final-wire/effect assertions, mutation score, repeated adaptive attacks, cross-policy-engine semantics and cross-implementation transfer. This is the defensible research gap, not universal benchmark absence."
+      ],
+      "nextQueries": [
+        "authorization policy enforcement benchmark invariant attacks",
+        "access control conformance adversarial test corpus AI agents",
+        "independent delegation authorization benchmark mutation coverage cross implementation",
+        "policy enforcement point final wire effect conformance benchmark",
+        "security benchmark mutation score blind corpus authorship adaptive attacks"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Retire the universal absence statement immediately. Preserve the opportunity as an independent, capability-elicited, cross-implementation authority-substrate conformance corpus that follows each case from authority inputs through decision, permit, exact wire operation and observed effect. Require blind attack authorship, semantic and protocol mutations, mutation score, adaptive and repeated attempts, utility under attack, risk stratification and signed run evidence. Seed it with SentinelAgent defects, AgentFuzz taint paths, ASB scenarios, NIST high-impact tasks, Chord cross-tool flows and ToolHijacker registry poisoning without inheriting any co-designed expected output as ground truth.",
+        "alternatives": [
+          "Maintain adapters to AgentDojo/Inspect and ASB for external comparison while keeping the normative Warrantor oracle separate.",
+          "Publish only a reusable negative-vector profile if a current benchmark later supplies independent orchestration, semantic utility and effect-level scoring."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0006",
+      "claim": "No AI kill-switch conformance suite exists anywhere.",
+      "claimType": "nonexistence",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "line 82",
+          "exactText": "No kill-switch conformance suite exists anywhere, despite legislated capabilities."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W3"
+        ],
+        "capabilities": [
+          "kill-switch conformance",
+          "fail-closed behavior",
+          "stop-anywhere"
+        ],
+        "jurisdictions": [
+          "North America",
+          "India",
+          "GCC"
+        ],
+        "versions": [
+          "2024-08-28 to 2026-08-28"
+        ],
+        "threatModel": "An agent evades, delays, sandbags, or recovers from a shutdown instruction."
+      },
+      "risk": "high",
+    "status": "contradicted",
+    "evidence": {
+      "supportingSources": [],
+      "challengingSources": [
+        "killbench-2511-13725",
+        "sandboxescapebench-2603-02277",
+        "containmentbench-2607-23999",
+        "vigil-runtime-skill-enforcement-2606-26524",
+        "aws-agent-containment-response-2026"
+      ],
+      "boundingSources": [
+        "hr-9917-ai-kill-switch-act-2026",
+        "ncsc-agentic-ai-cyber-risk-2026",
+        "nist-csf-ai-profile-8596-iprd",
+        "qcb-ai-guideline-2024",
+        "cbuae-ai-guidance-2026",
+        "aws-agentcore-stop-session-2026",
+        "us-uk-aisi-o1-predeployment-2024",
+        "wasmtime-security-47",
+        "ietf-daap-v2-00",
+        "killswitch-md-1-0",
+        "c-trace-runtime-compliance-2606-19242",
+          "openid-ssf-conformance-2026",
+          "aws-agentcore-policy-2026",
+          "saga-ndss-2026",
+          "vengtoo-mcp-gateway-0-1-1"
+        ]
+      },
+    "confidence": "high",
+    "gaps": [
+      "The literal nonexistence claim is disproved by explicitly named AI kill, containment, runtime-enforcement and sandbox-escape benchmarks plus shipping stop/containment implementations.",
+      "Reviewed systems use materially different meanings of halt, kill and containment; KillBench measures sustained semantic refusal, while other sources test tool-policy or sandbox escape rather than the frozen four-capability effect profile.",
+      "No reviewed source supplied the exact complete open composition of four separately scored capabilities, trusted authority, expected-target reconciliation, held safe-state assertions, adversarial/failure injection, restoration integrity and independently verifiable evidence.",
+      "Failure to find that exact composition is a dated residual feature finding, not proof of worldwide nonexistence, patent novelty or freedom to operate."
+    ],
+    "nextQueries": [
+      "independent four-capability AI emergency-stop conformance",
+      "distributed agent safe-state target-set reconciliation",
+      "AI kill switch restoration integrity benchmark",
+      "cross-cloud shutdown effect oracle"
+    ],
+    "recommendation": {
+      "action": "modify",
+      "rationale": "Retire the literal absence claim. Preserve only the narrower opportunity for an open effect-observed four-capability emergency-stop assurance profile after implementation and independent validation. Distinguish model refusal, command acceptance, process/session stop, authority revocation, safe-state hold and cross-substrate conformance in every comparison.",
+      "alternatives": [
+        "Describe W3 as a composition and assurance profile rather than a first kill switch.",
+        "Publish the C0-C7 ladder and feature-level comparator instead of a universal novelty claim.",
+        "Obtain patent counsel before any legal novelty or freedom-to-operate language."
+      ]
+      }
+    },
+    {
+      "id": "CLM-0007",
+      "claim": "No open-source system provides an execution-count or release-consistency bounded-revocation SLA suitable for agents.",
+      "claimType": "nonexistence",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "line 83",
+          "exactText": "TTL is formally inadequate at agent speed; no OSS offers a revocation SLA."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W6"
+        ],
+        "capabilities": [
+          "bounded revocation",
+          "execution-count limits",
+          "release consistency"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "2024-08-28 to 2026-08-28"
+        ],
+        "threatModel": "Short-lived credentials remain usable for too many agent actions after revocation."
+      },
+      "risk": "high",
+      "status": "unresolved",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [],
+        "boundingSources": [
+          "ietf-opena2a-aap-00",
+          "ietf-aiagent-auth-03",
+          "saga-ndss-2026",
+          "openid-caep-1-0-final",
+          "openid-ssf-conformance-2026",
+          "openid-agent-identity-whitepaper-2025",
+          "bureaucracy-speed-2603-09875",
+          "aws-agentcore-policy-2026",
+          "cloudflare-agent-access-model-2026",
+          "ietf-agent-authorization-envelope-00",
+          "microsoft-entra-agent-id-2026",
+          "spicedb-consistency-1-56",
+          "openfga-authzen-1-19"
+        ]
+      },
+      "confidence": "medium",
+      "gaps": [
+        "Define the claimed SLA precisely: authoritative enforcement points, operation/effect unit, linearizability, idempotency, durable state, release consistency, partition behavior, propagation percentile, residual-action bound and measurement window.",
+        "SAGA establishes strong design prior art but its reviewed implementation admits two requests from quota one under a controlled concurrent schedule, applies contact-policy precedence by list order, stores token state in process-local dictionaries and does not measure a release-consistency SLA.",
+        "OpenFGA exposes a selected model ID and relationship-graph decision substrate, but the reviewed AuthZEN path does not define atomic action consumption, residual-action bounds or a revocation SLA; its consistency and model/data state still require artifact-level comparison.",
+        "Compare agent-specific proposals with capability systems, continuous access evaluation, transaction tokens, distributed leases, Zanzibar-style consistency tokens and consistency-bounded revocation research at artifact level."
+      ],
+      "nextQueries": [
+        "linearizable capability token quota atomic consume idempotency",
+        "bounded revocation SLA distributed capabilities execution count",
+        "release consistency access token revocation residual actions",
+        "continuous access evaluation revocation propagation agents",
+        "distributed lease revocation consistency token authorization"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Retire universal nonexistence language but do not claim that SAGA disproves the narrower SLA statement. SAGA is peer-reviewed, open, agent-specific design and implementation prior art for expiry-plus-request-count authorization; the pinned artifact does not maintain a strict concurrent count bound or specify durable release consistency. Warrantor should claim differentiation only after it implements and independently measures an atomic end-to-end residual-action and propagation guarantee across every authoritative enforcement point.",
+        "alternatives": [
+          "Consume SAGA's token and provider concepts but replace quota enforcement with a linearizable durable authorize-and-consume transaction.",
+          "Implement a profile over CAEP, transaction tokens, lease systems or consistency tokens and publish measured propagation and residual-action bounds.",
+          "If Warrantor cannot maintain the bound during partitions, publish an explicit fail-closed availability trade-off instead of calling the behavior an SLA."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0008",
+      "claim": "Machine-checked guarantees for the twelve Warrantor invariants exist only for narrow slices, not the full composition.",
+      "claimType": "novelty",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "line 84",
+          "exactText": "Machine-checked guarantees exist only for narrow slices."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2",
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "TLA+ specification",
+          "Lean specification",
+          "composed security invariants"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "2024-08-28 to 2026-08-28"
+        ],
+        "threatModel": "Individually correct mechanisms compose into an unsafe authority and evidence system."
+      },
+      "risk": "medium",
+      "status": "partially-supported",
+      "evidence": {
+        "supportingSources": [
+          "saga-ndss-2026",
+          "cedar-policy-language-4-5",
+          "sentinelagent-2604-02767"
+        ],
+        "challengingSources": [
+          "type-checked-compliance-2604-01483"
+        ],
+        "boundingSources": [
+          "crypto-verifiable-agent-auth-2607-21325",
+          "runtime-governance-policies-paths-2603-16586",
+          "vigil-runtime-skill-enforcement-2606-26524",
+          "c-trace-runtime-compliance-2606-19242",
+          "governance-aware-agent-telemetry-2604-05119",
+          "runtime-policy-enforcement-mcp-2026",
+          "bureaucracy-speed-2603-09875",
+          "open-policy-agent-current",
+          "cerbos-authzen-pdp-0-55",
+          "openfga-authzen-1-19",
+          "cerbos-fastmcp-2026",
+          "vengtoo-mcp-gateway-0-1-1"
+        ]
+      },
+      "confidence": "medium",
+      "gaps": [
+        "The twelve invariants require exact formal statements, state ownership, threat assumptions and enforcement-point mappings before equivalence with existing verified systems can be searched.",
+        "SentinelAgent's direct TLC reproduction is positive evidence for the 'narrow slices' boundary: 2,744,789 generated and 1,145,473 distinct states passed six finite subset/link invariants, but the model omits real actions, output values, cryptography, time, policy evaluation, partitions, persistence and Python-code refinement. Its implementation then violates several properties suggested by the labels.",
+        "SAGA similarly separates symbolic secrecy/authentication analysis from unmodeled quota concurrency and policy-order defects. A formal model without refinement/conformance evidence is not proof of the runtime.",
+        "The Cerbos/OpenFGA/Vengtoo/FastMCP differential adds executable examples of wire-shape, semantic, method-coverage, mutation and correlation invariants that native suites did not jointly establish; these should become generated proof-to-code conformance obligations rather than another informal checklist.",
+        "Universal absence of a full equivalent remains unproven; complete the type-checked-compliance and verified-capability-system wave before publishing a novelty conclusion."
+      ],
+      "nextQueries": [
+        "TLA+ AI agent authorization formal verification",
+        "Lean capability security delegation formalization",
+        "machine checked policy enforcement audit log composition",
+        "formal refinement model implementation authorization enforcement proof to code",
+        "verified capability system multi principal delegation audit log revocation composition"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Treat SentinelAgent and SAGA as evidence that machine-checked agent-authorization slices exist and that their proof boundaries are narrower than runtime labels. Build a Warrantor-owned composition model only for the exact authority, evidence, revocation, mediation and completeness seams; consume existing verified libraries and tools; publish bounds and assumptions; and add proof-to-code conformance before claiming the twelve-property composition. Do not claim novelty for machine-checked agent authorization broadly.",
+        "alternatives": [
+          "Reuse verified libraries and model only Warrantor-specific composition seams.",
+          "If proof-to-code correspondence is not funded, publish bounded model-check results as design assurance and avoid production-security proof language.",
+          "Stage the work through W6 authorize-and-consume first, then compose W2 receipt-before-commit and W3/W5 enforcement only after each vertical slice has executable conformance."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0009",
+      "claim": "No existing system converts a successful adversarial evaluation finding into a production denial policy for the implicated action class.",
+      "claimType": "nonexistence",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "line 85",
+          "exactText": "Nothing ties 'attack X succeeded in eval' to 'deny action-class X in production'."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W3",
+          "W4",
+          "W5"
+        ],
+        "capabilities": [
+          "attack-to-policy loop",
+          "evaluation findings",
+          "production enforcement"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "2024-08-28 to 2026-08-28"
+        ],
+        "threatModel": "Known successful attacks recur because evaluation evidence is not translated into enforced production controls."
+      },
+      "risk": "high",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "owasp-virtual-patching-current",
+          "f5-big-ip-asm-vulnerability-assessment-2026",
+          "us8572750-web-exploit-mitigation"
+        ],
+        "boundingSources": [
+          "governance-aware-agent-telemetry-2604-05119",
+          "osaa-safe-rfc-proposal-2026",
+          "runtime-governance-policies-paths-2603-16586",
+          "c-trace-runtime-compliance-2606-19242",
+          "aws-agentcore-policy-2026",
+          "cloudflare-agent-access-model-2026",
+          "open-policy-agent-current",
+          "agentfuzz-usenix-2025",
+          "falco-talon-2026",
+          "kubearmor-discovery-engine-2023",
+          "oasis-cacao-security-playbooks-2-0",
+          "oasis-openc2-language-2-0",
+          "cacao-roaster-1-3-0",
+          "automating-security-policies-2506-04838",
+          "nist-sp-800-61r3",
+          "microsoft-defender-automated-response-2026",
+          "datadog-application-security-automated-response-current",
+          "splunk-soar-approval-automation-2026",
+          "us7895649-dynamic-rule-generation",
+          "ep3035637-policy-based-network-security"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "The universal nonexistence claim is false with high confidence. F5's current shipping workflow imports scanner findings, converts automatically resolvable findings into security-policy changes, permits per-finding review, stages them, applies them and directs retest. OWASP documents the general lifecycle, while IBM's US8572750 disclosure publicly described scanner-derived generic virtual patches, device-specific lowering, change control, deployment and rescan with a 2011 priority date.",
+        "Commercial lifecycle pieces are also mature: Microsoft Defender maps correlated alerts and evidence verdicts to containment/remediation with approval, audit, undo, time-bounded isolation and effect events; Datadog maps security signals to temporary blocks with preview, traces and a global off switch; Splunk SOAR supplies quorum, veto, escalation, delegation and approval expiry. These are configured alert/rule workflows, not the exact complete Warrantor composition.",
+        "Patent prior art materially narrows even component novelty: US7895649 claims automatic attack-response generation, verification values and automatic aging/removal; EP3035637 claims threat-response selection, organizational policy filtering, optional approval, prerequisite-aware execution and residual-threat replanning. These are public disclosures rather than proof of implementation or legal conclusions.",
+        "No reviewed source jointly implements the residual R10 composition: authenticated reproduced agent-evaluation receipt; least-authority action-class candidate; immutable candidate/approval/target binding; independently enforced blast-radius ceiling; monitor/canary/enforce with exact effect evidence; receipted rollback; mandatory expiry renewed by reproduction; cross-engine semantic equivalence; and automatic regression/safety-case closure.",
+        "The residual statement is a bounded literature-review result, not a universal fact. Commercial closed systems could contain undocumented capabilities, patent search is not legally exhaustive, and a freedom-to-operate opinion requires counsel and official-register/family review.",
+        "The untracked 2026-08-31 experimental implementation remains non-green and incomplete: wildcard/no-constraint denials, hashes mislabeled as signatures, unauthenticated/non-durable approval binding and absent integrated rollout, rollback, expiry and regression closure."
+      ],
+      "nextQueries": [
+        "independent tenant reproduction F5 scanner Resolve and Stage retest policy effect",
+        "Microsoft Defender attack disruption independent evaluation approval undo expiry effect completeness",
+        "Datadog AAP automatic blocking independent test false positive rollback expiry",
+        "patent family claim chart virtual patch dynamic rule generation policy-based response counsel",
+        "agent evaluation finding action-class denial regression safety case research"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Retire the claim permanently. Consume F5/OWASP virtual-patching lifecycle, commercial SOAR/XDR/RASP controls, CACAO/OpenC2 and existing policy engines. Build only Warrantor's authenticated, least-authority, target-portable and independently verifiable R10 composition. Keep patent chronology separate from implementation evidence and obtain counsel before legal or freedom-to-operate conclusions.",
+        "alternatives": [
+          "Publish the defensible statement: no reviewed source jointly supplies every named R10 evidence, authority, staged-effect, expiry, portability and regression property as of the bounded search date.",
+          "Integrate existing WAF, SOAR, XDR and runtime-response systems as targets while Warrantor owns only portable evidence, authority and reconciliation.",
+          "Defer generative policy synthesis; first prove one deterministic F5-or-Datadog plus two-PDP finding-to-monitor-to-canary-to-enforce-to-expire/rollback vertical slice.",
+          "Commission patent counsel to validate families, claims and current legal status before any external novelty or freedom-to-operate statement."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0010",
+      "claim": "The repository's provenance workflow generates SLSA Build Level 3 provenance for every release artifact.",
+      "claimType": "operational",
+      "repositoryEvidence": [
+        {
+          "path": ".github/workflows/provenance.yml",
+          "locator": "lines 1-6 and workflow name",
+          "exactText": "SLSA L3 build provenance — generates GitHub build attestations for every release artifact. Uses GitHub's native artifact attestations (the SLSA L3-compliant provenance format)."
+        },
+        {
+          "path": ".github/workflows/release.yml",
+          "locator": "release body around line 58",
+          "exactText": "SLSA L3 build provenance (attached by the `Provenance` workflow)"
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2",
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "release provenance",
+          "build isolation",
+          "artifact attestation",
+          "software supply-chain assurance"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "repository state 2026-08-29",
+          "SLSA 1.2",
+          "GitHub artifact attestations"
+        ],
+        "threatModel": "A compromised or tenant-controlled workflow alters a build while still producing a valid signed provenance statement, or a consumer mistakes a provenance format for a higher build-security level."
+      },
+      "risk": "high",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "github-artifact-attestations-slsa-levels-2026"
+        ],
+        "boundingSources": [
+          "slsa-1-2",
+          "sigstore-security-model-current",
+          "in-toto-attestation-framework-1-2"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "A produced attestation still needs to be inspected to confirm its builder identity, completeness and verification behavior, but that cannot upgrade the current in-repository workflow from the documented Level 2 pattern to Level 3."
+      ],
+      "nextQueries": [
+        "GitHub reusable workflow Warrantor build isolation SLSA Build Level 3",
+        "verify Warrantor release attestation builder signer workflow source revision"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Correct all current claims to SLSA Build Level 2 immediately. GitHub's authoritative guidance says artifact attestations alone provide Level 2; Level 3 requires building and attesting inside an appropriately isolated reusable workflow. Move release construction into a pinned reusable builder, verify the resulting attestations in a consumer test, and claim Level 3 only after the workflow and evidence satisfy the current SLSA requirements.",
+        "alternatives": [
+          "Retain the current workflow and accurately market signed SLSA provenance at Build Level 2.",
+          "Adopt a maintained SLSA Level 3 builder or organization-controlled reusable workflow and publish verifier policy and test evidence."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0011",
+      "claim": "Warrantor has a 2030 total addressable market of 45 to 60 billion dollars, a 2028 serviceable market of 8 to 12 billion dollars, and a realistically obtainable 50 to 150 million dollars in annual recurring revenue by year five.",
+      "claimType": "market",
+      "repositoryEvidence": [
+        {
+          "path": "docs/html/value-proposition.html",
+          "locator": "lines 468-487",
+          "exactText": "TAM ~$45–60B by 2030 ... SAM ~$8–12B by 2028 ... SOM $50–150M ARR by year 5."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2",
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "market sizing",
+          "revenue planning",
+          "investor positioning"
+        ],
+        "jurisdictions": [
+          "global",
+          "North America",
+          "India",
+          "Saudi Arabia",
+          "United Arab Emirates",
+          "Qatar"
+        ],
+        "versions": [
+          "value proposition as of repository state 2026-08-29"
+        ],
+        "threatModel": "Top-down category estimates, overlapping analyst categories and aspirational capture rates are presented as decision-grade market evidence, causing capital and roadmap allocation to rest on an untraceable denominator."
+      },
+      "risk": "critical",
+      "status": "challenged",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [],
+        "boundingSources": [
+          "stanford-ai-index-2026",
+          "cncf-annual-cloud-native-survey-2026",
+          "linux-foundation-shaping-genai-2024",
+          "linux-foundation-state-commercial-oss-2025",
+          "linux-foundation-global-open-source-2025"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "No traceable source, category reconciliation, currency basis, geography split, buyer count, budget owner, replacement-versus-new-spend assumption or bottom-up calculation is provided for the TAM and SAM figures.",
+        "The SOM is a company forecast, not a market measurement, and has no sales-capacity, conversion, retention, average-contract-value or time-to-procure model."
+      ],
+      "nextQueries": [
+        "AI agent security governance procurement budgets North America India Saudi UAE Qatar",
+        "regulated enterprise AI governance buyer count budget owner",
+        "Warrantor bottom-up market model buyer segments ACV conversion procurement cycle"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Quarantine all three figures from external materials. Build a bottom-up model by buyer and jurisdiction using observable account counts, qualifying conditions, current procurement routes, expected annual contract value, sales capacity, deployment cost and adoption probability. Use broad AI-adoption reports only to bound context, never as the addressable-market denominator.",
+        "alternatives": [
+          "Publish only a clearly labeled scenario range with every assumption and sensitivity visible.",
+          "Omit TAM entirely and lead with a beachhead account list, design-partner pipeline and evidence-format adoption metrics."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0012",
+      "claim": "The proposed Team, Enterprise, Mission-Critical and GPU-hour prices, an 80 percent Warrantor Cloud gross margin, and the seed-to-Series-B capital plan are commercially and economically supportable.",
+      "claimType": "forecast",
+      "repositoryEvidence": [
+        {
+          "path": "docs/01-vision-and-portfolio.md",
+          "locator": "lines 147-161",
+          "exactText": "Team $50/user/month; Enterprise $100k+/year; Mission-Critical $500k+/year; Warrantor Cloud $2–5/GPU-hour with 80% margin; capital requirements $3M seed, $8M Series A, $25M Series B."
+        },
+        {
+          "path": "docs/html/value-proposition.html",
+          "locator": "lines 691-721",
+          "exactText": "Warrantor Cloud $2–5/GPU-hr ... Managed inference with attestation. Per-GPU pricing. ~80% margin."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2",
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "pricing",
+          "gross margin",
+          "unit economics",
+          "capital plan",
+          "open-source commercialization"
+        ],
+        "jurisdictions": [
+          "North America",
+          "India",
+          "Saudi Arabia",
+          "United Arab Emirates",
+          "Qatar"
+        ],
+        "versions": [
+          "business model as of repository state 2026-08-29"
+        ],
+        "threatModel": "Unvalidated list prices and gross-margin assumptions are treated as product strategy before product boundaries, utilization, support burden, cloud costs, procurement discounts and buyer willingness to pay have been measured."
+      },
+      "risk": "critical",
+      "status": "challenged",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [],
+        "boundingSources": [
+          "aws-agentcore-pricing-2026",
+          "microsoft-agent-365-licensing-2026",
+          "cloudflare-ai-gateway-pricing-2026",
+          "indiaai-compute-pricing-2026",
+          "indiaai-compute-end-user-policy-2025",
+          "linux-foundation-state-commercial-oss-2025",
+          "linux-foundation-global-open-source-2025",
+          "linux-foundation-oss-contribution-roi-2026",
+          "stanford-enterprise-ai-playbook-2026",
+          "mit-nanda-state-ai-business-2025"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "No cost-of-goods model covers GPU utilization, model inference, evidence retention, signing, timestamping, egress, observability, regional infrastructure, support, compliance, sales or bad debt.",
+        "No pricing research separates commodity policy evaluation and gateway functions from signed evidence, conformance, sovereign deployment, enterprise support and managed inference.",
+        "No capital plan maps headcount, certification, audit, hardware, regional entity, support and runway needs to milestone probabilities."
+      ],
+      "nextQueries": [
+        "security infrastructure pricing per authorization per agent per evidence bundle",
+        "sovereign AI assurance enterprise willingness to pay",
+        "Warrantor workload-based unit economics GPU utilization evidence retention support"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Treat every price and funding number as a testable hypothesis. Remove the 80 percent margin statement from external materials until representative workloads produce measured contribution margins. Price enforcement separately from assurance: free or low-cost adapters and policy decisions, metered signed evidence and retention, annual conformance and support subscriptions, and bespoke sovereign deployment with local partner costs.",
+        "alternatives": [
+          "Run design-partner pricing interviews and paid pilots before publishing tiers.",
+          "Use cost-plus floors and value-based ceilings by buyer segment, with region-specific price books and explicit discount governance.",
+          "Offer only Community, Design Partner and custom Enterprise terms until repeatable packaging emerges."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0013",
+      "claim": "No existing system signs an AI evaluation, pins the evaluator or grader, and produces an independently verifiable evaluation artifact.",
+      "claimType": "nonexistence",
+      "repositoryEvidence": [
+        {
+          "path": "docs/html/adoption-blockers-2026-08-09.html",
+          "locator": "lines 254-263 and 395-397",
+          "exactText": "promptfoo, Inspect, HELM and lm-eval-harness all market reproducibility and none of them signs anything or pins the grader ... nobody signs an eval or pins the grader."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2"
+        ],
+        "capabilities": [
+          "evaluation receipt",
+          "grader identity",
+          "signed evaluation bundle",
+          "independent verification",
+          "confidential evaluation"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "prior art through 2026-08-28",
+          "garak 8ed1543b; PyRIT 0899b214; Inspect 6b400855; AgentDojo 089ed468; Hawk 4e36a145; Every Eval Ever 687b7a36"
+        ],
+        "threatModel": "A model provider, evaluator or operator alters the model, rubric, benchmark, input or result while relying parties cannot independently determine what was executed."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "attestable-audits-2506-23706",
+          "auditable-grant-evaluation-2604-25200"
+        ],
+        "boundingSources": [
+          "aerf-draft-0-2",
+          "notarized-agents-sello-2606-04193",
+          "aqta-attestation-v1-2026",
+          "ietf-ai-lifecycle-attestation-00",
+          "nvidia-attestation-suite-2026",
+          "in-toto-attestation-framework-1-2",
+          "dsse-1-0-2",
+          "rfc9943-scitt-architecture",
+          "rfc9942-cose-receipts",
+          "rfc9711-entity-attestation-token",
+          "rfc9334-rats-architecture",
+          "rfc9999-rats-conceptual-message-wrapper",
+          "sigstore-security-model-current",
+          "sigstore-rekor-v2-2-3-0",
+          "nvidia-garak-2026",
+          "microsoft-pyrit-2026",
+          "uk-aisi-inspect-ai-2026",
+          "agentdojo-2026",
+          "metr-hawk-2026",
+          "every-eval-ever-2606-14516"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "Feature-level comparison is complete for the two direct academic designs, but no public Attestable Audits artifact was located in the bounded search and the grant-evaluation paper reports an architecture rather than a prototype.",
+        "Aqta, AERF, Every Eval Ever and in-toto artifact paths reproduce successfully but cover different layers; none establishes complete provider compute, principal authority, non-bypassable routing and receipt-population completeness together.",
+        "Pinned native-output inspection found no built-in key-authenticated evaluation artifact in garak, PyRIT, Inspect AI, AgentDojo or Hawk, but this result is version-bounded and cannot establish absence from extensions, private deployments or future releases.",
+        "DSSE/in-toto, SCITT/COSE Receipts and RATS/EAT/CMW now supply a strong normative composition, but they explicitly leave signer trust, statement truth, selective submission, verifier/appraisal correctness, implementation strength and expected-set reconciliation to profiles and deployments.",
+        "Every Eval Ever substantially resolves cross-harness semantic normalization, but actual native-to-EEE-to-Warrantor round-trip loss, protected measured-execution interoperability and independent reconciliation remain unmeasured."
+      ],
+      "nextQueries": [
+        "Every Eval Ever Inspect garak PyRIT AgentDojo lossless adapter field coverage",
+        "signed expected set manifest evaluation receipt provider receiver reconciliation",
+        "SCITT reference implementation COSE receipt key revocation privacy interoperability",
+        "EAT CMW evaluation attestation verifier appraisal cross vendor implementation"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Retire the nonexistence claim immediately. Adopt Every Eval Ever for semantics, DSSE/in-toto for portable authenticated statements, a strict RATS/EAT/CMW profile for measured evidence and appraisal, and SCITT/COSE Receipts only for optional transparency. Warrantor's defensible ownership is authority binding, exact execution/effect linkage, loss-reporting adapters, enforcement conformance and authenticated expected-set reconciliation—not another envelope, general schema or transparency format.",
+        "alternatives": [
+          "Contribute assurance fields and a DSSE/in-toto profile directly to Every Eval Ever and existing evaluation frameworks.",
+          "Maintain a Warrantor predicate with a provably lossless bidirectional EEE mapping, accepting continuous conformance cost.",
+          "Implement and compare the Attestable Audits design before freezing a strict EAT measured-execution profile.",
+          "Use a SCITT service for registered-history evidence while explicitly retaining a separate expected-set manifest and reconciliation protocol.",
+          "Narrow novelty to one precisely specified authority, completeness or cross-boundary property after adapter and adversarial tests."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0014",
+      "claim": "No existing platform can generate the structurally different regulatory evidence packs required by Qatar, the UAE, Saudi Arabia and DIFC from one underlying telemetry layer.",
+      "claimType": "nonexistence",
+      "repositoryEvidence": [
+        {
+          "path": "docs/html/adoption-blockers-2026-08-09.html",
+          "locator": "lines 385-387",
+          "exactText": "Four jurisdictions want structurally different evidence packs from the same underlying system ... Nobody has solved emitting all of them from one telemetry layer."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2",
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "multi-jurisdiction evidence emission",
+          "regulatory reporting",
+          "sovereign evidence store",
+          "control crosswalk",
+          "regulator pack"
+        ],
+        "jurisdictions": [
+          "Qatar",
+          "United Arab Emirates",
+          "Saudi Arabia",
+          "DIFC"
+        ],
+        "versions": [
+          "regulatory instruments current through 2026-08-28"
+        ],
+        "threatModel": "A product asserts regulatory whitespace without surveying governance, risk and compliance platforms, sector reporting systems, audit firms, regulator templates and buyer-built data layers."
+      },
+      "risk": "high",
+      "status": "researching",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [],
+        "boundingSources": [
+          "qcb-ai-guideline-2024",
+          "qatar-digital-agenda-2030",
+          "sdaia-national-ai-risk-framework-2026",
+          "sdaia-ai-adoption-framework-2025",
+          "saudi-dga-digital-transformation-standards-v4",
+          "uae-position-ai-policy-2024",
+          "uae-digital-procurement-policy-2025",
+          "ocsf-schema-1-9-0",
+          "opentelemetry-genai-semconv-2026"
+        ]
+      },
+      "confidence": "unresolved",
+      "gaps": [
+        "The claim requires a named comparator inventory across global GRC platforms, regional RegTech vendors, Big Four implementation accelerators, cloud compliance products and internal bank reporting systems.",
+        "The exact required fields, legal status, submission format, supervisory practice and update cadence must be modeled for each jurisdiction before interoperability or absence can be assessed.",
+        "DIFC regime operation and the availability of accredited certification bodies remain unresolved."
+      ],
+      "nextQueries": [
+        "QCB AI register software CBUAE model validation reporting SAMA maturity platform",
+        "multi jurisdiction AI compliance evidence platform GCC",
+        "DIFC autonomous systems officer audit platform"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Keep sovereign multi-jurisdiction evidence as a strong discovery thesis but prohibit 'nobody' language. Build the field-level crosswalk and a small demonstrator that emits one QCB register row, one UAE validation index and one Saudi maturity evidence pack from a common canonical record; then compare it against named platforms with dated test evidence.",
+        "alternatives": [
+          "Partner with an established GRC platform and provide only signed source evidence and jurisdiction profiles.",
+          "Focus first on QCB because its field-level register and high-risk procurement rules are the most concrete verified wedge."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0015",
+      "claim": "An unincorporated open-source Warrantor project cannot satisfy Qatar Central Bank AI provider register requirements, making a legal entity a precondition for deployment in Qatar.",
+      "claimType": "regulatory",
+      "repositoryEvidence": [
+        {
+          "path": "docs/html/adoption-blockers-2026-08-09.html",
+          "locator": "lines 388-389",
+          "exactText": "An unincorporated open-source project cannot populate that register. For Qatar, a legal entity is a precondition of deployment."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2",
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "Qatar market entry",
+          "AI provider registration",
+          "high-risk AI procurement",
+          "legal entity",
+          "local partnership"
+        ],
+        "jurisdictions": [
+          "Qatar"
+        ],
+        "versions": [
+          "Qatar Central Bank Artificial Intelligence Guideline effective 2024-09-04"
+        ],
+        "threatModel": "The project either enters a regulated procurement without the provider identity, contracting and substitution information a QCB entity must record, or overstates the rule and unnecessarily blocks self-hosted or partner-delivered adoption."
+      },
+      "risk": "high",
+      "status": "partially-supported",
+      "evidence": {
+        "supportingSources": [
+          "qcb-ai-guideline-2024"
+        ],
+        "challengingSources": [],
+        "boundingSources": [
+          "qatar-digital-agenda-2030",
+          "qatar-ai-committee-current",
+          "qatar-oracle-dedicated-cloud-2026"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "The guideline's Entity, User and Provider definitions must be applied to concrete self-hosted, managed-service, reseller and implementation-partner contracting structures.",
+        "Local company, branch, commercial registration, data residency, tender qualification and sector licensing requirements need qualified Qatari legal and procurement review."
+      ],
+      "nextQueries": [
+        "Qatar QCB AI Guideline provider definition open source self hosted",
+        "Qatar government procurement foreign software supplier local partner",
+        "QCB high risk AI outsourcing legal entity register interpretation"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "The verified rule is narrower: a QCB-regulated entity must record detailed provider and contract information for purchased, licensed or outsourced AI, and obtain approval before high-risk agreements. Do not claim that every self-hosted open-source deployment is barred. For commercial Qatar entry, establish an incorporated contracting entity or qualified local provider route and obtain counsel before promising eligibility.",
+        "alternatives": [
+          "Distribute Warrantor as a component implemented and operated by the regulated entity, subject to counsel confirming the role allocation.",
+          "Partner with a Qatari or already-qualified regional provider that can populate the register and accept contractual duties.",
+          "Defer regulated financial-sector sales while maintaining non-commercial open-source availability."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0016",
+      "claim": "By August 2, 2027 every general-purpose AI provider operating in the European Union must meet eight Article 55 obligations, and Warrantor can demonstrate that compliance through one command.",
+      "claimType": "regulatory",
+      "repositoryEvidence": [
+        {
+          "path": "docs/html/value-proposition.html",
+          "locator": "lines 460-506 and 724-729",
+          "exactText": "The EU AI Act's GPAI obligations become enforceable on August 2, 2027 ... every GPAI model provider doing business in the EU must produce ... all eight ... Warrantor's defstack compliance-report command produces all eight from one stack."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2",
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "EU AI Act compliance",
+          "GPAI provider scope",
+          "Article 53",
+          "Article 55",
+          "compliance evidence",
+          "regulatory reporting"
+        ],
+        "jurisdictions": [
+          "European Union"
+        ],
+        "versions": [
+          "Regulation EU 2024/1689",
+          "European Commission GPAI guidelines updated 2026-04-20"
+        ],
+        "threatModel": "Incorrect scope, timing and automation claims are presented to buyers or investors as legal compliance, creating mis-selling, implementation and regulatory risk."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "eu-gpai-provider-guidelines-2025"
+        ],
+        "boundingSources": [
+          "operationalising-aibom-frontiers-2026",
+          "ietf-ai-lifecycle-attestation-00",
+          "spdx-3-0-1-ai-profile",
+          "cyclonedx-1-7-ecma-424"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "The repository needs a clause-by-clause matrix separating all-GPAI Article 53 duties from systemic-risk Article 55 duties, legacy model transitions, exemptions, organizational controls and technical evidence Warrantor can actually generate.",
+        "The current implementation and command output have not been demonstrated against Commission templates, the GPAI Code of Practice or an independent legal and audit review."
+      ],
+      "nextQueries": [
+        "European Commission GPAI existing model 2 August 2027 transition",
+        "Article 53 Article 55 technical evidence organization duties matrix",
+        "GPAI Code of Practice Warrantor evidence bundle crosswalk"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Remove the one-command compliance and universal 2027 deadline claims immediately. The Commission states that GPAI obligations entered into application on August 2, 2025, with differentiated transition rules; Article 55 applies only to GPAI models with systemic risk and includes substantive ongoing duties no reporting tool can satisfy alone. Reframe the command as an evidence-pack generator for specified clauses, with uncovered duties and legal assumptions explicit.",
+        "alternatives": [
+          "Offer a non-legal technical evidence export mapped to the Commission guidelines and GPAI Code of Practice.",
+          "Commission an EU counsel and conformity-assessment review before making any compliance demonstration claim.",
+          "Limit initial regional positioning to verified North America, India and GCC requirements while EU work remains a separate validated profile."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0017",
+      "claim": "The bundled local Sigstore deployment is a working Rekor v2 transparency service suitable for anchoring Warrantor evidence.",
+      "claimType": "implementation",
+      "repositoryEvidence": [
+        {
+          "path": "deploy/local-sigstore/docker-compose.yml",
+          "locator": "header and rekor services",
+          "exactText": "A working local transparency log ... ghcr.io/sigstore/rekor/rekor-server:v1.3.6 ... --enable_retrieve_api=true"
+        },
+        {
+          "path": "docs/02-warrantor-specification-v3.md",
+          "locator": "Rekor references",
+          "exactText": "Sigstore Rekor v2"
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2",
+          "W4"
+        ],
+        "capabilities": [
+          "transparency anchoring",
+          "signed checkpoint",
+          "inclusion proof",
+          "trusted time",
+          "receipt registration",
+          "local deployment"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "Warrantor repository state 2026-08-30",
+          "Rekor v1.3.6",
+          "Rekor v2.3.0"
+        ],
+        "threatModel": "An operator, compromised service or malformed client exploits a stale or misidentified log, unverifiable proof path, exposed retrieval endpoint, incorrect timestamp assumption or mutable bootstrap dependency to suppress, forge, reorder or deny evidence."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "sigstore-rekor-v2-2-3-0",
+          "sigstore-security-model-current"
+        ],
+        "boundingSources": [
+          "rfc9943-scitt-architecture",
+          "rfc9942-cose-receipts",
+          "aevum-governance-kernel"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "Docker was unavailable in the review environment, so the compose stack was not started end to end; this does not affect the static version mismatch, public advisory ranges or v1/v2 API incompatibility.",
+        "A clean-room Rekor v2 deployment, checkpoint verification, RFC 3161 time path, backup/restore, split-view monitoring, privacy policy and failure injection remain to be demonstrated."
+      ],
+      "nextQueries": [
+        "Rekor v2 private deployment checkpoint witness backup restore operations",
+        "Sigstore Rekor v2 privacy metadata leakage multi log monitoring",
+        "Rekor v2 Kubernetes production hardening RFC3161 TSA"
+      ],
+      "recommendation": {
+        "action": "reject",
+        "rationale": "Reject the current deployment as a Warrantor trust anchor. It runs Rekor v1.3.6, not v2; v1.3.6 is within the affected range of two 2026 advisories, and the compose file explicitly enables the retrieval endpoint implicated in the blind-SSRF advisory. The bootstrap also downloads an unpinned live Trillian schema and directly inserts a tree. Replace the stack with a pinned Rekor v2 profile or a managed transparency service, verify its signed checkpoint and inclusion proof, use RFC 3161 for time, and retain SCITT only as a separate optional registration profile.",
+        "alternatives": [
+          "Use a managed Sigstore/Rekor service with pinned TUF trust roots and explicit privacy acceptance.",
+          "Operate a pinned private Rekor v2 service with independent checkpoint monitoring, backup, recovery and upgrade evidence.",
+          "Defer transparency registration and retain DSSE/in-toto plus trusted timestamps until a production log profile passes the operational gates."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0018",
+      "claim": "The bundled SPIRE manifests and Helm mTLS switch provide working SPIFFE/SPIRE workload identity and ongoing mutual TLS for Warrantor services.",
+      "claimType": "implementation",
+      "repositoryEvidence": [
+        {
+          "path": "deploy/spire/README.md",
+          "locator": "architecture diagram and deployment instructions",
+          "exactText": "Warrantor pods ... mTLS to each other using SVIDs"
+        },
+        {
+          "path": "deploy/spire/trust-domain-config.yaml",
+          "locator": "NetworkPolicy commentary",
+          "exactText": "SPIRE + Envoy do the identity check ... the mTLS sidecar that does the real workload-identity handshake"
+        },
+        {
+          "path": "deploy/helm/aumos/templates/deployments.yaml",
+          "locator": "global.mtls.enabled init container",
+          "exactText": "ghcr.io/spiffe/spire-agent:latest ... -socketPath /spire/agent.sock"
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "workload identity",
+          "X509-SVID",
+          "trust-domain federation",
+          "mTLS",
+          "Kubernetes node attestation",
+          "workload registration",
+          "receipt identity evidence"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "Warrantor SPIRE manifests pinned to 1.10.0",
+          "SPIRE 1.15.3 current release",
+          "SPIFFE standard pinned revision 2026-08-03"
+        ],
+        "threatModel": "A workload obtains the wrong identity, cannot obtain or rotate an SVID, connects without mutual authentication, presents a stale credential, or records only an identity string while the relying party assumes a live validated credential."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "spiffe-standard-current",
+          "spiffe-spire-1-15-3"
+        ],
+        "boundingSources": [
+          "sigstore-security-model-current"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "A Kubernetes cluster, Helm binary and container runtime were unavailable, so no live control-plane reproduction was performed; the official SPIRE 1.10.0 validator nevertheless deterministically rejected the extracted server configuration.",
+        "A corrected production profile still needs clean-cluster installation, SVID rotation, bundle rollover, workload/socket isolation, federation, revocation, outage, backup/restore, upgrade and negative selector tests."
+      ],
+      "nextQueries": [
+        "SPIRE production Kubernetes deployment controller manager ClusterSPIFFEID HA",
+        "SPIFFE X509 SVID revocation CRL workload API receipt evidence",
+        "SPIRE mTLS sidecar Envoy SDS Workload API reference architecture"
+      ],
+      "recommendation": {
+        "action": "reject",
+        "rationale": "Reject the current manifests as deployable security infrastructure and keep mTLS disabled until a supported upstream topology passes acceptance tests. The pinned server configuration contains unknown top-level keys, the k8s_psat option, token path and audience do not match the configured defaults, the agent init container starts a long-running agent and blocks the real container, the registration and federation CRD kinds are not the controller-manager APIs, the Helm init path has no matching socket volume, and fetching an SVID once is not an mTLS data plane. Store credential-validation evidence in receipts rather than labelling a SPIFFE ID string as an SVID.",
+        "alternatives": [
+          "Consume the upstream SPIRE Helm chart and controller manager with pinned versions, ClusterSPIFFEID resources and an Envoy or application-native Workload API integration.",
+          "Use a managed workload-identity platform that exports SPIFFE-compatible credentials while retaining Warrantor authority above it.",
+          "For an initial single-host profile, use explicitly scoped mTLS certificates and document the absence of SPIFFE federation rather than shipping nonfunctional SPIRE manifests."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0019",
+      "claim": "No existing implementation anywhere supplies machine-readable AI finding or incident exchange, so SAFE must create a standalone schema and reference producer/consumer.",
+      "claimType": "nonexistence",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "lines 74-80",
+          "exactText": "Six additions, each with no existing implementation anywhere ... SAFE Finding schema + reference producer/consumer"
+        },
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "line 80",
+          "exactText": "The SAFE RFC is prose-only — no schema, no transport, no crosswalk"
+        }
+      ],
+      "scope": {
+        "products": ["W2", "W3", "W5", "W6"],
+        "capabilities": ["SAFE finding schema", "AI incident exchange", "reference producer", "reference consumer", "incident-to-control learning"],
+        "jurisdictions": ["global", "United States", "India", "Saudi Arabia", "United Arab Emirates", "Qatar"],
+        "versions": ["2024-08-28 to 2026-08-28 main window", "indispensable older standards"],
+        "threatModel": "A false greenfield premise leads Warrantor to invent an isolated format, misstate novelty, omit mature lifecycle and handling semantics, and fail enterprise interoperability."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "ocsf-schema-1-9-0",
+          "etsi-aicie-global-framework-2026",
+          "etsi-aicie-common-container-2026",
+          "oecd-ai-incident-reporting-framework-2025",
+          "cisa-jcdc-ai-cybersecurity-collaboration-playbook-2025",
+          "oasis-csaf-2-1-csd02",
+          "oasis-stix-2-1",
+          "oasis-taxii-2-1"
+        ],
+        "boundingSources": [
+          "osaa-safe-rfc-proposal-2026",
+          "wei-heim-ai-incident-reporting-systems-2026",
+          "bieringer-ai-security-incident-taxonomy-2026",
+          "first-tlp-2-0",
+          "first-iep-2-0",
+          "qatar-national-incident-management-framework-2025",
+          "saudi-nca-ecc-2-2024"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "No corrected official machine-readable ETSI AICIE Part 2 schema was found in this wave.",
+        "No independent pair of SAFE-profile producer/consumer implementations has yet demonstrated round-trip preservation, loss reporting and negative conformance.",
+        "India and UAE incident-reporting obligations still need a primary-law and regulator-specific field/deadline crosswalk."
+      ],
+      "nextQueries": [
+        "ETSI TS 104 158-2 corrected JSON Schema repository",
+        "ISO IEC 25870 working draft AI incident data elements",
+        "India CERT-In AI incident reporting data fields deadline",
+        "UAE cyber incident reporting framework AI exchange"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Reject the standalone-greenfield premise. Own a narrow SAFE governance, assurance, translation-loss and expected-set-completeness profile over OCSF 1.9, then publish AICIE/OECD, STIX and CSAF projections and a reference producer/consumer conformance suite. This preserves differentiated value without duplicating mature standards.",
+        "alternatives": [
+          "Adopt ETSI AICIE as the public-report canonical form after its schema defects are corrected and keep OCSF as the internal event model.",
+          "Use STIX/TAXII as the canonical exchange for security-only deployments, accepting weaker AI-harm and incident-case semantics.",
+          "Create a standalone SAFE schema; reject unless a documented field-level gap cannot be expressed through an OCSF profile or extension."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0020",
+      "claim": "The X9 incident-exchange package emits an OCSF v1.1 Incident event or conformant OCSF extension mapping.",
+      "claimType": "implementation",
+      "repositoryEvidence": [
+        {
+          "path": "python/incident_exchange/src/incident_exchange/__init__.py",
+          "locator": "lines 67-79",
+          "exactText": "OCSF_CLASS_UID = 3003  # Incident class per OCSF v1.1"
+        },
+        {
+          "path": "python/incident_exchange/src/incident_exchange/__init__.py",
+          "locator": "lines 122-142",
+          "exactText": "Translate the incident into an OCSF v1.1 `Incident` event dict."
+        },
+        {
+          "path": "python/incident_exchange/README.md",
+          "locator": "lines 12-15",
+          "exactText": "OCSF (Open Cybersecurity Schema Framework) extension mapping."
+        }
+      ],
+      "scope": {
+        "products": ["W2", "W3", "W5", "W6"],
+        "capabilities": ["incident exchange", "OCSF export", "agent incident normalization", "MITRE ATLAS mapping"],
+        "jurisdictions": ["global"],
+        "versions": ["repository X9 package as inspected 2026-08-31", "OCSF schema 1.9.0"],
+        "threatModel": "A consumer trusts the OCSF label, routes or validates the event against the wrong class, loses required identity/evidence fields, or treats passing self-referential unit tests as interoperability evidence."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": ["ocsf-schema-1-9-0"],
+        "boundingSources": ["osaa-safe-rfc-proposal-2026", "etsi-aicie-common-container-2026"]
+      },
+      "confidence": "high",
+      "gaps": [
+        "The official OCSF Toolkit release binary download did not complete; the tagged official schema was instead compiled with the OCSF schema compiler and used for deterministic class and attribute resolution.",
+        "The package has not been tested against an independent OCSF producer/consumer because it fails the compiled-schema gate first."
+      ],
+      "nextQueries": [
+        "OCSF 1.9 Incident Finding reference event validator",
+        "OCSF schema server conformance toolkit 1.9",
+        "OCSF AI agent delegation record integrity example"
+      ],
+      "recommendation": {
+        "action": "reject",
+        "rationale": "Quarantine the current `to_ocsf()` output and remove the conformance label until it is replaced. UID 3003 resolves to Authorize Session in Identity and Access Management, not Incident Finding; activities 4–6 are invalid for that class; arbitrary top-level fields are unknown; required class metadata is absent; and the tests only restate the package constants. Implement an explicit OCSF 1.9 Incident Finding profile, compile and pin the schema, and require positive and negative external validation.",
+        "alternatives": [
+          "Retain `to_dict()` as a clearly proprietary experimental format while the standards profile is implemented.",
+          "Emit ETSI AICIE only for public-policy reporting after its printed schema is corrected, but do not call that an operational OCSF event.",
+          "Delete the current exporter if no compatibility commitment exists; prefer no interoperability claim over a false one."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0021",
+      "claim": "AIBOMs everywhere are build-time and static, and nobody binds an AI bill of materials or runtime-attested model digest to the specific action or inference result that it served.",
+      "claimType": "novelty",
+      "repositoryEvidence": [
+        {
+          "path": "specs/warrantor-v4/01-war-receipt.md",
+          "locator": "runtime AIBOM novelty table, item 3",
+          "exactText": "AIBOMs everywhere are build-time and static. Nobody binds them to the runtime-attested weight digest."
+        },
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "S4 re-scope row",
+          "exactText": "Runtime-bound AIBOM: binds the ML-BOM to the weight digest that actually served the action"
+        }
+      ],
+      "scope": {
+        "products": ["W2"],
+        "capabilities": ["runtime AI bill of materials", "model artifact integrity", "loaded-state measurement", "inference correlation", "action-bound receipt", "confidential-computing attestation"],
+        "jurisdictions": ["global", "United States", "India", "Saudi Arabia", "United Arab Emirates", "Qatar"],
+        "versions": ["Warrantor v4 architecture", "main evidence window 2024-08-28 through 2026-08-28", "indispensable older prior art"],
+        "threatModel": "An absolute novelty premise causes Warrantor to misstate prior art, duplicate mature components, create patent and credibility exposure, and conflate observed model metadata with measured runtime evidence."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "k8s-aibom-1-4-0",
+          "kserve-v2-inference-protocol-current",
+          "opentelemetry-genai-semconv-2026",
+          "operationalising-aibom-frontiers-2026",
+          "wo2022093241-generating-statements",
+          "us20250337589-hardware-ai-attestation"
+        ],
+        "boundingSources": [
+          "cyclonedx-1-7-ecma-424",
+          "spdx-3-0-1-ai-profile",
+          "ossf-model-signing-spec-1-0",
+          "sigstore-model-transparency-1-1-1",
+          "rfc9334-rats-architecture",
+          "rfc9711-entity-attestation-token",
+          "in-toto-attestation-framework-1-2",
+          "g7-aibom-minimum-elements-2026"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "No widely adopted open implementation was found that combines a current AIBOM standard, independently verified exact effective model state, attested execution, per-inference correlation and evidence-before-commit external-action receipt in one interoperable profile.",
+        "This technical search is not a professional patent landscape, claim-construction, validity, infringement or freedom-to-operate opinion.",
+        "Proprietary model-serving and confidential-computing products may contain additional nonpublic or poorly documented overlap."
+      ],
+      "nextQueries": [
+        "patent landscape model runtime attestation inference result signed processing tag",
+        "confidential inference exact model measurement receipt TEE",
+        "vLLM Triton KServe loaded model hash attestation",
+        "OCI model artifact referrer runtime evidence inference receipt",
+        "hosted model API immutable model digest evidence"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Retire all 'everywhere', 'nobody', 'first' and equivalent nonexistence language. Runtime AIBOM observation, inference-to-model identifiers, signed model artifacts and result/model/runtime attestation are established prior art. Preserve the product objective but position Warrantor as an open standards-composed assurance profile that prevents evidence inflation and binds verified effective model state to an evidence-before-commit receipt. Obtain qualified patent counsel before any renewed novelty or exclusivity claim.",
+        "alternatives": [
+          "Use a dated, feature-bounded statement: no complete, widely adopted open implementation of the exact Warrantor profile was found in the searched public sources as of 2026-09-01.",
+          "Position the work solely as interoperability, conformance and production hardening without a novelty claim.",
+          "Defer runtime model proof and support only explicit provider-asserted model identity as a lower-assurance profile."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0022",
+      "claim": "The current S4 model-sbom package produces conformant current CycloneDX and SPDX AI bills of materials and implements the runtime-bound AIBOM described by Warrantor v4.",
+      "claimType": "implementation",
+      "repositoryEvidence": [
+        {
+          "path": "python/model_sbom/src/model_sbom/__init__.py",
+          "locator": "module docstring and to_cyclonedx/to_spdx functions",
+          "exactText": "Generates CycloneDX and SPDX SBOMs with the AI-specific extensions defined in RFC S4"
+        },
+        {
+          "path": "python/model_sbom/src/model_sbom/__init__.py",
+          "locator": "to_spdx docstring",
+          "exactText": "Generate an SPDX 3.0 SBOM with AI extensions per the SPDX AI-BOM working draft."
+        },
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "S4 re-scope row",
+          "exactText": "Runtime-bound AIBOM: binds the ML-BOM to the weight digest that actually served the action"
+        },
+        {
+          "path": "docs/wave-2-verification-report.md",
+          "locator": "S4 verification row",
+          "exactText": "CycloneDX 1.5 + SPDX 3.0 AI extensions"
+        }
+      ],
+      "scope": {
+        "products": ["W2"],
+        "capabilities": ["CycloneDX ML-BOM", "SPDX AI Profile", "artifact hashing", "model signing", "runtime discovery", "loaded-state measurement", "per-action receipt binding", "standards conformance"],
+        "jurisdictions": ["global"],
+        "versions": ["repository S4 package 1.0.0 as inspected 2026-09-01", "CycloneDX 1.5 and current 1.7", "SPDX 3.0.1"],
+        "threatModel": "A consumer accepts a syntactically labeled but semantically stale or invalid BOM, trusts a caller-supplied digest, or assumes a static metadata object proves the model that actually served an action."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "cyclonedx-1-7-ecma-424",
+          "spdx-3-0-1-ai-profile",
+          "cyclonedx-ai-ml-bom-guide-2026",
+          "g7-aibom-minimum-elements-2026",
+          "k8s-aibom-1-4-0",
+          "ossf-model-signing-spec-1-0",
+          "sigstore-model-transparency-1-1-1"
+        ],
+        "boundingSources": [
+          "owasp-aibom-generator-2026",
+          "operationalising-aibom-frontiers-2026",
+          "kserve-v2-inference-protocol-current",
+          "opentelemetry-genai-semconv-2026"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "SPDX semantic OWL/SHACL validation was not attempted because the current output failed the official structural JSON Schema first.",
+        "A live Kubernetes controller and model server were unavailable, but no runtime observer, loader, inference hook or receipt verifier exists in the inspected S4 package.",
+        "The CycloneDX path can be structurally valid against 1.5 when given a syntactically valid digest, but semantic truth and current native ML-BOM usage remain unproved."
+      ],
+      "nextQueries": [
+        "CycloneDX 1.7 ML-BOM official conformance examples modelCard",
+        "SPDX 3.0.1 AI Dataset JSON-LD validator interoperability",
+        "effective model state digest quantization adapter tokenizer",
+        "vLLM Triton model load hook digest evidence",
+        "Kubernetes runtime model download observation"
+      ],
+      "recommendation": {
+        "action": "reject",
+        "rationale": "Reject the current package as a production runtime-AIBOM or current SPDX implementation. It never hashes an artifact, accepts arbitrary caller input, encodes a model as a generic CycloneDX library despite native ML-BOM support, emits structurally invalid SPDX 3.0.1, and has no runtime or action boundary. Keep it only as an explicitly experimental authoring prototype while rebuilding native CycloneDX 1.7 and SPDX 3.0.1 projections, OMS-backed artifact verification, deployment observation, trusted loading, inference correlation and W2 receipt verification.",
+        "alternatives": [
+          "Rename and harden it as a static AIBOM authoring utility with official schema validation while the runtime stack is developed.",
+          "Ship only a conformant CycloneDX 1.7 projection initially and defer SPDX until structural and semantic validation pass.",
+          "Delete the SPDX output and runtime assurance claims if the project cannot fund correct implementation."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0023",
+      "claim": "A general-purpose AI model provider using Warrantor can demonstrate EU AI Act Article 55 compliance with the SBOM emitted by the current S4 package.",
+      "claimType": "regulatory",
+      "repositoryEvidence": [
+        {
+          "path": "python/model_sbom/src/model_sbom/__init__.py",
+          "locator": "module docstring, lines 3-8",
+          "exactText": "a GPAI model provider using Warrantor can demonstrate EU AI Act Article 55 compliance with the SBOM this package emits"
+        }
+      ],
+      "scope": {
+        "products": ["W2"],
+        "capabilities": ["EU AI Act compliance evidence", "GPAI technical documentation", "systemic-risk assessment", "serious-incident reporting", "cybersecurity", "runtime AI bill of materials"],
+        "jurisdictions": ["European Union"],
+        "versions": ["Regulation (EU) 2024/1689 consolidated 2026-07-27", "final GPAI Code of Practice 2025", "S4 package as inspected 2026-09-01"],
+        "threatModel": "A customer, investor, regulator or auditor relies on an artifact-level compliance claim that ignores the provider's role, model classification, applicable dates, systemic-risk controls, incident process, cybersecurity measures and evidence accuracy."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "eu-ai-act-2024-1689",
+          "eu-gpai-code-of-practice-2025"
+        ],
+        "boundingSources": [
+          "g7-aibom-minimum-elements-2026",
+          "nist-sp-800-218a",
+          "india-ai-governance-guidelines-2025",
+          "cyclonedx-1-7-ecma-424",
+          "spdx-3-0-1-ai-profile"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "The repository does not establish that Warrantor is a GPAI model provider, that a covered model has systemic risk, or which application dates and exemptions apply.",
+        "No provision-level legal memorandum or independent conformity assessment was located.",
+        "A technical evidence map still needs qualified EU counsel and current organizational/model facts."
+      ],
+      "nextQueries": [
+        "EU AI Act Article 55 GPAI systemic risk provider obligations current Commission guidance",
+        "GPAI Code Safety Security chapter model report serious incident template",
+        "AI Office technical documentation Annex XI model inventory fields",
+        "EU AI Act open source GPAI exemption Article 53 55",
+        "AIBOM regulatory evidence not compliance certification"
+      ],
+      "recommendation": {
+        "action": "reject",
+        "rationale": "Remove the compliance statement immediately. Article 55 applies additional duties to providers of GPAI models with systemic risk, including model evaluation, systemic-risk assessment and mitigation, serious-incident tracking/reporting and cybersecurity. An accurate AIBOM may contribute to technical documentation, supply-chain control and incident investigation, but it cannot establish role, scope, control adequacy or compliance. Replace the statement with a bounded evidence-support description and require qualified EU legal review for any product claim.",
+        "alternatives": [
+          "State that conformant AIBOM and receipts may support selected technical-documentation and cybersecurity evidence, with an exact provision/control crosswalk.",
+          "Avoid all regulatory positioning until a reviewed evidence map and legal opinion exist.",
+          "Offer a customer-configurable compliance evidence pack without representing it as certification."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0024",
+      "claim": "The checked-in W5 egress package currently enforces the frozen signed-catalog, capability-only, fail-closed mediated network boundary.",
+      "claimType": "implementation",
+      "repositoryEvidence": [
+        {
+          "path": "rust/egress/src/lib.rs",
+          "locator": "module documentation, lines 1-6",
+          "exactText": "W5 Egress broker — model-belief-independent, default-deny network enforcement (spec 08). The core rule: the agent never supplies a destination."
+        },
+        {
+          "path": "rust/egress/src/lib.rs",
+          "locator": "DestinationCatalog and decide(), lines 68-227",
+          "exactText": "The destination catalog (spec §2) — signed, versioned, agent-immutable"
+        },
+        {
+          "path": "specs/warrantor-v4/08-egress-broker.md",
+          "locator": "sections 1, 2, 6 and 7",
+          "exactText": "The agent never supplies a destination. The broker is only a containment boundary in mediated mode."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W5"
+        ],
+        "capabilities": [
+          "signed destination catalog",
+          "capability-only destination selection",
+          "default-deny egress",
+          "DNS and address pinning",
+          "TLS and method enforcement",
+          "trusted receipt verification",
+          "complete mediation"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "repository rust/egress as inspected 2026-09-01",
+          "Warrantor v4 frozen candidate"
+        ],
+        "threatModel": "An agent or compromised caller supplies raw destination semantics, swaps a capability and endpoint, uses stale/unsigned policy, exploits string parsing, self-signs a receipt, or bypasses the decision library through a real socket."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "nvidia-openshell-0-0-116",
+          "anthropic-sandbox-runtime-0-0-74",
+          "cloudflare-sandbox-outbound-2026",
+          "anthropic-sandbox-runtime-ghsa-2025"
+        ],
+        "boundingSources": [
+          "kubernetes-networkpolicy-2026",
+          "cilium-fqdn-l7-1-19-6",
+          "istio-egress-gateway-2026",
+          "landlock-network-abi10-2026"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "No repository component owns or intercepts DNS, connect, socket, TLS, redirect, method, credential, response or external-effect paths.",
+        "A disposable public-API probe reproduced eight allow/trust failures: unsigned and invalid catalogs, expiry, invalid mode, raw hostname, capability/endpoint swap, metadata userinfo and attacker self-signed receipt.",
+        "The 60 local unit tests exercise library logic rather than a real enforcement boundary."
+      ],
+      "nextQueries": [
+        "OpenShell Warrantor one-shot permit adapter",
+        "independent egress effect receipt receiver evidence",
+        "policy generation pinning atomic permit consumption",
+        "hostile network namespace bypass conformance"
+      ],
+      "recommendation": {
+        "action": "reject",
+        "rationale": "Reject the current package as production network enforcement. It is a decision and self-signed receipt prototype that does not validate the catalog contract or mediate a network effect. Keep the frozen target, consume OpenShell or another real PEP, and rebuild the Warrantor-owned capability/catalog trust, one-shot permit and W2 effect-binding layers.",
+        "alternatives": [
+          "Rename it as an experimental pure policy library and remove broker/enforcement claims.",
+          "Wrap it behind a real OpenShell PEP only after exact operation binding and trust-store verification exist.",
+          "Delete the receipt verifier if trusted issuer policy will not be implemented."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0025",
+      "claim": "The checked-in R7 egress-filter and S6 exfil-guard packages currently provide eBPF and Falco/Tetragon enforcement.",
+      "claimType": "implementation",
+      "repositoryEvidence": [
+        {
+          "path": "docs/rfcs/R7-egress-filter.md",
+          "locator": "title and goals",
+          "exactText": "eBPF egress enforcement. Policy/decision half of S6 exfil-guard."
+        },
+        {
+          "path": "rust/egress-filter/src/lib.rs",
+          "locator": "module documentation",
+          "exactText": "eBPF egress enforcement core. The Rust core that the eBPF programs (task 03) call."
+        },
+        {
+          "path": "docs/rfcs/S6-exfil-guard.md",
+          "locator": "RFC goal and integration language",
+          "exactText": "Falco/Tetragon"
+        }
+      ],
+      "scope": {
+        "products": [
+          "W5"
+        ],
+        "capabilities": [
+          "eBPF egress enforcement",
+          "Falco integration",
+          "Tetragon integration",
+          "content exfiltration guard",
+          "kernel attachment"
+        ],
+        "jurisdictions": [
+          "global"
+        ],
+        "versions": [
+          "repository R7/S6 packages as inspected 2026-09-01"
+        ],
+        "threatModel": "A buyer or engineer assumes the libraries are attached to kernel or runtime enforcement and relies on their green tests while arbitrary network paths remain available."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "cilium-fqdn-l7-1-19-6",
+          "landlock-network-abi10-2026",
+          "nvidia-openshell-0-0-116"
+        ],
+        "boundingSources": [
+          "kubernetes-networkpolicy-2026",
+          "istio-egress-gateway-2026"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "No reviewed eBPF program, object, loader, map, attachment or CNI path invokes egress-filter.",
+        "No reviewed Falco or Tetragon rule/stream/adapter invokes exfil-guard.",
+        "The packages' 47 combined unit tests validate in-process classification/decision behavior only."
+      ],
+      "nextQueries": [
+        "Cilium W5 adapter FQDN Hubble effect evidence",
+        "OpenShell exfiltration middleware",
+        "Falco Tetragon egress body visibility limitations",
+        "kernel to L7 identity correlation"
+      ],
+      "recommendation": {
+        "action": "reject",
+        "rationale": "Remove current eBPF/Falco/Tetragon implementation claims. Consume Cilium/OpenShell/Falco/Tetragon through tested adapters where they fit; build a narrow new hook only when a measured requirement remains unmet. Classifiers may remain defense-in-depth libraries but must not be represented as attached enforcement.",
+        "alternatives": [
+          "Implement and independently test a real eBPF loader/attachment and versioned maps.",
+          "Convert the libraries into substrate-neutral policy helpers with honest package names.",
+          "Delete the placeholder RFC claims if there is no funded enforcement path."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0026",
+      "claim": "Warrantor currently makes existing policy decisions provably non-bypassable through W5 and signs the enforced result.",
+      "claimType": "security",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "composition statement, lines 68-70",
+          "exactText": "Warrantor composes what already exists into one non-bypassable, signed decision."
+        },
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "boundary statement, line 137",
+          "exactText": "Warrantor makes it provably non-bypassable and signs the result."
+        },
+        {
+          "path": "specs/warrantor-v4/08-egress-broker.md",
+          "locator": "mediated mode, section 6",
+          "exactText": "The agent's network namespace has no route to any destination except through the broker."
+        }
+      ],
+      "scope": {
+        "products": [
+          "W1",
+          "W2",
+          "W3",
+          "W4",
+          "W5",
+          "W6"
+        ],
+        "capabilities": [
+          "complete mediation",
+          "non-bypassability",
+          "signed decision",
+          "permit-to-forward binding",
+          "result and effect evidence"
+        ],
+        "jurisdictions": [
+          "global",
+          "United States",
+          "India",
+          "Saudi Arabia",
+          "United Arab Emirates",
+          "Qatar"
+        ],
+        "versions": [
+          "Warrantor v4 architecture and repository as inspected 2026-09-01"
+        ],
+        "threatModel": "A policy returns allow or deny but the real operation bypasses, mutates, retries or commits without a trusted and complete authority-to-effect evidence chain."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": [
+          "nvidia-openshell-0-0-116",
+          "anthropic-sandbox-runtime-0-0-74",
+          "cloudflare-sandbox-outbound-2026",
+          "kubernetes-networkpolicy-2026",
+          "cilium-fqdn-l7-1-19-6",
+          "istio-egress-gateway-2026",
+          "camel-agent-security-2025",
+          "fides-ifc-agents-2025",
+          "silent-egress-2026"
+        ],
+        "boundingSources": [
+          "nist-sp-800-207",
+          "nist-sp-800-207a",
+          "india-cert-in-government-security-2023",
+          "qatar-nias-2-1",
+          "uae-information-assurance-regulation-1-1",
+          "saudi-nca-ecc-2-2024"
+        ]
+      },
+      "confidence": "high",
+      "gaps": [
+        "No current deployable Warrantor path proves the workload has no route except an authoritative PEP.",
+        "No exact one-shot permit binds authority to the final wire operation and is consumed atomically.",
+        "No expected-set reconciliation joins decision, forward, result and independent external effect.",
+        "No two-substrate hostile conformance result or independent security review exists."
+      ],
+      "nextQueries": [
+        "authority to effect complete mediation agent egress",
+        "receiver corroborated network action receipt",
+        "atomic one shot proxy permit research",
+        "independent OpenShell sandbox security assessment"
+      ],
+      "recommendation": {
+        "action": "modify",
+        "rationale": "Retain the goal but change all present-tense and proof language to a target assurance profile. Build an E6 OpenShell vertical slice, execute the 84-vector corpus, then pass the same semantic core on a second substrate and reconcile independent effect evidence before claiming E7 or non-bypassability.",
+        "alternatives": [
+          "Describe current code as E1 decision-only and market no containment claim.",
+          "Offer substrate-specific E3/E5 profiles with explicit limitations before E6 is ready.",
+          "Defer W5 productization if the project cannot own the permit/effect conformance layer."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0027",
+      "claim": "The checked-in W3 containment-conformance package currently implements the frozen four-capability, safe-state, adversarial, failure-injected and restoration-integrity conformance suite.",
+      "claimType": "implementation",
+      "repositoryEvidence": [
+        {
+          "path": "rust/containment-conformance/src/lib.rs",
+          "locator": "module documentation and SUITE_VERSION",
+          "exactText": "W3 Containment conformance suite — the H.R. 9917 kill-switch conformance (spec 05). Four mandated capabilities ... and a signed report that REFUSES to emit PASS without elicitation method + noise floor + non-empty limitations."
+        },
+        {
+          "path": "rust/containment-conformance/Cargo.toml",
+          "locator": "package description",
+          "exactText": "W3 Containment conformance suite — the H.R. 9917 kill-switch conformance (spec 05)."
+        },
+        {
+          "path": "specs/warrantor-v4/05-killswitch-conformance.md",
+          "locator": "sections 2 through 7",
+          "exactText": "The suite defines safe-state assertions, containment residue, latency distribution, adversarial elicitation, escape testing, failure injection, per-capability verdicts, signed reporting and restoration integrity requirements."
+        }
+      ],
+      "scope": {
+        "products": ["W3"],
+        "capabilities": ["four unique capabilities", "safe-state assertions", "held observation", "latency distribution", "residue", "adversarial elicitation", "escape testing", "failure injection", "restoration integrity", "trusted signed report"],
+        "jurisdictions": ["global", "United States", "India", "Saudi Arabia", "United Arab Emirates", "Qatar"],
+        "versions": ["repository rust/containment-conformance as inspected 2026-09-01", "Warrantor v4 frozen candidate specification 05"],
+        "threatModel": "A caller supplies incomplete, advisory, contradictory, self-signed or fabricated conformance data and obtains a pass-like artifact without executing or observing the required containment effects."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": ["sandboxescapebench-2603-02277", "containmentbench-2607-23999", "us-uk-aisi-o1-predeployment-2024", "killbench-2511-13725"],
+        "boundingSources": ["ncsc-agentic-ai-cyber-risk-2026", "nist-csf-ai-profile-8596-iprd", "wasmtime-security-47", "qcb-ai-guideline-2024", "cbuae-ai-guidance-2026"]
+      },
+      "confidence": "high",
+      "gaps": [
+        "The package finalizes and self-signs caller-supplied report structures; it does not execute the conformance procedure or observe process, session, access, network, inference or external effects.",
+        "A public-API probe reproduced acceptance of advisory pass, false held assertion, impossible latency ordering, impossible escape counts, duplicate capability, empty subject and omission of three capabilities.",
+        "The report verifies an embedded public key rather than a configured trusted issuer or verifier policy.",
+        "No runner, target inventory, independent observer, expected-set reconciliation, failure-amplification result or restoration-integrity execution was located.",
+        "Eleven green package tests cover internal model/finalizer behavior rather than frozen-spec conformance."
+      ],
+      "nextQueries": ["trusted conformance report verifier policy", "distributed safe-state assertion language", "expected target set containment reconciliation", "cross-substrate restoration integrity"],
+      "recommendation": {
+        "action": "reject",
+        "rationale": "Reject the current package as an implemented conformance suite. Keep it only as an experimental report model until all twelve reproduced counterexamples fail closed, four unique capabilities and safe-state/effect evidence are required, signer trust is configured, and a real runner reaches C5 on one topology.",
+        "alternatives": [
+          "Rename the package to containment-report-model and remove suite/conformance wording.",
+          "Generate reports only from a trusted runner with raw observation links and expected-set reconciliation.",
+          "Delete pass-like verdicts until capability-specific validators and trusted verification are complete."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0028",
+      "claim": "The checked-in W3 kill-switch implementation currently provides a complete fail-closed vLLM, Triton, Kubernetes and eBPF containment pipeline in under five seconds with government-order integration.",
+      "claimType": "implementation",
+      "repositoryEvidence": [
+        {
+          "path": "rust/kill-switch/src/lib.rs",
+          "locator": "module documentation, constants and government API stub",
+          "exactText": "Decision Engine, Execution (vLLM/Triton/K8s/eBPF). Entire pipeline executes in under 5 seconds ... Includes a Government Compliance API stub."
+        },
+        {
+          "path": "rust/kill-switch/Cargo.toml",
+          "locator": "package description",
+          "exactText": "Kill switch for the AI Kill Switch Act (H.R. 2026) — <5s end-to-end"
+        },
+        {
+          "path": "docs/rfcs/R3-kill-switch.md",
+          "locator": "summary and goals",
+          "exactText": "Three layers: Policy (OPA Rego), Decision Engine, Execution (vLLM/Triton/K8s/eBPF). <5s end-to-end. Government Compliance API for AI Kill Switch Act (H.R. 9917)."
+        }
+      ],
+      "scope": {
+        "products": ["W3"],
+        "capabilities": ["fail-closed containment", "vLLM stop", "Triton stop", "Kubernetes stop", "eBPF isolation", "credential revocation", "five-second bound", "government order authentication"],
+        "jurisdictions": ["global", "United States"],
+        "versions": ["repository rust/kill-switch and RFC R3 as inspected 2026-09-01"],
+        "threatModel": "A slow, failed, simulated, no-op or locally scoped dependency returns success while the real model, session, authority, network or distributed workload remains active."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": ["aws-agentcore-stop-session-2026", "aws-agent-containment-response-2026", "ncsc-agentic-ai-cyber-risk-2026", "sandboxescapebench-2603-02277"],
+        "boundingSources": ["hr-9917-ai-kill-switch-act-2026", "us-uk-aisi-o1-predeployment-2024", "wasmtime-security-47", "qcb-ai-guideline-2024", "cbuae-ai-guidance-2026"]
+      },
+      "confidence": "high",
+      "gaps": [
+        "No reviewed vLLM, Triton, Kubernetes or eBPF production backend is wired into the package; the real backend is a local process engine and a clearly labelled mock engine.",
+        "The default policy path is a mock and the default credential revoker can be a no-op while returning success.",
+        "A public-API probe reproduced successful simulated kill and a successful outcome with the default no-op revoker.",
+        "Post-await budget checks do not preempt a slow or hung policy or effect dependency; the probe exceeded the declared budget without timely cancellation.",
+        "The regulatory order is a caller-supplied non-empty identifier and the government endpoint is a stub; issuer, signature, scope, status and jurisdiction are not verified.",
+        "Thirty-five green unit tests do not measure a real distributed effect, held safe state, residue or percentile latency."
+      ],
+      "nextQueries": ["Kubernetes inference server stop observer adapter", "deadline enforced cancellation containment coordinator", "cross-layer AI session credential network revocation", "independent government order authentication profile"],
+      "recommendation": {
+        "action": "reject",
+        "rationale": "Reject current production, five-second, government-integration and cross-stack execution claims. Retain local/mock engines as explicit C1/C2 test fixtures, consume real substrate APIs, and measure accepted, observed and held timestamps separately under failure before publishing any latency claim.",
+        "alternatives": [
+          "Rename the package to kill-switch-experimental and remove unimplemented backend language.",
+          "Build one real Kubernetes or AgentCore vertical slice with independent effect probes.",
+          "Remove the government API path until an authenticated, legally reviewed profile exists."
+        ]
+      }
+    },
+    {
+      "id": "CLM-0029",
+      "claim": "The four H.R. 9917 capabilities are enacted or legislated current requirements, and W3 can be described as an AI Kill Switch Act compliance implementation.",
+      "claimType": "regulatory",
+      "repositoryEvidence": [
+        {
+          "path": "docs/03-portfolio-recut-v4.md",
+          "locator": "A10 novelty statement",
+          "exactText": "No kill-switch conformance suite exists anywhere, despite legislated capabilities"
+        },
+        {
+          "path": "rust/containment-conformance/src/lib.rs",
+          "locator": "module documentation and capability comments",
+          "exactText": "Four mandated capabilities"
+        },
+        {
+          "path": "rust/kill-switch/Cargo.toml",
+          "locator": "package description",
+          "exactText": "Kill switch for the AI Kill Switch Act (H.R. 2026) — <5s end-to-end"
+        }
+      ],
+      "scope": {
+        "products": ["W3"],
+        "capabilities": ["legal status", "regulatory mandate", "four proposed capabilities", "five-second SLA", "government compliance API"],
+        "jurisdictions": ["United States", "Qatar", "United Arab Emirates"],
+        "versions": ["H.R. 9917 introduced 2026-07-23 and repository as inspected 2026-09-01"],
+        "threatModel": "Customers, regulators, investors or engineers rely on a false enacted-law or compliance statement and make architecture, procurement or reporting decisions on that basis."
+      },
+      "risk": "critical",
+      "status": "contradicted",
+      "evidence": {
+        "supportingSources": [],
+        "challengingSources": ["hr-9917-ai-kill-switch-act-2026"],
+        "boundingSources": ["qcb-ai-guideline-2024", "cbuae-ai-guidance-2026", "nist-csf-ai-profile-8596-iprd", "ncsc-agentic-ai-cyber-risk-2026"]
+      },
+      "confidence": "high",
+      "gaps": [
+        "Official GovInfo records H.R. 9917 as an introduced House bill referred to committee at the evidence snapshot, not enacted legislation.",
+        "The bill proposes four capabilities but does not prescribe Warrantor's five-second budget, percentile method, safe-state schema, test suite or signed report format.",
+        "The kill-switch crate still uses the wrong identifier H.R. 2026 in code/package text.",
+        "QCB and CBUAE guidance provide real priority-region shutdown/cessation requirements within scoped financial-sector contexts, but they do not establish Warrantor compliance or the U.S. bill's legal status."
+      ],
+      "nextQueries": ["H.R. 9917 current Congress status", "United States AI emergency shutdown enacted law", "QCB AI Guideline current amendments", "CBUAE AI guidance applicability licensed financial institution"],
+      "recommendation": {
+        "action": "reject",
+        "rationale": "Immediately remove legislated, mandated, compliant and law-required five-second language. Use 'introduced bill' and 'four proposed capabilities'; recheck status before each external use. Map QCB and CBUAE requirements separately by sector and jurisdiction with qualified legal review.",
+        "alternatives": [
+          "Describe W3 as policy-horizon preparedness rather than compliance.",
+          "Maintain a dated legal-status field and automated review reminder.",
+          "Omit legislative marketing entirely until enactment and implementing standards exist."
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://warrantor.dev/schemas/research/candidate-ledger-v2.schema.json",
+  "title": "Warrantor Research Candidate Ledger v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "meta", "candidates"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "created", "status"],
+      "properties": {
+        "version": { "const": "2.0.0" },
+        "created": { "type": "string", "format": "date" },
+        "status": { "enum": ["discovering", "reconciling", "reviewed"] }
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "items": { "$ref": "https://warrantor.dev/schemas/research/candidate-record-v2.schema.json" }
+    }
+  }
+}
+

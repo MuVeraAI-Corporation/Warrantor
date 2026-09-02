@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://warrantor.dev/schemas/research/source-library-v2.schema.json",
+  "title": "Warrantor Research Source Library v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "meta", "sources"],
+  "properties": {
+    "$schema": { "type": "string", "format": "uri" },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "updated", "protocol", "recordCount", "promotionRule"],
+      "properties": {
+        "version": { "const": "2.0-working" },
+        "updated": { "type": "string", "format": "date" },
+        "protocol": { "type": "string" },
+        "recordCount": { "type": "integer", "minimum": 0 },
+        "promotionRule": { "type": "string" }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "https://warrantor.dev/schemas/research/source-record-v2.schema.json" }
+    }
+  }
+}

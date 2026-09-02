@@ -1,0 +1,32 @@
+{
+  "$schema": "https://warrantor.dev/schemas/research/rejection-ledger-v2.schema.json",
+  "meta": {
+    "version": "2.0-working",
+    "updated": "2026-08-29",
+    "recordCount": 1
+  },
+  "rejections": [
+    {
+      "id": "killswitch-md-1-0",
+      "title": "KILLSWITCH.md — The AI Agent Emergency Stop Standard",
+      "canonicalUrl": "https://killswitch.md/",
+      "decisionDate": "2026-08-29",
+      "decision": "reject",
+      "reasonCodes": [
+        "insufficient-authority",
+        "insufficient-technical-depth",
+        "unverified-claims",
+        "broken-or-unstable-access",
+        "below-quality-threshold"
+      ],
+      "rationale": "The document is a self-published, explicitly unofficial prompt/file convention rather than a non-bypassable emergency-stop mechanism or conformance standard. Its domain was advertised for sale, implementation/adoption evidence is absent, and several legal descriptions require primary-source verification. Counting it as a technical standard would inflate evidence quality and confuse instruction-following with enforced containment.",
+      "allowedUse": "Discovery vocabulary only: it may illustrate current interest in a KILLSWITCH.md convention and help distinguish prompt/file signaling from W3 enforcement and conformance. It may not support security, regulatory, adoption or novelty claims.",
+      "claimRefs": ["CLM-0006"],
+      "reconsiderationTriggers": [
+        "A stable accountable standards body adopts a normative successor with transparent governance.",
+        "Multiple independent implementations demonstrate enforced stop behavior and publish a conformance suite.",
+        "The legal statements are replaced by precise citations to current primary authorities."
+      ]
+    }
+  ]
+}

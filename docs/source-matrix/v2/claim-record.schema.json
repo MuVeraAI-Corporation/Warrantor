@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://warrantor.dev/schemas/research/claim-record-v2.schema.json",
+  "title": "Warrantor Repository Claim Record v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "claim",
+    "claimType",
+    "repositoryEvidence",
+    "scope",
+    "risk",
+    "status",
+    "evidence",
+    "confidence",
+    "gaps",
+    "nextQueries",
+    "recommendation"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^CLM-[0-9]{4}$" },
+    "claim": { "type": "string", "minLength": 10 },
+    "claimType": {
+      "enum": [
+        "technical-fact",
+        "architecture",
+        "security",
+        "novelty",
+        "nonexistence",
+        "regulatory",
+        "market",
+        "competitor",
+        "incident",
+        "implementation",
+        "performance",
+        "operational",
+        "business",
+        "academic-opportunity",
+        "content-opportunity",
+        "recommendation",
+        "forecast"
+      ]
+    },
+    "repositoryEvidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "locator", "exactText"],
+        "properties": {
+          "path": { "type": "string" },
+          "locator": { "type": "string" },
+          "exactText": { "type": "string" }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["products", "capabilities", "jurisdictions", "versions", "threatModel"],
+      "properties": {
+        "products": { "type": "array", "items": { "enum": ["W1", "W2", "W3", "W4", "W5", "W6"] }, "uniqueItems": true },
+        "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "jurisdictions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "versions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "threatModel": { "type": "string" }
+      }
+    },
+    "risk": { "enum": ["critical", "high", "medium", "low"] },
+    "status": { "enum": ["unresearched", "researching", "supported", "partially-supported", "challenged", "contradicted", "unresolved"] },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supportingSources", "challengingSources", "boundingSources"],
+      "properties": {
+        "supportingSources": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "challengingSources": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "boundingSources": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "confidence": { "enum": ["high", "medium", "low", "unresolved"] },
+    "gaps": { "type": "array", "items": { "type": "string" } },
+    "nextQueries": { "type": "array", "items": { "type": "string" } },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "rationale", "alternatives"],
+      "properties": {
+        "action": { "enum": ["adopt", "modify", "defer", "reject", "monitor", "no-change", "unresolved"] },
+        "rationale": { "type": "string" },
+        "alternatives": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
+

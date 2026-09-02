@@ -10,43 +10,496 @@
     "complete": "Every stated acceptance condition has current retained evidence."
   },
   "audit_findings": [
-    {"id": "AUD-001", "severity": "critical", "title": "MCP returns success-shaped mocks when controls fail", "status": "verified_local", "evidence": ["typescript/mcp-server/src/index.ts", "typescript/mcp-server/src/index.test.ts", "typescript/mcp-gateway/src/index.ts", "typescript/mcp-gateway/src/index.test.ts", "docs/rfcs/X8-mcp-gateway.md"]},
-    {"id": "AUD-002", "severity": "critical", "title": "Green gates can mean nothing meaningful ran", "status": "implemented_pending_ci", "evidence": ["Makefile", ".github/workflows/ci.yml", "tools/conformance/run.py", "tools/ci/run_python_checks.py", "tools/ci/run_go_checks.py"]},
-    {"id": "AUD-003", "severity": "critical", "title": "Deployment health is decoupled from functional behavior", "status": "open", "evidence": []},
-    {"id": "AUD-004", "severity": "high", "title": "The correctness baseline is red", "status": "verified_local", "evidence": ["rust/trust-core/src/merkle.rs", "rust/exfil-guard/src/lib.rs", "rust/trust-core/src/rekor.rs", "python/warrantor_harness/tests/test_harness.py", "typescript/eslint.config.mjs"]},
-    {"id": "AUD-005", "severity": "high", "title": "MCP and A2A interoperability trail current ecosystems", "status": "in_progress", "evidence": ["typescript/mcp-server/src/index.ts", "typescript/mcp-server/src/index.test.ts", "typescript/mcp-gateway/src/index.ts", "typescript/mcp-gateway/src/index.test.ts", "docs/rfcs/X8-mcp-gateway.md"]},
-    {"id": "AUD-006", "severity": "high", "title": "Protocol documentation exceeds wire-level reality", "status": "open", "evidence": []},
-    {"id": "AUD-007", "severity": "high", "title": "Control components do not enforce physical side effects", "status": "in_progress", "evidence": ["rust/secure-workspace/src/lib.rs", "rust/sandbox-runtime/src/lib.rs", "rust/policy-bridge/src/lib.rs"]},
-    {"id": "AUD-008", "severity": "high", "title": "Helm is not a credible production installer", "status": "open", "evidence": []},
-    {"id": "AUD-009", "severity": "high", "title": "Supply-chain claims lack published verifiable outputs", "status": "in_progress", "evidence": ["typescript/package-lock.json", "rust/gguf-ext/src/lib.rs", "testvectors/S3/cases.json"]},
-    {"id": "AUD-010", "severity": "high", "title": "No durable available evidence and control-plane data layer", "status": "open", "evidence": []},
-    {"id": "AUD-011", "severity": "medium", "title": "Model SBOM output trails the current format", "status": "open", "evidence": []},
-    {"id": "AUD-012", "severity": "medium", "title": "Status documents are not generated from evidence", "status": "in_progress", "evidence": ["docs/implementation/catalog.json", "docs/implementation/tracker-state.json"]}
+    {
+      "id": "AUD-001",
+      "severity": "critical",
+      "title": "MCP returns success-shaped mocks when controls fail",
+      "status": "verified_local",
+      "evidence": [
+        "typescript/mcp-server/src/index.ts",
+        "typescript/mcp-server/src/index.test.ts",
+        "typescript/mcp-gateway/src/index.ts",
+        "typescript/mcp-gateway/src/index.test.ts",
+        "docs/rfcs/X8-mcp-gateway.md"
+      ]
+    },
+    {
+      "id": "AUD-002",
+      "severity": "critical",
+      "title": "Green gates can mean nothing meaningful ran",
+      "status": "implemented_pending_ci",
+      "evidence": [
+        "Makefile",
+        ".github/workflows/ci.yml",
+        "tools/conformance/run.py",
+        "tools/ci/run_python_checks.py",
+        "tools/ci/run_go_checks.py"
+      ]
+    },
+    {
+      "id": "AUD-003",
+      "severity": "critical",
+      "title": "Deployment health is decoupled from functional behavior",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "AUD-004",
+      "severity": "high",
+      "title": "The correctness baseline is red",
+      "status": "verified_local",
+      "evidence": [
+        "rust/trust-core/src/merkle.rs",
+        "rust/exfil-guard/src/lib.rs",
+        "rust/trust-core/src/rekor.rs",
+        "python/warrantor_harness/tests/test_harness.py",
+        "typescript/eslint.config.mjs"
+      ]
+    },
+    {
+      "id": "AUD-005",
+      "severity": "high",
+      "title": "MCP and A2A interoperability trail current ecosystems",
+      "status": "in_progress",
+      "evidence": [
+        "typescript/mcp-server/src/index.ts",
+        "typescript/mcp-server/src/index.test.ts",
+        "typescript/mcp-gateway/src/index.ts",
+        "typescript/mcp-gateway/src/index.test.ts",
+        "docs/rfcs/X8-mcp-gateway.md"
+      ]
+    },
+    {
+      "id": "AUD-006",
+      "severity": "high",
+      "title": "Protocol documentation exceeds wire-level reality",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "AUD-007",
+      "severity": "high",
+      "title": "Control components do not enforce physical side effects",
+      "status": "in_progress",
+      "evidence": [
+        "rust/secure-workspace/src/lib.rs",
+        "rust/sandbox-runtime/src/lib.rs",
+        "rust/policy-bridge/src/lib.rs"
+      ]
+    },
+    {
+      "id": "AUD-008",
+      "severity": "high",
+      "title": "Helm is not a credible production installer",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "AUD-009",
+      "severity": "high",
+      "title": "Supply-chain claims lack published verifiable outputs",
+      "status": "in_progress",
+      "evidence": [
+        "typescript/package-lock.json",
+        "rust/gguf-ext/src/lib.rs",
+        "testvectors/S3/cases.json"
+      ]
+    },
+    {
+      "id": "AUD-010",
+      "severity": "high",
+      "title": "No durable available evidence and control-plane data layer",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "AUD-011",
+      "severity": "medium",
+      "title": "Model SBOM output trails the current format",
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "AUD-012",
+      "severity": "medium",
+      "title": "Status documents are not generated from evidence",
+      "status": "in_progress",
+      "evidence": [
+        "docs/implementation/catalog.json",
+        "docs/implementation/tracker-state.json"
+      ]
+    }
   ],
   "release_gates": [
-    {"id": "G1", "title": "Catalogue integrity", "status": "verified_local"},
-    {"id": "G2", "title": "Reproducible build", "status": "open"},
-    {"id": "G3", "title": "Correctness", "status": "verified_local"},
-    {"id": "G4", "title": "Protocol conformance", "status": "in_progress", "evidence": ["tools/conformance/run.py", "tools/conformance/verify_typescript.ts", "typescript/mcp-server/src/index.test.ts", "typescript/mcp-gateway/src/index.test.ts"]},
-    {"id": "G5", "title": "Fail-closed controls", "status": "in_progress", "evidence": ["typescript/mcp-server/src/index.test.ts", "typescript/mcp-gateway/src/index.test.ts", "go/identity-bindings/identity_bindings_test.go", "rust/secure-workspace/src/lib.rs", "rust/policy-bridge/src/lib.rs", "rust/sandbox-runtime/src/lib.rs"]},
-    {"id": "G6", "title": "Functional deployment", "status": "open"},
-    {"id": "G7", "title": "Tenant isolation", "status": "open"},
-    {"id": "G8", "title": "Durable evidence", "status": "open"},
-    {"id": "G9", "title": "Containment", "status": "in_progress", "evidence": ["rust/secure-workspace/src/lib.rs", "rust/sandbox-runtime/src/lib.rs"]},
-    {"id": "G10", "title": "Security assurance", "status": "open"},
-    {"id": "G11", "title": "Supply-chain verification", "status": "open"},
-    {"id": "G12", "title": "Reliability and operations", "status": "open"},
-    {"id": "G13", "title": "Regulatory evidence", "status": "open"},
-    {"id": "G14", "title": "Release usability", "status": "open"}
+    {
+      "id": "G1",
+      "title": "Catalogue integrity",
+      "status": "verified_local"
+    },
+    {
+      "id": "G2",
+      "title": "Reproducible build",
+      "status": "open"
+    },
+    {
+      "id": "G3",
+      "title": "Correctness",
+      "status": "verified_local"
+    },
+    {
+      "id": "G4",
+      "title": "Protocol conformance",
+      "status": "in_progress",
+      "evidence": [
+        "tools/conformance/run.py",
+        "tools/conformance/verify_typescript.ts",
+        "typescript/mcp-server/src/index.test.ts",
+        "typescript/mcp-gateway/src/index.test.ts"
+      ]
+    },
+    {
+      "id": "G5",
+      "title": "Fail-closed controls",
+      "status": "in_progress",
+      "evidence": [
+        "typescript/mcp-server/src/index.test.ts",
+        "typescript/mcp-gateway/src/index.test.ts",
+        "go/identity-bindings/identity_bindings_test.go",
+        "rust/secure-workspace/src/lib.rs",
+        "rust/policy-bridge/src/lib.rs",
+        "rust/sandbox-runtime/src/lib.rs"
+      ]
+    },
+    {
+      "id": "G6",
+      "title": "Functional deployment",
+      "status": "open"
+    },
+    {
+      "id": "G7",
+      "title": "Tenant isolation",
+      "status": "open"
+    },
+    {
+      "id": "G8",
+      "title": "Durable evidence",
+      "status": "open"
+    },
+    {
+      "id": "G9",
+      "title": "Containment",
+      "status": "in_progress",
+      "evidence": [
+        "rust/secure-workspace/src/lib.rs",
+        "rust/sandbox-runtime/src/lib.rs"
+      ]
+    },
+    {
+      "id": "G10",
+      "title": "Security assurance",
+      "status": "open"
+    },
+    {
+      "id": "G11",
+      "title": "Supply-chain verification",
+      "status": "open"
+    },
+    {
+      "id": "G12",
+      "title": "Reliability and operations",
+      "status": "open"
+    },
+    {
+      "id": "G13",
+      "title": "Regulatory evidence",
+      "status": "open"
+    },
+    {
+      "id": "G14",
+      "title": "Release usability",
+      "status": "open"
+    }
   ],
   "workstreams": [
-    {"id": "WS-01", "title": "Truthful deterministic gates", "priority": "P0", "status": "in_progress", "covers": ["AUD-002", "AUD-004", "AUD-012", "G1", "G3"]},
-    {"id": "WS-02", "title": "Fail-closed MCP and gateway", "priority": "P0", "status": "in_progress", "covers": ["AUD-001", "AUD-005", "G5"]},
-    {"id": "WS-03", "title": "Missing canonical implementations", "priority": "P0", "status": "verified_local", "covers": ["I2", "R1", "R6", "R8", "S3"], "evidence": ["go/identity-bindings", "rust/secure-workspace", "rust/policy-bridge", "rust/sandbox-runtime", "rust/gguf-ext", "testvectors/S3"]},
-    {"id": "WS-04", "title": "P1-P12 normative protocols, bindings, vectors, and TCK", "priority": "P1", "status": "open", "covers": ["AUD-006", "G4"]},
-    {"id": "WS-05", "title": "Integrated enforcement, evidence, data, and deployment plane", "priority": "P1", "status": "open", "covers": ["AUD-003", "AUD-007", "AUD-008", "AUD-010", "G6", "G8", "G9"]},
-    {"id": "WS-06", "title": "Supply chain, packaging, and verifiable releases", "priority": "P1", "status": "in_progress", "covers": ["AUD-009", "AUD-011", "G2", "G11"]},
-    {"id": "WS-07", "title": "Tenancy, observability, resilience, compliance, and security assurance", "priority": "P2", "status": "open", "covers": ["G7", "G10", "G12", "G13"]},
-    {"id": "WS-08", "title": "Golden paths, completion audit, and release usability", "priority": "P2", "status": "open", "covers": ["G14"]}
+    {
+      "id": "WS-01",
+      "title": "Truthful deterministic gates",
+      "priority": "P0",
+      "status": "in_progress",
+      "covers": [
+        "A-2",
+        "A-3",
+        "A-4",
+        "A-5",
+        "A-7",
+        "A-9",
+        "A-11",
+        "A-6",
+        "A-12",
+        "AUD-002",
+        "AUD-004",
+        "AUD-012",
+        "G1",
+        "G3"
+      ],
+      "evidence": [
+        "rust/capability-tokens",
+        "docs/rfcs/A-7-capability-tokens.md",
+        "rust/warrant-templates",
+        "docs/rfcs/A-5-warrant-templates.md",
+        "rust/delegation-chain",
+        "docs/rfcs/A-2-delegation-chain.md",
+        "rust/quorum-warrants",
+        "docs/rfcs/A-3-quorum-warrants.md",
+        "rust/escrow-warrants",
+        "docs/rfcs/A-4-escrow-warrants.md",
+        "rust/policy-analytics",
+        "docs/rfcs/A-9-policy-analytics.md",
+        "rust/authority-simulator",
+        "docs/rfcs/A-11-authority-simulator.md",
+        "rust/authority-algebra",
+        "docs/rfcs/A-6-authority-algebra.md",
+        "rust/policy-bundles",
+        "docs/rfcs/A-12-policy-bundles.md"
+      ],
+      "note": "Domain A authority-plane items shipped as reference implementations: A-7 act-scoped single-use capability tokens (closes the unscoped-bearer-token exposure); A-5 the warrant template library (versioned, signed, data-not-code, instantiated by narrowing); A-2 delegation-chain intersection (warrants delegate by subset, revocation voids the subtree); A-3 quorum warrants (t-of-n exercise, combined receipt); A-4 escrow/conditional warrants (activate on condition, sunset without operator action); A-9 policy analytics (conflict/dead-policy/blast-radius); A-11 the authority simulator (would-this-bind + minimal-delta, the differential oracle for C-9); A-6 authority algebra (the capability algebra as a test-vector-pinned spec — scope intersection, cross-plane composition, and the no-union-across-planes boundary, with a published conformance suite any third-party implementation is tested against); A-12 signed policy bundles (a distribution of policy as one digest-sealed, keyed-signature artifact that composes by overlay merge and fails verification on any tamper or duplicate id — the deployment unit A-1 emits and the notary loads). 14 + 14 + 16 + 11 + 11 + 11 + 10 + 14 + 14 tests green, clippy clean. Remaining Domain A: A-1 policy compiler (needs C-9 dataset + N2), A-10 real enforcement."
+    },
+    {
+      "id": "WS-02",
+      "title": "Fail-closed MCP and gateway",
+      "priority": "P0",
+      "status": "in_progress",
+      "covers": [
+        "AUD-001",
+        "AUD-005",
+        "G5"
+      ]
+    },
+    {
+      "id": "WS-03",
+      "title": "Missing canonical implementations",
+      "priority": "P0",
+      "status": "verified_local",
+      "covers": [
+        "I2",
+        "R1",
+        "R6",
+        "R8",
+        "S3"
+      ],
+      "evidence": [
+        "go/identity-bindings",
+        "rust/secure-workspace",
+        "rust/policy-bridge",
+        "rust/sandbox-runtime",
+        "rust/gguf-ext",
+        "testvectors/S3"
+      ]
+    },
+    {
+      "id": "WS-04",
+      "title": "P1-P12 normative protocols, bindings, vectors, and TCK",
+      "priority": "P1",
+      "status": "open",
+      "covers": [
+        "AUD-006",
+        "G4"
+      ]
+    },
+    {
+      "id": "WS-05",
+      "title": "Integrated enforcement, evidence, data, and deployment plane",
+      "priority": "P1",
+      "status": "in_progress",
+      "covers": [
+        "AUD-003",
+        "AUD-007",
+        "AUD-008",
+        "AUD-010",
+        "B1",
+        "B3",
+        "B2",
+        "B4",
+        "B10",
+        "B11",
+        "C2",
+        "C10",
+        "C1",
+        "C3",
+        "C5",
+        "C9",
+        "B5",
+        "C7",
+        "C4",
+        "C8",
+        "B7",
+        "G6",
+        "G8",
+        "G9"
+      ],
+      "evidence": [
+        "rust/transparency-log",
+        "docs/rfcs/E2-transparency-log.md",
+        "rust/training-extractor",
+        "docs/rfcs/C2-training-extractor.md",
+        "rust/receipt-explorer",
+        "docs/rfcs/B3-receipt-explorer.md",
+        "rust/time-anchoring",
+        "docs/rfcs/B2-time-anchoring.md",
+        "rust/inference-router",
+        "docs/rfcs/C10-inference-router.md",
+        "rust/promotion-pipeline",
+        "docs/rfcs/C1-promotion-pipeline.md",
+        "rust/cross-org-chains",
+        "docs/rfcs/B4-cross-org-chains.md",
+        "rust/proof-of-erasure",
+        "docs/rfcs/B10-proof-of-erasure.md",
+        "rust/receipt-stream",
+        "docs/rfcs/B11-receipt-stream.md",
+        "rust/specialist-corpora",
+        "docs/rfcs/C3-specialist-corpora.md",
+        "rust/model-security",
+        "docs/rfcs/C5-model-security.md",
+        "rust/policy-pairs",
+        "docs/rfcs/C9-policy-pairs.md",
+        "rust/receipt-federation",
+        "docs/rfcs/B5-receipt-federation.md",
+        "rust/guard-graduation",
+        "docs/rfcs/C7-guard-graduation.md",
+        "rust/dataset-format",
+        "docs/rfcs/C4-dataset-format.md",
+        "rust/eval-corpus",
+        "docs/rfcs/C8-eval-corpus.md",
+        "rust/deterministic-replay",
+        "docs/rfcs/B7-deterministic-replay.md"
+      ],
+      "note": "Evidence + flywheel plane shipped as reference implementations: B-1 transparency-log (append-only Merkle log, third-party-verifiable inclusion+consistency, breaks the one-machine trust radius); B-2 time-anchoring (RFC 3161 TSA + countersigned custody behind one verify interface, externally bounded [t1,t2]); B-3 receipt-explorer (query layer that verifies every receipt shown, untrusted state for tampered/unsigned); B-4 cross-org-chains (transitive dependency verification across orgs, revoked citation breaks the chain); B-10 proof-of-erasure (destroy payload, retain digest commitment, attest erasure); B-11 receipt-stream (resumable-cursor filtered event stream, in-order no gaps/dupes); C-2 training-extractor (privacy-tiered, hold-out-leakage-controlled corpus intake); C-10 inference-router (local-first, policy-gated cloud escalation, fail-closed cap); C-1 promotion-pipeline (every stage receipted, deploy without a Promote gate receipt machine-refused); C-3 specialist-corpora (per-plane gated corpora, refusals recorded, no ungated model); C-5 model-security (extraction budget throttle + corpus source-pin poison detection); C-9 policy-pairs (simulator-validated NL→policy dataset, accuracy+equivalence gate); B-5 receipt-federation (peer-to-peer discovery/exchange/verify against a per-node issuer directory with no vendor fallback, privacy tiers — the protocol-not-product item and the 'what if the vendor disappears' answer); C-7 guard-graduation (measured recall bar, staged promotion a below-bar model physically cannot reach, guard as one of nine gates never sole authority); C-4 dataset-format (split-tagged records pinned by digest, structural hold-out leakage detection, provenance source-pins — the format that makes C-2's leakage control auditable from the file); C-8 eval-corpus (adversarial eval corpus with fail-closed scoring, coverage-gap detection, and a hard re-gate budget encoding the exhaustion lesson); B-7 deterministic-replay (re-execute a recorded run and prove byte-identical outputs and receipts, failing at the divergent step). 20+14+14+11+11+11+14+14+12+8+11+10+16+15+14+14+15 tests green, clippy clean. Remaining evidence plane: none code-buildable (B-7 shipped); remaining flywheel: C-6 console model (UI, not a pure reference crate)."
+    },
+    {
+      "id": "WS-06",
+      "title": "Supply chain, packaging, and verifiable releases",
+      "priority": "P1",
+      "status": "in_progress",
+      "covers": [
+        "AUD-009",
+        "AUD-011",
+        "G2",
+        "G11"
+      ]
+    },
+    {
+      "id": "WS-07",
+      "title": "Tenancy, observability, resilience, compliance, and security assurance",
+      "priority": "P2",
+      "status": "in_progress",
+      "covers": [
+        "G7",
+        "G10",
+        "G12",
+        "G13",
+        "H1",
+        "I-1",
+        "I-8",
+        "H2",
+        "H6",
+        "H4",
+        "I-5",
+        "F-6"
+      ],
+      "evidence": [
+        "rust/root-of-trust",
+        "docs/rfcs/I-1-root-of-trust.md",
+        "rust/agent-identity-graph",
+        "docs/rfcs/H1-agent-identity-graph.md",
+        "rust/agent-eval-harness",
+        "docs/rfcs/I-8-agent-eval-harness.md",
+        "rust/delegation-contracts",
+        "docs/rfcs/H2-delegation-contracts.md",
+        "rust/agent-registry",
+        "docs/rfcs/H6-agent-registry.md",
+        "rust/reputation",
+        "docs/rfcs/H4-reputation.md",
+        "rust/conformance",
+        "docs/rfcs/I-5-conformance.md",
+        "rust/tenancy",
+        "docs/rfcs/F6-tenancy.md"
+      ],
+      "note": "I-1 (build-catalogue Domain I, Wave 1) shipped as a reference implementation: root-of-trust deployment modes — self-custody default, t-of-n threshold signing, and escrow continuity — each with a key-ceremony drill and a root-compromise re-key playbook that keeps historical receipts verifiable with no trust gap, honoring the anti-goal against a centralized Warrantor signing root. H-1 (Domain H, Wave 2) shipped as the agent identity graph: a queryable, stranger-verifiable dossier (owner, operator, delegation ancestry, plane bindings, reputation events) assembled from signed records alone. I-8 (Domain I, Wave 3) shipped as the agent evaluation harness: a deterministic task/grader/pass-rate instrument with fail-closed missing-run handling and capability-tier assignment — the harness half of the model/objective/grader/harness/control separation, producing the numbers C-7/C-8 consume. H-2 (Domain H, Wave 3) shipped as agent-to-agent delegation contracts: the bilateral terms (scope, budget, deadline, revocation-notice window) riding on an A-2 warrant delegation, with a fail-closed state machine and settlement. H-6 (Domain H, Wave 3) shipped as the agent registry: versioned manifest discovery with highest-version lookup, per-version and whole-agent revocation, and publisher-trust filtering that fails closed. H-4 (Domain H, Wave 3) shipped as agent reputation: time-decayed (per-half-life integer halving), clamped aggregation of signed weighted events into a score and trust tier — the computation H-1 deliberately defers, so a stranger derives standing from the receipt record rather than from Warrantor's opinion. I-5 (Domain I, Wave 3) shipped as conformance-as-public-infrastructure: a versioned, digest-pinned test-vector suite plus an implementation-agnostic runner that fails closed on an empty suite or an erroring vector — the mechanism that makes 'open protocol, not product' verifiable (A-6's algebra suite is one instantiation). F-6 (Domain F, Wave 2) shipped as tenancy: a nested tenant→resource store where cross-tenant reads are structurally unrepresentable, with per-tenant quotas enforced fail-closed on write and a namespace digest for independent isolation checks — the partition K-2 invoices against. 14 + 11 + 14 + 16 + 14 + 14 + 14 + 14 tests green, clippy clean. Note on prior remaining items: I-7 key ceremony/rotation is already implemented inside I-1 root-of-trust (ceremony_drill/ceremony_passes/rekey/revoke) and is deliberately not duplicated as a separate crate; I-3 issuer directory is folded into B-5 receipt-federation's per-node IssuerDirectory (kept as architecture, not a mandated central directory, per the anti-goal). Remaining assurance work: observability (F-5) and resilience (F-3/F-7) are integration/ops concerns (telemetry wiring, chaos/failover harnesses) rather than pure-logic crates, and are deliberately not fabricated as half-implementations."
+    },
+    {
+      "id": "WS-08",
+      "title": "Golden paths, completion audit, and release usability",
+      "priority": "P2",
+      "status": "open",
+      "covers": [
+        "G14"
+      ]
+    },
+    {
+      "id": "WS-09",
+      "title": "Incident-class hardening (Domain M): transitive-egress invariant, zero-standing-secret handles, governed messaging, task-validity gate, third-party jurisdiction, and the eval-guard measured path",
+      "priority": "P1",
+      "status": "verified_local",
+      "covers": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M6",
+        "M7",
+        "M8",
+        "M9",
+        "M10",
+        "M11",
+        "M12",
+        "R2"
+      ],
+      "evidence": [
+        "rust/agent-channel",
+        "rust/task-validity",
+        "rust/jurisdiction",
+        "rust/eval-guard/src/probes.rs",
+        "docs/rfcs/M3-agent-channel.md",
+        "docs/rfcs/M6-task-validity.md",
+        "docs/rfcs/M11-jurisdiction.md",
+        "rust/credential-vault/src/handles.rs",
+        "docs/rfcs/M2-credential-handles.md",
+        "rust/egress/src/transitive.rs",
+        "docs/rfcs/M1-transitive-egress.md",
+        "rust/budget-governor/src/lib.rs",
+        "docs/rfcs/M5-budget-governor.md",
+        "rust/swarm-detection/src/lib.rs",
+        "docs/rfcs/M7-swarm-detection.md",
+        "rust/harness-floor/src/lib.rs",
+        "docs/rfcs/M10-harness-floor.md",
+        "rust/incident-replay/src/lib.rs",
+        "docs/rfcs/M12-incident-replay.md",
+        "rust/causal-verdict/src/lib.rs",
+        "docs/rfcs/M4-causal-verdict.md",
+        "rust/revocation-verbs/src/lib.rs",
+        "docs/rfcs/M8-revocation-verbs.md",
+        "rust/containment-conformance",
+        "docs/rfcs/A6-conformance.md"
+      ],
+      "note": "Reference implementations with passing local tests (187 tests across the thirteen crates/modules; clippy clean). M1/R1: egress now enforces the transitive-egress invariant (check_closure) — the incident escaped through a chain of individually-permitted fetches, so the closure of induced destinations must stay sanctioned. M2/R2: credential-vault issues opaque, binding-checked, optionally single-use handles so an agent holds a capability token, never a raw secret. M4/R4: causal-verdict implements the phantom STRICT_CAUSAL scorer for real — an outcome is valid only if produced, consumed, and reached through a sanctioned, evidenced causal cone, so 'right flag, wrong route' and 'output discarded without being consumed' are violations. M5/R5: budget-governor is the graduated-tightening control loop the incident lacked — risk ratchets the leash down instantly and relaxes only one level per cool-down, with a fail-critical halt floor. M7/R7: swarm-detection reads the receipt graph for infrastructure coordination (credential pass-through, egress pivots, resource contention, message-board topology, beacon periodicity) and its severity bridges into the governor. M8/R8: revocation-verbs makes halting a pre-authorized, decision-rights-gated verb whose revocation propagates transitively across every dependent surface as a graph closure — the enumeration that took ten days of manual forensics, done in seconds. M9/R9: the conformance discipline is delivered by the existing containment-conformance suite (capability-elicited, anti-sandbagging, refuses fake PASS); the remaining work is a continuous red-team driver over the broader invariant set. M10/R10: harness-floor is the fail-closed pre-launch guardrail gate — no run below the floor, and capability-measurement runs that disable classifiers need a scoped approval, time-box, and enhanced containment (the 100× finding). M12/R12: incident-replay makes reconstruction a query (who/what/authority/path/evidence timeline) and exports Merkle-rooted, PII-redacted, verifiable evidence packs for external investigators — the routine version of METR's six-day, 1.2M-entry effort. AX-46 closed: eval-guard offers run_preflight_measured, which fails closed on any boundary it cannot observe. Production readiness and CI remain open per the status definitions."
+    },
+    {
+      "id": "WS-10",
+      "title": "Monetization & business systems (build-catalogue Domain K): metering, licence boundary, funnel, design partners",
+      "priority": "P1",
+      "status": "in_progress",
+      "covers": [
+        "K2",
+        "K1"
+      ],
+      "evidence": [
+        "rust/metering",
+        "docs/rfcs/K2-metering.md",
+        "rust/open-core-boundary",
+        "docs/rfcs/K1-open-core-boundary.md"
+      ],
+      "note": "K-2 (build-catalogue Domain K, Wave 1) shipped as a reference implementation: the metering crate reads the receipt graph itself to produce tenant-scoped, digest-traceable invoices (per-receipt rates plus monthly platform fees by plan, integer micro-dollars), with verify_invoice as the dispute-resolution check — self-auditing billing as a trust feature; K-1 open-core-boundary (the BSL 1.1 boundary as a CI-checked licensing manifest — substrate stays Apache-2.0 forever by crate layout, product surface carries BSL-1.1 with a four-year change date, a wrong-family crate fails the build — so 'the open core will be reliclosed' is answered structurally). 14 + 11 tests green, clippy clean. Remaining Domain K: K-3 self-serve funnel, K-4 design-partner program, K-7 docs/academy (Wave 1); K-5 SI channel, K-6 co-sell, K-8 FTO posture (Wave 2)."
+    }
   ]
 }

@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://warrantor.dev/schemas/research/source-record-v2.schema.json",
+  "title": "Warrantor Research Source Record v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "title",
+    "authors",
+    "publisher",
+    "sourceClass",
+    "publication",
+    "access",
+    "geography",
+    "evidence",
+    "quality",
+    "mappings",
+    "claims",
+    "recommendation",
+    "readers",
+    "relations",
+    "verification"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "title": { "type": "string", "minLength": 3 },
+    "authors": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "publisher": { "type": "string", "minLength": 1 },
+    "venue": { "type": ["string", "null"] },
+    "sourceClass": { "$ref": "#/$defs/sourceClass" },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publishedDate", "revisedDate", "version", "windowClass"],
+      "properties": {
+        "publishedDate": { "type": ["string", "null"], "format": "date" },
+        "revisedDate": { "type": ["string", "null"], "format": "date" },
+        "version": { "type": ["string", "null"] },
+        "windowClass": { "enum": ["main-2024-2026", "older-foundation"] }
+      }
+    },
+    "identifiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "doi": { "type": ["string", "null"] },
+        "standard": { "type": ["string", "null"] },
+        "arxiv": { "type": ["string", "null"] },
+        "isbn": { "type": ["string", "null"] }
+      }
+    },
+    "access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonicalUrl", "fullTextUrl", "freeFullText", "registrationRequired", "archiveUrl", "accessNotes"],
+      "properties": {
+        "canonicalUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "fullTextUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "freeFullText": { "const": true },
+        "registrationRequired": { "type": "boolean" },
+        "archiveUrl": { "type": ["string", "null"], "format": "uri" },
+        "accessNotes": { "type": "string" }
+      }
+    },
+    "geography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authorRegions", "applicableRegions", "jurisdictions", "language"],
+      "properties": {
+        "authorRegions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "applicableRegions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "jurisdictions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "language": { "const": "English" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "technicalContribution", "methodology", "findings", "limitations", "incentives", "artifacts", "shortQuotes"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 40 },
+        "technicalContribution": { "type": "string", "minLength": 20 },
+        "methodology": { "type": "string" },
+        "findings": { "type": "array", "items": { "type": "string" } },
+        "limitations": { "type": "array", "items": { "type": "string" } },
+        "incentives": { "type": "array", "items": { "type": "string" } },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "url"],
+            "properties": {
+              "label": { "type": "string" },
+              "url": { "type": "string", "format": "uri" }
+            }
+          }
+        },
+        "shortQuotes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text", "locator"],
+            "properties": {
+              "text": { "type": "string", "maxLength": 300 },
+              "locator": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimensions", "total", "band", "rationale", "claimConfidence"],
+      "properties": {
+        "dimensions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rigor", "technicalDepth", "authority", "warrantorRelevance", "reproducibility", "independence", "originality", "durability", "recencyFitness"],
+          "properties": {
+            "rigor": { "type": "integer", "minimum": 0, "maximum": 20 },
+            "technicalDepth": { "type": "integer", "minimum": 0, "maximum": 15 },
+            "authority": { "type": "integer", "minimum": 0, "maximum": 15 },
+            "warrantorRelevance": { "type": "integer", "minimum": 0, "maximum": 15 },
+            "reproducibility": { "type": "integer", "minimum": 0, "maximum": 10 },
+            "independence": { "type": "integer", "minimum": 0, "maximum": 10 },
+            "originality": { "type": "integer", "minimum": 0, "maximum": 5 },
+            "durability": { "type": "integer", "minimum": 0, "maximum": 5 },
+            "recencyFitness": { "type": "integer", "minimum": 0, "maximum": 5 }
+          }
+        },
+        "total": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "band": { "enum": ["essential", "high-quality", "supporting", "gap-only"] },
+        "rationale": { "type": "string", "minLength": 40 },
+        "claimConfidence": { "enum": ["high", "medium", "low", "unresolved"] }
+      }
+    },
+    "mappings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["currentProducts", "currentCapabilities", "legacyComponents", "legacyProtocols", "domains"],
+      "properties": {
+        "currentProducts": { "type": "array", "items": { "enum": ["W1", "W2", "W3", "W4", "W5", "W6"] }, "uniqueItems": true },
+        "currentCapabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "legacyComponents": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "legacyProtocols": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "domains": { "type": "array", "minItems": 1, "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supports", "challenges", "bounds"],
+      "properties": {
+        "supports": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "challenges": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "bounds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "preferredAction", "options", "implications"],
+      "properties": {
+        "action": { "enum": ["adopt", "modify", "defer", "reject", "monitor", "reference-only"] },
+        "preferredAction": { "type": "string", "minLength": 10 },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "implications": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["architecture", "implementation", "business", "regulatory", "academic", "content"],
+          "properties": {
+            "architecture": { "type": "array", "items": { "type": "string" } },
+            "implementation": { "type": "array", "items": { "type": "string" } },
+            "business": { "type": "array", "items": { "type": "string" } },
+            "regulatory": { "type": "array", "items": { "type": "string" } },
+            "academic": { "type": "array", "items": { "type": "string" } },
+            "content": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "readers": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["executive-product", "security-architecture", "engineering-implementation", "academic-research", "risk-policy-compliance", "marketing-partnerships-content"] }
+    },
+    "relations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["versions", "supersedes", "supersededBy", "duplicates", "related", "conflicts"],
+      "properties": {
+        "versions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "supersedes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "supersededBy": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "duplicates": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "related": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "conflicts": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accessedDate", "metadataVerified", "fullTextInspected", "freeAccessVerified", "linkStatus", "notes"],
+      "properties": {
+        "accessedDate": { "type": "string", "format": "date" },
+        "metadataVerified": { "type": "boolean" },
+        "fullTextInspected": { "type": "boolean" },
+        "freeAccessVerified": { "type": "boolean" },
+        "linkStatus": { "enum": ["live", "redirected", "archived", "temporarily-unavailable", "broken"] },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "sourceClass": {
+      "enum": [
+        "peer-reviewed-paper",
+        "preprint",
+        "conference-proceeding",
+        "standard-or-specification",
+        "government-or-regulator",
+        "university-report",
+        "vendor-engineering-blog",
+        "independent-expert-blog",
+        "technical-whitepaper",
+        "think-tank-report",
+        "book-or-chapter",
+        "recorded-talk",
+        "podcast",
+        "course",
+        "repository",
+        "technical-documentation",
+        "official-dataset",
+        "incident-report",
+        "security-audit",
+        "patent"
+      ]
+    }
+  }
+}

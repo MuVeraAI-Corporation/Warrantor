@@ -7,12 +7,12 @@
     "draft_specification": "Normative draft assets exist; protocol runtime and interoperability are tracked separately."
   },
   "expected_counts": {
-    "implementable": 54,
+    "implementable": 102,
     "protocols": 12,
-    "total": 66,
-    "reference_implementations": 54,
+    "total": 114,
+    "reference_implementations": 102,
     "unimplemented": 0,
-    "support": 13
+    "support": 15
   },
   "entries": [
     {
@@ -479,6 +479,18 @@
       "rfc": "docs/rfcs/F4-fleet-marshal.md"
     },
     {
+      "id": "F6",
+      "name": "tenancy",
+      "kind": "component",
+      "domain": "federation",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/tenancy"
+      ],
+      "rfc": "docs/rfcs/F6-tenancy.md",
+      "note": "Build-catalogue F-6 (Domain F, Wave 2). Tenant isolation as a structural property, not a discipline: a nested tenant→resource store where every access is scoped by tenant id first, so a cross-tenant read is unrepresentable rather than merely forbidden, plus per-tenant quotas enforced fail-closed on write and a namespace digest for independent isolation checks. The partition the metering (K-2) invoices against and the receipt plane (B-*) is scoped by — evidence that crosses a tenant boundary is contaminated, so the boundary is made a property of the data layout, not a WHERE clause every new query must remember to write."
+    },
+    {
       "id": "X1",
       "name": "defstack-cli",
       "kind": "component",
@@ -610,6 +622,270 @@
         "rust/flight-recorder"
       ],
       "rfc": "docs/rfcs/E1-flight-recorder.md"
+    },
+    {
+      "id": "E2",
+      "name": "transparency-log",
+      "kind": "component",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/transparency-log"
+      ],
+      "rfc": "docs/rfcs/E2-transparency-log.md",
+      "note": "Build-catalogue B-1 (Domain B, Wave 1, loop L2). Append-only Merkle-tree log of receipt digests (the CT / Sigstore-Rekor pattern): every settled receipt's digest is logged and each published head commits to both the leaf-tree root and a checkpoint-tree root, so a third party holding only the head can verify inclusion (a receipt exists as of epoch t) and consistency (the log was never rewritten). Breaks the 'trust radius = one machine' ceiling; the substrate cross-org chains (B-4/B-5) and the regulator portal (N15) build on. Verification only — not a signing root, per the platform's anti-goals."
+    },
+    {
+      "id": "B3",
+      "name": "receipt-explorer",
+      "kind": "component",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/receipt-explorer"
+      ],
+      "rfc": "docs/rfcs/B3-receipt-explorer.md",
+      "note": "Build-catalogue B-3 (Domain B, Wave 1, loop L4). The receipt explorer: the human window into the receipt graph — a query layer that browses by warrant, agent, time, verdict, plane, and delegation chain and independently verifies every receipt it shows (recomputes the content digest, checks a signature is present), rendering any record that fails verification in a distinct untrusted state. The read layer built once that N3/N5/N6/N15 inherit, with no parallel truth."
+    },
+    {
+      "id": "B2",
+      "name": "time-anchoring",
+      "kind": "component",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/time-anchoring"
+      ],
+      "rfc": "docs/rfcs/B2-time-anchoring.md",
+      "note": "Build-catalogue B-2 (Domain B, Wave 2, loop L2). Time anchoring: resolves the open §2.1 trust-root decision by implementing both leading options behind one interface — RFC 3161 TSA countersignatures and countersigned custody of periodic externally-signed epoch anchors — deployment-shape aware (air-gapped sovereigns use custody, cloud uses a TSA) while both verify identically. Turns 'when was this signed?' into a cryptographic answer with externally bounded [t1,t2]; a stripped anchor fails verification loudly."
+    },
+    {
+      "id": "B4",
+      "name": "cross-org-chains",
+      "kind": "component",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/cross-org-chains"
+      ],
+      "rfc": "docs/rfcs/B4-cross-org-chains.md",
+      "note": "Build-catalogue B-4 (Domain B, Wave 2, loop L2). Cross-organizational receipt chains: receipts that reference other orgs' receipts (org A's warrant cites org B's receipt as a precondition), verified transitively across organizations without either exposing internals — a revoked or unknown citation anywhere in the closure breaks the chain (org B revokes → org A's dependent step refuses). Built on A-2's intersection semantics and B-1's common proof surface; the missing piece for bank→processor→clearing-house flows."
+    },
+    {
+      "id": "B10",
+      "name": "proof-of-erasure",
+      "kind": "component",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/proof-of-erasure"
+      ],
+      "rfc": "docs/rfcs/B10-proof-of-erasure.md",
+      "note": "Build-catalogue B-10 (Domain B, Wave 2, loop L4). Proof-of-erasure: when personal data is erased from receipts under a data-subject request, emit a signed attestation that payloads with given digests were destroyed, re-linking the graph through digest commitments so chain integrity survives erasure — the archive proves both that data existed and that it is now gone, with pre-erasure receipts still verifying and no orphaned digest references."
+    },
+    {
+      "id": "B11",
+      "name": "receipt-stream",
+      "kind": "component",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/receipt-stream"
+      ],
+      "rfc": "docs/rfcs/B11-receipt-stream.md",
+      "note": "Build-catalogue B-11 (Domain B, Wave 2, loop L4). Streaming receipts: SDKs and surfaces subscribe to the receipt graph as it settles — an event stream filtered by warrant, plane, verdict, or digest prefix, with resumable cursors — the data edge behind live dashboards (D-3), SIEM/SOC integration, and agent-to-agent reaction, delivering every settled receipt in order with no gaps and no duplicates."
+    },
+    {
+      "id": "A-7",
+      "name": "capability-tokens",
+      "kind": "component",
+      "domain": "authority",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/capability-tokens"
+      ],
+      "rfc": "docs/rfcs/A-7-capability-tokens.md",
+      "note": "Build-catalogue A-7 (Domain A, Wave 1, loop L3). Act-scoped, short-TTL capability tokens: a token minted at grant time, narrowed to one act (a single effect-adapter call or MCP tool invocation), presented at the moment of action, single-use, receipted, auto-expiring. Closes the 'one unscoped bearer token per serve run' exposure — a captured token is useless after TTL or first use, and the redeem receipt binds token id to warrant to action."
+    },
+    {
+      "id": "A-5",
+      "name": "warrant-templates",
+      "kind": "component",
+      "domain": "authority",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/warrant-templates"
+      ],
+      "rfc": "docs/rfcs/A-5-warrant-templates.md",
+      "note": "Build-catalogue A-5 (Domain A, Wave 1, loop L4). The warrant template library: a versioned, signed library of pre-built warrant scopes per job function and per regulation (repo-maintainer, read-only-analyst, incident-responder, plus the finance-family verticals SR 26-2 underwriter / DORA ops agent / FINRA 2111 advisor). Templates are data, not code — a scope plus a policy set plus expected receipt fields — installable and customizable by narrowing (an override may only shrink the shape, never widen it), so onboarding drops from days to minutes and a vertical pack becomes a product."
+    },
+    {
+      "id": "A-2",
+      "name": "delegation-chain",
+      "kind": "component",
+      "domain": "authority",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/delegation-chain"
+      ],
+      "rfc": "docs/rfcs/A-2-delegation-chain.md",
+      "note": "Build-catalogue A-2 (Domain A, Wave 2, loop L5). W6 delegation-chain intersection: warrants that delegate, where a sub-warrant's scope/time/budget must be a subset of its parent's (intersection, not union, computed at the notary), the full ancestor chain recorded on every delegated receipt, and any link's revocation voiding everything below it — generalizing the kill-switch from credential bindings to warrant lineage, and supplying the intersection semantics cross-org chains (B-4) and agent-to-agent transactions (H-5) build on."
+    },
+    {
+      "id": "A-3",
+      "name": "quorum-warrants",
+      "kind": "component",
+      "domain": "authority",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/quorum-warrants"
+      ],
+      "rfc": "docs/rfcs/A-3-quorum-warrants.md",
+      "note": "Build-catalogue A-3 (Domain A, Wave 3, loop L2). Quorum warrants: exercise requires t of n designated operator signatures (the two-person rule generalized and made programmable); exercise emits a combined receipt citing exactly the quorum that signed, and t−1 approvals produce a refused settle with a legible reason. Pairs with threshold signing (I-6)."
+    },
+    {
+      "id": "A-4",
+      "name": "escrow-warrants",
+      "kind": "component",
+      "domain": "authority",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/escrow-warrants"
+      ],
+      "rfc": "docs/rfcs/A-4-escrow-warrants.md",
+      "note": "Build-catalogue A-4 (Domain A, Wave 3, loop L5). Escrow & conditional warrants: warrants that activate on a condition (future timestamp, external event, data condition), held escrowed and revocable until activation with activation itself receipted, plus sunsetting conditions so a grant expires to a receipted-expired state without operator action."
+    },
+    {
+      "id": "A-9",
+      "name": "policy-analytics",
+      "kind": "component",
+      "domain": "authority",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/policy-analytics"
+      ],
+      "rfc": "docs/rfcs/A-9-policy-analytics.md",
+      "note": "Build-catalogue A-9 (Domain A, Wave 2, loop L4). Policy analytics: conflict detection (contradictory policies on the same triple), dead-policy detection (policies that haven't gated a decision in N days), and blast-radius reporting (every policy touching a change or leak's scope)."
+    },
+    {
+      "id": "A-11",
+      "name": "authority-simulator",
+      "kind": "component",
+      "domain": "authority",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/authority-simulator"
+      ],
+      "rfc": "docs/rfcs/A-11-authority-simulator.md",
+      "note": "Build-catalogue A-11 (Domain A, Wave 2, loop L4). The authority simulator: a pure function over policy+warrant state answering 'would this bind?' and the minimal scope delta that would — powering the N2 studio editor and N1 'why was I refused?', and the differential oracle C-9 gates the compiler against."
+    },
+    {
+      "id": "I-1",
+      "name": "root-of-trust",
+      "kind": "component",
+      "domain": "trust",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/root-of-trust"
+      ],
+      "rfc": "docs/rfcs/I-1-root-of-trust.md",
+      "note": "Build-catalogue I-1 (Domain I, Wave 1, loop L2). Root-of-trust deployment modes: the Tier-1 gap answered as three supported modes rather than one enforced answer — self-custody default (the deployment's own KMS/HSM, no vendor dependency), t-of-n threshold signing for SIFI-class issuers, and escrow continuity through key loss — each with a key-ceremony drill and a root-compromise playbook (revoke → re-key → old receipts verify as historical, new issuances under the new root, no trust gap). Turns 'who holds the keys' into a selection matrix with proofs; honors the anti-goal against a centralized Warrantor signing root."
+    },
+    {
+      "id": "C2",
+      "name": "training-extractor",
+      "kind": "component",
+      "domain": "model_intelligence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/training-extractor"
+      ],
+      "rfc": "docs/rfcs/C2-training-extractor.md",
+      "note": "Build-catalogue C-2 (Domain C, Wave 1, loop L1). The receipt-graph to training-set extractor — the flywheel's intake valve: pulls signed verdict history and emits a candidate fine-tuning corpus with leakage controls (hold-out exclusion by digest, the parity gate's fingerprint) and privacy tiers (payload only under an explicit tier; digests and labels always). Mechanizes the manual flywheel so a day of operation becomes a day of training data, and keeps the corpus inside the deployment."
+    },
+    {
+      "id": "C10",
+      "name": "inference-router",
+      "kind": "component",
+      "domain": "inference",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/inference-router"
+      ],
+      "rfc": "docs/rfcs/C10-inference-router.md",
+      "note": "Build-catalogue C-10 (Domain C, Wave 1, loop L1). Spend-routed local inference (the $0 backend): policy-aware selection of local Ollama models first with cloud fallback only under policy, the routing decision itself receipted (which backend, why, cost, local model), and a spend cap that refuses rather than overspends. One feature carrying the cost story (25–600×), the sovereignty story (no egress), and the flywheel's volume source."
+    },
+    {
+      "id": "C1",
+      "name": "promotion-pipeline",
+      "kind": "component",
+      "domain": "model_intelligence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/promotion-pipeline"
+      ],
+      "rfc": "docs/rfcs/C1-promotion-pipeline.md",
+      "note": "Build-catalogue C-1 (Domain C, Wave 1, loop L1). The continuous promotion pipeline: corpus build → train → publish → parity gate → promotion decision → deploy unified into one governed assembly line where every stage emits a receipt and a promotion lacking its parity-gate receipt is unregisterable — machine-enforced, not policy-enforced — so the platform's own models govern themselves (SG1) and the flywheel stops being a person with a terminal."
+    },
+    {
+      "id": "C3",
+      "name": "specialist-corpora",
+      "kind": "component",
+      "domain": "model_intelligence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/specialist-corpora"
+      ],
+      "rfc": "docs/rfcs/C3-specialist-corpora.md",
+      "note": "Build-catalogue C-3 (Domain C, Wave 1, loop L1). Per-plane specialist corpora: repeat the winning domain-corpus recipe across the enforcement planes (egress-classification, retrieval poisoning, semantic scope, cost prediction, CIB graph patterns), each corpus gated independently and every refusal recorded as negative evidence — no plane ships an ungated model."
+    },
+    {
+      "id": "C5",
+      "name": "model-security",
+      "kind": "component",
+      "domain": "model_intelligence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/model-security"
+      ],
+      "rfc": "docs/rfcs/C5-model-security.md",
+      "note": "Build-catalogue C-5 (Domain C, Wave 2, loop L1). The model-security plane: exposure control via rate/cost-scoped guard-model warrants that make bulk-query extraction economically visible and receipted, and poisoning resistance via corpus-level integrity (manifest digests, source pins) so a poisoned corpus is detected pre-gate and refused."
+    },
+    {
+      "id": "C9",
+      "name": "policy-pairs",
+      "kind": "component",
+      "domain": "model_intelligence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/policy-pairs"
+      ],
+      "rfc": "docs/rfcs/C9-policy-pairs.md",
+      "note": "Build-catalogue C-9 (Domain C, Wave 2, loop L1). The policy-compilation dataset: the named missing dataset (no NL→Cedar/Rego pairs exist) — teacher-generated pairs validated through the simulator (valid iff the compiled policy reproduces the described behavior), a human-reviewed gold slice, and the compiler model gated on pair accuracy + simulation equivalence with failures recorded by class."
+    },
+    {
+      "id": "H1",
+      "name": "agent-identity-graph",
+      "kind": "component",
+      "domain": "agent",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/agent-identity-graph"
+      ],
+      "rfc": "docs/rfcs/H1-agent-identity-graph.md",
+      "note": "Build-catalogue H-1 (Domain H, Wave 2, loop L5). The agent identity graph: the agent.yaml constitution becomes a queryable identity — agent → owner org → operator → delegation ancestry (A-2) → plane bindings → reputation events (H-4) — SPIFFE/SPIRE-compatible, so an agent's full dossier assembles from signed records alone and is verifiable by a stranger."
+    },
+    {
+      "id": "K2",
+      "name": "metering",
+      "kind": "component",
+      "domain": "business",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/metering"
+      ],
+      "rfc": "docs/rfcs/K2-metering.md",
+      "note": "Build-catalogue K-2 (Domain K, Wave 1). Usage metering & pricing engine: reads the receipt graph itself (signed, tenant-scoped counts) to produce invoices where every usage line traces to receipt digests, so a month's bill reconstructs exactly from the evidence layer and disputes resolve by digest. Per-receipt rates plus monthly platform fees by plan, integer micro-dollars throughout. Self-auditing billing as a trust feature; zero separate metering infrastructure."
     },
     {
       "id": "P1",
@@ -935,6 +1211,306 @@
       ],
       "rfc": "docs/rfcs/W2-evidence-archive.md",
       "note": "Self-hosted, append-only evidence archive (RFC W2, backend stage 1). Relay, never an authority: ingest verification is hygiene and is never served as a verdict. Device-pairing auth gives per-person attribution for submission and read."
+    },
+    {
+      "id": "M1",
+      "name": "transitive-egress",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/egress"
+      ],
+      "rfc": "docs/rfcs/M1-transitive-egress.md",
+      "note": "Incident R1. The transitive-egress invariant: check_closure walks the closure of destinations an agent reaches by following what its sanctioned responses induce (manifest URLs, script srcs, model-card links, redirect targets) and fails closed the moment the closure leaves the sanctioned set or exceeds a hop budget. Catches the incident's first-cause chain that a per-request allowlist cannot see. Shared-service brokering is delivered jointly with M-3 channel governance."
+    },
+    {
+      "id": "M2",
+      "name": "credential-handles",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/credential-vault"
+      ],
+      "rfc": "docs/rfcs/M2-credential-handles.md",
+      "note": "Incident R2. Opaque, binding-checked, optionally single-use credential handles so an agent holds a capability token instead of a raw secret; the secret stays broker-side and is released only by a redeem that re-checks identity+task+IP+expiry+revocation at point of use. Closes the incident's shared-standing-credential original sin."
+    },
+    {
+      "id": "M3",
+      "name": "agent-channel",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/agent-channel"
+      ],
+      "rfc": "docs/rfcs/M3-agent-channel.md",
+      "note": "Incident R3. Governed inter-agent messaging with identity attestation, policy admission, and a tamper-evident per-channel receipt chain; plus detection of unsanctioned shared-namespace channels (the covert message-board signature)."
+    },
+    {
+      "id": "M4",
+      "name": "causal-verdict",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/causal-verdict"
+      ],
+      "rfc": "docs/rfcs/M4-causal-verdict.md",
+      "note": "Incident R4 (verdict half). The STRICT_CAUSAL scorer the collective believed existed and attacked for six days, implemented for real: an outcome is valid only if it is produced, consumed toward the goal, and reached through a sanctioned, evidenced causal cone — so 'right flag, wrong route' and 'output discarded without being consumed' are violations. The evidence-emission half (signed, hash-chained, below-agent-reach, tlog-anchored receipts) is delivered by flight-recorder + evidence + post-quantum + archive."
+    },
+    {
+      "id": "M5",
+      "name": "budget-governor",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/budget-governor"
+      ],
+      "rfc": "docs/rfcs/M5-budget-governor.md",
+      "note": "Incident R5. Graduated budget tightening: a control loop that ratchens risk up instantly on any RiskSignal and proportionally shrinks an agent's token/wall-clock/egress-rate/parallelism leash, relaxing only one level per cool-down (hysteretic). A critical_pct of 0 makes a Critical signal halt the agent — the fail-closed floor. Supplies the reaction the incident lacked when nothing tightened as the collective escalated."
+    },
+    {
+      "id": "M6",
+      "name": "task-validity",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/task-validity"
+      ],
+      "rfc": "docs/rfcs/M6-task-validity.md",
+      "note": "Incident R6. Feasibility attestation and impossible-task gate: a data-flow reachability analysis refuses a task whose declared method cannot reach its goal (the ARV010841 no-consumer case) before any agent is launched. Verdicts are signed and bound to the task digest."
+    },
+    {
+      "id": "M7",
+      "name": "swarm-detection",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/swarm-detection"
+      ],
+      "rfc": "docs/rfcs/M7-swarm-detection.md",
+      "note": "Incident R7. Swarm detection on the receipt graph: continuous analysis for infrastructure coordination — credential pass-through across isolated runs, correlated egress pivots, shared-resource contention, message-board topologies, and beacon periodicity (the 5-second C2 loop) — extending the CIB plane from content coordination to the coordination the collective showed days before a human noticed. Advisory escalations only; severity maps onto the budget governor's risk levels."
+    },
+    {
+      "id": "M8",
+      "name": "revocation-verbs",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/revocation-verbs"
+      ],
+      "rfc": "docs/rfcs/M8-revocation-verbs.md",
+      "note": "Incident R8. Kill-switch and revocation as first-class, pre-authorized receipted verbs: halting a workload, agent family, evaluation, or credential is a single evidenced operation gated by a decision-rights protocol (clearance + delegated scope), and revocation propagates transitively across every dependent surface (keys, sessions, staged handles, active channels) as a graph closure — the enumeration that took OpenAI ten days of manual forensics, done in seconds."
+    },
+    {
+      "id": "M9",
+      "name": "containment-conformance",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/containment-conformance"
+      ],
+      "rfc": "docs/rfcs/A6-conformance.md",
+      "note": "Incident R9. Continuous agentic red-teaming of the platform's own invariants. The conformance discipline is delivered by the existing containment-conformance suite: capability-elicited (anti-sandbagging) testing of the four mandated kill-switch capabilities with a signed report that refuses PASS without elicitation method, noise floor, and non-empty limitations — the same 'a check that measures nothing is worse than no check' lesson as the phantom scorer. Remaining integration work: a continuous driver that runs governed attack agents against the broader invariant set (egress closure, credential scoping, evidence integrity, boundary immutability) and files any bypass as P0."
+    },
+    {
+      "id": "M10",
+      "name": "harness-floor",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/harness-floor"
+      ],
+      "rfc": "docs/rfcs/M10-harness-floor.md",
+      "note": "Incident R10. Minimum-harness policy floor and high-risk eval tier: a fail-closed pre-launch gate that denies any agentic run configured below the guardrail floor (production system prompt, auto-review on elevated actions, classifiers unless separately approved), and imposes a time-box plus enhanced containment on capability-measurement runs that disable classifiers. The 100× harness effect makes running un-harnessed an exception that must be signed for, not a default."
+    },
+    {
+      "id": "M11",
+      "name": "jurisdiction",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/jurisdiction"
+      ],
+      "rfc": "docs/rfcs/M11-jurisdiction.md",
+      "note": "Incident R11. Third-party egress jurisdiction policy (default-deny unknown hosts, identity disclosure, rate windows, scoped-credential TTL) and signed, deduplicated cross-organization attack signaling."
+    },
+    {
+      "id": "M12",
+      "name": "incident-replay",
+      "kind": "component",
+      "domain": "incident_hardening",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/incident-replay"
+      ],
+      "rfc": "docs/rfcs/M12-incident-replay.md",
+      "note": "Incident R12. Investigation-grade evidence as a native property: replay any agent's action history (who, what, with which authority, through which path, on which evidence) as a query in minutes, and export scoped, verifiable, privacy-preserving evidence packs (Merkle-rooted, PII-redacted) for external investigators — the routine reconstruction METR needed six on-premises days and 1.2M manually-analyzed entries to perform."
+    },
+    {
+      "id": "A-6",
+      "name": "authority-algebra",
+      "kind": "component",
+      "domain": "authority",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/authority-algebra"
+      ],
+      "rfc": "docs/rfcs/A-6-authority-algebra.md",
+      "note": "Build-catalogue A-6 (Domain A, Wave 2, loop L5). The platform's capability algebra as a test-vector-pinned specification: scope types across the three planes (egress ∩ retrieval ∩ spend), intersection-based delegation narrowing, and the formal statement of what a holder can and cannot derive — with a pinned conformance-vector suite any third-party implementation can be tested against. The load-bearing property it encodes: authority never unions across planes, so a grant on one plane can never be widened into authority on another. Turns the authority lattice from implementation detail into auditable mathematics, and supplies the algebra the delegation-chain (A-2) and cross-org chains (B-4) intersection semantics rest on."
+    },
+    {
+      "id": "B5",
+      "name": "receipt-federation",
+      "kind": "component",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/receipt-federation"
+      ],
+      "rfc": "docs/rfcs/B5-receipt-federation.md",
+      "note": "Build-catalogue B-5 (Domain B, Wave 3, loop L2). The receipt federation protocol's pure core: peer-to-peer discovery, exchange (fetch by digest, batch sync), third-party verification against a per-node issuer directory with no vendor fallback, and privacy tiers (digest-only vs payload-by-bilateral-grant). The item that makes Warrantor a protocol instead of a product and the answer to 'what if the vendor disappears' — two peers with no shared vendor can mutually verify receipts, and an unpinned issuer is refused rather than trusted by default. Built on B-1's common proof surface and A-6's plane discipline; the trust-chain terminal that turns a federation of nodes into a verifiable network without a central authority."
+    },
+    {
+      "id": "C7",
+      "name": "guard-graduation",
+      "kind": "component",
+      "domain": "model_intelligence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/guard-graduation"
+      ],
+      "rfc": "docs/rfcs/C7-guard-graduation.md",
+      "note": "Build-catalogue C-7 (Domain C, Wave 3, loop L1). Guard-to-enforcement graduation: a measured recall bar, a staged promotion path (observe → warn-only → block-with-override → block) that a below-bar model physically cannot reach, a receipted gate decision at each transition, and per-plane composition where the guard verdict is one input to the notary's nine gates and never a sole authority. A model cannot self-promote to blocking; every step-up is re-checked against the bar and stamped, so enforcement strength is earned by evidence, not declared. The flywheel terminal (C-2 → C-1 → C-3 → C-7) that closes the loop from corpus to governed enforcement without letting a guard become the root of trust."
+    },
+    {
+      "id": "K1",
+      "name": "open-core-boundary",
+      "kind": "component",
+      "domain": "business",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/open-core-boundary"
+      ],
+      "rfc": "docs/rfcs/K1-open-core-boundary.md",
+      "note": "Build-catalogue K-1 (Domain K, Wave 2). The BSL 1.1 open-core boundary as code: a checked-in licensing manifest the CI verifies, where the substrate stays Apache-2.0 forever (enforced by crate layout) and the product surface carries BSL 1.1 with a four-year change date; a crate in the wrong family fails the build. The boundary between the open authority substrate and the commercial product is a machine-checked invariant, not a policy slide — so 'the open core will be reliclosed' is answered structurally. The money-chain head (K-1 → K-2 → ...) that makes the sustainable-open-core economics claim verifiable rather than aspirational."
+    },
+    {
+      "id": "C4",
+      "name": "dataset-format",
+      "kind": "component",
+      "domain": "model_intelligence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/dataset-format"
+      ],
+      "rfc": "docs/rfcs/C4-dataset-format.md",
+      "note": "Build-catalogue C-4 (Domain C, Wave 2, loop L1). The canonical dataset format as a verifiable data structure: split-tagged records each pinned by content digest, a manifest digest over the whole corpus, structural hold-out leakage detection (a record id in two splits is a defect the format reports), split accounting, and provenance source-pins. The substrate that makes C-2's leakage-controlled intake auditable after the fact from the file alone — the difference between 'we promise we held out the test set' and 'the format proves it.'"
+    },
+    {
+      "id": "C8",
+      "name": "eval-corpus",
+      "kind": "component",
+      "domain": "model_intelligence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/eval-corpus"
+      ],
+      "rfc": "docs/rfcs/C8-eval-corpus.md",
+      "note": "Build-catalogue C-8 (Domain C, Wave 3, loop L1). The adversarial evaluation corpus as a governed artifact: labeled examples pinned by digest, fail-closed scoring (an unevaluated harmful example counts as a miss, not an exclusion), coverage-gap detection, a recall bar, and a hard re-gate budget that encodes the exhaustion lesson — once a corpus has gated its allotted promotions it is spent and the successor (HarmBench-class) is forced, not quietly reused. The measurement C-7's graduation bar rests on."
+    },
+    {
+      "id": "A-12",
+      "name": "policy-bundles",
+      "kind": "component",
+      "domain": "authority",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/policy-bundles"
+      ],
+      "rfc": "docs/rfcs/A-12-policy-bundles.md",
+      "note": "Build-catalogue A-12 (Domain A, Wave 3, loop L5). Signed, versioned policy bundles: a set of policy documents pinned by digest into one manifest with a keyed signature envelope, so a distribution of policy is a single verifiable artifact rather than a pile of files that drift apart. Bundles compose (overlay merge, cross-bundle latest-version resolution) and any tamper or duplicate policy id fails verification — the deployment unit the policy compiler (A-1) emits and the notary loads."
+    },
+    {
+      "id": "B7",
+      "name": "deterministic-replay",
+      "kind": "component",
+      "domain": "evidence",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/deterministic-replay"
+      ],
+      "rfc": "docs/rfcs/B7-deterministic-replay.md",
+      "note": "Build-catalogue B-7 (Domain B, Wave 3, loop L2). Deterministic replay of a recorded run: re-execute a trace's inputs through the pure engine and prove it reproduces byte-identical outputs and receipt digests, failing at the exact step where the state chain diverges. The property that turns a receipt from 'asserted after the fact' into 'reproducible on demand' — distinct from incident-replay's forensic query (M12) and the flight recorder's emission (E1)."
+    },
+    {
+      "id": "I-8",
+      "name": "agent-eval-harness",
+      "kind": "component",
+      "domain": "trust",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/agent-eval-harness"
+      ],
+      "rfc": "docs/rfcs/I-8-agent-eval-harness.md",
+      "note": "Build-catalogue I-8 (Domain I, Wave 3). The agent evaluation harness: a task suite with pluggable deterministic graders, weighted pass-rate aggregation, fail-closed handling of unevaluated tasks, and capability-tier assignment. The instrument that produces the measured capability numbers C-7 and C-8 consume, and the harness half of the model/objective/grader/harness/control causality separation — distinct from the pre-launch policy floor (M10) and the feasibility gate (M6)."
+    },
+    {
+      "id": "I-5",
+      "name": "conformance",
+      "kind": "component",
+      "domain": "trust",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/conformance"
+      ],
+      "rfc": "docs/rfcs/I-5-conformance.md",
+      "note": "Build-catalogue I-5 (Domain I, Wave 3). Conformance as public infrastructure: a versioned, digest-pinned suite of test vectors plus a runner that checks any candidate implementation of a Warrantor interface against every vector and returns a pass/fail-per-vector report, so 'is this implementation faithful to the spec?' is answered by a published, re-runnable artifact rather than by Warrantor's say-so (fail-closed: an empty suite or an erroring vector never yields conformance). The mechanism that makes 'open protocol, not product' real the way TLS vectors made browser interop trustworthy — the same move A-6's authority-algebra conformance suite instantiates, generalized to any interface."
+    },
+    {
+      "id": "H2",
+      "name": "delegation-contracts",
+      "kind": "component",
+      "domain": "agent",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/delegation-contracts"
+      ],
+      "rfc": "docs/rfcs/H2-delegation-contracts.md",
+      "note": "Build-catalogue H-2 (Domain H, Wave 3). Agent-to-agent delegation contracts: the bilateral terms (scope, budget, deadline, revocation-notice window) that ride on top of an A-2 warrant delegation, with an explicit state machine (offered → accepted → settled / revoked / expired), fail-closed settlement against the budget, and a notice period protecting a delegate who already started — the commercial envelope A-2's authority math deliberately leaves open."
+    },
+    {
+      "id": "H6",
+      "name": "agent-registry",
+      "kind": "component",
+      "domain": "agent",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/agent-registry"
+      ],
+      "rfc": "docs/rfcs/H6-agent-registry.md",
+      "note": "Build-catalogue H-6 (Domain H, Wave 3). The agent registry: a versioned index of published agent manifests with highest-version lookup, exact-version resolution, per-version and whole-agent revocation, and publisher-trust filtering that fails closed on an unknown publisher. The discovery layer that turns agent-manifest (a single signed document) into a resolvable, revocable namespace — the agent-domain counterpart to B-5's issuer directory, keyed on agents and versions, with no mandated central authority."
+    },
+    {
+      "id": "H4",
+      "name": "reputation",
+      "kind": "component",
+      "domain": "agent",
+      "status": "reference_implementation",
+      "source_paths": [
+        "rust/reputation"
+      ],
+      "rfc": "docs/rfcs/H4-reputation.md",
+      "note": "Build-catalogue H-4 (Domain H, Wave 3). Agent reputation computed from signed events alone: time-decayed (per-half-life halving), clamped aggregation of weighted attestations, violations, and dispute outcomes into a score and a trust tier, with no trust placed in the agent itself. The computation the identity graph (H-1) deliberately defers — 'it links the events; H-4 scores them' — so a stranger can recompute an agent's standing from the same receipt record rather than take Warrantor's opinion: decay keeps a stale clean audit from outranking last week's violation, and the clamp stops an unbounded score being gamed by spamming small positive events."
     }
   ]
 }
