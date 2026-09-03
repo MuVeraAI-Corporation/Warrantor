@@ -132,13 +132,75 @@ def census(workspace_root: Path, binary_crate: str = BINARY_CRATE) -> WiringCens
     )
 
 
+def render_record(result: WiringCensus, binary_crate: str) -> dict[str, object]:
+    """The committed record: a versioned format, the number, and the named remainder."""
+
+    return {"format": RECORD_FORMAT, "binary_crate": binary_crate, **asdict(result)}
+
+
 def load_floor(path: Path) -> int:
-    raise NotImplementedError
+    """Read the recorded `reachable` count, refusing any record in an unknown format."""
+
+    record = json.loads(path.read_text(encoding="utf-8"))
+    if record.get("format") != RECORD_FORMAT:
+        raise ValueError(f"{path}: format {record.get('format')!r} is not {RECORD_FORMAT}")
+    return int(record["reachable"])
 
 
 def readme_renders(readme: Path, result: WiringCensus) -> bool:
-    raise NotImplementedError
+    """True when the README status table shows the current number."""
+
+    expected = f"reachable from the CLI | **{result.reachable} of {result.total}**"
+    return expected in readme.read_text(encoding="utf-8")
+
+
+def parse_arguments(argv: list[str]) -> argparse.Namespace:
+    """Parse command-line arguments."""
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--workspace", type=Path, default=WORKSPACE_ROOT)
+    parser.add_argument("--binary-crate", default=BINARY_CRATE)
+    parser.add_argument("--floor", type=Path, default=FLOOR_PATH)
+    parser.add_argument("--readme", type=Path, default=README_PATH)
+    parser.add_argument("--write", action="store_true", help="rewrite the floor record")
+    return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
-    raise NotImplementedError
+    """Measure, then either record or gate."""
+
+    arguments = parse_arguments(sys.argv[1:] if argv is None else argv)
+    result = census(arguments.workspace, arguments.binary_crate)
+    print(
+        f"wiring census: {result.reachable} of {result.total} crates reachable from "
+        f"{arguments.binary_crate} over {result.edges} path edges"
+    )
+    if arguments.write:
+        arguments.floor.parent.mkdir(parents=True, exist_ok=True)
+        record = render_record(result, arguments.binary_crate)
+        arguments.floor.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        print(f"evidence: {arguments.floor}")
+        return 0
+    floor = load_floor(arguments.floor)
+    if result.reachable < floor:
+        print(
+            f"::error::wiring ratchet: {result.reachable} reachable is below the recorded floor "
+            f"of {floor} in {arguments.floor}; a crate was unwired from {arguments.binary_crate}"
+        )
+        return 1
+    if result.reachable > floor:
+        print(
+            f"::notice::wiring ratchet: {result.reachable} reachable exceeds the floor of {floor}; "
+            f"run `python tools/ci/wiring_census.py --write` and commit {arguments.floor}"
+        )
+    if not readme_renders(arguments.readme, result):
+        print(
+            "::error::README status table does not show "
+            f"'reachable from the CLI | **{result.reachable} of {result.total}**'"
+        )
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
