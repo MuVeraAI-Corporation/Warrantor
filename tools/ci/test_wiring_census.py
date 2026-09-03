@@ -56,3 +56,20 @@ def workspace(tmp_path: Path) -> Path:
 
 def test_reachable_follows_shipping_path_edges(workspace: Path) -> None:
     assert reachable_crates(workspace, "w-cli") == {"w-cli", "w-core", "w-api"}
+
+
+def test_dev_dependencies_do_not_make_a_crate_reachable(workspace: Path) -> None:
+    result = census(workspace, "w-cli")
+    assert "w-dev-only" in result.orphaned
+    assert result.edges == 2
+
+
+def test_census_counts_the_whole_workspace(workspace: Path) -> None:
+    assert census(workspace, "w-cli") == WiringCensus(
+        total=5, reachable=3, orphaned=["w-dev-only", "w-island"], edges=2
+    )
+
+
+def test_unknown_binary_crate_is_an_error(workspace: Path) -> None:
+    with pytest.raises(KeyError, match="w-missing"):
+        reachable_crates(workspace, "w-missing")

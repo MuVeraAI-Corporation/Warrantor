@@ -119,8 +119,17 @@ def reachable_crates(workspace_root: Path, binary_crate: str = BINARY_CRATE) -> 
     return seen
 
 
-def census(workspace_root: Path, binary_crate: str = BINARY_CRATE) -> WiringCensus:  # noqa: ARG001
-    raise NotImplementedError
+def census(workspace_root: Path, binary_crate: str = BINARY_CRATE) -> WiringCensus:
+    """Measure the workspace once."""
+
+    graph = dependency_graph(workspace_root)
+    reached = reachable_crates(workspace_root, binary_crate)
+    return WiringCensus(
+        total=len(graph),
+        reachable=len(reached),
+        orphaned=sorted(set(graph) - reached),
+        edges=sum(len(dependencies) for dependencies in graph.values()),
+    )
 
 
 def load_floor(path: Path) -> int:
