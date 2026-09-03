@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 import wiring_census
 from wiring_census import (
+    FLOOR_PATH,
     RECORD_FORMAT,
     WORKSPACE_ROOT,
     WiringCensus,
@@ -159,3 +160,24 @@ def test_readme_must_render_the_current_number(
     ]
     assert wiring_census.main(arguments) == 1
     assert "::error::README status table does not show" in capsys.readouterr().out
+
+
+# --- the real tree -----------------------------------------------------------------------
+
+
+def test_real_workspace_is_not_below_the_committed_floor() -> None:
+    assert census(WORKSPACE_ROOT).reachable >= load_floor(FLOOR_PATH)
+
+
+def test_real_binary_crate_reaches_its_declared_planes() -> None:
+    declared = {
+        "warrantor-trust-core",
+        "warrantor-authority-spec",
+        "warrantor-evidence",
+        "warrantor-notary",
+        "warrantor-egress",
+        "warrantor-containment-conformance",
+        "warrantor-spend",
+        "warrantor-api",
+    }
+    assert declared <= reachable_crates(WORKSPACE_ROOT)
