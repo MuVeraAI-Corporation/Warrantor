@@ -92,12 +92,15 @@ htmlcov/
 #
 # `/evidence/*` rather than `/evidence/`: git cannot re-include a file whose parent
 # directory is excluded, and files under here are committed on purpose -- the wiring
-# floor that tools/ci/wiring_census.py refuses to let fall, and the invariant ledger
-# that tools/ci/check_invariants.py checks in CI, because a label that lives only on
+# floor that tools/ci/wiring_census.py refuses to let fall, the invariant ledger
+# that tools/ci/check_invariants.py checks in CI, and the per-kernel stop/conformance
+# receipts the delivery-gaps ledger cites, because a label that lives only on
 # one machine's disk cannot be refused by a pull request. Everything else stays out.
 /evidence/*
 !/evidence/wiring-coverage.json
 !/evidence/invariants.json
+!/evidence/stop-*.json
+!/evidence/conformance-*.json
 
 # Agent hook state -- per-session scratch containing local absolute paths.
 # Never useful to a contributor and noise in a public repo.

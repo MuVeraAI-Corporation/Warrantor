@@ -669,6 +669,42 @@ confines nothing, and this process cannot tell whether the operator launched it.
 running an agent under one of these profiles on Linux and watching a write outside the worktree fail
 at the syscall.
 
+### 3.1b The stop verb reaches the tree and the task state — **built, drilled on Windows; Linux numbers come from CI**
+
+**What the extraction removed.** The warrant crate refused to link `warrantor-kill-switch` because
+that crate declares tokio, clap and tracing unconditionally; the killing code used none of them.
+`warrantor-kill-switch-core` (thiserror only) now carries the four rails the stop path never had —
+reserved/self pid refusal, critical-Windows-image refusal, System32-anchored `taskkill`, and the
+confirmed-gone poll — and both `LocalProcessEngine` and the warrant's `OsProcessControl` delegate
+to it, so the kill switch and the stop verb cannot drift.
+
+**A halt is terminal.** `stop` transitioned `Open -> Held`, a state from which a survivor holding
+the settle key could still release what the halted agent staged. That `Held` reading was written
+for the *deadline* path and stays correct there; a halt now goes `Open | Held -> Void` via
+`void_on_breach` (no settle key), the staged log is retained as evidence, and the record names what
+the halt invalidated: staged effects (count and chain head, log path), capability leases (live up
+to `CAPABILITY_TTL_SECONDS`), session membership (observed via `agent_endpoint_for`), and the
+worktree when one exists. `stop --family <subject>` and `--run <run-id>` receipt each warrant in
+this store, and keep earlier receipts when one warrant fails mid-halt.
+
+**`enforced` is per kernel and per receipt.** The constant `"advisory"` is gone.
+`warrantor conformance run` drills this kernel's real kill path (supervisor + descendant under the
+job-object/setsid link, killed through the core), derives the mode from what was observed — nobody
+supplies it — and a stop record carries `enforced` only with a verifying receipt for the same
+kernel. Measured, on the live Windows run recorded in `evidence/conformance-windows.json` and
+`evidence/stop-windows.json`: root pid gone in 5610 ms (drill) and 5984 ms (stop), descendant gone
+in 6907 ms, against a 5000 ms budget — so this kernel's drill honestly reads **advisory**, because
+each existence check is a `tasklist` spawn measured at ~2.2 s under real-time AV and five are
+unavoidable on the path. A kernel whose checks fit the budget earns `enforced` by running the same
+command. `warrantor verify` reads the receipt offline and exits non-zero on an advisory one, so the
+label cannot hide in a green checkbox.
+
+**Residual:** no netns, seccomp or firewall — an agent's own sockets are untouched by any of this;
+a grandchild that re-parents out of the session/job is not individually signaled on Linux; leases
+already minted live up to `CAPABILITY_TTL_SECONDS`; `stop --family` reaches warrants in *this*
+store only — "across every cluster" in L4-08's gate is Phase 3's federation, not this task. The
+Linux drill numbers come from CI's ubuntu runner, where the same drill runs in the workspace suite.
+
 ### 3.2 Notifications — **closed 2026-08-17**
 
 **What exists:** `notify.json` in the store root names webhook destinations (optionally with an

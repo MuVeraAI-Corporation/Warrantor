@@ -120,10 +120,10 @@
       "status": "partial",
       "enforced_by": [
         {"crate": "notary", "symbol": "warrantor_notary::Gate::Containment", "test": "rust/notary/src/lib.rs::gate1_containment_denies_first", "note": "a contained scope is refused before any other gate runs"},
-        {"crate": "warrant", "symbol": "warrantor_warrant::stop::STOP_ENFORCEMENT_MODE", "test": "rust/warrant/tests/stop.rs::a_live_supervisor_is_terminated_and_confirmed_gone", "note": "STOP_ENFORCEMENT_MODE = \"advisory\" (rust/warrant/src/stop.rs:104)"},
-        {"crate": "warrant", "symbol": "warrantor_warrant::stop::STOP_ENFORCEMENT_MODE", "test": "rust/warrant/tests/stop.rs::a_supervisor_that_will_not_die_is_a_containment_failure_not_a_stop", "note": "a stop that does not stop is scored as a containment failure, never a pass"}
+        {"crate": "warrant", "symbol": "warrantor_warrant::stop::EnforcementMode", "test": "rust/warrant/tests/stop.rs::a_live_supervisor_is_terminated_and_confirmed_gone", "note": "the mode is per kernel since Task 1.3: Enforced only where a conformance drill observed the tree die within budget, Advisory otherwise"},
+        {"crate": "warrant", "symbol": "warrantor_warrant::stop::EnforcementMode", "test": "rust/warrant/tests/stop.rs::a_supervisor_that_will_not_die_is_a_containment_failure_not_a_stop", "note": "a stop that does not stop is scored as a containment failure, never a pass"}
       ],
-      "gap": "The stop verb kills a local process and says so honestly as 'advisory'; the kill-switch crate (its own tokio runtime) is not linked, and no cyber-physical safe-state path exists. Task 1.3 promotes STOP_ENFORCEMENT_MODE only where a refusal is observed on that kernel."
+      "gap": "The stop verb kills a local process through kill-switch-core and derives its mode from a drill receipt per kernel; no drill has been earned on a kernel whose existence checks fit the budget, and no cyber-physical safe-state path exists. Task 1.3 built the receipt; a kernel claims Enforced only by running warrantor conformance run and passing it."
     }
   ]
 }
