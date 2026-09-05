@@ -6,7 +6,7 @@
 > of the evidence, which is the one job `docs/W1-delivery-gaps.md` names for a
 > ledger. Regenerate with `python scripts/task_status.py --write`.
 
-**70 tasks · 580 steps · 0 steps landed**
+**117 tasks · 910 steps · 0 steps landed**
 
 | State | Count | Meaning |
 |---|---|---|
@@ -15,7 +15,7 @@
 | IN-FLIGHT | 8 | Branch exists, not yet merged |
 | READY | 2 | Expanded, unblocked, nobody has started it |
 | NEEDS-EXPANSION | 0 | Task structure exists; Step-0 detail not yet captured |
-| BLOCKED | 60 | A predecessor has not landed |
+| BLOCKED | 107 | A predecessor has not landed |
 
 | Task | Ph | Owner | State | Steps | Branch | SHA | Blocked by |
 |---|---|---|---|---|---|---|---|
@@ -61,34 +61,81 @@
 | **6.5** Cross-organization verification seed | 6 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-6.5` | — | phase 4, phase 5 |
 | **6.6** Open specification and reference implementation p... | 6 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-6.6` | — | phase 4, phase 5 |
 | **7.1** Effect-class SDK, conformance kit, and the non-am... | 7 | `opus` | BLOCKED | 10 | `feat/effect-sdk-and-deny-floor` | — | phase 2 |
+| **7.2** Deserialization and template-injection guard (L4-06) | 7 | `glm-5.3-flash` | BLOCKED | 7 | `feat/deserialization-guard` | — | phase 2 |
+| **7.3** Adapters — messaging, ticketing and email (L4-10,... | 7 | `glm-5.3-flash` | BLOCKED | 8 | `feat/adapters-messaging` | — | phase 2 |
 | **7.4** Adapters — cloud control plane, CI/CD and identit... | 7 | `opus` | BLOCKED | 8 | `feat/adapters-substrate-mutating` | — | phase 2 |
+| **7.5** Adapters — package registries, data platforms and... | 7 | `glm-5.3-flash` | BLOCKED | 8 | `feat/adapters-spend-and-data` | — | phase 2 |
 | **7.6** Adapter — browser and computer use (L4-18) | 7 | `opus` | BLOCKED | 8 | `feat/computer-use-adapter` | — | phase 2 |
 | **7.7** Semantic egress purpose and data-class binding, w... | 7 | `opus` | BLOCKED | 10 | `feat/egress-purpose-binding` | — | phase 2 |
+| **7.8** Recovery orchestration and integrity verification... | 7 | `glm-5.3-flash` | BLOCKED | 8 | `feat/recovery-orchestration` | — | phase 2 |
 | **8.1** Horizon governor (L3-04) | 8 | `opus` | BLOCKED | 9 | `feat/horizon-governor` | — | phase 2, phase 3 |
 | **8.2** The risk dial and the end-of-budget risk profile ... | 8 | `opus` | BLOCKED | 8 | `feat/risk-dial` | — | phase 2, phase 3 |
+| **8.3** Parallelism governor; backpressure, rate and dupl... | 8 | `glm-5.3-flash` | BLOCKED | 8 | `feat/parallelism-governor` | — | phase 2, phase 3 |
+| **8.4** Population budget ledger, budget transfer, comput... | 8 | `glm-5.3-flash` | BLOCKED | 8 | `feat/population-budget-ledger` | — | phase 2, phase 3 |
 | **8.5** Task-validity attestation and the objective-drift... | 8 | `opus` | BLOCKED | 8 | `feat/task-validity-and-drift` | — | phase 2, phase 3 |
 | **8.6** Self-risking-experiment detection (L3-06) | 8 | `opus` | BLOCKED | 7 | `feat/self-risking-detection` | — | phase 2, phase 3 |
+| **8.7** Supporting-service hardening standard and contain... | 8 | `glm-5.3-flash` | BLOCKED | 7 | `feat/supporting-service-hardening` | — | phase 2, phase 3 |
 | **8.8** Isolation conformance profile and adaptive escape... | 8 | `opus` | BLOCKED | 7 | `feat/isolation-conformance` | — | phase 2, phase 3 |
+| **8.9** Host-level workload sensors and deception tripwir... | 8 | `glm-5.3-flash` | BLOCKED | 8 | `feat/deception-tripwires` | — | phase 2, phase 3 |
 | **9.1** Bounded revocation with a stated SLA (L6-04) | 9 | `opus` | BLOCKED | 9 | `feat/bounded-revocation` | — | phase 1, phase 3 |
+| **9.2** Quorum authority for high-consequence classes (L6... | 9 | `glm-5.3-flash` | BLOCKED | 9 | `feat/quorum-authority` | — | phase 1, phase 3 |
 | **9.3** Purpose binding on authority (L6-07) | 9 | `opus` | BLOCKED | 8 | `feat/purpose-bound-authority` | — | phase 1, phase 3 |
 | **9.4** Authority-expansion detection and sibling-collusi... | 9 | `opus` | BLOCKED | 9 | `feat/sibling-collusion-intersection` | — | phase 1, phase 3 |
 | **9.5** Cross-organization authority and agent naming (L6... | 9 | `opus` | BLOCKED | 7 | `feat/cross-org-authority` | — | phase 1, phase 3 |
 | **9.6** Attested sender identity and the channel policy l... | 9 | `glm-5.3-flash` | BLOCKED | 10 | `feat/channel-attestation` | — | phase 1, phase 3 |
+| **9.7** Cross-tenant channel firewall and coordination pr... | 9 | `glm-5.3-flash` | BLOCKED | 8 | `feat/cross-tenant-firewall` | — | phase 1, phase 3 |
+| **9.8** Escalation channel to humans — reachable and attr... | 9 | `glm-5.3-flash` | BLOCKED | 7 | `feat/human-escalation-channel` | — | phase 1, phase 3 |
+| **9.9** Interop profile for A2A and MCP transports (L5-10) | 9 | `glm-5.3-flash` | BLOCKED | 7 | `feat/transport-interop-profile` | — | phase 1, phase 3 |
 | **10.1** The causal verdict — STRICT_CAUSAL, made real (L7... | 10 | `opus` | BLOCKED | 10 | `feat/causal-verdict` | — | phase 1, phase 5 |
 | **10.2** Receipt query language and live stream (L7-13) | 10 | `glm-5.3-flash` | BLOCKED | 9 | `feat/receipt-query` | — | phase 1, phase 5 |
+| **10.3** Evidence-integrity monitors and multi-modal corre... | 10 | `glm-5.3-flash` | BLOCKED | 7 | `feat/evidence-integrity-monitors` | — | phase 1, phase 5 |
+| **10.4** Evidence retention, jurisdiction policy, cross-ru... | 10 | `glm-5.3-flash` | BLOCKED | 7 | `feat/retention-and-credential-flow` | — | phase 1, phase 5 |
+| **10.5** Exception, waiver and compensating-control lifecy... | 10 | `glm-5.3-flash` | BLOCKED | 8 | `feat/exception-lifecycle` | — | phase 1, phase 5 |
 | **10.6** Chain of custody, trace escrow, and the independe... | 10 | `opus` | BLOCKED | 8 | `feat/custody-and-escrow` | — | phase 1, phase 5 |
 | **10.7** Reasoning-trace monitoring and analysis-of-analys... | 10 | `opus` | BLOCKED | 8 | `feat/trace-monitoring` | — | phase 1, phase 5 |
+| **10.8** Key ceremony and rotation runbook, receipted (L1-06) | 10 | `glm-5.3-flash` | BLOCKED | 7 | `feat/key-rotation-runbook` | — | phase 1, phase 5 |
+| **10.9** Post-quantum dual signature and composite attesta... | 10 | `glm-5.3-flash` | BLOCKED | 7 | `feat/post-quantum-dual-signature` | — | phase 1, phase 5 |
+| **10.10** Sovereign key topologies (L1-05) | 10 | `human` | BLOCKED | 5 | `docs/task-10.10-sovereign-key-topologies` | — | phase 1, phase 5 |
+| **11.1** Fleet console and the agent inventory register (L... | 11 | `minimax-m3` | BLOCKED | 6 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.2** Incident console; containment latency and exercis... | 11 | `minimax-m3` | BLOCKED | 6 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.3** Policy studio for non-developers (L8-04) | 11 | `minimax-m3` | BLOCKED | 6 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.4** Audit workbench and evidence pack generator (L8-0... | 11 | `minimax-m3` | BLOCKED | 6 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.5** Plain-language scope and dependency-aware partial... | 11 | `minimax-m3` | BLOCKED | 6 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.6** Approval quality, cognitive load, automation bias... | 11 | `minimax-m3` | BLOCKED | 6 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.7** Accessibility as a control property; onboarding a... | 11 | `minimax-m3` | BLOCKED | 7 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.8** Framework crosswalk engine and the board safety-c... | 11 | `minimax-m3` | BLOCKED | 7 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.9** Supervisor/regulator portal and the customer trus... | 11 | `minimax-m3` | BLOCKED | 6 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.10** Executive risk view; exposure budget and risk-app... | 11 | `minimax-m3` | BLOCKED | 6 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.11** Outcome contract, baseline, attestation; safe-aut... | 11 | `minimax-m3` | BLOCKED | 6 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.12** Notice, rights, appeal, contestability; role comp... | 11 | `minimax-m3` | BLOCKED | 7 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **11.13** Natural-language console over the receipt graph (... | 11 | `minimax-m3` | BLOCKED | 6 | `feat/phase-11-operator-estate` | — | phase 4 |
+| **12.1** Automated corpus extraction from the live graph (... | 12 | `glm-5.3-flash` | BLOCKED | 7 | `feat/corpus-extraction` | — | phase 10 |
 | **12.2** Refusal corpus as an asset; per-plane specialist ... | 12 | `opus` | BLOCKED | 8 | `feat/refusal-corpus` | — | phase 10 |
 | **12.3** Continuous promotion with an enforced parity gate... | 12 | `opus` | BLOCKED | 8 | `feat/parity-promotion-gate` | — | phase 10 |
 | **12.4** Adversarial-phrasing robustness; advisory-boundar... | 12 | `opus` | BLOCKED | 8 | `feat/severity-stability-gate` | — | phase 10 |
 | **12.5** Guard-model exposure, poisoning and membership in... | 12 | `opus` | BLOCKED | 7 | `feat/guard-exposure-hardening` | — | phase 10 |
+| **12.6** Guard graduation ladder; checkpoint disposition a... | 12 | `glm-5.3-flash` | BLOCKED | 7 | `feat/guard-graduation-ladder` | — | phase 10 |
+| **12.7** Simulation-validated policy-compilation corpus (L... | 12 | `glm-5.3-flash` | BLOCKED | 7 | `feat/policy-simulation-corpus` | — | phase 10 |
+| **12.8** Open governance-dataset format (L9-11) | 12 | `glm-5.3-flash` | BLOCKED | 7 | `feat/open-governance-dataset-format` | — | phase 10 |
+| **13.1** Shadow-agent discovery; lifecycle, dormancy and r... | 13 | `glm-5.3-flash` | BLOCKED | 7 | `feat/shadow-agent-discovery` | — | phase 8, phase 10 |
+| **13.2** Environment, secret and configuration governance ... | 13 | `glm-5.3-flash` | BLOCKED | 7 | `feat/configuration-governance` | — | phase 8, phase 10 |
+| **13.3** Change, release, canary and rollback governance; ... | 13 | `glm-5.3-flash` | BLOCKED | 7 | `feat/change-governance-gate` | — | phase 8, phase 10 |
 | **13.4** Gateway/kernel equivalence laboratory (L11-06) | 13 | `opus` | BLOCKED | 7 | `feat/equivalence-laboratory` | — | phase 8, phase 10 |
+| **13.5** Evaluation safety-case builder; training and eval... | 13 | `glm-5.3-flash` | BLOCKED | 7 | `feat/safety-case-builder` | — | phase 8, phase 10 |
 | **13.6** Impossible-task and broken-environment detection;... | 13 | `opus` | BLOCKED | 8 | `feat/structured-abstention` | — | phase 8, phase 10 |
 | **13.7** Scorer/grader isolation and anti-gaming; reward-h... | 13 | `opus` | BLOCKED | 9 | `feat/scorer-isolation` | — | phase 8, phase 10 |
+| **13.8** Control ownership register and retirement path; r... | 13 | `glm-5.3-flash` | BLOCKED | 8 | `feat/control-ownership-register` | — | phase 8, phase 10 |
+| **14.1** Attack-finding to policy loop (L0-07) | 14 | `glm-5.3-flash` | BLOCKED | 7 | `feat/finding-to-policy-loop` | — | phase 9, phase 10, phase 13 |
+| **14.2** External benchmark harness; harness floor and eva... | 14 | `glm-5.3-flash` | BLOCKED | 7 | `feat/benchmark-harness-floor` | — | phase 9, phase 10, phase 13 |
+| **14.3** Public offline verify page; verifiable remediatio... | 14 | `glm-5.3-flash` | BLOCKED | 7 | `feat/offline-verify-page` | — | phase 9, phase 10, phase 13 |
 | **14.4** Technical standards crosswalk and interoperabilit... | 14 | `opus` | BLOCKED | 8 | `feat/standards-crosswalk` | — | phase 9, phase 10, phase 13 |
 | **14.5** Air-gapped sovereign profile and jurisdiction mod... | 14 | `opus` | BLOCKED | 8 | `feat/air-gapped-profile` | — | phase 9, phase 10, phase 13 |
+| **14.6** Multi-tenancy and isolation guarantees; cross-bor... | 14 | `glm-5.3-flash` | BLOCKED | 8 | `feat/tenancy-guarantee` | — | phase 9, phase 10, phase 13 |
+| **14.7** Supply-chain warrant chaining; exit guarantee and... | 14 | `glm-5.3-flash` | BLOCKED | 7 | `feat/exit-continuity-bundle` | — | phase 9, phase 10, phase 13 |
+| **14.8** Incident-exchange profile with notification clock... | 14 | `glm-5.3-flash` | BLOCKED | 8 | `feat/incident-exchange-profile` | — | phase 9, phase 10, phase 13 |
 | **14.9** Public fact/claim/unknown ledger with versioned c... | 14 | `opus` | BLOCKED | 8 | `feat/fact-claim-unknown-ledger` | — | phase 9, phase 10, phase 13 |
 | **14.10** Evaluator isolation contract and pre-run conforma... | 14 | `opus` | BLOCKED | 7 | `feat/evaluator-isolation-receipt` | — | phase 9, phase 10, phase 13 |
+| **14.11** Insurance and settlement interface; conformance l... | 14 | `human` | BLOCKED | 7 | `docs/task-14.11-insurance-and-certification` | — | phase 9, phase 10, phase 13 |
 
 ## Runnable right now
 

@@ -17689,7 +17689,6 @@ Three questions were raised by task authors as the plan owner's call rather than
 ## Phase 7 — Effect surface breadth
 
 Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 7. Needs Phase 2.
-Seeded tasks only; the rest of this phase is scope rows awaiting seeding.
 
 ### Task 7.1: Effect-class SDK, conformance kit, and the non-amendable deny floor (L4-20, L4-25)
 
@@ -17802,6 +17801,77 @@ that no public constructor, builder, serialized config or warrant field can perm
 
 ---
 
+### Task 7.2: Deserialization and template-injection guard (L4-06)
+
+**Anchor.** `status=none`, `core`, W2. The parser is an effect surface. A guard that inspects the
+request but not what deserializing it executes is decoration — and this is the class of defect that
+turns a read into an EXEC without any effect ever being declared.
+
+**Step 0.** Enumerate every deserialization point reachable from an agent-supplied byte string: JSON
+bodies in `rust/warrant/src/serve.rs`, the MCP transport, `rust/protocol-contracts/src/validation.rs`,
+and any template rendering in the console or report path. Record, per point, the crate, the file:line,
+and whether the deserializer can construct a type with a side effect. Read Task 7.1's conformance kit
+and record whether a parser counts as an adapter under it.
+
+**Non-goals.** Not writing a new serializer. Not the browser adapter — 7.6. Not content moderation —
+`rust/content-moderation/` is a separate concern. Not schema evolution.
+
+**Files.** `rust/protocol-contracts/src/validation.rs`, `rust/warrant/src/serve.rs` (**contended**),
+a guard module, `docs/task-evidence/task-7.2.md`.
+
+**Consumes / Produces.** Consumes Task 2.1's effect classes and Task 7.1's conformance harness.
+Produces a guard applied at every enumerated deserialization point, and a test per point.
+
+**Bound strength.** **Tier B, chokepoint** at each guarded point, and **nothing at all** at a point
+nobody enumerated. The exit gate is therefore about the enumeration, not the guard.
+
+**Exit gate.** Every deserialization point found in Step 0 has a guard and a test; a point added later
+without one fails a CI check that counts them, in the shape of `tools/ci/invariant-ratchet.json`.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.2 -b feat/deserialization-guard origin/main`
+- [ ] **Step 2 — Enumerate deserialization points; commit the list as a ratcheting record.**
+- [ ] **Step 3 — Failing test: a payload that deserializes into a side-effecting type is refused.** Paired with an inert control that is accepted.
+- [ ] **Step 4 — Failing test: template injection cannot reach a render path.**
+- [ ] **Step 5 — Guard at every enumerated point.**
+- [ ] **Step 6 — Failing test: adding an unguarded point fails the count gate.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 7.3: Adapters — messaging, ticketing and email (L4-10, L4-11, L4-12)
+
+**Anchor.** Three `clone` items, `status=none`, W2. Three MSG-class surfaces. **Email is the one that
+leaves the organization**, so it is the one whose bound must be strongest — not the one that inherits
+a shared implementation because it looked similar to the other two.
+
+**Step 0.** Read the already-seeded Task 7.1 in full and transcribe its `EffectAdapter` contract; do
+not restate or reinvent it. Read Task 9.6's channel plane — messaging inside the system is 9.6's, and
+these three adapters reach *external* systems, so record the boundary. Read `rust/egress/src/lib.rs`
+for the destination model, and confirm from `evidence/wiring-coverage.json` which of these adapters'
+crates already exist and whether any is an orphan.
+
+**Non-goals.** Not the internal channel plane — 9.6. Not the notification fabric rendered to an
+operator — Task 4.2, already built. Not the conformance kit — 7.1.
+
+**Files.** Three adapter modules under the 7.1 SDK, `docs/task-evidence/task-7.3.md`.
+
+**Consumes / Produces.** Consumes the 7.1 trait and conformance harness plus the destination catalog.
+Produces three adapters, each decomposing to MSG, with email additionally carrying an
+organization-boundary bound.
+
+**Bound strength.** **Tier B, chokepoint** per adapter. An agent with SMTP credentials and a socket
+bypasses the email adapter entirely; say so rather than implying MSG is covered.
+
+**Exit gate.** All three pass the 7.1 conformance harness; an email to a recipient outside the
+declared organization boundary is **refused**, with an internal control recipient accepted.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.3 -b feat/adapters-messaging origin/main`
+- [ ] **Step 2 — Transcribe the 7.1 contract.** If it is ambiguous, stop and report.
+- [ ] **Step 3 — Failing test: email outside the organization boundary is refused.** Paired control.
+- [ ] **Step 4 — Failing test: each adapter decomposes to MSG** per Task 2.1's registry.
+- [ ] **Step 5 — Three adapters against the conformance harness.**
+- [ ] **Step 6 — Failing test: no adapter touches a credential,** per 7.1's first assertion.
+- [ ] **Step 7 — Record the socket-bypass limit.**
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
 ### Task 7.4: Adapters — cloud control plane, CI/CD and identity providers (L4-13, L4-14, L4-26)
 
 **Anchor.** Three `clone` items, all `status=none`, W2. They are grouped and routed away from volume
@@ -17843,6 +17913,45 @@ unrelated resource is allowed — a refusal that refuses everything proves nothi
 - [ ] **Step 5 — The three adapters against the 7.1 conformance harness.** Conformance is the gate, not a review.
 - [ ] **Step 6 — Failing test: each decomposes to MUTATE, and CRED where an entitlement changes.** Assert against Task 2.1's registry.
 - [ ] **Step 7 — Record the shell-bypass limit** in the gaps ledger and the product text.
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
+### Task 7.5: Adapters — package registries, data platforms and payment rails (L4-15, L4-16, L4-17)
+
+**Anchor.** Three `clone` items, `status=none`, W3. **Payment rails are SPEND-class and
+irreversible.** The shared adapter shape must not flatten reversibility into a boolean: a package
+publish can be yanked, a warehouse write can be rolled back, a wire cannot. Three different
+reversibility properties, one adapter shape, and the shape must carry the difference.
+
+**Step 0.** Read Task 7.1's contract and Task 1.4 (spend into the budget path) — 1.4 owns the budget
+bound and this task owns the adapter, so record the boundary. Read `rust/spend/src/lib.rs` (723 lines)
+and record how irreversibility is represented today, if at all. Read `SideEffectClass`
+(`rust/authority-spec/src/lib.rs:42`) and note that `Financial` and `Destructive` are both
+`is_consequential`, which is the existing approximation of reversibility.
+
+**Non-goals.** Not the spend ceiling — Task 1.4. Not the conformance kit — 7.1. Not settlement —
+Task 14.11, `human`.
+
+**Files.** Three adapter modules, `rust/spend/src/lib.rs` (**contended**),
+`docs/task-evidence/task-7.5.md`.
+
+**Consumes / Produces.** Consumes the 7.1 trait, Task 1.4's budget bound, and `SideEffectClass`.
+Produces three adapters and a **reversibility descriptor** with at least three states — reversible,
+compensable, irreversible — not a boolean.
+
+**Bound strength.** **Tier B, chokepoint.** For payment rails state additionally that the bound is
+pre-authorization only: once the rail accepts the instruction, nothing in this system can recall it.
+
+**Exit gate.** An irreversible effect cannot be issued without a human approval receipt, with a
+reversible control effect proceeding unattended; and the reversibility descriptor is never a boolean
+anywhere in the code, asserted by a test.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.5 -b feat/adapters-spend-and-data origin/main`
+- [ ] **Step 2 — Transcribe the 7.1 contract; record the 1.4 boundary.**
+- [ ] **Step 3 — Failing test: reversibility is a three-state descriptor, not a boolean.**
+- [ ] **Step 4 — Failing test: an irreversible effect without an approval receipt is refused.** Paired reversible control.
+- [ ] **Step 5 — Three adapters against the conformance harness.**
+- [ ] **Step 6 — Failing test: the receipt records the reversibility state at issue time.**
+- [ ] **Step 7 — Record the pre-authorization-only limit for rails.**
 - [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
 
 ### Task 7.6: Adapter — browser and computer use (L4-18)
@@ -17935,10 +18044,45 @@ egress whose data class does not match its declared purpose is refused at the br
 - [ ] **Step 9 — Remove the earned `#[ignore]`s and raise the ratchet floor in the same commit.** Never weaken an assertion to earn a number.
 - [ ] **Step 10 — Gates, evidence file, `git commit -s`.**
 
+### Task 7.8: Recovery orchestration and integrity verification (L4-21)
+
+**Anchor.** `status=none`, `core`, W2. **Recovery is an effect class.** An untracked restore is an
+unlogged mutation carried out with root authority, and it is the one operation that can silently undo
+every receipt written since the snapshot.
+
+**Step 0.** Read `rust/archive/src/store.rs` and the append-only tests, and record what a restore
+would have to do to the archive to be consistent. Read Task 10.6 (custody and escrow) — **a restore
+that rolls the archive back destroys escrowed evidence**, so record how the two interact or stop.
+Record whether any restore path exists today.
+
+**Non-goals.** Not backup scheduling. Not the archive itself. Not retention — Task 10.4.
+
+**Files.** A recovery module, `rust/archive/src/store.rs` (**contended**),
+`docs/task-evidence/task-7.8.md`.
+
+**Consumes / Produces.** Consumes the archive store and Task 2.1's classes. Produces recovery as a
+declared, receipted effect decomposing to MUTATE plus ATTEST, with an integrity verification pass
+that must succeed before the restore is considered complete.
+
+**Bound strength.** **Tier B, chokepoint** for a restore issued through this path; **Tier C** for
+anything else, because an operator with filesystem access restores without asking. State that.
+
+**Exit gate.** A restore produces a receipt naming the snapshot and the range of receipts it
+supersedes, and a restore that would orphan escrowed evidence is **refused**; a restore that would
+not is allowed.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.8 -b feat/recovery-orchestration origin/main`
+- [ ] **Step 2 — Record the interaction with Task 10.6's escrow.** Stop if unresolved.
+- [ ] **Step 3 — Failing test: an unreceipted restore is refused.**
+- [ ] **Step 4 — Failing test: the receipt names the superseded range.**
+- [ ] **Step 5 — Failing test: a restore orphaning escrowed evidence is refused.** Paired with an allowed control.
+- [ ] **Step 6 — Integrity verification pass before completion.**
+- [ ] **Step 7 — Record the filesystem-access bypass.**
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
 ## Phase 8 — Runtime governors and budgets
 
 Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 8. Needs Phase 2, Phase 3.
-Seeded tasks only; the rest of this phase is scope rows awaiting seeding.
 
 ### Task 8.1: Horizon governor (L3-04)
 
@@ -18024,6 +18168,80 @@ constrained than the same agent at 5%.
 - [ ] **Step 7 — Failing test: a dial position over an unmediated class is reported as ineffective,** not as active. Use the census.
 - [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
 
+### Task 8.3: Parallelism governor; backpressure, rate and duplicate-effect control (L3-05, L3-10)
+
+**Anchor.** L3-05 `novel` W2, L3-10 `core` W2, both `status=none`. **The incident's tenth hop was
+volume.** A per-action bound that ignores fan-out bounds nothing: a thousand individually-permitted
+actions is a different event from one, and today the system cannot tell them apart.
+
+**Step 0.** Read `WarrantBounds` and record every count-based bound. Read the already-seeded Task 8.1
+(horizon governor) and record which dimension it owns, because chain depth and fan-out width are
+different and both are easy to conflate. Read Task 8.4 (population budget ledger) — fan-out across
+agents is 8.4's, fan-out within one agent is this task's. Record the split.
+
+**Non-goals.** Not the horizon — 8.1. Not population budgets — 8.4. Not swarm detection — Task 6.2.
+
+**Files.** `rust/warrant/src/lib.rs`, `rust/warrant/src/report.rs` (**contended**),
+`docs/task-evidence/task-8.3.md`.
+
+**Consumes / Produces.** Consumes `WarrantBounds` and the effect stream. Produces a concurrency bound
+that **refuses** at its limit, backpressure that queues rather than drops, and duplicate-effect
+detection keyed on an idempotency identity.
+
+**Bound strength.** **Tier B, chokepoint.** Refuses effects that traverse the runtime. Concurrency an
+agent achieves outside it — separate processes, separate warrants — is invisible, and Task 8.4 is the
+partial cover; claim no closure.
+
+**Exit gate.** A fan-out that exceeds the concurrency bound is refused at the boundary rather than
+throttled silently, with a control fan-out under the bound completing; a duplicate effect is detected
+and refused, and the receipt names the original.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.3 -b feat/parallelism-governor origin/main`
+- [ ] **Step 2 — Record the 8.1 and 8.4 boundaries.**
+- [ ] **Step 3 — Failing test: fan-out beyond the bound is refused.** Paired control under the bound.
+- [ ] **Step 4 — Failing test: backpressure queues; it never drops silently.**
+- [ ] **Step 5 — Failing test: a duplicate effect is refused and the receipt names the original.**
+- [ ] **Step 6 — Failing test: the refusal is visible as a refusal,** not as a timeout.
+- [ ] **Step 7 — Record the separate-process blind spot.**
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
+### Task 8.4: Population budget ledger, budget transfer, compute-provenance accounting (L3-11, L3-08)
+
+**Anchor.** L3-11 `novel` W2; L3-08 `core` W2 `status=partial`. **Per-agent budgets sum to no bound at
+all when agents can transfer.** The ledger is the population-level bound and the transfer is the
+control point — without it, ten agents with a tenth of a budget each can fund one agent completely.
+
+**Step 0.** Read `rust/spend/src/lib.rs` (723 lines) in full and record how a budget is held, whether
+it is per-warrant or per-agent, and whether any transfer path exists. Read the already-seeded Task 8.2
+(risk dial) — the dial reads this ledger. Record what `status=partial` means for L3-08. Read Task 1.4
+and record whether it has landed, since it owns the spend path this extends.
+
+**Non-goals.** Not the spend ceiling — Task 1.4. Not the risk dial — 8.2. Not the exposure budget
+rendered to an executive — Task 11.10.
+
+**Files.** `rust/spend/src/lib.rs` (**contended**), a ledger module,
+`docs/task-evidence/task-8.4.md`.
+
+**Consumes / Produces.** Consumes Task 1.4's spend path. Produces a population ledger whose total is
+the enforced bound, a receipted transfer operation, and compute provenance per unit spent.
+
+**Bound strength.** **Tier B, chokepoint.** The ledger binds spend that goes through it. Compute
+acquired outside the ledger — a personal API key, an unmetered local model — is invisible, and that
+belongs in the product text.
+
+**Exit gate.** A transfer that would let the receiving agent exceed the **population** bound is
+refused, with a within-bound transfer allowed; and every transfer produces a receipt naming both
+parties and the amount.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.4 -b feat/population-budget-ledger origin/main`
+- [ ] **Step 2 — Record how budgets are held today and whether transfer exists.**
+- [ ] **Step 3 — Failing test: ten agents cannot fund one beyond the population bound.** The whole task.
+- [ ] **Step 4 — Failing test: every transfer is receipted with both parties.**
+- [ ] **Step 5 — Failing test: the population total is the enforced ceiling,** not the sum of per-agent grants.
+- [ ] **Step 6 — Compute provenance per unit spent.**
+- [ ] **Step 7 — Record the out-of-ledger compute blind spot.**
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
 ### Task 8.5: Task-validity attestation and the objective-drift monitor (L3-01, L3-09)
 
 **Anchor.** L3-01 `status=none` `novel` W2; L3-09 `status=none` `novel` W3. Together they catch the
@@ -18101,6 +18319,44 @@ a detector that fires on its own test suite is unusable.
 - [ ] **Step 6 — Record the single-probe blind spot** in the gaps ledger. Do not imply coverage of it.
 - [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
 
+### Task 8.7: Supporting-service hardening standard and container-reset semantics (L2-05, L2-07)
+
+**Anchor.** **L2-05 is W1 and was omitted from the original plan.** The supporting services are
+inside the trust boundary and hardened by nothing. The README already discloses that three of the
+seventeen compose services are not services — `flight-recorder`'s container answers every path
+identically, and `kill-switch` and `credential-vault` are one-shot CLIs that exit. L2-07 makes reset a
+governed operation **because it destroys evidence**.
+
+**Step 0.** Read `deploy/` and every `Dockerfile.*` in `rust/`, and enumerate all seventeen compose
+services with what each actually is. Confirm the three README disclosures still hold. Read Task 10.6
+(custody) and Task 7.8 (recovery) — a container reset that discards a volume is an evidence
+destruction event, so record how the three interact. Record what `status` each item carries.
+
+**Non-goals.** Not building a service mesh. Not the isolation profile — Task 8.8. Not host sensors —
+8.9.
+
+**Files.** `deploy/`, the `Dockerfile.*` set, `docs/W1-delivery-gaps.md`,
+`docs/task-evidence/task-8.7.md`.
+
+**Consumes / Produces.** Consumes the compose topology. Produces a hardening standard each supporting
+service is asserted against in CI, and reset as a receipted operation naming what it destroyed.
+
+**Bound strength.** **Tier C, observed** for the standard, since it is a checklist asserted at build
+time; **Tier B** for reset, which has a refusal point. Do not describe a hardened container as a
+contained one.
+
+**Exit gate.** Every one of the seventeen services either passes the hardening standard or is listed
+as non-conforming with the reason, and a reset that would destroy unescrowed evidence is refused; the
+three README disclosures are re-verified and updated if stale.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.7 -b feat/supporting-service-hardening origin/main`
+- [ ] **Step 2 — Enumerate all seventeen services; re-verify the three README disclosures.**
+- [ ] **Step 3 — Failing test: a service not asserted against the standard fails CI.**
+- [ ] **Step 4 — Failing test: reset produces a receipt naming what it destroyed.**
+- [ ] **Step 5 — Failing test: reset destroying unescrowed evidence is refused.** Paired control.
+- [ ] **Step 6 — Record this as a W1 omission** in the gaps ledger, with the date found.
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
 ### Task 8.8: Isolation conformance profile and adaptive escape rehearsal (L2-11)
 
 **Anchor.** `status=partial`, `core`, W2. **Rehearsal that runs the same escape every time measures
@@ -18140,10 +18396,48 @@ enforcement is ours or the host's. A report with one aggregate verdict fails thi
 - [ ] **Step 6 — Convert what this earns in I-12 if anything,** raising the ratchet floor in the same commit. If nothing, say so.
 - [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
 
+### Task 8.9: Host-level workload sensors and deception tripwires (L2-08, L2-09)
+
+**Anchor.** Both `compose`, `status=none`, W2. **Tripwires are the only control in this phase an agent
+cannot satisfy by behaving well on the monitored path** — a canary credential that is never legitimately
+used has no false-positive mode, which makes it the highest-precision signal available anywhere in the
+system.
+
+**Step 0.** Read `rust/egress-filter/src/lib.rs` and record its existing `canary_ips` and
+`add_canary` support — **the tripwire mechanism partly exists**, and this task extends it rather than
+inventing one. Read the already-seeded Task 8.6 (self-risking-experiment detection) and record the
+boundary: 8.6 detects probing patterns, this plants the things that get probed. Read
+`rust/exfil-guard/` and record whether it is an orphan.
+
+**Non-goals.** Not building a host agent or EDR. Not probe detection — 8.6. Not the deny floor —
+Task 7.1.
+
+**Files.** `rust/egress-filter/src/lib.rs`, `rust/exfil-guard/`,
+`docs/task-evidence/task-8.9.md`.
+
+**Consumes / Produces.** Consumes the existing canary support. Produces canary credentials, canary
+files and canary endpoints whose **use is definitionally illegitimate**, plus host-level workload
+sensors reporting what a container actually did.
+
+**Bound strength.** **Tier C, observed** — a tripwire detects, it does not refuse. Its value is
+precision, not coverage: it says nothing about an agent that never touches a canary.
+
+**Exit gate.** Touching any canary produces an escalation naming the canary and the actor, with a
+test proving a legitimate workload touches none; and the canary set is committed so a reviewer can
+confirm no canary is reachable by normal operation.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.9 -b feat/deception-tripwires origin/main`
+- [ ] **Step 2 — Record the existing canary support; extend rather than replace.**
+- [ ] **Step 3 — Failing test: touching a canary credential escalates, naming actor and canary.**
+- [ ] **Step 4 — Failing test: a legitimate workload touches no canary.** The false-positive case decides whether this ships.
+- [ ] **Step 5 — Canary files and endpoints alongside credentials.**
+- [ ] **Step 6 — Host-level sensors reporting actual container behavior.**
+- [ ] **Step 7 — Record that this detects and does not refuse.**
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
 ## Phase 9 — Authority algebra and channels
 
 Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 9. Needs Phase 1, Phase 3.
-Seeded tasks only; the rest of this phase is scope rows awaiting seeding.
 
 ### Task 9.1: Bounded revocation with a stated SLA (L6-04)
 
@@ -18187,6 +18481,49 @@ sentence.
 - [ ] **Step 5 — Failing test: propagation latency is measured and bounded.** Fail the test on SLA breach.
 - [ ] **Step 6 — Failing test: the receipt proves which action the revocation stopped.**
 - [ ] **Step 7 — Record what revocation does not reach:** in-flight, cached, exfiltrated copies.
+- [ ] **Step 8 — Remove the `#[ignore]`s, raise the floor, same commit.**
+- [ ] **Step 9 — Gates, evidence file, `git commit -s`.**
+
+### Task 9.2: Quorum authority for high-consequence classes (L6-05)
+
+**Anchor.** `status=partial`, `core`, W2. **Two-person control that one compromised operator can
+satisfy twice is one-person control with extra latency.** The Task 5.1 corpus already records the
+underlying defect: *"authority-spec accepts any non-empty approvals list"* and *"an approval carries
+no approver identity, so humanness is unrepresentable."*
+
+**Step 0.** Read `rust/warrant/tests/invariants/i08_non_delegable_human_authority.rs` in full and
+quote both `#[ignore]` reasons — they are the specification. Read `rust/authority-spec/src/lib.rs`
+and locate where approvals are accepted, plus `SideEffectClass::is_consequential` (line ~57), which is
+the existing definition of "high-consequence". Read `rust/warrant/src/operators.rs` and `review.rs`
+for the approval state machine. Read Task 3.3 (operator device-key binding) — **approver identity
+comes from there**; record whether it has landed.
+
+**Non-goals.** Not the approval UI — Task 11.5 and 11.6. Not identity-provider integration. Not
+revocation — 9.1.
+
+**Files.** `rust/authority-spec/src/lib.rs`, `rust/warrant/src/operators.rs` (**contended**),
+`rust/warrant/tests/invariants/i08_non_delegable_human_authority.rs` (`#[ignore]` removal only),
+`tools/ci/invariant-ratchet.json`, `docs/task-evidence/task-9.2.md`.
+
+**Consumes / Produces.** Consumes `is_consequential` and Task 3.3's device-bound operator identity.
+Produces a quorum requirement per consequence class where approvals must come from **distinct**
+identities, each device-bound.
+
+**Bound strength.** **Tier B, chokepoint,** with one honest limit: distinctness is over identities
+this system can distinguish. Two accounts held by one person are two identities here, and only an
+out-of-band process separates them. Say that rather than claiming two-person control.
+
+**Exit gate.** Both `i08` `#[ignore]`s removed and passing with the ratchet floor raised in the same
+commit; a consequential effect approved twice by one identity is **refused**, with the same effect
+approved by two distinct identities allowed.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.2 -b feat/quorum-authority origin/main`
+- [ ] **Step 2 — Quote both corpus `#[ignore]` reasons.** They are the spec.
+- [ ] **Step 3 — Failing test: a non-empty approvals list is not sufficient.**
+- [ ] **Step 4 — Failing test: two approvals from one identity are refused.** Paired with two distinct approvers.
+- [ ] **Step 5 — Failing test: an approval without an approver identity is refused.**
+- [ ] **Step 6 — Quorum size per consequence class,** driven by `is_consequential` rather than a new taxonomy.
+- [ ] **Step 7 — Record the one-person-two-accounts limit.**
 - [ ] **Step 8 — Remove the `#[ignore]`s, raise the floor, same commit.**
 - [ ] **Step 9 — Gates, evidence file, `git commit -s`.**
 
@@ -18413,10 +18750,122 @@ asserts on both outputs.
 
 ---
 
+### Task 9.7: Cross-tenant channel firewall and coordination primitives (L5-09, L5-07)
+
+**Anchor.** L5-09 `core` W2; L5-07 `novel` W3; both `status=none`. **Coordination primitives make
+swarms possible; the firewall is what makes them auditable rather than emergent.** Build the firewall
+first — shipping assignments and vetoes into an unpartitioned channel plane creates the exact
+condition the incident demonstrated.
+
+**Step 0.** Read the already-seeded Task 9.6 in full — this task depends on its `AttestedMessage` and
+`verify_before_delivery`; **record whether 9.6 has landed and stop if not**, because a firewall over
+unauthenticated messages filters nothing. Read Task 5.5 (per-tenant cache and registry isolation) and
+record what tenancy already means in this codebase. Read the already-seeded Task 9.4
+(sibling-collusion intersection) — coordination primitives are how siblings coordinate, so 9.4 is the
+authority-side control and this is the channel-side one.
+
+**Non-goals.** Not attestation — 9.6. Not sibling-collusion intersection — 9.4. Not swarm detection —
+Task 6.2. Not tenant data isolation — Task 5.5.
+
+**Files.** `rust/channel/` (created by 9.6), `docs/task-evidence/task-9.7.md`.
+
+**Consumes / Produces.** Consumes 9.6's attested message and Task 5.5's tenant identity. Produces a
+default-deny cross-tenant channel partition, and coordination primitives — assignment, veto,
+acknowledgment — each of which is a receipted effect.
+
+**Bound strength.** **Tier B, chokepoint.** Binds messages traversing the broker. Two agents in
+different tenants sharing a filesystem, a database or a model context coordinate freely; Task 3.6 is
+the partial cover and this task claims no closure.
+
+**Exit gate.** A cross-tenant message is refused **by default** with an explicit grant required, and
+an intra-tenant control message is delivered; every coordination primitive produces a receipt, proven
+by a test that asserts none is receipt-free.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.7 -b feat/cross-tenant-firewall origin/main`
+- [ ] **Step 2 — Confirm 9.6 landed.** Stop if not; there is nothing to filter.
+- [ ] **Step 3 — Failing test: cross-tenant delivery is denied by default.** Paired intra-tenant control.
+- [ ] **Step 4 — Failing test: an explicit grant is required and receipted.**
+- [ ] **Step 5 — Failing test: every coordination primitive is receipted.** No exceptions.
+- [ ] **Step 6 — Assignment, veto and acknowledgment as declared effects.**
+- [ ] **Step 7 — Record the side-channel blind spot; name Task 3.6 as partial cover.**
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
+### Task 9.8: Escalation channel to humans — reachable and attractive (L5-04)
+
+**Anchor.** `status=none`, `novel`, W2. **An escalation path that is slower than proceeding is not a
+path.** Measure its use rate and treat zero as a defect: an escalation channel nobody uses is either
+unnecessary or unusable, and the two look identical from the outside until you measure.
+
+**Step 0.** Read Task 4.2's notification fabric — already built on `feat/task-4.2-notify-fabric`, with
+per-transport state and a delivery ledger — and **reuse it rather than building a second delivery
+path**. Read the already-seeded Task 13.6 (structured stop, abstain, ask): an abstention with nowhere
+to go is a stall, so 13.6 is this task's primary consumer. Read Task 9.6 for the attestation an
+escalation carries.
+
+**Non-goals.** Not the notification fabric — Task 4.2. Not the approval queue — Task 4.1. Not the
+regulator portal — Task 11.9.
+
+**Files.** `rust/channel/`, the Task 4.2 notify path (**contended with the MiniMax lane — coordinate**),
+`docs/task-evidence/task-9.8.md`.
+
+**Consumes / Produces.** Consumes Task 4.2's transports and 9.6's attestation. Produces an escalation
+with a **measured** latency to first human response, and a use-rate metric published beside it.
+
+**Bound strength.** **Tier C, observed.** An escalation channel is a communication path, not a bound.
+Its one enforceable property is that an agent cannot proceed while an escalation is open, and if that
+is implemented it is Tier B — state which you built.
+
+**Exit gate.** Latency to first human response is measured and published, and a test asserts the
+use-rate metric exists and is non-optional; an agent that escalates cannot proceed on the escalated
+effect while the escalation is open.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.8 -b feat/human-escalation-channel origin/main`
+- [ ] **Step 2 — Reuse Task 4.2's transports.** A second delivery path is a defect.
+- [ ] **Step 3 — Failing test: an open escalation blocks the escalated effect.** Paired with an unescalated control.
+- [ ] **Step 4 — Failing test: latency to first human response is recorded.**
+- [ ] **Step 5 — Failing test: the use-rate metric is non-optional** and zero is rendered as a warning, not as success.
+- [ ] **Step 6 — Record whether the block is Tier B or the channel is Tier C only.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 9.9: Interop profile for A2A and MCP transports (L5-10)
+
+**Anchor.** `status=none`, `align`, W3. **Do not invent a transport.** Profile the two that exist and
+state precisely what the profile does not constrain — an `align` item's deliverable is conformance to
+something external, and inventing here would be the opposite of the item.
+
+**Step 0.** Read the MCP implementation in `rust/warrant/src/` in full and record exactly what is
+supported and what is not — **the README already discloses that upstream forwarding is not
+implemented**, and `memory/warrantor-mediation-ceiling.md`'s substance is that full mediation of a
+terminal coding agent through MCP is impossible. Record the defensible claim rather than restating the
+ambition. Read the already-seeded Task 9.6 and record what any transport must carry.
+
+**Non-goals.** Not implementing A2A. Not the channel plane — 9.6. Not claiming mediation the transport
+cannot provide.
+
+**Files.** A profile document, the MCP path (**contended**), `docs/task-evidence/task-9.9.md`.
+
+**Consumes / Produces.** Consumes 9.6's `AttestedMessage`. Produces a profile stating, per transport,
+which fields are required, which are optional, and **what the profile does not constrain**.
+
+**Bound strength.** **Tier C, observed.** A profile is a document. Its one testable property is that a
+message failing the profile is refused by our side, which is Tier B for our endpoint only and nothing
+at all for the peer's.
+
+**Exit gate.** A message that does not satisfy the profile is refused at our endpoint, with a
+conforming control accepted; and the profile contains an explicit "does not constrain" section that a
+test asserts is non-empty.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.9 -b feat/transport-interop-profile origin/main`
+- [ ] **Step 2 — Record what MCP actually supports,** including the forwarding gap the README discloses.
+- [ ] **Step 3 — Failing test: a non-conforming message is refused at our endpoint.** Paired control.
+- [ ] **Step 4 — Failing test: the "does not constrain" section is non-empty.**
+- [ ] **Step 5 — Profile both transports against 9.6's required fields.**
+- [ ] **Step 6 — State the mediation ceiling in the profile,** in the defensible form.
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
 ## Phase 10 — Evidence depth and custody
 
 Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 10. Needs Phase 1, Phase 5.
-Seeded tasks only; the rest of this phase is scope rows awaiting seeding.
 
 ### Task 10.1: The causal verdict — STRICT_CAUSAL, made real (L7-01)
 
@@ -18612,6 +19061,116 @@ that kills the reader mid-stream rather than by a comment saying it is resumable
 - [ ] **Step 8 — Wire the crate into the shipping path; census count must not fall.**
 - [ ] **Step 9 — Gates, evidence file, `git commit -s`.**
 
+### Task 10.3: Evidence-integrity monitors and multi-modal correlation (L7-14, L7-19)
+
+**Anchor.** L7-14 `core` W2; L7-19 `core` W2; both `status=none`. **The monitors must be able to fail
+loudly about the store they live in, which means they cannot live only in it.** A monitor whose alert
+path is the thing it monitors is not a monitor.
+
+**Step 0.** Read `rust/archive/src/store.rs`, `http.rs` and the append-only tests, and record what
+integrity the store already guarantees and at what tier. Read the already-seeded Task 10.1 (the
+chained receipt) — integrity monitoring is over chains, so record whether it has landed. Read Task 4.2
+for a delivery path that is not the archive.
+
+**Non-goals.** Not custody or escrow — Task 10.6. Not the query surface — Task 10.2. Not retention —
+10.4.
+
+**Files.** `rust/archive/src/store.rs` (**contended**), a monitor module,
+`docs/task-evidence/task-10.3.md`.
+
+**Consumes / Produces.** Consumes the archive store and Task 10.1's chains. Produces integrity
+monitors with an alert path **independent of the archive**, and correlation across receipt, log and
+conformance-report modalities.
+
+**Bound strength.** **Tier B, chokepoint** for detection at the monitor; the tamper-evidence itself is
+**Tier A** and comes from the signature chain, not from the monitor. Attribute each property to its
+real source rather than crediting the monitor with the crypto.
+
+**Exit gate.** A tampered chain is detected **and** the alert is delivered over a path that does not
+traverse the archive, proven by a test that disables the archive and still receives the alert.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.3 -b feat/evidence-integrity-monitors origin/main`
+- [ ] **Step 2 — Confirm Task 10.1 landed; record what integrity the store already gives.**
+- [ ] **Step 3 — Failing test: a tampered chain is detected.**
+- [ ] **Step 4 — Failing test: the alert arrives with the archive disabled.** The whole point.
+- [ ] **Step 5 — Correlation across receipt, log and conformance modalities.**
+- [ ] **Step 6 — Attribute tamper-evidence to the signature chain, not to the monitor.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 10.4: Evidence retention, jurisdiction policy, cross-run credential-flow tracing (L7-12, L7-10)
+
+**Anchor.** L7-12 `core` W2 `status=partial`; L7-10 `novel` W2. **`retention.rs` already counts
+`default_subjects` — the honest-disclosure half exists** and should be extended, not replaced.
+**Credential flow across runs is the hop the incident used and no receipt spans it**: a credential
+read in one warrant and used in another is invisible to a per-warrant receipt.
+
+**Step 0.** Read `retention.rs` in full and record exactly what `default_subjects` counts and how it is
+surfaced. Read the already-seeded Task 10.6 — **escrow and retention conflict by construction**, since
+a retention policy that deletes can destroy escrowed evidence; record the resolution or stop. Read
+Task 10.1's chain: cross-run tracing needs a chain that spans warrants, so record whether 10.1's
+prior-receipt digest crosses warrant boundaries or only acts within one.
+
+**Non-goals.** Not custody — 10.6. Not residency mapping — Task 14.6. Not the credential vault —
+Task 9.1. Never lead with the EU; anchors are US model-risk supervision, RBI and DPDP, and Gulf
+frameworks.
+
+**Files.** `retention.rs`, `rust/archive/`, `docs/task-evidence/task-10.4.md`.
+
+**Consumes / Produces.** Consumes `default_subjects` and Task 10.1's chains. Produces a retention
+policy with a jurisdiction dimension, and a credential-flow trace that spans runs.
+
+**Bound strength.** **Tier B, chokepoint** for retention enforcement at the store; **Tier C** for the
+credential trace, which observes what receipts recorded and cannot see a credential copied outside the
+system.
+
+**Exit gate.** A credential read in one warrant and used in another produces a trace linking both, and
+a retention deletion that would remove escrowed evidence is refused; the jurisdiction dimension selects
+policy with no network call.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.4 -b feat/retention-and-credential-flow origin/main`
+- [ ] **Step 2 — Record what `default_subjects` counts. Resolve the escrow conflict with 10.6.**
+- [ ] **Step 3 — Failing test: a cross-run credential use is traced.** The incident's hop.
+- [ ] **Step 4 — Failing test: deleting escrowed evidence is refused.** Paired allowed control.
+- [ ] **Step 5 — Jurisdiction dimension, selected with no network call.**
+- [ ] **Step 6 — Failing test: what retention does NOT cover is counted and surfaced,** extending the existing mechanism.
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 10.5: Exception, waiver and compensating-control lifecycle; control-effectiveness sampling (L7-16, L7-17)
+
+**Anchor.** L7-16 `core` W2; L7-17 `novel` W3; both `status=none`. **Every real deployment grants
+exceptions.** An exception with no expiry and no compensating control is a silent policy edit — and it
+is the mechanism by which a governed system becomes an ungoverned one without anybody deciding to.
+
+**Step 0.** Read the policy path and record whether any exception mechanism exists today; if operators
+currently achieve exceptions by editing policy, that is the finding and it belongs in the anchor. Read
+the already-seeded Task 8.2 (risk dial) — a dial loosening and an exception are close cousins, so
+record whether they are one mechanism. Read `docs/W1-delivery-gaps.md` for the disclosure habit these
+records should follow.
+
+**Non-goals.** Not the risk dial — 8.2. Not the waiver UI — Task 11.3. Not the ownership register —
+Task 13.8.
+
+**Files.** A lifecycle module, the policy path (**contended**), `docs/task-evidence/task-10.5.md`.
+
+**Consumes / Produces.** Consumes the policy engine. Produces exceptions that **must** carry an expiry
+and a compensating control, expire automatically, and are sampled for effectiveness on a schedule.
+
+**Bound strength.** **Tier B, chokepoint.** An exception without an expiry cannot be created — that is
+a real refusal point. Effectiveness sampling is **Tier C, observed**.
+
+**Exit gate.** An exception without an expiry or a compensating control is **refused at creation**,
+with a complete one accepted; an expired exception stops taking effect without anybody acting; and
+sampling produces a record for each active exception.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.5 -b feat/exception-lifecycle origin/main`
+- [ ] **Step 2 — Record how exceptions are achieved today.** If it is policy editing, say so.
+- [ ] **Step 3 — Failing test: an exception without an expiry is refused.** Paired complete control.
+- [ ] **Step 4 — Failing test: an exception without a compensating control is refused.**
+- [ ] **Step 5 — Failing test: an expired exception stops applying with no human action.**
+- [ ] **Step 6 — Effectiveness sampling per active exception.**
+- [ ] **Step 7 — Record whether this and 8.2 are one mechanism.**
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
 ### Task 10.6: Chain of custody, trace escrow, and the independent-investigator access mode (L7-08, L7-18, L7-15)
 
 **Anchor.** L7-08 `novel` W3, L7-18 `novel` W3, L7-15 `novel` W3, all `status=none`. **The operator
@@ -18698,10 +19257,575 @@ and the product text states that a monitored trace is not a faithful trace.
 - [ ] **Step 7 — Write the incentive problem into the product text:** monitoring reasoning pressures models to hide it.
 - [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
 
+### Task 10.8: Key ceremony and rotation runbook, receipted (L1-06)
+
+**Anchor.** `status=none`, `core`, W2. **A rotation nobody can prove happened is a rotation that did
+not.** Every receipt in this system is signed; the key that signs them has no documented ceremony, no
+rotation path, and no record that either occurred.
+
+**Step 0.** Read `rust/trust-core/src/cli.rs` (Ed25519 `key-gen`, `sign`, `verify`, lines 4–91) and
+`rust/notary/src/lib.rs`'s `SignatureEnvelope` (line 325) with its `key_id` field — **`key_id` is the
+rotation hook and it already exists**. Record how a verifier resolves `key_id` to a key today. Read
+Task 1.6's trust bundle for out-of-band pinning. Read Task 10.10 (`human`, sovereign topologies) and
+record what this task must not assume.
+
+**Non-goals.** Not a key management service. **No new trust root** — no key server. Not post-quantum
+— Task 10.9. Not custody topologies — 10.10.
+
+**Files.** `rust/trust-core/`, a runbook under `docs/`, `docs/task-evidence/task-10.8.md`.
+
+**Consumes / Produces.** Consumes `key_id` and Task 1.6's pinning. Produces a receipted rotation
+operation and a runbook whose steps are executed by a test, not merely written.
+
+**Bound strength.** **Tier A for the signature continuity** — a receipt signed under an old key still
+verifies because `key_id` resolves it — and **Tier C for the ceremony**, which is a documented process
+a human follows. Do not let the runbook's existence imply enforcement.
+
+**Exit gate.** A rotation produces a receipt naming both key ids and the moment of transition;
+receipts signed under the previous key still verify afterward, proven with a frozen pre-rotation
+fixture; and the runbook's steps are exercised by a test rather than described.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.8 -b feat/key-rotation-runbook origin/main`
+- [ ] **Step 2 — Record how `key_id` resolves today.**
+- [ ] **Step 3 — Failing test: a pre-rotation receipt verifies after rotation.** Freeze the fixture first.
+- [ ] **Step 4 — Failing test: rotation produces a receipt naming both key ids.**
+- [ ] **Step 5 — Failing test: the runbook's steps execute in a test.**
+- [ ] **Step 6 — State what the ceremony does not establish** without the 10.10 custody half.
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 10.9: Post-quantum dual signature and composite attestation chain (L1-03, L1-04)
+
+**Anchor.** L1-03 `core` W3 `status=partial`; L1-04 `compose` W3. **Records outlive their algorithms.**
+Dual-sign now or re-sign under duress later — and re-signing an append-only archive later is precisely
+the operation the archive is designed to make impossible.
+
+**Step 0.** Read `rust/post-quantum/` in full, record what it implements, and confirm from
+`evidence/wiring-coverage.json` whether `warrantor-post-quantum` is an orphan (it is). Read
+`SignatureEnvelope` (`rust/notary/src/lib.rs:325`) — it has a single `algorithm` field, so **dual
+signature is a format change**; read the already-seeded Task 10.1, which also changes the signed body,
+and **record the ordering between them or stop**. Read the archive interop fixtures that pin
+verification.
+
+**Non-goals.** Not key custody — 10.8 and 10.10. Not selecting a PQ algorithm from first principles;
+use what `rust/post-quantum/` already holds and state its parameters.
+
+**Files.** `rust/notary/src/lib.rs`, `rust/post-quantum/`, `rust/warrant/Cargo.toml` (**contended**
+wiring edge), `docs/task-evidence/task-10.9.md`.
+
+**Consumes / Produces.** Consumes `SignatureEnvelope` and the PQ crate. Produces a composite envelope
+carrying both signatures, and a verifier that accepts either while both are valid.
+
+**Bound strength.** **Tier A** for tamper-evidence under the classical algorithm today and under the
+PQ algorithm if the classical one falls — that is the whole point and it is a genuine Tier A claim.
+State the parameter set, because a PQ signature at the wrong parameters is a claim without a
+mechanism.
+
+**Exit gate.** A receipt carries two signatures and verifies with either alone; a receipt with one
+valid and one invalid signature is **refused**, not accepted on the good one; `warrantor-post-quantum`
+is wired in and the census reachable count rises.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.9 -b feat/post-quantum-dual-signature origin/main`
+- [ ] **Step 2 — Record the ordering against Task 10.1.** Both change the signed body. Stop if unresolved.
+- [ ] **Step 3 — Failing test: a single-signature receipt still verifies.** v1 compatibility first.
+- [ ] **Step 4 — Failing test: one valid and one invalid signature is refused.** The subtle case.
+- [ ] **Step 5 — Composite envelope; state the PQ parameter set explicitly.**
+- [ ] **Step 6 — Wire `post-quantum` in; census count must rise.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 10.10: Sovereign key topologies (L1-05)
+
+**Anchor.** `status=none`, `core`, W3. **Routed `human`.** The GCC and India deployments need custody
+that never leaves the jurisdiction, and this is a topology question before it is a cryptographic one:
+where the key material physically is, who can be compelled to produce it, and what the deployment
+looks like when the answer must be "nobody here can."
+
+**Why `human`.** Task 3.2 is routed `human` for the same reason — hardware-backed custody needs a TPM
+or an OS keystore **observed executing**, and no agent in this fleet has one. This task additionally
+requires decisions about legal exposure and jurisdiction that are the owner's to make, not a model's.
+
+**Step 0.** Read Task 3.2's section and Task 10.8's rotation. Enumerate the deployment topologies the
+primary markets require: US and North America, the GCC, India. For each, record where key material
+would live, what compels its production, and what breaks if it cannot leave. Read Task 14.5's
+air-gapped profile, which depends on this.
+
+**Non-goals.** Not implementing a hardware adapter — Task 3.2. Not rotation — 10.8. Not the air-gapped
+profile — Task 14.5.
+
+**Files.** A topology document, `docs/task-evidence/task-10.10.md`.
+
+**Consumes / Produces.** Consumes Task 3.2's `Signer` trait if it has landed. Produces a topology per
+market and a statement of what each does and does not establish.
+
+**Bound strength.** Unknown until the topology is chosen, and that is the honest answer. A topology
+document makes no claim; the adapter that implements it does. **Do not let this task's existence imply
+sovereign custody is available.**
+
+**Exit gate.** A topology per primary market, each stating where key material lives and what compels
+its production; and an explicit statement in `docs/W1-delivery-gaps.md` that sovereign custody is
+**not implemented**, with this task named as the design and Task 3.2 as the mechanism.
+
+- [ ] **Step 1 — Read Task 3.2 and Task 10.8 first.** This is design work, not implementation.
+      `git worktree add M:/wt-10.10 -b docs/task-10.10-sovereign-key-topologies origin/main`
+- [ ] **Step 2 — Enumerate topologies per market with their compulsion assumptions.**
+- [ ] **Step 3 — Record what breaks in each if key material cannot leave.**
+- [ ] **Step 4 — State plainly in the gaps ledger that sovereign custody is not implemented.**
+- [ ] **Step 5 — Hand off to Task 3.2 and Task 14.5 with the topology chosen.**
+
+## Phase 11 — The operator estate
+
+Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 11. Needs Phase 4. Off the dependency spine: built against frozen contract fixtures, so it runs parallel to the Rust lanes.
+
+**Phase-wide constraints, stated once so the thirteen tasks below do not restate them.**
+
+- **All thirteen are `minimax-m3`, on ONE branch, sequential.** Every task's Step 1 is
+  `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface`,
+  and after the first task the worktree already exists. Thirteen parallel branches on `console.js`
+  would be Wave 1's seven-way conflict cubed.
+- **Vanilla JavaScript.** `console.js` is 1,824 lines before Wave 1's four surfaces; desktop is
+  Electron with zero runtime dependencies. No TypeScript, no framework, no bundler, no runtime
+  dependency. If `console.js` growth demands a split into plain ES modules, raise it **before Task
+  11.3** and wait for a decision.
+- **The rule that overrides every design instinct:** no screen, badge, summary, export or status may
+  collapse observed, advisory, mediated and enforced into one green state, and every rendered
+  guarantee must also render what it does **not** cover. Wave 1's
+  `tier: not stated — do not read this as the strongest tier` fallback is the pattern to generalize.
+- **Build against frozen contract fixtures, no backend running.** A fixture that does not exist is
+  defined in the shape the contract specifies, marked as a fixture, and listed in the report with the
+  contract field it maps to. Never invent a field the contract does not have.
+- **Console test count must be strictly greater after every task.** A count that holds or falls means
+  a conflict resolution or a refactor dropped tests.
+- **Bound strength for every task in this phase is Tier C, observed** — a surface renders, it does not
+  refuse — **except** where a task names a specific refusal point in its own Exit gate. Do not let a
+  rendered guarantee imply an enforced one.
+- Accessibility is a release gate, not polish. Do not run `cargo`. `git commit -s`. US English in all
+  UI copy, labels and alt text.
+
+### Task 11.1: Fleet console and the agent inventory register (L8-02, L8-08)
+
+**Anchor.** L8-02 `status=partial`, L8-08 `status=none`, both `core` W2. **An inventory that lists
+agents but not their authority is a nameplate, not a register.** The question a fleet console must
+answer is not "what is running" but "what is each of these permitted to do, and what has it done."
+
+**Step 0.** Read the consolidated `console.js` in full and record what fleet-level view exists.
+Read Task 10.2's receipt query language — **this console is one of its five consumers**; if 10.2 has
+not landed, define the fixture in its grammar's shape rather than inventing a reader. Read Task 13.1
+(shadow-agent discovery) and record the boundary: 13.1 finds unregistered agents, this renders the
+register. Read `evidence/wiring-coverage.json` — a fleet view that shows nine reachable planes out of
+thirty-eight is the honest picture.
+
+**Non-goals.** Not discovery — 13.1. Not the incident view — 11.2. Not the executive roll-up — 11.10.
+
+**Files.** `rust/warrant/src/console/console.js`, `console.test.js`, `index.html`, a fixture set,
+`docs/task-evidence/task-11.1.md`.
+
+**Exit gate.** Every agent row renders its authority and its enforcement tier, never a status alone;
+an agent whose authority cannot be resolved renders as **unresolved**, not as unrestricted.
+
+- [ ] **Step 1 — Worktree; read the consolidated console in full.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Failing test: a row without an authority column is rejected by the renderer.**
+- [ ] **Step 3 — Failing test: unresolved authority renders as `unresolved`, never blank or permissive.**
+- [ ] **Step 4 — Fleet view from fixtures, no backend.**
+- [ ] **Step 5 — Failing test: the register renders per-agent coverage limits.**
+- [ ] **Step 6 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.2: Incident console; containment latency and exercised blast-radius bounds (L8-03, L8-25)
+
+**Anchor.** Both `core`, `status=none`, W2. **A blast-radius bound that has never been exercised is an
+estimate. Render the distribution, not the claim.** A single number for containment latency is the
+most misleading thing this estate could display, because the tail is the whole risk.
+
+**Step 0.** Read Task 8.8 (isolation conformance and adaptive escape rehearsal) — **it produces the
+exercised measurements this surface renders**, and if it has not landed the fixture must carry a
+distribution shape with an explicit "never exercised" state. Read `rust/warrant/src/harness.rs`'s
+`Coverage` enum (line 67) — the honest-disclosure mechanism already exists; use it. Read Task 3.5
+(machine-speed response policy) for what an incident action is.
+
+**Non-goals.** Not running the rehearsals — Task 8.8. Not the response policy — Task 3.5. Not the
+regulator view — 11.9.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, a fixture set,
+`docs/task-evidence/task-11.2.md`.
+
+**Exit gate.** Containment latency renders as a distribution with p50 and p99, and a bound never
+exercised renders as **"not exercised"** rather than as a value; a test asserts no single-number
+latency appears anywhere in the surface.
+
+- [ ] **Step 1 — Worktree.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Failing test: a single-number latency is rejected by the renderer.**
+- [ ] **Step 3 — Failing test: an unexercised bound renders as `not exercised`.**
+- [ ] **Step 4 — Distribution rendering, p50 and p99, from fixtures.**
+- [ ] **Step 5 — Failing test: the blast-radius figure carries its exercise date.**
+- [ ] **Step 6 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.3: Policy studio for non-developers (L8-04)
+
+**Anchor.** `core`, `status=none`, W2. **The compiler already refuses; the studio must refuse in the
+same words**, or the two disagree and the studio wins in the user's head. A studio that accepts a
+policy the compiler will reject has taught the operator something false about their own controls.
+
+**Step 0.** Read Task 6.1 (warrant templates and a policy-compiler surface) and record the compiler's
+exact refusal messages — **transcribe them, do not paraphrase**. Read Task 10.5 (exception lifecycle):
+an exception created in the studio must carry an expiry and a compensating control, because the
+lifecycle refuses one that does not. **This is the task where the `console.js` size question must be
+raised if it is going to be raised at all.**
+
+**Non-goals.** Not the compiler — Task 6.1. Not the exception lifecycle — Task 10.5. Not authoring
+policy content.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, a fixture set,
+`docs/task-evidence/task-11.3.md`.
+
+**Exit gate.** For every compiler refusal, the studio produces the **same message text**, asserted by a
+test that iterates the compiler's refusal set; and a policy the studio accepts always compiles.
+
+- [ ] **Step 1 — Worktree. Raise the `console.js` split question now if at all.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Transcribe the compiler's refusal messages into a fixture.**
+- [ ] **Step 3 — Failing test: studio and compiler refuse with identical text.** Iterate the whole set.
+- [ ] **Step 4 — Failing test: a studio-accepted policy compiles.** No exceptions.
+- [ ] **Step 5 — Failing test: an exception without expiry or compensating control cannot be built.**
+- [ ] **Step 6 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.4: Audit workbench and evidence pack generator (L8-05, L8-10)
+
+**Anchor.** Both `core`, `status=none`, W2. **The pack must verify offline, on a machine that never
+touched this deployment.** Everything else in this estate exports through it, which is why it is
+**first** in the phase order.
+
+**Step 0.** Read `rust/archive/tests/verification_does_not_depend_on_the_archive.rs` — that test name is
+the contract this pack must satisfy, and it already exists. Read Task 10.6 (custody and escrow) and
+record what a pack must carry to be admissible. Read Task 10.2's query grammar; the workbench is its
+consumer. Read Task 10.1's chain — a pack of unchained receipts cannot show a pathway.
+
+**Non-goals.** Not the escrow mode — Task 10.6. Not the regulator portal — 11.9. Not the crosswalk —
+11.8.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, a pack format, a fixture set,
+`docs/task-evidence/task-11.4.md`.
+
+**Exit gate.** A generated pack verifies with **no network and no access to this deployment**, proven
+by a test that verifies it in a clean directory with networking disabled; and the pack states what it
+does not contain.
+
+- [ ] **Step 1 — Worktree.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Failing test: a pack verifies in a clean directory, networking disabled.**
+- [ ] **Step 3 — Failing test: the pack declares what it does not contain.** Silence is not completeness.
+- [ ] **Step 4 — Failing test: every receipt in the pack carries its enforcement tier.**
+- [ ] **Step 5 — Workbench over the pack, from fixtures.**
+- [ ] **Step 6 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.5: Plain-language scope and dependency-aware partial approval (L8-14, L8-15)
+
+**Anchor.** Both `core`, `status=none`, W2. **Releasing part of a batch must not silently release
+dependent effects.** Wave 1's Task 4.1 built the approval queue; this is its consequence model, and
+the failure it prevents is an approver releasing one item and unknowingly releasing four.
+
+**Step 0.** Read Task 4.1's committed work on `feat/task-4.1-buyers-surface` — commit `049be88`,
+`queue.fixtures.js` — and extend it rather than rebuilding. Read Task 2.3 (two-phase staged effects)
+for what a dependency between staged effects is; if it has not landed, the fixture must define the
+dependency shape. Read the already-seeded Task 7.5's reversibility descriptor — a consequence preview
+that does not distinguish reversible from irreversible is not a preview.
+
+**Non-goals.** Not the queue — Task 4.1. Not approval-quality instrumentation — 11.6. Not the policy
+studio — 11.3.
+
+**Files.** `console.js`, `console.test.js`, `queue.fixtures.js`, `index.html`,
+`docs/task-evidence/task-11.5.md`.
+
+**Exit gate.** Approving one item of a batch with a dependent effect **surfaces the dependent before
+the approve control is reachable**, and a test asserts the dependent stays staged when only its
+prerequisite is released.
+
+- [ ] **Step 1 — Worktree; read Task 4.1's queue in full.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Failing test: a dependent effect is shown before approve is reachable.**
+- [ ] **Step 3 — Failing test: releasing a prerequisite does not release its dependent.**
+- [ ] **Step 4 — Failing test: the preview distinguishes reversible from irreversible.**
+- [ ] **Step 5 — Plain-language scope rendering, asserted for reading level.**
+- [ ] **Step 6 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.6: Approval quality, cognitive load, automation bias, oversight yield (L8-17, L8-23)
+
+**Anchor.** L8-17 `novel` W3; L8-23 `novel` W3; both `status=none`. **A disagreement rate trending to
+zero while latency improves is rubber-stamping.** Instrument it or the queue becomes ceremony — and
+ceremony is worse than no control, because it produces a signed record of governance that did not
+happen.
+
+**Step 0.** Read Task 4.1's queue and its latency budget. Enumerate every UI element that could reward
+approval rate — counters, streaks, sort orders that favor the quick path, badges — and record them;
+**the removal list is part of the deliverable.** Read Task 11.5's dependency model.
+
+**Non-goals.** Not the queue — 4.1. Not partial approval — 11.5. Not the executive view — 11.10.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, a fixture set,
+`docs/task-evidence/task-11.6.md`.
+
+**Exit gate.** The disagreement rate renders beside the latency figure and **cannot be hidden**;
+nothing in the UI rewards approval rate, asserted by a test over the enumerated list; and a
+disagreement rate at zero renders as a warning, not as success.
+
+- [ ] **Step 1 — Worktree.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Enumerate every element that could reward approval rate.** Commit the list.
+- [ ] **Step 3 — Failing test: no enumerated element rewards approval rate.**
+- [ ] **Step 4 — Failing test: a zero disagreement rate renders as a warning.**
+- [ ] **Step 5 — Failing test: latency cannot render without disagreement beside it.**
+- [ ] **Step 6 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.7: Accessibility as a control property; onboarding and first run (L8-18, L8-12)
+
+**Anchor.** L8-18 `core` `status=none`; L8-12 `core` `status=partial`; both W2. **An access barrier
+inside a safety-critical workflow is a control failure, not a polish item.** If an approver using a
+screen reader cannot reach the deny control, the default-deny timeout is the only control that
+functions — and that is a degraded system, not an accessible one.
+
+**Step 0.** Read `feat/console-first-run` if it still exists and record what onboarding already
+covers, plus what `status=partial` refers to. Audit the consolidated console's approval and incident
+paths against WCAG 2.2 AA specifically for **keyboard-only** and **screen-reader** operation of the
+deny and stop controls. Record every failure; the list is the deliverable. **Do this before the
+estate triples in size, not after.**
+
+**Non-goals.** Not a redesign. Not the notification transports — Task 4.2. Not localization —
+Task 14.9.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, `console.css`,
+`docs/task-evidence/task-11.7.md`.
+
+**Exit gate.** Deny and stop are reachable and operable by keyboard alone and by screen reader alone
+on every surface that offers them, asserted by tests rather than by an audit document; and any surface
+that fails is listed as non-conforming rather than shipped silently.
+
+- [ ] **Step 1 — Worktree.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Audit deny and stop for keyboard-only and screen-reader operation.** Commit the failure list.
+- [ ] **Step 3 — Failing test: deny is operable by keyboard alone on every surface.**
+- [ ] **Step 4 — Failing test: stop is announced by a screen reader.**
+- [ ] **Step 5 — Failing test: a non-conforming surface is listed, not silently shipped.**
+- [ ] **Step 6 — First-run flow that reaches a first receipt without a terminal.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.8: Framework crosswalk engine and the board safety-case pack (L8-09, L8-26)
+
+**Anchor.** L8-09 `novel` W2; L8-26 `core` W3; both `status=none`. **A crosswalk that maps a control to
+a clause it does not satisfy is worse than no crosswalk.** Every mapping carries its evidence or is
+marked unmapped, and unmapped must be a rendered state rather than an empty cell.
+
+**Step 0.** Read the already-seeded Task 14.4 (technical standards crosswalk) — **it produces the
+mapping data this engine renders**, and it carries the standards-landscape memory as binding because
+this repository has already propagated one false standards claim across four artifacts. If 14.4 has not
+landed, the fixture must carry the quote-date-status triple its rows require. **Regulatory anchors that
+lead: US model-risk supervision — Fed SR 26-2 / OCC Bulletin 2026-13, 17 April 2026 — plus RBI and
+DPDP for India and Gulf supervisory frameworks. The EU is a passing mention only, never the lead. Never
+cite SR 11-7 as current.**
+
+**Non-goals.** Not authoring the crosswalk data — 14.4. Not the regulator portal — 11.9. Not the
+executive risk view — 11.10.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, a fixture set,
+`docs/task-evidence/task-11.8.md`.
+
+**Exit gate.** No mapping renders without its quoted evidence and source date; `unmapped` renders as a
+visible state; and a test asserts no row claims a clause is satisfied without a citation a reader can
+check.
+
+- [ ] **Step 1 — Worktree.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Failing test: a mapping without a quote and a date is rejected.**
+- [ ] **Step 3 — Failing test: `unmapped` renders visibly, never as a blank cell.**
+- [ ] **Step 4 — Failing test: no surface cites SR 11-7 as current.**
+- [ ] **Step 5 — Board pack export, verifying offline through Task 11.4's generator.**
+- [ ] **Step 6 — Run the prose gate; the EU never leads.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.9: Supervisor/regulator portal and the customer trust center (L8-06, L8-28)
+
+**Anchor.** L8-06 `novel` W3; L8-28 `core` W3; both `status=none`. **Both are read-only views of the
+same receipts. If they can disagree, one of them is a marketing surface.** That is the assertion this
+task must make testable, not merely observe.
+
+**Step 0.** Read Task 10.2's query grammar and Task 10.6's investigator access mode — **the portal must
+not be able to show a filtered view that verifies**, which is 10.6's cryptographic property, not a UI
+permission. Read Task 11.4's pack generator; both surfaces export through it. Record what the trust
+center may show a prospect who is not yet a customer.
+
+**Non-goals.** Not the escrow mode — 10.6. Not the crosswalk engine — 11.8. Not marketing copy.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, a fixture set,
+`docs/task-evidence/task-11.9.md`.
+
+**Exit gate.** A **differential test** issues the same query through both surfaces and asserts
+byte-identical results; and any figure the trust center shows is reachable from the portal with the
+same value.
+
+- [ ] **Step 1 — Worktree.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Failing test: both surfaces return byte-identical results for one query.** The whole task.
+- [ ] **Step 3 — Failing test: neither surface can render a filtered view that verifies.**
+- [ ] **Step 4 — Failing test: every trust-center figure is reachable from the portal.**
+- [ ] **Step 5 — Both surfaces from one reader, from fixtures.**
+- [ ] **Step 6 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.10: Executive risk view; exposure budget and risk-appetite ledger (L8-07, L8-21)
+
+**Anchor.** L8-07 `core` W3; L8-21 `novel` W2; both `status=none`. **Risk appetite that is not a number
+the system enforces is a slide.** The executive view's failure mode is a green dial computed from
+controls that are Tier C observed, presented with the confidence of Tier A.
+
+**Step 0.** Read the already-seeded Task 8.2 (risk dial) and Task 8.4 (population budget ledger) —
+**this surface renders their state and must not compute its own**. Read `evidence/wiring-coverage.json`:
+an exposure figure that ignores the 29 orphaned crates is wrong, and the census is how the surface
+knows. Read Task 11.11's autonomy expansion ledger.
+
+**Non-goals.** Not the runtime dial — 8.2. Not the budget ledger — 8.4. Not the autonomy ledger —
+11.11.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, a fixture set,
+`docs/task-evidence/task-11.10.md`.
+
+**Exit gate.** Every roll-up figure renders the **weakest** tier among its inputs, not the strongest or
+an average; and a test asserts no aggregate presents Tier C inputs without saying so.
+
+- [ ] **Step 1 — Worktree.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Failing test: a roll-up renders the weakest input tier.** Never an average.
+- [ ] **Step 3 — Failing test: an exposure figure accounts for unmediated coverage,** via the census.
+- [ ] **Step 4 — Failing test: risk appetite renders as an enforced number or as `advisory`.**
+- [ ] **Step 5 — Executive view from fixtures, reading 8.2 and 8.4 state.**
+- [ ] **Step 6 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.11: Outcome contract, baseline, attestation; safe-autonomy expansion ledger (L8-20, L8-24)
+
+**Anchor.** L8-20 `core` W2; L8-24 `novel` W3; both `status=none`. **Autonomy should widen on evidence
+and narrow on incident, and both directions must be receipted.** A ledger that records widening but not
+narrowing is a growth chart.
+
+**Step 0.** Read the already-seeded Task 8.2 — its dial records loosening in both directions and **this
+must not be a second mechanism**; record whether the ledger is a rendering of 8.2's receipts or a
+distinct record, and if distinct, say why. Read Task 11.6's oversight-yield instrumentation, which is
+the evidence a widening decision should rest on.
+
+**Non-goals.** Not the runtime dial — 8.2. Not the executive view — 11.10. Not outcome measurement
+itself.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, a fixture set,
+`docs/task-evidence/task-11.11.md`.
+
+**Exit gate.** A widening entry cannot be recorded without the evidence it rests on and a narrowing
+path; and a test asserts the ledger renders narrowing events with the same prominence as widening.
+
+- [ ] **Step 1 — Worktree.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Record whether this is 8.2's rendering or a distinct record.**
+- [ ] **Step 3 — Failing test: widening without cited evidence is rejected.**
+- [ ] **Step 4 — Failing test: narrowing renders with equal prominence.**
+- [ ] **Step 5 — Failing test: the baseline an outcome contract is measured against is rendered.**
+- [ ] **Step 6 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.12: Notice, rights, appeal, contestability; role competency assurance (L8-19, L8-16)
+
+**Anchor.** L8-19 `novel` W3; L8-16 `novel` W3; both `status=none`. **The affected party is not the
+operator.** This is the only surface in the estate built for someone outside the buying organization,
+and every design instinct in the rest of the phase — serve the operator, render the fleet — is wrong
+here.
+
+**Step 0.** Read Task 10.6's investigator access mode: an affected party is not an investigator, but
+the non-filterability property is the same and must not be re-derived. Read Task 11.9's portal.
+Enumerate what an affected party can be told without disclosing another party's data — that boundary
+is the design problem. **Anchors for notice and contestability obligations: India's DPDP and Gulf
+supervisory frameworks alongside US sectoral duties; the EU is a passing mention only.**
+
+**Non-goals.** Not the regulator portal — 11.9. Not escrow — 10.6. Not legal advice.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, a fixture set,
+`docs/task-evidence/task-11.12.md`.
+
+**Exit gate.** An affected party can see the decision that concerned them, its basis, and a route to
+contest it, **without** seeing another party's receipts — asserted by a test that attempts
+cross-party disclosure and is refused; and role competency is rendered per approver, with `unassessed`
+as a visible state.
+
+- [ ] **Step 1 — Worktree.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Enumerate the disclosure boundary.** Commit it.
+- [ ] **Step 3 — Failing test: cross-party disclosure is refused.**
+- [ ] **Step 4 — Failing test: the decision basis is rendered, not just the outcome.**
+- [ ] **Step 5 — Failing test: a contest route exists and is reachable without a terminal.**
+- [ ] **Step 6 — Role competency per approver, `unassessed` rendered visibly.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 11.13: Natural-language console over the receipt graph (L8-27)
+
+**Anchor.** `core`, `status=none`, W2. **The one place an LLM belongs in this product.** It must cite
+receipts and **refuse to answer beyond them** — a natural-language surface over a governance system
+that speculates is the single most damaging feature this estate could ship, because it produces
+confident prose with the authority of the evidence layer.
+
+**Step 0.** Read Task 10.2's query grammar — **this surface compiles a question into that grammar and
+answers only from what returns.** If 10.2 has not landed, stop: a natural-language layer over an
+invented reader is exactly the wrong order. Read Task 10.7 (reasoning-trace monitoring) for the honest
+framing of what a model's output is worth here. **Last in the phase, deliberately.**
+
+**Non-goals.** Not summarizing beyond the receipts. Not a chat assistant. Not the audit workbench —
+11.4.
+
+**Files.** `console.js`, `console.test.js`, `index.html`, a fixture set,
+`docs/task-evidence/task-11.13.md`.
+
+**Exit gate.** Every answer carries the receipt identifiers it rests on, and a question that cannot be
+answered from the graph returns **"not answerable from the receipts"** rather than an inference —
+asserted by a test that asks an unanswerable question and rejects any non-refusal.
+
+- [ ] **Step 1 — Worktree. Confirm Task 10.2 landed; stop if not.**
+      `git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface` — one branch for the whole phase; after Task 11.1 it exists.
+- [ ] **Step 2 — Failing test: an unanswerable question returns a refusal, not an inference.**
+- [ ] **Step 3 — Failing test: every answer cites receipt identifiers.**
+- [ ] **Step 4 — Failing test: no answer asserts an enforcement tier stronger than the receipt's.**
+- [ ] **Step 5 — Question compiles to the 10.2 grammar; answers only from results.**
+- [ ] **Step 6 — Gates, evidence file, `git commit -s`.**
+
 ## Phase 12 — The learning flywheel
 
 Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 12. Needs Phase 10.
-Seeded tasks only; the rest of this phase is scope rows awaiting seeding.
+
+### Task 12.1: Automated corpus extraction from the live graph (L9-01)
+
+**Anchor.** `core`, `status=none`, W2. **The flywheel's input.** Until this exists every corpus is
+hand-built and every result is a one-off — which is exactly the state the ML lane has been in through
+five trained recipes, none promotable. This task is what makes "flywheel" a mechanism rather than a
+diagram.
+
+**Step 0.** Read Task 10.2's receipt query language — **this is one of its five named consumers and it
+must not build a second reader**; if 10.2 has not landed, stop rather than inventing a query path. Read
+`python/warrantor_ml/src/warrantor_ml/build_corpus.py` and `datasets.py` and record how corpora are
+built today. Read Task 5.5 (per-tenant isolation) and the already-seeded Task 12.5: **extraction from a
+live graph crosses tenant boundaries by default**, and that is a commercial exposure, so record the
+isolation this depends on.
+
+**Non-goals.** Not the refusal corpus — Task 12.2. Not the dataset format — 12.8. Not training. Not
+building a query surface — 10.2.
+
+**Files.** `python/warrantor_ml/`, `docs/task-evidence/task-12.1.md`.
+
+**Consumes / Produces.** Consumes Task 10.2's grammar and Task 5.5's tenant identity. Produces an
+extraction pipeline where **every row carries the receipt identifier it came from** and no row crosses
+a tenant boundary without an explicit grant.
+
+**Bound strength.** **Tier C, observed** — extraction is a read path. Its one enforceable property is
+the tenant partition, which is Tier B if it refuses at extraction time.
+
+**Exit gate.** A row without a receipt identifier is refused at extraction; and an extraction spanning
+two tenants without a grant is refused, with a single-tenant control extraction succeeding.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.1 -b feat/corpus-extraction origin/main`
+- [ ] **Step 2 — Confirm Task 10.2 landed.** Stop if not; do not build a second reader.
+- [ ] **Step 3 — Failing test: a row without a receipt identifier is refused.**
+- [ ] **Step 4 — Failing test: cross-tenant extraction without a grant is refused.** Paired control.
+- [ ] **Step 5 — `print(module.__file__)` before trusting any pass.** An editable install here has pointed at another worktree.
+- [ ] **Step 6 — Extraction pipeline over the 10.2 grammar.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
 
 ### Task 12.2: Refusal corpus as an asset; per-plane specialist corpora (L9-05, L9-02)
 
@@ -18862,10 +19986,239 @@ the receipt that produced it.
 - [ ] **Step 6 — Write the honest claim:** attacks tried, at this configuration, not a guarantee.
 - [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
 
+### Task 12.6: Guard graduation ladder; checkpoint disposition and training contamination (L9-10, L9-09)
+
+**Anchor.** L9-10 `novel` W3; L9-09 `novel` W3; both `status=none`. **A ladder with no rung that says
+"not promotable" is a promotion pipeline.** Five recipes were trained here and **none was promotable** —
+that outcome must be representable, or the ladder will manufacture a promotion to have something to
+report.
+
+**Step 0.** Read `python/warrantor_ml/src/warrantor_ml/lanes.py`, `evaluate.py` and `deploy_model.py`.
+Carry in with configurations: five recipes trained, none promotable; **severity instability was the
+dominant failure mode**; category specialization measurably hurt; quantization changes verdicts at the
+deployed Q4_K_M; `num_ctx` must be pinned at 8192. Read the already-seeded Task 12.3 (parity promotion
+gate) and Task 12.4 (severity stability) — **this ladder consumes both gates and must not re-implement
+either**.
+
+**Non-goals.** Not the parity gate — 12.3. Not the stability gate — 12.4. Not training a model. Not
+re-running the five recipes.
+
+**Files.** `python/warrantor_ml/`, a ladder record under `evidence/`,
+`docs/task-evidence/task-12.6.md`.
+
+**Consumes / Produces.** Consumes Task 12.3's and 12.4's gates. Produces a ladder with an explicit
+**not-promotable** terminal rung, and a checkpoint disposition record stating for each checkpoint
+whether its training data contaminates a later evaluation.
+
+**Bound strength.** **Tier B, chokepoint** in the release path — it refuses promotion, which is a real
+refusal point. Its limit is that it gates what the two gates measure.
+
+**Exit gate.** `not-promotable` is a terminal rung a test can reach and assert; the five historical
+recipes are recorded at that rung with their reasons; and a checkpoint whose training data overlaps an
+evaluation set is refused for that evaluation.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.6 -b feat/guard-graduation-ladder origin/main`
+- [ ] **Step 2 — Carry in the five measured findings with configurations.** Do not re-derive.
+- [ ] **Step 3 — Failing test: `not-promotable` is reachable and terminal.**
+- [ ] **Step 4 — Record the five historical recipes at that rung with reasons.** A ladder with no failures recorded is not credible.
+- [ ] **Step 5 — Failing test: a contaminated checkpoint is refused for the overlapping evaluation.**
+- [ ] **Step 6 — Failing test: the ladder calls 12.3 and 12.4 rather than reimplementing them.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 12.7: Simulation-validated policy-compilation corpus (L9-13)
+
+**Anchor.** `novel`, `status=none`, W2. **Compiling a policy is only safe if the compiled form was
+simulated against effects it will actually see.** A compiler that is correct against its own test
+vectors and wrong against production effect shapes produces confident, wrong refusals — and refusals
+are what this product sells.
+
+**Step 0.** Read Task 6.1 (warrant templates and the policy-compiler surface) and record the compiled
+form's shape; if it has not landed, stop, because there is nothing to simulate against. Read Task
+10.2's grammar — **the effect shapes to simulate against come from real receipts, not from
+imagination**, and that is what makes this a corpus rather than a test suite. Read the already-seeded
+Task 13.4 (gateway/kernel equivalence laboratory): the same policy through different enforcement points
+is 13.4's; the same policy against varied effects is this task's.
+
+**Non-goals.** Not the compiler — 6.1. Not enforcement-point equivalence — 13.4. Not the policy studio
+— Task 11.3.
+
+**Files.** `python/warrantor_ml/` or `tools/ci/`, a corpus record,
+`docs/task-evidence/task-12.7.md`.
+
+**Consumes / Produces.** Consumes Task 6.1's compiled form and Task 10.2's receipts. Produces a corpus
+of real effect shapes and a simulation gate that refuses a compiled policy whose behavior changes on
+any corpus member.
+
+**Bound strength.** **Tier B, chokepoint** in the compile path. Limit: simulation covers the shapes in
+the corpus, and a novel effect shape is unsimulated by definition — so the corpus size and its growth
+rate are part of the honest claim.
+
+**Exit gate.** A compiled policy whose refusal behavior differs from the interpreted policy on any
+corpus member is refused; the corpus is extracted from real receipts, with a test asserting no member
+is synthetic-only.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.7 -b feat/policy-simulation-corpus origin/main`
+- [ ] **Step 2 — Confirm Task 6.1 landed.** Stop if not.
+- [ ] **Step 3 — Failing test: compiled and interpreted policy agree on every corpus member.**
+- [ ] **Step 4 — Failing test: no corpus member is synthetic-only.** Real receipts or it is a test suite.
+- [ ] **Step 5 — Simulation gate in the compile path.**
+- [ ] **Step 6 — Record the corpus size and what an unsimulated shape means.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 12.8: Open governance-dataset format (L9-11)
+
+**Anchor.** `novel`, `status=none`, W2. **The dataset is already public on Hugging Face — 27,818
+verdicts.** The format is the contribution, and it is the piece that lets someone else's evidence be
+checked rather than only ours. An open format is also the only route by which this substrate's
+governance claims become falsifiable by a third party.
+
+**Step 0.** Read the published dataset's current shape and record it exactly. Read the already-seeded
+Task 12.1's provenance requirement and Task 12.2's per-row provenance — **the format must carry
+provenance or it cannot carry the property that makes the data worth anything**. Read the dataset
+manifest and Model BOM discipline in the model-foundry prerequisites and reuse it. Publication is
+**CC BY**, and the author block and ORCID are already established — reuse them rather than inventing an
+attribution.
+
+**Non-goals.** Not extraction — 12.1. Not the corpus contents — 12.2. Not a benchmark — Task 14.2. Not
+re-publishing the existing dataset under a new name.
+
+**Files.** A format specification under `docs/`, a validator under `tools/ci/`,
+`docs/task-evidence/task-12.8.md`.
+
+**Consumes / Produces.** Consumes the published dataset and 12.1's provenance. Produces a versioned
+format specification, a validator that refuses a non-conforming file, and a round-trip test.
+
+**Bound strength.** **Tier C, observed.** A format enforces nothing about the world. Its one real
+property is that a conforming file can be checked by someone with no access to us, which is the same
+argument as Task 11.4's offline pack.
+
+**Exit gate.** A conforming file validates with **no network and no access to this deployment**; a file
+missing provenance on any row is refused; and the existing 27,818-verdict dataset either conforms or its
+non-conformance is documented with what would change.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.8 -b feat/open-governance-dataset-format origin/main`
+- [ ] **Step 2 — Record the published dataset's exact current shape.**
+- [ ] **Step 3 — Failing test: a row without provenance is refused.**
+- [ ] **Step 4 — Failing test: validation succeeds offline, in a clean directory.**
+- [ ] **Step 5 — Failing test: round-trip through the format is lossless.**
+- [ ] **Step 6 — Check the existing dataset against the format; document any gap.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
 ## Phase 13 — Assurance, evaluation and agent lifecycle
 
 Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 13. Needs Phase 8, Phase 10.
-Seeded tasks only; the rest of this phase is scope rows awaiting seeding.
+
+### Task 13.1: Shadow-agent discovery; lifecycle, dormancy and retirement (L11-01, L11-02)
+
+**Anchor.** L11-01 `core` W2; L11-02 `core` W2; both `status=none`. **The agents you did not register
+are the population this system does not bound.** Discovery is prior to governance — every bound in
+Phases 8 and 9 applies to a population, and a population you cannot enumerate has no bound at all.
+
+**Step 0.** Enumerate every signal that would reveal an unregistered agent: MCP connections without a
+warrant, egress from an unregistered principal, API keys in use with no corresponding grant, processes
+under the supervisor with no warrant id. Record per signal whether it is observable today and from
+which file. Read the already-seeded Task 8.4 (population budget ledger) — **its population bound is
+only as good as this discovery**, so record the dependency. Read Task 11.1, which renders the register.
+
+**Non-goals.** Not the fleet console — Task 11.1. Not the population budget — 8.4. Not network
+scanning; discovery is over signals this system already sees.
+
+**Files.** A discovery module, `docs/W1-delivery-gaps.md`, `docs/task-evidence/task-13.1.md`.
+
+**Consumes / Produces.** Consumes the enumerated signals. Produces a discovery pass, a lifecycle state
+machine including **dormant** and **retired**, and a count of agents seen but not registered.
+
+**Bound strength.** **Tier C, observed.** Discovery detects; it refuses nothing. Its honest limit is
+that it sees only agents that touch a surface this system instruments — and with 29 crates orphaned,
+that is a smaller set than it appears.
+
+**Exit gate.** An unregistered agent touching any instrumented surface is discovered and counted, with
+a registered control agent not counted as shadow; and the count of instrumented surfaces is published
+beside the shadow count, so the number carries its own coverage.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.1 -b feat/shadow-agent-discovery origin/main`
+- [ ] **Step 2 — Enumerate discovery signals; record which are observable today.**
+- [ ] **Step 3 — Failing test: an unregistered agent on an instrumented surface is discovered.** Paired registered control.
+- [ ] **Step 4 — Failing test: the shadow count publishes its instrumented-surface coverage.**
+- [ ] **Step 5 — Lifecycle states including dormant and retired.**
+- [ ] **Step 6 — Failing test: retirement is receipted and revokes authority.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 13.2: Environment, secret and configuration governance (L11-03)
+
+**Anchor.** `novel`, `status=none`, W2. **The incident's credential hop was a configuration fact, not
+an agent decision.** A secret present in an environment is available to every process in it, and no
+warrant, bound or receipt in this system currently describes that.
+
+**Step 0.** Enumerate every way a secret reaches an agent process today: environment variables,
+mounted files, the compose files in `deploy/`, `.env` handling, and the credential vault (confirm from
+`evidence/wiring-coverage.json` that `warrantor-credential-vault` is orphaned). Read the already-seeded
+Task 9.1 (bounded revocation) — **it wires the vault in**, so record the dependency. Read Task 8.7
+(supporting-service hardening) for the container half.
+
+**Non-goals.** Not the vault itself — Task 9.1. Not container hardening — 8.7. Not key custody —
+Task 10.8. Not building a secret manager.
+
+**Files.** `deploy/`, a configuration-governance module, `docs/W1-delivery-gaps.md`,
+`docs/task-evidence/task-13.2.md`.
+
+**Consumes / Produces.** Consumes the enumerated secret paths. Produces a governed configuration
+surface where a secret's presence is declared and receipted, and an inventory of secrets reachable
+per agent process.
+
+**Bound strength.** **Tier C, observed** for the inventory; **Tier B** only where a secret is delivered
+through the vault and can be refused. Any secret in an environment variable is Tier C and must be
+labeled so — that is the honest half most likely to be softened.
+
+**Exit gate.** Every secret reachable by an agent process is inventoried with its delivery mechanism and
+its tier; a secret delivered by environment variable is labeled Tier C, asserted by a test that
+attempts to label one Tier B and is refused.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.2 -b feat/configuration-governance origin/main`
+- [ ] **Step 2 — Enumerate every secret delivery path.** Commit the inventory.
+- [ ] **Step 3 — Failing test: an environment-variable secret cannot be labeled Tier B.**
+- [ ] **Step 4 — Failing test: an undeclared secret in the environment is detected.**
+- [ ] **Step 5 — Failing test: the inventory is per agent process, not per deployment.**
+- [ ] **Step 6 — Record the incident's configuration hop** in the gaps ledger as the anchor case.
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 13.3: Change, release, canary and rollback governance; model/harness/safeguard config diff gate (L11-04, L11-13)
+
+**Anchor.** L11-04 `core` W3; L11-13 `core` W2; both `status=none`. **A safeguard silently disabled by a
+config change is the failure this pair exists to make impossible.** The dangerous change is never the
+code change — it is the flag that turns a refusal into a warning, which passes every test because every
+test was written against the flag's old value.
+
+**Step 0.** Enumerate every configuration flag that can weaken a control. **Start with the one already
+known: `Policy.deny_private_egress` in `rust/egress-filter/src/lib.rs` has a builder that documents
+turning it off, which the already-seeded Task 7.1 removes for the metadata addresses.** Record the rest.
+Read `.github/workflows/ci.yml` and record which gates a config change could bypass. Read the
+already-seeded Task 12.3 for the model half's configuration discipline.
+
+**Non-goals.** Not the deny floor — Task 7.1. Not the parity gate — 12.3. Not deployment automation.
+
+**Files.** `.github/workflows/ci.yml` (**contended**), a diff gate under `tools/ci/`,
+`docs/task-evidence/task-13.3.md`.
+
+**Consumes / Produces.** Consumes the enumerated weakening flags. Produces a diff gate that **fails the
+build** when a change weakens a control without an accompanying receipt, plus canary and rollback
+records.
+
+**Bound strength.** **Tier B, chokepoint** in the release path — a real refusal point. Limit: it gates
+the flags enumerated, and an unenumerated flag is ungated, so the enumeration is the deliverable and its
+growth is the ratchet.
+
+**Exit gate.** A change flipping any enumerated flag toward weaker fails the build unless the commit
+carries an explicit, receipted justification; a strengthening change passes unremarked; and the flag
+inventory can only grow, gated in the shape of `tools/ci/invariant-ratchet.json`.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.3 -b feat/change-governance-gate origin/main`
+- [ ] **Step 2 — Enumerate weakening flags, starting with `deny_private_egress`.** Commit as a ratcheting record.
+- [ ] **Step 3 — Failing test: flipping a flag toward weaker fails the build.**
+- [ ] **Step 4 — Failing test: a strengthening change passes unremarked.** Asymmetry is the point.
+- [ ] **Step 5 — Failing test: removing a flag from the inventory fails the build.**
+- [ ] **Step 6 — Canary and rollback records, each receipted.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
 
 ### Task 13.4: Gateway/kernel equivalence laboratory (L11-06)
 
@@ -18905,6 +20258,42 @@ against the weaker point, not resolved by choosing the more convenient answer.
 - [ ] **Step 4 — Publish the delta as a ratcheting record,** in the shape of `tools/ci/invariant-ratchet.json`.
 - [ ] **Step 5 — Failing test: a shrinking delta is enforced; a growing one fails the build.**
 - [ ] **Step 6 — Record every disagreement in the gaps ledger** with the weaker point named.
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 13.5: Evaluation safety-case builder; training and evaluation environment BOM (L11-07, L11-11)
+
+**Anchor.** L11-07 `novel` W3; L11-11 `compose` W2; both `status=none`. **A safety case with no bill of
+materials cannot be re-derived, which means it cannot be checked.** A safety case that cannot be checked
+is a document, and this repository's own history is the argument for the distinction.
+
+**Step 0.** Read the model-foundry prerequisites' dataset manifest and Model BOM discipline — **provenance
+is already enforced there and must be reused, not reinvented**. Read the already-seeded Task 12.3 for the
+pinned configurations a BOM must carry: quantization, `num_ctx` at 8192, seed. Read Task 14.2's harness
+floor, which states below what a harness result means nothing. Read `python/warrantor_ml/` for the
+existing environment pinning.
+
+**Non-goals.** Not running evaluations. Not the promotion gate — 12.3. Not the benchmark harness —
+Task 14.2. Not certification — Task 14.11.
+
+**Files.** `python/warrantor_ml/`, a safety-case template, `docs/task-evidence/task-13.5.md`.
+
+**Consumes / Produces.** Consumes the foundry's manifest discipline and 12.3's pinned configuration.
+Produces a safety-case builder that refuses to emit a case without a complete BOM, and a BOM covering
+both training and evaluation environments.
+
+**Bound strength.** **Tier B, chokepoint** at emission — the builder refuses. **Tier C** for the case's
+conclusions, which are arguments and not measurements.
+
+**Exit gate.** A safety case cannot be emitted without a BOM naming every dataset, model, quantization,
+`num_ctx`, seed and dependency version; and a second party can re-derive the case's numbers from the
+BOM alone, tested by re-running one claim from the BOM.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.5 -b feat/safety-case-builder origin/main`
+- [ ] **Step 2 — Reuse the foundry's manifest and Model BOM.** Do not invent a second format.
+- [ ] **Step 3 — Failing test: emission without a complete BOM is refused.**
+- [ ] **Step 4 — Failing test: one claim is re-derivable from the BOM alone.**
+- [ ] **Step 5 — Failing test: every quoted number carries quantization, `num_ctx` and seed.**
+- [ ] **Step 6 — Distinguish measured claims from argued ones in the template.**
 - [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
 
 ### Task 13.6: Impossible-task and broken-environment detection; structured stop, abstain and ask (L11-08, L11-09)
@@ -18988,10 +20377,159 @@ and `eval-guard` is wired in, with the census reachable count rising.
 - [ ] **Step 8 — Attribute each isolation property to us or the host.**
 - [ ] **Step 9 — Gates, evidence file, `git commit -s`.**
 
+### Task 13.8: Control ownership register and retirement path; regulatory-change-to-policy monitor (L11-14, L11-15)
+
+**Anchor.** L11-14 `core` W2; L11-15 `core` W3; both `status=none`. **A control with no owner is a
+control nobody retires when it stops working.** This repository has an existing instance to seed the
+register with: `warrantor-egress-filter` holds a tested metadata deny that nothing links, and it stayed
+that way because no owner was accountable for the wiring.
+
+**Step 0.** Read `evidence/wiring-coverage.json` and `docs/W1-delivery-gaps.md` — **together they are
+the existing, unowned control inventory**, and the register should be seeded from them rather than from
+a blank template. Read the already-seeded Task 14.4 (standards crosswalk), which is the monitor's input;
+it carries the standards-landscape memory as binding. **Regulatory anchors that lead: Fed SR 26-2 / OCC
+Bulletin 2026-13, 17 April 2026 — which supersedes SR 11-7 and SR 21-8 and places generative and
+agentic AI outside its scope — plus RBI and DPDP, and Gulf supervisory frameworks. Never cite SR 11-7
+as current. The EU is a passing mention only.**
+
+**Non-goals.** Not the crosswalk — Task 14.4. Not the exception lifecycle — Task 10.5. Not legal advice.
+
+**Files.** A register under `docs/`, a monitor, `docs/task-evidence/task-13.8.md`.
+
+**Consumes / Produces.** Consumes the census, the gaps ledger, and Task 14.4's crosswalk. Produces a
+register with an owner and a review date per control, a retirement path, and a monitor that flags a
+crosswalked control when its cited instrument changes.
+
+**Bound strength.** **Tier C, observed.** A register enforces nothing. Its one testable property is that
+a control cannot be added without an owner and a review date, which is Tier B at the register's own
+boundary.
+
+**Exit gate.** No control can be registered without an owner and a review date; a control past its
+review date is flagged rather than silently trusted; and the register is seeded with the orphaned
+controls the census already names, including `egress-filter`.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.8 -b feat/control-ownership-register origin/main`
+- [ ] **Step 2 — Seed from the census and the gaps ledger,** not from a blank template.
+- [ ] **Step 3 — Failing test: registering without an owner or review date is refused.**
+- [ ] **Step 4 — Failing test: a control past review is flagged.**
+- [ ] **Step 5 — Failing test: no reference to SR 11-7 as current guidance.** In-file pattern, not a shell one-liner.
+- [ ] **Step 6 — Monitor flags a control when its cited instrument changes.**
+- [ ] **Step 7 — Run the prose gate; the EU never leads.**
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
 ## Phase 14 — Ecosystem, sovereignty and the market interface
 
 Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 14. Needs Phase 9, Phase 10, Phase 13.
-Seeded tasks only; the rest of this phase is scope rows awaiting seeding.
+
+### Task 14.1: Attack-finding to policy loop (L0-07)
+
+**Anchor.** `novel`, `status=none`, W2. **Closes the outer loop: a finding that does not become a policy
+is a blog post.** This repository already has the input side working — the Task 5.1 corpus produced 19
+recorded invariant violations, the wiring census produced 29 named orphans — and no mechanism turns any
+of them into a compiled bound.
+
+**Step 0.** Enumerate the finding sources that already exist and their formats:
+`tools/ci/invariant-ratchet.json`, `evidence/wiring-coverage.json`, `docs/W1-delivery-gaps.md`, and the
+Task 5.1 corpus's `#[ignore]` reasons. Read Task 6.1 (policy compiler) and record the compiled form a
+finding must reach; if it has not landed, stop. Read the already-seeded Task 13.4 (equivalence
+laboratory) — its published delta is another finding source with the same shape.
+
+**Non-goals.** Not producing findings — the corpus, census and laboratory do that. Not the compiler —
+Task 6.1. Not incident exchange — 14.8.
+
+**Files.** A loop module under `tools/ci/`, `docs/task-evidence/task-14.1.md`.
+
+**Consumes / Produces.** Consumes the four enumerated finding records and Task 6.1's compiled form.
+Produces a mapping from each open finding to either a policy clause that addresses it or an explicit
+`no-policy-possible` disposition with a reason.
+
+**Bound strength.** **Tier C, observed** — the loop is bookkeeping. It becomes Tier B where it refuses:
+a finding with no disposition should fail the build, and if you implement that, say so.
+
+**Exit gate.** Every open finding in all four sources carries either a policy clause or a reasoned
+`no-policy-possible` disposition, and a finding with neither **fails the build**; the count of
+undisposed findings can only fall.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.1 -b feat/finding-to-policy-loop origin/main`
+- [ ] **Step 2 — Enumerate the four existing finding sources and their formats.**
+- [ ] **Step 3 — Failing test: an undisposed finding fails the build.**
+- [ ] **Step 4 — Failing test: `no-policy-possible` requires a reason, never a bare flag.**
+- [ ] **Step 5 — Failing test: the undisposed count ratchets downward only.**
+- [ ] **Step 6 — Seed with the 19 corpus violations and the 29 orphans.** A loop with no backlog is not credible.
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 14.2: External benchmark harness; harness floor and evaluation bill of materials (L0-08, L0-09)
+
+**Anchor.** L0-08 `consume` W2; L0-09 `compose` W2; both `status=none`. **Adopt the external benchmarks
+rather than inventing scoring** — `consume` is the novelty class, and inventing here would be the
+opposite of the item. L0-09 states the floor below which a harness result means nothing.
+
+**Step 0.** Read `python/warrantor_ml/src/warrantor_ml/benchmark_expguard.py` and
+`benchmark_wildguard.py` — **two external benchmarks are already wired**, so record exactly what they
+cover and what they do not. Carry in with configurations: adversarial phrasing quadruples
+false-positive rate; evasion is asymmetric at 1.42x, p≈1e-5. Read the already-seeded Task 13.5 for the
+BOM discipline this shares, and Task 12.3 for the deployed configuration a benchmark must run at.
+
+**Non-goals.** Not inventing a benchmark. Not the promotion gate — 12.3. Not the safety-case builder —
+13.5. Not the guard ladder — 12.6.
+
+**Files.** `python/warrantor_ml/`, a floor record under `evidence/`,
+`docs/task-evidence/task-14.2.md`.
+
+**Consumes / Produces.** Consumes the two existing benchmarks. Produces a harness floor — the minimum
+conditions under which a result is admissible — and a BOM per benchmark run.
+
+**Bound strength.** **Tier B, chokepoint** at result admission: a run below the floor is refused rather
+than reported with a caveat. That distinction is the task.
+
+**Exit gate.** A benchmark result produced below the floor is **refused**, not published with a warning;
+every admitted result carries its BOM including quantization, `num_ctx` and seed; and the floor
+conditions are a committed record, not a convention.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.2 -b feat/benchmark-harness-floor origin/main`
+- [ ] **Step 2 — Record what the two existing benchmarks cover and omit.**
+- [ ] **Step 3 — Failing test: a below-floor result is refused, not caveated.**
+- [ ] **Step 4 — Failing test: an admitted result without a BOM is refused.**
+- [ ] **Step 5 — Failing test: `print(module.__file__)` confirms the module under test.**
+- [ ] **Step 6 — Commit the floor conditions as a record.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 14.3: Public offline verify page; verifiable remediation evidence (L10-18, L10-15)
+
+**Anchor.** L10-18 `core` W2; L10-15 `novel` W3; both `status=none`. **Verification that requires our
+server is not verification.** The page must work from a file with no network — which is the same
+argument as Task 11.4's offline pack, stated for the public rather than for an auditor.
+
+**Step 0.** Read `rust/archive/tests/verification_does_not_depend_on_the_archive.rs` — the contract
+already exists and is tested. Read Task 11.4's pack format; this page verifies that pack. Read
+`rust/warrant/src/console/` and record the existing verification rendering. **Note the CDN and asset
+constraint: a page that must work with no network cannot load a font, a script or a stylesheet from
+anywhere** — everything is inline or a data URI.
+
+**Non-goals.** Not the audit workbench — Task 11.4. Not the trust center — Task 11.9. Not hosting.
+
+**Files.** A standalone HTML verify page, `docs/task-evidence/task-14.3.md`.
+
+**Consumes / Produces.** Consumes Task 11.4's pack format and the archive's verification rule. Produces
+a single self-contained page that verifies a pack offline, and a remediation-evidence format that is
+verifiable the same way.
+
+**Bound strength.** **Tier A for signature verification** — the math is the math, and a third party
+checking a signature with no access to us is a genuine Tier A claim. **Tier C for completeness**: the
+page verifies what the pack contains and says nothing about what it omits, which is Task 11.4's
+declared-omissions block.
+
+**Exit gate.** The page verifies a valid pack and **refuses** a tampered one, both with networking
+disabled and no external asset requests, asserted by a test that runs it from a file URL with the
+network off.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.3 -b feat/offline-verify-page origin/main`
+- [ ] **Step 2 — Failing test: the page loads and verifies from a file URL, networking disabled.**
+- [ ] **Step 3 — Failing test: no external asset request is made.** Assert zero network requests.
+- [ ] **Step 4 — Failing test: a tampered pack is refused with the reason named.**
+- [ ] **Step 5 — Failing test: the page renders the pack's declared omissions.**
+- [ ] **Step 6 — Remediation evidence in the same verifiable form.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
 
 ### Task 14.4: Technical standards crosswalk and interoperability mapping (L10-17)
 
@@ -19078,6 +20616,125 @@ network calls mocked; and every removed dependency is listed with what was lost 
 - [ ] **Step 7 — State the completeness limit** and name Task 10.10 as the unshipped custody half.
 - [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
 
+### Task 14.6: Multi-tenancy and isolation guarantees; cross-border evidence flow and residency (L10-06, L10-19)
+
+**Anchor.** L10-06 `core` W3; L10-19 `core` W3; both `status=none`. **Task 5.5 covers per-tenant cache
+and registry isolation. This is the guarantee stated to a buyer, and it must not exceed what 5.5
+proves.** The failure mode is a data-sheet sentence stronger than the test behind it — which is the
+defect class this repository has produced most often.
+
+**Step 0.** Read Task 5.5's section in full and record **exactly** which isolation properties it tests
+and at which tier; the buyer-facing guarantee is a restatement of that list and nothing more. Read the
+already-seeded Task 10.4 (retention and jurisdiction) — residency is enforced there, described here.
+Read the already-seeded Task 12.1 and 12.5: **corpus extraction crosses tenants by default**, so the
+guarantee must account for the flywheel. **Anchors: RBI and DPDP for India, Gulf supervisory
+frameworks, US sectoral duties. The EU gets a passing mention only.**
+
+**Non-goals.** Not implementing isolation — Task 5.5. Not retention enforcement — 10.4. Not the
+air-gapped profile — 14.5. Not writing marketing copy.
+
+**Files.** A guarantee document under `docs/`, a checker under `tools/ci/`,
+`docs/task-evidence/task-14.6.md`.
+
+**Consumes / Produces.** Consumes Task 5.5's tested properties and 10.4's residency policy. Produces a
+buyer-facing guarantee where **every sentence cites the test that backs it**, and a checker that refuses
+a guarantee sentence with no cited test.
+
+**Bound strength.** Per property, inherited from Task 5.5 and never upgraded in the restatement. If 5.5
+proves a property at Tier C, the guarantee says Tier C. **An upgrade in the restatement is the exact
+defect this task exists to prevent.**
+
+**Exit gate.** Every guarantee sentence cites a passing test, and a sentence whose cited test does not
+exist or does not pass **fails CI**; the checker also refuses a guarantee whose stated tier exceeds the
+cited test's tier.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.6 -b feat/tenancy-guarantee origin/main`
+- [ ] **Step 2 — Record Task 5.5's tested properties and tiers exactly.**
+- [ ] **Step 3 — Failing test: a guarantee sentence with no cited test fails CI.**
+- [ ] **Step 4 — Failing test: a guarantee tier exceeding its cited test's tier is refused.** The core assertion.
+- [ ] **Step 5 — Failing test: the guarantee accounts for corpus extraction crossing tenants.**
+- [ ] **Step 6 — Residency described, citing 10.4's enforcement.**
+- [ ] **Step 7 — Run the prose gate; the EU never leads.**
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
+### Task 14.7: Supply-chain warrant chaining; exit guarantee and continuity bundle (L10-03, L10-20)
+
+**Anchor.** L10-03 `novel` W3; L10-20 `core` W2; both `status=none`. **The exit bundle is the strongest
+trust argument an open substrate has: everything works after we stop existing.** It is also the only
+claim in this catalog that is cheap to make and easy to test, which is why it should be tested rather
+than asserted.
+
+**Step 0.** Enumerate everything a customer would need to keep operating with this project gone: the
+source, the build inputs, the verification path, the key material story, the archive contents, and the
+documentation. Read the already-seeded Task 14.5 (air-gapped profile) — **the exit bundle and the air
+gap are the same dependency inventory from two directions**; reuse 14.5's enumeration rather than
+repeating it. Read Task 1.6's trust bundle and Task 11.4's pack.
+
+**Non-goals.** Not the air-gapped profile — 14.5. Not the verify page — 14.3. Not key custody —
+Task 10.10, `human`. Not licensing.
+
+**Files.** A bundle specification, a CI job that exercises it, `docs/task-evidence/task-14.7.md`.
+
+**Consumes / Produces.** Consumes Task 14.5's dependency inventory and Task 11.4's pack. Produces an
+exit bundle and a **test that operates from the bundle alone**, plus warrant chaining across a supplier
+boundary.
+
+**Bound strength.** **Tier A for the continuity property when it is tested** — a build and verify that
+succeeds from the bundle with no network and no access to us is a demonstrated fact, not a promise.
+**Tier C** for anything the bundle documents but does not exercise.
+
+**Exit gate.** A CI job builds and verifies **from the exit bundle alone**, with networking disabled and
+no reference to this repository's remote; anything the bundle documents but does not exercise is listed
+as untested rather than implied.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.7 -b feat/exit-continuity-bundle origin/main`
+- [ ] **Step 2 — Reuse Task 14.5's dependency inventory.** Do not repeat the enumeration.
+- [ ] **Step 3 — Failing test: build and verify from the bundle, networking disabled.**
+- [ ] **Step 4 — Failing test: the bundle lists what it documents but does not exercise.**
+- [ ] **Step 5 — Failing test: no step reaches this repository's remote.**
+- [ ] **Step 6 — Supply-chain warrant chaining across a supplier boundary.**
+- [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 14.8: Incident-exchange profile with notification clocks; cross-company indicator exchange (L10-07, L10-13)
+
+**Anchor.** L10-07 `novel` W3; L10-13 `core` W3; both `status=none`. **Clocks make notification a duty
+rather than a courtesy. Exchange without a clock is a mailing list.** A profile that describes what to
+send but not by when has moved the hard part outside the specification.
+
+**Step 0.** Read Task 3.5 (machine-speed response policy) and Task 11.2's incident console for what an
+incident is here. Read the already-seeded Task 9.5 (cross-organization authority) — **exchange between
+organizations inherits its "no new trust root" constraint**, so an indicator's sender must be verifiable
+out of band. Read Task 4.2's notify transports and reuse them. **Regulatory anchors for notification
+clocks: Gulf supervisory frameworks including immediate-shutdown expectations, India's CERT-In timelines
+and DPDP, plus US sectoral duties. The EU is a passing mention only.** Verify any cited date at source —
+one Gulf September date in this project's notes referred to a different instrument.
+
+**Non-goals.** Not the response policy — Task 3.5. Not the incident console — 11.2. Not cross-org
+authority — 9.5. Not legal advice on any specific obligation.
+
+**Files.** A profile under `docs/`, an exchange module, `docs/task-evidence/task-14.8.md`.
+
+**Consumes / Produces.** Consumes Task 9.5's out-of-band verification and Task 4.2's transports.
+Produces an exchange profile carrying a **clock per obligation class** and indicators whose sender is
+verifiable without a shared root.
+
+**Bound strength.** **Tier B, chokepoint** for the clock, if a missed clock produces a refusal or an
+escalation rather than a log line — implement that and say so. **Tier C** for the exchange itself, which
+cannot compel a peer to act.
+
+**Exit gate.** A notification clock that elapses without a sent notification produces an escalation, not
+a log entry, asserted by a test; an indicator from an unpinned sender is refused, with a pinned control
+accepted; and every cited regulatory clock carries a verbatim quote and a source date.
+
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.8 -b feat/incident-exchange-profile origin/main`
+- [ ] **Step 2 — Verify every cited clock at source.** A date from a summary is not admissible.
+- [ ] **Step 3 — Failing test: an elapsed clock escalates rather than logging.**
+- [ ] **Step 4 — Failing test: an indicator from an unpinned sender is refused.** Paired control.
+- [ ] **Step 5 — Reuse Task 4.2's transports; a second delivery path is a defect.**
+- [ ] **Step 6 — Failing test: every clock in the profile carries a quote and a date.**
+- [ ] **Step 7 — Run the prose gate; the EU never leads.**
+- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+
 ### Task 14.9: Public fact/claim/unknown ledger with versioned corrections; bilingual evidence (L10-14, L10-10)
 
 **Anchor.** L10-14 `status=none` `novel` W3; L10-10 `status=none` `core` W3. **This is the item this
@@ -19158,3 +20815,54 @@ verification.
 - [ ] **Step 5 — Reuse `SignatureEnvelope`;** a third envelope shape is a verification bug.
 - [ ] **Step 6 — Write the assertion-not-verification sentence** into the product text.
 - [ ] **Step 7 — Gates, evidence file, `git commit -s`.**
+
+### Task 14.11: Insurance and settlement interface; conformance laboratory and expiring certification (L10-08, L10-11)
+
+**Anchor.** Both `novel`, `status=none`, **W4** — the furthest wave in the catalog. **Routed `human`.**
+**Certification that does not expire is a claim about the past sold as a claim about the present.** The
+blueprint's own anchor for L10-08 is insurance's *missing precedent*: there is no actuarial history for
+autonomous-agent loss, so a settlement interface is being designed against an absence.
+
+**Why `human`.** This task requires commercial and legal counterparty decisions that are the owner's to
+make: what is warranted to an insurer, what a certification asserts, what its expiry implies for a
+customer mid-term, and what liability attaches. A model can prepare the technical interface; it cannot
+choose the commitment. **This is also the one task in Phases 7–14 that creates an obligation to a third
+party rather than a control over an agent**, which is why it is last.
+
+**Step 0.** Read the already-seeded Task 14.10 (evaluator isolation and pre-run conformance receipt) —
+**its receipt is what a laboratory would issue**, and this task must not define a second one. Read Task
+11.4's evidence pack and Task 14.3's offline verify page: an insurer's verification path is the public
+one, not a privileged one. Read the already-seeded Task 14.4's crosswalk for what may and may not be
+asserted about a standard. Record every claim this repository currently makes that an underwriter would
+rely on, and check each against `evidence/wiring-coverage.json` and
+`tools/ci/invariant-ratchet.json` — **9 of 38 crates reachable and 19 recorded invariant violations are
+the facts any certification starts from.**
+
+**Non-goals.** Not the evaluator receipt — Task 14.10. Not the verify page — 14.3. Not the crosswalk —
+14.4. Not underwriting, pricing, or drafting policy language.
+
+**Files.** An interface specification, `docs/W1-delivery-gaps.md`,
+`docs/task-evidence/task-14.11.md`.
+
+**Consumes / Produces.** Consumes Task 14.10's conformance receipt, Task 11.4's pack, and the census and
+ratchet records. Produces a settlement interface specification and a certification format **whose expiry
+is a required field**.
+
+**Bound strength.** **Tier C, observed,** and additionally **a commitment to a third party**, the highest-risk
+category in this repository. A certification asserts that named tests passed at a named configuration on
+a named date. It asserts nothing about the deployment tomorrow, and the format must make that
+impossible to misread.
+
+**Exit gate.** A certification without an expiry cannot be issued; every certification names the tests,
+the configuration and the date it rests on, and states what it does not cover; and a written statement
+in `docs/W1-delivery-gaps.md` records that no certification has been issued and that the interface is a
+specification only — **so nothing in this task can be read as a certification that exists.**
+
+- [ ] **Step 1 — Owner decision first: what is warranted, to whom, and with what liability.** Do not proceed without it.
+      `git worktree add M:/wt-14.11 -b docs/task-14.11-insurance-and-certification origin/main`
+- [ ] **Step 2 — Inventory every claim an underwriter would rely on; check each against the census and the ratchet.**
+- [ ] **Step 3 — Certification format with expiry as a required field.**
+- [ ] **Step 4 — Reuse Task 14.10's receipt; do not define a second.**
+- [ ] **Step 5 — State in the gaps ledger that no certification has been issued.**
+- [ ] **Step 6 — Verification path is the public one from Task 14.3, not a privileged one.**
+- [ ] **Step 7 — Owner review before anything here is published.**
