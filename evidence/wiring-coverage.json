@@ -1,7 +1,7 @@
 {
   "format": "warrantor.wiring-coverage/1",
   "binary_crate": "warrantor-warrant",
-  "total": 38,
+  "total": 39,
   "reachable": 9,
   "orphaned": [
     "defstack-cli",
@@ -27,6 +27,7 @@
     "warrantor-post-quantum",
     "warrantor-protocol-contracts",
     "warrantor-provena-chain",
+    "warrantor-reputation",
     "warrantor-responsible-ai",
     "warrantor-retrieval",
     "warrantor-safe-tensors-pp",

@@ -185,3 +185,29 @@ true. Both halves of Step 6 were needed, and the committed CLI gate was red for 
 | `docs/W1-delivery-gaps.md` | Step 8: the ledger entry, with what it does not measure |
 
 Not merged. A human reviews before merge, and the PR is where Step 9's remaining half is read.
+
+---
+
+## After the merge into `main` (2026-09-05)
+
+The numbers above are what this branch measured against `origin/main` @ `26d16df`, where the
+workspace had **38** members. They are left as recorded rather than rewritten, because they are the
+evidence for the gate as it ran on this branch.
+
+Merging Task 0.1 first changed the denominator. `rust/reputation` became the **39th** workspace
+member, so on merged `main` the census reads **9 of 39 over 17 path edges**, with **30** orphans
+rather than 29. The reachable set is unchanged at 9, exactly as this task's Step 0 predicted: none of
+the carried-in crates is linked by `warrant`.
+
+**The census refused the merge until the README caught up**, which is the gate working:
+
+```
+wiring census: 9 of 39 crates reachable from warrantor-warrant over 17 path edges
+::error::README status table does not show 'reachable from the CLI | **9 of 39**'
+exit 1
+```
+
+Neither branch could have caught this alone. 0.3 was green against a 38-member workspace and 0.1 was
+green on its own; only the merged tree is wrong, and only for as long as the rendered number lags the
+record. Carried into `evidence/wiring-coverage.json` (regenerated with `--write`), the README status
+row, the README "wired into anything" bullet, and the Tier-0 ledger entry.
