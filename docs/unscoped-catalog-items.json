@@ -1,0 +1,46 @@
+{
+  "_comment": "Catalog items that no task covers and no phase scopes. Kept as an explicit register rather than left to a gate that counted a disclaimer as coverage. `tools/ci/check_phase_scope.py` requires every uncovered-and-unscoped code to appear here, so an item can be deliberately out of scope but never silently absent. Each entry needs a decision; `undecided` is an honest status, not a pass.",
+  "_found": "2026-09-05, when check_phase_scope stopped reading Non-goals blocks as coverage claims. Every code below appears in the 117-task plan exactly once or twice, in a Non-goals block, and nowhere else -- so the plan says 'we are not doing this' and nothing says who is.",
+  "items": {
+    "L0-02": {
+      "status": "undecided",
+      "evidence": "One mention in the whole plan, inside a Non-goals block, with no destination named.",
+      "disclaimed_as": ""
+    },
+    "L1-02": {
+      "status": "undecided",
+      "evidence": "One mention, inside a Non-goals block, no destination named.",
+      "disclaimed_as": ""
+    },
+    "L4-22": {
+      "status": "undecided",
+      "evidence": "One mention, inside a Non-goals block, which says it belongs to Phase 5 or 6. No Phase 5 or 6 task heading or body claims it.",
+      "disclaimed_as": "Phase 5/6"
+    },
+    "L5-01": {
+      "status": "undecided",
+      "evidence": "One mention, inside a Non-goals block, described as the sanctioned channel itself. No task claims it.",
+      "disclaimed_as": ""
+    },
+    "L5-08": {
+      "status": "undecided",
+      "evidence": "One mention, inside a Non-goals block, marked `horizon` -- the plan's own word for beyond this program. The most likely candidate for a deliberate out-of-scope decision, but it has not been made explicitly.",
+      "disclaimed_as": "horizon"
+    },
+    "L6-06": {
+      "status": "undecided",
+      "evidence": "Two mentions, both inside Non-goals blocks, described as identity-provider integration and assigned to Phase 4 or 6. No Phase 4 or 6 task claims it.",
+      "disclaimed_as": "Phase 4/6"
+    },
+    "L7-03": {
+      "status": "undecided",
+      "evidence": "One mention, inside a Non-goals block, described as external anchoring and assigned to Phase 6. No Phase 6 task claims it.",
+      "disclaimed_as": "Phase 6"
+    },
+    "L7-06": {
+      "status": "undecided",
+      "evidence": "One mention, inside a Non-goals block, described as completeness attestation, said to belong with the recorder. No task claims it.",
+      "disclaimed_as": ""
+    }
+  }
+}

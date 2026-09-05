@@ -25,6 +25,7 @@ items than its scope row silently rescopes the work, and the plan is what a lane
 from __future__ import annotations
 
 import contextlib
+import json
 import re
 import sys
 from pathlib import Path
@@ -50,6 +51,20 @@ def catalog_items() -> set[str]:
     return set(CATALOG_ITEM.findall(read(MASTER)))
 
 
+UNSCOPED = REPOSITORY_ROOT / "docs/unscoped-catalog-items.json"
+
+
+def unscoped_register() -> dict[str, dict]:
+    """Catalog items deliberately outside every task, each with a reason and a decision.
+
+    Absent file means an empty register, which is strictly stricter: every unscoped item then
+    reports as a finding.
+    """
+    if not UNSCOPED.exists():
+        return {}
+    return json.loads(UNSCOPED.read_text(encoding="utf-8")).get("items", {})
+
+
 def plan_covered() -> set[str]:
     """L-codes covered by the ORIGINAL plan — Phases 0 through 6 only.
 
@@ -61,7 +76,32 @@ def plan_covered() -> set[str]:
     """
     text = read(PLAN)
     cut = re.search(r"^## Phase 7\b", text, re.MULTILINE)
-    return set(LCODE.findall(text[: cut.start()] if cut else text))
+    head = text[: cut.start()] if cut else text
+    return set(LCODE.findall(strip_non_goals(head)))
+
+
+NON_GOALS = re.compile(
+    r"^[*][*]Non-goals[.]?[*][*].*?(?=^---[ ]*$|^[*][*](?!Non-goals))",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def strip_non_goals(text: str) -> str:
+    """Drop every Non-goals block before looking for coverage.
+
+    A Non-goals block names the adjacent task that owns each EXCLUDED thing, so an L-code
+    appearing there is explicitly disclaimed -- the opposite of covered. Counting it made this
+    gate punish the plan for being precise: five codes went red the moment Task 5.3's expansion
+    started naming Task 10.3 and Task 10.6 as the owners of custody, escrow and the production
+    monitors, which is exactly the cross-reference the expansion brief asks for. A vague task
+    that named no neighbor would have passed.
+
+    Deliberately narrow. Coverage is still read from body prose elsewhere, because 44 of the 62
+    codes the Phases 0-6 sections cover are claimed in a body rather than in a heading --
+    reading headings alone would move all 44 into `uncovered` and invent 44 tasks of work that
+    already exists.
+    """
+    return NON_GOALS.sub(chr(10), text)
 
 
 def seeded_tasks() -> dict[str, set[str]]:
@@ -149,8 +189,19 @@ def main() -> int:
         if len(tasks) > 1:
             findings.append(f"{code} is claimed by more than one task: {', '.join(tasks)}")
 
+    # An item that no task covers and no phase scopes must appear in the unscoped register.
+    # The register exists because this gate used to count a Non-goals disclaimer as coverage,
+    # so eight items read as covered while the plan only ever said it was NOT doing them. A
+    # deliberate omission is fine; an invisible one is not, so the register is the difference
+    # between the two and `undecided` is an honest status rather than a pass.
+    registered = unscoped_register()
     for code in sorted(uncovered - set(flat)):
-        findings.append(f"{code} is uncovered by the plan and scoped by no task")
+        if code in registered:
+            continue
+        findings.append(
+            f"{code} is uncovered by the plan, scoped by no task, and absent from "
+            f"{UNSCOPED.name} -- add it there with a reason, or scope it"
+        )
 
     for code in sorted(set(flat) - uncovered):
         where = ", ".join(owners[code])
