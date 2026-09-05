@@ -107,6 +107,43 @@ impl TaskBudget {
         self.tool_calls_used = self.tool_calls_used.saturating_add(tool_calls);
         Ok(())
     }
+
+    /// Reserve `act` against this budget, or refuse it with the budget unchanged.
+    ///
+    /// # Errors
+    /// [`Exhausted`] carrying the [`DenyReason`] `consume` would have returned.
+    pub fn reserve(&mut self, act: &SpendAct) -> Result<Reservation, Exhausted> {
+        self.consume(act.tokens, act.tool_calls)
+            .map_err(|reason| Exhausted { reason })?;
+        Ok(Reservation {
+            tokens_remaining: self.tokens_remaining(),
+            tool_calls_remaining: self.tool_calls_remaining(),
+        })
+    }
+}
+
+/// One metered act, offered to a budget BEFORE the action it describes.
+///
+/// The engine's crate doc says spend is "enforced pre-call". `consume` is the arithmetic; this is
+/// the name for calling it at the right moment. Nothing about the arithmetic changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpendAct {
+    pub tokens: u64,
+    pub tool_calls: u64,
+}
+
+/// What a granted reservation leaves behind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Reservation {
+    pub tokens_remaining: u64,
+    pub tool_calls_remaining: u64,
+}
+
+/// A reservation that was refused. The budget is untouched.
+#[derive(Debug, Clone, PartialEq, Eq, Error, Serialize, Deserialize)]
+#[error("budget exhausted: {reason:?}")]
+pub struct Exhausted {
+    pub reason: DenyReason,
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -452,6 +489,43 @@ mod tests {
             max_tool_calls: max_calls,
             tool_calls_used: 0,
         }
+    }
+
+    #[test]
+    fn the_hundred_and_first_reservation_is_refused_and_consumes_nothing() {
+        let mut budget = task(0, 100);
+        let one_call = SpendAct {
+            tokens: 0,
+            tool_calls: 1,
+        };
+        for _ in 0..100 {
+            budget.reserve(&one_call).expect("within the ceiling");
+        }
+        assert_eq!(budget.tool_calls_used, 100);
+        let refused = budget
+            .reserve(&one_call)
+            .expect_err("the 101st must be refused");
+        assert_eq!(refused.reason, DenyReason::ToolCallBudgetExhausted);
+        assert_eq!(budget.tool_calls_used, 100, "a refusal consumes nothing");
+        assert_eq!(budget.tool_calls_remaining(), 0);
+    }
+
+    #[test]
+    fn a_reservation_reports_what_is_left_after_it() {
+        let mut budget = task(0, 3);
+        let left = budget
+            .reserve(&SpendAct {
+                tokens: 0,
+                tool_calls: 1,
+            })
+            .expect("first");
+        assert_eq!(
+            left,
+            Reservation {
+                tokens_remaining: 0,
+                tool_calls_remaining: 2
+            }
+        );
     }
 
     fn req(input: u64, output: u64, tool_calls: u64) -> SpendRequest {
