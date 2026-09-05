@@ -2,7 +2,8 @@
 
 **Branch:** `feat/bounded-revocation` (from **local** `main` @ `f99af94`, not `origin/main` @ `e4b5f10`)
 **Worktree:** `M:/wt-w2-9.1` · `CARGO_TARGET_DIR=M:/wt-w2-9.1-target` (implementation, through `cb17524`)
-**Correction worktree:** `M:/wt-fix-91` · `CARGO_TARGET_DIR=M:/wt-fix-91-target` (review fixes: `53f9ea4`, `d642b48`, `b2213d8`, and this file's own commit)
+**Correction worktree:** `M:/wt-fix-91` · `CARGO_TARGET_DIR=M:/wt-fix-91-target` (review fixes: `53f9ea4`, `d642b48`, `b2213d8`, `2f36a4e`, and this file's own commits)
+**Verified clean at:** `M:/wt-clean-91`, a detached worktree of the branch tip that never held a generated file
 **Date:** 2026-09-05 (implementation), 2026-09-05 (correction after adversarial review)
 
 The plan's baselines were captured at `origin/main` (`9 of 39` crates, `65 passing / 19 ignored`).
@@ -14,10 +15,27 @@ one that was measured.
 
 ## Correction after adversarial review (2026-09-05)
 
-Three review lenses each returned REFUTED. **Every finding reproduced**, none was disputed as
-wrong, and the numbers below this section were re-captured at the corrected tip rather than left as
-they were. What follows is the written record of what was claimed, what was true, how it was caught,
-and what changed. Nothing here was edited quietly.
+Three review lenses each returned REFUTED. **Every finding reproduced** — each was re-run here before
+anything was changed, and none was disputed as wrong (one characterization was, in item 6). The numbers
+below this section were re-captured at the corrected tip rather than left as they were. What follows is
+the written record of what was claimed, what was true, how it was caught, and what changed. Nothing
+here was edited quietly.
+
+The corrected tip was then verified in `M:/wt-clean-91`, a **detached worktree that has never held a
+generated file**, because a dirty working tree is exactly what hid the first defect:
+
+```text
+$ git status --porcelain                      # empty
+$ git ls-files evidence/
+evidence/invariants.json
+evidence/revocation-latency.json
+evidence/wiring-coverage.json
+$ git check-ignore -v evidence/revocation-latency.json ; echo $?
+1                                             # no longer ignored
+$ cd rust && cargo test --workspace -j 2 > log 2>&1; echo $?
+0
+  141 suites; 1463 passed; 0 failed; 20 ignored
+```
 
 ### 1. CI-BREAKING — the branch did not pass its own suite
 
@@ -164,6 +182,23 @@ the exact one, and both fail on a no-op counter (`d642b48`).
   Britishisms on any line this branch adds**; five remain in `report.rs` on lines the branch never
   touched (`behaviour`, `authorised` ×2, `authorises`, `honouring` at `:855`) and are deliberately
   left, per the rule that a pre-existing Britishism in a touched file is not this branch's to sweep.
+
+### 7. An inference the number does not carry
+
+**Claimed:** `RevocationLatency::adjudications_between`'s doc — "*a positive number means an action was
+adjudicated against a revocation set that was already stale*" — and the corpus header's "*zero is the
+only defensible value for a single-process store*".
+
+**True:** no code establishes that. Every adjudication in the window re-reads the journal through
+`RevocationSection::from_store`, so a verdict computed inside the window sees the record. The reviewer
+raised this as a secondary note rather than a finding, on the grounds that demonstrating it would cost
+more than it was worth — and then correction 5 made it free: the new test builds a report inside the
+window and gets a count of 1 against a set that is not stale at all. The doc would have called the
+correction's own passing test a defect.
+
+**Changed:** both places now say what the number counts, and why publishing it is worth doing anyway
+(wall-clock alone is gameable by a fast disk; a build that later adjudicated from a cached set would
+need this number to notice), without claiming the inference (`2f36a4e`).
 
 ### What the review confirmed, and is worth keeping
 
