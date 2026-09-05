@@ -54,6 +54,33 @@ def git(*args: str) -> str:
         return ""
 
 
+def git_ok(*args: str) -> bool:
+    """True iff git exits 0. For commands whose answer is the exit code, not stdout."""
+    try:
+        return subprocess.run(
+            ["git", "-C", str(REPO), *args],
+            capture_output=True, text=True, timeout=30, check=False,
+        ).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def has_evidence(task_id: str, branch: str, merged: bool, evidence_dir_rel: str) -> bool:
+    """Is the exit-gate evidence file present, read from the same ref as the merge state?
+
+    Merge state is decided against `origin/main`, so evidence must be read from `origin/main`
+    too. Reading it off the local working tree instead made the board report four merged,
+    evidenced tasks as UNEVIDENCED -- "a defect, not a state" -- purely because this script was
+    running on a documentation branch that does not carry those files. Two halves of one verdict
+    must come from one ref.
+    """
+    path = f"{evidence_dir_rel}/task-{task_id}.md"
+    if merged:
+        return git_ok("cat-file", "-e", f"origin/main:{path}")
+    # Not merged: the evidence, if it exists yet, lives on the task's own branch.
+    return git_ok("cat-file", "-e", f"{branch}:{path}")
+
+
 @dataclass
 class Task:
     task_id: str
@@ -95,7 +122,7 @@ def load_tasks() -> list[Task]:
     spine: dict[str, list[str]] = routing.get("phase_spine", {})
     needs_expansion = set(routing.get("expansion_required", []))
     convention = routing.get("branch_convention", "impl/task-{id}")
-    evidence_dir = REPO / routing.get("evidence_dir", "docs/task-evidence")
+    evidence_dir_rel = routing.get("evidence_dir", "docs/task-evidence")
 
     # Branch and merge state, read once.
     all_branches = set(
@@ -164,7 +191,7 @@ def load_tasks() -> list[Task]:
             exists=exists,
             merged=merged,
             sha=sha,
-            evidence=(evidence_dir / f"task-{task_id}.md").exists(),
+            evidence=has_evidence(task_id, branch, merged, evidence_dir_rel),
             blocked_by=blocked,
         ))
     return tasks
