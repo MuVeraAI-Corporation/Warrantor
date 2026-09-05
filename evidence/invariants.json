@@ -74,7 +74,7 @@
         {"crate": "warrant", "symbol": "warrantor_warrant::settle::EvidencedPerformer", "test": "rust/warrant/tests/report_evidence_chain.rs::a_pre_commit_receipt_is_on_disk_before_the_effect_is_performed", "note": "counts the lines already durable in receipts/<id>.jsonl at the instant the adapter is called: 1 then 3"},
         {"crate": "warrant", "symbol": "warrantor_warrant::report::verify_effect_receipts", "test": "rust/warrant/tests/report_evidence_chain.rs::removing_one_receipt_from_the_export_is_a_commit_gate_violation", "note": "commit-gate violation (I-07): the post-commit receipt for <handle> is missing from the export"}
       ],
-      "gap": "Task 1.1 wired the commit gate onto the settle path: EvidencedPerformer takes a notary verdict per effect, makes a pre-commit receipt durable before the adapter runs, and refuses to perform the effect if it cannot. Live run 2026-09-05, warrant wrt_d891c73cbcb70a62. It stays PARTIAL rather than being promoted, for one structural reason: the guarantee is held by a WRAPPER, so it holds at the call sites that wrap -- the CLI settle and the HTTP settle route -- and a caller passing a bare EffectPerformer to settle() still gets one. Promotion needs the wrap to be unavoidable rather than conventional."
+      "gap": "Task 1.1 wired the commit gate onto the settle path: EvidencedPerformer takes a notary verdict per effect, makes a pre-commit receipt durable before the adapter runs, and refuses to perform the effect if it cannot. Live run 2026-09-05, warrant wrt_d891c73cbcb70a62. It stays PARTIAL rather than being promoted, for one structural reason: the guarantee is held by a WRAPPER, so it holds at the call sites that wrap -- the CLI settle and the HTTP settle route -- and a caller passing a bare EffectPerformer to settle() still gets one. Promotion needs the wrap to be unavoidable rather than conventional. Task 5.3 strategy A2 records the residue executably: verify_export binds the notary receipt's timestamp to the bundle and does not bind the evidence receipt's binding.issued_at, so a report's evidence half can claim any issuance time. That test starts failing the moment a binding lands, which is when it must be converted to refused_at_the_boundary."
     },
     {
       "id": "I-08",
@@ -106,7 +106,7 @@
         {"crate": "notary", "symbol": "warrantor_notary::Gate::Freshness", "test": "rust/notary/src/lib.rs::gate3_freshness_replayed_nonce_denies", "note": "seen_nonces is a caller-supplied Vec on VerdictContext; no durable nonce store exists in warrant"},
         {"crate": "notary", "symbol": "warrantor_notary::Gate::Freshness", "test": "rust/notary/src/lib.rs::gate3_freshness_stale_timestamp_denies", "note": ""}
       ],
-      "gap": "The gate refuses a replay it is told about; nothing on the warrant path remembers nonces across calls. Phase 3 recorder (L7-20)."
+      "gap": "The gate refuses a replay it is told about; nothing on the warrant path remembers nonces across calls. Phase 3 recorder (L7-20). Task 5.3 strategy A4 records the unrefused case executably against a VerdictContext shaped exactly like the one the product builds (a test fixture, not a product call: the product link is the static count), and counts both call sites -- report.rs and settle.rs -- so closing one and leaving the other cannot read as closed. It starts failing when a nonce store lands."
     },
     {
       "id": "I-11",
