@@ -263,7 +263,7 @@ fn looks_like_address(s: &str) -> bool {
 // Signed egress receipt — the proof of the decision
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EgressReceiptBody {
     pub verdict: EgressVerdict,
     pub capability: String,
@@ -271,7 +271,7 @@ pub struct EgressReceiptBody {
     pub broker_version: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EgressReceipt {
     pub body: EgressReceiptBody,
     pub signature_algorithm: String,

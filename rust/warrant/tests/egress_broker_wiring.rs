@@ -241,6 +241,7 @@ fn a_url_in_prose_is_still_decided_by_the_broker_and_recorded_when_denied() {
 
 use warrantor_warrant::mcp::Endpoint;
 use warrantor_warrant::mcp_endpoints::agent_endpoint_for;
+use warrantor_warrant::report::{self, EgressSection};
 use warrantor_warrant::store::StoredWarrant;
 use warrantor_warrant::Warrant;
 
@@ -378,5 +379,43 @@ fn egress_hosts_stays_mediated_and_says_so() {
         *strength,
         BoundStrength::Mediated,
         "a catalog changes what is expressible, not where it is enforced"
+    );
+}
+
+#[test]
+fn the_report_signs_every_recorded_decision_and_verify_checks_each_receipt() {
+    let dir = tempdir("report");
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let stored = stored_with_egress("wrt_r");
+    let mut endpoint =
+        agent_endpoint_for(&stored, dir.join("staged.jsonl"), ProxyMode::Enforce, now)
+            .expect("endpoint")
+            .with_catalog(&signed_catalog("wrt_r", &issuer), dir.clone())
+            .expect("catalog");
+    let _ = endpoint.call(
+        "http.fetch",
+        &[("url".to_string(), json!("https://paste.example/x"))]
+            .into_iter()
+            .collect::<BTreeMap<String, Value>>(),
+    );
+    let section: EgressSection =
+        report::egress_section(&dir, "wrt_r", &issuer, "issuer").expect("a log exists");
+    assert_eq!(section.receipts.len(), 1);
+    let built = report::build(
+        &stored,
+        Err("no queue in this test".to_string()),
+        &issuer.verifying_key(),
+        NOW,
+    )
+    .with_egress(section);
+    let signed = built.sign(&issuer, "issuer").expect("sign");
+    report::verify_export(&signed).expect("verifies with receipts");
+    let mut broken = signed.clone();
+    broken.bundle.egress.as_mut().unwrap().receipts[0]
+        .body
+        .capability = "forged".to_string();
+    assert!(
+        report::verify_export(&broken).is_err(),
+        "a tampered egress receipt fails the bundle"
     );
 }

@@ -293,6 +293,60 @@ pub struct CustodySection {
     pub approvals_required: usize,
 }
 
+/// The egress decisions this warrant's sessions recorded, each signed by the issuer at report time.
+///
+/// The proxy that made the decision holds no key, so the record it wrote is unsigned; this section
+/// is that record countersigned by the issuer, with the decision's own timestamp. What it proves is
+/// that these decisions were on disk when the report was taken. It does not prove the proxy saw
+/// every connection the agent made — see `limitations`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EgressSection {
+    /// One receipt per recorded decision, in the order the decisions were written.
+    pub receipts: Vec<warrantor_egress::EgressReceipt>,
+    /// How many decision-log lines did not parse. Never folded into a count that reads as zero.
+    pub unreadable_lines: usize,
+    /// What this section does and does not establish, printed with the report.
+    pub note: String,
+}
+
+/// Read the warrant's decision log and countersign every recorded decision.
+///
+/// `None` means the log did not exist or was empty — the report was taken over a session that
+/// decided no egress, or none was recorded. That is a different claim from "no egress happened",
+/// and the section's note says which one is being made when it is present.
+pub fn egress_section(
+    root: &std::path::Path,
+    warrant_id: &str,
+    issuer: &SigningKey,
+    key_id: &str,
+) -> Option<EgressSection> {
+    let (decisions, unreadable_lines) = crate::egress::read_decisions(root, warrant_id).ok()?;
+    if decisions.is_empty() && unreadable_lines == 0 {
+        return None;
+    }
+    let receipts = decisions
+        .iter()
+        .map(|d| {
+            let request = warrantor_egress::EgressRequest {
+                capability: d.capability.clone(),
+                logical_endpoint: d.destination.clone(),
+                chain_capabilities: Vec::new(),
+                enforcement_mode: "advisory".to_string(),
+                is_discovery: false,
+                has_approval: false,
+            };
+            warrantor_egress::issue_receipt(&d.verdict, &request, d.at, issuer, key_id)
+        })
+        .collect();
+    Some(EgressSection {
+        receipts,
+        unreadable_lines,
+        note: "Signed by the issuer when the report was taken, over decisions the MCP proxy wrote \
+               down before forwarding. Covers calls that traversed the proxy and nothing else."
+            .to_string(),
+    })
+}
+
 /// Everything `warrantor report` knows, in one signable object.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReportBundle {
@@ -347,6 +401,13 @@ pub struct ReportBundle {
     /// it breaks verification, which is the point of putting it here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custody: Option<CustodySection>,
+    /// The egress decisions recorded before forwarding, countersigned by the issuer.
+    ///
+    /// Same contract as `custody`: `#[serde(default, skip_serializing_if = "Option::is_none")]`
+    /// keeps every bundle exported before this section existed byte-identical, and a present one
+    /// is inside the signature — a tampered receipt fails the bundle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub egress: Option<EgressSection>,
     /// Staged effects awaiting a settle decision.
     pub staged: StagedSection,
     /// How many effects are staged. `None` when the queue could not be read.
@@ -510,6 +571,10 @@ fn limitations(
         "egress_hosts is enforced only for tool calls that traverse the Warrantor MCP proxy. \
          There is no network namespace, seccomp filter or firewall: an agent that opens a socket \
          directly is not bound by it, and nothing in this bundle says otherwise."
+            .to_string(),
+        "Egress receipts cover decisions the MCP proxy recorded; they are countersigned by the \
+         issuer at report time because the proxy holds no key, and they say nothing about \
+         connections that never traversed the proxy."
             .to_string(),
         "write_paths is not refused at the moment of writing. Nothing intercepts the agent's \
          filesystem access, so an agent under this warrant could have written outside its declared \
@@ -820,6 +885,7 @@ pub fn build_observed(
         limitations: limitations(stored, contained_scopes, spend.as_ref(), custody.as_ref()),
         spend,
         custody,
+        egress: None,
         staged,
         staged_count,
         chain_head,
@@ -855,6 +921,13 @@ impl Report {
     #[must_use]
     pub fn bundle(&self) -> &ReportBundle {
         &self.bundle
+    }
+
+    /// Attach the countersigned egress decision section, when a decision log existed.
+    #[must_use]
+    pub fn with_egress(mut self, section: EgressSection) -> Self {
+        self.bundle.egress = Some(section);
+        self
     }
 
     /// Sign the bundle: a notary receipt over the verdict, a WAR receipt over the whole report.
@@ -1020,6 +1093,22 @@ pub fn verify_export(export: &SignedReport) -> Result<(), ReportError> {
         .map_err(|e| ReportError::Evidence(e.to_string()))?;
     evidence::verify_authority(&export.evidence_receipt.predicate.authority)
         .map_err(|e| ReportError::Evidence(e.to_string()))?;
+
+    // Every egress receipt must verify on its own AND be bound to this report's signer: a receipt
+    // the issuer countersigned lands here, and one signed by anyone else is an imported claim
+    // wearing this report's clothes.
+    if let Some(section) = &export.bundle.egress {
+        for receipt in &section.receipts {
+            warrantor_egress::verify_receipt(receipt)
+                .map_err(|e| ReportError::Evidence(format!("egress receipt: {e}")))?;
+            if receipt.signature_public_key != export.evidence_receipt.signature.public_key {
+                return Err(ReportError::Binding(
+                    "an egress receipt was signed by a key other than the report's signer"
+                        .to_string(),
+                ));
+            }
+        }
+    }
 
     // One report, one signer. Without this, a receipt lifted from somewhere else and signed by a
     // different key would pass its own verification and ride along.
