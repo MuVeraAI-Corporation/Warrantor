@@ -2865,6 +2865,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "warrantor-kill-switch-core"
+version = "1.0.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "warrantor-misinformation-defense"
 version = "1.0.0"
 dependencies = [
