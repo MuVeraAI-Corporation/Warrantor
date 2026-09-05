@@ -1,14 +1,15 @@
 //! Task 1.2: destinations are catalog capability names; every decision is recorded before the
 //! call is forwarded; the report signs the record. `egress_hosts` stays Mediated throughout.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use ed25519_dalek::SigningKey;
+use serde_json::{json, Value};
 use warrantor_egress::{DenyReason, EgressVerdict};
 use warrantor_warrant::catalog::{
     check_capability_name, Capability, CapabilityCatalog, CATALOG_FORMAT,
 };
-use warrantor_warrant::egress::{DECISION_FORMAT, DESTINATION_KEYS};
+use warrantor_warrant::egress::{read_decisions, DECISION_FORMAT, DESTINATION_KEYS};
 use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall};
 use warrantor_warrant::staging::EffectRegistry;
 use warrantor_warrant::{SideEffectClass, WarrantBounds};
@@ -236,4 +237,113 @@ fn a_url_in_prose_is_still_decided_by_the_broker_and_recorded_when_denied() {
     assert_eq!(decisions[0].destination, "paste.example");
     assert!(matches!(decisions[0].verdict, EgressVerdict::Deny { .. }));
     assert!(DESTINATION_KEYS.contains(&"url"));
+}
+
+use warrantor_warrant::mcp::Endpoint;
+use warrantor_warrant::mcp_endpoints::agent_endpoint_for;
+use warrantor_warrant::store::StoredWarrant;
+use warrantor_warrant::Warrant;
+
+fn now() -> u64 {
+    NOW
+}
+
+fn stored_with_egress(id: &str) -> StoredWarrant {
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let settle = SigningKey::from_bytes(&[2; 32]);
+    let warrant = Warrant::grant(
+        id,
+        "goal",
+        "spiffe://muveraai.com/agent/a",
+        bounds_with(&["api.github.com"]),
+        NOW,
+        &settle.verifying_key(),
+        &issuer,
+    )
+    .expect("grant");
+    StoredWarrant {
+        warrant,
+        worktree: None,
+        repo: None,
+        branch: None,
+        base_commit: None,
+        staged_chain: None,
+    }
+}
+
+#[test]
+fn in_enforce_mode_no_published_destination_property_is_free_form() {
+    let dir = tempdir("schema");
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let mut endpoint = agent_endpoint_for(
+        &stored_with_egress("wrt_s"),
+        dir.join("staged.jsonl"),
+        ProxyMode::Enforce,
+        now,
+    )
+    .expect("endpoint")
+    .with_catalog(&signed_catalog("wrt_s", &issuer), dir.clone())
+    .expect("catalog within bound");
+    for tool in endpoint.tools() {
+        let Some(properties) = tool
+            .input_schema
+            .get("properties")
+            .and_then(Value::as_object)
+        else {
+            continue;
+        };
+        for key in DESTINATION_KEYS {
+            if let Some(property) = properties.get(*key) {
+                assert!(
+                    property.get("enum").is_some(),
+                    "{}.{key} accepts a free-form destination: {property}",
+                    tool.name
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_decision_is_on_disk_before_any_forward_and_a_refusal_is_receipted() {
+    let dir = tempdir("log");
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let mut endpoint = agent_endpoint_for(
+        &stored_with_egress("wrt_l"),
+        dir.join("staged.jsonl"),
+        ProxyMode::Enforce,
+        now,
+    )
+    .expect("endpoint")
+    .with_catalog(&signed_catalog("wrt_l", &issuer), dir.clone())
+    .expect("catalog");
+    let refused = endpoint.call(
+        "http.fetch",
+        &[("url".to_string(), json!("https://paste.example/x"))]
+            .into_iter()
+            .collect::<BTreeMap<String, Value>>(),
+    );
+    assert!(refused.is_error);
+    assert!(refused.text.contains("egress_hosts"), "{}", refused.text);
+    let allowed = endpoint.call(
+        "http.fetch",
+        &[("url".to_string(), json!("host:api.github.com/repos"))]
+            .into_iter()
+            .collect::<BTreeMap<String, Value>>(),
+    );
+    assert!(
+        allowed.text.contains("no upstream MCP server is attached"),
+        "{}",
+        allowed.text
+    );
+    let (decisions, unreadable) = read_decisions(&dir, "wrt_l").expect("log");
+    assert_eq!(unreadable, 0);
+    assert_eq!(decisions.len(), 2);
+    assert!(matches!(
+        decisions[0].verdict,
+        EgressVerdict::Deny {
+            reason: DenyReason::NotACapability
+        }
+    ));
+    assert!(matches!(decisions[1].verdict, EgressVerdict::Allow { .. }));
 }

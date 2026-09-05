@@ -701,6 +701,11 @@ pub struct AgentEndpoint {
     /// well-bounded agent.
     forwarded: usize,
     forward_failures: usize,
+    /// The store root the egress decision log lives under, when a catalog was attached.
+    ///
+    /// Absent means decisions are drained and dropped — the pre-catalog behavior, which is what
+    /// every test that predates the catalog runs under and what an observe-mode session does.
+    egress_root: Option<std::path::PathBuf>,
     now: fn() -> u64,
 }
 
@@ -727,6 +732,7 @@ impl AgentEndpoint {
             upstreams: None,
             forwarded: 0,
             forward_failures: 0,
+            egress_root: None,
             now,
         }
     }
@@ -759,6 +765,38 @@ impl AgentEndpoint {
         self.classes = classes;
         self.refuse_unclassified = refuse_unclassified;
         self
+    }
+
+    /// Attach the verified per-warrant catalog and the root the decision log lives under.
+    ///
+    /// A builder like [`Self::with_upstreams`]; and like the others it is a property of the
+    /// session, not of the signed warrant — the warrant bounds hosts, the catalog names them.
+    ///
+    /// # Errors
+    /// The catalog names a host outside the warrant's egress bound.
+    pub fn with_catalog(
+        mut self,
+        catalog: &crate::catalog::CapabilityCatalog,
+        root: std::path::PathBuf,
+    ) -> Result<Self, String> {
+        let bounds = self.proxy.bounds().clone();
+        let vocabulary = catalog.vocabulary_within(&bounds)?;
+        self.proxy = self.proxy.with_vocabulary(vocabulary);
+        self.egress_root = Some(root);
+        Ok(self)
+    }
+
+    /// Write every egress decision drained from the proxy, when a log root is attached.
+    ///
+    /// `None` is the pre-catalog state — decisions are drained and dropped, which is what every
+    /// observe-mode session and every test without a catalog has always done.
+    fn flush_egress_log(&mut self) -> Result<usize, String> {
+        let at = (self.now)();
+        let decisions = self.proxy.take_egress_decisions(&self.warrant_id, at);
+        match &self.egress_root {
+            Some(root) => crate::egress::record_decisions(root, &decisions),
+            None => Ok(0),
+        }
     }
 
     /// Tools this session decided by the fallback rather than by a declaration.
@@ -949,9 +987,11 @@ impl Endpoint for AgentEndpoint {
         // No upstream: the shipped behaviour since this endpoint existed. The warrant's tool names
         // are published verbatim with an open schema, because there is no server to ask what the
         // real schema is. Kept exactly as it was — a session with nothing attached is what every
-        // test and every `--observe` authoring run has always been.
+        // test and every `--observe` authoring run has always been. The one exception is a
+        // verified catalog under Enforce: even a guessed schema closes its destination arguments,
+        // because the proxy would refuse what the schema invited.
         let Some(upstreams) = &self.upstreams else {
-            return self
+            let mut published: Vec<ToolSpec> = self
                 .allowed
                 .iter()
                 .map(|name| ToolSpec {
@@ -960,6 +1000,14 @@ impl Endpoint for AgentEndpoint {
                     input_schema: json!({"type": "object", "additionalProperties": true}),
                 })
                 .collect();
+            if let Some(vocabulary) = self.proxy.vocabulary() {
+                if self.proxy.mode() == crate::proxy::ProxyMode::Enforce {
+                    for tool in &mut published {
+                        vocabulary.constrain_schema(&mut tool.input_schema);
+                    }
+                }
+            }
+            return published;
         };
 
         let observing = self.proxy.mode() == crate::proxy::ProxyMode::Observe;
@@ -1013,6 +1061,13 @@ impl Endpoint for AgentEndpoint {
                 input_schema: tool.input_schema.clone(),
             });
         }
+        if let Some(vocabulary) = self.proxy.vocabulary() {
+            if self.proxy.mode() == crate::proxy::ProxyMode::Enforce {
+                for tool in &mut published {
+                    vocabulary.constrain_schema(&mut tool.input_schema);
+                }
+            }
+        }
         published
     }
 
@@ -1054,15 +1109,38 @@ impl Endpoint for AgentEndpoint {
             SideEffectClass::Read
         };
 
-        let call = ToolCall {
+        let mut call = ToolCall {
             tool: tool.to_string(),
             arguments: flattened,
             side_effect,
         };
 
+        // L4-23: under a verified catalog, a destination argument is a capability NAME or the call
+        // is refused here, before the broker — a raw address never reaches a verdict at all.
+        if let Err(Decision::Deny { reason, bound }) = self.proxy.resolve_destinations(&mut call) {
+            // A refusal is still a decision worth a line; if the line cannot be written the
+            // refusal stands regardless, so the error is reported and not turned into a forward.
+            if let Err(e) = self.flush_egress_log() {
+                eprintln!(
+                    "warrantor: could not record an egress refusal for {}: {e}",
+                    self.warrant_id
+                );
+            }
+            return ToolResult::error(format!("refused by the warrant's {bound} bound: {reason}"));
+        }
+
         // The warrant decides first, and its decision is never reconsidered below: no arm of the
         // guard can turn a denial into an allow, because a denial returns without ever reaching it.
-        match self.proxy.decide(&call) {
+        let decision = self.proxy.decide(&call);
+        // BEFORE any effect, and refusing if it cannot be written: a decision that exists only in
+        // this process's memory is not evidence, and I-07 says the record comes first.
+        if let Err(e) = self.flush_egress_log() {
+            return ToolResult::error(format!(
+                "{tool} was decided but the egress decision could not be recorded ({e}); the call \
+                 is refused rather than forwarded unrecorded"
+            ));
+        }
+        match decision {
             // A bound refused this, so the call did NOT happen -- and an unhappened call is not
             // something to classify. Handing its arguments to the classifier would put a signal in
             // `<root>/guard/` for a call the refusal log already records as refused, double-counting
@@ -1157,7 +1235,18 @@ impl Endpoint for AgentEndpoint {
                     // a sentence instead of a panic in a supervised agent's session.
                     return ToolResult::error(format!("{tool}: no upstream is attached"));
                 };
-                match upstreams.call(tool, arguments) {
+                // Forward the RESOLVED arguments: a destination the agent named as a capability
+                // goes over the wire as the URL the catalog resolved it to, or the upstream would
+                // receive a name only it could not understand.
+                let mut forwarded = arguments.clone();
+                for key in crate::egress::DESTINATION_KEYS {
+                    if let Some(v) = call.arguments.get(*key) {
+                        if forwarded.contains_key(*key) {
+                            forwarded.insert((*key).to_string(), Value::String(v.clone()));
+                        }
+                    }
+                }
+                match upstreams.call(tool, &forwarded) {
                     Ok(result) => {
                         self.forwarded += 1;
                         result
