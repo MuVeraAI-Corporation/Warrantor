@@ -170,6 +170,46 @@ $ grep -rc --include=*.rs -E "^[[:space:]]*#\[ignore" rust/warrant/tests/invaria
 18   (the count the new ordinal gate asserts against ignored_ceiling)
 ```
 
+`finished in <n>s` is wall clock and is the only figure above that does not reproduce run to run;
+in the fresh worktree below the same suites reported 0.44s and 0.12s. Every count, every exit code
+and every gate line reproduces exactly.
+
+**Re-verified independently, in a fresh detached worktree of this commit with its own
+`CARGO_TARGET_DIR`, because a dirty working tree is how this wave already shipped one CI-breaking
+defect** — an untracked file made an implementer's run green while the committed branch was red, and
+`git status` said clean because `.gitignore` excluded it. So:
+
+```text
+$ git worktree add --detach M:/wt-clean-53 feat/evidence-integrity-adversary
+$ cd M:/wt-clean-53 && export CARGO_TARGET_DIR=M:/wt-clean-53-target
+$ git status --porcelain                                       (empty)
+$ cargo test --workspace -j 2                                  exit 0
+140 suites, 1449 passing, 0 failed, 23 ignored
+$ cargo test -p warrantor-warrant --test invariants -j 2       exit 0
+test result: ok. 79 passed; 0 failed; 18 ignored; 0 measured; 0 filtered out
+$ cargo test -p warrantor-archive --test adversary_custody     exit 0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+$ cargo fmt --check                                            exit 0
+$ cargo clippy --all-targets -- -D warnings                    exit 0
+$ python tools/ci/wiring_census.py                             exit 0
+wiring census: 10 of 40 crates reachable from warrantor-warrant over 18 path edges
+$ python tools/ci/check_invariants.py                          exit 0
+invariant ledger: 12 invariants; enforced=2, orphaned=2, partial=7, unimplemented=1
+$ python tools/ci/check_invariant_ratchet.py                   exit 0
+invariant ratchet: ok (79 passing at floor 79, 18 recorded findings at ceiling 18)
+$ node ".../verify-us-english.mjs" <the two documents>          exit 1
+2 file(s) - 16 finding(s) - 17 protected by carve-outs
+$ git status --porcelain     (again, after the full gate)       (empty)
+```
+
+**Every path any test in this suite reads is tracked**, checked rather than assumed, because
+`.gitignore` excludes `/evidence/*` wholesale and re-includes exactly two files by name:
+`git ls-files evidence/` returns `evidence/invariants.json` and `evidence/wiring-coverage.json`, and
+`git ls-files tools/ci/` returns `tools/ci/invariant-ratchet.json` among the scripts. `docs/` and
+`tools/ci/` carry no exclusion rule. This commit adds no file, so nothing new could fall through a
+rule; the check is recorded anyway, since the rule that swallowed `rust/evidence/` once is still in
+that file.
+
 **Orphan count unchanged: 10 of 40 crates over 18 path edges, before and after.** This task adds no
 crate, no `[dev-dependencies]` entry, no `[[test]]` target and no CI job.
 
