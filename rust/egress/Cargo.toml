@@ -17,3 +17,15 @@ serde_json = "1"
 ed25519-dalek = { version = "3", features = ["rand_core"] }
 getrandom = { version = "0.4", features = ["sys_rng"] }
 sha2 = "0.11"
+# THE WIRING EDGE. `warrantor-egress` is already reachable from the `warrantor` binary, so one edge
+# below it puts the deny floor (L4-25) and its single shared address matcher on the shipping path and
+# moves `warrantor-egress-filter` off the orphan list in `evidence/wiring-coverage.json`. Its
+# dependency set {thiserror, serde, serde_json} is a strict subset of this crate's, so the edge adds
+# no external crate and no new package to `rust/Cargo.lock`.
+#
+# WHAT THE EDGE DOES NOT MEAN. It reaches exactly one module, `hard_deny`. The crate's advertised
+# capability -- `Policy` / `PolicyBuilder` and the three `decide_*` entry points -- has an EMPTY
+# caller set in this workspace outside the crate's own tests, so the census rose because new code was
+# placed inside an orphan crate rather than because an orphaned capability was wired up. A reader who
+# takes `11 of 40` as "the eBPF egress core is now in the product" has read it wrong.
+warrantor-egress-filter = { path = "../egress-filter", version = "1.0.0" }

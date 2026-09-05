@@ -8,6 +8,19 @@
 //!
 //! These are the spellings an HTTP client or an OS resolver accepts for the same host. A floor that
 //! holds only for the canonical form is not a floor; it is one entry in a deny list.
+//!
+//! UPDATE (Task 7.1, L4-25). Everything above describes the defect this file was written against and
+//! is kept as the record of it. The matcher no longer lives in this crate: it moved to
+//! `warrantor_egress_filter::hard_deny`, so that `Policy` -- which had five of its own paths to an
+//! Allow for these addresses -- and this broker consult one rule rather than two. The assertions
+//! below are unchanged and still run through `warrantor_egress::decide`, which now delegates. The
+//! delegated matcher is **wider** than the prose above: it also refuses IPv6 unique-local
+//! `fc00::/7`, and every refusal but the unparseable one reaches this crate's callers as
+//! `DenyReason::MetadataRange`, whatever the floor's own reason was.
+//!
+//! (This paragraph shipped twice in `5e1b5a5` -- a copy-paste defect an adversarial review caught.
+//! The duplicate is removed here rather than silently, because the file that carries the branch's
+//! "one matcher, not two" argument handing a reader the same paragraph twice is worth naming.)
 
 use warrantor_egress::{
     decide, test_catalog, CatalogEntry, DenyReason, EgressRequest, EgressVerdict,
@@ -108,14 +121,28 @@ fn a_second_public_address_is_still_allowed() {
     );
 }
 
-/// `DenyReason::PrivateRange` exists and is documented, and the branch that would construct it
-/// (`rust/egress/src/lib.rs:212-218`) has an empty body — it is a comment that reasons itself into
-/// a no-op. So the rule "private ranges denied unless explicitly catalogued" has no mechanism.
+/// The PrivateRange variant exists and is documented, and nothing constructs it. So the rule
+/// "private ranges denied unless explicitly catalogued" has no mechanism.
 ///
-/// This test pins the CURRENT behavior rather than asserting the documented rule, because changing
-/// it is Task 7.1's decision and three existing tests depend on a private address being allowed
-/// once catalogued. What it prevents is the variant being silently deleted, or the branch being
-/// given a body without that decision being made deliberately.
+/// This test pins the CURRENT behavior rather than asserting the documented rule, because three
+/// existing tests depend on a private address being allowed once catalogued. What it prevents is the
+/// variant being silently deleted, or being given a body without that decision being made
+/// deliberately.
+///
+/// UPDATE (Task 7.1, L4-25). Task 7.1 read this pin, made the decision, and **left the variant
+/// without a mechanism**. L4-25 names the metadata service and link-local addresses, not RFC-1918,
+/// and constructing the variant would mean refusing a catalogued private address, contradicting
+/// `valid_capability_resolves_to_allow`, `receipt_round_trip_verifies` and
+/// `net_egress_wildcard_allows` in this crate plus `private_egress_can_be_explicitly_opted_out_of`
+/// in `warrantor-egress-filter`. What Task 7.1 did remove is the empty `if` branch whose comment
+/// reasoned itself into a no-op. The pin below is byte-for-byte unchanged and still reads zero.
+/// See `docs/task-evidence/task-7.1.md`.
+///
+/// CORRECTION (adversarial review of `5e1b5a5`). "L4-25 names the metadata service and link-local
+/// addresses, not RFC-1918" is true of L4-25 and was misleading about what shipped: the floor also
+/// refuses IPv6 unique-local `fc00::/7`, which is the IPv6 analog of RFC-1918, and refuses it
+/// *unamendably*. So the IPv4 half of "private ranges" is left to a flag an operator can turn off
+/// while the IPv6 half is not negotiable at all. That asymmetry was not stated when it landed.
 #[test]
 fn private_range_is_allowed_once_catalogued_and_the_variant_is_never_constructed() {
     let verdict = verdict_for("10.0.1.5");
