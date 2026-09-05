@@ -720,6 +720,214 @@ test('boundTierLines renders one line per bound, word then caveat, and never inf
   assert.deepEqual(module.boundTierLines(null), []);
 });
 
+// ── Task 4.3: coverage disclosure on every pane that renders a guarantee ────────────
+//
+// The product rule: NO SCREEN, BADGE, SUMMARY, EXPORT or STATUS may collapse
+// observed / advisory / mediated / enforced into one green state. Every rendered guarantee
+// must also render what it does not cover, and the tier word must be on the page in prose
+// (not only as a glyph or a class hook) so a screen reader announces it.
+//
+// These tests pin the four panes Task 4.3 names — the queueRow, the transportRow, the
+// coverageRow, and the routingRow — and assert that each carries the explicit tier line
+// that boundTierLines and the proposed-effect meta block pioneered.
+
+test('tierLine: the helper renders every vocabulary the server speaks and a "not stated" fallback for anything else', async () => {
+  // The helper is the one place the wording lives. A future pane that adopts the same shape
+  // must inherit these exact strings, and the helper is what the test pins.
+  const { module } = await boot(() => HEALTH_OK);
+  const find = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+  // (1) The bound-strength vocabulary. Each word gets its own class.
+  for (const tier of ['enforced', 'mediated', 'observed']) {
+    const line = module.tierLine(tier, { className: 'tier' });
+    assert.match(line.textContent, new RegExp(`tier: ${tier}`));
+    assert.ok(find(line, `is-${tier}`), `an ${tier} line carries the matching is-<tier> class`);
+  }
+  // (2) The coverage vocabulary. Each word is rendered as itself, with its class.
+  for (const state of ['mediated', 'observed', 'unsupported', 'bypassable']) {
+    const line = module.tierLine(state, { className: 'tier' });
+    assert.match(line.textContent, new RegExp(`tier: ${state}`));
+    assert.ok(find(line, `is-${state}`), `a ${state} line carries the matching is-<state> class`);
+  }
+  // (3) The routing vocabulary. Same rule.
+  for (const state of ['local', 'escalated', 'ceiling_refused', 'unconfigured']) {
+    const line = module.tierLine(state, { className: 'tier' });
+    assert.match(line.textContent, new RegExp(`tier: ${state}`));
+    assert.ok(find(line, `is-${state}`), `a ${state} line carries the matching is-<state> class`);
+  }
+  // (4) A word the helper does not recognize is rendered as "not stated", never as enforced.
+  for (const unknown of ['unbreakable', 'best-effort', 'gold', 'platinum', '', null, undefined]) {
+    const line = module.tierLine(unknown, { className: 'tier' });
+    assert.match(line.textContent, /not stated/);
+    assert.doesNotMatch(line.textContent, /\benforced\b/,
+      `unknown tier ${JSON.stringify(unknown)} must not round up to enforced`);
+  }
+});
+
+test('queueRow: every row carries a tier line, and the unknown-tier case is "not stated"', async () => {
+  // The blocker badge above the tier line says what is being waited for; the tier line says
+  // how strong the wait is. A row that printed one without the other would be a row the
+  // operator could not audit at the level the product requires.
+  const findClass = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+
+  // (1) The baseline queue entry has no `blocker.tier`. The row must still say so.
+  const baseline = await openQueue(queueBody());
+  const baselineRow = baseline.el('queue-rows').children[0];
+  const baselineTier = baselineRow.children.find((c) => findClass(c, 'queue-tier'));
+  assert.ok(baselineTier, 'the row carries a queue-tier element');
+  assert.match(textOf(baselineTier), /not stated/);
+  assert.doesNotMatch(textOf(baselineTier), /\benforced\b/);
+
+  // (2) A row whose blocker.tier is "mediated" renders the word, with a matching class.
+  const mediated = await openQueue(
+    queueBody({
+      waiting: [
+        {
+          ...QUEUE_ENTRY,
+          blocker: { ...QUEUE_ENTRY.blocker, tier: 'mediated' },
+        },
+      ],
+    }),
+  );
+  const mediatedRow = mediated.el('queue-rows').children[0];
+  const mediatedTier = mediatedRow.children.find((c) => findClass(c, 'queue-tier'));
+  assert.match(textOf(mediatedTier), /tier: mediated/);
+  assert.ok(findClass(mediatedTier, 'is-mediated'), 'a mediated row carries the is-mediated class');
+});
+
+test('transportRow: every transport carries a tier line, and a "guarantees" sentence is not enough on its own', async () => {
+  // The transport row's `guarantees` prose is the operator-facing promise; the tier line is
+  // the classification of that promise. A row that printed the prose without the tier would
+  // be a row that conflated "this transport promises delivery" with "this transport's
+  // promise is enforced".
+  const { module, el } = await boot(() => HEALTH_OK);
+  const findClass = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+
+  const facts = module.settingsFacts(true, 200, NOTIFY_OK(configuredAll).body);
+  module.renderSettings(facts);
+  for (const row of el('settings-transports').children) {
+    const tier = row.children.find((c) => findClass(c, 'settings-transport-tier'));
+    assert.ok(tier, 'every transport row carries a settings-transport-tier element');
+    // The configuredAll fixture does not name a tier, so each row must say "not stated",
+    // not "enforced".
+    assert.match(textOf(tier), /not stated/);
+    assert.doesNotMatch(textOf(tier), /\benforced\b/);
+  }
+
+  // And a transport whose server does name a tier renders the word, with a matching class.
+  const withTier = {
+    ...configuredAll,
+    transports: [
+      { ...configuredAll.transports[0], tier: 'enforced' },
+      { ...configuredAll.transports[1], tier: 'observed' },
+      ...configuredAll.transports.slice(2),
+    ],
+  };
+  const facts2 = module.settingsFacts(true, 200, NOTIFY_OK(withTier).body);
+  module.renderSettings(facts2);
+  const emailRow = el('settings-transports').children.find(
+    (r) => r.children[0]?.children[0]?.textContent === 'email',
+  );
+  const pushRow = el('settings-transports').children.find(
+    (r) => r.children[0]?.children[0]?.textContent === 'push',
+  );
+  const emailTier = emailRow.children.find((c) => findClass(c, 'settings-transport-tier'));
+  const pushTier = pushRow.children.find((c) => findClass(c, 'settings-transport-tier'));
+  assert.match(textOf(emailTier), /tier: enforced/);
+  assert.ok(findClass(emailTier, 'is-enforced'));
+  assert.match(textOf(pushTier), /tier: observed/);
+  assert.ok(findClass(pushTier, 'is-observed'));
+});
+
+test('coverageRow: every row carries an explicit tier word, not just a glyph', async () => {
+  // The four-state coverage vocabulary is its own tier vocabulary (mediated / observed /
+  // unsupported / bypassable). The glyph in the head is the visual cue; the tier line in
+  // the body is the prose so a reader who cannot resolve the glyph still sees the
+  // classification.
+  const { module, el } = await boot(() => HEALTH_OK);
+  const findClass = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+
+  const facts = module.coverageMapFacts(true, 200, {
+    data: {
+      format: 'warrantor.coverage-map/1',
+      as_of: 1_786_000_000,
+      matrix: [
+        { effect_class: 'read', harness: 'mcp', state: 'mediated', named_bypass: null, receipts: 10, total: 10 },
+        { effect_class: 'write', harness: 'mcp', state: 'observed', named_bypass: 'transitive through cache SSRF', receipts: 3, total: 12 },
+        { effect_class: 'exec', harness: 'mcp', state: 'unsupported', named_bypass: 'no execution path declared', receipts: 0, total: 0 },
+        { effect_class: 'egress', harness: 'mcp', state: 'bypassable', named_bypass: 'cache SSRF (sample)', receipts: 1, total: 4 },
+      ],
+      summary: { mediated: 10, observed: 9, unsupported: 0, bypassable: 3, total: 22 },
+    },
+  });
+  module.renderCoverage(facts);
+  const states = ['mediated', 'observed', 'unsupported', 'bypassable'];
+  for (let i = 0; i < states.length; i += 1) {
+    const row = el('coverage-matrix').children[i];
+    const tier = row.children.find((c) => findClass(c, 'coverage-row-tier'));
+    assert.ok(tier, `the ${states[i]} row carries a coverage-row-tier element`);
+    assert.match(textOf(tier), new RegExp(`tier: ${states[i]}`));
+  }
+});
+
+test('routingRow: every row carries an explicit tier word, not just a glyph', async () => {
+  // The four-state routing vocabulary (local / escalated / ceiling_refused / unconfigured) is
+  // its own tier vocabulary. The badge in the head is the visual cue; the tier line is the
+  // prose so a reader who cannot resolve the glyph still sees the classification, and a
+  // screen reader announces the state in words, not in symbol.
+  const findClass = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+  for (const fixture of [localOnly, escalatedWithReceipt, ceilingRefused, routingUnconfigured]) {
+    const app = await openRouting(wire(fixture));
+    const rows = app.el('routing-decisions').children;
+    if (rows.length === 0) continue; // unconfigured has no decisions
+    const state = fixture.decisions[0].state;
+    const tier = rows[0].children.find((c) => findClass(c, 'routing-tier'));
+    assert.ok(tier, `the ${state} row carries a routing-tier element`);
+    assert.match(textOf(tier), new RegExp(`tier: ${state}`));
+  }
+});
+
+test('observed and enforced are visually distinct: a same-class collapse would be the rule\'s opposite', async () => {
+  // The product rule: NO SCREEN may collapse observed, advisory, mediated and enforced into
+  // one green state. The structural guarantee is that the four words produce four different
+  // classes on the page — a stylesheet change that merged them would also have to merge the
+  // classes, and the test pins the four distinct classes.
+  const { module, el } = await boot(() => HEALTH_OK);
+  const findClass = (n, cls) => (n.className ?? '').split(/\s+/).includes(cls);
+
+  // (1) The tierLine helper produces three distinct is-<tier> classes, one per known word.
+  const classes = new Set();
+  for (const tier of ['enforced', 'mediated', 'observed']) {
+    const line = module.tierLine(tier, { className: 'tier' });
+    classes.add((line.className ?? '').split(/\s+/).find((c) => c.startsWith('is-')));
+  }
+  assert.equal(classes.size, 3, `expected three distinct is-<tier> classes, got: ${[...classes].join(', ')}`);
+
+  // (2) The unknown-tier case is its own shape, never one of the three.
+  const unknown = module.tierLine('unbreakable', { className: 'tier' });
+  const unknownClass = (unknown.className ?? '').split(/\s+/).find((c) => c.startsWith('is-'));
+  assert.equal(unknownClass, undefined, 'the unknown-tier line has no is-<tier> class, by design');
+
+  // (3) The transport row's tier line follows the same rule: an observed transport does
+  // not wear the enforced class, and a missing tier does not collapse to either.
+  const withTiers = {
+    ...configuredAll,
+    transports: [
+      { ...configuredAll.transports[0], tier: 'enforced' },
+      { ...configuredAll.transports[1], tier: 'observed' },
+      ...configuredAll.transports.slice(2),
+    ],
+  };
+  module.renderSettings(module.settingsFacts(true, 200, NOTIFY_OK(withTiers).body));
+  const emailRow = el('settings-transports').children[0];
+  const pushRow = el('settings-transports').children[1];
+  const emailTier = emailRow.children.find((c) => findClass(c, 'settings-transport-tier'));
+  const pushTier = pushRow.children.find((c) => findClass(c, 'settings-transport-tier'));
+  assert.ok(findClass(emailTier, 'is-enforced'), 'enforced transport wears the enforced class');
+  assert.ok(findClass(pushTier, 'is-observed'), 'observed transport wears the observed class');
+  assert.ok(!findClass(emailTier, 'is-observed'), 'enforced does not also wear observed');
+  assert.ok(!findClass(pushTier, 'is-enforced'), 'observed does not also wear enforced');
+});
+
 test('no coverage is four different sentences, and one never stands in for another', async () => {
   const { module } = await boot(() => HEALTH_OK);
   assert.equal(module.guardKind(undefined), 'unknown');

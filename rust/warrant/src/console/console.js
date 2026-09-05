@@ -913,6 +913,14 @@ function queueRow(entry, you) {
   head.append(badge);
   row.append(head);
 
+  // The tier of THIS ROW's guarantee, named explicitly. The blocker badge above says what is
+  // being waited for; this line says how strong the wait is. A row that printed the blocker
+  // without a tier would be a row that asked the operator to act without saying whether the
+  // underlying guarantee was enforced, mediated, or only observed. The server's `blocker.tier`
+  // field is the same vocabulary the proposed-effects use, so a reader trained on one block
+  // sees the same shape on the other.
+  row.append(tierLine(blocker.tier, { className: 'queue-tier' }));
+
   const staged = document.createElement('p');
   staged.className = 'queue-note';
   staged.textContent =
@@ -1121,6 +1129,14 @@ function transportRow(transport) {
     : '◌ not yet attempted';
   head.append(node('span', `settings-transport-result is-${result ?? 'unknown'}`, glyph));
   row.append(head);
+
+  // The tier of THIS TRANSPORT's guarantee, named explicitly. The result glyph above says what
+  // happened on the last attempt; this line says how strong the transport's promise is. A
+  // transport that "guarantees delivery" with `tier: observed` is a different promise from
+  // one with `tier: enforced`, and a row that conflated them would be a row the operator
+  // could not audit. The server's `transport.tier` is the same vocabulary the proposed-effects
+  // use, so a reader trained on one pane sees the same shape here.
+  row.append(tierLine(transport?.tier, { className: 'settings-transport-tier' }));
   if (typeof transport?.guarantees === 'string') {
     row.append(node('p', 'settings-transport-guarantee', transport.guarantees));
   } else {
@@ -1404,6 +1420,14 @@ function coverageRow(row) {
     : '? unknown';
   head.append(node('span', `coverage-row-state is-${row?.state ?? 'unknown'}`, glyph));
   li.append(head);
+
+  // The tier line. The four-state coverage vocabulary is its own tier vocabulary
+  // (mediated / observed / unsupported / bypassable) and the glyph above names it; this line
+  // repeats the word in prose so a reader who cannot resolve the glyph still sees the
+  // classification. A row that printed the state glyph without the word would be a row whose
+  // classification a screen reader announced only as a symbol.
+  li.append(tierLine(row?.state, { className: 'coverage-row-tier' }));
+
   if (row?.named_bypass) {
     const bypass = document.createElement('p');
     bypass.className = 'coverage-row-bypass';
@@ -1712,6 +1736,13 @@ function routingRow(decision) {
   badge.textContent = stateGlyph(state);
   head.append(badge);
   row.append(head);
+
+  // The tier line. The four-state routing vocabulary (local / escalated / ceiling_refused /
+  // unconfigured) is its own tier vocabulary, and the badge above names it; this line repeats
+  // the word in prose so a reader who cannot resolve the glyph still sees the classification.
+  // A row that printed the state glyph without the word would be a row whose classification
+  // a screen reader announced only as a symbol — and the four states look similar in glyph.
+  row.append(tierLine(state, { className: 'routing-tier' }));
 
   // The task, in the operator's own words. A line that did not render the work would be a line
   // whose escalations the operator could not audit.
@@ -2031,6 +2062,38 @@ export function boundTierLines(data) {
     const caveat = typeof entry.caveat === 'string' ? entry.caveat : '';
     return `${name} — ${entry.strength}: ${caveat}`;
   });
+}
+
+/**
+ * The tier line that the queueRow, transportRow, coverageRow, and routingRow all carry, so a
+ * reader who scans any pane sees the same shape: an explicit tier word, or an honest "not
+ * stated" when the server did not classify the row. Exported and pure so the test can pin the
+ * shape and the fallback text — and so a future pane can adopt the same wording without
+ * drifting it.
+ *
+ * The accepted set is the union of every vocabulary the server may speak: the
+ * bound-strength words (enforced/mediated/observed), the coverage-map words
+ * (mediated/observed/unsupported/bypassable), and the routing words
+ * (local/escalated/ceiling_refused/unconfigured). The fallback renders the same sentence for
+ * any other value — the "not stated" text deliberately names the strongest tier word,
+ * "enforced", because the failure mode this line exists to prevent is a reader seeing no
+ * word and assuming enforced. The console never rounds an unknown word up to "enforced".
+ */
+const TIER_LINE_WORDS = new Set([
+  'enforced', 'mediated', 'observed',
+  'unsupported', 'bypassable',
+  'local', 'escalated', 'ceiling_refused', 'unconfigured',
+]);
+export function tierLine(tier, { className = 'tier' } = {}) {
+  const line = node('p', className);
+  if (typeof tier === 'string' && TIER_LINE_WORDS.has(tier)) {
+    line.textContent = `tier: ${tier}`;
+    line.classList.add(`is-${tier}`);
+  } else {
+    line.classList.add('quiet', 'tier-not-stated');
+    line.textContent = 'tier: not stated — do not read this as the strongest tier';
+  }
+  return line;
 }
 
 /** The sentence for each posture. Fixed prose, chosen by the server's word, never composed. */
