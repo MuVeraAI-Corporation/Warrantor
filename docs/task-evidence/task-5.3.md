@@ -174,14 +174,14 @@ $ grep -rc --include=*.rs -E "^[[:space:]]*#\[ignore" rust/warrant/tests/invaria
 in the fresh worktree below the same suites reported 0.44s and 0.12s. Every count, every exit code
 and every gate line reproduces exactly.
 
-**Re-verified independently, in a fresh detached worktree of this commit with its own
+**Re-verified independently, once per commit on this branch, in a fresh detached worktree with its own
 `CARGO_TARGET_DIR`, because a dirty working tree is how this wave already shipped one CI-breaking
 defect** — an untracked file made an implementer's run green while the committed branch was red, and
 `git status` said clean because `.gitignore` excluded it. So:
 
 ```text
-$ git worktree add --detach M:/wt-clean-53 feat/evidence-integrity-adversary
-$ cd M:/wt-clean-53 && export CARGO_TARGET_DIR=M:/wt-clean-53-target
+$ git worktree add --detach <clean> feat/evidence-integrity-adversary
+$ cd <clean> && export CARGO_TARGET_DIR=<clean>-target        # its own, never shared
 $ git status --porcelain                                       (empty)
 $ cargo test --workspace -j 2                                  exit 0
 140 suites, 1449 passing, 0 failed, 23 ignored
@@ -345,8 +345,9 @@ instead, per the task brief, because `origin/main` lacks Task 1.1 — against wh
 strategies would measure the wrong thing.
 
 **10. `docs/W1-delivery-gaps.md` §5.1 carries a stale rendered count and was left alone.** It reads
-*"Sixty-one checks pass. Nineteen fail, across eleven invariants."* against a corpus that is now
-66/18 (78/18 after this task). That number is not this task's to fix — three other lanes are
+*"Sixty-one checks pass. Nineteen fail, across eleven invariants."* against a corpus that is 66/18 on
+local `main`, 78/18 after this task's first commit and 79/18 after its corrections — and it sits at
+line 1201, above the §5.3 subsection. That number is not this task's to fix — three other lanes are
 committing to that file concurrently and §5.3 was appended as the smallest contended surface — but it
 is exactly the class of defect Rule 6 exists to catch and somebody should own it.
 
@@ -355,7 +356,7 @@ US-English verifier reports them on lines 248–1094 (`afterwards`, `recognises`
 `organisation`, `backwards`, `authorisation`, `organisational`, `acknowledgement`, `summarising`,
 `judgement`, `labelled`, `honour`) plus one `enrol` correctly protected as a code identifier
 (`store.enrol_without_a_code`, an existing API name). **None are in the §5.3 subsection this task
-added**, which starts below line 1232. They were not fixed because three other lanes are committing
+added**, which begins at line 1234 — the highest of the sixteen is 1094. They were not fixed because three other lanes are committing
 to this file concurrently and a 16-line sweep across it would collide with them for no gain to this
 task. Full verifier output below.
 
@@ -390,9 +391,10 @@ record.
 Three review lenses ran against `b5dd61e` — claim-honesty, test-rigor, evidence-truth — and all
 three returned `refuted=true`. Fourteen findings, every one demonstrated with a command rather than
 inferred. **All fourteen reproduced; none was disputed.** The engineering survived: no assertion was
-weakened to make anything pass, no test was deleted, the five refusals the reviewers checked by
-mutation are mutation-sensitive at the family level, and every gate number the branch reported was
-the measured one. What failed was the labeling and the prose around it — twice in the specific way
+weakened to make anything pass, no test was deleted, and every gate number the branch reported was
+the measured one. Nine of the twelve new tests die under a targeted mutation of the code they name,
+and the three real refusals (A3, A5, A6) are mutation-sensitive at the family level — A1 was the one
+that died under no mutation at all, which is correction 1. What failed was the labeling and the prose around it — twice in the specific way
 this repository has a rule for, where a word outran the mechanism under it.
 
 Each correction below is written as: **claimed / true / how it was caught / what changed.** The four
@@ -538,9 +540,10 @@ is now item 11 there.
 
 **What did not change, and why not.** No assertion anywhere was weakened. `RefusedAt` for A3, A5 and
 A6 stands — each is refused by shipped code at the moment of attempt, and each dies when its check
-family is neutered. The five gate scripts, the census, the ledger and the ratchet mechanics are
-untouched except for the floor, which moved once, in the commit that earned it, read from a captured
-`test result:` line.
+family is neutered. `wiring_census.py`, `check_invariants.py` and `check_invariant_ratchet.py` are
+untouched except for `invariant-ratchet.json`'s floor, which moved once, in the commit that earned
+it, read from a captured `test result:` line. No CI job, crate, `[dev-dependencies]` entry or
+`[[test]]` target was added, so the census answers exactly what it answered before.
 
 ## What this task does NOT establish
 
