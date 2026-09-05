@@ -3251,7 +3251,17 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let Ok(exe) = std::env::current_exe() else {
         return fail("cannot locate the warrantor executable to re-launch as a daemon");
     };
-    let mut daemon_args = vec!["supervise".to_string(), id.clone(), "--".to_string()];
+    // Forward the store BEFORE the `--`: the daemon re-enters the arg parser as its own command,
+    // and without this it resolves the default root — a supervisor watching a DIFFERENT store
+    // than the `run` that started it, which surfaces as "nothing is supervising it" the morning
+    // after. Everything after `--` is the supervised command, so the flag cannot follow it.
+    let mut daemon_args = vec![
+        "supervise".to_string(),
+        id.clone(),
+        "--root".to_string(),
+        root.to_string_lossy().to_string(),
+        "--".to_string(),
+    ];
     daemon_args.extend(args.trailing.iter().cloned());
 
     let log = root.join("logs").join(format!("{id}.log"));
