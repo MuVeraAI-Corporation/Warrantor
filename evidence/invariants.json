@@ -104,7 +104,7 @@
         {"crate": "notary", "symbol": "warrantor_notary::Gate::Freshness", "test": "rust/notary/src/lib.rs::gate3_freshness_replayed_nonce_denies", "note": "seen_nonces is a caller-supplied Vec on VerdictContext; no durable nonce store exists in warrant"},
         {"crate": "notary", "symbol": "warrantor_notary::Gate::Freshness", "test": "rust/notary/src/lib.rs::gate3_freshness_stale_timestamp_denies", "note": ""}
       ],
-      "gap": "The gate refuses a replay it is told about; nothing on the warrant path remembers nonces across calls. Phase 3 recorder (L7-20). Task 5.3 strategy A4 records the unrefused case executably against the context the product actually builds, and counts both call sites -- report.rs and settle.rs -- so closing one and leaving the other cannot read as closed. It starts failing when a nonce store lands."
+      "gap": "The gate refuses a replay it is told about; nothing on the warrant path remembers nonces across calls. Phase 3 recorder (L7-20). Task 5.3 strategy A4 records the unrefused case executably against a VerdictContext shaped exactly like the one the product builds (a test fixture, not a product call: the product link is the static count), and counts both call sites -- report.rs and settle.rs -- so closing one and leaving the other cannot read as closed. It starts failing when a nonce store lands."
     },
     {
       "id": "I-11",

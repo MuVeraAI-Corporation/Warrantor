@@ -21,6 +21,18 @@
 //! generated itself can therefore manufacture an export, file it first, and own the custody record
 //! on it. Both halves are asserted: the archive is right to refuse to rewrite the attribution, and
 //! `submitted_by_device` therefore means *who filed this*, never *who produced this*.
+//!
+//! # A8 is registered as a finding, not as a refusal
+//!
+//! It shipped as `Reach::RefusedAt("MemoryStore::put_artifact returns AlreadyHeld and rewrites
+//! nothing")` and was counted among five refusals, while the two assertions below say "RECORDED,
+//! not fixed" in their own words. A review pointed at the contradiction: the attack A8 *declares* —
+//! race the archive for attribution, on evidence the adversary manufactured — is the attack that
+//! **succeeds**, twice. What `AlreadyHeld` refuses is a different attack, rewriting an existing
+//! record, and that refusal is asserted here because it is what makes the attribution residual
+//! tolerable rather than fatal. So A8 is now `Reach::Unrefused`, the count in
+//! `docs/W1-delivery-gaps.md` moved with it, and `RefusedAt` is reserved for a strategy whose
+//! declared attack a shipped line refuses at the moment of attempt.
 
 use ed25519_dalek::SigningKey;
 use std::collections::BTreeSet;

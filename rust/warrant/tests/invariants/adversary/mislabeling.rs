@@ -48,7 +48,13 @@ fn re_signed_as(
 /// not for being unaccounted.
 ///
 /// The second half attacks the report-level receipt with the same re-signing trick, which the
-/// report's own mode check at `report.rs:1155` refuses.
+/// report-level mode **family** refuses — not the single line the registry first named. Neutering
+/// only `export.evidence_receipt.predicate.binding.enforcement_mode != evidence_mode` leaves this
+/// test green, because the `check_mode_honesty(.., true).is_ok()` belt-and-braces check below it
+/// fires instead and is also a `ReportError::Mode`, which is all the assertion reads. Both die when
+/// the whole family is neutered, so the substantive claim — an escalation is refused, as a `Mode` —
+/// is real and mutation-sensitive; the attribution to one line was not, and the registry entry now
+/// names the family and the variant.
 ///
 /// **Result: the fix holds on both vectors.** An attack refused is a result. What the fix does *not*
 /// cover is in A9, and that is a finding rather than a claim of coverage here.

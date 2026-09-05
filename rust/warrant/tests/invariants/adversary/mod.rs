@@ -31,8 +31,20 @@ mod substitution;
 /// What an attack actually reached.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reach {
-    /// Refused by a named check, with the control allowed. The string is the check.
+    /// Refused by a named check **in shipped code**, with the control allowed. The string is the
+    /// check, and the check must be callable by a reader who links this repository's crates.
     RefusedAt(&'static str),
+    /// Refused only by a comparison the **reader** has to write, because no shipped symbol offers
+    /// it for this envelope. A finding, not a refusal: the mechanism lives in the test, and a
+    /// maintainer who deletes shipped code cannot be told about it by this strategy. The string
+    /// names the missing symbol and the task that would ship it.
+    ///
+    /// This variant exists because `RefusedAt` outran its mechanism once. A1 was registered as a
+    /// refusal while the refusing comparison was two lines inside its own test, so making
+    /// `evidence::verify_chain` a total no-op left A1 green (it turned two pre-existing I-07 tests
+    /// red instead). When a label outruns its mechanism the label changes; the mechanism is not
+    /// re-described to fit.
+    RefusedOnlyByReaderWrittenCode(&'static str),
     /// Reached the boundary and was NOT refused. A recorded finding; the string names the fix.
     Unrefused(&'static str),
     /// The boundary cannot see this attack at all. The string says what could.
@@ -48,6 +60,11 @@ impl Reach {
                 "A reader running the shipped verifier refuses this, and the control proves the \
                  attack reached that refusal rather than dying earlier."
             }
+            Self::RefusedOnlyByReaderWrittenCode(_) => {
+                "Nothing this repository ships refuses this. The comparison that refuses it is \
+                 written inside the test, so the guarantee belongs to code the reader must supply, \
+                 and no shipped symbol offers that comparison for this envelope."
+            }
             Self::Unrefused(_) => {
                 "This attack is NOT refused today. It is recorded, not fixed, and the named task \
                  is the one that closes it."
@@ -60,6 +77,10 @@ impl Reach {
     }
 
     /// True when this strategy is recording a gap rather than a guarantee.
+    ///
+    /// Everything that is not a refusal *by shipped code* is a finding, which is why
+    /// [`Reach::RefusedOnlyByReaderWrittenCode`] counts here: a reader who does not write the
+    /// missing comparison gets no refusal at all.
     #[must_use]
     pub const fn is_a_finding(self) -> bool {
         !matches!(self, Self::RefusedAt(_))
@@ -91,10 +112,15 @@ pub const STRATEGIES: [Strategy; 9] = [
         id: "A1",
         name: "forge a chain end to end with a key the adversary holds",
         target: "evidence::verify_chain, which is anchor-free by construction. Residual: a reader \
-                 who pins no key is reading a document that authenticates itself.",
-        reach: Reach::RefusedAt(
-            "the caller's anchor comparison against the pinned issuer; verify_chain alone does not \
-             refuse it",
+                 who pins no key is reading a document that authenticates itself, and this \
+                 repository ships no anchored verifier for a chain to a reader who does.",
+        reach: Reach::RefusedOnlyByReaderWrittenCode(
+            "no shipped symbol performs the comparison: rust/evidence/src/lib.rs exports \
+             verify_receipt, verify_receipt_at, verify_chain, verify_chain_at and verify_authority \
+             and no verify_chain_signed_by, while report::verify_export_signed_by, \
+             verify_spend_signed_by and verify_stop_signed_by exist for the other envelopes. What \
+             refuses A1 is two lines inside a1's own test. Task 1.6 owns the pinned-issuer \
+             directory an anchored chain verifier would read from",
         ),
         test: "a1_a_chain_forged_end_to_end_verifies_and_is_caught_only_by_the_anchor",
     },
@@ -115,8 +141,13 @@ pub const STRATEGIES: [Strategy; 9] = [
         name: "lift a genuine receipt into a false context",
         target: "report::verify_export's receipt-to-bundle bindings",
         reach: Reach::RefusedAt(
-            "report::verify_export binding checks: predicate.binding.receipt_id must equal the \
-             bundle digest, and the refusal is a Binding rather than a signature failure",
+            "report::verify_export's receipt-to-bundle binding family, refusing as a Binding \
+             rather than as a signature failure. Three members of that family bind to the same \
+             bundle digest -- binding.receipt_id, operation.parameters_digest and \
+             outcome.outcome_digest -- so no ONE of them is individually load-bearing here: \
+             replacing binding.receipt_id's comparison with `true` leaves a3 green because \
+             parameters_digest refuses the graft with the same variant. What a3 pins is the family \
+             and the variant",
         ),
         test: "a3_a_genuine_receipt_lifted_onto_a_different_report_is_refused_as_a_binding",
     },
@@ -138,7 +169,11 @@ pub const STRATEGIES: [Strategy; 9] = [
         reach: Reach::RefusedAt(
             "verify_effect_receipts refuses any per-effect receipt whose mode is not Advisory, and \
              the loop runs before the bundle's effect lines are walked, so an unlisted receipt is \
-             refused for its mode and not for being unaccounted",
+             refused for its mode and not for being unaccounted. Vector two is refused by the \
+             report-level mode family rather than by one line of it: the evidence-receipt mode \
+             comparison and the check_mode_honesty belt-and-braces below it both return \
+             ReportError::Mode, so neutering either alone leaves a5 green. What a5 pins is the \
+             family and the variant",
         ),
         test: "a5_a_mediated_per_effect_receipt_is_refused_even_when_the_bundle_does_not_list_it",
     },
@@ -168,11 +203,17 @@ pub const STRATEGIES: [Strategy; 9] = [
     Strategy {
         id: "A8",
         name: "race the archive for attribution, on evidence the adversary manufactured",
-        target: "MemoryStore::put_artifact and artifact::ingest. Residual: the door is anchor-free, \
-                 so submitted_by_device means `who filed this`, never `who produced this`.",
-        reach: Reach::RefusedAt(
-            "MemoryStore::put_artifact returns AlreadyHeld and rewrites nothing, so append-only \
-             holds even though the attribution goes to the first filer",
+        target: "MemoryStore::put_artifact and artifact::ingest. What IS refused is a DIFFERENT \
+                 attack -- rewriting an existing record. put_artifact returns AlreadyHeld and \
+                 rewrites nothing, so append-only holds, and a8 asserts that too, because the \
+                 refusal to rewrite is what makes the attribution residual tolerable.",
+        reach: Reach::Unrefused(
+            "the attack A8 declares is not refused, and a8's own assertions say so twice in the \
+             words `RECORDED, not fixed`: artifact::ingest calls the anchor-free \
+             report::verify_export, so an export signed end to end with a keypair the adversary \
+             generated itself enters custody as PutOutcome::Stored, and the first filer owns \
+             submitted_by_device on a digest. Task 10.6 owns custody semantics; Task 1.6 owns the \
+             pinned-issuer directory the door would have to read to ask whose key signed it",
         ),
         test: "a8_a_first_filer_owns_the_attribution_and_the_door_never_asked_whose_key_signed_it",
     },
@@ -257,7 +298,9 @@ fn every_finding_names_the_task_that_closes_it_and_no_finding_claims_a_refusal()
                  with no mechanism is the defect this whole corpus exists to refuse.",
                 strategy.id
             ),
-            Reach::Unrefused(fix) | Reach::Unrepresentable(fix) => assert!(
+            Reach::Unrefused(fix)
+            | Reach::Unrepresentable(fix)
+            | Reach::RefusedOnlyByReaderWrittenCode(fix) => assert!(
                 fix.contains("Task"),
                 "strategy {} is a finding and must name the task that closes it, got {fix:?}",
                 strategy.id
@@ -276,10 +319,86 @@ fn every_finding_names_the_task_that_closes_it_and_no_finding_claims_a_refusal()
     }
     assert_eq!(
         STRATEGIES.iter().filter(|s| s.reach.is_a_finding()).count(),
-        4,
-        "A2, A4, A7 and A9 are the four attacks this suite does not refuse. If that number changes, \
-         the product sentence in docs/W1-delivery-gaps.md changes with it, in the same commit."
+        6,
+        "A1, A2, A4, A7, A8 and A9 are the six attacks no code this repository ships refuses. If \
+         that number changes, the product sentence in docs/W1-delivery-gaps.md changes with it, in \
+         the same commit. It was 4 until an adversarial review showed that two of the five claimed \
+         refusals were not refusals: A1's comparison is written inside a1's own test and no \
+         shipped symbol offers it, and A8's own assertions record its declared attack succeeding \
+         twice in the words `RECORDED, not fixed`."
     );
+}
+
+/// The corpus's real `#[ignore]` attributes: lines whose first non-whitespace is `#[ignore`.
+///
+/// Counted this way rather than by substring, because two doc comments in this corpus *discuss*
+/// `#[ignore]` in prose -- `main.rs`'s "Ignored tests are findings" section and `forgery.rs`'s note
+/// on A2 -- so a substring count answers 20 where the corpus holds 18. Getting that distinction
+/// wrong in a helper would reproduce, inside the gate, exactly the defect the gate exists to catch.
+fn ignore_attributes_in_the_corpus() -> usize {
+    let directory = harness::repository_root().join("rust/warrant/tests/invariants");
+    let mut total = 0;
+    let mut stack = vec![directory];
+    while let Some(directory) = stack.pop() {
+        let entries = std::fs::read_dir(&directory).expect("the invariants directory is readable");
+        for entry in entries {
+            let path = entry.expect("readable entry").path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                let source = std::fs::read_to_string(&path).expect("readable suite file");
+                total += source
+                    .lines()
+                    .filter(|line| line.trim_start().starts_with("#[ignore"))
+                    .count();
+            }
+        }
+    }
+    total
+}
+
+#[test]
+fn the_documents_ordinal_for_the_next_ignore_is_read_from_the_ratchet_and_not_from_the_plan() {
+    // Rule 2 applied to a number this task got wrong. Both documents originally said "a thirteenth
+    // ignore would raise `ignored_ceiling`" one sentence after correctly stating the count is 18,
+    // so the next ignore is the nineteenth. Three independent reviews found it, and nothing gated
+    // it: the suite gated the strategy count and the finding count and not this ordinal. The
+    // ordinal is now spelled with the two numerals it is arithmetic over, so this test can derive
+    // the whole sentence from the recorded ceiling instead of trusting a word beside it.
+    let ratchet = harness::read_repository_file("tools/ci/invariant-ratchet.json");
+    let ratchet: serde_json::Value =
+        serde_json::from_str(&ratchet).expect("tools/ci/invariant-ratchet.json is JSON");
+    let ceiling = usize::try_from(
+        ratchet["ignored_ceiling"]
+            .as_u64()
+            .expect("the ratchet records an integer ignored_ceiling"),
+    )
+    .expect("the ceiling fits a usize");
+
+    // The ceiling against the corpus it is a ceiling over. `check_invariant_ratchet.py` fails both
+    // when the ignored count rises above the ceiling and when it falls below without the ceiling
+    // moving, so on a green tree these are equal -- and a document that describes the ceiling is
+    // describing this many attributes.
+    assert_eq!(
+        ignore_attributes_in_the_corpus(),
+        ceiling,
+        "tools/ci/invariant-ratchet.json records ignored_ceiling {ceiling}, and the corpus holds a \
+         different number of #[ignore] attributes. One of the two is stale, and every sentence in \
+         docs/ that renders this number is now wrong."
+    );
+
+    let claimed = format!(
+        "`ignored_ceiling` is {ceiling}, so ignore number {} would raise it",
+        ceiling + 1
+    );
+    for document in ["docs/W1-delivery-gaps.md", "docs/task-evidence/task-5.3.md"] {
+        assert!(
+            harness::read_repository_file(document).contains(&claimed),
+            "{document} must say {claimed:?}. The ordinal is arithmetic over a recorded number, so \
+             it belongs in a sentence a test can rebuild from the record rather than in a word \
+             copied from a superseded plan."
+        );
+    }
 }
 
 #[test]
@@ -300,7 +419,7 @@ fn the_findings_are_exactly_the_strategies_the_delivery_gaps_document_names() {
         );
     }
     let claimed = format!(
-        "{} of the nine are not refused",
+        "{} of the nine are not refused by code this repository ships",
         STRATEGIES.iter().filter(|s| s.reach.is_a_finding()).count()
     );
     assert!(

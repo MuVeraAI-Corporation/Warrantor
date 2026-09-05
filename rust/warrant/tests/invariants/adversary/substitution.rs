@@ -10,10 +10,21 @@ use crate::{harness, scenario};
 /// A3 — a genuine receipt from one report, attached to another.
 ///
 /// The replay-into-false-context attack. The receipt is genuine, verifies on its own, and simply
-/// does not describe the bundle it has been attached to. `report.rs` binds
-/// `predicate.binding.receipt_id == export.bundle_digest`, so this must fail as a `Binding`, not as
-/// a signature — and asserting *which* error is what stops the test from claiming credit for the
-/// wrong refusal.
+/// does not describe the bundle it has been attached to. `report.rs` binds it to the bundle in
+/// three places at once, so this must fail as a `Binding`, not as a signature — and asserting
+/// *which* error is what stops the test from claiming credit for the wrong refusal.
+///
+/// # What this strategy does and does not pin
+///
+/// The registry entry first named one line, `predicate.binding.receipt_id == export.bundle_digest`,
+/// as the check that refuses the graft. A mutation review showed that is not true of any single
+/// line: replacing that comparison with `true` leaves this test **green**, because
+/// `operation.parameters_digest == export.bundle_digest` refuses the same graft two binds later and
+/// is also a `ReportError::Binding`, which is all the assertion below reads. `outcome_digest` is a
+/// third member of the same family. So what a3 pins is the **family and the error variant**, and the
+/// registry entry now says so. A maintainer who deletes any one of the three on the strength of this
+/// strategy would still see green — which is a real limit of this test, stated here rather than
+/// discovered later.
 #[test]
 fn a3_a_genuine_receipt_lifted_onto_a_different_report_is_refused_as_a_binding() {
     let dir = fixtures::tempdir("a3");
@@ -46,13 +57,27 @@ fn a3_a_genuine_receipt_lifted_onto_a_different_report_is_refused_as_a_binding()
     );
 }
 
-/// A4 — the same request twice, against the context the product actually builds.
+/// A4 — the same request twice, against a context shaped exactly like the one the product builds.
 ///
-/// I-10's direct attack against the product's own context, not against a hand-built one.
 /// `report.rs:837` and `settle.rs:168` each construct `seen_nonces: Vec::new()` on every call, so
 /// the Freshness gate is asked whether a nonce is in an empty set and always answers no. The corpus
 /// proves the gate works when told (`i10_replay_is_detectable::a_captured_request_replayed_verbatim_is_refused`);
 /// nothing proved that the product never tells it.
+///
+/// # Where the product link actually lives, and where it does not
+///
+/// This doc comment claimed the attack ran "against the product's own context, not against a
+/// hand-built one". That was false and a review caught it: the value evaluated below is
+/// `scenario::allowed_context()`, a `VerdictContext` struct literal at
+/// `rust/warrant/tests/invariants/scenario.rs:55`. It is *shaped* like the product's — empty nonce
+/// set and all — but the product did not build it, and nothing in `rust/warrant/src` runs during
+/// the two `notary::verdict` calls.
+///
+/// The link to shipped code is carried entirely by the static assertion at the end of this test,
+/// which counts `seen_nonces: Vec::new()` in `rust/warrant/src` and requires exactly two. That
+/// assertion is mutation-sensitive — rewriting either call site as `vec![]` turns a4 red on `1 != 2`
+/// — so the finding is real and tied to the product. The fixture is a fixture, and this comment now
+/// says which half does the work.
 #[test]
 fn a4_the_product_context_allows_a_verbatim_replay() {
     let request = scenario::allowed_request();
