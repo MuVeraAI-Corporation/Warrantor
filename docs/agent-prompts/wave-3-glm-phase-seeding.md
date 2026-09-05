@@ -41,9 +41,16 @@ export GIT_COMMITTER_NAME="GLM 5.3 Flash (zcode)"
 export GIT_COMMITTER_EMAIL="glm@local"
 git var GIT_AUTHOR_IDENT && git var GIT_COMMITTER_IDENT
 
-# 7. Your own worktree. Three other lanes commit here every 15-30 minutes.
-git worktree add M:/wt-wave3 -b docs/phases-7-14-seeding origin/main
+# 7. Your worktree. The branch ALREADY EXISTS — check it out, do not create it, and do not
+#    branch from origin/main. The scope document, the scope checker and the four seeded
+#    substrate tasks all live on the documentation lineage, not on origin/main.
+git worktree add M:/wt-wave3 docs/phases-7-14-seeding
 cd M:/wt-wave3
+
+# 8. Confirm the four substrate tasks are present. Every one of them is a dependency of
+#    something you will seed, and Task 7.1 gates your entire 3a wave.
+grep -c "^### Task \(7\.1\|9\.6\|10\.1\|10\.2\):" \
+  docs/superpowers/plans/2026-09-02-native-ai-platform-os-implementation.md   # expect 4
 ```
 
 **If check 3 fails, stop and report.** Everything in this wave is accounted for by that checker; a
@@ -93,7 +100,7 @@ If you believe a row is misrouted, **say so and stop**. Do not reroute it yourse
 
 | Wave | Tasks | Why this order |
 |---|---|---|
-| 3a | 7.2, 7.3, 7.5, 7.8 | Phase 7 volume. Seed **after** 7.1's conformance kit is seeded by the Opus lane, because 7.1 defines the shape all adapters transcribe. If 7.1 is not seeded yet, stop and report rather than inventing the adapter shape |
+| 3a | 7.2, 7.3, 7.5, 7.8 | Phase 7 volume. **Task 7.1 is already seeded** and defines the shape all adapters transcribe — read it in full before seeding any adapter, and transcribe its conformance-kit contract rather than inventing one. If prerequisite 8 did not return 4, stop and report |
 | 3b | 9.2, 9.6, 9.7, 9.8, 9.9 | Channels before coordination. 9.6 attested sender identity is the substrate under every collusion control above it |
 | 3c | 10.2, 10.3, 10.4, 10.5, 10.8, 10.9 | 10.2's receipt query language is the substrate for Phases 11 and 12 both. Seed it first in this group |
 | 3d | 8.3, 8.4, 8.7, 8.9 | **8.7 carries L2-05, which is W1 and was omitted from the original plan.** Treat it as a gap, not a new feature |
