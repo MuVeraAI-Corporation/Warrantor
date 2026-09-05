@@ -91,12 +91,17 @@ fn a4_the_product_context_allows_a_verbatim_replay() {
         "a replay against a context that remembers",
     );
 
-    // The attack: the product's context, whose nonce set is empty on every call.
+    // The attack: a context SHAPED like the product's, whose nonce set is empty on every
+    // call. It is built here, in the test -- `scenario::allowed_context()` is a struct
+    // literal, and nothing in `rust/warrant/src` runs during the two verdict calls below.
+    // What this shows is that the notary does not refuse a replay when the context it is
+    // handed remembers nothing, and that `report::build_observed` hands it exactly that.
+    // It does not show the product executing the replay.
     let product_shaped = scenario::allowed_context();
     let first = notary::verdict(&request, &product_shaped);
     let second = notary::verdict(&request, &product_shaped);
     harness::reached_the_boundary_unrefused(
-        "the identical request replayed against the context the product builds",
+        "the identical request replayed against a context shaped like the one the product \n         builds, whose nonce set is empty",
         &first,
         &second,
         scenario::notary_allowed,
