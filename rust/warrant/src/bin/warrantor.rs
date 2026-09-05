@@ -44,12 +44,15 @@ use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
 use warrantor_warrant::notify::{self, Notification, NotifyConfig, NotifyTransport};
 use warrantor_warrant::operators::{self, Act, ApprovalPolicy, Operator, OperatorRegistry, Scope};
 use warrantor_warrant::proxy::{host_of, ProxyMode};
+use warrantor_warrant::receipts::ReceiptLog;
 use warrantor_warrant::report;
 use warrantor_warrant::retention;
 use warrantor_warrant::runs;
 use warrantor_warrant::sandbox;
 use warrantor_warrant::serve as http;
-use warrantor_warrant::settle::{settle, void, EffectOutcome, EffectPerformer, SettleReport};
+use warrantor_warrant::settle::{
+    settle, void, EffectOutcome, EffectPerformer, EffectWitness, EvidencedPerformer, SettleReport,
+};
 use warrantor_warrant::spend::{self, SpendStore, SpendVerdict};
 use warrantor_warrant::staging::{EffectRegistry, StagedChainMark, StagedEffect, StagingQueue};
 use warrantor_warrant::stop::{self, OsProcessControl, StopStore};
@@ -1061,6 +1064,11 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Some(spend::section(&ledger)),
         custody_section(root, id),
     );
+    let receipt_log = match ReceiptLog::open(store.receipts_path(id)) {
+        Ok(l) => l,
+        Err(e) => return fail(&format!("cannot read the effect receipt log: {e}")),
+    };
+    let built = built.with_effect_receipts(receipt_log.receipts().to_vec());
     print!("{}", report::render_cli(built.bundle()));
 
     let signed = match built.sign(&issuer, "issuer") {
@@ -1559,6 +1567,22 @@ fn verify_report_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> Exi
     );
     println!("  still live    {liveness}");
     println!("  anchor        {}", anchor_line(anchor));
+    match (&signed.bundle.effect_evidence, anchor.is_some()) {
+        // With an anchor the key is named; without one it is not, and this line must not imply
+        // otherwise -- the anchor line above it says "NONE pinned" in that case.
+        (Some(section), true) => println!(
+            "  effects       {} receipt chain(s) verified: pre-commit before each effect, \
+             post-commit after, every receipt signed by the key the anchor line binds",
+            section.effects.len()
+        ),
+        (Some(section), false) => println!(
+            "  effects       {} receipt chain(s) verified: pre-commit before each effect, \
+             post-commit after, every receipt signed by the same key as this report -- WHICH key \
+             that is, is not established here",
+            section.effects.len()
+        ),
+        (None, _) => println!("  effects       no per-effect receipts in this export"),
+    }
 
     println!("\n── WHAT THIS DOES NOT ESTABLISH ──");
     for limitation in &signed.bundle.limitations {
@@ -2896,16 +2920,66 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             Err(e) => return fail(&e.to_string()),
         }
     }
-    let mut performer = build_performer();
-    match settle(
+    // The receipt half of the settle. Issuer key: receipts are signed with the same key that
+    // signs the report, so `verify --issuer` binds both to one pin. Stop records feed the
+    // containment gate exactly as the report's verdict reads them; the log is opened before
+    // anything is performed, because a log that cannot be opened is a settle that must not start.
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    let stops = match StopStore::open(root) {
+        Ok(s) => s,
+        Err(e) => {
+            return fail(&format!(
+                "cannot read stop records, so containment is unknown: {e}"
+            ))
+        }
+    };
+    let contained = stops.contained_scopes(id);
+    let mut receipt_log = match ReceiptLog::open(store.receipts_path(id)) {
+        Ok(l) => l,
+        Err(e) => {
+            return fail(&format!(
+                "cannot open the effect receipt log, so nothing is settled: {e}"
+            ))
+        }
+    };
+    let witness = EffectWitness::for_warrant(
+        &stored.warrant,
+        &issuer.verifying_key(),
+        &issuer,
+        "issuer",
+        contained,
+        now(),
+    );
+    let mut inner = build_performer();
+    let mut performer = EvidencedPerformer::new(inner.as_mut(), witness, &mut receipt_log);
+    let outcome = settle(
         &mut stored.warrant,
         &queue,
         tree.as_ref(),
         &settle_key.verifying_key(),
-        performer.as_mut(),
-    ) {
+        &mut performer,
+    );
+    for line in performer.unrecorded() {
+        eprintln!("warrantor: {line}");
+    }
+    let issued = performer.issued().len();
+    drop(performer);
+    match outcome {
         Ok(report) => {
             print_settle_report(&report);
+            // Only when there is something to point at. A settle with nothing staged, or one whose
+            // every effect was refused at the notary gate before a receipt could be written, has
+            // an empty log and no path worth printing -- and print_settle_report has already said
+            // per effect what happened.
+            if issued > 0 {
+                println!(
+                    "  receipts    {issued} issued to {}",
+                    store.receipts_path(id).display()
+                );
+            }
             if let Err(e) = store.save(&stored) {
                 return fail(&e.to_string());
             }
@@ -5998,6 +6072,9 @@ fn build_final_report(
         Some(spend::section(&ledger)),
         custody_section(root, id),
     );
+    let receipt_log = ReceiptLog::open(store.receipts_path(id))
+        .map_err(|e| format!("read the effect receipt log: {e}"))?;
+    let built = built.with_effect_receipts(receipt_log.receipts().to_vec());
     let signed = built
         .sign(&issuer, "issuer")
         .map_err(|e| format!("sign the final report: {e}"))?;

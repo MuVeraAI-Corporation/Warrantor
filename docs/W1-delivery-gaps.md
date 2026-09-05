@@ -621,6 +621,65 @@ person.
 it. Same UID is same UID. What is gone is the agent settling its own work through the API, which is
 the escalation the product's central claim depends on.
 
+### 2.5 Evidence and notary reach the settle path — **wired 2026-09-05, no adapter configured, advisory**
+
+Before: `warrantor_evidence::issue_pre_commit` and `issue_post_commit` had no caller; the report
+signed one atomic receipt over a bundle and no effect was ever decided or signed individually.
+Now: `settle` wraps whichever performer the surface built in `EvidencedPerformer`
+(`rust/warrant/src/settle.rs`); per effect it takes a notary verdict, appends a pre-commit
+receipt to `receipts/<id>.jsonl` with `fsync` before the adapter runs, and a post-commit
+carrying the outcome after. `report --export` lists every chain in the signed bundle and carries
+the receipts; `verify` runs `warrantor_evidence::verify_chain` on each and prints which pin
+bound them.
+
+**Live run, 2026-09-05, on the Windows box.** Two runs, and the honest reading of each.
+
+Run 1 — the receipt path, with **no GitHub adapter configured**. Warrant
+`wrt_d891c73cbcb70a62`, two effects staged (`github.create_pr`, then `github.comment`
+depending on it), `warrantor settle`. `build_performer` fell back to `NoAdapter`, so the first
+effect failed and the settle stopped, exactly as the release order promises: the CLI printed
+`FAILED pr://staged/wrt_d891c73cbcb70a62/1`, `unreleased comment://staged/.../2`, and
+`receipts 2 issued to M:/wt-t11-store\receipts\wrt_d891c73cbcb70a62.jsonl`. Two receipts, one
+chain, `status: failed`. `report --export` printed
+`1 effect receipt chain(s) from 2 receipt(s)` in EVIDENCE and
+`effects 1 receipt chain(s) attached` in SIGNED EVIDENCE, over bundle
+`ec29431682a3232402ca3c00d1c614c54f83132bd4b3ea2aab122ec51566e8e5`. A second store root
+(`M:/wt-t11-verifier`) holding none of the first root's keys pinned the issuer hex
+`8a5d6ab9…540d76` as `smoke` and verified the file: `effects 1 receipt chain(s) verified`. Then
+three tampered copies of the same file, each refused with the sentence that names what went
+wrong:
+
+| what was done to the export | what `verify` said |
+|---|---|
+| the post-commit removed | `commit-gate violation (I-07): the post-commit receipt for pr://staged/wrt_d891c73cbcb70a62/1 is missing from the export` |
+| the pre-commit removed | `commit-gate violation (I-07): the pre-commit receipt for pr://staged/wrt_d891c73cbcb70a62/1 is missing from the export` |
+| one receipt duplicated | `the export carries 3 effect receipt(s) and the bundle lists 2; receipts the bundle does not account for are refused` |
+
+**That run proves the receipt path, not the effect path.** No pull request was opened, because no
+credential was configured; the chain records a failure and says so. Nothing here shows a receipt
+preceding a *successful* external effect on this box — only that the pre-commit was durable before
+the adapter was called, and that the post-commit recorded what the adapter returned.
+
+Run 2 — the refusal, which is the part Rule 2 needs before any label moves. Warrant
+`wrt_29954559a1272896` granted `--tools github.comment` only; `warrantor stage` accepted a
+`github.create_pr` effect, because staging still does not consult the tool allowlist. `settle`
+refused it: `refused by the notary at the authority gate; nothing was performed`. No adapter was
+reached, **no receipt was written, and `receipts/wrt_29954559a1272896.jsonl` does not exist** —
+which is the intended shape: a refused effect gets no record of having been attempted at the
+adapter, and there is no path in which the effect happens and the receipt does not. The message
+names the gate and never the capability, which is the notary's own rule.
+
+What it does NOT establish, in the receipts' own words: the receipts are `advisory`. Settle
+mediates the staged path, not the world — an agent holding its own credential can open the same
+pull request outside warrantor. Promotion to `mediated` waits on L4-03 credential redemption.
+The log sits on the same disk as the agent's worktree; L7-02's external recorder is the archive
+push, which files the export and not the log. MCP `settle_warrant` still uses `NoAdapter` and
+performs nothing, so it issues nothing. `EvidencedPerformer` is a wrapper, not a change to
+`settle`, so the guarantee holds at the call sites that wrap — the CLI's `settle` and the HTTP
+settle route — and a caller that passes a bare performer still gets one; that is what the tests
+do deliberately, and it is the reason I-07 stays `partial` in `evidence/invariants.json` rather
+than being promoted here. Neither surface reads the log back on the HTTP `report` route yet: the
+CLI `report`, the automatic filing at settle and `verify` do.
 ---
 
 ## Tier 3 — needed before anyone trusts this with real oversight
@@ -1021,7 +1080,8 @@ count of failures.
 ## The honest summary
 
 **The twelve invariants now have a ledger** (`evidence/invariants.json`, 2026-09-02): I-02 and
-I-08 are enforced by tests on the `warrantor` path; I-01, I-04, I-06, I-07, I-10, I-11 and I-12 are
+I-08 are enforced by tests on the `warrantor` path; I-01, I-04, I-06, I-07 (its issuance half earned
+2026-09-05 by Task 1.1), I-10, I-11 and I-12 are
 partial (a gate refuses, but on a flag the caller supplies, or the mode is advisory); I-05 and
 I-09 are orphaned in `credential-vault` and `eval-guard`; I-03 has no code in any language. The
 ledger is CI-checked against the tests it names, so a status can only move when a test moves.
@@ -1106,7 +1166,7 @@ corpus threw at it was refused.
 | **I-04** No consequential action without current policy | partial | The product reaches the notary once per action, so policy is never re-evaluated at commit — the clause that distinguishes I-04 from an ordinary policy check. `issue_post_commit` copies the pre-commit decision block verbatim, so a commit-time evaluation would be unprovable even if one happened. `invariant-corpus:I-04` | Tier 3 | Task 2.3 |
 | **I-05** Revocation latency is bounded | orphaned | The credential half is implemented and tested in `credential-vault`, which the `warrantor` binary does not link. The identity half has no implementation: there is no revocation source, no propagation and no replica set. `invariant-corpus:I-05` | Tier 3 | Task 3.1 for the identity half; **no task links `credential-vault`** |
 | **I-06** Artifact identity is exact | partial | The Artifacts gate is correct and the product hands it an empty artifact list and an empty resolved set, so it passes unconditionally on every action. Nothing in the shipped binary identifies a tool, skill or model by digest at the moment of use. `invariant-corpus:I-06` | Tier 3 | Task 2.2, Task 2.4 |
-| **I-07** Evidence precedes commitment | orphaned | The commit gate refuses an orphan post-commit by name, and nothing in `rust/warrant/src` ever calls `issue_pre_commit`. No shipped action has evidence that was durable before its effect was visible. `invariant-corpus:I-07` | Tier 3 | Task 1.1, Task 2.3 |
+| **I-07** Evidence precedes commitment | partial (was orphaned; **issuance earned 2026-09-05**) | The finding was that nothing in `rust/warrant/src` ever called `issue_pre_commit`. Task 1.1 closed that half: `settle::EvidencedPerformer` issues a pre-commit, makes it durable, and refuses to call the inner performer when it cannot, on both the CLI and the HTTP settle path. What keeps it **partial** rather than enforced is that the guarantee is held by a WRAPPER — `settle()` still accepts a bare `EffectPerformer`, so the wrap is conventional rather than unavoidable — and that `issue_post_commit` copies the pre-commit decision block, so no commit-time re-evaluation is provable. `invariant-corpus:I-07` (no longer ignored) | Tier 3 | Task 2.3 for the commit point; making the wrap unavoidable is unowned |
 | **I-08** Critical actions require non-delegable human authority | partial | `authority_spec::validate` tests only that `approvals` is non-empty; a list holding one empty string satisfies it. Nothing anywhere binds an approval to a human — `notary::Approval` is two booleans the requester supplies, so an agent that builds the request builds its own approval. | Tier 2 | Task 3.3, Task 4.1 |
 | **I-09** Failure is safe | orphaned | The absent-means-none reading holds on three surfaces and is now locked by tests. The preflight that refuses to start an agent against an unmeasured boundary lives in `eval-guard`, which the product does not link. `invariant-corpus:I-09` | Tier 3 | **No task links `eval-guard`** |
 | **I-10** Replay is detectable | partial | `seen_nonces` is hardcoded empty in `report.rs`, so every call is the first call and no replay is detectable on the product's own path. The timestamp window still bites; a replay inside the window does not, and the window is the interval an attacker works in. `invariant-corpus:I-10` | Tier 3 | Task 1.1, Task 3.4 |

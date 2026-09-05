@@ -77,7 +77,7 @@ use crate::spend::SpendSection;
 use crate::staging::StagingQueue;
 use crate::store::StoredWarrant;
 use crate::worktree::Worktree;
-use crate::{bound_strengths, BoundStrength, WarrantBounds, WarrantState};
+use crate::{bound_strengths, BoundStrength, Warrant, WarrantBounds, WarrantState};
 
 /// Wire format of [`ReportBundle`]. Present from the first release so a later change to the shape
 /// is detectable rather than silently misparsed.
@@ -293,6 +293,46 @@ pub struct CustodySection {
     pub approvals_required: usize,
 }
 
+/// One staged effect's receipt chain, as the bundle lists it. The receipts themselves ride in
+/// [`SignedReport::effect_receipts`]; these ids are what the digest covers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EffectReceiptLine {
+    /// The staged handle the receipts are over.
+    pub handle: String,
+    /// The tool that performed it.
+    pub tool: String,
+    /// `binding.receipt_id` of the pre-commit receipt.
+    pub pre_receipt_id: String,
+    /// `binding.receipt_id` of the post-commit receipt, `None` if none was issued.
+    ///
+    /// Equal to `pre_receipt_id` whenever a post-commit exists: a WAR post-commit is the
+    /// pre-commit's predicate with a new phase, a parent pointer and an outcome, so the pair
+    /// shares one id and the phase is what tells them apart. Present rather than implied, because
+    /// `None` here is the load-bearing case -- it says the log ended between the two.
+    pub post_receipt_id: Option<String>,
+    /// The post-commit's `outcome.status`, or `"unfinished"` when there is no post-commit.
+    pub status: String,
+}
+
+/// The per-effect evidence section: which effects were performed under which receipts.
+///
+/// `None` on the bundle means the receipt log was **not consulted**, which is the true statement
+/// about every report exported before this section existed. Absent is never "nothing was
+/// performed".
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EffectEvidenceSection {
+    /// How many receipts the log held.
+    pub receipts_consulted: usize,
+    /// One line per pre-commit, in issuance order.
+    pub effects: Vec<EffectReceiptLine>,
+}
+
+/// The limitation sentence a report carries when no receipt log was read.
+pub const NO_EFFECT_RECEIPTS_LIMITATION: &str =
+    "No per-effect receipt log was consulted when this report was built, so it does not say which \
+     staged effects were performed under a pre-commit receipt. That is not a statement that none \
+     was.";
+
 /// Everything `warrantor report` knows, in one signable object.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReportBundle {
@@ -347,6 +387,11 @@ pub struct ReportBundle {
     /// it breaks verification, which is the point of putting it here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custody: Option<CustodySection>,
+    /// Which effects were performed under which receipts. See [`EffectEvidenceSection`]. Same
+    /// `skip_serializing_if` reasoning as `custody`: an absent section stays absent through the
+    /// digest round trip, so every earlier export keeps verifying.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effect_evidence: Option<EffectEvidenceSection>,
     /// Staged effects awaiting a settle decision.
     pub staged: StagedSection,
     /// How many effects are staged. `None` when the queue could not be read.
@@ -377,6 +422,11 @@ pub struct SignedReport {
     pub notary_receipt: notary::WarReceipt,
     /// The WAR evidence receipt over the whole report.
     pub evidence_receipt: evidence::WarReceipt,
+    /// The per-effect WAR receipts the bundle's `effect_evidence` lists, verbatim. Outside the
+    /// bundle digest on purpose: removing one must fail as a **commit-gate** violation (I-07),
+    /// not as a digest mismatch, so a reader learns which effect lost its record.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effect_receipts: Vec<evidence::WarReceipt>,
 }
 
 /// A built report: the bundle, plus the notary inputs that produced its verdict.
@@ -389,6 +439,7 @@ pub struct Report {
     request: notary::VerdictRequest,
     verdict: notary::Verdict,
     authority: evidence::Authority,
+    effect_receipts: Vec<evidence::WarReceipt>,
 }
 
 // ── building ──────────────────────────────────────────────────────────────────────────
@@ -450,8 +501,39 @@ pub fn bundle_digest(bundle: &ReportBundle) -> Result<String, ReportError> {
     Ok(sha256_hex(canonical_bundle(bundle)?.as_bytes()))
 }
 
-fn claims_digest(stored: &StoredWarrant) -> String {
-    match serde_json::to_value(&stored.warrant.claims) {
+/// Digest of a warrant's signed claims — the `token_digest` on its delegation link.
+pub(crate) fn warrant_claims_digest(warrant: &Warrant) -> String {
+    match serde_json::to_value(&warrant.claims) {
+        Ok(value) => match serde_json::to_string(&canonicalize(&value)) {
+            Ok(text) => format!("sha256:{}", sha256_hex(text.as_bytes())),
+            Err(_) => "sha256:unavailable".to_string(),
+        },
+        Err(_) => "sha256:unavailable".to_string(),
+    }
+}
+
+/// The one-link authority block for a warrant, built the same way for the report receipt and
+/// for every per-effect receipt so the two cannot drift (the module doc's second hazard).
+pub(crate) fn warrant_authority(warrant: &Warrant) -> evidence::Authority {
+    let claims = &warrant.claims;
+    let chain = vec![evidence::DelegationLink {
+        issuer: warrant.issuer_key.clone(),
+        subject: claims.subject.clone(),
+        capabilities: claims.bounds.tools.iter().cloned().collect(),
+        not_before: claims.issued_at,
+        not_after: claims.bounds.expires_at,
+        token_digest: warrant_claims_digest(warrant),
+    }];
+    evidence::Authority {
+        effective_capabilities: evidence::recompute_intersection(&chain),
+        intersection_proof: evidence::compute_intersection_proof(&chain),
+        chain,
+    }
+}
+
+/// Digest of the bounds a warrant is evaluated against — its "policy".
+pub(crate) fn bounds_policy_digest(bounds: &WarrantBounds) -> String {
+    match serde_json::to_value(bounds) {
         Ok(value) => match serde_json::to_string(&canonicalize(&value)) {
             Ok(text) => format!("sha256:{}", sha256_hex(text.as_bytes())),
             Err(_) => "sha256:unavailable".to_string(),
@@ -537,6 +619,7 @@ fn limitations(
             .to_string(),
     ];
     out.push(custody_line);
+    out.push(NO_EFFECT_RECEIPTS_LIMITATION.to_string());
     // Containment is the one gate whose caveat changes with the input, so it is stated from the
     // input rather than from a fixed sentence. A build that was handed no contained scope has to
     // say the gate passed for want of anything to check, and a build that was handed one has to say
@@ -723,7 +806,7 @@ pub fn build_observed(
             own_capabilities: own_capabilities.clone(),
             delegation_chain: vec![notary::DelegationLink {
                 delegatee_svid: claims.subject.clone(),
-                capabilities: own_capabilities.clone(),
+                capabilities: own_capabilities,
                 not_before: claims.issued_at,
                 not_after: bounds.expires_at,
                 signature_verified,
@@ -783,19 +866,7 @@ pub fn build_observed(
     // `subject` for exactly this validity window, and `token_digest` is a real digest of the
     // signed claims. Built through `compute_intersection_proof` so `verify_authority` recomputes
     // it rather than trusting it.
-    let chain = vec![evidence::DelegationLink {
-        issuer: stored.warrant.issuer_key.clone(),
-        subject: claims.subject.clone(),
-        capabilities: own_capabilities,
-        not_before: claims.issued_at,
-        not_after: bounds.expires_at,
-        token_digest: claims_digest(stored),
-    }];
-    let authority = evidence::Authority {
-        effective_capabilities: evidence::recompute_intersection(&chain),
-        intersection_proof: evidence::compute_intersection_proof(&chain),
-        chain,
-    };
+    let authority = warrant_authority(&stored.warrant);
 
     let bundle = ReportBundle {
         format: REPORT_BUNDLE_FORMAT.to_string(),
@@ -820,6 +891,7 @@ pub fn build_observed(
         limitations: limitations(stored, contained_scopes, spend.as_ref(), custody.as_ref()),
         spend,
         custody,
+        effect_evidence: None,
         staged,
         staged_count,
         chain_head,
@@ -832,11 +904,13 @@ pub fn build_observed(
         request,
         verdict,
         authority,
+        effect_receipts: Vec::new(),
     }
 }
 
 /// The notary gate names, in the crate's own snake_case vocabulary.
-fn gate_name(gate: notary::Gate) -> &'static str {
+#[must_use]
+pub fn gate_name(gate: notary::Gate) -> &'static str {
     match gate {
         notary::Gate::Containment => "containment",
         notary::Gate::Identity => "identity",
@@ -855,6 +929,65 @@ impl Report {
     #[must_use]
     pub fn bundle(&self) -> &ReportBundle {
         &self.bundle
+    }
+
+    /// Attach the receipt log: the bundle lists every chain, the export carries the receipts.
+    ///
+    /// Replaces [`NO_EFFECT_RECEIPTS_LIMITATION`] with what was actually read. A log that verifies
+    /// nothing is still recorded — an empty section is "consulted, and empty", which differs from
+    /// `None`.
+    #[must_use]
+    pub fn with_effect_receipts(mut self, receipts: Vec<evidence::WarReceipt>) -> Self {
+        let effects = crate::receipts::chains(&receipts)
+            .into_iter()
+            .map(|chain| EffectReceiptLine {
+                handle: chain.pre_commit.predicate.operation.target.clone(),
+                tool: chain.pre_commit.predicate.operation.class.clone(),
+                pre_receipt_id: chain.pre_commit.predicate.binding.receipt_id.clone(),
+                post_receipt_id: chain
+                    .post_commit
+                    .as_ref()
+                    .map(|p| p.predicate.binding.receipt_id.clone()),
+                status: chain
+                    .post_commit
+                    .as_ref()
+                    .and_then(|p| p.predicate.outcome.as_ref().map(|o| o.status.clone()))
+                    .unwrap_or_else(|| "unfinished".to_string()),
+            })
+            .collect::<Vec<_>>();
+        self.bundle
+            .limitations
+            .retain(|l| l != NO_EFFECT_RECEIPTS_LIMITATION);
+        // The mode word is READ from the receipts, never written as a literal. It used to be the
+        // string "advisory" hardcoded here, so a bundle carrying a `mediated` receipt still read
+        // "each advisory". A rendered word that cannot disagree with the record it describes is not
+        // a disclosure; it is decoration -- and this sentence ships inside the signed bundle.
+        // `verify_effect_receipts` refuses anything but advisory, so the mixed branch should be
+        // unreachable in a bundle that verifies; it exists so a bundle that does NOT verify still
+        // says what it actually holds.
+        let mut modes: Vec<&str> = receipts
+            .iter()
+            .map(|r| mode_word_evidence(r.predicate.binding.enforcement_mode))
+            .collect();
+        modes.sort_unstable();
+        modes.dedup();
+        let mode_phrase = match modes.as_slice() {
+            [single] => format!("each {single}"),
+            many => format!("carrying mixed enforcement modes ({})", many.join(", ")),
+        };
+        self.bundle.limitations.push(format!(
+            "{} per-effect receipt chain(s) are attached, {mode_phrase}: the pre-commit was \
+             signed before settle performed the effect and the post-commit after, which \
+             records what settle did, not that the agent held no other way to do the same \
+             thing in the world.",
+            effects.len()
+        ));
+        self.bundle.effect_evidence = Some(EffectEvidenceSection {
+            receipts_consulted: receipts.len(),
+            effects,
+        });
+        self.effect_receipts = receipts;
+        self
     }
 
     /// Sign the bundle: a notary receipt over the verdict, a WAR receipt over the whole report.
@@ -903,7 +1036,7 @@ impl Report {
                     evidence::Verdict::Deny
                 },
                 engine: notary::NOTARY_VERSION.to_string(),
-                policy_digest: claims_policy_digest(&self.bundle),
+                policy_digest: bounds_policy_digest(&self.bundle.bounds),
                 evaluated_at: self.bundle.generated_at,
             },
             operation: evidence::Operation {
@@ -934,19 +1067,8 @@ impl Report {
             bundle: self.bundle.clone(),
             notary_receipt,
             evidence_receipt,
+            effect_receipts: self.effect_receipts.clone(),
         })
-    }
-}
-
-fn claims_policy_digest(bundle: &ReportBundle) -> String {
-    // The "policy" a warrant is evaluated against is its own signed bounds, so the policy digest
-    // is a digest of those bounds. Recomputable by anyone holding the bundle.
-    match serde_json::to_value(&bundle.bounds) {
-        Ok(value) => match serde_json::to_string(&canonicalize(&value)) {
-            Ok(text) => format!("sha256:{}", sha256_hex(text.as_bytes())),
-            Err(_) => "sha256:unavailable".to_string(),
-        },
-        Err(_) => "sha256:unavailable".to_string(),
     }
 }
 
@@ -1112,6 +1234,134 @@ pub fn verify_export(export: &SignedReport) -> Result<(), ReportError> {
         "the evidence receipt's decision disagrees with the signed notary verdict",
     )?;
 
+    verify_effect_receipts(export)?;
+
+    Ok(())
+}
+
+/// Every chain the bundle lists must be present, verify as a pre->post pair (I-07, I-02), be
+/// signed by the report's own key, and describe the handle and status the bundle says it does.
+fn verify_effect_receipts(export: &SignedReport) -> Result<(), ReportError> {
+    let signer = &export.evidence_receipt.signature.public_key;
+    // A per-effect receipt may only ever say `advisory`, and this is the only place that
+    // refuses anything else.
+    //
+    // `settle` mediates the staged path, not the world: an agent holding its own credential
+    // opens the same pull request without passing through it. So `mediated` on one of these
+    // asserts a non-bypassability this system does not have -- inside a signed bundle, which is
+    // the worst place for a bound to be mislabeled.
+    //
+    // `evidence::check_mode_honesty` does not cover this. It refuses an *advisory* receipt that
+    // claims non-bypassability, never a *mediated* one, so `check_mode_honesty(mediated, true)`
+    // returns Ok. And the report-level mode checks operate on `export.evidence_receipt` alone.
+    // Without this loop, a chain re-signed with the report's OWN key and `Mediated` passed both
+    // verify paths clean while the bundle still read `advisory`. Three independent reviews of
+    // this branch found that gap and each proved it the same way.
+    for receipt in &export.effect_receipts {
+        if receipt.predicate.binding.enforcement_mode != evidence::EnforcementMode::Advisory {
+            return Err(ReportError::Binding(format!(
+                "a per-effect receipt for {} carries enforcement mode {}; settle mediates the \
+                 staged path and not the world, so only `advisory` is truthful here and \
+                 `mediated` is refused",
+                receipt.predicate.operation.target,
+                mode_word_evidence(receipt.predicate.binding.enforcement_mode),
+            )));
+        }
+    }
+    // Phase as well as id, because `issue_post_commit` clones the pre-commit's predicate and
+    // changes only the phase, the parent pointer and the outcome -- so a chain's two receipts
+    // carry the SAME `binding.receipt_id`, and a lookup by id alone hands back the pre-commit
+    // when asked for the post-commit. That reads as a phase violation two checks later, which is
+    // a true error about the wrong thing.
+    let find = |id: &str, phase: evidence::Phase| {
+        export
+            .effect_receipts
+            .iter()
+            .find(|r| r.predicate.binding.receipt_id == id && r.predicate.binding.phase == phase)
+    };
+    let missing = |what: &str, handle: &str| {
+        ReportError::Evidence(
+            evidence::EvidenceError::CommitGate(format!(
+                "the {what} receipt for {handle} is missing from the export"
+            ))
+            .to_string(),
+        )
+    };
+    let Some(section) = &export.bundle.effect_evidence else {
+        if export.effect_receipts.is_empty() {
+            return Ok(());
+        }
+        return Err(ReportError::Binding(
+            "the export carries effect receipts the bundle does not list".to_string(),
+        ));
+    };
+    let mut expected = 0usize;
+    for line in &section.effects {
+        expected += 1;
+        let pre = find(&line.pre_receipt_id, evidence::Phase::PreCommit)
+            .ok_or_else(|| missing("pre-commit", &line.handle))?;
+        if pre.signature.public_key != *signer {
+            return Err(ReportError::Binding(format!(
+                "the pre-commit receipt for {} was signed by a key other than the report's",
+                line.handle
+            )));
+        }
+        if pre.predicate.operation.target != line.handle
+            || pre.predicate.operation.class != line.tool
+        {
+            return Err(ReportError::Binding(format!(
+                "the pre-commit receipt listed for {} is over a different effect",
+                line.handle
+            )));
+        }
+        if pre.predicate.actor.principal != export.bundle.subject {
+            return Err(ReportError::Binding(format!(
+                "the pre-commit receipt for {} names a different subject",
+                line.handle
+            )));
+        }
+        let Some(post_id) = &line.post_receipt_id else {
+            evidence::verify_receipt(pre).map_err(|e| ReportError::Evidence(e.to_string()))?;
+            evidence::verify_authority(&pre.predicate.authority)
+                .map_err(|e| ReportError::Evidence(e.to_string()))?;
+            if line.status != "unfinished" {
+                return Err(ReportError::Binding(format!(
+                    "{} has no post-commit receipt but the bundle records status {:?}",
+                    line.handle, line.status
+                )));
+            }
+            continue;
+        };
+        expected += 1;
+        let post = find(post_id, evidence::Phase::PostCommit)
+            .ok_or_else(|| missing("post-commit", &line.handle))?;
+        evidence::verify_chain(pre, post).map_err(|e| ReportError::Evidence(e.to_string()))?;
+        if post.signature.public_key != *signer {
+            return Err(ReportError::Binding(format!(
+                "the post-commit receipt for {} was signed by a key other than the report's",
+                line.handle
+            )));
+        }
+        let status = post
+            .predicate
+            .outcome
+            .as_ref()
+            .map(|o| o.status.as_str())
+            .unwrap_or_default();
+        if status != line.status {
+            return Err(ReportError::Binding(format!(
+                "the bundle records {} as {:?}; its post-commit receipt says {status:?}",
+                line.handle, line.status
+            )));
+        }
+    }
+    if export.effect_receipts.len() != expected {
+        return Err(ReportError::Binding(format!(
+            "the export carries {} effect receipt(s) and the bundle lists {expected}; receipts \
+             the bundle does not account for are refused",
+            export.effect_receipts.len()
+        )));
+    }
     Ok(())
 }
 
@@ -1297,6 +1547,22 @@ pub fn render_cli(bundle: &ReportBundle) -> String {
             lines.push("  chain head UNKNOWN — the staging queue could not be read".to_string());
         }
     }
+    if let Some(section) = &bundle.effect_evidence {
+        lines.push(format!(
+            "  {} effect receipt chain(s) from {} receipt(s): pre-commit before each effect, \
+             post-commit after (advisory)",
+            section.effects.len(),
+            section.receipts_consulted
+        ));
+        for line in &section.effects {
+            lines.push(format!(
+                "    {:<36}  {:<10}  {}",
+                line.handle,
+                line.status,
+                &line.pre_receipt_id[..12]
+            ));
+        }
+    }
 
     let mut out = lines.join("\n");
     out.push('\n');
@@ -1338,8 +1604,18 @@ pub fn render_signature_section(signed: &SignedReport) -> String {
             "  limitations     {} recorded in the bundle",
             signed.bundle.limitations.len()
         ),
-        "  export it with  warrantor report <id> --export <path>".to_string(),
     ];
+    if let Some(section) = &signed.bundle.effect_evidence {
+        // "signed by the same key", not "covered by this signature": the receipts sit outside the
+        // bundle digest deliberately, so that removing one fails as a commit-gate violation naming
+        // the effect rather than as a digest mismatch naming nothing.
+        lines.push(format!(
+            "  effects         {} receipt chain(s), each signed by this same key and checked \
+             separately from the bundle digest",
+            section.effects.len()
+        ));
+    }
+    lines.push("  export it with  warrantor report <id> --export <path>".to_string());
     lines.push(String::new());
     let mut out = lines.join("\n");
     out.push('\n');
@@ -1405,6 +1681,15 @@ pub fn render_mcp(bundle: &ReportBundle) -> String {
         StagedSection::Unavailable { reason } => {
             out.push(format!("  staged effects: {reason}"));
         }
+    }
+
+    if let Some(section) = &bundle.effect_evidence {
+        out.push(format!(
+            "  {} effect receipt chain(s) from {} receipt(s): pre-commit before each effect, \
+             post-commit after (advisory)",
+            section.effects.len(),
+            section.receipts_consulted
+        ));
     }
 
     // Bounds were absent from this rendering entirely, so the one reader that most needs the
