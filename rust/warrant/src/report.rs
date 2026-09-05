@@ -1504,6 +1504,22 @@ pub fn render_cli(bundle: &ReportBundle) -> String {
             lines.push("  chain head UNKNOWN — the staging queue could not be read".to_string());
         }
     }
+    if let Some(section) = &bundle.effect_evidence {
+        lines.push(format!(
+            "  {} effect receipt chain(s) from {} receipt(s): pre-commit before each effect, \
+             post-commit after (advisory)",
+            section.effects.len(),
+            section.receipts_consulted
+        ));
+        for line in &section.effects {
+            lines.push(format!(
+                "    {:<36}  {:<10}  {}",
+                line.handle,
+                line.status,
+                &line.pre_receipt_id[..12]
+            ));
+        }
+    }
 
     let mut out = lines.join("\n");
     out.push('\n');
@@ -1545,8 +1561,14 @@ pub fn render_signature_section(signed: &SignedReport) -> String {
             "  limitations     {} recorded in the bundle",
             signed.bundle.limitations.len()
         ),
-        "  export it with  warrantor report <id> --export <path>".to_string(),
     ];
+    if let Some(section) = &signed.bundle.effect_evidence {
+        lines.push(format!(
+            "  effects         {} receipt chain(s) attached and covered by this signature's key",
+            section.effects.len()
+        ));
+    }
+    lines.push("  export it with  warrantor report <id> --export <path>".to_string());
     lines.push(String::new());
     let mut out = lines.join("\n");
     out.push('\n');
@@ -1612,6 +1634,15 @@ pub fn render_mcp(bundle: &ReportBundle) -> String {
         StagedSection::Unavailable { reason } => {
             out.push(format!("  staged effects: {reason}"));
         }
+    }
+
+    if let Some(section) = &bundle.effect_evidence {
+        out.push(format!(
+            "  {} effect receipt chain(s) from {} receipt(s): pre-commit before each effect, \
+             post-commit after (advisory)",
+            section.effects.len(),
+            section.receipts_consulted
+        ));
     }
 
     // Bounds were absent from this rendering entirely, so the one reader that most needs the

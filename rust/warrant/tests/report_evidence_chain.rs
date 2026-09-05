@@ -470,3 +470,20 @@ fn stray_receipts_the_bundle_does_not_list_are_refused() {
         Err(ReportError::Binding(_))
     ));
 }
+
+#[test]
+fn the_prose_gains_lines_only_when_a_log_was_read() {
+    let dir = tempdir("prose");
+    let signed = settled_export(&dir);
+    let text = warrantor_warrant::report::render_cli(&signed.bundle);
+    assert!(
+        text.contains("2 effect receipt chain(s) from 4 receipt(s)"),
+        "{text}"
+    );
+    assert!(text.contains(&format!("pr://staged/{ID}/1")), "{text}");
+    let signature = warrantor_warrant::report::render_signature_section(&signed);
+    assert!(
+        signature.contains("effects         2 receipt chain(s)"),
+        "{signature}"
+    );
+}
