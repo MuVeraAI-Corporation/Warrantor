@@ -96,8 +96,8 @@ use crate::report::{canonicalize, sha256_hex};
 use crate::WarrantBounds;
 
 pub use warrantor_spend::{
-    AgentBudget, CostReceipt, DenyReason, ModelBackend, SpendRequest, SpendVerdict, ENGINE_VERSION,
-    MICROS_PER_DOLLAR,
+    AgentBudget, CostReceipt, DenyReason, Exhausted, ModelBackend, Reservation, SpendAct,
+    SpendRequest, SpendVerdict, ENGINE_VERSION, MICROS_PER_DOLLAR,
 };
 
 /// Wire format of the persisted ledger.
@@ -921,5 +921,79 @@ pub fn reason_word(reason: &DenyReason) -> &'static str {
         DenyReason::ToolCallBudgetExhausted => "a tool-call budget",
         DenyReason::NoSafeBackend => "no approved safe backend",
         DenyReason::BackendNotApproved => "the backend is not approved",
+    }
+}
+
+// ── the call ceiling ──────────────────────────────────────────────────────────────────
+
+/// Wire format of the persisted call ledger.
+pub const CALL_LEDGER_FORMAT: &str = "warrantor.call-ledger/1";
+
+/// The bound name, as `bound_strengths()` spells it. `&'static str` because
+/// [`crate::proxy::Decision::Deny::bound`] is one.
+pub const CALLS_BOUND: &str = "budget_calls_mediated";
+
+/// Printed wherever the call ceiling is shown to a human.
+pub const CALLS_NOTE: &str =
+    "The call ceiling counts tool calls that pass through the Warrantor MCP proxy and refuses the \
+     one that would exceed it before it is forwarded or staged. A call that does not pass through \
+     the proxy is not counted. The bound is mediated, not enforced, and it meters calls, not cents.";
+
+/// The warrant's call ceiling, read fresh from the signed claims. Absent is zero.
+#[must_use]
+pub fn max_tool_calls(bounds: &WarrantBounds) -> u64 {
+    bounds.max_tool_calls.unwrap_or(0)
+}
+
+/// The counter the proxy holds: how many calls the ceiling permits and how many it has admitted.
+///
+/// Kept apart from [`CallLedger`] so the proxy, which knows no warrant id and no disk, can hold
+/// the arithmetic while the endpoint holds the persistence.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CallCounter {
+    /// The ceiling, re-read from the signed claims on every ledger load.
+    pub max_tool_calls: u64,
+    /// How many calls this warrant has had admitted, across every session that persisted.
+    pub tool_calls_used: u64,
+}
+
+impl CallCounter {
+    /// Seed from the signed bounds; absent ceiling reads as zero.
+    #[must_use]
+    pub fn new(bounds: &WarrantBounds) -> Self {
+        Self {
+            max_tool_calls: max_tool_calls(bounds),
+            tool_calls_used: 0,
+        }
+    }
+
+    /// How many calls the ceiling still admits.
+    #[must_use]
+    pub fn remaining(&self) -> u64 {
+        self.max_tool_calls.saturating_sub(self.tool_calls_used)
+    }
+
+    /// Admit one call, or refuse it with the count unchanged.
+    ///
+    /// The gate is [`engine::TaskBudget::reserve`] — the engine's, not a reimplementation — so the
+    /// comparison is the one the engine's tests cover. `max_tokens` is zero because this warrant
+    /// declares no token allowance, and a zero-token act against a zero allowance is admitted.
+    ///
+    /// # Errors
+    /// [`Exhausted`] with [`DenyReason::ToolCallBudgetExhausted`].
+    pub fn reserve(&mut self) -> Result<Reservation, Exhausted> {
+        let mut budget = engine::TaskBudget {
+            task_id: CALLS_BOUND.to_string(),
+            max_tokens: 0,
+            tokens_used: 0,
+            max_tool_calls: self.max_tool_calls,
+            tool_calls_used: self.tool_calls_used,
+        };
+        let reservation = budget.reserve(&SpendAct {
+            tokens: 0,
+            tool_calls: 1,
+        })?;
+        self.tool_calls_used = budget.tool_calls_used;
+        Ok(reservation)
     }
 }
