@@ -24559,48 +24559,867 @@ re-run there — PR CI tests the branch against old `main`, and batch-merging gr
 
 ### Task 9.4: Authority-expansion detection and sibling-collusion intersection (L6-09, L6-12)
 
-**Anchor.** L6-09 `status=none` `novel` W2; L6-12 `status=none` `novel` W2. **This is invariant
-I-02**, and it names the hole that chain intersection does not close: **two siblings, each strictly
-within its own bounds, can compose a capability neither holds** — because they are not in one chain,
-so there is no chain to intersect. The incident's agents formed teams; this is the control for that.
+**Anchor.** Both catalog items are quoted verbatim from
+`docs/html/warrantor-native-ai-platform-os-master-2026-09-01.html`.
 
-**Step 0.** Read `rust/warrant/tests/invariants/i02_no_authority_expansion.rs` in full and quote its
-`#[ignore]` reasons. Read Task 1.5's delegation algebra and record precisely what it intersects
-over — a chain — and therefore what it structurally cannot see. Read Task 9.6 (attested sender
-identity): **sibling collusion is undetectable without it**, because you cannot attribute a message
-to a sibling you cannot authenticate. Record whether 9.6 has landed. Read Task 6.2 (swarm detection
-on the receipt graph) — that task detects the pattern after the fact; this one refuses it, and the
-two must not each claim the other's ground.
+L6-09, line 4222:
+`<article class="item" id="L6-09" data-stratum="L6" data-plane="B" data-status="none" data-novelty="novel" data-wave="W2" data-loop="L5">`
+— **`status=none`**, `novel`, W2, Plane B. Its `what` clause, line 4226: *"Continuous monitoring for
+any path by which effective authority grew: credential harvesting, service impersonation, token
+forgery, account creation, configuration drift. Complements L6-01 by watching for expansion that
+routes around the chain entirely."* Its own residual, line 4230: *"Detection has latency; the window
+between expansion and alarm is a published number, not zero."*
 
-**Non-goals.** Not swarm detection — 6.2. Not the channel plane — 9.6. Not coordination primitives —
-9.7. Not cross-organization authority — 9.5.
+L6-12, line 4258:
+`<article class="item" id="L6-12" data-stratum="L6" data-plane="B" data-status="none" data-novelty="novel" data-wave="W2" data-loop="L5">`
+with `<span class="tier proposed">PROPOSED · added</span>` — **`status=none`**, `novel`, W2, Plane B.
+Its `what` clause, line 4262: *"Two agents under the same parent may hold complementary permissions
+(one may read a secret store, another may reach an external destination) that neither could exercise
+alone. This control makes information and authority non-transitive between siblings: what one sibling
+knows cannot be combined with what another may do unless a warrant explicitly grants the union, and
+the kernel tests every population for complementary pairs at admission and on every delegation. Added
+from the research source; the OS spec computes the chain vertically (L6-01) but not across siblings."*
+Its verification clause, line 4265: *"Seed a population with a read-only sibling and an egress-only
+sibling and assert that no composition of sanctioned messages, memory or delegation lets the secret
+leave; the population's computed union authority is published in the fleet console and never exceeds
+the parent's."*
 
-**Files.** The delegation algebra, `rust/authority-spec/src/lib.rs`,
-`rust/warrant/tests/invariants/i02_no_authority_expansion.rs`, `tools/ci/invariant-ratchet.json`,
-`docs/task-evidence/task-9.4.md`.
+This is invariant I-02's blind spot. The fold runs down **one** root-first path. Two siblings share an
+ancestor but sit on two paths, so there is no chain to fold across them, and nothing in the system
+computes a population's total authority at all.
 
-**Consumes / Produces.** Consumes Task 1.5's intersection, Task 9.6's attested identity, and the
-receipt graph. Produces a **complementary-capability intersection** computed over the sibling set
-sharing a common ancestor, and a refusal when the composed capability exceeds what the ancestor held.
+---
 
-**Bound strength.** **Tier B, chokepoint,** and a hard limit: this can only see siblings that share
-an ancestor *in this system*. Two agents granted by two different roots, or coordinating through a
-side channel, compose freely and this control is blind to it. That limit belongs in the product text
-next to the guarantee, not in a footnote.
+**Step 0 — executed, verbatim.** Read-only scratch worktree off **local `main` at `b04164d`** (not
+`origin/main`, which is stale at `e4b5f10`):
 
-**Exit gate.** Two siblings whose composed capability exceeds their common ancestor's are refused at
-the second grant, with a control pair whose composition stays within the ancestor's bounds accepted;
-and the refusal names both siblings and the ancestor.
+```
+$ cd "M:/Project AumOS - Open Secure AI Alliance/aumos" && git rev-parse main
+b04164ddbdc29e001fcf4dd71f43a579cbe2c39a
+$ git worktree add --detach M:/wt-e-9.4 main
+Preparing worktree (detached HEAD b04164d)
+HEAD is now at b04164d Merge branch 'ci/us-english-gate'
+$ git ls-tree --name-only main rust/ | grep -c '^rust/[a-z]'
+40
+```
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.4 -b feat/sibling-collusion-intersection origin/main`
-- [ ] **Step 2 — Quote the `i02` `#[ignore]` reasons** and confirm 9.6 has landed.
-- [ ] **Step 3 — Failing test: chain intersection does NOT catch sibling composition.** Prove the hole exists before closing it.
-- [ ] **Step 4 — Failing test: composed capability exceeding the ancestor is refused at the second grant.** Paired with a within-bounds control.
-- [ ] **Step 5 — Failing test: the refusal names both siblings and the ancestor.**
-- [ ] **Step 6 — Failing test: the ancestor's bound, not the sum of the children's, is the ceiling.**
-- [ ] **Step 7 — Record the two blind spots:** separate roots, and side channels. Name Task 3.6 as partial cover for the second and claim no closure.
-- [ ] **Step 8 — Earn what the corpus allows; raise the floor in the same commit.**
-- [ ] **Step 9 — Gates, evidence file, `git commit -s`.**
+**Finding 1 — the seed's central premise is false. `i02_no_authority_expansion.rs` contains no
+`#[ignore]`, so there is nothing for this task to convert.** The seed says *"Read
+`rust/warrant/tests/invariants/i02_no_authority_expansion.rs` in full and quote its `#[ignore]`
+reasons"*, and the Phase 9 scope entry says *"9.4 is I-02"* among *"invariants the Task 5.1 corpus
+currently reports as violated or unimplemented."* Both are wrong. The file is 214 lines and every one
+of its seven tests passes:
+
+```
+$ grep -c "#\[ignore" rust/warrant/tests/invariants/i02_no_authority_expansion.rs
+0
+$ grep -rn "#\[ignore" rust/warrant/tests/invariants/ | cut -d: -f1 | sort -u
+rust/warrant/tests/invariants/i01_active_identity.rs
+rust/warrant/tests/invariants/i03_purpose_bound_data_use.rs
+rust/warrant/tests/invariants/i04_current_policy.rs
+rust/warrant/tests/invariants/i05_bounded_revocation_latency.rs
+rust/warrant/tests/invariants/i06_exact_artifact_identity.rs
+rust/warrant/tests/invariants/i08_non_delegable_human_authority.rs
+rust/warrant/tests/invariants/i09_failure_is_safe.rs
+rust/warrant/tests/invariants/i10_replay_is_detectable.rs
+rust/warrant/tests/invariants/i11_self_change_is_governed.rs
+rust/warrant/tests/invariants/i12_safe_state_is_reachable.rs
+```
+
+I-02 and I-07 are the only two invariants in the corpus with no recorded finding. The file's own module
+doc, lines 6–10, says so in the opposite direction from the seed:
+
+> This is the best-defended invariant in the codebase. Two implementations recompute the intersection —
+> `notary::effective_capabilities` for the decision and `evidence::recompute_intersection` for the
+> receipt — and the receipt verifier rejects a claimed capability set the chain does not produce. The
+> corpus attacks both, and records one seam: the two implementations are separate code paths that
+> nothing checks against each other.
+
+The ledger agrees. `evidence/invariants.json` lines 17–26, verbatim, **status word `enforced`**:
+
+```json
+      "id": "I-02",
+      "statement": "No authority expansion. The intersection of authorities in the delegation chain is the maximum authority; never the union.",
+      "status": "enforced",
+      "enforced_by": [
+        {"crate": "evidence", "symbol": "warrantor_evidence::verify_authority", "test": "rust/evidence/src/lib.rs::authority_expansion_rejected", "note": "error text 'authority expansion; I-02'"},
+        {"crate": "evidence", "symbol": "warrantor_evidence::recompute_intersection", "test": "rust/evidence/src/lib.rs::forged_intersection_proof_rejected", "note": ""},
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Authority", "test": "rust/notary/src/lib.rs::gate5_authority_outside_intersection_denies", "note": ""},
+        {"crate": "notary", "symbol": "warrantor_notary::effective_capabilities", "test": "rust/notary/src/lib.rs::gate5_authority_intersection_drops_capability_when_a_link_lacks_it", "note": ""}
+      ],
+      "gap": "The intersection algebra exists once on this tree, in the evidence crate, on the binary's path. (The plan recorded a second implementation in rust/delegation-chain, a crate that is not tracked on origin/main; Task 1.5 owns wherever that algebra lands.)"
+```
+
+That `gap` sentence is itself stale in two ways after Task 1.5: `rust/delegation-chain` **is** tracked
+on local `main`, and the algebra now lives there rather than in the evidence crate. Correcting it is
+part of this task.
+
+The consequence for scope is large and it must be said plainly rather than absorbed: **this task does
+not convert a recorded violation and may not claim to.** It adds a new control for a hole the corpus
+never recorded, so its ratchet obligation is to raise `passing_floor` by exactly the number of new
+passing tests it lands and to leave `ignored_ceiling` untouched.
+
+**Baseline, captured.** `cargo test -p warrantor-evidence -p warrantor-delegation-chain`, tail:
+
+```
+     Running tests\delegation_algebra.rs
+running 1 test
+test granted_is_a_subset_of_every_ancestor_and_every_expansion_is_refused ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running tests\four_deep_revocation.rs
+running 4 tests
+test revoking_the_middle_spares_the_ancestors ... ok
+test an_unknown_warrant_cannot_bind ... ok
+test the_deepest_receipt_names_all_four_links ... ok
+test revoking_the_root_refuses_every_descendant_at_bind ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+```
+
+The corpus and the two ratchets:
+
+```
+$ python tools/ci/check_invariant_ratchet.py
+test result: ok. 66 passed; 0 failed; 18 ignored; 0 measured; 0 filtered out; finished in 0.14s
+invariant ratchet: ok (66 passing at floor 66, 18 recorded findings at ceiling 18)
+$ python tools/ci/wiring_census.py
+wiring census: 10 of 40 crates reachable from warrantor-warrant over 18 path edges
+$ python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=2, partial=7, unimplemented=1
+```
+
+Reachability, which decides the orphan question before any code is written:
+
+```
+$ python -c "import sys; sys.path.insert(0,'tools/ci'); from wiring_census import reachable_crates; \
+from pathlib import Path; print(sorted(reachable_crates(Path('rust'))))"
+['warrantor-api', 'warrantor-authority-spec', 'warrantor-containment-conformance',
+ 'warrantor-delegation-chain', 'warrantor-egress', 'warrantor-evidence', 'warrantor-notary',
+ 'warrantor-spend', 'warrantor-trust-core', 'warrantor-warrant']
+```
+
+`warrantor-delegation-chain`, `warrantor-evidence` and `warrantor-warrant` are all reachable, so every
+line this task writes lands inside the reached set. **The orphan count stays 30.**
+
+**Finding 2 — Task 1.5's fold is real, and it is narrower than the seed describes.** The seed says
+*"there is now exactly one chain fold, `rust/delegation-chain::intersect_chain`, and
+`rust/evidence::narrow_chain` is its only consumer of the arithmetic."* Verified true as stated, and
+incomplete: `notary::effective_capabilities` at `rust/notary/src/lib.rs:293` is still a `HashSet`
+intersection over `notary::DelegationLink` that never touches the fold, and `rust/notary/Cargo.toml`
+declares **no** `warrantor-*` dependency. Task 1.5's own evidence file says so, at
+`docs/task-evidence/task-1.5.md:203–213`:
+
+> - **The notary still holds a third copy of the fold.** `rust/notary/src/lib.rs:293
+>   effective_capabilities` is a `HashSet` intersection over `notary::DelegationLink`, unchanged. […]
+> - **The two implementations now genuinely differ on a widening chain, and only the corpus's four
+>   cases hide it.** […] For `[["a","b"], ["a","c"]]` the notary would say `["a"]` and the evidence
+>   crate says `[]`. […] On the deciding side the seam that test guards is **wider after this task, not
+>   narrower** — this is the finding, and it belongs to whoever next revises the notary's chain gate.
+
+That is a live, recorded, unclosed divergence in the file this task edits. It is **not** this task's to
+close (see Non-goals), and this task must not add a corpus test that exercises it: doing so would
+either fail the build or require a thirteenth `#[ignore]`, which raises `ignored_ceiling` and fails the
+build by design.
+
+**Finding 3 — the capability half of sibling collusion is already vacuous; the quantitative half is
+not.** `intersection` at `rust/delegation-chain/src/lib.rs:107–132` requires every requested capability
+and resource class to exist in the parent, so the union of any sibling set's **capability sets** is
+necessarily a subset of the ancestor's. A control that only asked "does the union of capabilities
+exceed the ancestor?" would be unfalsifiable. What is genuinely unbounded is arithmetic:
+
+```rust
+// rust/delegation-chain/src/lib.rs:125-130
+    if requested.expires_at_ms > parent.expires_at_ms {
+        return Err(Escalation::Time);
+    }
+    if requested.budget_micros > parent.budget_micros {
+        return Err(Escalation::Budget);
+    }
+```
+
+Each child is compared against the parent **independently**. `delegate` at line 201 never debits the
+parent, so a parent holding `budget_micros: 500_000_000` can issue two children of `400_000_000` each
+and the population holds `800_000_000` — an authority the ancestor never had, produced entirely through
+sanctioned grants, with no widening link anywhere for `intersect_chain` to name. That is the refusable
+hole, and it is the exit gate. The complementary-capability half (L6-12's read-sibling plus
+egress-sibling) is real but is a **composition** the ancestor never expressed, not a quantity that
+exceeds it; it needs a declaration, and it gets detection rather than a fabricated refusal.
+
+**Finding 4 — the store cannot see downward.** `WarrantStore` (line 174) holds
+`warrants: HashMap<String, Warrant>` and `revoked: HashSet<String>`; `chain_of` (line 228) walks
+`parent` links **upward** only. There is no `children_of`, no sibling enumeration, and no population
+concept anywhere in the workspace. `sibling_branches_independent` (line 465) is the closest thing and
+it tests exactly the opposite property: that revoking one sibling leaves the other standing.
+
+**Finding 5 — Task 9.6 has not landed, and there is no channel plane at all.**
+
+```
+$ git grep -n "peer_proposal\|PeerProposal\|fn send_message\|struct Message\|agent_to_agent" -- 'rust/**/*.rs'
+$ git ls-tree --name-only main rust/ | grep -i "channel\|message\|comm"
+$
+```
+
+Both empty. `git log --oneline main` shows the six unpushed merges (`b04164d`, `eef1c71`, `f99af94`,
+`166551c`, `f06c030`, `c6cb1bb`) and none is 9.6. The seed's claim that *"sibling collusion is
+undetectable without it"* is **half right, and the half that is wrong is what makes this task
+schedulable.** Collusion over an *unauthenticated message channel* is undetectable without attested
+identity — nobody can attribute a message to a sibling they cannot authenticate. But this task's
+control never reads a message. It computes over the **warrant lineage the store already holds**, at the
+moment a warrant is issued, and refuses the second grant before either agent runs. Attribution is by
+construction there: the store knows which id it is minting and which parent it hangs from. **This task
+stands without 9.6.** What it cannot do without 9.6 is observe the composition being *exercised* — and
+that limit belongs in the product text, not in a footnote.
+
+---
+
+**Non-goals.** Each names the task that owns the excluded thing.
+
+- **Not swarm detection on the receipt graph — Task 6.2 owns that.** 6.2 looks for organization
+  (hierarchy, roles, assignment trees) in receipts after the fact. This task refuses a grant before any
+  receipt exists. The two must not each claim the other's ground: this one cannot see a population that
+  formed without going through `delegate`, and 6.2 cannot refuse anything.
+- **Not the channel plane, attested sender identity, or the channel policy language — Task 9.6 owns
+  those (L5-06, L5-05), and it has NOT landed.** No message type, broker or delivery path is introduced
+  here. A composition exercised over a channel is out of reach until 9.6 exists.
+- **Not bounded revocation or its SLA — Task 9.1 owns that (L6-04, I-05), and it is in flight.** 9.1
+  also owns the `credential-vault` wiring and, per its own Files list, edits
+  `tools/ci/invariant-ratchet.json` claiming `passing_floor` 65 → 68 against the stale 65/19 pair. This
+  task reads the floor from its own captured test line at branch time and never assumes a number.
+- **Not purpose binding on authority — Task 9.3 owns that (L6-07, I-03).** No purpose field is added to
+  `WarrantScope`, `WarrantBounds`, the request, or the receipt.
+- **Not cross-organization authority or agent naming — Task 9.5 owns those (L6-08, L6-10).** Every
+  sibling relation here is inside one `WarrantStore`. Two ancestors in two organizations are explicitly
+  out of reach and named as such in the product text.
+- **Not the chain fold itself — Task 1.5 owns it and it has LANDED.** `intersection` and
+  `intersect_chain` are consumed, never reimplemented. A second implementation of one contract is the
+  defect Task 1.5 existed to remove.
+- **Not the notary's third copy of the fold, and not the widening-chain divergence Task 1.5 recorded.**
+  Left open, named here and in the evidence file, and assigned in `docs/W1-delivery-gaps.md` § 3.7 to
+  whoever next revises the notary's chain gate.
+- **Not improvised-channel detection or the shared-surface census — Task 3.6 owns those (L5-02,
+  L2-01).** Named below as partial cover for the side-channel blind spot, with no closure claimed.
+
+---
+
+**Files.**
+
+- `rust/delegation-chain/src/lib.rs` — `children_of`, `siblings_of`, `composed_authority`,
+  `effective_ceiling_of`, `PopulationEscalation`, `DelegateError::Composed`, the incompatible-pair
+  register, and the sibling-aware branch of `delegate`.
+- `rust/delegation-chain/tests/sibling_composition.rs` — new integration suite.
+- `rust/evidence/src/lib.rs` — `bind_population`, so a receipt can carry the composed union.
+- `rust/evidence/tests/population_composition.rs` — new integration suite, including the
+  proof-format-unchanged assertion that protects Task 1.5's gate.
+- `rust/warrant/tests/invariants/i02_no_authority_expansion.rs` — the corpus tests.
+- `evidence/invariants.json` — I-02's stale `gap` sentence, rewritten.
+- `tools/ci/invariant-ratchet.json` — `passing_floor` raised, read from the captured test line.
+- `docs/W1-delivery-gaps.md` — the two blind spots recorded as findings.
+- `docs/task-evidence/task-9.4.md`.
+
+---
+
+**Consumes / Produces.**
+
+Consumes, all present on local `main` at `b04164d`:
+
+```rust
+// rust/delegation-chain/src/lib.rs:107
+pub fn intersection(parent: &WarrantScope, requested: &WarrantScope) -> Result<WarrantScope, Escalation>
+// rust/delegation-chain/src/lib.rs:155
+pub fn intersect_chain(chain: &[WarrantScope]) -> Result<WarrantScope, ChainEscalation>
+// rust/delegation-chain/src/lib.rs:228
+pub fn chain_of(&self, id: &str) -> Vec<Warrant>
+// rust/delegation-chain/src/lib.rs:253
+pub fn is_valid(&self, id: &str) -> bool
+// rust/delegation-chain/src/lib.rs:260
+pub fn effective_scope(&self, id: &str) -> Option<&WarrantScope>
+// rust/evidence/src/lib.rs:291  (private; the reason units never diverge)
+fn scope_of(link: &DelegationLink) -> WarrantScope
+// rust/evidence/src/lib.rs:310
+pub fn narrow_chain(chain: &[DelegationLink]) -> Result<Vec<String>, EvidenceError>
+// rust/evidence/src/lib.rs:360
+pub fn bind_authority(store: &WarrantStore, warrant_id: &str) -> Result<Authority, EvidenceError>
+// rust/evidence/src/lib.rs:383
+pub fn compute_intersection_proof(chain: &[DelegationLink]) -> IntersectionProof
+// rust/evidence/src/lib.rs:634
+pub fn verify_authority(authority: &Authority) -> Result<(), EvidenceError>
+// rust/warrant/tests/invariants/harness.rs:50
+pub fn refused_at_the_boundary<T, F>(what: &str, control: &T, attacked: &T, allowed: F)
+```
+
+Consumes from a task that has **not** landed: Task 9.6's attested sender identity (L5-06). Precisely
+what this task would need from it and does not have: a verified binding from an inter-agent message to
+the agent principal that sent it, so that a composition being *exercised* over a channel could be
+attributed to a named sibling. **This task does not need it to refuse a grant**, because attribution at
+issuance comes from the store's own `parent` link. It needs it only to observe exercise, which this
+task therefore does not claim. 9.6 is routed to the GLM lane and is unstarted.
+
+Produces:
+
+```rust
+/// The composed authority of a sibling set: the union of what the siblings hold. The ONLY union in
+/// this crate, and it exists to be compared against a ceiling, never to confer anything.
+pub struct ComposedAuthority {
+    pub ancestor: String,
+    pub members: Vec<String>,          // sorted; deterministic refusal text depends on it
+    pub union_capabilities: Vec<String>,
+    pub union_resource_classes: Vec<String>,
+    pub committed_budget_micros: u64,  // saturating sum
+    pub latest_expiry_ms: u64,
+}
+pub fn composed_authority(&self, ancestor: &str) -> ComposedAuthority;
+pub fn children_of(&self, id: &str) -> Vec<Warrant>;      // sorted by id
+pub fn siblings_of(&self, id: &str) -> Vec<Warrant>;      // sorted by id, excludes `id`
+pub fn effective_ceiling_of(&self, id: &str) -> Result<WarrantScope, ChainEscalation>;
+pub fn declare_incompatible(&mut self, left: &str, right: &str);
+pub enum PopulationEscalation {
+    Budget { ancestor: String, committed_micros: u64, requested_micros: u64, ceiling_micros: u64,
+             committed_by: Vec<String> },
+    ComplementaryPair { ancestor: String, holder: String, holds: String,
+                        requester: String, requests: String },
+}
+// added variant on the existing enum at rust/delegation-chain/src/lib.rs:272
+pub enum DelegateError { /* … */ Composed(PopulationEscalation) }
+// rust/evidence
+pub fn bind_population(store: &WarrantStore, ancestor: &str) -> Result<PopulationBlock, EvidenceError>;
+```
+
+---
+
+**Bound strength.**
+
+**Tier B — chokepoint.** The refusals are `Tier B (chokepoint)` held at **warrant issuance inside one
+`WarrantStore`**: `delegate` refuses, in process, at the moment the second grant is attempted. That is
+a specific line of code refusing at the moment of attempt, so it is a refusal and not an observation —
+but the chokepoint is the issuance API, not cryptography and not the operating system. Nothing here is
+`Enforced` in `warrantor_warrant::BoundStrength`'s sense (`rust/warrant/src/lib.rs:198–212`): no
+signature, no process link, no netns, no seccomp, no firewall. **What escapes the chokepoint:** a
+warrant minted by any path that does not call `WarrantStore::delegate`; a second store process holding
+its own copy of the lineage; a forged or harvested token, which by L6-09's own `what` clause *"routes
+around the chain entirely"*; and spend itself, because
+`warrantor_warrant::WarrantBounds::budget_cents_observed` is documented `Observed` at
+`rust/warrant/src/lib.rs:260–269` — this task refuses the *grant* of a budget the population cannot
+support, never the dollar leaving.
+
+**Tier C — observed.** The L6-09 detector is `Observed`. It enumerates complementary pairs and the
+population's composed union and reports them; it refuses nothing. The catalog item itself sets this
+expectation at line 4230: *"Detection has latency; the window between expansion and alarm is a
+published number, not zero."*
+
+**The sentence that ships in the product, next to the guarantee and not in a footnote:**
+
+> Warrantor refuses a delegation whose grant would let a population of sibling agents jointly hold more
+> than the ancestor that spawned them — the refusal happens when the warrant is issued, and it names
+> the ancestor, both siblings and the numbers. **It does not cover:** agents granted authority by two
+> different roots, which never share an ancestor here and compose freely; agents coordinating through
+> any channel this system does not mediate; authority obtained by forging or harvesting a credential
+> rather than by delegation; and spend, which is measured from the agent's own reporting and not
+> refused as the money moves. Two of these have detectors that report after the fact. None of them has
+> a bound.
+
+**The orphan count does not rise.** Every crate touched — `warrantor-delegation-chain`,
+`warrantor-evidence`, `warrantor-warrant` — is already in the ten reachable from `warrantor-warrant`,
+verified above. No new crate is created. `python tools/ci/wiring_census.py` must still print
+`10 of 40 crates reachable`.
+
+**No new trust root.** The incompatible-pair register is **unsigned local state on the store**, exactly
+the weight of the `revoked: HashSet<String>` that already sits beside it at line 176 and already drives
+`is_valid`. It establishes only this: *warrants issued through this store, in this process, were checked
+against the pairs this process was told about.* It establishes **nothing** about warrants issued
+elsewhere, nothing about a second machine, nothing an auditor can verify without trusting the operator
+who configured it, and no fact that crosses an organization — that last is Task 9.5's problem, not a
+thing this task quietly solves. Nothing is fetched over a network and no key is introduced.
+
+---
+
+**Exit gate.** One command decides pass or fail:
+
+```
+python tools/ci/check_invariant_ratchet.py
+```
+
+It compiles and runs the whole I-01…I-12 corpus, including the new sibling tests in
+`i02_no_authority_expansion.rs`, and then compares the counts against
+`tools/ci/invariant-ratchet.json`. It must print `invariant ratchet: ok (N passing at floor N, 18
+recorded findings at ceiling 18)` where `N` is the raised floor and the ignored count is still **18**.
+A thirteenth `#[ignore]` fails it. A floor raised past what the tests earn fails it. A floor left
+unraised while tests are added is caught by review against the captured line.
+
+---
+
+- [ ] **Step 1 — Worktree and branch.**
+
+```
+  export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
+  cd "M:/Project AumOS - Open Secure AI Alliance/aumos"
+  git worktree add M:/wt-9.4-sibling -b feat/sibling-collusion-intersection main
+  cd M:/wt-9.4-sibling && export CARGO_TARGET_DIR=M:/wt-9.4-sibling-target
+  git rev-parse HEAD   # must be b04164d, NOT origin/main's e4b5f10
+```
+
+  Branch from **local `main`**, not `origin/main`: `origin/main` predates Task 1.5, so branching there
+  would put this task on a tree with no `intersect_chain` to compose with and it would die at its first
+  `cargo` call. **Test intent:** none — this step is verified by `git rev-parse` matching `b04164d`.
+
+- [ ] **Step 2 — Open the evidence file with the two contradicted premises, before writing code.**
+  Create `docs/task-evidence/task-9.4.md` and record, with the captured output from Step 0 above: that
+  `i02_no_authority_expansion.rs` has zero `#[ignore]`s; that `evidence/invariants.json` gives I-02
+  `"status": "enforced"`; that this task therefore converts no recorded violation and raises the floor
+  only by the tests it lands; and that Task 9.6 has not landed together with the one thing this task
+  would want from it. **Mechanism:** the file itself, plus a comment at the top of the new corpus
+  section naming the same fact so a reader of the test file learns it without opening the docs:
+
+```rust
+  // -- sibling composition (L6-09, L6-12; Task 9.4) -----------------------------------
+  //
+  // I-02's `status` in evidence/invariants.json is `enforced`, and it is enforced -- down a chain.
+  // These tests attack the axis the fold cannot see: two siblings on two paths under one ancestor.
+  // Nothing here converts an `#[ignore]`; this file never had one. Recorded 2026-09-05.
+```
+
+  **Test intent:** `harness::source_contains` in Step 10 pins that comment, so deleting the disclosure
+  fails the build.
+
+- [ ] **Step 3 — Failing test first: the store cannot see downward.** Add `children_of` and
+  `siblings_of` to `WarrantStore`. `warrants` is a `HashMap`, so iteration order is nondeterministic and
+  the refusal text in Step 6 depends on member order — **sort by id**, and test that it is sorted.
+
+```rust
+  // rust/delegation-chain/tests/sibling_composition.rs
+  #[test]
+  fn children_and_siblings_are_enumerable_and_deterministically_ordered() {
+      let mut store = WarrantStore::new();
+      store.issue_root("org", parent_scope());
+      for id in ["zeta", "alpha", "mid"] {
+          store.delegate("org", id, &child_scope(&["github:write"], 100_000_000)).unwrap();
+      }
+      let children: Vec<&str> = store.children_of("org").iter().map(|w| w.id.as_str()).collect();
+      assert_eq!(children, ["alpha", "mid", "zeta"], "children_of must be sorted by id: the \
+          refusal message in DelegateError::Composed names its members, and a HashMap order would \
+          make that message differ run to run");
+      let siblings: Vec<&str> = store.siblings_of("mid").iter().map(|w| w.id.as_str()).collect();
+      assert_eq!(siblings, ["alpha", "zeta"], "siblings_of excludes the warrant itself");
+      assert!(store.children_of("alpha").is_empty(), "a leaf has no children");
+      assert!(store.siblings_of("ghost").is_empty(), "an unissued id has no siblings");
+  }
+```
+
+  **Test intent:** the primitive exists, it is total over unknown ids, and its order is a contract
+  rather than an accident.
+
+- [ ] **Step 4 — Compose with Task 1.5's fold rather than reading the stored scope.** The ancestor's
+  ceiling must be the **folded** scope over its own lineage, obtained from `intersect_chain`, not the
+  scope field the store happens to hold. Today they agree because `delegate` narrows at issue; if they
+  ever disagree the store is corrupt and the ceiling must not be taken from the corrupt side.
+
+```rust
+  /// The ancestor's ceiling, folded from its own root-first lineage with the one delegation algebra
+  /// ([`intersect_chain`]). Deliberately NOT `effective_scope`: that returns a stored field, and a
+  /// ceiling read from stored state cannot detect a store whose lineage and scopes disagree.
+  pub fn effective_ceiling_of(&self, id: &str) -> Result<WarrantScope, ChainEscalation> {
+      let scopes: Vec<WarrantScope> = self.chain_of(id).into_iter().map(|w| w.scope).collect();
+      intersect_chain(&scopes)
+  }
+```
+
+```rust
+  #[test]
+  fn the_ceiling_comes_from_the_fold_and_agrees_with_the_stored_scope() {
+      let store = four_deep_population();
+      for id in ["org", "lead", "agent"] {
+          assert_eq!(
+              store.effective_ceiling_of(id).expect("a narrowing lineage folds"),
+              *store.effective_scope(id).expect("and it stands"),
+              "{id}: the folded ceiling and the stored scope must agree; if they ever diverge the \
+               ceiling is the folded one and the store is the thing at fault",
+          );
+      }
+      assert!(store.effective_ceiling_of("ghost").unwrap().capabilities.is_empty(),
+          "an unknown ancestor folds an empty chain: confers nothing, already expired");
+  }
+```
+
+  **Test intent:** the new control's ceiling is derived by the single existing fold, and an unknown
+  ancestor confers nothing rather than panicking.
+
+- [ ] **Step 5 — Failing test: prove the hole exists before closing it.** With unmodified `delegate`,
+  two siblings that each pass the per-child check compose past the ancestor. This test must **fail** on
+  `main`'s behavior in the direction that matters — the two grants both succeed — and then pass once
+  Step 6 lands. Write it first, run it, and paste the failure into the evidence file.
+
+```rust
+  #[test]
+  fn two_lawful_siblings_compose_a_budget_the_ancestor_never_held() {
+      // The ancestor holds 500 000 000 micros. Each child asks for 400 000 000: lawful alone,
+      // 800 000 000 together. `intersection` compares each child against the parent independently,
+      // so nothing in the vertical algebra can see this. There is no widening link for
+      // `intersect_chain` to name -- which is exactly why L6-01 does not cover it.
+      let mut store = WarrantStore::new();
+      store.issue_root("org", scope(&["github:write"], &["repo:acme/*"], 1_000_000, 500_000_000));
+      let first = store.delegate("org", "sib-a",
+          &scope(&["github:write"], &["repo:acme/api"], 900_000, 400_000_000));
+      assert!(first.is_ok(), "the FIRST grant is lawful and must be allowed; a refusal here would \
+          mean the control refuses everything and proves nothing");
+
+      let composed = store.composed_authority("org");
+      assert_eq!(composed.committed_budget_micros, 400_000_000);
+      assert_eq!(composed.members, vec!["sib-a".to_string()]);
+
+      let second = store.delegate("org", "sib-b",
+          &scope(&["github:write"], &["repo:acme/web"], 900_000, 400_000_000));
+      assert!(second.is_err(), "the SECOND grant composes 800 000 000 micros under a 500 000 000 \
+          ceiling and must be refused at the moment of the grant, not observed after the fact");
+  }
+```
+
+  **Test intent:** the hole is demonstrated with a passing control in the same test, so the later
+  refusal cannot be a refusal of everything.
+
+- [ ] **Step 6 — The refusal, and it names both siblings and the ancestor.** Add the sibling-aware
+  branch to `delegate`, placed **after** the existing `intersection` call so a request that is not even
+  vertically lawful still fails as an `Escalation` and the two failure modes stay distinguishable.
+  Sum with `saturating_add`: two `u64` budgets near `u64::MAX` would otherwise wrap and turn a refusal
+  into an allow.
+
+```rust
+  // in `delegate`, after: let scope = intersection(&parent.scope, requested)?;
+  let ceiling = self
+      .effective_ceiling_of(parent_id)
+      .map_err(|widened| DelegateError::Escalated(widened.escalation))?;
+  let composed = self.composed_authority(parent_id);
+  let would_commit = composed.committed_budget_micros.saturating_add(scope.budget_micros);
+  if would_commit > ceiling.budget_micros {
+      return Err(DelegateError::Composed(PopulationEscalation::Budget {
+          ancestor: parent_id.to_string(),
+          committed_micros: composed.committed_budget_micros,
+          requested_micros: scope.budget_micros,
+          ceiling_micros: ceiling.budget_micros,
+          committed_by: composed.members.clone(),
+      }));
+  }
+```
+
+```rust
+  impl std::fmt::Display for PopulationEscalation {
+      fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+          match self {
+              Self::Budget { ancestor, committed_micros, requested_micros, ceiling_micros,
+                             committed_by } => write!(f,
+                  "sibling composition under ancestor {ancestor}: {} already commit \
+                   {committed_micros} micros and this grant asks {requested_micros} more, which is \
+                   {} over the ancestor's ceiling of {ceiling_micros} (authority expansion across \
+                   siblings; I-02, L6-12)",
+                  committed_by.join(", "),
+                  committed_micros.saturating_add(*requested_micros) - ceiling_micros),
+              Self::ComplementaryPair { ancestor, holder, holds, requester, requests } => write!(f,
+                  "sibling composition under ancestor {ancestor}: {holder} already holds {holds} \
+                   and {requester} asks for {requests}, a pair declared incompatible; neither \
+                   sibling holds the composition and the ancestor never granted it (L6-12)"),
+          }
+      }
+  }
+```
+
+```rust
+  #[test]
+  fn the_refusal_names_both_siblings_the_ancestor_and_the_arithmetic() {
+      let mut store = WarrantStore::new();
+      store.issue_root("org", scope(&["github:write"], &["repo:acme/*"], 1_000_000, 500_000_000));
+      store.delegate("org", "sib-a",
+          &scope(&["github:write"], &["repo:acme/api"], 900_000, 400_000_000)).unwrap();
+
+      // CONTROL: a second sibling whose grant fits under the remaining 100 000 000.
+      let mut control_store = store.clone();
+      let control = control_store.delegate("org", "sib-b",
+          &scope(&["github:write"], &["repo:acme/web"], 900_000, 100_000_000));
+
+      // ATTACK: the same grant, 400 000 000.
+      let attacked = store.delegate("org", "sib-b",
+          &scope(&["github:write"], &["repo:acme/web"], 900_000, 400_000_000));
+
+      harness_refused(&control, &attacked);   // control Ok, attack Err
+      let Err(DelegateError::Composed(escalation)) = attacked else {
+          panic!("a sibling composition must fail as Composed, not as a vertical Escalated");
+      };
+      let text = escalation.to_string();
+      for fragment in ["org", "sib-a", "sib-b", "400000000", "500000000", "I-02", "L6-12"] {
+          assert!(text.contains(fragment),
+              "the refusal must name {fragment} so an operator reading one line knows which two \
+               agents and which ancestor: {text}");
+      }
+  }
+```
+
+  Note the attack's own id appears in the message only because `delegate` knows `child_id`; the
+  `ComplementaryPair` variant carries `requester` for the same reason. **Test intent:** a refusal
+  paired with an allowed control, and a refusal text an operator can act on without a debugger.
+
+- [ ] **Step 7 — The complementary-capability half, declared rather than invented.** L6-12's ceiling is
+  not "the ancestor's set" — the ancestor legitimately holds both `secrets:read` and `net:egress`. The
+  item's own words are *"unless a warrant explicitly grants the union."* So the composition must be
+  **declared** somewhere, and it may not be declared in `WarrantScope`: `Warrant::compute_digest` at
+  line 81 covers `(id, scope, parent)`, so a new scope field would change every warrant digest and every
+  `links_digest`, breaking Task 1.5's "the proof format is unchanged" gate. It goes on the store,
+  unsigned, beside `revoked`.
+
+```rust
+  /// Capability pairs no sibling set under one ancestor may jointly hold. Unsigned local state, the
+  /// same weight of thing as `revoked`: it binds warrants issued through THIS store in THIS process
+  /// and establishes nothing about a warrant issued anywhere else. No new trust root -- see
+  /// docs/task-evidence/task-9.4.md.
+  pub fn declare_incompatible(&mut self, left: &str, right: &str) { /* normalized, sorted pair */ }
+```
+
+```rust
+  #[test]
+  fn a_declared_incompatible_pair_is_refused_at_the_second_grant_with_an_allowed_control() {
+      let seed = || {
+          let mut store = WarrantStore::new();
+          store.issue_root("org",
+              scope(&["secrets:read", "net:egress"], &["*"], 1_000_000, 500_000_000));
+          store.delegate("org", "reader",
+              &scope(&["secrets:read"], &["vault/*"], 900_000, 1_000)).unwrap();
+          store
+      };
+
+      // CONTROL: nothing declared, so the egress sibling is granted. It is REPORTED (Step 8),
+      // not refused -- a control that were refused would prove the check refuses everything.
+      let mut permitted = seed();
+      let control = permitted.delegate("org", "sender",
+          &scope(&["net:egress"], &["https://*"], 900_000, 1_000));
+      assert!(control.is_ok(), "an undeclared pair must still be granted; detection is Tier C");
+
+      // ATTACK: the same two siblings with the pair declared.
+      let mut guarded = seed();
+      guarded.declare_incompatible("secrets:read", "net:egress");
+      let attacked = guarded.delegate("org", "sender",
+          &scope(&["net:egress"], &["https://*"], 900_000, 1_000));
+      let Err(DelegateError::Composed(PopulationEscalation::ComplementaryPair {
+          ancestor, holder, holds, requester, requests })) = attacked else {
+          panic!("a declared incompatible pair must refuse as ComplementaryPair: {attacked:?}");
+      };
+      assert_eq!((ancestor.as_str(), holder.as_str(), requester.as_str()),
+                 ("org", "reader", "sender"));
+      assert_eq!((holds.as_str(), requests.as_str()), ("secrets:read", "net:egress"));
+
+      // And the ancestor holding BOTH is not a grant of the composition.
+      assert!(guarded.effective_scope("org").unwrap().capabilities
+                  .contains(&"net:egress".to_string()),
+          "the ancestor holds both capabilities individually; that is precisely not the same as \
+           having granted their composition to a population");
+  }
+```
+
+  **Test intent:** the refusal fires only on a declaration, the control proves it is not refusing
+  everything, and the last assertion pins the semantic distinction the item turns on.
+
+- [ ] **Step 8 — The L6-09 detector, `Observed` and honest about it.** `composed_authority` plus a
+  report over a population: the union, the committed budget, the latest expiry, and every complementary
+  pair present whether declared or not. It refuses nothing, and its doc comment says so in the tier
+  vocabulary so a caller cannot mistake it for a gate.
+
+```rust
+  /// Report a population's composed authority and its complementary pairs.
+  ///
+  /// `BoundStrength::Observed`: this measures and reports, and refuses nothing. Expansion that
+  /// routes around delegation entirely -- a forged token, a harvested credential, an account the
+  /// model created -- never appears in `parent` links and is therefore invisible here. That is
+  /// L6-09's stated residual, not a defect in this function.
+  pub fn authority_expansion_report(&self, ancestor: &str) -> PopulationReport;
+```
+
+```rust
+  #[test]
+  fn the_detector_reports_the_undeclared_pair_it_did_not_refuse() {
+      let mut store = WarrantStore::new();
+      store.issue_root("org", scope(&["secrets:read", "net:egress"], &["*"], 1_000_000, 10_000));
+      store.delegate("org", "reader", &scope(&["secrets:read"], &["vault/*"], 900_000, 1)).unwrap();
+      store.delegate("org", "sender", &scope(&["net:egress"], &["https://*"], 900_000, 1)).unwrap();
+
+      let report = store.authority_expansion_report("org");
+      assert_eq!(report.members, vec!["reader".to_string(), "sender".to_string()]);
+      assert!(report.complementary_pairs.iter().any(|p|
+              p.left == "secrets:read" && p.right == "net:egress" && !p.declared_incompatible),
+          "the population the store DID allow must still be reported, with declared=false, or the \
+           only pairs an operator ever sees are the ones already refused");
+      assert_eq!(report.union_capabilities,
+                 vec!["net:egress".to_string(), "secrets:read".to_string()],
+          "the union is what neither sibling holds alone");
+      assert!(report.union_capabilities.iter().all(|c|
+              store.effective_ceiling_of("org").unwrap().capabilities.contains(c)),
+          "and it is within the ancestor's set -- which is why the capability union alone is NOT \
+           the finding; the finding is that no sibling holds the composition");
+  }
+```
+
+  **Test intent:** detection covers exactly the case refusal does not, and the test states in its own
+  message why the union-vs-ancestor comparison is not the interesting one.
+
+- [ ] **Step 9 — Wire it into evidence without moving the proof format.** `bind_population` returns a
+  `PopulationBlock` alongside the existing `Authority`, so a receipt can carry the composed union that
+  L6-12's verification clause asks to be publishable. The hard requirement is that
+  `compute_intersection_proof` output is **byte-identical** before and after, because Task 1.5's exit
+  gate says the proof format is unchanged by test and a receipt whose digest moved would fail every
+  archived verification.
+
+```rust
+  #[test]
+  fn adding_the_population_block_does_not_move_the_intersection_proof() {
+      let store = four_deep_population();
+      let authority = bind_authority(&store, "sub").expect("binds");
+      // Digest captured from local main @ b04164d before this task touched anything; if this
+      // literal ever needs editing, the proof format moved and every archived receipt is at risk.
+      assert_eq!(authority.intersection_proof.algorithm, "warrantor-intersect-v1");
+      assert_eq!(authority.intersection_proof,
+                 compute_intersection_proof(&authority.chain),
+                 "a stranger holding only the chain still recomputes the proof byte for byte");
+      verify_authority(&authority).expect("and the bound authority still verifies");
+
+      let population = bind_population(&store, "org").expect("the ancestor's population binds");
+      assert_eq!(population.ancestor, "org");
+      assert!(population.union_capabilities.iter().all(|c|
+              authority.chain[0].capabilities.contains(c)),
+          "the published union never exceeds the ancestor's own link");
+  }
+```
+
+  **Test intent:** the new block is additive; the receipt's existing recomputable proof is pinned
+  unchanged in the same test that exercises the new one.
+
+- [ ] **Step 10 — The corpus tests, in `i02_no_authority_expansion.rs`.** Four tests, added under the
+  comment from Step 2, all passing. They use `harness::refused_at_the_boundary` so a refused control
+  fails loudly instead of counting as a pass.
+
+```rust
+  #[test]
+  fn the_disclosure_that_this_is_not_a_converted_finding_stays_in_the_file() {
+      harness::source_contains(
+          "rust/warrant/tests/invariants/i02_no_authority_expansion.rs",
+          "Nothing here converts an `#[ignore]`; this file never had one.",
+          "I-02 was never a recorded violation. A reader who assumes it was will also assume the \
+           ratchet floor rose because a finding closed, which it did not.",
+      );
+      harness::source_contains(
+          "rust/delegation-chain/src/lib.rs",
+          "authority expansion across siblings; I-02, L6-12",
+          "The sibling refusal must stay labeled with the invariant and the catalog item it serves.",
+      );
+  }
+
+  #[test]
+  fn the_chain_fold_structurally_cannot_see_two_siblings() {
+      // Not a defect in intersect_chain -- a statement of its domain, pinned so that a later
+      // refactor that "fixes" it here instead of in the population check is caught.
+      let mut store = warrantor_delegation_chain::WarrantStore::new();
+      store.issue_root("org", ancestor_scope(500_000_000));
+      store.delegate("org", "sib-a", &child_scope(400_000_000)).unwrap();
+      for id in ["org", "sib-a"] {
+          assert!(store.effective_ceiling_of(id).is_ok(),
+              "{id}: every path in this store is a lawfully narrowing chain, so the fold reports \
+               no escalation -- and it is right: the expansion is across paths, not down one");
+      }
+  }
+
+  #[test]
+  fn hop_06b_two_siblings_composing_past_their_ancestor_are_refused_at_the_second_grant() {
+      // Round zero, hop 6, the team variant. The incident's agents formed teams and shared
+      // credentials; one agent's slice plus another's is the move, and no forged token is needed.
+      let (control, attacked) = sibling_control_pair();
+      harness::refused_at_the_boundary(
+          "hop 6b: two siblings whose grants compose past their common ancestor",
+          &control, &attacked, Result::is_ok,
+      );
+  }
+
+  #[test]
+  fn the_population_union_is_recomputable_by_a_stranger() {
+      // I-02's evidence field for the sibling axis: a party holding only the lineage must reproduce
+      // the same union, or the number in the console is an assertion rather than evidence.
+      let store = sibling_population();
+      let first = store.authority_expansion_report("org");
+      let second = store.authority_expansion_report("org");
+      assert_eq!(first, second, "the report must be deterministic across calls: HashMap iteration \
+          order is not, and the members list is what the refusal text prints");
+      assert_eq!(first.union_capabilities,
+                 warrantor_evidence::bind_population(&store, "org").unwrap().union_capabilities,
+                 "the receipt's published union and the detector's union are one number");
+  }
+```
+
+  **Test intent:** one static label check, one domain statement about the fold, one refusal with a
+  control through the harness, and one recomputability check — the same four shapes the existing I-02
+  tests use, extended to the sibling axis rather than duplicating
+  `rust/evidence/tests/delegation_algebra.rs` (which fuzzes single chains) or
+  `rust/evidence/tests/four_deep_revocation.rs` (which fuzzes nothing and tests one lineage's
+  revocation).
+
+- [ ] **Step 11 — Record the two blind spots, and claim no closure.** Add to
+  `docs/W1-delivery-gaps.md` and to the evidence file, each as a finding with an owner:
+
+  **Blind spot A — separate roots.** Two agents granted by two different `issue_root` calls, or by two
+  different organizations, share no ancestor. `composed_authority` returns nothing for them and the
+  refusal cannot fire. There is no partial cover and none is claimed; the shape of a fix is Task 9.5's
+  cross-organization authority problem, and 9.5 has not started.
+
+  **Blind spot B — side channels.** Two siblings that stay inside their own grants and coordinate
+  through a shared cache, a filesystem, a package fetch or a model context compose without ever calling
+  `delegate`, so nothing here sees them. **Task 3.6 (improvised-channel detection and the shared-surface
+  census, L5-02 + L2-01) is partial cover and is explicitly not closure:** it detects a surface being
+  used as a channel after the fact and refuses nothing, and it has not landed. The evidence file must
+  say "partial cover, detection only, task unstarted" in those terms.
+
+  **Blind spot C, carried forward not created here — the notary's third fold.** Restate Task 1.5's
+  recorded divergence (`docs/task-evidence/task-1.5.md:207–215`) with its example
+  `[["a","b"], ["a","c"]]` → notary `["a"]`, evidence `[]`, and record that this task deliberately adds
+  no corpus test for it, because the only ways to express a known-failing case are a failing build or a
+  thirteenth `#[ignore]` that raises `ignored_ceiling` and fails the build. Owner: whoever next revises
+  the notary's chain gate.
+
+  Also rewrite I-02's stale `gap` in `evidence/invariants.json` — the current text describes
+  `rust/delegation-chain` as *"a crate that is not tracked on origin/main"*, which local `main`
+  falsified:
+
+```json
+      "gap": "The chain fold lives once, in rust/delegation-chain::intersect_chain, consumed by warrantor_evidence::narrow_chain. Two things it does not cover. (1) The notary holds a third, unfolded copy at rust/notary/src/lib.rs:293 and the two genuinely differ on a widening chain -- see docs/W1-delivery-gaps.md 3.7. (2) The fold runs down one path, so sibling composition under a shared ancestor is outside its domain; Task 9.4 refuses the budget half at issuance (Tier B) and reports the complementary-capability half (Tier C). Separate roots and side channels remain uncovered."
+```
+
+  `status` stays `"enforced"`: I-02's statement is about the delegation chain, and it is enforced down a
+  chain. Downgrading the word because a *different* axis is uncovered would make the ledger's own
+  vocabulary unreliable, which is a worse defect than a `gap` field that has to be read. The gap field
+  is where an uncovered axis belongs, and it now names it. **Test intent:**
+  `python tools/ci/check_invariants.py` must still print
+  `12 invariants; enforced=2, orphaned=2, partial=7, unimplemented=1`.
+
+- [ ] **Step 12 — Raise the floor from the captured line, run every gate, commit.** Run the corpus and
+  **read** the count out of the output rather than computing it:
+
+```
+  cd M:/wt-9.4-sibling/rust && cargo test -p warrantor-warrant --test invariants 2>&1 | grep "test result:"
+  # -> test result: ok. <N> passed; 0 failed; 18 ignored; 0 measured; 0 filtered out
+```
+
+  Set `tools/ci/invariant-ratchet.json` `passing_floor` to that `<N>` — expected `70` for the four
+  Step-10 tests over the captured baseline of 66, but the file takes the number the run printed, not
+  the number this plan predicted. `ignored_ceiling` stays **18**: this task adds no `#[ignore]`, and a
+  thirteenth would fail the build. Update the `note` to say the floor rose because Task 9.4 added four
+  sibling-axis tests, **not** because a finding closed. Then, in the same commit:
+
+```
+  cd M:/wt-9.4-sibling/rust && cargo fmt --all -- --check && \
+    cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
+  cd M:/wt-9.4-sibling && python tools/ci/check_invariant_ratchet.py    # THE EXIT GATE
+  python tools/ci/check_invariants.py
+  python tools/ci/wiring_census.py          # must still print: 10 of 40 crates reachable
+  python tools/ci/check_us_english.py --files docs/task-evidence/task-9.4.md docs/W1-delivery-gaps.md
+  node "M:/Project AumOS - Linkedin Blitzkrieg/scripts/verify-us-english.mjs" docs/task-evidence/task-9.4.md
+  git add -A && git commit -s -m "feat(delegation-chain): refuse a grant two siblings compose past their ancestor"
+```
+
+  The Rust gate runs for the one language this task touches plus Python for the CI tools, per the repo
+  convention. **Test intent:** the exit-gate command decides the task, the ratchet number is read rather
+  than asserted, and the US-English gate runs on every prose file the task writes — including this one's
+  evidence file, where `analyses` and the verb `forwards` are correct as written and must not be
+  "corrected."
 
 ### Task 9.5: Cross-organization authority and agent naming (L6-08, L6-10)
 
@@ -25725,48 +26544,956 @@ sampling produces a record for each active exception.
 
 ### Task 10.6: Chain of custody, trace escrow, and the independent-investigator access mode (L7-08, L7-18, L7-15)
 
-**Anchor.** L7-08 `novel` W3, L7-18 `novel` W3, L7-15 `novel` W3, all `status=none`. **The operator
-must not be able to shape what an investigator sees.** That is a cryptographic and organizational
-property, not a UI permission, and it is the one evidence property a buyer's own audit team cannot
-grant itself.
+**Anchor.** Three catalog items, all `status=none`, all `novel`, all W3, all Plane G. Quoted verbatim
+from `docs/html/warrantor-native-ai-platform-os-master-2026-09-01.html`.
 
-**Step 0.** Read `rust/archive/` in full, especially `tests/append_only.rs` and
-`the_archive_never_serves_a_verdict.rs`, and record exactly what append-only guarantees exist today
-and at which tier. Read Task 10.1's chained receipt — custody is over chains, so its shape must be
-frozen first; record whether it has landed. Read `retention.rs` and record how `default_subjects`
-already counts what is not covered — that honest-disclosure half exists and should be reused. Read
-Task 10.4 (retention and jurisdiction) — **escrow and retention conflict by construction**: a
-retention policy that deletes is a policy that can destroy escrowed evidence. Record how the two
-tasks resolve it, or stop.
+L7-08, line 4360, "Chain-of-custody for evidence handoff":
 
-**Non-goals.** Not a hosted escrow service. **No new trust root:** the escrow is local plus an
-out-of-band pin, and the task states what that does not establish. Not the investigator's UI —
-Task 11.9. Not evidence-integrity monitors — 10.3.
+```html
+  <article class="item" id="L7-08" data-stratum="L7" data-plane="G" data-status="none" data-novelty="novel" data-wave="W3" data-loop="L2">
+```
 
-**Files.** `rust/archive/`, `rust/evidence/src/lib.rs`, `docs/task-evidence/task-10.6.md`.
+> Receipts that survive transfer between organizations, vendor to customer, customer to supervisor,
+> insured to insurer, with custody transitions themselves evidenced, and a dispute lifecycle in which
+> a challenged receipt freezes, both parties' evidence binds, and the resolution chains to the
+> original digest. (line 4364)
 
-**Consumes / Produces.** Consumes Task 10.1's chains and the archive's append-only store. Produces a
-custody record for every handoff, an escrow mode whose contents the operator cannot enumerate or
-selectively withhold, and an access mode that is provably not filtered.
+Its verification clause, line 4367: *"A disputed receipt is undeletable for the dispute duration; a
+custody transition missing from the chain fails verification at the receiving party."* Its anchor
+names the record this task exists because of, line 4366: *"The investigators did not see OpenAI's
+report before publication and it was out of scope to confirm its claims (S02 p.4): custody between
+parties was a bespoke arrangement, not a protocol."*
 
-**Bound strength.** Split it. Append-only backed by a signature chain is **Tier A for
-tamper-evidence** — an operator cannot alter escrowed evidence without detection. It is **Tier C for
-completeness**: nothing here proves the operator escrowed *everything*, only that what was escrowed
-is intact. **That distinction is the entire honest content of this task** and must appear in the
-product text.
+L7-18, line 4557, "Trace escrow and the investigator enclave", verification clause at line 4564:
 
-**Exit gate.** An operator cannot produce a filtered view that verifies: any selective withholding
-breaks a chain and the break is detectable by the investigator with no privileged access. And the
-completeness limit is stated in the product text in the words above.
+> An investigator obtains a scoped trace set through escrow with no operator in the loop and the
+> release is receipted; every enclave output verifies against its provenance record; enclave
+> credentials expire with the engagement. Blueprint proof gate (G-05): Scoped release exercised
+> without exposing unrelated tenant data.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.6 -b feat/custody-and-escrow origin/main`
-- [ ] **Step 2 — Confirm Task 10.1 landed and its chain shape is frozen.** Stop if not.
-- [ ] **Step 3 — Resolve the escrow-versus-retention conflict with Task 10.4.** Record it; stop if unresolved.
-- [ ] **Step 4 — Failing test: a filtered escrow view fails verification.** The core assertion.
-- [ ] **Step 5 — Failing test: the investigator verifies with no privileged access,** as `verification_does_not_depend_on_the_archive.rs` already requires.
-- [ ] **Step 6 — Custody records on every handoff,** each naming who held what and when.
-- [ ] **Step 7 — Failing test: completeness is NOT claimed.** Assert the coverage surface reports what escrow does not cover, via `harness.rs`'s `Coverage`.
-- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+L7-15, line 4521, "Independent-investigator access mode", verification clause at line 4528:
+
+> An investigator's every read is a receipt in the same chain; access expires without action; the
+> investigator can verify the scope they were given against the scope they were promised.
+
+All three carry the same recorded residual, lines 4529 and 4565, and it is not softened here:
+*"residual (G-05): Escrow concentrates sensitive data; its own compromise is catastrophic."*
+
+**The operator who runs the system is the operator who holds its evidence.** An investigator who must
+ask that operator for the trace has no independent access at all. That is the whole task, and the
+honest limit of what this repository can build against it is stated in Bound strength rather than
+designed around.
+
+---
+
+**Premise contradicted — six corrections, two confirmations.** The seed's Step 0 and Step 7 both point
+at things that are not where it says they are, and its Step 2 instructs a stop that would be wrong.
+Every correction below was found by reading, and the code wins.
+
+*Correction 1 — `retention.rs` is not in `rust/archive/`.* The seed's Step 0 says "Read `retention.rs`"
+in a paragraph otherwise about the archive. There is exactly one:
+
+```
+$ find . -name 'retention*' -not -path './.git/*'
+./rust/warrant/src/retention.rs
+```
+
+`rust/archive/` has a `RetentionPolicy` — `rust/archive/src/store.rs:170` — but it is a different type
+in a different crate about a different thing (per-`ArtifactKind` deletion authority on the server,
+versus `PrunePolicy` over a local store). Both are read below; they must not be conflated.
+
+*Correction 2 — Step 7's `Coverage` is a category error.* The seed says to assert the coverage surface
+"via `harness.rs`'s `Coverage`". `Coverage` exists, but not in
+`rust/warrant/tests/invariants/harness.rs`:
+
+```
+$ grep -rn "struct Coverage\|enum Coverage" --include=*.rs rust/
+rust/warrant/src/harness.rs:67:pub enum Coverage {
+$ grep -rn "Coverage" rust/warrant/tests/invariants/
+$ echo $?
+1
+```
+
+And `warrant::harness::Coverage` is about which of an **agent harness's** tool calls traverse the MCP
+proxy — `McpOnly`, `McpAndBuiltins(&'static str)`, `ProcessOnly`, `rust/warrant/src/harness.rs:67–74`.
+It has nothing to do with evidence coverage. Reusing it for "what escrow does not cover" would put a
+sentence about `bash` escaping the proxy into an escrow release. What this task should actually reuse is
+the honest-disclosure *pattern* from two counted fields in `rust/warrant/src/retention.rs`:
+
+```rust
+// rust/warrant/src/retention.rs:443
+    pub default_subjects: usize,
+// rust/warrant/src/retention.rs:479
+    pub unwitnessed_chains: usize,
+```
+
+whose doc at lines 476–478 is the register this task's coverage struct must be written in. Restated
+rather than block-quoted, because that doc predates the US-English gate and quoting it verbatim would
+import a spelling the gate refuses and a verbatim quote forbids me to edit: for a warrant with no
+staged-chain witness, a deleted staged log reads as an empty queue, and the count exists because *"we
+cannot prove it for this many"* is the honest form of the answer. That is the sentence pattern, and
+`Coverage::sentence()` at `rust/warrant/src/harness.rs:79` is the rendering pattern. Both are borrowed;
+neither type is.
+
+*Correction 3 — Step 2's "Stop if not" is wrong, and Task 10.1 has not landed.* The seed says
+"Confirm Task 10.1 landed and its chain shape is frozen. Stop if not." Task 10.1 has not landed — local
+`main` is at `b04164d` and carries no causal verdict — and stopping would be the wrong call, because
+**custody does not bind to a struct shape at all.** See Consumes / Produces. The archive's own rule
+settles it: *"the digest must be over the bytes as filed"*
+(`rust/archive/tests/verification_does_not_depend_on_the_archive.rs:355`). A custody record over the
+filed bytes is stable under any change to `ReceiptBody` or `WarPredicate`, because it never rebuilds
+either. Task 10.1's already-expanded section confirms it changes neither in a way that matters here: it
+adds `predicate_version` to `WarPredicate` and `#[serde(deny_unknown_fields)]` to
+`notary::ReceiptBody`, and explicitly declares **"No `notary::ReceiptBody` v2"**.
+
+*Correction 4 — `origin/main` is stale, so Step 1's base is wrong.*
+
+```
+$ git log --oneline -1 refs/remotes/origin/main
+e4b5f10 Merge branch 'feat/invariant-ledger'
+$ git log --oneline -3 main
+b04164d Merge branch 'ci/us-english-gate'
+eef1c71 ci: gate US English on the lines a branch adds
+f99af94 Merge branch 'feat/task-1.5-one-delegation-algebra' (Task 1.5)
+```
+
+Branch from local `main`. Branching from `origin/main` would build custody on a tree without the Task
+1.1 mode-escalation correction, which is the single most relevant precedent this task has.
+
+*Correction 5 — `rust/archive` is an orphan crate, and the seed's Files list puts the whole task inside
+it.* Verified:
+
+```
+$ python tools/ci/wiring_census.py
+wiring census: 10 of 40 crates reachable from warrantor-warrant over 18 path edges
+$ python -c "import json; print('warrantor-archive' in json.load(open('evidence/wiring-coverage.json'))['orphaned'])"
+True
+```
+
+The reachable ten are `warrantor-api`, `warrantor-authority-spec`,
+`warrantor-containment-conformance`, `warrantor-delegation-chain`, `warrantor-egress`,
+`warrantor-evidence`, `warrantor-notary`, `warrantor-spend`, `warrantor-trust-core`,
+`warrantor-warrant`. An investigator-verify path built only in `rust/archive/` is a path nothing a user
+runs can reach. **The verification primitive therefore goes in `rust/evidence` (reachable);
+`rust/archive` gets the store hook and one off-the-archive test.** This is the same reasoning Task 10.1
+used to put the chain in the evidence predicate rather than in one of ten sibling `issue_receipt`
+implementations.
+
+*Correction 6 — the seed's Exit gate overclaims, and the overclaim is the one this task must not ship.*
+The seed requires: *"any selective withholding breaks a chain and the break is detectable by the
+investigator with no privileged access."* That is true of withholding a **member of an enumerated set**
+and false of withholding the **enumeration**. An offline verifier holding one file cannot distinguish
+deleted evidence from a run that never happened, because the missing thing is missing. This is not a
+guess; it is already the recorded conclusion of two independent readings in this repository.
+`rust/warrant/src/operators.rs:539–542`, on the existing hash-chained actor log:
+
+```rust
+/// Hash-chained: each line carries the previous line's digest, so a removed or edited line is
+/// detectable to anyone holding a later copy of the chain. That is the guarantee, and it is smaller
+/// than a signature: it proves nothing to a third party who has never seen an earlier head.
+```
+
+And Task 5.3's expansion, in flight, reached the same finding independently for its Strategy A7:
+*"Strategy 7 (suppression and truncation) is `Unrepresentable`: an offline verifier holding one file
+cannot distinguish a run whose evidence was deleted from a run that never happened."* **"The operator
+cannot suppress a trace" is not achievable here and this task does not claim it.** What is achievable
+is stated precisely in Bound strength, and the difference between the two is the entire honest content
+of this task.
+
+*Confirmed 1.* The seed is exactly right that append-only guarantees already exist and that
+`verification_does_not_depend_on_the_archive.rs` is the shape the access mode should extend. Both are
+captured verbatim in Step 0.
+
+*Confirmed 2.* The seed is exactly right that escrow and retention conflict by construction, and Task
+10.4's already-seeded Exit gate already owns the enforcement half: *"a retention deletion that would
+remove escrowed evidence is refused."* The resolution is recorded in Step 0 rather than re-designed
+here.
+
+---
+
+**Step 0.** Every command below was run on local `main` at `b04164d` in a detached scratch worktree.
+Output is verbatim.
+
+*(a) The crate inventory, because a task that assumes an absent crate dies at its first cargo call.*
+
+```
+$ git ls-tree --name-only main rust/ | wc -l
+46
+$ python -c "<count package.name across rust/*/Cargo.toml>"
+total 40
+REACHABLE: ['warrantor-api', 'warrantor-authority-spec', 'warrantor-containment-conformance',
+ 'warrantor-delegation-chain', 'warrantor-egress', 'warrantor-evidence', 'warrantor-notary',
+ 'warrantor-spend', 'warrantor-trust-core', 'warrantor-warrant']
+```
+
+Forty packages; forty-six tree entries because `Cargo.toml`, `Cargo.lock`, `README.md` and three
+`Dockerfile.*` sit beside them. There is no `rust/guard`. Guard work lives in `rust/eval-guard` and
+`python/warrantor_ml`, and neither is touched here.
+
+*(b) The three archive suites, which are the regression floor this task may not lower.*
+
+```
+$ cargo test -p warrantor-archive --test append_only --test verification_does_not_depend_on_the_archive --test the_archive_never_serves_a_verdict
+     Running tests\append_only.rs
+running 9 tests
+test the_database_itself_refuses_an_update_to_a_filed_artifact ... ignored, needs Postgres and the archive_admin URL: make archive-up, then make archive-test
+test the_runtime_role_holds_no_update_or_delete_grant_on_artifact ... ignored, needs Postgres and the archive_runtime URL: make archive-up, then make archive-test
+test retention_defaults_to_no_deletion_authority_at_all ... ok
+test the_migration_enforces_append_only_twice_and_grants_no_write_back ... ok
+test the_ignored_database_tests_are_the_number_the_docs_claim ... ok
+test the_store_trait_offers_no_way_to_update_or_delete_an_artifact ... ok
+test the_threat_model_names_no_mitigation_this_crate_does_not_implement ... ok
+test resubmitting_identical_bytes_is_idempotent_and_never_rewrites_the_first_submitter ... ok
+test different_bytes_under_one_warrant_create_a_second_artifact ... ok
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\the_archive_never_serves_a_verdict.rs
+running 7 tests
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests\verification_does_not_depend_on_the_archive.rs
+running 6 tests
+test the_archive_holds_exactly_the_three_formats_warrantor_verify_reads ... ok
+test fixtures_are_self_consistent ... ok
+test the_anchored_check_refuses_a_genuine_bundle_pinned_to_the_wrong_key ... ok
+test the_archive_returns_the_bytes_it_was_given_and_the_digest_proves_it ... ok
+test a_client_verifies_an_exported_bundle_with_no_archive_in_the_process ... ok
+test a_malicious_archive_cannot_make_a_tampered_bundle_verify ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+```
+
+*(c) What append-only guarantees exist today, and at which tier.* Four mechanisms, and the crate's own
+doc is exact about the limit of each. `rust/archive/src/lib.rs:44–56`:
+
+> Nothing here updates or deletes an artifact. That is enforced twice in
+> `migrations/0001_initial.sql` — a `BEFORE UPDATE OR DELETE` trigger and a runtime role with no
+> `UPDATE`/`DELETE` grant — because a grant can be misconfigured by an operator and a trigger cannot.
+> [...] It is worth being exact about the limit. Append-only is a property of the *application role*,
+> not of the storage: whoever owns the database can delete rows out of band, and no trigger stops them.
+> What actually carries the custody guarantee is that the artifacts are independently verifiable off
+> this archive, against an anchor the reader pinned.
+
+| Mechanism | Where | Tier | What it does not cover |
+|---|---|---|---|
+| Trait shape: no `update`/`delete` method exists | `rust/archive/src/store.rs:200` trait `ArchiveStore`; asserted at `tests/append_only.rs:193` | **Tier A** for "a caller cannot ask" — the method does not exist to call | Nothing about the database beneath it |
+| `BEFORE UPDATE OR DELETE` trigger | `migrations/0001_initial.sql`; asserted `tests/append_only.rs:304`, exercised `:466` (`#[ignore]`) | **Tier A** at the database, against any role including the owner | The database owner can drop the trigger |
+| Runtime role holds only `INSERT, SELECT` | asserted `tests/append_only.rs:308`; exercised `:548` (`#[ignore]`) | **Tier A** for the process the server runs as | A misconfigured grant; hence the trigger |
+| Idempotence on digest, first submitter keeps attribution | `tests/append_only.rs:106–141` | **Tier A** — `PutOutcome::AlreadyHeld`, never an overwrite | Task 5.3 Strategy A8 attacks exactly this; see Non-goals |
+
+*(d) Retention today, defaulted off.* `rust/archive/src/store.rs:196–199` is the mechanism the escrow
+seal must compose with, not replace:
+
+```rust
+    #[must_use]
+    pub fn deletes_anything(&self) -> bool {
+        self.enabled && self.window_seconds.is_some_and(|w| w > 0)
+    }
+```
+
+`tests/append_only.rs:226` asserts all three failure readings: disabled by default,
+enabled-with-no-window grants nothing, zero window grants nothing.
+
+*(e) The escrow-versus-retention resolution, recorded rather than re-designed.* Task 10.4's seeded Exit
+gate already reads: *"a retention deletion that would remove escrowed evidence is refused."* So the
+split is: **10.6 produces the seal predicate; 10.4 enforces the refusal against it.** 10.6 ships
+`is_sealed(digest) -> bool` on the store seam and a test that a sealed digest reports sealed. 10.6 does
+**not** add a refusal to any deletion path, because no deletion path exists in `ArchiveStore` to add
+one to — the trait has no delete method, which is what `tests/append_only.rs:193` guarantees. If 10.4
+lands a deletion path, its own Exit gate obliges it to consult the seal. Recorded; not stopped.
+
+*(f) Task 10.1's status and shape.* Not landed; branch `feat/causal-verdict`. Its expansion's Files
+table reads:
+
+```
+| `rust/notary/src/lib.rs` | `#[serde(deny_unknown_fields)]` on `ReceiptBody` only. **No new field. No v2 body.** |
+```
+
+and its Step 3 adds `pub predicate_version: String` as the first field of `WarPredicate`. That changes
+the canonical bytes of a **newly built** predicate and changes nothing about bytes already filed.
+
+*(g) The existing hash-chained custody log, which is the shape to extend.* `ActorRecord` at
+`rust/warrant/src/operators.rs:492–513` carries `prev` (line 510) and `digest` (line 512), and its head
+crosses into signed evidence as `CustodySection.head` at `rust/warrant/src/report.rs:283`. The
+section's doc, `report.rs:269–273`, states the disclosure decision this task inherits:
+
+> **What crosses into signed evidence is the head digest, not the acts.** [...] Copying the acts
+> themselves in would put operator names inside an artifact that gets handed to third parties, which is
+> a disclosure decision nobody asked for and one this bundle could not un-make.
+
+*(h) The three ratchets, unchanged and to stay unchanged.*
+
+```
+$ python tools/ci/check_invariant_ratchet.py
+invariant ratchet: ok (66 passing at floor 66, 18 recorded findings at ceiling 18)
+$ python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=2, partial=7, unimplemented=1
+$ python tools/ci/wiring_census.py
+wiring census: 10 of 40 crates reachable from warrantor-warrant over 18 path edges
+```
+
+*(i) The word "investigator" does not appear in any Rust source.*
+
+```
+$ git grep -ci "investigator" main -- 'rust/**/*.rs'
+$ echo $?
+1
+```
+
+Zero hits, exit 1. Nothing is being renamed; this is new surface.
+
+---
+
+**Non-goals.** Each names the task that owns the excluded thing.
+
+1. **Not the causal verdict and not `ReceiptBody`'s shape — Task 10.1** (L7-01). Custody records the
+   handoff of bytes; it does not compute what those bytes mean. This task adds no field to
+   `notary::ReceiptBody` and no field to `WarPredicate`, and its fixtures are frozen bytes precisely so
+   that 10.1's `predicate_version` cannot break them.
+2. **Not production evidence-integrity monitors — Task 10.3** (L7-14, L7-19). Everything here is an
+   offline verifier over presented files. Nothing emits a runtime alert, and the truncation limit this
+   task records is handed to 10.3 by name, whose seeded anchor is *"the monitors must be able to fail
+   loudly about the store they live in, which means they cannot live only in it."*
+3. **Not retention or jurisdiction policy — Task 10.4** (L7-12, L7-10). 10.6 produces the seal
+   predicate; 10.4 enforces deletion refusal against it. 10.6 adds no deletion path and no jurisdiction
+   dimension.
+4. **Not the offline adversary corpus — Task 5.3, in flight.** Its Strategy A8 already attacks
+   first-submitter attribution in `MemoryStore` at `rust/archive/tests/append_only.rs:106`, and its
+   Strategy A7 already records suppression as `Unrepresentable`. This task does not add an adversary
+   strategy, does not edit `rust/warrant/tests/invariants/`, and does not create
+   `rust/archive/tests/adversary_custody.rs` — that path is 5.3's.
+5. **Not the investigator's user interface — Task 11.9** (L8-06, L8-28), whose seeded Step 0 reads *"the
+   portal must not be able to show a filtered view that verifies, which is 10.6's cryptographic
+   property, not a UI permission."* This task produces that property and no pixels.
+6. **Not a hosted escrow service, and not a defender enclave.** L7-18 names an on-premises forensic
+   enclave with revocable credentials. That is infrastructure, not a verifier, and nothing in this
+   repository provisions it. The escrow here is a local sealed manifest plus an out-of-band sequence
+   pin, and Bound strength states exactly what that does and does not establish.
+
+---
+
+**Files.**
+
+| Path | Lines today | What this task does |
+|---|---|---|
+| `rust/evidence/src/custody.rs` | — | **New.** The custody chain, the sealed manifest, `verify_release`, `ReleaseCoverage`. In the reachable crate, per Correction 5. |
+| `rust/evidence/src/lib.rs` | 1163 | Add `pub mod custody;` and two `EvidenceError` variants at the enum on line 212. No change to `WarPredicate`, `Binding` or any canonical rule. |
+| `rust/evidence/tests/custody_and_escrow.rs` | — | **New.** Every refusal with its allowed control. |
+| `rust/archive/src/store.rs` | 520 | Add `fn is_sealed(&self, digest: &str) -> Result<bool, StoreError>` to `ArchiveStore` and `MemoryStore`. **No update, no delete** — `tests/append_only.rs:193` is the arbiter. |
+| `rust/archive/tests/escrow_release_verifies_off_the_archive.rs` | — | **New.** One suite, no `#[ignore]`. **Must be added to the hardcoded `files` array at `rust/archive/tests/append_only.rs:360–375` with `EXPECTED` left at 3.** |
+| `rust/warrant/src/report.rs` | 1200+ | Add `escrow: Option<EscrowSection>` to `ReportBundle` with `skip_serializing_if`, and one sentence to `limitations()` at `:545`. |
+| `rust/warrant/tests/report.rs` | — | Assert a v1 bundle's `bundle_digest` is byte-unchanged by the new optional field, and that the limitation ships. |
+| `docs/task-evidence/task-10.6.md` | — | **Required.** Step 0 verbatim, the three ratchet lines before and after, and the product sentence as shipped. |
+| `docs/rfcs/W2-evidence-archive.md` | — | The seal and the truncation limit, in the threat model. Watch `tests/append_only.rs:408` — a mitigation named here with no call site fails the build. |
+
+`rust/warrant/tests/invariants/` is **read-only** in this task. `rust/archive/src/http.rs` is
+**contended** with Task 10.3 and is not edited here.
+
+---
+
+**Consumes / Produces.**
+
+Consumes, all present on local `main` at `b04164d`:
+
+```rust
+// rust/archive/src/lib.rs:94 — the one digest implementation, delegating to warrant's
+pub fn sha256_hex(bytes: &[u8]) -> String
+// rust/warrant/src/report.rs:456
+pub fn sha256_hex(bytes: &[u8]) -> String
+// rust/evidence/src/lib.rs:126 — the chain field custody reads and never writes
+pub struct Binding { pub receipt_id: String, pub phase: Phase,
+                     pub parent_receipt: Option<String>, pub nonce: String,
+                     pub issued_at: u64, pub expires_at: u64,
+                     pub enforcement_mode: EnforcementMode }
+// rust/evidence/src/lib.rs:194
+pub struct SignatureEnvelope { pub algorithm: String, pub key_id: String,
+                               pub public_key: String, pub value: String }
+// rust/evidence/src/lib.rs:478
+pub fn verify_receipt(receipt: &WarReceipt) -> Result<(), EvidenceError>
+// rust/evidence/src/lib.rs:554
+pub fn verify_chain(pre_commit: &WarReceipt, post_commit: &WarReceipt) -> Result<(), EvidenceError>
+// rust/notary/src/lib.rs:336 — read, never modified
+pub struct ReceiptBody { pub verdict: Verdict, pub actor_svid: String,
+                         pub operation_class: String, pub timestamp: u64,
+                         pub enforcement_mode: EnforcementMode,
+                         pub notary_version: String }
+// rust/notary/src/lib.rs:434
+pub fn receipt_digest(body: &ReceiptBody) -> [u8; 32]
+// rust/warrant/src/report.rs — anchor-free by construction, which is why the anchored form exists
+pub fn verify_export(report: &SignedReport) -> Result<(), ReportError>
+pub fn verify_export_signed_by(report: &SignedReport, anchor: &VerifyingKey) -> Result<(), ReportError>
+// rust/warrant/src/report.rs:279 — the head-only disclosure precedent
+pub struct CustodySection { pub acts: usize, pub head: Option<String>,
+                            pub chain_intact: bool, pub approvers: usize,
+                            pub approvals_required: usize }
+// rust/warrant/src/operators.rs:492 — the hash-chain shape to extend
+pub struct ActorRecord { pub format: String, pub warrant_id: String, pub act: Act,
+                         pub actor: Option<String>, pub via: String, pub at: u64,
+                         pub prev: String, pub digest: String }
+// rust/archive/src/store.rs:200
+pub trait ArchiveStore { fn put_artifact(..) -> Result<PutOutcome, StoreError>; .. }
+```
+
+**Does custody bind to the v1 `ReceiptBody` or to Task 10.1's shape? Neither.** It binds to the filed
+bytes and their SHA-256, and to two field *names* on `Binding` (`receipt_id`, `parent_receipt`, lines
+127 and 131) that 10.1 does not rename. Task 10.1 has **not landed**. What breaks if 10.1 lands first:
+**nothing in the custody digest, and exactly one thing in the fixtures.** A custody fixture that
+*rebuilds* a `WarPredicate` and hashes the result will change digest the moment `predicate_version`
+becomes the predicate's first field. Every fixture in this task therefore freezes bytes as `const`
+string literals and never recomputes, which is the same discipline Task 10.1's own Step 2 requires of
+its canonical vectors: *"A fixture that recomputes the canonical form proves nothing about a format
+change, because it recomputes it under the new rule."* If 10.6 lands first, 10.1 needs no change here
+either — `#[serde(deny_unknown_fields)]` on `ReceiptBody` cannot break a verifier that never
+deserializes one.
+
+Produces, all new:
+
+```rust
+// rust/evidence/src/custody.rs
+pub const CUSTODY_FORMAT: &str = "warrantor.custody-act/1";
+pub const MANIFEST_FORMAT: &str = "warrantor.escrow-manifest/1";
+
+/// One evidence handoff. `prev` chains it; `digest` is over every field above `digest`.
+pub struct CustodyAct { pub format: String, pub artifact_digest: String,
+                        pub from_party: String, pub to_party: String,
+                        pub purpose: String, pub at: u64,
+                        pub prev: String, pub digest: String }
+pub struct CustodyHead { pub acts: usize, pub head: Option<String>, pub chain_intact: bool }
+pub fn append_act(prior: Option<&CustodyAct>, artifact_digest: &str, from_party: &str,
+                  to_party: &str, purpose: &str, at: u64) -> CustodyAct;
+pub fn verify_custody_chain(acts: &[CustodyAct]) -> Result<CustodyHead, EvidenceError>;
+
+/// The enumeration. `sequence` is monotone per escrow; `prev_manifest` chains generations.
+pub struct EscrowManifest { pub format: String, pub sequence: u64,
+                            pub members: Vec<String>, pub custody_head: Option<String>,
+                            pub prev_manifest: String, pub sealed_at: u64 }
+pub struct SealedManifest { pub manifest: EscrowManifest, pub signature: SignatureEnvelope }
+pub fn seal(manifest: EscrowManifest, key: &SigningKey, key_id: &str) -> SealedManifest;
+
+/// What an investigator receives: the seal, the custody chain, and the bytes.
+pub struct Release { pub sealed: SealedManifest, pub custody: Vec<CustodyAct>,
+                     pub artifacts: BTreeMap<String, Vec<u8>> }
+
+pub enum ReleaseRefusal {
+    MemberWithheld { digest: String, sequence: u64 },
+    DigestMismatch { claimed: String, actual: String },
+    ManifestSignature(String),
+    ManifestNotSignedByAnchor { pinned: String, presented: String },
+    CustodyChainBroken { index: usize, expected: String, found: String },
+    CustodyHeadMismatch { manifest_says: Option<String>, chain_says: Option<String> },
+    TruncatedBelowPin { pinned: u64, presented: u64 },
+}
+
+/// What the release DOES and DOES NOT establish. `not_covered` is never empty.
+pub struct ReleaseCoverage { pub members: usize, pub verified: usize,
+                             pub manifest_sequence: u64, pub tail_pinned: bool,
+                             pub not_covered: Vec<&'static str> }
+impl ReleaseCoverage { pub fn sentence(&self) -> String; }
+
+pub fn verify_release(release: &Release, anchor: &VerifyingKey,
+                      pinned_sequence: Option<u64>) -> Result<ReleaseCoverage, ReleaseRefusal>;
+
+// rust/evidence/src/lib.rs — two variants added to the existing enum at :212
+    #[error("custody chain broken at act {0}")] CustodyChain(usize),
+    #[error("escrow manifest malformed: {0}")] Manifest(String),
+
+// rust/archive/src/store.rs — one read method on the trait, and one write that marks
+    fn is_sealed(&self, digest: &str) -> Result<bool, StoreError>;
+    fn seal(&mut self, digest: &str, manifest_sequence: u64, at: u64) -> Result<(), StoreError>;
+
+// rust/warrant/src/report.rs — an OPTIONAL section, so v1 bundle digests are unchanged
+pub struct EscrowSection { pub manifest_sequence: u64, pub members: usize,
+                           pub custody_head: Option<String>, pub sealed_by_key_id: String }
+```
+
+**No new trust root.** There is no escrow service, no notary-of-notaries, no neutral third party, and no
+network call anywhere in `verify_release`. The escrow is a local file the operator produces and the
+sequence pin is a **number the investigator wrote down**, obtainable two ways that already exist: from a
+prior release the investigator holds (sequence is monotone, so a second release presenting a lower one
+is refused), or from a `CustodySection.head` already inside a separately-held signed report. What this
+establishes: any release at or below a sequence the investigator has independently seen is complete
+relative to its own manifest, and any custody gap in it is detectable offline. What it does **not**
+establish: anything at all about the first release an investigator ever receives, and nothing about
+generations the operator sealed and never disclosed.
+
+---
+
+**Bound strength.** Split three ways, because one label over these three properties would be a lie.
+
+**Tier A — cryptographic, refused at the moment of attempt.** Three properties. (1) *Tamper-evidence of
+an escrowed artifact*: the manifest member list is SHA-256 digests inside an Ed25519-signed manifest, so
+an altered artifact fails `DigestMismatch` at the line that recomputes it, and an altered manifest fails
+`ManifestSignature`. (2) *Withholding a member of a disclosed manifest*: a release carrying fewer
+artifacts than its manifest enumerates is refused with `MemberWithheld` naming the missing digest — the
+verifier returns `Err`, it does not warn. (3) *A missing custody transition*: `verify_custody_chain`
+refuses `CustodyChainBroken` when act *n*'s `prev` is not act *n−1*'s `digest`, which is L7-08's
+verification clause, *"a custody transition missing from the chain fails verification at the receiving
+party,"* made executable. All three are conditional on the investigator holding the issuer key out of
+band — `verify_export` is anchor-free by construction and
+`rust/archive/tests/verification_does_not_depend_on_the_archive.rs:292` already asserts in both
+directions that a bundle signed end to end by any keypair passes it. `verify_release` therefore takes
+`anchor: &VerifyingKey` as a required argument, not an option.
+
+**Tier C — observed, and in one case not even that.** *Completeness of the manifest itself.* Nothing
+here proves the operator escrowed everything. An operator who never sealed a trace produces a release
+that verifies perfectly and omits it, and no examination of the release reveals the omission. The one
+partial mitigation is `TruncatedBelowPin`, and it fires only when the investigator supplies a
+`pinned_sequence` from a source outside this release — so it is Tier A **at and below the pin** and gives
+nothing above it or before it. `ReleaseCoverage.not_covered` is never empty and
+`ReleaseCoverage::sentence()` renders it, in the register `Coverage::sentence()` uses at
+`rust/warrant/src/harness.rs:79`.
+
+**Not Tier A: the store.** `rust/archive`'s append-only is Tier A at the trigger and Tier A for the
+runtime role's grants, and the crate's own doc is right that *"whoever owns the database can delete rows
+out of band, and no trigger stops them"* (`rust/archive/src/lib.rs:50–52`). The seal is a marker a
+retention pass consults, not a lock. **`is_sealed` refuses nothing.** Task 10.4 owns any refusal built
+on it. There is no netns, seccomp or firewall anywhere in this repository and nothing in this task adds
+one; no bound here is claimed at the operating system.
+
+**The sentence that appears in the product**, added to `limitations()` at
+`rust/warrant/src/report.rs:545` alongside the existing set:
+
+> Escrowed evidence is tamper-evident and its disclosed set is complete: an altered artifact, an altered
+> manifest, a missing custody transition or a withheld member of a sealed manifest each fail
+> verification at the receiving party, offline, against a key that party pinned. **This does not prove
+> everything was escrowed.** The manifest says what was sealed, and nothing in a release says what was
+> not. An operator who never sealed a trace produces a release that verifies and omits it, and a release
+> truncated at its most recent generation is indistinguishable from a release that is current unless you
+> already know a later sequence number. Read a release as complete relative to its own manifest, never
+> as complete relative to what happened.
+
+**No claim without a mechanism.** Every clause above has one: `ReleaseRefusal::MemberWithheld`
+(refusal), `ReleaseRefusal::CustodyChainBroken` (refusal), `ReleaseRefusal::TruncatedBelowPin`
+(refusal), `ReleaseCoverage::not_covered` (generated text), and `limitations()` (shipped file).
+
+**The orphan count may not rise, and does not.** No crate is created. `rust/evidence` is already
+reachable; `rust/archive` is already an orphan and **stays** one — this task neither un-orphans it nor
+adds a new one. `python tools/ci/wiring_census.py` must still print `10 of 40 crates reachable from
+warrantor-warrant over 18 path edges`. Adding `pub mod custody;` to a crate already in the reachable set
+adds no edge.
+
+**No recorded invariant violation is converted by this task.** The eighteen `#[ignore]`s in
+`rust/warrant/tests/invariants/` are I-01 (2), I-03 (4), I-04 (2), I-05 (2), I-06 (1), I-08 (2), I-09
+(1), I-10 (1), I-11 (2) and I-12 (1); none concerns custody, escrow or investigator access.
+`tools/ci/invariant-ratchet.json` is therefore **not edited**: `passing_floor` stays 66 and
+`ignored_ceiling` stays 18, and the evidence file records the captured line `invariant ratchet: ok (66
+passing at floor 66, 18 recorded findings at ceiling 18)` both before and after, read from the tool
+output rather than computed. A nineteenth ignore anywhere raises the ceiling and fails the build, which
+is the correct outcome.
+
+---
+
+**Exit gate.** One command decides it:
+
+```
+cd M:/wt-10.6/rust && cargo test -p warrantor-evidence --test custody_and_escrow && \
+cargo test -p warrantor-archive --test append_only --test verification_does_not_depend_on_the_archive --test escrow_release_verifies_off_the_archive && \
+cd M:/wt-10.6 && python tools/ci/wiring_census.py && python tools/ci/check_invariant_ratchet.py
+```
+
+Pass requires all five of: `custody_and_escrow` showing at least seven refusals each with its allowed
+control and `0 failed`; `append_only` still `7 passed; 0 failed; 2 ignored`;
+`verification_does_not_depend_on_the_archive` still `6 passed; 0 failed`;
+`escrow_release_verifies_off_the_archive` passing with no `warrantor_archive` type in the verify call
+graph; and the last two lines reading exactly `wiring census: 10 of 40 crates reachable from
+warrantor-warrant over 18 path edges` and `invariant ratchet: ok (66 passing at floor 66, 18 recorded
+findings at ceiling 18)`. Any other number on either tool line is a failure regardless of the tests.
+
+---
+
+- [ ] **Step 1 — Worktree, Step 0 captured verbatim, and the contention check.**
+      `git worktree add M:/wt-10.6 -b feat/custody-and-escrow main`
+      Then `export CARGO_TARGET_DIR=M:/wt-10.6-target` — a shared target directory is how this
+      repository's cargo-registry race started. Base is local **`main`**, not `origin/main`
+      (Correction 4). Run every Step 0 command and paste real output into
+      `docs/task-evidence/task-10.6.md`, including the `EXIT=1` from the `investigator` grep and the
+      three ratchet lines. Then confirm no other lane holds `rust/archive/src/store.rs` or
+      `rust/warrant/src/report.rs`: `git worktree list` and `git log --oneline -5 main`. Task 10.3 is
+      seeded to touch `store.rs` and Task 10.1 to touch `report.rs`; if either branch exists, record it
+      and take only the lines named in Files.
+      *Test intent:* none. This step's product is the evidence file's Step 0 section and a recorded
+      answer to "who else is in these two files".
+
+- [ ] **Step 2 — Freeze the fixtures as bytes, before writing any verifier.** Create
+      `rust/evidence/tests/custody_and_escrow.rs` with three `const` items: a genuine report export's
+      filed bytes, its SHA-256, and a canonical `EscrowManifest` JSON. Take the bytes the way the
+      archive does — `serde_json::to_vec_pretty`, which is what `warrantor report --export` writes and
+      what `rust/archive/tests/verification_does_not_depend_on_the_archive.rs:330` files — then paste
+      them in as literals. **Nothing in this file may rebuild a `WarPredicate` or a `ReceiptBody` and
+      hash the result.** That is the whole of the Task 10.1 independence argument.
+
+      ```rust
+      /// The digest is over the bytes as filed, which is why nothing in this task binds to a struct
+      /// shape. `rust/archive/tests/verification_does_not_depend_on_the_archive.rs:355` is the same
+      /// assertion at the store: "the digest must be over the bytes as filed".
+      #[test]
+      fn the_frozen_fixture_still_hashes_to_its_recorded_digest() {
+          assert_eq!(
+              warrantor_warrant::report::sha256_hex(FILED_BYTES),
+              FILED_DIGEST,
+              "the frozen export no longer hashes to its recorded digest. Either the fixture was \
+               edited or a canonical rule changed. Do NOT update FILED_DIGEST to match: find out \
+               which, because a custody record over bytes whose digest moves is not a custody record."
+          );
+      }
+      ```
+
+      *Test intent:* this test passes on the first commit and must still pass after Task 10.1 lands. It
+      is the tripwire that tells the difference between "a canonical rule changed" and "somebody edited
+      a fixture".
+
+- [ ] **Step 3 — Failing test: a withheld member of a sealed manifest is refused, with its allowed
+      control.** The core assertion of the whole task, and what the seed's Exit gate is about. Write it
+      before `verify_release` exists.
+
+      ```rust
+      #[test]
+      fn a_release_that_withholds_a_sealed_member_is_refused_and_the_complete_one_verifies() {
+          let anchor = issuer().verifying_key();
+          let (first, second) = (frozen_artifact_a(), frozen_artifact_b());
+          assert_ne!(first.0, second.0, "the two members must genuinely differ");
+
+          let manifest = EscrowManifest {
+              format: MANIFEST_FORMAT.to_string(),
+              sequence: 7,
+              members: vec![first.0.clone(), second.0.clone()],
+              custody_head: None,
+              prev_manifest: String::new(),
+              sealed_at: NOW,
+          };
+          let sealed = seal(manifest, &issuer(), "issuer");
+
+          // -- the CONTROL: everything the manifest names is present, and it verifies -----
+          let complete = Release {
+              sealed: sealed.clone(),
+              custody: vec![],
+              artifacts: [first.clone(), second.clone()].into_iter().collect(),
+          };
+          let coverage = verify_release(&complete, &anchor, None)
+              .expect("a complete release must verify, or the refusal below proves nothing");
+          assert_eq!(coverage.verified, 2);
+          assert_eq!(coverage.members, 2);
+
+          // -- the ATTACK: the operator serves the manifest and withholds one artifact ----
+          let mut filtered = complete.clone();
+          filtered.artifacts.remove(&second.0);
+          let refusal = verify_release(&filtered, &anchor, None)
+              .expect_err("a release missing a member its own sealed manifest names must be refused");
+          match refusal {
+              ReleaseRefusal::MemberWithheld { digest, sequence } => {
+                  assert_eq!(digest, second.0, "the refusal must NAME the withheld digest, so the \
+                      investigator can say what they were not given rather than only that something \
+                      is wrong");
+                  assert_eq!(sequence, 7, "and the manifest generation it was sealed into");
+              }
+              other => panic!("expected MemberWithheld, got {other:?}"),
+          }
+      }
+      ```
+
+      *Test intent:* one refusal, one allowed control, and the refusal must carry the missing digest. A
+      verifier that refuses every release fails on the control line, which is why the control is in the
+      same test rather than a neighboring one — the pattern `harness::refused_at_the_boundary` enforces
+      at `rust/warrant/tests/invariants/harness.rs:50`.
+
+- [ ] **Step 4 — Failing test: the investigator verifies with no privileged access and no archive in the
+      call graph.** This is `verification_does_not_depend_on_the_archive.rs`'s positive case extended to
+      a release, and it goes in `rust/archive/tests/` for exactly the reason that file gives at its lines
+      129–135: the property is only proven by a verification that *could* have touched the archive and
+      did not.
+
+      ```rust
+      //! The investigator's path, in the crate where the archive is a dependency and is still absent
+      //! from the call graph. Mirrors
+      //! `verification_does_not_depend_on_the_archive.rs::a_client_verifies_an_exported_bundle_with_no_archive_in_the_process`.
+
+      /// No `ArchiveStore`, no `MemoryStore`, no HTTP, no socket, no `warrantor_archive` type anywhere
+      /// below this line. The release arrives as bytes and is checked against a key the investigator
+      /// pinned.
+      #[test]
+      fn an_investigator_verifies_a_release_with_no_archive_and_no_operator_in_the_process() {
+          let bytes = std::fs::read(fixture_path("release.json")).expect("the file on a USB stick");
+          let release: Release = serde_json::from_slice(&bytes).expect("decode");
+          let anchor = pinned_issuer_key();   // parsed from a hex string, not fetched
+
+          let coverage = verify_release(&release, &anchor, None)
+              .expect("a genuine release verifies with nothing but the file and the pinned key");
+          assert!(coverage.verified > 0);
+          assert!(
+              !coverage.not_covered.is_empty(),
+              "a coverage report with an empty not_covered list is claiming completeness. It is \
+               never empty: at minimum the manifest itself is unverified for completeness."
+          );
+      }
+      ```
+
+      Then add this file to the hardcoded `files` array at `rust/archive/tests/append_only.rs:360–375`,
+      leaving `EXPECTED` at **3** — the new suite has no `#[ignore]`, so the count is unchanged and
+      `the_ignored_database_tests_are_the_number_the_docs_claim` must still pass. That array's own doc,
+      `append_only.rs:351–353`, says why: *"a file missing from it is a file this counter silently
+      stopped covering."*
+      *Test intent:* the positive case, plus the assertion that `not_covered` is never empty — which is
+      the mechanism behind the product sentence, checked rather than commented.
+
+- [ ] **Step 5 — Failing test: a broken custody transition is refused at the receiving party, with its
+      allowed control.** L7-08's verification clause, made executable. Extend the hash-chain shape
+      `ActorRecord` already uses at `rust/warrant/src/operators.rs:509–512`.
+
+      ```rust
+      #[test]
+      fn a_missing_custody_transition_fails_verification_at_the_receiving_party() {
+          // vendor -> customer -> supervisor -> investigator: the handoff L7-08 names.
+          let a = append_act(None, FILED_DIGEST, "vendor", "customer", "contractual audit", NOW);
+          let b = append_act(Some(&a), FILED_DIGEST, "customer", "supervisor", "examination", NOW + 60);
+          let c = append_act(Some(&b), FILED_DIGEST, "supervisor", "investigator", "incident", NOW + 120);
+
+          // -- the CONTROL: the whole chain verifies and the head is the last act ---------
+          let head = verify_custody_chain(&[a.clone(), b.clone(), c.clone()])
+              .expect("an intact three-hop chain must verify");
+          assert_eq!(head.acts, 3);
+          assert!(head.chain_intact);
+          assert_eq!(head.head.as_deref(), Some(c.digest.as_str()));
+
+          // -- the ATTACK: remove the MIDDLE hop, which is the one an operator would remove
+          let refusal = verify_custody_chain(&[a.clone(), c.clone()])
+              .expect_err("a chain with a transition removed must not verify");
+          match refusal {
+              EvidenceError::CustodyChain(index) => assert_eq!(
+                  index, 1,
+                  "the refusal must name WHICH transition is missing, at the receiving party's end"
+              ),
+              other => panic!("expected CustodyChain, got {other}"),
+          }
+
+          // -- and an EDITED act is the same refusal, not a silent pass -------------------
+          let mut edited = b.clone();
+          edited.to_party = "a party that never held it".to_string();
+          verify_custody_chain(&[a, edited, c])
+              .expect_err("an edited act must not verify: its digest no longer covers its contents");
+      }
+      ```
+
+      *Test intent:* two refusals and one control. The middle hop is removed deliberately — removing the
+      tail is the case Step 7 proves is *not* detectable, and conflating the two is exactly the overclaim
+      Correction 6 is about.
+
+- [ ] **Step 6 — Failing test: the manifest must be signed by the key the investigator pinned.** The
+      fourth attack from `verification_does_not_depend_on_the_archive.rs:253–311`, at the manifest level.
+      An operator holding any Ed25519 keypair can produce a fully self-consistent sealed manifest.
+
+      ```rust
+      #[test]
+      fn a_manifest_sealed_by_the_operators_own_key_is_refused_against_the_pinned_anchor() {
+          let anchor = issuer().verifying_key();
+          let manifest = escrow_manifest_naming(&[FILED_DIGEST]);
+
+          // The operator seals a manifest saying whatever it likes, with a VALID key it holds.
+          // Nothing is inconsistent: the signature verifies against the key it carries.
+          let forged = seal(manifest.clone(), &operator_key(), "operator");
+          let release = Release { sealed: forged, custody: vec![], artifacts: one_artifact() };
+
+          let refusal = verify_release(&release, &anchor, None).expect_err(
+              "a manifest signed by a key that is not the pinned issuer must not verify -- this is \
+               the attack that `verification_does_not_depend_on_the_archive.rs:299` already asserts \
+               for bundles, and a release is a bundle-of-bundles with the same hole",
+          );
+          match refusal {
+              ReleaseRefusal::ManifestNotSignedByAnchor { pinned, presented } => {
+                  assert_eq!(pinned, hex::encode(anchor.to_bytes()),
+                      "the refusal must name the key the reader pinned, so they can tell a \
+                       wrong-signer from a tampered file");
+                  assert_ne!(pinned, presented);
+              }
+              other => panic!("expected ManifestNotSignedByAnchor, got {other:?}"),
+          }
+
+          // The CONTROL: the same manifest sealed by the real issuer verifies.
+          let genuine = seal(manifest, &issuer(), "issuer");
+          verify_release(
+              &Release { sealed: genuine, custody: vec![], artifacts: one_artifact() },
+              &anchor, None,
+          ).expect("sealed by the pinned issuer, it verifies");
+      }
+      ```
+
+      *Test intent:* one refusal naming both keys, one control. `verify_release` takes the anchor as a
+      required argument for this reason — an optional anchor is a hole, and the archive crate learned
+      that already.
+
+- [ ] **Step 7 — Failing test: completeness is NOT claimed, and the truncation limit is asserted as a
+      limit.** The most important test in the task, because it asserts the *absence* of a guarantee.
+
+      ```rust
+      #[test]
+      fn a_truncated_release_verifies_without_a_pin_and_is_refused_with_one() {
+          let anchor = issuer().verifying_key();
+          // Generation 9 is current. Generation 4 is a real, genuine, complete, sealed release --
+          // and it is also what an operator serves to hide five generations of evidence.
+          let stale = release_at_sequence(4);
+
+          // -- Half one: with NO pin it VERIFIES, and that is the honest outcome. There is
+          //    nothing wrong with the file. An offline verifier holding one release cannot
+          //    distinguish "current" from "truncated". Asserting Ok here is what stops a future
+          //    refactor from claiming a detection that does not exist.
+          let coverage = verify_release(&stale, &anchor, None)
+              .expect("a genuine older generation is a genuine file and must verify");
+          assert!(!coverage.tail_pinned);
+          assert!(
+              coverage.not_covered.iter().any(|s| s.contains("truncat")),
+              "with no pin, the coverage report MUST say that truncation is undetectable. \
+               not_covered was: {:?}", coverage.not_covered
+          );
+          assert!(
+              coverage.sentence().contains("does not prove everything was escrowed"),
+              "the rendered sentence is the product's claim; it must not be silent about this"
+          );
+
+          // -- Half two: with a pin the investigator obtained elsewhere, it IS refused. This is
+          //    the ONLY mechanism by which withholding a whole generation is detectable, and it
+          //    needs a number from outside the release -- no new trust root, a number written down.
+          let refusal = verify_release(&stale, &anchor, Some(9)).expect_err(
+              "presented below a sequence the investigator has already seen, a release is refused",
+          );
+          assert!(matches!(
+              refusal,
+              ReleaseRefusal::TruncatedBelowPin { pinned: 9, presented: 4 }
+          ), "got {refusal:?}");
+
+          // -- The CONTROL for half two: at or above the pin, it verifies. ----------------
+          verify_release(&release_at_sequence(9), &anchor, Some(9))
+              .expect("at the pin, a release verifies");
+      }
+      ```
+
+      Then assert the honest-disclosure surface directly, in the register `retention.rs`'s
+      `unwitnessed_chains` established:
+
+      ```rust
+      /// `not_covered` is never empty, and one entry is not optional.
+      ///
+      /// Modeled on `Holdings::unwitnessed_chains` (`rust/warrant/src/retention.rs:479`), whose doc
+      /// says it: "Reported because 'we cannot prove it for this many' is the honest form of the
+      /// answer." A coverage struct that can render an empty not_covered list is a coverage struct
+      /// that can claim completeness, and completeness is the one thing escrow does not establish.
+      #[test]
+      fn a_coverage_report_can_never_render_an_empty_not_covered_list() {
+          for pin in [None, Some(1u64)] {
+              let coverage = verify_release(&release_at_sequence(1), &issuer().verifying_key(), pin)
+                  .expect("a genuine release");
+              assert!(
+                  !coverage.not_covered.is_empty(),
+                  "not_covered was empty with pin={pin:?}. The manifest's own completeness is \
+                   unverifiable in every configuration, so this list has at least one entry always."
+              );
+          }
+      }
+      ```
+
+      *Test intent:* one refusal, two controls, and one structural assertion. This is the step that makes
+      the seed's Exit gate honest instead of false.
+
+- [ ] **Step 8 — The custody head crosses into signed evidence, and a v1 bundle digest does not move.**
+      Add `escrow: Option<EscrowSection>` to `ReportBundle` with
+      `#[serde(skip_serializing_if = "Option::is_none")]`, exactly as `custody: Option<CustodySection>`
+      was added at `rust/warrant/src/report.rs:389`. Carry only the head digest and counts, never the
+      acts — the disclosure decision at `report.rs:269–273` is inherited: *"Copying the acts themselves
+      in would put operator names inside an artifact that gets handed to third parties."*
+
+      ```rust
+      /// A bundle with no escrow section hashes to exactly what it hashed to before this field
+      /// existed. Frozen digest, not a recomputation: `bundle_digest` over a rebuilt bundle would
+      /// agree with itself under any rule.
+      #[test]
+      fn adding_the_optional_escrow_section_does_not_move_a_v1_bundle_digest() {
+          const V1_BUNDLE_DIGEST: &str = "<frozen in Step 2>";
+          let bundle = v1_bundle_from_frozen_bytes();
+          assert!(bundle.escrow.is_none(), "the v1 fixture carries no escrow section");
+          assert_eq!(
+              report::bundle_digest(&bundle).expect("digest"), V1_BUNDLE_DIGEST,
+              "the optional field changed a v1 bundle's canonical bytes. Every export ever filed \
+               to an archive would stop verifying. skip_serializing_if is not optional here."
+          );
+
+          // And a bundle that DOES carry one hashes differently, or the field is not covered.
+          let mut with_escrow = bundle.clone();
+          with_escrow.escrow = Some(EscrowSection { manifest_sequence: 7, members: 2,
+              custody_head: Some("abc..".into()), sealed_by_key_id: "issuer".into() });
+          assert_ne!(report::bundle_digest(&with_escrow).expect("digest"), V1_BUNDLE_DIGEST,
+              "the escrow section must be inside the digest, or it is decoration");
+      }
+      ```
+
+      *Test intent:* two assertions in opposite directions — the absent field must not move the digest
+      and the present field must. One without the other is either a compatibility break or an unsigned
+      section.
+
+- [ ] **Step 9 — The seal predicate on the store, with no deletion path added.** Add
+      `fn is_sealed(&self, digest: &str) -> Result<bool, StoreError>` and
+      `fn seal(&mut self, digest: &str, manifest_sequence: u64, at: u64)` to `ArchiveStore`
+      (`rust/archive/src/store.rs:200`) and implement both on `MemoryStore`. `is_sealed` is a read;
+      `seal` marks and does not lock. Neither refuses anything. Task 10.4 owns any refusal built on them
+      — Step 0(e).
+
+      ```rust
+      /// The seal is a marker, not a lock, and the trait shape must still forbid mutation.
+      #[test]
+      fn sealing_marks_and_does_not_lock_and_the_trait_still_offers_no_deletion() {
+          let mut store = store_with_devices(&["dev_aaaa"]);
+          let artifact = ingested("wrt_archive", "fix the auth token refresh bug");
+          store.put_artifact(&artifact, "dev_aaaa", NOW).expect("filed");
+          assert!(!store.is_sealed(&artifact.digest).expect("read"), "unsealed by default");
+          store.seal(&artifact.digest, 7, NOW).expect("seal into manifest generation 7");
+          assert!(store.is_sealed(&artifact.digest).expect("read"));
+
+          // The append-only shape is unchanged. This duplicates
+          // `append_only.rs::the_store_trait_offers_no_way_to_update_or_delete_an_artifact` on
+          // purpose: a task that adds a method to this trait must re-prove the property here, in
+          // its own suite, rather than rely on a neighboring file still passing.
+          let source = include_str!("../src/store.rs");
+          let trait_body = source.split("pub trait ArchiveStore {").nth(1).expect("trait")
+              .split("\n}").next().expect("closed");
+          for forbidden in ["fn update_artifact", "fn delete_artifact", "fn unseal",
+                            "fn remove_artifact", "fn prune_artifacts", "fn overwrite"] {
+              assert!(!trait_body.contains(forbidden),
+                  "ArchiveStore declares {forbidden}. `is_sealed` is a read; a seal that can be \
+                   lifted through this trait is not a seal, and a deletion path here is Task 10.4's \
+                   to argue for, not this task's to open.");
+          }
+      }
+      ```
+
+      *Test intent:* one behavioral pair (unsealed then sealed) and one source-level assertion that the
+      trait gained no mutation. `fn unseal` is in the forbidden list deliberately.
+
+- [ ] **Step 10 — Gates, the product sentence, the evidence file, and `git commit -s`.** Run the Exit
+      gate command verbatim and paste its output into `docs/task-evidence/task-10.6.md`. Then, in order:
+      (1) ship the Bound-strength sentence into `limitations()` at `rust/warrant/src/report.rs:545` —
+      **the exact words**, not a paraphrase — and add an assertion in `rust/warrant/tests/report.rs` that
+      the phrase `does not prove everything was escrowed` appears in a built bundle's limitations,
+      because a limitation nobody asserts is a limitation somebody deletes. (2) Update
+      `docs/rfcs/W2-evidence-archive.md`'s threat model with the seal and the truncation limit, then
+      re-run
+      `cargo test -p warrantor-archive --test append_only the_threat_model_names_no_mitigation_this_crate_does_not_implement`
+      — that gate at `append_only.rs:408` fails the build on an RFC row with no call site, and it has
+      caught this repository once already. (3) Confirm the three ratchets by reading the captured lines
+      rather than computing them:
+
+      ```
+      $ python tools/ci/wiring_census.py
+      wiring census: 10 of 40 crates reachable from warrantor-warrant over 18 path edges
+      $ python tools/ci/check_invariant_ratchet.py
+      invariant ratchet: ok (66 passing at floor 66, 18 recorded findings at ceiling 18)
+      $ python tools/ci/check_invariants.py
+      invariant ledger: 12 invariants; enforced=2, orphaned=2, partial=7, unimplemented=1
+      ```
+
+      `tools/ci/invariant-ratchet.json` is **not** edited — no recorded violation is converted here.
+      (4) `python tools/ci/check_us_english.py --files <changed files>` and
+      `node "M:/Project AumOS - Linkedin Blitzkrieg/scripts/verify-us-english.mjs" <changed files>`,
+      reading full output from both. (5) `git commit -s` — the DCO gate refuses an unsigned commit —
+      with a message saying **why**: the manifest is the boundary of the completeness claim, and this
+      task's product is as much the sentence about what escrow does not cover as it is the verifier.
+      *Test intent:* the gate run itself, plus the limitations assertion, which is the only mechanism
+      that keeps the honest sentence in the product after this branch merges.
 
 ### Task 10.7: Reasoning-trace monitoring and analysis-of-analysis (L7-11, L7-21)
 
@@ -26423,42 +28150,814 @@ is missing it.
 
 ### Task 12.3: Continuous promotion with an enforced parity gate; deployment-configuration parity (L9-03, L9-08)
 
-**Anchor.** Both `status=partial`, W2. **Quantization changes verdicts at the deployed Q4_K_M** —
-measured. A parity gate that evaluates an unquantized model gates nothing that ships, which makes
-L9-08 not a refinement of L9-03 but a precondition for it being meaningful at all.
+**Anchor.** Both items are `status=partial`, `core`, W2. Quoted verbatim from
+`docs/html/warrantor-native-ai-platform-os-master-2026-09-01.html`, lines 5091-5099 and 5151-5159:
 
-**Step 0.** Read `python/warrantor_ml/src/warrantor_ml/deploy_model.py`, `evaluate.py` and
-`baselines.py`. Record the exact deployed configuration: quantization, `num_ctx`, seed. **`num_ctx`
-must be pinned at 8192** — an unpinned context length has already changed results here. Record that
-five recipes were trained and **none was promotable**, and that the ladder must be able to express
-that outcome. Read the frontier-parity doctrine in the model-foundry prerequisites: blind eval
-against a pinned frontier baseline before promotion.
+```html
+<article class="item" id="L9-03" data-stratum="L9" data-plane="A" data-status="partial" data-novelty="core" data-wave="W2" data-loop="L1">
+  <h4>Continuous promotion pipeline with an enforced parity gate</h4>
+  <p class="verify"><b>Verification</b> An adapter attempting registration without a parity-gate receipt is refused by the deploy step and the refusal is receipted; a promotion whose criterion was edited after the run is unregisterable.</p>
+  <p class="anchor"><b>Anchor</b> One promotion, four recorded refusals; a monotonicity check once reported noise at p ≈ 0.69 as a reversal, which is why the criterion is registered first</p>
 
-**Non-goals.** Not the corpus — 12.2. Not the graduation ladder — 12.6. Not guard hardening — 12.5.
-Not choosing a model.
+<article class="item" id="L9-08" data-stratum="L9" data-plane="A" data-status="partial" data-novelty="core" data-wave="W2" data-loop="L5">
+  <h4>Deployment-configuration parity</h4>
+  <p class="verify"><b>Verification</b> The gate refuses a promotion whose evaluation configuration differs from the serving configuration in quantization or context length; the served model's digest matches the evaluated one.</p>
+  <p class="anchor"><b>Anchor</b> Measured: quantization changed verdicts at the deployed setting</p>
+```
 
-**Files.** `python/warrantor_ml/`, a CI gate under `tools/ci/`, `docs/task-evidence/task-12.3.md`.
+**The seed carries five findings into this task. One is verified, one belongs to Task 12.2, and three
+are wrong.** Each is checked against the code and the record below, and the corrections change what
+this task builds. `premise_contradicted` is therefore true.
 
-**Consumes / Produces.** Consumes the eval harness and the deployed configuration. Produces a
-promotion gate that evaluates **the artifact that ships**, at its deployed quantization, against a
-pinned baseline, and refuses promotion otherwise.
+1. **"Quantization changes verdicts at the deployed `Q4_K_M`" — VERIFIED, and it is the only axis
+   here with a measured effect.** `docs/content-program/drafts/T-03-measuring-guard-models-paper.md:555-556`
+   records it as `R13`: *"`Q4_K_M`, the deployed default, is not verdict-neutral: 4 and 11 items per
+   thousand differ from `f16`."* Lines 700-712 record `R32` across five models from three publishers:
+   *"Between 4 and 18 verdicts per thousand change at the precision most deployments serve"*, and
+   `R33` at lines 714-726 records that **the direction does not generalize** — ShieldGemma 9B moves
+   17/0 safety-adverse while ShieldGemma 2B moves 0/18 usability-adverse. A deployer can assume
+   neither that quantization errs safe nor that it errs conservative. This is the finding the gate is
+   for.
+2. **"Category specialization measurably hurt" — VERIFIED, and it is Task 12.2's premise, not this
+   task's.** `T-03-measuring-guard-models-paper.md:64`: *"category specialization does not merely fail
+   to help; at equal data volume it hurts."* Named here only so nobody re-litigates it in this branch.
+3. **"`num_ctx` must be pinned at 8192 — an unpinned context length has already changed results
+   here" — WRONG, and the repository says so twice in its own voice.**
+   `docs/content-program/01-track-technical.md:172` carries the warning verbatim: **`⚠️ num_ctx
+   pinning is NOT a finding — it is a deployment decision and a config-divergence incident, with no
+   sensitivity sweep behind it. Listing it as evidence is how an unmeasured claim reaches an
+   abstract.`** And the sweep has since run: `T-03-measuring-guard-models-paper.md:613-615` reports
+   **`R23`** — *"Five `num_ctx` values × two models × 493 common items: decision-change rate 0 of 493
+   at every value"*. The eight-release divergence is recorded at `docs/W1-delivery-gaps.md:967-970` as
+   a configuration-management defect, not a measured effect. **`num_ctx` therefore cannot carry this
+   task's exit gate.** It is a reproducibility field, it is *already* pinned across the language
+   boundary (Step 0, Finding B), and putting the one unmeasured axis in front of the one measured axis
+   is how an unmeasured claim reaches a signed bundle.
+4. **"Five recipes were trained and none was promotable" — WRONG as stated on this branch.**
+   `docs/warrantor-pending-items-2026-08-22.html:99` records the 2026-08-22 sweep as *"one promotion,
+   four refusals, every verdict recorded with decision digests"*, naming `guard-0.6b-expguard-weak`
+   run `exp06-2026-08-22a`, and the blueprint's own L9-03 anchor agrees: *"One promotion, four
+   recorded refusals."* The `none promotable` verdict is a **later** correction dated 2026-09-01, and
+   it is **not on `main`**: `git ls-tree -r --name-only main docs/ | grep -c
+   'model-inventory-reconciliation'` returns `0`. It lives on `docs/content-program-p9-fold` at
+   `f455fa8`, where `docs/model-inventory-reconciliation-2026-09-01.md:126` reads *"~~one apparently
+   promotable~~ — **none promotable**"*. A task branching from `main` may not cite it as a landed
+   record. Task 12.4 carries that document in; this task does not need it, because the promotion it
+   audits is the one `main` records.
+5. **"Severity instability was the dominant failure mode" — recorded NOWHERE on this branch, and it is
+   not this task's axis anyway.** `grep -rn "severity instab\|severity field flips" --include=*.md
+   --include=*.py --include=*.rs --include=*.html .` returns nothing on `main`. **Task 12.4 owns
+   severity stability and has already been expanded**; its own Anchor states that the record lives on
+   an unmerged branch. The dominant failure mode `main` actually records is corpus composition:
+   `docs/warrantor-pending-items-2026-08-22.html` Finding 1 — *"the weak-category recipe is 0-for-3
+   ... the corpus trades targeted-category recall for overall recall ... catastrophic forgetting, not
+   a training accident."* An unrecorded measurement cannot be an exit gate, so it is not one here.
 
-**Bound strength.** **Tier B, chokepoint** — it is a real refusal point in the release path, which is
-unusual for this phase and worth stating. Its limit is that it gates what it measures: a capability
-not in the eval set is not gated.
+**What this leaves as the task.** The blind parity gate already exists and is good — 640 lines,
+two-sided, with `insufficient_evidence` as a first-class verdict, and a per-category floor check. What
+does not exist is any comparison between **the configuration a candidate was evaluated at** and **the
+configuration the product serves**. The gate loads the candidate's own recorded serving configuration
+into a field and then discards it, and the deploy step requires no parity receipt at all. Those are
+the two gaps, and both are closable with the code already on `main`.
 
-**Exit gate.** Promotion of a model evaluated at a configuration other than the deployed one is
-**refused** by the gate; and every promotion record carries quantization, `num_ctx` and seed, with a
-test that rejects a record missing any of the three.
+---
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.3 -b feat/parity-promotion-gate origin/main`
-- [ ] **Step 2 — Capture the deployed configuration exactly.** Pin `num_ctx=8192`.
-- [ ] **Step 3 — Failing test: promoting an unquantized artifact is refused.** The whole gate.
-- [ ] **Step 4 — Failing test: a promotion record missing any of the three config fields is rejected.**
-- [ ] **Step 5 — Failing test: "not promotable" is a representable outcome,** since it is the actual outcome for all five recipes so far.
-- [ ] **Step 6 — Blind parity against the pinned baseline,** per the foundry doctrine.
-- [ ] **Step 7 — Record what the gate does not cover:** capabilities absent from the eval set.
-- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+**Step 0.** Run every command below in a detached worktree on **local `main`** (`b04164d`), not
+`origin/main` (`e4b5f10`, stale). Read in full: `python/warrantor_ml/` in breadth first, then
+`parity.py` (640 lines), `deploy_model.py` (456 lines), `evaluate.py` (781 lines), `baselines.py`
+(505 lines), `programme.py` (344 lines), `recipes.py` (580 lines), and `rust/eval-guard/src/lib.rs`
+(361 lines).
+
+```bash
+export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
+cd "M:/Project AumOS - Open Secure AI Alliance/aumos"
+git worktree add --detach M:/wt-e-12.3 main
+cd M:/wt-e-12.3 && export CARGO_TARGET_DIR=M:/wt-e-12.3-target
+git ls-tree --name-only main rust/ | wc -l        # 49 entries
+git ls-tree --name-only -d main rust/ | wc -l     # 40 crates
+git ls-tree --name-only main rust/ | grep -c 'rust/guard$'   # 0 — there is no rust/guard
+git ls-files python/warrantor_ml | wc -l          # 59 tracked files
+```
+
+**The editable install points at another worktree, and every pass is void until you fix it.**
+Captured verbatim, and this is the first command to run:
+
+```
+$ cd M:/wt-e-12.3/python/warrantor_ml && python -c "import warrantor_ml.parity as p; print(p.__file__)"
+M:\wt-2point1\python\warrantor_ml\src\warrantor_ml\parity.py
+```
+
+Every `pytest` and every `warrantor-ml-*` console script in this checkout runs **`M:/wt-2point1`'s**
+code. Prefix `PYTHONPATH="M:/wt-e-12.3/python/warrantor_ml/src"` on every Python invocation in this
+task, and re-print `p.__file__` after any environment change:
+
+```
+$ PYTHONPATH="M:/wt-e-12.3/python/warrantor_ml/src" python -c "import warrantor_ml.parity as p; print(p.__file__)"
+M:\wt-e-12.3\python\warrantor_ml\src\warrantor_ml\parity.py
+
+$ PYTHONPATH=".../src" python -m pytest tests/ -q --ignore=tests/test_bounds_interop.py
+609 passed in 10.93s
+```
+
+`tests/test_bounds_interop.py` fails collection without `.bounds_interop.json`, which
+`cargo run -p warrantor-warrant --example emit_bounds_vectors` produces. It fails rather than skips on
+purpose; ignore it only for the fast loop, never in the exit gate.
+
+**Baselines on this branch, captured:**
+
+```
+$ python tools/ci/wiring_census.py
+wiring census: 10 of 40 crates reachable from warrantor-warrant over 18 path edges
+
+$ python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=2, partial=7, unimplemented=1
+
+$ cat tools/ci/invariant-ratchet.json
+{ "passing_floor": 66, "ignored_ceiling": 18, ... }
+```
+
+**Finding A — the gate loads the candidate's serving configuration and throws it away.**
+`parity.py:129` declares the field and `parity.py:223` fills it:
+
+```python
+# python/warrantor_ml/src/warrantor_ml/parity.py:129
+    backend: Mapping[str, Any] = field(default_factory=dict)
+# python/warrantor_ml/src/warrantor_ml/parity.py:223
+        backend=dict(document.get("backend", {})),
+```
+
+Nothing reads it. Captured:
+
+```
+$ grep -rn "\.backend" python/warrantor_ml/src/warrantor_ml/parity.py
+parity.py:277:    baseline_lane = str(baseline.backend.get("lane", ""))
+parity.py:278:    baseline_precision = str(baseline.backend.get("precision", ""))
+parity.py:410:        error_rate = candidate.backend_error_count / candidate.scored_samples
+parity.py:414:            f"{candidate.backend_error_count} backend errors over "
+```
+
+The same grep against `programme.py` returns nothing at all. Lines 277-278 read the **baseline's**
+backend. Lines 410 and 414 read `backend_error_count`, a different field. `candidate.backend` is read by no line of source and asserted by no test
+(`test_parity.py:500` puts `"backend": {"kind": "ollama"}` into a fixture and never looks at the
+loaded value). The gate holds the evidence and does not consult it.
+
+**Finding B — the one thing that does compare evaluated against deployed is a `cargo test`, and it
+covers seven knobs, none of them quantization.** `rust/warrant/tests/guard_parity.rs` (182 lines)
+makes `evaluate.py` a compile-time input via `include_str!` at line 32 and asserts
+`GuardKnobs::default()` matches the Python literal for `num_ctx`, `num_predict`, `seed`,
+`temperature`, `top_p`, `top_k` and `controversial_is_harmful`. Its own header states the defect it
+exists to prevent — `rust/warrant/tests/guard_parity.rs:5-9`:
+
+```rust
+//! This crate shipped `num_ctx: 4096` for eight releases while every published figure was measured
+//! at 8192 by `python/warrantor_ml`. The consequence was not that the guard was worse — it was that
+//! **nobody knew what it was**, because the configuration in production was not the configuration
+//! any measurement was taken under
+```
+
+So the seed's premise 3 is not merely unmeasured, it is **already discharged** on the axis it names.
+`rust/warrant/src/guard.rs:161` holds `pub const MEASURED_NUM_CTX: u32 = 8192;` and `guard.rs:171-196`
+declares `GuardKnobs` — which has **no quantization field at all**. Confirmed:
+
+```
+$ grep -rn "num_ctx\|quantis\|quantiz" python/warrantor_ml/src/warrantor_ml/parity.py \
+        python/warrantor_ml/src/warrantor_ml/deploy_model.py \
+        python/warrantor_ml/src/warrantor_ml/model_card.py
+(no output; exit 0)
+```
+
+**Finding C — quantization is compared, but only through a string the operator types.**
+`baselines.py:198-220` records the full serving configuration of every baseline:
+
+```python
+# python/warrantor_ml/src/warrantor_ml/baselines.py:210-220
+    return {
+        "kind": "ollama", "model": model,
+        "quantisation": "Q4_K_M", "num_ctx": 8192,
+        "temperature": 0.0, "top_k": 1, "seed": 0,
+        "lane": "local-rtx5080", "precision": "gguf-q4_k_m",
+    }
+```
+
+`_lane_matches` (`parity.py:274-294`) compares exactly two of those nine keys — `lane` and
+`precision` — and `baselines.py:202-204` says so in its own comment: *"Nothing refused it —
+`warrantor_ml.parity._lane_matches` reads only `lane` and `precision`."* Both come from argv, not from
+the artifact: `programme.py:234` is `parser.add_argument("--precision", required=True)` and
+`programme.py:266` passes `precision=arguments.precision` straight into `load_candidate_result`.
+**The candidate's quantization is whatever the operator declares it to be**, and `quantisation`,
+`num_ctx`, `temperature`, `top_k` and `seed` are recorded on the baseline and compared against nothing.
+
+**Finding D — no candidate result document records its quantization, so there is nothing to compare
+even if the gate looked.** Captured over the committed evidence:
+
+```
+$ python -c "import json; d=json.load(open('eval_results/warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a.json',encoding='utf-8')); print(sorted(d['backend'])); print('quantisation' in d['backend']); print(d['backend']['model'])"
+['endpoint', 'kind', 'model', 'options', 'seed']
+False
+warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a
+```
+
+The two baseline documents name their quantization inside the model tag
+(`hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M`). The five candidate tags carry **no quantization
+label at all**. `evaluate.py:275-283` (`descriptor()`) is the function that writes this block and it
+emits no quantization field. And the deployed inventory disagrees on size with the baselines those
+candidates were compared against — `docs/model-inventory-reconciliation-2026-09-01.md:23-31` (on
+`docs/content-program-p9-fold`, cited as context and not as a landed record) lists the `Q4_K_M`
+baselines at **0.48 GB / 2.72 GB** and every 2026-08-22 candidate at **0.50 GB / 2.78 GB**. Whether
+that gap is a merged adapter's extra tensors or a different quantization **cannot be determined from
+anything in the pipeline**, because the candidate declares nothing. That is the defect, stated without
+overclaiming what the sizes prove.
+
+**Finding E — the promotion the pipeline granted, re-run here.** Against the promoted candidate's own
+committed result document, with this worktree's code:
+
+```
+$ PYTHONPATH=".../src" python -c "...parity_main(['--result','eval_results/warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a.json','--recipe','guard-0.6b-expguard-weak','--lane','local-rtx5080','--precision','gguf-q4_k_m','--manifest-digest','sha256:0…0','--breakdown-key','expguard_breakdowns'])"
+"verdict": "insufficient_evidence"
+"reasons": ["1 eval row(s) appear in the training corpus (0 distinct collisions) …"]
+"counts": {"candidate": {"caught": 982, "positives": 1256, "false_positives": 56, "negatives": 1019},
+           "baseline":  {"caught": 898, "positives": 1256, "false_positives": 89, "negatives": 1019}}
+"decision_digest": "sha256:cf73155bc7e6ca3861807b4422e80a7f1747609712d296c6c2895ff15617bcfd"
+EXIT=3
+```
+
+982/1256 = 0.7818 against 898/1256 = 0.7150, and 56/1019 = 0.0550 against 89/1019 = 0.0873 —
+reproducing the recorded promotion to four places. The refusal here is the leakage precondition firing
+because the corpora were not supplied, which is correct behavior and **not** a configuration refusal:
+`--precision gguf-q4_k_m` was accepted without challenge against a document that records no
+quantization. Exit 3, not 1, because `insufficient_evidence` and `reject` are deliberately different
+codes (`programme.py:311`).
+
+**Finding F — the deploy step requires no parity receipt.** L9-03's verification text says an adapter
+without one *"is refused by the deploy step."* Captured:
+
+```
+$ grep -rn "parity\|ParityDecision\|decision_digest" python/warrantor_ml/src/warrantor_ml/deploy_model.py
+deploy_model.py:304:  let gated_by_category = labels.iter().any(...)
+deploy_model.py:310:  (severity_harmful || gated_by_category, categories, gated_by_category)
+deploy_model.py:340:  let (is_harmful, flagged_categories, gated_by_category) = Self::parse(&raw);
+deploy_model.py:350:  detail: Some(format!("gated_by_category={{gated_by_category}}")),
+```
+
+Four hits, all the substring `gate` inside `gated_by_category` in the generated Rust template. There
+is **no** reference to a parity decision anywhere in the deploy path. `build_registration`
+(`deploy_model.py:144-210`) refuses on an incomplete model card and on a malformed weights digest, and
+on nothing else. `model_card.py`'s `REQUIRED_FIELDS` carries `evaluation.recall`,
+`evaluation.eval_set_digest`, `evaluation.result_digest` and six more — and **no serving-configuration
+field** — so L9-04's `status=built` claim that *"every published figure carries the configuration that
+produced it: context length, seed, quantization, sampling profile"* is not enforced by the card
+validator. That is L9-04's problem to answer; it is named here so this task does not inherit its claim.
+
+**Finding G — the generated adapter pins nothing.** `_ADAPTER_TEMPLATE` (`deploy_model.py:223-358`)
+emits `SCANNER_ID`, `MODEL_DIGEST`, `ENDPOINT`, `REQUEST_TIMEOUT_MS` and `OPERATING_THRESHOLD` — and
+no `num_ctx`, `seed`, `temperature`, `top_p`, `top_k` or quantization.
+`GuardTransport = Box<dyn Fn(&str) -> Result<String, String> + Send + Sync>` (line 241) hands the HTTP
+request to the caller, so a registered scanner runs at whatever the caller's client and the Ollama
+server default to. The `warrantor guard` CLI path is pinned by `MEASURED_NUM_CTX`; **the registered
+`ContentScanner` path is not pinned at all.**
+
+**Finding H — `rust/eval-guard` is not the guard evaluator, and must not be wired to.** Its own docs,
+`rust/eval-guard/src/lib.rs:8-11`: *"It does not perform the checks. `run_preflight` takes
+`CheckResults` as an input: four booleans the caller has already decided ... It has no eBPF, opens no
+sockets, inspects no namespaces, and cannot observe the sandbox at all."* It notarizes a sandbox
+pre-flight assertion over `NetworkIsolation`, `FilesystemBoundary`, `ProcessIsolation` and
+`EgressAttestation` (`lib.rs:40-49`). Its refusal shape is the right shape to copy — `run_preflight`
+(`lib.rs:187-190`) returns `Err(EvalGuardError::CheckFailed(check))` before signing anything — but it
+has nothing to do with model promotion. It is read here so nobody bolts a promotion gate onto it. Its
+`#[ignore]` at `rust/warrant/tests/invariants/i09_failure_is_safe.rs:196` reads *"I-09 orphaned:
+eval-guard's fail-closed preflight is not linked by the warrantor binary (2026-09-02)"* — a wiring
+defect **this task does not convert**, because this task adds no Rust link.
+
+---
+
+**Non-goals.**
+
+- **The refusal corpus and `per-plane specialist corpora` — Task 12.2.** This task never changes what
+  a corpus contains, never adds a training row, and never re-examines the specialization result. It
+  reads corpora only for the leakage precondition that already exists.
+- **Adversarial phrasing and severity stability — Task 12.4, already expanded.** Read its section
+  before starting. It owns `paired_analysis.py`, the severity census over `eval_results/*.json`, and
+  the `severity_classes_lost` defect. This task asserts nothing about any severity field, and its exit
+  gate touches no severity axis, so the two gates cannot both claim the same refusal.
+- **The graduation ladder and the `not-promotable` rung — Task 12.6.** The seed's Step 5 ("'not
+  promotable' is a representable outcome") is 12.6's exit gate verbatim and is deleted from this task.
+  This task produces the configuration verdict 12.6's ladder consumes; it builds no rung, records no
+  checkpoint disposition, and does not decide what happens to the five historical candidates.
+- **The external benchmark harness and the evaluation bill of materials — Task 14.2.** This task adds
+  no new scoring path. `score_candidate` (`parity.py:227-247`) stays the single documented way to
+  produce a comparable result, for the reason its own docstring gives.
+- **Guard-model exposure, poisoning and membership inference — Task 12.5.** Nothing here reasons about
+  what a guard leaks about the receipts it was trained on.
+- **Not choosing or training a model, and not re-running any of the five recipes.** No GPU is touched.
+  Every test in this task runs offline against committed documents.
+
+---
+
+**Files.**
+
+- `python/warrantor_ml/src/warrantor_ml/serving.py` — **new.** The single deployed-configuration
+  record and its digest.
+- `python/warrantor_ml/src/warrantor_ml/evaluate.py` — `OllamaGuardBackend` defaults derive from
+  `serving.py`; `descriptor()` emits the quantization field.
+- `python/warrantor_ml/src/warrantor_ml/parity.py` — the configuration refusal inside `parity_gate`.
+- `python/warrantor_ml/src/warrantor_ml/deploy_model.py` — the parity-receipt refusal in
+  `build_registration`; serving constants in the generated adapter.
+- `python/warrantor_ml/src/warrantor_ml/programme.py` — `--precision` becomes an optional cross-check
+  of the document rather than the source of truth.
+- `python/warrantor_ml/tests/test_serving.py` (new), `test_parity.py`, `test_deploy_model.py`,
+  `test_evaluate.py`.
+- `rust/warrant/tests/guard_parity.rs` — extended to bind the Rust side to `serving.py`.
+- `tools/ci/check_deployment_parity.py`, `tools/ci/test_check_deployment_parity.py` and
+  `tools/ci/deployment-parity.json` — the CI gate, its test, and the record its rendered number is
+  checked against.
+- `docs/task-evidence/task-12.3.md` — the evidence file.
+
+**No new crate. No new Rust dependency.** The wiring census must still print `10 of 40 crates
+reachable ... over 18 path edges`, and `tools/ci/invariant-ratchet.json` stays at `passing_floor: 66`,
+`ignored_ceiling: 18`.
+
+---
+
+**Consumes / Produces.**
+
+Consumes, all landed on `main` at `b04164d`:
+
+```python
+# python/warrantor_ml/src/warrantor_ml/parity.py:296-302
+def parity_gate(
+    candidate: CandidateResult,
+    gate_slice: str,
+    leakage: LeakageReport,
+    baseline_id: str | None = None,
+    minimum_positives: int = MINIMUM_POSITIVES,
+) -> ParityDecision:
+
+# python/warrantor_ml/src/warrantor_ml/parity.py:167-175
+def load_candidate_result(
+    path: Path, candidate_id: str, baseline_id: str, lane: str,
+    precision: str, manifest_digest: str,
+    breakdown_key: str = "wildguard_breakdowns",
+) -> CandidateResult:
+
+# python/warrantor_ml/src/warrantor_ml/deploy_model.py:144-150
+def build_registration(
+    card: dict[str, Any], endpoint: str, scanner_id: str | None = None,
+    model_ref: str | None = None, request_timeout_ms: int = 5_000,
+) -> ScannerRegistration:
+
+# python/warrantor_ml/src/warrantor_ml/evaluate.py:275-283
+    def descriptor(self) -> dict[str, Any]:   # writes the result document's `backend` block
+
+# python/warrantor_ml/src/warrantor_ml/baselines.py:198  _ollama_backend(model) -> dict[str, Any]
+# python/warrantor_ml/src/warrantor_ml/baselines.py:498  get_baseline(baseline_id) -> MeasuredBaseline
+# python/warrantor_ml/src/warrantor_ml/stats.py:81       significant_improvement(...)
+# rust/warrant/src/guard.rs:161                          pub const MEASURED_NUM_CTX: u32 = 8192;
+```
+
+Produces:
+
+```python
+# python/warrantor_ml/src/warrantor_ml/serving.py  (new)
+DEPLOYED: Final[Mapping[str, Any]]           # the one deployed serving configuration
+def deployed_digest() -> str                 # sha256 over canonical_json(DEPLOYED)
+def configuration_mismatch(recorded: Mapping[str, Any]) -> tuple[str, ...]
+    """Every field on which a recorded configuration differs from DEPLOYED, or is absent.
+    Empty tuple means parity. Absence is a mismatch, never a match."""
+
+# python/warrantor_ml/src/warrantor_ml/deploy_model.py  (extended signature)
+def build_registration(
+    card: dict[str, Any], endpoint: str, parity_receipt: Mapping[str, Any],
+    scanner_id: str | None = None, model_ref: str | None = None,
+    request_timeout_ms: int = 5_000,
+) -> ScannerRegistration
+    """Raises RegistrationError unless parity_receipt["verdict"] == "promote"."""
+```
+
+**Nothing this task consumes is unlanded.** Task 12.4's `paired_analysis.py` and the two 2026-09-01
+findings documents are **not** on `main` — that is why no step here depends on them, and why no exit
+gate here mentions severity. Task 12.6's ladder does not exist yet and this task does not need it: the
+configuration verdict is written into the decision document 12.6 will later read, so the dependency
+runs 12.3 → 12.6 and never the other way.
+
+---
+
+**Bound strength.**
+
+**Tier B, chokepoint, at two points in the release path — and Tier C, observed, for everything after
+those points.**
+
+- **Tier B, `warrantor-ml-parity`.** `parity_gate` returns `insufficient_evidence` and `parity_main`
+  exits 3 **without writing a decision document**, at the moment a promotion is attempted, when the
+  candidate's recorded serving configuration is absent or differs from `serving.DEPLOYED`. That is a
+  specific line refusing at the moment of attempt. It binds only promotions that pass through this
+  CLI; a candidate registered by hand does not.
+- **Tier B, `build_registration`.** It raises `RegistrationError` before emitting a registration
+  document or a Rust adapter when the parity receipt is missing, malformed, or carries a verdict other
+  than `promote`. Same shape, same limit.
+- **Tier C, observed, for serve time.** Nothing here measures a running process. The gate compares two
+  **records**: a configuration the evaluator wrote into a result document, and a configuration this
+  repository declares to be the deployed one. A serving process started outside the generated
+  adapter — a different Ollama client, a `num_ctx` override on the request, a re-quantized GGUF pushed
+  under an unchanged tag — is not observed and is not refused. There is **no** namespace, seccomp or
+  firewall enforcement anywhere in this repository, and none is added here.
+- **The build-time binding is Tier B at build, not at run.** `guard_parity.rs` fails `cargo test` when
+  the Rust constants and the Python literals disagree. That refuses a **build**, which is a real
+  refusal with a real chokepoint (CI), and it says nothing about what a deployed binary is doing.
+
+**No new trust root.** `serving.DEPLOYED` is a repository-declared record, not an attestation. It
+establishes that *this checkout's evaluator, its promotion gate, its generated adapter and its Rust
+CLI all read one value*. It does not establish that the value is what any machine ran, and it is signed
+by nothing. The weaker local version is the honest one: a single in-repo declaration with a digest, so
+a divergence is a diff rather than an argument.
+
+**No new orphan.** No crate is added; the census holds at 10 of 40 over 18 path edges. No recorded
+invariant violation is converted, so `passing_floor` stays 66 and `ignored_ceiling` stays 18. A
+thirteenth ignore would raise the ceiling and fail the build; none is added.
+
+**The sentence that ships in the product, verbatim, in the decision document and in the registration
+document's `notes`:**
+
+> This gate compares the configuration recorded in the evaluation document against the configuration
+> this build declares it serves. It does not observe the serving process. It cannot detect a context
+> length overridden per request, a model re-quantized under an unchanged tag, or a scanner reached by
+> any path other than the generated adapter — and it gates only capabilities present in the evaluation
+> set.
+
+---
+
+**Exit gate.** One command decides pass or fail:
+
+```
+python tools/ci/check_deployment_parity.py
+```
+
+It passes only when all four hold, and prints one line naming each:
+
+1. Every result document under `eval_results/` is classified `parity` or `refused`, with the reason
+   named, and the counts equal the recorded expectation in `tools/ci/deployment-parity.json` — the
+   rendered number is gated against its record and a drift fails the build.
+2. A promotion attempt whose recorded configuration differs from `serving.DEPLOYED` in quantization
+   exits non-zero and writes no decision document.
+3. A registration attempt with no `promote` parity receipt raises `RegistrationError` and writes no
+   registration and no adapter.
+4. `serving.deployed_digest()` equals the digest recorded in `tools/ci/deployment-parity.json`, and
+   `rust/warrant/src/guard.rs`'s `MEASURED_NUM_CTX` equals `DEPLOYED["num_ctx"]`.
+
+Expected first line, with the numbers this branch's evidence produces:
+
+```
+deployment parity: 7 documents scanned; 2 parity, 5 refused (no serving quantization recorded);
+  deployed digest sha256:… matches record; MEASURED_NUM_CTX 8192 == DEPLOYED num_ctx
+```
+
+---
+
+- [ ] **Step 1 — Worktree and branch.** No production edit happens outside it.
+
+  ```bash
+  export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
+  cd "M:/Project AumOS - Open Secure AI Alliance/aumos"
+  git worktree add M:/wt-12.3 -b feat/deployment-configuration-parity main
+  cd M:/wt-12.3 && export CARGO_TARGET_DIR=M:/wt-12.3-target
+  export PYTHONPATH="M:/wt-12.3/python/warrantor_ml/src"
+  python -c "import warrantor_ml.parity as p; print(p.__file__)"   # MUST print M:\wt-12.3\...
+  ```
+
+  **Test intent:** none yet. The step is complete only when `p.__file__` names this worktree, because
+  every later assertion is void otherwise — see Step 0's captured `M:\wt-2point1` result.
+
+- [ ] **Step 2 — Record Step 0 verbatim into the evidence file, before writing any code.**
+  `docs/task-evidence/task-12.3.md` opens with the eight findings above, each with its command and its
+  captured output, and with the three corrected premises stated as corrections rather than quietly
+  dropped. The three baseline lines (`wiring census`, `invariant ledger`, ratchet floor and ceiling)
+  are pasted in as the numbers the exit gate is compared against at the end.
+
+  **Test intent:** the evidence file is an input to the exit gate, not a report. Step 10 re-runs the
+  three baseline commands and diffs their output against what this step pasted; a drift fails. The
+  mechanism is the diff, not the prose.
+
+- [ ] **Step 3 — Failing test: the gate ignores the candidate's own recorded configuration.** This is
+  the test that proves Finding A is a defect and not a style preference. It must fail on `main`.
+
+  ```python
+  # python/warrantor_ml/tests/test_parity.py
+  def test_a_candidate_whose_document_records_a_different_context_length_is_refused() -> None:
+      """The gate holds `candidate.backend` and, on `main`, reads nothing out of it.
+
+      This is not hypothetical drift: this repository shipped num_ctx 4096 for eight releases
+      while every published figure came from 8192 (rust/warrant/tests/guard_parity.rs:5-9). The
+      Rust side is pinned against evaluate.py by that test; the PROMOTION path is pinned against
+      nothing, so a result document produced at any context length promotes.
+      """
+      document = _result_document(caught=990, positives=1256, false_positives=40, negatives=1019)
+      document["backend"] = {
+          "kind": "ollama",
+          "model": "warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a",
+          "quantisation": "Q4_K_M",
+          "seed": 0,
+          "options": {"temperature": 0.0, "top_p": 1.0, "top_k": 1,
+                      "seed": 0, "num_predict": 64, "num_ctx": 4096},
+      }
+      decision = parity_gate(_load(document), "overall", _clean_leakage())
+      assert decision.verdict == "insufficient_evidence"
+      assert any("num_ctx" in reason and "4096" in reason for reason in decision.reasons), (
+          "the gate must name the field and both values; 'configuration mismatch' is not a "
+          "reason an operator can act on"
+      )
+      assert decision.evidence["deployed_configuration_digest"]
+  ```
+
+  **Test intent:** fail with `assert decision.verdict == 'insufficient_evidence'` receiving
+  `'promote'`. Record that failure in the evidence file — it is the proof the field was dead.
+
+- [ ] **Step 4 — `serving.py`: one declared deployed configuration, with a digest.** Nine keys, in the
+  shape `baselines._ollama_backend` already uses so the two are comparable without a translation
+  layer. `evaluate.OllamaGuardBackend`'s defaults are then **derived** from it rather than repeated
+  next to it — by construction rather than by agreement, which is the phrase `programme._read_corpus`
+  already uses for the same class of defect.
+
+  ```python
+  # python/warrantor_ml/src/warrantor_ml/serving.py
+  """The one place the deployed serving configuration is written down.
+
+  Four things read a serving configuration in this repository and, before this module, four things
+  declared one: evaluate.OllamaGuardBackend's dataclass defaults, baselines._ollama_backend's
+  literal, rust/warrant/src/guard.rs's GuardKnobs, and whatever HTTP client a caller hands to the
+  generated ContentScanner adapter. Three of the four were bound to each other by
+  rust/warrant/tests/guard_parity.rs. The fourth was bound to nothing, and the promotion gate
+  compared none of them.
+  """
+  QUANTIZATION: str = "Q4_K_M"
+  NUM_CTX: int = 8192
+  SEED: int = 0
+  NUM_PREDICT: int = 64
+
+  #: Absence is a mismatch. A recorded configuration that omits a key is not a configuration that
+  #: agrees on it, and treating the two the same is how the 4096 release shipped.
+  REQUIRED_KEYS: Final[tuple[str, ...]] = (
+      "quantisation", "num_ctx", "seed", "num_predict", "temperature", "top_p", "top_k",
+  )
+
+  def configuration_mismatch(recorded: Mapping[str, Any]) -> tuple[str, ...]:
+      """Field-by-field differences against DEPLOYED. Empty means parity."""
+  ```
+
+  **Test intent:** `test_serving.py` asserts that an empty input yields one entry per required key
+  rather than an empty tuple. That single assertion is the whole design: absence must never read as
+  agreement.
+
+  ```python
+  def test_an_absent_field_is_a_mismatch_and_not_a_match() -> None:
+      missing = configuration_mismatch({})
+      assert len(missing) == len(REQUIRED_KEYS)
+      assert all("absent" in entry for entry in missing)
+
+  def test_the_deployed_record_agrees_with_itself() -> None:
+      assert configuration_mismatch(DEPLOYED) == ()
+  ```
+
+- [ ] **Step 5 — Extend `guard_parity.rs` to read `serving.py`, and let it fail first.** Pointing
+  `evaluate.py`'s defaults at `serving.py` removes the literal `num_ctx: int = 8192` that
+  `guard_parity.rs:39-58` parses, so
+  `the_python_source_is_still_shaped_the_way_these_assertions_read_it` fails with *"cannot read the
+  Python default for num_ctx: the parity comparison is not being made."* **That failure is the proof
+  the binding was live**, and it is recorded in the evidence file before being fixed. The fix is a
+  second `include_str!`, never a deleted assertion.
+
+  ```rust
+  // rust/warrant/tests/guard_parity.rs
+  /// The Python evaluator, as a compile-time string.
+  const EVALUATE_PY: &str = include_str!("../../../python/warrantor_ml/src/warrantor_ml/evaluate.py");
+  /// The declared deployed configuration, as a compile-time string. Added when evaluate.py stopped
+  /// carrying its own literals: these assertions must follow the value, not the file it used to
+  /// live in.
+  const SERVING_PY: &str = include_str!("../../../python/warrantor_ml/src/warrantor_ml/serving.py");
+
+  #[test]
+  fn the_quantization_the_python_side_declares_is_the_one_this_crate_serves() {
+      // The axis nothing pinned. num_ctx was pinned twice and then measured inert -- 0 of 493
+      // decision changes across a sixteenfold range, both models. Quantization was pinned nowhere
+      // and moves 4 to 18 verdicts per thousand at the deployed default, in a direction that
+      // differs by model family. GuardKnobs has no quantization field, so this asserts against the
+      // model tag the CLI resolves rather than against a knob that does not exist.
+      let declared = python_default_in(SERVING_PY, "QUANTIZATION")
+          .expect("serving.py declares QUANTIZATION");
+      assert_eq!(declared, "\"Q4_K_M\"");
+      assert!(
+          warrantor_warrant::guard::default_model_tag().contains("Q4_K_M"),
+          "the CLI's default guard model tag must name the quantization the Python side declares \
+           it measured at; an unlabeled tag is a configuration nobody can check"
+      );
+  }
+  ```
+
+  **Test intent:** two failures, in order — first the reformat failure that proves the old binding was
+  doing work, then this new test failing until `serving.py` and the CLI's default tag agree. Both are
+  captured in the evidence file. `cargo test -p warrantor-warrant --test guard_parity` is the command.
+
+- [ ] **Step 6 — The refusal, with its allowed control.** `parity_gate` gains one blocking
+  precondition, placed with the others at `parity.py:361-421` so it composes with them rather than
+  short-circuiting them. The reason string names the field, both values, and the measured effect,
+  because a refusal an operator cannot act on gets bypassed rather than fixed.
+
+  ```python
+  # python/warrantor_ml/src/warrantor_ml/parity.py, inside parity_gate's precondition block
+  recorded = _recorded_serving_configuration(candidate.backend)
+  evidence["recorded_serving_configuration"] = recorded
+  evidence["deployed_configuration_digest"] = serving.deployed_digest()
+  if mismatches := serving.configuration_mismatch(recorded):
+      blocking.append(
+          "the candidate was evaluated at a configuration this build does not serve: "
+          + "; ".join(mismatches)
+          + ". Quantization is not verdict-neutral at the deployed default -- between 4 and 18 "
+          "verdicts per thousand change at Q4_K_M across five measured models, and the DIRECTION "
+          "does not generalize, so this cannot be waved through as 'probably safer'. A promotion "
+          "measured at a configuration the product does not serve is a promotion of a model that "
+          "does not ship."
+      )
+  ```
+
+  Paired allowed control, in the same commit, and it must promote:
+
+  ```python
+  def test_a_candidate_recorded_at_the_deployed_configuration_still_promotes() -> None:
+      """The allowed control for the refusal above. A gate that refuses everything is not a gate."""
+      document = _result_document(caught=990, positives=1256, false_positives=40, negatives=1019)
+      document["backend"] = _backend_at(serving.DEPLOYED)
+      decision = parity_gate(_load(document), "overall", _clean_leakage())
+      assert decision.verdict == "promote", decision.reasons
+      assert decision.evidence["recorded_serving_configuration"]["quantisation"] == "Q4_K_M"
+      assert decision.evidence["deployed_configuration_digest"] == serving.deployed_digest()
+  ```
+
+  **Test intent:** Step 3's refusal turns green, this control stays green, and all 51 existing
+  `test_parity.py` and `test_deploy_model.py` assertions still pass. If an existing test breaks, its
+  fixture was relying on the absent field and the fixture is what changes — never the refusal.
+
+- [ ] **Step 7 — `--precision` stops being the source of truth.** `programme.py:234` currently makes
+  the operator's string authoritative. It becomes an optional cross-check: when supplied it must equal
+  what the document records, and a disagreement is itself a refusal. `evaluate.descriptor()` gains the
+  quantization field so future documents can be checked at all, and the schema bump is recorded
+  because it changes `result_digest`.
+
+  ```python
+  # python/warrantor_ml/src/warrantor_ml/evaluate.py, descriptor()
+  return {
+      "kind": "ollama",
+      "model": self.model,
+      "endpoint": self.endpoint,
+      "seed": self.seed,
+      # Added at SCHEMA_VERSION 2. The five 2026-08-22 candidate documents record no quantization
+      # at all -- their Ollama tags carry no label -- so the gate could not have compared it even
+      # if it had looked. Resolved from the tag when the tag names it, and from --quantization
+      # otherwise; NEVER defaulted, because a defaulted value would make every historical document
+      # silently agree with whatever this build happens to serve.
+      "quantisation": self.quantisation,
+      "options": self._options(),
+  }
+  ```
+
+  ```python
+  def test_the_operator_cannot_declare_a_precision_the_document_contradicts(tmp_path) -> None:
+      document = _result_document(caught=990, positives=1256, false_positives=40, negatives=1019)
+      document["backend"] = _backend_at({**serving.DEPLOYED, "quantisation": "Q8_0"})
+      decision_path = tmp_path / "decision.json"
+      exit_code = parity_main([*_base_arguments(document), "--precision", "gguf-q4_k_m",
+                               "--out", str(decision_path)])
+      assert exit_code == 3
+      assert not decision_path.exists(), "a refused promotion writes no decision document"
+
+  def test_the_document_alone_is_enough_and_precision_may_be_omitted(tmp_path) -> None:
+      """Allowed control: the artifact decides, not argv. Omitting --precision must still work."""
+      document = _result_document(caught=990, positives=1256, false_positives=40, negatives=1019)
+      document["backend"] = _backend_at(serving.DEPLOYED)
+      assert parity_main([*_base_arguments(document)]) == 0
+  ```
+
+  **Test intent:** the declared string and the recorded value disagree, and the gate refuses on the
+  recorded one. The paired control proves the same call promotes when `--precision` is omitted
+  entirely, which is the point — the artifact, not the argument vector, decides.
+
+- [ ] **Step 8 — The deploy step refuses without a `promote` receipt.** This is L9-03's verification
+  text, which nothing on `main` implements (Finding F). `build_registration` takes the receipt, and
+  every refusal precedes every write.
+
+  ```python
+  # python/warrantor_ml/src/warrantor_ml/deploy_model.py, in build_registration
+  verdict = str(parity_receipt.get("verdict", ""))
+  if verdict != "promote":
+      raise RegistrationError(
+          f"parity verdict is {verdict!r}; only 'promote' may be registered. An adapter with no "
+          "gate receipt is an adapter whose ScannerVerdict.model_digest binds to a number nobody "
+          "compared -- and `insufficient_evidence` is not a weaker 'promote', it is the gate "
+          "saying it could not tell."
+      )
+  if not is_wellformed_digest(str(parity_receipt.get("decision_digest", ""))):
+      raise RegistrationError(
+          "the parity receipt carries no well-formed decision_digest, so the registration would "
+          "cite evidence that cannot be re-audited"
+      )
+  recorded = parity_receipt.get("recorded_serving_configuration", {})
+  if serving.configuration_mismatch(recorded):
+      raise RegistrationError(
+          "the promoted candidate was evaluated at a configuration this build does not serve: "
+          + "; ".join(serving.configuration_mismatch(recorded))
+      )
+  ```
+
+  ```python
+  def test_registration_is_refused_without_a_promote_receipt() -> None:
+      for verdict in ("reject", "insufficient_evidence", ""):
+          with pytest.raises(RegistrationError, match="only 'promote' may be registered"):
+              build_registration(example_card(), endpoint=ENDPOINT,
+                                 parity_receipt={"verdict": verdict})
+
+  def test_registration_succeeds_with_a_promote_receipt_at_the_deployed_configuration() -> None:
+      """The allowed control. The refusal above is worthless if nothing can be registered."""
+      receipt = {"verdict": "promote", "decision_digest": f"sha256:{'a' * 64}",
+                 "recorded_serving_configuration": dict(serving.DEPLOYED)}
+      registration = build_registration(example_card(), endpoint=ENDPOINT, parity_receipt=receipt)
+      body = registration.to_dict()
+      assert body["parity_receipt"]["decision_digest"] == receipt["decision_digest"]
+      assert body["serving"]["num_ctx"] == 8192
+      assert any("does not observe the serving process" in note for note in body["notes"])
+  ```
+
+  **Test intent:** three refusals and one allowance, and the refused paths write nothing —
+  `write_registration` is never reached, so no partial document exists on disk to be mistaken for a
+  registration. The third assertion in the control is the mechanism for the Tier C half of the claim:
+  the honesty sentence is in the shipped document, not only in this plan.
+
+- [ ] **Step 9 — The generated adapter carries the serving constants, and says what they do not do.**
+  Finding G: the `warrantor guard` CLI is pinned and the registered `ContentScanner` path is not.
+
+  ```rust
+  // added to _ADAPTER_TEMPLATE in deploy_model.py
+  /// The serving configuration this scanner was PROMOTED at. The transport closure is the
+  /// caller's, so these are values the caller MUST send -- this adapter cannot enforce them.
+  /// Sending different ones serves a model nobody measured.
+  pub const SERVED_QUANTIZATION: &'static str = "{quantisation}";
+  pub const SERVED_NUM_CTX: u32 = {num_ctx};
+  pub const SERVED_SEED: i64 = {seed};
+  pub const SERVED_NUM_PREDICT: u32 = {num_predict};
+  ```
+
+  ```python
+  def test_the_generated_adapter_names_the_configuration_it_was_promoted_at() -> None:
+      source = render_rust_adapter(_promoted_registration())
+      assert f"SERVED_NUM_CTX: u32 = {serving.NUM_CTX};" in source
+      assert f'SERVED_QUANTIZATION: &\'static str = "{serving.QUANTIZATION}";' in source
+      assert "this adapter cannot enforce them" in source, (
+          "the comment is the mechanism for the Tier C half of the claim: the constants are "
+          "declarative and the closure is the caller's, and the generated file has to say so "
+          "or a later reader will upgrade it to enforcement in their head"
+      )
+  ```
+
+  **Test intent:** the constants are present and equal `serving.DEPLOYED`, and the honesty comment is
+  present. **This step adds no enforcement.** It is a Tier C observed claim, and the assertion on the
+  comment is what keeps it labeled that way.
+
+- [ ] **Step 10 — CI gate, ratchet, census, evidence, `git commit -s`.** One command, one line, and
+  the rendered number checked against its record.
+
+  ```bash
+  cd M:/wt-12.3 && export PYTHONPATH="M:/wt-12.3/python/warrantor_ml/src"
+  python -c "import warrantor_ml.parity as p; print(p.__file__)"      # this worktree, or stop
+  python -m pytest python/warrantor_ml/tests -q                        # 609 + new, 0 failed
+  cargo test -p warrantor-warrant --test guard_parity
+  python tools/ci/check_deployment_parity.py                           # THE EXIT GATE
+  python -m pytest tools/ci/test_check_deployment_parity.py -q
+  python tools/ci/wiring_census.py       # 10 of 40 crates ... 18 path edges — unchanged
+  python tools/ci/check_invariants.py    # 12 invariants; enforced=2, orphaned=2, partial=7, unimplemented=1
+  python tools/ci/check_invariant_ratchet.py   # floor 66, ceiling 18 — READ from the test line
+  python tools/ci/check_us_english.py --files docs/task-evidence/task-12.3.md
+  git add -A && git commit -s -m "feat(ml): refuse a promotion evaluated at a configuration the build does not serve"
+  ```
+
+  ```python
+  # tools/ci/check_deployment_parity.py — the rendered number is gated against its record
+  recorded = json.loads(RECORD.read_text(encoding="utf-8"))
+  if (scanned, parity, refused) != (recorded["scanned"], recorded["parity"], recorded["refused"]):
+      print(f"deployment parity: counts moved -- scanned {scanned} parity {parity} refused "
+            f"{refused}, record says {recorded['scanned']}/{recorded['parity']}/"
+            f"{recorded['refused']}. A number this gate prints must match the number it was "
+            "recorded against, or the printed one is decoration. Update the record in the same "
+            "commit that earns it.")
+      return 1
+  if serving.deployed_digest() != recorded["deployed_digest"]:
+      print("deployment parity: the deployed configuration changed and every published figure was "
+            "measured at the old one. Re-measure, or do not move it.")
+      return 1
+  ```
+
+  **Test intent:** `tools/ci/test_check_deployment_parity.py` asserts the script returns 1 when the
+  record disagrees and 0 when it agrees, over a temporary directory rather than the real
+  `eval_results/`. `tools/ci/invariant-ratchet.json` is **unchanged** — this task converts no recorded
+  violation, so raising `passing_floor` would be a claim without a mechanism, and the 18 existing
+  `#[ignore]`s in `rust/warrant/tests/invariants/` are untouched. The evidence file closes with the
+  five refused documents named, the reason for each, and the three premises the seed got wrong, so a
+  reader of the plan does not carry them forward into Task 12.6.
 
 ### Task 12.4: Adversarial-phrasing robustness; advisory-boundary and severity-stability gate (L9-07, L9-15)
 
@@ -27954,43 +30453,994 @@ BOM alone, tested by re-running one claim from the BOM.
 
 ### Task 13.6: Impossible-task and broken-environment detection; structured stop, abstain and ask (L11-08, L11-09)
 
-**Anchor.** Both `status=none`, `core`, W2. **An agent given an impossible task will improvise a
-path.** That is the mechanism behind most of the incident's hops: not malice, but an agent routing
-around an obstacle. "Stop and ask" must be a first-class outcome with a receipt, not an absence of
-one — and today a warrant that produces no effects is indistinguishable from a warrant whose agent
-gave up silently.
+**Anchor.** From `docs/html/warrantor-native-ai-platform-os-master-2026-09-01.html`, quoted verbatim
+with the attribute line so nothing is softened:
 
-**Step 0.** Read `WarrantState` in `rust/warrant/src/lib.rs` and enumerate every terminal state;
-record whether abstention is representable. Read Task 8.5's task-validity attestation — **validity is
-about the grant, this is about achievability**, and the two must not collapse. Read Task 9.8's
-escalation channel: an abstention with nowhere to go is a stall, so record whether 9.8 has landed.
+```html
+<article class="item" id="L11-08" data-stratum="L11" data-plane="A" data-status="none" data-novelty="core" data-wave="W2" data-loop="L5">
+  <h4>Impossible-task and broken-environment detector</h4>
+  <p class="what">The lifecycle side of task validity: statistical and structural detection that a task cannot be completed as specified or that an environment is broken, with the finding routed to the environment owner and the task's authority narrowed until it is repaired. Pairs with the per-run attestation in L3-01.</p>
+  <p class="verify"><b>Verification</b> A seeded unsolvable task is flagged within a stated number of attempts and its owner notified; agents assigned to it receive a narrowed warrant; the flag is receipted.</p>
 
-**Non-goals.** Not objective drift — 8.5. Not reward hacking — 13.7. Not the approval queue — 11.5.
+<article class="item" id="L11-09" data-stratum="L11" data-plane="A" data-status="none" data-novelty="core" data-wave="W2" data-loop="L5">
+  <h4>Structured stop, abstain and ask-for-clarification outcome</h4>
+  <p class="what">A first-class task outcome that is neither success nor failure: the agent stops, abstains or asks, and the outcome is scored as legitimate by the grader rather than as a loss. The escalation channel in L5-04 delivers the ask; this item makes the ask a valid ending.</p>
+  <p class="verify"><b>Verification</b> A run that ends in a structured stop is scored no worse than an honest failure and never as a timeout; the grader's scoring rule for the outcome is versioned and visible.</p>
+```
 
-**Files.** `rust/warrant/src/lib.rs`, `rust/warrant/src/report.rs` (**contended**),
-`docs/task-evidence/task-13.6.md`.
+The seed's anchor line reads *"Both `status=none`, `core`, W2."* **Verified true** — both articles carry
+`data-status="none" data-novelty="core" data-wave="W2"`. That is the only line of the seed's framing
+that survives unaltered.
 
-**Consumes / Produces.** Consumes `WarrantState` and Task 9.8's escalation path. Produces three new
-terminal outcomes — stopped, abstained, awaiting-clarification — each with a receipt, and a detector
-for environments that cannot satisfy the task.
+**An agent given an impossible task will improvise a path.** That argument holds and is the reason this
+task exists. Two of the claims built on top of it do not.
 
-**Bound strength.** **Tier C, observed** for detection; **Tier B** for the state machine, because an
-agent that cannot reach a terminal state without one of these is structurally forced to declare.
-Note the honest limit: an agent can still declare "done" falsely, and only the causal verdict
-(Task 10.1) makes that checkable.
+---
 
-**Exit gate.** A warrant against a broken environment terminates in `abstained` with a receipt naming
-what was missing, rather than in success or silence; and a test proves no code path reaches a
-terminal state without producing one of the receipted outcomes.
+#### What the code shows — one contradicted premise and one that survives
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.6 -b feat/structured-abstention origin/main`
-- [ ] **Step 2 — Enumerate terminal states; confirm abstention is not representable today.**
-- [ ] **Step 3 — Failing test: a broken environment produces `abstained`, not success.**
-- [ ] **Step 4 — Failing test: the abstention receipt names what was missing.**
-- [ ] **Step 5 — Failing test: no terminal state is reachable without a receipted outcome.**
-- [ ] **Step 6 — Failing test: an abstention with no escalation path is itself a defect.** Assert 9.8's path is reached.
-- [ ] **Step 7 — Record that a false "done" is out of scope** and name Task 10.1 as the control for it.
-- [ ] **Step 8 — Gates, evidence file, `git commit -s`.**
+Read on **local `main` at `b04164d`**, 2026-09-05. `origin/main` is stale at `e4b5f10` and does not carry
+the six unpushed merges; every line number below is from `b04164d`. **`premise_contradicted = true`.**
+
+**(1) Survives: abstention is not representable.** `WarrantState` has exactly four variants and none of
+them is an abstention (`rust/warrant/src/lib.rs`):
+
+```rust
+161: pub enum WarrantState {
+163:     Open,      // the agent is acting; local writes land in the worktree, external effects stage
+167:     Held,      // ended on schedule (deadline or budget), staged effects awaiting review
+170:     Settled,   // staged effects released and the worktree merged
+173:     Void,      // staged effects discarded and the worktree deleted
+```
+
+**Terminal states are `Settled` and `Void`, and only those two.** The authority is `transition`
+(`rust/warrant/src/lib.rs:597-613`), quoted whole because both of its silent arms matter here:
+
+```rust
+597:    pub fn transition(&mut self, to: WarrantState) -> Result<(), WarrantError> {
+598:        let legal = match (self.state, to) {
+599:            (WarrantState::Open, _) => true,
+600:            // Held is not terminal: the deadline passed, and the settle authority may still
+601:            // release or discard what was staged.
+602:            (WarrantState::Held, WarrantState::Settled | WarrantState::Void) => true,
+603:            _ => false,
+604:        };
+```
+
+`Open` is not terminal. `Held` is explicitly not terminal, and lines 600-601 say why in the code's own
+words. `Settled` and `Void` are terminal because every pair leaving them falls to `_ => false` at line
+603. So: **four variants, two terminal, abstention unrepresentable.** The seed's Step 2 is correct.
+
+**(2) Contradicted: the seed's Bound strength.** It says *"**Tier B** for the state machine, because an
+agent that cannot reach a terminal state without one of these is structurally forced to declare."* Every
+clause of that is wrong, three ways, and the third is the one that matters:
+
+- **The agent never transitions the warrant.** `transition` is reached from `stop::execute`
+  (`rust/warrant/src/stop.rs:264`) and from `settle.rs`, both of which run in the operator's process. The
+  agent's own capability token is act-scoped with no settle scope by construction
+  (`rust/warrant/src/lib.rs:502-521`). Nothing about a terminal state is a decision the agent makes.
+- **The agent is not forced to declare anything; it just exits.** `daemon::run`
+  (`rust/warrant/src/daemon.rs:374-389`) waits, records an exit code, and leaves the warrant `Open`:
+
+```rust
+374:    let remaining = expires_at.saturating_sub(now);
+375:    let (code, expired) = match supervisor.wait_until(remaining)? {
+376:        Some(code) => { println!("warrantor: agent exited with {code}"); (code, false) }
+380:        None => { /* deadline reached: terminate the agent tree */ (-1, true) }
+```
+
+  A `CompletionRecord` is then written carrying `exit_code` and `expired`
+  (`rust/warrant/src/daemon.rs:106-117`). That is the honest half of the seed's anchor: an agent that gave
+  up silently exits 0, and a warrant that produced no effects is `Open` with `exit_code: 0` and
+  `StagingQueue::len() == 0` — byte-identical to a warrant whose task needed no external effects.
+  **The anchor is verified. The mechanism the seed proposed for it is not.**
+- **`Warrant.state` is not signature-protected, so it cannot carry a Tier B claim at all.** Verbatim,
+  `rust/warrant/src/lib.rs:399-401`:
+
+```rust
+    /// Current lifecycle state. Not signed: it changes over the warrant's life, and every
+    /// transition is separately evidenced in the receipt chain.
+    pub state: WarrantState,
+```
+
+  And the store is same-UID reachable. `docs/W1-delivery-gaps.md:620-622`, verbatim:
+
+  > **What remains, stated narrowly:** the agent can still read the store directly, and nothing can stop
+  > it. Same UID is same UID.
+
+  Read is what the gaps document states; nothing in the repository refuses a *write* to
+  `~/.warrantor/warrants/<id>.json` either, and because `verify` checks the signature over `claims` —
+  which excludes `state` — a flipped state field is not detectable by any existing check. A tier word
+  attached to the state machine would be a tier word attached to a mutable, unsigned field. **The tier
+  belongs on the record, which is signed, not on the state.**
+
+**(3) Contradicted in the seed's favor: "ask" does not need Task 9.8.** The seed's Step 0 says to *"record
+whether 9.8 has landed"*. It has not — `rust/channel/` does not exist under `rust/` on local `main` (Step
+0 captures the listing). But the conclusion the seed draws, that an abstention has nowhere to go, is too
+strong. A pre-decision human path already exists and works:
+
+```rust
+// rust/warrant/src/review.rs:57
+pub const REVIEW_EVENT: &str = "review-requested";
+// rust/warrant/src/notify.rs:70
+pub const EVENTS: [&str; 5] = ["settled", "voided", "stopped", "filing-queued", crate::review::REVIEW_EVENT];
+```
+
+`review.rs`'s own module doc names exactly this gap and says it closed it (lines 3-13): *"`notify.json`
+fires on `settled`, `voided`, `stopped` and `filing-queued`: four events that are all after a decision,
+and none that says one is wanted."* `REVIEW_EVENT` is the fifth, and `review::Blocker`
+(`rust/warrant/src/review.rs:74-100`) already carries the three shapes an ask needs — waiting on a
+decision, waiting on named people, and `Deadlocked { why }` for a queue that has stopped rather than
+slowed. **So "ask" can be recorded and delivered today.** What 9.8 adds, and what this task must not
+claim, is the *measured* latency to first human response and the use-rate metric.
+
+**(4) A finding the seed does not mention, and it is the largest reuse available.** L11-08 asks for a flag
+*"within a stated number of attempts"*. The stated number already exists, public and named
+(`rust/warrant/src/serve.rs:2458-2505`):
+
+```rust
+2462: pub const REPEATED_OCCURRENCES: u64 = 5;   // "a threshold, not a truth"
+2464: pub const SPREAD_WARRANTS: usize = 2;      // distinct warrants before it has spread
+2469: pub enum RefusalSignal { BoundsProbablyWrong, RepeatedInOneRun, Isolated }
+2505: pub fn aggregate_refusals(records: &[RefusalRecord]) -> Vec<RefusalGroup>
+```
+
+`aggregate_refusals` groups every refusal by tool and destination across warrants and already emits
+`BoundsProbablyWrong` at five occurrences across two warrants. **This task must not invent a second
+threshold.** It must, however, refuse to collapse two diagnoses that share one body of evidence:
+`BoundsProbablyWrong` says *the grant was scoped wrong*, and a broken-environment finding says *the world
+the task named is not there*. The same five refusals support both readings, and a detector that prints one
+word for both will get the remedy wrong every second time.
+
+**(5) The agent has no channel to say anything on.** `AgentEndpoint::tools()`
+(`rust/warrant/src/mcp_endpoints.rs:948-963`) publishes the warrant's allowed tool names and nothing else;
+the control endpoint's lifecycle tools are deliberately absent from a supervised session
+(`rust/warrant/src/mcp_endpoints.rs:654`, and the CLI usage block: *"no lifecycle tool published -- so the
+agent has no route to settling its own work"*). There is therefore no call an agent can make that means
+"this cannot be done". Every agent under this product must invent one, which is the failure this task
+exists to remove.
+
+---
+
+#### The design decision this task turns on: **zero new `WarrantState` variants**
+
+The seed's Produces line asks for *"three new terminal outcomes — stopped, abstained,
+awaiting-clarification"*. Implemented as three enum variants, that would be wrong, and the reader census
+below is the evidence.
+
+**Where a fifth variant would break loudly (good).** Four exhaustive matches with no catch-all, each a
+compile error the moment a variant is added:
+
+```
+rust/warrant/src/serve.rs:2135-2139           the state word for the review queue
+rust/warrant/src/serve.rs:3460-3464           the /v1/summary state counts
+rust/warrant/src/bin/warrantor.rs:3796-3799   the holdings listing
+rust/warrant/src/corpus.rs:194-222            the training-label decision
+```
+
+**Where a fifth variant would pass silently (the hazard).** Two classes:
+
+- **The `matches!` guards.** Twelve sites ask only "is this `Open`" or "is this `Open | Held`" —
+  `daemon.rs:227`, `egress.rs:157`, `mcp_endpoints.rs:1193`, `bin/warrantor.rs:3113`,
+  `bin/warrantor.rs:4329`, `store.rs:463`, `settle.rs:177`, `settle.rs:407`, `settle.rs:492`,
+  `settle.rs:521`, `report.rs:844`, `retention.rs`. A new variant reads as "not Open" at every one, which
+  fails closed and is the right default — but silently, so nobody is told a case was added.
+- **The renderers.** `report.rs:1462` is `format!("state: {:?}", bundle.state)`, `report.rs:1646` is
+  `format!("Warrant {} — {:?}", ...)`, and `stop::render_cli` prints `format!("state: {:?} -> {:?}")`
+  (`rust/warrant/src/stop.rs:967-970`). Debug formatting means a new variant renders as its bare Rust
+  identifier with **no tier word, no caveat and no disclosure**, on the surface an operator reads. And
+  `notify::Notification.state` is a free `String` (`rust/warrant/src/notify.rs:279`), so a new state word
+  ships to a third-party webhook with no schema break and no reader that knows it.
+
+A fifth variant would therefore arrive as a silent word on the loudest surfaces in the product. That is
+the "worse than none" case, and the reason for the decision:
+
+> **All three outcomes are recorded as `Ending` values inside one signed `OutcomeRecord`. The warrant's
+> lifecycle keeps its four states.** A run that stops, abstains or asks lands in `Held`, because `Held`
+> already means the exact thing all three need: the run is over and the staged work is preserved for a
+> decision the settle authority still has to make.
+
+Three further reasons, each checkable:
+
+1. **`Stopped` already exists.** It is `Held` plus a signed `StopRecord` (`stop.rs:264`,
+   `stop.rs:586-601`). A `Stopped` variant would duplicate it and would put every `matches!(_, Held)` site
+   into scope for an audit that buys nothing.
+2. **`AwaitingClarification` is not terminal.** A run resumes after the answer. As a lifecycle variant,
+   `(Open, AwaitingClarification)` is legal via line 599 and `(AwaitingClarification, Open)` is refused by
+   line 603 — the warrant would be stranded by the very arm that makes new variants safe.
+3. **A terminal abstention would strand the staged work.** Nothing may leave `Settled` or `Void`, so an
+   `Abstained` terminal state would make the staged queue unreleasable and unvoidable. Abstention is a
+   statement about *why the run ended*; `WarrantState` is a statement about *what may still happen to the
+   work*. Different questions, and they must not share an enum.
+
+**One consequence must be fixed rather than absorbed.** Once abstention also produces `Held`, two
+sentences in the product become false. `corpus.rs:204-212` describes a held warrant as *"the run ended on
+its deadline or budget and the decision is still waiting"*, and `WarrantState::Held`'s own doc comment
+(`lib.rs:165-167`) says *"ended on schedule (deadline or budget)"*. Both must name the third cause and
+read the outcome record for it. Step 8 is that edit, and it is a test, not a comment change.
+
+---
+
+#### Step 0 — commands run, with real output captured on this box, 2026-09-05
+
+Read in full, no skimming:
+
+| Path | Lines | Why |
+|---|---|---|
+| `rust/warrant/src/lib.rs` | 725 | `WarrantState`, `transition`, `BoundStrength`, the unsigned-state comment. |
+| `rust/warrant/src/supervise.rs` | 580 | What actually ends a run, and the platform where the link does not hold. |
+| `rust/warrant/src/stop.rs` | 1067 | The record shape, the over-claim refusals, the tier language to copy. |
+| `rust/warrant/src/bin/warrantor.rs` | 6747 | `cmd_stop` (1752-1869) and the usage block's stop paragraph (653-658). |
+| `rust/warrant/tests/invariants/i12_safe_state_is_reachable.rs` | 176 | I-12, whose finding this task must not appear to fix. |
+| `rust/warrant/src/review.rs` | 932 | The human path that already exists. |
+| `rust/warrant/src/serve.rs` | 2298-2560 | `RefusalRecord`, the thresholds, `aggregate_refusals`. |
+
+Plus, from the plan: **Task 8.5** (task-validity attestation and objective drift), **Task 9.8**
+(escalation channel), **Task 13.4** (equivalence laboratory) and **Task 13.7** (scorer isolation, already
+expanded on `feat/scorer-isolation`).
+
+```bash
+export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
+cd "M:/Project AumOS - Open Secure AI Alliance/aumos"
+git rev-parse main
+git ls-tree --name-only main rust/ | grep -c '^rust/[a-z]'
+git ls-tree --name-only main rust/ | grep -E 'channel|guard'
+```
+
+```
+b04164ddbdc29e001fcf4dd71f43a579cbe2c39a
+40
+rust/eval-guard
+```
+
+**Forty crates, and there is no `rust/channel` and no `rust/guard`.** Task 9.8's target directory does not
+exist, so no step here may `cargo` against it; and guard work lives in `rust/eval-guard` plus
+`python/warrantor_ml`, neither of which this task touches.
+
+```bash
+cd rust && cargo test -p warrantor-warrant --test invariants -j 2
+```
+
+```
+running 84 tests
+test result: ok. 66 passed; 0 failed; 18 ignored; 0 measured; 0 filtered out; finished in 0.11s
+```
+
+```bash
+python tools/ci/wiring_census.py
+python tools/ci/check_invariants.py
+```
+
+```
+wiring census: 10 of 40 crates reachable from warrantor-warrant over 18 path edges
+invariant ledger: 12 invariants; enforced=2, orphaned=2, partial=7, unimplemented=1
+```
+
+The ratchet baseline it must stay inside, verbatim from `tools/ci/invariant-ratchet.json`:
+
+```json
+  "passing_floor": 66,
+  "ignored_ceiling": 18,
+  "note": "The invariant attack corpus for I-01..I-12. `passing_floor` may only rise; `ignored_ceiling` may only fall."
+```
+
+**I-12's status word, quoted from `evidence/invariants.json`, because this task sits next to it and must
+not appear to move it:**
+
+```json
+{ "id": "I-12",
+  "statement": "Physical systems can reach a safe state. For any cyber-physical action, there exists a kill path to a known-safe state.",
+  "status": "partial",
+  "gap": "The stop verb kills a local process and says so honestly as 'advisory'; the kill-switch crate (its own tokio runtime) is not linked, and no cyber-physical safe-state path exists. Task 1.3 promotes STOP_ENFORCEMENT_MODE only where a refusal is observed on that kernel." }
+```
+
+**`status` is `partial`, and it stays `partial` after this task.** I-12's single `#[ignore]` is
+`rust/warrant/tests/invariants/i12_safe_state_is_reachable.rs:167`, and it belongs to Task 1.3:
+
+```rust
+#[ignore = "I-12 partial: the kill path is advisory, so it holds only against an agent using its tools (Task 1.3, 2026-09-02)"]
+fn the_kill_path_is_stronger_than_advisory() {
+```
+
+The invariant this task most nearly touches is *"there exists a kill path to a known-safe state"*, and the
+seed is right that an abstention which is not a safe state is a new failure mode rather than a control. So
+the standard the outcome record has to meet is I-12's own: **the state an abstention lands in must be one
+the settle authority can act on without the agent's cooperation.** `Held` meets it — `transition` line 602
+permits `Held -> Settled | Void`, and neither needs the agent. A terminal abstention would not have met
+it, which is design reason 3 above, arrived at from the invariant rather than from taste.
+
+**Record before writing any code:** the four-variant enum with the two terminal ones; the twelve
+`matches!` sites and the three Debug renderers; the `66/0/18` and `10 of 40 / 18 edges` baselines; and the
+absence of `rust/channel`. A later reader cannot reconstruct any of it from the diff.
+
+---
+
+#### Non-goals
+
+1. **Not scorer or grader isolation — Task 13.7 owns it,** already expanded on `feat/scorer-isolation`.
+   L11-09's verification says an abstention must be *"scored as legitimate by the grader"*. This task
+   produces the outcome and its versioned scoring rule; it never touches where the grader runs, what it
+   can reach, or the anti-gaming corpus. **Do not add a grader trust domain here** — 13.7 has already
+   recorded that `eval-guard` performs no isolation, and a second, weaker isolation story from this task
+   would be the duplicated claim the plan keeps producing.
+2. **Not task validity or objective drift — Task 8.5 owns it, and it is the nearest neighbor.** 8.5 is
+   `L3-01`/`L3-09`: *was this task validly granted*, checked at grant, and *has the objective drifted*,
+   checked while running. This task asks a third question — *can it be done at all* — and the seed is
+   right that the two must not collapse. Concretely: 8.5 owns the refusal at grant time and the drift
+   measure; this task never refuses a grant and never computes a drift score. 8.5 has **not landed**.
+   Where this task needs an objective it uses `claims.goal` as free text and says so.
+3. **Not the escalation channel — Task 9.8 owns it, and it has not landed** (`rust/channel/` is absent
+   from `git ls-tree main rust/`). This task delivers an ask over `notify.rs` and `review.rs`, which
+   exist. It must not publish a latency-to-first-human-response figure, a use-rate metric, or a claim that
+   an escalation is attractive: all three are 9.8's deliverables and all three are measurements this task
+   cannot take.
+4. **Not the equivalence laboratory — Task 13.4 owns it.** Whether the gateway path and a kernel path
+   refuse the same things is 13.4's `L11-06`. This task refuses at one point, the MCP proxy, and says so;
+   it must not claim two enforcement points agree.
+5. **Not the approval queue — Task 11.5 owns it,** and the operator-facing review queue it builds on is
+   already in `review.rs`. An ask enters the existing queue as a `Blocker`; this task adds no second queue
+   and no `queue.json`, for the reason `review.rs:19-25` gives about every second copy of the truth in
+   this codebase eventually disagreeing with the first.
+6. **Not the causal verdict — Task 10.1 owns it.** An agent can still declare "done" falsely, and only
+   `STRICT_CAUSAL` makes that checkable. That limit is written into the product text by Step 9 and is
+   narrowed by nothing here.
+
+---
+
+#### Files
+
+- `rust/warrant/src/outcome.rs` — **new.** `Ending`, `Missing`, `Declarant`, `OutcomeRecord`,
+  `SignedOutcome`, the detector, and the two renderers. Modeled on `stop.rs` deliberately: same
+  domain-separated signing shape, same over-claim refusals, same `render_limitations` section name.
+- `rust/warrant/src/lib.rs` — `pub mod outcome;` beside `pub mod operators;`, and the `Held` doc comment
+  at lines 165-167 rewritten to name the third cause. **No change to `WarrantState`'s variants.**
+- `rust/warrant/src/corpus.rs` — lines 204-212. The held-warrant sentence is false once abstention also
+  produces `Held`; it must read the outcome record. `Row::label` stays `Option<bool>` and an abstention
+  stays unlabeled — an abstention is not a human decision about the work.
+- `rust/warrant/src/report.rs` — **contended, coordinate.** `WarrantSection` (line 342) gains
+  `ending: Option<Ending>`; the state line (1462) and the title (1646) print it.
+- `rust/warrant/src/mcp_endpoints.rs` — `AgentEndpoint::tools()` (948) publishes exactly two new tools,
+  `warrantor_abstain` and `warrantor_ask`, and `call` handles them.
+- `rust/warrant/src/notify.rs` — `EVENTS` from `[&str; 5]` to `[&str; 7]`. The array length is the compile
+  break, which lines 66-69 already describe as the intended contract.
+- `rust/warrant/src/retention.rs` — a 21st `ArtifactClass::Outcomes`. `ALL_CLASSES` is
+  `[ArtifactClass; 20]` at line 140 and
+  `rust/warrant/tests/holdings.rs:385::every_directory_this_store_creates_is_a_known_class` fails
+  otherwise.
+- `rust/warrant/src/store.rs` — the `outcomes/<id>.json` line in the directory tree at lines 21-33.
+- `rust/warrant/src/bin/warrantor.rs` — the usage block (653-658, beside the stop paragraph) and one new
+  verb, `warrantor outcome <id>`, reading the record back and printing its limitations.
+- `rust/warrant/tests/outcome.rs` — **new.** Every test below, each with its allowed control.
+- `rust/warrant/tests/holdings.rs`, `rust/warrant/tests/notify.rs` — the two count assertions that must
+  move with the enum and the array.
+- `docs/W1-delivery-gaps.md` — a new subsection recording what an abstention does not establish.
+- `docs/task-evidence/task-13.6.md`.
+
+**Not touched:** `tools/ci/invariant-ratchet.json`, `evidence/invariants.json`,
+`rust/warrant/tests/invariants/`. Reasons under Bound strength.
+
+---
+
+#### Consumes / Produces
+
+**Consumes — exists on local `main` at `b04164d`, quoted with file and line:**
+
+```rust
+// rust/warrant/src/lib.rs:161 / :597
+pub enum WarrantState { Open, Held, Settled, Void }
+pub fn transition(&mut self, to: WarrantState) -> Result<(), WarrantError>
+
+// rust/warrant/src/lib.rs:197 / :218 / :229
+pub enum BoundStrength { Enforced, Mediated, Observed }
+impl BoundStrength { pub fn word(self) -> &'static str; pub fn caveat(self) -> &'static str }
+
+// rust/warrant/src/serve.rs:2433 / :2444 / :2505 / :2462 / :2464 / :2469
+pub fn read_refusals(root: &Path, warrant_id: &str) -> RefusalLog
+pub fn read_all_refusals(root: &Path) -> RefusalLog
+pub fn aggregate_refusals(records: &[RefusalRecord]) -> Vec<RefusalGroup>
+pub const REPEATED_OCCURRENCES: u64 = 5;
+pub const SPREAD_WARRANTS: usize = 2;
+pub enum RefusalSignal { BoundsProbablyWrong, RepeatedInOneRun, Isolated }
+
+// rust/warrant/src/review.rs:57 / :74 / :460 / :470
+pub const REVIEW_EVENT: &str = "review-requested";
+pub enum Blocker { AwaitingDecision { .. }, AwaitingApproval { .. }, Deadlocked { why: String } }
+pub fn should_announce(root: &Path, warrant_id: &str, blocker: &str) -> bool
+pub fn record_request(/* ... */) -> Result<(), String>
+
+// rust/warrant/src/notify.rs:70 / :514
+pub const EVENTS: [&str; 5];
+pub fn notify<T: NotifyTransport>(transport: &mut T, root: &Path, config: &NotifyConfig,
+                                  notification: &Notification, now: u64)
+    -> Result<Vec<(String, Delivery)>, String>
+
+// rust/warrant/src/stop.rs:639 / :656 / :705 / :822 / :940 / :1056
+pub fn record_digest(record: &StopRecord) -> Result<String, StopError>
+pub fn sign(stored: &StoredWarrant, outcome: &StopOutcome, reason: Option<&str>,
+            key: &SigningKey, now: u64) -> Result<SignedStop, StopError>
+pub fn verify_stop(signed: &SignedStop) -> Result<(), StopError>
+pub fn verify_stop_signed_by(signed: &SignedStop, anchor: &VerifyingKey) -> Result<(), StopError>
+pub fn contained(signed: &SignedStop) -> bool
+pub fn render_limitations(signed: &SignedStop) -> String
+
+// rust/warrant/src/daemon.rs:106
+pub struct CompletionRecord { pub warrant_id: String, pub pid: u32, pub exit_code: i32,
+                              pub expired: bool, pub finished_at: u64 }
+
+// rust/warrant/src/staging.rs:460 / :466
+pub fn is_empty(&self) -> bool;  pub fn len(&self) -> usize
+
+// rust/warrant/src/mcp_endpoints.rs:1187
+pub fn agent_endpoint_for(stored: &StoredWarrant, staged_path: PathBuf,
+                          mode: ProxyMode, now: fn() -> u64)
+    -> Result<AgentEndpoint, WarrantError>
+
+// rust/warrant/src/retention.rs:140
+pub const ALL_CLASSES: [ArtifactClass; 20];
+```
+
+**Does not exist. Named with its owner and whether that task has landed:**
+
+- **`rust/channel/` and everything in it — Task 9.8, NOT LANDED.** Verified absent from
+  `git ls-tree --name-only main rust/`. What "ask" needs from 9.8 and does not have: a *measured* latency
+  to first human response, a use-rate metric with zero rendered as a warning, and the Tier B property that
+  an agent cannot proceed while an escalation is open **across every effect**. What "ask" does not need
+  from 9.8, and this is the seed's correction: a delivery path. `notify.rs` plus `review::REVIEW_EVENT` is
+  one, and it is already in the product. **So an ask can be recorded and delivered without 9.8, and the
+  honest description of it is "queued to a webhook and entered in the local review queue", never
+  "escalated to a human".** Step 9 writes that sentence.
+- **A task-validity attestation — Task 8.5, not landed.** Until it exists, `detect` reads `claims.goal`
+  as free text and the record's `objective_was_attested` field is `false` with a reason.
+- **A causal verdict — Task 10.1, not landed.** The control for a false "done".
+- **A digest-pinned scoring-rule registry — Task 13.5** (`L11-07`, `L11-11`). L11-09 asks that the
+  grader's scoring rule be *"versioned and visible"*: this task ships a version-string constant and a
+  `bom_digest: Option<String>` that stays `None` until 13.5 lands.
+
+**Produces:**
+
+```rust
+// rust/warrant/src/outcome.rs  (new)
+
+/// Wire formats, pinned from the first release like every other record in this crate.
+pub const OUTCOME_RECORD_FORMAT: &str = "warrantor.outcome-record/1";
+pub const OUTCOME_EXPORT_FORMAT: &str = "warrantor.outcome-export/1";
+/// The versioned scoring rule L11-09 asks to be visible. Rendered, never inferred.
+pub const OUTCOME_SCORING_RULE: &str = "warrantor.outcome-scoring/1";
+
+/// Why a run ended, when the answer is neither success nor failure.
+///
+/// NOT a `WarrantState` variant. All three land the warrant in `Held`; see the design note.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Ending { Stopped, Abstained, AwaitingClarification }
+
+/// Exactly what was not there. Never a free-text sentence: a reader must be able to diff it
+/// against the warrant's bounds and see the difference without reading prose.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "missing", rename_all = "kebab-case")]
+pub enum Missing {
+    Tool { name: String, refused_by_bound: String, occurrences: u64 },
+    EgressHost { host: String, occurrences: u64 },
+    WritePath { glob: String },
+    Budget { cents_short: u64 },
+    Environment { what: String, observed: String },
+}
+
+/// Who said so. An abstention asserted by a detector is a different fact from one the agent
+/// declared, and a reader who cannot tell them apart cannot weigh either.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "said_by", rename_all = "kebab-case")]
+pub enum Declarant {
+    Agent { subject: String },
+    Operator { id: String },
+    Detector { rule: &'static str, threshold_occurrences: u64, threshold_warrants: usize },
+}
+
+pub struct OutcomeRecord {
+    pub format: String, pub warrant_id: String, pub goal: String,
+    pub ending: Ending, pub at: u64,
+    pub said_by: Declarant,
+    /// Never empty for `Abstained`. `sign` refuses an empty list.
+    pub missing: Vec<Missing>,
+    pub question: Option<String>,          // `AwaitingClarification` only
+    pub state_before: WarrantState, pub state_after: WarrantState,
+    pub staged_effects: usize, pub completion: Option<CompletionRecord>,
+    pub objective_was_attested: bool,      // false until Task 8.5
+    pub scoring_rule: String, pub bom_digest: Option<String>,
+    pub limitations: Vec<String>,          // never empty; `sign` refuses an empty list
+}
+
+pub struct SignedOutcome { /* record_digest, record, signature_algorithm,
+                              signature_public_key, signature_value -- the SignedStop shape */ }
+
+/// Read the durable refusal log and say whether this environment cannot satisfy this task.
+/// `None` when the evidence does not reach the existing threshold. Never a bare bool.
+pub fn detect(refusals: &RefusalLog, bounds: &WarrantBounds, staged: usize,
+              completion: Option<&CompletionRecord>) -> Option<Finding>;
+
+/// The two readings the same evidence supports, kept apart on purpose.
+pub enum Diagnosis {
+    BoundsProbablyWrong { remedy: String },
+    EnvironmentProbablyBroken { remedy: String },
+}
+pub struct Finding { pub diagnosis: Diagnosis, pub missing: Vec<Missing>, pub sentence: String,
+                     pub recommended_narrowing: WarrantBounds }
+
+/// The rendered threshold sentence, interpolated from serve's constants, never typed.
+pub fn threshold_sentence() -> String;
+/// Which of the three causes put a warrant in Held, or `None` for "cannot say".
+pub fn held_because(root: &Path, warrant_id: &str) -> Option<Ending>;
+pub fn render_held_reason(root: &Path, warrant_id: &str) -> String;
+
+pub fn sign(stored: &StoredWarrant, record: OutcomeRecord, key: &SigningKey)
+    -> Result<SignedOutcome, OutcomeError>;
+pub fn verify_outcome(signed: &SignedOutcome) -> Result<(), OutcomeError>;
+pub fn verify_outcome_signed_by(signed: &SignedOutcome, anchor: &VerifyingKey)
+    -> Result<(), OutcomeError>;
+pub fn render_cli(signed: &SignedOutcome) -> String;
+pub fn render_limitations(signed: &SignedOutcome) -> String;
+```
+
+---
+
+#### Bound strength
+
+Four claims, four different answers. Stated separately because they are held by different things, and
+because the seed's single Tier B for all of them is the defect corrected above.
+
+**Detection (L11-08) — Tier C, observed.** `detect` reads `refusals/<id>.jsonl` after sessions have ended.
+Nothing refuses an action as it happens; there is no line of code that stops an agent from attempting the
+impossible task again. It is a signal, and the word for a signal in this repository is `Observed`. Reuse
+`BoundStrength::Observed.caveat()` verbatim — *"measured and reported after the fact; nothing refuses the
+action as it happens"* — rather than writing a new sentence.
+
+**L11-08's authority narrowing — not implemented, and deliberately.** The catalog item asks that *"the
+task's authority [be] narrowed until it is repaired"*. `Finding::recommended_narrowing` produces the
+narrowed `WarrantBounds`; an operator applies it through the existing `Warrant::delegate`
+(`rust/warrant/src/lib.rs:497`), which already checks intersection at issue time. **Automatic narrowing
+from an observed signal is refused here**, for the reason Task 8.5's own Bound strength gives: treating a
+heuristic score as an enforcement input creates pressure to game the score. Step 9 records the
+non-implementation as a decision, not an omission, so the next reader does not close it as a gap.
+
+**`Abstained` — Tier B, chokepoint, and the refusing line already exists.** Once the outcome record is on
+disk and the warrant is `Held`, a **new** supervised session for that warrant is refused at the moment it
+is attempted, by `rust/warrant/src/mcp_endpoints.rs:1193-1198`:
+
+```rust
+    if !matches!(stored.warrant.state, WarrantState::Open) {
+        return Err(crate::WarrantError::Encode(format!(
+            "warrant {} is {:?}, not Open; there is nothing to police",
+            stored.warrant.claims.id, stored.warrant.state
+        )));
+```
+
+That is a refusal at the moment of attempt, not a containment observed at settle time, so `Mediated` is
+the right word — and this task must observe it by calling the function rather than by repeating its
+condition, exactly as `stop::execute` does at `stop.rs:288-289`. **What escapes, verbatim from `stop.rs`'s
+module doc (lines 42-45):** an MCP session already running outside the supervisor's process tree *"is not
+re-checked against warrant state and continues until it exits"*, and capability tokens already minted
+*"stay valid for up to `CAPABILITY_TTL_SECONDS` seconds"*. Add the third: a shell reaches the network
+without passing the proxy at all. **No netns, no seccomp and no firewall exists anywhere in this
+repository.**
+
+**`AwaitingClarification` — Tier B for the one blocked effect, Tier C for the delivery.** While an ask is
+open, `AgentEndpoint::call` refuses the specific tool the ask names, at the proxy, at the moment of
+attempt. It does **not** block every other effect — that is 9.8's property and this task must not claim
+it. Delivery is a webhook: `notify` queues a failure and retries at the next notification
+(`notify.rs:31-42`), so an unreachable receiver means the record exists and the human does not know.
+Observed, best-effort, and the record says so.
+
+**The state machine — no tier word at all.** `Warrant.state` is not covered by the warrant's signature
+(`lib.rs:399-401`, quoted above) and the store is same-UID reachable
+(`docs/W1-delivery-gaps.md:620-622`). A tier word on the state field would be a claim about a mutable
+byte. What is tamper-evident is the **record**: Ed25519 over the canonical digest, with the same
+domain-separated, length-prefixed shape as `stop.rs:625-632`, and the same offline verify path.
+
+**The sentence that must appear in the product wherever an outcome is rendered:**
+
+> This record states that a run ended in a stop, an abstention or a question, who said so, and exactly
+> what was reported missing. It does **not** establish that the task was truly impossible, that the
+> agent's abstention was honest, or that any human read the question. The warrant's own lifecycle state is
+> covered by no signature, no netns, seccomp or firewall stands behind the refusal that blocks a new
+> session, a session already running outside the supervisor's process tree is unaffected, and an agent
+> that declares "done" falsely is outside what this record can see.
+
+**Orphan accounting — nothing changes, and that is checked rather than assumed.** This task adds no crate,
+links no crate, and touches no `Cargo.toml` `[dependencies]` block. The census must print
+`wiring census: 10 of 40 crates reachable from warrantor-warrant over 18 path edges` unchanged in Step 11.
+**This task adds no orphan.** It also does not reduce the orphan count, and pretending an outcome record
+wires `warrantor-kill-switch` would be the mislabeling this repository has already shipped once.
+
+**No new trust root.** The record is signed with the **issuer** key already at `<root>/keys/issuer.key`,
+loaded exactly as `cmd_stop` loads it (`bin/warrantor.rs:1768-1772`) and for the same stated reason: an
+outcome releases nothing and performs nothing, so loading settle authority to record it would put that key
+in a process with no business holding it. `verify_outcome_signed_by(&signed, &anchor)` pins the reader's
+own out-of-band key, mirroring `verify_stop_signed_by` (`stop.rs:822`). **What that establishes:** this
+store, holding this issuer key, recorded this ending at this time. **What it does not establish:** that
+the ending is true, that any third party agrees, or that the key belongs to whom the reader thinks — the
+anchor is the reader's and is never defaulted from a local store.
+
+**Invariant accounting — this task converts no recorded violation, and must not appear to.** It touches no
+`#[ignore]` in `rust/warrant/tests/invariants/`. I-12's single ignore
+(`i12_safe_state_is_reachable.rs:167`, quoted in Step 0) is Task 1.3's, and its status stays `partial`.
+That has a mechanical consequence, because `tools/ci/check_invariant_ratchet.py:159-165` fails on an
+*improvement* as well as on a regression:
+
+```python
+    if result.passed > baseline.passing_floor or result.ignored < baseline.ignored_ceiling:
+        problems.append(f"the corpus improved ({result.passed} passing, {result.ignored} ignored) and "
+                        f"... still says {baseline.passing_floor}/{baseline.ignored_ceiling}. Raise the "
+                        f"ratchet in the same commit, or the floor stops tracking reality.")
+```
+
+So **a single new passing test placed in `rust/warrant/tests/invariants/` would fail the build.** Every
+test in this task goes in `rust/warrant/tests/outcome.rs`, and Step 11 reads the corpus's own
+`test result:` line to confirm `66 passed; 0 failed; 18 ignored` rather than computing it.
+
+---
+
+#### Exit gate
+
+**One command decides:**
+
+```bash
+cd M:/wt-13.6/rust && cargo test -p warrantor-warrant --test outcome -j 2
+```
+
+It passes only when the output ends `test result: ok.` with **zero ignored**, and includes both halves of
+every pair below: `a_broken_environment_ends_in_a_recorded_abstention` together with its control
+`a_healthy_run_produces_no_outcome_record`, and
+`an_agent_that_abstains_still_cannot_settle_its_own_warrant` together with its control
+`an_agent_may_abstain_and_the_abstention_is_recorded`. A refusal test that passes while its control is
+absent or ignored proves only that something refuses everything.
+
+---
+
+- [ ] **Step 1 — Worktree from local `main`, not `origin/main`; confirm the baselines.**
+  ```bash
+  export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
+  cd "M:/Project AumOS - Open Secure AI Alliance/aumos"
+  git worktree add M:/wt-13.6 -b feat/structured-abstention main
+  cd M:/wt-13.6 && export CARGO_TARGET_DIR=M:/wt-13.6-target
+  git rev-parse HEAD                                           # expect b04164d...
+  git ls-tree --name-only main rust/ | grep -c '^rust/[a-z]'    # expect 40
+  git ls-tree --name-only main rust/ | grep -E 'channel|^rust/guard$'   # expect no output
+  python tools/ci/wiring_census.py                             # expect 10 of 40 over 18 path edges
+  cd rust && cargo test -p warrantor-warrant --test invariants -j 2 | tail -1
+  ```
+  **`main`, not `origin/main`.** `origin/main` is stale at `e4b5f10` and lacks the egress metadata floor
+  fix, Task 1.1 with its mode-escalation correction, Task 1.5 and the US-English CI gate. Branching from
+  it would re-open a closed mislabeling. **Test intent:** that this branch starts from the repository the
+  other lanes have, and that no step below assumes an absent crate — the shared checkout carries untracked
+  crates `main` does not have, and a task that reads the working tree by accident dies at its first
+  `cargo` call. If the census prints anything but `10 of 40`, another lane landed a wire: re-derive Step
+  11's expected numbers, never edit the assertion to match.
+
+- [ ] **Step 2 — Write down the enum decision and pin it with a test, before any other code.**
+  The reader census belongs in `docs/task-evidence/task-13.6.md` first: four variants, two terminal
+  (`Settled`, `Void`); four exhaustive matches that would break loudly; twelve `matches!` guards that
+  would fail closed silently; three Debug renderers that would print a bare identifier; and
+  `notify::Notification.state` as a free `String`. Then the pin:
+  ```rust
+  #[test]
+  fn the_lifecycle_still_has_four_states_and_an_ending_is_not_one_of_them() {
+      // The decision this task turns on, made executable so a later hand cannot quietly add a
+      // fifth variant and inherit three silent renderers. Serde's own names are the wire words.
+      for (state, word) in [(WarrantState::Open, "\"open\""), (WarrantState::Held, "\"held\""),
+                            (WarrantState::Settled, "\"settled\""), (WarrantState::Void, "\"void\"")] {
+          assert_eq!(serde_json::to_string(&state).unwrap(), word);
+      }
+      // Terminal means nothing legal leaves it, and THAT is the property -- not the count.
+      for terminal in [WarrantState::Settled, WarrantState::Void] {
+          for to in [WarrantState::Open, WarrantState::Held, WarrantState::Settled, WarrantState::Void] {
+              let mut w = fixture_warrant();
+              w.state = terminal;
+              assert!(w.transition(to).is_err(), "{terminal:?} -> {to:?} must be refused");
+          }
+      }
+      // Held is NOT terminal: the settle authority can still act without the agent. That is what
+      // makes an abstention a safe state under I-12 rather than a stall.
+      let mut held = fixture_warrant();
+      held.state = WarrantState::Held;
+      assert!(held.transition(WarrantState::Settled).is_ok());
+      // And an Ending is a separate vocabulary, with no overlap in the wire words above.
+      assert_eq!(serde_json::to_string(&Ending::Abstained).unwrap(), "\"abstained\"");
+  }
+  ```
+  **Test intent:** the second loop is the one that earns its place. It fails the day anybody adds a variant
+  reachable out of `Settled`, and it documents *why* `Held` was chosen by asserting the property the
+  choice rests on rather than the choice itself.
+
+- [ ] **Step 3 — Failing test: a broken environment ends in a recorded abstention, paired with a healthy control.**
+  ```rust
+  #[test]
+  fn a_broken_environment_ends_in_a_recorded_abstention() {
+      let root = tempdir("broken");
+      let stored = fixture_stored(&root, &["gh_pr_create"]);
+      // Five refusals of one tool across two warrants: the EXISTING threshold, reached honestly by
+      // writing the log the proxy writes, not by constructing a Finding directly.
+      seed_refusals(&root, &[("w-1", "gh_pr_create", 3), ("w-2", "gh_pr_create", 2)]);
+      let log = serve::read_all_refusals(&root);
+      let completion = CompletionRecord { warrant_id: "w-1".into(), pid: 1, exit_code: 0,
+                                          expired: false, finished_at: NOW };
+      let finding = outcome::detect(&log, &stored.warrant.claims.bounds, 0, Some(&completion))
+          .expect("five refusals across two warrants must reach the stated threshold");
+      let signed = outcome::sign(&stored, outcome::abstain_from(&finding, NOW), &issuer_key())
+          .expect("an abstention with a populated missing list must sign");
+      assert_eq!(signed.record.ending, Ending::Abstained);
+      assert_eq!(signed.record.state_after, WarrantState::Held);
+      outcome::verify_outcome(&signed).expect("the record verifies offline");
+  }
+
+  #[test]
+  fn a_healthy_run_produces_no_outcome_record() {
+      // The control. Without it the assertion above passes on a detector that abstains always,
+      // which is the failure mode L11-09's own residual names: a poorly calibrated reward makes
+      // abstention the lazy default.
+      let root = tempdir("healthy");
+      let stored = fixture_stored(&root, &["gh_pr_create"]);
+      let log = serve::read_all_refusals(&root);          // empty
+      let completion = CompletionRecord { warrant_id: "w-1".into(), pid: 1, exit_code: 0,
+                                          expired: false, finished_at: NOW };
+      assert!(outcome::detect(&log, &stored.warrant.claims.bounds, 3, Some(&completion)).is_none(),
+              "a run that staged three effects and hit no wall must not be called impossible");
+  }
+  ```
+  **Test intent:** the pair is the whole point. `exit_code: 0` is identical in both, which is exactly the
+  indistinguishability the anchor names — the discriminator is the refusal log plus the staged count, never
+  the exit code, and the control proves the discriminator has two answers.
+
+- [ ] **Step 4 — Failing test: the receipt names what was missing, and an empty list is refused.**
+  ```rust
+  #[test]
+  fn an_abstention_that_names_nothing_missing_is_refused_at_signing_time() {
+      let root = tempdir("empty-missing");
+      let stored = fixture_stored(&root, &["gh_pr_create"]);
+      let mut record = fixture_record(Ending::Abstained);
+      record.missing = Vec::new();
+      let err = outcome::sign(&stored, record, &issuer_key()).expect_err("must refuse");
+      assert!(matches!(err, outcome::OutcomeError::OverClaim(_)),
+              "an abstention with no named cause is a shrug with a signature on it");
+
+      // The allowed control: the same record with one Missing entry signs, so the refusal above is
+      // about the empty list and not about the shape.
+      let mut ok = fixture_record(Ending::Abstained);
+      ok.missing = vec![Missing::Tool { name: "gh_pr_create".into(),
+                                        refused_by_bound: "tools".into(), occurrences: 5 }];
+      let signed = outcome::sign(&stored, ok, &issuer_key()).expect("one named cause is enough");
+      assert!(outcome::render_cli(&signed).contains("gh_pr_create"),
+              "the surface an operator reads must name the thing that was not there");
+
+      // And the same rule for limitations, asserted here so a later hand cannot relax one alone.
+      let mut no_limits = fixture_record(Ending::Abstained);
+      no_limits.limitations = Vec::new();
+      assert!(outcome::sign(&stored, no_limits, &issuer_key()).is_err(),
+              "a record claiming no blind spots is evidence about the record, not about the run");
+  }
+  ```
+  **Test intent:** copies `stop.rs`'s over-claim doctrine — a record the product cannot honestly produce is
+  refused at construction, never filtered at render — and copies the conformance suite's empty-`limitations`
+  rule (`stop.rs:130-133`) for the same stated reason.
+
+- [ ] **Step 5 — Failing test: the threshold sentence is generated from the constants, never typed.**
+  ```rust
+  #[test]
+  fn the_detectors_stated_number_of_attempts_comes_from_the_constant_that_decides_it() {
+      // A rendered number is gated against its record. L11-08 asks for a flag "within a stated
+      // number of attempts"; the number IS serve::REPEATED_OCCURRENCES, and the sentence must
+      // interpolate it so editing the constant cannot leave the prose behind.
+      let sentence = outcome::threshold_sentence();
+      assert!(sentence.contains(&serve::REPEATED_OCCURRENCES.to_string()));
+      assert!(sentence.contains(&serve::SPREAD_WARRANTS.to_string()));
+      // And the record carries the thresholds it was decided under, so a finding read next year is
+      // readable against the numbers that were in force when it was taken.
+      let signed = fixture_signed(Ending::Abstained);
+      match signed.record.said_by {
+          Declarant::Detector { threshold_occurrences, threshold_warrants, rule } => {
+              assert_eq!(threshold_occurrences, serve::REPEATED_OCCURRENCES);
+              assert_eq!(threshold_warrants, serve::SPREAD_WARRANTS);
+              assert_eq!(rule, outcome::OUTCOME_SCORING_RULE);
+          }
+          other => panic!("a detector finding must say it was a detector: {other:?}"),
+      }
+      // Task 13.5 owns the bill of materials. Until it lands this stays None, never a placeholder.
+      assert_eq!(signed.record.bom_digest, None);
+  }
+  ```
+  **Test intent:** this is also L11-09's *"the grader's scoring rule for the outcome is versioned and
+  visible"*, discharged as a constant inside the signed record rather than as a promise in prose. The last
+  assertion is the one that stops a plausible mistake: a `bom_digest` filled with a hash of nothing would
+  read as provenance.
+
+- [ ] **Step 6 — Failing test: no warrant sits in `Held` without a record saying how it got there.**
+  The seed's Step 5 asks that no code path reach a terminal state without a receipted outcome. Restated
+  against what the code can actually check, because `Held` is not terminal and `Settled`/`Void` are reached
+  by the settle authority with receipts of their own:
+  ```rust
+  #[test]
+  fn a_warrant_in_held_always_has_a_record_saying_which_of_the_three_causes_put_it_there() {
+      let root = tempdir("held-causes");
+      // Cause 1, the deadline: a completion record with expired = true, and no outcome record.
+      let a = held_via_deadline(&root, "w-a");
+      // Cause 2, a stop: a signed StopRecord in stops/.
+      let b = held_via_stop(&root, "w-b");
+      // Cause 3, an abstention: a signed OutcomeRecord in outcomes/.
+      let c = held_via_abstention(&root, "w-c");
+      for id in [&a, &b, &c] {
+          assert!(outcome::held_because(&root, id).is_some(),
+                  "{id} is Held with nothing on disk explaining why");
+      }
+      // The refusal half: a warrant forced to Held with nothing written is reported as unexplained
+      // rather than as a deadline, which is the default a reader would otherwise assume from the
+      // doc comment this step rewrites.
+      let d = held_with_nothing_written(&root, "w-d");
+      assert_eq!(outcome::held_because(&root, &d), None);
+      assert!(outcome::render_held_reason(&root, &d).contains("cannot say"),
+              "an unexplained hold must read as unknown, never as 'ended on its deadline'");
+  }
+  ```
+  **Test intent:** the fourth case is the finding. Today every `Held` warrant renders as a deadline or
+  budget hold because that is what the doc comment and `corpus.rs` say; after this task there are three
+  causes, so an absent record must render as "cannot say" — the same discipline
+  `review::Waiting::staged_effects` already uses for an unreadable queue (`review.rs:137-141`).
+
+- [ ] **Step 7 — Failing test: an agent may abstain and ask, and still cannot settle.**
+  ```rust
+  #[test]
+  fn an_agent_may_abstain_and_the_abstention_is_recorded() {
+      // The allowed control for the refusal below, and the reason for publishing the tool at all:
+      // an agent with no way to say "this cannot be done" has to invent one.
+      let root = tempdir("agent-abstain");
+      let stored = fixture_stored(&root, &["gh_pr_create"]);
+      let mut endpoint = mcp_endpoints::agent_endpoint_for(
+          &stored, root.join("staged/w-1.jsonl"), ProxyMode::Enforce, now).expect("Open warrant");
+      let published: Vec<String> = endpoint.tools().into_iter().map(|t| t.name).collect();
+      assert!(published.contains(&"warrantor_abstain".to_string()));
+      assert!(published.contains(&"warrantor_ask".to_string()));
+      let reply = endpoint.call("warrantor_abstain",
+          &json!({"missing": [{"missing": "tool", "name": "gh_issue_create",
+                               "refused_by_bound": "tools", "occurrences": 5}]}));
+      assert!(reply.is_ok(), "abstaining is strictly less authority than continuing");
+  }
+
+  #[test]
+  fn an_agent_that_abstains_still_cannot_settle_its_own_warrant() {
+      // The security property the whole crate rests on, re-asserted at the new surface. Three
+      // checks, because three different things must hold: no settle tool is published, the
+      // act-scoped key is not the settle authority, and a new session is refused after that.
+      let root = tempdir("agent-cannot-settle");
+      let stored = fixture_stored(&root, &["gh_pr_create"]);
+      let mut endpoint = mcp_endpoints::agent_endpoint_for(
+          &stored, root.join("staged/w-1.jsonl"), ProxyMode::Enforce, now).expect("Open warrant");
+      let published: Vec<String> = endpoint.tools().into_iter().map(|t| t.name).collect();
+      for forbidden in ["warrantor_settle", "warrantor_void", "warrantor_grant"] {
+          assert!(!published.contains(&forbidden.to_string()),
+                  "{forbidden} must not be reachable from a supervised session");
+      }
+      let agent_key = SigningKey::generate(&mut rand_core::OsRng);
+      assert!(stored.warrant.verify_settle(&agent_key.verifying_key()).is_err(),
+              "settle authority is a separate keypair the agent never holds");
+      let mut after = stored.clone();
+      after.warrant.transition(WarrantState::Held).expect("Open -> Held");
+      assert!(mcp_endpoints::agent_endpoint_for(
+          &after, root.join("staged/w-1.jsonl"), ProxyMode::Enforce, now).is_err(),
+          "a new supervised session on a held warrant is refused where that is decided");
+  }
+  ```
+  **Test intent:** publishing anything to a supervised session runs against this endpoint's central design
+  decision, so the pair states the boundary precisely — `warrantor_abstain` and `warrantor_ask` grant no
+  authority, perform no effect, and cannot reach `Settled`. The last assertion observes the refusal by
+  calling `agent_endpoint_for` rather than by re-testing its condition, the same reason `stop.rs:288-289`
+  gives for calling it instead of repeating the check.
+
+- [ ] **Step 8 — Failing test: the two sentences that become false are fixed, not absorbed.**
+  ```rust
+  #[test]
+  fn a_held_warrant_is_no_longer_described_as_a_deadline_hold_when_it_abstained() {
+      // corpus.rs:204-212 today reads "the warrant is held: the run ended on its deadline or
+      // budget and the decision is still waiting". After this task that is false a third of the
+      // time, and a training-corpus row carrying a false reason is worse than an absent one.
+      let root = tempdir("held-sentence");
+      let id = held_via_abstention(&root, "w-c");
+      let states = BTreeMap::from([(id.clone(), WarrantState::Held)]);
+      let rows = corpus::rows_from(&fixture_guard_log(&id), &states);
+      let why = rows[0].why.as_deref().expect("an unlabeled row must say why");
+      assert!(why.contains("abstain"), "the row must name the cause that actually held it: {why}");
+      assert!(!why.contains("deadline"), "and must not assert a cause that did not happen");
+      assert_eq!(rows[0].label, None,
+                 "an abstention is not a human decision about the work, so it stays unlabeled");
+  }
+  ```
+  **Test intent:** the third assertion stops a plausible mistake. It is tempting to label an abstention as
+  a negative example; `corpus.rs:15-20` already names that trap for the guard's own verdict, and an
+  abstention is the agent's verdict about itself. `Row::label` stays `Option<bool>` and stays `None`.
+  Rewrite `WarrantState::Held`'s doc comment (`lib.rs:165-167`) in the same commit so the code's own
+  description of `Held` names all three causes.
+
+- [ ] **Step 9 — Write the four limits into the product text and the gaps ledger.**
+  In `outcome::render_limitations`, in `docs/W1-delivery-gaps.md`, and in the evidence file — one place
+  each, worded identically:
+  1. **A false "done" is out of scope.** An agent can still report success it did not achieve; the control
+     is **Task 10.1**'s causal verdict, and until it lands nothing here checks a completion claim. Name the
+     task, never "future work".
+  2. **Authority is not narrowed automatically.** `recommended_narrowing` is a suggestion an operator
+     applies through `Warrant::delegate`. The reason is Task 8.5's: a heuristic that refuses creates
+     pressure to game the heuristic.
+  3. **An ask is delivered, not escalated.** Queued to a webhook and entered in the local review queue. No
+     latency to first human response is measured and no use-rate is published — both are **Task 9.8**,
+     which has not landed.
+  4. **The objective is free text.** No validity attestation exists until **Task 8.5**;
+     `objective_was_attested` is `false`, carrying that reason.
+  **Test intent:** a static test asserts `render_limitations` names Task 10.1, Task 9.8 and Task 8.5 by
+  number, and that `limitations` is non-empty in every signed record. Three statements of one limit drift
+  apart; this plan has already produced one duplicated claim that way.
+
+- [ ] **Step 10 — Failing test: the record verifies offline, refuses an over-claim, and adds no trust root.**
+  ```rust
+  #[test]
+  fn an_exported_outcome_verifies_offline_and_refuses_a_record_it_could_not_have_produced() {
+      let signed = fixture_signed(Ending::Abstained);
+      outcome::verify_outcome(&signed).expect("the honest record verifies with no store and no keys");
+
+      // Digest binding: mutate one field and the signature must stop covering it.
+      let mut tampered = signed.clone();
+      tampered.record.missing.clear();
+      assert!(matches!(outcome::verify_outcome(&tampered), Err(outcome::OutcomeError::Digest { .. })));
+
+      // Over-claim: a record asserting the objective was attested, when no attestation exists.
+      let mut claims_attested = signed.clone();
+      claims_attested.record.objective_was_attested = true;
+      let err = outcome::verify_outcome(&claims_attested).expect_err("must refuse");
+      assert!(matches!(err, outcome::OutcomeError::OverClaim(_)),
+              "no task-validity attestation exists on this branch, so a record claiming one is not ours");
+
+      // No new trust root: the reader's pin is the reader's, never defaulted from the store.
+      let stranger = SigningKey::generate(&mut rand_core::OsRng);
+      assert!(outcome::verify_outcome_signed_by(&signed, &stranger.verifying_key()).is_err());
+      outcome::verify_outcome_signed_by(&signed, &issuer_key().verifying_key())
+          .expect("pinned to the key that signed it, it verifies");
+  }
+  ```
+  **Test intent:** four properties, and the third is specific to this task. `objective_was_attested: true`
+  is unproducible here because Task 8.5 has not landed, so `verify_outcome` refuses it — the same shape as
+  `verify_stop` refusing an `elicitation` (`stop.rs:777-783`). The pair at the end is the no-new-trust-root
+  discipline: the weaker thing built here is "this store said this", and the stranger's key proves the pin
+  is load-bearing rather than decorative. Wire `warrantor verify <file>` to accept the new format alongside
+  the report and stop exports, so `--issuer` is not a flag silently ignored for a third artifact.
+
+- [ ] **Step 11 — Full gate on every language touched, counts read rather than computed, evidence file, `git commit -s`.**
+  ```bash
+  cd M:/wt-13.6/rust
+  cargo fmt --all -- --check
+  cargo clippy --workspace --all-targets -j 2 -- -D warnings
+  cargo test -p warrantor-warrant --test outcome -j 2
+  cargo test --workspace --all-targets -j 2
+  cd M:/wt-13.6
+  python tools/ci/check_invariant_ratchet.py
+  python tools/ci/wiring_census.py
+  python tools/ci/check_invariants.py
+  python tools/ci/check_docs.py
+  python tools/ci/check_us_english.py main
+  git commit -s
+  ```
+  Expected, and **read out of the output rather than assumed**:
+  ```
+  invariant ratchet: ok (66 passing at floor 66, 18 recorded findings at ceiling 18)
+  wiring census: 10 of 40 crates reachable from warrantor-warrant over 18 path edges
+  invariant ledger: 12 invariants; enforced=2, orphaned=2, partial=7, unimplemented=1
+  ```
+  All three unchanged: this task converts no invariant, wires no crate and adds no orphan. If the ratchet
+  prints anything else, a test landed in `rust/warrant/tests/invariants/` by mistake — move it to
+  `tests/outcome.rs` rather than raising the floor, because a floor raised with no converted `#[ignore]`
+  records an improvement that did not happen. Two count assertions move with this commit and must be inside
+  it: `ALL_CLASSES` 20 to 21 in `retention.rs` with `tests/holdings.rs`, and `EVENTS` 5 to 7 in `notify.rs`
+  with `tests/notify.rs`. Rust, Python and docs are all touched, so all three gates run.
+  **Test intent:** `docs/task-evidence/task-13.6.md` must record five things a later reader cannot
+  reconstruct from the diff — the four-variant enum with `Settled` and `Void` named as the only terminal
+  states; the reader census from Step 2 in all three of its classes; the corrected premise, in the code's
+  own words, that the agent never transitions the warrant and `state` is not signed, so the seed's Tier B
+  for the state machine was wrong; the verbatim I-12 ignore with its status word `partial` and the sentence
+  saying this task did not move it; and the four limits from Step 9 with the task numbers that own them.
 
 ### Task 13.7: Scorer/grader isolation and anti-gaming; reward-hacking monitor (L11-10, L11-12)
 
