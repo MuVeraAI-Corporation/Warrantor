@@ -650,7 +650,13 @@ This is the Task-1.1 shape from earlier this week, shipped twice in one module w
   discovered metadata address to the only public list would have changed nothing. **Fixed by deleting
   the duplicate:** there is now one `pub const FLOOR_ADDRESSES: &[Ipv4Addr]`, it *is* the matcher, and
   `every_address_on_the_public_list_is_actually_refused` iterates it with a `NotRefused` control.
-  Emptying it now turns 6 tests red — verified.
+  Emptying it now turns **8** tests red across three test binaries — verified. The number was
+  recorded as 6 in the first draft of this file, which is the last `test result: FAILED` line
+  read instead of the whole output. The per-binary tallies are `1 failed`, `1 failed` and
+  `6 failed`; only the sum is the blast radius. The same mistake is recorded in this project as
+  `failure-count-is-not-failure-reason`, and this file's own US-English section had already been
+  rewritten to say "full output read per file, not the last line" — so the correction is the
+  rule this document states, applied to this document.
 - `FLOOR_FORMAT` claimed *"the identifier this floor's records carry."* A repository-wide search
   returned exactly one hit: its own definition. No verdict, `Decision`, receipt or evidence file
   carries it. **Deleted** — see deviation 7.
