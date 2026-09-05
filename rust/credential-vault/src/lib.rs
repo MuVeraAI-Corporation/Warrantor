@@ -14,6 +14,14 @@
 //! [`Vault::open`] exists. A vault opened over a path replays an append-only, `fsync`'d
 //! revocation journal, so a revoked credential stays revoked across process restarts (invariant
 //! I-05). See [`persist`].
+//!
+//! ## Features
+//!
+//! `default = ["cli", "scan"]`. Both gates exist so that a library consumer can take the
+//! [`persist`] revocation journal without the argument parser or the pattern matcher:
+//! `warrantor-warrant` links this crate with `default-features = false` for exactly that, and the
+//! edge then adds no external package to its dependency tree. Nothing under a gate is part of the
+//! revocation path.
 
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
@@ -22,6 +30,7 @@ pub mod persist;
 
 pub use persist::{JournalOp, JournalRecord, RevocationJournal};
 
+#[cfg(feature = "scan")]
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -780,6 +789,7 @@ fn new_jti() -> String {
 
 /// Well-known credential patterns for the exposure scanner. Matches the patterns ExfilGuard (S6)
 /// uses, so the two components agree on what counts as an exposed credential.
+#[cfg(feature = "scan")]
 const CREDENTIAL_PATTERNS: &[(&str, &str)] = &[
     ("AWS Access Key ID", r"AKIA[0-9A-Z]{16}"),
     ("GitHub PAT", r"ghp_[0-9A-Za-z]{36}"),
@@ -789,6 +799,7 @@ const CREDENTIAL_PATTERNS: &[(&str, &str)] = &[
 ];
 
 /// A detected credential exposure.
+#[cfg(feature = "scan")]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CredentialExposure {
     /// Human-readable credential type (e.g. "AWS Access Key ID").
@@ -803,6 +814,7 @@ pub struct CredentialExposure {
 ///
 /// # Errors
 /// Never returns an error — pattern compilation is checked at test time.
+#[cfg(feature = "scan")]
 pub fn scan_for_exposed_credentials(
     text: &str,
 ) -> Result<Vec<CredentialExposure>, CredentialError> {
@@ -936,6 +948,7 @@ mod tests {
         assert!(cred.is_expired_at(3000));
     }
 
+    #[cfg(feature = "scan")]
     #[test]
     fn scan_detects_aws_key() {
         let text = "config: AWS_KEY=AKIAIOSFODNN7EXAMPLE done";
@@ -945,6 +958,7 @@ mod tests {
         assert_eq!(found[0].matched, "AKIAIOSFODNN7EXAMPLE");
     }
 
+    #[cfg(feature = "scan")]
     #[test]
     fn scan_detects_multiple_types_at_once() {
         // Mirrors the OpenAI incident shape: four accounts on four services.
@@ -962,6 +976,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "scan")]
     #[test]
     fn scan_returns_empty_on_clean_text() {
         let found = scan_for_exposed_credentials("just a normal log line").expect("scan");
