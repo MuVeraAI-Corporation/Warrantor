@@ -231,17 +231,22 @@ fn the_revoked_arm_states_every_thing_the_revocation_does_not_reach() {
     let section = RevocationSection::from_store(&store).with_latency(store.latency(&record));
     let built = build(&queue, Some(section));
 
+    // LOCATOR ADAPTED 2026-09-05, not weakened: the arm used to say "revoked in this machine's
+    // journal", which overstated the scope -- the journal is per store root, and a second `--root`
+    // on the same machine reads a different file. The required-clause list below is unchanged and
+    // has GROWN by the store clause; nothing was removed from it.
     let line = built
         .bundle()
         .limitations
         .iter()
-        .find(|l| l.contains("revoked in this machine's journal"))
+        .find(|l| l.contains("revoked in this STORE's journal"))
         .expect("the revoked arm must be stated");
     for required in [
         "does not recall a credential already used",
         "does not reach a copy held by a third party",
         "does not close a session already open",
         "does not propagate to any other machine",
+        "does not reach another store on this same machine",
         "egress broker does not consult the revocation set",
         "not an issued SVID",
     ] {
@@ -251,6 +256,169 @@ fn the_revoked_arm_states_every_thing_the_revocation_does_not_reach() {
              build does not hold. Got: {line}"
         );
     }
+}
+
+/// The case the corpus could not see, added 2026-09-05 after review.
+///
+/// Every other test in this file revokes the warrant's OWN subject, so the sentence and the verdict
+/// always agreed and the disagreement was untested. The Identity gate compares exactly one string —
+/// `ctx.revoked_svids.contains(&req.actor.svid)`, and `req.actor.svid` is `claims.subject` — so a
+/// non-empty set that does not hold this warrant's subject makes the gate ALLOW. Before this test the
+/// strongest limitations arm fired on `!revoked_svids.is_empty()` and asserted the gate denied every
+/// verdict, so a revocation for an unrelated subject shipped a signed bundle reading
+/// `allowed: true, denied_gate: null` beside a sentence saying it denied.
+///
+/// The two halves move ONE thing — which subject is in the journal — and nothing else. The allowed
+/// half is the control, and it is the half that would have caught the defect.
+#[test]
+fn a_revocation_for_another_subject_is_not_rendered_as_a_denial() {
+    let dir = scratch("other-subject");
+    let queue = queue_at(&dir);
+
+    // CONTROL: a NON-EMPTY set that does not hold this warrant's subject. The gate must allow, and
+    // the sentence must say the set does not make it deny.
+    let mut store = RevocationStore::open(&dir).expect("open");
+    store.revoke("spiffe://someone/else").expect("revoke");
+    assert_eq!(
+        store.revoked_svids(),
+        vec!["spiffe://someone/else"],
+        "the control needs a non-empty set that excludes {SUBJECT}"
+    );
+    let allowed = build(&queue, Some(RevocationSection::from_store(&store)));
+    assert!(
+        allowed.bundle().authority_check.allowed,
+        "revoking an unrelated subject must not deny: the gate compares this warrant's subject \
+         only. Fix the fixture; never weaken the assertion. denied_gate = {:?}",
+        allowed.bundle().authority_check.denied_gate,
+    );
+    let line = allowed
+        .bundle()
+        .limitations
+        .iter()
+        .find(|l| l.contains("NONE"))
+        .unwrap_or_else(|| {
+            panic!(
+                "a non-intersecting revoked set must have its own sentence. Got: {:?}",
+                allowed.bundle().limitations
+            )
+        });
+    assert!(
+        line.contains("does NOT make it deny for this warrant"),
+        "the sentence must agree with the verdict beside it in the same bundle: \
+         authority_check says allowed={}, so the limitation may not say the gate denies. Got: \
+         {line}",
+        allowed.bundle().authority_check.allowed,
+    );
+    assert!(
+        !allowed
+            .bundle()
+            .limitations
+            .iter()
+            .any(|l| l.contains("the Identity gate denies every verdict")),
+        "an allowed bundle must not carry the denial sentence anywhere in its limitations: {:?}",
+        allowed.bundle().limitations,
+    );
+
+    // ATTACK: the same store, the same set, plus THIS warrant's subject. Now the gate denies and the
+    // denial sentence is the true one.
+    let mut store = RevocationStore::open(&dir).expect("reopen");
+    let record = store
+        .revoke(SUBJECT)
+        .expect("revoke this warrant's subject");
+    let section = RevocationSection::from_store(&store).with_latency(store.latency(&record));
+    let denied = build(&queue, Some(section));
+    assert_eq!(
+        denied.bundle().authority_check.denied_gate.as_deref(),
+        Some("identity"),
+        "adding this warrant's own subject to the same set must deny at Identity",
+    );
+    assert!(
+        denied
+            .bundle()
+            .limitations
+            .iter()
+            .any(|l| l.contains("the Identity gate denies every verdict")),
+        "the denial sentence must appear exactly when the gate denies: {:?}",
+        denied.bundle().limitations,
+    );
+    assert!(
+        !denied
+            .bundle()
+            .limitations
+            .iter()
+            .any(|l| l.contains("does NOT make it deny for this warrant")),
+        "the two arms are mutually exclusive; emitting both would make the bundle say the gate \
+         did and did not deny: {:?}",
+        denied.bundle().limitations,
+    );
+}
+
+/// The constant-versus-issued clause must be READ off the subject, not asserted beside it.
+///
+/// `grant --subject` and `revoke --svid` both accept arbitrary strings, so "the subject revoked is
+/// the constant this build presents as its principal" was false for any warrant granted with
+/// `--subject`. This pins both directions: a default-subject warrant and a supplied-subject one.
+#[test]
+fn the_constant_versus_issued_clause_is_read_off_the_subject() {
+    let dir = scratch("subject-clause");
+    let queue = queue_at(&dir);
+    let mut store = RevocationStore::open(&dir).expect("open");
+    store.revoke(SUBJECT).expect("revoke");
+    let built = build(&queue, Some(RevocationSection::from_store(&store)));
+    let line = built
+        .bundle()
+        .limitations
+        .iter()
+        .find(|l| l.contains("revoked in this STORE's journal"))
+        .expect("the revoked arm must be stated");
+    // This fixture's subject is NOT DEFAULT_CLI_SUBJECT, so the constant sentence would be a lie.
+    assert_ne!(SUBJECT, warrantor_warrant::DEFAULT_CLI_SUBJECT);
+    assert!(
+        line.contains("was supplied as a string, not an issued SVID"),
+        "for a supplied subject the sentence must say so rather than calling it this build's \
+         constant principal: {line}"
+    );
+    assert!(
+        !line.contains("is the constant this build records"),
+        "the constant clause fired for a subject that is not the constant: {line}"
+    );
+}
+
+/// `adjudications_between` must be a COUNT, not a decoration.
+///
+/// Added 2026-09-05 after review. Deviation 5 changed a public design on the grounds that the
+/// plan's counter "would have been a hard-coded zero", but the only assertion on the field expected
+/// 0 in a test that computes no verdict, so a hard-coded zero satisfied the whole suite: mutating
+/// `ADJUDICATIONS.fetch_add` to a no-op left every package test green. This is the test that fails
+/// under that mutation.
+///
+/// `>= 1`, not `== 1`, because `ADJUDICATIONS` is process-global and this binary runs its tests in
+/// parallel: another test's `build_observed` can land inside the window. The strict-increase
+/// assertion beside it is the exact one, and both fail on a no-op counter.
+#[test]
+fn adjudications_between_counts_verdicts_rather_than_assuming_zero() {
+    let dir = scratch("adjudication-count");
+    let queue = queue_at(&dir);
+    let mut store = RevocationStore::open(&dir).expect("open");
+    let record = store.revoke(SUBJECT).expect("revoke");
+
+    let before = report::adjudications_computed();
+    // One verdict, computed through the product's own path, INSIDE the measurement window.
+    let _ = build(&queue, Some(RevocationSection::from_store(&store)));
+    let after = report::adjudications_computed();
+    assert!(
+        after > before,
+        "build_observed computed a verdict and the counter did not move ({before} -> {after}), so \
+         adjudications_between is an assumed zero rather than a count"
+    );
+
+    let latency = store.latency(&record);
+    assert!(
+        latency.adjudications_between >= 1,
+        "a verdict was computed between durability and this read, so the count must see it. Got \
+         {}, which is the hard-coded zero deviation 5 was written to avoid.",
+        latency.adjudications_between,
+    );
 }
 
 /// An unreadable source must not render as a clean set.
@@ -336,20 +504,34 @@ fn the_cli_lists_what_it_revoked_and_says_what_the_revocation_misses() {
         empty.contains("no subject is revoked"),
         "an empty set must be said, not implied: {empty}"
     );
+    // LOCATOR ADAPTED 2026-09-05, and STRENGTHENED: the old assertion accepted a sentence that
+    // scoped the answer to the machine. The journal is per store root, so both clauses are now
+    // required -- the machine clause was kept, and the store clause added.
     assert!(
         empty.contains("not a statement about any other machine"),
-        "even the empty answer must scope itself to this machine: {empty}"
+        "even the empty answer must scope itself off other machines: {empty}"
+    );
+    assert!(
+        empty.contains("ONE STORE's journal"),
+        "the empty answer must scope itself to the STORE, not the machine: `--root` selects the \
+         journal, so a machine-wide claim is an overclaim. Got: {empty}"
     );
 
     // ATTACK path: record one, then list it.
     let (ok, recorded) = run_revoke(&home, &["--svid", SUBJECT]);
     assert!(ok, "a revocation inside the SLA must exit zero: {recorded}");
     assert!(recorded.contains(SUBJECT), "{recorded}");
+    // The WHO clause's locator no longer pins the wrap column ("not WHO\n    revoked it"): the
+    // disclosure was rewrapped on 2026-09-05 when the store clause went in, and an assertion on
+    // where a sentence happens to break is an assertion about nothing. The CLAIM asserted is
+    // unchanged, and the list has GROWN by the store clause -- nothing was removed.
     for required in [
         "does not recall a credential already used",
         "does not propagate to any other machine",
+        "reach a SECOND STORE on this same machine",
         "broker does not consult the revocation set",
-        "not WHO\n    revoked it",
+        "records WHEN a subject was",
+        "not WHO revoked it",
     ] {
         assert!(
             recorded.contains(required),

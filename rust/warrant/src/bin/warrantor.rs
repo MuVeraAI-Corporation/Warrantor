@@ -496,8 +496,8 @@ warrantor — bounded authority for coding agents
           | --list               the revoked set, with each record's sequence and epoch
           | --at <EPOCH> --svid <SVID>
                                 was this subject revoked at that epoch? answered from the
-                                append-only journal alone. Bounds FUTURE use only, on THIS
-                                machine: see the disclosure the command prints.
+                                append-only journal alone. Bounds FUTURE use only, in THIS
+                                STORE: see the disclosure the command prints.
           | --write-evidence <path>
                                 render evidence/revocation-latency.json from the code that
                                 states the bound, so the file cannot drift from it.
@@ -3402,17 +3402,19 @@ fn revocation_section(root: &Path) -> Option<report::RevocationSection> {
 /// whole claim in one place. Nothing in this build may soften it.
 const REVOKE_DISCLOSURE: &str = concat!(
     "  what this does:\n",
-    "    Every verdict THIS machine computes after the record above reached disk denies at gate\n",
-    "    Identity for that subject. The refusal is a chokepoint in `warrantor_notary::verdict`,\n",
-    "    not an operating-system bound.\n",
+    "    Every verdict computed against THIS STORE -- the journal named above -- after the record\n",
+    "    reached disk denies at gate Identity for that subject. The refusal is a chokepoint in\n",
+    "    `warrantor_notary::verdict`, not an operating-system bound.\n",
     "  what it does NOT do:\n",
     "    It does not recall a credential already used -- revocation bounds future use only. It\n",
     "    does not reach a copy held by a third party, does not close a session already open, and\n",
     "    does not terminate a process. It does not propagate to any other machine: this build\n",
-    "    links no fan-out, so the latency above is this process's, not a fleet's. The egress\n",
-    "    broker does not consult the revocation set at all. An agent that never asks for a\n",
-    "    verdict is never refused. The journal records WHEN a subject was revoked, not WHO\n",
-    "    revoked it: it is keyed by subject, and the per-warrant actor log is not.\n",
+    "    links no fan-out, so the latency above is this process's, not a fleet's. It does not\n",
+    "    reach a SECOND STORE on this same machine either: `--root` is accepted on every command,\n",
+    "    each store root holds its own journal, and the same subject reads as unrevoked under a\n",
+    "    different root. The egress broker does not consult the revocation set at all. An agent\n",
+    "    that never asks for a verdict is never refused. The journal records WHEN a subject was\n",
+    "    revoked, not WHO revoked it: it is keyed by subject, and the per-warrant actor log is not.\n",
 );
 
 fn cmd_revoke(args: &Args, root: &Path) -> ExitCode {
@@ -3481,7 +3483,8 @@ fn cmd_revoke(args: &Args, root: &Path) -> ExitCode {
         println!(
             "    Revocation is monotone and every record carries the epoch second it became\n    \
              durable, so this file is sufficient: no service was asked, and a reader holding\n    \
-             only this file reaches the same answer. It says nothing about any other machine."
+             only this file reaches the same answer. It says nothing about any other store --\n    \
+             including another store on this same machine -- and nothing about any other machine."
         );
         return ExitCode::SUCCESS;
     }
@@ -3497,8 +3500,14 @@ fn cmd_revoke(args: &Args, root: &Path) -> ExitCode {
                 store.journal_path().display()
             );
             println!(
-                "  This is one machine's journal. It is not a statement about any other machine."
+                "  This is ONE STORE's journal, not this machine's: `--root` selects the store, \
+                 and another"
             );
+            println!(
+                "  root on this same machine has its own journal. It is not a statement about any \
+                 other store,"
+            );
+            println!("  and not a statement about any other machine.");
             return ExitCode::SUCCESS;
         }
         println!("revoked subjects in {}", store.journal_path().display());

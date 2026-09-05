@@ -81,7 +81,8 @@ use crate::staging::StagingQueue;
 use crate::store::StoredWarrant;
 use crate::worktree::Worktree;
 use crate::{
-    bound_strengths, BoundStrength, Warrant, WarrantBounds, WarrantState, IDENTITY_REVOCATION_SLA,
+    bound_strengths, BoundStrength, Warrant, WarrantBounds, WarrantState, DEFAULT_CLI_SUBJECT,
+    DEFAULT_MCP_SUBJECT, IDENTITY_REVOCATION_SLA,
 };
 
 /// How many verdicts this process has computed, across every call to [`build_observed`].
@@ -323,8 +324,10 @@ pub struct CustodySection {
 /// is being made — the same distinction `spend` and `custody` already draw, and the same one the
 /// containment comment in [`build_observed`] was written to protect.
 ///
-/// **What a present section does not establish.** The set is one machine's journal. A subject revoked
-/// on another machine is unrevoked here, because this build links no fan-out. See
+/// **What a present section does not establish.** The set is one STORE's journal — the file under
+/// the store root this section was read from, not a machine-wide list. A subject revoked in another
+/// store, including another store on the same machine under a different `--root`, is unrevoked
+/// here, and so is one revoked on another machine, because this build links no fan-out. See
 /// [`crate::revoke`] for the full tier statement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RevocationSection {
@@ -742,19 +745,46 @@ fn limitations(
         ),
         Some(section) if section.revoked_svids.is_empty() => format!(
             "A revocation source WAS consulted ({}) and it holds no revoked subject. That is a \
-             statement about this machine's journal, not about any other machine: this build has \
-             no fan-out, so a subject revoked elsewhere is unrevoked here.",
+             statement about this STORE's journal, not about any other store and not about any \
+             other machine: the journal is a file under the store root this report was built \
+             from, and this build has no fan-out, so a subject revoked in another store -- \
+             including another store on this same machine -- is unrevoked here.",
             section.source,
         ),
+        // The next two arms split on a READ of the set, not on its size. The gate this sentence
+        // describes compares exactly one string -- `notary::verdict`'s
+        // `ctx.revoked_svids.contains(&req.actor.svid)`, where `req.actor.svid` is
+        // `claims.subject` -- so "the set is non-empty" and "this warrant's subject is revoked"
+        // are different facts. Until 2026-09-05 one sentence was rendered for both, and a
+        // revocation recorded for an unrelated subject shipped a signed bundle whose
+        // `authority_check` said `allowed: true, denied_gate: null` beside a limitation
+        // asserting the Identity gate denied every verdict. A rendered sentence has to be
+        // derived from the record it describes, not written next to it.
+        Some(section) if !section.revoked_svids.contains(&stored.warrant.claims.subject) => {
+            format!(
+                "A revocation source WAS consulted ({}) and it holds {} revoked subject(s), NONE \
+                 of which is this warrant's subject ({}). The Identity gate compares that one \
+                 string and nothing else, so the set does NOT make it deny for this warrant -- \
+                 read `authority_check` for what the gate actually decided. Revoking some other \
+                 subject bounds this warrant not at all. This is a statement about this STORE's \
+                 journal only.",
+                section.source,
+                section.revoked_svids.len(),
+                stored.warrant.claims.subject,
+            )
+        }
         Some(section) => format!(
-            "{} subject(s) are revoked in this machine's journal ({}), so the Identity gate denies \
-             every verdict computed after the record reached disk{}. It does not recall a \
-             credential already used, does not reach a copy held by a third party, does not close \
-             a session already open, and does not propagate to any other machine. The egress \
-             broker does not consult the revocation set at all. The subject revoked is the \
-             constant this build presents as its principal, not an issued SVID.",
-            section.revoked_svids.len(),
+            "This warrant's subject ({}) is revoked in this STORE's journal ({}; {} subject(s) \
+             revoked there in total), so the Identity gate denies every verdict computed after \
+             the record reached disk{}. It does not recall a credential already used, does not \
+             reach a copy held by a third party, does not close a session already open, does not \
+             propagate to any other machine, and does not reach another store on this same \
+             machine -- the journal is per store root, and a report built with a different \
+             `--root` reads a different file. The egress broker does not consult the revocation \
+             set at all. {}",
+            stored.warrant.claims.subject,
             section.source,
+            section.revoked_svids.len(),
             match section.latency {
                 Some(l) if !l.propagated =>
                     " -- though the read taken for this report did not find that subject, so \
@@ -773,6 +803,19 @@ fn limitations(
                     IDENTITY_REVOCATION_SLA,
                 ),
                 None => " (propagation was not measured for this report)".to_string(),
+            },
+            // Derived from the subject string rather than asserted beside it. `grant --subject`
+            // and `revoke --svid` both accept arbitrary strings, so which of these two sentences
+            // is true of a given bundle depends on a value this function can read -- and the
+            // sentence it replaced asserted the first one unconditionally.
+            if stored.warrant.claims.subject == DEFAULT_CLI_SUBJECT
+                || stored.warrant.claims.subject == DEFAULT_MCP_SUBJECT
+            {
+                "That subject is the constant this build records when none is supplied, not an \
+                 issued SVID."
+            } else {
+                "That subject was supplied as a string, not an issued SVID: this deployment mints \
+                 no SVID document, so nothing checked the string against an identity provider."
             },
         ),
     });
@@ -857,14 +900,14 @@ pub struct Observed {
     pub revocation: Option<RevocationSection>,
 }
 
-/// Build the report, honouring containment and carrying whatever the caller observed.
+/// Build the report, honoring containment and carrying whatever the caller observed.
 ///
 /// The fullest form, used by every caller that has a store root to look in. See [`Observed`] for why
 /// each of its fields is an `Option` and what a `None` asserts.
 ///
 /// Supplying a section changes what the bundle *reports*, never what any bound *is*: the budget
 /// stays [`crate::BoundStrength::Observed`] and `bound_strengths()` is untouched. What it changes
-/// is that a bound labelled "observed" now has something that observed it. Revocation adds no row
+/// is that a bound labeled "observed" now has something that observed it. Revocation adds no row
 /// to `bound_strengths()` either: it is a property of the existing Identity gate, not a new bound on
 /// the warrant.
 #[must_use]
@@ -1003,7 +1046,7 @@ pub fn build_observed(
         // Empty means "warrant knows of no contained scope", which is a statement about what was
         // supplied, never a claim that containment was checked and found clear.
         contained_scopes: contained_scopes.to_vec(),
-        // The revocation seam (I-05), filled from this machine's append-only journal rather than
+        // The revocation seam (I-05), filled from this STORE's append-only journal rather than
         // from an identity provider. Empty means "warrant was handed no revoked subject" — exactly
         // as with `contained_scopes` above, a statement about what was supplied and never a claim
         // that revocation was checked and found clear. `None` for the whole section says even that
