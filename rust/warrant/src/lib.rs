@@ -198,6 +198,39 @@ pub enum BoundStrength {
     Observed,
 }
 
+impl BoundStrength {
+    /// The stable wire word for this tier. Equal to its serde name, and pinned equal by
+    /// `tests/tier_disclosure.rs`, so a surface that prints the word and a client that reads the
+    /// JSON are reading one vocabulary.
+    #[must_use]
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::Enforced => "enforced",
+            Self::Mediated => "mediated",
+            Self::Observed => "observed",
+        }
+    }
+
+    /// What this tier does NOT cover, in one clause. The half of a disclosure a reader skims past:
+    /// a tier word alone is read as the strongest thing it could mean.
+    #[must_use]
+    pub fn caveat(self) -> &'static str {
+        match self {
+            Self::Enforced => {
+                "held by cryptography or the operating system; holds against an agent that tries \
+                 to route around it"
+            }
+            Self::Mediated => {
+                "held only for calls that traverse the MCP proxy; a shell or a harness built-in \
+                 reaches past it, and no netns, seccomp or firewall stands behind it"
+            }
+            Self::Observed => {
+                "measured and reported after the fact; nothing refuses the action as it happens"
+            }
+        }
+    }
+}
+
 /// Everything a warrant permits. Absent fields mean "not permitted", never "unlimited".
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WarrantBounds {
@@ -638,4 +671,42 @@ pub fn bound_strengths() -> Vec<(&'static str, BoundStrength)> {
         // Parsed from the agent's own usage reporting; defeatable by an agent that does not report.
         ("budget_cents_observed", BoundStrength::Observed),
     ]
+}
+
+/// One bound, one line, the way every surface prints it: the name padded to 24 columns and the
+/// tier word. The CLI report, the MCP report, `warrantor status` and the README table all call
+/// this, so the four cannot spell a tier four ways again.
+#[must_use]
+pub fn render_bound(name: &str, strength: BoundStrength) -> String {
+    format!("{name:<24}{}", strength.word())
+}
+
+/// The three tiers, strongest first, each with what it does not cover.
+///
+/// Printed under every bounds block. A column of one-word marks is read by taking the first word
+/// and moving on; the legend is what stops "mediated" being read as "enforced with extra steps".
+#[must_use]
+pub fn render_tier_legend() -> Vec<String> {
+    [
+        BoundStrength::Enforced,
+        BoundStrength::Mediated,
+        BoundStrength::Observed,
+    ]
+    .into_iter()
+    .map(|tier| format!("{:<10}{}", tier.word(), tier.caveat()))
+    .collect()
+}
+
+/// The README bounds table, generated from [`bound_strengths`] so the prose cannot drift from
+/// the code again. `tests/tier_disclosure.rs` asserts both READMEs contain this string verbatim.
+#[must_use]
+pub fn render_bounds_table() -> String {
+    let mut rows = vec![
+        "| Bound | Tier | What the tier does not cover |".to_string(),
+        "|---|---|---|".to_string(),
+    ];
+    rows.extend(bound_strengths().into_iter().map(|(name, strength)| {
+        format!("| `{name}` | {} | {} |", strength.word(), strength.caveat())
+    }));
+    rows.join("\n")
 }
