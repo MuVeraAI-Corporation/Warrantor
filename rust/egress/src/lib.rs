@@ -13,7 +13,7 @@ use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use thiserror::Error;
 
 // ---------------------------------------------------------------------------
@@ -127,19 +127,16 @@ pub struct EgressRequest {
 // The broker — the decision engine
 // ---------------------------------------------------------------------------
 
-/// Metadata ranges that are ALWAYS denied and NEVER catalog-addable (spec §3).
-const METADATA_RANGES: &[&str] = &[
-    "169.254.", // AWS/GCP/Azure metadata, link-local
-    "fd00:",    // IPv6 ULA (private)
-    "fe80:",    // IPv6 link-local
-];
+/// Cloud metadata hosts named by DNS rather than by address.
+///
+/// `addresses` is documented at the `CatalogEntry` field as "pre-resolved IPs or explicit
+/// hostnames", and `rust/warrant/src/egress.rs` puts a hostname there, so a name that resolves to a
+/// metadata service has to be refused by name as well as by address.
+const METADATA_HOSTNAMES: &[&str] = &["metadata.google.internal", "metadata.goog", "metadata"];
 
-/// Private ranges denied unless explicitly catalogued (spec §3).
-const PRIVATE_RANGES: &[&str] = &[
-    "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.",
-    "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
-    "192.168.", "127.", "0.", "::1",
-];
+/// Metadata addresses outside the link-local range, which range checks alone would miss.
+/// Alibaba Cloud's metadata service lives in 100.64.0.0/10 (carrier NAT), not in 169.254.0.0/16.
+const METADATA_ADDRESSES: &[Ipv4Addr] = &[Ipv4Addr::new(100, 100, 100, 200)];
 
 #[derive(Debug, Error)]
 pub enum EgressError {
@@ -226,20 +223,123 @@ pub fn decide(request: &EgressRequest, catalog: Option<&DestinationCatalog>) -> 
     }
 }
 
-/// Check whether a raw IP is in a metadata range.
-fn is_metadata_range(addr: &str) -> bool {
-    let clean = addr
-        .trim_start_matches("https://")
-        .trim_start_matches("http://");
-    METADATA_RANGES.iter().any(|r| clean.starts_with(r))
+/// Reduce a catalog address to the host it actually names, then to an `IpAddr` if it is one.
+///
+/// This exists because the checks below used to be `str::starts_with` over dotted-quad prefixes,
+/// which held for `169.254.169.254` and for nothing else that resolves to the same host. Eight
+/// other spellings of the metadata service reached Allow: the decimal, hexadecimal and octal
+/// integer forms, the IPv4-mapped IPv6 form, an uppercase scheme, an uppercase IPv6 literal, a
+/// leading space, and Alibaba Cloud's address, which was simply absent. Every one of them is
+/// accepted by ordinary HTTP clients and by the OS resolver. `rust/egress/tests/metadata_floor.rs`
+/// asserts each spelling by name.
+///
+/// Returns `None` when the host is not an address at all -- a DNS name, which the field explicitly
+/// permits. A name is matched against `METADATA_HOSTNAMES` instead. Anything else unparseable is
+/// still allowed through, because failing closed here would refuse the hostnames
+/// `rust/warrant/src/egress.rs:204` already puts in this field; making the floor fail closed is
+/// Task 7.1's decision (L4-25), not a bug fix's.
+fn host_only(addr: &str) -> String {
+    let mut host = addr.trim();
+    // Schemes, matched without regard to case: `trim_start_matches` is case-sensitive, so
+    // `HTTP://169.254.169.254` used to survive with its scheme attached and match no prefix.
+    for scheme in ["https://", "http://", "ftp://"] {
+        if host.len() >= scheme.len() && host[..scheme.len()].eq_ignore_ascii_case(scheme) {
+            host = &host[scheme.len()..];
+            break;
+        }
+    }
+    host = host.split('/').next().unwrap_or(host).trim();
+    // A bracketed IPv6 literal, with or without a port.
+    if let Some(rest) = host.strip_prefix('[') {
+        if let Some(inner) = rest.split(']').next() {
+            return inner.trim().to_ascii_lowercase();
+        }
+    }
+    // A trailing `:port` on an IPv4 address or a name. Bare IPv6 literals contain colons of their
+    // own, so only strip when exactly one colon is present.
+    if host.matches(':').count() == 1 {
+        if let Some((before, _port)) = host.split_once(':') {
+            host = before;
+        }
+    }
+    host.trim().trim_end_matches('.').to_ascii_lowercase()
 }
 
-/// Check whether a raw IP is in a private range.
+/// Parse the numeric forms an HTTP client and the OS resolver both accept for an IPv4 address:
+/// dotted quad, a bare 32-bit integer in decimal or hex, and dotted octal.
+fn parse_ipv4_any_radix(host: &str) -> Option<Ipv4Addr> {
+    if let Ok(v4) = host.parse::<Ipv4Addr>() {
+        return Some(v4);
+    }
+    if let Some(hex) = host.strip_prefix("0x") {
+        return u32::from_str_radix(hex, 16).ok().map(Ipv4Addr::from);
+    }
+    // A bare decimal integer, e.g. 2852039166 == 169.254.169.254.
+    if host.chars().all(|c| c.is_ascii_digit()) && !host.starts_with('0') {
+        if let Ok(raw) = host.parse::<u32>() {
+            return Some(Ipv4Addr::from(raw));
+        }
+    }
+    // Dotted octal, e.g. 0251.0376.0251.0376.
+    let parts: Vec<&str> = host.split('.').collect();
+    if parts.len() == 4 && parts.iter().any(|p| p.starts_with('0') && p.len() > 1) {
+        let mut octets = [0u8; 4];
+        for (slot, part) in octets.iter_mut().zip(&parts) {
+            let value = if let Some(rest) = part.strip_prefix('0') {
+                if rest.is_empty() {
+                    Ok(0)
+                } else {
+                    u32::from_str_radix(rest, 8)
+                }
+            } else {
+                part.parse::<u32>()
+            };
+            *slot = u8::try_from(value.ok()?).ok()?;
+        }
+        return Some(Ipv4Addr::from(octets));
+    }
+    None
+}
+
+/// The address a catalog entry names, in canonical form, or `None` if it names a DNS host.
+fn canonical_ip(addr: &str) -> Option<IpAddr> {
+    let host = host_only(addr);
+    if let Some(v4) = parse_ipv4_any_radix(&host) {
+        return Some(IpAddr::V4(v4));
+    }
+    match host.parse::<Ipv6Addr>() {
+        // An IPv4-mapped or IPv4-compatible address is the IPv4 address it wraps. Classifying the
+        // wrapper as "some IPv6 address" is how ::ffff:169.254.169.254 reached Allow.
+        Ok(v6) => Some(match v6.to_ipv4() {
+            Some(v4) => IpAddr::V4(v4),
+            None => IpAddr::V6(v6),
+        }),
+        Err(_) => None,
+    }
+}
+
+/// Check whether a catalog address is a metadata service or a link-local address.
+fn is_metadata_range(addr: &str) -> bool {
+    match canonical_ip(addr) {
+        Some(IpAddr::V4(v4)) => v4.is_link_local() || METADATA_ADDRESSES.contains(&v4),
+        Some(IpAddr::V6(v6)) => {
+            let head = v6.segments()[0];
+            // fe80::/10 unicast link-local, and fc00::/7 unique-local, which the previous prefix
+            // list covered only for the fd00: half.
+            (head & 0xffc0) == 0xfe80 || (head & 0xfe00) == 0xfc00
+        }
+        None => METADATA_HOSTNAMES.contains(&host_only(addr).as_str()),
+    }
+}
+
+/// Check whether a catalog address is in a private range.
 fn is_private_range(addr: &str) -> bool {
-    let clean = addr
-        .trim_start_matches("https://")
-        .trim_start_matches("http://");
-    PRIVATE_RANGES.iter().any(|r| clean.starts_with(r))
+    match canonical_ip(addr) {
+        Some(IpAddr::V4(v4)) => v4.is_private() || v4.is_loopback() || v4.is_unspecified(),
+        Some(IpAddr::V6(v6)) => v6.is_loopback() || v6.is_unspecified(),
+        // Names are not addresses, and the prefix list this replaced never matched a name either.
+        None => false,
+    }
 }
 
 /// Heuristic: does the capability string look like a raw address the agent should not be supplying?

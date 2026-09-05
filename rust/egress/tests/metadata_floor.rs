@@ -1,0 +1,138 @@
+//! The metadata floor, tested by spelling rather than by prefix.
+//!
+//! `rust/egress/src/lib.rs:32` documents the metadata ranges as *"never catalog-addable"*, and
+//! `metadata_range_always_denied` in the crate's own tests asserts that for exactly one spelling:
+//! the dotted-quad `169.254.169.254`. The check behind the claim is a case-sensitive
+//! `str::starts_with` over three prefixes, so every other way of writing the same address reaches
+//! Allow while the comment says it cannot.
+//!
+//! These are the spellings an HTTP client or an OS resolver accepts for the same host. A floor that
+//! holds only for the canonical form is not a floor; it is one entry in a deny list.
+
+use warrantor_egress::{
+    decide, test_catalog, CatalogEntry, DenyReason, EgressRequest, EgressVerdict,
+};
+
+fn request(endpoint: &str) -> EgressRequest {
+    EgressRequest {
+        capability: format!("net.egress:{endpoint}"),
+        logical_endpoint: endpoint.to_string(),
+        chain_capabilities: vec!["net.egress".to_string()],
+        enforcement_mode: "mediated".to_string(),
+        is_discovery: false,
+        has_approval: false,
+    }
+}
+
+/// Put one address in the catalog under a logical endpoint and ask the broker about it.
+fn verdict_for(address: &str) -> EgressVerdict {
+    let mut catalog = test_catalog();
+    catalog.entries.push(CatalogEntry {
+        logical_endpoint: "probe".to_string(),
+        addresses: vec![address.to_string()],
+        tls_identity: None,
+        permitted_methods: vec!["GET".to_string()],
+        expires_at: u64::MAX,
+    });
+    catalog.digest = catalog.compute_digest();
+    decide(&request("probe"), Some(&catalog))
+}
+
+/// Every one of these resolves to a cloud metadata service or a link-local address.
+/// The first row is the spelling the existing test already covers; the rest are the same hosts.
+const METADATA_SPELLINGS: &[(&str, &str)] = &[
+    ("dotted quad, the canonical form", "169.254.169.254"),
+    (
+        "Alibaba Cloud metadata, absent from METADATA_RANGES",
+        "100.100.100.200",
+    ),
+    ("decimal integer form of 169.254.169.254", "2852039166"),
+    ("hexadecimal form of 169.254.169.254", "0xa9fea9fe"),
+    (
+        "octal dotted form of 169.254.169.254",
+        "0251.0376.0251.0376",
+    ),
+    ("IPv4-mapped IPv6 form", "::ffff:169.254.169.254"),
+    (
+        "uppercase scheme, which trim_start_matches does not strip",
+        "HTTP://169.254.169.254",
+    ),
+    (
+        "uppercase IPv6 link-local, which starts_with does not match",
+        "FE80::1",
+    ),
+    (
+        "leading space, which trim_start_matches does not strip",
+        " 169.254.169.254",
+    ),
+];
+
+#[test]
+fn every_metadata_spelling_is_refused() {
+    let mut reached_allow = Vec::new();
+    for (why, address) in METADATA_SPELLINGS {
+        match verdict_for(address) {
+            EgressVerdict::Deny {
+                reason: DenyReason::MetadataRange,
+            } => {}
+            other => reached_allow.push(format!("  {address:<32} {why}\n      -> {other:?}")),
+        }
+    }
+    assert!(
+        reached_allow.is_empty(),
+        "{} of {} metadata spellings were not refused as MetadataRange:\n{}",
+        reached_allow.len(),
+        METADATA_SPELLINGS.len(),
+        reached_allow.join("\n")
+    );
+}
+
+/// The paired allowed control. Without this, the test above passes if `decide` refuses everything,
+/// which would prove nothing at all.
+#[test]
+fn a_public_address_is_still_allowed() {
+    let verdict = verdict_for("93.184.216.34");
+    assert!(
+        matches!(verdict, EgressVerdict::Allow { .. }),
+        "a public address must still reach Allow, else the floor above is untested: {verdict:?}"
+    );
+}
+
+/// A second allowed control, so one unlucky address cannot make the pair look sound.
+#[test]
+fn a_second_public_address_is_still_allowed() {
+    let verdict = verdict_for("8.8.8.8");
+    assert!(
+        matches!(verdict, EgressVerdict::Allow { .. }),
+        "control address must be allowed: {verdict:?}"
+    );
+}
+
+/// `DenyReason::PrivateRange` exists and is documented, and the branch that would construct it
+/// (`rust/egress/src/lib.rs:212-218`) has an empty body — it is a comment that reasons itself into
+/// a no-op. So the rule "private ranges denied unless explicitly catalogued" has no mechanism.
+///
+/// This test pins the CURRENT behavior rather than asserting the documented rule, because changing
+/// it is Task 7.1's decision and three existing tests depend on a private address being allowed
+/// once catalogued. What it prevents is the variant being silently deleted, or the branch being
+/// given a body without that decision being made deliberately.
+#[test]
+fn private_range_is_allowed_once_catalogued_and_the_variant_is_never_constructed() {
+    let verdict = verdict_for("10.0.1.5");
+    assert!(
+        matches!(verdict, EgressVerdict::Allow { .. }),
+        "a catalogued private address is allowed today: {verdict:?}"
+    );
+    let source = include_str!("../src/lib.rs");
+    // The variant is declared unqualified inside the enum, so the qualified path appears only
+    // where the variant is CONSTRUCTED or matched. Zero is the honest count today.
+    assert!(
+        source.contains("    PrivateRange,"),
+        "DenyReason::PrivateRange should still be declared; removing it is a deliberate          decision belonging to Task 7.1, not a silent edit."
+    );
+    let constructions = source.matches("DenyReason::PrivateRange").count();
+    assert_eq!(
+        constructions, 0,
+        "DenyReason::PrivateRange is declared but never constructed: the branch that would build          it has an empty body. If this count rose, the private-range rule was given a mechanism,          which is Task 7.1's decision (L4-25) and changes what three existing tests assert about          a catalogued private address."
+    );
+}
