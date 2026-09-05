@@ -6,7 +6,7 @@
 > of the evidence, which is the one job `docs/W1-delivery-gaps.md` names for a
 > ledger. Regenerate with `python scripts/task_status.py --write`.
 
-**41 tasks · 341 steps · 0 steps landed**
+**45 tasks · 380 steps · 0 steps landed**
 
 | State | Count | Meaning |
 |---|---|---|
@@ -15,7 +15,7 @@
 | IN-FLIGHT | 8 | Branch exists, not yet merged |
 | READY | 2 | Expanded, unblocked, nobody has started it |
 | NEEDS-EXPANSION | 0 | Task structure exists; Step-0 detail not yet captured |
-| BLOCKED | 31 | A predecessor has not landed |
+| BLOCKED | 35 | A predecessor has not landed |
 
 | Task | Ph | Owner | State | Steps | Branch | SHA | Blocked by |
 |---|---|---|---|---|---|---|---|
@@ -60,6 +60,10 @@
 | **6.4** Measurement-configuration binding as a CI gate | 6 | `glm-5.3-flash` | BLOCKED | 5 | `feat/task-6.4` | — | phase 4, phase 5 |
 | **6.5** Cross-organization verification seed | 6 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-6.5` | — | phase 4, phase 5 |
 | **6.6** Open specification and reference implementation p... | 6 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-6.6` | — | phase 4, phase 5 |
+| **7.1** Effect-class SDK, conformance kit, and the non-am... | 7 | `opus` | BLOCKED | 10 | `feat/effect-sdk-and-deny-floor` | — | phase 2 |
+| **9.6** Attested sender identity and the channel policy l... | 9 | `glm-5.3-flash` | BLOCKED | 10 | `feat/channel-attestation` | — | phase 1, phase 3 |
+| **10.1** The causal verdict — STRICT_CAUSAL, made real (L7... | 10 | `opus` | BLOCKED | 10 | `feat/causal-verdict` | — | phase 1, phase 5 |
+| **10.2** Receipt query language and live stream (L7-13) | 10 | `glm-5.3-flash` | BLOCKED | 9 | `feat/receipt-query` | — | phase 1, phase 5 |
 
 ## Runnable right now
 

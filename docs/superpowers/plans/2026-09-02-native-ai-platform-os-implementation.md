@@ -17683,3 +17683,417 @@ Three questions were raised by task authors as the plan owner's call rather than
 **Correction 2 — "9 of 80 reachable" is confirmed, and here is the ninth.** `rust/warrant/Cargo.toml` declares exactly seven intra-workspace path dependencies: `trust-core`, `authority-spec`, `evidence`, `notary`, `egress`, `containment-conformance`, `spend`. The reachable set is those seven, plus `warrantor-warrant` itself, plus `warrantor-api`, which is reached transitively because both `authority-spec` and `trust-core` depend on it. Task 0.5's author could not find the ninth path dep in `warrant/Cargo.toml` and was right that it is not there; it is one hop further out. The census tool must compute reachability transitively, not by reading one manifest.
 
 **Standing instruction for every implementer.** Where a task section and the survey disagree, the section wins if its author quoted the file, and the disagreement is recorded here. Where a section and the code disagree, the code wins, and the implementer records the deviation rather than forcing the section.
+
+---
+
+## Phase 7 — Effect surface breadth
+
+Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 7. Needs Phase 2.
+
+### Task 7.1: Effect-class SDK, conformance kit, and the non-amendable deny floor (L4-20, L4-25)
+
+**Anchor.** L4-20 is `status=none`, `core`, W3: a third party must be able to write an adapter that
+inherits every guarantee, with a conformance test proving it decomposes correctly onto the syscall
+table and never touches a credential. L4-25 is `status=none`, `compose`, and **W1** — the wave
+everything else sits on — and it was omitted from the original plan. It requires that the cloud
+metadata service, link-local addresses, privileged pods, host mounts and broad service accounts be
+denied to agent workloads at the network and admission tier, *"in a layer no warrant, policy edit or
+agent action can amend."*
+
+This task is first in Phase 7 because eight adapter tasks transcribe its contract. Seeding an
+adapter before it exists produces nine separately-invented decompositions, which is the same defect
+Task 2.1 is routed to Opus to prevent one layer down.
+
+**Two findings from the code that change the task's shape, both verified against `origin/main`:**
+
+1. **The deny logic already exists and is already amendable.** `rust/egress-filter/src/lib.rs`
+   lists `169.254.169.254` (AWS/GCP/Azure IMDS) at line 61 and `100.100.100.200` (Alibaba) at line
+   62, and classifies RFC-1918, loopback and IPv6 `fe80::/10` link-local at lines 615–640. But the
+   control is `Policy.deny_private_egress: bool` (line 159), defaulted `true` under AX-05 — and the
+   builder exposes `deny_private_egress(false)` at line 436, documented as *"an explicit, auditable
+   decision to permit egress to RFC-1918 / loopback / link-local addresses."* **An auditable
+   override is exactly what L4-25 forbids.** The requirement is not a good default; it is a floor
+   with no switch. This task's real work on L4-25 is to split the metadata and link-local deny out
+   of `Policy` entirely, so no serialized config, no warrant and no policy edit can reach it.
+2. **`warrantor-egress-filter` is an orphan.** It appears in the 29-crate orphan list in
+   `evidence/wiring-coverage.json` on `feat/wiring-census`: it compiles, it has tests including
+   `ipv6_link_local_and_unique_local_are_private_ax05`, and **nothing the user runs links it.** A
+   hard deny in an unlinked crate denies nothing. This task must lower the orphan count, and
+   `python tools/ci/wiring_census.py` is the arbiter.
+
+**Step 0.** Run and capture verbatim, before writing anything:
+
+```
+git ls-tree --name-only origin/main rust/
+git show origin/main:rust/egress-filter/src/lib.rs | wc -l
+python tools/ci/wiring_census.py
+```
+
+Read in full: `rust/egress-filter/src/lib.rs` (capture the exact line numbers of
+`METADATA_ENDPOINTS`, `Policy`, `deny_private_egress`, `decide_ip` and the private-range
+classifier); `rust/authority-spec/src/lib.rs` lines 38–110 (`SideEffectClass` and
+`is_consequential`); `rust/egress/src/lib.rs` (618 lines) for the destination model the adapters
+will use; and Task 2.1's section in this plan for the effect-decomposition registry this SDK
+compiles against. Record whether `warrantor-egress-filter` is named in
+`rust/warrant/Cargo.toml`'s `[dependencies]` — on `origin/main` it is not, and the census says so.
+
+**Record the vocabulary mismatch explicitly.** `SideEffectClass` has five variants — `Read`,
+`Write`, `Financial`, `Destructive`, `Physical` — and the blueprint's syscall table has nine: NET,
+CRED, EXEC, MUTATE, MSG, SPEND, DELEGATE, ACTUATE, ATTEST. The SDK's conformance test asserts a
+decomposition onto **the nine**, which Task 2.1 introduces. If Task 2.1 has not landed, this task
+cannot assert conformance against anything and must stop.
+
+**Non-goals.**
+- Not writing any adapter. Tasks 7.3, 7.4, 7.5, 7.6 do that, and 7.2 the parser guard.
+- Not the admission-controller half of L4-25 beyond a documented interface. Kubernetes admission is
+  a deployment artifact; this task delivers the network-tier floor and the contract an admission
+  controller implements, and states plainly that the cluster half is unshipped.
+- Not the destination catalog itself (Task 2.5 owns the generic HTTP adapter over it).
+- Not credential handling. The SDK proves an adapter *never touches* a credential; the vault is
+  Phase 3's.
+
+**Files.** `rust/egress-filter/src/lib.rs`, a new `rust/effect-sdk/` crate,
+`rust/warrant/Cargo.toml` (the wiring edge — **coordinate, another lane owns this file**),
+`tools/ci/wiring_census.py` floor record, `docs/W1-delivery-gaps.md`,
+`docs/task-evidence/task-7.1.md`.
+
+**Consumes / Produces.** Consumes `SideEffectClass` (`rust/authority-spec/src/lib.rs:42`), the
+Task 2.1 decomposition registry, and `Policy::decide_ip` (`rust/egress-filter/src/lib.rs`).
+Produces a `trait EffectAdapter` with a conformance-test harness, and a `hard_deny` module whose
+denials take no configuration argument at all — the absence of a parameter is the mechanism.
+
+**Bound strength.** The metadata deny is **Tier B, chokepoint**: it refuses at the egress broker,
+which binds only traffic that traverses the broker. It is **not** Tier A until an admission
+controller or network policy enforces it out of process, and the product text must say so in those
+words. The SDK conformance kit is **Tier C, observed**: it proves an adapter decomposes correctly
+in a test, not that a shipped adapter does at runtime.
+
+**Exit gate.** `python tools/ci/wiring_census.py` reports a reachable count **strictly greater than
+9**, with `warrantor-egress-filter` no longer in the orphan list; and a test named for L4-25 shows
+that no public constructor, builder, serialized config or warrant field can permit egress to
+`169.254.169.254`.
+
+- [ ] **Step 1 — Worktree; capture Step 0 in full.**
+      `git worktree add M:/wt-7.1 -b feat/effect-sdk-and-deny-floor origin/main`
+- [ ] **Step 2 — Failing test: the metadata deny cannot be switched off.** Enumerate every public
+      path into `Policy` — `new_default`, the builder, `serde` deserialization of an attacker-chosen
+      config, and any warrant field — and assert each still denies `169.254.169.254`. Today
+      `deny_private_egress(false)` makes this fail, which is the point.
+- [ ] **Step 3 — Move the metadata and link-local deny out of `Policy`.** A `hard_deny` module with
+      no configuration surface. `deny_private_egress` may keep governing RFC-1918 generally; the
+      metadata addresses and link-local range leave the policy object entirely.
+- [ ] **Step 4 — Failing test: an older serialized config cannot re-open it.** Deserialize a
+      `Policy` JSON that predates this change and one that sets every field adversarially; assert
+      the deny holds in both. This is the AX-05 lesson generalized.
+- [ ] **Step 5 — Wire `warrantor-egress-filter` into the shipping path** and record the census
+      number rising. If the wiring edge collides with another lane's `Cargo.toml` work, stop and
+      report rather than racing `Cargo.lock`.
+- [ ] **Step 6 — Failing test: an adapter that touches a credential fails conformance.** The
+      conformance kit's first assertion, and the one third parties will care about most.
+- [ ] **Step 7 — Failing test: an adapter whose decomposition omits a syscall fails conformance.**
+      Assert against Task 2.1's registry, not against a local list.
+- [ ] **Step 8 — The `EffectAdapter` trait and the conformance harness,** with a worked reference
+      adapter used only by the tests, so Task 7.3 has something to transcribe.
+- [ ] **Step 9 — State the unshipped half.** The admission-controller and network-policy tier is a
+      documented interface, not code in this repository. Say so in the product text and in
+      `docs/W1-delivery-gaps.md`, with the tier it would be if it existed.
+- [ ] **Step 10 — Gates, evidence file, `git commit -s`.**
+
+---
+
+## Phase 9 — Authority algebra and channels
+
+Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 9. Needs Phase 1, Phase 3.
+
+### Task 9.6: Attested sender identity and the channel policy language (L5-06, L5-05)
+
+**Anchor.** L5-06 is `status=none`, `core`, W2: cryptographic sender attestation bound to the agent
+principal, *"verified by the broker before delivery, so impersonation is unrepresentable rather than
+detectable."* L5-05 is `status=none`, `core`, W2: who may message whom, about which classes, at what
+rate, with what disclosure — expressed in the same policy language as egress and compiled by the
+same compiler, *"so one document governs both."* The blueprint anchors both to the METR/Redwood
+observation that the agents' message board was unauthenticated and names could be posted by anyone.
+
+This task is first in Phase 9's channel group because every collusion control above it — 9.7's
+cross-tenant firewall, 9.4's sibling-collusion intersection, 6.2's swarm detection — assumes it can
+tell one agent's message from another's.
+
+**The finding that sets this task's real size.** Searched across `origin/main` for
+`peer_proposal`, `PeerProposal`, `fn send_message`, `struct Message` and `agent_to_agent`:
+**zero hits in any Rust crate.** There is no channel plane. There is no broker to verify before
+delivery, no message type to attest, and no delivery path to refuse on. L5-06's phrase *"verified
+by the broker before delivery"* presumes infrastructure that does not exist.
+
+So this is not "add a signature to messages." It is **the channel plane's first task**, and it must
+be scoped as such or it will silently become three tasks. What exists to build on:
+`rust/trust-core/src/cli.rs` has Ed25519 `key-gen`, `sign` and `verify` fully wired (lines 4–91,
+`ed25519_dalek`), and `rust/notary/src/lib.rs:325` has a `SignatureEnvelope` — `algorithm`,
+`key_id`, `public_key`, `value` — already used for receipts. **Reuse `SignatureEnvelope`.** A second
+signature envelope shape in one system is a verification bug waiting to be written.
+
+**Step 0.** Run and capture verbatim:
+
+```
+git grep -n "peer_proposal\|PeerProposal\|fn send_message\|struct Message" origin/main -- 'rust/**/*.rs'
+git show origin/main:rust/notary/src/lib.rs | sed -n '320,352p'
+git show origin/main:rust/trust-core/src/cli.rs | sed -n '1,40p'
+```
+
+Read in full: `rust/trust-core/src/lib.rs` and `cli.rs` for the key model; `rust/notary/src/lib.rs`
+lines 320–400 for `SignatureEnvelope` and `canonical_receipt_body` — the canonicalization rule is
+reusable and re-deriving it is how two signers stop agreeing; the egress policy language this task
+must extend rather than parallel (Task 1.2's capability-derived destinations, Task 2.5's destination
+catalog); and Task 3.1's agent-principal grains, because the attestation binds to a principal that
+task defines.
+
+**Non-goals.**
+- Not coordination primitives or the cross-tenant firewall — Task 9.7.
+- Not peer-proposal admission — that is a consumer of this, and it is Task 2.6's provenance work
+  plus Phase 9's later tasks.
+- Not a transport. Task 9.9 profiles A2A and MCP; this task defines what any transport must carry.
+- Not a message broker as a service. **No new trust root:** build the local verifier and state
+  precisely what it does not establish — specifically, that it cannot prove a message was *not*
+  delivered elsewhere.
+
+**Files.** A new `rust/channel/` crate, `rust/notary/src/lib.rs` (read-only — reuse
+`SignatureEnvelope`, do not modify it), `rust/warrant/Cargo.toml` (wiring edge, contended),
+`docs/W1-delivery-gaps.md`, `docs/task-evidence/task-9.6.md`.
+
+**Consumes / Produces.** Consumes `SignatureEnvelope` (`rust/notary/src/lib.rs:325`),
+`canonical_receipt_body`'s canonicalization discipline, `SigningKey` from `ed25519_dalek` as used in
+`rust/trust-core/src/cli.rs:90`, and the agent principal from Task 3.1. Produces an
+`AttestedMessage` type and a `verify_before_delivery` function that is the only path to delivery,
+plus a channel clause in the policy grammar compiled by the same compiler as egress.
+
+**Bound strength.** **Tier B, chokepoint.** Attestation binds only messages that traverse this
+broker. Two agents sharing a filesystem, a database table, a shared model context or any
+side channel exchange unattested messages, and this control cannot see them. State that in those
+words — it is the same limit Task 3.6's improvised-channel detection exists to partially cover, and
+the two tasks must not each claim the other closes it.
+
+**Exit gate.** A message whose sender field does not match its signature is refused **at the
+delivery function**, not flagged after; and one policy document, compiled once, produces both an
+egress decision and a channel decision — demonstrated by a test that compiles a single document and
+asserts on both outputs.
+
+- [ ] **Step 1 — Worktree; capture Step 0, including the zero-hit grep.**
+      `git worktree add M:/wt-9.6 -b feat/channel-attestation origin/main`
+- [ ] **Step 2 — Failing test: delivery refuses a message whose sender does not match its
+      signature.** Assert the refusal happens in the delivery path and that the message is not
+      observable to the recipient. Detection after delivery is the failure mode L5-06 names.
+- [ ] **Step 3 — Failing test: the attack reached the boundary.** Pair every refusal test with a
+      control message that is well-formed and IS delivered. Without the pair, a test that refuses
+      everything passes and proves nothing. This is the Task 5.1 harness rule.
+- [ ] **Step 4 — `AttestedMessage` over the existing `SignatureEnvelope`,** with the same
+      canonicalization discipline as `canonical_receipt_body`. Assert byte-identical canonical forms
+      across two runs and two processes.
+- [ ] **Step 5 — Failing test: the channel clause parses in the egress policy grammar.** One
+      document, one compiler.
+- [ ] **Step 6 — Channel policy: who may message whom, class, rate, disclosure.** Rate is a bound,
+      so it must refuse, not warn.
+- [ ] **Step 7 — Failing test: an unattested transport cannot be selected.** If a transport cannot
+      carry the envelope, it is not usable — assert the refusal rather than a silent downgrade.
+- [ ] **Step 8 — Record what side channels defeat this,** in `docs/W1-delivery-gaps.md` and the
+      product text, naming Task 3.6 as the partial cover and not claiming closure.
+- [ ] **Step 9 — Wire the crate into the shipping path; census count must not fall.**
+- [ ] **Step 10 — Gates, evidence file, `git commit -s`.**
+
+---
+
+## Phase 10 — Evidence depth and custody
+
+Scope: `docs/superpowers/plans/2026-09-05-phases-7-14-scope.md`, Phase 10. Needs Phase 1, Phase 5.
+
+### Task 10.1: The causal verdict — STRICT_CAUSAL, made real (L7-01)
+
+**Anchor.** L7-01 is `status=none`, `novel`, W2, and the blueprint calls it *"the highest-leverage
+single item in the catalog."* A verdict that validates the pathway to an outcome, not merely the
+outcome: *"right result, wrong route" is a violation.* The receipt records which authority, which
+effects, in which order produced the result, and the verdict is computed over that chain rather
+than over a final assertion.
+
+**The finding that defines this task.** `git grep -n "STRICT_CAUSAL\|strict_causal" origin/main`
+returns **nothing**. And the receipt has no room for a chain. `ReceiptBody`
+(`rust/notary/src/lib.rs:336`) carries exactly six fields:
+
+```rust
+pub struct ReceiptBody {
+    pub verdict: Verdict,
+    pub actor_svid: String,
+    pub operation_class: String,
+    pub timestamp: u64,
+    pub enforcement_mode: EnforcementMode,
+    pub notary_version: String,
+}
+```
+
+No prior-receipt pointer. No effect sequence. No authority chain. No ordering beyond a single
+`timestamp`. **A causal verdict is not merely unimplemented — it is unrepresentable in the signed
+body.** One receipt per action, each independent of the last.
+
+That makes this a **format change to a signed structure**, which is the most consequential kind of
+change in this repository:
+
+- `canonical_receipt_body` produces the bytes that are signed. Adding a field changes every
+  signature. Every receipt written before this change is a v1 receipt and must remain verifiable
+  under the v1 rule, forever, or the archive's append-only guarantee is a claim about a format that
+  no longer exists.
+- So the first work is **versioning**, not causality. `notary_version` already exists in the body
+  and is the hook. Use it.
+- `operation_class` is a `String` on the wire while `SideEffectClass`
+  (`rust/authority-spec/src/lib.rs:42`) is an enum. Do not fix that here; note it and leave it.
+
+**Step 0.** Run and capture verbatim:
+
+```
+git grep -c "STRICT_CAUSAL\|strict_causal" origin/main
+git show origin/main:rust/notary/src/lib.rs | sed -n '330,400p'
+git grep -n "canonical_receipt_body\|notary_version\|NOTARY_VERSION" origin/main -- 'rust/**/*.rs'
+```
+
+Read in full: `rust/notary/src/lib.rs` (901 lines) — every caller of `issue_receipt` and every
+verifier; `rust/evidence/src/lib.rs` (969 lines) for the evidence envelope and how chains are
+represented there, if at all; `rust/archive/tests/append_only.rs` and
+`rust/archive/tests/verification_does_not_depend_on_the_archive.rs`, because they pin the
+verification contract this change must not break; and the Task 5.1 corpus suite
+`rust/warrant/tests/invariants/i07_evidence_precedes_commitment.rs`, whose ignored test says
+*"the product never issues a pre-commit receipt"* — the causal chain and the two-phase commit are
+the same missing structure seen from two directions. **Record whether Task 2.3 has landed;** it
+introduces two-phase staged effects, and building the chain twice is the waste to avoid.
+
+**Non-goals.**
+- Not the receipt query language — Task 10.2, which reads what this writes. Freeze the shape first.
+- Not reasoning-trace monitoring — Task 10.7. Causality here is over *effects*, not over model
+  internals, and conflating the two would make a strong claim from a weak signal.
+- Not retro-fitting chains onto historical receipts. v1 receipts stay v1.
+- Not a distributed ordering guarantee. **No new trust root:** the order is the order this notary
+  observed, and the task must state what that does not establish across machines.
+
+**Files.** `rust/notary/src/lib.rs`, `rust/evidence/src/lib.rs`, `rust/warrant/src/report.rs`
+(1,418 lines — **contended, another lane owns it**), `rust/warrant/tests/invariants/` (read-only —
+Task 5.1's corpus is the measuring instrument, do not edit its assertions),
+`docs/W1-delivery-gaps.md`, `docs/task-evidence/task-10.1.md`.
+
+**Consumes / Produces.** Consumes `ReceiptBody` and `issue_receipt`
+(`rust/notary/src/lib.rs:336`, `:363`), `Verdict`, `EnforcementMode`, and Task 2.3's staged-effect
+records if they exist. Produces a versioned `ReceiptBody` v2 carrying a prior-receipt digest and an
+ordered effect sequence, a `causal_verdict` function computed over the chain, and a v1 verification
+path that is never removed.
+
+**Bound strength.** **Tier C, observed**, and this must be stated bluntly because the item's
+prominence invites overclaiming. The chain records what the notary was told, in the order it was
+told. It proves an operator cannot *later* rewrite the route without breaking a signature. It does
+**not** prove the recorded route is the route the agent actually took — only mediation at every hop
+does that, and the wiring census currently reports 9 of 38 crates reachable. Any product text
+saying "we prove the pathway" is false; "we make the recorded pathway tamper-evident" is true.
+
+**Exit gate.** A chain whose final outcome is correct but whose intermediate authority was absent
+is **refused**, and the refusal names the hop; every pre-existing v1 receipt still verifies
+byte-for-byte under the v1 rule, proven by the archive interop tests unchanged.
+
+- [ ] **Step 1 — Worktree; capture Step 0, including the zero-hit grep for STRICT_CAUSAL.**
+      `git worktree add M:/wt-10.1 -b feat/causal-verdict origin/main`
+- [ ] **Step 2 — Failing test: a v1 receipt verifies after the change.** Write this before the
+      change. Freeze a real v1 receipt as a fixture, byte-for-byte.
+- [ ] **Step 3 — Version the body.** `notary_version` selects the canonicalization and the
+      verification rule. Two canonical forms, one verifier, chosen by the field already there.
+- [ ] **Step 4 — Failing test: "right result, wrong route" is refused.** Construct a chain reaching
+      a permitted outcome through a hop with no authority. Assert refusal, and assert the refusal
+      names the hop. Pair it with a control chain that is well-formed and IS accepted — otherwise a
+      verifier that refuses everything passes this test.
+- [ ] **Step 5 — The chain in the signed body:** prior-receipt digest plus an ordered effect
+      sequence. Ordering is part of the signed bytes or it is not evidence.
+- [ ] **Step 6 — Failing test: reordering the effect sequence breaks the signature.**
+- [ ] **Step 7 — `causal_verdict` over the chain,** replacing nothing: the existing outcome verdict
+      stays, and the causal verdict is additional. A single verdict field cannot carry both without
+      losing which one refused.
+- [ ] **Step 8 — Convert what this earns in the Task 5.1 corpus.** If
+      `i07_evidence_precedes_commitment.rs` or `i04_current_policy.rs` now passes, remove that
+      `#[ignore]` and **raise `passing_floor` in `tools/ci/invariant-ratchet.json` in the same
+      commit**. If nothing passes, say so plainly — do not weaken an assertion to earn a number.
+- [ ] **Step 9 — Write the honest tier into the product text and the gaps ledger,** in the words
+      above: tamper-evident recorded pathway, not proven pathway.
+- [ ] **Step 10 — Gates, evidence file, `git commit -s`.**
+
+### Task 10.2: Receipt query language and live stream (L7-13)
+
+**Anchor.** L7-13 is `status=none`, `core`, W2: a stable query surface over the graph and a
+resumable live stream of settled receipts, *"so audit, detection, corpus extraction and regulator
+access all read the same structure through one interface rather than four pipelines."* The
+blueprint's compounding argument is five consumers over one structure.
+
+Those five consumers are already scheduled and they are the reason this task is substrate: Task
+11.4's audit workbench, Task 11.9's regulator portal, Task 12.1's corpus extraction, Task 6.2's
+swarm detection on the receipt graph, and Task 11.13's natural-language console. **If this task
+does not land first, each of those five builds its own reader**, and the blueprint's margin
+argument inverts into five pipelines to keep in agreement.
+
+**What exists.** `rust/notary/src/lib.rs:336` defines `ReceiptBody` and `WarReceipt`. The only
+thing resembling a query surface on `origin/main` is `rust/archive/src/bin/warrantor-archive.rs`.
+There is no index, no filter grammar, and no stream. `rust/archive/` also carries the append-only
+and device-pairing tests that pin what the archive may and may not do — read them before designing,
+because *"the archive never serves a verdict"* is an existing test name and it is a constraint on
+this task: the query surface returns receipts, and a caller computes verdicts from them.
+
+**The ordering dependency, stated so it is not discovered late.** Task 10.1 changes the signed
+receipt body to carry a chain. **A query language frozen against the v1 shape will need breaking
+changes the week 10.1 lands.** Either 10.1 lands first, or this task's grammar is explicitly
+versioned from its first commit and its tests pin both shapes. Choose in Step 0 and record the
+choice; do not leave it implicit.
+
+**Step 0.** Run and capture verbatim:
+
+```
+git show origin/main:rust/notary/src/lib.rs | sed -n '330,352p'
+git ls-tree --name-only origin/main rust/archive/tests/
+python scripts/task_status.py | grep -E "10\.1|2\.3"
+```
+
+Read in full: `rust/archive/src/store.rs`, `http.rs`, `postgres.rs` and
+`src/bin/warrantor-archive.rs` for the storage and serving model; `rust/archive/tests/append_only.rs`
+and `the_archive_never_serves_a_verdict.rs` for the constraints; `rust/evidence/src/lib.rs` for the
+envelope. Record whether Task 10.1 has landed, and whether `staged_chain` exists in the tree — an
+archive interop fixture predating it has already broken once.
+
+**Non-goals.**
+- Not a database migration or a new store. Query what the archive holds.
+- Not verdict computation. The archive never serves a verdict; that test name is a contract.
+- Not any consumer UI. Tasks 11.4, 11.9 and 11.13 consume this.
+- Not retention or jurisdiction filtering — Task 10.4 owns that, and this task must not
+  accidentally become the enforcement point for it.
+- **Not a new trust root.** A live stream implies a server; state precisely what a consumer can and
+  cannot conclude when the stream is silent — silence is not evidence of no activity.
+
+**Files.** A new `rust/receipt-query/` crate, `rust/archive/src/store.rs` and `http.rs`
+(**contended** — another lane has archive work in flight), `docs/task-evidence/task-10.2.md`.
+
+**Consumes / Produces.** Consumes `WarReceipt` and `ReceiptBody` (`rust/notary/src/lib.rs:336`) and
+the archive store interface in `rust/archive/src/store.rs`. Produces a filter grammar over receipt
+fields, a resumable cursor, and one reader that all five consumers use.
+
+**Bound strength.** **Tier C, observed.** A query surface is a read path; it enforces nothing. Its
+one real guarantee is that two consumers asking the same question get the same answer, and that is
+worth asserting directly rather than assuming — a differential test across two consumers is the
+strongest thing this task can claim.
+
+**Exit gate.** Two different consumers issue the same query and receive byte-identical results; a
+stream interrupted mid-read resumes from its cursor with no gap and no duplicate, proven by a test
+that kills the reader mid-stream rather than by a comment saying it is resumable.
+
+- [ ] **Step 1 — Worktree; capture Step 0 and record the 10.1 ordering decision.**
+      `git worktree add M:/wt-10.2 -b feat/receipt-query origin/main`
+- [ ] **Step 2 — Failing test: the grammar carries its version.** Whatever the 10.1 decision, the
+      query result names the receipt schema version it read. A result that does not is
+      unreproducible once the body changes.
+- [ ] **Step 3 — Failing test: two consumers, one query, identical bytes.** The differential test is
+      the task's whole guarantee. Write it before the grammar.
+- [ ] **Step 4 — The filter grammar** over actor, class, verdict, enforcement mode and time. Not
+      over anything the archive would have to compute — that would make it serve a verdict.
+- [ ] **Step 5 — Failing test: a resumable cursor survives an interrupted read.** Kill the reader
+      mid-stream and assert no gap and no duplicate on resume.
+- [ ] **Step 6 — The live stream over settled receipts,** with the cursor from Step 5.
+- [ ] **Step 7 — Failing test: silence is disclosed, not implied.** A consumer reading an empty
+      window must be able to distinguish "no activity" from "not observed", per the coverage
+      discipline in `harness.rs`'s `Coverage` enum.
+- [ ] **Step 8 — Wire the crate into the shipping path; census count must not fall.**
+- [ ] **Step 9 — Gates, evidence file, `git commit -s`.**

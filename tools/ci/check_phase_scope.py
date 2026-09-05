@@ -9,12 +9,17 @@ fix, so the accounting is a machine check rather than a reading.
 Three sources, and the checker never trusts the scope document about any of them:
 
   catalog    every `<article class="item" id="Lx-nn">` in the master blueprint
-  covered    every L-code appearing anywhere in the implementation plan
+  covered    L-codes in the implementation plan ABOVE its `## Phase 7` heading, because
+             below that heading the plan is this scope document being fulfilled
   scoped     the *Items* column of each task row in the scope document, and nothing else
+  seeded     the L-codes in each `### Task N.M:` heading below `## Phase 7`
 
-Only the Items column counts. Anchor prose legitimately cross-references a code owned by
-another task -- Task 7.4's anchor names the L4-25 deny floor that Task 7.1 builds -- and
-counting those would report a duplicate for a document that is correct.
+Only the Items column counts for `scoped`. Anchor prose legitimately cross-references a code
+owned by another task -- Task 7.4's anchor names the L4-25 deny floor that Task 7.1 builds --
+and counting those would report a duplicate for a document that is correct.
+
+`seeded` exists to catch drift the other direction: a task seeded into the plan with different
+items than its scope row silently rescopes the work, and the plan is what a lane executes.
 """
 
 from __future__ import annotations
@@ -45,7 +50,33 @@ def catalog_items() -> set[str]:
 
 
 def plan_covered() -> set[str]:
-    return set(LCODE.findall(read(PLAN)))
+    """L-codes covered by the ORIGINAL plan — Phases 0 through 6 only.
+
+    Seeding a scoped task into the plan puts its L-codes into the plan file, which is the
+    scope document being fulfilled rather than a conflict with it. Counting the whole file
+    made the checker report every seeded task as "already covered by the plan" — it went red
+    the first time it was right about anything, which is the failure mode that teaches people
+    to ignore a gate. Coverage therefore stops at the `## Phase 7` heading.
+    """
+    text = read(PLAN)
+    cut = re.search(r"^## Phase 7\b", text, re.MULTILINE)
+    return set(LCODE.findall(text[: cut.start()] if cut else text))
+
+
+def seeded_tasks() -> dict[str, set[str]]:
+    """Map task id -> L-codes named in the heading of each seeded Phase 7+ task section.
+
+    A seeded task whose heading disagrees with its scope row means the scope and the plan have
+    drifted, and the plan is what a lane executes.
+    """
+    text = read(PLAN)
+    cut = re.search(r"^## Phase 7\b", text, re.MULTILINE)
+    if not cut:
+        return {}
+    return {
+        m.group(1): set(LCODE.findall(m.group(2)))
+        for m in re.finditer(r"^### Task (\d+\.\d+):(.*)$", text[cut.start() :], re.MULTILINE)
+    }
 
 
 def scoped_items() -> tuple[dict[str, list[str]], list[str]]:
@@ -103,6 +134,21 @@ def main() -> int:
         if not codes:
             findings.append(f"task {task} has an empty Items column")
 
+    # Drift between the scope row and the seeded task section. The plan is what a lane
+    # executes, so a seeded heading that names different items than its scope row silently
+    # rescopes the work.
+    seeded = seeded_tasks()
+    for task, heading_codes in sorted(seeded.items()):
+        scoped = set(per_task.get(task, []))
+        if not scoped:
+            findings.append(f"task {task} is seeded into the plan but appears in no scope row")
+        elif heading_codes != scoped:
+            findings.append(
+                f"task {task} is seeded with {sorted(heading_codes) or 'no items'} "
+                f"but scoped with {sorted(scoped)}"
+            )
+
+    print(f"phase scope: {len(seeded)} of {len(per_task)} tasks seeded into the plan")
     print(
         f"phase scope: {len(per_task)} tasks account for {len(set(flat))} of "
         f"{len(uncovered)} uncovered items, out of a catalog of {len(catalog)}"
