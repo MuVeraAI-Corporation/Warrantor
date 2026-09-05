@@ -6,7 +6,7 @@
 > of the evidence, which is the one job `docs/W1-delivery-gaps.md` names for a
 > ledger. Regenerate with `python scripts/task_status.py --write`.
 
-**45 tasks · 380 steps · 0 steps landed**
+**70 tasks · 580 steps · 0 steps landed**
 
 | State | Count | Meaning |
 |---|---|---|
@@ -15,7 +15,7 @@
 | IN-FLIGHT | 8 | Branch exists, not yet merged |
 | READY | 2 | Expanded, unblocked, nobody has started it |
 | NEEDS-EXPANSION | 0 | Task structure exists; Step-0 detail not yet captured |
-| BLOCKED | 35 | A predecessor has not landed |
+| BLOCKED | 60 | A predecessor has not landed |
 
 | Task | Ph | Owner | State | Steps | Branch | SHA | Blocked by |
 |---|---|---|---|---|---|---|---|
@@ -61,9 +61,34 @@
 | **6.5** Cross-organization verification seed | 6 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-6.5` | — | phase 4, phase 5 |
 | **6.6** Open specification and reference implementation p... | 6 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-6.6` | — | phase 4, phase 5 |
 | **7.1** Effect-class SDK, conformance kit, and the non-am... | 7 | `opus` | BLOCKED | 10 | `feat/effect-sdk-and-deny-floor` | — | phase 2 |
+| **7.4** Adapters — cloud control plane, CI/CD and identit... | 7 | `opus` | BLOCKED | 8 | `feat/adapters-substrate-mutating` | — | phase 2 |
+| **7.6** Adapter — browser and computer use (L4-18) | 7 | `opus` | BLOCKED | 8 | `feat/computer-use-adapter` | — | phase 2 |
+| **7.7** Semantic egress purpose and data-class binding, w... | 7 | `opus` | BLOCKED | 10 | `feat/egress-purpose-binding` | — | phase 2 |
+| **8.1** Horizon governor (L3-04) | 8 | `opus` | BLOCKED | 9 | `feat/horizon-governor` | — | phase 2, phase 3 |
+| **8.2** The risk dial and the end-of-budget risk profile ... | 8 | `opus` | BLOCKED | 8 | `feat/risk-dial` | — | phase 2, phase 3 |
+| **8.5** Task-validity attestation and the objective-drift... | 8 | `opus` | BLOCKED | 8 | `feat/task-validity-and-drift` | — | phase 2, phase 3 |
+| **8.6** Self-risking-experiment detection (L3-06) | 8 | `opus` | BLOCKED | 7 | `feat/self-risking-detection` | — | phase 2, phase 3 |
+| **8.8** Isolation conformance profile and adaptive escape... | 8 | `opus` | BLOCKED | 7 | `feat/isolation-conformance` | — | phase 2, phase 3 |
+| **9.1** Bounded revocation with a stated SLA (L6-04) | 9 | `opus` | BLOCKED | 9 | `feat/bounded-revocation` | — | phase 1, phase 3 |
+| **9.3** Purpose binding on authority (L6-07) | 9 | `opus` | BLOCKED | 8 | `feat/purpose-bound-authority` | — | phase 1, phase 3 |
+| **9.4** Authority-expansion detection and sibling-collusi... | 9 | `opus` | BLOCKED | 9 | `feat/sibling-collusion-intersection` | — | phase 1, phase 3 |
+| **9.5** Cross-organization authority and agent naming (L6... | 9 | `opus` | BLOCKED | 7 | `feat/cross-org-authority` | — | phase 1, phase 3 |
 | **9.6** Attested sender identity and the channel policy l... | 9 | `glm-5.3-flash` | BLOCKED | 10 | `feat/channel-attestation` | — | phase 1, phase 3 |
 | **10.1** The causal verdict — STRICT_CAUSAL, made real (L7... | 10 | `opus` | BLOCKED | 10 | `feat/causal-verdict` | — | phase 1, phase 5 |
 | **10.2** Receipt query language and live stream (L7-13) | 10 | `glm-5.3-flash` | BLOCKED | 9 | `feat/receipt-query` | — | phase 1, phase 5 |
+| **10.6** Chain of custody, trace escrow, and the independe... | 10 | `opus` | BLOCKED | 8 | `feat/custody-and-escrow` | — | phase 1, phase 5 |
+| **10.7** Reasoning-trace monitoring and analysis-of-analys... | 10 | `opus` | BLOCKED | 8 | `feat/trace-monitoring` | — | phase 1, phase 5 |
+| **12.2** Refusal corpus as an asset; per-plane specialist ... | 12 | `opus` | BLOCKED | 8 | `feat/refusal-corpus` | — | phase 10 |
+| **12.3** Continuous promotion with an enforced parity gate... | 12 | `opus` | BLOCKED | 8 | `feat/parity-promotion-gate` | — | phase 10 |
+| **12.4** Adversarial-phrasing robustness; advisory-boundar... | 12 | `opus` | BLOCKED | 8 | `feat/severity-stability-gate` | — | phase 10 |
+| **12.5** Guard-model exposure, poisoning and membership in... | 12 | `opus` | BLOCKED | 7 | `feat/guard-exposure-hardening` | — | phase 10 |
+| **13.4** Gateway/kernel equivalence laboratory (L11-06) | 13 | `opus` | BLOCKED | 7 | `feat/equivalence-laboratory` | — | phase 8, phase 10 |
+| **13.6** Impossible-task and broken-environment detection;... | 13 | `opus` | BLOCKED | 8 | `feat/structured-abstention` | — | phase 8, phase 10 |
+| **13.7** Scorer/grader isolation and anti-gaming; reward-h... | 13 | `opus` | BLOCKED | 9 | `feat/scorer-isolation` | — | phase 8, phase 10 |
+| **14.4** Technical standards crosswalk and interoperabilit... | 14 | `opus` | BLOCKED | 8 | `feat/standards-crosswalk` | — | phase 9, phase 10, phase 13 |
+| **14.5** Air-gapped sovereign profile and jurisdiction mod... | 14 | `opus` | BLOCKED | 8 | `feat/air-gapped-profile` | — | phase 9, phase 10, phase 13 |
+| **14.9** Public fact/claim/unknown ledger with versioned c... | 14 | `opus` | BLOCKED | 8 | `feat/fact-claim-unknown-ledger` | — | phase 9, phase 10, phase 13 |
+| **14.10** Evaluator isolation contract and pre-run conforma... | 14 | `opus` | BLOCKED | 7 | `feat/evaluator-isolation-receipt` | — | phase 9, phase 10, phase 13 |
 
 ## Runnable right now
 
