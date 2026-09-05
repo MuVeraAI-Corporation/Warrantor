@@ -163,3 +163,21 @@ fn the_cli_report_prints_every_bound_with_its_tier_and_the_legend() {
         assert!(!line.contains("enforced"), "an Observed bound printed as enforced: {line}");
     }
 }
+
+/// `render_mcp` rendered no bounds at all, so the report an AGENT reads through the control
+/// endpoint disclosed no tier. Same bundle, same formatter, same legend.
+#[test]
+fn the_mcp_report_discloses_a_tier_per_bound_from_the_same_bundle() {
+    let dir = tempdir("mcp");
+    let report = built_bundle(&dir);
+    let text = render_mcp(report.bundle());
+    assert!(text.contains("  bounds (tier per bound):"), "{text}");
+    for bound in &report.bundle().bound_strengths {
+        let line = format!("    {}", render_bound(&bound.name, bound.strength));
+        assert!(text.contains(&line), "missing {line:?} in:\n{text}");
+    }
+    for legend in render_tier_legend() {
+        assert!(text.contains(&legend), "{text}");
+    }
+    assert!(text.starts_with("Warrant wrt_tier — Open\n  goal: fix the auth bug"));
+}

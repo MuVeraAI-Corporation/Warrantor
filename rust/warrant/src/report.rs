@@ -1407,6 +1407,19 @@ pub fn render_mcp(bundle: &ReportBundle) -> String {
         }
     }
 
+    // Bounds were absent from this rendering entirely, so the one reader that most needs the
+    // tier — the agent deciding whether a limit is a wall or a note — never saw one.
+    out.push("  bounds (tier per bound):".to_string());
+    for bound in &bundle.bound_strengths {
+        out.push(format!(
+            "    {}",
+            crate::render_bound(&bound.name, bound.strength)
+        ));
+    }
+    for legend in crate::render_tier_legend() {
+        out.push(format!("    {legend}"));
+    }
+
     // Same section, same source, same words as the CLI. The two renderings drifted once already
     // (a 20-file cap here, 50 there) and the fix was to render both from one bundle; rendering the
     // spend block from the same `section_lines` keeps that true for this section too.
