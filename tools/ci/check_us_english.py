@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
-"""Refuse a Britishism on a line this branch ADDED. Public surfaces are US English.
+"""Refuse a Britishism on a line this branch ADDED, using the canonical matcher.
 
-The doctrine is machine-verified rather than eyeballed, and this repository had no gate for it: two
-Britishisms reached a branch's `report.rs` doc comments in September 2026 and only an adversarial
-reviewer caught them, precisely because nothing in `tools/ci/` looked.
+Two parts, and only one of them is ours.
 
-Diff-scoped on purpose, which is the same ratchet idiom `check_invariant_ratchet.py` uses. One
-touched file already carries sixteen pre-existing Britishisms; failing on those would make the gate
-unpassable and teach people to skip it. A branch is answerable for the lines it adds.
+The MATCHING is `verify-us-english.mjs`, vendored byte-for-byte from
+`M:/Project AumOS - Linkedin Blitzkrieg/scripts/verify-us-english.mjs`, which is the cross-project
+arbiter for every public surface. It is vendored rather than invoked in place because CI runs on a
+host where that path does not exist. Keep the copy byte-identical; `test_check_us_english.py` asserts
+the behavior a hand-rolled matcher got wrong.
 
-The word list is DATA, vendored in `us-english-forms.json` from the canonical cross-project checker,
-because CI runs on a host where that script's path does not exist. The provenance is recorded in that
-file: if the two disagree, the canonical script wins and the data is re-extracted, never hand-edited.
+The SCOPING is ours: only lines the branch adds. That is the same ratchet idiom
+`check_invariant_ratchet.py` uses, and it matters because one file this repository touches already
+carries sixteen pre-existing Britishisms. Failing on those makes the gate unpassable, and an
+unpassable gate teaches people to skip gates. A branch answers for the lines it adds.
+
+Why the matcher is not reimplemented here, recorded because the mistake was made and shipped: the
+first version of this file vendored the word LIST and wrote its own regex over the stems. On a
+four-line corpus of ordinary American English it produced six false positives -- `analysis`,
+`specialist`, `specialism`, `organism`, `synthesis` -- and missed the one real Britishism, because
+`organism` matched the `organis` stem first and suppressed `organisation`. The canonical script gets
+that corpus exactly right, because an `-is` stem there may only be followed by a specific suffix set
+(`ation`, `ing`, `ed`, `es`, `ably`, and the rest). Those 794 lines are not boilerplate. Two readers
+of one rule is the defect this repository keeps finding in itself; this file is not a second reader.
 
 Usage:
     python tools/ci/check_us_english.py [base_ref]      # default base: origin/main
@@ -19,39 +29,28 @@ Usage:
 """
 from __future__ import annotations
 
-import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-FORMS_FILE = Path(__file__).resolve().parent / "us-english-forms.json"
+# parents[2], not parents[1]: this file is tools/ci/, so parents[1] is tools/ and every
+# repo-relative path from the diff failed its existence check -- the gate reported "ok" while
+# scanning zero files. The "0 file(s)" in its own summary line was the only tell.
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+MATCHER = Path(__file__).resolve().parent / "verify-us-english.mjs"
 
-# Carve-out 3 is code identifiers, and these two are genuine English rather than Britishisms.
-# `forwards` is a verb ("the proxy forwards the call"); `analyses` is the plural of the noun
-# `analysis`, which the `analys` stem would otherwise flag. Both are correct as written.
-FALSE_POSITIVES = re.compile(r"\b(forwards|analyses)\b", re.IGNORECASE)
+# `    line   12  honour -> honor`
+FINDING = re.compile(r"^\s*line\s+(\d+)\s+(\S+)\s*->\s*(\S+)\s*$")
 
-# Only text a reader can see. A .lock or generated file is not a public surface.
-TEXT_SUFFIXES = {".md", ".rs", ".py", ".js", ".mjs", ".ts", ".tsx", ".html", ".txt", ".json",
+# Only text a reader can see. A lock file or generated artifact is not a public surface.
+TEXT_SUFFIXES = {".md", ".rs", ".py", ".js", ".mjs", ".ts", ".tsx", ".html", ".txt",
                  ".yml", ".yaml", ".toml", ".go", ".sh"}
 SKIP_PARTS = {"__pycache__", "node_modules", "target", "vendor", ".git"}
 
-# Two files must CONTAIN the forms this gate rejects, or they cannot do their jobs: the vendored word
-# list is those forms, and the gate's own tests must feed it a Britishism to prove it refuses one.
-# Excluding them by name is narrow and stated; the alternative is a gate that cannot be tested.
-SELF_REFERENTIAL = {
-    "tools/ci/us-english-forms.json",
-    "tools/ci/test_check_us_english.py",
-}
-
-
-def load_forms() -> tuple[list[tuple[str, str]], list[str]]:
-    if not FORMS_FILE.exists():
-        sys.exit(f"::error::missing word list: {FORMS_FILE}")
-    data = json.loads(FORMS_FILE.read_text(encoding="utf-8"))
-    return [tuple(pair) for pair in data["forms"]], data["proper_nouns"]
+# The vendored matcher IS the rejected forms, so it cannot be scanned for them.
+SELF_REFERENTIAL = ("tools/ci/verify-us-english.mjs", "tools/ci/test_check_us_english.py")
 
 
 def git(*args: str) -> str:
@@ -60,12 +59,19 @@ def git(*args: str) -> str:
     return out.stdout if out.returncode == 0 else ""
 
 
-def added_lines(base: str) -> list[tuple[str, int, str]]:
-    """(path, line number in the new file, text) for every line this branch adds."""
+def wanted(path: str) -> bool:
+    normalized = path.replace("\\", "/")
+    if normalized.endswith(SELF_REFERENTIAL):
+        return False
+    if any(part in SKIP_PARTS for part in Path(normalized).parts):
+        return False
+    return Path(normalized).suffix.lower() in TEXT_SUFFIXES
+
+
+def added_by_file(base: str) -> dict[str, set[int]]:
+    """path -> the set of line numbers this branch adds, in the new file's numbering."""
     diff = git("diff", "--unified=0", f"{base}...HEAD")
-    if not diff:
-        return []
-    rows: list[tuple[str, int, str]] = []
+    added: dict[str, set[int]] = {}
     path, line_no = "", 0
     for raw in diff.splitlines():
         if raw.startswith("+++ b/"):
@@ -74,77 +80,62 @@ def added_lines(base: str) -> list[tuple[str, int, str]]:
             match = re.search(r"\+(\d+)", raw)
             line_no = int(match.group(1)) if match else 0
         elif raw.startswith("+") and not raw.startswith("+++"):
-            rows.append((path, line_no, raw[1:]))
+            if wanted(path):
+                added.setdefault(path, set()).add(line_no)
             line_no += 1
-    return rows
+    return added
 
 
-def wanted(path: str) -> bool:
-    normalized = path.replace("\\", "/")
-    if normalized in SELF_REFERENTIAL or normalized.endswith(tuple(SELF_REFERENTIAL)):
-        return False
-    parts = Path(path).parts
-    if any(p in SKIP_PARTS for p in parts):
-        return False
-    return Path(path).suffix.lower() in TEXT_SUFFIXES
-
-
-def findings(rows, forms, proper_nouns) -> list[str]:
-    out = []
-    for path, line_no, text in rows:
-        if not wanted(path):
-            continue
-        # Carve-out 3: a backtick span is code, an identifier, or a word quoted AS a word --
-        # which is how a document about spelling discusses the spellings it rejects. Stripping
-        # these means a real Britishism can hide inside backticks; that is the correct trade,
-        # because the alternative flags every line that quotes one as an example.
-        text_scanned = re.sub(r"`[^`]*`", " ", text)
-        # Carve-out 2: a proper noun or cited title keeps its source spelling.
-        scrubbed = text_scanned
-        for noun in proper_nouns:
-            scrubbed = re.sub(re.escape(noun), "", scrubbed, flags=re.IGNORECASE)
-        scrubbed = FALSE_POSITIVES.sub("", scrubbed)
-        # Every Britishism on the line, not just the first. A gate that reports one at a time
-        # makes a fixer iterate, and each iteration is a full CI round trip.
-        seen: list[str] = []
-        for british, american in forms:
-            pattern = rf"\b\w*{re.escape(british)}\w*"
-            match = re.search(pattern, scrubbed, re.IGNORECASE)
-            if not match:
-                continue
-            hit = match.group(0)
-            if hit.lower() in seen:      # a longer stem already claimed this word
-                continue
-            seen.append(hit.lower())
-            out.append(f"{path}:{line_no}: {hit!r} -- use the {american!r} form\n"
-                       f"    {text.strip()[:140]}")
+def scan(paths: list[str]) -> list[tuple[str, int, str, str]]:
+    """Run the canonical matcher and return (path, line, british, american) for every finding."""
+    if not MATCHER.exists():
+        sys.exit(f"::error::missing vendored matcher: {MATCHER}")
+    node = shutil.which("node")
+    if not node:
+        sys.exit("::error::node is required to run the vendored US-English matcher")
+    out: list[tuple[str, int, str, str]] = []
+    for path in paths:
+        proc = subprocess.run([node, str(MATCHER), path], cwd=REPOSITORY_ROOT,
+                              capture_output=True, text=True, encoding="utf-8", errors="replace")
+        for raw in (proc.stdout + proc.stderr).splitlines():
+            found = FINDING.match(raw)
+            if found:
+                out.append((path, int(found.group(1)), found.group(2), found.group(3)))
     return out
 
 
 def main() -> int:
-    forms, proper_nouns = load_forms()
     argv = sys.argv[1:]
     if argv and argv[0] == "--files":
-        rows = []
-        for name in argv[1:]:
-            path = Path(name)
-            if not path.exists():
-                print(f"::error::no such file: {name}", file=sys.stderr)
-                return 1
-            for i, text in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-                rows.append((name.replace("\\", "/"), i, text))
-        scope = f"{len(argv) - 1} file(s), every line"
+        names = argv[1:]
+        missing = [n for n in names if not (REPOSITORY_ROOT / n).exists() and not Path(n).exists()]
+        if missing:
+            print(f"::error::no such file: {', '.join(missing)}", file=sys.stderr)
+            return 1
+        hits = scan(names)
+        scope = f"{len(names)} file(s), every line"
     else:
         base = argv[0] if argv else "origin/main"
-        rows = added_lines(base)
-        scope = f"lines added since {base}"
+        added = added_by_file(base)
+        existing = [p for p in added if (REPOSITORY_ROOT / p).exists()]
+        # Keep only findings on lines this branch actually added.
+        total_added = sum(len(v) for v in added.values())
+        # Self-check. A path bug once made every existence test fail, so this reported "ok" while
+        # scanning zero files -- a gate that passes vacuously is worse than no gate, because it is
+        # believed. If the diff produced lines but no file resolved, that is a defect in this script,
+        # not a clean branch.
+        if total_added and not existing:
+            print(f"::error::us-english: {total_added} added line(s) resolved to 0 readable files; "
+                  f"the paths from the diff do not exist under {REPOSITORY_ROOT}. This is a bug in "
+                  f"this gate, not a passing branch.", file=sys.stderr)
+            return 1
+        hits = [h for h in scan(existing) if h[1] in added.get(h[0], set())]
+        scope = f"{total_added} added line(s) across {len(existing)} file(s), since {base}"
 
-    hits = findings(rows, forms, proper_nouns)
-    print(f"us-english: {len(rows)} candidate line(s) scanned ({scope}); "
-          f"{len(forms)} forms, {len(proper_nouns)} proper nouns")
+    print(f"us-english: {scope}; matcher = vendored verify-us-english.mjs")
     if hits:
-        for hit in hits:
-            print(f"::error::us-english: {hit}")
+        for path, line, british, american in hits:
+            print(f"::error::us-english: {path}:{line}: {british!r} -- use {american!r}")
         print(f"us-english: {len(hits)} Britishism(s) on added lines", file=sys.stderr)
         return 1
     print("us-english: ok")

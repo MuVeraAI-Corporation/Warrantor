@@ -379,6 +379,10 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
+      - uses: actions/setup-node@v5
+        with:
+          # The US-English gate applies the vendored canonical matcher, which is Node.
+          node-version: "22"
       - name: US English on every line this branch adds
         env:
           # A pull request compares against its base; a push compares against what main was.
