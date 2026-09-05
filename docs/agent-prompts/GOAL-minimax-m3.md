@@ -109,8 +109,30 @@ branch.
 
 ## Job C — Phase 11, thirteen tasks, ONE branch, sequential
 
+**Rebase before you start. This is not optional and it is new.**
+
+Task 0.4 (GLM lane) modifies `rust/warrant/src/console/console.js` and `console.test.js` — your
+files — and it is landing on `main` while you work. Its step form cites `origin/main` line numbers
+(`console.js` 187-192, 258-260, 841-853, 1252-1300), and your four Wave-1 commits add about 1,200
+lines to that file. So the two must land in one order only: **0.4 first, then your console work.**
+
 ```bash
+git fetch origin
+git checkout feat/phase-4-buyers-surface
+git rebase origin/main            # picks up Task 0.4 and the merged Phase 0 work
+node --test rust/warrant/src/console/console.test.js    # must still pass, count must not fall
 git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface
+```
+
+**If the rebase conflicts on `console.js`, that is expected** — 0.4 adds a bound-tier renderer where
+your surfaces live. Resolve by keeping both: 0.4's `boundTierLines` and your four panes. Never drop
+0.4's tier rendering to make a layout work; it is the mechanism behind this phase's central rule.
+
+**If Task 0.4 has not landed yet, hold.** Do Job A, report, and wait. Building Phase 11 on a
+`console.js` that is about to shift by a thousand lines wastes the phase. Check with:
+
+```bash
+python scripts/task_status.py --next        # 4.3 stops reading BLOCKED once 0.4 lands
 ```
 
 **One branch for the whole phase.** Wave 1's four parallel branches on `console.js` conflicted seven
