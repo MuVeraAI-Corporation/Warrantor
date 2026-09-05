@@ -217,6 +217,12 @@ pub enum StopError {
     /// The record claims more than warrantor is capable of establishing.
     #[error("stop record over-claims: {0}")]
     OverClaim(String),
+    /// Reading or writing the warrant store failed mid-halt.
+    #[error("store: {0}")]
+    Store(String),
+    /// The scope names nothing this store can halt.
+    #[error("nothing to halt: {0}")]
+    Scope(String),
 }
 
 // ── the OS half, injectable so the decision path is testable ──────────────────────────
@@ -1213,4 +1219,118 @@ pub fn render_limitations(signed: &SignedStop) -> String {
     let mut out = lines.join("\n");
     out.push('\n');
     out
+}
+
+// ── halt: one receipt per warrant, across a scope ─────────────────────────────────────
+
+/// What a halt names. `Family` is the warrant's `claims.subject` (the SPIFFE ID); `Run` resolves
+/// through `runs/<warrant>.jsonl` to the warrant it ran under.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HaltScope {
+    /// One warrant id.
+    Warrant(String),
+    /// Every Open or Held warrant granted to this subject.
+    Family(String),
+    /// The warrant a run id belongs to.
+    Run(String),
+}
+
+/// Everything `halt` needs, borrowed, so the CLI, the HTTP route and the MCP control endpoint
+/// halt identically.
+pub struct HaltContext<'a> {
+    /// Warrant records.
+    pub store: &'a crate::store::WarrantStore,
+    /// Supervisor records.
+    pub daemons: &'a crate::daemon::DaemonState,
+    /// Stop records.
+    pub stops: &'a StopStore,
+    /// Drill receipts, for the label.
+    pub conformance: &'a crate::conformance::ConformanceStore,
+    /// The OS half.
+    pub control: &'a dyn ProcessControl,
+    /// The clock.
+    pub now: u64,
+}
+
+fn resolve(scope: &HaltScope, context: &HaltContext<'_>) -> Result<Vec<String>, StopError> {
+    match scope {
+        HaltScope::Warrant(id) => Ok(vec![id.clone()]),
+        HaltScope::Family(subject) => {
+            let all = context
+                .store
+                .list()
+                .map_err(|e| StopError::Store(e.to_string()))?;
+            let ids: Vec<String> = all
+                .into_iter()
+                .filter(|s| {
+                    &s.warrant.claims.subject == subject
+                        && matches!(s.warrant.state, WarrantState::Open | WarrantState::Held)
+                })
+                .map(|s| s.warrant.claims.id)
+                .collect();
+            if ids.is_empty() {
+                return Err(StopError::Scope(format!(
+                    "no Open or Held warrant is granted to {subject:?}"
+                )));
+            }
+            Ok(ids)
+        }
+        HaltScope::Run(run_id) => crate::runs::read_all(context.store.root())
+            .records
+            .into_iter()
+            .find(|r| &r.run_id == run_id)
+            .map(|r| vec![r.warrant_id])
+            .ok_or_else(|| {
+                StopError::Scope(format!("no run {run_id:?} is recorded in this store"))
+            }),
+    }
+}
+
+/// Halt every warrant in `scope`: kill, void, record, sign, persist — one receipt per warrant.
+///
+/// A failure on one warrant stops the loop and returns it; receipts already written stay written,
+/// because a halt that happened must not be un-recorded by a later error.
+///
+/// # Errors
+/// [`StopError::Scope`] when the scope resolves to nothing, [`StopError::Store`] when the store
+/// fails, and everything `sign` or `StopStore::save` can return.
+pub fn halt(
+    scope: &HaltScope,
+    context: &HaltContext<'_>,
+    signer: &SigningKey,
+    reason: Option<&str>,
+) -> Result<Vec<SignedStop>, StopError> {
+    let basis = context.conformance.basis_for_this_kernel();
+    let mut receipts = Vec::new();
+    for id in resolve(scope, context)? {
+        let _lock = context
+            .store
+            .lock_warrant(&id)
+            .map_err(|e| StopError::Store(e.to_string()))?;
+        let mut stored = context
+            .store
+            .load(&id)
+            .map_err(|e| StopError::Store(e.to_string()))?;
+        let daemon = context.daemons.get(&id);
+        let mut outcome = execute(
+            &mut stored,
+            daemon.as_ref(),
+            context.control,
+            &context.store.staged_path(&id),
+            basis.clone(),
+            context.now,
+        );
+        if daemon.is_some() && context.daemons.deregister(&id).is_ok() {
+            outcome.deregistered = true;
+        }
+        context.store.save(&stored).map_err(|e| {
+            StopError::Store(format!(
+                "the run was stopped but the warrant state could not be persisted: {e}"
+            ))
+        })?;
+        let signed = sign(&stored, &outcome, reason, signer, context.now)?;
+        context.stops.save(&signed)?;
+        receipts.push(signed);
+    }
+    Ok(receipts)
 }

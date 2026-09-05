@@ -3089,6 +3089,8 @@ fn stop_error_code(error: &StopError) -> &'static str {
         StopError::Signature(_) => "stop_signature_invalid",
         StopError::Binding(_) => "stop_binding_invalid",
         StopError::OverClaim(_) => "stop_over_claim",
+        StopError::Store(_) => "stop_store_failure",
+        StopError::Scope(_) => "stop_scope_empty",
     }
 }
 

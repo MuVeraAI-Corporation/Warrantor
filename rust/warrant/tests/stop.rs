@@ -49,6 +49,10 @@ fn other_key() -> SigningKey {
 }
 
 fn stored(state: WarrantState) -> StoredWarrant {
+    stored_for("wrt_stop", "spiffe://muveraai.com/agent/local", state)
+}
+
+fn stored_for(id: &str, subject: &str, state: WarrantState) -> StoredWarrant {
     let bounds = WarrantBounds {
         tools: ["git".to_string()].into_iter().collect(),
         write_paths: ["src/**".to_string()].into_iter().collect(),
@@ -59,9 +63,9 @@ fn stored(state: WarrantState) -> StoredWarrant {
         delegation_depth: 2,
     };
     let mut warrant = Warrant::grant(
-        "wrt_stop",
+        id,
         "fix the auth bug",
-        "spiffe://muveraai.com/agent/local",
+        subject,
         bounds,
         NOW,
         &SigningKey::from_bytes(&[2; 32]).verifying_key(),
@@ -934,4 +938,66 @@ fn a_supervised_agent_is_never_given_a_stop_tool() {
         refused.is_error,
         "and calling the name anyway is refused rather than dispatched"
     );
+}
+
+#[test]
+fn halting_a_family_halts_every_open_warrant_with_that_subject_and_nothing_else() {
+    use warrantor_warrant::conformance::ConformanceStore;
+    use warrantor_warrant::daemon::DaemonState;
+    use warrantor_warrant::stop::{halt, HaltContext, HaltScope};
+    use warrantor_warrant::store::WarrantStore;
+    let dir = tempdir("family");
+    let store = WarrantStore::open(&dir).expect("store");
+    for (id, subject) in [
+        ("wrt_a", "spiffe://muveraai.com/agent/fam"),
+        ("wrt_b", "spiffe://muveraai.com/agent/fam"),
+        ("wrt_c", "spiffe://muveraai.com/agent/other"),
+    ] {
+        store
+            .create(&stored_for(id, subject, WarrantState::Open))
+            .expect("create");
+    }
+    let daemons = DaemonState::open(&dir).expect("daemons");
+    let stops = StopStore::open(&dir).expect("stops");
+    let conformance = ConformanceStore::open(&dir).expect("conformance");
+    let control = FakeSupervisor::dies_immediately();
+    let context = HaltContext {
+        store: &store,
+        daemons: &daemons,
+        stops: &stops,
+        conformance: &conformance,
+        control: &control,
+        now: NOW,
+    };
+    let halted = halt(
+        &HaltScope::Family("spiffe://muveraai.com/agent/fam".into()),
+        &context,
+        &issuer(),
+        Some("drill"),
+    )
+    .expect("halt");
+    let mut ids: Vec<_> = halted.iter().map(|s| s.record.warrant_id.clone()).collect();
+    ids.sort();
+    assert_eq!(ids, ["wrt_a".to_string(), "wrt_b".to_string()]);
+    assert_eq!(
+        store.load("wrt_c").expect("load").warrant.state,
+        WarrantState::Open
+    );
+    for id in ["wrt_a", "wrt_b"] {
+        assert_eq!(
+            store.load(id).expect("load").warrant.state,
+            WarrantState::Void
+        );
+        assert!(stops.is_stopped(id));
+        stop::verify_stop(&stops.get(id).expect("record")).expect("verifies offline");
+    }
+    assert!(matches!(
+        halt(
+            &HaltScope::Run("run_nope".into()),
+            &context,
+            &issuer(),
+            None
+        ),
+        Err(StopError::Scope(_))
+    ));
 }
