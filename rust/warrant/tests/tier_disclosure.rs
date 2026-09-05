@@ -181,3 +181,50 @@ fn the_mcp_report_discloses_a_tier_per_bound_from_the_same_bundle() {
     }
     assert!(text.starts_with("Warrant wrt_tier — Open\n  goal: fix the auth bug"));
 }
+
+fn api(dir: &std::path::Path) -> StoreApi {
+    let store = WarrantStore::open(dir).expect("store");
+    StoreApi::new(
+        store,
+        dir.to_path_buf(),
+        issuer(),
+        None,
+        no_adapter,
+        now,
+    )
+}
+
+/// `GET /v1/warrants/{id}` carries, per bound, the tier word `bound_strengths()` assigns and the
+/// caveat for that tier, plus the legend. A client never has to infer a tier from a boolean.
+#[test]
+fn the_console_json_carries_the_tier_word_and_caveat_per_bound() {
+    let dir = tempdir("json");
+    WarrantStore::open(&dir)
+        .expect("store")
+        .save(&stored("wrt_json", NOW + 3600))
+        .expect("save");
+    let mut api = api(&dir);
+    let request = HttpRequest::new("GET", &["v1", "warrants", "wrt_json"], BTreeMap::new())
+        .with_bearer(TOKEN);
+    let response = route(&mut api, &request);
+    assert_eq!(response.status, status::OK);
+
+    let expected: BTreeMap<&str, BoundStrength> = bound_strengths().into_iter().collect();
+    let listed = response.body["data"]["bound_strengths"]
+        .as_array()
+        .expect("bound_strengths is an array");
+    assert_eq!(listed.len(), expected.len());
+    for entry in listed {
+        let name = entry["name"].as_str().expect("name");
+        let tier = expected[name];
+        assert_eq!(entry["strength"], Value::String(tier.word().to_string()), "{name}");
+        assert_eq!(entry["caveat"], Value::String(tier.caveat().to_string()), "{name}");
+        if tier == BoundStrength::Observed {
+            assert_ne!(entry["strength"], "enforced", "{name}");
+        }
+    }
+    let legend = response.body["data"]["tier_legend"]
+        .as_array()
+        .expect("tier_legend");
+    assert_eq!(legend.len(), 3);
+}
