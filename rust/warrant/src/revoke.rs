@@ -105,9 +105,19 @@ pub struct RevocationLatency {
     pub elapsed_nanos: u128,
     /// How many verdicts this process computed in that window.
     ///
-    /// Zero is the only defensible value for a single-process store: a positive number means an
-    /// action was adjudicated against a revocation set that was already stale. Counted, not
-    /// assumed — see [`crate::report::adjudications_computed`].
+    /// Counted, not assumed — see [`crate::report::adjudications_computed`], and
+    /// `tests/revocation.rs::adjudications_between_counts_verdicts_rather_than_assuming_zero`, which
+    /// fails if the counter stops counting.
+    ///
+    /// **What a positive number does and does not mean.** Until 2026-09-05 this doc said a positive
+    /// number "means an action was adjudicated against a revocation set that was already stale". It
+    /// does not, and no code here establishes that: every adjudication in the window re-reads the
+    /// journal through [`crate::report::RevocationSection::from_store`], so a verdict computed inside
+    /// it sees the record. What the number says is exactly what it counts — how many verdicts this
+    /// process computed between durability and the read being timed. That is worth publishing because
+    /// wall-clock alone is gameable by a fast disk, and because a build that later adjudicated from a
+    /// cached set would need this number to notice; it is not, by itself, evidence that anything was
+    /// adjudicated stale.
     pub adjudications_between: u64,
     /// The stated bound, from [`IDENTITY_REVOCATION_SLA`].
     pub sla_nanos: u128,

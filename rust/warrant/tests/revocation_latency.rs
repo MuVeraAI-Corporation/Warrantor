@@ -4,10 +4,17 @@
 //! `docs/02-architecture.md:84`). Two numbers are recorded, because wall-clock alone is gameable by
 //! a fast disk: the elapsed nanoseconds, and `adjudications_between` — how many verdicts this
 //! process computed between the revocation reaching disk and the first refusal. The blueprint asks
-//! for "execution counts", and zero is the only defensible value for a single-process store.
+//! for "execution counts". Zero is what a store measured on its own reports, because nothing else
+//! computes a verdict in that window — it is not a claim that a non-zero count would be a violation:
+//! every adjudication re-reads the journal, so a verdict inside the window sees the record. The
+//! test that the counter is a count rather than a hard-coded zero lives in
+//! `tests/revocation.rs::adjudications_between_counts_verdicts_rather_than_assuming_zero`, where a
+//! report IS built inside the window.
 //!
 //! **What these tests do not establish.** Nothing here measures propagation to a second process or
-//! a second machine, because this build has no fan-out. The measurement is this process's own.
+//! a second machine, because this build has no fan-out. The measurement is this process's own. The
+//! revoked set is one STORE's journal: `--root` selects it, and a second root on the same machine has
+//! its own.
 
 use std::path::PathBuf;
 use std::time::Duration;
