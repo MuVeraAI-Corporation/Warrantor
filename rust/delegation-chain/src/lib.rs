@@ -210,12 +210,11 @@ impl WarrantStore {
     }
 
     /// Whether a warrant stands: it exists, is not revoked, and no ancestor is revoked — the
-    /// "revocation voids everything below" rule.
+    /// "revocation voids everything below" rule. An id the store has never issued does not stand.
     #[must_use]
     pub fn is_valid(&self, id: &str) -> bool {
-        self.chain_of(id)
-            .iter()
-            .all(|w| !self.revoked.contains(&w.id))
+        let chain = self.chain_of(id);
+        !chain.is_empty() && chain.iter().all(|w| !self.revoked.contains(&w.id))
     }
 
     /// The effective scope of a warrant, if it stands.
@@ -443,5 +442,14 @@ mod tests {
         s.revoke("a1");
         assert!(!s.is_valid("a1"));
         assert!(s.is_valid("a2"));
+    }
+
+    /// `all` over an empty iterator is `true`, so a store that has never heard of `ghost` used
+    /// to report it as standing. A warrant nobody issued confers nothing.
+    #[test]
+    fn an_unknown_warrant_does_not_stand() {
+        let s = WarrantStore::new();
+        assert!(!s.is_valid("ghost"));
+        assert!(s.effective_scope("ghost").is_none());
     }
 }
