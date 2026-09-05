@@ -53,6 +53,7 @@ pub mod receipts;
 pub mod report;
 pub mod retention;
 pub mod review;
+pub mod revoke;
 pub mod runs;
 pub mod sandbox;
 pub mod serve;
@@ -90,6 +91,19 @@ pub const DEFAULT_CLI_SUBJECT: &str = "spiffe://muveraai.com/agent/local";
 
 /// The subject the MCP `warrant_grant` tool records. That path takes no subject argument at all.
 pub const DEFAULT_MCP_SUBJECT: &str = "spiffe://muveraai.com/agent/mcp";
+
+/// The identity half of invariant I-05: revocation reaches this process's adjudication point within
+/// five seconds.
+///
+/// From `docs/02-architecture.md` — *"Identity revocation (I1) propagates to all replicas in <5s"* —
+/// with the honest narrowing that this build has exactly one replica, because nothing here fans a
+/// revocation out to a second process. [`crate::revoke`] measures against this number and
+/// [`crate::revoke::measure`] can be seen to break it; a bound nothing measures is a sentence.
+///
+/// The credential half's number is deliberately not restated here. It is
+/// `warrantor_credential_vault::REVOKE_BUDGET` (1 s), and one number written in two places is how
+/// two halves of an invariant drift apart.
+pub const IDENTITY_REVOCATION_SLA: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// Domain separator for warrant signatures.
 ///

@@ -25,6 +25,11 @@ ALLOWED_STATUSES = frozenset({"enforced", "partial", "orphaned", "unimplemented"
 EXPECTED_IDS = tuple(f"I-{number:02d}" for number in range(1, 13))
 # The crate directories the `warrantor` binary links: rust/warrant/Cargo.toml path
 # dependencies plus warrant itself. Task 0.3's census will replace this constant.
+#
+# Kept in step with rust/warrant/Cargo.toml by hand, which is why `wiring_census.py` reads that
+# manifest instead: this constant is what decides whether an "orphaned" ledger entry is a lie, and
+# a stale entry here would let one pass. `credential-vault` joined on 2026-09-05 (Task 9.1) with
+# `default-features = false`.
 WARRANT_REACHABLE_CRATES = frozenset(
     {
         "warrant",
@@ -35,6 +40,7 @@ WARRANT_REACHABLE_CRATES = frozenset(
         "egress",
         "containment-conformance",
         "spend",
+        "credential-vault",
     }
 )
 TEST_REFERENCE = re.compile(

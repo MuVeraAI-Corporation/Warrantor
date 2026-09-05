@@ -2,7 +2,7 @@
   "format": "warrantor.invariant-ratchet/1",
   "recorded": "2026-09-05",
   "source": "rust/warrant/tests/invariants/",
-  "passing_floor": 66,
-  "ignored_ceiling": 18,
-  "note": "The invariant attack corpus for I-01..I-12. `passing_floor` may only rise; `ignored_ceiling` may only fall. Every ignored test is a recorded violation named in docs/W1-delivery-gaps.md Tier 5 -- the ceiling exists so that silencing a failing test with #[ignore] is a build failure rather than a way to hold the passing count steady. Raise the floor in the same commit that earns it."
+  "passing_floor": 69,
+  "ignored_ceiling": 15,
+  "note": "The invariant attack corpus for I-01..I-12. `passing_floor` may only rise; `ignored_ceiling` may only fall. Every ignored test is a recorded violation named in docs/W1-delivery-gaps.md Tier 5 -- the ceiling exists so that silencing a failing test with #[ignore] is a build failure rather than a way to hold the passing count steady. Raise the floor in the same commit that earns it. Raised 66/18 -> 69/15 by Task 9.1, read from the corpus's own `test result:` line and not computed: credential-vault is linked and report.rs consults a revocation source, which converts both I-05 findings and the shared I-01 finding on `revoked_svids: Vec::new()` -- three tests, because i01 and i05 assert byte-for-byte the same string."
 }
