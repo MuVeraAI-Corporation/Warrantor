@@ -776,6 +776,27 @@ Two facts worth recording for whoever writes the prune:
 
 ---
 
+### 3.6 Windows code paths were ungated in CI — **closed 2026-09-02**
+
+Every `#[cfg(windows)]` path in `rust/warrant/src/supervise.rs`, `daemon.rs`, `serve.rs` and
+`rust/kill-switch/src/execution.rs` ran on no CI leg until this date: the `rust` job was
+`ubuntu-latest` only, and the `windows-latest` legs in the release workflows build a binary and
+run no tests. That is how `local_process_engine_actually_kills_a_real_process_ax05` missed the
+kill-switch's own 5 s contract on Windows while `main` stayed green.
+
+Now: the `rust` job is a two-OS matrix. The Windows leg runs clippy and
+`cargo test -p warrantor-warrant -p warrantor-kill-switch --all-targets -j 2`, and a proof step
+fails unless the named platform-conditional tests appear as executed in the log. First green
+run on both legs, with the job-object tree kill and the kill-switch test shown executing on
+Windows: https://github.com/MuVeraAI-Corporation/Warrantor/actions/runs/33679590609
+
+**Residual, stated plainly:** the Windows leg tests two crates, not the workspace. The full graph
+pulls `cranelift-codegen`, which overflows rustc's default thread stack on Windows; widening the
+leg needs `RUST_MIN_STACK` in CI and its own run. Until then a Windows-only defect in any of the
+other 78 crates is as invisible as these were. macOS has no test leg at all.
+
+---
+
 ## Tier 4 — model intelligence
 
 ### 4.1 The guard is wired in as observe-only signals — **partly done**

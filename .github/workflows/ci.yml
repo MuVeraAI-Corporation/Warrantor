@@ -84,11 +84,18 @@ jobs:
         run: buf breaking --against '.git#ref=origin/main'
 
   rust:
-    name: Rust
-    runs-on: ubuntu-latest
+    name: Rust (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # A red Windows leg must not hide the ubuntu result, and vice versa: both are gates.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     defaults:
       run:
         working-directory: rust
+        # Git Bash on the Windows image, so one `run:` syntax serves both legs.
+        shell: bash
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -99,8 +106,32 @@ jobs:
           workspaces: rust
       # warrantor-api's build.rs runs tonic-build, which shells out to protoc.
       # Without this the whole workspace fails to build, not just that crate.
-      - name: Install protoc
+      - name: Install protoc (Linux)
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      # The two crates the Windows leg tests still reach warrantor-api: `cargo tree -p
+      # warrantor-warrant -i warrantor-api` shows it under both warrantor-authority-spec and
+      # warrantor-trust-core. Same trade as buf in the contract-plane job: a pinned release,
+      # verified against the digest GitHub publishes for the asset, rather than a floating action.
+      - name: Install protoc (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PROTOC_VERSION: "36.1"
+          # `gh api repos/protocolbuffers/protobuf/releases/latest` -> assets[].digest for
+          # protoc-36.1-win64.zip, and re-hashed locally on 2026-09-02 before it was pinned here.
+          PROTOC_SHA256: 390e515cb456e6a978553bdb57baf087b054885077fd6da7f7ff0160279c07d6
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path $env:RUNNER_TEMP 'protoc.zip'
+          $url = "https://github.com/protocolbuffers/protobuf/releases/download/v$env:PROTOC_VERSION/protoc-$env:PROTOC_VERSION-win64.zip"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          $actual = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          if ($actual -ne $env:PROTOC_SHA256) { throw "protoc zip sha256 $actual does not match the pinned $env:PROTOC_SHA256" }
+          $dest = Join-Path $env:RUNNER_TEMP 'protoc'
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+          Add-Content -Path $env:GITHUB_PATH -Value (Join-Path $dest 'bin')
+          & (Join-Path $dest 'bin\protoc.exe') --version
       # Nothing else in this job passes --locked, so cargo quietly rewrites Cargo.lock in the
       # runner whenever the committed one does not match the manifests, and every step after it
       # passes. That is how #11 and #47 -- two green PRs, each editing Cargo.lock, merged one
@@ -114,13 +145,58 @@ jobs:
       - name: Verify Cargo.lock matches the manifests
         run: cargo metadata --format-version 1 --locked > /dev/null
       - name: Check formatting
+        if: runner.os == 'Linux'
         run: cargo fmt --all -- --check
       - name: Run clippy with warnings denied
+        if: runner.os == 'Linux'
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Run tests
-        run: cargo test --workspace --all-targets
+        if: runner.os == 'Linux'
+        run: |
+          set -o pipefail
+          cargo test --workspace --all-targets 2>&1 | tee "$RUNNER_TEMP/cargo-test.log"
       - name: Build all targets
+        if: runner.os == 'Linux'
         run: cargo build --workspace --all-targets
+      # Two crates, not --workspace, on Windows: the full graph pulls cranelift-codegen, which
+      # overflows rustc's default thread stack on Windows (STATUS_STACK_BUFFER_OVERRUN unless
+      # RUST_MIN_STACK is raised), and widening this leg is a separate change with its own
+      # evidence. These two hold every #[cfg(windows)] path that a process-lifetime or stop claim
+      # rests on. `-j 2`: higher parallelism has exhausted this platform's process table.
+      - name: Run clippy on the platform-conditional crates (Windows)
+        if: runner.os == 'Windows'
+        run: cargo clippy -p warrantor-warrant -p warrantor-kill-switch --all-targets -j 2 -- -D warnings
+      - name: Run tests on the platform-conditional crates (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          set -o pipefail
+          cargo test -p warrantor-warrant -p warrantor-kill-switch --all-targets -j 2 2>&1 | tee "$RUNNER_TEMP/cargo-test.log"
+      # A platform-conditional test that is compiled out reports nothing at all -- not "skipped",
+      # nothing -- so a green run cannot distinguish "ran and passed" from "never existed on this
+      # OS". This step makes that distinction, per OS: the named tests must appear as executed.
+      - name: Prove the platform-conditional tests executed
+        run: |
+          # Every line of this script sits at or right of the block-scalar indent: a line flush
+          # with `run:` would end the scalar and the workflow would not parse. Backslash-newline
+          # inside double quotes is a bash line continuation, so `names` is one space-separated
+          # word list and the unquoted `$names` below splits it.
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            names="supervise::tests::job_object_kills_the_child_tree_when_the_supervisor_drops \
+              supervise::tests::terminate_group_kills_the_grandchild_too \
+              tests::local_process_engine_actually_kills_a_real_process_ax05 \
+              tests::the_critical_image_rail_is_consulted_once_per_kill_ax05 \
+              a_stale_lock_is_stolen_once_the_window_passes"
+          else
+            names="supervise::tests::describe_linkage_names_the_mechanism_this_binary_was_compiled_for \
+              tests::local_process_engine_actually_kills_a_real_process_ax05 \
+              a_stale_lock_is_stolen_once_the_window_passes"
+          fi
+          for name in $names; do
+            if ! grep -F "test ${name} ... ok" "$RUNNER_TEMP/cargo-test.log"; then
+              echo "::error::expected 'test ${name} ... ok' in the cargo test log on ${RUNNER_OS}; the platform-conditional path did not execute"
+              exit 1
+            fi
+          done
 
   python:
     name: Python (35 projects)
@@ -344,6 +420,9 @@ jobs:
   required:
     name: Required checks
     if: always()
+    # `rust` is a two-OS matrix; its result is the aggregate, so this gate already depends on
+    # both runners. Do not list the legs separately -- a leg name here is a leg that can be
+    # removed without touching this list.
     needs:
       [dco, contract-plane, rust, python, go, typescript, conformance, docs, desktop, console]
     runs-on: ubuntu-latest
