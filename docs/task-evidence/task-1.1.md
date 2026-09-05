@@ -268,7 +268,7 @@ one line `pub mod receipts;`.
 |---|---|---|
 | the per-effect notary verdict at settle | the `tools` bound stays **mediated** | the refusal is real and happens before the adapter, but it guards the *staged* path only. An agent holding its own credential opens the same pull request without passing here. No netns, no seccomp, no firewall stands behind it. |
 | the pre-commit-before-effect ordering (I-07) | **not** promoted; the ledger keeps I-07 `partial` | there IS a line of code that refuses — `self.sink.record(&pre)?` returns before `inner.perform` — but the guarantee is held by a *wrapper*, so it holds where callers wrap and a bare `EffectPerformer` passed to `settle()` still bypasses it. Enforced would claim the wrap is unavoidable. It is conventional. |
-| the receipts themselves | `evidence::EnforcementMode::Advisory`, `notary::EnforcementMode::Observed` | derived through the existing `report::notary_mode_for` so a report and its own effects cannot disagree. **Not `Mediated`**: settle mediates the staged path, not the world, and a receipt saying `mediated` would assert non-bypassability this system does not have. `verify_export` refuses any other mode. |
+| the receipts themselves | `evidence::EnforcementMode::Advisory`, `notary::EnforcementMode::Observed` | derived through the existing `report::notary_mode_for` so a report and its own effects cannot disagree. **Not `Mediated`**: settle mediates the staged path, not the world, and a receipt saying `mediated` would assert non-bypassability this system does not have. `verify_export` refuses any other mode -- see the correction below, because when this row was first written it did not. |
 
 ---
 
@@ -347,3 +347,62 @@ one line `pub mod receipts;`.
 - **Step 10's second half, `git push` and `gh pr create`, was not run.** The task brief says do not
   push and do not merge; a human reviews. The export, both `verify` transcripts and the three
   tamper transcripts are in this file instead of a PR description.
+
+---
+
+## Correction: this file claimed a refusal that did not exist
+
+Recorded rather than quietly fixed, because a false claim inside a signed-bundle disclosure is the
+defect this repository's whole discipline exists to prevent, and the record of how it was caught is
+worth more than a clean-looking file.
+
+**What the row above claimed when first written:** that `verify_export` refuses a per-effect receipt
+carrying any enforcement mode other than `Advisory`.
+
+**What was true:** nothing anywhere read a per-effect receipt's `binding.enforcement_mode`.
+`verify_effect_receipts` checked the signing key, the handle, the tool, the subject, the chain and
+the status, and stopped. `evidence::check_mode_honesty` does not cover the case either -- it refuses
+an *advisory* receipt that claims non-bypassability, never a *mediated* one, so
+`check_mode_honesty(mediated_receipt, true)` returns `Ok`. And the report-level mode checks at
+`report.rs:1136-1155` operate on `export.evidence_receipt`, the report's own atomic receipt, which
+already existed on `main`.
+
+So a chain re-signed with **the report's own issuer key** and `enforcement_mode = Mediated` passed
+`verify_export`, passed `verify_export_signed_by`, and passed `check_mode_honesty(.., true)` -- while
+the signed bundle still read *"each advisory"*, because `with_effect_receipts` wrote that word as a
+string literal. A receipt could assert non-bypassability this system does not have, every verifier
+would accept it, and the human-readable sentence beside it would say the opposite.
+
+**How it was caught.** Three independent adversarial reviews of this branch -- claim-honesty,
+evidence-truth and test-rigor -- found the same gap without seeing each other's work, and each proved
+it by construction rather than by reading. test-rigor set `refuted=true` on that basis, which is why
+this branch was not merged as it stood.
+
+**What changed.**
+
+1. `verify_effect_receipts` now refuses any per-effect receipt whose mode is not `Advisory`, on both
+   the anchor-free and the pinned-key paths, and the error names the mode as the reason.
+2. `with_effect_receipts` derives the mode word from the receipts instead of hardcoding it. A bundle
+   that somehow holds a mixed set now says so rather than reading `advisory` regardless.
+3. Two tests pin both, in `rust/warrant/tests/report_evidence_chain.rs`:
+   `a_per_effect_receipt_claiming_mediated_is_refused_even_under_the_reports_own_key` carries the
+   allowed control inline -- the unmodified export must verify first, so the refusal cannot pass by
+   refusing everything -- and `the_bundles_sentence_about_the_receipts_names_the_mode_they_actually_carry`
+   fails if the word ever becomes a literal again.
+
+**Gate after the correction**, each cargo exit code captured before any pipe:
+
+```
+cargo fmt --check                            exit 0
+cargo clippy --all-targets -- -D warnings    exit 0
+cargo test --workspace -j 2                  exit 0
+  134 suites, 1400 passing, 0 failed, 23 ignored
+python tools/ci/wiring_census.py             9 of 39 crates over 17 path edges - unchanged
+python tools/ci/check_invariant_ratchet.py   66 passing at floor 66, 18 findings at ceiling 18
+python tools/ci/check_invariants.py          12 invariants; enforced=2 orphaned=2 partial=7 unimplemented=1
+```
+
+**What is still not claimed.** The refusal is a verifier check, so its tier is unchanged: a reader
+who runs `verify_export` learns the mode is truthful. It does not stop a party who never runs the
+verifier from believing a bundle they did not check, and it does not make the per-effect bound
+stronger than Tier B -- `settle` still mediates the staged path and not the world.

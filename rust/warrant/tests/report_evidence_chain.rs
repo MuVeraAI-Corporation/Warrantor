@@ -487,3 +487,110 @@ fn the_prose_gains_lines_only_when_a_log_was_read() {
         "{signature}"
     );
 }
+
+/// A per-effect receipt may not say `mediated`, even signed with the report's own key.
+///
+/// `settle` mediates the staged path and not the world: an agent holding its own credential opens
+/// the same pull request without passing through it. So `mediated` on one of these receipts asserts
+/// a non-bypassability this system does not have, and it asserts it *inside a signed bundle*, which
+/// is the worst place for a bound to be mislabeled.
+///
+/// The hole this closes was real and it was reachable with no forged key at all.
+/// `verify_effect_receipts` checked the signer, the handle, the tool, the subject, the chain and the
+/// status, and never read `binding.enforcement_mode`. `evidence::check_mode_honesty` does not catch
+/// it either: it refuses an *advisory* receipt that claims non-bypassability, never a *mediated*
+/// one, so `check_mode_honesty(mediated_receipt, true)` returns `Ok`. Three independent reviews of
+/// this branch found the same gap, and each proved it by re-signing a chain with the issuer's own
+/// key — exactly what this test now does.
+#[test]
+fn a_per_effect_receipt_claiming_mediated_is_refused_even_under_the_reports_own_key() {
+    let dir = tempdir("mode-escalation");
+    let signed = settled_export(&dir);
+
+    // The allowed control, first: unmodified, these receipts are advisory and the export verifies.
+    // Without this the refusal below would also pass if `verify_export` refused everything.
+    assert!(
+        signed
+            .effect_receipts
+            .iter()
+            .all(|r| r.predicate.binding.enforcement_mode == evidence::EnforcementMode::Advisory),
+        "settle must issue advisory per-effect receipts"
+    );
+    verify_export(&signed).expect("the unmodified export verifies");
+
+    // Now escalate one chain's mode and re-sign with the ISSUER's key -- the same key the report
+    // itself is signed with, so every signature check in the verifier is satisfied.
+    let mut escalated = signed.clone();
+    let mut predicate = escalated.effect_receipts[0].predicate.clone();
+    predicate.binding.enforcement_mode = evidence::EnforcementMode::Mediated;
+    let pre = evidence::issue_pre_commit(predicate, &issuer(), "issuer");
+    let post = evidence::issue_post_commit(
+        &pre,
+        escalated.effect_receipts[1]
+            .predicate
+            .outcome
+            .clone()
+            .expect("outcome"),
+        &issuer(),
+        "issuer",
+    );
+    escalated.effect_receipts[0] = pre;
+    escalated.effect_receipts[1] = post;
+
+    let err = verify_export(&escalated)
+        .expect_err("a mediated per-effect receipt must be refused")
+        .to_string();
+    assert!(
+        err.contains("mediated") || err.contains("enforcement mode"),
+        "the refusal must name the mode as the reason, not fail incidentally: {err}"
+    );
+    // And it must be refused on the pinned-key path too, not only the anchor-free one.
+    assert!(
+        verify_export_signed_by(&escalated, &issuer().verifying_key()).is_err(),
+        "the pinned-key path must refuse it as well"
+    );
+}
+
+/// The bundle's own sentence about these receipts must be derived from them, not hardcoded.
+///
+/// `with_effect_receipts` used to write the word "advisory" into a signed bundle limitation as a
+/// string literal, so a bundle carrying a `mediated` receipt still read "each advisory". A rendered
+/// word that cannot disagree with the record it describes is not a disclosure; it is decoration.
+#[test]
+fn the_bundles_sentence_about_the_receipts_names_the_mode_they_actually_carry() {
+    let dir = tempdir("mode-word");
+    let signed = settled_export(&dir);
+    let sentence = signed
+        .bundle
+        .limitations
+        .iter()
+        .find(|l| l.contains("per-effect receipt chain"))
+        .expect("the bundle says something about the chains");
+    assert!(
+        sentence.contains("advisory"),
+        "the receipts are advisory and the sentence must say so: {sentence}"
+    );
+    // The word has to come from the receipts. Prove it by asking the builder about a mediated one
+    // and requiring the sentence to change.
+    let mut predicate = signed.effect_receipts[0].predicate.clone();
+    predicate.binding.enforcement_mode = evidence::EnforcementMode::Mediated;
+    let mediated = evidence::issue_pre_commit(predicate, &issuer(), "issuer");
+    let rebuilt = build(
+        &stored_from(&warrant_with_tools(&["github.create_pr"])),
+        Err("no queue".to_string()),
+        &issuer().verifying_key(),
+        NOW + 60,
+    )
+    .with_effect_receipts(vec![mediated]);
+    let rebuilt_sentence = rebuilt
+        .bundle()
+        .limitations
+        .iter()
+        .find(|l| l.contains("per-effect receipt chain"))
+        .expect("the rebuilt bundle says something about the chains");
+    assert!(
+        rebuilt_sentence.contains("mediated"),
+        "a mediated receipt must change the sentence, else the word is a hardcode: \
+         {rebuilt_sentence}"
+    );
+}

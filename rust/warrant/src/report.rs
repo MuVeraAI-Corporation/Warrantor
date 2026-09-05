@@ -958,10 +958,28 @@ impl Report {
         self.bundle
             .limitations
             .retain(|l| l != NO_EFFECT_RECEIPTS_LIMITATION);
+        // The mode word is READ from the receipts, never written as a literal. It used to be the
+        // string "advisory" hardcoded here, so a bundle carrying a `mediated` receipt still read
+        // "each advisory". A rendered word that cannot disagree with the record it describes is not
+        // a disclosure; it is decoration -- and this sentence ships inside the signed bundle.
+        // `verify_effect_receipts` refuses anything but advisory, so the mixed branch should be
+        // unreachable in a bundle that verifies; it exists so a bundle that does NOT verify still
+        // says what it actually holds.
+        let mut modes: Vec<&str> = receipts
+            .iter()
+            .map(|r| mode_word_evidence(r.predicate.binding.enforcement_mode))
+            .collect();
+        modes.sort_unstable();
+        modes.dedup();
+        let mode_phrase = match modes.as_slice() {
+            [single] => format!("each {single}"),
+            many => format!("carrying mixed enforcement modes ({})", many.join(", ")),
+        };
         self.bundle.limitations.push(format!(
-            "{} per-effect receipt chain(s) are attached, each advisory: the pre-commit was signed \
-             before settle performed the effect and the post-commit after, which records what \
-             settle did, not that the agent held no other way to do the same thing in the world.",
+            "{} per-effect receipt chain(s) are attached, {mode_phrase}: the pre-commit was \
+             signed before settle performed the effect and the post-commit after, which \
+             records what settle did, not that the agent held no other way to do the same \
+             thing in the world.",
             effects.len()
         ));
         self.bundle.effect_evidence = Some(EffectEvidenceSection {
@@ -1225,6 +1243,31 @@ pub fn verify_export(export: &SignedReport) -> Result<(), ReportError> {
 /// signed by the report's own key, and describe the handle and status the bundle says it does.
 fn verify_effect_receipts(export: &SignedReport) -> Result<(), ReportError> {
     let signer = &export.evidence_receipt.signature.public_key;
+    // A per-effect receipt may only ever say `advisory`, and this is the only place that
+    // refuses anything else.
+    //
+    // `settle` mediates the staged path, not the world: an agent holding its own credential
+    // opens the same pull request without passing through it. So `mediated` on one of these
+    // asserts a non-bypassability this system does not have -- inside a signed bundle, which is
+    // the worst place for a bound to be mislabeled.
+    //
+    // `evidence::check_mode_honesty` does not cover this. It refuses an *advisory* receipt that
+    // claims non-bypassability, never a *mediated* one, so `check_mode_honesty(mediated, true)`
+    // returns Ok. And the report-level mode checks operate on `export.evidence_receipt` alone.
+    // Without this loop, a chain re-signed with the report's OWN key and `Mediated` passed both
+    // verify paths clean while the bundle still read `advisory`. Three independent reviews of
+    // this branch found that gap and each proved it the same way.
+    for receipt in &export.effect_receipts {
+        if receipt.predicate.binding.enforcement_mode != evidence::EnforcementMode::Advisory {
+            return Err(ReportError::Binding(format!(
+                "a per-effect receipt for {} carries enforcement mode {}; settle mediates the \
+                 staged path and not the world, so only `advisory` is truthful here and \
+                 `mediated` is refused",
+                receipt.predicate.operation.target,
+                mode_word_evidence(receipt.predicate.binding.enforcement_mode),
+            )));
+        }
+    }
     // Phase as well as id, because `issue_post_commit` clones the pre-commit's predicate and
     // changes only the phase, the parent pointer and the outcome -- so a chain's two receipts
     // carry the SAME `binding.receipt_id`, and a lookup by id alone hands back the pre-commit
