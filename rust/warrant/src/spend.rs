@@ -90,6 +90,7 @@ use std::path::{Path, PathBuf};
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use warrantor_notary as notary;
 use warrantor_spend as engine;
 
 use crate::report::{canonicalize, sha256_hex};
@@ -995,5 +996,232 @@ impl CallCounter {
         })?;
         self.tool_calls_used = budget.tool_calls_used;
         Ok(reservation)
+    }
+}
+
+/// A warrant's call count, accumulated across sessions, with the last refusal receipted.
+///
+/// Not `Eq`: the notary receipt inside does not implement it, and no caller needs to compare
+/// ledgers — equality of interest here is between counters, which are.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CallLedger {
+    /// Wire format; see [`CALL_LEDGER_FORMAT`].
+    pub format: String,
+    /// The warrant this ledger counts calls for.
+    pub warrant_id: String,
+    /// The running count against the ceiling.
+    pub counter: CallCounter,
+    /// How many calls the ceiling refused. A looping agent produces many; one receipt is kept.
+    pub refused: u64,
+    /// The notary receipt over the most recent decision, signed by the store's issuer key.
+    /// `Deny { gate: Budget }` after a refusal, `Allow` after an admitted call, absent before any.
+    pub receipt: Option<notary::WarReceipt>,
+}
+
+/// Check a call ledger with the issuer's key and nothing else.
+///
+/// # Errors
+/// [`SpendError::Format`] on the wrong format; [`SpendError::Receipt`] if the receipt does not
+/// verify; [`SpendError::Binding`] if it was signed by a key other than `issuer`.
+pub fn verify_call_ledger(ledger: &CallLedger, issuer: &VerifyingKey) -> Result<(), SpendError> {
+    if ledger.format != CALL_LEDGER_FORMAT {
+        return Err(SpendError::Format {
+            found: ledger.format.clone(),
+            expected: CALL_LEDGER_FORMAT,
+        });
+    }
+    if let Some(receipt) = &ledger.receipt {
+        notary::verify_receipt(receipt).map_err(|e| SpendError::Receipt(e.to_string()))?;
+        if receipt.signature.public_key != hex::encode(issuer.to_bytes()) {
+            return Err(SpendError::Binding(format!(
+                "the call ledger is signed by {}, not by this store's issuer key. A ledger \
+                 vouching for itself with its own key proves nothing.",
+                receipt.signature.public_key
+            )));
+        }
+    }
+    Ok(())
+}
+
+impl SpendStore {
+    /// Path a warrant's call ledger occupies: `<root>/spend/<id>.calls.json`.
+    #[must_use]
+    pub fn calls_path(&self, warrant_id: &str) -> PathBuf {
+        self.root.join(format!("{warrant_id}.calls.json"))
+    }
+
+    /// Load a warrant's call ledger, or a fresh one when nothing was recorded. Fail-closed the
+    /// same three ways as [`Self::load`]: unreadable, unverifiable and wrongly signed are errors.
+    ///
+    /// # Errors
+    /// [`SpendError`] naming which check failed.
+    pub fn load_calls(
+        &self,
+        bounds: &WarrantBounds,
+        warrant_id: &str,
+        issuer: &VerifyingKey,
+    ) -> Result<CallLedger, SpendError> {
+        let path = self.calls_path(warrant_id);
+        let body = match std::fs::read(&path) {
+            Ok(body) => body,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(CallLedger {
+                    format: CALL_LEDGER_FORMAT.to_string(),
+                    warrant_id: warrant_id.to_string(),
+                    counter: CallCounter::new(bounds),
+                    refused: 0,
+                    receipt: None,
+                })
+            }
+            Err(e) => {
+                return Err(SpendError::Encode(format!(
+                    "{} exists but could not be read: {e}. Refusing to treat an unreadable call \
+                     ledger as zero calls.",
+                    path.display()
+                )))
+            }
+        };
+        let mut ledger: CallLedger = serde_json::from_slice(&body).map_err(|e| {
+            SpendError::Encode(format!(
+                "{} exists but does not parse: {e}. Refusing to treat an unreadable call ledger \
+                 as zero calls.",
+                path.display()
+            ))
+        })?;
+        verify_call_ledger(&ledger, issuer)?;
+        if ledger.warrant_id != warrant_id {
+            return Err(SpendError::Binding(format!(
+                "{} holds the call ledger for {}, not {warrant_id}",
+                path.display(),
+                ledger.warrant_id
+            )));
+        }
+        // The ceiling is re-read from the signed claims; the file carries only the count.
+        ledger.counter.max_tool_calls = max_tool_calls(bounds);
+        Ok(ledger)
+    }
+
+    /// Persist a call ledger, temp-file-and-rename like [`Self::save`].
+    ///
+    /// # Errors
+    /// [`SpendError::Encode`] on serialization or I/O failure.
+    pub fn save_calls(&self, ledger: &CallLedger) -> Result<PathBuf, SpendError> {
+        let path = self.calls_path(&ledger.warrant_id);
+        let temp = path.with_extension("json.tmp");
+        let body = serde_json::to_vec_pretty(ledger)
+            .map_err(|e| SpendError::Encode(format!("serialize call ledger: {e}")))?;
+        std::fs::write(&temp, &body)
+            .map_err(|e| SpendError::Encode(format!("write {}: {e}", temp.display())))?;
+        std::fs::rename(&temp, &path)
+            .map_err(|e| SpendError::Encode(format!("rename {}: {e}", path.display())))?;
+        Ok(path)
+    }
+}
+
+/// The endpoint's side of the ceiling: the ledger, the key that receipts it, and the facts from
+/// the signed claims a receipt names.
+#[derive(Debug)]
+pub struct CallMeter {
+    store: SpendStore,
+    ledger: CallLedger,
+    issuer: SigningKey,
+    subject: String,
+    expires_at: u64,
+    tools: Vec<String>,
+}
+
+impl CallMeter {
+    /// Open the ledger for `stored` under `root`, fail-closed.
+    ///
+    /// # Errors
+    /// As [`SpendStore::load_calls`].
+    pub fn open(
+        root: &Path,
+        stored: &crate::store::StoredWarrant,
+        issuer: SigningKey,
+    ) -> Result<Self, SpendError> {
+        let claims = &stored.warrant.claims;
+        let store = SpendStore::open(root)?;
+        let ledger = store.load_calls(&claims.bounds, &claims.id, &issuer.verifying_key())?;
+        Ok(Self {
+            store,
+            ledger,
+            issuer,
+            subject: claims.subject.clone(),
+            expires_at: claims.bounds.expires_at,
+            tools: claims.bounds.tools.iter().cloned().collect(),
+        })
+    }
+
+    /// The counter to seed the proxy with.
+    #[must_use]
+    pub fn counter(&self) -> CallCounter {
+        self.ledger.counter.clone()
+    }
+
+    /// The ledger as it stood at the last write.
+    #[must_use]
+    pub fn ledger(&self) -> &CallLedger {
+        &self.ledger
+    }
+
+    /// Record the proxy's decision about `tool` and write the ledger BEFORE the call proceeds.
+    ///
+    /// The receipt is the notary's, over a request built from the signed claims, with
+    /// `EnforcementMode::Mediated` — the tier this bound holds and nothing stronger. `Deny` carries
+    /// only `Gate::Budget`: the count is in the ledger, never in the verdict.
+    ///
+    /// # Errors
+    /// [`SpendError::Encode`] if the ledger cannot be written. The caller refuses the call then: a
+    /// ceiling that cannot be recorded is not held across the next restart.
+    pub fn note(
+        &mut self,
+        counter: &CallCounter,
+        tool: &str,
+        refused: bool,
+        at: u64,
+    ) -> Result<PathBuf, SpendError> {
+        self.ledger.counter = counter.clone();
+        if refused {
+            self.ledger.refused = self.ledger.refused.saturating_add(1);
+        }
+        let verdict = if refused {
+            notary::Verdict::Deny {
+                gate: notary::Gate::Budget,
+            }
+        } else {
+            notary::Verdict::Allow {
+                effective_capabilities: vec![tool.to_string()],
+            }
+        };
+        let request = notary::VerdictRequest {
+            actor: notary::Actor {
+                svid: self.subject.clone(),
+                svid_not_after: self.expires_at,
+                own_capabilities: self.tools.clone(),
+                delegation_chain: Vec::new(),
+            },
+            operation: notary::Operation {
+                class: "tool_call".to_string(),
+                capabilities_requested: vec![tool.to_string()],
+                consequence_tier: notary::ConsequenceTier::Routine,
+                scope: self.ledger.warrant_id.clone(),
+            },
+            artifacts: Vec::new(),
+            nonce: format!(
+                "{}:{}",
+                self.ledger.warrant_id, self.ledger.counter.tool_calls_used
+            ),
+            timestamp: at,
+            approval: None,
+        };
+        self.ledger.receipt = Some(notary::issue_receipt(
+            &verdict,
+            &request,
+            notary::EnforcementMode::Mediated,
+            &self.issuer,
+            "issuer",
+        ));
+        self.store.save_calls(&self.ledger)
     }
 }
