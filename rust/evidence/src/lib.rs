@@ -37,8 +37,8 @@
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::HashSet;
 use thiserror::Error;
+use warrantor_delegation_chain::{intersect_chain, WarrantScope, WarrantStore};
 
 pub const WAR_VERSION: &str = "war/2.0";
 pub const PREDICATE_TYPE: &str = "https://warrantor.dev/ActionReceipt/v2";
@@ -218,6 +218,11 @@ pub enum EvidenceError {
     CommitGate(String),
     #[error("authority violation (I-02): {0}")]
     Authority(String),
+    /// The warrant, or an ancestor in its lineage, was revoked; nothing below it binds
+    /// (L6-01: any link's revocation voids everything below it). Named by the warrant asked to
+    /// bind, never by the revoked ancestor: the refusal carries only what the caller presented.
+    #[error("delegation lineage revoked at or above {0}; refused at bind")]
+    Revoked(String),
     #[error("phase violation: {0}")]
     Phase(String),
     #[error("enforcement-mode violation (§6): {0}")]
@@ -279,25 +284,97 @@ fn sha256_hex(s: &str) -> String {
 // The intersection proof (spec 01 §3.3, I-02)
 // ---------------------------------------------------------------------------
 
+/// A receipt link as the delegation algebra sees it. The link carries capabilities and a validity
+/// window; it carries no resource classes and no budget, so those arrive empty and zero and can
+/// never widen. `not_after` goes in as `expires_at_ms` unconverted: the algebra compares two
+/// numbers and never interprets units, and both sides of every comparison come from this function.
+fn scope_of(link: &DelegationLink) -> WarrantScope {
+    WarrantScope {
+        capabilities: link.capabilities.clone(),
+        resource_classes: Vec::new(),
+        expires_at_ms: link.not_after,
+        budget_micros: 0,
+    }
+}
+
+/// Narrow a root-first chain with the one delegation algebra
+/// ([`warrantor_delegation_chain::intersect_chain`], spec 06; I-02).
+///
+/// Every link must be an intersection with the link before it. The first link that widens —
+/// a capability its parent never held, or a later `not_after` — is refused by index, and the
+/// refusal cites the invariant. The result is sorted and deduplicated so a verifier recomputes it
+/// byte-for-byte.
+///
+/// # Errors
+/// [`EvidenceError::Authority`] naming the widening link.
+pub fn narrow_chain(chain: &[DelegationLink]) -> Result<Vec<String>, EvidenceError> {
+    let scopes: Vec<WarrantScope> = chain.iter().map(scope_of).collect();
+    let effective = intersect_chain(&scopes).map_err(|widened| {
+        EvidenceError::Authority(format!(
+            "link {} widens beyond its parent: {:?} (authority expansion; I-02)",
+            widened.link, widened.escalation
+        ))
+    })?;
+    let mut out = effective.capabilities;
+    out.sort();
+    out.dedup();
+    Ok(out)
+}
+
 /// Recompute the capability intersection across the chain (spec 06 algebra). A capability is
-/// effective iff it appears in EVERY link. Returns a sorted Vec for determinism.
+/// effective iff every link on the way down held it. Returns a sorted Vec for determinism.
+///
+/// Total on purpose: `compute_intersection_proof` must be computable over *any* chain, forged or
+/// not, so a verifier can compare digests. A chain with a widening link confers nothing and
+/// recomputes as empty; [`verify_authority`] reports *why* through [`narrow_chain`].
 #[must_use]
 pub fn recompute_intersection(chain: &[DelegationLink]) -> Vec<String> {
-    if chain.is_empty() {
-        return Vec::new();
-    }
-    let sets: Vec<HashSet<String>> = chain
+    narrow_chain(chain).unwrap_or_default()
+}
+
+/// A stored lineage, root first, as receipt links. The root has no issuer of its own and is
+/// recorded as self-issued; every later link is issued by the warrant above it. `not_before` is
+/// `0` because the stored scope has no floor; `token_digest` is the warrant's content digest.
+#[must_use]
+pub fn chain_from_lineage(lineage: &[warrantor_delegation_chain::Warrant]) -> Vec<DelegationLink> {
+    lineage
         .iter()
-        .map(|l| l.capabilities.iter().cloned().collect())
-        .collect();
-    let mut iter = sets.into_iter();
-    let mut acc = iter.next().unwrap();
-    for s in iter {
-        acc = acc.intersection(&s).cloned().collect();
+        .map(|warrant| DelegationLink {
+            issuer: warrant.parent.clone().unwrap_or_else(|| warrant.id.clone()),
+            subject: warrant.id.clone(),
+            capabilities: warrant.scope.capabilities.clone(),
+            not_before: 0,
+            not_after: warrant.scope.expires_at_ms,
+            token_digest: warrant.digest.clone(),
+        })
+        .collect()
+}
+
+/// Bind an authority block from a warrant's stored lineage — the moment a staged action asks
+/// what it may do. Refuses if the warrant is unknown, or if it or any ancestor is revoked; the
+/// chain it returns recomputes under [`verify_authority`].
+///
+/// # Errors
+/// [`EvidenceError::Authority`] for an id the store never issued; [`EvidenceError::Revoked`] if
+/// the lineage no longer stands; whatever [`narrow_chain`] returns otherwise.
+pub fn bind_authority(store: &WarrantStore, warrant_id: &str) -> Result<Authority, EvidenceError> {
+    let lineage = store.chain_of(warrant_id);
+    if lineage.is_empty() {
+        return Err(EvidenceError::Authority(format!(
+            "unknown warrant {warrant_id}; nothing to bind"
+        )));
     }
-    let mut out: Vec<String> = acc.into_iter().collect();
-    out.sort();
-    out
+    if !store.is_valid(warrant_id) {
+        return Err(EvidenceError::Revoked(warrant_id.to_string()));
+    }
+    let chain = chain_from_lineage(&lineage);
+    let effective_capabilities = narrow_chain(&chain)?;
+    let intersection_proof = compute_intersection_proof(&chain);
+    Ok(Authority {
+        chain,
+        effective_capabilities,
+        intersection_proof,
+    })
 }
 
 /// Compute the intersection proof from a chain (spec 01 §3.3). The `links_digest` is over the
@@ -547,10 +624,15 @@ pub fn verify_chain_at(
     Ok(())
 }
 
-/// Verify the authority block (I-02): recompute the intersection, reject if it differs from the
-/// claimed effective_capabilities, and reject if the intersection_proof is inconsistent.
+/// Verify the authority block (I-02): narrow the chain with the one delegation algebra (refusing
+/// any link that widens), reject if the result differs from the claimed effective_capabilities,
+/// and reject if the intersection_proof is inconsistent.
+///
+/// # Errors
+/// [`EvidenceError::Authority`] for a widening link, a claimed capability set the chain does not
+/// produce, or an intersection proof inconsistent with the chain.
 pub fn verify_authority(authority: &Authority) -> Result<(), EvidenceError> {
-    let recomputed = recompute_intersection(&authority.chain);
+    let recomputed = narrow_chain(&authority.chain)?;
     if recomputed != authority.effective_capabilities {
         return Err(EvidenceError::Authority(format!(
             "effective_capabilities {:?} != recomputed intersection {:?} (authority expansion; I-02)",
@@ -961,9 +1043,121 @@ mod tests {
         assert_eq!(recompute_intersection(&chain), vec!["read".to_string()]);
     }
 
+    // --- one delegation algebra (L6-01) ---
+
+    fn widening_chain() -> Vec<DelegationLink> {
+        let mut chain = sample_chain();
+        // The child claims a capability the parent never held.
+        chain[1].capabilities.push("admin".to_string());
+        chain
+    }
+
+    #[test]
+    fn a_widening_link_is_named_and_refused() {
+        match narrow_chain(&widening_chain()) {
+            Err(EvidenceError::Authority(message)) => {
+                assert!(message.contains("link 1 "), "names the link: {message}");
+                assert!(
+                    message.contains(r#"Capability("admin")"#),
+                    "names what widened: {message}"
+                );
+                assert!(message.contains("I-02"), "cites the invariant: {message}");
+            }
+            other => panic!("a widening link must be refused, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_widening_chain_confers_nothing() {
+        assert!(recompute_intersection(&widening_chain()).is_empty());
+    }
+
+    #[test]
+    fn verify_authority_refuses_a_widening_chain_even_when_the_claim_is_empty() {
+        let chain = widening_chain();
+        let auth = Authority {
+            effective_capabilities: Vec::new(),
+            intersection_proof: compute_intersection_proof(&chain),
+            chain,
+        };
+        assert!(matches!(
+            verify_authority(&auth),
+            Err(EvidenceError::Authority(_))
+        ));
+    }
+
+    #[test]
+    fn a_child_that_outlives_its_parent_is_refused() {
+        let mut chain = sample_chain();
+        chain[0].not_after = 1_000;
+        chain[1].not_after = 1_001;
+        assert!(matches!(
+            narrow_chain(&chain),
+            Err(EvidenceError::Authority(message)) if message.contains("Time")
+        ));
+    }
+
     #[test]
     fn dsse_pae_format() {
         let pae = dsse_pae("hello");
         assert_eq!(String::from_utf8(pae).unwrap(), "DSSEv1 5 hello");
+    }
+
+    // --- drift guard: the proof format did not move ---
+
+    /// The algorithm this crate shipped as `warrantor-intersect-v1`, verbatim, kept only here.
+    /// If the delegated fold ever disagrees with it on a chain that narrows, the proof format has
+    /// changed and needs a new name.
+    fn retired_set_intersection(chain: &[DelegationLink]) -> Vec<String> {
+        use std::collections::HashSet;
+        if chain.is_empty() {
+            return Vec::new();
+        }
+        let sets: Vec<HashSet<String>> = chain
+            .iter()
+            .map(|l| l.capabilities.iter().cloned().collect())
+            .collect();
+        let mut iter = sets.into_iter();
+        let mut acc = iter.next().unwrap();
+        for s in iter {
+            acc = acc.intersection(&s).cloned().collect();
+        }
+        let mut out: Vec<String> = acc.into_iter().collect();
+        out.sort();
+        out
+    }
+
+    #[test]
+    fn the_delegated_fold_matches_the_retired_algorithm_on_every_narrowing_chain() {
+        let mut four_deep = sample_chain();
+        four_deep.push(DelegationLink {
+            issuer: "spiffe://bot".to_string(),
+            subject: "spiffe://worker".to_string(),
+            capabilities: vec!["read".to_string(), "read".to_string()],
+            not_before: 0,
+            not_after: 5_000,
+            token_digest: "sha256:ccc".to_string(),
+        });
+        four_deep.push(DelegationLink {
+            issuer: "spiffe://worker".to_string(),
+            subject: "spiffe://leaf".to_string(),
+            capabilities: vec![],
+            not_before: 0,
+            not_after: 5_000,
+            token_digest: "sha256:ddd".to_string(),
+        });
+        for chain in [Vec::new(), sample_chain(), four_deep] {
+            assert_eq!(
+                recompute_intersection(&chain),
+                retired_set_intersection(&chain)
+            );
+            let proof = compute_intersection_proof(&chain);
+            assert_eq!(proof.algorithm, "warrantor-intersect-v1");
+            assert_eq!(
+                proof.result_digest,
+                sha256_hex(&serde_json::to_string(&retired_set_intersection(&chain)).unwrap()),
+                "result_digest must be byte-identical to what v1 verifiers compute"
+            );
+        }
     }
 }

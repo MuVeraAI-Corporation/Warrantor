@@ -1,8 +1,8 @@
 {
   "format": "warrantor.wiring-coverage/1",
   "binary_crate": "warrantor-warrant",
-  "total": 39,
-  "reachable": 9,
+  "total": 40,
+  "reachable": 10,
   "orphaned": [
     "defstack-cli",
     "warrantor-agent-manifest",
@@ -35,5 +35,5 @@
     "warrantor-secure-workspace",
     "warrantor-self-governance"
   ],
-  "edges": 17
+  "edges": 18
 }

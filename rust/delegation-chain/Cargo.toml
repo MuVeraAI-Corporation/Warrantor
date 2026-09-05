@@ -1,0 +1,17 @@
+[package]
+name = "warrantor-delegation-chain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "A-2 / catalogue Domain A — W6 delegation-chain intersection: warrants that can delegate, where a holder of warrant W issues a sub-warrant W′ with scope(W′) ⊆ scope(W), time(W′) ⊆ time(W), budget(W′) ⊆ budget(W) — intersection, not union, computed at the notary — the chain recorded on every delegated receipt and any link's revocation voiding everything below it, generalizing the kill-switch from credential bindings to warrant lineage and supplying the intersection semantics cross-org verification (B-4) and agent-to-agent transactions (H-5) build on"
+
+[lib]
+name = "warrantor_delegation_chain"
+path = "src/lib.rs"
+
+[dependencies]
+hex = "0.4"
+serde.workspace = true
+serde_json = "1"
+sha2 = "0.11"

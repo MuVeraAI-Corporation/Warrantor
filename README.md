@@ -193,7 +193,7 @@ v1.0.0, open-sourced early on purpose.
 | GitHub adapter — PRs, comments, reviews, labels at settle | **Works** |
 | Python SDKs — harness, agent SDK, LangChain, vLLM, Hugging Face, Jira/Linear, OCSF, K8s admission | **Work.** 4 of 12 on PyPI; the rest held by PyPI's new-project quota |
 | Web console for non-developers | **Not built.** Data model and reducers exist; no UI in this repository |
-| Capabilities reachable from the CLI | **9 of 39** Rust workspace crates link into the `warrantor` binary; the other 30 compile and pass their tests but nothing a user runs calls them. Measured by `tools/ci/wiring_census.py` from the manifests, recorded in [`evidence/wiring-coverage.json`](evidence/wiring-coverage.json); CI refuses any change that lowers it |
+| Capabilities reachable from the CLI | **10 of 40** Rust workspace crates link into the `warrantor` binary; the other 30 compile and pass their tests but nothing a user runs calls them. Measured by `tools/ci/wiring_census.py` from the manifests, recorded in [`evidence/wiring-coverage.json`](evidence/wiring-coverage.json); CI refuses any change that lowers it |
 | Published packages | **crates.io** 4/4 · **npm** 3/3 · **PyPI** 4/12 · prebuilt binaries for Linux, macOS (arm64 + x86_64) and Windows on the [v1.0.0 release](https://github.com/MuVeraAI-Corporation/Warrantor/releases/tag/v1.0.0) |
 
 ### Things that will bite you today

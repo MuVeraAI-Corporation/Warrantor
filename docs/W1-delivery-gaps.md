@@ -877,6 +877,51 @@ other 78 crates is as invisible as these were. macOS has no test leg at all.
 
 ---
 
+### 3.7 Two delegation algebras, one of them dead — **merged; the notary's copy remains**
+
+Found while wiring (2026-09): `warrantor-evidence` recomputed the I-02 intersection with its own
+set fold, which *silently narrowed* a child link claiming a capability its parent never held and
+never compared validity windows; `warrantor-delegation-chain` refused widening and nothing depended
+on it — and it was not even in git (untracked in a working checkout, absent from `main`).
+
+Now: the delegation-chain crate is tracked and is the one algebra. `evidence::narrow_chain` maps a
+receipt link to its scope and asks `delegation_chain::intersect_chain`; a widening link is refused
+by index with the invariant named, and `recompute_intersection` on such a chain returns nothing.
+For every chain that verifies, the `warrantor-intersect-v1` proof bytes are unchanged (guarded by
+test), so no format moved. `evidence::bind_authority` builds the authority block from stored lineage
+and refuses a revoked lineage at bind; the A2 four-deep gate passes.
+
+What this does **not** establish, so it is not read as more than it is:
+- `rust/notary/src/lib.rs` `effective_capabilities` is a third copy of the set fold, inside the
+  verdict path whose `Deny` carries only the gate. Left as is; folding it changes which gate fires.
+- The Python verifier (`python/warrantor_evidence`) still uses the set fold, and the two languages
+  now **disagree on a widening chain**. For every chain Rust accepts, Python computes identical
+  proofs and accepts identically (the interop test is the live check of that). On a widening chain
+  Python computes a non-empty intersection and **accepts** an authority block it computed itself:
+  verified 2026-09-05 on a two-link chain whose child claims `admin`, where Python returns
+  `['read']` and `verify_authority` passes. It refuses a Rust-produced widening block, but on the
+  capability-set mismatch (`effective_capabilities [] != recomputed intersection ['read'] (I-02)`),
+  never by naming the link. Until Python folds the same algebra, a widening receipt forged entirely
+  in Python passes the Python verifier and fails the Rust one. This task did not narrow that; the
+  plan text asserted Python "rejects a widening chain by proof mismatch", which the run above
+  disproves.
+- A receipt link carries capabilities and `not_after` only. Resource classes and budget are narrowed
+  at delegation time in the store but are not evidenced in the receipt; `not_before` is carried,
+  not narrowed.
+- Revocation is refused at bind. An archived receipt issued before a revocation still verifies.
+- The `warrantor` binary does not yet call `bind_authority`; its report path still builds a
+  one-link chain from the warrant's own bounds (`report.rs`). The multi-link path is reachable and
+  tested, not yet driven by a live run.
+- Every bound this task touches is a **library refusal**, not an OS or crypto bound: the refusal is
+  Tier B (chokepoint) where the evidence crate is on the path a caller must traverse, and Observed
+  where a caller reaches the store directly. Nothing here confines a process.
+
+(`3.5` is used by the uncommitted revision of this document in the working checkout, and `3.6` was
+taken by the Windows-CI entry that landed on `main` after this task was written; numbering skips
+both so the three can merge without renumbering.)
+
+---
+
 ## Tier 4 — model intelligence
 
 ### 4.1 The guard is wired in as observe-only signals — **partly done**
