@@ -42,6 +42,22 @@ STEP_RE = re.compile(r"^- \[ \] \*\*Step\b", re.MULTILINE)
 DECLARED_BRANCH_RE = re.compile(r"worktree add\s+\S+\s+-b\s+(\S+)")
 
 
+def declared_branch(section_body: str) -> str:
+    """The branch a task's own Step 1 declares, or '' if it declares none.
+
+    The single reader of that line. `tools/ci/splice_expansion.py` imports this rather than
+    re-implementing the regex: a task whose branch the board resolves one way and a gate resolves
+    another is how two finished tasks once reported as never started.
+    """
+    match = DECLARED_BRANCH_RE.search(section_body)
+    if not match:
+        return ""
+    name = match.group(1).strip("`'\"")
+    if "<" in name:                     # a template in prose, not a branch name
+        return ""
+    return name
+
+
 def git(*args: str) -> str:
     """Run git and return stdout, or '' on any failure. Never raises."""
     try:
@@ -160,21 +176,18 @@ def load_tasks() -> list[Task]:
         # `feat/wiring-census`, `feat/egress-capability-catalog` — so it reported finished
         # tasks as never started. That is the failure this board exists to prevent, reached
         # by matching a convention the plan does not follow rather than by matching nothing.
-        declared = DECLARED_BRANCH_RE.search(body)
-        declared_branch = declared.group(1).strip("`'\"") if declared else ""
-        if "<" in declared_branch:          # a template in prose, not a branch name
-            declared_branch = ""
+        branch_from_plan = declared_branch(body)
 
         # Fallback: any branch carrying the task id as a segment, for a lane that renamed or
         # used `impl/task-N.M`. The convention stays advisory; the plan stays authoritative.
         pattern = re.compile(rf"(?:^|/)task-{re.escape(task_id)}(?:-|$)")
         candidates = sorted(b for b in all_branches if pattern.search(b))
-        if declared_branch and declared_branch in all_branches:
-            branch = declared_branch
+        if branch_from_plan and branch_from_plan in all_branches:
+            branch = branch_from_plan
         elif candidates:
             branch = candidates[0]
         else:
-            branch = declared_branch or convention.format(id=task_id)
+            branch = branch_from_plan or convention.format(id=task_id)
         exists = branch in all_branches
         # A branch whose tip sits on main's first-parent line has contributed nothing yet: it was
         # created and not committed to. Treat it as not started rather than as merged.
