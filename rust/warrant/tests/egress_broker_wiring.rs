@@ -3,9 +3,113 @@
 
 use std::collections::BTreeSet;
 
+use ed25519_dalek::SigningKey;
 use warrantor_warrant::catalog::{
     check_capability_name, Capability, CapabilityCatalog, CATALOG_FORMAT,
 };
+use warrantor_warrant::{SideEffectClass, WarrantBounds};
+
+const NOW: u64 = 1_786_000_000;
+
+fn bounds_with(hosts: &[&str]) -> WarrantBounds {
+    WarrantBounds {
+        tools: ["git", "http.fetch", "github.create_pr"]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        write_paths: BTreeSet::new(),
+        egress_hosts: hosts.iter().map(|h| (*h).to_string()).collect(),
+        staged_classes: [SideEffectClass::Write].into_iter().collect(),
+        expires_at: NOW + 3600,
+        budget_cents_observed: None,
+        delegation_depth: 1,
+    }
+}
+
+fn tempdir(tag: &str) -> std::path::PathBuf {
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "warrantor-egress-wiring-{tag}-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
+    std::fs::create_dir_all(&path).expect("tempdir");
+    path
+}
+
+fn signed_catalog(warrant_id: &str, issuer: &SigningKey) -> CapabilityCatalog {
+    let hosts: BTreeSet<String> = ["api.github.com".to_string()].into_iter().collect();
+    let mut catalog = CapabilityCatalog::for_warrant(
+        warrant_id,
+        CapabilityCatalog::from_hosts(&hosts).capabilities,
+    );
+    catalog.sign(issuer, "issuer");
+    catalog
+}
+
+#[test]
+fn a_signed_catalog_round_trips_through_disk_and_verifies_against_the_issuer() {
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let dir = tempdir("roundtrip");
+    let catalog = signed_catalog("wrt_1", &issuer);
+    let path = warrantor_warrant::catalog::catalog_path(&dir, "wrt_1");
+    catalog.save(&path).expect("save");
+    let loaded = CapabilityCatalog::load(&path).expect("load");
+    assert_eq!(loaded, catalog);
+    loaded
+        .verify(&issuer.verifying_key(), "wrt_1")
+        .expect("verifies");
+    let stranger = SigningKey::from_bytes(&[9; 32]);
+    assert!(loaded.verify(&stranger.verifying_key(), "wrt_1").is_err());
+    assert!(
+        loaded.verify(&issuer.verifying_key(), "wrt_2").is_err(),
+        "bound to one warrant"
+    );
+    let mut tampered = loaded.clone();
+    tampered.capabilities[0].host = "evil.example".to_string();
+    assert!(tampered.verify(&issuer.verifying_key(), "wrt_1").is_err());
+}
+
+#[test]
+fn an_unsigned_or_wrong_format_file_does_not_load_as_a_catalog() {
+    let dir = tempdir("format");
+    let path = dir.join("c.json");
+    std::fs::write(
+        &path,
+        r#"{"format":"warrantor.destination-catalog/2","capabilities":[]}"#,
+    )
+    .expect("write");
+    let err = CapabilityCatalog::load(&path).expect_err("wrong format");
+    assert!(err.contains("warrantor.destination-catalog/1"), "{err}");
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let unsigned = CapabilityCatalog::for_warrant("wrt_1", Vec::new());
+    assert!(
+        unsigned.verify(&issuer.verifying_key(), "wrt_1").is_err(),
+        "no signature, no trust"
+    );
+}
+
+#[test]
+fn a_catalog_cannot_name_a_host_outside_the_signed_bound() {
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let mut catalog = signed_catalog("wrt_1", &issuer);
+    catalog.capabilities.push(Capability {
+        name: "exfil".to_string(),
+        host: "paste.example".to_string(),
+        purpose: "not in the bound".to_string(),
+        permitted_methods: Vec::new(),
+    });
+    let err = catalog
+        .vocabulary_within(&bounds_with(&["api.github.com"]))
+        .expect_err("widening refused");
+    assert!(err.contains("paste.example"), "{err}");
+    let vocabulary = signed_catalog("wrt_1", &issuer)
+        .vocabulary_within(&bounds_with(&["api.github.com"]))
+        .expect("within");
+    assert_eq!(vocabulary.names(), vec!["host:api.github.com".to_string()]);
+}
 
 #[test]
 fn egress_hosts_sugar_compiles_into_host_named_capabilities() {

@@ -273,7 +273,10 @@ pub struct Destination {
 /// The old check looked at `host` and `url` only, which meant a tool taking `endpoint`,
 /// `base_url` or `server` reached `Forward` with no egress evaluation at all — a hole in the shape
 /// of the arguments rather than in the policy.
-const DESTINATION_KEYS: &[&str] = &[
+///
+/// Public because the catalog closes exactly these keys in a published tool schema, and the
+/// decision log keys off them: one list of destination-shaped arguments, three consumers.
+pub const DESTINATION_KEYS: &[&str] = &[
     "address",
     "api_base",
     "api_url",
