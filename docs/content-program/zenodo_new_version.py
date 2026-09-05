@@ -134,6 +134,10 @@ def main(argv=None) -> int:
         meta = draft["metadata"]
         meta["version"] = VERSION
         meta["publication_date"] = time.strftime("%Y-%m-%d")
+        # ⚠️ The new-version draft inherits title, creators, licence and description from the
+        # published record but NOT its community: on 2026-09-05 all six drafts came back with
+        # `communities: None` and had to be patched afterwards. Set it explicitly every time.
+        meta["communities"] = [{"identifier": "warrantor"}]
         desc = meta.get("description", "")
         if not desc.startswith("Version 3"):
             meta["description"] = CHANGE_NOTE[tag] + "\n\n" + desc
