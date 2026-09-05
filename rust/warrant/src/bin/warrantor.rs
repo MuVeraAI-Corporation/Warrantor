@@ -1754,6 +1754,8 @@ fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         daemon.as_ref(),
         &OsProcessControl,
         &store.staged_path(id),
+        None,
+        now(),
     );
     if daemon.is_some() {
         match daemons.deregister(id) {

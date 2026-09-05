@@ -40,14 +40,11 @@ warrantor-egress = { path = "../egress", version = "1.0.0" }
 # anti-sandbagging gate -- a stop record can never claim a passing containment grade, because
 # warrantor never runs an elicitation. Same dependency family minus sha2; no new external crate.
 #
-# `warrantor-kill-switch` is deliberately NOT here. Its Cargo.toml declares tokio, clap, tracing
-# and tracing-subscriber unconditionally, and a path dependency would pull all four into this
-# crate's graph, breaking the tokio-free posture -- for nothing, since grep finds no tokio, no
-# `async fn` and no `.await` anywhere in that crate's src. Nothing is lost: `stop` needs
-# `DaemonState::get` and `supervise::terminate_group`, both already in this crate, and the
-# containment SEAM the kill switch would fill is `notary::VerdictContext.contained_scopes`, a
-# plain `Vec<String>` this crate supplies on its own.
+# `warrantor-kill-switch-core` is the kill switch's process-tree termination, extracted because
+# the full crate declares tokio, clap and tracing unconditionally. The core depends on thiserror
+# only.
 warrantor-containment-conformance = { path = "../containment-conformance", version = "1.0.0" }
+warrantor-kill-switch-core = { path = "../kill-switch-core", version = "1.0.0" }
 # The spend engine, behind the budget bound. It does NOT make that bound enforceable and does not
 # try: model API calls never traverse this process, so every figure it can see is one the agent
 # reported about itself. What it buys is that `budget_cents_observed` becomes TRUE -- before this,

@@ -400,11 +400,16 @@ impl ControlEndpoint {
         };
 
         let daemon = daemons.get(&id);
+        let enforcement = crate::conformance::ConformanceStore::open(self.store.root())
+            .ok()
+            .and_then(|c| c.basis_for_this_kernel());
         let mut outcome = crate::stop::execute(
             &mut stored,
             daemon.as_ref(),
             &OsProcessControl,
             &self.store.staged_path(&id),
+            enforcement,
+            (self.now)(),
         );
         if daemon.is_some() && daemons.deregister(&id).is_ok() {
             outcome.deregistered = true;

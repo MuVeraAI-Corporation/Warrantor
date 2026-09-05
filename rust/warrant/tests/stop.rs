@@ -18,8 +18,8 @@ use warrantor_warrant::mcp_endpoints::agent_endpoint_for;
 use warrantor_warrant::proxy::ProxyMode;
 use warrantor_warrant::staging::{EffectRegistry, StagingQueue};
 use warrantor_warrant::stop::{
-    self, ProcessControl, SignedStop, StopError, StopOutcome, StopStore, STOP_ENFORCEMENT_MODE,
-    STOP_EXPORT_FORMAT, STOP_RECORD_FORMAT,
+    self, ProcessControl, SignedStop, StopError, StopOutcome, StopStore, STOP_EXPORT_FORMAT,
+    STOP_RECORD_FORMAT,
 };
 use warrantor_warrant::store::StoredWarrant;
 use warrantor_warrant::supervise::describe_linkage;
@@ -184,6 +184,8 @@ fn stop_now(
         Some(&record(4242)),
         control,
         &staged_path(dir),
+        None,
+        NOW,
     );
     stop::sign(&warrant, &outcome, Some("test"), &issuer(), NOW).expect("sign")
 }
@@ -200,6 +202,8 @@ fn a_live_supervisor_is_terminated_and_confirmed_gone() {
         Some(&record(4242)),
         &control,
         &staged_path(&dir),
+        None,
+        NOW,
     );
 
     assert_eq!(
@@ -336,11 +340,13 @@ fn no_daemon_record_still_holds_the_warrant_and_says_nothing_was_terminated() {
         None,
         &FakeSupervisor::never_dies(),
         &staged_path(&dir),
+        None,
+        NOW,
     );
 
     assert!(!outcome.supervisor_was_alive);
     assert_eq!(outcome.supervisor_pid, None);
-    assert_eq!(outcome.state_after, WarrantState::Held);
+    assert_eq!(outcome.state_after, WarrantState::Void);
 
     let signed = stop::sign(&warrant, &outcome, None, &issuer(), NOW).expect("sign");
     assert_eq!(
@@ -353,7 +359,7 @@ fn no_daemon_record_still_holds_the_warrant_and_says_nothing_was_terminated() {
 // ── what revocation reaches ───────────────────────────────────────────────────────────
 
 #[test]
-fn stopping_holds_the_warrant_rather_than_destroying_the_work() {
+fn a_halt_is_terminal_and_names_what_it_discarded() {
     let dir = tempdir("held");
     let mut warrant = stored(WarrantState::Open);
     let outcome = stop::execute(
@@ -361,14 +367,23 @@ fn stopping_holds_the_warrant_rather_than_destroying_the_work() {
         Some(&record(1)),
         &FakeSupervisor::dies_immediately(),
         &staged_path(&dir),
+        None,
+        NOW,
     );
     assert_eq!(outcome.state_before, WarrantState::Open);
-    assert_eq!(outcome.state_after, WarrantState::Held);
-    assert_eq!(warrant.warrant.state, WarrantState::Held);
+    assert_eq!(outcome.state_after, WarrantState::Void);
+    assert_eq!(warrant.warrant.state, WarrantState::Void);
+    assert!(
+        outcome
+            .invalidated
+            .iter()
+            .any(|i| matches!(i, stop::Invalidation::StagedEffects { .. })),
+        "the record names what the halt discarded, and where the evidence log still is"
+    );
     assert!(
         stop::render_cli(&stop::sign(&warrant, &outcome, None, &issuer(), NOW).expect("sign"))
-            .contains("staged effects      kept"),
-        "stop must never be mistaken for void"
+            .contains("staged effects      discarded"),
+        "a halt is not a hold: the operator reads that the work is no longer releasable"
     );
 }
 
@@ -382,6 +397,8 @@ fn a_terminal_warrant_is_not_transitioned_backwards() {
             Some(&record(1)),
             &FakeSupervisor::dies_immediately(),
             &staged_path(&dir),
+            None,
+            NOW,
         );
         assert_eq!(outcome.state_after, state, "{state:?} is already decided");
         assert_eq!(warrant.warrant.state, state);
@@ -408,6 +425,8 @@ fn a_new_supervised_session_is_refused_only_once_the_warrant_is_no_longer_open()
         Some(&record(1)),
         &FakeSupervisor::dies_immediately(),
         &path,
+        None,
+        NOW,
     );
     assert!(outcome.new_sessions_refused);
     assert!(
@@ -450,6 +469,8 @@ fn stop_outcome_template() -> StopOutcome {
         state_before: WarrantState::Open,
         state_after: WarrantState::Held,
         new_sessions_refused: true,
+        enforcement: None,
+        invalidated: Vec::new(),
     }
 }
 
@@ -558,7 +579,8 @@ fn the_record_never_claims_a_mediated_enforcement_mode() {
     );
     assert_eq!(
         signed.record.conformance.report.enforcement_mode,
-        STOP_ENFORCEMENT_MODE
+        stop::EnforcementMode::Advisory.word(),
+        "no drill receipt was supplied, so the mode is advisory, never assumed"
     );
     assert_ne!(
         signed.record.conformance.report.enforcement_mode, "mediated",
@@ -582,8 +604,8 @@ fn the_limitations_are_never_empty_and_name_what_is_missing() {
         "the egress caveat must survive stop: {all}"
     );
     assert!(
-        all.contains("Staged effects are kept"),
-        "stop is not void, and the record has to say so: {all}"
+        all.contains("Staged effects are discarded"),
+        "a halt is terminal, and the record says the log is retained as evidence: {all}"
     );
     assert!(
         all.contains("does not establish that the signing key is trusted"),
@@ -600,6 +622,8 @@ fn an_unset_reason_is_left_absent_rather_than_invented() {
         Some(&record(1)),
         &FakeSupervisor::dies_immediately(),
         &staged_path(&dir),
+        None,
+        NOW,
     );
     let signed = stop::sign(&warrant, &outcome, None, &issuer(), NOW).expect("sign");
     assert_eq!(signed.record.reason, None);

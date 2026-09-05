@@ -3736,11 +3736,16 @@ impl Api for StoreApi {
         // The same four steps, in the same order, as `warrantor stop` and the MCP control
         // endpoint. A third order would produce records that disagree with the other two.
         let daemon = daemons.get(id);
+        let enforcement = crate::conformance::ConformanceStore::open(self.store.root())
+            .ok()
+            .and_then(|c| c.basis_for_this_kernel());
         let mut outcome = stop::execute(
             &mut stored,
             daemon.as_ref(),
             &OsProcessControl,
             &self.store.staged_path(id),
+            enforcement,
+            (self.now)(),
         );
         if daemon.is_some() && daemons.deregister(id).is_ok() {
             outcome.deregistered = true;

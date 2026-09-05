@@ -2862,6 +2862,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "warrantor-kill-switch-core",
 ]
 
 [[package]]
@@ -3105,6 +3106,7 @@ dependencies = [
  "warrantor-containment-conformance",
  "warrantor-egress",
  "warrantor-evidence",
+ "warrantor-kill-switch-core",
  "warrantor-notary",
  "warrantor-spend",
  "warrantor-trust-core",

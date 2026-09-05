@@ -94,14 +94,82 @@ pub const STOP_HOLD: Duration = Duration::from_millis(200);
 /// Poll interval while waiting for quiescence.
 const STOP_POLL: Duration = Duration::from_millis(25);
 
-/// The enforcement mode stamped on every stop record.
-///
-/// `warrantor_containment_conformance` leaves this an unvalidated free `String`, so nothing in that
-/// crate stops a report saying `mediated`. This constant is the only value warrantor writes, and
-/// [`verify_stop`] refuses a record carrying anything else. Warrantor mediates a tool call that
-/// traverses its MCP proxy; it does not mediate an agent that opens a socket, and a stop record
-/// claiming `mediated` would be asserting a non-bypassability that does not exist.
-pub const STOP_ENFORCEMENT_MODE: &str = "advisory";
+/// How strongly this kernel's kill path is known to hold. Never a constant: read from a
+/// `warrantor conformance run` receipt for THIS kernel, or `Advisory` when there is none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EnforcementMode {
+    /// No drill receipt for this kernel; the kill is best-effort.
+    Advisory,
+    /// A drill on this kernel observed the tree die within budget.
+    Enforced,
+}
+
+impl EnforcementMode {
+    /// The word written into the conformance report's `enforcement_mode`.
+    #[must_use]
+    pub const fn word(self) -> &'static str {
+        match self {
+            Self::Advisory => "advisory",
+            Self::Enforced => "enforced",
+        }
+    }
+}
+
+/// Why a record says `enforced`: which receipt, for which kernel, drilled when.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnforcementBasis {
+    /// `conformance::kernel_id()` at drill time.
+    pub kernel: String,
+    /// `SignedConformanceReceipt::receipt_digest`.
+    pub receipt_digest: String,
+    /// Epoch seconds.
+    pub drilled_at: u64,
+}
+
+/// One thing a halt reached beyond the process. Observations, not intentions.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Invalidation {
+    /// New capability leases are refused; leases already minted expire by `outstanding_until`.
+    CapabilityLeases {
+        /// The warrant.
+        warrant_id: String,
+        /// `now + CAPABILITY_TTL_SECONDS`.
+        outstanding_until: u64,
+    },
+    /// A new supervised MCP session is refused (observed via `agent_endpoint_for`).
+    SessionMembership {
+        /// The warrant.
+        warrant_id: String,
+    },
+    /// Staged effects can no longer be released: the warrant is Void. The log is kept as evidence.
+    StagedEffects {
+        /// The warrant.
+        warrant_id: String,
+        /// Effects in the log.
+        count: u64,
+        /// The chain head at halt.
+        chain_head: String,
+        /// Where the log still is.
+        log_retained_at: String,
+    },
+    /// The worktree was removed.
+    Worktree {
+        /// Its path.
+        path: String,
+    },
+}
+
+/// The mode a record carries, derived from its basis so the two cannot disagree.
+#[must_use]
+pub fn enforcement_mode(outcome: &StopOutcome) -> EnforcementMode {
+    if outcome.enforcement.is_some() {
+        EnforcementMode::Enforced
+    } else {
+        EnforcementMode::Advisory
+    }
+}
 
 /// Domain separator for the stop record's signature, distinct from every other one in this system.
 const STOP_DOMAIN: &[u8] = b"warrantor-stop-record-v1";
@@ -172,10 +240,10 @@ pub struct OsProcessControl;
 
 impl ProcessControl for OsProcessControl {
     fn is_alive(&self, pid: u32) -> bool {
-        crate::daemon::process_is_alive(pid)
+        warrantor_kill_switch_core::process_exists(pid)
     }
     fn terminate_group(&self, pid: u32) {
-        crate::supervise::terminate_group(pid);
+        let _ = warrantor_kill_switch_core::TreeKiller::new().terminate(pid);
     }
 }
 
@@ -214,22 +282,35 @@ pub struct StopOutcome {
     /// Whether a **new** supervised MCP session for this warrant is now refused. Observed by
     /// calling [`agent_endpoint_for`], not inferred from the state.
     pub new_sessions_refused: bool,
+    /// The drill receipt this record's enforcement label rests on, when one exists for this
+    /// kernel. Its absence IS the `advisory` label — see [`enforcement_mode`].
+    #[serde(default)]
+    pub enforcement: Option<EnforcementBasis>,
+    /// What the halt reached beyond the process. Observations, not intentions.
+    #[serde(default)]
+    pub invalidated: Vec<Invalidation>,
 }
 
 /// Terminate a run and observe what that achieved.
 ///
-/// Mutates `stored` — the `Open -> Held` transition happens here — and leaves persisting it to the
+/// Mutates `stored` — a halt transitions `Open | Held -> Void` — and leaves persisting it to the
 /// caller, matching how `settle` and `void` already work.
 ///
 /// `daemon` is the record for this warrant, or `None` when nothing is supervising it. `None` is not
 /// a failure: a warrant granted but never run, or one whose supervisor already exited, is stopped by
 /// the state transition alone, and the record says exactly that rather than claiming a kill.
+///
+/// `enforcement` is the drill basis for THIS kernel, or `None` — and its absence is the `advisory`
+/// label. It is supplied by the caller because the drill receipt is read once, from the store, and
+/// the same basis then covers every record this halt writes.
 #[must_use]
 pub fn execute(
     stored: &mut StoredWarrant,
     daemon: Option<&DaemonRecord>,
     control: &dyn ProcessControl,
     staged_path: &Path,
+    enforcement: Option<EnforcementBasis>,
+    now: u64,
 ) -> StopOutcome {
     let linkage = describe_linkage();
     let state_before = stored.warrant.state;
@@ -279,12 +360,43 @@ pub fn execute(
         }
     }
 
-    // Open -> Held. `transition` allows it, and Held is documented as exactly this case: the run
-    // ended without misbehaviour, so the work is held rather than destroyed. Any other state is
-    // left alone -- a settled or voided warrant has already had its decision made.
-    if state_before == WarrantState::Open {
-        // Cannot fail: Open transitions to anything.
-        let _ = stored.warrant.transition(WarrantState::Held);
+    // A HALT is terminal. The `Open -> Held` reading this block replaces was written for the
+    // *deadline* path, where keeping staged work is the point; a halt must not leave a state from
+    // which a survivor holding the settle key can still release what the halted agent staged, so
+    // `Open | Held -> Void` — and `void_on_breach` needs no settle key, the same 3am argument it
+    // already carries. What `void` has always meant holds: staged effects discarded from release,
+    // receipts and the hash-chained log retained as evidence.
+    let mut invalidated = Vec::new();
+    if matches!(state_before, WarrantState::Open | WarrantState::Held) {
+        let count_and_head = crate::staging::StagingQueue::open(
+            staged_path,
+            &stored.warrant.claims.id,
+            crate::staging::EffectRegistry::github(),
+        )
+        .map(|q| (q.len() as u64, q.head_digest().to_string()))
+        .unwrap_or((0, crate::staging::GENESIS.to_string()));
+        let tree = crate::worktree::of_stored(stored);
+        if let Some(path) = tree.as_ref().and_then(|_| stored.worktree.clone()) {
+            invalidated.push(Invalidation::Worktree {
+                path: path.display().to_string(),
+            });
+        }
+        // Cannot fail from Open or Held; it is the only transition `void_on_breach` makes.
+        let _ = crate::settle::void_on_breach(
+            &mut stored.warrant,
+            tree.as_ref(),
+            "halted by warrantor stop",
+        );
+        invalidated.push(Invalidation::StagedEffects {
+            warrant_id: stored.warrant.claims.id.clone(),
+            count: count_and_head.0,
+            chain_head: count_and_head.1,
+            log_retained_at: staged_path.display().to_string(),
+        });
+        invalidated.push(Invalidation::CapabilityLeases {
+            warrant_id: stored.warrant.claims.id.clone(),
+            outstanding_until: now + crate::CAPABILITY_TTL_SECONDS,
+        });
     }
     let state_after = stored.warrant.state;
 
@@ -294,6 +406,11 @@ pub fn execute(
     // condition that could later drift apart from the check.
     let new_sessions_refused =
         agent_endpoint_for(stored, staged_path.to_path_buf(), ProxyMode::Enforce, zero).is_err();
+    if new_sessions_refused {
+        invalidated.push(Invalidation::SessionMembership {
+            warrant_id: stored.warrant.claims.id.clone(),
+        });
+    }
 
     StopOutcome {
         warrant_id: stored.warrant.claims.id.clone(),
@@ -308,6 +425,8 @@ pub fn execute(
         state_before,
         state_after,
         new_sessions_refused,
+        enforcement,
+        invalidated,
     }
 }
 
@@ -541,9 +660,15 @@ fn limitations(outcome: &StopOutcome) -> Vec<String> {
         "Only one trial was run and no noise floor was established, so the p50 and p99 figures are \
          the same single observation."
             .to_string(),
-        "Staged effects are kept, not discarded. A stopped warrant is Held, awaiting a settle or \
-         void decision; stop performs neither."
+        "Staged effects are discarded from release: the warrant is Void and `transition` permits \
+         nothing from Void. The hash-chained log at the recorded path is retained as evidence."
             .to_string(),
+        format!(
+            "Enforcement mode {} is a statement about this kernel's kill path, taken from a drill \
+             receipt when one exists; it is not a statement about an agent resisting containment, \
+             which warrantor never tests.",
+            enforcement_mode(outcome).word()
+        ),
         "Verifying a signature proves who signed and that nothing changed since. It does not \
          establish that the signing key is trusted; that has to come from somewhere else."
             .to_string(),
@@ -566,7 +691,7 @@ pub fn conformance_report(
     let report = conformance::ContainmentConformanceReport {
         subject_system: format!("{STOP_SUBJECT_SYSTEM} warrant {}", outcome.warrant_id),
         subject_version: format!("warrantor-warrant/{}", env!("CARGO_PKG_VERSION")),
-        enforcement_mode: STOP_ENFORCEMENT_MODE.to_string(),
+        enforcement_mode: enforcement_mode(outcome).word().to_string(),
         capabilities: capabilities(outcome),
         // Never `Some`. Warrantor does not elicit, and `conformance::test_elicitation()` is a
         // fixture exported from that crate's production surface -- reaching for it here would
@@ -794,12 +919,29 @@ pub fn verify_stop(signed: &SignedStop) -> Result<(), StopError> {
             passing.verdict
         )));
     }
-    if report.enforcement_mode != STOP_ENFORCEMENT_MODE {
+    let record_mode = enforcement_mode(&signed.record.outcome);
+    if report.enforcement_mode != record_mode.word() {
         return Err(StopError::OverClaim(format!(
-            "the report claims enforcement mode {:?}; warrantor only ever writes {STOP_ENFORCEMENT_MODE:?}, \
-             because it mediates tool calls that traverse its MCP proxy and nothing else.",
-            report.enforcement_mode
+            "the report claims enforcement mode {:?}; the record's basis says {:?}, because it \
+             mediates tool calls that traverse its MCP proxy and nothing else.",
+            report.enforcement_mode,
+            record_mode.word()
         )));
+    }
+    // An `enforced` label is a claim about ONE kernel. A receipt drilled on Linux says nothing
+    // about a Windows stop, so the basis is checked against the kernel the record itself names.
+    if let Some(basis) = &signed.record.outcome.enforcement {
+        let kernel_of_record = format!(
+            "{}/{}",
+            std::env::consts::OS,
+            signed.record.outcome.linkage_mechanism
+        );
+        if basis.kernel != kernel_of_record {
+            return Err(StopError::OverClaim(format!(
+                "the enforcement basis was drilled on {:?}; this record was taken on {:?}",
+                basis.kernel, kernel_of_record
+            )));
+        }
     }
     Ok(())
 }
@@ -1018,9 +1160,16 @@ pub fn render_cli(signed: &SignedStop) -> String {
             .to_string(),
     );
     lines.push(format!(
-        "  staged effects      kept. The warrant is {:?} — settle or void it: warrantor report {}",
-        outcome.state_after, signed.record.warrant_id
+        "  staged effects      discarded (warrant Void). The log is retained as evidence. \
+         Record: {}",
+        signed.record.warrant_id
     ));
+    if let Some(basis) = &outcome.enforcement {
+        lines.push(format!(
+            "  enforcement_basis   kernel {} drilled_at {} receipt {}",
+            basis.kernel, basis.drilled_at, basis.receipt_digest
+        ));
+    }
 
     lines.push(String::new());
     lines.push("── CONTAINMENT CONFORMANCE ──".to_string());

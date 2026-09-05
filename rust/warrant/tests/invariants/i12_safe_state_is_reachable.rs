@@ -153,24 +153,29 @@ fn the_conformance_report_records_the_enforcement_mode_of_the_kill_path() {
 
 // -- finding --------------------------------------------------------------------------
 
-/// FINDING (I-12, partial). `warrant::stop::STOP_ENFORCEMENT_MODE` is `"advisory"`, and
-/// `verify_stop` refuses any stop record claiming otherwise — which is the honest engineering, and
-/// the reason the label is trustworthy. It is still the finding: I-12 asserts that a kill path to
-/// a known-safe state *exists*, and an advisory path is one the agent may decline to traverse.
-/// There is no network namespace, no seccomp filter and no firewall in this system, so stop
-/// reaches an agent through the MCP proxy or not at all.
+/// FINDING (I-12, partial). Since Task 1.3 the constant is gone: `Enforced` exists only on a
+/// kernel where a `warrantor conformance run` drill observed the tree die within budget, and
+/// `verify_stop` refuses a record whose basis names another kernel. That is the honest
+/// engineering, and the reason the label is trustworthy. It is still the finding: I-12 asserts
+/// that a kill path to a known-safe state *exists*, and no drill receipt has been earned on a
+/// kernel whose existence checks fit the budget. There is no network namespace, no seccomp filter
+/// and no firewall in this system, so stop reaches an agent through the MCP proxy or not at all.
 ///
-/// Fixed by: Task 1.3 (containment and the kill switch into the `stop` verb; conformance receipt),
-/// which names `STOP_ENFORCEMENT_MODE` promotion as its own deliverable and promotes it only on a
-/// kernel where a refusal at the moment of action was observed. Recorded 2026-09-02.
+/// Promotion path: run `warrantor conformance run` on a kernel whose process-existence checks fit
+/// [`warrantor_warrant::stop::STOP_BUDGET`]; when the drill passes, this test passes there too and
+/// the ignore comes off with the ratchet raised in the same commit. Recorded 2026-09-02; re-reasoned
+/// 2026-09-05 when Task 1.3 replaced the constant with the per-kernel receipt.
 #[test]
-#[ignore = "I-12 partial: the kill path is advisory, so it holds only against an agent using its tools (Task 1.3, 2026-09-02)"]
+#[ignore = "I-12 partial: promotion is per kernel via a drill receipt, and no kernel has earned one yet — this machine's drill cannot (existence checks measured at ~2.2s/tasklist exceed the budget); re-recorded 2026-09-05, Task 1.3"]
 fn the_kill_path_is_stronger_than_advisory() {
-    assert_ne!(
-        warrantor_warrant::stop::STOP_ENFORCEMENT_MODE,
-        "advisory",
-        "the stop verb writes an advisory record because that is all it can substantiate. I-12 \
-         reads 'there exists a kill path'; this one exists against an agent that keeps using the \
-         proxy, and against no other.",
+    let dir = std::env::temp_dir().join(format!("warrantor-i12-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("tempdir");
+    let drill = warrantor_warrant::conformance::drill(&dir).expect("drill");
+    assert_eq!(
+        warrantor_warrant::conformance::mode_for(&drill),
+        warrantor_warrant::stop::EnforcementMode::Enforced,
+        "a kernel whose drill observed the tree die within budget earns Enforced — until one \
+         does, I-12 reads 'there exists a kill path' against an agent that keeps using the \
+         proxy, and against no other. Drill: {drill:?}",
     );
 }
