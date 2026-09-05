@@ -132,8 +132,9 @@ use thiserror::Error;
 use crate::daemon::{process_is_alive, DaemonState, Reconciliation};
 use crate::egress::EgressRefusal;
 use crate::proxy::AuthorityRequest;
+use crate::receipts::ReceiptLog;
 use crate::report::{self, SignedReport};
-use crate::settle::{settle, void, EffectPerformer};
+use crate::settle::{settle, void, EffectPerformer, EffectWitness, EvidencedPerformer};
 use crate::spend::{self, SpendError, SpendStore};
 use crate::staging::{EffectRegistry, StagedEffect, StagingQueue};
 use crate::stop::{self, OsProcessControl, StopError, StopStore};
@@ -3610,13 +3611,32 @@ impl Api for StoreApi {
             }
         }
 
-        let mut performer = (self.performer)();
+        // Same receipt half as the CLI, from the same keys, so a receipt does not say which
+        // surface settled -- the decision is the fact and the surface is not.
+        let stops = match StopStore::open(&self.root) {
+            Ok(s) => s,
+            Err(e) => return self.internal("read stop records for the settle", &e),
+        };
+        let mut receipt_log = match ReceiptLog::open(self.store.receipts_path(id)) {
+            Ok(l) => l,
+            Err(e) => return self.internal("open the effect receipt log", &e),
+        };
+        let witness = EffectWitness::for_warrant(
+            &stored.warrant,
+            &self.issuer.verifying_key(),
+            &self.issuer,
+            "issuer",
+            stops.contained_scopes(id),
+            now,
+        );
+        let mut inner = (self.performer)();
+        let mut performer = EvidencedPerformer::new(inner.as_mut(), witness, &mut receipt_log);
         let report = match settle(
             &mut stored.warrant,
             &queue,
             tree.as_ref(),
             &settle_key.verifying_key(),
-            performer.as_mut(),
+            &mut performer,
         ) {
             Ok(r) => r,
             Err(e) => {
@@ -3629,6 +3649,10 @@ impl Api for StoreApi {
                 );
             }
         };
+        for line in performer.unrecorded() {
+            eprintln!("warrantor serve: {line}");
+        }
+        drop(performer);
         // Settle mutates in memory; persisting is the caller's job on every surface, and skipping
         // it here would release real effects against a warrant that still reads as Open.
         if let Err(e) = self.store.save(&stored) {
