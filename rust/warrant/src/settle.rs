@@ -30,8 +30,14 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use ed25519_dalek::{SigningKey, VerifyingKey};
 use warrantor_evidence as evidence;
+use warrantor_notary as notary;
 
+use crate::report::{
+    bounds_policy_digest, gate_name, report_modes, sha256_hex, warrant_authority,
+    FRESHNESS_WINDOW_SECONDS,
+};
 use crate::staging::{StagedEffect, StagingQueue};
 use crate::worktree::Worktree;
 use crate::{Warrant, WarrantError, WarrantState};
@@ -68,6 +74,263 @@ pub trait ReceiptSink {
     /// Any string. A failed pre-commit record means the effect is NOT performed (I-07); a failed
     /// post-commit record is reported by [`EvidencedPerformer::unrecorded`].
     fn record(&mut self, receipt: &evidence::WarReceipt) -> Result<(), String>;
+}
+
+/// Everything needed to decide and sign for one warrant's effects, captured before settle takes
+/// the warrant mutably.
+///
+/// Owned, not borrowed: `settle` holds `&mut Warrant` for the whole release loop, and a witness
+/// borrowing the same warrant would not compile. The clone is the signed claims, which do not
+/// change during a settle; the state is read once, because settle has already checked it is
+/// `Open` or `Held` before the first `perform`.
+#[derive(Debug, Clone)]
+pub struct EffectWitness {
+    warrant: Warrant,
+    signature_verified: bool,
+    signer: SigningKey,
+    key_id: String,
+    contained_scopes: Vec<String>,
+    now: u64,
+}
+
+impl EffectWitness {
+    /// Capture the warrant, verify its signature against `issuer` once (the chain gate's input),
+    /// and hold the key the receipts are signed with.
+    #[must_use]
+    pub fn for_warrant(
+        warrant: &Warrant,
+        issuer: &VerifyingKey,
+        signer: &SigningKey,
+        key_id: &str,
+        contained_scopes: Vec<String>,
+        now: u64,
+    ) -> Self {
+        Self {
+            warrant: warrant.clone(),
+            // Verified at t=0 so expiry is the identity gate's finding, not the chain gate's --
+            // the same split `report::build_observed` makes.
+            signature_verified: warrant.verify(issuer, 0).is_ok(),
+            signer: signer.clone(),
+            key_id: key_id.to_string(),
+            contained_scopes,
+            now,
+        }
+    }
+
+    /// The notary's question about one effect: does this warrant hold `effect.tool` right now?
+    #[must_use]
+    pub fn verdict_request(
+        &self,
+        effect: &StagedEffect,
+        effect_digest: &str,
+    ) -> notary::VerdictRequest {
+        let claims = &self.warrant.claims;
+        let tools: Vec<String> = claims.bounds.tools.iter().cloned().collect();
+        notary::VerdictRequest {
+            actor: notary::Actor {
+                svid: claims.subject.clone(),
+                svid_not_after: claims.bounds.expires_at,
+                own_capabilities: tools.clone(),
+                delegation_chain: vec![notary::DelegationLink {
+                    delegatee_svid: claims.subject.clone(),
+                    capabilities: tools,
+                    not_before: claims.issued_at,
+                    not_after: claims.bounds.expires_at,
+                    signature_verified: self.signature_verified,
+                }],
+            },
+            operation: notary::Operation {
+                class: effect.tool.clone(),
+                capabilities_requested: vec![effect.tool.clone()],
+                // Irreversible in the world, so never `Routine`; not `Critical`, because the
+                // approval gate is `operators::ApprovalPolicy`'s job on both surfaces and it has
+                // already run by the time settle performs.
+                consequence_tier: notary::ConsequenceTier::Elevated,
+                scope: claims.id.clone(),
+            },
+            artifacts: Vec::new(),
+            nonce: format!(
+                "{}:{}:{}:{effect_digest}",
+                claims.id, effect.handle, self.now
+            ),
+            timestamp: self.now,
+            approval: None,
+        }
+    }
+
+    /// The context the verdict is taken in. Same inputs, same caveats as the report's.
+    #[must_use]
+    pub fn verdict_context(&self) -> notary::VerdictContext {
+        notary::VerdictContext {
+            now: self.now,
+            contained_scopes: self.contained_scopes.clone(),
+            revoked_svids: Vec::new(),
+            seen_nonces: Vec::new(),
+            freshness_window_seconds: FRESHNESS_WINDOW_SECONDS,
+            verified_artifacts: Vec::new(),
+            budget_remaining: self
+                .warrant
+                .claims
+                .bounds
+                .expires_at
+                .saturating_sub(self.now),
+            policy_decision: matches!(self.warrant.state, WarrantState::Open | WarrantState::Held),
+        }
+    }
+
+    /// The pre-commit predicate for one effect: no outcome, phase `PreCommit`, advisory.
+    #[must_use]
+    pub fn pre_commit_predicate(
+        &self,
+        effect: &StagedEffect,
+        effect_digest: &str,
+        nonce: &str,
+    ) -> evidence::WarPredicate {
+        let claims = &self.warrant.claims;
+        let (mode, _) = report_modes();
+        evidence::WarPredicate {
+            binding: evidence::Binding {
+                receipt_id: sha256_hex(
+                    format!(
+                        "{}\u{1f}{}\u{1f}{effect_digest}\u{1f}{nonce}",
+                        claims.id, effect.handle
+                    )
+                    .as_bytes(),
+                ),
+                phase: evidence::Phase::PreCommit,
+                parent_receipt: None,
+                nonce: nonce.to_string(),
+                issued_at: self.now,
+                expires_at: claims.bounds.expires_at,
+                enforcement_mode: mode,
+            },
+            actor: evidence::Actor {
+                principal: claims.subject.clone(),
+                workload_id: claims.subject.clone(),
+                svid_digest: format!("sha256:{}", sha256_hex(claims.subject.as_bytes())),
+            },
+            authority: warrant_authority(&self.warrant),
+            decision: evidence::Decision {
+                verdict: evidence::Verdict::Allow,
+                engine: notary::NOTARY_VERSION.to_string(),
+                policy_digest: bounds_policy_digest(&claims.bounds),
+                evaluated_at: self.now,
+            },
+            operation: evidence::Operation {
+                class: effect.tool.clone(),
+                target: effect.handle.clone(),
+                method: EFFECT_METHOD.to_string(),
+                parameters_digest: format!("sha256:{effect_digest}"),
+                reversible: false,
+                consequence_tier: evidence::ConsequenceTier::Elevated,
+            },
+            outcome: None,
+        }
+    }
+}
+
+/// Wraps the performer a surface already builds so that, for every effect, the notary decides,
+/// a pre-commit receipt is durable before the inner performer runs, and a post-commit receipt
+/// carrying the outcome follows it.
+///
+/// A wrapper rather than a change to [`settle`]: the side effect happens inside `perform`, so
+/// that is where the receipt has to precede it, and every surface (CLI, HTTP, MCP) keeps calling
+/// [`settle`] with the signature it has.
+pub struct EvidencedPerformer<'a> {
+    inner: &'a mut dyn EffectPerformer,
+    sink: &'a mut dyn ReceiptSink,
+    witness: EffectWitness,
+    issued: Vec<evidence::WarReceipt>,
+    unrecorded: Vec<String>,
+}
+
+impl<'a> EvidencedPerformer<'a> {
+    /// Wrap `inner`, writing receipts to `sink`.
+    pub fn new(
+        inner: &'a mut dyn EffectPerformer,
+        witness: EffectWitness,
+        sink: &'a mut dyn ReceiptSink,
+    ) -> Self {
+        Self {
+            inner,
+            sink,
+            witness,
+            issued: Vec::new(),
+            unrecorded: Vec::new(),
+        }
+    }
+
+    /// Every receipt issued during this settle, in order.
+    #[must_use]
+    pub fn issued(&self) -> &[evidence::WarReceipt] {
+        &self.issued
+    }
+
+    /// Post-commit receipts that were issued but could not be made durable, one sentence each.
+    /// The effect they describe DID happen; the caller prints these rather than hiding them.
+    #[must_use]
+    pub fn unrecorded(&self) -> &[String] {
+        &self.unrecorded
+    }
+}
+
+impl EffectPerformer for EvidencedPerformer<'_> {
+    fn perform(
+        &mut self,
+        effect: &StagedEffect,
+        resolved: &BTreeMap<String, String>,
+    ) -> Result<String, String> {
+        let digest = crate::staging::effect_digest(effect).map_err(|e| e.to_string())?;
+        let request = self.witness.verdict_request(effect, &digest);
+        let context = self.witness.verdict_context();
+        if let notary::Verdict::Deny { gate } = notary::verdict(&request, &context) {
+            // Only the gate. The notary's rule, kept: nothing here names the missing capability.
+            return Err(format!(
+                "refused by the notary at the {} gate; nothing was performed",
+                gate_name(gate)
+            ));
+        }
+        let predicate = self
+            .witness
+            .pre_commit_predicate(effect, &digest, &request.nonce);
+        let pre = evidence::issue_pre_commit(predicate, &self.witness.signer, &self.witness.key_id);
+        self.sink.record(&pre).map_err(|e| {
+            format!(
+                "the pre-commit receipt could not be made durable, so the effect was not \
+                 performed (I-07): {e}"
+            )
+        })?;
+        self.issued.push(pre.clone());
+
+        let performed = self.inner.perform(effect, resolved);
+
+        let outcome = match &performed {
+            Ok(real_id) => evidence::Outcome {
+                status: "success".to_string(),
+                outcome_digest: format!("sha256:{}", sha256_hex(real_id.as_bytes())),
+                effects: vec![real_id.clone()],
+                error: None,
+                rollback_pointer: None,
+            },
+            Err(reason) => evidence::Outcome {
+                status: "failed".to_string(),
+                outcome_digest: format!("sha256:{}", sha256_hex(reason.as_bytes())),
+                effects: Vec::new(),
+                error: Some(reason.clone()),
+                rollback_pointer: None,
+            },
+        };
+        let post =
+            evidence::issue_post_commit(&pre, outcome, &self.witness.signer, &self.witness.key_id);
+        if let Err(e) = self.sink.record(&post) {
+            self.unrecorded.push(format!(
+                "{} was performed and its post-commit receipt could not be recorded: {e}",
+                effect.handle
+            ));
+        }
+        self.issued.push(post);
+        performed
+    }
 }
 
 /// What happened to one effect during a settle.
