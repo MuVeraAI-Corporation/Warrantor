@@ -38,6 +38,8 @@ use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv6Addr};
 use thiserror::Error;
 
+pub mod hard_deny;
+
 /// The default domain blocklist. The eBPF programs reject any outbound
 /// connection to these domains by default. Pushing data to these services is
 /// the canonical exfiltration pattern observed across red-team engagements.
@@ -86,6 +88,16 @@ pub enum DecisionReason {
     BlockedDomain,
     /// The destination IP is a known canary.
     CanaryIp,
+    /// The destination is refused by the deny floor (L4-25) — the cloud metadata service, a
+    /// link-local or unique-local address, or a literal shaped like an address that does not parse.
+    ///
+    /// This reason cannot be configured away. Unlike [`DecisionReason::CanaryIp`], which reads a
+    /// `canary_ips` list a config states, and [`DecisionReason::PrivateIp`], which a boolean
+    /// governs, the floor consults nothing but the address. See [`hard_deny`].
+    HardDenyFloor {
+        /// Which floor rule refused, from [`hard_deny::FloorReason::as_str`].
+        rule: String,
+    },
     /// The destination IP is in a private RFC-1918 range and the policy
     /// denies private egress.
     PrivateIp,
@@ -233,6 +245,19 @@ impl Policy {
         if let Ok(ip) = needle.parse::<IpAddr>() {
             return self.decide_ip(ip);
         }
+        // The floor again, on the name path. `DEFAULT_CANARY_IPS` has no hostname analogue, so
+        // before this line `allow_domain("metadata.google.internal")` reached Allow on a policy
+        // that had weakened nothing at all.
+        if let hard_deny::FloorVerdict::Refused(rule) = hard_deny::refuse(&needle) {
+            return Decision {
+                action: Action::Deny,
+                reason: DecisionReason::HardDenyFloor {
+                    rule: rule.as_str().to_string(),
+                },
+                destination: domain.to_string(),
+                normalized: needle,
+            };
+        }
         if self.is_blocked_domain(&needle) && self.is_allowlisted_domain(&needle) {
             // M4: audit-log when allowlist overrides blocklist (potential break-glass abuse)
             eprintln!(
@@ -279,6 +304,19 @@ impl Policy {
             return Decision {
                 action: Action::Deny,
                 reason: DecisionReason::CanaryIp,
+                destination: ip.to_string(),
+                normalized,
+            };
+        }
+        // The floor (L4-25). It is placed after the canary check so an address a config DID name
+        // still reports `CanaryIp`, and before every other check so nothing below can reach Allow
+        // for it. Unlike the two checks around it, this one reads no field of `self`.
+        if let hard_deny::FloorVerdict::Refused(rule) = hard_deny::refuse_ip(norm) {
+            return Decision {
+                action: Action::Deny,
+                reason: DecisionReason::HardDenyFloor {
+                    rule: rule.as_str().to_string(),
+                },
                 destination: ip.to_string(),
                 normalized,
             };

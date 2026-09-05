@@ -13,8 +13,9 @@ use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::IpAddr;
 use thiserror::Error;
+use warrantor_egress_filter::hard_deny::{self, FloorReason, FloorVerdict};
 
 // ---------------------------------------------------------------------------
 // The denial reasons (spec 08 §9) — coarse, identify the gate not the detail
@@ -32,7 +33,19 @@ pub enum DenyReason {
     /// The resolved address is in a metadata range (169.254.0.0/16 etc.) — never catalog-addable.
     MetadataRange,
     /// The resolved address is in a private range (10.x, 172.16-31.x, 192.168.x) without explicit catalog.
+    ///
+    /// **Declared, rendered, and never constructed.** The rule "private ranges denied unless
+    /// explicitly catalogued" is satisfied vacuously here: an address only reaches the range check
+    /// by having been found in the catalog, so it is catalogued by construction. Giving this variant
+    /// a mechanism means deciding that a catalogued private address is refused anyway, which
+    /// contradicts three tests in this crate and one in `warrantor-egress-filter`. That decision was
+    /// left open by `fix/egress-metadata-floor` and is left open here; the count is pinned at zero
+    /// by `tests/metadata_floor.rs` so it cannot be quietly deleted or quietly given a body.
     PrivateRange,
+    /// The catalog names an address the broker cannot parse, and that could only ever have been an
+    /// address rather than a DNS name -- an out-of-range octet, a `0x` with no digits, a decimal too
+    /// large for 32 bits. Refused rather than passed through: see [`hard_deny::refuse`].
+    UnparseableAddress,
     /// The catalog is unavailable — deny (spec §7).
     CatalogUnavailable,
     /// The catalog signature is invalid — deny + alarm (spec §7).
@@ -127,17 +140,6 @@ pub struct EgressRequest {
 // The broker — the decision engine
 // ---------------------------------------------------------------------------
 
-/// Cloud metadata hosts named by DNS rather than by address.
-///
-/// `addresses` is documented at the `CatalogEntry` field as "pre-resolved IPs or explicit
-/// hostnames", and `rust/warrant/src/egress.rs` puts a hostname there, so a name that resolves to a
-/// metadata service has to be refused by name as well as by address.
-const METADATA_HOSTNAMES: &[&str] = &["metadata.google.internal", "metadata.goog", "metadata"];
-
-/// Metadata addresses outside the link-local range, which range checks alone would miss.
-/// Alibaba Cloud's metadata service lives in 100.64.0.0/10 (carrier NAT), not in 169.254.0.0/16.
-const METADATA_ADDRESSES: &[Ipv4Addr] = &[Ipv4Addr::new(100, 100, 100, 200)];
-
 #[derive(Debug, Error)]
 pub enum EgressError {
     #[error("egress broker: {0}")]
@@ -199,146 +201,41 @@ pub fn decide(request: &EgressRequest, catalog: Option<&DestinationCatalog>) -> 
         };
     }
 
-    // 5. Address checks: metadata ranges ALWAYS denied; private ranges denied unless catalogued.
+    // 5. The deny floor (L4-25). Delegated to `warrantor_egress_filter::hard_deny`, which is the
+    //    ONE matcher for this question in the workspace; a second implementation here is a second
+    //    rule waiting to disagree, which is precisely how eight spellings of the metadata service
+    //    reached Allow before `fix/egress-metadata-floor`. `hard_deny::refuse` takes the address and
+    //    nothing else: there is no field of this catalog, this request or any config that could
+    //    change its answer.
+    //
+    //    The private-range half of spec 3 has no branch here, and that absence is deliberate rather
+    //    than an oversight. An address only reaches this loop by having been found in the catalog,
+    //    so "denied unless explicitly catalogued" is satisfied by arrival. What used to stand here
+    //    was an empty `if is_private_range(addr) { }` whose comment reasoned itself into a no-op --
+    //    a rendered refusal (the PrivateRange variant) with no mechanism behind it. The comment is
+    //    gone; the variant stays declared, its construction count stays pinned at zero by
+    //    `tests/metadata_floor.rs`, and the decision to give it a mechanism stays open.
     for addr in &entry.addresses {
-        if is_metadata_range(addr) {
-            return EgressVerdict::Deny {
-                reason: DenyReason::MetadataRange,
-            };
-        }
-        if is_private_range(addr) {
-            // Private ranges are allowed ONLY if explicitly in the catalog — which it is, since we
-            // got here from the catalog. But spec §3 says "Denied unless explicitly catalogued."
-            // Since the address IS in a catalog entry, it's explicitly catalogued → allow.
-            // However, metadata ranges are NEVER catalog-addable (checked above).
+        match hard_deny::refuse(addr) {
+            FloorVerdict::Refused(FloorReason::AddressShapedButUnparseable) => {
+                return EgressVerdict::Deny {
+                    reason: DenyReason::UnparseableAddress,
+                };
+            }
+            FloorVerdict::Refused(_) => {
+                return EgressVerdict::Deny {
+                    reason: DenyReason::MetadataRange,
+                };
+            }
+            FloorVerdict::NotRefused => {}
         }
     }
-
     // 6. Allow — with pinned addresses (DNS resolved by the broker, not the agent).
     EgressVerdict::Allow {
         logical_endpoint: entry.logical_endpoint.clone(),
         pinned_addresses: entry.addresses.clone(),
         tls_identity: entry.tls_identity.clone(),
         catalog_digest: catalog.digest.clone(),
-    }
-}
-
-/// Reduce a catalog address to the host it actually names, then to an `IpAddr` if it is one.
-///
-/// This exists because the checks below used to be `str::starts_with` over dotted-quad prefixes,
-/// which held for `169.254.169.254` and for nothing else that resolves to the same host. Eight
-/// other spellings of the metadata service reached Allow: the decimal, hexadecimal and octal
-/// integer forms, the IPv4-mapped IPv6 form, an uppercase scheme, an uppercase IPv6 literal, a
-/// leading space, and Alibaba Cloud's address, which was simply absent. Every one of them is
-/// accepted by ordinary HTTP clients and by the OS resolver. `rust/egress/tests/metadata_floor.rs`
-/// asserts each spelling by name.
-///
-/// Returns `None` when the host is not an address at all -- a DNS name, which the field explicitly
-/// permits. A name is matched against `METADATA_HOSTNAMES` instead. Anything else unparseable is
-/// still allowed through, because failing closed here would refuse the hostnames
-/// `rust/warrant/src/egress.rs:204` already puts in this field; making the floor fail closed is
-/// Task 7.1's decision (L4-25), not a bug fix's.
-fn host_only(addr: &str) -> String {
-    let mut host = addr.trim();
-    // Schemes, matched without regard to case: `trim_start_matches` is case-sensitive, so
-    // `HTTP://169.254.169.254` used to survive with its scheme attached and match no prefix.
-    for scheme in ["https://", "http://", "ftp://"] {
-        if host.len() >= scheme.len() && host[..scheme.len()].eq_ignore_ascii_case(scheme) {
-            host = &host[scheme.len()..];
-            break;
-        }
-    }
-    host = host.split('/').next().unwrap_or(host).trim();
-    // A bracketed IPv6 literal, with or without a port.
-    if let Some(rest) = host.strip_prefix('[') {
-        if let Some(inner) = rest.split(']').next() {
-            return inner.trim().to_ascii_lowercase();
-        }
-    }
-    // A trailing `:port` on an IPv4 address or a name. Bare IPv6 literals contain colons of their
-    // own, so only strip when exactly one colon is present.
-    if host.matches(':').count() == 1 {
-        if let Some((before, _port)) = host.split_once(':') {
-            host = before;
-        }
-    }
-    host.trim().trim_end_matches('.').to_ascii_lowercase()
-}
-
-/// Parse the numeric forms an HTTP client and the OS resolver both accept for an IPv4 address:
-/// dotted quad, a bare 32-bit integer in decimal or hex, and dotted octal.
-fn parse_ipv4_any_radix(host: &str) -> Option<Ipv4Addr> {
-    if let Ok(v4) = host.parse::<Ipv4Addr>() {
-        return Some(v4);
-    }
-    if let Some(hex) = host.strip_prefix("0x") {
-        return u32::from_str_radix(hex, 16).ok().map(Ipv4Addr::from);
-    }
-    // A bare decimal integer, e.g. 2852039166 == 169.254.169.254.
-    if host.chars().all(|c| c.is_ascii_digit()) && !host.starts_with('0') {
-        if let Ok(raw) = host.parse::<u32>() {
-            return Some(Ipv4Addr::from(raw));
-        }
-    }
-    // Dotted octal, e.g. 0251.0376.0251.0376.
-    let parts: Vec<&str> = host.split('.').collect();
-    if parts.len() == 4 && parts.iter().any(|p| p.starts_with('0') && p.len() > 1) {
-        let mut octets = [0u8; 4];
-        for (slot, part) in octets.iter_mut().zip(&parts) {
-            let value = if let Some(rest) = part.strip_prefix('0') {
-                if rest.is_empty() {
-                    Ok(0)
-                } else {
-                    u32::from_str_radix(rest, 8)
-                }
-            } else {
-                part.parse::<u32>()
-            };
-            *slot = u8::try_from(value.ok()?).ok()?;
-        }
-        return Some(Ipv4Addr::from(octets));
-    }
-    None
-}
-
-/// The address a catalog entry names, in canonical form, or `None` if it names a DNS host.
-fn canonical_ip(addr: &str) -> Option<IpAddr> {
-    let host = host_only(addr);
-    if let Some(v4) = parse_ipv4_any_radix(&host) {
-        return Some(IpAddr::V4(v4));
-    }
-    match host.parse::<Ipv6Addr>() {
-        // An IPv4-mapped or IPv4-compatible address is the IPv4 address it wraps. Classifying the
-        // wrapper as "some IPv6 address" is how ::ffff:169.254.169.254 reached Allow.
-        Ok(v6) => Some(match v6.to_ipv4() {
-            Some(v4) => IpAddr::V4(v4),
-            None => IpAddr::V6(v6),
-        }),
-        Err(_) => None,
-    }
-}
-
-/// Check whether a catalog address is a metadata service or a link-local address.
-fn is_metadata_range(addr: &str) -> bool {
-    match canonical_ip(addr) {
-        Some(IpAddr::V4(v4)) => v4.is_link_local() || METADATA_ADDRESSES.contains(&v4),
-        Some(IpAddr::V6(v6)) => {
-            let head = v6.segments()[0];
-            // fe80::/10 unicast link-local, and fc00::/7 unique-local, which the previous prefix
-            // list covered only for the fd00: half.
-            (head & 0xffc0) == 0xfe80 || (head & 0xfe00) == 0xfc00
-        }
-        None => METADATA_HOSTNAMES.contains(&host_only(addr).as_str()),
-    }
-}
-
-/// Check whether a catalog address is in a private range.
-fn is_private_range(addr: &str) -> bool {
-    match canonical_ip(addr) {
-        Some(IpAddr::V4(v4)) => v4.is_private() || v4.is_loopback() || v4.is_unspecified(),
-        Some(IpAddr::V6(v6)) => v6.is_loopback() || v6.is_unspecified(),
-        // Names are not addresses, and the prefix list this replaced never matched a name either.
-        None => false,
     }
 }
 

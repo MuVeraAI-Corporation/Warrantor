@@ -452,6 +452,9 @@ pub fn reason_phrase(reason: DenyReason) -> &'static str {
              there is no approval channel during a run"
         }
         DenyReason::PrivateRange => "it is a private-range address this warrant does not name",
+        DenyReason::UnparseableAddress => {
+            "the destination is written as a numeric address and is not one, so the floor cannot              classify it and refuses rather than guess"
+        }
         DenyReason::CatalogInvalidSignature => "the destination catalogue did not verify",
         DenyReason::AgentCannotAmendCatalog => "an agent cannot amend the destination catalogue",
         DenyReason::RedirectOutOfSet => {
@@ -471,6 +474,7 @@ pub fn reason_word(reason: DenyReason) -> &'static str {
         DenyReason::NotACapability => "not_a_capability",
         DenyReason::DiscoveryRequiresApproval => "discovery_requires_approval",
         DenyReason::PrivateRange => "private_range",
+        DenyReason::UnparseableAddress => "unparseable_address",
         DenyReason::CatalogInvalidSignature => "catalog_invalid_signature",
         DenyReason::AgentCannotAmendCatalog => "agent_cannot_amend_catalog",
         DenyReason::RedirectOutOfSet => "redirect_out_of_set",
