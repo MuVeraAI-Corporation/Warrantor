@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revision 3 — Six Papers, What Changed</title>
+<style>
+  :root {
+    --bg: #faf9f5; --ink: #1f1e1b; --muted: #6b6860; --rule: #e6e2d8;
+    --accent: #c96442; --accent-soft: #f4e7e0; --card: #ffffff; --code: #f1efe8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 56px 28px 80px; }
+  h1, h2, h3 { font-family: "Georgia", "Times New Roman", serif; font-weight: 500; letter-spacing: -0.01em; }
+  h1 { font-size: 38px; line-height: 1.15; margin: 0 0 10px; }
+  h2 { font-size: 26px; margin: 48px 0 12px; }
+  h3 { font-size: 20px; margin: 0 0 6px; }
+  .kicker { color: var(--accent); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 14px; }
+  .lede { font-size: 18px; color: #3d3b36; max-width: 720px; }
+  .meta { color: var(--muted); font-size: 14px; margin-top: 18px; }
+  .meta code, code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 13.5px; }
+  table { width: 100%; border-collapse: collapse; margin: 18px 0 8px; font-size: 15px; }
+  th { text-align: left; font-weight: 600; color: var(--muted); font-size: 13px; letter-spacing: .04em; text-transform: uppercase; border-bottom: 1px solid var(--rule); padding: 8px 10px 8px 0; }
+  td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 26px 28px; margin: 18px 0; }
+  .tag { display: inline-block; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 12px; letter-spacing: .08em; padding: 3px 9px; border-radius: 999px; margin-bottom: 10px; }
+  .facts { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+  .facts a { color: var(--accent); text-decoration: none; }
+  .label { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 16px 0 6px; }
+  ul { padding-left: 20px; margin: 6px 0; } li { margin: 6px 0; }
+  li b { font-weight: 600; }
+  .verified { border-left: 3px solid var(--accent); padding: 10px 16px; background: var(--accent-soft); border-radius: 0 8px 8px 0; font-size: 14.5px; margin-top: 14px; }
+  .note { color: var(--muted); font-size: 14px; }
+  .foot { color: var(--muted); font-size: 13px; margin-top: 56px; border-top: 1px solid var(--rule); padding-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="kicker">Warrantor research program · revision 3 · built 2026-09-05</div>
+<h1>Six papers, re-derived from their own records</h1>
+<p class="lede">Revision 2 fixed the packaging that a preprint server had rejected. Revision 3 is a depth review of the science: every headline figure was recomputed from the per-item run files, coding records and margin captures behind each paper, and the papers were corrected and extended from what the records showed. All six were rebuilt in every output form and verified.</p>
+<p class="meta">Vikram Jha · MuVeraAI · ORCID 0009-0004-3959-6099 · CC BY 4.0 · commit <code>778897c</code> on <code>docs/content-program-p9-fold</code> · folder <code>published-2026-09-05/</code></p>
+
+<h2>The set at a glance</h2>
+<table>
+  <tr><th>Paper</th><th>Title</th><th>Concept DOI</th><th style="text-align:right">Named</th><th style="text-align:right">Anon</th><th>Weight of change</th></tr>
+  <tr><td>P1</td><td>How Reproducible Is a Guard Evaluation? A Measured Floor, and Where It Isn't Small</td><td><code>10.5281/zenodo.22258094</code></td><td class="num">9 pp (+2)</td><td class="num">6 pp (+1)</td><td>Major: new finding from the artifact</td></tr>
+  <tr><td>P3</td><td>Positional Guard Evasion at Short Context: A Replication Note</td><td><code>10.5281/zenodo.22258116</code></td><td class="num">9 pp (+1)</td><td class="num">9 pp</td><td>Major: stronger tests, one claim corrected</td></tr>
+  <tr><td>T04</td><td>Masking a Field's Loss Does Not Isolate That Field</td><td><code>10.5281/zenodo.22258107</code></td><td class="num">12 pp (+1)</td><td class="num">—</td><td>Major: a missing experiment folded in</td></tr>
+  <tr><td>T12</td><td>SoK: Acceptance Is Not Action</td><td><code>10.5281/zenodo.22258110</code></td><td class="num">31 pp (+1)</td><td class="num">15 pp (−1)</td><td>Correctness: a mislabeled scored work</td></tr>
+  <tr><td>P8</td><td>One Ladder, Opposite Directions</td><td><code>10.5281/zenodo.22258101</code></td><td class="num">13 pp</td><td class="num">8 pp</td><td>Minor: definitions and cross-references</td></tr>
+  <tr><td>P6</td><td>Shared Lineage, Not Shared Category, Makes Guards Fail Together</td><td><code>10.5281/zenodo.22258118</code></td><td class="num">13 pp</td><td class="num">9 pp</td><td>Minor: attribution of counts</td></tr>
+</table>
+<p class="note">Page deltas are against revision 2. The concept DOI resolves to the latest published version and now appears on the face of every named PDF. Revision 3 is staged on Zenodo as drafts only; the public records remain revision 2 until a person publishes.</p>
+
+<h2>Paper by paper</h2>
+
+<div class="card">
+  <span class="tag">P1</span>
+  <h3>How Reproducible Is a Guard Evaluation? A Measured Floor, and Where It Isn't Small</h3>
+  <p class="facts">Source of truth: the 18 per-item run files on Modal volume <code>warrantor-p1</code>, recomputed 2026-09-05. Eight arm-A runs, six thread-count runs, four hardware runs, 1,000 items each.</p>
+  <div class="label">What the record showed that the paper did not say</div>
+  <ul>
+    <li><b>The two unstable items flip together, in the same runs.</b> Items <code>m0489</code> and <code>m0749</code> each return their minority verdict in exactly two of eight arm-A runs (A3 and A7), not "roughly half the time" as the paper had it: twelve disagreeing pairs is a 2-versus-6 split. Across all eighteen runs the same two items are the only unstable ones, they flip in four runs, and always together. Every run is in one of two states. The unit of instability is the run, not the item.</li>
+    <li><b>Every flip crosses the Safe/Controversial boundary.</b> Neither item ever moves between Safe and Unsafe. The whole measured floor is a property of the model's undecided class. Under the alternative policy that scores Controversial as safe, one of the two would not count, so the floor would be one item, and which item is unstable would depend on a policy setting.</li>
+    <li><b>Arms B and C inherit the same structure.</b> Their only disagreements are the same two items, with one run in each arm sitting in the minority state.</li>
+  </ul>
+  <div class="label">Added</div>
+  <ul>
+    <li>Wilson 95% interval on the per-item instability rate, [0.05%, 0.73%], in the abstract and results table; the "differences above 0.1% are real" claim tempered accordingly.</li>
+    <li>The companion floor on a second corpus (P8: 0.107%, also exactly two unstable items), cited by DOI, sharpening the population hypothesis to "the floor lives in the undecided class".</li>
+    <li>A serving-stack paragraph disclosing that the Ollama/llama.cpp version was never recorded, stated as the gap the paper's own §6 asks others to close.</li>
+    <li>The Artifact section and the prior-art scope note, neither of which had reached the v1 or v2 PDF: both sat after the References heading, which the builder treats as the end of the body. Moved into the body.</li>
+    <li>Threats to validity: the items were inspected at verdict level; four of eighteen runs in the minority state is itself a small sample (Wilson [9%, 45%]).</li>
+  </ul>
+  <div class="label">Removed</div>
+  <ul><li>An uncited LongGuard reference entry.</li></ul>
+  <div class="verified">Verified: 998/1000 unanimous, mean pairwise agreement 0.99914, worst pair 0.998, 16 identical pairs, arm B 0.9993 both ways, arm C 1.000 / 0.998 / 0.999. All match the published figures; the structure above is what they hid.</div>
+</div>
+
+<div class="card">
+  <span class="tag">P3</span>
+  <h3>Positional Guard Evasion at Short Context: A Replication Note</h3>
+  <p class="facts">Source of truth: per-item verdicts on volumes <code>warrantor-p3</code> (1,000 inputs × 2 models) and <code>warrantor-p3x</code> (1,260 × 2), recomputed 2026-09-05.</p>
+  <div class="label">Corrected</div>
+  <ul>
+    <li><b>A novelty claim inside a replication note.</b> §5.1 said the positional profile in a safety classifier was "to our reading, new" three sections after the note declared itself a replication of LongGuard. Now attributed.</li>
+    <li><b>"Holds at every individual length in both models."</b> It does not: the 0.6B's 1× cell has start above middle (6 versus 5 of 100). Only the 4B's per-length table had been shown. The 0.6B table is added and the sentence states the one exception.</li>
+    <li>A lowercase sentence start left by the previous revision; the conclusion's "at every length, in both scales" restated to match.</li>
+  </ul>
+  <div class="label">Added</div>
+  <ul>
+    <li><b>Paired tests that respect the design.</b> The pooled 300-item cells count each payload three times, so the Fisher tests were on dependent data. Matched-cell McNemar: the 4B is missed in the middle and caught at the end in 30 of 30 discordant cells (p = 9.3 × 10⁻¹⁰), 26 of 26 against start; the 0.6B 19:1 and 18:5. Risk ratios with 95% intervals (4.33 [2.14, 8.79] and 2.64 [1.34, 5.18]). Only 21 of 100 (4B) and 16 of 100 (0.6B) payloads are ever missed.</li>
+    <li><b>P3-X made explicit.</b> Which 60 payloads (the first 60 by identifier, a budget decision), the five positions, and the payload-level unit that reproduces the reported 19:0 and 2:4 counts exactly ("missed at any position"). The 4B's individual steps 1k→4k and 16k→32k do not reach significance on that test; the endpoints carry the inference. Payloads ever missed rise to 30 of 60 and 28 of 60.</li>
+    <li>The 0.6B control moved from 0/100 to 1/60 when <code>num_ctx</code> was raised to 32768, noted as the only control-cell movement in the paper.</li>
+    <li>LongGuard's chunked-detection defense named as the existing implementation of the follow-up §5.3 proposes.</li>
+    <li>A dependence threat in §6.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <span class="tag">T04</span>
+  <h3>Masking a Field's Loss Does Not Isolate That Field</h3>
+  <p class="facts">Source of truth: <code>hf/guard-verdicts/runs.json</code> run identities, the T04-X2 stage-2 records on volume <code>warrantor-t04x2-evals</code>, the training recipe constants, and the paper's own revision note of 2026-08-31.</p>
+  <div class="label">Corrected</div>
+  <ul>
+    <li><b>"Arm A is a retrain of run 1's configuration."</b> Run 1 trained on the 38,694-row mixture and was scored on WildGuardTest; arm A trains on an 11,272-row corpus and reproduces the ExpGuard run of 2026-08-22 (unsafe 1038, safe 1237, zero Controversial in the record). §5.1 and §5.2 now say so, and the corpus difference is flagged.</li>
+    <li>"The mechanistic claim of §7" pointed at Limitations; it is §4.3.</li>
+    <li>One British spelling ("cancelled") that the US-English verifier flagged.</li>
+  </ul>
+  <div class="label">Added</div>
+  <ul>
+    <li><b>The pre-registered follow-up T04-X2</b> (<code>2a223cac</code>), which the paper's own revision note had written the paragraphs for and the paper never received. On Aegis, through transformers, at both scales, from a format-competent checkpoint: masking the severity line moved its distribution significantly (χ² 10.48 and 14.67, df 2), and all 111 moved verdicts went Unsafe→Safe while emission held at 99.8%. Stage-2 counts verified from the records: 379/817 (0.6B) and 426/771 (4B). Only the Unsafe-down half of the direction claim was testable, since Aegis is two-valued.</li>
+    <li><b>The failure mode found on the way to it</b> (T04-X): masking a field during format-acquisition SFT annihilates it, 0 of 1,199 across eleven configurations, with the supervised field degraded alongside.</li>
+    <li>The adapter hyperparameters (rank 16, alpha 32, dropout 0.05, learning rate 1 × 10⁻⁴, batch 2 × accumulation 8) in §2; the gate's comparator (the 4B baseline, 0.8554) in §3.1.</li>
+    <li>A third masked-severity run with retained per-item outputs (2026-08-22, local): Controversial 231 versus 49, Unsafe 386 versus 650, category words in the severity slot, recall 0.7374. The run 2 signature at different magnitudes, from verdicts that are in the released dataset.</li>
+    <li>§4.3 now says the weight-sharing account is mechanistic and that the separate-adapter positive control is unrun.</li>
+    <li>A cross-reference to P1 in §3.3: the class the lever acts on is where the measured floor lives, so a fine-tune that removes the class removes the floor with the control.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <span class="tag">T12</span>
+  <h3>SoK: Acceptance Is Not Action</h3>
+  <p class="facts">Source of truth: the thirty coding records in <code>drafts/corpus-codings/</code>, checked cell by cell against the paper's tables.</p>
+  <div class="label">Corrected</div>
+  <ul>
+    <li><b>A scored work mislabeled as the authors' own.</b> The fifteenth scored system is AIP (arXiv:2603.24775). Its coded enforceability surrogate is Table A3 row 9 verbatim, and the paper's pair arithmetic (69 compose, 16 conditional, 20 do not, of 105) only balances with AIP placed at A1. The paper had written "the section 9 system" in six table cells and said in §6.3.1 that the §9 system "takes no placement". System W is scored in §9 and is not among the fifteen. Fixed throughout; §7.4.6's "the only A1 work" corrected.</li>
+    <li><b>The robustness table was missing a disagreement.</b> The coders split on AIP (A1 versus A4). Added, with its effect if flipped (30 pairs), and the count is now reported as depending on three adjudications.</li>
+    <li><b>Contribution 6 promised a bypass demonstration §8 says is not included.</b> Restated as the falsifiable prediction the paper actually publishes.</li>
+    <li><b>The method section was stale design text.</b> "About 60 candidates, screened to about 45, expected attrition 10 to 20%" replaced with the reported 322 candidates, 55 screened, 49 included, and the truncation §5.1 discloses. The coding paragraph now describes the opposed-stance machine coding of §3.5 instead of "two coders, Cohen's κ per axis".</li>
+    <li>"Full text on 30 of 30" reconciled with the abstract's "50 of 50" (decisive pass versus both passes); a reference to a nonexistent "§5A" removed.</li>
+  </ul>
+  <div class="label">Added</div>
+  <ul><li>The AgentThread reference entry (arXiv:2606.28690), cited five times in the text and absent from the list. The bibliography header now says 24 works.</li></ul>
+</div>
+
+<div class="card">
+  <span class="tag">P8</span>
+  <h3>One Ladder, Opposite Directions</h3>
+  <p class="facts">Source of truth: the margin capture on volume <code>warrantor-p9</code>. Re-fitting quantized on reference margin per bit-width reproduces every c and b in the §5.8 table to three decimals.</p>
+  <div class="label">Corrected</div>
+  <ul>
+    <li>"Two of the three below" introducing a list of four.</li>
+    <li>Three references to a "§0" that does not exist (the prefatory note), and a floor cross-reference that pointed at §5.5 instead of §5.6.</li>
+    <li>A limitations sentence that read as if QualityProxy's four failed probes were this paper's.</li>
+  </ul>
+  <div class="label">Added</div>
+  <ul>
+    <li>The definition §5.8 never gave: the margin is the difference between the logits of the Unsafe and Safe verdict tokens at the verdict position, at 16, 8, 6, 5, 4, 3 and 2 bits.</li>
+    <li>The companion floor cited by DOI, with what its inspection showed (both unstable items at the Safe/Controversial boundary, flipping together).</li>
+  </ul>
+</div>
+
+<div class="card">
+  <span class="tag">P6</span>
+  <h3>Shared Lineage, Not Shared Category, Makes Guards Fail Together</h3>
+  <p class="facts">Arithmetic re-checked: the six-guard independence prediction (0.0031), the 51× penalty, the FPR prediction (0.1337), the π ceilings, and the thirty-fold false-positive statement all reproduce from the marginals in the paper.</p>
+  <div class="label">Corrected and added</div>
+  <ul>
+    <li>A reference to a nonexistent "§0".</li>
+    <li>The difficulty control's strata stated (five, 0 to 4 other guards missing).</li>
+    <li>The three survivor counts (10, 8, and 10) each attributed to the test that produced it, so the abstract's "8 of 15" and §5.5's "10 of 15" no longer read as a contradiction.</li>
+  </ul>
+</div>
+
+<h2>Across all six</h2>
+<ul>
+  <li><b>Concept DOI on the face</b> of every named PDF, resolving to the latest version; the verifier checks it on named builds and refuses any Zenodo DOI on anonymous ones.</li>
+  <li><b>Companion papers cited by DOI</b> where a manuscript label stood; the anonymizer withholds those citations under double-blind exactly as it does the manuscript ones, with a new deny-list rule so no DOI can leak.</li>
+  <li><b>Version dates</b> set to 2026-09-05 on every byline.</li>
+  <li><b>Tooling:</b> a compile-verifying archive builder replaces a snippet that lived in a commit message; a new-version script stages Zenodo drafts under the concept DOIs and never publishes.</li>
+</ul>
+
+<h2>Verification</h2>
+<table>
+  <tr><th>Check</th><th>Result</th></tr>
+  <tr><td>Build gates: anonymity deny list, draft-apparatus list, residual Unicode</td><td>Clean on all 11 builds</td></tr>
+  <tr><td>LaTeX errors</td><td>0 in all 11</td></tr>
+  <tr><td>Overfull boxes new since revision 2</td><td>0 (T04 3 and T12 39 pre-existed, all in wide tables)</td></tr>
+  <tr><td>PDF verifier: properties, identity block, DOI placement, no apparatus, References present</td><td>11 of 11 ok</td></tr>
+  <tr><td>LaTeX archives extracted to an empty directory and compiled to the published page count</td><td>6 of 6</td></tr>
+  <tr><td>US-English verifier on the six sources</td><td>Pass (three verbatim-quote carve-outs)</td></tr>
+  <tr><td>Revision edits applied by exact-match-once scripts</td><td>76 of 76 matched on first run</td></tr>
+</table>
+
+<p class="foot">Generated from the revision-3 build of 2026-09-05. The revision scripts, one per paper, are in <code>submission/revise/v3_*.py</code>; each docstring names the artifact its numbers were recomputed from.</p>
+</div>
+</body>
+</html>
