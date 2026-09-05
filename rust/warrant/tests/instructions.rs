@@ -101,6 +101,10 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "tool",
     "target",
     "arg",
+    // Task 1.3: stop scopes — a family of warrants by subject, or the warrant a run id belongs to.
+    // Both are read by cmd_stop and forwarded to halt(); listed so the usage text may name them.
+    "family",
+    "run",
     // prune / agents
     "apply",
     // operator

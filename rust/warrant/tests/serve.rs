@@ -650,14 +650,14 @@ fn a_server_without_release_authority_refuses_settle_and_void_by_name_but_still_
         response.status,
         response.body
     );
-    let held = WarrantStore::open(&dir)
+    let stopped = WarrantStore::open(&dir)
         .expect("store")
         .load("wrt_ns")
         .expect("load");
     assert_eq!(
-        held.warrant.state,
-        WarrantState::Held,
-        "stop holds the work rather than discarding it"
+        stopped.warrant.state,
+        WarrantState::Void,
+        "a halt is terminal: the work is not releasable, the log is retained as evidence"
     );
 }
 
@@ -1454,7 +1454,7 @@ fn settle_void_and_stop_are_each_reachable_and_each_moves_the_warrant() {
     );
     assert_eq!(
         store.load("wrt_c").expect("load").warrant.state,
-        WarrantState::Held,
-        "stop holds the work for a decision rather than discarding it"
+        WarrantState::Void,
+        "a halt is terminal: the work is not releasable, the log is retained as evidence"
     );
 }
