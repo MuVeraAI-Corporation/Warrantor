@@ -500,3 +500,85 @@ pub fn render_decision(destination: &str, verdict: &broker::EgressVerdict) -> St
         ),
     }
 }
+
+// ── every decision, written down ──────────────────────────────────────────────────────
+
+/// Wire format of one recorded decision (allow or deny). Unsigned: the proxy holds no key.
+pub const DECISION_FORMAT: &str = "warrantor.egress-decision/1";
+
+/// One broker decision, recorded before the call it decided is forwarded.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EgressDecision {
+    /// Wire format; see [`DECISION_FORMAT`].
+    pub format: String,
+    /// The warrant the decided call ran under.
+    pub warrant_id: String,
+    /// When the decision was made, epoch seconds.
+    pub at: u64,
+    /// The tool whose call named the destination.
+    pub tool: String,
+    /// The argument the destination was named in.
+    pub argument: String,
+    /// The capability name the argument carried, or the host-derived one for a raw address.
+    pub capability: String,
+    /// The destination the capability resolved to, or the raw host for a refusal.
+    pub destination: String,
+    /// The broker's verdict, allow or deny with its reason.
+    pub verdict: EgressVerdict,
+    /// The catalog digest the name resolved through, when a vocabulary was attached.
+    pub catalog_digest: Option<String>,
+}
+
+fn decision_path(root: &std::path::Path, warrant_id: &str) -> std::path::PathBuf {
+    root.join("egress").join(format!("{warrant_id}.jsonl"))
+}
+
+/// Append decisions. Called BEFORE the call is forwarded; a failure here refuses the forward.
+pub fn record_decisions(
+    root: &std::path::Path,
+    decisions: &[EgressDecision],
+) -> Result<usize, String> {
+    use std::io::Write as _;
+    let Some(first) = decisions.first() else {
+        return Ok(0);
+    };
+    let path = decision_path(root, &first.warrant_id);
+    std::fs::create_dir_all(path.parent().unwrap_or(root))
+        .map_err(|e| format!("create the egress log directory: {e}"))?;
+    let mut body = String::new();
+    for decision in decisions {
+        body.push_str(&serde_json::to_string(decision).map_err(|e| format!("encode: {e}"))?);
+        body.push('\n');
+    }
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map_err(|e| format!("open {}: {e}", path.display()))?;
+    file.write_all(body.as_bytes())
+        .and_then(|()| file.sync_all())
+        .map_err(|e| format!("append to {}: {e}", path.display()))?;
+    Ok(decisions.len())
+}
+
+/// Every recorded decision for a warrant, and how many lines did not parse.
+pub fn read_decisions(
+    root: &std::path::Path,
+    warrant_id: &str,
+) -> Result<(Vec<EgressDecision>, usize), String> {
+    let path = decision_path(root, warrant_id);
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok((Vec::new(), 0)),
+        Err(e) => return Err(format!("read {}: {e}", path.display())),
+    };
+    let mut out = Vec::new();
+    let mut unreadable = 0;
+    for line in text.lines().filter(|l| !l.trim().is_empty()) {
+        match serde_json::from_str::<EgressDecision>(line) {
+            Ok(d) if d.format == DECISION_FORMAT => out.push(d),
+            _ => unreadable += 1,
+        }
+    }
+    Ok((out, unreadable))
+}

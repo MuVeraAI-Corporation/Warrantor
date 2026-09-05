@@ -4,9 +4,13 @@
 use std::collections::BTreeSet;
 
 use ed25519_dalek::SigningKey;
+use warrantor_egress::{DenyReason, EgressVerdict};
 use warrantor_warrant::catalog::{
     check_capability_name, Capability, CapabilityCatalog, CATALOG_FORMAT,
 };
+use warrantor_warrant::egress::{DECISION_FORMAT, DESTINATION_KEYS};
+use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall};
+use warrantor_warrant::staging::EffectRegistry;
 use warrantor_warrant::{SideEffectClass, WarrantBounds};
 
 const NOW: u64 = 1_786_000_000;
@@ -153,4 +157,83 @@ fn selecting_an_unknown_capability_is_refused_by_name() {
         .select(&["publish-artifacts".to_string()].into_iter().collect())
         .expect("known name");
     assert_eq!(picked[0].host, "artifacts.example.internal");
+}
+
+fn call(tool: &str, args: &[(&str, &str)]) -> ToolCall {
+    ToolCall {
+        tool: tool.to_string(),
+        arguments: args
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+            .collect(),
+        side_effect: SideEffectClass::Read,
+    }
+}
+
+fn vocabulary_proxy() -> Proxy {
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let vocabulary = signed_catalog("wrt_1", &issuer)
+        .vocabulary_within(&bounds_with(&["api.github.com"]))
+        .expect("within");
+    Proxy::new(
+        bounds_with(&["api.github.com"]),
+        ProxyMode::Enforce,
+        EffectRegistry::github(),
+    )
+    .with_vocabulary(vocabulary)
+}
+
+#[test]
+fn a_raw_url_in_a_destination_argument_is_unexpressible_under_a_vocabulary() {
+    let mut proxy = vocabulary_proxy();
+    let mut c = call("http.fetch", &[("url", "https://api.github.com/repos")]);
+    let Err(Decision::Deny { bound, reason }) = proxy.resolve_destinations(&mut c) else {
+        panic!("a raw URL must be refused before the broker sees it");
+    };
+    assert_eq!(bound, "egress_hosts");
+    assert!(reason.contains("raw address"), "{reason}");
+    assert_eq!(
+        proxy.egress_refusals()[0].reason,
+        DenyReason::NotACapability
+    );
+}
+
+#[test]
+fn a_capability_name_resolves_to_the_catalog_host_and_forwards() {
+    let mut proxy = vocabulary_proxy();
+    let mut c = call("http.fetch", &[("url", "host:api.github.com/repos/x/y")]);
+    proxy.resolve_destinations(&mut c).expect("a name resolves");
+    assert_eq!(c.arguments["url"], "https://api.github.com/repos/x/y");
+    assert_eq!(proxy.decide(&c), Decision::Forward);
+    let decisions = proxy.take_egress_decisions("wrt_1", NOW);
+    assert_eq!(decisions.len(), 1);
+    assert_eq!(decisions[0].format, DECISION_FORMAT);
+    assert_eq!(decisions[0].capability, "host:api.github.com");
+    assert_eq!(decisions[0].destination, "api.github.com");
+    assert!(matches!(decisions[0].verdict, EgressVerdict::Allow { .. }));
+    assert!(decisions[0].catalog_digest.is_some());
+    assert!(
+        proxy.take_egress_decisions("wrt_1", NOW).is_empty(),
+        "drained"
+    );
+}
+
+#[test]
+fn a_url_in_prose_is_still_decided_by_the_broker_and_recorded_when_denied() {
+    let mut proxy = vocabulary_proxy();
+    let mut c = call("git", &[("args", "clone https://paste.example/x")]);
+    proxy
+        .resolve_destinations(&mut c)
+        .expect("args is not a destination key");
+    assert!(matches!(
+        proxy.decide(&c),
+        Decision::Deny {
+            bound: "egress_hosts",
+            ..
+        }
+    ));
+    let decisions = proxy.take_egress_decisions("wrt_1", NOW);
+    assert_eq!(decisions[0].destination, "paste.example");
+    assert!(matches!(decisions[0].verdict, EgressVerdict::Deny { .. }));
+    assert!(DESTINATION_KEYS.contains(&"url"));
 }
