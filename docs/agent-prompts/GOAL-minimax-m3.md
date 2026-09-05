@@ -98,8 +98,9 @@ seven conflicts by keeping all of each branch's lines, per your own `MERGE-PLAN.
 
 ## Job B — Task 4.3, after Task 0.4 lands
 
-Verify, do not assume: `python scripts/task_status.py --next`. If 4.3 reads BLOCKED, 0.4 has not
-landed; GLM is implementing it now and it is that lane's first job precisely because it gates you.
+**Task 0.4 landed on 2026-09-05; `origin/main` is `dbe653a` and 4.3 reads READY.** Verify anyway,
+do not assume: `python scripts/task_status.py --next`. If 4.3 still reads BLOCKED, something is
+wrong with your checkout — stop and report rather than working around it.
 
 4.3 carries 0.4's tier rendering into the console **and desktop** — the same files you just
 consolidated, which is why it waits. Build it on `feat/phase-4-buyers-surface`, not a fifth parallel
@@ -109,30 +110,46 @@ branch.
 
 ## Job C — Phase 11, thirteen tasks, ONE branch, sequential
 
-**Rebase before you start. This is not optional and it is new.**
+**MERGE `origin/main` in before you start. Do not rebase.** This was tested, not assumed.
 
-Task 0.4 (GLM lane) modifies `rust/warrant/src/console/console.js` and `console.test.js` — your
-files — and it is landing on `main` while you work. Its step form cites `origin/main` line numbers
-(`console.js` 187-192, 258-260, 841-853, 1252-1300), and your four Wave-1 commits add about 1,200
-lines to that file. So the two must land in one order only: **0.4 first, then your console work.**
+Task 0.4 landed on `origin/main`, and it edits `console.js` and `console.test.js` — your files. It
+adds 24 lines: `TIER_WORDS`, `boundTierLines`, and a rendered tier list. Your branch must take that
+change before Phase 11 builds on the file.
+
+**Merge, because a rebase is the wrong operation here.** Your branch carries six commits, so a
+rebase replays all six and can hit the same conflict six times, and it rewrites the SHAs your own
+`PHASE-4-CONSOLIDATION.md` cites. The merge was executed in a throwaway worktree on 2026-09-05 and
+is **clean**: 0.4 inserts at original lines 836 and 1270, your insertions sit at 659 and 1536, and
+they do not touch.
 
 ```bash
 git fetch origin
 git checkout feat/phase-4-buyers-surface
-git rebase origin/main            # picks up Task 0.4 and the merged Phase 0 work
-node --test rust/warrant/src/console/console.test.js    # must still pass, count must not fall
-git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface
+node --test rust/warrant/src/console/console.test.js | grep -E "^# (tests|pass|fail)"
+#   expect: tests 110, pass 110, fail 0
+#   If grep prints NOTHING, the suite failed to load. Stop and report. Never read an empty
+#   count as a passing one -- that is the shape of every false green in this repository.
+
+git merge origin/main
+
+node --test rust/warrant/src/console/console.test.js | grep -E "^# (tests|pass|fail)"
+#   expect: tests 111, pass 111, fail 0
+grep -c boundTierLines rust/warrant/src/console/console.js   # expect 2 -- 0.4 survived
+git diff --stat origin/main..HEAD                            # expect 12 files, console only
 ```
 
-**If the rebase conflicts on `console.js`, that is expected** — 0.4 adds a bound-tier renderer where
-your surfaces live. Resolve by keeping both: 0.4's `boundTierLines` and your four panes. Never drop
-0.4's tier rendering to make a layout work; it is the mechanism behind this phase's central rule.
+**Expect NO conflict.** If you hit one, something differs from what was verified — **stop and
+report rather than resolving it.** Do not go looking for a conflict that is not there. If a future
+merge does conflict on `console.js`, the rule is: keep **both** sides, 0.4's `boundTierLines` and
+your panes. Never drop the tier rendering to make a layout work; it is the mechanism behind this
+phase's central rule, and Task 4.3 exists to carry it into the desktop.
 
-**If Task 0.4 has not landed yet, hold.** Do Job A, report, and wait. Building Phase 11 on a
-`console.js` that is about to shift by a thousand lines wastes the phase. Check with:
+**Order matters and it is easy to get wrong.** Commit Task 4.3 on `feat/phase-4-buyers-surface`
+**first**, then create the Phase 11 worktree from it. Branching for Phase 11 before 4.3 is committed
+orphans 4.3.
 
 ```bash
-python scripts/task_status.py --next        # 4.3 stops reading BLOCKED once 0.4 lands
+git worktree add M:/wt-phase11 -b feat/phase-11-operator-estate feat/phase-4-buyers-surface
 ```
 
 **One branch for the whole phase.** Wave 1's four parallel branches on `console.js` conflicted seven
@@ -200,6 +217,14 @@ guarantee imply an enforced one.
 
 ## Standing constraints
 
+- **Every invented fixture goes in a committed manifest, not only in your report.** Maintain
+  `docs/task-evidence/PHASE-11-FIXTURE-CONTRACT.md` and append to it in the **same commit** as the
+  task that invented the fixture. One row each: the field, its shape, the task that will have to
+  honor it, and whether you **read** the shape from an existing contract or **inferred** it. Thirteen
+  tasks build against dependencies that do not exist yet — Task 10.2's query grammar, Task 8.8's
+  exercised measurements, Task 14.4's crosswalk data — so the inferences accumulate. A fixture
+  recorded only in a session report is lost, and the backend then has no way to honor what the UI
+  already assumed.
 - **Console test count must be strictly greater after every task.** Holding or falling means a conflict
   resolution or a refactor dropped tests. Stop and report.
 - **Accessibility is a release gate, not polish.** An access barrier inside approval or incident
@@ -245,4 +270,7 @@ demonstrated.**
 - You would have to weaken the observed/mediated/enforced distinction to make a layout work.
 - `console.js` growth makes you want to restructure. **Propose it and wait.**
 - Task 4.3 and Task 0.4 has not landed.
+- **Two consecutive tasks fail their own exit gate, even if the test suite still passes.** This
+  runs unattended across thirteen tasks; a wrong fixture shape in task 3 is invisible to a test
+  ratchet and ships in task 13. Two failures in a row means stop, not push on.
 - Files change under you mid-task.
