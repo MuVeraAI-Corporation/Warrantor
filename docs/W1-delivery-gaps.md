@@ -632,6 +632,14 @@ enforced. There is no netns, no seccomp and no firewall. The console shows `boun
 honestly, but "the agent is bounded" is a stronger sentence than the system currently earns without
 composing with a real sandbox.
 
+**Tier disclosure is now lint, not prose (Task 0.4, L8-13 partial).** `BoundStrength::word` and
+`BoundStrength::caveat` are the one vocabulary; `render_bound` formats every bound on the CLI
+report, the MCP report (which previously rendered no bounds at all), `warrantor status` (which
+previously printed no tier) and the README table; the console JSON carries the caveat per bound.
+`tests/tier_disclosure.rs` fails if any surface prints "enforced" for an Observed bound or omits a
+tier. Still open under L8-13: the per-harness coverage half (needs L8-22's census), the desktop
+rendering (Task 4.3), and the user study.
+
 **Half of it is now executable, and the half that is not is the important one.** `warrantor sandbox
 <id> [--kind bubblewrap|firejail]` derives a confinement profile from a warrant's bounds. The advice
 "compose with a real sandbox" was previously unactionable — not because writing a `bwrap` line is

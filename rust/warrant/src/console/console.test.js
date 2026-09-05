@@ -636,6 +636,26 @@ test('a mixed posture never collapses to one of the two pure claims', async () =
   assert.doesNotMatch(guard, /flagged calls were refused/);
 });
 
+test('boundTierLines renders one line per bound, word then caveat, and never infers a tier', async () => {
+  const { module } = await boot(() => HEALTH_OK);
+  const lines = module.boundTierLines({
+    bound_strengths: [
+      { name: 'expires_at', strength: 'enforced', caveat: 'held by the OS' },
+      { name: 'write_paths', strength: 'observed', caveat: 'nothing refuses the write' },
+      { name: 'mystery', strength: 'unbreakable', caveat: 'x' },
+      { name: 'silent' },
+    ],
+  });
+  assert.deepEqual(lines, [
+    'expires_at — enforced: held by the OS',
+    'write_paths — observed: nothing refuses the write',
+    'mystery — tier not stated: do not read this as enforced',
+    'silent — tier not stated: do not read this as enforced',
+  ]);
+  assert.deepEqual(module.boundTierLines({}), [], 'no list means no lines, not a fabricated one');
+  assert.deepEqual(module.boundTierLines(null), []);
+});
+
 test('no coverage is four different sentences, and one never stands in for another', async () => {
   const { module } = await boot(() => HEALTH_OK);
   assert.equal(module.guardKind(undefined), 'unknown');

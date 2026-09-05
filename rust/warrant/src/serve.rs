@@ -3236,7 +3236,13 @@ impl Api for StoreApi {
         let claims = &stored.warrant.claims;
         let strengths: Vec<Value> = bound_strengths()
             .into_iter()
-            .map(|(name, strength)| json!({ "name": name, "strength": strength }))
+            .map(|(name, strength)| {
+                json!({
+                    "name": name,
+                    "strength": strength,
+                    "caveat": strength.caveat(),
+                })
+            })
             .collect();
         let data = json!({
             "id": claims.id,
@@ -3247,6 +3253,7 @@ impl Api for StoreApi {
             "issued_at": claims.issued_at,
             "bounds": claims.bounds,
             "bound_strengths": strengths,
+            "tier_legend": crate::render_tier_legend(),
             "stopped": stops.is_stopped(id),
             "has_worktree": stored.worktree.is_some(),
             "branch": stored.branch,

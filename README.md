@@ -11,7 +11,7 @@
 **Give a coding agent bounded authority, walk away, and decide in the morning.**
 
 Warrantor hands an AI agent a *warrant*: authority granted in advance, with hard limits, that the
-agent answers for afterwards. The agent works in an isolated copy of your repository. Anything
+agent answers for afterward. The agent works in an isolated copy of your repository. Anything
 irreversible — opening a pull request, posting a comment, sending anything — is **staged, not
 performed**. In the morning you see what it changed, what it wants to do, and what it was refused,
 and you approve or discard.
@@ -56,10 +56,23 @@ there is no message it can send that widens its own authority. The settle key is
 the MCP agent endpoint the lifecycle tools are not merely denied, they are *absent from the tool
 list*.
 
-**Every limit says whether it is *enforced* or only *measured*.** Tools, write paths, egress and
-deadline are enforced — the system refuses. Budget is measured, because model API calls do not pass
-through us, so a spend ceiling is an observation rather than a wall. We show which is which: a limit
-you believe in that does not hold is worse than no limit.
+**Every limit says how it is held, and what that does not cover.** Three tiers, and no rendering
+in this product collapses them. The table is generated from `bound_strengths()` in
+`rust/warrant/src/lib.rs` and a test fails if it drifts.
+
+<!-- bound-tiers:begin -->
+| Bound | Tier | What the tier does not cover |
+|---|---|---|
+| `tools` | mediated | held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it |
+| `write_paths` | observed | measured and reported after the fact; nothing refuses the action as it happens |
+| `egress_hosts` | mediated | held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it |
+| `staged_classes` | mediated | held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it |
+| `expires_at` | enforced | held by cryptography or the operating system; holds against an agent that tries to route around it |
+| `delegation_depth` | enforced | held by cryptography or the operating system; holds against an agent that tries to route around it |
+| `budget_cents_observed` | observed | measured and reported after the fact; nothing refuses the action as it happens |
+<!-- bound-tiers:end -->
+
+A limit you believe in that does not hold is worse than no limit.
 
 ---
 
