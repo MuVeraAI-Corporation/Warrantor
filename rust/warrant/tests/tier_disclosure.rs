@@ -263,3 +263,35 @@ fn warrantor_status_prints_a_tier_per_bound_and_the_legend() {
         assert!(!line.contains("enforced"), "{line}");
     }
 }
+
+/// Both READMEs carry the table `render_bounds_table()` generates, verbatim, between markers. A
+/// hand-edited row fails here. (An integration test rather than a doc test: the CI gate is
+/// `cargo test --workspace --all-targets`, which does not run doc tests.)
+#[test]
+fn both_readmes_carry_the_bounds_table_generated_from_bound_strengths() {
+    let table = render_bounds_table();
+    for (which, readme) in [
+        ("README.md", include_str!("../../../README.md")),
+        ("rust/warrant/README.md", include_str!("../README.md")),
+    ] {
+        // Git on this box checks the READMEs out as CRLF (`core.autocrlf=true`); the generated
+        // table is LF. Comparing content, not checkout byte endings, keeps the assertion at full
+        // strength on both: a drifted row fails either way, and the negative check below is real
+        // on a CRLF checkout instead of vacuously true.
+        let readme = readme.replace("\r\n", "\n");
+        let start = readme
+            .find("<!-- bound-tiers:begin -->")
+            .unwrap_or_else(|| panic!("{which}: no bound-tiers:begin marker"));
+        let end = readme
+            .find("<!-- bound-tiers:end -->")
+            .unwrap_or_else(|| panic!("{which}: no bound-tiers:end marker"));
+        let between = &readme[start..end];
+        assert!(between.contains(&table), "{which}: table drifted from bound_strengths():\n{table}");
+    }
+    assert!(
+        !include_str!("../../../README.md")
+            .replace("\r\n", "\n")
+            .contains("write paths, egress and\ndeadline are enforced"),
+        "the root README still claims write paths are enforced"
+    );
+}

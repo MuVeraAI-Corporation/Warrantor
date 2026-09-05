@@ -3,7 +3,7 @@
 **Give a coding agent bounded authority, walk away, and decide in the morning.**
 
 A *warrant* is authority granted in advance, with hard limits, that the agent answers for
-afterwards. The agent works in an isolated git worktree. Anything irreversible — opening a pull
+afterward. The agent works in an isolated git worktree. Anything irreversible — opening a pull
 request, posting a comment, sending anything — is **staged, not performed**. In the morning you see
 what changed, what it wants to do, and what it was refused, and you approve or discard.
 
@@ -47,6 +47,18 @@ to call.
 deadline are enforced — the system refuses. Budget is observed, because model API calls do not pass
 through this crate, so a spend ceiling is a measurement rather than a wall. `bound_strengths()`
 returns which is which. A limit you believe in that does not hold is worse than no limit.
+
+<!-- bound-tiers:begin -->
+| Bound | Tier | What the tier does not cover |
+|---|---|---|
+| `tools` | mediated | held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it |
+| `write_paths` | observed | measured and reported after the fact; nothing refuses the action as it happens |
+| `egress_hosts` | mediated | held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it |
+| `staged_classes` | mediated | held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it |
+| `expires_at` | enforced | held by cryptography or the operating system; holds against an agent that tries to route around it |
+| `delegation_depth` | enforced | held by cryptography or the operating system; holds against an agent that tries to route around it |
+| `budget_cents_observed` | observed | measured and reported after the fact; nothing refuses the action as it happens |
+<!-- bound-tiers:end -->
 
 ## Partial failure
 
