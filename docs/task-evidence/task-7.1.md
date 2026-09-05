@@ -152,7 +152,7 @@ compile.
 closed on a DNS name. That is a decision, not an omission.**
 
 The `addresses` field is documented as *"pre-resolved IPs or explicit hostnames"*, and
-`rust/warrant/src/egress.rs:204` (`EgressBroker::for_bounds`) puts a hostname there:
+`rust/warrant/src/egress.rs:209` (`EgressBroker::for_bounds`) puts a hostname there:
 `addresses: vec![host.clone()]`, the literal string from the warrant's `egress_hosts`. So **every
 hostname bound a developer writes is an unparseable address by construction.** A floor that refused
 everything unparseable would refuse `api.github.com`, `registry.npmjs.org` and every other name a
@@ -180,7 +180,7 @@ discriminator is the rightmost label: **no registrable top-level domain is entir
 **What this does not fix:** a DNS name outside `hard_deny::FLOOR_HOSTNAMES` that *resolves* into
 the metadata range still reaches `NotRefused`. The floor does not resolve DNS. The hostname list
 narrows that gap by exactly the four names on it and **closes nothing**; the module says so in
-those words, and the pre-existing statement of the limit at `rust/warrant/src/egress.rs:44-47` is
+those words, and the pre-existing statement of the limit at `rust/warrant/src/egress.rs:49-52` is
 left intact.
 
 ---
@@ -203,7 +203,7 @@ orphans: 30 -> 29
 dependency set `{thiserror, serde, serde_json}` is a strict subset of `warrantor-egress`'s.
 
 `README.md:196` was updated in the same change — `**10 of 40**` to `**11 of 40**` and
-`the other 30` to `the other 29` — because `tools/ci/wiring_census.py:150-154` asserts that row
+`the other 30` to `the other 29` — because `tools/ci/wiring_census.py:150-154 (`readme_renders`)` asserts that row
 against the measured number and returns 1 on a mismatch. Verified: the census emitted
 `::error::README status table does not show 'reachable from the CLI | **11 of 40**'` before the
 edit and is silent after it.
@@ -250,11 +250,11 @@ bound was **widened to name a range it had omitted**; the changes are marked and
 | bound | word | why not stronger |
 |---|---|---|
 | the metadata services, IPv4 `169.254.0.0/16`, IPv6 `fe80::/10` **and IPv6 unique-local `fc00::/7`** cannot be reached through `Policy::decide_*` | **Enforced, in-process — over an API with no shipping caller** *(label weakened)* | `hard_deny::refuse_ip` returns `Refused` and `decide_ip` returns `Action::Deny` at the moment the decision is asked for, before any allowlist is consulted, and no configuration value can reach it. But the caller set of `Policy::decide_ip` / `decide_domain` / `decide_destination` **is empty in this workspace** outside the crate's own tests: the only cross-crate import of `warrantor-egress-filter` anywhere is `use warrantor_egress_filter::hard_deny::{…}` in `rust/egress/src/lib.rs:18`. So this row is a real in-process refusal on a decision surface **no shipping code calls yet**. What protects the product today is the Tier B row beneath it. It is also not an OS bound |
-| the same set cannot be reached through `warrantor_egress::decide` | **Tier B, chokepoint** | a specific line refuses at decision time, but it binds only tool calls that traverse the broker, which is reached only through the MCP proxy at `rust/warrant/src/proxy.rs:227`. The crate's own honest word is already in the code: `rust/warrant/src/egress.rs:236` sets `enforcement_mode: "advisory"` with the comment *"Not 'mediated': the proxy mediates only the calls that come through it."* **What escapes:** a socket the agent opens with its own shell or file tools; a DNS name that resolves into the range; anything not routed through the proxy |
+| the same set cannot be reached through `warrantor_egress::decide` | **Tier B, chokepoint** | a specific line refuses at decision time, but it binds only tool calls that traverse the broker, which is reached only through the MCP proxy at `rust/warrant/src/proxy.rs:227`. The crate's own honest word is already in the code: `rust/warrant/src/egress.rs:241` sets `enforcement_mode: "advisory"` with the comment *"Not 'mediated': the proxy mediates only the calls that come through it."* **What escapes:** a socket the agent opens with its own shell or file tools; a DNS name that resolves into the range; anything not routed through the proxy |
 | the floor cannot be amended by passing something to it | **Enforced, by absence — for parameters only** *(label weakened; the previous row read "the floor is unamendable / Enforced, by absence")* | there is no parameter to pass, and both signatures are pinned verbatim so adding one fails a gate no behavioral test could replace. **What that does not cover:** an amendment that passes nothing. A review inserted a `static AtomicBool` plus a `std::env::var("WARRANTOR_FLOOR_OFF")` read at the head of `refuse_ip` — no parameter, both signatures byte-for-byte, all 64 tests and the source gate green — and setting the variable turned **9** tests red, proving the switch reached the shipping path. Those tokens are enumerated in `forbidden_tokens()` now, and the gate fires on that exact edit. It remains an **enumerated denylist over one file's text**: it catches the channels it names and nothing else |
 | the two crates agree | **Observed** | asserted over a 17-address corpus at test time. It is not a proof that no future address makes them diverge; it is a regression test that fires if a second matcher reappears |
 | failing closed on an address-shaped literal | **Enforced, in-process** | `DenyReason::UnparseableAddress` is constructed and returned before the Allow branch, and is now asserted through the shipping broker as well as through `warrantor_egress::decide` |
-| the refusal word an operator reads names the rule that fired | **Not established** | `warrantor_egress::decide` collapses `MetadataService`, `LinkLocal` and `UniqueLocal` into `DenyReason::MetadataRange` (`rust/egress/src/lib.rs:234-238`), so a `fc00::/7` destination a warrant legitimately names is refused under the word `metadata_range`. Documented in three places and **not fixed**: widening the enum changes the reachable-variant list that `rust/warrant/tests/invariants/i11_self_change_is_governed.rs:110` pins, which is a decision of its own |
+| the refusal word an operator reads names the rule that fired | **Not established** | `warrantor_egress::decide` collapses `MetadataService`, `LinkLocal` and `UniqueLocal` into `DenyReason::MetadataRange` (`rust/egress/src/lib.rs:238-242`), so a `fc00::/7` destination a warrant legitimately names is refused under the word `metadata_range`. Documented in three places and **not fixed**: widening the enum changes the reachable-variant list that `rust/warrant/tests/invariants/i11_self_change_is_governed.rs:110` pins, which is a decision of its own |
 | L4-25's admission-controller half | **Not shipped** | privileged pods, host mounts, broad service accounts and unrestricted cluster APIs are Kubernetes admission, a deployment artifact this repository does not contain. Nothing in this branch claims otherwise |
 
 No netns, seccomp or firewall enforcement exists in this repository, and nothing in this branch
@@ -523,14 +523,16 @@ Specifically, not modestly.
    It was derived by enumerating `Policy`'s public constructors and both decision entry points. A
    path through some other public API of `warrantor-egress-filter` that this probe did not
    enumerate would not have appeared.
-9. **`enforcement_mode` is still `"advisory"`** at `rust/warrant/src/egress.rs:236`, and this
+9. **`enforcement_mode` is still `"advisory"`** at `rust/warrant/src/egress.rs:241`, and this
    branch does not change that word. It is the correct word. *(The line number read `:232` here and
-   in the tier table until a review checked it. `:232` is
+   in the tier table until a review checked it. On `5e1b5a5` `:232` was
    `logical_endpoint: destination.to_string(),` — four lines above the word the sentence is about, on
-   this branch and on `f99af94` alike.)*
+   that commit and on `f99af94` alike; the assignment was at `:236`. This commit's own edit to that
+   file's module doc moved it again, to `:241`, which is why the number above is `:241` and not the
+   `:236` the review reported. Re-derived by grepping for the assignment, not by counting.)*
 10. **It does not put `warrantor-egress-filter`'s advertised capability into the product.** The
-    census rose from `10 of 40` to `11 of 40` because **374 lines of new code were placed inside an
-    orphan crate**, not because an orphaned capability was wired up. `Policy`, `PolicyBuilder` and all
+    census rose from `10 of 40` to `11 of 40` because **the 374 lines of new code `5e1b5a5` added (409 after this
+    commit) were placed inside an orphan crate**, not because an orphaned capability was wired up. `Policy`, `PolicyBuilder` and all
     three `decide_*` entry points — what the crate's own manifest description calls the *"R7 — eBPF
     egress enforcement core … policy decision"* — are called by nothing in the product. The only
     cross-crate import of the crate anywhere is `hard_deny`. `README.md:196` now says the census counts
@@ -569,7 +571,7 @@ the branch **said about itself** — which is the failure mode this project has 
 
 **Claimed.** *"Any other name that resolves into 169.254.0.0/16, fe80::/10 or 100.100.100.200 reaches
 NotRefused"* (non-establishment 4); the tier table bounded the claim as *"metadata service and
-link-local addresses"*; `hard_deny_floor.rs:208` asserted *"the floor covers the metadata service and
+link-local addresses"*; `hard_deny_floor.rs:208` (at `5e1b5a5`) asserted *"the floor covers the metadata service and
 link-local ranges, not RFC-1918"*; the `PrivateRange` section said *"L4-25 names the metadata service
 and link-local addresses, not RFC-1918. Widening the floor to 10/8 is not this task."*
 
@@ -595,7 +597,7 @@ f99af94   struct-literal + allowlist + deny_private_egress(false), fd12:3456:789
             -> Allow / Allowlisted   (both commits)
 ```
 
-On the shipping path it is worse: `rust/egress/src/lib.rs:234` maps every non-`AddressShaped`
+On the shipping path it is worse: `rust/egress/src/lib.rs:238` maps every non-`AddressShaped`
 refusal to `DenyReason::MetadataRange`, so a catalogued `fc00::/7` address a warrant legitimately
 names is refused to the operator as a *metadata range*.
 
@@ -615,8 +617,11 @@ unfixed, with the reason, as non-establishment 11.
 Cited as `:232` twice — the tier table's Tier B row and non-establishment 9 — on this branch and on
 `f99af94` alike, so a wrong number recorded twice rather than a post-edit shift. Line 232 is
 `logical_endpoint: destination.to_string(),`. The load-bearing sentence of the whole Tier B claim
-pointed four lines above the word it is about. Both citations now read `:236`, re-derived by grepping
-for the assignment rather than by counting.
+pointed four lines above the word it is about. Both citations now read `:241`, re-derived by grepping
+for the assignment rather than by counting. `:236` was correct on `5e1b5a5`; this commit's own
+five-line addition to that file's module doc moved the assignment down five lines, which is exactly
+the drift that produced the original defect and is why the number was re-measured after the last edit
+rather than copied from the review.
 
 ### 3. The newly shipped operator-facing refusal sentence was mangled
 
@@ -630,8 +635,8 @@ Fixed with a real continuation, and the **class** is now gated:
 `every_refusal_sentence_is_free_of_collapsed_line_continuations` asserts no `reason_phrase` output
 contains a run of consecutive spaces, over all eleven variants, with a control proving the check can
 see one. Reintroducing the original literal turns that test red — run and verified, then restored.
-The same artifact appeared in five places in `hard_deny_floor.rs`'s own assertion messages (lines 251,
-264, 286 twice, 305) — the text that would be read when the gate fires — and all are fixed. Two remain
+The same artifact appeared in five places in `hard_deny_floor.rs`'s own assertion messages (at
+`5e1b5a5`: lines 251, 264, 286 twice, 305) — the text that would be read when the gate fires — and all are fixed. Two remain
 in `metadata_floor.rs` and are not this branch's; see non-establishment 13.
 
 ### 4. `FLOOR_ADDRESSES` and `FLOOR_FORMAT` were both inert while documented as the mechanism
@@ -681,8 +686,8 @@ quiet amendment is **lower** than the branch claimed, not higher.
 
 `Policy::decide_ip` / `decide_domain` / `decide_destination` have an **empty** caller set in the whole
 Rust workspace outside `warrantor-egress-filter`'s own tests. The only cross-crate import of the crate
-anywhere is `hard_deny`, from `rust/egress/src/lib.rs:18`. So the census rose because 374 lines of new
-code were placed inside an orphan crate, not because an orphaned capability was wired up — and
+anywhere is `hard_deny`, from `rust/egress/src/lib.rs:18`. So the census rose because the 374 lines of new code
+`5e1b5a5` added (409 after this commit) were placed inside an orphan crate, not because an orphaned capability was wired up — and
 *"Confined to callers of this API"* reads as a scope limit rather than as *"the set of callers is
 empty."* The nine-item non-establishment list, which went as far as naming an off-by-one in the plan's
 own Step 0 baseline, did not say it.
@@ -712,7 +717,7 @@ allowed controls are unchanged and still pass in both polarities.
 
 ### 8. Four smaller items, all reproduced and fixed
 
-- **A doc paragraph pasted twice.** `metadata_floor.rs` lines 11–22 carried the same five-line
+- **A doc paragraph pasted twice.** `metadata_floor.rs` lines 11-22 at `5e1b5a5` carried the same five-line
   `UPDATE (Task 7.1, L4-25)` paragraph twice, differing only in *"still run through"* versus *"still
   pass through"* — in the file that carries the branch's central "one matcher, not two" argument.
   Removed, with the removal named rather than silent.
@@ -742,9 +747,9 @@ test."*
 reachable from a binary. Searching for the symbol across the workspace:
 
 ```
-rust/warrant/src/egress.rs:425      reason_phrase(self.reason.clone()),   <- EgressRefusal::sentence()
-rust/warrant/src/egress.rs:433  pub fn reason_phrase(reason: DenyReason) -> &'static str {
-rust/warrant/src/egress.rs:500      reason_phrase(reason.clone())         <- render_decision()
+rust/warrant/src/egress.rs:430      reason_phrase(self.reason.clone()),   <- EgressRefusal::sentence()
+rust/warrant/src/egress.rs:438  pub fn reason_phrase(reason: DenyReason) -> &'static str {
+rust/warrant/src/egress.rs:506      reason_phrase(reason.clone())         <- render_decision()
 
 rust/warrant/src/bin/warrantor.rs:2168   println!("{}", render_decision(host, &verdict));
 rust/warrant/src/proxy.rs:174            let sentence = refusal.sentence();
