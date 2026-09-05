@@ -2210,7 +2210,7 @@ test('the coverage map is computed from receipts, not from a static registry', a
 // assert against the same `routing.fixtures.js` the console renders from, so the wire
 // shape the tests pin is the wire shape the operator will see.
 
-import { localOnly, escalatedWithReceipt, ceilingRefused, unconfigured } from './routing.fixtures.js';
+import { localOnly, escalatedWithReceipt, ceilingRefused, unconfigured as routingUnconfigured } from './routing.fixtures.js';
 
 // Strip the `kind: 'fixture'` tag and the shape placeholders so the body looks like a real
 // server response. The tests below run the SAME fact-extractor the console runs, so a
@@ -2354,7 +2354,7 @@ test('an unconfigured pane shows the prose, not an empty ledger', async () => {
   // unconfigured headline names the absence rather than guessing. A page that
   // rendered the unconfigured case as "0 of 0 decisions" would be a page whose
   // spend posture the operator could not distinguish from a healthy one.
-  const app = await openRouting(wire(unconfigured));
+  const app = await openRouting(wire(routingUnconfigured));
   const headline = textOf(app.el('routing-headline'));
   assert.match(headline, /no backends are configured/i);
   const decisions = app.el('routing-decisions').children;
@@ -2420,7 +2420,7 @@ test('an undeclared ceiling renders the doctrine, not a silent 0/0/0', async () 
   // unspent warrant, which is the exact conflation this pane must avoid. The
   // console surfaces the doctrine in prose and then prints 0 for the three numbers;
   // the prose is the load-bearing piece, the zeros are the bookkeeping.
-  const app = await openRouting(wire(unconfigured));
+  const app = await openRouting(wire(routingUnconfigured));
   const text = textOf(app.el('routing-ceiling'));
   assert.match(text, /declared\s+no/i, 'the absence is named, not painted as "0"');
   assert.match(
@@ -2439,7 +2439,7 @@ test('the four routing states render as four different glyphs and four different
   // The exit gate: NO SCREEN may collapse the four states into one. Walk all four
   // fixtures and confirm the row class, the headline, and the row text all carry
   // the distinction.
-  const fixtures = [localOnly, escalatedWithReceipt, ceilingRefused, unconfigured];
+  const fixtures = [localOnly, escalatedWithReceipt, ceilingRefused, routingUnconfigured];
   const seen = new Set();
   for (const fixture of fixtures) {
     const app = await openRouting(wire(fixture));
@@ -2462,7 +2462,7 @@ test('the four state values are exactly local, escalated, ceiling_refused, uncon
   // test pins the closed set so a stray value fails here rather than rendering
   // silently as one of the four.
   const seen = new Set();
-  for (const fixture of [localOnly, escalatedWithReceipt, ceilingRefused, unconfigured]) {
+  for (const fixture of [localOnly, escalatedWithReceipt, ceilingRefused, routingUnconfigured]) {
     for (const decision of fixture.decisions) seen.add(decision.state);
   }
   seen.add('unconfigured'); // the unconfigured fixture has no decisions; the state still must exist
@@ -2477,7 +2477,7 @@ test('routing fixtures are marked kind: fixture so a test can refuse to confuse 
   // single point that pins the convention. The console never reads a fixture as a
   // response — it reads it through `wire()` — so a fixture that ever showed up in
   // `app.calls` would be a fixture that bypassed the contract.
-  for (const fixture of [localOnly, escalatedWithReceipt, ceilingRefused, unconfigured]) {
+  for (const fixture of [localOnly, escalatedWithReceipt, ceilingRefused, routingUnconfigured]) {
     assert.equal(fixture.kind, 'fixture', 'every fixture must carry kind: fixture');
   }
 });
