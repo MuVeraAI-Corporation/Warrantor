@@ -137,7 +137,12 @@ fn the_legend_names_all_three_tiers_and_never_collapses_them() {
 fn built_bundle(dir: &std::path::Path) -> warrantor_warrant::report::Report {
     let queue = StagingQueue::open(dir.join("q.jsonl"), "wrt_tier", EffectRegistry::github())
         .expect("open queue");
-    build(&stored("wrt_tier", NOW + 3600), Ok(&queue), &issuer().verifying_key(), NOW)
+    build(
+        &stored("wrt_tier", NOW + 3600),
+        Ok(&queue),
+        &issuer().verifying_key(),
+        NOW,
+    )
 }
 
 /// The bundle a signed report carries discloses a tier per bound, and the CLI prints each one
@@ -160,7 +165,10 @@ fn the_cli_report_prints_every_bound_with_its_tier_and_the_legend() {
         .collect();
     assert_eq!(observed_lines.len(), 2, "{text}");
     for line in observed_lines {
-        assert!(!line.contains("enforced"), "an Observed bound printed as enforced: {line}");
+        assert!(
+            !line.contains("enforced"),
+            "an Observed bound printed as enforced: {line}"
+        );
     }
 }
 
@@ -184,14 +192,7 @@ fn the_mcp_report_discloses_a_tier_per_bound_from_the_same_bundle() {
 
 fn api(dir: &std::path::Path) -> StoreApi {
     let store = WarrantStore::open(dir).expect("store");
-    StoreApi::new(
-        store,
-        dir.to_path_buf(),
-        issuer(),
-        None,
-        no_adapter,
-        now,
-    )
+    StoreApi::new(store, dir.to_path_buf(), issuer(), None, no_adapter, now)
 }
 
 /// `GET /v1/warrants/{id}` carries, per bound, the tier word `bound_strengths()` assigns and the
@@ -217,8 +218,16 @@ fn the_console_json_carries_the_tier_word_and_caveat_per_bound() {
     for entry in listed {
         let name = entry["name"].as_str().expect("name");
         let tier = expected[name];
-        assert_eq!(entry["strength"], Value::String(tier.word().to_string()), "{name}");
-        assert_eq!(entry["caveat"], Value::String(tier.caveat().to_string()), "{name}");
+        assert_eq!(
+            entry["strength"],
+            Value::String(tier.word().to_string()),
+            "{name}"
+        );
+        assert_eq!(
+            entry["caveat"],
+            Value::String(tier.caveat().to_string()),
+            "{name}"
+        );
         if tier == BoundStrength::Observed {
             assert_ne!(entry["strength"], "enforced", "{name}");
         }
@@ -251,10 +260,17 @@ fn warrantor_status_prints_a_tier_per_bound_and_the_legend() {
         .output()
         .expect("run warrantor status");
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(out.status.success(), "{stdout}{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{stdout}{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert!(stdout.contains("bound tiers"), "{stdout}");
     for (name, strength) in bound_strengths() {
-        assert!(stdout.contains(&render_bound(name, strength)), "{name} missing:\n{stdout}");
+        assert!(
+            stdout.contains(&render_bound(name, strength)),
+            "{name} missing:\n{stdout}"
+        );
     }
     for legend in render_tier_legend() {
         assert!(stdout.contains(&legend), "{stdout}");
@@ -286,7 +302,10 @@ fn both_readmes_carry_the_bounds_table_generated_from_bound_strengths() {
             .find("<!-- bound-tiers:end -->")
             .unwrap_or_else(|| panic!("{which}: no bound-tiers:end marker"));
         let between = &readme[start..end];
-        assert!(between.contains(&table), "{which}: table drifted from bound_strengths():\n{table}");
+        assert!(
+            between.contains(&table),
+            "{which}: table drifted from bound_strengths():\n{table}"
+        );
     }
     assert!(
         !include_str!("../../../README.md")
