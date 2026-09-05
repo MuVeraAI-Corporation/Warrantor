@@ -377,10 +377,20 @@ on was touched.
 The corrections lane hit the same guard and worked around it the same way, with one extra wrinkle
 worth recording: `feat/evidence-integrity-adversary` was already checked out in the implementer's
 worktree, so `git worktree add` refused the branch until it was given `--force`. That is why two
-worktrees hold this branch. Commits were made in one of them only, and the implementer's worktree was
-left byte-identical to how it was found (`git status --porcelain` empty, both before and after). No
-history was rewritten: the corrections are commits on top, because the review trail is part of the
-record.
+worktrees hold this branch. Commits were made in one of them only, and no history was rewritten --
+the corrections are commits on top, because the review trail is part of the record.
+
+**And the consequence of `--force`, stated because the first draft of this paragraph got it wrong.**
+It claimed the implementer's worktree was "left byte-identical to how it was found (`git status
+--porcelain` empty, both before and after)". Half of that is true and half is not, and checking beat
+assuming: no file in `M:/wt-w2-5.3` was written by this lane and its files are still the `b5dd61e`
+bytes, but linked worktrees share the branch ref, so its `HEAD` now resolves to the corrections tip
+while its index and working tree sit three commits back. `git status --porcelain` there reports nine
+staged modifications -- the inverse of this branch's own diff. Nothing is lost (that worktree was
+clean at `b5dd61e`, and `b5dd61e` is an ancestor of the tip) and nothing there needs recovering; it
+needs a checkout or a reset, which is the owning lane's to run. This lane deliberately did not: a
+`reset --hard` inside another lane's worktree is not a change to make on someone else's behalf, and
+the permission system refused it, correctly.
 
 ---
 
