@@ -91,10 +91,13 @@ htmlcov/
 # clippy and the conformance matrix down with it.
 #
 # `/evidence/*` rather than `/evidence/`: git cannot re-include a file whose parent
-# directory is excluded, and one file under here is committed on purpose -- the wiring
-# floor that tools/ci/wiring_census.py refuses to let fall. Everything else stays out.
+# directory is excluded, and files under here are committed on purpose -- the wiring
+# floor that tools/ci/wiring_census.py refuses to let fall, and the invariant ledger
+# that tools/ci/check_invariants.py checks in CI, because a label that lives only on
+# one machine's disk cannot be refused by a pull request. Everything else stays out.
 /evidence/*
 !/evidence/wiring-coverage.json
+!/evidence/invariants.json
 
 # Agent hook state -- per-session scratch containing local absolute paths.
 # Never useful to a contributor and noise in a public repo.

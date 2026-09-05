@@ -1,0 +1,129 @@
+{
+  "format": "warrantor.invariant-ledger/1",
+  "source": "docs/02-architecture.md#3-the-12-formal-invariants-i-01--i-12",
+  "reachable_crates_source": "rust/warrant/Cargo.toml path dependencies (Task 0.3 census replaces this)",
+  "invariants": [
+    {
+      "id": "I-01",
+      "statement": "No active identity, no action. Every action carries a verifiable AAE (P1) with a valid, unrevoked SPIFFE SVID.",
+      "status": "partial",
+      "enforced_by": [
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Identity", "test": "rust/notary/src/lib.rs::gate2_identity_revoked_svid_denies", "note": "revoked_svids is a caller-supplied Vec on VerdictContext; nothing consults a SPIRE agent"},
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Identity", "test": "rust/notary/src/lib.rs::gate2_identity_expired_svid_denies", "note": ""}
+      ],
+      "gap": "The CLI subject is the constant DEFAULT_CLI_SUBJECT (rust/warrant/src/lib.rs:88); no live SVID is issued, verified or revoked on the warrant path. Phase 3 (L6-02, L1-01)."
+    },
+    {
+      "id": "I-02",
+      "statement": "No authority expansion. The intersection of authorities in the delegation chain is the maximum authority; never the union.",
+      "status": "enforced",
+      "enforced_by": [
+        {"crate": "evidence", "symbol": "warrantor_evidence::verify_authority", "test": "rust/evidence/src/lib.rs::authority_expansion_rejected", "note": "error text 'authority expansion; I-02'"},
+        {"crate": "evidence", "symbol": "warrantor_evidence::recompute_intersection", "test": "rust/evidence/src/lib.rs::forged_intersection_proof_rejected", "note": ""},
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Authority", "test": "rust/notary/src/lib.rs::gate5_authority_outside_intersection_denies", "note": ""},
+        {"crate": "notary", "symbol": "warrantor_notary::effective_capabilities", "test": "rust/notary/src/lib.rs::gate5_authority_intersection_drops_capability_when_a_link_lacks_it", "note": ""}
+      ],
+      "gap": "The intersection algebra exists once on this tree, in the evidence crate, on the binary's path. (The plan recorded a second implementation in rust/delegation-chain, a crate that is not tracked on origin/main; Task 1.5 owns wherever that algebra lands.)"
+    },
+    {
+      "id": "I-03",
+      "statement": "Purpose-bound data use. Data tagged with a purpose in CPE (P3) is only used for that purpose; violation fails-closed.",
+      "status": "unimplemented",
+      "enforced_by": [],
+      "gap": "Zero references to I-03 in rust/**/*.rs; no CPE implementation exists in any language. Not on the Wave 1 spine; the blueprint's Part 06 READ row records the open decision (tenth syscall or CRED sub-class)."
+    },
+    {
+      "id": "I-04",
+      "statement": "No consequential action without current policy. Policy is re-evaluated at commit time, not just at start.",
+      "status": "partial",
+      "enforced_by": [
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Policy", "test": "rust/notary/src/lib.rs::gate8_policy_denied_denies", "note": "policy_decision is a caller-supplied bool on VerdictContext; the gate refuses, it does not evaluate"}
+      ],
+      "gap": "No policy engine runs at commit time on the warrant path; the notary trusts the boolean it is handed. Phase 2 admission (L4-01, L4-05)."
+    },
+    {
+      "id": "I-05",
+      "statement": "Revocation latency is bounded. Identity revocation (I1) propagates to all replicas in <5s; credential revocation (R4) in <1s.",
+      "status": "orphaned",
+      "enforced_by": [
+        {"crate": "credential-vault", "symbol": "warrantor_credential_vault::REVOKE_BUDGET", "test": "rust/credential-vault/src/lib.rs::revoke_all_meets_budget", "note": "1 s budget; over-budget revocation is an error"},
+        {"crate": "credential-vault", "symbol": "warrantor_credential_vault::Vault", "test": "rust/credential-vault/src/lib.rs::revocation_survives_an_actual_restart_ax40", "note": "asserts 'a revoked credential MUST stay revoked across a restart (I-05)'"}
+      ],
+      "gap": "warrantor-credential-vault is not linked by the warrantor binary; identity revocation (<5s) has no implementation at all. Phase 3 custody (L1-07)."
+    },
+    {
+      "id": "I-06",
+      "statement": "Artifact identity is exact. A model/skill/dataset is identified by its content digest, not its name or URI.",
+      "status": "partial",
+      "enforced_by": [
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Artifacts", "test": "rust/notary/src/lib.rs::gate6_artifacts_unverified_digest_denies", "note": "verified_artifacts is a caller-supplied Vec on VerdictContext"},
+        {"crate": "trust-core", "symbol": "warrantor_trust_core::merkle::merkle_root", "test": "rust/trust-core/src/merkle.rs::determinism", "note": ""}
+      ],
+      "gap": "The digest-computing crates (safe-tensors-pp, gguf-ext) are not linked by the binary; the notary gate refuses on a flag it does not compute. Phase 2 digest-pinned EXEC (L4-09)."
+    },
+    {
+      "id": "I-07",
+      "statement": "Evidence precedes commitment. The AAR (P2) is signed *before* the action's effect is visible; the action only commits once evidence is durable.",
+      "status": "partial",
+      "enforced_by": [
+        {"crate": "evidence", "symbol": "warrantor_evidence::verify_chain", "test": "rust/evidence/src/lib.rs::orphan_post_commit_no_parent_rejected", "note": "'post_commit has no parent_receipt (orphan; I-07)'"},
+        {"crate": "evidence", "symbol": "warrantor_evidence::verify_chain", "test": "rust/evidence/src/lib.rs::post_commit_wrong_parent_rejected", "note": ""},
+        {"crate": "evidence", "symbol": "warrantor_evidence::issue_pre_commit", "test": "rust/evidence/src/lib.rs::an_expired_pre_commit_sinks_the_chain", "note": ""}
+      ],
+      "gap": "The commit gate is enforced for callers of verify_chain; no live warrantor effect passes through a pre_commit receipt until Task 1.1 wires evidence into the report path. Promote to enforced in that PR, on the live-run receipt."
+    },
+    {
+      "id": "I-08",
+      "statement": "Critical actions require non-delegable human authority. A defined class of actions (financial transfer, destructive op, physical actuation) require a human approval in the chain.",
+      "status": "enforced",
+      "enforced_by": [
+        {"crate": "authority-spec", "symbol": "warrantor_authority_spec::validate", "test": "rust/authority-spec/src/lib.rs::financial_class_without_approval_fails_invariant_i08", "note": "SideEffectClass consequential classes require an approval"},
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Approval", "test": "rust/notary/src/lib.rs::gate9_approval_critical_without_human_approval_denies", "note": ""},
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Approval", "test": "rust/notary/src/lib.rs::gate9_approval_critical_with_delegable_approval_still_denies", "note": "a delegable approval is refused"},
+        {"crate": "warrant", "symbol": "warrantor_warrant::operators::ApprovalPolicy", "test": "rust/warrant/src/operators.rs::anonymous_approvals_cannot_satisfy_a_multi_person_requirement", "note": "distinct named persons are counted, not approval records"}
+      ],
+      "gap": "Approval.non_delegable at the notary is a caller-asserted flag; the warrant operators path is where the person is actually counted. The no-terminal approval device is Phase 4 (L8-01)."
+    },
+    {
+      "id": "I-09",
+      "statement": "Failure is safe. If any plane fails open, the action fails closed. Network loss to I1 = deny.",
+      "status": "orphaned",
+      "enforced_by": [
+        {"crate": "eval-guard", "symbol": "warrantor_eval_guard::run_preflight", "test": "rust/eval-guard/src/lib.rs::any_failure_blocks_start", "note": "a failed probe returns Err and no attestation is produced; the CLI prints 'REFUSING to start the agent (invariant I-09: failure is safe).' at cli.rs:52 and exits 1"},
+        {"crate": "eval-guard", "symbol": "warrantor_eval_guard::run_preflight", "test": "rust/eval-guard/src/lib.rs::all_pass_returns_signed_attestation", "note": "the control: probes that pass produce a signed attestation, so the refusal path is not one-sided"}
+      ],
+      "gap": "warrantor-eval-guard is a separate binary the warrantor CLI never invokes; 'network loss to I1 = deny' has no I1 to lose. The measured pre-flight probes (run_preflight_measured, rust/eval-guard/src/probes.rs) that the plan cited exist only in uncommitted work, not on origin/main. Phase 3 wires the pre-flight into a supervised session."
+    },
+    {
+      "id": "I-10",
+      "statement": "Replay is detectable. Every action carries a nonce + timestamp; replays outside the window are rejected.",
+      "status": "partial",
+      "enforced_by": [
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Freshness", "test": "rust/notary/src/lib.rs::gate3_freshness_replayed_nonce_denies", "note": "seen_nonces is a caller-supplied Vec on VerdictContext; no durable nonce store exists in warrant"},
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Freshness", "test": "rust/notary/src/lib.rs::gate3_freshness_stale_timestamp_denies", "note": ""}
+      ],
+      "gap": "The gate refuses a replay it is told about; nothing on the warrant path remembers nonces across calls. Phase 3 recorder (L7-20)."
+    },
+    {
+      "id": "I-11",
+      "statement": "Self-change is governed. An agent cannot modify its own enforcement boundary, policy, or identity.",
+      "status": "partial",
+      "enforced_by": [
+        {"crate": "warrant", "symbol": "warrantor_warrant::bound_strengths", "test": "rust/warrant/tests/report.rs::widening_a_bound_after_signing_is_detected", "note": "detection after the fact, not prevention at the moment of change"},
+        {"crate": "egress", "symbol": "warrantor_egress::DenyReason::AgentCannotAmendCatalog", "test": "rust/egress/src/lib.rs::agent_supplies_hostname_rejected", "note": "AgentCannotAmendCatalog is declared at lib.rs:52 and never constructed anywhere in rust/; the cited test shows the agent cannot express a destination, which is the adjacent property, not this one"}
+      ],
+      "gap": "No test observes an agent being refused an amendment of its own catalog, policy or identity; the egress deny reason for it is dead code. Phase 5 (L2-02..L2-06) and the Phase 3 red-team gate (L0-05)."
+    },
+    {
+      "id": "I-12",
+      "statement": "Physical systems can reach a safe state. For any cyber-physical action, there exists a kill path to a known-safe state.",
+      "status": "partial",
+      "enforced_by": [
+        {"crate": "notary", "symbol": "warrantor_notary::Gate::Containment", "test": "rust/notary/src/lib.rs::gate1_containment_denies_first", "note": "a contained scope is refused before any other gate runs"},
+        {"crate": "warrant", "symbol": "warrantor_warrant::stop::STOP_ENFORCEMENT_MODE", "test": "rust/warrant/tests/stop.rs::a_live_supervisor_is_terminated_and_confirmed_gone", "note": "STOP_ENFORCEMENT_MODE = \"advisory\" (rust/warrant/src/stop.rs:104)"},
+        {"crate": "warrant", "symbol": "warrantor_warrant::stop::STOP_ENFORCEMENT_MODE", "test": "rust/warrant/tests/stop.rs::a_supervisor_that_will_not_die_is_a_containment_failure_not_a_stop", "note": "a stop that does not stop is scored as a containment failure, never a pass"}
+      ],
+      "gap": "The stop verb kills a local process and says so honestly as 'advisory'; the kill-switch crate (its own tokio runtime) is not linked, and no cyber-physical safe-state path exists. Task 1.3 promotes STOP_ENFORCEMENT_MODE only where a refusal is observed on that kernel."
+    }
+  ]
+}

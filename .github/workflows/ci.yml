@@ -378,6 +378,12 @@ jobs:
           python-version: "3.11"
       - name: Run documentation checks
         run: python tools/ci/check_docs.py
+      - name: Install pytest for the invariant ledger tests
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Check the invariant ledger against the tree
+        run: python tools/ci/check_invariants.py
+      - name: Test the invariant ledger checker
+        run: python -m pytest tools/ci/test_check_invariants.py -q -p no:cacheprovider
       - name: Generate exhaustive implementation tracker
         run: python tools/implementation/generate_tracker.py --output evidence/implementation-tracker.json
       - name: Upload implementation inventory
