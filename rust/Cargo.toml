@@ -39,6 +39,7 @@ members = [
     "content-moderation",
     "csam-defense",
     "misinformation-defense",
+    "reputation",
 ]
 exclude = [
     "trust-core/fuzz",  # nested cargo-fuzz workspace (own [workspace] table)

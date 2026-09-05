@@ -87,6 +87,15 @@ client, gets a refusal and an explanation rather than a config file.
 Still open here: the Python `warrantor-harness config` subcommand has not been removed, so the old
 generator remains reachable by anyone who finds it first.
 
+### 0.3 A crate that compiled for nobody — **fixed 2026-09-02**
+
+`rust/reputation` (H-4, the scorer the identity graph defers to) sat on disk with a valid
+manifest and fourteen passing tests but was never a `[workspace] member` and never committed,
+so `cargo test --workspace` built it for nobody, the formatting gate never saw that it was
+unformatted (it was), and no document recorded it; it is now a member, formatted, covered by
+an integration target, and gated like every other crate — the same shape as the ~20 orphaned
+substrate crates, one level down: not unwired, *unbuilt*.
+
 ---
 
 ## Tier 1 — blocks a non-developer using this at all
