@@ -79,6 +79,9 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "deadline",
     "repo",
     "egress",
+    // Task 1.2: named capabilities from the operator catalog, compiled into the warrant's
+    // catalog at grant time. Wired in cmd_grant; listed here so the usage text may name it.
+    "egress-capability",
     "budget",
     "subject",
     // report / verify / issuer / archive
