@@ -1012,6 +1012,12 @@ count of failures.
 
 ## The honest summary
 
+**The twelve invariants now have a ledger** (`evidence/invariants.json`, 2026-09-02): I-02 and
+I-08 are enforced by tests on the `warrantor` path; I-01, I-04, I-06, I-07, I-10, I-11 and I-12 are
+partial (a gate refuses, but on a flag the caller supplies, or the mode is advisory); I-05 and
+I-09 are orphaned in `credential-vault` and `eval-guard`; I-03 has no code in any language. The
+ledger is CI-checked against the tests it names, so a status can only move when a test moves.
+
 The **substrate is real** and the **single-machine loop is complete**. Most of what is missing is
 still what makes it a product rather than a tool: it installs but announces itself with an operating
 system warning, it cannot be reached by a second person, and it cannot say who did what.

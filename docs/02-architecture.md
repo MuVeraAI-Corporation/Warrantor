@@ -68,7 +68,12 @@ The runtime architecture is **12 planes**, each with a failure invariant; **12 f
 ## 3. The 12 Formal Invariants (I-01 … I-12)
 
 Every invariant must have **at least one** static check, runtime check, adversarial test, and
-evidence field. A component that breaks an invariant fails CI.
+evidence field. A component that breaks an invariant fails CI. That is the goal; the honest
+status today — which invariants are enforced on the `warrantor` path, which are partial, which
+live only in crates the binary does not link, and which have no code at all — is the ledger
+[`evidence/invariants.json`](../evidence/invariants.json) (format `warrantor.invariant-ledger/1`),
+checked in CI by `tools/ci/check_invariants.py` against the tests it cites and against this table.
+This table states the invariant; the ledger states what enforces it.
 
 | ID | Invariant | Enforced primarily by |
 |---|---|---|
