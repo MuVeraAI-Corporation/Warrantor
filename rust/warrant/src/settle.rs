@@ -30,6 +30,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use warrantor_evidence as evidence;
+
 use crate::staging::{StagedEffect, StagingQueue};
 use crate::worktree::Worktree;
 use crate::{Warrant, WarrantError, WarrantState};
@@ -53,6 +55,19 @@ pub trait EffectPerformer {
         effect: &StagedEffect,
         resolved: &BTreeMap<String, String>,
     ) -> Result<String, String>;
+}
+
+/// The method every per-effect receipt records. An effect is only ever performed by settle.
+pub const EFFECT_METHOD: &str = "settle";
+
+/// Where a receipt becomes durable. `Ok` means "on stable storage"; the performer acts on it.
+pub trait ReceiptSink {
+    /// Persist `receipt` before returning.
+    ///
+    /// # Errors
+    /// Any string. A failed pre-commit record means the effect is NOT performed (I-07); a failed
+    /// post-commit record is reported by [`EvidencedPerformer::unrecorded`].
+    fn record(&mut self, receipt: &evidence::WarReceipt) -> Result<(), String>;
 }
 
 /// What happened to one effect during a settle.

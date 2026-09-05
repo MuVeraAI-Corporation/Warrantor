@@ -193,6 +193,19 @@ impl EffectRegistry {
     }
 }
 
+/// SHA-256 hex of one staged effect's serialized form — the `parameters_digest` a receipt over
+/// that effect carries, recomputable by anyone holding the effect.
+///
+/// # Errors
+/// [`WarrantError::Encode`] if the effect does not serialize.
+pub fn effect_digest(effect: &StagedEffect) -> Result<String, WarrantError> {
+    let body = serde_json::to_vec(effect)
+        .map_err(|e| WarrantError::Encode(format!("digest effect: {e}")))?;
+    let mut hasher = Sha256::new();
+    hasher.update(&body);
+    Ok(hex::encode(hasher.finalize()))
+}
+
 /// Extract the scheme from a handle: `pr://staged/w/1` → `pr`.
 #[must_use]
 pub fn handle_scheme(handle: &str) -> &str {

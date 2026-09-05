@@ -49,6 +49,7 @@ pub mod mcp_endpoints;
 pub mod notify;
 pub mod operators;
 pub mod proxy;
+pub mod receipts;
 pub mod report;
 pub mod retention;
 pub mod review;
