@@ -12,43 +12,43 @@
 |---|---|---|
 | DONE | 0 | Merged into `origin/main` **and** exit-gate evidence recorded |
 | UNEVIDENCED | 0 | Merged with no evidence file. **This is a defect, not a state.** |
-| IN-FLIGHT | 0 | Branch exists, not yet merged |
-| READY | 9 | Expanded, unblocked, nobody has started it |
+| IN-FLIGHT | 8 | Branch exists, not yet merged |
+| READY | 2 | Expanded, unblocked, nobody has started it |
 | NEEDS-EXPANSION | 0 | Task structure exists; Step-0 detail not yet captured |
-| BLOCKED | 32 | A predecessor has not landed |
+| BLOCKED | 31 | A predecessor has not landed |
 
 | Task | Ph | Owner | State | Steps | Branch | SHA | Blocked by |
 |---|---|---|---|---|---|---|---|
-| **0.1** Put `rust/reputation` under the workspace | 0 | `glm-5.3-flash` | READY | 9 | `feat/task-0.1` | — | — |
-| **0.2** Windows CI runner for the platform-conditional paths | 0 | `glm-5.3-flash` | READY | 10 | `feat/task-0.2` | — | — |
-| **0.3** Orphan census as a ratcheting CI number (seed of ... | 0 | `glm-5.3-flash` | READY | 9 | `feat/task-0.3` | — | — |
+| **0.1** Put `rust/reputation` under the workspace | 0 | `glm-5.3-flash` | IN-FLIGHT | 9 | `feat/task-0.1-reputation-workspace` | 91834a6 | — |
+| **0.2** Windows CI runner for the platform-conditional paths | 0 | `glm-5.3-flash` | IN-FLIGHT | 10 | `chore/windows-ci-runner` | f70acff | — |
+| **0.3** Orphan census as a ratcheting CI number (seed of ... | 0 | `glm-5.3-flash` | IN-FLIGHT | 9 | `feat/wiring-census` | 5e14058 | — |
 | **0.4** Tier disclosure lint across report, status and co... | 0 | `glm-5.3-flash` | READY | 10 | `feat/task-0.4` | — | — |
-| **0.5** Invariant ledger I-01…I-12 with honest status | 0 | `glm-5.3-flash` | READY | 7 | `feat/task-0.5` | — | — |
-| **1.1** Evidence and notary into the report path (keyston... | 1 | `opus` | BLOCKED | 11 | `feat/task-1.1` | — | phase 0 |
-| **1.2** The egress broker into the `--egress` flag, with ... | 1 | `glm-5.3-flash` | BLOCKED | 13 | `feat/task-1.2` | — | phase 0 |
+| **0.5** Invariant ledger I-01…I-12 with honest status | 0 | `glm-5.3-flash` | READY | 7 | `feat/invariant-ledger` | — | — |
+| **1.1** Evidence and notary into the report path (keyston... | 1 | `opus` | BLOCKED | 11 | `feat/t11-effect-receipts` | — | phase 0 |
+| **1.2** The egress broker into the `--egress` flag, with ... | 1 | `glm-5.3-flash` | BLOCKED | 13 | `feat/egress-capability-catalog` | — | phase 0 |
 | **1.3** Containment and the kill switch into the `stop` v... | 1 | `glm-5.3-flash` | BLOCKED | 12 | `feat/task-1.3` | — | phase 0 |
-| **1.4** Spend into the budget path, last (L3-03; label pr... | 1 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-1.4` | — | phase 0 |
-| **1.5** One delegation algebra: evidence delegates to del... | 1 | `opus` | BLOCKED | 14 | `feat/task-1.5` | — | phase 0 |
-| **1.6** Trust directory bundle export/import and second-m... | 1 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-1.6` | — | phase 0 |
-| **2.1** Effect decomposition registry with strict-mode re... | 2 | `opus` | BLOCKED | 14 | `feat/task-2.1` | — | phase 1 |
-| **2.2** Signed tool and skill admission manifests (L4-09) | 2 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-2.2` | — | phase 1 |
-| **2.3** Two-phase staged effects for every syscall with i... | 2 | `glm-5.3-flash` | BLOCKED | 13 | `feat/task-2.3` | — | phase 1 |
-| **2.4** EXEC admission by content digest and declared exe... | 2 | `glm-5.3-flash` | BLOCKED | 15 | `feat/task-2.4` | — | phase 1 |
+| **1.4** Spend into the budget path, last (L3-03; label pr... | 1 | `glm-5.3-flash` | BLOCKED | 9 | `feat/spend-call-ceiling` | — | phase 0 |
+| **1.5** One delegation algebra: evidence delegates to del... | 1 | `opus` | BLOCKED | 14 | `feat/task-1.5-one-delegation-algebra` | — | phase 0 |
+| **1.6** Trust directory bundle export/import and second-m... | 1 | `glm-5.3-flash` | BLOCKED | 7 | `feat/trust-bundle-second-machine` | — | phase 0 |
+| **2.1** Effect decomposition registry with strict-mode re... | 2 | `opus` | BLOCKED | 14 | `feat/effect-decomposition-registry` | — | phase 1 |
+| **2.2** Signed tool and skill admission manifests (L4-09) | 2 | `glm-5.3-flash` | BLOCKED | 9 | `feat/tool-admission-manifests` | — | phase 1 |
+| **2.3** Two-phase staged effects for every syscall with i... | 2 | `glm-5.3-flash` | BLOCKED | 13 | `feat/two-phase-staged-effects` | — | phase 1 |
+| **2.4** EXEC admission by content digest and declared exe... | 2 | `glm-5.3-flash` | BLOCKED | 15 | `feat/exec-digest-admission` | — | phase 1 |
 | **2.5** Generic HTTP adapter over the destination catalog... | 2 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-2.5` | — | phase 1 |
 | **2.6** Provenance labels on tool outputs and peer-propos... | 2 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-2.6` | — | phase 1 |
-| **3.1** Agent principals at five grains from SPIFFE SVIDs | 3 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-3.1` | — | phase 2 |
+| **3.1** Agent principals at five grains from SPIFFE SVIDs | 3 | `glm-5.3-flash` | BLOCKED | 9 | `feat/task-3.1-agent-principals` | — | phase 2 |
 | **3.2** Hardware-backed custody adapter behind a `Signer`... | 3 | `human` | BLOCKED | 7 | `feat/task-3.2` | — | phase 2 |
 | **3.3** Operator device-key binding in settle records | 3 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-3.3` | — | phase 2 |
 | **3.4** Broker-side flight recorder behind a `Recorder` t... | 3 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-3.4` | — | phase 2 |
 | **3.5** Machine-speed response policy — `warrantor.respon... | 3 | `glm-5.3-flash` | BLOCKED | 8 | `feat/task-3.5` | — | phase 2 |
 | **3.6** Improvised-channel detection and the shared-surfa... | 3 | `glm-5.3-flash` | BLOCKED | 8 | `feat/task-3.6` | — | phase 2 |
 | **3.7** Generalize warrant-lifecycle self-protection | 3 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-3.7` | — | phase 2 |
-| **4.1** Approval queue with a latency budget and default-... | 4 | `minimax-m3` | READY | 8 | `feat/task-4.1` | — | — |
-| **4.2** Notification fabric — decision, then transports | 4 | `minimax-m3` | READY | 6 | `feat/task-4.2` | — | — |
+| **4.1** Approval queue with a latency budget and default-... | 4 | `minimax-m3` | IN-FLIGHT | 8 | `feat/task-4.1-buyers-surface` | c877162 | — |
+| **4.2** Notification fabric — decision, then transports | 4 | `minimax-m3` | IN-FLIGHT | 6 | `feat/task-4.2-notify-fabric` | 51396d5 | — |
 | **4.3** Coverage disclosure surface in console and deskto... | 4 | `minimax-m3` | BLOCKED | 7 | `feat/task-4.3` | — | task 0.4 |
-| **4.4** Action-path coverage map computed from receipts | 4 | `minimax-m3` | READY | 7 | `feat/task-4.4` | — | — |
-| **4.5** Local-first inference routing with receipted esca... | 4 | `minimax-m3` | READY | 6 | `feat/task-4.5` | — | — |
-| **5.1** Invariant attack corpus in CI | 5 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-5.1` | — | phase 3 |
+| **4.4** Action-path coverage map computed from receipts | 4 | `minimax-m3` | IN-FLIGHT | 7 | `feat/task-4.4-coverage-map` | 6dab96a | — |
+| **4.5** Local-first inference routing with receipted esca... | 4 | `minimax-m3` | IN-FLIGHT | 6 | `feat/task-4.5-routing-receipts` | 316c21e | — |
+| **5.1** Invariant attack corpus in CI | 5 | `glm-5.3-flash` | IN-FLIGHT | 7 | `feat/task-5.1-invariant-corpus` | be21b2c | phase 3 |
 | **5.2** Egress-closure prover — `warrantor prove-egress` | 5 | `glm-5.3-flash` | BLOCKED | 7 | `feat/task-5.2` | — | phase 3 |
 | **5.3** Evidence-integrity adversary | 5 | `opus` | BLOCKED | 7 | `feat/task-5.3` | — | phase 3 |
 | **5.4** Common-mode independence analysis for double netw... | 5 | `opus` | BLOCKED | 6 | `feat/task-5.4` | — | phase 3 |
@@ -63,12 +63,5 @@
 
 ## Runnable right now
 
-- **Task 0.1** — Put `rust/reputation` under the workspace → `glm-5.3-flash`
-- **Task 0.2** — Windows CI runner for the platform-conditional paths → `glm-5.3-flash`
-- **Task 0.3** — Orphan census as a ratcheting CI number (seed of L8-22) → `glm-5.3-flash`
 - **Task 0.4** — Tier disclosure lint across report, status and console (L8-13, partial → tested) → `glm-5.3-flash`
 - **Task 0.5** — Invariant ledger I-01…I-12 with honest status → `glm-5.3-flash`
-- **Task 4.1** — Approval queue with a latency budget and default-deny timeout → `minimax-m3`
-- **Task 4.2** — Notification fabric — decision, then transports → `minimax-m3`
-- **Task 4.4** — Action-path coverage map computed from receipts → `minimax-m3`
-- **Task 4.5** — Local-first inference routing with receipted escalation → `minimax-m3`

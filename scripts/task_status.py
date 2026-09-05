@@ -37,6 +37,9 @@ BOARD = REPO / "docs/TASK-STATUS.md"
 
 TASK_RE = re.compile(r"^### Task (\d+\.\d+):\s*(.+?)\s*$", re.MULTILINE)
 STEP_RE = re.compile(r"^- \[ \] \*\*Step\b", re.MULTILINE)
+# Each task's Step 1 declares its own branch as `git worktree add <path> -b <branch> origin/main`.
+# That line is the authority on the name, so the board reads it instead of guessing.
+DECLARED_BRANCH_RE = re.compile(r"worktree add\s+\S+\s+-b\s+(\S+)")
 
 
 def git(*args: str) -> str:
@@ -114,16 +117,32 @@ def load_tasks() -> list[Task]:
         body = text[m.end(): matches[i + 1].start() if i + 1 < len(matches) else len(text)]
         phase = task_id.split(".")[0]
 
-        # Match any branch carrying this task id as a segment, because the plan's own
-        # steps use `feat/task-0.1-reputation-workspace` while other lanes may use a
-        # bare `impl/task-0.1`. Matching a single literal would have reported every
-        # task as unstarted forever, which is the failure this whole board exists to
-        # prevent, so the match is deliberately loose and the convention advisory.
+        # The branch comes from the task's own Step 1, which declares it. Deriving it from
+        # the plan is the only resolution that cannot drift from what a lane was told to do.
+        # A segment match on `task-N.M` was tried first and is not sufficient: 13 of the 15
+        # branch names this plan declares carry no such segment — `chore/windows-ci-runner`,
+        # `feat/wiring-census`, `feat/egress-capability-catalog` — so it reported finished
+        # tasks as never started. That is the failure this board exists to prevent, reached
+        # by matching a convention the plan does not follow rather than by matching nothing.
+        declared = DECLARED_BRANCH_RE.search(body)
+        declared_branch = declared.group(1).strip("`'\"") if declared else ""
+        if "<" in declared_branch:          # a template in prose, not a branch name
+            declared_branch = ""
+
+        # Fallback: any branch carrying the task id as a segment, for a lane that renamed or
+        # used `impl/task-N.M`. The convention stays advisory; the plan stays authoritative.
         pattern = re.compile(rf"(?:^|/)task-{re.escape(task_id)}(?:-|$)")
-        found = sorted(b for b in all_branches if pattern.search(b))
-        branch = found[0] if found else convention.format(id=task_id)
-        exists = bool(found)
-        merged = exists and any(pattern.search(b) for b in merged_into_main)
+        candidates = sorted(b for b in all_branches if pattern.search(b))
+        if declared_branch and declared_branch in all_branches:
+            branch = declared_branch
+        elif candidates:
+            branch = candidates[0]
+        else:
+            branch = declared_branch or convention.format(id=task_id)
+        exists = branch in all_branches
+        merged = exists and (
+            branch in merged_into_main or any(pattern.search(b) for b in merged_into_main)
+        )
         sha = git("rev-parse", "--short", branch) if exists else ""
 
         # A task is blocked by an explicit gate, or by its phase's predecessors.
