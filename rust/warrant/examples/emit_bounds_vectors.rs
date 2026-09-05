@@ -53,6 +53,7 @@ fn parent_bounds() -> WarrantBounds {
         staged_classes: classes(&[SideEffectClass::Financial, SideEffectClass::Destructive]),
         expires_at: 2_000_000_000,
         budget_cents_observed: Some(500),
+        max_tool_calls: Some(100),
         delegation_depth: 3,
     }
 }
@@ -65,6 +66,7 @@ fn cases() -> Vec<Case> {
         staged_classes: classes(&[SideEffectClass::Financial, SideEffectClass::Destructive]),
         expires_at: 1_900_000_000,
         budget_cents_observed: Some(100),
+        max_tool_calls: Some(100),
         delegation_depth: 2,
     };
 
@@ -140,6 +142,7 @@ fn cases() -> Vec<Case> {
             parent: parent_bounds(),
             child: WarrantBounds {
                 budget_cents_observed: Some(900),
+                max_tool_calls: Some(100),
                 ..base_child()
             },
         },
@@ -150,6 +153,7 @@ fn cases() -> Vec<Case> {
             parent: parent_bounds(),
             child: WarrantBounds {
                 budget_cents_observed: None,
+                max_tool_calls: Some(100),
                 ..base_child()
             },
         },
@@ -159,10 +163,12 @@ fn cases() -> Vec<Case> {
                    delegate nothing, so any positive child ceiling expands",
             parent: WarrantBounds {
                 budget_cents_observed: None,
+                max_tool_calls: Some(100),
                 ..parent_bounds()
             },
             child: WarrantBounds {
                 budget_cents_observed: Some(1),
+                max_tool_calls: Some(100),
                 ..base_child()
             },
         },
@@ -171,10 +177,12 @@ fn cases() -> Vec<Case> {
             rule: "budget: zero delegated to zero is a narrowing of nothing, and holds",
             parent: WarrantBounds {
                 budget_cents_observed: None,
+                max_tool_calls: Some(100),
                 ..parent_bounds()
             },
             child: WarrantBounds {
                 budget_cents_observed: None,
+                max_tool_calls: Some(100),
                 ..base_child()
             },
         },

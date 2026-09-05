@@ -447,6 +447,7 @@ fn tampered_report_bytes() -> Vec<u8> {
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at: NOW + 3600,
         budget_cents_observed: Some(500),
+        max_tool_calls: Some(100),
         delegation_depth: 3,
     };
     let mut warrant = Warrant::grant(

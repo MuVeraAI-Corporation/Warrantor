@@ -286,6 +286,14 @@ pub struct WarrantBounds {
     /// The absent-means-zero reading is crate-wide: `spend::cap_micros` gives an undeclared budget
     /// a cap of zero micros, and [`WarrantBounds::contains`] gives it nothing to delegate.
     pub budget_cents_observed: Option<u64>,
+    /// Tool-call ceiling: how many calls the MCP proxy will forward or stage under this warrant.
+    /// `None` is a ceiling of **zero**, never "unlimited" — the same reading as the budget above.
+    ///
+    /// [`BoundStrength::Mediated`]: refused by the proxy at the moment of the call, and only for
+    /// calls that pass through the proxy. `#[serde(default)]` so a warrant granted before this
+    /// field existed still parses; it parses as zero and the grant path always writes a value.
+    #[serde(default)]
+    pub max_tool_calls: Option<u64>,
     /// Maximum delegation depth remaining for sub-warrants.
     pub delegation_depth: u32,
 }
@@ -358,6 +366,16 @@ impl WarrantBounds {
                 "budget: parent is capped at {parent_cents} but the child declares no ceiling. An \
                  absent budget is a ceiling of zero and is never exhausted, so it is not inherited \
                  -- state the child's ceiling explicitly"
+            )));
+        }
+        // The call ceiling reads an absent value as zero, like the budget, and unlike the budget it
+        // has no start gate that depends on whether a ceiling was declared: zero calls is a
+        // complete statement. So this is the one numeric comparison and nothing more.
+        let parent_calls = self.max_tool_calls.unwrap_or(0);
+        let child_calls = other.max_tool_calls.unwrap_or(0);
+        if child_calls > parent_calls {
+            return Err(WarrantError::AuthorityExpanded(format!(
+                "max_tool_calls: child {child_calls} exceeds parent {parent_calls}"
             )));
         }
         if other.delegation_depth >= self.delegation_depth {

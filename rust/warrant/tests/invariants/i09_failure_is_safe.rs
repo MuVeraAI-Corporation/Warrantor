@@ -23,6 +23,7 @@ fn bounds_with_budget(budget_cents_observed: Option<u64>) -> WarrantBounds {
         staged_classes: BTreeSet::new(),
         expires_at: scenario::NOW + 3_600,
         budget_cents_observed,
+        max_tool_calls: Some(100),
         delegation_depth: 0,
     }
 }

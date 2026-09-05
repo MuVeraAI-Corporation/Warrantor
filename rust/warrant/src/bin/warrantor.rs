@@ -841,6 +841,7 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at: now() + deadline,
         budget_cents_observed: budget_cents,
+        max_tool_calls: Some(spend::DEFAULT_MAX_TOOL_CALLS),
         delegation_depth: 3,
     };
 

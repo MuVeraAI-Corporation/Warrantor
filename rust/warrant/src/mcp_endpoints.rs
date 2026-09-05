@@ -176,6 +176,9 @@ impl ControlEndpoint {
             // Read through `optional_cents`, never `Value::as_u64` directly: absence has to be
             // something the caller chose, not something a malformed value decayed into.
             budget_cents_observed,
+            // The MCP grant path writes the documented default: a warrant a tool mints carries the
+            // same declared ceiling one from the CLI does.
+            max_tool_calls: Some(crate::spend::DEFAULT_MAX_TOOL_CALLS),
             delegation_depth: arguments
                 .get("delegation_depth")
                 .and_then(Value::as_u64)

@@ -63,6 +63,7 @@ fn warrant_with(id: &str, expires_at: u64, issuer_seed: u8) -> StoredWarrant {
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at,
         budget_cents_observed: None,
+        max_tool_calls: Some(100),
         delegation_depth: 1,
     };
     let warrant = Warrant::grant(

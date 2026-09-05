@@ -51,6 +51,7 @@ fn bounds(budget_cents: Option<u64>) -> WarrantBounds {
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at: NOW + 3600,
         budget_cents_observed: budget_cents,
+        max_tool_calls: Some(100),
         delegation_depth: 2,
     }
 }

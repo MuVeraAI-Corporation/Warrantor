@@ -124,6 +124,10 @@ pub const OBSERVATION_NOTE: &str =
 /// File under the store root that holds the operator's model price table.
 pub const BACKENDS_FILE: &str = "backends.json";
 
+/// The ceiling `grant` writes when `--max-calls` is not given. A documented default written into
+/// the claims, like the eight-hour deadline, so no warrant carries an undeclared ceiling.
+pub const DEFAULT_MAX_TOOL_CALLS: u64 = 1_000;
+
 // ── errors ────────────────────────────────────────────────────────────────────────────
 
 /// Everything that can go wrong reading, writing or checking a ledger.

@@ -31,8 +31,46 @@ fn bounds() -> WarrantBounds {
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at: NOW + 8 * HOUR,
         budget_cents_observed: Some(500),
+        max_tool_calls: Some(100),
         delegation_depth: 3,
     }
+}
+
+/// The call ceiling is a bound, so it obeys the delegation rule every other bound obeys: a child
+/// may hold at most what its parent holds, and an absent ceiling is zero, never unlimited.
+#[test]
+fn a_child_cannot_hold_more_tool_calls_than_its_parent() {
+    let parent = bounds();
+    let mut child = bounds();
+    child.max_tool_calls = Some(101);
+    let err = parent.contains(&child).expect_err("101 > 100");
+    assert!(matches!(err, WarrantError::AuthorityExpanded(ref m) if m.contains("max_tool_calls")));
+
+    let mut uncapped_parent = bounds();
+    uncapped_parent.max_tool_calls = None;
+    let mut one_call = bounds();
+    one_call.max_tool_calls = Some(1);
+    assert!(
+        uncapped_parent.contains(&one_call).is_err(),
+        "None is zero, and zero holds nothing to hand on"
+    );
+
+    let mut zero = bounds();
+    zero.max_tool_calls = Some(0);
+    // Below the parent's depth, so the delegation rule this test is not about stays out of the
+    // way: `contains` checks depth too, and equal depth is refused.
+    zero.delegation_depth = uncapped_parent.delegation_depth - 1;
+    uncapped_parent.contains(&zero).expect("zero within zero");
+}
+
+/// A warrant file written before the field existed must still parse, and must read as a ceiling
+/// of zero: the safe reading of a limit nobody declared.
+#[test]
+fn a_pre_ceiling_warrant_parses_with_a_ceiling_of_zero() {
+    let mut value = serde_json::to_value(bounds()).unwrap();
+    value.as_object_mut().unwrap().remove("max_tool_calls");
+    let parsed: WarrantBounds = serde_json::from_value(value).unwrap();
+    assert_eq!(parsed.max_tool_calls, None);
 }
 
 fn granted() -> (Warrant, SigningKey, SigningKey) {

@@ -93,6 +93,7 @@ fn seed(dir: &Path, id: &str, task: &str) {
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at: NOW + 3600,
         budget_cents_observed: None,
+        max_tool_calls: Some(100),
         delegation_depth: 1,
     };
     let warrant = Warrant::grant(

@@ -463,6 +463,7 @@ mod tests {
             staged_classes: [SideEffectClass::Write].into_iter().collect(),
             expires_at: 1_786_000_000,
             budget_cents_observed: Some(500),
+            max_tool_calls: Some(100),
             delegation_depth: 1,
         }
     }

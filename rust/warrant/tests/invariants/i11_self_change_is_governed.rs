@@ -33,6 +33,7 @@ fn bounds(hosts: &[&str], tools: &[&str]) -> WarrantBounds {
         staged_classes: BTreeSet::new(),
         expires_at: scenario::NOW + 3_600,
         budget_cents_observed: None,
+        max_tool_calls: Some(100),
         delegation_depth: 1,
     }
 }
