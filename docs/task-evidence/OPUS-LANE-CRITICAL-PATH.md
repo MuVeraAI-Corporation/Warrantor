@@ -89,3 +89,39 @@ records the choice rather than making it:
 
 Option 3 is the recommendation: it is the smallest edit that matches what the code actually depends
 on, and it does not quietly reinterpret the two gates that are genuinely decisions.
+
+---
+
+## Correction, 2026-09-05: this gate does not block implementation
+
+The analysis above is correct about the dependency graph and wrong about what follows from it.
+
+`resolve_blocks()` decides what the **status board reports**. It is a scheduling view derived from
+`docs/task-routing.json`, a file written during seeding in this same program. It is not a compiler, a
+CI gate, or a technical prerequisite. Nothing in it prevents a lane from writing code.
+
+The question that actually decides whether a task can be implemented today is narrower and per-task:
+**do its `Consumes` exist on the branch it would build from?** The eleven expanded opus tasks answer
+that question explicitly, each in its own Consumes block, and several answer *yes* while the board
+says BLOCKED:
+
+- **Task 7.1** — its own expansion states that Steps 1-5 stand alone and Steps 6-9 need
+  `rust/warrant/src/effects.rs` from Task 2.1. So five of nine steps are executable now.
+- **Task 9.1** — the two `#[ignore]` reasons it converts are on `main`, and `credential-vault` is a
+  crate on `main`. Executable now.
+- **Task 5.3** — every artifact it attacks is on `main`, and Task 1.1 landing made its Strategy A5
+  sharper rather than blocking it.
+
+All three were started on that basis. The board still reads BLOCKED for them, and that is a defect in
+the board rather than a reason to wait.
+
+**What the gate genuinely costs.** `python scripts/task_status.py --next` is how a lane picks work
+when it has no explicit list. A lane reading `--next` would see 67 tasks it cannot start. The GLM and
+MiniMax lanes run from explicit task lists in their goal files rather than from `--next`, so the cost
+is currently latent rather than actual.
+
+**What is still owed, and by whom.** Task 3.2 itself needs a TPM or an OS keystore observed
+executing, which is a human act on a machine that has one. That has not changed. What changed is the
+claim that 25 opus tasks were waiting on it: they were waiting on a status view. The three options
+recorded above are still the right options for making the board truthful, and option 3 is still the
+recommendation — but it is a reporting fix, not an unblocking act, and nothing should wait for it.
