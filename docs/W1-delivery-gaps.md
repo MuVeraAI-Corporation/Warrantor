@@ -728,6 +728,13 @@ confines nothing, and this process cannot tell whether the operator launched it.
 running an agent under one of these profiles on Linux and watching a write outside the worktree fail
 at the syscall.
 
+**Egress (Task 1.2, 2026-09):** destinations are catalog capability names on the agent endpoint in
+enforce mode; `--egress H,H` compiles into `host:<H>` entries; each broker decision is written to
+`<root>/egress/<id>.jsonl` before the forward and countersigned into the report bundle. Not closed:
+`egress_hosts` remains `Mediated` — no netns, seccomp or firewall; a tool with a compiled-in endpoint
+names no destination and is not decided; `warrantor_egress::transitive::check_closure` (L4-02's
+closure) is still uncalled and belongs to Phase 5's prover.
+
 ### 3.2 Notifications — **closed 2026-08-17**
 
 **What exists:** `notify.json` in the store root names webhook destinations (optionally with an

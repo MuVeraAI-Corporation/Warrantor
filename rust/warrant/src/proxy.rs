@@ -33,7 +33,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use crate::egress::{EgressBroker, EgressRefusal};
+use crate::catalog::Vocabulary;
+use crate::egress::{
+    capability_for, EgressBroker, EgressDecision, EgressRefusal, EgressVerdict, DESTINATION_KEYS,
+};
 use crate::staging::{EffectRegistry, StagedEffect, StagingQueue};
 use crate::{SideEffectClass, WarrantBounds};
 
@@ -97,6 +100,15 @@ pub struct AuthorityRequest {
     pub count: u32,
 }
 
+/// One broker decision not yet written down. Kept until the endpoint drains it.
+struct PendingDecision {
+    tool: String,
+    argument: String,
+    capability: String,
+    destination: String,
+    verdict: EgressVerdict,
+}
+
 /// The proxy's policy engine.
 pub struct Proxy {
     mode: ProxyMode,
@@ -110,6 +122,12 @@ pub struct Proxy {
     requests: BTreeMap<(String, String), AuthorityRequest>,
     /// Egress denials in full, deduplicated by (tool, destination).
     egress_refusals: BTreeMap<(String, String), EgressRefusal>,
+    /// The closed destination vocabulary, when a verified catalog was attached.
+    vocabulary: Option<Vocabulary>,
+    /// Broker decisions made since the last drain, allow and deny alike.
+    pending: Vec<PendingDecision>,
+    /// host → capability name, for the destinations the current call resolved by name.
+    resolved_names: BTreeMap<String, String>,
 }
 
 /// Classes that are refused even in observe mode.
@@ -134,6 +152,9 @@ impl Proxy {
             observed_tools: BTreeSet::new(),
             requests: BTreeMap::new(),
             egress_refusals: BTreeMap::new(),
+            vocabulary: None,
+            pending: Vec::new(),
+            resolved_names: BTreeMap::new(),
         }
     }
 
@@ -177,6 +198,92 @@ impl Proxy {
             .and_modify(|existing| existing.count += 1)
             .or_insert(refusal);
         self.deny(tool, "egress_hosts", sentence)
+    }
+
+    /// Attach the closed destination vocabulary a verified catalog produced.
+    #[must_use]
+    pub fn with_vocabulary(mut self, vocabulary: Vocabulary) -> Self {
+        self.vocabulary = Some(vocabulary);
+        self
+    }
+
+    /// The vocabulary, when one is attached — read by the endpoint when it publishes schemas.
+    #[must_use]
+    pub fn vocabulary(&self) -> Option<&Vocabulary> {
+        self.vocabulary.as_ref()
+    }
+
+    /// The signed bounds this proxy enforces; the catalog is checked against them.
+    #[must_use]
+    pub fn bounds(&self) -> &WarrantBounds {
+        &self.bounds
+    }
+
+    /// Rewrite every destination-named argument from a capability name to its catalog URL.
+    ///
+    /// Under Enforce with a vocabulary, a raw address is refused here, before the broker — the
+    /// L4-23 property: the argument has no way to say a host. Observe mode, or no vocabulary,
+    /// leaves the call untouched and the host-based broker decides as before.
+    pub fn resolve_destinations(&mut self, call: &mut ToolCall) -> Result<(), Decision> {
+        self.resolved_names.clear();
+        if self.mode != ProxyMode::Enforce {
+            return Ok(());
+        }
+        let Some(vocabulary) = self.vocabulary.clone() else {
+            return Ok(());
+        };
+        for key in DESTINATION_KEYS {
+            let Some(value) = call.arguments.get(*key).cloned() else {
+                continue;
+            };
+            let name = value.split_once('/').map_or(value.as_str(), |(n, _)| n);
+            match vocabulary.resolve(&value) {
+                Ok(url) => {
+                    self.resolved_names
+                        .insert(host_of(&url).to_string(), name.to_string());
+                    call.arguments.insert((*key).to_string(), url);
+                }
+                Err(reason) => {
+                    let destination = crate::egress::Destination {
+                        argument: (*key).to_string(),
+                        host: host_of(&value).to_string(),
+                    };
+                    let refusal = EgressRefusal::new(&call.tool, &destination, reason.clone());
+                    self.pending.push(PendingDecision {
+                        tool: call.tool.clone(),
+                        argument: destination.argument.clone(),
+                        capability: if reason == crate::egress::DenyReason::NotInCatalog {
+                            name.to_string()
+                        } else {
+                            capability_for(&destination.host)
+                        },
+                        destination: destination.host.clone(),
+                        verdict: EgressVerdict::Deny { reason },
+                    });
+                    return Err(self.deny_egress(&call.tool, refusal));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Drain the decisions made since the last drain, stamped for the log.
+    pub fn take_egress_decisions(&mut self, warrant_id: &str, at: u64) -> Vec<EgressDecision> {
+        let digest = self.vocabulary.as_ref().map(|v| v.digest().to_string());
+        std::mem::take(&mut self.pending)
+            .into_iter()
+            .map(|p| EgressDecision {
+                format: crate::egress::DECISION_FORMAT.to_string(),
+                warrant_id: warrant_id.to_string(),
+                at,
+                tool: p.tool,
+                argument: p.argument,
+                capability: p.capability,
+                destination: p.destination,
+                verdict: p.verdict,
+                catalog_digest: digest.clone(),
+            })
+            .collect()
     }
 
     /// Decide what happens to `call`.
@@ -225,9 +332,19 @@ impl Proxy {
         // This changes WHICH decision is made and how it is explained. It does not change WHERE it
         // is made: a call that never reaches this proxy is not decided here or anywhere.
         for destination in crate::egress::destinations_of(call) {
-            if let crate::egress::EgressVerdict::Deny { reason } =
-                self.egress.decide(&destination.host)
-            {
+            let verdict = self.egress.decide(&destination.host);
+            self.pending.push(PendingDecision {
+                tool: call.tool.clone(),
+                argument: destination.argument.clone(),
+                capability: self
+                    .resolved_names
+                    .get(&destination.host)
+                    .cloned()
+                    .unwrap_or_else(|| capability_for(&destination.host)),
+                destination: destination.host.clone(),
+                verdict: verdict.clone(),
+            });
+            if let EgressVerdict::Deny { reason } = verdict {
                 let refusal = EgressRefusal::new(&call.tool, &destination, reason);
                 return self.deny_egress(&call.tool, refusal);
             }

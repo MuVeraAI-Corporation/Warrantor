@@ -478,7 +478,7 @@ warrantor — bounded authority for coding agents
                   enable this, a process sharing this UID could also write.
 
   grant   --goal G --tools T,T --write P,P [--deadline 8h] [--repo .] [--egress H,H]
-          [--budget CENTS] [--subject <id>]
+          [--egress-capability NAME,NAME] [--budget CENTS] [--subject <id>]
   list
   holdings
   prune   [--apply]
@@ -756,6 +756,31 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     if tools.is_empty() {
         return fail("--tools is required: a warrant with no tools can do nothing");
     }
+    // L4-23: the egress bound is compiled into a catalog of capability names. `--egress H,H` is
+    // sugar for `host:<H>` entries; `--egress-capability NAME` adds named capabilities from the
+    // operator catalog at <root>/catalog.json. The agent later selects from THESE names and never
+    // spells a host; the hosts land in the signed warrant bound either way.
+    let sugar = csv(args.flags.get("egress"));
+    let named = csv(args.flags.get("egress-capability"));
+    let mut capabilities =
+        warrantor_warrant::catalog::CapabilityCatalog::from_hosts(&sugar).capabilities;
+    if !named.is_empty() {
+        let operator =
+            match warrantor_warrant::catalog::CapabilityCatalog::load(&root.join("catalog.json")) {
+                Ok(c) => c,
+                Err(e) => {
+                    return fail(&format!(
+                        "--egress-capability needs <root>/catalog.json: {e}"
+                    ))
+                }
+            };
+        match operator.select(&named) {
+            Ok(picked) => capabilities.extend(picked),
+            Err(e) => return fail(&e),
+        }
+    }
+    let egress_hosts: std::collections::BTreeSet<String> =
+        capabilities.iter().map(|c| c.host.clone()).collect();
     let deadline = args
         .flags
         .get("deadline")
@@ -795,7 +820,7 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let bounds = WarrantBounds {
         tools,
         write_paths: csv(args.flags.get("write")),
-        egress_hosts: csv(args.flags.get("egress")),
+        egress_hosts,
         // Writes are staged by default: the safe reading of an unspecified flag.
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at: now() + deadline,
@@ -846,6 +871,18 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     // that warrant's record. See `WarrantStore::create`.
     if let Err(e) = store.create(&stored) {
         return fail(&e.to_string());
+    }
+
+    // The per-warrant catalog, signed by the issuer at grant time and saved beside the warrant.
+    // `mcp --agent` refuses to serve a session whose egress bound has no verifiable catalog: a
+    // warrant that grants hosts but carries no named vocabulary is exactly the state an attacker
+    // editing a catalog file would want to reach.
+    let mut catalog = warrantor_warrant::catalog::CapabilityCatalog::for_warrant(&id, capabilities);
+    catalog.sign(&issuer, "issuer");
+    if let Err(e) = catalog.save(&warrantor_warrant::catalog::catalog_path(root, &id)) {
+        return fail(&format!(
+            "the warrant was written but its catalog was not ({e}); void it and grant again"
+        ));
     }
 
     println!("warrant  {id}");
@@ -1065,6 +1102,9 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
 
     // The verifying key from disk is the trust anchor, not the one the warrant carries about
     // itself: a warrant re-signed by some other key must not vouch for itself.
+    // The egress decision log, when one exists, is countersigned into the bundle; absent means
+    // no decision was ever recorded, which is a different claim from "no egress happened" — the
+    // section's note says which is which, and its absence says the first.
     let built = report::build_observed(
         &stored,
         queue_input,
@@ -1082,6 +1122,13 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Err(e) => return fail(&format!("cannot read the effect receipt log: {e}")),
     };
     let built = built.with_effect_receipts(receipt_log.receipts().to_vec());
+    // Task 1.1 and Task 1.2 each add a section to the same builder, independently. Both stay: the
+    // effect receipts come from the log on disk, the egress section from the per-warrant catalog,
+    // and neither reads the other's input.
+    let built = match report::egress_section(root, id, &issuer, "issuer") {
+        Some(section) => built.with_egress(section),
+        None => built,
+    };
     print!("{}", report::render_cli(built.bundle()));
 
     let signed = match built.sign(&issuer, "issuer") {
@@ -1240,16 +1287,68 @@ fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
         Some(f) if f == report::REPORT_EXPORT_FORMAT => verify_report_export(path, &body, anchor),
         Some(f) if f == stop::STOP_EXPORT_FORMAT => verify_stop_export(path, &body, anchor),
         Some(f) if f == spend::LEDGER_EXPORT_FORMAT => verify_spend_export(path, &body, anchor),
+        Some(f) if f == warrantor_warrant::catalog::CATALOG_FORMAT => {
+            verify_catalog_file(path, &body, anchor, root)
+        }
         Some(other) => fail(&format!(
-            "{path} declares format {other:?}. warrantor verify reads {}, {} and {}.",
+            "{path} declares format {other:?}. warrantor verify reads {}, {}, {} and {}.",
             report::REPORT_EXPORT_FORMAT,
             stop::STOP_EXPORT_FORMAT,
-            spend::LEDGER_EXPORT_FORMAT
+            spend::LEDGER_EXPORT_FORMAT,
+            warrantor_warrant::catalog::CATALOG_FORMAT
         )),
         None => fail(&format!(
             "{path} has no format field, so it is not a warrantor evidence file."
         )),
     }
+}
+
+/// Verify a destination catalog offline: signature against the pinned issuer (or the on-disk
+/// issuer key when no anchor was given), and one line per capability so a reviewer reads exactly
+/// what the agent will be able to name.
+fn verify_catalog_file(path: &str, body: &[u8], anchor: Option<&Anchor>, root: &Path) -> ExitCode {
+    let catalog =
+        match serde_json::from_slice::<warrantor_warrant::catalog::CapabilityCatalog>(body) {
+            Ok(c) => c,
+            Err(e) => return fail(&format!("{path} does not parse as a catalog: {e}")),
+        };
+    let key = match anchor {
+        Some(a) => a.key,
+        None => {
+            // The catalog names the issuer's own key in its signature; an offline check with no
+            // pin and no on-disk issuer has nothing to verify against, so it refuses rather than
+            // "verifying" the catalog against itself.
+            match load_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+                Ok(Some(k)) => k.verifying_key(),
+                Ok(None) => {
+                    return fail(&format!(
+                        "{path} has no --issuer anchor and this machine has no issuer key, so \
+                         there is nothing to verify the catalog against"
+                    ))
+                }
+                Err(e) => return fail(&e),
+            }
+        }
+    };
+    let warrant_id = catalog.warrant_id.clone().unwrap_or_default();
+    if let Err(e) = catalog.verify(&key, &warrant_id) {
+        return fail(&format!("{path}: {e}"));
+    }
+    println!("warrantor: catalog {path} verified.");
+    println!(
+        "format    {}  warrant {}  capabilities {}",
+        catalog.format,
+        catalog.warrant_id.as_deref().unwrap_or("(none)"),
+        catalog.capabilities.len()
+    );
+    for capability in &catalog.capabilities {
+        println!(
+            "  {:<32} -> {:<32} {}",
+            capability.name, capability.host, capability.purpose
+        );
+    }
+    println!("{ENFORCEMENT_NOTE}");
+    ExitCode::SUCCESS
 }
 
 /// Where a verify anchor came from. Printed in the verdict, because a name resolved from the
@@ -4889,6 +4988,44 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
         // is detectable down to the last effect rather than down to the last time somebody ran a
         // CLI command.
         endpoint = endpoint.witnessed_by(store.clone());
+
+        // L4-23: a warrant that grants egress carries a signed catalog naming those hosts as
+        // capabilities, and the session refuses to serve without a verifiable one — a catalog
+        // that does not load or does not verify is exactly the file an attacker would edit. The
+        // verifying key comes from this machine's issuer key; only the public half outlives the
+        // block.
+        if !stored.warrant.claims.bounds.egress_hosts.is_empty() {
+            let verifying = match load_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+                Ok(Some(key)) => key.verifying_key(),
+                Ok(None) => {
+                    return fail("no issuer key on this machine, so the catalog cannot be verified")
+                }
+                Err(e) => return fail(&e),
+            };
+            let catalog = match warrantor_warrant::catalog::CapabilityCatalog::load(
+                &warrantor_warrant::catalog::catalog_path(root, id),
+            ) {
+                Ok(c) => c,
+                Err(e) => {
+                    return fail(&format!(
+                        "this warrant grants egress but its catalog does not load ({e}); \
+                         refusing to serve a session whose destinations cannot be named"
+                    ))
+                }
+            };
+            if let Err(e) = catalog.verify(&verifying, id) {
+                return fail(&format!("catalog for {id} does not verify: {e}"));
+            }
+            endpoint = match endpoint.with_catalog(&catalog, root.to_path_buf()) {
+                Ok(e) => e,
+                Err(e) => return fail(&e),
+            };
+            eprintln!(
+                "warrantor: egress -- {} capability name(s) published; raw destinations are \
+                 unexpressible on this endpoint. {ENFORCEMENT_NOTE}",
+                catalog.capabilities.len()
+            );
+        }
 
         // Upstreams before the guard, because attaching one can fail and a failure here must stop
         // the session rather than start a supervised agent whose permitted calls have nowhere to
