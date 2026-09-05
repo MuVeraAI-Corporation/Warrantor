@@ -25,8 +25,8 @@
 //!
 //! ## What it does NOT do
 //!
-//! It does not evaluate a live action — the notary consults `is_valid` and the effective scope at bind
-//! time. It does not sign warrants — digests are content fingerprints. It does not perform the revocation
+//! It does not evaluate a live action — the evidence crate consults `is_valid` and `intersect_chain`
+//! at bind time (`warrantor_evidence::bind_authority`). It does not sign warrants — digests are content fingerprints. It does not perform the revocation
 //! fan-out to runtime surfaces — that is `rust/revocation-verbs` (M8); this is the *lineage* semantics
 //! that tells the revocation what to void.
 
@@ -129,6 +129,44 @@ pub fn intersection(
         return Err(Escalation::Budget);
     }
     Ok(requested.clone())
+}
+
+/// Where a chain widened: the zero-based, root-first index of the link that asked for more than
+/// the link before it held, and what it asked for.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChainEscalation {
+    /// Index into the root-first chain of the link that widened. Never `0`: the root is taken as
+    /// issued.
+    pub link: usize,
+    /// What the link tried to widen.
+    pub escalation: Escalation,
+}
+
+/// Fold [`intersection`] over a root-first chain of scopes.
+///
+/// The root is taken as issued; every later link must be an [`intersection`] with the effective
+/// scope before it, so the result is the deepest link's scope and every link on the way down held
+/// at least that much. The first link that widens stops the fold and is named. An empty chain is
+/// not an escalation — it is a scope that confers nothing and has already expired
+/// (`expires_at_ms: 0`), which is what an absent limit means everywhere in this workspace.
+///
+/// # Errors
+/// [`ChainEscalation`] naming the first link that asked for more than its parent held.
+pub fn intersect_chain(chain: &[WarrantScope]) -> Result<WarrantScope, ChainEscalation> {
+    let Some(root) = chain.first() else {
+        return Ok(WarrantScope {
+            capabilities: Vec::new(),
+            resource_classes: Vec::new(),
+            expires_at_ms: 0,
+            budget_micros: 0,
+        });
+    };
+    let mut effective = root.clone();
+    for (link, requested) in chain.iter().enumerate().skip(1) {
+        effective = intersection(&effective, requested)
+            .map_err(|escalation| ChainEscalation { link, escalation })?;
+    }
+    Ok(effective)
 }
 
 /// A store of warrants with parent links and revocation state.
@@ -451,5 +489,47 @@ mod tests {
         let s = WarrantStore::new();
         assert!(!s.is_valid("ghost"));
         assert!(s.effective_scope("ghost").is_none());
+    }
+
+    #[test]
+    fn intersect_chain_folds_root_first_and_returns_the_deepest_scope() {
+        let chain = vec![
+            team_lead(),
+            scope(&["github:write"], &["repo:acme/api"], 500_000, 50_000_000),
+            scope(&["github:write"], &["repo:acme/api"], 100_000, 5_000_000),
+        ];
+        let effective = intersect_chain(&chain).expect("a narrowing chain folds");
+        assert_eq!(effective, chain[2]);
+    }
+
+    #[test]
+    fn intersect_chain_names_the_link_that_widened() {
+        let chain = vec![
+            team_lead(),
+            scope(&["github:write"], &["repo:acme/api"], 500_000, 50_000_000),
+            // link 2 asks for a later expiry than link 1 holds
+            scope(&["github:write"], &["repo:acme/api"], 600_000, 5_000_000),
+        ];
+        assert_eq!(
+            intersect_chain(&chain),
+            Err(ChainEscalation {
+                link: 2,
+                escalation: Escalation::Time
+            })
+        );
+    }
+
+    #[test]
+    fn intersect_chain_of_nothing_confers_nothing_and_has_already_expired() {
+        let effective = intersect_chain(&[]).expect("an empty chain is not an escalation");
+        assert!(effective.capabilities.is_empty());
+        assert_eq!(effective.expires_at_ms, 0);
+        assert_eq!(effective.budget_micros, 0);
+    }
+
+    #[test]
+    fn a_single_link_chain_is_that_link() {
+        let chain = vec![team_lead()];
+        assert_eq!(intersect_chain(&chain), Ok(team_lead()));
     }
 }
