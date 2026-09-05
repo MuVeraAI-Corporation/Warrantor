@@ -38,7 +38,7 @@ use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
-use warrantor_delegation_chain::{intersect_chain, WarrantScope};
+use warrantor_delegation_chain::{intersect_chain, WarrantScope, WarrantStore};
 
 pub const WAR_VERSION: &str = "war/2.0";
 pub const PREDICATE_TYPE: &str = "https://warrantor.dev/ActionReceipt/v2";
@@ -218,6 +218,11 @@ pub enum EvidenceError {
     CommitGate(String),
     #[error("authority violation (I-02): {0}")]
     Authority(String),
+    /// The warrant, or an ancestor in its lineage, was revoked; nothing below it binds
+    /// (L6-01: any link's revocation voids everything below it). Named by the warrant asked to
+    /// bind, never by the revoked ancestor: the refusal carries only what the caller presented.
+    #[error("delegation lineage revoked at or above {0}; refused at bind")]
+    Revoked(String),
     #[error("phase violation: {0}")]
     Phase(String),
     #[error("enforcement-mode violation (§6): {0}")]
@@ -325,6 +330,51 @@ pub fn narrow_chain(chain: &[DelegationLink]) -> Result<Vec<String>, EvidenceErr
 #[must_use]
 pub fn recompute_intersection(chain: &[DelegationLink]) -> Vec<String> {
     narrow_chain(chain).unwrap_or_default()
+}
+
+/// A stored lineage, root first, as receipt links. The root has no issuer of its own and is
+/// recorded as self-issued; every later link is issued by the warrant above it. `not_before` is
+/// `0` because the stored scope has no floor; `token_digest` is the warrant's content digest.
+#[must_use]
+pub fn chain_from_lineage(lineage: &[warrantor_delegation_chain::Warrant]) -> Vec<DelegationLink> {
+    lineage
+        .iter()
+        .map(|warrant| DelegationLink {
+            issuer: warrant.parent.clone().unwrap_or_else(|| warrant.id.clone()),
+            subject: warrant.id.clone(),
+            capabilities: warrant.scope.capabilities.clone(),
+            not_before: 0,
+            not_after: warrant.scope.expires_at_ms,
+            token_digest: warrant.digest.clone(),
+        })
+        .collect()
+}
+
+/// Bind an authority block from a warrant's stored lineage — the moment a staged action asks
+/// what it may do. Refuses if the warrant is unknown, or if it or any ancestor is revoked; the
+/// chain it returns recomputes under [`verify_authority`].
+///
+/// # Errors
+/// [`EvidenceError::Authority`] for an id the store never issued; [`EvidenceError::Revoked`] if
+/// the lineage no longer stands; whatever [`narrow_chain`] returns otherwise.
+pub fn bind_authority(store: &WarrantStore, warrant_id: &str) -> Result<Authority, EvidenceError> {
+    let lineage = store.chain_of(warrant_id);
+    if lineage.is_empty() {
+        return Err(EvidenceError::Authority(format!(
+            "unknown warrant {warrant_id}; nothing to bind"
+        )));
+    }
+    if !store.is_valid(warrant_id) {
+        return Err(EvidenceError::Revoked(warrant_id.to_string()));
+    }
+    let chain = chain_from_lineage(&lineage);
+    let effective_capabilities = narrow_chain(&chain)?;
+    let intersection_proof = compute_intersection_proof(&chain);
+    Ok(Authority {
+        chain,
+        effective_capabilities,
+        intersection_proof,
+    })
 }
 
 /// Compute the intersection proof from a chain (spec 01 §3.3). The `links_digest` is over the
