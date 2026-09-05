@@ -127,11 +127,22 @@ fn the_receipt_records_the_identity_that_was_refused() {
 /// was checked and found clear". `revoked_svids` and `seen_nonces` are given the same empty value
 /// and no such disclaimer.
 ///
-/// Fixed by: Task 1.1 (evidence and notary into the report path) supplying a real revocation
-/// source, and Task 3.1 (agent principals from SPIFFE SVIDs) making the subject an issued identity
-/// rather than the `DEFAULT_CLI_SUBJECT` constant. Recorded 2026-09-02.
+/// FIXED BY Task 9.1, 2026-09-05, in the half this test asserts. `report::build_observed` takes a
+/// `revocation: Option<RevocationSection>` and fills `revoked_svids` from it, and the disclaimer
+/// `contained_scopes` had is now written for `revoked_svids` too — including the three-way
+/// distinction between "not consulted", "consulted and empty" and "consulted and holding a subject",
+/// which `limitations()` states and `rust/warrant/tests/revocation.rs` asserts one arm each of.
+///
+/// This test greps for a string, so on its own it could be satisfied by deleting that string and
+/// changing nothing. What backs it is
+/// `revocation.rs::a_revoked_subject_is_refused_at_the_identity_gate_on_the_products_own_path`,
+/// which revokes the subject the warrant names and asserts the bundle denies at gate `identity`
+/// against a control that must be allowed.
+///
+/// **`seen_nonces` is still `Vec::new()`** and is not this task's: no replay store exists, which is
+/// I-10's finding. The remaining half of THIS invariant — the subject being an issued identity rather
+/// than a constant — is the next finding in this file, still `#[ignore]`d, still Task 3.1's.
 #[test]
-#[ignore = "I-01 currently violated: revoked_svids is hardcoded empty in report.rs (Task 1.1 / Task 3.1, 2026-09-02)"]
 fn the_products_own_notary_call_consults_a_revocation_source() {
     let report = harness::read_repository_file("rust/warrant/src/report.rs");
     assert!(

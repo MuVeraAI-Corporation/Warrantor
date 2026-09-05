@@ -887,8 +887,9 @@ fn an_absent_custody_section_does_not_appear_in_the_canonical_bundle() {
         &issuer().verifying_key(),
         NOW,
         &[],
-        None,
-        None,
+        // Nothing observed. This test is about an absent section surviving the canonical round trip,
+        // and the revocation section carries the same `skip_serializing_if` for the same reason.
+        warrantor_warrant::report::Observed::default(),
     );
     let canonical = warrantor_warrant::report::canonical_bundle(built.bundle()).expect("canonical");
     assert!(
@@ -915,8 +916,10 @@ fn a_custody_section_is_covered_by_the_bundle_digest() {
         &issuer().verifying_key(),
         NOW,
         &[],
-        None,
-        Some(section.clone()),
+        warrantor_warrant::report::Observed {
+            custody: Some(section.clone()),
+            ..Default::default()
+        },
     );
     let before = warrantor_warrant::report::bundle_digest(built.bundle()).expect("digest");
 
@@ -957,14 +960,16 @@ fn a_broken_actor_chain_is_said_rather_than_refused() {
         &issuer().verifying_key(),
         NOW,
         &[],
-        None,
-        Some(warrantor_warrant::report::CustodySection {
-            acts: 3,
-            head: Some("abc".to_string()),
-            chain_intact: false,
-            approvers: 1,
-            approvals_required: 2,
-        }),
+        warrantor_warrant::report::Observed {
+            custody: Some(warrantor_warrant::report::CustodySection {
+                acts: 3,
+                head: Some("abc".to_string()),
+                chain_intact: false,
+                approvers: 1,
+                approvals_required: 2,
+            }),
+            ..Default::default()
+        },
     );
     let said = built
         .bundle()

@@ -54,6 +54,21 @@ warrantor-containment-conformance = { path = "../containment-conformance", versi
 # nothing in the system read the number at all, so a bound labelled "observed" was observed by
 # nobody. Same dependency family again; no new external crate and no new version in Cargo.lock.
 warrantor-spend = { path = "../spend", version = "1.0.0" }
+# The credential vault, behind invariant I-05's revocation bound. `default-features = false`
+# deliberately: that crate's CLI and its credential scanner are feature-gated, so this edge adds
+# ZERO external packages to this crate's normal-dependency tree and no line to Cargo.lock. The
+# 7-external-dep, tokio-free posture is unchanged. Measured: the tree goes 156 -> 157 packages, and
+# the one added package is `warrantor-credential-vault` itself.
+#
+# What this buys is that I-05 stops being orphaned. The vault's 1-second `REVOKE_BUDGET` and its
+# `fsync`'d, replay-at-open revocation journal were real, tested, and unreachable from the product;
+# `crate::revoke` reads that journal format, so the number binds a shipped code path and the
+# notary's `revoked_svids` seam stops being filled with `Vec::new()`.
+#
+# What it does NOT buy: fan-out. That crate's own comment promises replica propagation via Kafka
+# CloudEvents; no broker is linked here and none is claimed. Propagation stays Observed, and the
+# report says so in as many words.
+warrantor-credential-vault = { path = "../credential-vault", version = "1.0.0", default-features = false }
 
 getrandom = { version = "0.4", features = ["sys_rng"] }
 ureq = { version = "2", default-features = false, features = ["tls", "json"] }

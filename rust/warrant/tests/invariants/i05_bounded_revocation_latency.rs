@@ -3,14 +3,30 @@
 //! > Identity revocation (I1) propagates to all replicas in <5s; credential revocation (R4) in
 //! > <1s.
 //!
-//! Both halves exist in the repository and neither is reachable from the product. The credential
-//! side is implemented in `rust/credential-vault`, which the `warrantor` binary does not link. The
-//! identity side has no implementation at all: `revoked_svids` is a `Vec<String>` the caller
-//! supplies, and the one caller supplies an empty one.
+//! The IDENTITY half is now reachable from the product and does not propagate beyond this process.
+//! The credential half is not: its 1-second budget is still compared only inside `Vault::revoke` and
+//! `Vault::revoke_all`, which no shipped path calls, so linking the crate bought its journal FORMAT
+//! and not its budget. Between 2026-09-05 and the correction later that day this header said "both
+//! halves", which overstated the credential side.
+//!
+//! Until 2026-09-05 this header said the opposite of even that, and it was true: the credential side
+//! lived in `rust/credential-vault`, which the `warrantor` binary did not link, and the identity side
+//! had no implementation at all — `revoked_svids` is a `Vec<String>` the caller supplies and the one
+//! caller supplied an empty one. Task 9.1 linked that crate and wrote `warrantor_warrant::revoke`,
+//! which reads its `fsync`'d journal, so the product's own notary call consults a real revocation
+//! source.
+//!
+//! **What that changes, precisely.** The refusal is Tier B, a chokepoint: `notary::verdict` returns
+//! `Deny { gate: Identity }` for a revoked subject. The *propagation* claim stays Tier C, observed:
+//! there is no fan-out, no broker and no replica set, so "propagates to all replicas in <5s" is
+//! measured against one replica, and `rust/warrant/tests/revocation_latency.rs` is where that
+//! measurement lives and where a breach fails rather than being logged.
 //!
 //! Within a single decision the latency is zero, which is what the runtime checks below establish.
-//! That is a real property and it is not the property I-05 states, because a revocation nobody
-//! delivers propagates in no time to no one.
+//! That is a real property, and on its own it is not the property I-05 states — a revocation nobody
+//! delivers propagates in no time to no one. What makes it a property of the product rather than of
+//! the corpus is `rust/warrant/tests/revocation.rs`, which drives `report::build_observed` and
+//! asserts the refusal against an allowed control.
 
 use crate::{fixture, harness, scenario};
 use warrantor_notary as notary;
@@ -71,17 +87,28 @@ fn a_revocation_landing_between_the_start_check_and_the_commit_stops_the_commit(
     );
 }
 
-/// FINDING (I-05, orphaned). Round zero, hop 5: the incident's agent used a credential shared
-/// with another system. A shared credential is the case revocation latency cannot help with,
-/// because the unit of revocation is the identity and the credential is not bound to one — and the
-/// crate that would bind them, `credential-vault`, is not in the `warrantor` binary's dependency
-/// graph. Its 1-second budget and its restart-durability test are real, tested, and unreachable
-/// from the product.
+/// FINDING (I-05, orphaned) — FIXED BY Task 9.1, 2026-09-05.
 ///
-/// Fixed by: no task in the 2026-09-02 implementation plan links `credential-vault`. Task 0.3's
-/// orphan census is where the crate is counted; nothing yet wires it. Recorded 2026-09-02.
+/// Round zero, hop 5: the incident's agent used a credential shared with another system. A shared
+/// credential is the case revocation latency cannot help with, because the unit of revocation is the
+/// identity and the credential is not bound to one — and the crate that would bind them,
+/// `credential-vault`, was not in the `warrantor` binary's dependency graph. Its 1-second budget and
+/// its restart-durability test were real, tested, and unreachable from the product.
+///
+/// Task 9.1 added the path dependency with `default-features = false`, which costs zero external
+/// packages because that crate's CLI and scanner are now feature-gated. `warrantor_warrant::revoke`
+/// reads its journal FORMAT.
+///
+/// **Still not fixed by it, and this doc comment claimed otherwise until 2026-09-05:** the 1-second
+/// budget does NOT bind a shipped code path. `REVOKE_BUDGET` is compared in exactly two places,
+/// `Vault::revoke` and `Vault::revoke_all` (`rust/credential-vault/src/lib.rs`), and nothing in
+/// `rust/warrant/src` constructs a `Vault` or calls either — the binary's whole use of the crate is
+/// `JournalOp`, `JournalRecord`, `RevocationJournal`, `CredentialError`, and `REVOKE_BUDGET` read as
+/// a number to print. `RevocationStore::revoke` times nothing and refuses nothing on duration. What
+/// the dependency edge bought is the journal format; the budget still needs a shipped caller. The
+/// credential is also not bound to an issued identity — this test asserts the crate is linked, which
+/// is the manifest half, and binding a credential to a per-workload SVID is Task 3.1's.
 #[test]
-#[ignore = "I-05 orphaned: credential-vault is not linked by the warrantor binary, so hop 5 has no boundary (2026-09-02)"]
 fn hop_05_the_product_links_a_credential_vault_that_can_revoke() {
     let manifest = harness::read_repository_file("rust/warrant/Cargo.toml");
     assert!(
@@ -91,15 +118,24 @@ fn hop_05_the_product_links_a_credential_vault_that_can_revoke() {
     );
 }
 
-/// FINDING (I-05, unimplemented). The identity half — propagation to all replicas in under five
-/// seconds — has no implementation. There is no revocation source, no propagation, and no replica
-/// set; `VerdictContext::revoked_svids` is a vector the caller fills, and the product's one caller
-/// fills it with nothing.
+/// FINDING (I-05, unimplemented) — FIXED BY Task 9.1, 2026-09-05, in the narrow sense below.
 ///
-/// Fixed by: Task 3.1 (agent principals at five grains from SPIFFE SVIDs) supplies the identity
-/// plane a revocation list could come from. Recorded 2026-09-02.
+/// The identity half — propagation to all replicas in under five seconds — had no implementation.
+/// There was no revocation source, no propagation, and no replica set;
+/// `VerdictContext::revoked_svids` is a vector the caller fills, and the product's one caller filled
+/// it with nothing.
+///
+/// Task 9.1 supplied the **source**: `warrantor_warrant::revoke::RevocationStore`, an append-only
+/// `fsync`'d journal under the warrant store root, read at adjudication time by
+/// `report::build_observed`. `rust/warrant/tests/revocation.rs` drives the product's own path and
+/// asserts the refusal against an allowed control, so this string assertion is backed by behavior
+/// rather than satisfied by deleting a string.
+///
+/// **Still not fixed by it, and deliberately not claimed:** propagation. There is no second process,
+/// no replica and no broker, so "to all replicas" is measured against one. The subject revoked is
+/// `DEFAULT_CLI_SUBJECT`, a constant, until Task 3.1 lands — see the second finding in
+/// `i01_active_identity.rs`, which is still `#[ignore]`d for exactly that reason.
 #[test]
-#[ignore = "I-05 unimplemented: no revocation source exists for the identity half (Task 3.1, 2026-09-02)"]
 fn a_revocation_source_exists_for_the_identity_half() {
     let report = harness::read_repository_file("rust/warrant/src/report.rs");
     assert!(

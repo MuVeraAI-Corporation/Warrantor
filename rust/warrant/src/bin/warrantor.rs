@@ -47,6 +47,7 @@ use warrantor_warrant::proxy::{host_of, ProxyMode};
 use warrantor_warrant::receipts::ReceiptLog;
 use warrantor_warrant::report;
 use warrantor_warrant::retention;
+use warrantor_warrant::revoke;
 use warrantor_warrant::runs;
 use warrantor_warrant::sandbox;
 use warrantor_warrant::serve as http;
@@ -491,6 +492,15 @@ warrantor — bounded authority for coding agents
   egress  <warrant-id> <destination> [<destination> ...]
   spend   <warrant-id> [--input N --output N [--backend ID] [--quote]] [--export <path>]
   stop    <warrant-id> [--reason \"...\"] [--export <path>]
+  revoke  --svid <SVID>          record a revocation; prints the record and the measured latency
+          | --list               the revoked set, with each record's sequence and epoch
+          | --at <EPOCH> --svid <SVID>
+                                was this subject revoked at that epoch? answered from the
+                                append-only journal alone. Bounds FUTURE use only, in THIS
+                                STORE: see the disclosure the command prints.
+          | --write-evidence <path>
+                                render evidence/revocation-latency.json from the code that
+                                states the bound, so the file cannot drift from it.
   settle  <warrant-id> [--commit \"<message>\"]
   void    <warrant-id>
   stage   <warrant-id> --tool T [--target H] [--arg k=v ...]
@@ -1061,8 +1071,11 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         &issuer.verifying_key(),
         now(),
         &contained,
-        Some(spend::section(&ledger)),
-        custody_section(root, id),
+        report::Observed {
+            spend: Some(spend::section(&ledger)),
+            custody: custody_section(root, id),
+            revocation: revocation_section(root),
+        },
     );
     let receipt_log = match ReceiptLog::open(store.receipts_path(id)) {
         Ok(l) => l,
@@ -3367,6 +3380,194 @@ fn custody_section(root: &Path, warrant_id: &str) -> Option<report::CustodySecti
         approvers: operators::approvers(&records).len(),
         approvals_required: policy.required,
     })
+}
+
+/// The revocation source for a report built over this store (invariant I-05).
+///
+/// `None` only when the journal is broken enough that the store refuses to open. That is fail-closed
+/// in the direction that matters: `None` makes the bundle say revocation was *not consulted*, rather
+/// than letting an unreadable journal render as a clean set. A store that opens but whose file
+/// changed underneath it returns `Some` with `source_readable: false`, and the bundle says that too.
+fn revocation_section(root: &Path) -> Option<report::RevocationSection> {
+    let store = revoke::RevocationStore::open(root).ok()?;
+    Some(report::RevocationSection::from_store(&store))
+}
+
+// ── revocation: bounding future use, and saying what it does not reach ────────────────
+
+/// The sentence `warrantor revoke` prints under every record, and the one the report's limitations
+/// carry in the same words.
+///
+/// It is a constant so the two surfaces cannot drift, and so a reviewer diffing this file can see the
+/// whole claim in one place. Nothing in this build may soften it.
+const REVOKE_DISCLOSURE: &str = concat!(
+    "  what this does:\n",
+    "    Every verdict computed against THIS STORE -- the journal named above -- after the record\n",
+    "    reached disk denies at gate Identity for that subject. The refusal is a chokepoint in\n",
+    "    `warrantor_notary::verdict`, not an operating-system bound.\n",
+    "  what it does NOT do:\n",
+    "    It does not recall a credential already used -- revocation bounds future use only. It\n",
+    "    does not reach a copy held by a third party, does not close a session already open, and\n",
+    "    does not terminate a process. It does not propagate to any other machine: this build\n",
+    "    links no fan-out, so the latency above is this process's, not a fleet's. It does not\n",
+    "    reach a SECOND STORE on this same machine either: `--root` is accepted on every command,\n",
+    "    each store root holds its own journal, and the same subject reads as unrevoked under a\n",
+    "    different root. The egress broker does not consult the revocation set at all. An agent\n",
+    "    that never asks for a verdict is never refused. The journal records WHEN a subject was\n",
+    "    revoked, not WHO revoked it: it is keyed by subject, and the per-warrant actor log is not.\n",
+);
+
+fn cmd_revoke(args: &Args, root: &Path) -> ExitCode {
+    const USAGE_LINE: &str = "usage: warrantor revoke --svid <SVID> | --list | \
+                              --at <EPOCH> --svid <SVID> | --write-evidence <path>";
+
+    // `--write-evidence` first, and before the store is opened: it renders the published record from
+    // `revoke::latency_evidence()` and touches no journal, so it must not fail because a store's
+    // journal is unreadable. `tests/revocation_latency.rs` refuses a build in which the committed
+    // file and that function disagree -- a rendered number that is not gated against its record is a
+    // number that drifts.
+    if let Some(path) = args.flags.get("write-evidence") {
+        if path == "true" {
+            return fail(&format!("--write-evidence needs a file path. {USAGE_LINE}"));
+        }
+        let record = revoke::latency_evidence();
+        let text = match serde_json::to_string_pretty(&record) {
+            Ok(t) => format!("{t}\n"),
+            Err(e) => return fail(&format!("render the latency evidence: {e}")),
+        };
+        if let Err(e) = std::fs::write(path, &text) {
+            return fail(&format!("write {path}: {e}"));
+        }
+        println!("wrote {path}");
+        println!(
+            "  {} enforcement point(s), {} of which consults the revocation set.",
+            record.enforcement_points, record.enforcement_points_consulting_revocation,
+        );
+        println!("  The `not_covered` list is the load-bearing half of this file.");
+        return ExitCode::SUCCESS;
+    }
+
+    let mut store = match revoke::RevocationStore::open(root) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let svid = args
+        .flags
+        .get("svid")
+        .filter(|value| value.as_str() != "true")
+        .map(String::as_str);
+
+    // `--at` first: it is the only read that can answer NON-revocation, and answering it must never
+    // have the side effect of recording one.
+    if let Some(at) = args.flags.get("at").filter(|v| v.as_str() != "true") {
+        let Ok(epoch) = at.parse::<u64>() else {
+            return fail(&format!(
+                "--at wants epoch seconds, not {at:?}. {USAGE_LINE}"
+            ));
+        };
+        let Some(svid) = svid else {
+            return fail(&format!("--at needs a subject. {USAGE_LINE}"));
+        };
+        let revoked = store.was_revoked_at(svid, epoch);
+        println!("subject   {svid}");
+        println!("at epoch  {epoch}");
+        println!(
+            "answer    {}",
+            if revoked {
+                "REVOKED at or before that epoch"
+            } else {
+                "not revoked at that epoch"
+            }
+        );
+        println!("  proved from  {} alone.", store.journal_path().display());
+        println!(
+            "    Revocation is monotone and every record carries the epoch second it became\n    \
+             durable, so this file is sufficient: no service was asked, and a reader holding\n    \
+             only this file reaches the same answer. It says nothing about any other store --\n    \
+             including another store on this same machine -- and nothing about any other machine."
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    if args.flags.contains_key("list") {
+        let records = match store.records() {
+            Ok(r) => r,
+            Err(e) => return fail(&e.to_string()),
+        };
+        if records.is_empty() {
+            println!(
+                "no subject is revoked in {}.",
+                store.journal_path().display()
+            );
+            println!(
+                "  This is ONE STORE's journal, not this machine's: `--root` selects the store, \
+                 and another"
+            );
+            println!(
+                "  root on this same machine has its own journal. It is not a statement about any \
+                 other store,"
+            );
+            println!("  and not a statement about any other machine.");
+            return ExitCode::SUCCESS;
+        }
+        println!("revoked subjects in {}", store.journal_path().display());
+        for (sequence, record) in records.iter().enumerate() {
+            println!("  [{sequence}] at {}  {}", record.at, record.jti);
+        }
+        println!(
+            "  {} record(s); revocation is monotone, so the set only grows.",
+            records.len()
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    let Some(svid) = svid else {
+        return fail(USAGE_LINE);
+    };
+    let record = match store.revoke(svid) {
+        Ok(r) => r,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let latency = store.latency(&record);
+
+    println!("revoked   {}", record.svid);
+    println!("  sequence           {}", record.sequence);
+    println!(
+        "  durable at         {} (epoch seconds)",
+        record.recorded_at
+    );
+    println!("  journal            {}", store.journal_path().display());
+    println!(
+        "  measured latency   {:?} to this process's first read",
+        std::time::Duration::from_nanos(latency.elapsed_nanos.min(u128::from(u64::MAX)) as u64),
+    );
+    println!(
+        "  adjudications in between  {} (verdicts this process computed between durability and \
+         that read)",
+        latency.adjudications_between,
+    );
+    println!(
+        "  stated bound       {:?} -- {}",
+        warrantor_warrant::IDENTITY_REVOCATION_SLA,
+        if latency.within_sla {
+            "inside it"
+        } else {
+            "BREACHED"
+        },
+    );
+    print!("{REVOKE_DISCLOSURE}");
+    if !latency.within_sla {
+        // A breach is a failure, not a log line. The credential half already refuses an over-budget
+        // revocation rather than recording one (`CredentialError::RevocationBudgetExceeded`), and the
+        // identity half must not be the softer of the two.
+        eprintln!(
+            "warrantor: the revocation IS recorded and durable, but propagation to this process's \
+             own read took longer than the stated bound. Exiting non-zero so a script cannot treat \
+             a breached SLA as a clean revocation."
+        );
+        return ExitCode::FAILURE;
+    }
+    ExitCode::SUCCESS
 }
 
 // ── time anchoring: order without a trust root ─────────────────────────────────
@@ -6069,8 +6270,11 @@ fn build_final_report(
         &issuer.verifying_key(),
         now(),
         &contained,
-        Some(spend::section(&ledger)),
-        custody_section(root, id),
+        report::Observed {
+            spend: Some(spend::section(&ledger)),
+            custody: custody_section(root, id),
+            revocation: revocation_section(root),
+        },
     );
     let receipt_log = ReceiptLog::open(store.receipts_path(id))
         .map_err(|e| format!("read the effect receipt log: {e}"))?;
@@ -6491,6 +6695,7 @@ fn main() -> ExitCode {
         "egress" => cmd_egress(&args, &store, &root),
         "spend" => cmd_spend(&args, &store, &root),
         "stop" => cmd_stop(&args, &store, &root),
+        "revoke" => cmd_revoke(&args, &root),
         "settle" => cmd_settle(&args, &store, &root),
         "void" => cmd_void(&args, &store, &root),
         "stage" => cmd_stage(&args, &store),

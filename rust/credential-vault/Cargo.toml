@@ -13,15 +13,34 @@ path = "src/lib.rs"
 [[bin]]
 name = "credential-vault"
 path = "src/cli.rs"
+# Skipped, rather than failed, when the `cli` feature is off. That is what lets
+# `warrantor-warrant` link this crate's revocation journal with `default-features = false` and
+# compile no argument parser at all.
+required-features = ["cli"]
 
 [dependencies]
 thiserror.workspace = true
 serde.workspace = true
 serde_json = "1"
-clap.workspace = true
-regex = "1"
+# `clap` is used by src/cli.rs and nowhere else; `regex` by `scan_for_exposed_credentials` and
+# nowhere else. Both are optional so that a library consumer -- `warrantor-warrant`, which needs
+# only the revocation journal -- links neither. Measured: with `default-features = false` this
+# crate contributes ZERO external packages to warrant's normal-dependency tree, which without the
+# gate gains four (aho-corasick, regex, regex-automata, regex-syntax). `clap` was already in that
+# tree via `warrantor-trust-core`, so gating it costs nothing there; it is gated anyway, because a
+# dependency that happens to be free today is not one this crate needs.
+clap = { workspace = true, optional = true }
+regex = { version = "1", optional = true }
 # Real HashiCorp Vault integration (AX: "not yet wired (task 03)").
 # ureq over reqwest deliberately: pure-Rust, rustls, no async runtime, ~5x smaller
 # dependency tree. This crate brokers credentials, so its transitive surface is
 # part of its threat model.
 ureq = { version = "2", default-features = false, features = ["tls", "json"] }
+
+[features]
+default = ["cli", "scan"]
+# The `credential-vault` binary. Nothing but src/cli.rs needs it.
+cli = ["dep:clap", "scan"]
+# The credential-exposure scanner: pattern matching over text, not brokering. A consumer that only
+# reads the revocation journal has no use for it.
+scan = ["dep:regex"]

@@ -111,6 +111,14 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "cases",
     // guard export-corpus
     "min-labelled",
+    // revoke (invariant I-05). Every one of these is read by `cmd_revoke`: `--svid` names the
+    // subject, `--list` reads the set, `--at` answers the past-epoch question, and
+    // `--write-evidence` renders evidence/revocation-latency.json from the code that states the
+    // bound. Naming a flag here without wiring it is the defect this test exists to catch.
+    "svid",
+    "list",
+    "at",
+    "write-evidence",
     // queue
     "notify",
     // sandbox

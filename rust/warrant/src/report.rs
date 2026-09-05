@@ -64,6 +64,8 @@
 //!   by test.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
@@ -73,11 +75,32 @@ use thiserror::Error;
 use warrantor_evidence as evidence;
 use warrantor_notary as notary;
 
+use crate::revoke::{RevocationLatency, RevocationSource, RevocationStore};
 use crate::spend::SpendSection;
 use crate::staging::StagingQueue;
 use crate::store::StoredWarrant;
 use crate::worktree::Worktree;
-use crate::{bound_strengths, BoundStrength, Warrant, WarrantBounds, WarrantState};
+use crate::{
+    bound_strengths, BoundStrength, Warrant, WarrantBounds, WarrantState, DEFAULT_CLI_SUBJECT,
+    DEFAULT_MCP_SUBJECT, IDENTITY_REVOCATION_SLA,
+};
+
+/// How many verdicts this process has computed, across every call to [`build_observed`].
+///
+/// Exists so that `adjudications_between` in [`RevocationLatency`] is a **counted** number rather
+/// than an assumed zero. Process-global because that is the true scope of the fact it records: the
+/// question is how many actions this process adjudicated between a revocation reaching disk and the
+/// first read that saw it, and that has nothing to do with which store the read went through.
+static ADJUDICATIONS: AtomicU64 = AtomicU64::new(0);
+
+/// How many verdicts this process has computed so far.
+///
+/// Monotone, and reset by nothing but process exit. It counts adjudications, not actions: an agent
+/// that acts without asking for a verdict is not counted here, and cannot be.
+#[must_use]
+pub fn adjudications_computed() -> u64 {
+    ADJUDICATIONS.load(Ordering::SeqCst)
+}
 
 /// Wire format of [`ReportBundle`]. Present from the first release so a later change to the shape
 /// is detectable rather than silently misparsed.
@@ -293,6 +316,61 @@ pub struct CustodySection {
     pub approvals_required: usize,
 }
 
+/// What the revocation source held when the report was built (invariant I-05).
+///
+/// `None` on the bundle means **no source was consulted**, which was the true statement about every
+/// report exported before [`crate::revoke`] existed. `Some` with an empty `revoked_svids` means a
+/// source *was* read and held nothing. Those are different claims and the limitations say which one
+/// is being made — the same distinction `spend` and `custody` already draw, and the same one the
+/// containment comment in [`build_observed`] was written to protect.
+///
+/// **What a present section does not establish.** The set is one STORE's journal — the file under
+/// the store root this section was read from, not a machine-wide list. A subject revoked in another
+/// store, including another store on the same machine under a different `--root`, is unrevoked
+/// here, and so is one revoked on another machine, because this build links no fan-out. See
+/// [`crate::revoke`] for the full tier statement.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RevocationSection {
+    /// The file the set was read from, so a reader can go and look rather than take the set on
+    /// trust.
+    pub source: String,
+    /// The revoked subjects, as handed to the notary's Identity gate.
+    pub revoked_svids: Vec<String>,
+    /// A propagation measurement, when one was taken. `None` means the report did not measure —
+    /// never that the measurement passed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latency: Option<RevocationLatency>,
+    /// Whether the journal was readable at the moment of the read.
+    ///
+    /// `false` means the set above is empty because the file could not be replayed, **not** because
+    /// nothing is revoked. Silence there would render an I/O failure as a clean bill of health.
+    pub source_readable: bool,
+}
+
+impl RevocationSection {
+    /// Read a store's journal into a section.
+    ///
+    /// `source` is the journal's path, because "a source was consulted" is worth nothing to a reader
+    /// who cannot find out which one.
+    #[must_use]
+    pub fn from_store(store: &RevocationStore) -> Self {
+        let source_readable = store.records().is_ok();
+        Self {
+            source: store.journal_path().display().to_string(),
+            revoked_svids: store.revoked_svids(),
+            latency: None,
+            source_readable,
+        }
+    }
+
+    /// Attach a propagation measurement taken by the caller that performed the revocation.
+    #[must_use]
+    pub fn with_latency(mut self, latency: RevocationLatency) -> Self {
+        self.latency = Some(latency);
+        self
+    }
+}
+
 /// One staged effect's receipt chain, as the bundle lists it. The receipts themselves ride in
 /// [`SignedReport::effect_receipts`]; these ids are what the digest covers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -387,6 +465,13 @@ pub struct ReportBundle {
     /// it breaks verification, which is the point of putting it here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custody: Option<CustodySection>,
+    /// What the revocation source held when this report was built. See [`RevocationSection`].
+    ///
+    /// Same `skip_serializing_if` reasoning as `custody`, and for the same non-negotiable reason: an
+    /// absent section must stay absent through the canonical round trip, or every report signed
+    /// before this field existed stops verifying.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revocation: Option<RevocationSection>,
     /// Which effects were performed under which receipts. See [`EffectEvidenceSection`]. Same
     /// `skip_serializing_if` reasoning as `custody`: an absent section stays absent through the
     /// digest round trip, so every earlier export keeps verifying.
@@ -547,6 +632,7 @@ fn limitations(
     contained_scopes: &[String],
     spend: Option<&SpendSection>,
     custody: Option<&CustodySection>,
+    revocation: Option<&RevocationSection>,
 ) -> Vec<String> {
     // Said whether or not a section is present, because the absence is itself a claim a reader
     // would otherwise fill in wrongly.
@@ -639,6 +725,100 @@ fn limitations(
             contained_scopes.len()
         )
     });
+    // Revocation (I-05) is the second gate whose caveat is computed from the input, and it is
+    // computed for the same reason: "not consulted", "consulted and empty" and "consulted and
+    // holding a revoked subject" are three different claims, and collapsing the first two into
+    // silence is what let an empty `revoked_svids` read as a clean bill of health -- the defect
+    // `i01_active_identity.rs` recorded on 2026-09-02 and this function stopped making on
+    // 2026-09-05.
+    out.push(match revocation {
+        None => "No revocation source was supplied to this report. The Identity gate's \
+                 \"unrevoked\" clause passes because nothing was wired to it, not because \
+                 revocation was checked."
+            .to_string(),
+        Some(section) if !section.source_readable => format!(
+            "A revocation source was supplied ({}) and it could NOT be read. The revoked set in \
+             this bundle is empty because the journal failed to replay, not because nothing is \
+             revoked, and the Identity gate was therefore evaluated against an empty set. Treat \
+             this report as having checked nothing.",
+            section.source,
+        ),
+        Some(section) if section.revoked_svids.is_empty() => format!(
+            "A revocation source WAS consulted ({}) and it holds no revoked subject. That is a \
+             statement about this STORE's journal, not about any other store and not about any \
+             other machine: the journal is a file under the store root this report was built \
+             from, and this build has no fan-out, so a subject revoked in another store -- \
+             including another store on this same machine -- is unrevoked here.",
+            section.source,
+        ),
+        // The next two arms split on a READ of the set, not on its size. The gate this sentence
+        // describes compares exactly one string -- `notary::verdict`'s
+        // `ctx.revoked_svids.contains(&req.actor.svid)`, where `req.actor.svid` is
+        // `claims.subject` -- so "the set is non-empty" and "this warrant's subject is revoked"
+        // are different facts. Until 2026-09-05 one sentence was rendered for both, and a
+        // revocation recorded for an unrelated subject shipped a signed bundle whose
+        // `authority_check` said `allowed: true, denied_gate: null` beside a limitation
+        // asserting the Identity gate denied every verdict. A rendered sentence has to be
+        // derived from the record it describes, not written next to it.
+        Some(section) if !section.revoked_svids.contains(&stored.warrant.claims.subject) => {
+            format!(
+                "A revocation source WAS consulted ({}) and it holds {} revoked subject(s), NONE \
+                 of which is this warrant's subject ({}). The Identity gate compares that one \
+                 string and nothing else, so the set does NOT make it deny for this warrant -- \
+                 read `authority_check` for what the gate actually decided. Revoking some other \
+                 subject bounds this warrant not at all. This is a statement about this STORE's \
+                 journal only.",
+                section.source,
+                section.revoked_svids.len(),
+                stored.warrant.claims.subject,
+            )
+        }
+        Some(section) => format!(
+            "This warrant's subject ({}) is revoked in this STORE's journal ({}; {} subject(s) \
+             revoked there in total), so the Identity gate denies every verdict computed after \
+             the record reached disk{}. It does not recall a credential already used, does not \
+             reach a copy held by a third party, does not close a session already open, does not \
+             propagate to any other machine, and does not reach another store on this same \
+             machine -- the journal is per store root, and a report built with a different \
+             `--root` reads a different file. The egress broker does not consult the revocation \
+             set at all. {}",
+            stored.warrant.claims.subject,
+            section.source,
+            section.revoked_svids.len(),
+            match section.latency {
+                Some(l) if !l.propagated =>
+                    " -- though the read taken for this report did not find that subject, so \
+                     propagation to this reader is UNPROVEN"
+                        .to_string(),
+                Some(l) if l.within_sla => format!(
+                    " -- measured at {:?} across {} adjudication(s), inside the stated {:?}",
+                    Duration::from_nanos(l.elapsed_nanos.min(u128::from(u64::MAX)) as u64),
+                    l.adjudications_between,
+                    IDENTITY_REVOCATION_SLA,
+                ),
+                Some(l) => format!(
+                    " -- measured at {:?} across {} adjudication(s), which BREACHES the stated {:?}",
+                    Duration::from_nanos(l.elapsed_nanos.min(u128::from(u64::MAX)) as u64),
+                    l.adjudications_between,
+                    IDENTITY_REVOCATION_SLA,
+                ),
+                None => " (propagation was not measured for this report)".to_string(),
+            },
+            // Derived from the subject string rather than asserted beside it. `grant --subject`
+            // and `revoke --svid` both accept arbitrary strings, so which of these two sentences
+            // is true of a given bundle depends on a value this function can read -- and the
+            // sentence it replaced asserted the first one unconditionally.
+            if stored.warrant.claims.subject == DEFAULT_CLI_SUBJECT
+                || stored.warrant.claims.subject == DEFAULT_MCP_SUBJECT
+            {
+                "That subject is the constant this build records when none is supplied, not an \
+                 issued SVID."
+            } else {
+                "That subject was supplied as a string, not an issued SVID: this deployment mints \
+                 no SVID document, so nothing checked the string against an identity provider."
+            },
+        ),
+    });
     out.push(match &stored.warrant.claims.parent {
         Some(parent) => format!(
             "The authority chain contains only this warrant. Its parent {parent} is named but was \
@@ -688,19 +868,48 @@ pub fn build_with_containment(
     now: u64,
     contained_scopes: &[String],
 ) -> Report {
-    // `None` for both observed sections: a caller wanting them uses `build_observed`.
-    build_observed(stored, queue, issuer, now, contained_scopes, None, None)
+    // Nothing observed: a caller wanting a section uses `build_observed` with an `Observed`.
+    build_observed(
+        stored,
+        queue,
+        issuer,
+        now,
+        contained_scopes,
+        Observed::default(),
+    )
 }
 
-/// Build the report, honouring containment and carrying the budget bound's observed spend.
+/// What a caller with a store root looked at, and what it did not.
 ///
-/// The fullest form, used by every caller that has a store root to look in. `spend` is an `Option`
-/// rather than a defaulted struct because "no ledger was consulted" and "a ledger was consulted and
-/// it is empty" are different claims, and the bundle's limitations say which one it is making.
+/// Every field is an `Option` and every `None` is a *claim*: "no ledger was consulted" and "a ledger
+/// was consulted and it is empty" are different statements, and [`limitations`] says which one the
+/// bundle is making. `revocation` is the one whose absence used to be silent — before it existed the
+/// Identity gate was handed `Vec::new()` and the bundle said nothing, so a gate that had checked
+/// nothing read as a gate that had found nothing.
+///
+/// A struct rather than three parameters because clippy caps a function at seven arguments and
+/// `build_observed` had reached it, and because a caller writing `Observed::default()` says what it
+/// means more plainly than three bare `None`s in a row.
+#[derive(Debug, Clone, Default)]
+pub struct Observed {
+    /// What the budget bound has actually observed, when a ledger was read.
+    pub spend: Option<SpendSection>,
+    /// Where the actor log stood, when it was read.
+    pub custody: Option<CustodySection>,
+    /// What the revocation source held, when one was read.
+    pub revocation: Option<RevocationSection>,
+}
+
+/// Build the report, honoring containment and carrying whatever the caller observed.
+///
+/// The fullest form, used by every caller that has a store root to look in. See [`Observed`] for why
+/// each of its fields is an `Option` and what a `None` asserts.
 ///
 /// Supplying a section changes what the bundle *reports*, never what any bound *is*: the budget
 /// stays [`crate::BoundStrength::Observed`] and `bound_strengths()` is untouched. What it changes
-/// is that a bound labelled "observed" now has something that observed it.
+/// is that a bound labeled "observed" now has something that observed it. Revocation adds no row
+/// to `bound_strengths()` either: it is a property of the existing Identity gate, not a new bound on
+/// the warrant.
 #[must_use]
 pub fn build_observed(
     stored: &StoredWarrant,
@@ -708,9 +917,13 @@ pub fn build_observed(
     issuer: &VerifyingKey,
     now: u64,
     contained_scopes: &[String],
-    spend: Option<SpendSection>,
-    custody: Option<CustodySection>,
+    observed: Observed,
 ) -> Report {
+    let Observed {
+        spend,
+        custody,
+        revocation,
+    } = observed;
     let claims = &stored.warrant.claims;
     let bounds = &claims.bounds;
 
@@ -833,7 +1046,15 @@ pub fn build_observed(
         // Empty means "warrant knows of no contained scope", which is a statement about what was
         // supplied, never a claim that containment was checked and found clear.
         contained_scopes: contained_scopes.to_vec(),
-        revoked_svids: Vec::new(),
+        // The revocation seam (I-05), filled from this STORE's append-only journal rather than
+        // from an identity provider. Empty means "warrant was handed no revoked subject" — exactly
+        // as with `contained_scopes` above, a statement about what was supplied and never a claim
+        // that revocation was checked and found clear. `None` for the whole section says even that
+        // much was not consulted, and `limitations` distinguishes the two.
+        revoked_svids: revocation
+            .as_ref()
+            .map(|section| section.revoked_svids.clone())
+            .unwrap_or_default(),
         seen_nonces: Vec::new(),
         freshness_window_seconds: FRESHNESS_WINDOW_SECONDS,
         verified_artifacts: Vec::new(),
@@ -845,6 +1066,9 @@ pub fn build_observed(
     };
 
     let verdict = notary::verdict(&request, &context);
+    // Counted here, at the one place in this binary that computes a verdict, so that
+    // `RevocationLatency::adjudications_between` is a measured number rather than an assumed zero.
+    ADJUDICATIONS.fetch_add(1, Ordering::SeqCst);
     let effective = notary::effective_capabilities(&request.actor);
     let authority_check = AuthorityCheck {
         engine: notary::NOTARY_VERSION.to_string(),
@@ -888,9 +1112,16 @@ pub fn build_observed(
                 strength,
             })
             .collect(),
-        limitations: limitations(stored, contained_scopes, spend.as_ref(), custody.as_ref()),
+        limitations: limitations(
+            stored,
+            contained_scopes,
+            spend.as_ref(),
+            custody.as_ref(),
+            revocation.as_ref(),
+        ),
         spend,
         custody,
+        revocation,
         effect_evidence: None,
         staged,
         staged_count,

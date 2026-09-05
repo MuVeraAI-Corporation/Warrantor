@@ -813,10 +813,13 @@ fn the_report_carries_the_observed_spend_and_says_whose_figures_they_are() {
         &issuer().verifying_key(),
         NOW,
         &[],
-        Some(spend::section(&led)),
-        // No custody section: this test is about the spend ledger, and an unconsulted actor log is
-        // the shape of every report exported before that section existed.
-        None,
+        warrantor_warrant::report::Observed {
+            spend: Some(spend::section(&led)),
+            // No custody section and no revocation source: this test is about the spend ledger, and
+            // an unconsulted actor log is the shape of every report exported before that section
+            // existed. It must keep asserting exactly what it asserted.
+            ..Default::default()
+        },
     );
     let bundle = built.bundle();
     let section = bundle.spend.as_ref().expect("the section is carried");
@@ -1090,10 +1093,11 @@ fn the_spend_section_survives_a_lifecycle_transition() {
         &issuer().verifying_key(),
         NOW,
         &[],
-        Some(spend::section(&led)),
-        // No custody section: this test is about the spend ledger, and an unconsulted actor log is
-        // the shape of every report exported before that section existed.
-        None,
+        warrantor_warrant::report::Observed {
+            spend: Some(spend::section(&led)),
+            // No custody section and no revocation source: same reasoning as above.
+            ..Default::default()
+        },
     );
     assert_eq!(
         built.bundle().spend.as_ref().expect("carried").spent_micros,

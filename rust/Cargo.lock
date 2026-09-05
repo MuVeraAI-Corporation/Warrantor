@@ -3107,6 +3107,7 @@ dependencies = [
  "ureq",
  "warrantor-authority-spec",
  "warrantor-containment-conformance",
+ "warrantor-credential-vault",
  "warrantor-egress",
  "warrantor-evidence",
  "warrantor-notary",

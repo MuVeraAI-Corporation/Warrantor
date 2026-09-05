@@ -326,11 +326,20 @@ impl ControlEndpoint {
             &self.issuer.verifying_key(),
             (self.now)(),
             &stops.contained_scopes(&id),
-            Some(crate::spend::section(&ledger)),
-            // No custody section here, deliberately: this report is a tool result an AGENT reads,
-            // and the actor log names the humans who acted on the warrant. `None` is honest -- the
-            // log was not consulted -- and the limitations line says so.
-            None,
+            crate::report::Observed {
+                spend: Some(crate::spend::section(&ledger)),
+                // No custody section here, deliberately: this report is a tool result an AGENT
+                // reads, and the actor log names the humans who acted on the warrant. `None` is
+                // honest -- the log was not consulted -- and the limitations line says so.
+                custody: None,
+                // The revocation source IS consulted here, unlike custody: it names no operator,
+                // and an agent asking whether its own warrant still holds authority must be told
+                // its subject was revoked rather than shown a gate that checked nothing.
+                revocation: crate::revoke::RevocationStore::open(&self.root)
+                    .ok()
+                    .as_ref()
+                    .map(crate::report::RevocationSection::from_store),
+            },
         );
         let mut out = vec![crate::report::render_mcp(built.bundle())];
         out.push(String::new());

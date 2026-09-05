@@ -2914,8 +2914,17 @@ impl StoreApi {
             &self.issuer_key(),
             now,
             &contained,
-            Some(spend::section(&ledger)),
-            custody_section(&self.root, id),
+            report::Observed {
+                spend: Some(spend::section(&ledger)),
+                custody: custody_section(&self.root, id),
+                // Same store root, same journal the CLI reads. A report served over HTTP that
+                // skipped the revocation source would answer "authority holds" for a subject this
+                // machine had revoked.
+                revocation: crate::revoke::RevocationStore::open(&self.root)
+                    .ok()
+                    .as_ref()
+                    .map(report::RevocationSection::from_store),
+            },
         );
         built
             .sign(&self.issuer, "issuer")
