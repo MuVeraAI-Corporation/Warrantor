@@ -82,12 +82,12 @@ looks like Phases 3–6 is correct. A Pass-B output with no code fences in it is
 
 ---
 
-## Your scope: the 38 tasks routed `glm-5.3-flash`. Not the others.
+## Your scope: the 34 tasks routed `glm-5.3-flash`. Not the others.
 
 The scope document's last column routes every task. **Seed and expand only the rows that say
 `glm-5.3-flash`.**
 
-- **23 rows say `opus`.** Those are design keystones — invariant conversions, the causal verdict,
+- **27 rows say `opus`.** Those are design keystones — invariant conversions, the causal verdict,
   cross-organization authority, every claim published outward. Their anchors are judgments, and a
   seeded structure that encodes the wrong judgment is worse than an unseeded row, because the next
   lane executes it. **Skip them. Do not seed them "to be helpful."**

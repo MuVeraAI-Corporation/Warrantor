@@ -37,6 +37,7 @@ SCOPE = REPOSITORY_ROOT / "docs/superpowers/plans/2026-09-05-phases-7-14-scope.m
 LCODE = re.compile(r"\bL(?:1[01]|[0-9])-\d{2}\b")
 CATALOG_ITEM = re.compile(r'<article class="item" id="(L(?:1[01]|[0-9])-\d{2})"')
 TASK_ROW = re.compile(r"^\|\s*\*\*(\d+\.\d+)\*\*")
+ROUTE_SUMMARY_ROW = re.compile(r"^\|\s*`([a-z0-9.\-]+)`\s*\|\s*(\d+)\s*\|")
 
 
 def read(path: Path) -> str:
@@ -77,6 +78,32 @@ def seeded_tasks() -> dict[str, set[str]]:
         m.group(1): set(LCODE.findall(m.group(2)))
         for m in re.finditer(r"^### Task (\d+\.\d+):(.*)$", text[cut.start() :], re.MULTILINE)
     }
+
+
+def routes() -> dict[str, str]:
+    """Map task id -> the route named in the last cell of its scope row.
+
+    Phase 11's table has no route column because every row in it is MiniMax's; those rows
+    fall back to `minimax-m3` rather than being reported as unrouted.
+    """
+    out: dict[str, str] = {}
+    for line in read(SCOPE).splitlines():
+        m = TASK_ROW.match(line)
+        if not m:
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        out[m.group(1)] = cells[-1].strip("` ") if len(cells) >= 4 else "minimax-m3"
+    return out
+
+
+def declared_route_totals() -> dict[str, int]:
+    """The counts the scope document's own routing-summary table claims."""
+    out: dict[str, int] = {}
+    for line in read(SCOPE).splitlines():
+        m = ROUTE_SUMMARY_ROW.match(line)
+        if m:
+            out[m.group(1)] = int(m.group(2))
+    return out
 
 
 def scoped_items() -> tuple[dict[str, list[str]], list[str]]:
@@ -148,7 +175,29 @@ def main() -> int:
                 f"but scoped with {sorted(scoped)}"
             )
 
+    # The routing-summary table is prose about the rows above it, and prose about a count is
+    # exactly what drifts. It shipped saying 38 GLM / 23 Opus when the rows said 34 / 27, and
+    # a lane prompt repeated both wrong numbers. Count the rows instead.
+    actual: dict[str, int] = {}
+    for route in routes().values():
+        actual[route] = actual.get(route, 0) + 1
+    declared = declared_route_totals()
+    for route, count in sorted(actual.items()):
+        if route not in declared:
+            findings.append(f"route '{route}' has {count} rows but no line in the routing summary")
+        elif declared[route] != count:
+            findings.append(
+                f"routing summary claims {declared[route]} tasks for '{route}' "
+                f"but {count} rows say so"
+            )
+    for route in sorted(set(declared) - set(actual)):
+        findings.append(f"routing summary lists '{route}' but no row is routed to it")
+
     print(f"phase scope: {len(seeded)} of {len(per_task)} tasks seeded into the plan")
+    print(
+        "phase scope: routes "
+        + ", ".join(f"{r} {c}" for r, c in sorted(actual.items(), key=lambda kv: -kv[1]))
+    )
     print(
         f"phase scope: {len(per_task)} tasks account for {len(set(flat))} of "
         f"{len(uncovered)} uncovered items, out of a catalog of {len(catalog)}"
