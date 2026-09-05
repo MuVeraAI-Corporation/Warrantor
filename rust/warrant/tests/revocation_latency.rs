@@ -122,6 +122,19 @@ fn the_evidence_record_names_what_the_measurement_does_not_cover() {
         "the record must name the absence of fan-out, or it reads as a fleet measurement: {:?}",
         record.not_covered,
     );
+    // Added 2026-09-05 after review. The unit of revocation here is the STORE, not the machine:
+    // `--root` is accepted on every command and each root holds its own journal, so a record naming
+    // only machines and processes lets a multi-root operator read a store-scoped measurement as a
+    // host-wide one.
+    assert!(
+        record
+            .not_covered
+            .iter()
+            .any(|line| line.contains("second store on the SAME machine")),
+        "the record must say the revoked set does not reach a second store on the same machine, or \
+         a store-scoped bound reads as a machine-scoped one: {:?}",
+        record.not_covered,
+    );
 }
 
 /// The committed evidence file must equal the code that states the bound.

@@ -29,17 +29,20 @@
 //!
 //! # No new trust root
 //!
-//! The journal is a file under one warrant store's root, appended by an operator on this machine and
-//! read by this machine's adjudications. It establishes two things:
+//! The journal is a file under one warrant store's root, appended by an operator and read by the
+//! adjudications that go through THAT STORE. The unit is the store, not the machine: `--root` is
+//! accepted on every command, so one machine can hold several stores and each has its own journal.
+//! It establishes two things:
 //!
-//! - every verdict THIS process computes after `sync_all` returns denies at gate Identity for that
-//!   subject; and
+//! - every verdict THIS process computes against THIS store after `sync_all` returns denies at gate
+//!   Identity for that subject; and
 //! - non-revocation at any past epoch is provable from the log alone, because revocation is monotone
 //!   and every record carries the epoch second at which it became durable.
 //!
-//! It establishes nothing about any other machine, nothing about a credential a third party already
-//! holds, and nothing about a session already open. It is not a directory, not a CA, and not an
-//! authority anyone else consults.
+//! It establishes nothing about any other store — including a second store on the same machine under
+//! a different `--root`, where the same subject reads as unrevoked — nothing about any other machine,
+//! nothing about a credential a third party already holds, and nothing about a session already open.
+//! It is not a directory, not a CA, and not an authority anyone else consults.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -411,8 +414,13 @@ pub fn latency_evidence() -> LatencyEvidence {
             "does not bind an agent that never asks for a verdict: the refusal is a chokepoint, \
              not an operating-system bound"
                 .to_string(),
-            "the subject revoked is the constant this build presents as its principal, not an \
-             issued SVID, until Task 3.1 lands"
+            "does not reach a second store on the SAME machine: the journal is a file under one \
+             store root, `--root` is accepted on every command, and a report built against a \
+             different root reads a different file"
+                .to_string(),
+            "does not bind a revoked string to an issued identity: `grant --subject` and \
+             `revoke --svid` both accept arbitrary strings and this build mints no SVID document, \
+             so the default subject is a constant, not an issued SVID, until Task 3.1 lands"
                 .to_string(),
         ],
     }

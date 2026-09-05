@@ -1,0 +1,34 @@
+{
+  "format": "warrantor.revocation-latency/1",
+  "recorded": "2026-09-05",
+  "sla": {
+    "identity_seconds": 5,
+    "credential_seconds": 1,
+    "identity_source": "warrantor_warrant::IDENTITY_REVOCATION_SLA",
+    "credential_source": "warrantor_credential_vault::REVOKE_BUDGET"
+  },
+  "enforcement_points": 2,
+  "enforcement_points_consulting_revocation": 1,
+  "points": [
+    {
+      "name": "notary identity gate",
+      "call_site": "rust/warrant/src/report.rs::build_observed",
+      "consults_revocation": true
+    },
+    {
+      "name": "egress broker",
+      "call_site": "rust/egress/src/lib.rs::decide",
+      "consults_revocation": false,
+      "note": "egress::decide takes a request and a destination catalog and no revocation input at all; this task does not give it one (Task 7.7)"
+    }
+  ],
+  "not_covered": [
+    "does not propagate to any other machine or any other process: no fan-out, no broker and no replica set is linked, so every latency here is this process's own",
+    "does not recall a credential already used; revocation bounds future use only",
+    "does not reach a copy of the credential held by a third party",
+    "does not close a session already open, terminate a process, or drop a socket",
+    "does not bind an agent that never asks for a verdict: the refusal is a chokepoint, not an operating-system bound",
+    "does not reach a second store on the SAME machine: the journal is a file under one store root, `--root` is accepted on every command, and a report built against a different root reads a different file",
+    "does not bind a revoked string to an issued identity: `grant --subject` and `revoke --svid` both accept arbitrary strings and this build mints no SVID document, so the default subject is a constant, not an issued SVID, until Task 3.1 lands"
+  ]
+}

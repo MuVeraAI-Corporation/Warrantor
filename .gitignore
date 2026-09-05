@@ -98,6 +98,11 @@ htmlcov/
 /evidence/*
 !/evidence/wiring-coverage.json
 !/evidence/invariants.json
+# Every new committed evidence artifact needs a line here or `git add` skips it in
+# silence and `git status` still reports a clean tree. That is how Task 9.1 shipped a
+# test reading a file the commit did not contain: the file existed in the implementer's
+# working copy and nowhere else, so their run was green and every other checkout was red.
+!/evidence/revocation-latency.json
 
 # Agent hook state -- per-session scratch containing local absolute paths.
 # Never useful to a contributor and noise in a public repo.
