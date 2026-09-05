@@ -19,6 +19,25 @@
 //! Producing the four booleans honestly -- an actual NetworkIsolation probe, an actual
 //! FilesystemBoundary check -- is unimplemented and is what R2 still owes.
 //!
+//! ## The one thing it now refuses to let a caller omit (Task 13.7)
+//!
+//! It could not previously say *where the booleans came from*, and its CLI supplied
+//! [`CheckResults::all_pass`] by default -- so the shipped binary, run on a developer's laptop in
+//! no sandbox at all, emitted a signed attestation asserting that four boundaries held. The
+//! signature was real and the claim inside it was manufactured by the default value of an argument
+//! nobody passed.
+//!
+//! [`Provenance`] closes that. It is a required argument to [`run_preflight`], it participates in
+//! the signed bytes, and the CLI has no default for it: a caller who cannot name a source can no
+//! longer be handed a signature.
+//!
+//! **Read [`Provenance::Measured`] exactly as far as it goes.** It records that the *caller says* a
+//! named probe produced the boolean. This crate still opens no sockets and inspects no namespaces,
+//! so it cannot tell a real probe from an invented probe name. What changed is that the claim is
+//! now attributed and non-omittable rather than absent -- a reviewer can go and look for
+//! `netns-probe/1` and find that it does not exist. That is weaker than measurement and stronger
+//! than silence, and calling it measurement would repeat the defect this field exists to fix.
+//!
 //! ## What it does do, and does correctly
 //!
 //! Given results, it fails closed: any false boundary yields [`EvalGuardError::CheckFailed`] and
@@ -69,6 +88,110 @@ impl BoundaryCheck {
     }
 }
 
+/// Where the four booleans in [`CheckResults`] came from.
+///
+/// # Why this is required rather than defaulted
+///
+/// A signature over four booleans is worth exactly what the booleans are worth, and before this
+/// existed the attestation carried no field saying who decided them. The CLI defaulted them to
+/// [`CheckResults::all_pass`], so the shipped binary produced a signed "all four boundaries held"
+/// on a host with no sandbox on it. There is deliberately no `Default` and no CLI default: the
+/// absent-limit rule this workspace applies to bounds applies here too, and an unnamed source is
+/// the one case where a signature actively misleads.
+///
+/// # `Measured` is the caller's word, not this crate's measurement
+///
+/// This crate has no eBPF, opens no sockets and inspects no namespaces (see the crate docs). It
+/// cannot check that `probe` ran, or that it exists. [`Self::Measured`] therefore records an
+/// *attributed* claim: a reviewer holding the attestation can go and look for the named probe. That
+/// is worth having and it is not evidence of isolation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Provenance {
+    /// The caller says a named probe ran and returned this boolean.
+    Measured {
+        /// The probe, named so a reader can go and look for it. Never empty.
+        probe: String,
+    },
+    /// A caller asserted the boolean with no probe behind it.
+    Asserted {
+        /// Who asserted it. Never empty -- an anonymous assertion is the case this type exists
+        /// to stop.
+        by: String,
+    },
+}
+
+impl Provenance {
+    /// The stable wire word. Equal to the serde tag value.
+    #[must_use]
+    pub fn word(&self) -> &'static str {
+        match self {
+            Self::Measured { .. } => "measured",
+            Self::Asserted { .. } => "asserted",
+        }
+    }
+
+    /// The named source: the probe, or the asserting party.
+    #[must_use]
+    pub fn source(&self) -> &str {
+        match self {
+            Self::Measured { probe } => probe,
+            Self::Asserted { by } => by,
+        }
+    }
+
+    /// What this provenance does NOT establish, in one clause that ships with it.
+    #[must_use]
+    pub fn caveat(&self) -> &'static str {
+        match self {
+            Self::Measured { .. } => {
+                "the caller named a probe; this crate did not run it and cannot tell whether it \
+                 exists, so the boolean is attributed rather than verified"
+            }
+            Self::Asserted { .. } => {
+                "nothing measured this boundary; a named party asserted it and the signature \
+                 covers the assertion, not the boundary"
+            }
+        }
+    }
+
+    /// Parse `measured:<probe>` or `asserted:<name>`.
+    ///
+    /// Split on the FIRST colon only, so `asserted:operator:vj` names `operator:vj` rather than
+    /// being refused for having two.
+    ///
+    /// # Errors
+    /// A sentence naming the two forms. There is no fallback: guessing a source would put a
+    /// fabricated one into the signed bytes, which is the defect and not a convenience.
+    pub fn parse(raw: &str) -> Result<Self, String> {
+        let (kind, source) = raw.split_once(':').ok_or_else(|| {
+            format!(
+                "{raw:?} is not a provenance. Write measured:<probe> or asserted:<who>. There is \
+                 no default: a signature over four booleans whose source is unnamed is the one \
+                 case where this attestation actively misleads its reader."
+            )
+        })?;
+        let source = source.trim();
+        if source.is_empty() {
+            return Err(format!(
+                "{raw:?} names a kind and no source. A probe or a person has to be named, because \
+                 the whole value of this field is that a reviewer can go and look for it."
+            ));
+        }
+        match kind.trim() {
+            "measured" => Ok(Self::Measured {
+                probe: source.to_string(),
+            }),
+            "asserted" => Ok(Self::Asserted {
+                by: source.to_string(),
+            }),
+            other => Err(format!(
+                "{other:?} is not a provenance kind. The two are: measured, asserted."
+            )),
+        }
+    }
+}
+
 /// The signed attestation emitted when all four checks pass. The signature is produced by
 /// T1 trust-core (here represented by an Ed25519 key for the Wave-1 v1.0 — KMS-backed signing
 /// is task 03). The verifying key is carried alongside so any reviewer can verify the signature
@@ -89,8 +212,11 @@ pub struct SandboxAttestation {
     /// When the attestation was produced (epoch seconds). Binds the signature to a point in time
     /// so a captured attestation cannot be replayed indefinitely (C3).
     pub timestamp: u64,
+    /// Where the four booleans came from. Participates in the signed bytes, so relabelling a
+    /// measured attestation as an asserted one -- or the reverse -- invalidates the signature.
+    pub provenance: Provenance,
     /// The 64-byte Ed25519 signature over the canonical encoding of
-    /// (passed_checks, nonce, results, timestamp).
+    /// (passed_checks, nonce, results, timestamp, provenance).
     pub signature: Vec<u8>,
 }
 
@@ -162,7 +288,12 @@ impl CheckResults {
 ///   - the **actual** observed `results` (C3: not just the constant ALL — prevents a single
 ///     attestation acting as a permanent skeleton key for different outcomes),
 ///   - the **timestamp** (epoch seconds — C3: binds the signature to a point in time).
-fn canonical_signing_bytes(nonce: &[u8], results: &[bool; 4], timestamp: u64) -> Vec<u8> {
+fn canonical_signing_bytes(
+    nonce: &[u8],
+    results: &[bool; 4],
+    timestamp: u64,
+    provenance: &Provenance,
+) -> Vec<u8> {
     let mut canon = Vec::new();
     for c in &BoundaryCheck::ALL {
         canon.extend_from_slice(&c.to_proto().to_le_bytes());
@@ -173,6 +304,15 @@ fn canonical_signing_bytes(nonce: &[u8], results: &[bool; 4], timestamp: u64) ->
         canon.push(if r { 1u8 } else { 0u8 });
     }
     canon.extend_from_slice(&timestamp.to_le_bytes());
+    // Task 13.7: bind WHERE the results came from, on the same reasoning C3 applied to `results`
+    // and `timestamp`. Both halves are length-prefixed rather than delimited: a source may contain
+    // any byte a shell can pass, so `measured` + `x:y` and `measured:x` + `y` must not be able to
+    // encode to the same bytes.
+    for part in [provenance.word(), provenance.source()] {
+        let bytes = part.as_bytes();
+        canon.extend_from_slice(&u32::try_from(bytes.len()).unwrap_or(u32::MAX).to_le_bytes());
+        canon.extend_from_slice(bytes);
+    }
     canon
 }
 
@@ -186,6 +326,7 @@ fn canonical_signing_bytes(nonce: &[u8], results: &[bool; 4], timestamp: u64) ->
 /// start the agent.
 pub fn run_preflight(
     results: &CheckResults,
+    provenance: &Provenance,
     signing_key: &SigningKey,
 ) -> Result<SandboxAttestation, EvalGuardError> {
     for (i, &check) in BoundaryCheck::ALL.iter().enumerate() {
@@ -201,7 +342,7 @@ pub fn run_preflight(
         .unwrap_or(0);
     // C3: sign over the ACTUAL results and the timestamp, not just the constant
     // BoundaryCheck::ALL. A single attestation is therefore no longer a permanent skeleton key.
-    let canon = canonical_signing_bytes(&nonce, &results.as_array(), timestamp);
+    let canon = canonical_signing_bytes(&nonce, &results.as_array(), timestamp, provenance);
     let sig = signing_key.sign(&canon);
     Ok(SandboxAttestation {
         passed_checks: BoundaryCheck::ALL.to_vec(),
@@ -209,6 +350,7 @@ pub fn run_preflight(
         verifying_key: signing_key.verifying_key().to_bytes().to_vec(),
         results: results.as_array(),
         timestamp,
+        provenance: provenance.clone(),
         signature: sig.to_bytes().to_vec(),
     })
 }
@@ -238,7 +380,12 @@ pub fn verify_attestation(attestation: &SandboxAttestation) -> Result<(), EvalGu
     let vk = VerifyingKey::from_bytes(&vk_bytes).map_err(|_| EvalGuardError::SignatureInvalid)?;
     // C3: reconstruct the canonical bytes using the actual results and timestamp embedded in
     // the attestation (not the constant ALL). A mismatch on either makes the signature invalid.
-    let canon = canonical_signing_bytes(&nonce_bytes, &attestation.results, attestation.timestamp);
+    let canon = canonical_signing_bytes(
+        &nonce_bytes,
+        &attestation.results,
+        attestation.timestamp,
+        &attestation.provenance,
+    );
     let sig = Signature::from_bytes(&sig_bytes);
     vk.verify(&canon, &sig)
         .map_err(|_| EvalGuardError::SignatureInvalid)
@@ -253,12 +400,118 @@ mod tests {
         SigningKey::generate(&mut rng)
     }
 
+    fn measured() -> Provenance {
+        Provenance::Measured {
+            probe: "netns-probe/1".to_string(),
+        }
+    }
+
+    fn asserted() -> Provenance {
+        Provenance::Asserted {
+            by: "operator:vj".to_string(),
+        }
+    }
+
     #[test]
     fn all_pass_returns_signed_attestation() {
         let key = test_key();
-        let attestation = run_preflight(&CheckResults::all_pass(), &key).expect("all pass");
+        let attestation =
+            run_preflight(&CheckResults::all_pass(), &measured(), &key).expect("all pass");
         assert_eq!(attestation.passed_checks.len(), 4);
         verify_attestation(&attestation).expect("signature verifies");
+    }
+
+    // -- Task 13.7: the source of the four booleans is signed, and cannot be omitted -----------
+
+    #[test]
+    fn a_measured_pass_and_an_asserted_pass_do_not_produce_the_same_signed_bytes() {
+        // The defect, made executable at the level it lives at. `canonical_signing_bytes` bound
+        // checks, nonce, results and timestamp -- and nothing about where the results came from,
+        // so a signature over an operator's guess and a signature over a probe's output were
+        // byte-identical.
+        //
+        // Deviation from the plan, recorded in docs/task-evidence/task-13.7.md: the plan compared
+        // the bytes of two `run_preflight` calls. Those differ unconditionally, because each call
+        // draws a fresh 16-byte nonce -- so that assertion would have passed on the unfixed code
+        // and proved nothing. The inputs are pinned here instead.
+        let nonce = [7u8; 16];
+        let results = [true; 4];
+        let ts = 1_700_000_000u64;
+
+        // CONTROL: identical inputs, provenance included, give identical bytes. Without this the
+        // inequality below could be satisfied by nondeterminism rather than by the binding.
+        assert_eq!(
+            canonical_signing_bytes(&nonce, &results, ts, &measured()),
+            canonical_signing_bytes(&nonce, &results, ts, &measured()),
+            "control: the encoding must be deterministic, or the inequality below means nothing",
+        );
+
+        assert_ne!(
+            canonical_signing_bytes(&nonce, &results, ts, &measured()),
+            canonical_signing_bytes(&nonce, &results, ts, &asserted()),
+            "a measured pass and an asserted pass must not produce the same signed bytes: the \
+             signature would then say nothing about where four booleans came from, which is the \
+             one thing a reader of an unmeasured attestation needs to know",
+        );
+    }
+
+    #[test]
+    fn an_attestation_relabelled_as_a_different_source_no_longer_verifies() {
+        let key = test_key();
+
+        // CONTROL: an honestly-sourced result still signs and still verifies. Without this the
+        // assertion below would pass on a `run_preflight` that refused everything.
+        let attestation = run_preflight(&CheckResults::all_pass(), &measured(), &key)
+            .expect("a measured all-pass must still sign");
+        assert_eq!(attestation.provenance, measured());
+        verify_attestation(&attestation).expect("the control verifies");
+
+        // An asserted all-pass may also sign -- this is not a gate on honesty, it is a gate on
+        // silence -- and it must be distinguishable from the measured one.
+        let asserted_attestation = run_preflight(&CheckResults::all_pass(), &asserted(), &key)
+            .expect("an asserted all-pass may sign");
+        assert_eq!(asserted_attestation.provenance, asserted());
+
+        // The bound: rewriting the source on a signed attestation breaks the signature.
+        let mut relabelled = attestation.clone();
+        relabelled.provenance = asserted();
+        assert!(
+            matches!(
+                verify_attestation(&relabelled),
+                Err(EvalGuardError::SignatureInvalid)
+            ),
+            "relabelling a measured attestation as asserted must invalidate it; otherwise the \
+             provenance field is a comment beside the signature rather than part of it",
+        );
+    }
+
+    #[test]
+    fn a_provenance_with_no_named_source_is_refused_rather_than_defaulted() {
+        // CONTROL: both real forms parse, and a source containing a colon survives.
+        assert_eq!(
+            Provenance::parse("measured:netns-probe/1").expect("measured"),
+            measured()
+        );
+        assert_eq!(
+            Provenance::parse("asserted:operator:vj").expect("asserted"),
+            asserted()
+        );
+
+        // Each refusal is checked against the sentence it should produce, not against a
+        // disjunction that any error would satisfy.
+        for (bad, expected) in [
+            ("measured", "is not a provenance"),
+            ("", "is not a provenance"),
+            ("asserted:", "names a kind and no source"),
+            ("measured:   ", "names a kind and no source"),
+            ("probed:thing", "is not a provenance kind"),
+        ] {
+            let error = Provenance::parse(bad).expect_err("a source-less provenance is refused");
+            assert!(
+                error.contains(expected),
+                "parsing {bad:?} must say {expected:?}; it said {error:?}",
+            );
+        }
     }
 
     #[test]
@@ -271,6 +524,7 @@ mod tests {
                 process_isolation: true,
                 egress_attestation: true,
             },
+            &measured(),
             &key,
         );
         assert!(matches!(
@@ -284,7 +538,8 @@ mod tests {
     #[test]
     fn tampered_signature_fails_verification() {
         let key = test_key();
-        let mut attestation = run_preflight(&CheckResults::all_pass(), &key).expect("all pass");
+        let mut attestation =
+            run_preflight(&CheckResults::all_pass(), &measured(), &key).expect("all pass");
         attestation.signature[0] ^= 0xff;
         assert!(matches!(
             verify_attestation(&attestation),
@@ -295,7 +550,8 @@ mod tests {
     #[test]
     fn proto_round_trip_preserves_passed_checks() {
         let key = test_key();
-        let attestation = run_preflight(&CheckResults::all_pass(), &key).expect("all pass");
+        let attestation =
+            run_preflight(&CheckResults::all_pass(), &measured(), &key).expect("all pass");
         let proto = attestation.to_proto();
         assert_eq!(proto.passed_checks, vec![1, 2, 3, 4]);
         assert_eq!(proto.nonce, attestation.nonce);
@@ -312,7 +568,7 @@ mod tests {
         // signature only covered the constant ALL; now it must fail because the embedded results
         // participate in the signed bytes.
         let key = test_key();
-        let real = run_preflight(&CheckResults::all_pass(), &key).expect("all pass");
+        let real = run_preflight(&CheckResults::all_pass(), &measured(), &key).expect("all pass");
         // Tamper: flip one result bit (network_isolation now false). The signature was computed
         // over the original all-true results, so verification must now fail.
         let mut forged = real.clone();
@@ -335,11 +591,13 @@ mod tests {
             &nonce,
             &[true, true, true, true],
             ts,
+            &measured(),
         ));
         let sig_one_fail = key.sign(&canonical_signing_bytes(
             &nonce,
             &[false, true, true, true],
             ts,
+            &measured(),
         ));
         assert_ne!(
             sig_all_pass.to_bytes(),
@@ -351,6 +609,7 @@ mod tests {
             &nonce,
             &[true, true, true, true],
             ts + 1,
+            &measured(),
         ));
         assert_ne!(
             sig_all_pass.to_bytes(),
