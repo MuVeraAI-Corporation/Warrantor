@@ -13,13 +13,14 @@
 //! is kept as the record of it. The matcher no longer lives in this crate: it moved to
 //! `warrantor_egress_filter::hard_deny`, so that `Policy` -- which had five of its own paths to an
 //! Allow for these addresses -- and this broker consult one rule rather than two. The assertions
-//! below are unchanged and still run through `warrantor_egress::decide`, which now delegates.
+//! below are unchanged and still run through `warrantor_egress::decide`, which now delegates. The
+//! delegated matcher is **wider** than the prose above: it also refuses IPv6 unique-local
+//! `fc00::/7`, and every refusal but the unparseable one reaches this crate's callers as
+//! `DenyReason::MetadataRange`, whatever the floor's own reason was.
 //!
-//! UPDATE (Task 7.1, L4-25). Everything above describes the defect this file was written against and
-//! is kept as the record of it. The matcher no longer lives in this crate: it moved to
-//! `warrantor_egress_filter::hard_deny`, so that `Policy` -- which had five of its own paths to an
-//! Allow for these addresses -- and this broker consult one rule rather than two. The assertions
-//! below are unchanged and still pass through `warrantor_egress::decide`, which now delegates.
+//! (This paragraph shipped twice in `5e1b5a5` -- a copy-paste defect an adversarial review caught.
+//! The duplicate is removed here rather than silently, because the file that carries the branch's
+//! "one matcher, not two" argument handing a reader the same paragraph twice is worth naming.)
 
 use warrantor_egress::{
     decide, test_catalog, CatalogEntry, DenyReason, EgressRequest, EgressVerdict,
@@ -136,6 +137,12 @@ fn a_second_public_address_is_still_allowed() {
 /// in `warrantor-egress-filter`. What Task 7.1 did remove is the empty `if` branch whose comment
 /// reasoned itself into a no-op. The pin below is byte-for-byte unchanged and still reads zero.
 /// See `docs/task-evidence/task-7.1.md`.
+///
+/// CORRECTION (adversarial review of `5e1b5a5`). "L4-25 names the metadata service and link-local
+/// addresses, not RFC-1918" is true of L4-25 and was misleading about what shipped: the floor also
+/// refuses IPv6 unique-local `fc00::/7`, which is the IPv6 analog of RFC-1918, and refuses it
+/// *unamendably*. So the IPv4 half of "private ranges" is left to a flag an operator can turn off
+/// while the IPv6 half is not negotiable at all. That asymmetry was not stated when it landed.
 #[test]
 fn private_range_is_allowed_once_catalogued_and_the_variant_is_never_constructed() {
     let verdict = verdict_for("10.0.1.5");

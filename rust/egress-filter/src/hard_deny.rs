@@ -1,7 +1,25 @@
-//! The deny floor (L4-25): the cloud metadata service and link-local addresses, refused in a layer
-//! no warrant, policy edit, serialized config or agent action can amend.
+//! The deny floor (L4-25): the cloud metadata service, link-local addresses **and IPv6 unique-local
+//! `fc00::/7`**, refused in a layer no warrant, policy edit, serialized config or agent action can
+//! amend.
 //!
-//! # The mechanism is the signature
+//! # The exact blast radius, because "metadata and link-local" understates it
+//!
+//! [`refuse_ip`] refuses four classes, and `fc00::/7` is the one a reader of the short name does not
+//! expect. `fc00::/7` (RFC 4193) is the IPv6 analog of RFC-1918, and this module refuses it
+//! *unamendably*, while RFC-1918 itself is left to `deny_private_egress`, which an operator may turn
+//! off. That asymmetry is deliberate, but it is also a **behavior change from `f99af94`**: there, an
+//! allowlisted `fd12:3456:789a::1` on a policy with `deny_private_egress(false)` reached
+//! `Allow`/`Allowlisted`; here the same policy returns `Deny` with rule `unique_local`, and no
+//! configuration value can reverse it. A warrant that legitimately names a unique-local destination
+//! cannot be honored while this floor stands.
+//!
+//! One more consequence, stated rather than left to be discovered: `warrantor_egress::decide`
+//! collapses every refusal except `AddressShapedButUnparseable` into `DenyReason::MetadataRange`, so
+//! a link-local or unique-local refusal is reported to an operator under the word `metadata_range`.
+//! [`FloorReason`] is the finer record; the broker's word is coarser than it, and this task did not
+//! widen the broker's vocabulary.
+//!
+//! # The mechanism is the signature — and what that gate cannot see
 //!
 //! Nothing in this module accepts a configuration value of any kind. No function takes a receiver,
 //! a flag, a policy, a catalog or an options struct — the only input is the address being asked
@@ -9,6 +27,13 @@
 //! answer, because there is nothing to pass. `hard_deny_floor.rs` asserts that absence against the
 //! source text, because absence is the mechanism and a behavioral test cannot see a parameter that
 //! has not been added yet.
+//!
+//! That source gate is an **enumerated denylist over this file's text**, not a proof. It was
+//! demonstrated to miss a real amendment: a `static AtomicBool` plus a `std::env::var` read at the
+//! head of [`refuse_ip`] adds no parameter, leaves both pinned signatures byte-for-byte, and turned
+//! nine tests red only when the variable was set — so it shipped green. The tokens for that channel
+//! are now enumerated too, which closes the one channel that was demonstrated and no more. A channel
+//! nobody has thought of is still invisible to it.
 //!
 //! # Why it lives in this crate and not in `warrantor-egress`
 //!
@@ -23,21 +48,36 @@
 //! # What this floor is, in the project's own vocabulary
 //!
 //! **Tier B, chokepoint.** A specific line refuses the address at the moment a decision is asked
-//! for. It binds every caller of `Policy::decide_*` and of `warrantor_egress::decide`. It does
-//! **not** bind a socket opened without asking, it does **not** resolve DNS — a name outside
-//! [`FLOOR_HOSTNAMES`] that resolves into the metadata range is not caught — and it is **not** an
-//! OS or network-tier control: no netns, seccomp or firewall rule enforces it, and nothing outside
-//! this process is involved.
+//! for. It binds every caller of `Policy::decide_*` and of `warrantor_egress::decide` — and the
+//! first of those two caller sets is **empty in this workspace**. Outside this crate's own tests
+//! nothing calls `Policy::decide_ip`, `decide_domain` or `decide_destination`; the only cross-crate
+//! import of `warrantor-egress-filter` anywhere is `hard_deny` itself, from `rust/egress/src/lib.rs`.
+//! What protects the shipping product today is the `warrantor_egress::decide` half, reached through
+//! the MCP proxy. The `Policy` half hardens a decision surface no shipping caller has yet.
+//!
+//! It does **not** bind a socket opened without asking, it does **not** resolve DNS — a name outside
+//! [`FLOOR_HOSTNAMES`] that resolves into the metadata, link-local or unique-local ranges is not
+//! caught — and it is **not** an OS or network-tier control: no netns, seccomp or firewall rule
+//! enforces it, and nothing outside this process is involved.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-/// The identifier this floor's records carry, so a stored verdict names the rule that produced it.
-pub const FLOOR_FORMAT: &str = "warrantor.egress-hard-deny/1";
-
-/// Metadata services named by address. `169.254.169.254` is also link-local, so range checks would
-/// catch it; `100.100.100.200` (Alibaba Cloud) lives in carrier-NAT space `100.64.0.0/10` and is
-/// caught by nothing but this list.
-pub const FLOOR_ADDRESSES: &[&str] = &["169.254.169.254", "100.100.100.200"];
+/// Metadata services named by address — **the list the matcher reads**, not a second copy of it.
+///
+/// `169.254.169.254` is also link-local, so the range check would catch it anyway;
+/// `100.100.100.200` (Alibaba Cloud) lives in carrier-NAT space `100.64.0.0/10` and is caught by
+/// nothing but this list. Adding an address here changes what the floor refuses, and
+/// `every_address_on_the_public_list_is_actually_refused` in `hard_deny_floor.rs` fails if it ever
+/// stops doing so.
+///
+/// It carries typed `Ipv4Addr` values rather than strings so that there is exactly one spelling of
+/// each address in the module. An earlier revision of this file shipped a `pub` string list beside a
+/// private typed one; the string list had no readers, so an address added to the documented list was
+/// not refused. Two lists are two rules waiting to disagree, which is this module's whole thesis.
+pub const FLOOR_ADDRESSES: &[Ipv4Addr] = &[
+    Ipv4Addr::new(169, 254, 169, 254),
+    Ipv4Addr::new(100, 100, 100, 200),
+];
 
 /// Metadata services named by DNS. A catalog address field is documented as accepting "pre-resolved
 /// IPs or explicit hostnames" and `rust/warrant/src/egress.rs` puts a hostname there, so the name
@@ -51,11 +91,6 @@ pub const FLOOR_HOSTNAMES: &[&str] = &[
     "metadata.goog",
     "metadata",
     "instance-data",
-];
-
-const FLOOR_V4: &[Ipv4Addr] = &[
-    Ipv4Addr::new(169, 254, 169, 254),
-    Ipv4Addr::new(100, 100, 100, 200),
 ];
 
 /// Why the floor refused. Every variant is constructed; none is prose without a decision behind it.
@@ -224,7 +259,7 @@ fn is_address_shaped(host: &str) -> bool {
 pub fn refuse_ip(ip: IpAddr) -> FloorVerdict {
     match normalize(ip) {
         IpAddr::V4(v4) => {
-            if FLOOR_V4.contains(&v4) {
+            if FLOOR_ADDRESSES.contains(&v4) {
                 FloorVerdict::Refused(FloorReason::MetadataService)
             } else if v4.is_link_local() {
                 FloorVerdict::Refused(FloorReason::LinkLocal)

@@ -23,8 +23,13 @@
 //!
 //! * [`DenyReason::NotInChainIntersection`] cannot fire here — the chain and the catalogue are the
 //!   same set. The denials that can fire are [`DenyReason::CatalogUnavailable`] (the warrant
-//!   permits no egress at all), [`DenyReason::NotInCatalog`] (the destination is not in the bound)
-//!   and [`DenyReason::MetadataRange`].
+//!   permits no egress at all), [`DenyReason::NotInCatalog`] (the destination is not in the bound),
+//!   [`DenyReason::MetadataRange`] and [`DenyReason::UnparseableAddress`]. The fourth was made
+//!   reachable here by Task 7.1: [`EgressBroker::for_bounds`] copies each `egress_hosts` entry
+//!   verbatim into the address field, so a bound of `"999.1.1.1"` arrives at the floor as a literal
+//!   that could only ever have been a numeric address and is not one, and is refused rather than
+//!   guessed at. `MetadataRange` is also the word the broker uses for a link-local **or IPv6
+//!   unique-local** refusal: the floor's own reason is finer than this enum.
 //! * The catalogue is unsigned, and [`DestinationCatalog::signature`] is left `None` rather than
 //!   filled with something signature-shaped. The broker never checks that field anyway. What makes
 //!   this catalogue trustworthy is that it was derived from signed warrant claims, not that the
@@ -438,8 +443,8 @@ pub fn reason_phrase(reason: DenyReason) -> &'static str {
         }
         DenyReason::NotInCatalog => "it is not a destination this warrant permits",
         DenyReason::MetadataRange => {
-            "it is a link-local or cloud-metadata address, which is refused even when a warrant \
-             names it"
+            "it is a link-local, IPv6 unique-local or cloud-metadata address, which is refused even \
+             when a warrant names it"
         }
         DenyReason::NotInChainIntersection => {
             "the delegation chain this warrant carries does not reach it"
@@ -453,7 +458,8 @@ pub fn reason_phrase(reason: DenyReason) -> &'static str {
         }
         DenyReason::PrivateRange => "it is a private-range address this warrant does not name",
         DenyReason::UnparseableAddress => {
-            "the destination is written as a numeric address and is not one, so the floor cannot              classify it and refuses rather than guess"
+            "the destination is written as a numeric address and is not one, so the floor cannot \
+             classify it and refuses rather than guess"
         }
         DenyReason::CatalogInvalidSignature => "the destination catalogue did not verify",
         DenyReason::AgentCannotAmendCatalog => "an agent cannot amend the destination catalogue",

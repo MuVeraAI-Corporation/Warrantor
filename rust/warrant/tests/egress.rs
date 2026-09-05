@@ -7,8 +7,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use warrantor_warrant::egress::{
-    capability_for, destinations_of, render_decision, DenyReason, EgressBroker, EgressVerdict,
-    ENFORCEMENT_NOTE,
+    capability_for, destinations_of, reason_phrase, reason_word, render_decision, DenyReason,
+    EgressBroker, EgressVerdict, ENFORCEMENT_NOTE,
 };
 use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall};
 use warrantor_warrant::staging::EffectRegistry;
@@ -125,6 +125,147 @@ fn a_metadata_address_is_refused_even_when_the_warrant_names_it() {
             reason: DenyReason::MetadataRange
         }
     );
+}
+
+/// L4-25's verification sentence, transcribed to the layer this repository actually has: from a
+/// deliberately over-broad warrant, every spelling of the metadata service and every link-local or
+/// unique-local address is refused through the shipping path — `EgressBroker::for_bounds(&bounds)`
+/// then `.decide(host)`.
+///
+/// Task 7.1 (`5e1b5a5`) claimed Step 4(a) delivered and did not disclose that no test it added
+/// touched this path: both new test files exercised `warrantor_egress::decide` with a hand-built
+/// catalog, and the only pre-existing broker-level assertion covered the dotted quad alone. An
+/// adversarial review found the mechanism sound here and the coverage missing; this is the missing
+/// half, written at the layer the plan named.
+///
+/// `MetadataRange` is the word the broker uses for all three range rules — including IPv6
+/// unique-local `fc00::/7`, which is not a metadata range. That coarseness is asserted rather than
+/// hidden, so a later change that gives the broker a finer vocabulary fails here and gets read.
+#[test]
+fn every_spelling_is_refused_through_the_broker_from_an_over_broad_warrant() {
+    for spelling in [
+        "169.254.169.254",
+        "100.100.100.200",
+        "2852039166",
+        "0xa9fea9fe",
+        "0251.0376.0251.0376",
+        "::ffff:169.254.169.254",
+        "[::ffff:169.254.169.254]:80",
+        "HTTP://169.254.169.254",
+        "http://169.254.169.254/latest/meta-data/",
+        "169.254.169.254:80",
+        "metadata.google.internal",
+        "METADATA.GOOGLE.INTERNAL.",
+        "instance-data",
+        "169.254.1.1",
+        "fe80::1",
+        "[fe80::1]",
+        "fd12:3456:789a::1",
+    ] {
+        // The warrant names it. This is the over-broad warrant, not a missing bound.
+        let broker = EgressBroker::for_bounds(&bounds_with(&[spelling]));
+        assert_eq!(
+            broker.catalogued(),
+            1,
+            "{spelling} must be catalogued, or this tests NotInCatalog instead of the floor"
+        );
+        assert_eq!(
+            broker.decide(spelling),
+            EgressVerdict::Deny {
+                reason: DenyReason::MetadataRange
+            },
+            "{spelling} is named by the warrant and must still be refused by the floor"
+        );
+    }
+}
+
+/// No refusal sentence reaches a human with source indentation baked into it.
+///
+/// This gate exists because `5e1b5a5` shipped one that did. `reason_phrase(UnparseableAddress)` was
+/// written as a single long line with the `\` continuation every neighboring arm uses collapsed into
+/// literal spaces, so the operator-facing text read *"…so the floor cannot              classify
+/// it…"*. `cargo fmt` does not reformat string interiors and clippy has no lint for it, so both
+/// gates passed at exit 0 and the defect reached `render_decision` and `EgressRefusal::sentence()`.
+///
+/// The variants are listed rather than iterated because the enum has no iterator; a new variant with
+/// a mangled phrase is caught the first time someone adds it to this list, which is the same review
+/// moment that adds it to `reason_word`.
+#[test]
+fn every_refusal_sentence_is_free_of_collapsed_line_continuations() {
+    for reason in [
+        DenyReason::NotACapability,
+        DenyReason::NotInCatalog,
+        DenyReason::NotInChainIntersection,
+        DenyReason::MetadataRange,
+        DenyReason::PrivateRange,
+        DenyReason::UnparseableAddress,
+        DenyReason::CatalogUnavailable,
+        DenyReason::CatalogInvalidSignature,
+        DenyReason::DiscoveryRequiresApproval,
+        DenyReason::AgentCannotAmendCatalog,
+        DenyReason::RedirectOutOfSet,
+    ] {
+        let phrase = reason_phrase(reason.clone());
+        assert!(
+            !phrase.contains("  "),
+            "reason_phrase({:?}) carries a run of consecutive spaces, which is a `\\` line \
+             continuation that was dropped when the literal was written: {phrase:?}",
+            reason_word(reason.clone())
+        );
+        assert!(
+            !phrase.is_empty() && !phrase.contains('\n') && !phrase.contains('\t'),
+            "reason_phrase({:?}) must be one plain sentence: {phrase:?}",
+            reason_word(reason)
+        );
+    }
+    // The control: the check can actually see a collapsed run, so a green pass means the phrases are
+    // clean rather than the assertion being unable to fire.
+    assert!(
+        "the floor cannot              classify it".contains("  "),
+        "the space-run check is broken and every assertion above is a false pass"
+    );
+}
+
+/// The other half of the shipping-path claim: an address-shaped literal that does not parse fails
+/// closed with its own reason, and it is reachable from a warrant because `for_bounds` copies each
+/// `egress_hosts` entry verbatim into the address field.
+#[test]
+fn an_address_shaped_bound_that_does_not_parse_fails_closed_through_the_broker() {
+    for bad in ["999.1.1.1", "169.254.169.254.5", "2852039166000000", "0x"] {
+        let broker = EgressBroker::for_bounds(&bounds_with(&[bad]));
+        assert_eq!(
+            broker.decide(bad),
+            EgressVerdict::Deny {
+                reason: DenyReason::UnparseableAddress
+            },
+            "{bad} could only ever have been a numeric address and is not one, so the broker must \
+             refuse it rather than guess"
+        );
+    }
+}
+
+/// The allowed controls for both tests above. A floor that refused every catalogued destination
+/// would satisfy them and break the product, so the ordinary case is asserted in the same file.
+#[test]
+fn the_broker_still_allows_the_ordinary_bounds_a_developer_writes() {
+    for ok in [
+        "api.github.com",
+        "registry.npmjs.org",
+        "example.com",
+        "8.8.8.8",
+        "203.0.113.9",
+        // Disclosed and deliberate: RFC-1918 and loopback are NOT in the floor, so a catalogued
+        // private address still reaches Allow. `DenyReason::PrivateRange` has no mechanism.
+        "10.0.0.1",
+        "127.0.0.1",
+    ] {
+        let broker = EgressBroker::for_bounds(&bounds_with(&[ok]));
+        assert!(
+            matches!(broker.decide(ok), EgressVerdict::Allow { .. }),
+            "{ok} is an ordinary bound and must still reach the network: {:?}",
+            broker.decide(ok)
+        );
+    }
 }
 
 /// The catalogue is derived, not signed, and says so by carrying no signature at all.

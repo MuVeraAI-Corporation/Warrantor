@@ -245,7 +245,7 @@ impl Policy {
         if let Ok(ip) = needle.parse::<IpAddr>() {
             return self.decide_ip(ip);
         }
-        // The floor again, on the name path. `DEFAULT_CANARY_IPS` has no hostname analogue, so
+        // The floor again, on the name path. `DEFAULT_CANARY_IPS` has no hostname analog, so
         // before this line `allow_domain("metadata.google.internal")` reached Allow on a policy
         // that had weakened nothing at all.
         if let hard_deny::FloorVerdict::Refused(rule) = hard_deny::refuse(&needle) {
@@ -471,7 +471,12 @@ impl PolicyBuilder {
     }
 
     /// Toggle the deny-private-egress flag. Defaults to `true`; passing `false` is an explicit,
-    /// auditable decision to permit egress to RFC-1918 / loopback / link-local addresses.
+    /// auditable decision to permit egress to **RFC-1918 and loopback** addresses.
+    ///
+    /// It no longer reaches link-local or IPv6 unique-local `fc00::/7`. Those are refused by
+    /// [`hard_deny::refuse_ip`], which [`Policy::decide_ip`] consults *before* this flag is read, so
+    /// `false` cannot opt out of them. On `f99af94` it could: this is a deliberate behavior change,
+    /// and it is the narrowing a reader of the old sentence would not expect.
     #[must_use]
     pub fn deny_private_egress(mut self, deny: bool) -> Self {
         self.deny_private = deny;

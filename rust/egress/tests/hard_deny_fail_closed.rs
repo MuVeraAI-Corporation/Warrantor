@@ -83,6 +83,12 @@ fn an_address_shaped_literal_that_does_not_parse_is_refused_rather_than_passed_t
 
 /// The controls that keep the fail-closed half from swallowing the shipping path. Every one of
 /// these is a value `EgressBroker::for_bounds` puts in the address field today.
+///
+/// This file only *mentions* `for_bounds`; it drives `warrantor_egress::decide` against a hand-built
+/// catalog. The behavioral half at the broker layer that the plan's Step 4(a) asked for was missing
+/// from `5e1b5a5` and undisclosed; an adversarial review found it, and it now lives in
+/// `rust/warrant/tests/egress.rs` as
+/// `every_spelling_is_refused_through_the_broker_from_an_over_broad_warrant`.
 #[test]
 fn a_hostname_bound_is_still_allowed_because_the_floor_does_not_resolve_dns() {
     for host in [

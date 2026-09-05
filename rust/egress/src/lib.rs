@@ -30,7 +30,16 @@ pub enum DenyReason {
     NotInCatalog,
     /// The endpoint is in the catalog but the delegation chain doesn't grant reachability.
     NotInChainIntersection,
-    /// The resolved address is in a metadata range (169.254.0.0/16 etc.) — never catalog-addable.
+    /// The address is refused by the deny floor — never catalog-addable.
+    ///
+    /// The name is **coarser than the rule it reports**. This variant is the word for every
+    /// `hard_deny::FloorVerdict::Refused` except `AddressShapedButUnparseable`, so it covers the
+    /// metadata services by address and by name, IPv4 `169.254.0.0/16`, IPv6 `fe80::/10` **and IPv6
+    /// unique-local `fc00::/7`**. A unique-local address a warrant names is therefore reported to an
+    /// operator as `metadata_range`, which is misleading and is not fixed here: widening this enum
+    /// would change the reachable-variant list that
+    /// `rust/warrant/tests/invariants/i11_self_change_is_governed.rs` pins, which is a decision of
+    /// its own. `hard_deny::FloorReason::as_str` is the finer record.
     MetadataRange,
     /// The resolved address is in a private range (10.x, 172.16-31.x, 192.168.x) without explicit catalog.
     ///
@@ -222,6 +231,10 @@ pub fn decide(request: &EgressRequest, catalog: Option<&DestinationCatalog>) -> 
                     reason: DenyReason::UnparseableAddress,
                 };
             }
+            // Every other floor reason collapses to one word here, and the word is coarser than the
+            // reason: `MetadataService`, `LinkLocal` and `UniqueLocal` all report `metadata_range`.
+            // A `fc00::/7` destination a warrant legitimately names is refused under the name of a
+            // rule it did not break. Recorded rather than fixed -- see the variant's own doc.
             FloorVerdict::Refused(_) => {
                 return EgressVerdict::Deny {
                     reason: DenyReason::MetadataRange,
