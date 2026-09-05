@@ -3,13 +3,18 @@
 //! > Identity revocation (I1) propagates to all replicas in <5s; credential revocation (R4) in
 //! > <1s.
 //!
-//! Both halves are now reachable from the product, and neither propagates beyond this process.
+//! The IDENTITY half is now reachable from the product and does not propagate beyond this process.
+//! The credential half is not: its 1-second budget is still compared only inside `Vault::revoke` and
+//! `Vault::revoke_all`, which no shipped path calls, so linking the crate bought its journal FORMAT
+//! and not its budget. Between 2026-09-05 and the correction later that day this header said "both
+//! halves", which overstated the credential side.
 //!
-//! Until 2026-09-05 this header said the opposite, and it was true: the credential side lived in
-//! `rust/credential-vault`, which the `warrantor` binary did not link, and the identity side had no
-//! implementation at all — `revoked_svids` is a `Vec<String>` the caller supplies and the one caller
-//! supplied an empty one. Task 9.1 linked that crate and wrote `warrantor_warrant::revoke`, which
-//! reads its `fsync`'d journal, so the product's own notary call consults a real revocation source.
+//! Until 2026-09-05 this header said the opposite of even that, and it was true: the credential side
+//! lived in `rust/credential-vault`, which the `warrantor` binary did not link, and the identity side
+//! had no implementation at all — `revoked_svids` is a `Vec<String>` the caller supplies and the one
+//! caller supplied an empty one. Task 9.1 linked that crate and wrote `warrantor_warrant::revoke`,
+//! which reads its `fsync`'d journal, so the product's own notary call consults a real revocation
+//! source.
 //!
 //! **What that changes, precisely.** The refusal is Tier B, a chokepoint: `notary::verdict` returns
 //! `Deny { gate: Identity }` for a revoked subject. The *propagation* claim stays Tier C, observed:
@@ -92,11 +97,17 @@ fn a_revocation_landing_between_the_start_check_and_the_commit_stops_the_commit(
 ///
 /// Task 9.1 added the path dependency with `default-features = false`, which costs zero external
 /// packages because that crate's CLI and scanner are now feature-gated. `warrantor_warrant::revoke`
-/// reads its journal format, so the budget binds a shipped code path.
+/// reads its journal FORMAT.
 ///
-/// **Still not fixed by it:** the credential is not bound to an issued identity. This test asserts
-/// the crate is linked, which is the manifest half. Binding a credential to a per-workload SVID is
-/// Task 3.1's.
+/// **Still not fixed by it, and this doc comment claimed otherwise until 2026-09-05:** the 1-second
+/// budget does NOT bind a shipped code path. `REVOKE_BUDGET` is compared in exactly two places,
+/// `Vault::revoke` and `Vault::revoke_all` (`rust/credential-vault/src/lib.rs`), and nothing in
+/// `rust/warrant/src` constructs a `Vault` or calls either — the binary's whole use of the crate is
+/// `JournalOp`, `JournalRecord`, `RevocationJournal`, `CredentialError`, and `REVOKE_BUDGET` read as
+/// a number to print. `RevocationStore::revoke` times nothing and refuses nothing on duration. What
+/// the dependency edge bought is the journal format; the budget still needs a shipped caller. The
+/// credential is also not bound to an issued identity — this test asserts the crate is linked, which
+/// is the manifest half, and binding a credential to a per-workload SVID is Task 3.1's.
 #[test]
 fn hop_05_the_product_links_a_credential_vault_that_can_revoke() {
     let manifest = harness::read_repository_file("rust/warrant/Cargo.toml");
