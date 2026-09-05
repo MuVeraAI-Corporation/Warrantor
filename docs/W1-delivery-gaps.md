@@ -728,6 +728,25 @@ What the profile establishes:
   than a documentation snippet.
 - Everything else is reported as a **gap**, with what actually holds it.
 
+**A gap the profile did not name until 2026-09-05, found by Task 13.7: the store's signing key stays
+readable.** Every divergence the profile emitted was keyed to a `WarrantBounds` field, and nothing
+grants a warrant the authority to read `~/.warrantor/keys/settle.key` — so no field named it, and the
+one surface whose whole job is enumerating what a confinement *cannot* hold was silent about the one
+credential whose leak turns a scored agent into the party that settles its own score. `--ro-bind / /`
+mounts `$HOME`, and **read-only is not unreadable**. Nothing in this repository refuses that read at
+any tier; same UID is same UID.
+
+What the profile *does* hold is the other direction, and it matters for a different reason: the
+scorer's inputs (`~/.warrantor/guard/<id>.jsonl`, `runs/`, `refusals/`) sit outside the worktree, so
+under a launched profile a **write** to them fails with `EROFS` at the syscall. The scored party
+cannot edit the logs that score it. It can still copy the settle key out. The profile now emits a
+`Divergence::Gap` for `scorer_credentials` saying exactly that, and
+`rust/warrant/tests/scorer_isolation.rs` fails the build if the sentence goes missing. Not fixed —
+what would fix it is a separate user account for the store, or binding `~/.warrantor` as a tmpfs
+instead of inheriting it from the read-only root, and a profile that hid the store would break
+`warrantor settle` from inside the sandbox in a way that does not look like Warrantor refusing
+anything.
+
 **§3.1 is NOT closed.** The derivation is unit-tested; nothing in this repository has executed
 `bubblewrap`, because the branch had no Linux host. `bound_strengths()` is untouched and a test
 asserts writing a profile does not move a single entry in it — a profile that is never launched

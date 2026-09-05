@@ -346,6 +346,32 @@ pub fn profile(bounds: &WarrantBounds, worktree: &str, confinement: Confinement)
         });
     }
 
+    // ── the store, which is not a bound and is the thing a grader must not leak ───────
+    //
+    // Task 13.7. Every divergence above and below is keyed to a `WarrantBounds` field, and that is
+    // exactly why this one was missing: nobody grants a warrant the authority to read
+    // `~/.warrantor/keys/settle.key`, so no field named it and the surface whose whole job is
+    // enumerating what a profile CANNOT hold said nothing about the one credential whose leak
+    // converts a scored agent into the party that settles its own score.
+    //
+    // It is a Gap and not an Observed anything: "observed" implies something measures it, and
+    // nothing in this repository looks at this read, let alone refuses it.
+    divergences.push(Divergence::Gap {
+        bound: "scorer_credentials".to_string(),
+        why: "read-only is not unreadable. `--ro-bind / /` mounts the whole filesystem, $HOME \
+              included, so ~/.warrantor/keys/settle.key -- the key that releases staged effects for \
+              real -- stays READABLE to the confined process, and nothing in this repository \
+              refuses that read at any tier. Same UID is same UID. The profile does stop the \
+              agent WRITING the store, which is what protects the guard and run logs a scorer reads \
+              from being edited by the party being scored; it does nothing about the agent COPYING \
+              the settle key out. What would hold it is a separate user account for the store, or a \
+              sandbox invocation that binds ~/.warrantor as a tmpfs rather than inheriting it from \
+              the read-only root -- neither of which this module emits, because a profile that \
+              hid the store would break `warrantor settle` from inside the sandbox and the \
+              breakage would not look like Warrantor refusing anything."
+            .to_string(),
+    });
+
     // ── the bounds no filesystem or network confinement can hold ──────────────────────
     divergences.push(Divergence::Gap {
         bound: "tools".to_string(),
