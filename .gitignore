@@ -89,7 +89,12 @@ htmlcov/
 # depth -- it silently swallowed rust/evidence/, a real workspace member, so every
 # `cargo metadata` in CI failed with 'no such file or directory' and took rustfmt,
 # clippy and the conformance matrix down with it.
-/evidence/
+#
+# `/evidence/*` rather than `/evidence/`: git cannot re-include a file whose parent
+# directory is excluded, and one file under here is committed on purpose -- the wiring
+# floor that tools/ci/wiring_census.py refuses to let fall. Everything else stays out.
+/evidence/*
+!/evidence/wiring-coverage.json
 
 # Agent hook state -- per-session scratch containing local absolute paths.
 # Never useful to a contributor and noise in a public repo.

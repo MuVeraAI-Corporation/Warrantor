@@ -197,6 +197,39 @@ jobs:
               exit 1
             fi
           done
+      # The wiring census: how many workspace crates the `warrantor` binary links, from the
+      # manifests alone. It lives in the Rust job because it is a statement about Cargo.toml, and
+      # it runs AFTER the build so a red census is never the first thing a broken tree reports.
+      # Paths are ../ because this job's working-directory is rust/. The `if:` guards exist because
+      # Task 0.2 makes this job a two-OS matrix — one measurement per push is the point, and the
+      # census reads manifests, so the second OS would add a duplicate number and no information.
+      - uses: actions/setup-python@v7
+        if: runner.os == 'Linux'
+        with:
+          python-version: "3.11"
+      - name: Test the wiring census
+        if: runner.os == 'Linux'
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest ../tools/ci/test_wiring_census.py -q -p no:cacheprovider
+      # The ratchet. Fails when a change lowers the count below evidence/wiring-coverage.json,
+      # or when the README status table stops showing the current number.
+      - name: Assert the wiring count did not fall
+        if: runner.os == 'Linux'
+        run: python ../tools/ci/wiring_census.py
+      # On main, regenerate the record and publish it. The workflow holds `contents: read`, so
+      # this cannot commit; the committed copy is raised by the pull request that wires a crate,
+      # and this artifact is the copy that never lags the tree.
+      - name: Regenerate the wiring coverage record
+        if: github.event_name == 'push' && runner.os == 'Linux'
+        run: python ../tools/ci/wiring_census.py --write
+      - name: Upload wiring coverage evidence
+        if: github.event_name == 'push' && runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: wiring-coverage
+          path: evidence/wiring-coverage.json
+          if-no-files-found: error
 
   python:
     name: Python (35 projects)

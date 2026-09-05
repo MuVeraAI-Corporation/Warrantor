@@ -98,6 +98,19 @@ substrate crates, one level down: not unwired, *unbuilt*.
 
 ---
 
+### 0.3 The orphan count was prose — **measured, and it can only rise** (2026-09-02)
+
+Three places in this document say *wire before widen* and none of them said how many crates were
+unwired. Measured on `main`: 9 of the 38 workspace crates are linked by the `warrantor`
+binary over 17 path-dependency edges; the other 29 compile, pass their tests and are called by
+nothing a user runs. `tools/ci/wiring_census.py` now measures that from the manifests, records it
+in `evidence/wiring-coverage.json` (format `warrantor.wiring-coverage/1`, orphans named), fails CI
+if a change lowers it, and fails CI if the README status table stops showing the current number.
+It does not measure effect paths — that is L8-22 proper, which needs receipts from a live run and
+is Phase 4. What it measures is the crate-level floor under it, and the floor cannot go down.
+
+---
+
 ## Tier 1 — blocks a non-developer using this at all
 
 ### 1.1 Signing — **a publication requirement, not a delivery gap** (reclassified 2026-08-17)
