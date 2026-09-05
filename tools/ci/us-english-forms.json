@@ -1,0 +1,777 @@
+{
+  "_provenance": "Extracted from M:/Project AumOS - Linkedin Blitzkrieg/scripts/verify-us-english.mjs on 2026-09-05. That script is the canonical arbiter for every public surface across all projects; this file is a vendored copy of its DATA only, because CI runs on a host where that path does not exist. If the two disagree, the canonical script wins -- re-extract rather than hand-editing here.",
+  "_shape": "forms: [britishStem, americanStem] pairs, matched as stems so every inflection is caught. proper_nouns: exact strings that keep their source spelling (carve-out 2).",
+  "forms": [
+    [
+      "organis",
+      "organiz"
+    ],
+    [
+      "recognis",
+      "recogniz"
+    ],
+    [
+      "authoris",
+      "authoriz"
+    ],
+    [
+      "analys",
+      "analyz"
+    ],
+    [
+      "prioritis",
+      "prioritiz"
+    ],
+    [
+      "standardis",
+      "standardiz"
+    ],
+    [
+      "categoris",
+      "categoriz"
+    ],
+    [
+      "specialis",
+      "specializ"
+    ],
+    [
+      "generalis",
+      "generaliz"
+    ],
+    [
+      "normalis",
+      "normaliz"
+    ],
+    [
+      "centralis",
+      "centraliz"
+    ],
+    [
+      "formalis",
+      "formaliz"
+    ],
+    [
+      "legitimis",
+      "legitimiz"
+    ],
+    [
+      "minimis",
+      "minimiz"
+    ],
+    [
+      "maximis",
+      "maximiz"
+    ],
+    [
+      "optimis",
+      "optimiz"
+    ],
+    [
+      "realis",
+      "realiz"
+    ],
+    [
+      "utilis",
+      "utiliz"
+    ],
+    [
+      "summaris",
+      "summariz"
+    ],
+    [
+      "criticis",
+      "criticiz"
+    ],
+    [
+      "apologis",
+      "apologiz"
+    ],
+    [
+      "characteris",
+      "characteriz"
+    ],
+    [
+      "scrutinis",
+      "scrutiniz"
+    ],
+    [
+      "monetis",
+      "monetiz"
+    ],
+    [
+      "mobilis",
+      "mobiliz"
+    ],
+    [
+      "memoris",
+      "memoriz"
+    ],
+    [
+      "militaris",
+      "militariz"
+    ],
+    [
+      "sensitis",
+      "sensitiz"
+    ],
+    [
+      "systematis",
+      "systematiz"
+    ],
+    [
+      "emphasis",
+      "emphasiz"
+    ],
+    [
+      "synthesis",
+      "synthesiz"
+    ],
+    [
+      "hypothesis",
+      "hypothesiz"
+    ],
+    [
+      "harmonis",
+      "harmoniz"
+    ],
+    [
+      "stabilis",
+      "stabiliz"
+    ],
+    [
+      "visualis",
+      "visualiz"
+    ],
+    [
+      "decentralis",
+      "decentraliz"
+    ],
+    [
+      "personalis",
+      "personaliz"
+    ],
+    [
+      "rationalis",
+      "rationaliz"
+    ],
+    [
+      "computeris",
+      "computeriz"
+    ],
+    [
+      "digitis",
+      "digitiz"
+    ],
+    [
+      "itemis",
+      "itemiz"
+    ],
+    [
+      "finalis",
+      "finaliz"
+    ],
+    [
+      "commercialis",
+      "commercializ"
+    ],
+    [
+      "decarbonis",
+      "decarboniz"
+    ],
+    [
+      "modernis",
+      "moderniz"
+    ],
+    [
+      "nationalis",
+      "nationaliz"
+    ],
+    [
+      "privatis",
+      "privatiz"
+    ],
+    [
+      "localis",
+      "localiz"
+    ],
+    [
+      "globalis",
+      "globaliz"
+    ],
+    [
+      "contextualis",
+      "contextualiz"
+    ],
+    [
+      "operationalis",
+      "operationaliz"
+    ],
+    [
+      "securitis",
+      "securitiz"
+    ],
+    [
+      "amortis",
+      "amortiz"
+    ],
+    [
+      "penalis",
+      "penaliz"
+    ],
+    [
+      "publicis",
+      "publiciz"
+    ],
+    [
+      "colonis",
+      "coloniz"
+    ],
+    [
+      "marginalis",
+      "marginaliz"
+    ],
+    [
+      "neutralis",
+      "neutraliz"
+    ],
+    [
+      "capitalis",
+      "capitaliz"
+    ],
+    [
+      "industrialis",
+      "industrializ"
+    ],
+    [
+      "institutionalis",
+      "institutionaliz"
+    ],
+    [
+      "operationalis",
+      "operationaliz"
+    ],
+    [
+      "incentivis",
+      "incentiviz"
+    ],
+    [
+      "behaviour",
+      "behavior"
+    ],
+    [
+      "colour",
+      "color"
+    ],
+    [
+      "favour",
+      "favor"
+    ],
+    [
+      "honour",
+      "honor"
+    ],
+    [
+      "labour",
+      "labor"
+    ],
+    [
+      "neighbour",
+      "neighbor"
+    ],
+    [
+      "rumour",
+      "rumor"
+    ],
+    [
+      "endeavour",
+      "endeavor"
+    ],
+    [
+      "flavour",
+      "flavor"
+    ],
+    [
+      "harbour",
+      "harbor"
+    ],
+    [
+      "humour",
+      "humor"
+    ],
+    [
+      "odour",
+      "odor"
+    ],
+    [
+      "valour",
+      "valor"
+    ],
+    [
+      "vapour",
+      "vapor"
+    ],
+    [
+      "armour",
+      "armor"
+    ],
+    [
+      "rigour",
+      "rigor"
+    ],
+    [
+      "vigour",
+      "vigor"
+    ],
+    [
+      "splendour",
+      "splendor"
+    ],
+    [
+      "saviour",
+      "savior"
+    ],
+    [
+      "parlour",
+      "parlor"
+    ],
+    [
+      "centre",
+      "center"
+    ],
+    [
+      "theatre",
+      "theater"
+    ],
+    [
+      "litre",
+      "liter"
+    ],
+    [
+      "metre",
+      "meter"
+    ],
+    [
+      "fibre",
+      "fiber"
+    ],
+    [
+      "calibre",
+      "caliber"
+    ],
+    [
+      "sombre",
+      "somber"
+    ],
+    [
+      "spectre",
+      "specter"
+    ],
+    [
+      "manoeuvre",
+      "maneuver"
+    ],
+    [
+      "lustre",
+      "luster"
+    ],
+    [
+      "sceptre",
+      "scepter"
+    ],
+    [
+      "licence",
+      "license"
+    ],
+    [
+      "defence",
+      "defense"
+    ],
+    [
+      "offence",
+      "offense"
+    ],
+    [
+      "pretence",
+      "pretense"
+    ],
+    [
+      "practise",
+      "practice"
+    ],
+    [
+      "artefact",
+      "artifact"
+    ],
+    [
+      "programme",
+      "program"
+    ],
+    [
+      "judgement",
+      "judgment"
+    ],
+    [
+      "acknowledgement",
+      "acknowledgment"
+    ],
+    [
+      "ageing",
+      "aging"
+    ],
+    [
+      "cheque",
+      "check"
+    ],
+    [
+      "kerb",
+      "curb"
+    ],
+    [
+      "tyre",
+      "tire"
+    ],
+    [
+      "aluminium",
+      "aluminum"
+    ],
+    [
+      "grey",
+      "gray"
+    ],
+    [
+      "storey",
+      "story"
+    ],
+    [
+      "whilst",
+      "while"
+    ],
+    [
+      "amongst",
+      "among"
+    ],
+    [
+      "towards",
+      "toward"
+    ],
+    [
+      "centring",
+      "centering"
+    ],
+    [
+      "manoeuvring",
+      "maneuvering"
+    ],
+    [
+      "practising",
+      "practicing"
+    ],
+    [
+      "afterwards",
+      "afterward"
+    ],
+    [
+      "backwards",
+      "backward"
+    ],
+    [
+      "forwards",
+      "forward"
+    ],
+    [
+      "nought",
+      "zero"
+    ],
+    [
+      "noughts",
+      "zeros"
+    ],
+    [
+      "maths",
+      "math"
+    ],
+    [
+      "upwards",
+      "upward"
+    ],
+    [
+      "downwards",
+      "downward"
+    ],
+    [
+      "onwards",
+      "onward"
+    ],
+    [
+      "inwards",
+      "inward"
+    ],
+    [
+      "outwards",
+      "outward"
+    ],
+    [
+      "learnt",
+      "learned"
+    ],
+    [
+      "spelt",
+      "spelled"
+    ],
+    [
+      "burnt",
+      "burned"
+    ],
+    [
+      "dreamt",
+      "dreamed"
+    ],
+    [
+      "leapt",
+      "leaped"
+    ],
+    [
+      "spoilt",
+      "spoiled"
+    ],
+    [
+      "knelt",
+      "kneeled"
+    ],
+    [
+      "enrol",
+      "enroll"
+    ],
+    [
+      "fulfil",
+      "fulfill"
+    ],
+    [
+      "instalment",
+      "installment"
+    ],
+    [
+      "skilful",
+      "skillful"
+    ],
+    [
+      "wilful",
+      "willful"
+    ],
+    [
+      "appal",
+      "appall"
+    ],
+    [
+      "distil",
+      "distill"
+    ],
+    [
+      "sceptic",
+      "skeptic"
+    ],
+    [
+      "moustache",
+      "mustache"
+    ],
+    [
+      "plough",
+      "plow"
+    ],
+    [
+      "mould",
+      "mold"
+    ],
+    [
+      "smoulder",
+      "smolder"
+    ],
+    [
+      "draught",
+      "draft"
+    ],
+    [
+      "gaol",
+      "jail"
+    ],
+    [
+      "storeys",
+      "stories"
+    ],
+    [
+      "speciality",
+      "specialty"
+    ],
+    [
+      "orientated",
+      "oriented"
+    ],
+    [
+      "cancelled",
+      "canceled"
+    ],
+    [
+      "cancelling",
+      "canceling"
+    ],
+    [
+      "labelled",
+      "labeled"
+    ],
+    [
+      "labelling",
+      "labeling"
+    ],
+    [
+      "modelled",
+      "modeled"
+    ],
+    [
+      "modelling",
+      "modeling"
+    ],
+    [
+      "travelled",
+      "traveled"
+    ],
+    [
+      "travelling",
+      "traveling"
+    ],
+    [
+      "traveller",
+      "traveler"
+    ],
+    [
+      "signalled",
+      "signaled"
+    ],
+    [
+      "signalling",
+      "signaling"
+    ],
+    [
+      "fuelled",
+      "fueled"
+    ],
+    [
+      "marvellous",
+      "marvelous"
+    ],
+    [
+      "counsellor",
+      "counselor"
+    ],
+    [
+      "jewellery",
+      "jewelry"
+    ],
+    [
+      "defencive",
+      "defensive"
+    ],
+    [
+      "offencive",
+      "offensive"
+    ],
+    [
+      "analogue",
+      "analog"
+    ]
+  ],
+  "proper_nouns": [
+    "World Health Organisation",
+    "International Labour Organisation",
+    "Organisation for Economic Co-operation and Development",
+    "OECD",
+    "Labour Party",
+    "Ministry of Defence",
+    "Serious Fraud Office",
+    "Innovations for Defence Excellence",
+    "iDEX-DIO",
+    "Defence Innovation Organisation",
+    "Defence Research and Development Organisation",
+    "DRDO",
+    "Ministry of Defence, India",
+    "Centre for Data Ethics",
+    "Alan Turing Institute",
+    "Licence Agreement",
+    "UCL Centre for Artificial Intelligence",
+    "Centre for Artificial Intelligence",
+    "Organisation of Islamic Cooperation",
+    "Emiratisation",
+    "Emiratisation Policy",
+    "Defence Science and Technology Laboratory",
+    "Paris Theatre",
+    "Egyptian Theatre",
+    "Grauman's Egyptian Theatre",
+    "Theatre Royal",
+    "Centrepoint",
+    "Artificial Intelligence Centre",
+    "GenAI Centre of Excellence",
+    "Barclays Technologies Centre India",
+    "Centre of Excellence",
+    "Innovation Centre",
+    "Statistics Centre",
+    "OctoChem Pharma and Flavours",
+    "Finnish Defence",
+    "Sagar Defence",
+    "Indian Defence",
+    "Sainsbury Wellcome Centre",
+    "Dubai International Financial Centre",
+    "DIFC Partner Programme",
+    "DIFC's Partner Programme",
+    "Global Capability Centre",
+    "National Informatics Centre",
+    "Lloyds Technology Centre",
+    "Dubai Multi Commodities Centre",
+    "Qatar Shell Research and Technology Centre",
+    "Statistics Centre - Abu Dhabi",
+    "Technology Realised Value",
+    "Max Smart Super Speciality",
+    "Qatar Mobility Innovations Centre",
+    "Emirates NBD media centre",
+    "cols.includes(\"organisation\")",
+    "Load Despatch Centre",
+    "load despatch centre",
+    "Load Despatch Centres",
+    "National Load Despatch Centre",
+    "Regional Load Despatch Centre",
+    "State Load Despatch Centre",
+    "AI, Defence & Sovereign Technologies",
+    "AI, Defence &amp; Sovereign Technologies",
+    "ISB Centre for Business Innovation",
+    "Centre for Business Innovation",
+    "Centre of Data for Public Good",
+    "Human-Centred Artificial Intelligence",
+    "Dubai Exhibition Centre",
+    "Xerox Research Centre",
+    "The Cambridge Crystallographic Data Centre",
+    "Telecommunication Engineering Centre",
+    "Sony India Software Centre",
+    "Societe Generale Global Solution Centre",
+    "National Health Systems Resource Centre",
+    "Senior Executive Leadership Programme",
+    "MBZUAI Executive Programme",
+    "NASSCOM Centre",
+    "ISB Centre",
+    "Infosys Centre",
+    "WEF Centre",
+    "Fraud Risk Surveillance Centre",
+    "Megawatt Government Data Centre",
+    "Kotak Data Centre",
+    "University Hospital Centre",
+    "Brencis Centre",
+    "The CFO Centre",
+    "Career Development Centre",
+    "Airport Predictive Operation Centre",
+    "Launched Airport Predictive Operation Centre",
+    "Policy Development Programme",
+    "Good Governance Associates Programme",
+    "Leadership Development Programme",
+    "Frontier Employee Programme",
+    "Partner Programme",
+    "Trade Licence",
+    "Risk Function Licence"
+  ]
+}
