@@ -834,6 +834,27 @@ export function postureWord(guard) {
   return 'unknown';
 }
 
+/** The three tier words the server may send. Anything else is "not stated", never rounded up. */
+const TIER_WORDS = new Set(['enforced', 'mediated', 'observed']);
+
+/**
+ * One line per bound: name, tier word, and the server's caveat for that tier. Exported and pure so
+ * `console.test.js` can pin the shape. An unknown or missing tier is rendered as "not stated" —
+ * the console composes no tier of its own, and the one word it must never supply is "enforced".
+ */
+export function boundTierLines(data) {
+  const list = data?.bound_strengths;
+  if (!Array.isArray(list)) return [];
+  return list.map((entry) => {
+    const name = typeof entry?.name === 'string' ? entry.name : '(unnamed bound)';
+    if (!TIER_WORDS.has(entry?.strength)) {
+      return `${name} — tier not stated: do not read this as enforced`;
+    }
+    const caveat = typeof entry.caveat === 'string' ? entry.caveat : '';
+    return `${name} — ${entry.strength}: ${caveat}`;
+  });
+}
+
 /** The sentence for each posture. Fixed prose, chosen by the server's word, never composed. */
 const POSTURE_SENTENCE = {
   observe_only: 'observe only — nothing here was blocked',
@@ -1268,6 +1289,9 @@ async function loadDetail(id, { quiet = false } = {}) {
 
   const warrantSection = node('div', 'section');
   warrantSection.append(node('h3', null, 'Warrant'));
+  const tiers = node('ul', 'tiers');
+  for (const line of boundTierLines(payload?.data)) tiers.append(node('li', null, line));
+  if (tiers.children?.length || tiers.childElementCount) warrantSection.append(tiers);
   warrantSection.append(jsonBlock(payload?.data ?? {}));
   view.append(warrantSection);
 
