@@ -1567,13 +1567,21 @@ fn verify_report_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> Exi
     );
     println!("  still live    {liveness}");
     println!("  anchor        {}", anchor_line(anchor));
-    match &signed.bundle.effect_evidence {
-        Some(section) => println!(
+    match (&signed.bundle.effect_evidence, anchor.is_some()) {
+        // With an anchor the key is named; without one it is not, and this line must not imply
+        // otherwise -- the anchor line above it says "NONE pinned" in that case.
+        (Some(section), true) => println!(
             "  effects       {} receipt chain(s) verified: pre-commit before each effect, \
              post-commit after, every receipt signed by the key the anchor line binds",
             section.effects.len()
         ),
-        None => println!("  effects       no per-effect receipts in this export"),
+        (Some(section), false) => println!(
+            "  effects       {} receipt chain(s) verified: pre-commit before each effect, \
+             post-commit after, every receipt signed by the same key as this report -- WHICH key \
+             that is, is not established here",
+            section.effects.len()
+        ),
+        (None, _) => println!("  effects       no per-effect receipts in this export"),
     }
 
     println!("\n── WHAT THIS DOES NOT ESTABLISH ──");

@@ -68,9 +68,11 @@
       "enforced_by": [
         {"crate": "evidence", "symbol": "warrantor_evidence::verify_chain", "test": "rust/evidence/src/lib.rs::orphan_post_commit_no_parent_rejected", "note": "'post_commit has no parent_receipt (orphan; I-07)'"},
         {"crate": "evidence", "symbol": "warrantor_evidence::verify_chain", "test": "rust/evidence/src/lib.rs::post_commit_wrong_parent_rejected", "note": ""},
-        {"crate": "evidence", "symbol": "warrantor_evidence::issue_pre_commit", "test": "rust/evidence/src/lib.rs::an_expired_pre_commit_sinks_the_chain", "note": ""}
+        {"crate": "evidence", "symbol": "warrantor_evidence::issue_pre_commit", "test": "rust/evidence/src/lib.rs::an_expired_pre_commit_sinks_the_chain", "note": ""},
+        {"crate": "warrant", "symbol": "warrantor_warrant::settle::EvidencedPerformer", "test": "rust/warrant/tests/report_evidence_chain.rs::a_pre_commit_receipt_is_on_disk_before_the_effect_is_performed", "note": "counts the lines already durable in receipts/<id>.jsonl at the instant the adapter is called: 1 then 3"},
+        {"crate": "warrant", "symbol": "warrantor_warrant::report::verify_effect_receipts", "test": "rust/warrant/tests/report_evidence_chain.rs::removing_one_receipt_from_the_export_is_a_commit_gate_violation", "note": "commit-gate violation (I-07): the post-commit receipt for <handle> is missing from the export"}
       ],
-      "gap": "The commit gate is enforced for callers of verify_chain; no live warrantor effect passes through a pre_commit receipt until Task 1.1 wires evidence into the report path. Promote to enforced in that PR, on the live-run receipt."
+      "gap": "Task 1.1 wired the commit gate onto the settle path: EvidencedPerformer takes a notary verdict per effect, makes a pre-commit receipt durable before the adapter runs, and refuses to perform the effect if it cannot. Live run 2026-09-05, warrant wrt_d891c73cbcb70a62. It stays PARTIAL rather than being promoted, for one structural reason: the guarantee is held by a WRAPPER, so it holds at the call sites that wrap -- the CLI settle and the HTTP settle route -- and a caller passing a bare EffectPerformer to settle() still gets one. Promotion needs the wrap to be unavoidable rather than conventional."
     },
     {
       "id": "I-08",

@@ -145,18 +145,21 @@ fn the_parent_receipt_field_is_the_proof_of_ordering() {
     );
 }
 
-// -- finding --------------------------------------------------------------------------
+// -- was a finding, earned 2026-09-05 -------------------------------------------------
 
-/// FINDING (I-07, orphaned). Nothing in `rust/warrant/src` calls `issue_pre_commit`. The commit
-/// gate is implemented, tested and correct, and the product never produces a chain for it to
-/// check — so no shipped action has evidence that was durable before its effect was visible.
-/// `verify_chain` exists in the binary's dependency graph and is never reached from it.
+/// Recorded 2026-09-02 as a finding: nothing in `rust/warrant/src` called `issue_pre_commit`, so
+/// the commit gate was implemented, tested, correct — and reached by no shipped action.
 ///
-/// Fixed by: Task 1.1 (evidence and notary into the report path) for issuance, and Task 2.3
-/// (two-phase staged effects for every syscall with idempotency keys) for the commit point the
-/// pre-commit must precede. Recorded 2026-09-02.
+/// Task 1.1 earned it. `settle::EvidencedPerformer::perform` issues a pre-commit, makes it durable
+/// through a [`crate::settle::ReceiptSink`], and returns an error instead of calling the inner
+/// performer when it cannot. Live run 2026-09-05, warrant `wrt_d891c73cbcb70a62`.
+///
+/// **What this test still does not measure.** It counts call sites, not ordering, so it cannot
+/// tell issuance from issuance-before-the-effect. That ordering is measured where it can be —
+/// `rust/warrant/tests/report_evidence_chain.rs::a_pre_commit_receipt_is_on_disk_before_the_effect
+/// _is_performed` counts the lines already durable in the log at the instant the adapter is
+/// called. Task 2.3 still owns the commit point for the staged path as a whole.
 #[test]
-#[ignore = "I-07 orphaned: the product never issues a pre-commit receipt (Task 1.1 / Task 2.3, 2026-09-02)"]
 fn the_product_issues_a_pre_commit_before_it_acts() {
     let calls = harness::occurrences_in_rust_sources("rust/warrant/src", "issue_pre_commit");
     assert!(

@@ -1563,8 +1563,12 @@ pub fn render_signature_section(signed: &SignedReport) -> String {
         ),
     ];
     if let Some(section) = &signed.bundle.effect_evidence {
+        // "signed by the same key", not "covered by this signature": the receipts sit outside the
+        // bundle digest deliberately, so that removing one fails as a commit-gate violation naming
+        // the effect rather than as a digest mismatch naming nothing.
         lines.push(format!(
-            "  effects         {} receipt chain(s) attached and covered by this signature's key",
+            "  effects         {} receipt chain(s), each signed by this same key and checked \
+             separately from the bundle digest",
             section.effects.len()
         ));
     }
