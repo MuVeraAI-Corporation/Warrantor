@@ -123,7 +123,7 @@ alternative reading would misplace the paper. {[}Certify{]}\textquotesingle s at
 {[}QualityProxy{]}\textquotesingle s outcome is a generative model\textquotesingle s refusal scored by an LLM judge. \textbf{Neither measures a
 guard classifier} --- the component that actually sits in the request path and whose verdict \emph{is} the
 decision rather than something a judge infers from a generation. Applying their instrument there
-produces findings neither could have observed, and two of the three below are work the sources
+produces findings neither could have observed, and two of the four below are work the sources
 \textbf{named as outstanding and did not do}.
 
 \textbf{Four things remain, and we claim only these:}
@@ -467,8 +467,8 @@ cancellation is real in guards and its magnitude is not.
 
 \subsection{5.6 A concern of ours, tested and refuted}\label{56-a-concern-of-ours-tested-and-refuted}
 
-\rmark{R11} Against the companion studies\textquotesingle{} stratified serving-noise floor of 0.09\% {[}Anon-A \S{}5.10{]}, 29 of 30 cells
-clear. \textbf{That comparison is nearly vacuous at n = 1,000}: 0.09\% is 0.9 items, so any cell with a
+\rmark{R11} Against the companion studies\textquotesingle{} stratified serving-noise floor of 0.09\% {[}Anon-A \S{}5.10{]}, reported in
+full as {[}Anon-E{]}, 29 of 30 cells clear. \textbf{That comparison is nearly vacuous at n = 1,000}: 0.09\% is 0.9 items, so any cell with a
 single churned item passes. It was run as pre-registered and it decides almost nothing.
 
 \rmark{R12} \textbf{We then raised a concern that would have undercut the entire paper.} {[}Anon-A{]} \texttt{R42} records
@@ -483,7 +483,12 @@ entire ladder, making it the case where a floor most plausibly explains the effe
 condition that most favors the null was deliberate and was stated in the addendum before the runs.
 
 \rmark{R13} \textbf{The floor on this corpus is 0.107\% mean pairwise disagreement --- 1.07 items in 1,000 --- with
-just 2 items ever unstable across all eight runs} (Wilson 95\% {[}0.055\%, 0.726\%{]}).
+just 2 items ever unstable across all eight runs} (Wilson 95\% {[}0.055\%, 0.726\%{]}). The companion
+measurement on a stratified corpus {[}Anon-E{]} found 0.09\% with the same count of two unstable
+items, and on inspection both of its items were \texttt{Safe}/\texttt{Controversial} boundary verdicts that
+flipped together in the same runs --- the floor there is a property of the run and of the model\textquotesingle s
+undecided class, not of scattered items. Whether the two items here share that structure is
+checkable from the released replicates and is left as recorded.
 
 \textbf{That is the stratified figure, not the borderline one. Our concern was wrong.} Adversarial
 \emph{weighting} does not raise the floor the way verdict \emph{selection} does: the borderline sets were
@@ -533,7 +538,10 @@ next-token choice between two continuations. \textbf{No guard classifier appears
 generation, so whether the law reaches that object was untested by anyone.
 
 \textbf{Pre-registered at \texttt{34dc31e7} before any logit was captured.} Two guards $\times$ seven precisions
-$\times$ 1,000 items, RTN quantization at group size 64, served through transformers. Zero null margins.
+$\times$ 1,000 items, RTN quantization at group size 64, served through transformers. The margin for an
+item is the difference between the logits of the \texttt{Unsafe} and \texttt{Safe} verdict tokens at the position
+where the verdict is generated, so its sign is the verdict and its magnitude the model\textquotesingle s confidence
+in it; the precisions are 16 bits (the reference) and 8, 6, 5, 4, 3 and 2. Zero null margins.
 
 \textbf{These cells are not comparable to the ladder in \S{}5.1--\S{}5.7, and the
 pre-registration said so in advance.} Different serving stack --- transformers against
@@ -655,7 +663,7 @@ you before you deploy it} --- and if it does not, that is itself a reason to pre
 does.
 
 \textbf{And measure your own floor.} Ours differed by more than an order of magnitude depending on which
-prior corpus we imported it from, and only measurement settled it (\S{}5.5).
+prior corpus we imported it from, and only measurement settled it (\S{}5.6).
 
 \section{7. Limitations}\label{7-limitations}
 
@@ -663,7 +671,7 @@ prior corpus we imported it from, and only measurement settled it (\S{}5.5).
 \def\labelenumi{\arabic{enumi}.}
 \tightlist
 \item
-  \textbf{The instrument is not ours} (\S{}0, \S{}1), and neither is the cross-scheme audit.
+  \textbf{The instrument is not ours} (the prefatory note, \S{}1), and neither is the cross-scheme audit.
   1b. \textbf{We do not extrapolate from their atlas, and may not.} {[}Certify{]} \S{}4.4 and \S{}9 are explicit
   that it is \emph{"the public record of compression evaluation, not a census of quantization"} ---
   community quantizations of 2023-era models conditioned on leaderboard coverage, plus one vendor\textquotesingle s
@@ -676,7 +684,7 @@ prior corpus we imported it from, and only measurement settled it (\S{}5.5).
 \item
   \textbf{One conversion pipeline, one serving stack.} All ladders come from a single publisher\textquotesingle s GGUF
   conversions served through one stack, deliberately, to hold the pipeline constant. \textbf{Nothing here
-  generalizes to AWQ, GPTQ or NF4}, and \S{}0 explains why we did not extend.
+  generalizes to AWQ, GPTQ or NF4}, and the prefatory note explains why we did not extend.
 \item
   \textbf{The floor is measured for one model at one precision} (\S{}5.5). Floors are model-dependent, so
   the other four models\textquotesingle{} comparisons rest on an assumption.
@@ -707,7 +715,8 @@ prior corpus we imported it from, and only measurement settled it (\S{}5.5).
   \textbf{Two guards, one family, one corpus, one quantizer.} ShieldGemma and Llama Guard are not
   instrumented, and they are the two families \S{}5.2 finds most directionally extreme. \textbf{We fit
   the push \emph{b}; we do not explain why it points where it does, or why it reverses.}
-  For completeness, the probes that \emph{did} fail are {[}QualityProxy{]} \S{}4.4\textquotesingle s four: entropy shift
+  For completeness, {[}QualityProxy{]} \S{}4.4 reports four mechanism probes of its own that failed to
+  localize their effect: entropy shift
   (\emph{p} = 0.606), calibration drift (all \textbar{}\emph{r}\textbar{} \textless{} 0.09), refusal-direction geometry (cosine above 0.97
   in every quantized cell), and safety-neuron error --- real at 1.39$\times$, \emph{p} = 4.89 $\times$ 10$^{-}$$^{7}$, but
   \textbf{global rather than regime-specific}.
@@ -743,7 +752,8 @@ artifact.}
 \item[{[Certify]}] A. Singh. \emph{Certifying Compressed Language Models: An Audit and a Statistical Toolkit.} Georgia Institute of Technology. arXiv:2608.15046v1 {[}cs.LG{]}, 15 August 2026.
 \item[{[QualityProxy]}] S. Kadadekar. \emph{Quality Is Not a Safety Proxy Under Quantization.} Independent Researcher, NYU. arXiv:2606.10154, 8 June 2026.
 \item[{[MarginShrink]}] Z. Wu, S. Dhiman, and A. Koshiyama. \emph{Which Decisions Low-Bit Quantization Breaks, and How to Predict Them.} Holistic AI; UCL Centre for Artificial Intelligence. arXiv:2608.06564, 6 August 2026. Under review, Third Workshop on Uncertainty-Aware NLP (UncertaiNLP) at EMNLP 2026, non-archival track.
-\item[{[Anon-A]}] Anonymous. \emph{Companion submission; title withheld for review.} Under review, 2026. --- source of the corpus, the ladder, and all 35 cells of per-item verdicts. -\/-\/-
+\item[{[Anon-A]}] Anonymous. \emph{Companion submission; title withheld for review.} Under review, 2026. --- source of the corpus, the ladder, and all 35 cells of per-item verdicts.
+\item[{[Anon-E]}] Anonymous. \emph{Companion preprint; title withheld for review.} 2026. -\/-\/-
 \end{description}
 
 \end{document}

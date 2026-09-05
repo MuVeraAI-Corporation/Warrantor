@@ -388,7 +388,8 @@ no effect}, and \textbf{"a larger behavior set \ldots{} would sharpen this analy
 valuable extension of this experiment."}
 
 \textbf{Our design is theirs.} For each pair, stratify by a leave-out difficulty score --- how many of the
-\emph{other four} guards miss that item --- which keeps the stratifier independent of the pair under test.
+\emph{other four} guards miss that item, giving five strata from 0 to 4 --- which keeps the stratifier
+independent of the pair under test.
 We arrived at this independently and it is their construction. Two differences: we pool a
 size-weighted within-stratum $\varphi$ with a permutation null resampling whole payload clusters, where they
 use a CMH common odds ratio with Haldane--Anscombe correction and BH-adjusted \emph{q}; and \textbf{our labels
@@ -400,8 +401,9 @@ follows from measuring classifiers rather than attacks.
 \rmark{R6} \textbf{The corpus does have a hard core.} 143 of 899 unsafe items (15.9\%) are missed by all six
 guards; 112 (12.5\%) by none.
 
-\rmark{R7} \textbf{10 of 15 pairs retain significant association after conditioning}, against their 1 of 15. The
-survivors are structured by family:
+\rmark{R7} \textbf{10 of 15 pairs retain significant association after conditioning} on the permutation test of
+the stratified $\varphi$, against their 1 of 15; \S{}5.5b re-runs the comparison with their own estimator and
+finds 8, or 10 on a cluster-robust interval. The survivors are structured by family:
 
 \begin{table*}[t]
 \centering\scriptsize
@@ -690,7 +692,8 @@ statistic, and a similarity statistic cannot be read off it.
 \def\labelenumi{\arabic{enumi}.}
 \tightlist
 \item
-  \textbf{The headline is a replication.} {[}LayeredEns{]} published it first and developed it further (\S{}0).
+  \textbf{The headline is a replication.} {[}LayeredEns{]} published it first and developed it further
+  (prefatory note).
 \item
   \textbf{Three claims were withdrawn on a full reading of {[}LayeredEns{]} \S{}11}: that $\varphi$ carries no
   marginal ceiling (\S{}5.4), that the family groups do not overlap (\S{}5.5), and that our

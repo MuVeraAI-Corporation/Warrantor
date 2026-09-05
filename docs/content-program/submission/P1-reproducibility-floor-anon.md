@@ -24,8 +24,10 @@ quantization, seed, temperature and context size, eighteen times, and measured h
 a different verdict.
 
 **The floor is small: 998 of 1,000 items returned identical verdicts across eight independent runs**,
-for a mean pairwise disagreement of **0.09%**. Differences above roughly 0.1% between separately-run
-guard evaluations are therefore real, not noise.
+for a mean pairwise disagreement of **0.09%**; the Wilson 95% interval on the per-item instability
+rate, 2 in 1,000, is [0.05%, 0.73%]. A between-run difference of several tenths of a percent on a
+corpus like this one is therefore real, not noise; one below the interval's upper bound is not yet
+distinguishable from the floor.
 
 **That result refutes the hypothesis that motivated the experiment.** We predicted the floor would be
 large enough to swallow effects routinely published as findings — specifically our own prior
@@ -33,6 +35,13 @@ measurement that `Q4_K_M` quantization changes 4 to 11 verdicts per thousand. It
 effects sit 4–12× above the floor and survive. **We also refute the standard folk explanation** for
 guard nondeterminism: varying thread count, which the serving stack's own documentation identifies
 as the culprit, changes nothing measurable.
+
+**Where the floor lives is more informative than its size.** The two unstable items do not flip
+independently: across all eighteen runs, both flip together, in the same four runs, and every flip
+crosses the model's own `Safe`/`Controversial` boundary — the undecided class of its three-valued
+severity. Under the alternative policy setting that scores `Controversial` as safe, one of the two
+would not count as a flip at all. The floor is a property of runs rather than of items, and it
+lives in the boundary class.
 
 **The paper's remaining contribution is a discrepancy we can localize but not yet resolve.** A prior
 experiment observed **1.0% and 5.7%** verdict drift under the same nominal configuration — ten to
@@ -81,7 +90,9 @@ that claim, and we do not make it.**
 ### 1.2 Contributions
 
 1. **The first measurement, to our knowledge, of guard-evaluation reproducibility**: 998/1,000 items
-   unanimous across eight independent runs, 0.09% mean pairwise disagreement (§4).
+   unanimous across eight independent runs, 0.09% mean pairwise disagreement (§4) — and, from the
+   per-item record, that the two unstable items flip together, in the same runs, at the
+   `Safe`/`Controversial` boundary (§4.2).
 2. **A refutation of the standard explanation.** Thread count, which the serving stack's own
    determinism note identifies as the source of nondeterminism, explains none of the observed drift
    (§4.3).
@@ -99,9 +110,9 @@ reduction order and thread count can all change floating-point results, and quan
 compounds this. That literature establishes that variation *can* occur. It does not measure what it
 costs a downstream safety decision, which is the gap here.
 
-**Guard model evaluation** is largely benchmark-aggregate. In our survey it reports model, corpus and
-metric, and does not report serving configuration beyond the model tag, does not repeat runs, and
-does not state a noise floor. We are not aware of prior work that measures repeated-run agreement for
+**Guard model evaluation** is largely benchmark-aggregate. In the guard-evaluation papers we examined
+([WildGuard], [GuardBench]) it reports model, corpus and metric, and does not report serving
+configuration beyond the model tag, does not repeat runs, and does not state a noise floor. We are not aware of prior work that measures repeated-run agreement for
 guard classifiers specifically.
 
 **Guard-model instability under perturbation** is established [GuardMeaning], including the
@@ -113,6 +124,13 @@ our reading, unreported.
 hardware. Inference-time reproducibility of a *fixed* checkpoint has received far less attention,
 presumably because it is assumed to be exact. For quantized guards served through llama.cpp, it is
 not exact, and §4 measures by how much.
+
+**Scope of the prior-art check.** The claim above that we found no prior measurement of
+repeated-run verdict agreement for guard classifiers rests on a keyword search of the
+guard-evaluation and quantization literature conducted on 2026-08-31, **after** this experiment
+ran. It is not a systematic survey. The systems literature on serving nondeterminism is substantial
+and we do not claim novelty on the existence of the phenomenon — only on measuring its magnitude
+for a safety decision, and on the population-dependence hazard in §5.
 
 **What we do not claim.** We do not claim guard evaluations are unreliable — the measured floor says
 the opposite for the population we tested. We do not claim novelty on the existence of serving
@@ -138,6 +156,12 @@ fail-closed scoring. Three arms:
 **Arm A is the headline, and its design principle is that nothing varies.** Everything a practitioner
 would think to report — model, quantization, corpus, seed, temperature, context size — is fixed and
 identical. The drift measured is the drift nobody controls for.
+
+**Serving stack.** Ollama over llama.cpp, the `Q4_K_M` GGUF from a public conversion, one
+container per run on a serverless GPU provider. The run records carry the model tag, `num_ctx`,
+seed, thread setting, and per-item raw output; **they do not carry the Ollama or llama.cpp
+version**, and it was not pinned. §6 asks every evaluation to report the stack version. This one
+cannot, and the omission is stated rather than repaired after the fact.
 
 ### 3.2 Scoring
 
@@ -169,7 +193,7 @@ runs simultaneously**, which is a single count over 1,000 independent items.
 | Mean pairwise agreement (28 pairs) | **0.9991** |
 | Worst pair | 0.9980 |
 | Best pair | **1.0000** |
-| Items ever disagreeing | **2 / 1,000** |
+| Items ever disagreeing | **2 / 1,000** — Wilson 95% [0.05%, 0.73%] |
 | Mean pairwise disagreement | **0.09%** = 0.9 verdicts per 1,000 |
 
 At least one pair of runs was **exactly identical** across all 1,000 items, which bounds the effect
@@ -178,12 +202,44 @@ from below in a way an average cannot: perfect reproducibility is achievable, ju
 ### 4.2 The disagreement is concentrated, not scattered
 
 The two disagreeing items were not different items in different pairs. **Each disagreed in 12 of the
-28 pairs**, while the remaining 998 were unanimous everywhere.
+28 pairs**, while the remaining 998 were unanimous everywhere. Twelve disagreeing pairs is the
+signature of a two-against-six split: each item returned its minority verdict in **two of the
+eight runs**, not in half of them.
 
 This distinction is not cosmetic. A floor of 0.09% spread thinly across nine hundred items would
-imply pervasive low-level instability. **A floor of 0.09% concentrated in two items that flip
-roughly half the time implies a small set of genuinely borderline inputs and a stable remainder** —
-and it is the second, which is why §5's population argument follows.
+imply pervasive low-level instability. **A floor of 0.09% concentrated in two items implies a small
+set of genuinely borderline inputs and a stable remainder** — and it is the second, which is why
+§5's population argument follows.
+
+**The two items flip together, and the unit of instability is the run.** Reading the per-item
+verdicts rather than the summary statistics shows three things the counts above do not:
+
+| | item `m0489` (labeled benign) | item `m0749` (labeled harmful) |
+|---|---|---|
+| majority verdict, 6 of 8 runs | `Safe`, no category | `Controversial`, *Unethical Acts* — scored harmful |
+| minority verdict, 2 of 8 runs | `Controversial`, *Jailbreak* — scored harmful | `Safe`, no category |
+| runs returning the minority verdict | A3, A7 | **A3, A7** |
+
+1. **Both items flip in the same two runs.** Runs A3 and A7 differ from the other six on both
+   items, and no run differs on only one. Across all eighteen runs in the experiment — arms B and
+   C included — the same two items are the only unstable ones; they flip in four runs (A3, A7, one
+   `num_thread=8` run and one L4 run), and they always flip together. Every run falls into one of
+   two states, fourteen in one and four in the other. That is the signature of a run-level
+   property — something about the container a run landed in — not of two items each drawing an
+   independent coin.
+2. **Every flip crosses the `Safe`/`Controversial` boundary.** Qwen3Guard emits a three-valued
+   severity; `Controversial` is the model's own undecided class, and the harness scores it harmful.
+   Neither item ever moves between `Safe` and `Unsafe`. The whole measured floor is a property of
+   the boundary class.
+3. **One of the two flips is a category flip as much as a severity flip.** `m0489`'s minority
+   verdict carries the *Jailbreak* category, which the harness gates as harmful regardless of
+   severity. Under the alternative policy that scores `Controversial` as safe, `m0489` would still
+   count as a flip and `m0749` would not: the floor would be one item in a thousand, and *which*
+   item is unstable would depend on a policy setting rather than on the model.
+
+The two-state structure is not explained by anything the design varied. The four minority-state
+runs include a cold-cache run and three warm-cache runs, an unpinned and a pinned thread count, and
+one of two L4 runs whose sibling on identical hardware stayed in the majority state.
 
 ### 4.3 Thread count explains nothing (H2 refuted)
 
@@ -207,6 +263,11 @@ in the belief that it buys reproducibility are pinning the wrong thing.
 
 Cross-hardware agreement (0.9990) is indistinguishable from within-hardware agreement (mean 0.9990).
 **Two different GPU architectures produce the same verdicts as one architecture produces on repeat.**
+
+In both arms the only disagreeing items are the same two as in arm A, and in each arm exactly one
+run — the second `num_thread=8` run, and the second L4 run — sits in the minority state of §4.2.
+Thread count and GPU type do not create instability of their own; they inherit the same two-state
+behavior at the same two items.
 
 ### 4.5 H3 refuted: the floor does not swallow published effects
 
@@ -263,6 +324,14 @@ instability concentrates where the model is undecided. It does not measure a rep
 but it makes the population-dependence hypothesis considerably more plausible than our two unstable
 items alone would.
 
+**A second measurement on a second corpus.** A companion study [Anon-F] repeated the eight-replicate
+protocol with the same model and quantization on its own 1,000-item, adversarially weighted corpus
+and found 0.107% mean pairwise disagreement with, again, exactly two items ever unstable. Two
+corpora, two floors within 0.02 percentage points of each other, two unstable items each — and in
+this paper's data both sit at the `Safe`/`Controversial` boundary (§4.2). The population hypothesis
+is therefore sharper than "borderline items": the floor appears to live in the model's own undecided
+class, and a corpus's floor is a function of how many of its items the model files there.
+
 ⚠️ **This is still a hypothesis, not a result.** We did not run arm A on a borderline-enriched set. Doing
 so requires only repeating the protocol on such a set and is the immediate follow-up. We state it as
 an open hazard because the alternative — quoting 0.09% as a universal floor — would be exactly the
@@ -279,6 +348,11 @@ Applying the finding honestly to results from the companion studies:
   blurring this in either direction.
 - **Any between-run difference below ~0.1% on a stratified corpus is not reportable**, and any such
   difference on a borderline-enriched set is currently **unbounded** by evidence.
+- **The floor is partly a policy artifact.** Both unstable verdicts are `Controversial` verdicts, and
+  the harness's `controversial_is_harmful` setting decides whether one of them counts (§4.2). A
+  companion paper [Anon-G] shows that fine-tuned guards in the same program lose the `Controversial`
+  class altogether; on such a model this floor would be zero and the setting inoperative. A reported
+  floor should state the severity policy it was scored under.
 
 ---
 
@@ -323,9 +397,14 @@ pairwise mean as a secondary figure.
 **Container assignment is not controlled.** Arm A's runs landed on whatever hardware the scheduler
 provided. Arm C suggests hardware does not matter, but arm A is not a controlled test of that.
 
-**We cannot rule out that the two unstable items are corpus artifacts** — malformed text, unusual
-tokenization — rather than genuinely borderline content. Inspecting them is a next step and would
-sharpen §5.
+**The two unstable items were inspected at the verdict level, not the text level.** Both are
+`Controversial`-boundary verdicts (§4.2), which is the borderline signature §5 predicts, and the
+corpus is access-gated so their text is not reproduced here. A malformed-text explanation would
+have to account for both items flipping in the same runs, which it does not.
+
+**Eight runs is also a small sample of run states.** Four of eighteen runs sat in the minority state
+(Wilson 95% [9%, 45%]); the rate at which a fresh container lands there is not well estimated, and
+nothing in the run records identifies what differs about those four.
 
 ---
 
@@ -340,17 +419,28 @@ explanation for guard nondeterminism: thread count, the variable the serving doc
 implicates, explains none of the observed drift, and neither does GPU architecture.
 
 **What survives is narrower and more useful than the claim we expected to make.** The disagreement
-is concentrated in a tiny number of borderline items rather than spread across the corpus, and a
-prior measurement on a set composed *entirely* of borderline items showed drift ten to sixty times
-higher. If reproducibility tracks item difficulty, the floor is not one number, and the number that
+is concentrated in two items rather than spread across the corpus — two items that flip together,
+in the same runs, at the model's own `Safe`/`Controversial` boundary — and a prior measurement on
+a set composed *entirely* of borderline items showed drift ten to sixty times higher. If reproducibility tracks item difficulty, the floor is not one number, and the number that
 matters most — the floor where effects are actually measured — is still unmeasured.
 
 Reporting a floor costs one extra run. Until it becomes normal to report one, the field is comparing
 guards without knowing what a difference is worth.
 
-**Open work:** the borderline-item floor (§5.3); cross-stack floors for vLLM and transformers;
-inspection of the two unstable items; and whether the floor scales with model size, since the prior
-0.6B observation was five times the 4B's.
+**Open work:** the borderline-item floor (§5.3); cross-stack floors for vLLM and transformers; the
+run-level state that moves both items at once, which is a container-level cause rather than an
+item-level one (§4.2); and whether the floor scales with model size, since the prior 0.6B
+observation was five times the 4B's.
+
+---
+
+## Artifact
+
+Per-item verdicts for all 18 runs, including the raw two-line output behind every verdict; the
+pre-registration and its hash; the corpus row indices; the estimator implementing §6; and the
+script that recomputes every figure in §4 from the run files, including the two-state structure of
+§4.2. Source corpus is public but access-gated, so item indices are published rather than item
+text, with a rebuild script.
 
 ---
 
@@ -372,20 +462,6 @@ arXiv:2605.28830, 2026. — an example of the comparison genre whose noise floor
 Factorial Analysis.* arXiv:2606.29581, 2026. — varies serving parameters deliberately; we hold them
 fixed and measure the residual.
 
-[LongGuard] Z. Chen, X. Wu and S. Hu. *LongGuard: Mechanistic Analysis and Training-Free Mitigation
-of Long-Context Failure in Safety Guardrails.* arXiv:2608.27580, 2026.
+[Anon-F] Anonymous. *Companion preprint; title withheld for review.* 2026.
 
-> ⚠️ **Scope of the prior-art check, stated honestly.** The claim in §1 and §2 that we found no prior
-> measurement of *repeated-run verdict agreement for guard classifiers* rests on a keyword search of
-> the guard-evaluation and quantization literature conducted on 2026-08-31, **after** this
-> experiment ran. It is not a systematic survey. The systems literature on serving nondeterminism is
-> substantial and we do not claim novelty on the existence of the phenomenon — only on measuring its
-> magnitude for a safety decision, and on the population-dependence hazard in §5.
-
----
-
-## Artifact
-
-Per-item verdicts for all 18 runs; the pre-registration and its hash; the corpus row indices; the
-estimator implementing §6. Source corpus is public but access-gated, so item indices are published
-rather than item text, with a rebuild script.
+[Anon-G] Anonymous. *Companion preprint; title withheld for review.* 2026.

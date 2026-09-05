@@ -1,5 +1,9 @@
 # Publication set — 2026-09-01 (revision 2, rebuilt 2026-09-02)
 
+> **Superseded on 2026-09-05 by [`../published-2026-09-05/`](../published-2026-09-05/README.md)
+> (revision 3).** This folder is kept as the record of what was deposited to Zenodo on 2026-09-02;
+> it is what the six version-1 DOIs resolve to until the revision-3 drafts are published.
+
 **Vikram Jha · MuVeraAI · <vikram@muveraai.com> · ORCID [0009-0004-3959-6099](https://orcid.org/0009-0004-3959-6099)**
 
 Six papers, each in a **named** build carrying the author block and, where one exists, an

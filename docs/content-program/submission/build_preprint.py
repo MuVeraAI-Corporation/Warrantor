@@ -66,6 +66,20 @@ ORCID = "0009-0004-3959-6099"
 LICENCE_NAME = "CC BY 4.0"
 LICENCE_URL = "https://creativecommons.org/licenses/by/4.0/"
 
+#: Zenodo CONCEPT DOIs, one per paper, minted when the first version was published on
+#: 2026-09-02. A concept DOI resolves to the latest version of the record, which is why it -- and
+#: not the version DOI -- goes on the face of a paper that will be revised: the PDF a reader holds
+#: then always points at the current one. Version DOIs are in ../zenodo-published.json. NAMED
+#: BUILD ONLY, for the same reason the identity constants above are: a DOI resolves to the author.
+CONCEPT_DOI = {
+    "P1": "10.5281/zenodo.22258094",
+    "P8": "10.5281/zenodo.22258101",
+    "T04": "10.5281/zenodo.22258107",
+    "T12": "10.5281/zenodo.22258110",
+    "P3": "10.5281/zenodo.22258116",
+    "P6": "10.5281/zenodo.22258118",
+}
+
 BYLINE = re.compile(
     r"\*\*(?:Research paper|Replication note|Systematization|Draft)[^\n]*?·\s*(\d{4}-\d{2}-\d{2})\s*·\s*([^*\n]+?)\*\*")
 
@@ -155,7 +169,9 @@ def build(tag, name):
            "\\maketitle",
            "\\begin{center}\\small\\vspace{-1.1em}",
            "\\textcopyright~" + date[:4] + " " + t_author
-           + ". Licensed under \\href{" + LICENCE_URL + "}{" + LICENCE_NAME + "}.",
+           + ". Licensed under \\href{" + LICENCE_URL + "}{" + LICENCE_NAME + "}."
+           + ("\\\\DOI (all versions): \\href{https://doi.org/" + CONCEPT_DOI[tag] + "}{"
+              + CONCEPT_DOI[tag] + "}" if tag in CONCEPT_DOI else ""),
            "\\end{center}",
            body]
     if bib:

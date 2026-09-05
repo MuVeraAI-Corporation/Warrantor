@@ -117,7 +117,7 @@ alternative reading would misplace the paper. [Certify]'s atlas is benchmark acc
 [QualityProxy]'s outcome is a generative model's refusal scored by an LLM judge. **Neither measures a
 guard classifier** — the component that actually sits in the request path and whose verdict *is* the
 decision rather than something a judge infers from a generation. Applying their instrument there
-produces findings neither could have observed, and two of the three below are work the sources
+produces findings neither could have observed, and two of the four below are work the sources
 **named as outstanding and did not do**.
 
 **Four things remain, and we claim only these:**
@@ -400,8 +400,8 @@ cancellation is real in guards and its magnitude is not.
 
 ### 5.6 A concern of ours, tested and refuted
 
-`R11` Against the companion studies' stratified serving-noise floor of 0.09% [Anon-A §5.10], 29 of 30 cells
-clear. ⚠️ **That comparison is nearly vacuous at n = 1,000**: 0.09% is 0.9 items, so any cell with a
+`R11` Against the companion studies' stratified serving-noise floor of 0.09% [Anon-A §5.10], reported in
+full as [Anon-E], 29 of 30 cells clear. ⚠️ **That comparison is nearly vacuous at n = 1,000**: 0.09% is 0.9 items, so any cell with a
 single churned item passes. It was run as pre-registered and it decides almost nothing.
 
 `R12` ⚠️ **We then raised a concern that would have undercut the entire paper.** [Anon-A] `R42` records
@@ -416,7 +416,12 @@ entire ladder, making it the case where a floor most plausibly explains the effe
 condition that most favors the null was deliberate and was stated in the addendum before the runs.
 
 `R13` **The floor on this corpus is 0.107% mean pairwise disagreement — 1.07 items in 1,000 — with
-just 2 items ever unstable across all eight runs** (Wilson 95% [0.055%, 0.726%]).
+just 2 items ever unstable across all eight runs** (Wilson 95% [0.055%, 0.726%]). The companion
+measurement on a stratified corpus [Anon-E] found 0.09% with the same count of two unstable
+items, and on inspection both of its items were `Safe`/`Controversial` boundary verdicts that
+flipped together in the same runs — the floor there is a property of the run and of the model's
+undecided class, not of scattered items. Whether the two items here share that structure is
+checkable from the released replicates and is left as recorded.
 
 **That is the stratified figure, not the borderline one. Our concern was wrong.** Adversarial
 *weighting* does not raise the floor the way verdict *selection* does: the borderline sets were
@@ -455,7 +460,10 @@ next-token choice between two continuations. **No guard classifier appears in th
 generation, so whether the law reaches that object was untested by anyone.
 
 **Pre-registered at `34dc31e7` before any logit was captured.** Two guards × seven precisions
-× 1,000 items, RTN quantization at group size 64, served through transformers. Zero null margins.
+× 1,000 items, RTN quantization at group size 64, served through transformers. The margin for an
+item is the difference between the logits of the `Unsafe` and `Safe` verdict tokens at the position
+where the verdict is generated, so its sign is the verdict and its magnitude the model's confidence
+in it; the precisions are 16 bits (the reference) and 8, 6, 5, 4, 3 and 2. Zero null margins.
 
 ⚠️ **These cells are not comparable to the ladder in §5.1–§5.7, and the
 pre-registration said so in advance.** Different serving stack — transformers against
@@ -555,11 +563,11 @@ you before you deploy it** — and if it does not, that is itself a reason to pr
 does.
 
 **And measure your own floor.** Ours differed by more than an order of magnitude depending on which
-prior corpus we imported it from, and only measurement settled it (§5.5).
+prior corpus we imported it from, and only measurement settled it (§5.6).
 
 ## 7. Limitations
 
-1. **The instrument is not ours** (§0, §1), and neither is the cross-scheme audit.
+1. **The instrument is not ours** (the prefatory note, §1), and neither is the cross-scheme audit.
 1b. ⚠️ **We do not extrapolate from their atlas, and may not.** [Certify] §4.4 and §9 are explicit
    that it is *"the public record of compression evaluation, not a census of quantization"* —
    community quantizations of 2023-era models conditioned on leaderboard coverage, plus one vendor's
@@ -570,7 +578,7 @@ prior corpus we imported it from, and only measurement settled it (§5.5).
    half-precision behavior, which is not itself validated as correct.
 3. **One conversion pipeline, one serving stack.** All ladders come from a single publisher's GGUF
    conversions served through one stack, deliberately, to hold the pipeline constant. **Nothing here
-   generalizes to AWQ, GPTQ or NF4**, and §0 explains why we did not extend.
+   generalizes to AWQ, GPTQ or NF4**, and the prefatory note explains why we did not extend.
 4. **The floor is measured for one model at one precision** (§5.5). Floors are model-dependent, so
    the other four models' comparisons rest on an assumption.
 5. **The corpus is adversarially weighted** (§3), so absolute rates are not deployment rates.
@@ -597,7 +605,8 @@ prior corpus we imported it from, and only measurement settled it (§5.5).
    **Two guards, one family, one corpus, one quantizer.** ShieldGemma and Llama Guard are not
    instrumented, and they are the two families §5.2 finds most directionally extreme. **We fit
    the push *b*; we do not explain why it points where it does, or why it reverses.**
-   For completeness, the probes that *did* fail are [QualityProxy] §4.4's four: entropy shift
+   For completeness, [QualityProxy] §4.4 reports four mechanism probes of its own that failed to
+   localize their effect: entropy shift
    (*p* = 0.606), calibration drift (all |*r*| < 0.09), refusal-direction geometry (cosine above 0.97
    in every quantized cell), and safety-neuron error — real at 1.39×, *p* = 4.89 × 10⁻⁷, but
    **global rather than regime-specific**.
@@ -637,6 +646,8 @@ How to Predict Them.* Holistic AI; UCL Centre for Artificial Intelligence. arXiv
 non-archival track.
 
 [Anon-A] Anonymous. *Companion submission; title withheld for review.* Under review, 2026. — source of the corpus, the ladder, and all 35 cells of per-item verdicts.
+
+[Anon-E] Anonymous. *Companion preprint; title withheld for review.* 2026.
 
 ---
 

@@ -125,7 +125,9 @@ without seeing it named will stop reading, and they would be right to.
    execution monitor can enforce.
 5. **An evidence grade** per work (§3.4), L0 claim-only to L3 reproducible bypass, and the
    observation this permits about enforcement claims that have never been tested above L1.
-6. **A small empirical artifact** (§8) demonstrating bypass on representative systems, one per tier.
+6. **A falsifiable prediction** (§8): a system scored B-T3 should fall to a subprocess spawn that
+   never traverses its chokepoint. The bypass demonstration that would test it, one representative
+   system per tier, is not included in this version; the prediction is published before it.
 
 ---
 
@@ -349,7 +351,7 @@ as method rather than confessed in a limitations paragraph.
 
 **All 15 works were coded by two LLM agents given opposed stance prompts** — one conservative, one
 charitable to the authors — each required to retrieve full text and produce verbatim spans. Full text
-was retrieved on 30 of 30 codings.
+was retrieved on 30 of 30 codings in the decisive pass, and on 50 of 50 across both passes.
 
 **What that is, stated precisely.** Agreement between two prompts of one model family is **not
 inter-coder reliability**. The two share failure modes and will agree on the same misreadings, so
@@ -384,17 +386,21 @@ corpus size, and we report enough for a reader who disagrees to discount it prec
 
 ## 4. Method
 
-**Screening.** ~60 candidates identified by systematic search across cs.CR, cs.AI and cs.SE, plus
-citation chasing from the prior systematization and from the classical spine. Screened to ~45 by
-full-text application of G1–G4. **Expected attrition 10–20%**, and the excluded set is published with
-the gate that excluded each.
+**Screening.** 322 candidate records from four discovery modalities — mechanism-first search across
+cs.CR, cs.AI and cs.SE, a systematic database sweep, venue and industry search, and seed mining from
+the prior systematization and the classical spine. 55 were screened by full-text application of
+G1–G4; 49 entered the corpus and 6 were excluded, each with the gate that excluded it. §5.1 discloses
+that the remaining 267 candidates were not screened, and why.
 
 **Full-text only.** No work is scored from an abstract. This is stated as a method commitment because
 the failure mode is real and we have committed it elsewhere in the companion studies: a related-work section
 built from abstracts is both a desk-reject risk and an integrity problem.
 
-**Coding.** Two coders, independent, on all three axes plus the evidence grade. Cohen's κ per axis.
-Disagreements adjudicated by discussion, on the record, published in the artifact.
+**Coding.** Two opposed-stance machine coders (§3.5), independent, on all three axes plus the evidence
+grade, every cell carrying a verbatim span. Agreement is reported per axis as a stance-divergence
+measurement, and as Cohen's κ only where the marginals support one. Disagreements are adjudicated on
+the record and published in the artifact, and the nine works carrying headline findings are
+designated for human verification against the recorded spans (§3.5, §10).
 
 **Corpus freeze: 15 November 2026.** Works appearing after the freeze are noted in a postscript and
 not scored, so the corpus is a stated population rather than a moving one.
@@ -540,7 +546,7 @@ three-value rubric **eliminated the entire label-collision class** — zero pure
 The residual 29.5% is depth-of-mediation judgment, and **all 31 disagreements ran one direction**,
 with the charitable coder scoring higher every time. A one-directional residual is a rubric signal,
 not noise: the depth rule is being read as a floor by one stance and a ceiling by the other, and
-§5A needs one more sentence before the full pass.
+the depth rule will carry one more clarifying sentence before the full pass.
 
 ### 5.6 Evidence grades (pilot, 20 codings)
 
@@ -655,8 +661,9 @@ compose-rate is not a healthy corpus. It is a monoculture.**
 
 Adjudicated primary placements: **A4** — PAuth, Grimlock. **A2** — AARM, CaMeLs Can Use Computers Too,
 Caging the Agents, From Craft to Kernel, Heartbeat-Bound Credentials, MCP-SandboxScan, MiniScope,
-SEAgent, Sandlock, TDX trusted plane. **A1** — AgentCgroup. **A3** — Separation-of-Powers. The §9
-system takes no placement in the composition matrix. 2 × 10 = **20 A2 × A4 pairs**, which is the whole
+SEAgent, Sandlock, TDX trusted plane. **A1** — AgentCgroup, AIP. **A3** — Separation-of-Powers. The
+system the authors know well (§9) is scored in that section and is not one of the fifteen, so it
+takes no place in the matrix. 2 × 10 = **20 A2 × A4 pairs**, which is the whole
 of the non-composing set.
 
 **The incompatibility is mechanical, not thematic.** Placing the adversary in the inputs is not only a
@@ -726,17 +733,18 @@ quoted spans from both sides is in the artifact.
 
 ##### Robustness of the count
 
-The count depends on two adjudications where the coders disagreed, in opposite directions on the same
-species of evidence — a work's *credential and runtime* discussion read as a statement about the
+The count depends on three adjudications where the coders disagreed, two of them in opposite
+directions on the same species of evidence — a work's *credential and runtime* discussion read as a statement about the
 harness (A4) against its *injection* discussion read as the primary placement (A2). The code turns on
 which the evaluation actually exercises.
 
 | Work | charitable | conservative | adjudicated | effect if flipped |
 |---|---|---|---|---|
 | PAuth | **A4** | A2 | **A4** | 1 A4 × 11 A2 → **11 pairs** |
+| AIP | A1 | **A4** | **A1** | 3 A4 × 10 A2 → **30 pairs** |
 | Caging the Agents | A2 | **A4** | **A2** | 3 A4 × 9 A2 → **27 pairs** |
 
-Neither flip changes the qualitative result — the cell is non-empty, and its members are non-composing
+No single flip changes the qualitative result — the cell is non-empty, and its members are non-composing
 for the reason given above — but the count is reported as **adjudicated rather than observed**, and the
 table travels with it.
 
@@ -821,7 +829,7 @@ vocabularies, enforce four things.
 
 | Shape | Definition | Works | n |
 |---|---|---|---|
-| **S1 — Per-event admissibility predicate at an application chokepoint** | One event tuple (call, request, connection) tested against a granted set, a compiled rule or a presented credential; decidable at interception from local state | MiniScope, SEAgent, AARM, PAuth, the section 9 system, Separation-of-Powers, TDX trusted plane, Heartbeat-Bound Credentials, Grimlock | **9** |
+| **S1 — Per-event admissibility predicate at an application chokepoint** | One event tuple (call, request, connection) tested against a granted set, a compiled rule or a presented credential; decidable at interception from local state | MiniScope, SEAgent, AARM, PAuth, AIP, Separation-of-Powers, TDX trusted plane, Heartbeat-Bound Credentials, Grimlock | **9** |
 | **S2 — Kernel or OS capability bound over a process tree** | Path, port, syscall, IPC or resource limits enforced below the runtime and inherited by descendants | Sandlock, Caging the Agents, AgentCgroup | 3 |
 | **S3 — Prefix-closed automaton over a plan or instruction stream** | A grammar, FSM or plan graph the trace must conform to; violation has a finite bad prefix | CaMeLs Can Use Computers Too, From Craft to Kernel | 2 |
 | **S4 — Single-run positive-evidence observation predicate** | A detector: a witness is reported if observed; absence of a witness proves nothing | MCP-SandboxScan | 1 |
@@ -843,7 +851,7 @@ event presented is the event that will occur. The last trait is where §6.3.1 at
 
 | | O1 information flow | O2 intent / least privilege | O3 provenance | O4 cross-execution | row n |
 |---|---|---|---|---|---|
-| **S1** per-event admissibility | MiniScope, AARM, TDX trusted plane, Grimlock — **4** | SEAgent, PAuth, Separation-of-Powers — 3 | the section 9 system — 1 | Heartbeat-Bound Credentials — 1 | 9 |
+| **S1** per-event admissibility | MiniScope, AARM, TDX trusted plane, Grimlock — **4** | SEAgent, PAuth, Separation-of-Powers — 3 | AIP — 1 | Heartbeat-Bound Credentials — 1 | 9 |
 | **S2** kernel capability bound | Caging the Agents, Sandlock — 2 | — | — | AgentCgroup — 1 | 3 |
 | **S3** plan / instruction automaton | CaMeLs, From Craft to Kernel — 2 | — | — | — | 2 |
 | **S4** single-run detector | MCP-SandboxScan — 1 | — | — | — | 1 |
@@ -888,7 +896,7 @@ claims a uniform verdict and a uniform explanation is claiming more agreement th
 Two works do not fit the modal reading, and saying so strengthens the shape vocabulary rather than
 weakening it. **AgentCgroup** is the only work whose objective is neither information flow nor intent;
 its objective is operational, its unenforceability partly liveness rather than hyperproperty, and it is
-also the only work whose primary adversary placement is A1. **MCP-SandboxScan** is the only work whose
+one of the two works, with AIP, whose primary adversary placement is A1. **MCP-SandboxScan** is the only work whose
 surrogate is a detector rather than an enforcer: its own text concedes that absence of a witness does
 not prove absence of a flow, so its surrogate does not bound even the trace it observes, let alone the
 deployed one. It is the only work in the corpus that enforces nothing at deployment time. Both are
@@ -1132,7 +1140,7 @@ released artifact.*
 |---|---|---|---|---|
 | **O1 — Information flow / non-interference** | Non-leakage, non-exfiltration, confidentiality, PHI non-disclosure, taint-to-sink non-influence. A hyperproperty over sets of executions | MiniScope, MCP-SandboxScan, CaMeLs, AARM, Caging the Agents, From Craft to Kernel, TDX trusted plane, Sandlock, Grimlock | SEAgent, Separation-of-Powers, PAuth (need-to-know) | **9** |
 | **O2 — Intent alignment, task faithfulness, least privilege against an unobservable oracle set** | Whether an action serves what the user meant; membership in a minimal action set that is oracle-defined | SEAgent, PAuth, Separation-of-Powers | MiniScope, AARM, Caging the Agents, TDX trusted plane, CaMeLs | 3 |
-| **O3 — Truthful provenance and accountability** | That the recorded chain corresponds to what the agents did. A correspondence claim about records, not a flow claim about data | The section 9 system | Grimlock, Separation-of-Powers, TDX trusted plane | 1 |
+| **O3 — Truthful provenance and accountability** | That the recorded chain corresponds to what the agents did. A correspondence claim about records, not a flow claim about data | AIP | Grimlock, Separation-of-Powers, TDX trusted plane | 1 |
 | **O4 — Cross-execution operational objective** | Performance isolation between co-located tenants; deterministic termination of a swarm. Not a single-trace property, and in part liveness rather than safety | AgentCgroup, Heartbeat-Bound Credentials | — | 2 |
 
 
@@ -1148,7 +1156,7 @@ released artifact.*
 | 6 | AARM | Pre-execution interception at a chokepoint, then a five-valued decision over (tool, operation, parameters, identity) against static policy and a predicate over an append-only hash-chained session log, with identity freshness, a semantic-distance threshold and a signed receipt | Prevention of compositional exfiltration — that no sequence of individually permitted actions effects a leak — conjoined with intent alignment |
 | 7 | PAuth | Per-call default-deny exact rule match at server-embedded middleware: the operator appears in `allowed_calls`, every operand equals the concretized slice expression derived from signature-verified envelopes, and the conjoined assert guards hold | Faithful execution of the user's signed natural-language task with minimal, non-residual authority, plus need-to-know disclosure |
 | 8 | Caging the Agents | Kernel, network and credential properties: no syscall from the agent or a descendant reaches the host kernel except through the gVisor Sentry, no packet leaves a pod outside its NetworkPolicy allowlist, no raw API secret resides in the agent container | That protected health information never flows to an unauthorized party, and that the agent acts on instructions from its legitimate owner rather than on injected or spoofed ones |
-| 9 | The section 9 system | Per-invocation token-chain validation at a verifier: every block signature validates against a resolved identity document, each delegation's scope, budget and expiry is a subset of its parent's, declared depth is within `max_depth`, the token is unexpired, every block carries a non-empty context string | Truthful provenance and accountability — who authorized the action, through which agents it flowed, what constraints applied at each hop, what the outcome was, whether it was independently verified — plus the implied objective that granted authority is not misused |
+| 9 | AIP | Per-invocation token-chain validation at a verifier: every block signature validates against a resolved identity document, each delegation's scope, budget and expiry is a subset of its parent's, declared depth is within `max_depth`, the token is unexpired, every block carries a non-empty context string | Truthful provenance and accountability — who authorized the action, through which agents it flowed, what constraints applied at each hop, what the outcome was, whether it was independently verified — plus the implied objective that granted authority is not misused |
 | 10 | From Craft to Kernel | Two prefix-decidable conjuncts: no instruction designated a Sink executes while an argument carries an uncleared taint label, and no trajectory prefix violates the right-linear-grammar workflow policy | That untrusted or confidential data never influences sensitive operations — noninterference between tainted sources and sink-visible effects |
 | 11 | Separation-of-Powers | Per-step reference monitor over a typed intent stream: schema and type check, deterministic MinimalCapSet lookup, SHA-256 lineage-anchor equality, a goal-drift similarity threshold, a shutdown-resistance veto, an SMT constraint check, a hard-auth veto, and capability-token presentation at dispatch with subset attenuation | "Goal Integrity" — that executed actions are semantically faithful to the originating intent and that outputs carry no coercion and no unauthorized disclosure |
 | 12 | TDX trusted plane | Per-operation pre-execution authorization: no protected host resource is touched by a constrained executor unless the pending action matches a fresh, non-replayed, scope-bound authorization for that exact action / object / scope / context / sequence tuple, plus mandatory-deny classes | Prevention of host-level abuse, defined to include confidentiality loss, externalization of protected resources, consistency with the current task, and multi-step chains whose combined effect exceeds any single step |
@@ -1161,11 +1169,11 @@ released artifact.*
 
 | Shape | The residual attack | Works | n | Representative quotation |
 |---|---|---|---|---|
-| **R1 — In-scope misuse** | The honest, correctly authorized call that is nonetheless harmful. The predicate holds; the objective fails | MiniScope, the section 9 system, PAuth, Grimlock, SEAgent, Caging the Agents, Sandlock, AARM | **8** | "an agent legitimately holding a narrow scope can still move arbitrary information to any peer that scope permits" — Grimlock, conservative |
+| **R1 — In-scope misuse** | The honest, correctly authorized call that is nonetheless harmful. The predicate holds; the objective fails | MiniScope, AIP, PAuth, Grimlock, SEAgent, Caging the Agents, Sandlock, AARM | **8** | "an agent legitimately holding a narrow scope can still move arbitrary information to any peer that scope permits" — Grimlock, conservative |
 | **R2 — Unmediated path** | The effector is reached without traversing the monitor at all; the predicate is never evaluated | MiniScope, Heartbeat-Bound Credentials, Grimlock, MCP-SandboxScan, PAuth, AARM | 6 | "any authority exercised without network egress (local file write, local process or sub-agent spawn, host-side IPC) is not an event the monitor ever sees" — Grimlock, charitable |
 | **R3 — Laundering through the model** | Tainted content is re-derived by an untracked reasoning step, or a semantic decision is delegated to a probabilistic judge inside the trusted component | From Craft to Kernel, AARM, CaMeLs, Separation-of-Powers, TDX trusted plane, PAuth | 6 | "Tracking data flow is complicated when data passes through an LLM's context window, where it may be transformed, summarized, or paraphrased." — AARM |
 | **R4 — Uncomputable referent** | The objective names a set no monitor can decide membership in: the oracle-minimal action set, the user's true intent | SEAgent, PAuth, Separation-of-Powers, AARM, MiniScope, TDX trusted plane | 6 | "T_q is oracle-defined and often not known in advance, making defense against such attacks challenging" — SEAgent |
-| **R5 — Cooperation dependence** | The upward half of the protocol depends on the agent volunteering true information about itself | AgentCgroup, the section 9 system | 2 | "Declarations are advisory; the feedback loop corrects underestimates." — AgentCgroup |
+| **R5 — Cooperation dependence** | The upward half of the protocol depends on the agent volunteering true information about itself | AgentCgroup, AIP | 2 | "Declarations are advisory; the feedback loop corrects underestimates." — AgentCgroup |
 
 ---
 
@@ -1174,9 +1182,9 @@ released artifact.*
 Every entry was resolved against the arXiv API on 2026-09-01; titles and author lists are
 as recorded there, not as summarized in this paper's tables.
 
-**This list is not the corpus.** The screened corpus is *n* = 49 (§5.2). The 23 works below
+**This list is not the corpus.** The screened corpus is *n* = 49 (§5.2). The 24 works below
 are those identified by arXiv identifier somewhere in this paper or its coding records —
-all 15 works carrying a full two-coder record, plus 8 cited in the text. **The remaining 26
+all 15 works carrying a full two-coder record, plus 9 cited in the text. **The remaining 26
 screened works are not enumerated anywhere in the released material**, because the screening
 payload that produced them was truncated at the 55th record (§5.1) and its output was not
 persisted. Closing that gap is part of the November corpus freeze, and until it closes this
@@ -1221,6 +1229,8 @@ bibliography under-represents the corpus it is drawn from.
 [Sandlock] Cong Wang, Yusheng Zheng. *Sandlock: Confining AI Agent Code with Unprivileged Linux Primitives.* arXiv:2605.26298, 2026.
 
 [Grimlock] Qiancheng Wu et al. *Grimlock: Guarding High-Agency Systems with eBPF and Attested Channels.* arXiv:2605.27488, 2026.
+
+[AgentThread] Shenghan Zheng, Qifan Zhang, Zheng Zhang, Haonan Li and Christophe Hauser. *Formal Security Analysis of Agent Protocol Composition.* arXiv:2606.28690, 2026.
 
 [DEMM-Bench] Oleg Solozobov. *DEMM-Bench: A Cross-Regime Benchmark for Agent-Runtime Governance-Evidence Sufficiency.* arXiv:2606.20634, 2026.
 

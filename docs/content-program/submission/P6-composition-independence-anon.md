@@ -330,7 +330,8 @@ no effect*, and **"a larger behavior set … would sharpen this analysis, and we
 valuable extension of this experiment."**
 
 **Our design is theirs.** For each pair, stratify by a leave-out difficulty score — how many of the
-*other four* guards miss that item — which keeps the stratifier independent of the pair under test.
+*other four* guards miss that item, giving five strata from 0 to 4 — which keeps the stratifier
+independent of the pair under test.
 We arrived at this independently and it is their construction. Two differences: we pool a
 size-weighted within-stratum φ with a permutation null resampling whole payload clusters, where they
 use a CMH common odds ratio with Haldane–Anscombe correction and BH-adjusted *q*; and **our labels
@@ -342,8 +343,9 @@ follows from measuring classifiers rather than attacks.
 `R6` **The corpus does have a hard core.** 143 of 899 unsafe items (15.9%) are missed by all six
 guards; 112 (12.5%) by none.
 
-`R7` **10 of 15 pairs retain significant association after conditioning**, against their 1 of 15. The
-survivors are structured by family:
+`R7` **10 of 15 pairs retain significant association after conditioning** on the permutation test of
+the stratified φ, against their 1 of 15; §5.5b re-runs the comparison with their own estimator and
+finds 8, or 10 on a cluster-robust interval. The survivors are structured by family:
 
 | pair | marginal φ | stratified φ | φ_max | **φ/φ_max** | *p* |
 |---|---|---|---|---|---|
@@ -555,7 +557,8 @@ statistic, and a similarity statistic cannot be read off it.
 
 ## 7. Limitations
 
-1. **The headline is a replication.** [LayeredEns] published it first and developed it further (§0).
+1. **The headline is a replication.** [LayeredEns] published it first and developed it further
+   (prefatory note).
 2. **Three claims were withdrawn on a full reading of [LayeredEns] §11**: that φ carries no
    marginal ceiling (§5.4), that the family groups do not overlap (§5.5), and that our
    stratification result is the opposite of theirs — their §11.6 is underpowered by their own

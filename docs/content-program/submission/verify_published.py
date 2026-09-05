@@ -88,11 +88,18 @@ def page_count(path: str) -> int:
     return max(counts) if counts else 0
 
 
-def check(path: str, named: bool) -> list[str]:
+def check(path: str, named: bool, doi: str = "") -> list[str]:
     problems: list[str] = []
     meta = pdf_metadata(path)
     text = pdf_text(path)
     squashed = text.replace(" ", "")
+
+    # The concept DOI is on the face of every named build from v3 onward; the anonymous build
+    # must not carry any Zenodo DOI, because a DOI resolves to the author as surely as a name does.
+    if named and doi and doi.replace(" ", "") not in squashed:
+        problems.append(f"concept DOI {doi} not on the face of the named build")
+    if not named and "10.5281/zenodo." in squashed:
+        problems.append("anonymous build carries a Zenodo DOI, which resolves to the author")
 
     if not meta.get("Title"):
         problems.append("no /Title in document properties")
@@ -136,7 +143,7 @@ def main() -> int:
     # The publication set, not whatever PDFs happen to be in the tree: a stale P2.pdf from before
     # P2 was dropped from the set sat in both trees and was being checked -- and failing -- as if
     # it were about to ship.
-    from build_preprint import PAPERS
+    from build_preprint import PAPERS, CONCEPT_DOI
     tags = [tag for tag, _ in PAPERS]
     failures = 0
     for tree, named in ((NAMED_DIR, True), (ANON_DIR, False)):
@@ -145,7 +152,7 @@ def main() -> int:
             path = os.path.join(tree, f"{tag}.pdf")
             if not os.path.exists(path):
                 continue                      # T04 has no anonymous build, by design
-            probs = check(path, named)
+            probs = check(path, named, CONCEPT_DOI.get(tag, "") if named else "")
             meta = pdf_metadata(path)
             tag = os.path.basename(path)[:-4]
             print(f"  {'FAIL' if probs else 'ok  '} {label} {tag:<4} {page_count(path):>3}pp  "

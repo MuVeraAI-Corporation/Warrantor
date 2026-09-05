@@ -59,6 +59,20 @@ RULES = [
     (r"\[T-03([^\]]*)\]", "[Anon-A\\g<1>]"),
     (r"\[T-04([^\]]*)\]", "[Anon-B\\g<1>]"),
     (r"\[T-12([^\]]*)\]", "[Anon-C\\g<1>]"),
+    # Companion papers that are PUBLISHED preprints (Zenodo, 2026-09-02). Their reference entries
+    # carry the author's name and a DOI that resolves to it, so under double-blind they are
+    # withheld exactly as the manuscript companions are. The entries are written on one line in
+    # every source so the pattern below can take the whole entry; the keys are descriptive rather
+    # than "P1"/"P8" because a bare `\bP1\b` would also match the experiment labels in P3.
+    (r"\[ReproFloor\] V\. Jha\. \*[^*]+\* Preprint, Zenodo, 2026\. doi:10\.5281/zenodo\.\d+\.",
+     "[Anon-E] Anonymous. *Companion preprint; title withheld for review.* 2026."),
+    (r"\[Ladder\] V\. Jha\. \*[^*]+\* Preprint, Zenodo, 2026\. doi:10\.5281/zenodo\.\d+\.",
+     "[Anon-F] Anonymous. *Companion preprint; title withheld for review.* 2026."),
+    (r"\[Masking\] V\. Jha\. \*[^*]+\* Preprint, Zenodo, 2026\. doi:10\.5281/zenodo\.\d+\.",
+     "[Anon-G] Anonymous. *Companion preprint; title withheld for review.* 2026."),
+    (r"\[ReproFloor([^\]]*)\]", "[Anon-E\\g<1>]"),
+    (r"\[Ladder([^\]]*)\]", "[Anon-F\\g<1>]"),
+    (r"\[Masking([^\]]*)\]", "[Anon-G\\g<1>]"),
     # Bare PROSE references, e.g. "T-03 `R42` records ...". The bracketed rules above cannot see
     # these, and the deny list caught one in P8 after the first clean run. Written as a citation so
     # the sentence still reads correctly.
@@ -127,6 +141,9 @@ DENY = [
     (r"this program", "possessive program framing"),
     (r"our own prior work", "possessive program framing"),
     (r"\bT-\d\d\b", "internal companion-paper label"),
+    # A DOI that resolves to a named record deanonymizes as surely as the name does. Every
+    # companion DOI must have been rewritten by the rules above before the output is scanned.
+    (r"10\.5281/zenodo\.", "companion DOI, resolves to the author"),
     (CONTROL, "control byte -- a shell heredoc once injected one of these"),
 ]
 
