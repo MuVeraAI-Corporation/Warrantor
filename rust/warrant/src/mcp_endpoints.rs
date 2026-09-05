@@ -409,11 +409,16 @@ impl ControlEndpoint {
         };
 
         let daemon = daemons.get(&id);
+        let enforcement = crate::conformance::ConformanceStore::open(self.store.root())
+            .ok()
+            .and_then(|c| c.basis_for_this_kernel());
         let mut outcome = crate::stop::execute(
             &mut stored,
             daemon.as_ref(),
             &OsProcessControl,
             &self.store.staged_path(&id),
+            enforcement,
+            (self.now)(),
         );
         if daemon.is_some() && daemons.deregister(&id).is_ok() {
             outcome.deregistered = true;
@@ -693,7 +698,7 @@ pub struct AgentEndpoint {
     upstreams: Option<crate::upstream::UpstreamSet>,
     /// Side-effect classes an operator declared for upstream tools, by published tool name.
     ///
-    /// Empty by default, which is the shipped behaviour: everything the staging registry does not
+    /// Empty by default, which is the shipped behavior: everything the staging registry does not
     /// know is classed `Read`. That fallback is a **guess**, and it became reachable the moment
     /// forwarding did — an upstream `write_file` is forwarded rather than staged. This map is how
     /// an operator replaces the guess with a statement.
@@ -993,7 +998,7 @@ impl Endpoint for AgentEndpoint {
     }
 
     fn tools(&mut self) -> Vec<ToolSpec> {
-        // No upstream: the shipped behaviour since this endpoint existed. The warrant's tool names
+        // No upstream: the shipped behavior since this endpoint existed. The warrant's tool names
         // are published verbatim with an open schema, because there is no server to ask what the
         // real schema is. Kept exactly as it was — a session with nothing attached is what every
         // test and every `--observe` authoring run has always been. The one exception is a

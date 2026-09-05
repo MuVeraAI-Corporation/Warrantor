@@ -18,8 +18,8 @@ use warrantor_warrant::mcp_endpoints::agent_endpoint_for;
 use warrantor_warrant::proxy::ProxyMode;
 use warrantor_warrant::staging::{EffectRegistry, StagingQueue};
 use warrantor_warrant::stop::{
-    self, ProcessControl, SignedStop, StopError, StopOutcome, StopStore, STOP_ENFORCEMENT_MODE,
-    STOP_EXPORT_FORMAT, STOP_RECORD_FORMAT,
+    self, ProcessControl, SignedStop, StopError, StopOutcome, StopStore, STOP_EXPORT_FORMAT,
+    STOP_RECORD_FORMAT,
 };
 use warrantor_warrant::store::StoredWarrant;
 use warrantor_warrant::supervise::describe_linkage;
@@ -49,6 +49,10 @@ fn other_key() -> SigningKey {
 }
 
 fn stored(state: WarrantState) -> StoredWarrant {
+    stored_for("wrt_stop", "spiffe://muveraai.com/agent/local", state)
+}
+
+fn stored_for(id: &str, subject: &str, state: WarrantState) -> StoredWarrant {
     let bounds = WarrantBounds {
         tools: ["git".to_string()].into_iter().collect(),
         write_paths: ["src/**".to_string()].into_iter().collect(),
@@ -59,9 +63,9 @@ fn stored(state: WarrantState) -> StoredWarrant {
         delegation_depth: 2,
     };
     let mut warrant = Warrant::grant(
-        "wrt_stop",
+        id,
         "fix the auth bug",
-        "spiffe://muveraai.com/agent/local",
+        subject,
         bounds,
         NOW,
         &SigningKey::from_bytes(&[2; 32]).verifying_key(),
@@ -184,6 +188,8 @@ fn stop_now(
         Some(&record(4242)),
         control,
         &staged_path(dir),
+        None,
+        NOW,
     );
     stop::sign(&warrant, &outcome, Some("test"), &issuer(), NOW).expect("sign")
 }
@@ -200,6 +206,8 @@ fn a_live_supervisor_is_terminated_and_confirmed_gone() {
         Some(&record(4242)),
         &control,
         &staged_path(&dir),
+        None,
+        NOW,
     );
 
     assert_eq!(
@@ -336,11 +344,13 @@ fn no_daemon_record_still_holds_the_warrant_and_says_nothing_was_terminated() {
         None,
         &FakeSupervisor::never_dies(),
         &staged_path(&dir),
+        None,
+        NOW,
     );
 
     assert!(!outcome.supervisor_was_alive);
     assert_eq!(outcome.supervisor_pid, None);
-    assert_eq!(outcome.state_after, WarrantState::Held);
+    assert_eq!(outcome.state_after, WarrantState::Void);
 
     let signed = stop::sign(&warrant, &outcome, None, &issuer(), NOW).expect("sign");
     assert_eq!(
@@ -353,7 +363,7 @@ fn no_daemon_record_still_holds_the_warrant_and_says_nothing_was_terminated() {
 // ── what revocation reaches ───────────────────────────────────────────────────────────
 
 #[test]
-fn stopping_holds_the_warrant_rather_than_destroying_the_work() {
+fn a_halt_is_terminal_and_names_what_it_discarded() {
     let dir = tempdir("held");
     let mut warrant = stored(WarrantState::Open);
     let outcome = stop::execute(
@@ -361,14 +371,23 @@ fn stopping_holds_the_warrant_rather_than_destroying_the_work() {
         Some(&record(1)),
         &FakeSupervisor::dies_immediately(),
         &staged_path(&dir),
+        None,
+        NOW,
     );
     assert_eq!(outcome.state_before, WarrantState::Open);
-    assert_eq!(outcome.state_after, WarrantState::Held);
-    assert_eq!(warrant.warrant.state, WarrantState::Held);
+    assert_eq!(outcome.state_after, WarrantState::Void);
+    assert_eq!(warrant.warrant.state, WarrantState::Void);
+    assert!(
+        outcome
+            .invalidated
+            .iter()
+            .any(|i| matches!(i, stop::Invalidation::StagedEffects { .. })),
+        "the record names what the halt discarded, and where the evidence log still is"
+    );
     assert!(
         stop::render_cli(&stop::sign(&warrant, &outcome, None, &issuer(), NOW).expect("sign"))
-            .contains("staged effects      kept"),
-        "stop must never be mistaken for void"
+            .contains("staged effects      discarded"),
+        "a halt is not a hold: the operator reads that the work is no longer releasable"
     );
 }
 
@@ -382,6 +401,8 @@ fn a_terminal_warrant_is_not_transitioned_backwards() {
             Some(&record(1)),
             &FakeSupervisor::dies_immediately(),
             &staged_path(&dir),
+            None,
+            NOW,
         );
         assert_eq!(outcome.state_after, state, "{state:?} is already decided");
         assert_eq!(warrant.warrant.state, state);
@@ -408,6 +429,8 @@ fn a_new_supervised_session_is_refused_only_once_the_warrant_is_no_longer_open()
         Some(&record(1)),
         &FakeSupervisor::dies_immediately(),
         &path,
+        None,
+        NOW,
     );
     assert!(outcome.new_sessions_refused);
     assert!(
@@ -450,6 +473,8 @@ fn stop_outcome_template() -> StopOutcome {
         state_before: WarrantState::Open,
         state_after: WarrantState::Held,
         new_sessions_refused: true,
+        enforcement: None,
+        invalidated: Vec::new(),
     }
 }
 
@@ -558,7 +583,8 @@ fn the_record_never_claims_a_mediated_enforcement_mode() {
     );
     assert_eq!(
         signed.record.conformance.report.enforcement_mode,
-        STOP_ENFORCEMENT_MODE
+        stop::EnforcementMode::Advisory.word(),
+        "no drill receipt was supplied, so the mode is advisory, never assumed"
     );
     assert_ne!(
         signed.record.conformance.report.enforcement_mode, "mediated",
@@ -582,8 +608,8 @@ fn the_limitations_are_never_empty_and_name_what_is_missing() {
         "the egress caveat must survive stop: {all}"
     );
     assert!(
-        all.contains("Staged effects are kept"),
-        "stop is not void, and the record has to say so: {all}"
+        all.contains("Staged effects are discarded"),
+        "a halt is terminal, and the record says the log is retained as evidence: {all}"
     );
     assert!(
         all.contains("does not establish that the signing key is trusted"),
@@ -600,6 +626,8 @@ fn an_unset_reason_is_left_absent_rather_than_invented() {
         Some(&record(1)),
         &FakeSupervisor::dies_immediately(),
         &staged_path(&dir),
+        None,
+        NOW,
     );
     let signed = stop::sign(&warrant, &outcome, None, &issuer(), NOW).expect("sign");
     assert_eq!(signed.record.reason, None);
@@ -910,4 +938,66 @@ fn a_supervised_agent_is_never_given_a_stop_tool() {
         refused.is_error,
         "and calling the name anyway is refused rather than dispatched"
     );
+}
+
+#[test]
+fn halting_a_family_halts_every_open_warrant_with_that_subject_and_nothing_else() {
+    use warrantor_warrant::conformance::ConformanceStore;
+    use warrantor_warrant::daemon::DaemonState;
+    use warrantor_warrant::stop::{halt, HaltContext, HaltScope};
+    use warrantor_warrant::store::WarrantStore;
+    let dir = tempdir("family");
+    let store = WarrantStore::open(&dir).expect("store");
+    for (id, subject) in [
+        ("wrt_a", "spiffe://muveraai.com/agent/fam"),
+        ("wrt_b", "spiffe://muveraai.com/agent/fam"),
+        ("wrt_c", "spiffe://muveraai.com/agent/other"),
+    ] {
+        store
+            .create(&stored_for(id, subject, WarrantState::Open))
+            .expect("create");
+    }
+    let daemons = DaemonState::open(&dir).expect("daemons");
+    let stops = StopStore::open(&dir).expect("stops");
+    let conformance = ConformanceStore::open(&dir).expect("conformance");
+    let control = FakeSupervisor::dies_immediately();
+    let context = HaltContext {
+        store: &store,
+        daemons: &daemons,
+        stops: &stops,
+        conformance: &conformance,
+        control: &control,
+        now: NOW,
+    };
+    let halted = halt(
+        &HaltScope::Family("spiffe://muveraai.com/agent/fam".into()),
+        &context,
+        &issuer(),
+        Some("drill"),
+    )
+    .expect("halt");
+    let mut ids: Vec<_> = halted.iter().map(|s| s.record.warrant_id.clone()).collect();
+    ids.sort();
+    assert_eq!(ids, ["wrt_a".to_string(), "wrt_b".to_string()]);
+    assert_eq!(
+        store.load("wrt_c").expect("load").warrant.state,
+        WarrantState::Open
+    );
+    for id in ["wrt_a", "wrt_b"] {
+        assert_eq!(
+            store.load(id).expect("load").warrant.state,
+            WarrantState::Void
+        );
+        assert!(stops.is_stopped(id));
+        stop::verify_stop(&stops.get(id).expect("record")).expect("verifies offline");
+    }
+    assert!(matches!(
+        halt(
+            &HaltScope::Run("run_nope".into()),
+            &context,
+            &issuer(),
+            None
+        ),
+        Err(StopError::Scope(_))
+    ));
 }

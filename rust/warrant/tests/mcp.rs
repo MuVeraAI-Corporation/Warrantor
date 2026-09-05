@@ -190,9 +190,11 @@ fn the_control_endpoint_stops_a_run_and_leaves_the_same_record_the_cli_would() {
         result.text
     );
 
-    // Held, not void: the staged work survives for a decision.
+    // Void, not held: Task 1.3 made a halt terminal. A state that still permits settle would let
+    // a survivor holding the settle key release what the halted agent staged. The staged log is
+    // retained as evidence; "Held" stays the outcome of the deadline path, not of a halt.
     let after = store.load("wrt_stop_mcp").expect("reload");
-    assert_eq!(after.warrant.state, WarrantState::Held);
+    assert_eq!(after.warrant.state, WarrantState::Void);
 
     // And the record is durable, verifiable, and contains this warrant's scope from now on.
     let stops = warrantor_warrant::stop::StopStore::open(&dir).expect("stops");

@@ -2874,6 +2874,14 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "warrantor-kill-switch-core",
+]
+
+[[package]]
+name = "warrantor-kill-switch-core"
+version = "1.0.0"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]
@@ -3111,6 +3119,7 @@ dependencies = [
  "warrantor-credential-vault",
  "warrantor-egress",
  "warrantor-evidence",
+ "warrantor-kill-switch-core",
  "warrantor-notary",
  "warrantor-spend",
  "warrantor-trust-core",

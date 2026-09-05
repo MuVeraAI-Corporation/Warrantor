@@ -30,6 +30,7 @@ use warrantor_warrant::archive_client::{self, ArchiveAnswer, ArchiveConfig, Arch
 use warrantor_warrant::autofile;
 use warrantor_warrant::bench;
 use warrantor_warrant::bundle;
+use warrantor_warrant::conformance::{self, ConformanceStore};
 use warrantor_warrant::corpus;
 use warrantor_warrant::daemon::{
     process_is_alive, supervise_run, DaemonState, Reconciliation, SuperviseRequest,
@@ -56,7 +57,7 @@ use warrantor_warrant::settle::{
 };
 use warrantor_warrant::spend::{self, SpendStore, SpendVerdict};
 use warrantor_warrant::staging::{EffectRegistry, StagedChainMark, StagedEffect, StagingQueue};
-use warrantor_warrant::stop::{self, OsProcessControl, StopStore};
+use warrantor_warrant::stop::{self, HaltContext, HaltScope, OsProcessControl, StopStore};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::supervise::{describe_linkage, spawn_detached};
 use warrantor_warrant::trust;
@@ -483,7 +484,7 @@ warrantor — bounded authority for coding agents
   holdings
   prune   [--apply]
   report  <warrant-id> [--export <path> [--archive [<url>]]]
-  verify  <exported-report.json | exported-stop.json | exported-spend.json>
+  verify  <exported-report.json | exported-stop.json | exported-spend.json | exported-conformance.json>
   issuer  add <name> <hex> [--note \"...\"] | list | remove <name> | show-hex
           | export --out <file> [--as <label>] | import <file> [--apply]
   archive enrol --url <url> --code <code> [--replace] | push <file>
@@ -491,7 +492,7 @@ warrantor — bounded authority for coding agents
                 | summary
   egress  <warrant-id> <destination> [<destination> ...]
   spend   <warrant-id> [--input N --output N [--backend ID] [--quote]] [--export <path>]
-  stop    <warrant-id> [--reason \"...\"] [--export <path>]
+  stop    <warrant-id> | --family <subject> | --run <run-id> [--reason \"...\"] [--export <path>]
   revoke  --svid <SVID>          record a revocation; prints the record and the measured latency
           | --list               the revoked set, with each record's sequence and epoch
           | --at <EPOCH> --svid <SVID>
@@ -501,6 +502,7 @@ warrantor — bounded authority for coding agents
           | --write-evidence <path>
                                 render evidence/revocation-latency.json from the code that
                                 states the bound, so the file cannot drift from it.
+  conformance run [--export <path>]
   settle  <warrant-id> [--commit \"<message>\"]
   void    <warrant-id>
   stage   <warrant-id> --tool T [--target H] [--arg k=v ...]
@@ -1290,12 +1292,16 @@ fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
         Some(f) if f == warrantor_warrant::catalog::CATALOG_FORMAT => {
             verify_catalog_file(path, &body, anchor, root)
         }
+        Some(f) if f == conformance::CONFORMANCE_RECEIPT_FORMAT => {
+            verify_conformance_export(path, &body, anchor)
+        }
         Some(other) => fail(&format!(
-            "{path} declares format {other:?}. warrantor verify reads {}, {}, {} and {}.",
+            "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {} and {}.",
             report::REPORT_EXPORT_FORMAT,
             stop::STOP_EXPORT_FORMAT,
             spend::LEDGER_EXPORT_FORMAT,
-            warrantor_warrant::catalog::CATALOG_FORMAT
+            warrantor_warrant::catalog::CATALOG_FORMAT,
+            conformance::CONFORMANCE_RECEIPT_FORMAT
         )),
         None => fail(&format!(
             "{path} has no format field, so it is not a warrantor evidence file."
@@ -1349,6 +1355,61 @@ fn verify_catalog_file(path: &str, body: &[u8], anchor: Option<&Anchor>, root: &
     }
     println!("{ENFORCEMENT_NOTE}");
     ExitCode::SUCCESS
+}
+
+/// Verify an exported conformance receipt offline: the receipt's own two signatures (warrantor's
+/// over the drill, the suite's over the report), the derived mode, and — when an anchor was given
+/// — that it was signed by the issuer pinned out of band, exactly as `verify_stop_signed_by` does.
+fn verify_conformance_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitCode {
+    let signed: conformance::SignedConformanceReceipt = match serde_json::from_slice(body) {
+        Ok(s) => s,
+        Err(e) => {
+            return fail(&format!(
+                "{path} is not an exported conformance receipt: {e}"
+            ))
+        }
+    };
+    if let Err(e) = conformance::verify_receipt(&signed) {
+        return fail(&format!("{path}: {e}"));
+    }
+    if let Some(anchor) = anchor {
+        let expected = hex::encode(anchor.key.to_bytes());
+        if signed.signature_public_key != expected {
+            return fail(&format!(
+                "{path} was signed by {}, not by the issuer you pinned ({expected}). The \
+                 signatures are intact — it is internally consistent — but it was signed by a \
+                 different key, so it is not evidence about the issuer you asked about.",
+                signed.signature_public_key
+            ));
+        }
+    }
+    println!("warrantor: conformance receipt {path} verified.");
+    println!(
+        "kernel    {}  mode {}  drilled_at {}",
+        signed.receipt.kernel,
+        signed.receipt.mode.word(),
+        signed.receipt.drilled_at
+    );
+    println!(
+        "  root pid {} gone in {} ms; descendant pid {} gone in {} ms; budget {} ms",
+        signed.receipt.drill.root_pid,
+        signed.receipt.drill.trigger_to_root_gone_ms,
+        signed.receipt.drill.descendant_pid,
+        signed.receipt.drill.trigger_to_descendant_gone_ms,
+        stop::STOP_BUDGET.as_millis()
+    );
+    for limitation in &signed.receipt.report.report.limitations {
+        println!("  - {limitation}");
+    }
+    if signed.receipt.mode == stop::EnforcementMode::Enforced {
+        ExitCode::SUCCESS
+    } else {
+        eprintln!(
+            "warrantor: this receipt reads advisory — the drill did not confirm the tree died \
+             within budget on this kernel, so stop records here stay advisory."
+        );
+        ExitCode::FAILURE
+    }
 }
 
 /// Where a verify anchor came from. Printed in the verdict, because a name resolved from the
@@ -1862,12 +1923,20 @@ fn verify_stop_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitC
 /// with no parent-death link, or a warrant whose access is still open. A stop that could not
 /// contain must not exit like one that did.
 fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
-    let Some(id) = args.positional.first() else {
-        return fail("usage: warrantor stop <warrant-id> [--reason \"...\"] [--export <path>]");
-    };
-    let mut stored = match store.load(id) {
-        Ok(s) => s,
-        Err(e) => return fail(&e.to_string()),
+    let scope = match (
+        args.positional.first(),
+        args.flags.get("family"),
+        args.flags.get("run"),
+    ) {
+        (Some(id), None, None) => HaltScope::Warrant(id.clone()),
+        (None, Some(subject), None) if subject != "true" => HaltScope::Family(subject.clone()),
+        (None, None, Some(run)) if run != "true" => HaltScope::Run(run.clone()),
+        _ => {
+            return fail(
+                "usage: warrantor stop <warrant-id> | --family <subject> | --run <run-id> \
+                 [--reason \"...\"] [--export <path>]",
+            )
+        }
     };
     let daemons = match DaemonState::open(root) {
         Ok(d) => d,
@@ -1877,71 +1946,74 @@ fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(s) => s,
         Err(e) => return fail(&e.to_string()),
     };
+    let conformance = match ConformanceStore::open(root) {
+        Ok(c) => c,
+        Err(e) => return fail(&e.to_string()),
+    };
     // The issuer key, not the settle key. Stop releases nothing and performs nothing, so loading
     // settle authority to record it would put that key in a process with no business holding it.
     let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
-
-    let daemon = daemons.get(id);
-    let mut outcome = stop::execute(
-        &mut stored,
-        daemon.as_ref(),
-        &OsProcessControl,
-        &store.staged_path(id),
-    );
-    if daemon.is_some() {
-        match daemons.deregister(id) {
-            Ok(()) => outcome.deregistered = true,
-            Err(e) => eprintln!(
-                "warrantor: the run was stopped, but its daemon record could not be removed: {e}. \
-                 `warrantor status` may keep reporting it."
-            ),
-        }
-    }
-    // Persist the held state before writing the record, so a crash between the two leaves a warrant
-    // that is held with no record rather than a record of a hold that did not happen.
-    if let Err(e) = store.save(&stored) {
-        return fail(&format!(
-            "the run was stopped but the warrant state could not be persisted: {e}"
-        ));
-    }
-
     let reason = args
         .flags
         .get("reason")
         .filter(|value| value.as_str() != "true")
         .map(String::as_str);
-    let signed = match stop::sign(&stored, &outcome, reason, &issuer, now()) {
-        Ok(s) => s,
+    let context = HaltContext {
+        store,
+        daemons: &daemons,
+        stops: &stops,
+        conformance: &conformance,
+        control: &OsProcessControl,
+        now: now(),
+    };
+    let receipts = match stop::halt(&scope, &context, &issuer, reason) {
+        Ok(r) => r,
         Err(e) => {
-            // The run really is stopped; only the evidence is missing. Saying so beats exiting
-            // successfully with silence where the record goes.
-            eprintln!("warrantor: the run was stopped, but the record could not be signed: {e}");
+            eprintln!("warrantor: {e}");
             return ExitCode::FAILURE;
         }
     };
-    let written = match stops.save(&signed) {
-        Ok(path) => path,
-        Err(e) => {
-            return fail(&format!(
-                "the run was stopped but the record was not kept: {e}"
-            ))
+    let mut all_contained = true;
+    for signed in &receipts {
+        print!("{}", stop::render_cli(signed));
+        println!(
+            "  kept at         {}",
+            stops.path(&signed.record.warrant_id).display()
+        );
+        print!("{}", stop::render_limitations(signed));
+        all_contained &= stop::contained(signed);
+        if let Ok(stored) = store.load(&signed.record.warrant_id) {
+            notify_event(
+                root,
+                "stopped",
+                &stored,
+                serde_json::json!({ "contained": stop::contained(signed) }),
+            );
         }
-    };
-
-    print!("{}", stop::render_cli(&signed));
-    println!("  kept at         {}", written.display());
-    print!("{}", stop::render_limitations(&signed));
+    }
 
     if let Some(path) = args.flags.get("export") {
         if path == "true" {
             return fail("--export needs a file path: warrantor stop <id> --export stop.json");
         }
-        if let Err(e) =
-            write_export_anchored(&signed, Path::new(path), root, id, anchor::Anchored::Stop)
-        {
+        if receipts.len() != 1 {
+            return fail(&format!(
+                "--export writes one file; this halt produced {} records — export each with \
+                 warrantor stop <id> --export",
+                receipts.len()
+            ));
+        }
+        let signed = &receipts[0];
+        if let Err(e) = write_export_anchored(
+            signed,
+            Path::new(path),
+            root,
+            &signed.record.warrant_id,
+            anchor::Anchored::Stop,
+        ) {
             return fail(&e);
         }
         println!("\nexported  {path}");
@@ -1963,22 +2035,83 @@ fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         );
     }
 
-    let contained = stop::contained(&signed);
-    // The stop is a fact; the notification is downstream of it and cannot gate the exit code.
-    notify_event(
-        root,
-        "stopped",
-        &stored,
-        serde_json::json!({ "contained": contained }),
-    );
-
-    if contained {
+    if all_contained {
         ExitCode::SUCCESS
     } else {
         eprintln!(
-            "warrantor: this stop did NOT contain the run -- see the FAIL above. Treat the agent \
-             as still running until you have confirmed otherwise yourself."
+            "warrantor: at least one of these stops did NOT contain its run -- see the FAIL \
+             above. Treat the agent as still running until you have confirmed otherwise yourself."
         );
+        ExitCode::FAILURE
+    }
+}
+
+/// `warrantor conformance run` — drill this kernel's kill path and keep the receipt that decides
+/// whether stop records here may say `enforced`.
+fn cmd_conformance(args: &Args, root: &Path) -> ExitCode {
+    if args.positional.first().map(String::as_str) != Some("run") {
+        return fail("usage: warrantor conformance run [--export <path>]");
+    }
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    let store = match ConformanceStore::open(root) {
+        Ok(c) => c,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let drill = match conformance::drill(&root.join("conformance")) {
+        Ok(d) => d,
+        Err(e) => return fail(&format!("drill: {e}")),
+    };
+    let signed = match conformance::sign_receipt(&drill, &issuer, now()) {
+        Ok(s) => s,
+        Err(e) => return fail(&format!("sign receipt: {e}")),
+    };
+    let kept = match store.save(&signed) {
+        Ok(p) => p,
+        Err(e) => return fail(&e.to_string()),
+    };
+    println!(
+        "CONFORMANCE {}  kernel {}",
+        signed.receipt.mode.word(),
+        signed.receipt.kernel
+    );
+    println!(
+        "  root pid {} gone in {} ms; descendant pid {} gone in {} ms; budget {} ms",
+        drill.root_pid,
+        drill.trigger_to_root_gone_ms,
+        drill.descendant_pid,
+        drill.trigger_to_descendant_gone_ms,
+        stop::STOP_BUDGET.as_millis()
+    );
+    if let Some(refusal) = &drill.refusal {
+        println!("  kill refused: {refusal}");
+    }
+    println!("  receipt         {}", signed.receipt_digest);
+    println!("  kept at         {}", kept.display());
+    println!(
+        "  stop records on this kernel will now read: {}",
+        signed.receipt.mode.word()
+    );
+    if let Some(path) = args.flags.get("export") {
+        if path == "true" {
+            return fail("--export needs a file path");
+        }
+        if let Err(e) = write_export_anchored(
+            &signed,
+            Path::new(path),
+            root,
+            &signed.receipt.kernel,
+            anchor::Anchored::Conformance,
+        ) {
+            return fail(&e);
+        }
+        println!("\nexported  {path}\nCheck it anywhere:  warrantor verify {path}");
+    }
+    if signed.receipt.mode == stop::EnforcementMode::Enforced {
+        ExitCode::SUCCESS
+    } else {
         ExitCode::FAILURE
     }
 }
@@ -3304,7 +3437,17 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let Ok(exe) = std::env::current_exe() else {
         return fail("cannot locate the warrantor executable to re-launch as a daemon");
     };
-    let mut daemon_args = vec!["supervise".to_string(), id.clone(), "--".to_string()];
+    // Forward the store BEFORE the `--`: the daemon re-enters the arg parser as its own command,
+    // and without this it resolves the default root — a supervisor watching a DIFFERENT store
+    // than the `run` that started it, which surfaces as "nothing is supervising it" the morning
+    // after. Everything after `--` is the supervised command, so the flag cannot follow it.
+    let mut daemon_args = vec![
+        "supervise".to_string(),
+        id.clone(),
+        "--root".to_string(),
+        root.to_string_lossy().to_string(),
+        "--".to_string(),
+    ];
     daemon_args.extend(args.trailing.iter().cloned());
 
     let log = root.join("logs").join(format!("{id}.log"));
@@ -6833,6 +6976,7 @@ fn main() -> ExitCode {
         "spend" => cmd_spend(&args, &store, &root),
         "stop" => cmd_stop(&args, &store, &root),
         "revoke" => cmd_revoke(&args, &root),
+        "conformance" => cmd_conformance(&args, &root),
         "settle" => cmd_settle(&args, &store, &root),
         "void" => cmd_void(&args, &store, &root),
         "stage" => cmd_stage(&args, &store),
