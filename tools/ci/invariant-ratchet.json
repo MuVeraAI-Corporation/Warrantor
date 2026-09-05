@@ -1,0 +1,8 @@
+{
+  "format": "warrantor.invariant-ratchet/1",
+  "recorded": "2026-09-02",
+  "source": "rust/warrant/tests/invariants/",
+  "passing_floor": 65,
+  "ignored_ceiling": 19,
+  "note": "The invariant attack corpus for I-01..I-12. `passing_floor` may only rise; `ignored_ceiling` may only fall. Every ignored test is a recorded violation named in docs/W1-delivery-gaps.md Tier 5 -- the ceiling exists so that silencing a failing test with #[ignore] is a build failure rather than a way to hold the passing count steady. Raise the floor in the same commit that earns it."
+}

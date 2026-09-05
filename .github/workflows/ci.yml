@@ -450,6 +450,36 @@ jobs:
       - name: Run console tests
         run: node --test rust/warrant/src/console/console.test.js
 
+  invariants:
+    name: Invariant attack corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      # Same reason as the rust job: warrantor-api's build.rs shells out to protoc, and
+      # warrantor-warrant reaches it transitively through authority-spec.
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      # A separate job from `rust`, deliberately. The corpus is a published number rather than
+      # another test file: it needs a ratchet that the ordinary test step has no way to express,
+      # and it should stay legible as its own red or green in the checks list. Its tests also run
+      # inside the rust job's `cargo test --workspace`, so this job adds the gate, not the coverage.
+      #
+      # The script runs the corpus itself rather than parsing a piped log, so a run that never
+      # happened fails here instead of reading as a run in which nothing failed.
+      #
+      # `--show-findings` prints the ignored tests failing. They are the recorded invariant
+      # violations and they are meant to be visible in a green build: a finding nobody is shown is
+      # how a gap becomes permanent.
+      - name: Enforce the invariant ratchet
+        run: python tools/ci/check_invariant_ratchet.py --show-findings
+
   required:
     name: Required checks
     if: always()
@@ -457,7 +487,19 @@ jobs:
     # both runners. Do not list the legs separately -- a leg name here is a leg that can be
     # removed without touching this list.
     needs:
-      [dco, contract-plane, rust, python, go, typescript, conformance, docs, desktop, console]
+      [
+        dco,
+        contract-plane,
+        rust,
+        python,
+        go,
+        typescript,
+        conformance,
+        docs,
+        desktop,
+        console,
+        invariants,
+      ]
     runs-on: ubuntu-latest
     steps:
       - name: Enforce all required jobs
@@ -472,7 +514,8 @@ jobs:
           DOCS: ${{ needs.docs.result }}
           DESKTOP: ${{ needs.desktop.result }}
           CONSOLE: ${{ needs.console.result }}
+          INVARIANTS: ${{ needs.invariants.result }}
         run: |
-          for result in "$DCO" "$CONTRACT_PLANE" "$RUST" "$PYTHON" "$GO" "$TYPESCRIPT" "$CONFORMANCE" "$DOCS" "$DESKTOP" "$CONSOLE"; do
+          for result in "$DCO" "$CONTRACT_PLANE" "$RUST" "$PYTHON" "$GO" "$TYPESCRIPT" "$CONFORMANCE" "$DOCS" "$DESKTOP" "$CONSOLE" "$INVARIANTS"; do
             test "$result" = "success"
           done

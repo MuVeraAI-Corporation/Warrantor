@@ -1048,3 +1048,66 @@ is the argument for running things rather than deriving them.
 
 Every other item is closed or is a purchase: §2.1, §2.4, §3.2, §3.4 and §4.3's unguarded-run gap all
 landed on 2026-08-17, and §1.1 is a certificate.
+
+---
+
+## Tier 5 — the twelve formal invariants, measured against an attack corpus
+
+`docs/02-architecture.md` §3 publishes twelve formal invariants and states that every one of them
+has "at least one static check, runtime check, adversarial test, and evidence field", and that "a
+component that breaks an invariant fails CI". Task 5.1 built the corpus that checks whether that is
+true. It is not, for eleven of the twelve.
+
+The corpus lives at `rust/warrant/tests/invariants/` — one suite per invariant, with the ten hops of
+the incident's kill chain encoded as adversarial cases. Every attack is run against a control with
+the attack backed out, and the control must be allowed, so an attack that fails because its payload
+was malformed is reported as a false pass rather than counted as a guarantee. Run it with:
+
+```
+cargo test -p warrantor-warrant --test invariants
+cargo test -p warrantor-warrant --test invariants -- --ignored   # the findings below
+```
+
+Findings are recorded as `#[ignore]` tests naming the invariant, the fixing task and the date. They
+fail when run. `tools/ci/check_invariant_ratchet.py` holds the line in CI: the passing count may
+never fall and the ignored count may never rise, so an invariant cannot be quietly demoted by adding
+an attribute.
+
+**One section rather than entries scattered through the tiers above**, because three other lanes are
+committing to this file concurrently and a single appended block is the smallest contended surface.
+Each finding carries its own honest tier inline.
+
+### 5.1 What the corpus found
+
+Sixty-one checks pass. Nineteen fail, across eleven invariants. I-02 — no authority expansion — is
+the only invariant with no finding against it: two independent implementations recompute the
+intersection, the receipt verifier rejects a forged capability set by name, and every attack the
+corpus threw at it was refused.
+
+| Invariant | Status | The finding | Honest tier | Fixed by |
+|---|---|---|---|---|
+| **I-01** No active identity, no action | partial | `report.rs` builds its verdict context with `revoked_svids: Vec::new()`, so the Identity gate asks whether an SVID appears in an empty set. The local subject is the compile-time constant `DEFAULT_CLI_SUBJECT`, which nothing issued and nothing can revoke. `invariant-corpus:I-01` | Tier 3 | Task 1.1, Task 3.1 |
+| **I-02** No authority expansion | enforced | No finding. The corpus records one structural note: `notary` and `evidence` implement the intersection separately and nothing cross-checks them, so a future divergence would produce a receipt verifying a decision nobody made. A standing guard test now compares them. | — | Task 1.5 dedupes |
+| **I-03** Purpose-bound data use | unimplemented | No implementation exists. No purpose tag on any request, no data class on any bound, no provenance label on any receipt. Three of the ten kill-chain hops land here, which makes it the largest single gap the corpus measures. `invariant-corpus:I-03` | Tier 3 | **No task in the 2026-09-02 plan.** Plane 5 is recorded there as filled by adopted work; no adoption has happened. |
+| **I-04** No consequential action without current policy | partial | The product reaches the notary once per action, so policy is never re-evaluated at commit — the clause that distinguishes I-04 from an ordinary policy check. `issue_post_commit` copies the pre-commit decision block verbatim, so a commit-time evaluation would be unprovable even if one happened. `invariant-corpus:I-04` | Tier 3 | Task 2.3 |
+| **I-05** Revocation latency is bounded | orphaned | The credential half is implemented and tested in `credential-vault`, which the `warrantor` binary does not link. The identity half has no implementation: there is no revocation source, no propagation and no replica set. `invariant-corpus:I-05` | Tier 3 | Task 3.1 for the identity half; **no task links `credential-vault`** |
+| **I-06** Artifact identity is exact | partial | The Artifacts gate is correct and the product hands it an empty artifact list and an empty resolved set, so it passes unconditionally on every action. Nothing in the shipped binary identifies a tool, skill or model by digest at the moment of use. `invariant-corpus:I-06` | Tier 3 | Task 2.2, Task 2.4 |
+| **I-07** Evidence precedes commitment | orphaned | The commit gate refuses an orphan post-commit by name, and nothing in `rust/warrant/src` ever calls `issue_pre_commit`. No shipped action has evidence that was durable before its effect was visible. `invariant-corpus:I-07` | Tier 3 | Task 1.1, Task 2.3 |
+| **I-08** Critical actions require non-delegable human authority | partial | `authority_spec::validate` tests only that `approvals` is non-empty; a list holding one empty string satisfies it. Nothing anywhere binds an approval to a human — `notary::Approval` is two booleans the requester supplies, so an agent that builds the request builds its own approval. | Tier 2 | Task 3.3, Task 4.1 |
+| **I-09** Failure is safe | orphaned | The absent-means-none reading holds on three surfaces and is now locked by tests. The preflight that refuses to start an agent against an unmeasured boundary lives in `eval-guard`, which the product does not link. `invariant-corpus:I-09` | Tier 3 | **No task links `eval-guard`** |
+| **I-10** Replay is detectable | partial | `seen_nonces` is hardcoded empty in `report.rs`, so every call is the first call and no replay is detectable on the product's own path. The timestamp window still bites; a replay inside the window does not, and the window is the interval an attacker works in. `invariant-corpus:I-10` | Tier 3 | Task 1.1, Task 3.4 |
+| **I-11** Self-change is governed | partial | The `warrant` layer holds this structurally and the corpus locks both mechanisms. The `egress` broker beneath it holds nothing: it accepts whatever catalog its caller hands it and never reads `signature`, so a caller-extended catalog is honored and an unsigned one is indistinguishable from a signed one. Three `DenyReason` variants — including `AgentCannotAmendCatalog`, which names this invariant in its own doc comment — are declared, rendered as prose to users, and constructed by no decision anywhere. | Tier 2 | Task 2.5, Task 5.2 |
+| **I-12** Physical systems can reach a safe state | partial | `STOP_ENFORCEMENT_MODE` is `"advisory"` and `verify_stop` refuses any record claiming otherwise, which is the honest engineering. It remains the finding: a kill path an agent may decline to traverse satisfies "there exists a kill path" only under a weak reading of *exists*. `invariant-corpus:I-12` | Tier 3 | Task 1.3 |
+
+### 5.2 The uncomfortable part
+
+Eight of the twelve invariants are enforced by code that is correct, tested, and either handed
+constant inputs or never called. The gates are not the problem. The wiring is, and the wiring is
+what a reader of `docs/02-architecture.md` §3 would assume had already happened.
+
+Two of the crates involved — `credential-vault` and `eval-guard` — carry working implementations of
+invariant clauses and are not in the `warrantor` binary's dependency graph. Task 0.3's orphan census
+will count them; nothing in the current plan wires them.
+
+The corpus does not fix any of this. Fixing is Phases 1-3, and a measuring instrument that repairs
+what it measures stops being one.
