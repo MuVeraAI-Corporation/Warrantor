@@ -37,6 +37,8 @@ use crate::catalog::Vocabulary;
 use crate::egress::{
     capability_for, EgressBroker, EgressDecision, EgressRefusal, EgressVerdict, DESTINATION_KEYS,
 };
+use crate::egress::{EgressBroker, EgressRefusal};
+use crate::spend::{CallCounter, CALLS_BOUND};
 use crate::staging::{EffectRegistry, StagedEffect, StagingQueue};
 use crate::{SideEffectClass, WarrantBounds};
 
@@ -150,6 +152,9 @@ pub struct Proxy {
     /// A second map in the same process is not a second telemetry path — see
     /// [`crate::egress::SecondaryRefusal`].
     secondary_refusals: BTreeMap<(String, String), crate::egress::SecondaryRefusal>,
+    /// The call ceiling, counted here because this is where a bound is refused at the moment of
+    /// action.
+    calls: CallCounter,
 }
 
 /// Classes that are refused even in observe mode.
@@ -166,6 +171,7 @@ impl Proxy {
         // Derived once: the catalogue is a pure function of the signed claims, which do not change
         // while the warrant is open.
         let egress = EgressBroker::for_bounds(&bounds);
+        let calls = CallCounter::new(&bounds);
         Self {
             mode,
             bounds,
@@ -179,6 +185,7 @@ impl Proxy {
             pending: Vec::new(),
             resolved_names: BTreeMap::new(),
             secondary_refusals: BTreeMap::new(),
+            calls,
         }
     }
 
@@ -360,6 +367,44 @@ impl Proxy {
         self.deny(tool, SECONDARY_FILTER_BOUND, sentence)
     }
 
+    /// Seed the counter from a persisted ledger, so a restarted session continues the count.
+    pub fn set_call_counter(&mut self, counter: CallCounter) {
+        self.calls = counter;
+    }
+
+    /// [`Self::set_call_counter`] as a builder, for call sites that own the proxy.
+    #[must_use]
+    pub fn with_call_counter(mut self, counter: CallCounter) -> Self {
+        self.set_call_counter(counter);
+        self
+    }
+
+    /// The count as it stands after the last decision.
+    #[must_use]
+    pub fn call_counter(&self) -> &CallCounter {
+        &self.calls
+    }
+
+    /// Admit one call under the ceiling, or produce the refusal.
+    ///
+    /// Called only where the call would otherwise proceed: after every other bound has had its
+    /// say in enforce mode, and before the record-and-forward in observe mode. A call another
+    /// bound refused was not a call and spends nothing.
+    fn reserve_call(&mut self, tool: &str) -> Option<Decision> {
+        match self.calls.reserve() {
+            Ok(_) => None,
+            Err(_) => Some(self.deny(
+                tool,
+                CALLS_BOUND,
+                format!(
+                    "this warrant's tool-call ceiling of {} is reached. Nothing further is \
+                     forwarded or staged under it; ask for a new warrant.",
+                    self.calls.max_tool_calls
+                ),
+            )),
+        }
+    }
+
     /// Decide what happens to `call`.
     ///
     /// Returns the decision only; staging is performed by [`Self::apply`] so the caller controls
@@ -379,6 +424,11 @@ impl Proxy {
         }
 
         if self.mode == ProxyMode::Observe {
+            // The ceiling binds observe mode too: a call an operator is watching is still a call
+            // that was made, and the ceiling's whole point is that call 101 never happens.
+            if let Some(refused) = self.reserve_call(&call.tool) {
+                return refused;
+            }
             // The point of observe mode: record, do not refuse.
             self.observed_tools.insert(call.tool.clone());
             return Decision::Forward;
@@ -439,6 +489,12 @@ impl Proxy {
                     return self.deny_secondary(&call.tool, refusal);
                 }
             }
+        }
+
+        // The ceiling, checked after every other bound has had its say: a call the tools or egress
+        // bound refused was not a call, and must not spend a slot.
+        if let Some(refused) = self.reserve_call(&call.tool) {
+            return refused;
         }
 
         if self.bounds.staged_classes.contains(&call.side_effect)
