@@ -12,7 +12,7 @@ use warrantor_warrant::catalog::{
 use warrantor_warrant::egress::{read_decisions, DECISION_FORMAT, DESTINATION_KEYS};
 use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall};
 use warrantor_warrant::staging::EffectRegistry;
-use warrantor_warrant::{SideEffectClass, WarrantBounds};
+use warrantor_warrant::{bound_strengths, BoundStrength, SideEffectClass, WarrantBounds};
 
 const NOW: u64 = 1_786_000_000;
 
@@ -346,4 +346,37 @@ fn a_decision_is_on_disk_before_any_forward_and_a_refusal_is_receipted() {
         }
     ));
     assert!(matches!(decisions[1].verdict, EgressVerdict::Allow { .. }));
+}
+
+#[test]
+fn no_adapter_reads_a_free_form_destination_argument() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/adapters");
+    for entry in std::fs::read_dir(&dir).expect("adapters dir") {
+        let path = entry.expect("entry").path();
+        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+        let source = std::fs::read_to_string(&path).expect("read");
+        for key in DESTINATION_KEYS {
+            assert!(
+                !source.contains(&format!("\"{key}\"")),
+                "{} reads the destination argument {key:?}; adapters take catalog capabilities, never a URL (L4-23)",
+                path.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn egress_hosts_stays_mediated_and_says_so() {
+    let strengths = bound_strengths();
+    let (_, strength) = strengths
+        .iter()
+        .find(|(n, _)| *n == "egress_hosts")
+        .expect("listed");
+    assert_eq!(
+        *strength,
+        BoundStrength::Mediated,
+        "a catalog changes what is expressible, not where it is enforced"
+    );
 }
