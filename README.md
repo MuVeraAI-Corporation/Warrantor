@@ -180,6 +180,7 @@ v1.0.0, open-sourced early on purpose.
 | GitHub adapter — PRs, comments, reviews, labels at settle | **Works** |
 | Python SDKs — harness, agent SDK, LangChain, vLLM, Hugging Face, Jira/Linear, OCSF, K8s admission | **Work.** 4 of 12 on PyPI; the rest held by PyPI's new-project quota |
 | Web console for non-developers | **Not built.** Data model and reducers exist; no UI in this repository |
+| Capabilities reachable from the CLI | **9 of 38** Rust workspace crates link into the `warrantor` binary; the other 29 compile and pass their tests but nothing a user runs calls them. Measured by `tools/ci/wiring_census.py` from the manifests, recorded in [`evidence/wiring-coverage.json`](evidence/wiring-coverage.json); CI refuses any change that lowers it |
 | Published packages | **crates.io** 4/4 · **npm** 3/3 · **PyPI** 4/12 · prebuilt binaries for Linux, macOS (arm64 + x86_64) and Windows on the [v1.0.0 release](https://github.com/MuVeraAI-Corporation/Warrantor/releases/tag/v1.0.0) |
 
 ### Things that will bite you today
@@ -193,9 +194,10 @@ v1.0.0, open-sourced early on purpose.
   unwired rather than connected to something that would treat their replies as real.
 - **Outside Windows and Linux there is no kernel-enforced parent-death link.** The supervisor says so
   at start rather than implying a guarantee it cannot make.
-- **About a third of the components in this repository are not wired into anything.** Many are
-  standalone libraries where that is correct; some are not. The census is in
-  [`docs/oss-readiness.html`](docs/oss-readiness.html).
+- **Most of the Rust workspace is not wired into anything a user can run.** 9 of 38 crates
+  link into the `warrantor` binary (`evidence/wiring-coverage.json` names the other 29). Many are
+  standalone libraries where that is correct; the named planes are not. The cross-language census
+  is in [`docs/oss-readiness.html`](docs/oss-readiness.html).
 
 Gaps are tracked openly: [`docs/integrations-inventory.html`](docs/integrations-inventory.html)
 measures every integration surface and names what is built but unreachable.

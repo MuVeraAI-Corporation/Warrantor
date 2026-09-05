@@ -9,6 +9,7 @@ import pytest
 import wiring_census
 from wiring_census import (
     FLOOR_PATH,
+    README_PATH,
     RECORD_FORMAT,
     WORKSPACE_ROOT,
     WiringCensus,
@@ -181,3 +182,7 @@ def test_real_binary_crate_reaches_its_declared_planes() -> None:
         "warrantor-api",
     }
     assert declared <= reachable_crates(WORKSPACE_ROOT)
+
+
+def test_real_readme_renders_the_number() -> None:
+    assert readme_renders(README_PATH, census(WORKSPACE_ROOT))
