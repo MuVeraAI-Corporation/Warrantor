@@ -720,6 +720,11 @@ pub fn bound_strengths() -> Vec<(&'static str, BoundStrength)> {
         ("delegation_depth", BoundStrength::Enforced),
         // Parsed from the agent's own usage reporting; defeatable by an agent that does not report.
         ("budget_cents_observed", BoundStrength::Observed),
+        // Refused by the MCP proxy before the call is forwarded or staged, and persisted so a
+        // restarted session cannot start the count again. The proxy is a chokepoint the agent could
+        // decline to use, so this is Mediated and its name says so. It meters calls, not cents:
+        // the bound above stays Observed because model traffic still never passes here.
+        ("budget_calls_mediated", BoundStrength::Mediated),
     ]
 }
 

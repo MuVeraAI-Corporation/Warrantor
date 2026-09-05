@@ -173,6 +173,7 @@ fn the_prose_report_is_exactly_what_it_always_was() {
          \x20 expires_at              enforced\n\
          \x20 delegation_depth        enforced\n\
          \x20 budget_cents_observed   observed\n\
+         \x20 budget_calls_mediated   mediated\n\
          \x20 enforced  held by cryptography or the operating system; holds against an agent that tries to route around it\n\
          \x20 mediated  held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it\n\
          \x20 observed  measured and reported after the fact; nothing refuses the action as it happens\n\

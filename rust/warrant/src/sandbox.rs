@@ -367,6 +367,12 @@ pub fn profile(bounds: &WarrantBounds, worktree: &str, confinement: Confinement)
             .to_string(),
     });
     divergences.push(Divergence::Gap {
+        bound: "budget_calls_mediated".to_string(),
+        why: "the call ceiling is counted by the MCP proxy, and a sandbox cannot tell one tool \
+              call from another. Stays Mediated, held by the proxy."
+            .to_string(),
+    });
+    divergences.push(Divergence::Gap {
         bound: "delegation_depth".to_string(),
         why: "held by an Ed25519 signature, which is already stronger than anything a sandbox \
               adds. Stays Enforced."

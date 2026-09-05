@@ -58,6 +58,7 @@ returns which is which. A limit you believe in that does not hold is worse than 
 | `expires_at` | enforced | held by cryptography or the operating system; holds against an agent that tries to route around it |
 | `delegation_depth` | enforced | held by cryptography or the operating system; holds against an agent that tries to route around it |
 | `budget_cents_observed` | observed | measured and reported after the fact; nothing refuses the action as it happens |
+| `budget_calls_mediated` | mediated | held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it |
 <!-- bound-tiers:end -->
 
 ## Partial failure

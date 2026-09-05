@@ -582,6 +582,9 @@ fn every_bound_declares_the_tier_that_actually_holds_it() {
         // Nothing refuses an out-of-bounds write; nothing measures the agent's real spend.
         ("write_paths", BoundStrength::Observed),
         ("budget_cents_observed", BoundStrength::Observed),
+        // Refused by the proxy for calls that pass through it; the proxy is a chokepoint, not a
+        // sandbox.
+        ("budget_calls_mediated", BoundStrength::Mediated),
     ];
     for (name, tier) in expected {
         assert_eq!(

@@ -134,10 +134,19 @@ fn the_budget_bound_is_still_observed_after_wiring() {
         "wiring the spend engine measures the budget; it does not put warrantor in the path of a \
          model API call, so the bound cannot become Enforced"
     );
+    // Task 1.4 added the eighth bound (`budget_calls_mediated`, Mediated): the tool-call ceiling
+    // is refused at the proxy, which is the tier a chokepoint holds. The cents bound above is the
+    // one that must never move.
     assert_eq!(
         bound_strengths().len(),
-        7,
-        "no bound was added or removed by this wiring"
+        8,
+        "a bound was added or removed without deciding which tier holds it"
+    );
+    assert_eq!(
+        strengths["budget_calls_mediated"],
+        BoundStrength::Mediated,
+        "the call ceiling is refused at a chokepoint the agent could decline to use, so it is \
+         Mediated and its name says so"
     );
 }
 
