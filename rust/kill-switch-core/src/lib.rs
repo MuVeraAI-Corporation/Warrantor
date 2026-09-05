@@ -149,6 +149,11 @@ impl TreeKiller {
     /// from `%SystemRoot%\System32`. Both then poll `process_exists` up to [`TERMINATION_TIMEOUT`].
     pub fn terminate(&self, pid: u32) -> Result<Terminated, TerminateError> {
         let pid = self.checked_pid(pid)?;
+        // The already-gone pre-check is Unix-only. On Windows it would spend one `tasklist` spawn
+        // before the kill is even attempted — measured at ~2s per spawn on a machine with
+        // real-time AV — and taskkill's own exit status is the already-gone signal there (exit
+        // code 128 or "not found"), which is the one-spawn shape this platform's path documents.
+        #[cfg(unix)]
         if !process_exists(pid) {
             return Ok(Terminated {
                 pid,
@@ -206,7 +211,11 @@ impl TreeKiller {
             return Err(TerminateError::Unsupported);
         }
         let deadline = started + TERMINATION_TIMEOUT;
-        while Instant::now() < deadline {
+        loop {
+            // The confirmation poll itself is a spawn (tasklist on Windows), and on a machine
+            // where that spawn costs ~2s it can finish just past the deadline. The check is
+            // consumed anyway: `process_exists` answered, and a confirmed-gone answer past the
+            // nominal deadline is a containment that happened, not one to throw away.
             if !process_exists(pid) {
                 return Ok(Terminated {
                     pid,
@@ -214,11 +223,14 @@ impl TreeKiller {
                     confirmed_after: started.elapsed(),
                 });
             }
+            if Instant::now() >= deadline {
+                break;
+            }
             std::thread::sleep(TERMINATION_POLL);
         }
         Err(TerminateError::StillAlive {
             pid,
-            after: TERMINATION_TIMEOUT,
+            after: started.elapsed(),
         })
     }
 
