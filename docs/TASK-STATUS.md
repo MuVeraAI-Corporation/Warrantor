@@ -6,23 +6,23 @@
 > of the evidence, which is the one job `docs/W1-delivery-gaps.md` names for a
 > ledger. Regenerate with `python scripts/task_status.py --write`.
 
-**117 tasks · 910 steps · 35 steps landed**
+**117 tasks · 910 steps · 45 steps landed**
 
 | State | Count | Meaning |
 |---|---|---|
-| DONE | 4 | Merged into `origin/main` **and** exit-gate evidence recorded |
+| DONE | 5 | Merged into `origin/main` **and** exit-gate evidence recorded |
 | UNEVIDENCED | 0 | Merged with no evidence file. **This is a defect, not a state.** |
-| IN-FLIGHT | 5 | Branch exists, not yet merged |
-| READY | 1 | Expanded, unblocked, nobody has started it |
+| IN-FLIGHT | 4 | Branch exists, not yet merged |
+| READY | 2 | Expanded, unblocked, nobody has started it |
 | NEEDS-EXPANSION | 0 | Task structure exists; Step-0 detail not yet captured |
-| BLOCKED | 107 | A predecessor has not landed |
+| BLOCKED | 106 | A predecessor has not landed |
 
 | Task | Ph | Owner | State | Steps | Branch | SHA | Blocked by |
 |---|---|---|---|---|---|---|---|
 | **0.1** Put `rust/reputation` under the workspace | 0 | `glm-5.3-flash` | DONE | 9 | `feat/task-0.1-reputation-workspace` | 91834a6 | — |
 | **0.2** Windows CI runner for the platform-conditional paths | 0 | `glm-5.3-flash` | DONE | 10 | `chore/windows-ci-runner` | f70acff | — |
 | **0.3** Orphan census as a ratcheting CI number (seed of ... | 0 | `glm-5.3-flash` | DONE | 9 | `feat/wiring-census` | 5e14058 | — |
-| **0.4** Tier disclosure lint across report, status and co... | 0 | `glm-5.3-flash` | IN-FLIGHT | 10 | `feat/task-0.4` | 2e82677 | — |
+| **0.4** Tier disclosure lint across report, status and co... | 0 | `glm-5.3-flash` | DONE | 10 | `feat/task-0.4` | 4d646ba | — |
 | **0.5** Invariant ledger I-01…I-12 with honest status | 0 | `glm-5.3-flash` | READY | 7 | `feat/invariant-ledger` | — | — |
 | **1.1** Evidence and notary into the report path (keyston... | 1 | `opus` | BLOCKED | 11 | `feat/t11-effect-receipts` | — | phase 0 |
 | **1.2** The egress broker into the `--egress` flag, with ... | 1 | `glm-5.3-flash` | BLOCKED | 13 | `feat/egress-capability-catalog` | — | phase 0 |
@@ -45,7 +45,7 @@
 | **3.7** Generalize warrant-lifecycle self-protection | 3 | `glm-5.3-flash` | BLOCKED | 6 | `feat/task-3.7` | — | phase 2 |
 | **4.1** Approval queue with a latency budget and default-... | 4 | `minimax-m3` | IN-FLIGHT | 8 | `feat/task-4.1-buyers-surface` | c877162 | — |
 | **4.2** Notification fabric — decision, then transports | 4 | `minimax-m3` | IN-FLIGHT | 6 | `feat/task-4.2-notify-fabric` | 51396d5 | — |
-| **4.3** Coverage disclosure surface in console and deskto... | 4 | `minimax-m3` | BLOCKED | 7 | `feat/task-4.3` | — | task 0.4 |
+| **4.3** Coverage disclosure surface in console and desktop | 4 | `minimax-m3` | READY | 7 | `feat/task-4.3` | — | — |
 | **4.4** Action-path coverage map computed from receipts | 4 | `minimax-m3` | IN-FLIGHT | 7 | `feat/task-4.4-coverage-map` | 6dab96a | — |
 | **4.5** Local-first inference routing with receipted esca... | 4 | `minimax-m3` | IN-FLIGHT | 6 | `feat/task-4.5-routing-receipts` | 316c21e | — |
 | **5.1** Invariant attack corpus in CI | 5 | `glm-5.3-flash` | DONE | 7 | `feat/task-5.1-invariant-corpus` | be21b2c | phase 3 |
@@ -140,3 +140,4 @@
 ## Runnable right now
 
 - **Task 0.5** — Invariant ledger I-01…I-12 with honest status → `glm-5.3-flash`
+- **Task 4.3** — Coverage disclosure surface in console and desktop → `minimax-m3`

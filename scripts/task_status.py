@@ -136,6 +136,15 @@ def load_tasks() -> list[Task]:
                      "--format=%(refname:short)").splitlines()
         if b.strip()
     )
+    # `git branch --merged` also reports a branch that was created and never committed to: its
+    # tip simply IS a commit on main. That read as "merged with no evidence file", which this
+    # board calls a defect -- so starting a task produced a false accusation against the lane
+    # that started it. Both lanes hit it independently, and one recorded it in its evidence file.
+    #
+    # A branch that did work has a tip OFF main's first-parent line, because every merge here is
+    # `--no-ff`. A branch that only bookmarks a point in history has a tip ON it. That is the
+    # discriminator, and it depends on this repository never fast-forwarding a feature branch.
+    first_parent_of_main = set(git("rev-list", "--first-parent", "origin/main").splitlines())
 
     matches = list(TASK_RE.finditer(text))
     tasks: list[Task] = []
@@ -167,10 +176,14 @@ def load_tasks() -> list[Task]:
         else:
             branch = declared_branch or convention.format(id=task_id)
         exists = branch in all_branches
-        merged = exists and (
+        # A branch whose tip sits on main's first-parent line has contributed nothing yet: it was
+        # created and not committed to. Treat it as not started rather than as merged.
+        started = exists and git("rev-parse", branch) not in first_parent_of_main
+        merged = started and (
             branch in merged_into_main or any(pattern.search(b) for b in merged_into_main)
         )
-        sha = git("rev-parse", "--short", branch) if exists else ""
+        exists = started
+        sha = git("rev-parse", "--short", branch) if started else ""
 
         # A task is blocked by an explicit gate, or by its phase's predecessors.
         blocked: list[str] = []

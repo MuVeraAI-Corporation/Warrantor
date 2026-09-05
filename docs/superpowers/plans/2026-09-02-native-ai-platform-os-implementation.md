@@ -17167,7 +17167,7 @@ existing one. Do not change the event vocabulary.
 
 ---
 
-### Task 4.3: Coverage disclosure surface in console and desktop — **BLOCKED ON TASK 0.4**
+### Task 4.3: Coverage disclosure surface in console and desktop
 
 **Anchor.** L8-13. Every surface that renders a guarantee must also render what that guarantee does not cover, per
 harness and per bound strength. This is the product's differentiator rendered in pixels: a competitor asserting
