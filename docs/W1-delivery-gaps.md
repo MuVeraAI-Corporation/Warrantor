@@ -1230,3 +1230,52 @@ will count them; nothing in the current plan wires them.
 
 The corpus does not fix any of this. Fixing is Phases 1-3, and a measuring instrument that repairs
 what it measures stops being one.
+
+### 5.3 The evidence-integrity adversary (Task 5.3, L0-05) — nine strategies, **4 of the nine are not refused**
+
+L0-05 asks for *"a red-team agent given root inside its own workload whose sole goal is to produce a
+receipt chain that verifies but misrepresents what it did."* This is the **deterministic half** of
+that, and L0-05 stays `partial` rather than moving to `covered`. The half that is missing is named
+here rather than implied: there is no sandbox in this repository, no agent runner and no kernel that
+could give an adversary root and take it back, so every attack below is a **constructed byte
+sequence checked in CI**, not a program given root in a workload.
+
+The suite lives in `rust/warrant/tests/invariants/adversary/` — inside the `invariants` target that
+`tools/ci/check_invariant_ratchet.py` already counts — plus `rust/archive/tests/adversary_custody.rs`
+for the one strategy whose crate sits on the other side of the dependency edge. A separate
+`--test adversary` target would have produced a second, ungated number: the exact shape of a check
+that stops checking.
+
+**The sentence that ships beside the result, and beside any receipt:**
+
+> This adversary shows that a receipt cannot be altered, substituted, mislabeled *in its own fields*,
+> or re-signed by another key without a reader detecting it — **provided that reader pinned the
+> issuer's key out of band**. It does not show that a missing receipt is detectable: an action that
+> produced no evidence leaves nothing for an offline verifier to refuse. It does not show that the
+> bundle's *prose* about its receipts is true. It does not show that the receipt describes what
+> happened inside the model, only what the broker observed. And it is not a live red-team agent.
+
+| # | Strategy | Reach | Honest tier | Owner of the fix |
+|---|---|---|---|---|
+| **A1** | Forge a chain end to end with a key the adversary holds | Refused — but only by the reader's anchor. `verify_chain` is anchor-free by construction and a chain signed end to end by any keypair is self-consistent. | Tier A, **conditional on a pinned key** | — (correct as designed; the pin is the reader's job) |
+| **A2** | Backdate the evidence receipt by a day | **Not refused.** `verify_export` binds the notary receipt's timestamp to the bundle and does not bind the evidence receipt's `binding.issued_at`. strategy A2 records it executably. | Tier C — observed | Task 2.3 (commit point); Task 3.4 (independent witness) |
+| **A3** | Lift a genuine receipt onto a different report | Refused as a `Binding`, by the receipt-id-to-bundle-digest check, and the test asserts the error *variant* so it cannot claim credit for a signature failure. | Tier A — cryptographic | — |
+| **A4** | Replay the same request for a second allow | **Not refused.** `seen_nonces: Vec::new()` on both the report path and the settle path, so the Freshness gate is asked about an empty set every time. strategy A4 records it executably. | Tier C — observed | Task 3.4 (a nonce store that survives a restart) |
+| **A5** | Smuggle a `mediated` per-effect receipt past the mode check, including one the bundle does not list | Refused, **and this is a test of commit `a84711b`'s fix rather than a copy of it**: the mode loop runs before the bundle's effect lines are walked, so an unlisted receipt is refused *for its mode* and not for being unaccounted. | Tier A — cryptographic + explicit field check | — |
+| **A6** | Delete a limitation; widen the authority | Refused by the bundle digest and by `verify_authority`'s recomputed intersection. **Residual, asserted rather than described:** an adversary who rewrites the delegation chain itself gets an authority that verifies, because the chain *is* the authority. | Tier A, with a stated residual | — (a receipt proves the chain it carries, never that the chain was legitimately issued) |
+| **A7** | Suppress the evidence entirely | **Unrepresentable.** A two-effect run exported as a one-effect report is a *valid* signed file. An offline verifier holding one file cannot tell a suppressed chain from a run that only ever had one effect. strategy A7 records this as a negative and claims nothing. | Not a tier — the boundary cannot see it | Task 10.3 (evidence-integrity monitors); Task 10.6 (custody) |
+| **A8** | Race the archive for attribution, on evidence the adversary manufactured | Refused where it matters: `put_artifact` returns `AlreadyHeld` and rewrites nothing. **Two residuals:** the door is anchor-free, so a self-consistent fabrication enters custody like genuine evidence; and the first filer owns the attribution, so `submitted_by_device` means *who filed this*, never *who produced this*. | Tier A for append-only; residuals stated | Task 10.6 for custody semantics |
+| **A9** | Claim `mediated` in the bundle's prose while shipping `advisory` receipts | **Not refused, and not in the plan — found by attacking `a84711b`'s fix.** `with_effect_receipts` derives the mode word at *build* time; nothing re-derives it on the *verify* path. An audited party using its own legitimate issuer key, forging nothing, can ship a signed bundle whose sentence reads "each mediated" while every receipt it carries says `advisory`. `verify_export` passes and `verify_export_signed_by` passes under the party's own pinned key. strategy A9 records it executably. | Tier C — observed. **This is a mode mislabel inside a signed bundle and it should be treated as the highest-priority item in this subsection.** | Task 2.3 owns the report verifier's per-effect checks. The fix is one comparison in `verify_effect_receipts`: recompute the mode phrase from `export.effect_receipts` and refuse a bundle whose sentence disagrees. |
+
+**A2, A4, A7 and A9 are recorded through `harness::reached_the_boundary_unrefused` and a
+`Reach::Unrepresentable` entry, not through `#[ignore]`.** That is deliberate. A thirteenth ignore
+would raise `ignored_ceiling`, which the ratchet treats as a build failure — correctly, since it is a
+widening gap — and an ignored test does not start failing when someone fixes the thing it describes.
+These four do: the moment a nonce store, an issuance-time binding, an absence checker or a verify-path
+mode comparison lands, the corresponding strategy goes red and whoever landed it must convert it to
+`refused_at_the_boundary` and raise the ratchet in the same commit.
+
+**A failing `RefusedAt` strategy is a P0 that blocks the release.** Such a failure is not a flaky
+test: it is a demonstrated forgery against the verifier a third party runs. The ratchet already fails
+the build on any corpus failure; what this subsection adds is that the reproducing chain belongs in
+`docs/task-evidence/`, not only in a CI log.

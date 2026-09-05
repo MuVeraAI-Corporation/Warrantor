@@ -2,7 +2,7 @@
   "format": "warrantor.invariant-ratchet/1",
   "recorded": "2026-09-05",
   "source": "rust/warrant/tests/invariants/",
-  "passing_floor": 66,
+  "passing_floor": 78,
   "ignored_ceiling": 18,
-  "note": "The invariant attack corpus for I-01..I-12. `passing_floor` may only rise; `ignored_ceiling` may only fall. Every ignored test is a recorded violation named in docs/W1-delivery-gaps.md Tier 5 -- the ceiling exists so that silencing a failing test with #[ignore] is a build failure rather than a way to hold the passing count steady. Raise the floor in the same commit that earns it."
+  "note": "The invariant attack corpus for I-01..I-12, plus the evidence-integrity adversary in rust/warrant/tests/invariants/adversary/ (Task 5.3, L0-05). `passing_floor` may only rise; `ignored_ceiling` may only fall. Every ignored test is a recorded violation named in docs/W1-delivery-gaps.md Tier 5 -- the ceiling exists so that silencing a failing test with #[ignore] is a build failure rather than a way to hold the passing count steady. Raise the floor in the same commit that earns it. The adversary's four unrefused strategies are deliberately NOT ignores: they are recorded through harness::reached_the_boundary_unrefused and Reach::Unrepresentable, so they go red when someone fixes them instead of going stale, and they do not move this ceiling. Floor raised 66 -> 78 by Task 5.3."
 }
