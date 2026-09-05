@@ -133,3 +133,33 @@ fn the_legend_names_all_three_tiers_and_never_collapses_them() {
     let distinct: BTreeSet<&String> = legend.iter().collect();
     assert_eq!(distinct.len(), 3, "three tiers, three different lines");
 }
+
+fn built_bundle(dir: &std::path::Path) -> warrantor_warrant::report::Report {
+    let queue = StagingQueue::open(dir.join("q.jsonl"), "wrt_tier", EffectRegistry::github())
+        .expect("open queue");
+    build(&stored("wrt_tier", NOW + 3600), Ok(&queue), &issuer().verifying_key(), NOW)
+}
+
+/// The bundle a signed report carries discloses a tier per bound, and the CLI prints each one
+/// through the shared formatter plus the legend.
+#[test]
+fn the_cli_report_prints_every_bound_with_its_tier_and_the_legend() {
+    let dir = tempdir("cli");
+    let report = built_bundle(&dir);
+    let text = render_cli(report.bundle());
+    for bound in &report.bundle().bound_strengths {
+        let line = format!("  {}", render_bound(&bound.name, bound.strength));
+        assert!(text.contains(&line), "missing {line:?} in:\n{text}");
+    }
+    for legend in render_tier_legend() {
+        assert!(text.contains(&legend), "legend line missing: {legend}");
+    }
+    let observed_lines: Vec<&str> = text
+        .lines()
+        .filter(|l| l.contains("write_paths") || l.contains("budget_cents_observed"))
+        .collect();
+    assert_eq!(observed_lines.len(), 2, "{text}");
+    for line in observed_lines {
+        assert!(!line.contains("enforced"), "an Observed bound printed as enforced: {line}");
+    }
+}

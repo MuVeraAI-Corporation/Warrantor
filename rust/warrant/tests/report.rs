@@ -142,6 +142,9 @@ fn an_export_from_an_unknown_format_is_refused_rather_than_guessed_at() {
 /// That is not a relaxation of the report -- it is the report ceasing to state something untrue.
 /// Nothing in the codebase refuses an out-of-bounds write, and a live run demonstrated it by
 /// writing outside its declared paths unchallenged. Everything else here is byte for byte as it was.
+///
+/// The second: three legend lines under BOUNDS, so the tier column carries what each tier does
+/// not cover (Task 0.4).
 #[test]
 fn the_prose_report_is_exactly_what_it_always_was() {
     let dir = tempdir("prose");
@@ -169,6 +172,9 @@ fn the_prose_report_is_exactly_what_it_always_was() {
          \x20 expires_at              enforced\n\
          \x20 delegation_depth        enforced\n\
          \x20 budget_cents_observed   observed\n\
+         \x20 enforced  held by cryptography or the operating system; holds against an agent that tries to route around it\n\
+         \x20 mediated  held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it\n\
+         \x20 observed  measured and reported after the fact; nothing refuses the action as it happens\n\
          \n\
          ── EVIDENCE ──\n\
          \x20 1 staged effect(s)\n\

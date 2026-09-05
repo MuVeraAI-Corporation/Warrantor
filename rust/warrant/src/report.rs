@@ -1257,14 +1257,15 @@ pub fn render_cli(bundle: &ReportBundle) -> String {
     lines.push(String::new());
     lines.push("── BOUNDS ──".to_string());
     for bound in &bundle.bound_strengths {
-        let mark = match bound.strength {
-            BoundStrength::Enforced => "enforced",
-            // Deliberately not "enforced (proxy)". A reader skimming a column of one-word marks
-            // takes the first word and moves on, and "enforced" is the word that would be taken.
-            BoundStrength::Mediated => "mediated",
-            BoundStrength::Observed => "observed",
-        };
-        lines.push(format!("  {:<24}{mark}", bound.name));
+        lines.push(format!(
+            "  {}",
+            crate::render_bound(&bound.name, bound.strength)
+        ));
+    }
+    // What each tier does not cover, beneath the column that would otherwise be read as one
+    // uniform guarantee. L8-13: a rendering that names a tier without its limit is the defect.
+    for legend in crate::render_tier_legend() {
+        lines.push(format!("  {legend}"));
     }
 
     // Additive, and only when a ledger was actually read: with `spend: None` every line above and
