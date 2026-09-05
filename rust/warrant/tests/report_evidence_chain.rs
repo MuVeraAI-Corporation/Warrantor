@@ -7,10 +7,12 @@ use std::path::{Path, PathBuf};
 use ed25519_dalek::SigningKey;
 use warrantor_evidence as evidence;
 use warrantor_warrant::receipts::{chains, ReceiptLog};
+use warrantor_warrant::report::{build, verify_export, verify_export_signed_by, ReportError};
 use warrantor_warrant::settle::{
     settle, EffectOutcome, EffectPerformer, EffectWitness, EvidencedPerformer,
 };
 use warrantor_warrant::staging::{EffectRegistry, StagedEffect, StagingQueue};
+use warrantor_warrant::store::StoredWarrant;
 use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds, WarrantState};
 
 const NOW: u64 = 1_786_000_000;
@@ -308,4 +310,163 @@ fn a_failed_effect_gets_a_post_commit_that_says_so() {
     assert_eq!(outcome.status, "failed");
     assert_eq!(outcome.error.as_deref(), Some("upstream returned 503"));
     assert!(outcome.effects.is_empty());
+}
+
+fn stored_from(warrant: &Warrant) -> StoredWarrant {
+    StoredWarrant {
+        warrant: warrant.clone(),
+        worktree: None,
+        repo: None,
+        branch: None,
+        base_commit: None,
+        staged_chain: None,
+    }
+}
+
+/// Settle two effects with receipts, then build and sign the report over them.
+fn settled_export(dir: &Path) -> warrantor_warrant::report::SignedReport {
+    let mut warrant = warrant_with_tools(&["github.create_pr", "github.comment"]);
+    let queue = queue_with_pr_and_comment(dir);
+    let mut log = ReceiptLog::open(dir.join("receipts.jsonl")).expect("log");
+    let mut inner = Counting {
+        log_path: dir.join("receipts.jsonl"),
+        fail_at: None,
+        performed: Vec::new(),
+        lines_on_disk_when_performing: Vec::new(),
+    };
+    let witness = witness(&warrant);
+    let mut performer = EvidencedPerformer::new(&mut inner, witness, &mut log);
+    settle(
+        &mut warrant,
+        &queue,
+        None,
+        &settle_key().verifying_key(),
+        &mut performer,
+    )
+    .expect("settle");
+    drop(performer);
+    build(
+        &stored_from(&warrant),
+        Ok(&queue),
+        &issuer().verifying_key(),
+        NOW + 60,
+    )
+    .with_effect_receipts(log.receipts().to_vec())
+    .sign(&issuer(), "issuer")
+    .expect("sign")
+}
+
+#[test]
+fn the_export_embeds_the_chain_and_verifies_offline() {
+    let dir = tempdir("export");
+    let signed = settled_export(&dir);
+    let section = signed.bundle.effect_evidence.as_ref().expect("section");
+    assert_eq!(section.receipts_consulted, 4);
+    assert_eq!(section.effects.len(), 2);
+    assert!(section.effects.iter().all(|line| line.status == "success"));
+    assert_eq!(signed.effect_receipts.len(), 4);
+    verify_export(&signed).expect("verifies");
+    verify_export_signed_by(&signed, &issuer().verifying_key()).expect("verifies against the pin");
+    let json = serde_json::to_vec_pretty(&signed).expect("encode");
+    let back: warrantor_warrant::report::SignedReport =
+        serde_json::from_slice(&json).expect("decode");
+    verify_export(&back).expect("round trip verifies");
+}
+
+#[test]
+fn removing_one_receipt_from_the_export_is_a_commit_gate_violation() {
+    let dir = tempdir("removed");
+    let signed = settled_export(&dir);
+
+    let mut without_post = signed.clone();
+    without_post.effect_receipts.remove(3);
+    let err = verify_export(&without_post).unwrap_err().to_string();
+    assert!(err.contains("commit-gate violation (I-07)"), "{err}");
+
+    let mut without_pre = signed.clone();
+    without_pre.effect_receipts.remove(0);
+    let err = verify_export(&without_pre).unwrap_err().to_string();
+    assert!(err.contains("commit-gate violation (I-07)"), "{err}");
+}
+
+#[test]
+fn a_chain_signed_by_another_key_cannot_ride_along() {
+    let dir = tempdir("foreign");
+    let mut signed = settled_export(&dir);
+    let stranger = SigningKey::from_bytes(&[5; 32]);
+    let pre = evidence::issue_pre_commit(
+        signed.effect_receipts[0].predicate.clone(),
+        &stranger,
+        "stranger",
+    );
+    let post = evidence::issue_post_commit(
+        &pre,
+        signed.effect_receipts[1]
+            .predicate
+            .outcome
+            .clone()
+            .expect("outcome"),
+        &stranger,
+        "stranger",
+    );
+    signed.effect_receipts[0] = pre;
+    signed.effect_receipts[1] = post;
+    assert!(matches!(
+        verify_export(&signed),
+        Err(ReportError::Binding(_))
+    ));
+}
+
+#[test]
+fn a_bundle_that_lists_a_status_its_receipt_does_not_carry_is_refused() {
+    let dir = tempdir("status");
+    let signed = settled_export(&dir);
+    let mut tampered = signed.clone();
+    let post = &mut tampered.effect_receipts[1];
+    post.predicate.outcome.as_mut().expect("outcome").status = "failed".to_string();
+    // Changing the predicate breaks its signature first; that is the right first failure.
+    assert!(matches!(
+        verify_export(&tampered),
+        Err(ReportError::Evidence(_))
+    ));
+}
+
+#[test]
+fn an_export_built_without_a_receipt_log_still_verifies_and_says_so() {
+    let dir = tempdir("older");
+    let warrant = warrant_with_tools(&["github.create_pr"]);
+    let queue = StagingQueue::open(dir.join("q.jsonl"), ID, EffectRegistry::github()).expect("q");
+    let signed = build(
+        &stored_from(&warrant),
+        Ok(&queue),
+        &issuer().verifying_key(),
+        NOW,
+    )
+    .sign(&issuer(), "issuer")
+    .expect("sign");
+    assert!(signed.bundle.effect_evidence.is_none());
+    assert!(signed.effect_receipts.is_empty());
+    let canonical = warrantor_warrant::report::canonical_bundle(&signed.bundle).expect("canonical");
+    assert!(
+        !canonical.contains("effect_evidence"),
+        "absent must stay absent: {canonical}"
+    );
+    assert!(signed
+        .bundle
+        .limitations
+        .iter()
+        .any(|l| l == warrantor_warrant::report::NO_EFFECT_RECEIPTS_LIMITATION));
+    verify_export(&signed).expect("verifies");
+}
+
+#[test]
+fn stray_receipts_the_bundle_does_not_list_are_refused() {
+    let dir = tempdir("stray");
+    let mut signed = settled_export(&dir);
+    let extra = signed.effect_receipts[0].clone();
+    signed.effect_receipts.push(extra);
+    assert!(matches!(
+        verify_export(&signed),
+        Err(ReportError::Binding(_))
+    ));
 }

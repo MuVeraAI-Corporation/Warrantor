@@ -304,6 +304,11 @@ pub struct EffectReceiptLine {
     /// `binding.receipt_id` of the pre-commit receipt.
     pub pre_receipt_id: String,
     /// `binding.receipt_id` of the post-commit receipt, `None` if none was issued.
+    ///
+    /// Equal to `pre_receipt_id` whenever a post-commit exists: a WAR post-commit is the
+    /// pre-commit's predicate with a new phase, a parent pointer and an outcome, so the pair
+    /// shares one id and the phase is what tells them apart. Present rather than implied, because
+    /// `None` here is the load-bearing case -- it says the log ended between the two.
     pub post_receipt_id: Option<String>,
     /// The post-commit's `outcome.status`, or `"unfinished"` when there is no post-commit.
     pub status: String,
@@ -1211,6 +1216,109 @@ pub fn verify_export(export: &SignedReport) -> Result<(), ReportError> {
         "the evidence receipt's decision disagrees with the signed notary verdict",
     )?;
 
+    verify_effect_receipts(export)?;
+
+    Ok(())
+}
+
+/// Every chain the bundle lists must be present, verify as a pre->post pair (I-07, I-02), be
+/// signed by the report's own key, and describe the handle and status the bundle says it does.
+fn verify_effect_receipts(export: &SignedReport) -> Result<(), ReportError> {
+    let signer = &export.evidence_receipt.signature.public_key;
+    // Phase as well as id, because `issue_post_commit` clones the pre-commit's predicate and
+    // changes only the phase, the parent pointer and the outcome -- so a chain's two receipts
+    // carry the SAME `binding.receipt_id`, and a lookup by id alone hands back the pre-commit
+    // when asked for the post-commit. That reads as a phase violation two checks later, which is
+    // a true error about the wrong thing.
+    let find = |id: &str, phase: evidence::Phase| {
+        export
+            .effect_receipts
+            .iter()
+            .find(|r| r.predicate.binding.receipt_id == id && r.predicate.binding.phase == phase)
+    };
+    let missing = |what: &str, handle: &str| {
+        ReportError::Evidence(
+            evidence::EvidenceError::CommitGate(format!(
+                "the {what} receipt for {handle} is missing from the export"
+            ))
+            .to_string(),
+        )
+    };
+    let Some(section) = &export.bundle.effect_evidence else {
+        if export.effect_receipts.is_empty() {
+            return Ok(());
+        }
+        return Err(ReportError::Binding(
+            "the export carries effect receipts the bundle does not list".to_string(),
+        ));
+    };
+    let mut expected = 0usize;
+    for line in &section.effects {
+        expected += 1;
+        let pre = find(&line.pre_receipt_id, evidence::Phase::PreCommit)
+            .ok_or_else(|| missing("pre-commit", &line.handle))?;
+        if pre.signature.public_key != *signer {
+            return Err(ReportError::Binding(format!(
+                "the pre-commit receipt for {} was signed by a key other than the report's",
+                line.handle
+            )));
+        }
+        if pre.predicate.operation.target != line.handle
+            || pre.predicate.operation.class != line.tool
+        {
+            return Err(ReportError::Binding(format!(
+                "the pre-commit receipt listed for {} is over a different effect",
+                line.handle
+            )));
+        }
+        if pre.predicate.actor.principal != export.bundle.subject {
+            return Err(ReportError::Binding(format!(
+                "the pre-commit receipt for {} names a different subject",
+                line.handle
+            )));
+        }
+        let Some(post_id) = &line.post_receipt_id else {
+            evidence::verify_receipt(pre).map_err(|e| ReportError::Evidence(e.to_string()))?;
+            evidence::verify_authority(&pre.predicate.authority)
+                .map_err(|e| ReportError::Evidence(e.to_string()))?;
+            if line.status != "unfinished" {
+                return Err(ReportError::Binding(format!(
+                    "{} has no post-commit receipt but the bundle records status {:?}",
+                    line.handle, line.status
+                )));
+            }
+            continue;
+        };
+        expected += 1;
+        let post = find(post_id, evidence::Phase::PostCommit)
+            .ok_or_else(|| missing("post-commit", &line.handle))?;
+        evidence::verify_chain(pre, post).map_err(|e| ReportError::Evidence(e.to_string()))?;
+        if post.signature.public_key != *signer {
+            return Err(ReportError::Binding(format!(
+                "the post-commit receipt for {} was signed by a key other than the report's",
+                line.handle
+            )));
+        }
+        let status = post
+            .predicate
+            .outcome
+            .as_ref()
+            .map(|o| o.status.as_str())
+            .unwrap_or_default();
+        if status != line.status {
+            return Err(ReportError::Binding(format!(
+                "the bundle records {} as {:?}; its post-commit receipt says {status:?}",
+                line.handle, line.status
+            )));
+        }
+    }
+    if export.effect_receipts.len() != expected {
+        return Err(ReportError::Binding(format!(
+            "the export carries {} effect receipt(s) and the bundle lists {expected}; receipts \
+             the bundle does not account for are refused",
+            export.effect_receipts.len()
+        )));
+    }
     Ok(())
 }
 
