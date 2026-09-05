@@ -228,3 +228,38 @@ fn the_console_json_carries_the_tier_word_and_caveat_per_bound() {
         .expect("tier_legend");
     assert_eq!(legend.len(), 3);
 }
+
+/// `warrantor status` is the surface an operator reads every morning, and it printed no tier.
+/// Driven through the real binary, because the omission lived in `cmd_status`, not the library.
+#[test]
+fn warrantor_status_prints_a_tier_per_bound_and_the_legend() {
+    let root = tempdir("status");
+    let at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // An Open warrant with no daemon record is reported under "attention" (daemon.rs reconcile,
+    // `None` arm); what matters here is only that the store is non-empty so the block prints.
+    WarrantStore::open(&root)
+        .expect("store")
+        .save(&stored("wrt_status", at + 3_600))
+        .expect("save");
+
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_warrantor"))
+        .args(["status", "--root"])
+        .arg(&root)
+        .output()
+        .expect("run warrantor status");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(out.status.success(), "{stdout}{}", String::from_utf8_lossy(&out.stderr));
+    assert!(stdout.contains("bound tiers"), "{stdout}");
+    for (name, strength) in bound_strengths() {
+        assert!(stdout.contains(&render_bound(name, strength)), "{name} missing:\n{stdout}");
+    }
+    for legend in render_tier_legend() {
+        assert!(stdout.contains(&legend), "{stdout}");
+    }
+    for line in stdout.lines().filter(|l| l.contains("write_paths")) {
+        assert!(!line.contains("enforced"), "{line}");
+    }
+}

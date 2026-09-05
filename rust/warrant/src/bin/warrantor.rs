@@ -59,7 +59,8 @@ use warrantor_warrant::trust;
 use warrantor_warrant::upstream::{self, UpstreamSpec};
 use warrantor_warrant::worktree::Worktree;
 use warrantor_warrant::{
-    SideEffectClass, Warrant, WarrantBounds, WarrantState, DEFAULT_CLI_SUBJECT,
+    bound_strengths, render_bound, render_tier_legend, SideEffectClass, Warrant, WarrantBounds,
+    WarrantState, DEFAULT_CLI_SUBJECT,
 };
 
 fn now() -> u64 {
@@ -4565,6 +4566,17 @@ fn cmd_status(store: &WarrantStore, root: &Path) -> ExitCode {
     for (id, detail) in &needs_decision {
         println!("  attention  {id}");
         println!("             {detail}");
+    }
+
+    // The tier of every bound, once, under the list. Status is the morning surface; it named
+    // warrants and never said which of their limits were walls and which were notes.
+    println!();
+    println!("  bound tiers (the same for every warrant on this machine):");
+    for (name, strength) in bound_strengths() {
+        println!("    {}", render_bound(name, strength));
+    }
+    for legend in render_tier_legend() {
+        println!("    {legend}");
     }
     ExitCode::SUCCESS
 }
