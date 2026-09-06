@@ -1267,3 +1267,78 @@ fn the_crossed_mark_and_the_escalation_agree_at_the_threshold_line() {
     assert!(!text.contains("ESCALATED"), "{text}");
     assert!(scorer::read_escalations(&control).is_empty());
 }
+
+#[test]
+fn a_filesystem_refusal_is_explained_with_the_filesystem_property_and_not_another() {
+    // The one refusal the two boundary tests above never drove. `run_preflight` walks
+    // `BoundaryCheck::ALL` in order, so FilesystemBoundary fails first only when the network property
+    // is Enforced and the filesystem one is not: confined, zero egress, a worktree a profile can name,
+    // and a store root the record refuses to place. A relative --root is exactly that store, and it is
+    // reachable on every platform. With the mapping remapped -- FilesystemBoundary standing for the
+    // network property -- every suite stayed green and the binary printed, under this refusal, that
+    // the network property was "enforced" and "carries a weaker tier" in the same breath.
+    let dir = store_dir("cli-fs-boundary");
+    store_with_worktree(&dir, "wrt_scored", WORKTREE);
+    mint_operator(&dir, "env-owner", "stop");
+    let parent = dir
+        .parent()
+        .expect("the store dir has a parent")
+        .to_path_buf();
+    let relative = dir
+        .file_name()
+        .expect("the store dir has a name")
+        .to_string_lossy()
+        .to_string();
+    let out = std::process::Command::new(EXE)
+        .current_dir(&parent)
+        .args([
+            "scorer",
+            "wrt_scored",
+            "--confined",
+            "--asserted-by",
+            "env-owner",
+            "--root",
+            &relative,
+        ])
+        .output()
+        .expect("run warrantor scorer with a relative root");
+    let mut text = String::from_utf8_lossy(&out.stdout).to_string();
+    text.push_str(&String::from_utf8_lossy(&out.stderr));
+    assert!(!out.status.success(), "{text}");
+    assert!(text.contains("cannot place the store root"), "{text}");
+    assert!(
+        text.contains("boundary check failed: FilesystemBoundary"),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "eval-guard's FilesystemBoundary stands for scorer_inputs_not_writable in this \
+             record, and that property is observed, held by warrantor."
+        ),
+        "the explanation must be derived from the boundary that failed: {text}"
+    );
+    assert!(
+        text.contains("this property carries a weaker tier"),
+        "{text}"
+    );
+    assert!(
+        !text.contains("stands for scorer_not_reachable_over_network"),
+        "a filesystem refusal must not be explained with the network property: {text}"
+    );
+
+    // CONTROL: the same store named absolutely is placeable, so the filesystem property earns
+    // Enforced and the refusal moves on to the credential boundary -- the mapping is being read
+    // per boundary, not printing one sentence for every refusal.
+    let (_, absolute) = run(
+        &dir,
+        &["wrt_scored", "--confined", "--asserted-by", "env-owner"],
+    );
+    assert!(
+        absolute.contains("boundary check failed: ProcessIsolation"),
+        "control: {absolute}"
+    );
+    assert!(
+        absolute.contains("stands for scorer_credentials_not_readable"),
+        "control: {absolute}"
+    );
+}

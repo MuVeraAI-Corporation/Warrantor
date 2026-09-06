@@ -1563,6 +1563,39 @@ mod tests {
                 "{check:?} maps to {behind}, which isolation() does not produce: {names:?}"
             );
         }
+
+        // Totality was the only assertion, and it has no wrong-mapping control: any permutation of
+        // the four-to-three mapping is total. A reviewer remapped FilesystemBoundary onto the
+        // network property and this test, fifteen unit tests, nineteen integration tests and the
+        // invariant corpus stayed green while the shipped binary printed, under a refusal about the
+        // filesystem, a sentence about the network property being "enforced" and "weaker than
+        // Enforced" in the same breath. The mapping is the rustdoc table on `preflight`, pinned
+        // here entry by entry.
+        use warrantor_eval_guard::BoundaryCheck;
+        for (check, expected) in [
+            (
+                BoundaryCheck::NetworkIsolation,
+                SCORER_NOT_REACHABLE_OVER_NETWORK,
+            ),
+            (
+                BoundaryCheck::EgressAttestation,
+                SCORER_NOT_REACHABLE_OVER_NETWORK,
+            ),
+            (
+                BoundaryCheck::FilesystemBoundary,
+                SCORER_INPUTS_NOT_WRITABLE,
+            ),
+            (
+                BoundaryCheck::ProcessIsolation,
+                SCORER_CREDENTIALS_NOT_READABLE,
+            ),
+        ] {
+            assert_eq!(
+                property_behind(check),
+                expected,
+                "{check:?} must stand for the property the rustdoc table on `preflight` says"
+            );
+        }
     }
 
     #[test]
