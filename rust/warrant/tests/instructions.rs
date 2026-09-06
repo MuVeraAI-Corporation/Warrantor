@@ -291,7 +291,9 @@ fn every_harness_the_registry_lists_can_be_shown() {
             (!tail.trim().is_empty()
                 && !id.is_empty()
                 && !id.contains(' ')
-                && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
+                && id
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
             .then(|| id.to_string())
         })
         .filter(|word| word != "warrantor")
