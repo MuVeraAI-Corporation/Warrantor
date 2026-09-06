@@ -148,12 +148,6 @@ impl HorizonDimension {
 
     /// The tier THIS dimension's own mechanism earns.
     ///
-    /// Deliberately more precise than the single `("horizon", Mediated)` row in
-    /// [`crate::bound_strengths`]: that row has to describe the whole bound and so takes the weakest
-    /// word, which loses the fact that two of the three dimensions are held by the operating system.
-    /// `warrantor horizon` prints this per dimension so the stronger half is recoverable.
-    /// The tier THIS dimension's own mechanism earns.
-    ///
     /// Deliberately more precise than the single `("horizon", ..)` row in
     /// [`crate::bound_strengths`], which has to describe the whole bound and so takes the weakest of
     /// the three — losing the fact that one of them is held by the operating system.
