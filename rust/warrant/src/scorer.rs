@@ -23,22 +23,27 @@
 //! * [`SCORER_INPUTS_NOT_WRITABLE`] — `Enforced` only when **four** facts hold at once: a confinement
 //!   profile is asserted, a profile naming this worktree is one `crate::sandbox` will actually write
 //!   (it refuses every path that is not an absolute POSIX path), the store root can be placed relative
-//!   to the worktree at all, and it is not inside it. Under `warrantor sandbox --kind bubblewrap` the
-//!   profile binds `/` read-only with the worktree as the sole read-write hole, so a write to the
-//!   guard log fails with `EROFS` at the syscall — held by the operating system, not by us. Anything
-//!   short of all four is `Observed`, and the record says which fact was missing. The second and
-//!   third of the four were reviewer findings: an `Enforced` tier naming a mechanism no command here
-//!   can install is a label the mechanism does not back, and it is the worst defect this module can
-//!   ship. See [`isolation`] for each.
-//! * [`SCORER_CREDENTIALS_NOT_READABLE`] — **no tier word at all.** `--ro-bind / /` leaves `$HOME`
-//!   readable and `~/.warrantor/keys/settle.key` with it. Read-only is not unreadable, same UID is
-//!   same UID, and nothing in this repository refuses that read. It is not `Observed`, because
-//!   "observed" implies something measures it and nothing looks.
-//! * [`SCORER_NOT_REACHABLE_OVER_NETWORK`] — `Enforced` on an empty egress allowlist under a profile
-//!   that `crate::sandbox` will write, because that is the one case it emits `--unshare-net`;
-//!   `Mediated` otherwise, held at the MCP proxy, which a shell reaches past. The namespace comes out
-//!   of the same profile as the read-only bind, so it carries the same reachability condition — it
-//!   carried the same false `Enforced` too, and was reported with it.
+//!   to the worktree at all, and it sits under **none** of the read-write holes that profile's own
+//!   argv opens — the worktree, and the private `/tmp` both kinds mount. Then the profile mounts `/`
+//!   read-only and a write to the guard log fails with `EROFS` at the syscall — held by the operating
+//!   system, not by us. Anything short of all four is `Observed`, and the record says which fact was
+//!   missing. The second, third and fourth of the four were reviewer findings: an `Enforced` tier
+//!   naming a mechanism no command here can install, or naming "the only read-write hole" while the
+//!   argv opened a second one over the store, is a label the mechanism does not back, and it is the
+//!   worst defect this module can ship. The holes are read off the profile's argv
+//!   ([`crate::sandbox::Profile::hole_over`]) rather than re-derived here. See [`isolation`].
+//! * [`SCORER_CREDENTIALS_NOT_READABLE`] — **no tier word at all.** A read-only root (`--ro-bind / /`
+//!   under bubblewrap, `--read-only=/` under firejail) leaves `$HOME` readable and
+//!   `~/.warrantor/keys/settle.key` with it. Read-only is not unreadable, same UID is same UID, and
+//!   nothing in this repository refuses that read. It is not `Observed`, because "observed" implies
+//!   something measures it and nothing looks.
+//! * [`SCORER_NOT_REACHABLE_OVER_NETWORK`] — `Enforced` only when the profile `crate::sandbox` writes
+//!   for this worktree actually carries `--unshare-net` (or firejail's `--net=none`), which it does
+//!   for an empty egress allowlist and never otherwise; `Mediated` otherwise, held at the MCP proxy,
+//!   which a shell reaches past. The namespace is read off the profile's argv
+//!   ([`crate::sandbox::Profile::unshares_network`]) rather than re-deciding `egress_hosts.is_empty()`
+//!   beside it. The namespace comes out of the same profile as the read-only root, so it carries the
+//!   same reachability condition — it carried the same false `Enforced` too, and was reported with it.
 //!
 //! # The monitor is `Observed` and cannot be anything else
 //!
@@ -247,14 +252,14 @@ pub fn property_behind(check: warrantor_eval_guard::BoundaryCheck) -> &'static s
 /// `Measured`.
 ///
 /// `store_root` and `worktree` decide the `Enforced` case of the first property together: a store
-/// the operator placed *inside* the worktree sits in the profile's one read-write hole, and a check
-/// that assumed otherwise would report `Enforced` over a writable grader input.
+/// the operator placed *inside* a read-write hole the profile opens is a writable grader input, and
+/// a check that assumed otherwise would report `Enforced` over it.
 ///
-/// # The three ways an asserted confinement still does not earn `Enforced`
+/// # The four ways an asserted confinement still does not earn `Enforced`
 ///
-/// All three were reviewer findings against the first cut of this function, and every one of them is
-/// a *label* correction: the mechanism named in the `Enforced` sentence has to be reachable by some
-/// command in this repository, or the word is not earned.
+/// All four were reviewer findings against this function, and every one of them is a *label*
+/// correction: the mechanism named in the `Enforced` sentence has to be reachable by some command in
+/// this repository and has to be the mechanism the argv actually installs, or the word is not earned.
 ///
 /// 1. **The worktree is one no confinement here will accept.** [`crate::sandbox::check_worktree`]
 ///    refuses any path that is not an absolute POSIX path, because `warrantor sandbox` will not print
@@ -267,11 +272,18 @@ pub fn property_behind(check: warrantor_eval_guard::BoundaryCheck) -> &'static s
 /// 2. **The store root is not comparable to the worktree.** The inside/outside test is a string
 ///    prefix, and `--root` is taken verbatim while `StoredWarrant::worktree` is absolute. A store the
 ///    operator placed inside the worktree but named *relatively* is not a prefix of an absolute path,
-///    so the check said "outside" and the record said `Enforced` over a store sitting in the
-///    profile's one read-write hole. Rather than resolve the path against a working directory this
-///    function cannot see, an uncomparable pair now fails closed and says which path it could not
-///    place.
-/// 3. **The store is inside the worktree.** The original two-facts case, unchanged.
+///    so the check said "outside" and the record said `Enforced` over a store sitting in a read-write
+///    hole. Rather than resolve the path against a working directory this function cannot see, an
+///    uncomparable pair now fails closed and says which path it could not place.
+/// 3. **The store is inside the worktree.** The original two-facts case.
+/// 4. **The store is under `/tmp`, which the same profile replaces with a private writable tmpfs.**
+///    The `Enforced` sentence called the worktree "the only read-write hole" while the argv it
+///    described carried `--tmpfs /tmp` (bubblewrap) or `--private-tmp` (firejail): a second hole,
+///    one the test suite's own helper already knew about and the production check did not. On a
+///    Linux host `std::env::temp_dir()` is `/tmp`, so this was the store the CLI tests' own control
+///    invocations would have used. The holes are now read off the profile's argv by
+///    [`crate::sandbox::Profile::hole_over`] — the same reading for both — so cases 3 and 4 are one
+///    check, and the record names the hole and the argument that opened it.
 #[must_use]
 pub fn isolation(
     bounds: &WarrantBounds,
@@ -285,7 +297,18 @@ pub fn isolation(
     let unprofilable = crate::sandbox::check_worktree(&worktree.to_string_lossy()).err();
     // A prefix test is only meaningful between two paths of the same kind.
     let comparable = is_rooted(store_root) && is_rooted(worktree);
-    let store_inside_worktree = normalize(store_root).starts_with(&normalize(worktree));
+    // The profile `warrantor sandbox` would print for this warrant and worktree -- the argv every
+    // operating-system claim below is read from. Only built when that command would print one.
+    let profile = confinement
+        .filter(|_| unprofilable.is_none())
+        .map(|kind| crate::sandbox::profile(bounds, &worktree.to_string_lossy(), kind));
+    // The read-write hole covering the store root, if the profile opens one over it.
+    let hole = profile
+        .as_ref()
+        .and_then(|p| p.hole_over(&store_root.to_string_lossy()));
+    let hole_is_the_worktree = hole
+        .as_ref()
+        .is_some_and(|h| normalize(Path::new(&h.path)) == normalize(worktree));
 
     let inputs = match confinement {
         Some(kind) if unprofilable.is_some() => Property {
@@ -311,23 +334,71 @@ pub fn isolation(
             not_covered: format!(
                 "this record cannot place the store root {} relative to the worktree {}: one of the \
                  two is not an absolute path, and the inside/outside test is a prefix comparison. A \
-                 store inside the worktree sits in the profile's one read-write hole, so guessing \
-                 'outside' here would put an Enforced tier on a writable grader input -- which is \
-                 what this command did before, for any relative --root. Failing closed instead. Pass \
-                 an absolute --root to get a decidable answer.",
+                 store inside a read-write hole the profile opens is a writable grader input, so \
+                 guessing 'outside' here would put an Enforced tier on one -- which is what this \
+                 command did before, for any relative --root. Failing closed instead. Pass an \
+                 absolute --root to get a decidable answer.",
                 store_root.display(),
                 worktree.display(),
             ),
         },
-        Some(kind) if !store_inside_worktree => Property {
+        Some(kind) if hole_is_the_worktree => Property {
+            name: SCORER_INPUTS_NOT_WRITABLE.to_string(),
+            strength: Some(BoundStrength::Observed),
+            held_by: HeldBy::OurCode,
+            not_covered: format!(
+                "the store root {} is INSIDE the worktree {}, which the {} profile binds read-write \
+                 ({}) -- so the profile you are about to launch opens a read-write hole over the \
+                 grader's own inputs. Nothing refuses a write to them. Move the store outside the \
+                 worktree (the default ~/.warrantor already is) to reach Enforced.",
+                store_root.display(),
+                worktree.display(),
+                kind.word(),
+                hole.as_ref().map(|h| h.opened_by.as_str()).unwrap_or_default()
+            ),
+        },
+        Some(kind) if hole.is_some() => Property {
+            name: SCORER_INPUTS_NOT_WRITABLE.to_string(),
+            strength: Some(BoundStrength::Observed),
+            held_by: HeldBy::OurCode,
+            not_covered: format!(
+                "the store root {} is under {}, which the {} profile mounts as a private writable \
+                 tmpfs ({}). Inside the sandbox that mount starts EMPTY, so the host's copy of the \
+                 store is shadowed rather than read-only: a write to the grader's inputs there \
+                 SUCCEEDS into the tmpfs and is discarded at exit, and anything that runs inside the \
+                 sandbox -- warrantor included -- reads the agent's copy. That is not a refusal at \
+                 the syscall and it is not what the Enforced sentence describes. Move the store out \
+                 of {} (the default ~/.warrantor already is) to reach Enforced.",
+                store_root.display(),
+                hole.as_ref().map(|h| h.path.as_str()).unwrap_or_default(),
+                kind.word(),
+                hole.as_ref().map(|h| h.opened_by.as_str()).unwrap_or_default(),
+                hole.as_ref().map(|h| h.path.as_str()).unwrap_or_default(),
+            ),
+        },
+        Some(kind) => Property {
             name: SCORER_INPUTS_NOT_WRITABLE.to_string(),
             strength: Some(BoundStrength::Enforced),
             held_by: HeldBy::Os {
+                // Every path and flag in this sentence is read off the argv `warrantor sandbox`
+                // prints for this warrant, not written beside it. It said "the only read-write
+                // hole" of a command that opened two.
                 mechanism: format!(
-                    "{} binds / read-only with {} as the only read-write hole, so a write to \
-                     {}/guard/*.jsonl fails with EROFS at the syscall",
+                    "{} mounts / read-only ({}) and opens read-write holes only at {}; {} is under \
+                     none of them, so a write to {}/guard/*.jsonl fails with EROFS at the syscall",
                     kind.word(),
-                    worktree.display(),
+                    kind.read_only_root_flag(),
+                    profile
+                        .as_ref()
+                        .map(|p| {
+                            p.read_write_holes()
+                                .iter()
+                                .map(|h| format!("{} ({})", h.path, h.opened_by))
+                                .collect::<Vec<_>>()
+                                .join(" and ")
+                        })
+                        .unwrap_or_default(),
+                    store_root.display(),
                     store_root.display()
                 ),
             },
@@ -337,20 +408,6 @@ pub fn isolation(
                  The tier is Enforced GIVEN a launched profile, and that is an assertion you are \
                  making, not a measurement this code took. It also says nothing about reads: the \
                  read-only root leaves every one of those files readable.",
-                kind.word()
-            ),
-        },
-        Some(kind) => Property {
-            name: SCORER_INPUTS_NOT_WRITABLE.to_string(),
-            strength: Some(BoundStrength::Observed),
-            held_by: HeldBy::OurCode,
-            not_covered: format!(
-                "the store root {} is INSIDE the worktree {}, which is the one path a {} profile \
-                 binds read-write -- so the profile you are about to launch opens a read-write hole \
-                 over the grader's own inputs. Nothing refuses a write to them. Move the store \
-                 outside the worktree (the default ~/.warrantor already is) to reach Enforced.",
-                store_root.display(),
-                worktree.display(),
                 kind.word()
             ),
         },
@@ -376,37 +433,51 @@ pub fn isolation(
         not_covered: format!(
             "there is no bound here at all. {}/keys/settle.key -- the key that releases staged \
              effects for real -- is readable to any process running as this user, a confinement \
-             profile included: `--ro-bind / /` mounts $HOME and read-only is not unreadable. \
-             Nothing in this repository refuses that read at any tier, and nothing measures it \
-             either, which is why this property carries no tier word rather than `observed`. What \
-             would hold it is a separate user account for the store, or a sandbox invocation that \
-             binds the store as a tmpfs instead of inheriting it from the read-only root.",
-            store_root.display()
+             profile included: {} mounts $HOME and read-only is not unreadable. Nothing in this \
+             repository refuses that read at any tier, and nothing measures it either, which is why \
+             this property carries no tier word rather than `observed`. What would hold it is a \
+             separate user account for the store, or a sandbox invocation that binds the store as a \
+             tmpfs instead of inheriting it from the read-only root.",
+            store_root.display(),
+            // The flag is the asserted kind's own, or both when none is asserted: this cited
+            // `--ro-bind / /` under the firejail profile, whose argv has no such flag.
+            match confinement {
+                Some(kind) => format!("`{}`", kind.read_only_root_flag()),
+                None => "a read-only root (`--ro-bind / /` under bubblewrap, `--read-only=/` under \
+                         firejail)"
+                    .to_string(),
+            }
         ),
     };
 
     // `--unshare-net` comes out of the same profile the filesystem bind does, so the same
     // reachability condition applies: a worktree no confinement here can name installs no namespace
-    // either. This arm carried the identical false Enforced and was reported with it.
-    let network =
-        match confinement.filter(|_| bounds.egress_hosts.is_empty() && unprofilable.is_none()) {
-            Some(kind) => Property {
-                name: SCORER_NOT_REACHABLE_OVER_NETWORK.to_string(),
-                strength: Some(BoundStrength::Enforced),
-                held_by: HeldBy::Os {
-                    mechanism: format!(
-                        "the warrant grants no egress, so the {} profile unshares the network \
+    // either. This arm carried the identical false Enforced and was reported with it. Whether the
+    // namespace is emitted is READ OFF the profile's argv rather than re-decided from
+    // `egress_hosts.is_empty()` here: the two were the same expression written twice, and a
+    // reviewer showed this copy could be deleted with every test still green.
+    let namespaced = match (&profile, confinement) {
+        (Some(p), Some(kind)) if p.unshares_network() => Some(kind),
+        _ => None,
+    };
+    let network = match namespaced {
+        Some(kind) => Property {
+            name: SCORER_NOT_REACHABLE_OVER_NETWORK.to_string(),
+            strength: Some(BoundStrength::Enforced),
+            held_by: HeldBy::Os {
+                mechanism: format!(
+                    "the warrant grants no egress, so the {} profile unshares the network \
                      namespace and there is no route out even for a process that never touches the \
                      MCP proxy",
-                        kind.word()
-                    ),
-                },
-                // NOT the tier legend. This field shipped holding `BoundStrength::Enforced.caveat()`,
-                // so the CLI printed the product's STRONGEST guarantee sentence under a `NOT` label --
-                // read either as a negation of the guarantee or as an assertion of it, and the legend
-                // is printed three lines below anyway. A reviewer caught it. What belongs here is what
-                // a network namespace does not cover.
-                not_covered: format!(
+                    kind.word()
+                ),
+            },
+            // NOT the tier legend. This field shipped holding `BoundStrength::Enforced.caveat()`,
+            // so the CLI printed the product's STRONGEST guarantee sentence under a `NOT` label --
+            // read either as a negation of the guarantee or as an assertion of it, and the legend
+            // is printed three lines below anyway. A reviewer caught it. What belongs here is what
+            // a network namespace does not cover.
+            not_covered: format!(
                 "a network namespace is all-or-nothing, so this reading holds ONLY because the \
                  warrant grants ZERO hosts: grant one and the namespace is deliberately not \
                  emitted, because emitting it would deny egress the warrant permits. It covers \
@@ -415,15 +486,15 @@ pub fn isolation(
                  conditional on a {} profile you launched and this process did not.",
                 kind.word()
             ),
-            },
-            None => Property {
-                name: SCORER_NOT_REACHABLE_OVER_NETWORK.to_string(),
-                strength: Some(BoundStrength::Mediated),
-                held_by: HeldBy::OurCode,
-                // The reason is DERIVED and named, not offered as a disjunction. This read
-                // "This warrant permits N host(s), or no confinement is in force" -- an `or` that left
-                // the reader to guess which of the two applied to the record in front of them.
-                not_covered: format!(
+        },
+        None => Property {
+            name: SCORER_NOT_REACHABLE_OVER_NETWORK.to_string(),
+            strength: Some(BoundStrength::Mediated),
+            held_by: HeldBy::OurCode,
+            // The reason is DERIVED and named, not offered as a disjunction. This read
+            // "This warrant permits N host(s), or no confinement is in force" -- an `or` that left
+            // the reader to guess which of the two applied to the record in front of them.
+            not_covered: format!(
                 "{}. No network namespace is emitted here, and the scorer is reachable by anything \
                  that can open a socket, because {}.",
                 BoundStrength::Mediated.caveat(),
@@ -442,8 +513,8 @@ pub fn isolation(
                     )
                 }
             ),
-            },
-        };
+        },
+    };
 
     vec![inputs, credentials, network]
 }
@@ -1068,6 +1139,209 @@ mod tests {
     }
 
     #[test]
+    fn a_store_under_the_private_tmp_is_not_enforced_even_under_a_confinement() {
+        // The fourth reachability finding, and the one the test suite already knew about: the
+        // profile's argv carries `--tmpfs /tmp` (bubblewrap) or `--private-tmp` (firejail), so a
+        // store under /tmp sits in a writable mount -- while the Enforced sentence called the
+        // worktree "the only read-write hole" and promised EROFS. On a Linux host
+        // `std::env::temp_dir()` IS /tmp, so this is the store the CLI tests' own controls would
+        // have used. Both kinds, because the flag differs and the sentence must cite the right one.
+        for kind in [Confinement::Bubblewrap, Confinement::Firejail] {
+            let under_tmp = isolation(
+                &bounds(&[]),
+                Some(kind),
+                Path::new("/tmp/warrantor-store"),
+                Path::new(WORKTREE),
+            );
+            let inputs = under_tmp
+                .iter()
+                .find(|p| p.name == SCORER_INPUTS_NOT_WRITABLE)
+                .expect("present");
+            assert_eq!(
+                inputs.strength,
+                Some(BoundStrength::Observed),
+                "{}: {inputs:?}",
+                kind.word()
+            );
+            assert_eq!(inputs.held_by, HeldBy::OurCode);
+            assert!(
+                inputs.not_covered.contains("/tmp") && inputs.not_covered.contains("tmpfs"),
+                "{}: the record must name the hole: {}",
+                kind.word(),
+                inputs.not_covered
+            );
+            let expected_flag = match kind {
+                Confinement::Bubblewrap => "--tmpfs /tmp",
+                Confinement::Firejail => "--private-tmp",
+            };
+            assert!(
+                inputs.not_covered.contains(expected_flag),
+                "{}: the record must cite the argument that opened the hole: {}",
+                kind.word(),
+                inputs.not_covered
+            );
+            assert!(
+                !inputs.not_covered.contains("EROFS"),
+                "{}: a write into a tmpfs does not fail at the syscall: {}",
+                kind.word(),
+                inputs.not_covered
+            );
+
+            // CONTROL: the default store, outside both holes, still earns the tier under the same
+            // kind, and its mechanism sentence now names BOTH holes and this kind's own flag.
+            let outside = isolation(
+                &bounds(&[]),
+                Some(kind),
+                Path::new("/home/agent/.warrantor"),
+                Path::new(WORKTREE),
+            );
+            let inputs = outside
+                .iter()
+                .find(|p| p.name == SCORER_INPUTS_NOT_WRITABLE)
+                .expect("present");
+            assert_eq!(inputs.strength, Some(BoundStrength::Enforced), "{inputs:?}");
+            let HeldBy::Os { mechanism } = &inputs.held_by else {
+                panic!("control: {inputs:?}");
+            };
+            let profile = crate::sandbox::profile(&bounds(&[]), WORKTREE, kind);
+            assert!(
+                mechanism.contains(kind.read_only_root_flag()),
+                "{}: {mechanism}",
+                kind.word()
+            );
+            for hole in profile.read_write_holes() {
+                assert!(
+                    mechanism.contains(&hole.opened_by),
+                    "{}: the Enforced sentence must name every hole the argv opens, or 'only' is \
+                     a claim about a different command: {mechanism}",
+                    kind.word()
+                );
+            }
+            assert!(
+                !mechanism.contains("only read-write hole"),
+                "{}: {mechanism}",
+                kind.word()
+            );
+        }
+    }
+
+    #[test]
+    fn a_warrant_that_permits_a_host_is_mediated_on_the_network_even_under_a_confinement() {
+        // The zero-host condition had no test: `egress_hosts.is_empty() &&` could be deleted from
+        // the network arm and every suite stayed green, so a host-permitting warrant under an
+        // asserted confinement would have printed Enforced over a namespace the profile
+        // deliberately does not emit. The tier is now read off the profile's argv, and this pins
+        // the reading in both directions.
+        for kind in [Confinement::Bubblewrap, Confinement::Firejail] {
+            let permitting = isolation(
+                &bounds(&["api.github.com"]),
+                Some(kind),
+                Path::new("/home/agent/.warrantor"),
+                Path::new(WORKTREE),
+            );
+            let network = permitting
+                .iter()
+                .find(|p| p.name == SCORER_NOT_REACHABLE_OVER_NETWORK)
+                .expect("present");
+            assert_eq!(
+                network.strength,
+                Some(BoundStrength::Mediated),
+                "{}: {network:?}",
+                kind.word()
+            );
+            assert_eq!(network.held_by, HeldBy::OurCode);
+            assert!(
+                network.not_covered.contains("permits 1 host(s)"),
+                "{}: the reason must be derived and named: {}",
+                kind.word(),
+                network.not_covered
+            );
+            // The argv agrees: no namespace is emitted for this warrant.
+            assert!(
+                !crate::sandbox::profile(&bounds(&["api.github.com"]), WORKTREE, kind)
+                    .unshares_network()
+            );
+
+            // CONTROL: zero hosts, same kind, same worktree, same store -- Enforced, and the argv
+            // carries the namespace the sentence names.
+            let closed = isolation(
+                &bounds(&[]),
+                Some(kind),
+                Path::new("/home/agent/.warrantor"),
+                Path::new(WORKTREE),
+            );
+            let network = closed
+                .iter()
+                .find(|p| p.name == SCORER_NOT_REACHABLE_OVER_NETWORK)
+                .expect("present");
+            assert_eq!(
+                network.strength,
+                Some(BoundStrength::Enforced),
+                "control, {}: {network:?}",
+                kind.word()
+            );
+            assert!(matches!(network.held_by, HeldBy::Os { .. }));
+            assert!(crate::sandbox::profile(&bounds(&[]), WORKTREE, kind).unshares_network());
+        }
+    }
+
+    #[test]
+    fn the_credentials_sentence_cites_the_asserted_kinds_own_flag() {
+        // `--ro-bind / /` is bubblewrap's flag; the firejail argv has `--read-only=/` and no
+        // `--ro-bind` at all. The sentence cited the former under both.
+        for kind in [Confinement::Bubblewrap, Confinement::Firejail] {
+            let properties = isolation(
+                &bounds(&[]),
+                Some(kind),
+                Path::new("/home/agent/.warrantor"),
+                Path::new(WORKTREE),
+            );
+            let credentials = properties
+                .iter()
+                .find(|p| p.name == SCORER_CREDENTIALS_NOT_READABLE)
+                .expect("present");
+            assert!(
+                credentials
+                    .not_covered
+                    .contains(&format!("`{}`", kind.read_only_root_flag())),
+                "{}: {}",
+                kind.word(),
+                credentials.not_covered
+            );
+            let other = match kind {
+                Confinement::Bubblewrap => Confinement::Firejail,
+                Confinement::Firejail => Confinement::Bubblewrap,
+            };
+            assert!(
+                !credentials
+                    .not_covered
+                    .contains(other.read_only_root_flag()),
+                "{}: the other kind's flag is not in this argv: {}",
+                kind.word(),
+                credentials.not_covered
+            );
+        }
+        // CONTROL: with no kind asserted the sentence names both, because it cannot know which.
+        let bare = isolation(
+            &bounds(&[]),
+            None,
+            Path::new("/home/agent/.warrantor"),
+            Path::new(WORKTREE),
+        );
+        let credentials = bare
+            .iter()
+            .find(|p| p.name == SCORER_CREDENTIALS_NOT_READABLE)
+            .expect("present");
+        for kind in [Confinement::Bubblewrap, Confinement::Firejail] {
+            assert!(
+                credentials.not_covered.contains(kind.read_only_root_flag()),
+                "{}",
+                credentials.not_covered
+            );
+        }
+    }
+
+    #[test]
     fn the_products_own_isolation_fails_the_preflight_and_names_the_credential_boundary() {
         let key = signing_key();
 
@@ -1360,6 +1634,15 @@ mod tests {
                     Some(Confinement::Bubblewrap),
                     Path::new("/home/agent/repo/.warrantor/wrt_w1/store"),
                     Path::new("/home/agent/repo/.warrantor/wrt_w1"),
+                ),
+            ),
+            (
+                "confined, store under the private /tmp",
+                isolation(
+                    &bounds(&[]),
+                    Some(Confinement::Firejail),
+                    Path::new("/tmp/warrantor-store"),
+                    Path::new(WORKTREE),
                 ),
             ),
             (

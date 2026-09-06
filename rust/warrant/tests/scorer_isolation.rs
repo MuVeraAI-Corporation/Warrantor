@@ -205,6 +205,46 @@ fn a_write_to_the_scorer_s_inputs_is_outside_every_read_write_hole_the_profile_o
 }
 
 #[test]
+fn the_production_hole_reading_agrees_with_this_files_own_oracle_including_tmp() {
+    // `writable_under` above is this file's independent reading of the argv, and it knew about the
+    // /tmp hole while `scorer::isolation` did not: the production Enforced sentence called the
+    // worktree "the only read-write hole" and a store under /tmp earned the tier. The production
+    // reading is now `Profile::hole_over`, and this pins the two readings equal over every path
+    // class that matters, for both kinds -- so neither can quietly forget a hole the other knows.
+    let store = Path::new("/home/agent/.warrantor");
+    let samples = [
+        Path::new(WORKTREE).to_path_buf(),
+        Path::new(WORKTREE).join("src").join("main.rs"),
+        Path::new(WORKTREE).join(".store").join("guard"),
+        PathBuf::from("/tmp"),
+        PathBuf::from("/tmp/warrantor-store/guard/w1.jsonl"),
+        store.join("guard").join("w1.jsonl"),
+        store.join("runs").join("w1.jsonl"),
+        PathBuf::from("/etc/passwd"),
+        PathBuf::from("/home/agent/repo/.warrantor/wrt_w10/x"),
+    ];
+    for kind in [Confinement::Bubblewrap, Confinement::Firejail] {
+        let profile = sandbox::profile(&no_egress_bounds(), WORKTREE, kind);
+        for path in &samples {
+            assert_eq!(
+                profile.hole_over(&path.to_string_lossy()).is_some(),
+                writable_under(&profile, path),
+                "{}: the production reading and this file's oracle disagree on {}",
+                kind.word(),
+                path.display()
+            );
+        }
+        // And both say /tmp is a hole -- the assertion that was missing from production.
+        assert!(
+            profile.hole_over("/tmp/warrantor-store").is_some(),
+            "{}",
+            kind.word()
+        );
+        assert!(writable_under(&profile, Path::new("/tmp/warrantor-store")));
+    }
+}
+
+#[test]
 fn a_store_the_operator_put_inside_the_worktree_is_writable_and_the_test_says_so() {
     // The other half of the same fact, and the reason `scorer::isolation` checks the store's
     // location rather than assuming it. The Enforced reading of this property needs TWO things
@@ -827,6 +867,38 @@ fn windows_worktree() -> String {
     format!("M:{sep}wt-w3-13.7{sep}.warrantor{sep}wrt_w1")
 }
 
+/// A store directory for the CLI tests that is NOT under `/tmp`.
+///
+/// `tempdir` above uses `std::env::temp_dir()`, which on a Linux host is `/tmp` -- and `/tmp` is a
+/// read-write hole every profile this repository writes opens (`--tmpfs /tmp`, `--private-tmp`), so
+/// a store there is a writable grader input and `scorer::isolation` reports it `Observed`. The CLI
+/// controls below assert `enforced`, which means their store has to sit outside every hole; on the
+/// Windows box this task was measured on the temp directory happened to, and on a Linux CI host it
+/// would not have. The directory is placed under the build's own target directory, next to the test
+/// binary, which is on no profile's hole list.
+fn store_dir(tag: &str) -> PathBuf {
+    let exe = std::env::current_exe().expect("test binary path");
+    let debug = exe
+        .parent()
+        .and_then(Path::parent)
+        .expect("target/debug/deps has a grandparent")
+        .to_path_buf();
+    let dir = debug.join("scorer-cli-stores").join(format!(
+        "{tag}-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
+    std::fs::create_dir_all(&dir).expect("store dir");
+    let text = dir.to_string_lossy().replace('\\', "/");
+    assert!(
+        !text.starts_with("/tmp/") && !text.starts_with("/tmp"),
+        "the CLI store must not sit in the profile's /tmp hole: {text}"
+    );
+    dir
+}
+
 fn run(dir: &Path, args: &[&str]) -> (bool, String) {
     let out = std::process::Command::new(EXE)
         .arg("scorer")
@@ -893,7 +965,7 @@ fn the_scorer_command_refuses_enforced_for_a_worktree_the_sandbox_command_also_r
 
     // CONTROL, on the same binary and the same day: a worktree the sandbox command DOES accept still
     // reaches Enforced, so this is a condition on the tier and not a command that refuses everything.
-    let ok = tempdir("cli-profilable");
+    let ok = store_dir("cli-profilable");
     store_with_worktree(&ok, "wrt_scored", WORKTREE);
     mint_operator(&ok, "env-owner", "stop");
     let (_, control) = run(
@@ -921,7 +993,7 @@ fn the_rendered_caveat_names_the_holder_the_rendered_record_names() {
     // printed under the DEFAULT record, two lines below that record's own `observed` / `held by
     // warrantor` / "nothing refuses a write ... as it happens". This asserts the two agree in the
     // output a user actually reads.
-    let dir = tempdir("cli-caveat");
+    let dir = store_dir("cli-caveat");
     store_with_worktree(&dir, "wrt_scored", WORKTREE);
 
     let (_, text) = run(&dir, &["wrt_scored"]);
@@ -959,7 +1031,7 @@ fn the_bare_command_refuses_on_the_boundary_it_actually_refuses_on() {
     // `scorer_not_reachable_over_network` is Mediated and `run_preflight` walks `BoundaryCheck::ALL` in
     // order, so NetworkIsolation fails first. Both records now say so, and this pins the behavior
     // they describe.
-    let dir = tempdir("cli-boundary");
+    let dir = store_dir("cli-boundary");
     store_with_worktree(&dir, "wrt_scored", WORKTREE);
 
     let (_, bare) = run(&dir, &["wrt_scored"]);
