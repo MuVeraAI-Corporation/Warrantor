@@ -3,7 +3,8 @@
 use std::collections::BTreeSet;
 
 use warrantor_warrant::effects::{
-    Decomposition, DecompositionRegistry, Syscall, EFFECT_REGISTRY_FORMAT,
+    Classified, Decomposition, DecompositionRegistry, Syscall, UnclassifiedPolicy,
+    EFFECT_REGISTRY_FORMAT,
 };
 use warrantor_warrant::SideEffectClass;
 
@@ -177,4 +178,32 @@ fn a_registry_document_round_trips_and_a_foreign_format_is_refused_not_read() {
     let empty = format!(r#"{{"format":"{EFFECT_REGISTRY_FORMAT}","tools":{{"t":[]}}}}"#);
     let error = DecompositionRegistry::from_json(&empty).expect_err("refused");
     assert!(error.contains("decomposes to nothing"), "{error}");
+}
+
+#[test]
+fn strict_mode_refuses_an_undeclared_tool_and_permissive_mode_names_the_guess() {
+    let registry = DecompositionRegistry::builtin();
+    match registry.classify("github.create_pr", UnclassifiedPolicy::Refuse) {
+        Ok(Classified::Declared(d)) => assert_eq!(d.render(), "net+mutate"),
+        other => panic!("a builtin is declared: {other:?}"),
+    }
+    let refusal = registry
+        .classify("files.write_file", UnclassifiedPolicy::Refuse)
+        .expect_err("strict mode refuses");
+    assert_eq!(refusal.tool, "files.write_file");
+    let sentence = refusal.to_string();
+    assert!(
+        sentence.contains("no declared effect decomposition"),
+        "{sentence}"
+    );
+    assert!(
+        sentence.contains("--upstream-effects 'files.write_file="),
+        "{sentence}"
+    );
+    assert!(sentence.contains(EFFECT_REGISTRY_FORMAT), "{sentence}");
+    assert_eq!(
+        registry.classify("files.write_file", UnclassifiedPolicy::GuessRead),
+        Ok(Classified::Guessed),
+        "permissive mode guesses, and says it is a guess"
+    );
 }
