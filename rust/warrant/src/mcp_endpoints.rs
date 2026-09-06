@@ -708,6 +708,16 @@ pub struct AgentEndpoint {
     /// Tools this session decided by the guess, or refused for want of a declaration, so the
     /// closing line can name them.
     unclassified: std::collections::BTreeSet<String>,
+    /// Admitted manifests by server name, the set to receipt refusals into, and the key that
+    /// signs them. Absent unless the process that started the session attached them; absent
+    /// means no admission checks, never "all admitted".
+    admission: Option<(
+        crate::admission::AdmittedSet,
+        BTreeMap<String, crate::admission::SignedManifest>,
+        SigningKey,
+    )>,
+    /// Calls refused at the admission bound this session.
+    admission_refusals: usize,
     /// How many calls this session actually forwarded, and how many failed in transport.
     ///
     /// Counted separately from the proxy's refusals because they are different facts about the
@@ -744,6 +754,8 @@ impl AgentEndpoint {
             decompositions: DecompositionRegistry::builtin(),
             unclassified_policy: UnclassifiedPolicy::GuessRead,
             unclassified: std::collections::BTreeSet::new(),
+            admission: None,
+            admission_refusals: 0,
             upstreams: None,
             forwarded: 0,
             forward_failures: 0,
@@ -778,6 +790,51 @@ impl AgentEndpoint {
         self.decompositions = decompositions;
         self.unclassified_policy = policy;
         self
+    }
+
+    /// Attach admitted manifests. A builder for the same reason as [`Self::with_upstreams`]:
+    /// what this machine has admitted is a property of the store, never of the signed warrant.
+    #[must_use]
+    pub fn with_admission(
+        mut self,
+        set: crate::admission::AdmittedSet,
+        manifests: BTreeMap<String, crate::admission::SignedManifest>,
+        signer: SigningKey,
+    ) -> Self {
+        self.admission = Some((set, manifests, signer));
+        self
+    }
+
+    /// Calls refused at the admission bound this session.
+    #[must_use]
+    pub fn admission_refusals(&self) -> usize {
+        self.admission_refusals
+    }
+
+    /// The admission refusal for a call, if its server was admitted and the manifest disclaims
+    /// NET while the arguments name a destination. `None` is "no admission objection", which is
+    /// also the answer for a server nobody admitted; that case is decided at attach, not here.
+    fn admission_objection(
+        &self,
+        call: &ToolCall,
+    ) -> Option<(String, crate::admission::SignedManifest, String)> {
+        let (_, manifests, _) = self.admission.as_ref()?;
+        let (server, bare) = call.tool.split_once('.')?;
+        let manifest = manifests.get(server)?;
+        let entry = manifest.claims.tools.get(bare)?;
+        if entry.effects.contains(&crate::effects::Syscall::Net) {
+            return None;
+        }
+        let first = crate::egress::destinations_of(call).into_iter().next()?;
+        Some((
+            server.to_string(),
+            manifest.clone(),
+            format!(
+                "{} names destination {:?} in argument {:?}, and its admitted manifest declares \
+                 no net effect",
+                call.tool, first.host, first.argument
+            ),
+        ))
     }
 
     /// Attach the verified per-warrant catalog and the root the decision log lives under.
@@ -1230,6 +1287,25 @@ impl Endpoint for AgentEndpoint {
                 // outcome, so this line changes nothing about what is forwarded.
                 if let Some(denial) = self.guard_denial(tool, &call.arguments) {
                     return ToolResult::error(denial);
+                }
+                // The admission bound. Decided AFTER the warrant and the egress bound, so a call
+                // the warrant already refused is not double-counted, and receipted BEFORE the
+                // refusal is returned, so the agent cannot observe a refusal that left no trace.
+                // The manifest is NOT revoked here: the destination was the agent's argument,
+                // and an agent must not be able to revoke a tool by typing a URL.
+                if let Some((server, manifest, reason)) = self.admission_objection(&call) {
+                    let at = (self.now)();
+                    if let Some((set, _, signer)) = self.admission.as_ref() {
+                        if let Err(e) = set.refuse_call(&server, &manifest, &reason, signer, at) {
+                            eprintln!("warrantor: admission refusal could not be receipted: {e}");
+                        }
+                    }
+                    self.admission_refusals += 1;
+                    return ToolResult::error(format!(
+                        "refused by the admission bound: {reason}. The tool's manifest is the \
+                         narrower authority; a tool that disclaims net effects is not handed a \
+                         destination."
+                    ));
                 }
                 let Some(upstreams) = self.upstreams.as_mut() else {
                     // Unreachable: the guard arm above matched on `is_none()`. Written as a value
