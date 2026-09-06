@@ -11,6 +11,15 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ### Added — the proxy can forward, and the harnesses that can now be pointed at it
 
+- **EXEC admission by content digest (L4-05).** `warrantor grant --exec process=<sha256>` pins
+  which bytes may run as the supervised agent; a warrant with at least one admission is strict
+  and `warrantor run` / the supervisor refuse anything else before it exists, receipted as
+  `warrantor.exec-receipt/1` in `exec/<id>.jsonl` (`warrantor exec log <id>` reads it back,
+  `warrantor exec digest <path>` mints the pin). Without `--exec` the digest is still recorded
+  on every run and nothing is refused. The new `exec` bound is reported in
+  `bound_strengths()` as observed, and the field is skipped when absent so every previously
+  issued warrant keeps its signature.
+
 - **Every settled effect is decided, signed before and signed after.** `EvidencedPerformer`
   wraps the CLI's and the server's performer: notary verdict per effect, pre-commit WAR receipt
   durable in `receipts/<id>.jsonl` before the adapter runs, post-commit with the outcome after. A

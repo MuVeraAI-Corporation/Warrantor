@@ -84,6 +84,10 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "egress-capability",
     "budget",
     "subject",
+    // Task 2.4: EXEC admission by digest. `--exec` is read by cmd_grant as a repeatable flag
+    // (`args.all("exec")`), one `surface=<sha256>` admission per occurrence. Wired in the same
+    // commit as the usage line that names it.
+    "exec",
     // report / verify / issuer / archive
     "export",
     "archive",

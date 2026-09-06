@@ -991,10 +991,13 @@ covers one store on one machine, unchanged).
 ### 3.4 Retention — **the inventory and the prune both ship; `logs/` is covered**
 
 `warrantor holdings` now answers "what do you keep, where, and how much of it": every one of the
-twenty locations the store writes to, what each contains, whether it is signed and hash-chained, how
+twenty-one locations the store writes to, what each contains, whether it is signed and hash-chained, how
 many files and bytes, how old the oldest is, how many could not be read (counted separately, never
 folded into the total), plus the warrants by state and by recorded subject, and the worktrees that
-are still on disk in each repository.
+are still on disk in each repository. The twenty-first class is `receipts/`'s sibling `exec/` —
+`exec/<id>.jsonl`, written by `warrantor run` (preflight) and the supervisor (spawn), append-only
+receipts whose two writers on one warrant are sequential by construction (the daemon the run
+starts does not exist until the preflight receipt is flushed).
 
 Three things it makes visible that nothing reported before:
 
@@ -1193,6 +1196,44 @@ What it does **not** establish:
   went on publishing 1. The cluster half of the exit condition now has an assertion that can go red
   (`cluster_layer_absent`, above); the resolver half is still carried by the finding test. Whoever
   lands either converts the test and raises the ratchet.
+
+---
+
+### 3.9 What runs is identified by its bytes — **built, Observed until CI sees the refusal**
+
+Warrantor itself executes code in exactly two places: the agent process (`warrantor run` →
+`warrantor supervise` → `supervise.rs::spawn`) and the upstream MCP servers (`upstream.rs::start`).
+This task gates the first, because it is the one the warrant already governs. The `upstream`
+surface is declared in the `ExecSurface` enum so a warrant can name it, but no refusal is wired for
+it here — tool admission manifests (§0.3, L4-09) own the upstream spawn, and this section says so
+rather than pretending to cover it.
+
+`WarrantBounds.exec` (a set of `surface=<sha256>` admissions) lives inside the signed claims and is
+skipped when absent, so every `warrantor.warrant/1` issued before this field keeps its canonical
+bytes and its signature; a build older than the field re-canonicalizes a pinned warrant without it
+and fails signature verification, which is fail-closed in the right direction. A pin may only
+tighten under delegation: a child that drops its parent's surface, or admits a digest the parent
+does not, is refused at issue (`WarrantBounds::contains`).
+
+The three verifications L4-05 names, and the tests that hold them: a renamed byte-identical
+artifact gets the same verdict (`a_renamed_artifact_gets_the_same_verdict_and_a_modified_one_is_refused`,
+and at the supervise chokepoint
+`supervise_refuses_a_modified_artifact_before_spawning_and_receipts_it`, and through the real
+binary `grant_with_exec_pins_and_run_refuses_or_admits_by_bytes_through_the_real_binary`); a
+same-named modified artifact is refused at the notary's `artifacts` gate before any process,
+daemon record or completion exists; and every EXEC receipt — admitted, unpinned, refused,
+preflight or spawn — carries the `sha256` of what would have run. The refusal names the gate and
+the attempted digest, never the admitted set, the same rule as `Verdict::Deny`.
+
+**Residual, verbatim from the blueprint:** *"Digest pinning does not make the pinned artifact
+safe."* It makes "which code, exactly" a policy question. **Mediation ceiling:** the gate sits
+where Warrantor itself spawns; once the agent is running, its own shell can exec anything and
+nothing here sees it. **Open items:** MCP-granted warrants (the multi-line bounds literal in
+`mcp_endpoints.rs`) are always unpinned until the MCP grant schema carries the field; and on
+Windows a `.cmd`/`.bat` resolved through `PATHEXT` is digested by this gate but cannot be spawned
+by `Command::new` without `cmd.exe`, which was already true before this task. The bound starts
+`Observed` in `bound_strengths()` and is promoted to `Mediated` only after the refusal test is seen
+to run on both CI kernels (§3.6's matrix); no label is promoted by this task alone.
 
 ---
 
