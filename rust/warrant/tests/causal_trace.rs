@@ -102,6 +102,17 @@ fn queue_with_three_hops(dir: &Path) -> StagingQueue {
     queue
 }
 
+/// Just the PR. A second hop count for the rendered-sentence test, so a count written into the
+/// sentence by hand cannot agree with both fixtures.
+fn queue_with_one_hop(dir: &Path) -> StagingQueue {
+    let mut queue =
+        StagingQueue::open(dir.join("q.jsonl"), ID, EffectRegistry::github()).expect("open");
+    queue
+        .stage("github.create_pr", args(&[("title", "Fix")]), NOW)
+        .expect("pr");
+    queue
+}
+
 #[test]
 fn the_trace_is_the_release_order_with_indices_that_are_their_own_positions() {
     let dir = tempdir("order");
@@ -298,45 +309,70 @@ fn an_unreadable_queue_produces_no_route_and_the_bundle_says_so() {
     );
 }
 
-/// The bundle's rendered caveat is derived from the section, not written beside it: the hop count
-/// and the chain head in the sentence are the section's own values.
+/// The exact sentence a signed bundle carries over a route of `hops` hops pinned to `head`.
+///
+/// A golden, kept in this file rather than imported from the product, because the point is that a
+/// change to the shipped wording has to change this file too and so show up in review. The
+/// mutation-review lane (2026-09-06) showed the earlier fragment checks were not enough: a count
+/// hard-coded as `3` matched the only fixture, and an Enforced-tier claim appended after the
+/// honest fragments shipped inside the signed bundle with every suite green.
+fn expected_causal_sentence(hops: usize, head: &str) -> String {
+    format!(
+        "No causal verdict was computed when this report was built, and `verify_export` \
+         computes none. A reader computes it with `warrantor_evidence::causal_verdict` over \
+         `evidence_receipt.predicate`, which records the staged-effect order this notary \
+         read -- {hops} hop(s), pinned to staged-log chain head {head}. The signature over that \
+         record makes the recorded pathway tamper-evident to a reader who verifies it: an \
+         operator without the issuer key cannot rewrite the route undetected. An operator holding \
+         the issuer key can re-sign a different route, and nothing in this bundle shows that it \
+         happened; the verdict then judges whatever route was signed. It does **not** prove the \
+         recorded route is the route the agent actually took. Effects reach that record by being \
+         STAGED, and nothing intercepts the agent at each hop, so a route that never passed \
+         through the staging queue is invisible here. Ordering is this machine's observation of \
+         its own queue and not a distributed guarantee: two Warrantor installations produce two \
+         independent orders and nothing reconciles them."
+    )
+}
+
+/// The bundle's rendered caveat is derived from the section, not written beside it, and it is
+/// exactly the approved sentence: the hop count and the chain head are the section's own values,
+/// checked over two different hop counts, and nothing is written after the last full stop.
 #[test]
 fn the_bundles_causal_sentence_is_rendered_from_the_section_it_describes() {
-    let dir = tempdir("sentence");
     let warrant = warrant_with_tools(&[
         "github.create_pr",
         "github.comment",
         "github.request_review",
     ]);
-    let queue = queue_with_three_hops(&dir);
-    let signed = build(
-        &stored_from(&warrant),
-        Ok(&queue),
-        &issuer().verifying_key(),
-        NOW,
-    )
-    .sign(&issuer(), "issuer")
-    .expect("sign");
+    for hops in [1usize, 3] {
+        let dir = tempdir(&format!("sentence-{hops}"));
+        let queue = match hops {
+            1 => queue_with_one_hop(&dir),
+            _ => queue_with_three_hops(&dir),
+        };
+        assert_eq!(queue.len(), hops, "the fixture stages {hops} hop(s)");
+        let signed = build(
+            &stored_from(&warrant),
+            Ok(&queue),
+            &issuer().verifying_key(),
+            NOW,
+        )
+        .sign(&issuer(), "issuer")
+        .expect("sign");
 
-    let sentence = signed
-        .bundle
-        .limitations
-        .iter()
-        .find(|l| l.contains("makes the recorded pathway tamper-evident"))
-        .expect("the causal caveat is in the bundle");
-    assert!(
-        sentence.contains("3 hop(s)"),
-        "the count must come from the section: {sentence}"
-    );
-    assert!(
-        sentence.contains(queue.head_digest()),
-        "and so must the chain head: {sentence}"
-    );
-    assert!(
-        sentence
-            .contains("does **not** prove the recorded route is the route the agent actually took"),
-        "and the caveat must stay: {sentence}"
-    );
+        let sentence = signed
+            .bundle
+            .limitations
+            .iter()
+            .find(|l| l.contains("makes the recorded pathway tamper-evident"))
+            .expect("the causal caveat is in the bundle");
+        assert_eq!(
+            sentence,
+            &expected_causal_sentence(hops, queue.head_digest()),
+            "over {hops} hop(s) the bundle must carry exactly the approved sentence, with this \
+             queue's own count and chain head and nothing appended"
+        );
+    }
 }
 
 /// A predicate carrying `section`, for the pinned-verdict checks above. Built here rather than
