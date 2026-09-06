@@ -3,11 +3,11 @@
 **Branch:** `feat/spend-call-ceiling` (from `origin/main` @ `e4b5f10`)
 **Worktree:** `M:/wt-1.4` (target dir `M:/wt-1.4-target`)
 **Date:** 2026-09-05
-> **SUPERSEDED, 2026-09-06.** Everything from here to the horizontal rule before
-> `# Rebase onto local main` was measured on the pre-rebase tip `7b8d2bb`, 115 commits behind
-> `main`. The commit hashes below no longer exist; the rebased ones are tabled in that section,
-> which also carries every gate number and the live run as re-derived on the merged tree. This
-> block is kept because what was measured when is itself part of the record.
+> **SUPERSEDED, 2026-09-06.** Everything from here to the horizontal rule before the final
+> section, `# Rebase onto local main`, was measured on the pre-rebase tip `7b8d2bb`, 115
+> commits behind `main`. The commit hashes below no longer exist; the rebased ones are tabled
+> in that section, which also carries every gate number and the live run as re-derived on the
+> merged tree. This block is kept because what was measured when is itself part of the record.
 
 **Commits (in Step order):** `1887e65` (Step 1), `a4fde0e` (Step 2), `bc93146` (Step 3),
 `4441ed7` (Step 4), `46eb2e3` (Step 5), `83c5a4f` (Step 6), `ef11700` (Step 7), `f9e6a09`
@@ -145,48 +145,61 @@ bound's tier and the count (8).
 
 ---
 
-# Rebase onto local `main` @ `2463504` (2026-09-06, review lane)
+# Rebase onto local `main` @ `6f41384` (2026-09-06, review lane)
 
 Everything above this line was measured on the pre-rebase tip `7b8d2bb`, which sat 115 commits
 behind `main`. **Every number above is superseded by this section.** Nothing above was deleted,
 because the record of what was measured when is part of the evidence; but no figure above describes
 the tree that would merge.
 
-**Rebased tip:** `9834302` · **rebase target:** local `main` @ `2463504` (never `origin/main`, which
+**Rebased tip:** `b54db2a` · **rebase target:** local `main` @ `6f41384` (never `origin/main`, which
 is over a hundred commits behind) · **worktree:** `M:/wt-1.4` · **target dir:** `M:/wt-rv-1.4-target`
 
-## History: nothing was dropped, reworded or re-authored
+`main` moved twice while this lane was measuring — `2463504`, then `8c0fbc3`, then `6f41384` — so the
+branch was rebased three times and every number below was re-measured on the final tip. Figures from
+the two intermediate tips are not reported, because a number that describes a tree nobody will merge
+is noise.
 
-All ten original commits survive the rebase with their original author and their `Signed-off-by`
-trailer. Verified mechanically rather than by eye: the ordered list of `author|subject` pairs taken
-before the rebase is byte-identical to the list taken after.
+## History: nothing of the original branch was dropped, reworded or re-authored
+
+All ten original commits survive with their original author and their `Signed-off-by` trailer.
+Verified mechanically rather than by eye: the ordered list of `author|subject` pairs captured before
+the first rebase is byte-identical to the list taken after the third.
 
 | # | rebased hash | author | subject |
 |---|---|---|---|
-| 1 | `79135df` | GLM 5.3 Flash (zcode) | feat(spend): reserve a metered act before it happens, refusing with the budget untouched |
-| 2 | `68d0273` | GLM 5.3 Flash (zcode) | feat(warrant): carry a tool-call ceiling in the signed bounds, absent meaning zero |
-| 3 | `ca9373e` | GLM 5.3 Flash (zcode) | feat(warrant): declare budget_calls_mediated at the tier the proxy actually holds it |
-| 4 | `487f95d` | GLM 5.3 Flash (zcode) | feat(warrant): count tool calls against the signed ceiling through the engine's reservation |
-| 5 | `d71c73f` | GLM 5.3 Flash (zcode) | feat(proxy): refuse the call that would exceed the ceiling before it is forwarded or staged |
-| 6 | `efa2c6a` | GLM 5.3 Flash (zcode) | feat(spend): persist the call count and receipt each refusal under the notary's budget gate |
-| 7 | `f22b74d` | GLM 5.3 Flash (zcode) | feat(mcp): write the call ledger before a permitted call is forwarded or staged |
-| 8 | `8868019` | GLM 5.3 Flash (zcode) | feat(cli): grant a tool-call ceiling and open its ledger before a supervised session starts |
-| 9 | `577db49` | GLM 5.3 Flash (zcode) | docs(warrant): record the call ceiling as built from a live run, cents still observed |
-| 10 | `b3f9809` | GLM 5.3 Flash (zcode) | docs(evidence): record task 1.4's gate, the live 101-call receipt, and the honest tier |
-| 11 | `49eef44` | Claude Code (Opus 5) | fix(proxy): drop the egress import the rebase left doubled |
-| 12 | `9834302` | Claude Code (Opus 5) | fix(tests): carry the call ceiling in the eight bounds literals main added |
+| 1 | `9591bcb` | GLM 5.3 Flash (zcode) | feat(spend): reserve a metered act before it happens, refusing with the budget untouched |
+| 2 | `39e3e6d` | GLM 5.3 Flash (zcode) | feat(warrant): carry a tool-call ceiling in the signed bounds, absent meaning zero |
+| 3 | `f029153` | GLM 5.3 Flash (zcode) | feat(warrant): declare budget_calls_mediated at the tier the proxy actually holds it |
+| 4 | `cea4bc4` | GLM 5.3 Flash (zcode) | feat(warrant): count tool calls against the signed ceiling through the engine's reservation |
+| 5 | `0190a16` | GLM 5.3 Flash (zcode) | feat(proxy): refuse the call that would exceed the ceiling before it is forwarded or staged |
+| 6 | `0d06a40` | GLM 5.3 Flash (zcode) | feat(spend): persist the call count and receipt each refusal under the notary's budget gate |
+| 7 | `bab89ad` | GLM 5.3 Flash (zcode) | feat(mcp): write the call ledger before a permitted call is forwarded or staged |
+| 8 | `e6ea179` | GLM 5.3 Flash (zcode) | feat(cli): grant a tool-call ceiling and open its ledger before a supervised session starts |
+| 9 | `fb006e9` | GLM 5.3 Flash (zcode) | docs(warrant): record the call ceiling as built from a live run, cents still observed |
+| 10 | `af2853a` | GLM 5.3 Flash (zcode) | docs(evidence): record task 1.4's gate, the live 101-call receipt, and the honest tier |
+| 11 | `13ade4e` | Claude Code (Opus 5) | fix(proxy): drop the egress import the rebase left doubled |
+| 12 | `7be625a` | Claude Code (Opus 5) | fix(tests): carry the call ceiling in the eight bounds literals main added |
+| 13 | `6d1eff0` | Claude Code (Opus 5) | docs(evidence): re-measure task 1.4 on the rebased tip and supersede the old numbers |
+| 14 | `b54db2a` | Claude Code (Opus 5) | fix(fmt): format the harness-row predicate, which main ships unformatted |
 
-The last two are the review lane's own, added rather than folded into anyone else's commit: each
-repairs a break the rebase itself created, and amending a commit authored by another lane would
-have destroyed the attribution this table exists to prove.
+The last four are the review lane's own. None of the ten was amended, reworded or squashed: amending
+a commit authored by another lane would destroy the attribution this table exists to prove.
+
+**One commit was dropped, and it was the review lane's own.** A fifteenth commit,
+`fix(tests): restore main's harness-row parser`, was written against `main` @ `8c0fbc3` and then
+skipped by the third rebase with `warning: skipped previously applied commit`. That is correct: while
+this lane was measuring, another lane landed `6f41384` with the identical change, so the commit had
+nothing left to do. See the correction below, because the reasoning that produced it was wrong even
+though the change was right.
 
 ## The four conflicts, and how each was resolved
 
 The rule applied throughout: **keep both behaviors.** Main's side was never discarded to make the
-branch apply.
+branch apply. All four conflicts arose on the first rebase; the second and third rebases were clean.
 
-**1. `rust/warrant/src/proxy.rs` — four hunks, all additive.** Since this branch was cut, main
-landed Task 5.4's egress work (the `pending` decision log, `resolved_names`, the secondary
+**1. `rust/warrant/src/proxy.rs` — four hunks, all additive.** Since this branch was cut, main landed
+Task 5.4's egress work (the `pending` decision log, `resolved_names`, the secondary
 `warrantor-egress-filter` engine, `deny_secondary`) and Task 2.1's catalog vocabulary
 (`with_vocabulary`, `resolve_destinations`, `bounds()`). None of it collides with the call counter in
 substance; git could not merge it only because the additions land in the same struct, the same
@@ -203,10 +216,10 @@ initializer and the same `impl` block. Resolved as a union in all four.
    not a call and must not spend a slot;
 6. staging, then forwarding.
 
-**2. `rust/warrant/src/mcp_endpoints.rs` — two unions and one hand merge.** The hand merge is the
-one that matters. This branch and main had both rewritten the same region of `AgentEndpoint::call`,
-and a blind union would have produced two `let decision = self.proxy.decide(&call);` statements and
-two `match decision {` arms.
+**2. `rust/warrant/src/mcp_endpoints.rs` — two unions and one hand merge.** The hand merge is the one
+that matters. This branch and main had both rewritten the same region of `AgentEndpoint::call`, and a
+blind union would have produced two `let decision = self.proxy.decide(&call);` statements and two
+`match decision {` arms.
 
 Main's Task 2.1 replaced this branch's classification block wholesale: where the branch read
 `self.classes.get(tool)` with `EffectRegistry::github()` and `--upstream-refuse-unclassified`, main
@@ -237,38 +250,38 @@ combined line was wrapped rather than left over-long.
 **4. `docs/W1-delivery-gaps.md` — a heading-number collision, which is why this one is called out.**
 Every section main added was kept and this branch's section placed beside them. But main has since
 shipped **both** `### 3.1b` (the stop verb) and `### 3.1c` (the metadata floor and the conformance
-kit), and the plan's Step 9 instructs this task to write `### 3.1b`. Two sections numbered 3.1b in
-one document is a defect, so **this branch's section is now `### 3.1d`**, sitting after 3.1b and
-before 3.2. Its prose is unchanged. This is a deviation from the plan's letter forced by main, not a
-change of claim.
+kit), and the plan's Step 9 instructs this task to write `### 3.1b`. Two sections numbered 3.1b in one
+document is a defect, so **this branch's section is now `### 3.1d`**, sitting after 3.1b and before
+3.2. Its prose is unchanged. This is a deviation from the plan's letter forced by main, not a change
+of claim.
 
 ## The exit gate, quoted verbatim from the plan on `main`
 
 Re-quoted here rather than trusted from the pre-rebase section above, and checked against
-`docs/superpowers/plans/2026-09-02-native-ai-platform-os-implementation.md` on `main` @ `2463504`:
+`docs/superpowers/plans/2026-09-02-native-ai-platform-os-implementation.md` on `main` @ `6f41384`:
 
 > **Acceptance (restated against the code above):** `cargo test -p warrantor-warrant --test spend_refusal` passes on the Linux and Windows runners from Task 0.2 (the ceiling is pure proxy logic; nothing here is `cfg`-gated); the 101st call under `--max-calls 100` returns `refused by the warrant's budget_calls_mediated bound: this warrant's tool-call ceiling of 100 is reached …` with `forwarding_counts() == Some((100, 0))`; `<root>/spend/<id>.calls.json` carries a `WarReceipt` whose body is `Verdict::Deny { gate: Gate::Budget }` at `EnforcementMode::Mediated`, verifiable with `warrantor_notary::verify_receipt` and pinned to the store's issuer key on load; `bound_strengths()` lists `budget_cents_observed → Observed` and `budget_calls_mediated → Mediated`, and the report, `serve` status JSON and every sandbox profile carry both because all three read `bound_strengths()`. Not claimed: cents are not refused anywhere, and calls that bypass the proxy are not counted — both sentences are in `CALLS_NOTE` and in the gaps entry.
 
 ## Does the branch perform THAT run? **RUN**, on this tip
 
-Not carried over from the pre-rebase run. The 101-call live run was **performed again on `9834302`**,
-in a fresh scratch store, because main's Task 2.1 rewrote the classification step that decides what
-reaches `Proxy::decide` and Task 5.4 rewrote the egress step before the ceiling check — the two code
-paths this gate walks through. A number measured before those landed does not describe this tip.
+Not carried over. The 101-call live run was **performed again on `b54db2a`**, in a fresh scratch
+store, because main's Task 2.1 rewrote the classification step that decides what reaches
+`Proxy::decide` and Task 5.4 rewrote the egress step before the ceiling check — the two code paths
+this gate walks through. A number measured before those landed does not describe this tip.
 
 **Transcript:** the driver is the review lane's `live_run.sh`; its artifacts are on disk at
 `M:/wt-rv-1.4-live` — `out.jsonl` (101 response lines), `err.log` (the session's own stderr),
-`spend/wrt_ed612b927e8f1514.calls.json` (the ledger and its receipt),
-`refusals/wrt_ed612b927e8f1514.jsonl` (the durable refusal record), and `serve.log`.
+`spend/wrt_5952e68a480689a8.calls.json` (the ledger and its receipt),
+`refusals/wrt_5952e68a480689a8.jsonl` (the durable refusal record), and `serve.log`.
 
-Scratch store `M:/wt-rv-1.4-live`, warrant `wrt_ed612b927e8f1514`, `--max-calls 100`:
+Scratch store `M:/wt-rv-1.4-live`, warrant `wrt_5952e68a480689a8`, `--max-calls 100`:
 
 ```
 $ warrantor grant --root $R --goal "echo until refused" --tools selftest.echo \
     --write "src/**" --max-calls 100
-warrant  wrt_ed612b927e8f1514
+warrant  wrt_5952e68a480689a8
 
-$ python -c "...101 tools/call lines..." | warrantor mcp --agent wrt_ed612b927e8f1514 --root $R \
+$ python -c "...101 tools/call lines..." | warrantor mcp --agent wrt_5952e68a480689a8 --root $R \
     --upstream "selftest=M:/wt-rv-1.4-target/debug/warrantor.exe selftest-upstream" > $R/out.jsonl
 101 response lines; exactly 1 carries "isError":true; exactly 1 names budget_calls_mediated
 line 101: {"id":100,...,"text":"refused by the warrant's budget_calls_mediated bound: this
@@ -276,7 +289,7 @@ line 101: {"id":100,...,"text":"refused by the warrant's budget_calls_mediated b
           under it; ask for a new warrant.","type":"text"}],"isError":true}}
 
 $ cat $R/err.log
-warrantor: recorded 1 refusal group(s) for wrt_ed612b927e8f1514. ...
+warrantor: recorded 1 refusal group(s) for wrt_5952e68a480689a8. ...
 warrantor: upstream -- 1 tool(s) had no declared effect decomposition: selftest.echo. Under
            --upstream-strict they were refused; otherwise each was given a GUESSED decomposition
            (read) -- and then forwarded ...
@@ -284,12 +297,12 @@ warrantor: upstream -- 100 call(s) forwarded, 0 undeliverable, to selftest (2 to
 warrantor: denied selftest.echo x1 (budget_calls_mediated)
 ```
 
-That third stderr line is main's Task 2.1 wording, and its presence beside the refusal is the
-merge's own proof: **classification ran on the refused call's tool, and the ceiling refusal did not
-route around it.**
+That third stderr line is main's Task 2.1 wording, and its presence beside the refusal is the merge's
+own proof: **classification ran on the refused call's tool, and the ceiling refusal did not route
+around it.**
 
 ```
-$ cat $R/spend/wrt_ed612b927e8f1514.calls.json
+$ cat $R/spend/wrt_5952e68a480689a8.calls.json
   format          warrantor.call-ledger/1
   counter         max_tool_calls 100, tool_calls_used 100
   refused         1
@@ -297,9 +310,9 @@ $ cat $R/spend/wrt_ed612b927e8f1514.calls.json
                   operation_class tool_call, enforcement_mode mediated
                   notary_version warrantor-notary/1.0
   receipt.sig     Ed25519, key_id issuer,
-                  public_key 466d5c4a30b66af71c4a9f36fe52a0e814ad8688bbef9216da5dd498d2d9beee
+                  public_key cb2c3bfad06d2683937c586ee7a56cbd6f8408b8ba2165be4fdc911d201495e8
 
-$ warrantor spend wrt_ed612b927e8f1514 --root $R
+$ warrantor spend wrt_5952e68a480689a8 --root $R
 ── BUDGET (OBSERVED, SELF-REPORTED) ──
   ceiling                 none declared, so none granted
   observed spend          $0.000000 (0 record(s), agent-reported)
@@ -308,14 +321,15 @@ The call ceiling counts tool calls that pass through the Warrantor MCP proxy and
 that would exceed it before it is forwarded or staged. A call that does not pass through the proxy
 is not counted. The bound is mediated, not enforced, and it meters calls, not cents.
 
-$ cat $R/refusals/wrt_ed612b927e8f1514.jsonl
-{"format":"warrantor.refusal-record/1","warrant_id":"wrt_ed612b927e8f1514","at":1788727103,
+$ cat $R/refusals/wrt_5952e68a480689a8.jsonl
+{"format":"warrantor.refusal-record/1","warrant_id":"wrt_5952e68a480689a8","at":1788730311,
  "kind":"tool","tool":"selftest.echo","bound":"budget_calls_mediated","destination":null,
  "argument":null,"reason":null,"count":1}
 
 $ warrantor serve --root $R --port 8791 ... ; curl .../v1/summary/refusals
 "groups":[{"bounds":["budget_calls_mediated"],"kind":"tool","occurrences":1,"signal":"isolated",
-           "subject":"selftest.echo","warrant_ids":["wrt_ed612b927e8f1514"],"warrants":1}]
+           "subject":"selftest.echo","warrant_ids":["wrt_5952e68a480689a8"],"warrants":1}]
+total_occurrences: 1
 ```
 
 Every clause of the plan's Step 9 hand-assert list reproduces: line 101 carries `"isError":true` and
@@ -328,22 +342,23 @@ which passed on this tip, and the live run's own equivalent is the stderr line r
 `100 call(s) forwarded, 0 undeliverable`.
 
 **Superseded:** the pre-rebase run's store `M:/wt-1.4-live` and warrant `wrt_063a41489e006aab` are a
-real run on a real tip and their artifacts still exist, but that tip is not this one. Read the run
+real run on a real tip, and their artifacts still exist, but that tip is not this one. Read the run
 above, not that one.
 
-## Every gate number, measured on `9834302`
+## Every gate number, measured on `b54db2a`
 
 Each cargo exit code was captured before any pipe, and each suite count was read from the
-`test result:` lines rather than inferred from an exit code.
+`test result:` lines rather than inferred from an exit code. Both disk guards ran before every cargo
+invocation.
 
 ```
-$ python tools/ci/disk_guard.py --require 80          OK   (both guards run before every cargo command)
+$ python tools/ci/disk_guard.py --require 80          OK
 $ python tools/ci/disk_guard.py --require-commit 5    OK
 $ cargo fmt --all -- --check                          exit 0
 $ cargo clippy --workspace --all-targets -- -D warnings
                                                       exit 0   (no error and no warning line)
-$ cargo test --workspace --all-targets                exit 0
-                                                      122 suites; 1596 passed, 0 failed, 20 ignored
+$ cargo test --workspace --all-targets --no-fail-fast exit 0
+                                                      124 suites; 1613 passed, 0 failed, 20 ignored
 $ cargo test --workspace --doc                        exit 0
                                                       40 suites; 1 passed, 0 failed, 0 ignored
 $ cargo test -p warrantor-warrant --test spend_refusal
@@ -357,10 +372,14 @@ invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 1
 $ python tools/ci/check_invariants.py                 exit 0
 invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1
 $ python tools/ci/check_docs.py                       exit 0
-RESULT: PASS - 302 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+RESULT: PASS - 306 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
 $ python tools/ci/check_us_english.py main            exit 0
-us-english: 1182 added line(s) across 53 file(s), since main; us-english: ok
+us-english: 1508 added line(s) across 53 file(s), since main; us-english: ok
 ```
+
+`--no-fail-fast` is used because main's own gate now does, for the reason `6f41384` records: a
+fail-fast run stopped at the flaky kill drill in one test binary and never reached the regression in
+another, which is how that regression merged.
 
 **The ratchet was not chosen, it was read.** `main` records `passing_floor 85` and
 `ignored_ceiling 15`; the merged corpus's own `test result:` line reads `85 passed; 0 failed; 15
@@ -373,37 +392,68 @@ literals — so a floor that moved here would have been a number nobody earned. 
 adds no crate.
 
 **Superseded:** the pre-rebase section above records `102 suites`. That was the count on
-`origin/main`'s corpus 115 commits ago. The count on this tip is 122 suites and 1596 tests.
+`origin/main`'s corpus 115 commits ago. The count on this tip is 124 suites and 1613 tests.
 
-## The two failures the rebase caused, and what each was
-
-Both were real breaks in this branch against today's `main`, not flakes, and each is fixed in its own
-commit.
+## The three failures the rebase surfaced, and what each was
 
 1. **`E0252`, twice, in `proxy.rs`** — the crate did not compile at all. The union resolution of the
    import hunk kept this branch's narrow `use crate::egress::{EgressBroker, EgressRefusal};` beside
    main's wider `use crate::egress::{capability_for, EgressBroker, EgressDecision, EgressRefusal,
-   EgressVerdict, DESTINATION_KEYS};`. Fixed in `49eef44` by dropping the narrow line, everything in
-   which the wider one already names.
+   EgressVerdict, DESTINATION_KEYS};`. Fixed in `13ade4e` by dropping the narrow line, everything in
+   which the wider one already names. **Caused by the rebase.**
 2. **`E0063` in eight `WarrantBounds` literals main added while this branch was parked** — the
    adversary-custody drill, the effects endpoint, the egress-broker and network-independence wiring
    tests, the evidence-chain and revocation tests, the stop drill and the invariant-corpus fixtures.
    `max_tool_calls` is a required field on this branch and absent reads as **zero, not unlimited**, so
-   there is no defaulting that would have been honest. Fixed in `9834302` with `Some(100)`, matching
-   the thirty-odd literals the branch had already updated. The whole tree was swept for this rather
-   than fixing only the file the compiler stopped at.
+   no defaulting would have been honest. Fixed in `7be625a` with `Some(100)`, matching the thirty-odd
+   literals the branch had already updated. The whole tree was swept rather than only the file the
+   compiler stopped at. **Caused by the branch being stale, and properly the branch's to fix.**
+3. **`cargo fmt --all -- --check` red on `tests/instructions.rs:284`** — and **not this branch's
+   doing.** `rustfmt --check` on the unmodified blob at `main` `6f41384` fails at the same line with
+   the same diff, so main's own fmt gate is red there right now. The line is 96 characters, inside
+   `max_width`, but the chain after the receiver runs about seventy against a `chain_width` of sixty.
+   Fixed in `b54db2a` with rustfmt's own output applied verbatim, because this branch cannot merge on
+   a red gate. **A finding about `main`, carried here only so this branch is green.**
 
-**One flake, named rather than hidden.** The first full workspace run exited 101 on
-`rust/warrant/tests/conformance_receipt.rs::a_drill_on_this_kernel_produces_a_receipt_that_verifies_offline`,
-with `root_gone: false, descendant_gone: false` and both elapsed times at `u64::MAX` — the drill's
-existence poll never saw the processes go. That file, `src/conformance.rs`, `src/stop.rs` and the
-kill-switch crates are **untouched by this branch**: `git diff --name-only main..HEAD` lists none of
-them. Re-run alone the suite passes 3 of 3, and §3.1b of the gaps document already records that each
-existence check on this kernel is a `tasklist` spawn measured at about 2.2 s against a 5000 ms
-budget. Four build lanes were competing for this box at the time, and the commit-charge guard refused
-five times in a row during the same window. The clean 122-suite run above is the one that counts, and
-the flake is recorded here so nobody later reads a green summary beside a red log and has to guess
-which was true.
+**The kill drill flakes on this box, and main already knows.** Two of the four full workspace runs
+made in this lane failed on
+`rust/warrant/tests/conformance_receipt.rs::a_drill_on_this_kernel_produces_a_receipt_that_verifies_offline`
+with `refusal: None` and both elapsed times at `u64::MAX` — the drill's existence poll never saw the
+processes go. That file, `src/conformance.rs`, `src/stop.rs` and the kill-switch crates are
+**untouched by this branch**: `git diff --name-only main..HEAD` lists none of them. It passes 3 of 3
+alone, and `main` carries its own write-up of exactly this signature at
+`docs/task-evidence/finding-kill-drill-confirmation-under-load.md`, which measures the cause — every
+existence check spawns `tasklist.exe`, and one spawn can exceed two seconds under real-time
+antivirus. Four build lanes were competing for this box; the commit-charge guard refused five times
+in a row during the same window. The clean 124-suite run above is the one reported, and the flake is
+named here so nobody later reads a green summary beside a red log and has to guess which was true.
+
+## Correction: this lane blamed main's regression on its own rebase
+
+Recorded rather than quietly dropped, because a claim asserted without deriving it from the record is
+the defect this repository's discipline exists to prevent, and this lane made one.
+
+**What was claimed.** A commit written on `main` @ `8c0fbc3`,
+`fix(tests): restore main's harness-row parser, which the rebase had reverted`, asserted that the
+rebase had carried this branch's older copy of `tests/instructions.rs` forward and thereby reverted a
+fix of main's.
+
+**What was true.** At `8c0fbc3` — the tip that rebase targeted — `tests/instructions.rs` was blob
+`d0ad180`, which still carried the naive harness-row scraper. `git show 8c0fbc3:...` says so. The red
+test was **main's own regression from the Task 7.6 merge**: 7.6 added a `COMPUTER USE` prose section
+to `agents list`, the old scraper took the first word of any indented line as a harness id, so it
+asked `agents show Computer` about a sentence and got a correct refusal. The rebase reverted nothing.
+
+**How the wrong conclusion was reached.** `main` moved from `8c0fbc3` to `6f41384` between the rebase
+and the diagnosis. `git show main:tests/instructions.rs` was read *after* the move, returned the
+fixed file, and the difference from the branch was read as a revert rather than as a fix that had
+landed in the meantime. The check that would have caught it — resolving the tip actually rebased onto,
+rather than the moving ref `main` — is one command, and it is what settled the question afterward.
+
+**What survived.** The change was right even though the reasoning was not: it is byte-identical to
+main's own `6f41384`, which is why the third rebase skipped the commit as already applied. The
+formatting main's fix did not run is a separate, real finding and is `b54db2a`. The false causal
+sentence was corrected in that commit's message before it could ship.
 
 ## The honest tier of every bound this task introduces
 
@@ -422,8 +472,9 @@ carries both rows with the escape written into the comment beside each, and the 
 surface rather than assumed: `README.md` and `rust/warrant/README.md` (generated tier tables, cents
 `observed` and calls `mediated` on separate rows, with the mediated legend naming the escape); the
 CLI `grant` and `spend` usage text; the `warrantor spend` bare view, where `CALLS_NOTE` says in as
-many words that the bound "meters calls, not cents"; every sandbox profile, which reports the new
-bound as a `Divergence::Gap` because a sandbox cannot tell one tool call from another; and gaps
+many words that the bound "meters calls, not cents", and where the live run above prints the cents
+ceiling as `none declared, so none granted` on its own line; every sandbox profile, which reports the
+new bound as a `Divergence::Gap` because a sandbox cannot tell one tool call from another; and gaps
 §3.1d, which carries L3-03's residual verbatim.
 
 ## What this task does NOT establish
@@ -446,11 +497,11 @@ bound as a `Divergence::Gap` because a sandbox cannot tell one tool call from an
   Windows runners from Task 0.2. This lane measured Windows. The ceiling is pure proxy logic with no
   `cfg` gate, which is the reason to expect Linux to agree, but expecting is not measuring: CI's
   ubuntu runner is what closes that half.
-- **`--upstream-refuse-unclassified` is gone from this branch's story.** Deviation 5 above describes
-  a flag main has since replaced with `--upstream-strict` and `--upstream-effects`. The branch no
-  longer ships the flag that deviation names; main's classification path superseded it in the merge.
-- **The ledger is local and unchained.** `<root>/spend/<id>.calls.json` is a single signed document
-  on the same disk and under the same UID as the agent. Deleting it is detected as unknown spend on
-  the next load — fail-closed, which is right — but there is no external witness that a count ever
+- **`--upstream-refuse-unclassified` is gone from this branch's story.** Deviation 5 above describes a
+  flag main has since replaced with `--upstream-strict` and `--upstream-effects`. The branch no longer
+  ships the flag that deviation names; main's classification path superseded it in the merge.
+- **The ledger is local and unchained.** `<root>/spend/<id>.calls.json` is a single signed document on
+  the same disk and under the same UID as the agent. Deleting it is detected as unknown spend on the
+  next load — fail-closed, which is right — but there is no external witness that a count ever
   existed, and the refusal record `serve` reads is explicitly unsigned and unchained, as its own
   `note` field says.
