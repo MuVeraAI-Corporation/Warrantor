@@ -56,15 +56,21 @@ Two things this does **not** fix, and they are why §3.1 still reads as it does:
   tools of its own that never traverse an MCP server. Wiring one is worth real things — the
   deadline, the worktree, the staged effects, the evidence, the OS lifetime link, and mediation of
   every MCP tool it uses — and it is not mediation of `bash`.
-- **An unknown tool's side-effect class was guessed — now declarable, and refusable.** Anything the
-  effect registry does not know was classed `Read` and forwarded, so an upstream `write_file` was
-  performed rather than staged: a guess with exactly one reachable answer until forwarding existed,
-  and load-bearing the moment it did. `--upstream-class '<tool>=read|write|destructive|financial'`
-  replaces the guess with a statement and `--upstream-refuse-unclassified` fails closed. The
-  registry still wins over a declaration, because those four tools are the ones the settle path can
-  actually perform. Tools decided by the fallback are **named** at the end of a session — a count is
-  not something an operator can act on; the names are the work list. Still true: the staging
-  boundary covers four GitHub effects and nothing else.
+- **An unknown tool's effects are declared as syscalls, or refused (L4-01, 2026-09-02).** The
+  five-class `--upstream-class` map is gone; a tool is declared as a composition of the nine effect
+  syscalls — `--upstream-effects 'deploy.to_prod=exec+net+mutate'`, or a
+  `warrantor.effect-registry/1` file via `--upstream-effects-file` — and `--upstream-strict`
+  refuses any tool nobody declared. The old flag is refused by name, never ignored. What this is
+  NOT: a classifier. Nothing reads a tool's schema to infer its effects, because that would be the
+  original guess in a new costume; the corpus test (`rust/warrant/tests/effects.rs`) carries the
+  schemas and proves none are consulted. Still true: the proxy decides by a projected
+  `SideEffectClass` until staging moves onto syscalls (Task 2.3); `Physical` is reachable from no
+  decomposition because observe mode does not block it; the default policy still guesses `Read`
+  and names the guess, and flipping the default to strict waits on signed manifests (Task 2.2), so
+  that a strict default does not refuse every tool of every server on day one. Also still true:
+  the declaration only reaches the endpoint when `--upstream` attached a server, so a session with
+  no upstream is unaffected either way, and the staging boundary still covers four GitHub effects
+  and nothing else.
 
 ### 0.2 Nothing pointed a real harness at the endpoint — **fixed, and what it replaced was worse**
 

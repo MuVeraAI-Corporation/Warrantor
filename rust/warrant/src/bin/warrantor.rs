@@ -5195,7 +5195,28 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
         // client checks its pairing up front: an agent discovering broken wiring mid-run burns its
         // deadline retrying against it.
         match upstream_specs(args) {
-            Ok(specs) if specs.is_empty() => {}
+            Ok(specs) if specs.is_empty() => {
+                // A declaration with nowhere to forward to is still CHECKED, and the fact that it
+                // decides nothing is said out loud. `with_decompositions` is applied only on a
+                // successful attach, so without `--upstream` a typed `--upstream-strict` refuses
+                // nothing -- and a flag whose whole purpose is to fail closed must never be
+                // silently inert. Checking the values here also means a misspelled verb is refused
+                // now rather than on the day an upstream is added.
+                if let Err(e) = upstream_decompositions(args) {
+                    return fail(&e);
+                }
+                if !args.all("upstream-effects").is_empty()
+                    || !args.all("upstream-effects-file").is_empty()
+                    || upstream_policy(args) == UnclassifiedPolicy::Refuse
+                {
+                    eprintln!(
+                        "warrantor: upstream -- no --upstream server is attached, so the effect \
+                         decompositions and --upstream-strict decide nothing in this session: \
+                         every permitted call is already answered with the no-upstream refusal. \
+                         The values were checked, not applied."
+                    );
+                }
+            }
             Ok(specs) => {
                 let timeout = match args.flags.get("upstream-timeout") {
                     Some(raw) => match duration_seconds(raw) {
