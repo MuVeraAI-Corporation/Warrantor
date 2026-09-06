@@ -1903,7 +1903,6 @@ fn print_pin_revocation_limitation(anchor: Option<&Anchor>) {
     }
 }
 
-/// How the anchor line reads on each path.
 /// How the anchor line reads on each path. Three sentences for three different claims: a key a
 /// human checked here, a key inherited on the authority of one they checked here, a key pasted
 /// onto the command line.
