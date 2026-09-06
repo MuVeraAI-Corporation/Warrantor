@@ -819,6 +819,64 @@ fn the_trend_is_ordered_by_the_runs_own_clock_and_names_the_first_crossing() {
     assert_eq!(low.crossed.as_deref(), Some("wrt_early"));
 }
 
+#[test]
+fn a_warrant_with_refusals_and_no_recorded_run_is_reported_at_its_raw_refusal_count() {
+    // The rustdoc and the evidence file both said this, and the code did the opposite: the
+    // population was keyed from `runs/` alone, so a warrant that was refused nine times and never
+    // recorded a run -- the noisiest case, the one the sentence said it would not hide -- was
+    // absent from `per_run` and could never cross. A reviewer showed it with one refusal file and
+    // no `runs/` directory at all.
+    let root = tempdir("refusals-only");
+    record_refusals(&root, "wrt_norun", NOW + 20, 9);
+    let trend = scorer::trend(&root, &threshold(0.2, NOW - 1));
+    assert_eq!(
+        trend.per_run,
+        vec![("wrt_norun".to_string(), 9.0)],
+        "{trend:?}"
+    );
+    assert_eq!(trend.crossed.as_deref(), Some("wrt_norun"), "{trend:?}");
+
+    // It is placed in the order by its earliest refusal, the only clock it has: a warrant whose
+    // first run came later sorts after it.
+    record_runs(&root, "wrt_later", &[NOW + 100]);
+    record_refusals(&root, "wrt_later", NOW + 105, 1);
+    let trend = scorer::trend(&root, &threshold(0.2, NOW - 1));
+    let order: Vec<&str> = trend.per_run.iter().map(|(id, _)| id.as_str()).collect();
+    assert_eq!(order, vec!["wrt_norun", "wrt_later"], "{trend:?}");
+
+    // CONTROL: once runs ARE recorded for it, the same nine refusals are divided by them, so the
+    // raw count is the no-run reading and not a constant.
+    record_runs(&root, "wrt_norun", &[NOW + 10, NOW + 11, NOW + 12]);
+    let trend = scorer::trend(&root, &threshold(0.2, NOW - 1));
+    let rate = trend
+        .per_run
+        .iter()
+        .find(|(id, _)| id == "wrt_norun")
+        .map(|(_, rate)| *rate)
+        .expect("still in the population");
+    assert!((rate - 3.0).abs() < f64::EPSILON, "{trend:?}");
+}
+
+#[test]
+fn a_refusal_recorded_before_the_threshold_is_refused_even_when_no_run_was_recorded() {
+    // The ordering rule has to see the same population the trend counts. With the population
+    // widened to refusal-only warrants, a threshold registered after their refusals would be one
+    // registered after the traces it then judges -- the exact rationalization L11-12 forbids.
+    let root = tempdir("late-threshold-refusals-only");
+    record_refusals(&root, "wrt_norun", NOW, 9);
+    assert_eq!(
+        scorer::trend_checked(&root, &threshold(0.2, NOW + 100)),
+        Err(ScorerError::ThresholdRegisteredAfterTheRun {
+            run_at: NOW,
+            registered_at: NOW + 100,
+        }),
+    );
+    // CONTROL: registered before the refusal, the same store is accepted and the warrant crosses.
+    let accepted =
+        scorer::trend_checked(&root, &threshold(0.2, NOW - 1)).expect("registered first");
+    assert_eq!(accepted.crossed.as_deref(), Some("wrt_norun"));
+}
+
 // ── the shipped command, which had no behavior test at all ──────────────────────────
 
 /// The real binary. A reviewer's finding was that `cmd_scorer` -- 239 lines, including the refusal the

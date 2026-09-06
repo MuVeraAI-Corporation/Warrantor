@@ -656,7 +656,9 @@ fn default_threshold_format() -> String {
 /// Probing rate per graded warrant, ordered by that warrant's first run.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProbingTrend {
-    /// `(warrant id, refusals per run)`, ordered by the warrant's earliest run start.
+    /// `(warrant id, refusals per run)`, ordered by the warrant's earliest run start — or, for a
+    /// warrant that recorded refusals and no run, by its earliest refusal, and reported at its raw
+    /// refusal count.
     pub per_run: Vec<(String, f64)>,
     /// The first warrant, in that order, whose rate reached the threshold.
     pub crossed: Option<String>,
@@ -731,15 +733,16 @@ pub enum ScorerError {
          stop --note \"...\""
     )]
     NoEnvironmentOwner,
-    /// A run started before the threshold was registered.
+    /// A run started, or a refusal was recorded, before the threshold was registered.
     #[error(
-        "run {run_at} started before the threshold was registered at {registered_at}, so this \
-         threshold cannot be applied to it. L11-12's whole point is that the threshold is \
-         registered BEFORE the run and never tuned after; a threshold chosen once the traces are in \
-         is a rationalization with a number on it."
+        "a run started or a refusal was recorded at {run_at}, before the threshold was registered \
+         at {registered_at}, so this threshold cannot be applied to it. L11-12's whole point is \
+         that the threshold is registered BEFORE the run and never tuned after; a threshold chosen \
+         once the traces are in is a rationalization with a number on it."
     )]
     ThresholdRegisteredAfterTheRun {
-        /// The offending run's start.
+        /// The earliest offending event: a run's start, or a refusal's timestamp for a warrant
+        /// that recorded no run.
         run_at: u64,
         /// When the threshold was registered.
         registered_at: u64,
@@ -842,13 +845,23 @@ pub fn read_threshold(root: &Path) -> Result<Option<RegisteredThreshold>, Scorer
 
 /// Probing rate per graded warrant, from durable logs only.
 ///
-/// The rate is refusals per run: `crate::serve::read_refusals` counts what a bound refused, and
+/// The rate is refusals per run: `crate::serve::read_all_refusals` counts what a bound refused, and
 /// `crate::runs::read_all` counts how many supervised sessions there were. A warrant with refusals
 /// and no recorded run is reported at its refusal count rather than divided by zero, because the
 /// alternative — dropping it — would hide the noisiest case.
+///
+/// # Why the population is the union of both logs
+///
+/// This sentence was true of the rustdoc and false of the code: the loop iterated the warrants
+/// that had a **run** record and looked their refusals up, so a warrant present only in
+/// `refusals/` never entered the population, and the `run_count == 0` arm was unreachable. A
+/// reviewer showed it with one refusal file and no `runs/` directory: `per_run` came back empty.
+/// The population is now every warrant either log names; a warrant with no run is placed in the
+/// order by its earliest refusal, which is the only clock it has.
 #[must_use]
 pub fn trend(root: &Path, threshold: &RegisteredThreshold) -> ProbingTrend {
     let runs = crate::runs::read_all(root);
+    // (run count, earliest run start) per warrant.
     let mut runs_per_warrant: BTreeMap<String, (u32, u64)> = BTreeMap::new();
     for record in &runs.records {
         let entry = runs_per_warrant
@@ -857,26 +870,35 @@ pub fn trend(root: &Path, threshold: &RegisteredThreshold) -> ProbingTrend {
         entry.0 = entry.0.saturating_add(1);
         entry.1 = entry.1.min(record.at);
     }
+    // (refusal count, earliest refusal) per warrant, from the whole directory rather than looked
+    // up per run-bearing warrant -- that lookup is what dropped the noisiest case.
+    let mut refusals_per_warrant: BTreeMap<String, (u64, u64)> = BTreeMap::new();
+    for record in &crate::serve::read_all_refusals(root).records {
+        let entry = refusals_per_warrant
+            .entry(record.warrant_id.clone())
+            .or_insert((0, record.at));
+        entry.0 = entry.0.saturating_add(u64::from(record.count));
+        entry.1 = entry.1.min(record.at);
+    }
+    let population: std::collections::BTreeSet<&String> = runs_per_warrant
+        .keys()
+        .chain(refusals_per_warrant.keys())
+        .collect();
 
     let mut ordered: Vec<(String, f64, u64)> = Vec::new();
-    for (warrant_id, (run_count, first_at)) in &runs_per_warrant {
-        let refusals: u64 = crate::serve::read_refusals(root, warrant_id)
-            .records
-            .iter()
-            .map(|r| u64::from(r.count))
-            .sum();
-        let rate = if *run_count == 0 {
-            #[allow(clippy::cast_precision_loss)]
-            let refusals_as_rate = refusals as f64;
-            refusals_as_rate
-        } else {
-            #[allow(clippy::cast_precision_loss)]
-            let ratio = refusals as f64 / f64::from(*run_count);
-            ratio
+    for warrant_id in population {
+        let (refusals, first_refusal) = refusals_per_warrant
+            .get(warrant_id)
+            .copied()
+            .unwrap_or((0, u64::MAX));
+        #[allow(clippy::cast_precision_loss)]
+        let (rate, clock) = match runs_per_warrant.get(warrant_id) {
+            Some((run_count, first_run)) => (refusals as f64 / f64::from(*run_count), *first_run),
+            None => (refusals as f64, first_refusal),
         };
-        ordered.push((warrant_id.clone(), rate, *first_at));
+        ordered.push((warrant_id.clone(), rate, clock));
     }
-    // By the run's own clock, then by id so two runs in the same second order the same way twice.
+    // By the warrant's own clock, then by id so two in the same second order the same way twice.
     ordered.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.0.cmp(&b.0)));
 
     let crossed = ordered
@@ -898,14 +920,26 @@ pub fn trend(root: &Path, threshold: &RegisteredThreshold) -> ProbingTrend {
 
 /// [`trend`], refusing a threshold that was registered after any run it would be applied to.
 ///
+/// A refusal is an event under a warrant as much as a run start is, and a warrant in the
+/// population by its refusals alone has no other clock, so the earliest event of either kind is
+/// what the threshold has to precede. Checking run starts only would let a threshold be registered
+/// after the refusals it then counts, for exactly the warrant [`trend`] was dropping.
+///
 /// # Errors
-/// [`ScorerError::ThresholdRegisteredAfterTheRun`] naming the earliest offending run.
+/// [`ScorerError::ThresholdRegisteredAfterTheRun`] naming the earliest offending event.
 pub fn trend_checked(
     root: &Path,
     threshold: &RegisteredThreshold,
 ) -> Result<ProbingTrend, ScorerError> {
     let runs = crate::runs::read_all(root);
-    if let Some(earliest) = runs.records.iter().map(|r| r.at).min() {
+    let refusals = crate::serve::read_all_refusals(root);
+    let earliest = runs
+        .records
+        .iter()
+        .map(|r| r.at)
+        .chain(refusals.records.iter().map(|r| r.at))
+        .min();
+    if let Some(earliest) = earliest {
         if earliest < threshold.registered_at {
             return Err(ScorerError::ThresholdRegisteredAfterTheRun {
                 run_at: earliest,
