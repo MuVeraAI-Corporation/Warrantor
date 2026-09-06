@@ -122,8 +122,14 @@ def recorded_serving_configuration(backend: Mapping[str, Any]) -> dict[str, Any]
 
     Two shapes are in circulation and both are read here rather than one being declared wrong.
     :meth:`warrantor_ml.evaluate.OllamaGuardBackend.descriptor` nests the sampling knobs under
-    ``options`` and puts ``seed`` at both levels; ``baselines._ollama_backend`` writes all of them
-    flat. Neither is translated into the other, because a translation step is a third shape.
+    ``options`` and puts ``seed`` at both levels; ``baselines._ollama_backend`` writes what it
+    records flat, which is five of the seven compared keys -- ``quantisation``, ``num_ctx``,
+    ``seed``, ``temperature``, ``top_k`` -- and neither ``num_predict`` nor ``top_p``. Passed
+    through this function and :func:`configuration_mismatch`, that literal is therefore refused on
+    the two it omits, exactly as an absent field must be. That is not a hole in the gate: the gate
+    reads the evaluator's result documents in ``eval_results/``, and no result document is built
+    from that literal. Neither shape is translated into the other, because a translation step is a
+    third shape.
 
     A key absent from every level is **omitted from the result**, never defaulted. Defaulting it
     would make every historical document silently agree with whatever this build happens to

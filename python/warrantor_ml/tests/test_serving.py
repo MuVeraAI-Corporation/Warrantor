@@ -200,3 +200,26 @@ def test_the_tag_reader_refuses_to_turn_a_version_suffix_into_a_configuration_cl
         "qwen3guard",
     ):
         assert serving.quantisation_in_tag(tag) is None, tag
+
+
+def test_the_baseline_literal_carries_five_keys_and_is_refused_on_the_other_two() -> None:
+    """The count in ``recorded_serving_configuration``'s docstring, asserted rather than asserted at.
+
+    The docstring used to say ``baselines._ollama_backend`` "writes all of them flat". It writes
+    five of the seven, and the gate's own reader refuses the literal on the two it omits. The
+    sentence is now the true one, and this is the assertion that keeps it true: a key the literal
+    gains, or loses, changes this test before it changes the prose.
+    """
+
+    for baseline_id in ("wildguardtest-qwen3guard-gen-4b", "expguardtest-qwen3guard-gen-4b"):
+        recorded = serving.recorded_serving_configuration(get_baseline(baseline_id).backend)
+        assert set(recorded) == {"quantisation", "num_ctx", "seed", "temperature", "top_k"}
+        missing = [
+            problem.split(" is absent", 1)[0]
+            for problem in serving.configuration_mismatch(recorded)
+            if " is absent" in problem
+        ]
+        assert missing == ["num_predict", "top_p"], missing
+        assert len(serving.configuration_mismatch(recorded)) == len(missing), (
+            "the literal must disagree on nothing it does declare; only the omissions refuse"
+        )
