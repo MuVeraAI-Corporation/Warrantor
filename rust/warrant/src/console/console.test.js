@@ -1312,24 +1312,33 @@ test('the acts offered are exactly the ones the SERVER named, and nothing is rec
     );
 
   const app = await openQueue(queueBody());
+  // Task 11.7 (L8-18) added an explicit Deny button to every open queue row,
+  // so the act bar is the server-named acts PLUS an explicit Deny. The acts the
+  // server named appear in the server's order; Deny is appended last so the
+  // server-derived list is preserved. The principle "you_can is never recomputed"
+  // applies to the approve / settle pair; Deny is a separately-added accessibility
+  // affordance whose act name (`deny`) the server either accepts or surfaces as
+  // an error.
   assert.deepEqual(
     actsIn(app.el('queue-rows').children[0]),
-    ['Approve'],
-    'you_can was ["approve"], so exactly one act appears',
+    ['Approve', 'Deny'],
+    'you_can was ["approve"], so Approve renders and Deny is appended',
   );
 
-  // The same store, the same reader scopes, but the server offers nothing: the console must offer
-  // nothing, even though this reader plainly holds `approve`.
+  // The same store, the same reader scopes, but the server offers nothing: the
+  // console offers nothing for approve/settle, AND offers no Deny (a Deny button
+  // without an open row is meaningless). An empty you_can renders no acts.
   const none = await openQueue(
     queueBody({ waiting: [{ ...QUEUE_ENTRY, you_can: [] }], waiting_on_you: 0 }),
   );
   assert.deepEqual(
     actsIn(none.el('queue-rows').children[0]),
     [],
-    'an empty you_can renders no acts, whatever the reader holds',
+    'an empty you_can renders no acts, including no Deny',
   );
 
-  // And a `you_can` naming both is rendered as both, in the server's order.
+  // And a `you_can` naming both is rendered as both, in the server's order,
+  // with Deny appended last.
   const both = await openQueue(
     queueBody({
       waiting: [
@@ -1341,7 +1350,7 @@ test('the acts offered are exactly the ones the SERVER named, and nothing is rec
       ],
     }),
   );
-  assert.deepEqual(actsIn(both.el('queue-rows').children[0]), ['Approve', 'Settle']);
+  assert.deepEqual(actsIn(both.el('queue-rows').children[0]), ['Approve', 'Settle', 'Deny']);
 });
 
 test('a deadlocked row carries its reason and offers nobody anything', async () => {
@@ -1458,9 +1467,14 @@ test('the approver sees the effect, the chain and the receipts BEFORE the approv
   const buttons = interactiveChildren(row);
   const approve = buttons.find((b) => b.textContent === 'Approve');
   assert.ok(approve, 'the baseline queue must offer an Approve button');
-  // The Approve button is the LAST interactive child of the row. Every interactive thing before
-  // it is the warrant id, which crosses to the warrant view (navigation, not an act).
-  assert.equal(buttons[buttons.length - 1], approve, 'Approve is the last button on the row');
+  // The act bar (Approve, and the explicit Deny button) is the LAST interactive child of
+  // the row. Task 11.7 (L8-18) added the explicit Deny button so the keyboard and
+  // screen-reader operator can refuse a warrant with intent. Approve is no longer the
+  // last button — Deny is — but the act bar as a whole still trails every disclosure.
+  const deny = buttons.find((b) => b.textContent === 'Deny');
+  assert.ok(deny, 'the baseline queue must offer a Deny button (Task 11.7)');
+  assert.equal(buttons[buttons.length - 1], deny, 'Deny is the last button on the row');
+  assert.ok(buttons.indexOf(approve) < buttons.indexOf(deny), 'Approve precedes Deny');
   // The proposed-effects, authority-chain and prior-receipts sections all render and all
   // appear before the act bar in document order. The className is a single token ("queue-acts",
   // "proposed-effects", etc.), so the check is on a word boundary, not a substring — otherwise
@@ -1646,13 +1660,17 @@ test('a queue with no additive fields renders "not stated" placeholders, never i
   const receiptsEmpty = module.priorReceiptsBlock([]);
   assert.match(textOf(receiptsEmpty), /No prior receipts on this warrant\./);
   // The DOM row against a minimal payload still offers the Approve button and the act bar
-  // is still the last interactive child.
+  // is still the last interactive child. Task 11.7 (L8-18) appended the explicit Deny
+  // button to the act bar, so the trailing button is Deny, not Approve; the assertion
+  // is rewritten to match the new discipline.
   const app = await openFixture(minimalQueue);
   const row = app.el('queue-rows').children[0];
   const buttons = interactiveChildren(row);
   const approve = buttons.find((b) => b.textContent === 'Approve');
+  const deny = buttons.find((b) => b.textContent === 'Deny');
   assert.ok(approve, 'Approve button is still rendered for a minimal payload');
-  assert.equal(buttons[buttons.length - 1], approve);
+  assert.ok(deny, 'Deny button is still rendered for a minimal payload');
+  assert.equal(buttons[buttons.length - 1], deny, 'Deny is the trailing act on the row');
 });
 
 test('the latency block renders p50, p99 and disagreement rate, with a counter-metric note', async () => {
@@ -1815,14 +1833,19 @@ test('the L8-01 act button is the last interactive child of the row, after every
   // Belt-and-braces version of the anti-ceremony test: the act bar's position in the
   // interactive-children array, not just its class. A regression that swaps two sections
   // around the act bar would still pass the first test; this one would not.
+  //
+  // Task 11.7 (L8-18) added an explicit Deny button to the act bar. The trailing act
+  // is now whichever of Approve / Settle / Deny the row carries, and the assertion is
+  // that whichever it is, it is the trailing act. A row that rendered a non-act
+  // interactive control (e.g. a chip or a link) after the act bar would be a row the
+  // operator could still click on after the act, which is the failure this test pins.
   for (const fixture of [baselineQueue, dependencyQueue]) {
     const app = await openFixture(fixture);
     const row = app.el('queue-rows').children[0];
     const buttons = interactiveChildren(row);
-    // `findLast` because the dependency fixture ships both `approve` and `settle`; the last
-    // interactive child is whichever one is the trailing act, and the assertion is that
-    // whichever it is, it is the trailing act.
-    const acts = buttons.findLast((b) => b.textContent === 'Approve' || b.textContent === 'Settle');
+    const acts = buttons.findLast(
+      (b) => b.textContent === 'Approve' || b.textContent === 'Settle' || b.textContent === 'Deny',
+    );
     assert.ok(acts, `${fixture.data.waiting[0].warrant_id} must offer an act button`);
     assert.equal(
       buttons[buttons.length - 1],
@@ -1830,6 +1853,111 @@ test('the L8-01 act button is the last interactive child of the row, after every
       `${fixture.data.waiting[0].warrant_id}: the act button is the last interactive child`,
     );
   }
+});
+
+// ── Task 11.7 — accessibility as a control property; onboarding and first run (L8-18, L8-12) ──
+//
+// "An access barrier inside a safety-critical workflow is a control failure, not a polish
+// item." The exit gate is: deny and stop are reachable and operable by keyboard alone and
+// by screen reader alone on every surface that offers them, asserted by tests rather than
+// by an audit document; and any surface that fails is listed as non-conforming rather
+// than shipped silently.
+
+test('the Deny button is reachable by keyboard alone on every open queue row', async () => {
+  // The exit gate, Step 3. The Deny button must be a real `<button type="button">`
+  // with a click listener — every keyboard user reaches it through the tab order
+  // and activates it with Enter or Space. A renderer that emitted a `<div>` with
+  // an onclick handler would render nothing for a keyboard user, and a renderer
+  // that omitted the button entirely would make "do nothing" the only Deny.
+  const fixtures = [baselineQueue, dependencyQueue, irreversibleQueue];
+  for (const fixture of fixtures) {
+    const app = await openFixture(fixture);
+    const row = app.el('queue-rows').children[0];
+    const bar = row.children.find((c) => c.className === 'queue-acts');
+    const deny = bar?.children.find((b) => b.textContent === 'Deny');
+    assert.ok(deny, `${fixture.data.waiting[0].warrant_id} must offer a Deny button`);
+    assert.equal(deny.tagName.toUpperCase(), 'BUTTON', 'Deny must be a real <button>');
+    assert.equal(deny.type, 'button', 'Deny must declare type="button" to skip form-submit semantics');
+    // The button must have at least one click listener. A button without one
+    // would be a button that does nothing, which is the failure mode that hides
+    // behind "looks reachable" — the visual cue is there but the action is not.
+    assert.ok(deny.listeners?.get?.('click')?.length > 0, 'Deny must have a click listener');
+  }
+});
+
+test('the Stop-equivalent button on the queue is announced with warrant id and consequence', async () => {
+  // The exit gate, Step 4. The Deny button (queue-level "refuse without
+  // releasing") is announced to a screen reader via its aria-label. The label
+  // names the warrant id and the consequence in prose, so a screen-reader
+  // user hears "Deny wrt_a (refuse without releasing)" rather than just
+  // "Deny". A button that said only "Deny" visually and had no aria-label
+  // would be announced as "Deny" — which is technically reachable, but a
+  // reader who hears "Deny" without knowing which warrant they are about
+  // to deny has been told less than a sighted reader sees.
+  const app = await openFixture(baselineQueue);
+  const row = app.el('queue-rows').children[0];
+  const bar = row.children.find((c) => c.className === 'queue-acts');
+  const deny = bar?.children.find((b) => b.textContent === 'Deny');
+  assert.ok(deny, 'Deny button exists');
+  assert.ok(deny.listeners?.get?.('click')?.length > 0, 'Deny has a click listener');
+  // The aria-label names the warrant id and the consequence.
+  const aria = deny.getAttribute?.('aria-label') ?? deny.ariaLabel;
+  assert.ok(aria && aria.length > 0, 'Deny must carry an aria-label for screen readers');
+  assert.match(aria, /Deny .* \(refuse without releasing\)/);
+});
+
+test('a deadlocked queue row offers no Deny button, because the row is closed', async () => {
+  // The Deny button is the operator's tool for refusing an OPEN warrant with
+  // intent. A deadlocked row cannot be approved, settled, or refused by
+  // anybody — it is closed. Rendering a Deny button there would be a button
+  // whose click would fail at the server, which is the kind of live button
+  // the rest of the console refuses to render. The test pins that the row's
+  // act bar is empty for a deadlocked row.
+  const deadlocked = {
+    data: {
+      waiting: [{
+        ...baselineQueue.data.waiting[0],
+        blocker: { blocker: 'deadlocked', why: 'two approvers disagree and the rule has no tiebreaker.' },
+        you_can: ['approve', 'settle'],
+      }],
+      waiting_on_you: 1,
+      counts: { deadlocked: 1 },
+      undetermined: [],
+      unreadable_records: 0,
+      policy: { required: 2, settler_may_approve: false },
+      you: { name: 'ben', via: 'operator-token', scopes: ['read', 'approve', 'settle'] },
+    },
+  };
+  const app = await openFixture(deadlocked);
+  const row = app.el('queue-rows').children[0];
+  const bar = row.children.find((c) => c.className === 'queue-acts');
+  // The bar may be a rendered empty <div> or absent altogether — either way
+  // there must be no Deny button inside it, and no Approve / Settle either.
+  const buttons = (bar?.children ?? []).filter((c) => c.tagName === 'BUTTON');
+  assert.equal(buttons.length, 0, 'a deadlocked row carries no act buttons, including no Deny');
+});
+
+test('the first-run flow reaches the prose that names the console as a viewer, with a copyable command', async () => {
+  // The exit gate, Step 6. The first-run panel is the surface a new reader
+  // sees on a machine that has never granted. It must (a) name the console
+  // as a viewer rather than as a grantor, (b) include a copyable grant
+  // command, and (c) carry the prose that names every bound's strength tier
+  // rather than collapsing them.
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html'), 'utf8');
+  // The first-run panel exists.
+  assert.match(html, /<section[^>]*id="first-run"/);
+  // The lede names the console as a viewer rather than a grantor.
+  assert.match(html, /This is the one act the console cannot perform/);
+  assert.match(html, /It cannot create authority\./);
+  // The grant command is copyable.
+  assert.match(html, /<code[^>]*id="first-run-command">warrantor grant/);
+  assert.match(html, /<button[^>]*id="copy-command"/);
+  // The lede names every tier — enforced, mediated, observed — rather than
+  // collapsing them.
+  assert.match(html, /enforced/);
+  assert.match(html, /mediated/);
+  assert.match(html, /observed/);
 });
 
 // ── unguarded runs ───────────────────────────────────────────────────────────────────

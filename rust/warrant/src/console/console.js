@@ -1152,6 +1152,14 @@ function queueRow(entry, you) {
   // and never escalates to a wider group." A button that says Approve on a row whose budget
   // has expired would be a UI that rewards ignoring the timeout.
   const expired = entry?.timeout && Number.isFinite(entry.timeout.remaining_seconds) && entry.timeout.remaining_seconds < 0;
+  // Task 11.7 accessibility: the queue's act bar adds an explicit Deny button whenever
+  // the row is open (not deadlocked, not expired). An interface that offered Approve and
+  // Settle but required the operator to do nothing in order to deny would be a degraded
+  // system for a keyboard-only or screen-reader operator — Deny would be reachable only
+  // by inaction, and the default-deny timeout would be the only "control" that functions.
+  // The console adds the button; the act it sends is `deny`, which the server either
+  // accepts (refuses the warrant) or surfaces as an error to the operator.
+  const offersDeny = !expired && word !== 'deadlocked' && acts.length > 0;
   if (acts.length > 0 && !expired) {
     const bar = document.createElement('div');
     bar.className = 'queue-acts';
@@ -1202,6 +1210,21 @@ function queueRow(entry, you) {
       }
       button.addEventListener('click', () => actOnQueue(entry.warrant_id, act, button));
       bar.append(button);
+    }
+    // Task 11.7: explicit Deny. The button is keyboard-operable (it is a
+    // <button type="button"> with a click listener), and its visible label
+    // "Deny" is the screen-reader announcement. A reader who cannot see
+    // the Approve / Settle pair and cannot press one has at minimum the
+    // Deny button to refuse the warrant with intent rather than relying
+    // on the timeout default.
+    if (offersDeny) {
+      const deny = document.createElement('button');
+      deny.type = 'button';
+      deny.className = 'act act-deny';
+      deny.textContent = 'Deny';
+      deny.setAttribute('aria-label', `Deny ${entry.warrant_id} (refuse without releasing)`);
+      deny.addEventListener('click', () => actOnQueue(entry.warrant_id, 'deny', deny));
+      bar.append(deny);
     }
     row.append(bar);
   } else if (word === 'awaiting-approval' && expired) {
