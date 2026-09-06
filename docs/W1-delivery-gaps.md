@@ -1027,7 +1027,8 @@ What it does **not** establish:
 - **Tier B, chokepoint.** The intercept count is a count of enforcement points and it is one. The
   *engine* count is the count of policy domains, and it is **one in a shipped run** -- `Proxy::new`
   wires no secondary filter, `warrantor.rs` never constructs one, and no CLI flag reaches
-  `with_secondary_filter` -- rising to **two** once an operator wires the second, which adds a policy
+  `with_secondary_filter` -- rising to **two** once a caller of the library wires the second (today
+  only a Rust caller can; no CLI flag or configuration path reaches it), which adds a policy
   domain and not a boundary. No netns, seccomp filter or firewall is added or enforced by this work.
   The record now publishes both numbers separately rather than one number with a footnote; README
   used to publish the operator number as though it were the product's, which is the drift the gate

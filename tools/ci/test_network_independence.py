@@ -87,12 +87,20 @@ def test_the_record_publishes_one_intercept_and_says_l2_03_is_open() -> None:
     # `secondary: None` and nothing in `warrantor.rs` constructs a `SecondaryFilter`. The two numbers
     # are separate fields now, and the product one is derived from the product sources.
     assert record["policy_engines_the_product_runs"] == 1
-    assert record["policy_engines_when_an_operator_wires_one"] == 2
+    assert record["policy_engines_once_the_second_is_wired"] == 2
+    assert "policy_engines_when_an_operator_wires_one" not in record, (
+        "no operator can wire it; the field that said one could is gone"
+    )
     assert record["configuration_sources_the_product_runs"] == ["warrant_claims"]
     assert record["status"] == "none", "L2-03 is not closed by this analysis"
     assert "not of policy engines" in record["note"]
     assert "1 policy engine decides in a shipped run" in record["note"], (
         "the note renders the number it read, with the grammar that number takes"
+    )
+    assert "a caller of the library wires the second" in record["note"]
+    assert "operator wires" not in record["note"], (
+        "no CLI flag or configuration path reaches with_secondary_filter, so the note must not "
+        "say an operator can"
     )
 
 
@@ -101,12 +109,19 @@ def test_the_engine_count_the_product_runs_is_derived_from_the_product_sources()
     which prove the call site consults a filter when one is present -- never that anything sets one."""
 
     assert engines_the_product_runs() == 1
-    wired = [
-        path
-        for path in network_independence.product_sources()
-        if ".with_secondary_filter(" in path.read_text(encoding="utf-8")
-    ]
-    assert wired == [], f"a product source now wires the second engine: {wired}"
+    assert network_independence.wiring_sources() == [], "a product source now wires the second engine"
+    scanned = network_independence.product_sources()
+    assert scanned, "the scan must have found the product sources"
+    assert (network_independence.REPOSITORY_ROOT / network_independence.CALL_SITE) in scanned
+
+
+def wired_tree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, body: str) -> None:
+    """A product-source scan that found the real call-site file plus one file wiring the engine."""
+
+    source = tmp_path / "main.rs"
+    source.write_text(body, encoding="utf-8")
+    call_site = network_independence.REPOSITORY_ROOT / network_independence.CALL_SITE
+    monkeypatch.setattr(network_independence, "product_sources", lambda: [call_site, source])
 
 
 def test_a_product_source_that_wires_the_second_engine_moves_the_number(
@@ -114,17 +129,77 @@ def test_a_product_source_that_wires_the_second_engine_moves_the_number(
 ) -> None:
     """The negative direction, which is what makes the 1 a ratchet rather than a decoration."""
 
-    source = tmp_path / "main.rs"
-    source.write_text(
-        "let proxy = Proxy::new(bounds).with_secondary_filter(filter);\n", encoding="utf-8"
+    wired_tree(
+        monkeypatch,
+        tmp_path,
+        "let filter = SecondaryFilter::from_operator_config(&path)?;\n"
+        "let proxy = Proxy::new(bounds).with_secondary_filter(filter);\n",
     )
-    monkeypatch.setattr(network_independence, "product_sources", lambda: [source])
     assert engines_the_product_runs() == 2
     assert measure().policy_engines_the_product_runs == 2
     assert measure().configuration_sources_the_product_runs == [
         "warrant_claims",
         "operator_file",
     ]
+
+
+def test_the_configuration_source_is_read_from_the_constructor_the_wiring_calls(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Claim-honesty finding 5 (second review): the gate published `operator_file` for ANY wiring.
+    A wiring built from the compiled default never opened an operator file and must say so."""
+
+    wired_tree(
+        monkeypatch,
+        tmp_path,
+        "let proxy = Proxy::new(bounds).with_secondary_filter(SecondaryFilter::default_deny());\n",
+    )
+    assert measure().configuration_sources_the_product_runs == [
+        "warrant_claims",
+        "compiled_default",
+    ]
+
+
+def test_a_wiring_whose_constructor_the_gate_cannot_see_is_refused_not_guessed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No constructor in the wiring file, or two: the source is unknown, and unknown is not
+    `operator_file`."""
+
+    wired_tree(monkeypatch, tmp_path, "let proxy = base.with_secondary_filter(filter);\n")
+    with pytest.raises(ValueError, match="cannot tell which configuration source"):
+        measure()
+    assert main([]) == 1, "the gate must refuse to publish rather than guess the source"
+
+    wired_tree(
+        monkeypatch,
+        tmp_path,
+        "let a = SecondaryFilter::default_deny();\n"
+        "let b = SecondaryFilter::from_policy(policy);\n"
+        "let proxy = base.with_secondary_filter(if x { a } else { b });\n",
+    )
+    with pytest.raises(ValueError, match="cannot tell which configuration source"):
+        measure()
+
+
+def test_a_scan_that_found_nothing_is_refused_rather_than_publishing_one_engine(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Test-rigor finding Y2 (second review): with `product_sources()` returning an empty list the
+    gate printed the good answer and every test passed. The zero-files answer is no answer."""
+
+    monkeypatch.setattr(network_independence, "product_sources", lambda: [])
+    with pytest.raises(FileNotFoundError, match="found no Rust files"):
+        engines_the_product_runs()
+    assert main([]) == 1, "an empty scan must fail the gate, not publish 1"
+
+    # A scan that found files but not the one holding the call site is the wrong tree.
+    elsewhere = tmp_path / "lib.rs"
+    elsewhere.write_text("// nothing here\n", encoding="utf-8")
+    monkeypatch.setattr(network_independence, "product_sources", lambda: [elsewhere])
+    with pytest.raises(FileNotFoundError, match="did not include"):
+        engines_the_product_runs()
+    assert main([]) == 1
 
 
 def test_the_shared_axes_are_published_per_configuration() -> None:

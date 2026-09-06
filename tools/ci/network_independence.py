@@ -297,7 +297,12 @@ class Independence:
 
     independent_intercepts_on_a_permitted_host: int
     policy_engines_the_product_runs: int
-    policy_engines_when_an_operator_wires_one: int
+    # CORRECTION (second review): this field was `policy_engines_when_an_operator_wires_one`. No
+    # operator can wire it -- there is no CLI flag, no configuration path and no product caller of
+    # `from_operator_config`; only a Rust caller of the library can, by calling
+    # `Proxy::with_secondary_filter`. A field name is a label pinned to a number, and that one
+    # named a capability the product does not have.
+    policy_engines_once_the_second_is_wired: int
     configuration_sources_the_product_runs: list[str]
     axes: list[str]
     shared_axes_the_product_runs: list[str]
@@ -336,6 +341,47 @@ def product_sources() -> list[Path]:
     return sorted((REPOSITORY_ROOT / "rust").glob("*/src/**/*.rs"))
 
 
+# The file that holds the one call site consulting the second engine. A product scan that does not
+# include it is scanning the wrong tree, whatever else it found.
+CALL_SITE = "rust/warrant/src/proxy.rs"
+
+# How a product source that wires the second engine says where that engine's policy came from, and
+# the word `egress::Independence::configuration_sources` uses for each. Mirrors
+# `SecondarySource::as_str` in rust/warrant/src/egress.rs.
+SECONDARY_CONSTRUCTORS = (
+    ("SecondaryFilter::from_operator_config(", "operator_file"),
+    ("SecondaryFilter::default_deny(", "compiled_default"),
+    ("SecondaryFilter::from_policy(", "inline_policy"),
+)
+
+
+def wiring_sources() -> list[Path]:
+    """Every product source that wires the second engine, from a scan that provably ran.
+
+    CORRECTION (second adversarial review, test-rigor finding Y2). `engines_the_product_runs` returned
+    1 when the scan found nothing -- including when it scanned NOTHING: with `product_sources()`
+    returning an empty list the gate printed the good answer, every pytest case passed, and the
+    record was publishable. A glob that silently matches nothing (a moved `rust/` layout, a wrong
+    root) would publish the same record as a real scan. So an empty scan is refused, and so is a
+    scan that did not include the file holding the call site.
+    """
+
+    sources = product_sources()
+    if not sources:
+        raise FileNotFoundError(
+            "the product-source scan found no Rust files under rust/*/src; the engine count cannot "
+            "be derived from nothing and is not published"
+        )
+    if (REPOSITORY_ROOT / CALL_SITE) not in sources:
+        raise FileNotFoundError(
+            f"the product-source scan did not include {CALL_SITE}, which holds the call site that "
+            "consults the second engine; the scan is of the wrong tree"
+        )
+    return [
+        path for path in sources if ".with_secondary_filter(" in path.read_text(encoding="utf-8")
+    ]
+
+
 def engines_the_product_runs() -> int:
     """How many policy engines decide a permitted destination in a shipped run.
 
@@ -355,10 +401,42 @@ def engines_the_product_runs() -> int:
     same commit -- which is the whole point of a ratchet.
     """
 
-    for path in product_sources():
-        if ".with_secondary_filter(" in path.read_text(encoding="utf-8"):
-            return 2
-    return 1
+    return 2 if wiring_sources() else 1
+
+
+def configuration_sources_the_product_runs() -> list[str]:
+    """Which configuration source each engine the product runs reads, in consultation order.
+
+    The broker reads the signed warrant claims and nothing else, so the list always begins with
+    `warrant_claims`. A second entry appears only for a product source that wires the second
+    engine, and it is read off the constructor that source calls rather than assumed.
+
+    CORRECTION (second adversarial review, claim-honesty finding 5). `measure` used to append
+    `operator_file` whenever any product source called `.with_secondary_filter(`, so a product
+    wiring built from `SecondaryFilter::default_deny()` or `from_policy(...)` would have been
+    published as reading an operator file it never opened, and `SecondarySource::as_str`'s doc
+    said the gate "publishes the second source" as though it derived it. The source is now read
+    from the constructor in the wiring file; a wiring whose constructor this gate cannot see is
+    refused rather than guessed at.
+    """
+
+    sources = ["warrant_claims"]
+    for path in wiring_sources():
+        text = path.read_text(encoding="utf-8")
+        found = [word for needle, word in SECONDARY_CONSTRUCTORS if needle in text]
+        if len(found) != 1:
+            relative = (
+                path.relative_to(REPOSITORY_ROOT).as_posix()
+                if path.is_relative_to(REPOSITORY_ROOT)
+                else path.as_posix()
+            )
+            raise ValueError(
+                f"{relative} wires the second engine but this gate cannot tell which configuration "
+                f"source it reads (constructors seen: {found}); extend SECONDARY_CONSTRUCTORS or "
+                "make the wiring name one constructor, rather than publishing a guess"
+            )
+        sources.append(found[0])
+    return sources
 
 
 def engine_words(count: int) -> str:
@@ -380,20 +458,17 @@ def measure() -> Independence:
     """
 
     running = engines_the_product_runs()
-    # The engine count an operator CAN reach is 2, and that half really is derived from the probes:
-    # reaching here means the dependency edge exists and the call site consults the filter when one
-    # is present. What the probes never established is whether anything sets one, which is why the
-    # two numbers are separate fields rather than one number with a footnote.
+    # The engine count a caller of the library CAN reach is 2, and that half really is derived from
+    # the probes: reaching here means the dependency edge exists and the call site consults the
+    # filter when one is present. What the probes never established is whether anything sets one,
+    # which is why the two numbers are separate fields rather than one number with a footnote.
     return Independence(
         independent_intercepts_on_a_permitted_host=1,
         policy_engines_the_product_runs=running,
-        policy_engines_when_an_operator_wires_one=2,
+        policy_engines_once_the_second_is_wired=2,
         # Mirrors `egress::Independence::configuration_sources` for the configuration the product
-        # actually runs. The broker reads the signed warrant claims; a second source appears here
-        # only once a product source wires the second engine.
-        configuration_sources_the_product_runs=(
-            ["warrant_claims"] if running == 1 else ["warrant_claims", "operator_file"]
-        ),
+        # actually runs, read off the constructor the wiring source calls.
+        configuration_sources_the_product_runs=configuration_sources_the_product_runs(),
         axes=list(AXES),
         shared_axes_the_product_runs=[axis for axis in AXES if SHARED_THE_PRODUCT_RUNS[axis]],
         shared_axes_once_the_second_is_wired=[
@@ -668,9 +743,10 @@ def write_record(path: Path, measurement: Independence) -> None:
             "permits, not of policy engines. "
             f"{measurement.policy_engines_the_product_runs} policy "
             f"{engine_words(measurement.policy_engines_the_product_runs)} in a shipped run and "
-            f"{measurement.policy_engines_when_an_operator_wires_one} "
-            f"{engine_words(measurement.policy_engines_when_an_operator_wires_one)} once an "
-            "operator wires the second; either way one boundary enforces. "
+            f"{measurement.policy_engines_once_the_second_is_wired} "
+            f"{engine_words(measurement.policy_engines_once_the_second_is_wired)} once a caller "
+            "of the library wires the second (no CLI flag or configuration path reaches "
+            "Proxy::with_secondary_filter today); either way one boundary enforces. "
             "L2-03 stays status=none until a second enforcement point acts on a permitted host. "
             "See docs/05-network-common-mode-analysis.md."
         ),
@@ -707,7 +783,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    measurement = measure()
+    try:
+        measurement = measure()
+    except (FileNotFoundError, ValueError) as refused:
+        # A scan that found nothing, or a wiring whose configuration source cannot be read off
+        # the code, is not a measurement. Refuse by name rather than publish a guess.
+        print(f"::error::network independence: {refused}")
+        return 1
     print(
         f"network independence: {measurement.independent_intercepts_on_a_permitted_host} "
         f"independent intercept on a permitted destination; "
@@ -716,7 +798,8 @@ def main(argv: list[str] | None = None) -> int:
         f"{len(measurement.shared_axes_once_the_second_is_wired)} once the second engine is wired; "
         f"{measurement.policy_engines_the_product_runs} policy "
         f"{engine_words(measurement.policy_engines_the_product_runs)} in the product, "
-        f"{measurement.policy_engines_when_an_operator_wires_one} once an operator wires the second"
+        f"{measurement.policy_engines_once_the_second_is_wired} once a caller of the library "
+        "wires the second (no CLI flag or configuration path reaches it today)"
     )
 
     if arguments.write:

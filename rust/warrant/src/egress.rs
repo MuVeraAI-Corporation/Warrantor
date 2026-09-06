@@ -296,7 +296,12 @@ impl SecondarySource {
     /// actually runs, and the product wires no secondary filter today, so the recorded list is
     /// `["warrant_claims"]` alone. `tools/ci/network_independence.py` derives that rather than
     /// asserting it: the day a product source calls `Proxy::with_secondary_filter`, the gate
-    /// publishes the second source and refuses the stale record.
+    /// reads which of `from_operator_config`, `default_deny` or `from_policy` that source calls,
+    /// publishes the matching word here, refuses the stale record, and refuses to publish at all
+    /// for a wiring whose constructor it cannot see. (An earlier doc said the gate "publishes the
+    /// second source" when it hardcoded `operator_file` for any wiring; and "an operator" cannot
+    /// wire it -- no CLI flag or configuration path reaches `with_secondary_filter`, only a Rust
+    /// caller of the library can.)
     #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {

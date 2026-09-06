@@ -516,9 +516,9 @@ fn the_gate_agrees_with_the_rust_answer() {
         "one engine in the configuration the product runs",
     );
     assert_eq!(
-        number("policy_engines_when_an_operator_wires_one"),
+        number("policy_engines_once_the_second_is_wired"),
         u64::try_from(wired.engines).expect("fits"),
-        "two once the second is wired",
+        "two once a caller of the library wires the second",
     );
     assert_eq!(
         names("configuration_sources_the_product_runs"),
