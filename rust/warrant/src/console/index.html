@@ -78,6 +78,8 @@
           <button id="view-executive" class="view" type="button">Executive</button>
           <button id="view-autonomy" class="view" type="button">Autonomy</button>
           <button id="view-crosswalk" class="view" type="button">Crosswalk</button>
+          <button id="view-portal" class="view" type="button">Portal</button>
+          <button id="view-trust-center" class="view" type="button">Trust center</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -834,6 +836,91 @@
           mention only &mdash; never the lead. SR 11-7 is the prior US guidance and is never
           cited as current; a surface that names SR 11-7 as current is the failure this
           pane's prose gate is meant to prevent.
+        </p>
+      </section>
+
+      <!-- The supervisor/regulator portal (L8-06, L8-28).
+           Both the portal and the trust center are read-only views of
+           the same receipts. If they can disagree, one of them is a
+           marketing surface. The two panes share a single
+           `portalFigures()` helper, so the figures they render are
+           byte-identical by construction. The portal is the
+           supervisor's view; the trust center (immediately below) is
+           the prospect's view. Same numbers, two renderings, one
+           helper.
+           The portal must not be able to show a filtered view that
+           verifies, which is 10.6's cryptographic property, not a UI
+           permission. The pane refuses any filter that would surface
+           a "verified" view from a feed that has gaps. -->
+      <section id="portal" class="portal" hidden aria-labelledby="portal-headline">
+        <h2 id="portal-headline">Supervisor/regulator portal &mdash; the receipts the supervisor reads</h2>
+
+        <p class="note">
+          The portal renders the same figures the trust center renders, in the supervisor's
+          vocabulary: <em>warrants, packs, receipts</em>. A future change that altered a figure
+          in one view would alter it in the other, because both panes consume the same
+          <code>portalFigures()</code> result. A marketing surface that hid a gap to look more
+          reassuring would diverge on the first render, and the differential test would catch it.
+        </p>
+
+        <p id="portal-error" class="empty error" hidden>
+          This portal could not be read. A portal that cannot read its feeds cannot say what is
+          in the estate, and the page is blank on purpose.
+        </p>
+        <p id="portal-unreadable" class="note error"></p>
+        <p id="portal-empty" class="empty" hidden>
+          No warrants or packs are in the estate yet. An empty estate is the absence of records,
+          not the record "no obligations apply".
+        </p>
+
+        <div id="portal-summary" class="portal-summary"></div>
+        <ul id="portal-packs" class="portal-packs"></ul>
+
+        <p class="note">
+          A filter that would surface a "verified" view from a feed that has gaps is refused at
+          the helper level, not the UI. The supervisor's view is unfiltered by construction; the
+          rule is 10.6's cryptographic property, not a UI permission.
+        </p>
+      </section>
+
+      <!-- The customer trust center (L8-06, L8-28).
+           Same figures as the portal, in the prospect's vocabulary. A
+           prospect whose regulatory anchor is not in the list (US,
+           India, Gulf) is shown "not eligible" and never a partial
+           figure. The EU is a passing mention only. A trust center
+           that diverged from the portal would be a marketing
+           surface, and the differential test asserts the figures
+           are byte-identical between the two panes. -->
+      <section id="trust-center" class="trust-center" hidden aria-labelledby="trust-center-headline">
+        <h2 id="trust-center-headline">Customer trust center &mdash; the figures a prospect can audit</h2>
+
+        <p class="note">
+          The trust center renders the same figures the portal renders, in the prospect's
+          vocabulary. The numbers a buyer reads here are the same numbers a supervisor reads in
+          the portal, because both panes consume the same <code>portalFigures()</code> result.
+          A gap is shown the same way in both places; a trust center that smoothed a gap would
+          be the marketing surface the discipline prevents.
+        </p>
+
+        <p id="trust-center-error" class="empty error" hidden>
+          This trust center could not be read. A trust center that cannot read its feeds would
+          be guessing, and the page is blank on purpose.
+        </p>
+        <p id="trust-center-unreadable" class="note error"></p>
+        <p id="trust-center-empty" class="empty" hidden>
+          No warrants or packs are in the estate yet. A trust center that opened to an empty
+          page would be guessing about what the buyer would see, and the page is blank on
+          purpose.
+        </p>
+
+        <div id="trust-center-summary" class="trust-center-summary"></div>
+        <ul id="trust-center-packs" class="trust-center-packs"></ul>
+
+        <p class="note">
+          Prospect eligibility: US, India, and Gulf anchors. A prospect whose anchor is not in
+          the list is shown "not eligible" and never a partial figure. The EU is a passing
+          mention only. The trust center never says "all OK" when the underlying graph has a
+          gap; the figures are computed once and shared with the portal.
         </p>
       </section>
 

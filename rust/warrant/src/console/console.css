@@ -942,3 +942,21 @@ kbd {
 .autonomy-row-narrowing-path, .autonomy-row-trigger, .autonomy-row-receipts {
   color: var(--ink); font-size: var(--text-sm);
 }
+
+/* The supervisor/regulator portal and the customer trust center
+   (L8-06, L8-28) — Task 11.9. Both panes share the same
+   `portalFigures()` helper, so the headline text and the per-pack
+   list are rendered in two visual styles that pin the same numbers.
+   A future stylesheet author who made the trust center's headline
+   look more reassuring than the portal's would be the marketing
+   surface the discipline prevents; the differential test pins the
+   numbers, and the CSS carries the visual language, not the
+   numbers themselves. */
+.portal-summary, .trust-center-summary { margin-bottom: var(--space-3); }
+.portal-headline, .trust-center-headline { font-size: var(--text-md); margin: 0; }
+.portal-packs, .trust-center-packs { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.portal-pack, .trust-center-pack { padding: var(--space-2); border: 1px solid var(--line); border-radius: 5px; }
+.portal-pack p, .trust-center-pack p { margin: 0 0 var(--space-1); }
+.portal-pack p:last-child, .trust-center-pack p:last-child { margin-bottom: 0; }
+.portal-pack-gap, .trust-center-pack-gap { color: var(--ink); font-size: var(--text-sm); }
+.portal-pack-receipts, .trust-center-pack-receipts { color: var(--ink-soft); font-size: var(--text-sm); }

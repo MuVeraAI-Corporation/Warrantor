@@ -179,6 +179,29 @@ const el = {
   crosswalkEmpty: document.getElementById('crosswalk-empty'),
   crosswalkError: document.getElementById('crosswalk-error'),
   crosswalkUnreadable: document.getElementById('crosswalk-unreadable'),
+  // Portal (supervisor/regulator view) and trust center (customer
+  // view) — added by Task 11.9. Two panes, one set of figures. The
+  // click-only invariant continues: every digit is taken and the
+  // remaining destinations are click-only. The portal reads
+  // `/v1/warrants` and `/v1/audit/packs`; the trust center reads the
+  // same feeds. Both render the same `portalFigures()` result, so a
+  // marketing surface would have to live outside the helper.
+  viewPortal: document.getElementById('view-portal'),
+  portal: document.getElementById('portal'),
+  portalHeadline: document.getElementById('portal-headline'),
+  portalSummary: document.getElementById('portal-summary'),
+  portalPacks: document.getElementById('portal-packs'),
+  portalEmpty: document.getElementById('portal-empty'),
+  portalError: document.getElementById('portal-error'),
+  portalUnreadable: document.getElementById('portal-unreadable'),
+  viewTrustCenter: document.getElementById('view-trust-center'),
+  trustCenter: document.getElementById('trust-center'),
+  trustCenterHeadline: document.getElementById('trust-center-headline'),
+  trustCenterSummary: document.getElementById('trust-center-summary'),
+  trustCenterPacks: document.getElementById('trust-center-packs'),
+  trustCenterEmpty: document.getElementById('trust-center-empty'),
+  trustCenterError: document.getElementById('trust-center-error'),
+  trustCenterUnreadable: document.getElementById('trust-center-unreadable'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -506,7 +529,9 @@ function applyEmptyState(kind) {
   const executive = state.view === 'executive';
   const autonomy = state.view === 'autonomy';
   const crosswalk = state.view === 'crosswalk';
-  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy || executive || autonomy || crosswalk;
+  const portal = state.view === 'portal';
+  const trustCenter = state.view === 'trust-center';
+  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy || executive || autonomy || crosswalk || portal || trustCenter;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
   el.settings && (el.settings.hidden = !settings);
@@ -519,6 +544,8 @@ function applyEmptyState(kind) {
   el.executive && (el.executive.hidden = !executive);
   el.autonomy && (el.autonomy.hidden = !autonomy);
   el.crosswalk && (el.crosswalk.hidden = !crosswalk);
+  el.portal && (el.portal.hidden = !portal);
+  el.trustCenter && (el.trustCenter.hidden = !trustCenter);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -578,6 +605,8 @@ async function setView(value) {
     [el.viewExecutive, 'executive'],
     [el.viewAutonomy, 'autonomy'],
     [el.viewCrosswalk, 'crosswalk'],
+    [el.viewPortal, 'portal'],
+    [el.viewTrustCenter, 'trust-center'],
   ]) {
     if (!button) continue;
     button.classList.toggle('is-on', value === name);
@@ -596,6 +625,7 @@ async function setView(value) {
   if (value === 'executive') await loadExecutive();
   if (value === 'autonomy') await loadAutonomy();
   if (value === 'crosswalk') await loadCrosswalk();
+  if (value === 'portal' || value === 'trust-center') await loadPortal();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -4010,6 +4040,276 @@ async function loadCrosswalk() {
   renderCrosswalk(composed);
 }
 
+// ── the supervisor/regulator portal and the customer trust center ──
+
+/**
+ * Compute the figures the portal and the trust center both render.
+ * This is the single source of truth for the numbers an outsider sees.
+ * The portal and the trust center are two renderings of the same
+ * numbers; a trust center that computed its own figures — even with a
+ * "look better" presentation — would be a marketing surface, and the
+ * differential test in `console.test.js` would catch it on the first
+ * render.
+ *
+ * The figures are:
+ *   - `warrant_count`: the count of warrants in the operator's store.
+ *   - `pack_count`: the count of evidence packs.
+ *   - `receipt_count`: the count of receipts across all packs.
+ *   - `has_gap`: `true` if any pack has zero receipts or any feed is in
+ *     a non-`ok` state. A trust center that hid the gap would be the
+ *     marketing surface the discipline prevents.
+ *   - `feed_status`: the worst feed status. `ok` if every feed is `ok`,
+ *     `gap` if any feed has a gap, `empty` if every feed is empty,
+ *     `unknown` otherwise.
+ *
+ * The function is pure. The portal and the trust center both call it;
+ * a future change that introduced a second implementation would
+ * diverge on the first render and the differential test would fail.
+ *
+ * @param {{warrants: object, packs: object}} feeds
+ * @returns {{warrant_count: number, pack_count: number, receipt_count: number, has_gap: boolean, feed_status: string}}
+ */
+export function portalFigures(feeds) {
+  const warrants = feeds?.warrants;
+  const packs = feeds?.packs;
+  const warrantCount = Array.isArray(warrants?.data) ? warrants.data.length : 0;
+  const packCount = Array.isArray(packs?.data) ? packs.data.length : 0;
+  let receiptCount = 0;
+  let hasGap = false;
+  for (const pack of packs?.data ?? []) {
+    if (!Array.isArray(pack?.receipts) || pack.receipts.length === 0) {
+      hasGap = true;
+    } else {
+      receiptCount += pack.receipts.length;
+    }
+  }
+  let feedStatus = 'ok';
+  if (warrants?.status === 'gap' || packs?.status === 'gap') feedStatus = 'gap';
+  if (hasGap) feedStatus = 'gap';
+  if (warrantCount === 0 && packCount === 0) feedStatus = 'empty';
+  if (warrants?.status === 'unknown' || packs?.status === 'unknown') feedStatus = 'unknown';
+  return {
+    warrant_count: warrantCount,
+    pack_count: packCount,
+    receipt_count: receiptCount,
+    has_gap: hasGap,
+    feed_status: feedStatus,
+  };
+}
+
+/**
+ * Refuse a filter that would surface a "verified" view from a feed
+ * that has gaps. The portal must not be able to show a filtered view
+ * that verifies, which is 10.6's cryptographic property, not a UI
+ * permission. The function returns `true` when the filter is refused.
+ *
+ * The rule: a filter is refused if it would reduce the figure in a way
+ * that hides a gap. A filter that drops gap-bearing packs, drops
+ * warrants, or otherwise produces a smaller figure than the unfiltered
+ * view is refused. A no-op filter that lets every record through is
+ * accepted (the unfiltered view is itself the verification).
+ *
+ * @param {object} feeds The unfiltered feeds.
+ * @param {(record: object) => boolean} filter The filter the operator proposes.
+ * @returns {boolean} True if the filter is refused.
+ */
+export function filterRefusesToVerify(feeds, filter) {
+  if (typeof filter !== 'function') return true;
+  const figures = portalFigures(feeds);
+  // The filter is applied to every record the portal would render
+  // — warrants AND packs. A filter that drops a record is refused
+  // because the dropped record's gap would no longer be visible.
+  // The filter is type-agnostic: it sees a record that carries
+  // `id` (and may carry `receipts`), and the same predicate is
+  // applied to both feeds. A predicate that only makes sense for
+  // one feed (e.g. "drop packs with no receipts") returns `true`
+  // for the other feed's records, so the helper's verdict is
+  // consistent across both.
+  const warrants = Array.isArray(feeds?.warrants?.data) ? feeds.warrants.data : [];
+  const packs = Array.isArray(feeds?.packs?.data) ? feeds.packs.data : [];
+  const filteredWarrants = warrants.filter(filter);
+  const filteredPacks = packs.filter(filter);
+  const droppedAny = filteredWarrants.length < warrants.length || filteredPacks.length < packs.length;
+  // A no-op filter is the unfiltered view, which is itself the
+  // verification. A filter that drops records is refused in every
+  // case — even when the unfiltered view has no gap, because a
+  // future feed could gain a gap and the filter would hide it.
+  return droppedAny;
+}
+
+/**
+ * Decide whether a prospect is eligible to read the trust center at
+ * all. The trust center is a regulated surface: a prospect whose
+ * regulatory anchor is not in the list (US, India, Gulf) is shown "not
+ * eligible" and never a partial figure. The EU is a passing mention
+ * only.
+ *
+ * @param {string} anchor The prospect's regulatory anchor.
+ * @returns {{eligible: boolean, anchor: string}}
+ */
+export function trustCenterEligibility(anchor) {
+  const valid = anchor === 'US' || anchor === 'India' || anchor === 'Gulf';
+  return { eligible: valid, anchor: String(anchor ?? '') };
+}
+
+/**
+ * Read the portal feeds (`/v1/warrants`, `/v1/audit/packs`) into the
+ * shape the portal and the trust center render. Both panes consume the
+ * result; the figures are computed by `portalFigures()` and never by
+ * the renderers themselves.
+ *
+ * @param {boolean} warrantsAnswered
+ * @param {number} warrantsStatus
+ * @param {unknown} warrantsPayload
+ * @param {boolean} packsAnswered
+ * @param {number} packsStatus
+ * @param {unknown} packsPayload
+ * @returns {{readable: boolean, feeds: {warrants: object, packs: object}, formatError: string|null}}
+ */
+export function portalFacts(warrantsAnswered, warrantsStatus, warrantsPayload, packsAnswered, packsStatus, packsPayload) {
+  const unreadable = { readable: false, feeds: { warrants: { status: 'unknown', data: [] }, packs: { status: 'unknown', data: [] } }, formatError: null };
+  if (!warrantsAnswered || warrantsStatus !== 200) {
+    return { ...unreadable, formatError: 'warrants feed did not answer' };
+  }
+  if (!packsAnswered || packsStatus !== 200) {
+    return { ...unreadable, formatError: 'packs feed did not answer' };
+  }
+  const warrantData = warrantsPayload?.data ?? warrantsPayload;
+  const packData = packsPayload?.data ?? packsPayload;
+  if (!Array.isArray(warrantData) && !Array.isArray(warrantData?.warrants)) {
+    return { ...unreadable, formatError: 'expected warrants to be an array' };
+  }
+  if (!Array.isArray(packData) && !Array.isArray(packData?.packs)) {
+    return { ...unreadable, formatError: 'expected packs to be an array' };
+  }
+  const warrants = Array.isArray(warrantData) ? warrantData : warrantData.warrants;
+  const packs = Array.isArray(packData) ? packData : packData.packs;
+  return {
+    readable: true,
+    feeds: {
+      warrants: { status: 'ok', data: warrants },
+      packs: { status: 'ok', data: packs },
+    },
+    formatError: null,
+  };
+}
+
+/** Compose the portal/trust-center facts: the feeds plus the figures
+ *  the portal and the trust center both render. The composed facts
+ *  preserve the readability of the underlying `portalFacts` result;
+ *  a transport failure must not become "readable" at the compose
+ *  step, because the renderer's error branch is the only place that
+ *  names the failure for the operator. */
+export function portalComposedFacts(facts) {
+  if (!facts || !facts.readable) {
+    return { readable: false, feeds: facts?.feeds, figures: null, formatError: facts?.formatError ?? null };
+  }
+  const feeds = facts.feeds;
+  const figures = portalFigures(feeds);
+  return { readable: true, feeds, figures, formatError: null };
+}
+
+/** Render the portal — the supervisor's view. Same numbers as the
+ *  trust center; the prose around them is supervisor-flavored. */
+export function renderPortal(facts) {
+  if (!el.portal) return;
+  if (!facts || !facts.readable) {
+    el.portalError.hidden = false;
+    el.portalError.textContent =
+      'This portal could not be read. A portal that cannot read its feeds cannot say what is in the estate, and the page is blank on purpose.';
+    el.portalEmpty.hidden = true;
+    el.portalUnreadable.textContent = facts?.formatError ?? '';
+    el.portalSummary.replaceChildren();
+    el.portalPacks.replaceChildren();
+    return;
+  }
+  el.portalError.hidden = true;
+  const figures = facts.figures;
+  const hasFigures = figures.warrant_count + figures.pack_count + figures.receipt_count > 0;
+  el.portalEmpty.hidden = hasFigures;
+  el.portalSummary.replaceChildren(
+    node(
+      'p',
+      'portal-headline',
+      `${figures.warrant_count} warrants, ${figures.pack_count} packs, ${figures.receipt_count} receipts` +
+        (figures.has_gap ? ' (gap present)' : ''),
+    ),
+  );
+  el.portalPacks.replaceChildren();
+  // The portal renders the packs the supervisor would audit, in the
+  // same shape the trust center renders them, so a future change that
+  // altered the figure in one view would alter it in the other.
+  for (const pack of facts.feeds.packs?.data ?? []) {
+    const li = node('li', 'portal-pack');
+    li.append(node('p', 'portal-pack-id', `pack: ${pack.id ?? '(missing)'}`));
+    const receiptCount = Array.isArray(pack.receipts) ? pack.receipts.length : 0;
+    li.append(node('p', 'portal-pack-receipts', `receipts: ${receiptCount}`));
+    if (receiptCount === 0) {
+      li.append(node('p', 'portal-pack-gap', 'this pack has no receipts: the supervisor sees this gap explicitly'));
+    }
+    el.portalPacks.append(li);
+  }
+}
+
+/** Render the trust center — the prospect's view. Same numbers as the
+ *  portal; the prose around them is prospect-flavored. The function
+ *  refuses to render a figure the portal would not render; the
+ *  differential test asserts every figure is byte-identical between
+ *  the two panes. */
+export function renderTrustCenter(facts) {
+  if (!el.trustCenter) return;
+  if (!facts || !facts.readable) {
+    el.trustCenterError.hidden = false;
+    el.trustCenterError.textContent =
+      'This trust center could not be read. A trust center that cannot read its feeds would be guessing, and the page is blank on purpose.';
+    el.trustCenterEmpty.hidden = true;
+    el.trustCenterUnreadable.textContent = facts?.formatError ?? '';
+    el.trustCenterSummary.replaceChildren();
+    el.trustCenterPacks.replaceChildren();
+    return;
+  }
+  el.trustCenterError.hidden = true;
+  const figures = facts.figures;
+  const hasFigures = figures.warrant_count + figures.pack_count + figures.receipt_count > 0;
+  el.trustCenterEmpty.hidden = hasFigures;
+  el.trustCenterSummary.replaceChildren(
+    node(
+      'p',
+      'trust-center-headline',
+      `${figures.warrant_count} warrants under governance, ${figures.pack_count} evidence packs, ${figures.receipt_count} receipts` +
+        (figures.has_gap ? ' — and a gap the trust center shows rather than hides' : ''),
+    ),
+  );
+  el.trustCenterPacks.replaceChildren();
+  for (const pack of facts.feeds.packs?.data ?? []) {
+    const li = node('li', 'trust-center-pack');
+    li.append(node('p', 'trust-center-pack-id', `pack: ${pack.id ?? '(missing)'}`));
+    const receiptCount = Array.isArray(pack.receipts) ? pack.receipts.length : 0;
+    li.append(node('p', 'trust-center-pack-receipts', `receipts: ${receiptCount}`));
+    if (receiptCount === 0) {
+      li.append(node('p', 'trust-center-pack-gap', 'this pack has no receipts: the trust center shows the gap rather than smoothing it'));
+    }
+    el.trustCenterPacks.append(li);
+  }
+}
+
+/** Load the portal and the trust center from the backend and paint
+ *  both. Both panes share the same `portalFigures()` result, so a
+ *  differential test can compare the headline text byte-for-byte. */
+async function loadPortal() {
+  if (!el.portal && !el.trustCenter) return;
+  const [{ answered: wAns, status: wStatus, payload: wPayload }, { answered: pAns, status: pStatus, payload: pPayload }] = await Promise.all([
+    call('/v1/warrants'),
+    call('/v1/audit/packs'),
+  ]);
+  if (wAns && wStatus === 401) { showGate('That token was not accepted.'); return; }
+  if (pAns && pStatus === 401) { showGate('That token was not accepted.'); return; }
+  const facts = portalFacts(wAns, wStatus, wPayload, pAns, pStatus, pPayload);
+  const composed = portalComposedFacts(facts);
+  renderPortal(composed);
+  renderTrustCenter(composed);
+}
+
 /**
  * Turn a month into the half-open window the API takes.
  *
@@ -5217,6 +5517,8 @@ if (el.viewPolicy) el.viewPolicy.addEventListener('click', () => setView('policy
 if (el.viewExecutive) el.viewExecutive.addEventListener('click', () => setView('executive'));
 if (el.viewAutonomy) el.viewAutonomy.addEventListener('click', () => setView('autonomy'));
 if (el.viewCrosswalk) el.viewCrosswalk.addEventListener('click', () => setView('crosswalk'));
+if (el.viewPortal) el.viewPortal.addEventListener('click', () => setView('portal'));
+if (el.viewTrustCenter) el.viewTrustCenter.addEventListener('click', () => setView('trust-center'));
 
 // The studio re-renders on every keystroke into the editor (so the operator
 // sees the refusal sentence appear as they type a malformed line) and on

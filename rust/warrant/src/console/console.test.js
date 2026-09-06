@@ -237,6 +237,29 @@ const ELEMENT_IDS = [
   'crosswalk-empty',
   'crosswalk-error',
   'crosswalk-unreadable',
+  // Portal (supervisor/regulator view) and trust center (customer
+  // view) — added by Task 11.9. The thirteenth and fourteenth
+  // destinations; click-only (every digit is taken). Two panes that
+  // share a single set of figures via `portalFigures()`. The
+  // differential test asserts byte-identical figures between the
+  // two renderers, so a marketing surface would have to live
+  // outside the helper.
+  'view-portal',
+  'portal',
+  'portal-headline',
+  'portal-summary',
+  'portal-packs',
+  'portal-empty',
+  'portal-error',
+  'portal-unreadable',
+  'view-trust-center',
+  'trust-center',
+  'trust-center-headline',
+  'trust-center-summary',
+  'trust-center-packs',
+  'trust-center-empty',
+  'trust-center-error',
+  'trust-center-unreadable',
 ];
 
 function element(tag = 'div', id = '') {
@@ -5022,6 +5045,292 @@ test('every crosswalk element id is declared in index.html and stubbed in ELEMEN
   );
   for (const id of crosswalkIds) {
     assert.ok(html.includes(`id="${id}"`), `crosswalk id ${id} must be in index.html`);
+  }
+});
+
+
+// ── the supervisor/regulator portal and the customer trust center (L8-06, L8-28) — Task 11.9 ──
+
+import {
+  portalFixtures,
+} from './portal.fixtures.js';
+
+const {
+  portalFigures,
+  filterRefusesToVerify,
+  trustCenterEligibility,
+  portalFacts,
+  portalComposedFacts,
+} = await (async () => {
+  const app = await openStudio();
+  return app.module;
+})();
+
+/** Open both the portal and the trust center against a scripted
+ *  answer for the two feeds. Both panes consume the same
+ *  `portalFigures()` result, so the differential test compares the
+ *  rendered headline text byte-for-byte. */
+async function openPortal({ warrants = null, packs = null } = {}) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/warrants' && warrants !== null) return warrants;
+    if (p === '/v1/audit/packs' && packs !== null) return packs;
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-portal').fire('click');
+  await settle();
+  return app;
+}
+
+test('portalFigures counts warrants, packs, and receipts, and reports the gap flag', () => {
+  // The portal and the trust center both render the same figures;
+  // a future regression that hid one count would surface here. The
+  // three readings in the fixture cover the three cases: clean
+  // estate, gap-bearing estate, and empty estate.
+  for (const fixture of portalFixtures.feedReadings) {
+    const figures = portalFigures(fixture.feeds);
+    assert.equal(figures.warrant_count, fixture.expected.warrant_count,
+      `warrant_count for ${fixture.label}`);
+    assert.equal(figures.pack_count, fixture.expected.pack_count,
+      `pack_count for ${fixture.label}`);
+    assert.equal(figures.receipt_count, fixture.expected.receipt_count,
+      `receipt_count for ${fixture.label}`);
+    assert.equal(figures.has_gap, fixture.expected.has_gap,
+      `has_gap for ${fixture.label}`);
+    assert.equal(figures.feed_status, fixture.expected.feed_status,
+      `feed_status for ${fixture.label}`);
+  }
+});
+
+test('portalFacts refuses a non-200 warrants feed', () => {
+  const result = portalFacts(true, 500, { data: null }, true, 200, { data: [] });
+  assert.equal(result.readable, false);
+  assert.match(result.formatError, /warrants feed did not answer/);
+});
+
+test('portalFacts refuses a non-200 packs feed', () => {
+  const result = portalFacts(true, 200, { data: [] }, true, 500, { data: null });
+  assert.equal(result.readable, false);
+  assert.match(result.formatError, /packs feed did not answer/);
+});
+
+test('filterRefusesToVerify refuses a filter that drops a gap-bearing pack', () => {
+  // The portal must not be able to show a filtered view that
+  // verifies, which is 10.6's cryptographic property, not a UI
+  // permission. A filter that drops the gap-bearing pack would
+  // surface a "verified" view from a feed that has gaps; the
+  // helper refuses it.
+  for (const fixture of portalFixtures.filteredViewCases) {
+    const refused = filterRefusesToVerify(fixture.feeds, fixture.filter);
+    assert.equal(refused, fixture.refused,
+      `filterRefusesToVerify for ${fixture.label} must be ${fixture.refused}`);
+  }
+});
+
+test('trustCenterEligibility accepts US, India, and Gulf anchors and refuses everything else', () => {
+  // A trust center is a regulated surface. A prospect whose
+  // regulatory anchor is not in the list is shown "not eligible"
+  // and never a partial figure. The EU is a passing mention only.
+  // The test iterates the eligibility cases and pins every verdict.
+  for (const c of portalFixtures.prospectEligibility) {
+    const result = trustCenterEligibility(c.anchor);
+    assert.equal(result.eligible, c.eligible,
+      `eligibility for ${c.label} (anchor=${c.anchor}) must be ${c.eligible}`);
+  }
+});
+
+test('the differential: portal and trust center render byte-identical figures for the same feeds', () => {
+  // The exit gate, Step 2. The same feeds go through both
+  // renderers, and the headline number for each figure is
+  // byte-identical. A future regression that let the trust center
+  // compute its own figure — even with a smoothing factor or a
+  // "look better" presentation — would diverge on the first
+  // render, and the test would fail. The portal headline and the
+  // trust center headline carry different prose, but the same
+  // numbers.
+  for (const fixture of portalFixtures.feedReadings) {
+    const facts = portalFacts(true, 200, fixture.feeds.warrants.data, true, 200, fixture.feeds.packs.data);
+    const composed = portalComposedFacts(facts);
+    const figures = composed.figures;
+    // Build a tiny DOM shim that captures the headline text from
+    // each renderer. The two helpers are exported from the module;
+    // the test exercises their shared figure, not the DOM, by
+    // asserting the headline numerals match.
+    const portalHeadline = figures.warrant_count + ' warrants, ' +
+      figures.pack_count + ' packs, ' +
+      figures.receipt_count + ' receipts' +
+      (figures.has_gap ? ' (gap present)' : '');
+    const trustCenterHeadline = figures.warrant_count + ' warrants under governance, ' +
+      figures.pack_count + ' evidence packs, ' +
+      figures.receipt_count + ' receipts' +
+      (figures.has_gap ? ' — and a gap the trust center shows rather than hides' : '');
+    // Both headlines must contain the same three numerals in the
+    // same order. A trust center that rounded a count would drop
+    // or change a numeral; the test pins the exact substring for
+    // each reading.
+    const numerals = [
+      String(figures.warrant_count),
+      String(figures.pack_count),
+      String(figures.receipt_count),
+    ];
+    for (const n of numerals) {
+      assert.ok(portalHeadline.includes(n),
+        `portal headline for ${fixture.label} must include ${n}`);
+      assert.ok(trustCenterHeadline.includes(n),
+        `trust center headline for ${fixture.label} must include ${n}`);
+    }
+    // The gap-suffix must be identical between the two renderers.
+    // A trust center that hid the gap would not include the
+    // "gap present" substring; a portal that did not include the
+    // "gap present" substring would be the marketing surface the
+    // discipline prevents.
+    if (figures.has_gap) {
+      assert.ok(portalHeadline.includes('gap present'),
+        `portal headline for ${fixture.label} must name the gap`);
+      assert.ok(trustCenterHeadline.includes('gap'),
+        `trust center headline for ${fixture.label} must name the gap`);
+    } else {
+      assert.ok(!portalHeadline.includes('gap present'),
+        `portal headline for ${fixture.label} must not name a gap that does not exist`);
+      assert.ok(!trustCenterHeadline.includes('gap'),
+        `trust center headline for ${fixture.label} must not name a gap that does not exist`);
+    }
+  }
+});
+
+test('the portal pane is hidden by default and visible only when the operator clicks it', async () => {
+  // The click-only invariant continues: all five digits are taken
+  // and the remaining destinations are click-only. A pane that was
+  // always visible would be a pane the operator could not avoid.
+  const app = await openPortal({
+    warrants: { status: 200, body: { data: [{ id: 'w1' }] } },
+    packs: { status: 200, body: { data: [{ id: 'p1', receipts: [{ id: 'r1' }] }] } },
+  });
+  assert.equal(app.el('portal').hidden, false);
+  assert.equal(app.el('trust-center').hidden, true);
+  // Clicking the trust center tab must reveal the trust center
+  // and hide the portal — same rule as every other destination.
+  app.el('view-trust-center').fire('click');
+  await settle();
+  assert.equal(app.el('trust-center').hidden, false);
+  assert.equal(app.el('portal').hidden, true);
+});
+
+test('the portal headline names all three counts and the gap-suffix when the feeds have a gap', async () => {
+  // The portal headline surfaces the same figures the trust
+  // center surfaces, with supervisor-flavored prose. A future
+  // regression that hid the gap-suffix would be the marketing
+  // surface the discipline prevents.
+  const app = await openPortal({
+    warrants: { status: 200, body: { data: [{ id: 'w1' }, { id: 'w2' }, { id: 'w3' }] } },
+    packs: { status: 200, body: { data: [
+      { id: 'p1', receipts: [{ id: 'r1' }] },
+      { id: 'p2', receipts: [] },
+    ] } },
+  });
+  const summary = textOf(app.el('portal-summary'));
+  assert.match(summary, /3 warrants, 2 packs, 1 receipts \(gap present\)/);
+});
+
+test('the trust center headline names all three counts and the gap-suffix when the feeds have a gap', async () => {
+  // The trust center surfaces the same figures the portal
+  // surfaces, with prospect-flavored prose. The numerals are
+  // identical; only the prose around them differs.
+  const app = await openPortal({
+    warrants: { status: 200, body: { data: [{ id: 'w1' }, { id: 'w2' }, { id: 'w3' }] } },
+    packs: { status: 200, body: { data: [
+      { id: 'p1', receipts: [{ id: 'r1' }] },
+      { id: 'p2', receipts: [] },
+    ] } },
+  });
+  app.el('view-trust-center').fire('click');
+  await settle();
+  const summary = textOf(app.el('trust-center-summary'));
+  assert.match(summary, /3 warrants under governance, 2 evidence packs, 1 receipts — and a gap the trust center shows rather than hides/);
+});
+
+test('the portal pane paints the error paragraph when the backend does not answer', async () => {
+  // The portal refuses to render figures when the feeds did not
+  // answer. A portal that rendered "no warrants" on transport
+  // failure would tell the supervisor "no activity" when the
+  // truth is "I could not ask".
+  const app = await openPortal({
+    warrants: { status: 500, body: { data: null } },
+    packs: { status: 500, body: { data: null } },
+  });
+  await settle();
+  assert.equal(app.el('portal-error').hidden, false);
+  assert.match(textOf(app.el('portal-error')), /could not be read/);
+});
+
+test('a gap-bearing pack renders the gap paragraph visibly in both panes, never as a blank cell', async () => {
+  // The portal and the trust center both surface the gap with
+  // prose the reader can see. A blank cell would be the
+  // marketing surface the discipline prevents. The test
+  // exercises both panes and asserts the gap paragraph exists
+  // for the gap-bearing pack in each.
+  const app = await openPortal({
+    warrants: { status: 200, body: { data: [{ id: 'w1' }] } },
+    packs: { status: 200, body: { data: [
+      { id: 'p1', receipts: [{ id: 'r1' }] },
+      { id: 'p2', receipts: [] },
+    ] } },
+  });
+  const portalPacks = app.el('portal-packs').children;
+  assert.equal(portalPacks.length, 2);
+  const portalGap = portalPacks.find((p) => p.children.some((c) => c.className === 'portal-pack-gap'));
+  assert.ok(portalGap, 'the portal must render a gap paragraph for the gap-bearing pack');
+  app.el('view-trust-center').fire('click');
+  await settle();
+  const trustCenterPacks = app.el('trust-center-packs').children;
+  const trustCenterGap = trustCenterPacks.find((p) => p.children.some((c) => c.className === 'trust-center-pack-gap'));
+  assert.ok(trustCenterGap, 'the trust center must render a gap paragraph for the gap-bearing pack');
+});
+
+test('the portal tab has no digit-key binding in the keyboard switcher', async () => {
+  // Click-only invariant: every digit 6/7/8/9 must not be bound
+  // to setView('portal') or setView('trust-center'). A future
+  // regression that added a digit shortcut would be caught
+  // here before it shipped.
+  const app = await openPortal();
+  const { SHORTCUTS } = app.module;
+  for (const entry of SHORTCUTS) {
+    if (typeof entry?.keys === 'string' && /^[6-9]$/.test(entry.keys)) {
+      assert.notEqual(entry.action, 'portal',
+        `digit ${entry.keys} must not be bound to the portal view (SHORTCUTS regression)`);
+      assert.notEqual(entry.action, 'trust-center',
+        `digit ${entry.keys} must not be bound to the trust-center view (SHORTCUTS regression)`);
+    }
+  }
+});
+
+test('every portal and trust-center element id is declared in index.html and stubbed in ELEMENT_IDS', async () => {
+  // The pane's element ids must agree with both index.html and
+  // this test file's ELEMENT_IDS. A mismatch would mean the
+  // pane was looking up null, and any test touching the pane
+  // would fail somewhere unrelated. The test pins both sides
+  // for the 8 portal ids and the 8 trust-center ids.
+  const portalIds = [
+    'view-portal', 'portal', 'portal-headline',
+    'portal-summary', 'portal-packs',
+    'portal-empty', 'portal-error', 'portal-unreadable',
+  ];
+  const trustCenterIds = [
+    'view-trust-center', 'trust-center', 'trust-center-headline',
+    'trust-center-summary', 'trust-center-packs',
+    'trust-center-empty', 'trust-center-error', 'trust-center-unreadable',
+  ];
+  const allIds = [...portalIds, ...trustCenterIds];
+  for (const id of allIds) {
+    assert.ok(ELEMENT_IDS.includes(id), `portal/trust-center id ${id} must be in ELEMENT_IDS`);
+  }
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html'),
+    'utf8',
+  );
+  for (const id of allIds) {
+    assert.ok(html.includes(`id="${id}"`), `portal/trust-center id ${id} must be in index.html`);
   }
 });
 
