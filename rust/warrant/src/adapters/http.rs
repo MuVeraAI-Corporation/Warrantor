@@ -15,6 +15,8 @@
 //! Where this holds: the proxy chokepoint and the settling process. `bound_strengths()` still
 //! says `egress_hosts` is `Mediated`, and nothing here changes that.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -22,6 +24,8 @@ use warrantor_egress as broker;
 
 use crate::egress::{EgressBroker, EGRESS_CAPABILITY_PREFIX};
 use crate::mcp::ToolSpec;
+use crate::settle::EffectPerformer;
+use crate::staging::StagedEffect;
 
 /// The proxy's check for this tool: decide the named capability through the broker.
 ///
@@ -219,5 +223,210 @@ pub fn tool_spec(broker: &EgressBroker) -> ToolSpec {
                 ARG_DATA_CLASS: { "type": "string", "enum": DataClass::WORDS },
             }
         }),
+    }
+}
+
+/// Refuse a path that could move the request off the cataloged destination.
+///
+/// # Errors
+/// The reason, in terms the operator can act on.
+pub fn validate_path(path: &str) -> Result<(), String> {
+    if !path.starts_with('/') {
+        return Err(format!("path {path:?} must start with '/'"));
+    }
+    if path.starts_with("//") {
+        return Err(format!(
+            "path {path:?} is protocol-relative and would name a host"
+        ));
+    }
+    if path.contains("://") || path.contains('@') {
+        return Err(format!(
+            "path {path:?} carries a scheme or credentials; the destination is the capability's"
+        ));
+    }
+    if path.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return Err(format!(
+            "path {path:?} contains whitespace or a control character"
+        ));
+    }
+    Ok(())
+}
+
+/// Performs governed HTTP calls against the catalog the proxy decided against.
+pub struct HttpAdapter<T: HttpTransport> {
+    transport: T,
+    catalog: broker::DestinationCatalog,
+    bearers: BTreeMap<String, String>,
+    clock: Box<dyn FnMut() -> u64>,
+    records: Vec<HttpCallRecord>,
+}
+
+impl<T: HttpTransport> HttpAdapter<T> {
+    /// Build an adapter over `catalog`. `clock` returns milliseconds and is called twice per call.
+    #[must_use]
+    pub fn new(
+        transport: T,
+        catalog: broker::DestinationCatalog,
+        clock: Box<dyn FnMut() -> u64>,
+    ) -> Self {
+        Self {
+            transport,
+            catalog,
+            bearers: BTreeMap::new(),
+            clock,
+            records: Vec::new(),
+        }
+    }
+
+    /// Hold a bearer token for one logical endpoint. The agent never sees it: this runs at settle.
+    #[must_use]
+    pub fn with_bearer(mut self, logical_endpoint: &str, token: &str) -> Self {
+        self.bearers
+            .insert(logical_endpoint.to_string(), token.to_string());
+        self
+    }
+
+    /// Every call performed, in order, for the receipt graph.
+    #[must_use]
+    pub fn records(&self) -> &[HttpCallRecord] {
+        &self.records
+    }
+
+    /// The transport, so a test can read what was sent.
+    #[must_use]
+    pub fn transport(&self) -> &T {
+        &self.transport
+    }
+
+    fn argument<'a>(effect: &'a StagedEffect, name: &str) -> Result<&'a str, String> {
+        effect
+            .arguments
+            .get(name)
+            .map(String::as_str)
+            .ok_or_else(|| format!("{TOOL} requires {name}"))
+    }
+
+    fn perform_call(&mut self, effect: &StagedEffect) -> Result<String, String> {
+        let capability = Self::argument(effect, ARG_CAPABILITY)?.to_string();
+        let method = Self::argument(effect, ARG_METHOD)?.to_string();
+        let path = Self::argument(effect, ARG_PATH)?.to_string();
+        let class_word = Self::argument(effect, ARG_DATA_CLASS)?;
+        let data_class = DataClass::parse(class_word).ok_or_else(|| {
+            format!(
+                "{class_word:?} is not a data class; one of {DATA_CLASSES:?}",
+                DATA_CLASSES = DataClass::WORDS
+            )
+        })?;
+        let body = effect.arguments.get(ARG_BODY).cloned();
+
+        if !METHODS.contains(&method.as_str()) {
+            return Err(format!(
+                "{method:?} is not a method this adapter can express; one of {METHODS:?}"
+            ));
+        }
+        if matches!(method.as_str(), "GET" | "HEAD") && body.is_some() {
+            return Err(format!("{method} carries no body"));
+        }
+        validate_path(&path)?;
+
+        // Decide again, here, against the catalog: the settle process trusts the proxy's
+        // decision no more than the proxy trusted the agent's.
+        let logical_endpoint = capability
+            .strip_prefix(EGRESS_CAPABILITY_PREFIX)
+            .filter(|e| !e.is_empty())
+            .ok_or_else(|| format!("{capability:?} is not a capability"))?
+            .to_string();
+        let request = broker::EgressRequest {
+            capability: capability.clone(),
+            logical_endpoint: logical_endpoint.clone(),
+            chain_capabilities: vec![capability.clone()],
+            enforcement_mode: "advisory".to_string(),
+            is_discovery: false,
+            has_approval: false,
+        };
+        let (pinned, catalog_digest) = match broker::decide(&request, Some(&self.catalog)) {
+            broker::EgressVerdict::Allow {
+                pinned_addresses,
+                catalog_digest,
+                ..
+            } => (pinned_addresses, catalog_digest),
+            broker::EgressVerdict::Deny { reason } => {
+                return Err(format!(
+                    "egress to {logical_endpoint} is refused at settle: {}",
+                    crate::egress::reason_phrase(reason)
+                ))
+            }
+        };
+        let entry = self
+            .catalog
+            .find(&logical_endpoint)
+            .ok_or_else(|| format!("{logical_endpoint} left the catalog"))?
+            .clone();
+        if !entry.permitted_methods.iter().any(|m| m == &method) {
+            return Err(format!(
+                "the capability for {logical_endpoint} permits {:?}, not {method}; a bare \
+                 --egress host permits GET only and a write needs a declared capability",
+                entry.permitted_methods
+            ));
+        }
+        let ceiling = DataClass::ceiling_of(&entry)?;
+        if data_class > ceiling {
+            return Err(format!(
+                "the payload is declared {class_word} and the capability for {logical_endpoint} \
+                 carries at most {:?}",
+                DataClass::WORDS[ceiling as usize]
+            ));
+        }
+        let [address] = pinned.as_slice() else {
+            return Err(format!(
+                "the capability for {logical_endpoint} pins {} addresses; this adapter sends to \
+                 exactly one and does not choose",
+                pinned.len()
+            ));
+        };
+
+        let http_request = HttpRequest {
+            url: format!("https://{address}{path}"),
+            method: method.clone(),
+            body: body.clone(),
+            bearer: self.bearers.get(&logical_endpoint).cloned(),
+        };
+        let request_digest =
+            sha256_hex(format!("{method} {path}\n{}", body.unwrap_or_default()).as_bytes());
+        let started_at_ms = (self.clock)();
+        let response = self.transport.send(&http_request)?;
+        let finished_at_ms = (self.clock)();
+        let response_digest = sha256_hex(&response.body);
+        let real_id = format!("http {} {response_digest}", response.status);
+        self.records.push(HttpCallRecord {
+            format: HTTP_CALL_FORMAT.to_string(),
+            handle: effect.handle.clone(),
+            capability,
+            logical_endpoint,
+            method,
+            path,
+            data_class,
+            catalog_digest,
+            request_digest,
+            status: response.status,
+            response_digest,
+            response_bytes: response.body.len() as u64,
+            started_at_ms,
+            finished_at_ms,
+        });
+        Ok(real_id)
+    }
+}
+
+impl<T: HttpTransport> EffectPerformer for HttpAdapter<T> {
+    fn perform(
+        &mut self,
+        effect: &StagedEffect,
+        _resolved: &BTreeMap<String, String>,
+    ) -> Result<String, String> {
+        if effect.tool != TOOL {
+            return Err(format!("the HTTP adapter does not implement {}", effect.tool));
+        }
+        self.perform_call(effect)
     }
 }
