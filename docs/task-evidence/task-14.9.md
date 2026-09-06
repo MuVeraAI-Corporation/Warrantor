@@ -5,14 +5,28 @@ L10-10 (localized pack verifies against the same receipt digests as the source-l
 
 **Branch:** `feat/public-claim-ledger` · **Base:** local `main` at `2463504`, rebased 2026-09-06.
 
-**Review worktree, and the tip every number under the *Rebase* heading was measured on:**
-`M:/wt-w6-14.9` · `CARGO_TARGET_DIR=M:/wt-rv-14.9-target` · tip `5a0569f`.
+**Review worktree:** `M:/wt-w6-14.9` · `CARGO_TARGET_DIR=M:/wt-rv-14.9-target`. Every number
+under the *Rebase* heading was measured on `5a0569f`, which is the last commit on this branch that
+changes anything a gate reads. The commits after it add only the text of that section, so every
+number in it describes the tree a reviewer merges. Those later commits are deliberately **not**
+named by hash anywhere in this file: a file cannot carry the hash of the commit that adds it, and a
+hash written in one before its content settled would be the same stale rendering this task gates.
 
 **Implementation worktree, and the tip every number above that heading was measured on:**
 `M:/wt-w5-14.9` · `CARGO_TARGET_DIR=M:/wt-w5-14.9-target` · base local `main` at `2ec0638`,
 tips `3c2baa9` and `fb6e45c`.
 
 **Dates:** built 2026-09-05; corrected and re-verified after the rebase 2026-09-06.
+
+**Commits, in order, as they stand after the rebase onto `2463504`:**
+
+| commit | Steps | what |
+|---|---|---|
+| `bbcf2eb` | 1–8 | the ledger, the checker, the tests, the locales, both views, the four surface fixes, the CI steps |
+| `cad9230` | 9 | `check_published_state`: the same-version rewrite and the fabricated retained text |
+| `0b3818b` | 10 | the fresh-worktree verification at `fb6e45c`, verbatim |
+| `5a0569f` | 11 | the two records `main` moved, corrected by appending a version rather than editing |
+| (this file) | 11 | the *Rebase* section: the gate re-measured on the tip a reviewer merges. Text only |
 
 Every section below names the commit its numbers came from, because two of them moved on the rebase
 and the ledger refused the branch until they were corrected. The section *Rebase onto local `main` at
@@ -454,7 +468,7 @@ CLAIMS_DEFAULT=0
 
 $ python tools/ci/check_claims.py --parent-ref HEAD~1
 claim ledger: 17 claims; claim=9, fact=6, unknown=2; 11 retained corrections; head sha256:61cd4be558b07b3e1cc99482c44f4e0ce599b6aab3e0a5e1f1d090df3345174f
-CLAIMS_VS_PARENT=0
+CLAIMS_VS_PREREBASE=0
 
 $ python tools/ci/check_docs.py
 RESULT: PASS - 271 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
@@ -872,9 +886,10 @@ One qualification the exit gate's own wording invites, recorded because it is th
 gate that runs and a gate that reports success having never run. The gate's phrase is
 `git show HEAD:evidence/claims.json`, and `--parent-ref` defaults to `HEAD`. On a **clean** checkout
 `HEAD` is the commit under test, so that default compares the ledger against itself and the
-append-only comparison is a no-op. The run that actually exercises it here is `--parent-ref HEAD~1`,
-against `0b3818b`, which carries the pre-rebase ledger, and that is the run whose exit code is quoted
-below beside the default one. CI passes the branch base for the same reason, which is why the workflow
+append-only comparison is a no-op. The run that actually exercises it here is `--parent-ref 0b3818b`,
+naming the commit rather than a tip-relative `HEAD~1`, because `0b3818b` is the last revision that
+carries the *pre-rebase* ledger and `HEAD~1` stopped meaning that the moment this section was
+committed. Both are quoted below with their exit codes. CI passes the branch base for the same reason, which is why the workflow
 step reads `--parent-ref "$BASE_SHA"` and not `HEAD`.
 
 ### The rebase moved two records, and the ledger refused the branch for it
@@ -1061,9 +1076,9 @@ $ python tools/ci/check_claims.py                       # --parent-ref defaults 
 claim ledger: 17 claims; claim=9, fact=6, unknown=2; 13 retained corrections; head sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
 CLAIMS_DEFAULT=0
 
-$ python tools/ci/check_claims.py --parent-ref HEAD~1   # the comparison that is not a no-op
+$ python tools/ci/check_claims.py --parent-ref 0b3818b  # the comparison that is not a no-op
 claim ledger: 17 claims; claim=9, fact=6, unknown=2; 13 retained corrections; head sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
-CLAIMS_VS_PARENT=0
+CLAIMS_VS_PREREBASE=0
 
 $ python tools/ci/check_claims.py --parent-ref main
 no parent ledger at main; the append-only comparison has nothing to compare, because that revision does not carry the file
