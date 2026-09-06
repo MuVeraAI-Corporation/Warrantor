@@ -1096,46 +1096,43 @@ defect class the section exists to close. A subject line survives a rebase; a ha
 
 ### The full gate on the final tip, exit codes captured before any pipe
 
-**`main` moved six times while this lane ran, and every number below is from after the sixth move.**
-`ce5d02d` at the start, then `2463504` (the task board), `94119fc` (Task 12.3), `78b27d6`,
-`ebe1d62` (the computer-use coverage surface) and `8c0fbc3` (Task 7.4's substrate-mutating adapters).
-The branch was rebased onto each one, its commits replaying with no conflict every time, and the gate
-was re-measured after every move that changed Rust code rather than carried forward. Rebasing also
-rewrote every hash on this branch twice over, which is why the corrections section above cites its own
-fixes by subject line. Everything in this subsection was measured on the tip rebased onto `8c0fbc3`,
-in `M:/wt-w6-10.1`, with `CARGO_TARGET_DIR=M:/wt-rv-10.1-target` — a directory owned by this lane
-alone — and `CARGO_BUILD_JOBS=2`. Both disk guards ran before every cargo invocation. The commit that
-adds this text is the only one after the last code commit, and the one test that reads a Markdown
-file — the tier-cell test — was re-run against this section's own text and passed.
+**`main` moved seven times while this lane ran, and every number below is from after the seventh
+move.** `ce5d02d` at the start, then `2463504` (the task board), `94119fc` (Task 12.3), `78b27d6`,
+`ebe1d62` (the computer-use coverage surface), `8c0fbc3` (Task 7.4's substrate-mutating adapters) and
+`6f41384` (a fix to the harness-listing test). The branch was rebased onto each one, its commits
+replaying with no conflict every time, and the gate was re-measured after every move that changed Rust
+code rather than carried forward. Rebasing also rewrote every hash on this branch several times over,
+which is why the corrections section above cites its own fixes by subject line. Everything in this
+subsection was measured on the tip rebased onto `6f41384`, in `M:/wt-w6-10.1`, with
+`CARGO_TARGET_DIR=M:/wt-rv-10.1-target` — a directory owned by this lane alone — and
+`CARGO_BUILD_JOBS=2`. Both disk guards ran before every cargo invocation. The commit that adds this
+text is the only one after the last code commit, and the one test that reads a Markdown file — the
+tier-cell test — was re-run against this section's own text and passed.
 
-**Whoever merges this has to regate.** `main` took six merges in the few hours this lane ran, three
-of them touching Rust. A gate measured on a branch is a statement about one tip against one `main`,
+**Whoever merges this has to regate.** `main` moved seven times in the few hours this lane ran, three of those moves
+touching Rust. A gate measured on a branch is a statement about one tip against one `main`,
 and this one names both. It is not a prediction about the `main` that exists at merge time.
 
-**The gate does not pass on the merged tree, and neither failure is this branch's.** Two tests fail,
-both in files this branch does not touch and both arriving with a `main` merge:
+**Every test passes on the merged tree; one formatting check does not, and it is `main`'s line.**
+`cargo fmt --all -- --check` exits 1 with exactly one diff, in
+`rust/warrant/tests/instructions.rs:284` — a chained `id.chars().all(...)` that rustfmt wants split
+over three lines. That file is not in `git diff main..HEAD`: the line arrived with `main`'s own commit
+*"the harness-listing test read Task 7.6's disclosure prose as a harness id"*, which landed while this
+lane was writing the paragraph above. This branch's own files are fmt-clean, and the fix belongs to
+that commit's author.
 
-1. `rust/warrant/tests/instructions.rs::every_harness_the_registry_lists_can_be_shown`, with
-   `` `agents list` names `Computer` and `agents show Computer` refuses it ``. `main`'s commit
-   *"computer use is unmediated, and the product now says so on the coverage surface"* added a
-   `COMPUTER USE:` block to `cmd_agents_list` whose first line is indented by two spaces and begins
-   with the word `Computer`; the test scrapes indented first words as harness ids, so it asks the
-   binary to `agents show Computer` and `harness::find("Computer")` correctly finds nothing. A
-   scraper colliding with prose, not a broken bound. It belongs to the task that added the listing.
-2. `rust/warrant/tests/conformance_receipt.rs::a_drill_on_this_kernel_produces_a_receipt_that_verifies_offline`,
-   which `main` itself already documents: see `docs/task-evidence/finding-kill-drill-confirmation-under-load.md`,
-   added by *"the kernel kill drill goes red on a busy machine, and why that is the product being
-   honest"*. The drill cannot confirm a process-tree kill inside `STOP_BUDGET * 2` on a machine this
-   loaded, and `conformance::mode_for` would derive `Advisory` from that observation, which is the
-   honest word. This lane's machine is exactly that busy: the commit-charge guard spent most of the
-   lane refusing.
-
-Neither file appears in `git diff main..HEAD` — this branch touches no harness, no `warrantor.rs`, no
-`computer_use.rs`, no `instructions.rs` and no `conformance_receipt.rs` — and the same workspace run
-was green on this branch's code at `ce5d02d` and again at `2463504`. Both failures arrived with
-`main`. This lane records the diagnosis and does not edit another task's files inside this branch.
-**Consequence, stated plainly: the merged tree is red, so this branch is not mergeable as it stands,
-and the counts below say `2 failed` for that reason.**
+**Two failures this lane saw earlier are gone, and both were `main`'s.** They are recorded because a
+reader comparing runs will otherwise think a number was typed wrong.
+`instructions.rs::every_harness_the_registry_lists_can_be_shown` failed on the tips rebased onto
+`ebe1d62` and `8c0fbc3` because `main`'s new `COMPUTER USE:` block in `cmd_agents_list` prints an
+indented line beginning with the word `Computer`, and that test scraped indented first words as
+harness ids; `main` fixed the scraper in `6f41384`.
+`conformance_receipt.rs::a_drill_on_this_kernel_produces_a_receipt_that_verifies_offline` failed on
+the tip rebased onto `8c0fbc3` and passes here; `main` already documents that one in
+`docs/task-evidence/finding-kill-drill-confirmation-under-load.md` — the drill cannot confirm a
+process-tree kill inside `STOP_BUDGET * 2` on a machine as loaded as this one, and
+`conformance::mode_for` would derive `Advisory` from that observation, which is the honest word.
+Neither file appears in this branch's diff, and this lane edited neither.
 
 **The wait, recorded because it shaped the run.** `python tools/ci/disk_guard.py --require-commit 5`
 refused for roughly fifty minutes at the start of this lane, and repeatedly afterward, hovering
@@ -1149,23 +1146,24 @@ call, never below 231 GB free.
 
 ```
 $ git rev-parse --short main
-8c0fbc3
+6f41384
 $ git merge-base --is-ancestor main HEAD ; echo $?
 0
 
-$ cd rust && cargo fmt --all -- --check                                   exit 0
+$ cd rust && cargo fmt --all -- --check                                   exit 1
+  one diff, and it is main's: warrant/tests/instructions.rs:284 (see above). No file this
+  branch touches is in it.
 $ cargo clippy --workspace --all-targets -- -D warnings                   exit 0   (0 error/warning lines)
-$ cargo test --workspace --all-targets --no-fail-fast                     exit 101
-  127 "test result:" lines: 1639 passed, 2 failed, 20 ignored
-  the two failures: instructions.rs every_harness_the_registry_lists_can_be_shown and
-  conformance_receipt.rs a_drill_on_this_kernel_produces_a_receipt_that_verifies_offline
-  (both main's, diagnosed above). `--no-fail-fast` is what makes the count complete: without it
-  cargo stops at the first failing target and reports a fraction of the suites.
+$ cargo test --workspace --all-targets --no-fail-fast                     exit 0
+  127 "test result:" lines: 1641 passed, 0 failed, 20 ignored
+  (`--no-fail-fast` is kept because it is what makes a count complete: on the tip before this
+   one, cargo stopped at the first failing target and reported 97 of 127 suites, which reads
+   like a total.)
 $ cargo test --workspace --doc                                            exit 0
    40 "test result:" lines:    1 passed, 0 failed,  0 ignored
-  (167 suites in total, 1640 passed, 2 failed, 20 ignored. On `ce5d02d` and again on `2463504`
-   the same branch code gave 165 / 1625 / 0 / 20 with nothing failing; every part of the rise,
-   and both failures, arrived with `main`.)
+  (167 suites in total, 1642 passed, 0 failed, 20 ignored. On `ce5d02d` and again on `2463504`
+   the same branch code gave 165 / 1625 / 0 / 20; the rise is entirely what `main` gained in
+   Task 12.3, Task 7.6 and Task 7.4.)
 
   This task's suites, from the workspace run:
      append_only.rs                               7 passed; 0 failed; 2 ignored
@@ -1189,7 +1187,7 @@ invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemente
 $ python tools/ci/check_docs.py                                           exit 0
 RESULT: PASS - 306 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
 $ python tools/ci/check_us_english.py main                                exit 0
-us-english: 3727 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: 3741 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
 us-english: ok
   (Measured on the commit before the one that adds this note; the count rises with every further
    Markdown line committed into this section, so what this line asserts is `ok`, not a total.
