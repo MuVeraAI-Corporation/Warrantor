@@ -905,3 +905,19 @@ kbd {
 
 #policy-exception-outcome.error { color: var(--severity-warn); }
 #policy-exception-outcome:not(.error) { color: var(--ink-strong); }
+
+/* ── the executive risk view (L8-07, L8-21) ──────────────────────────────── */
+
+/* Section spacing for the three blocks (risk appetite, roll-up, exposure).
+   The view's hierarchy is: a single risk-appetite line, then the roll-up
+   block (dial + population budget) with a pill and a prose sentence, then
+   the exposure figure. The visual rhythm is meant to walk the reader from
+   "what the system enforces" to "what is unmediated" before any prose
+   note. */
+.exec-section { margin-bottom: var(--space-4); }
+.exec-block-heading { font-size: var(--text-md); margin: 0 0 var(--space-2); }
+.exec-subheading { font-size: var(--text-sm); margin: var(--space-3) 0 var(--space-1); }
+.exec-appetite { font-size: var(--text-lg); margin: 0 0 var(--space-2); }
+.exec-rollup-tier { margin: 0 0 var(--space-1); }
+.exec-rollup-sentence { color: var(--ink-soft); margin: 0; }
+.exec-exposure { font-size: var(--text-md); margin: 0; }

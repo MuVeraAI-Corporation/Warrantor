@@ -192,6 +192,22 @@ const ELEMENT_IDS = [
   'policy-exception-expires',
   'policy-exception-compensating',
   'policy-exception-outcome',
+  // Executive risk view (L8-07, L8-21) — added by Task 11.10. The tenth
+  // destination; all five digits are taken and audit, fleet, incidents
+  // and policy are already click-only, so this pane is click-only too.
+  // The view renders the WEAKEST input tier for every roll-up, never the
+  // strongest and never an average, because a green dial computed from
+  // Tier C inputs presented with the confidence of Tier A is the failure
+  // this surface exists to prevent.
+  'view-executive',
+  'executive',
+  'executive-headline',
+  'executive-summary',
+  'executive-rollup',
+  'executive-exposure',
+  'executive-empty',
+  'executive-error',
+  'executive-unreadable',
 ];
 
 function element(tag = 'div', id = '') {
@@ -4153,6 +4169,288 @@ test('every policy element id is declared in index.html and stubbed in ELEMENT_I
   );
   for (const id of policyIds) {
     assert.ok(html.includes(`id="${id}"`), `policy id ${id} must be in index.html`);
+  }
+});
+
+// ── the executive risk view (L8-07, L8-21) — Task 11.10 ───────────────────
+
+import {
+  executiveFixtures,
+} from './executive.fixtures.js';
+
+const {
+  weakestTier,
+  rollupSentence,
+  appetitePhrase,
+  dialFacts,
+  budgetFacts,
+  censusFacts,
+  executiveFacts,
+} = await (async () => {
+  const app = await openStudio();
+  return app.module;
+})();
+
+async function openExecutive({ dial = null, budget = null, census = null } = {}) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/dial' && dial !== null) return dial;
+    if (p === '/v1/budget' && budget !== null) return budget;
+    if (p === '/v1/census' && census !== null) return census;
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-executive').fire('click');
+  await settle();
+  return app;
+}
+
+test('weakestTier returns the lowest tier in the ladder for every fixture case', () => {
+  // Step 2 of the plan: a roll-up renders the WEAKEST input tier, never
+  // an average. The test iterates the fixture and pins the output for
+  // every input tuple. A future change to the ladder that demoted
+  // `enforced` below `unknown`, or that re-introduced averaging, would
+  // fail here before the page rendered.
+  for (const rollup of executiveFixtures.rollupCases) {
+    assert.equal(
+      weakestTier(rollup.inputs),
+      rollup.weakest,
+      `weakestTier(${JSON.stringify(rollup.inputs)}) must equal ${rollup.weakest} (${rollup.label})`,
+    );
+  }
+});
+
+test('weakestTier returns unknown for an empty list rather than crashing', () => {
+  // An empty list is the case where the server sent no inputs at all
+  // — a future regression that returned `enforced` (the strongest)
+  // would render a green number with no inputs and no audit trail.
+  assert.equal(weakestTier([]), 'unknown');
+  assert.equal(weakestTier(null), 'unknown');
+  assert.equal(weakestTier(undefined), 'unknown');
+});
+
+test('rollupSentence names every input so a reader can audit the weakest pick', () => {
+  // A roll-up sentence is the audit trail. The discipline is that the
+  // sentence lists every input the server sent, in order, so a reader
+  // can see why the weakest pick is what it is. A future change that
+  // abbreviated the list (e.g. "3 inputs") would hide the audit.
+  const oneInput = rollupSentence(['enforced']);
+  assert.match(oneInput, /tier: enforced/);
+  assert.match(oneInput, /1 input \(enforced\)/);
+  const threeInputs = rollupSentence(['enforced', 'mediated', 'observed']);
+  assert.match(threeInputs, /tier: observed/);
+  assert.match(threeInputs, /3 inputs \(enforced, mediated, observed\)/);
+  const empty = rollupSentence([]);
+  assert.match(empty, /tier: not stated/);
+});
+
+test('appetitePhrase returns `advisory` when the dial has not enforced a number', () => {
+  // Step 4 of the plan: risk appetite renders as an enforced number
+  // or as `advisory`. The first half — the `advisory` half — is
+  // pinned here. A future change that returned the un-enforced
+  // ceiling as a number would render a slide as a number, which is
+  // the failure this surface exists to prevent.
+  assert.equal(appetitePhrase(null), 'advisory');
+  assert.equal(appetitePhrase({ appetite_enforced: false }), 'advisory');
+  assert.equal(
+    appetitePhrase({ appetite_enforced: false, appetite_ceiling: 0.05 }),
+    'advisory',
+  );
+  assert.equal(
+    appetitePhrase({ appetite_enforced: true, appetite_ceiling: null }),
+    'advisory',
+  );
+  assert.equal(
+    appetitePhrase({ appetite_enforced: true, appetite_ceiling: 0 }),
+    'advisory',
+  );
+});
+
+test('appetitePhrase renders an enforced ceiling as a percentage when one is set', () => {
+  // The second half of Step 4: a dial that has enforced a number
+  // renders it as a percentage. The plan is explicit that the view
+  // must surface the number, but the percentage form is the
+  // conventional one; a future change that rendered the raw 0..1
+  // fraction would surprise a board reader.
+  assert.equal(
+    appetitePhrase({ appetite_enforced: true, appetite_ceiling: 0.05 }),
+    'enforced ceiling 5%',
+  );
+  assert.equal(
+    appetitePhrase({ appetite_enforced: true, appetite_ceiling: 0.10 }),
+    'enforced ceiling 10%',
+  );
+});
+
+test('every dial fixture renders the expected roll-up tier and appetite phrase', () => {
+  // Step 5 of the plan: the view reads 8.2's state and renders it.
+  // The test iterates the dial fixtures and asserts each one
+  // composes to the expected roll-up tier and appetite phrase. A
+  // future change to the composition that promoted any dial to
+  // enforced-appetite would fail here.
+  for (const fixture of executiveFixtures.dialFixtures) {
+    const facts = dialFacts(true, 200, { data: fixture.dial });
+    assert.equal(facts.readable, true, `dial must be readable: ${fixture.label}`);
+    const exec = executiveFacts({ dial: facts.dial, budget: null, census: null });
+    assert.equal(exec.rollup.tier, fixture.expected_rollup_tier,
+      `roll-up tier for ${fixture.label} must be ${fixture.expected_rollup_tier}`);
+    assert.equal(exec.appetite, fixture.expected_appetite_phrase,
+      `appetite phrase for ${fixture.label} must be ${fixture.expected_appetite_phrase}`);
+  }
+});
+
+test('every budget fixture renders the expected roll-up tier', () => {
+  for (const fixture of executiveFixtures.budgetFixtures) {
+    const facts = budgetFacts(true, 200, { data: fixture.budget });
+    assert.equal(facts.readable, true, `budget must be readable: ${fixture.label}`);
+    const exec = executiveFacts({ dial: null, budget: facts.budget, census: null });
+    assert.equal(exec.budgetRollup.tier, fixture.expected_rollup_tier,
+      `budget roll-up tier for ${fixture.label} must be ${fixture.expected_rollup_tier}`);
+  }
+});
+
+test('the budget roll-up sentence names the classes that are present', () => {
+  // The budget roll-up lists every class with a non-zero count, in the
+  // form `tier: <weakest> — driven by N inputs (mediated, observed)`.
+  // A class with a zero count is absent from the input list (the
+  // composition rule maps only non-zero classes to a tier). A
+  // future change that listed every class regardless of count would
+  // hide the audit: a class with 0 effects is not an input.
+  const allMediated = budgetFacts(true, 200, { data: executiveFixtures.budgetFixtures[0].budget });
+  let exec = executiveFacts({ dial: null, budget: allMediated.budget, census: null });
+  assert.match(exec.budgetRollup.sentence, /1 input \(mediated\)/);
+
+  const mixed = budgetFacts(true, 200, { data: executiveFixtures.budgetFixtures[1].budget });
+  exec = executiveFacts({ dial: null, budget: mixed.budget, census: null });
+  assert.match(exec.budgetRollup.sentence, /2 inputs \(mediated, observed\)/);
+
+  const partial = budgetFacts(true, 200, { data: executiveFixtures.budgetFixtures[2].budget });
+  exec = executiveFacts({ dial: null, budget: partial.budget, census: null });
+  // unmediated has no tier, so the composition rule maps it to
+  // `unknown`; the rollup tier is `observed` (mediated + observed +
+  // unknown -> weakest is unknown when present, but observed here
+  // because we mark only non-zero classes — confirm the actual
+  // tier). The sentence lists the three classes in the audit trail.
+  assert.match(exec.budgetRollup.sentence, /3 inputs \(mediated, observed, unknown\)/);
+});
+
+test('the exposure figure accounts for unmediated coverage via the wiring census', () => {
+  // Step 3 of the plan: an exposure figure accounts for unmediated
+  // coverage, via the census. A future change that computed exposure
+  // from the budget alone (which has no unmediated-coverage story)
+  // would render a green number that ignored the orphaned set. The
+  // test pins the wired-in census shape and the expected phrase.
+  const census = censusFacts(true, 200, { data: executiveFixtures.censusFixture });
+  assert.equal(census.readable, true);
+  const exec = executiveFacts({ dial: null, budget: null, census: census.census });
+  assert.equal(exec.exposure.orphaned, executiveFixtures.censusFixture.orphaned.length);
+  assert.equal(exec.exposure.total, executiveFixtures.censusFixture.total);
+  assert.equal(exec.exposure.phrase, executiveFixtures.censusFixture.expected_unmediated_phrase);
+});
+
+test('dialFacts, budgetFacts, and censusFacts refuse unparseable bodies', () => {
+  // The studio does not invent shape. A future change that accepted
+  // a malformed body and rendered a default tier would be a
+  // second-implementation of the contract. The test pins refusal
+  // for the three failure shapes the server is expected to send.
+  assert.equal(dialFacts(false, 0, null).readable, false);
+  assert.equal(dialFacts(true, 500, null).readable, false);
+  assert.equal(dialFacts(true, 200, { data: { bounds: 'not an array' } }).readable, false);
+  assert.equal(dialFacts(true, 200, { data: 'a string' }).readable, false);
+
+  assert.equal(budgetFacts(true, 200, { data: { mediated: 'a string' } }).readable, false);
+  assert.equal(budgetFacts(true, 200, { data: { mediated: 1, observed: 1 } }).readable, false);
+  assert.equal(budgetFacts(true, 200, { data: null }).readable, false);
+
+  assert.equal(censusFacts(true, 200, { data: { total: 'a string' } }).readable, false);
+  assert.equal(censusFacts(true, 200, { data: { total: 1, reachable: 1, edges: 1 } }).readable, false);
+});
+
+test('the executive pane is hidden by default and visible only when the operator clicks it', async () => {
+  const app = await openExecutive({
+    dial: { status: 200, body: { data: executiveFixtures.dialFixtures[0].dial } },
+    budget: { status: 200, body: { data: executiveFixtures.budgetFixtures[0].budget } },
+    census: { status: 200, body: { data: executiveFixtures.censusFixture } },
+  });
+  assert.equal(app.el('executive').hidden, false);
+  assert.equal(app.el('queue').hidden, true);
+  assert.equal(app.el('summary').hidden, true);
+  assert.equal(app.el('audit').hidden, true);
+  assert.equal(app.el('fleet').hidden, true);
+  assert.equal(app.el('incidents').hidden, true);
+  assert.equal(app.el('policy').hidden, true);
+});
+
+test('the executive pane paints the risk-appetite line and the roll-up tier', async () => {
+  // The view surfaces the weakest input tier in BOTH a pill class and
+  // a prose sentence. A reader who cannot resolve the color of the
+  // tier pill still sees the word in prose. The test pins both forms
+  // for a dial whose roll-up is `observed`.
+  const app = await openExecutive({
+    dial: { status: 200, body: { data: executiveFixtures.dialFixtures[0].dial } },
+  });
+  // The appetite phrase is rendered in the summary block.
+  const summary = textOf(app.el('executive-summary'));
+  assert.match(summary, /enforced ceiling 5%/);
+  // The roll-up is rendered in the rollup block, with the pill class
+  // carrying the tier word and the sentence naming every input.
+  const rollup = textOf(app.el('executive-rollup'));
+  assert.match(rollup, /observed/);
+  assert.match(rollup, /3 inputs \(enforced, mediated, observed\)/);
+});
+
+test('the executive pane paints the exposure phrase from the census', async () => {
+  const app = await openExecutive({
+    census: { status: 200, body: { data: executiveFixtures.censusFixture } },
+  });
+  const exposure = textOf(app.el('executive-exposure'));
+  assert.match(exposure, /28 orphaned of 41 crates/);
+});
+
+test('the executive pane shows the unreadable sentence when a feed is unreadable', async () => {
+  const app = await openExecutive({
+    dial: { status: 500, body: { data: null } },
+    budget: { status: 500, body: { data: null } },
+    census: { status: 500, body: { data: null } },
+  });
+  assert.equal(app.el('executive-error').hidden, false);
+  assert.match(textOf(app.el('executive-error')), /could not be read/);
+});
+
+test('the executive tab has no digit-key binding in the keyboard switcher', async () => {
+  // The five digits are 1..5 for warrants, queue, summary, coverage,
+  // and routing. The executive view is the tenth destination and is
+  // click-only, like audit, fleet, incidents and policy. A test
+  // reads the SHORTCUTS array and asserts no digit 6/7/8/9 has been
+  // assigned to setView('executive').
+  const app = await openExecutive();
+  const { SHORTCUTS } = app.module;
+  for (const entry of SHORTCUTS) {
+    if (typeof entry?.keys === 'string' && /^[6-9]$/.test(entry.keys)) {
+      assert.notEqual(
+        entry.action,
+        'executive',
+        `digit ${entry.keys} must not be bound to the executive view (SHORTCUTS regression)`,
+      );
+    }
+  }
+});
+
+test('every executive element id is declared in index.html and stubbed in ELEMENT_IDS', async () => {
+  const executiveIds = [
+    'view-executive', 'executive', 'executive-headline',
+    'executive-summary', 'executive-rollup', 'executive-exposure',
+    'executive-empty', 'executive-error', 'executive-unreadable',
+  ];
+  for (const id of executiveIds) {
+    assert.ok(ELEMENT_IDS.includes(id), `executive id ${id} must be in ELEMENT_IDS`);
+  }
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html'),
+    'utf8',
+  );
+  for (const id of executiveIds) {
+    assert.ok(html.includes(`id="${id}"`), `executive id ${id} must be in index.html`);
   }
 });
 

@@ -75,6 +75,7 @@
           <button id="view-fleet" class="view" type="button">Fleet</button>
           <button id="view-incidents" class="view" type="button">Incidents</button>
           <button id="view-policy" class="view" type="button">Policy</button>
+          <button id="view-executive" class="view" type="button">Executive</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -656,6 +657,68 @@
           preview: the operator sees what the server will produce, and a
           change to the live policy still happens at a terminal, the way
           every other authority-bearing act in this product does.
+        </p>
+      </section>
+
+      <!-- The executive risk view (L8-07, L8-21).
+           The surface where the strongest word is the most dangerous one.
+           Reads the dial (8.2), the population budget (8.4) and the wiring
+           census, and renders the WEAKEST input tier for every roll-up.
+           A roll-up of [enforced, mediated, observed] is `observed`, never
+           the strongest and never an average, because a green dial computed
+           from Tier C inputs presented with the confidence of Tier A is the
+           failure this surface exists to prevent.
+
+           The exposure figure accounts for unmediated coverage via the
+           wiring census: an exposure that ignored the orphaned set would
+           be wrong, and the census is how the view knows.
+
+           Risk appetite renders as an enforced number, or as `advisory` when
+           the dial has not enforced one. The plan is explicit that risk
+           appetite that is not a number the system enforces is a slide.
+
+           Order of blocks is part of the contract: risk appetite first, then
+           the roll-ups (dial and population budget), then the exposure
+           figure. Reading top-to-bottom walks the reader from "what the
+           system enforces" to "what is unmediated" before "what this view
+           does NOT compute". -->
+      <section id="executive" class="executive" hidden aria-labelledby="executive-headline">
+        <h2 id="executive-headline">Executive risk &mdash; the weakest input tier wins</h2>
+
+        <p class="note">
+          Every aggregate on this page renders the WEAKEST input tier &mdash; never the strongest
+          and never an average. A roll-up of <code>[enforced, mediated, observed]</code> is
+          <code>observed</code>, because a green dial computed from Tier C inputs presented with
+          the confidence of Tier A is the failure this surface exists to prevent. The exposure
+          figure accounts for unmediated coverage via the wiring census; an exposure that ignored
+          the orphaned set would be wrong. Risk appetite is rendered as an enforced number when
+          the dial has one, and as <code>advisory</code> when it does not &mdash; risk appetite
+          that is not a number the system enforces is a slide.
+        </p>
+
+        <p id="executive-error" class="empty error" hidden>
+          This executive view could not be read: the server did not answer, refused, or replied
+          with something this console could not parse. A risk view that cannot read its feeds
+          cannot say what is enforced, and the page is blank on purpose.
+        </p>
+        <p id="executive-unreadable" class="note error"></p>
+        <p id="executive-empty" class="empty" hidden>
+          No dial, budget, or census reading is available. A blank executive view is the absence
+          of the three feeds, not the record "no risk".
+        </p>
+
+        <div id="executive-summary" class="exec-section"></div>
+        <div id="executive-rollup" class="exec-section"></div>
+        <div id="executive-exposure" class="exec-section"></div>
+
+        <p class="note">
+          This view does not compute tiers of its own. The dial roll-up is the weakest tier among
+          the dial's bounds (8.2). The population-budget roll-up is the weakest tier among the
+          three classes &mdash; mediated, observed, unmediated &mdash; from 8.4. The exposure figure
+          is the count of orphaned crates from the wiring census. The view renders what the three
+          feeds already said; a divergence between this view and any of the three would be a
+          divergence in the studio, not in the data, and would be caught by the roll-up test that
+          pins the weakest-tier discipline.
         </p>
       </section>
 

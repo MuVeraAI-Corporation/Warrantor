@@ -129,6 +129,23 @@ const el = {
   policyExceptionExpires: document.getElementById('policy-exception-expires'),
   policyExceptionCompensating: document.getElementById('policy-exception-compensating'),
   policyException: document.getElementById('policy-exception-outcome'),
+  // Executive risk view (L8-07, L8-21) — Task 11.10. The tenth destination;
+  // all five digits are taken and audit, fleet, incidents, policy are
+  // already click-only, so this pane is click-only too. The view reads
+  // the dial (8.2), the budget (8.4) and the wiring census and renders
+  // the WEAKEST input tier for every roll-up — a roll-up of [enforced,
+  // mediated, observed] is `observed`, never the strongest, because a
+  // green dial computed from Tier C observed, presented with the
+  // confidence of Tier A, is the failure this surface exists to prevent.
+  viewExecutive: document.getElementById('view-executive'),
+  executive: document.getElementById('executive'),
+  executiveHeadline: document.getElementById('executive-headline'),
+  executiveSummary: document.getElementById('executive-summary'),
+  executiveRollup: document.getElementById('executive-rollup'),
+  executiveExposure: document.getElementById('executive-exposure'),
+  executiveEmpty: document.getElementById('executive-empty'),
+  executiveError: document.getElementById('executive-error'),
+  executiveUnreadable: document.getElementById('executive-unreadable'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -453,7 +470,8 @@ function applyEmptyState(kind) {
   const fleet = state.view === 'fleet';
   const incidents = state.view === 'incidents';
   const policy = state.view === 'policy';
-  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy;
+  const executive = state.view === 'executive';
+  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy || executive;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
   el.settings && (el.settings.hidden = !settings);
@@ -463,6 +481,7 @@ function applyEmptyState(kind) {
   el.fleet && (el.fleet.hidden = !fleet);
   el.incidents && (el.incidents.hidden = !incidents);
   el.policy && (el.policy.hidden = !policy);
+  el.executive && (el.executive.hidden = !executive);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -519,6 +538,7 @@ async function setView(value) {
     [el.viewFleet, 'fleet'],
     [el.viewIncidents, 'incidents'],
     [el.viewPolicy, 'policy'],
+    [el.viewExecutive, 'executive'],
   ]) {
     if (!button) continue;
     button.classList.toggle('is-on', value === name);
@@ -534,6 +554,7 @@ async function setView(value) {
   if (value === 'fleet') await loadFleet();
   if (value === 'incidents') await loadIncidents();
   if (value === 'policy') await loadPolicy();
+  if (value === 'executive') await loadExecutive();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -3197,7 +3218,312 @@ async function loadPolicy() {
   renderPolicy();
 }
 
+// ── the executive risk view: the surface where the strongest word is the most dangerous one ──
 
+/**
+ * Tier ordering from strongest to weakest. The executive view renders the
+ * WEAKEST input tier for every aggregate — a roll-up of [enforced, mediated,
+ * observed] is `observed`, never an average, never the strongest. A future
+ * tier added to the ladder slots in here; the test in
+ * `console.test.js` iterates a fixture of every tier and pins the order.
+ */
+const EXEC_TIER_ORDER = Object.freeze(['enforced', 'mediated', 'observed', 'unknown']);
+
+/**
+ * Pick the weakest tier from a list. Pure; no DOM, no fetch.
+ *
+ * The discipline: a roll-up of controls whose inputs span the tier ladder
+ * renders the WEAKEST input, because a green dial computed from
+ * Tier C inputs presented with the confidence of Tier A is the failure
+ * the plan names verbatim. "Weakest" is "lowest in the ladder", and
+ * `unknown` slots below `observed` because a tier the server did not
+ * name is weaker than any tier it did.
+ *
+ * @param {string[]} inputs Tier words.
+ * @returns {string} The weakest tier, or `unknown` when the list is empty.
+ */
+export function weakestTier(inputs) {
+  if (!Array.isArray(inputs) || inputs.length === 0) return 'unknown';
+  let best = EXEC_TIER_ORDER[0];
+  let bestIdx = 0;
+  for (const tier of inputs) {
+    const idx = EXEC_TIER_ORDER.indexOf(String(tier ?? ''));
+    const safeIdx = idx < 0 ? EXEC_TIER_ORDER.length - 1 : idx;
+    if (safeIdx > bestIdx) {
+      best = String(tier ?? 'unknown');
+      bestIdx = safeIdx;
+    }
+  }
+  return best;
+}
+
+/**
+ * Render a tier roll-up sentence: "tier: <weakest> — driven by <inputs>".
+ * The inputs are listed in the order the server sent them, so a reader
+ * can see why the roll-up is what it is.
+ *
+ * @param {string[]} inputs
+ * @returns {string}
+ */
+export function rollupSentence(inputs) {
+  const weakest = weakestTier(inputs);
+  if (!Array.isArray(inputs) || inputs.length === 0) {
+    return 'tier: not stated — driven by no inputs';
+  }
+  if (inputs.length === 1) {
+    return `tier: ${weakest} — driven by 1 input (${inputs[0]})`;
+  }
+  return `tier: ${weakest} — driven by ${inputs.length} inputs (${inputs.join(', ')})`;
+}
+
+/**
+ * Render the risk-appetite phrase. The view renders the budget number as
+ * `advisory` when the dial has not enforced one, because "risk appetite
+ * that is not a number the system enforces is a slide" (the plan).
+ *
+ * @param {{appetite_enforced?: boolean, appetite_ceiling?: number|null}} dial
+ * @returns {string}
+ */
+export function appetitePhrase(dial) {
+  if (!dial || dial.appetite_enforced !== true) return 'advisory';
+  const ceiling = Number(dial.appetite_ceiling);
+  if (!Number.isFinite(ceiling) || ceiling <= 0) return 'advisory';
+  // Render as a percentage with no decimal — a slide deck would round
+  // to one decimal and quietly imply precision the system does not have.
+  const pct = Math.round(ceiling * 100);
+  return `enforced ceiling ${pct}%`;
+}
+
+/**
+ * Read `/v1/dial` into the shape the executive view renders for the risk
+ * dial block. Mirrors Task 8.2's payload.
+ *
+ * @param {boolean} answered
+ * @param {number} status
+ * @param {unknown} payload
+ * @returns {{readable: boolean, dial: object|null, formatError: string|null}}
+ */
+export function dialFacts(answered, status, payload) {
+  const unusable = { readable: false, dial: null, formatError: null };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data ?? payload;
+  if (!data || typeof data !== 'object') {
+    return { readable: false, dial: null, formatError: 'expected { bounds: [...] }' };
+  }
+  if (!Array.isArray(data.bounds)) {
+    return { readable: false, dial: null, formatError: 'expected { bounds: [...] }' };
+  }
+  return { readable: true, dial: data, formatError: null };
+}
+
+/**
+ * Read `/v1/budget` into the shape the executive view renders for the
+ * population budget block. Mirrors Task 8.4's payload.
+ *
+ * @param {boolean} answered
+ * @param {number} status
+ * @param {unknown} payload
+ * @returns {{readable: boolean, budget: object|null, formatError: string|null}}
+ */
+export function budgetFacts(answered, status, payload) {
+  const unusable = { readable: false, budget: null, formatError: null };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data ?? payload;
+  if (!data || typeof data !== 'object') {
+    return { readable: false, budget: null, formatError: 'expected { mediated, observed, unmediated }' };
+  }
+  for (const field of ['mediated', 'observed', 'unmediated']) {
+    if (!Number.isFinite(data[field])) {
+      return { readable: false, budget: null, formatError: `expected numeric ${field}` };
+    }
+  }
+  return { readable: true, budget: data, formatError: null };
+}
+
+/**
+ * Read the wiring census into the shape the executive view renders for the
+ * exposure block. The census file is read on the server; the studio reads
+ * it through `/v1/census` so the test stub's `boot()` can answer it
+ * without filesystem access.
+ *
+ * @param {boolean} answered
+ * @param {number} status
+ * @param {unknown} payload
+ * @returns {{readable: boolean, census: object|null, formatError: string|null}}
+ */
+export function censusFacts(answered, status, payload) {
+  const unusable = { readable: false, census: null, formatError: null };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data ?? payload;
+  if (!data || typeof data !== 'object') {
+    return { readable: false, census: null, formatError: 'expected { total, reachable, orphaned }' };
+  }
+  for (const field of ['total', 'reachable', 'edges']) {
+    if (!Number.isFinite(data[field])) {
+      return { readable: false, census: null, formatError: `expected numeric ${field}` };
+    }
+  }
+  if (!Array.isArray(data.orphaned)) {
+    return { readable: false, census: null, formatError: 'expected orphaned to be an array' };
+  }
+  return { readable: true, census: data, formatError: null };
+}
+
+/**
+ * Read the three feeds (dial, budget, census) and compose the executive
+ * view's facts. The studio does NOT compute tiers of its own; the roll-up
+ * tier is the weakest input tier from the dial's bounds, the budget's
+ * tiers are derived from the per-class split (mediated/observed/unmediated),
+ * and the census contributes the unmediated-coverage figure.
+ *
+ * The function is pure; it does not touch the DOM. The pane reads the
+ * three endpoints, calls this, and renders the result.
+ *
+ * @param {{dial: object|null, budget: object|null, census: object|null}} feeds
+ * @returns {{readable: boolean, dial: object|null, budget: object|null, census: object|null,
+ *           rollup: {tier: string, sentence: string}|null,
+ *           appetite: string,
+ *           exposure: {orphaned: number, total: number, phrase: string}|null,
+ *           formatError: string|null}}
+ */
+export function executiveFacts(feeds) {
+  const dial = feeds?.dial ?? null;
+  const budget = feeds?.budget ?? null;
+  const census = feeds?.census ?? null;
+
+  // The dial roll-up: weakest tier among the dial's bounds, with a
+  // sentence that names the inputs so a reader can audit the choice.
+  let rollup = null;
+  if (dial && Array.isArray(dial.bounds)) {
+    const tiers = dial.bounds.map((b) => String(b?.tier ?? 'unknown'));
+    rollup = { tier: weakestTier(tiers), sentence: rollupSentence(tiers) };
+  }
+
+  // The population-budget roll-up: weakest tier among the three
+  // classes (mediated, observed, unmediated). Unmediated is the
+  // weakest: a class with no enforcement at all.
+  let budgetRollup = null;
+  if (budget) {
+    const tiers = [];
+    if (Number(budget.mediated) > 0) tiers.push('mediated');
+    if (Number(budget.observed) > 0) tiers.push('observed');
+    if (Number(budget.unmediated) > 0) tiers.push('unknown'); // unmediated has no tier
+    budgetRollup = { tier: weakestTier(tiers), sentence: rollupSentence(tiers) };
+  }
+
+  // Risk appetite: an enforced number, or `advisory`. The plan is
+  // explicit that risk appetite that is not a number the system
+  // enforces is a slide; the view must not invent one.
+  const appetite = appetitePhrase(dial);
+
+  // Exposure: the orphaned crates from the census, named by count and
+  // by name. The studio does not compute the figure; it renders what
+  // the census already said. An exposure figure that ignored the
+  // orphaned set would be wrong, and the wiring census is how the
+  // view knows.
+  let exposure = null;
+  if (census) {
+    const orphaned = Number(census.orphaned?.length ?? 0);
+    const total = Number(census.total);
+    exposure = {
+      orphaned,
+      total,
+      phrase: `${orphaned} orphaned of ${total} crates`,
+    };
+  }
+
+  return {
+    readable: dial !== null || budget !== null || census !== null,
+    dial,
+    budget,
+    census,
+    rollup,
+    budgetRollup,
+    appetite,
+    exposure,
+    formatError: null,
+  };
+}
+
+/** Render the executive view from composed facts. */
+export function renderExecutive(facts) {
+  if (!el.executive) return;
+  if (!facts || !facts.readable) {
+    el.executiveError.hidden = false;
+    el.executiveError.textContent =
+      'This executive view could not be read. A risk view that cannot read its feeds cannot say what is enforced, and the page is blank on purpose.';
+    el.executiveEmpty.hidden = true;
+    el.executiveUnreadable.textContent = facts?.formatError ?? '';
+    el.executiveSummary.replaceChildren();
+    el.executiveRollup.replaceChildren();
+    el.executiveExposure.replaceChildren();
+    return;
+  }
+  el.executiveError.hidden = true;
+  el.executiveEmpty.hidden = facts.dial !== null || facts.budget !== null || facts.census !== null;
+  el.executiveSummary.replaceChildren();
+
+  // Risk appetite: the only line in the view that is allowed to be a
+  // single number. The number is rendered with its enforcing-or-not
+  // sentence beside it, so a reader cannot read the number without
+  // seeing whether the system enforces it.
+  el.executiveSummary.append(node('h3', 'exec-block-heading', 'Risk appetite'));
+  el.executiveSummary.append(node('p', 'exec-appetite', facts.appetite));
+
+  // Dial roll-up: weakest tier among the dial's bounds, plus the
+  // sentence that names the inputs. A roll-up of [enforced, mediated,
+  // observed] is `observed`, never the strongest.
+  el.executiveRollup.replaceChildren();
+  el.executiveRollup.append(node('h3', 'exec-block-heading', 'Roll-up — weakest input tier wins'));
+  if (facts.rollup) {
+    const pill = node('span', `pill pill-${facts.rollup.tier}`, facts.rollup.tier);
+    const tierPara = node('p', 'exec-rollup-tier');
+    tierPara.append(pill);
+    el.executiveRollup.append(tierPara);
+    el.executiveRollup.append(node('p', 'exec-rollup-sentence', facts.rollup.sentence));
+  } else {
+    el.executiveRollup.append(node('p', 'note', 'dial could not be read; roll-up not stated'));
+  }
+  if (facts.budgetRollup) {
+    el.executiveRollup.append(node('h4', 'exec-subheading', 'Population budget'));
+    const budgetPill = node('span', `pill pill-${facts.budgetRollup.tier}`, facts.budgetRollup.tier);
+    const budgetPara = node('p', 'exec-rollup-tier');
+    budgetPara.append(budgetPill);
+    el.executiveRollup.append(budgetPara);
+    el.executiveRollup.append(node('p', 'exec-rollup-sentence', facts.budgetRollup.sentence));
+  }
+
+  // Exposure: the orphaned crates from the census, named by count.
+  // An exposure figure that ignored the orphaned set would be wrong.
+  el.executiveExposure.replaceChildren();
+  el.executiveExposure.append(node('h3', 'exec-block-heading', 'Exposure — what is unmediated'));
+  if (facts.exposure) {
+    el.executiveExposure.append(node('p', 'exec-exposure', facts.exposure.phrase));
+  } else {
+    el.executiveExposure.append(node('p', 'note', 'census could not be read; exposure not stated'));
+  }
+}
+
+/** Load the three feeds and paint. */
+async function loadExecutive() {
+  if (!el.executive) return;
+  const [dial, budget, census] = await Promise.all([
+    call('/v1/dial'),
+    call('/v1/budget'),
+    call('/v1/census'),
+  ]);
+  // The view reads whatever the server returned. A 401 on any of the
+  // three short-circuits to the gate.
+  if (dial.answered && dial.status === 401) { showGate('That token was not accepted.'); return; }
+  if (budget.answered && budget.status === 401) { showGate('That token was not accepted.'); return; }
+  if (census.answered && census.status === 401) { showGate('That token was not accepted.'); return; }
+  const facts = executiveFacts({
+    dial: dialFacts(dial.answered, dial.status, dial.payload).dial,
+    budget: budgetFacts(budget.answered, budget.status, budget.payload).budget,
+    census: censusFacts(census.answered, census.status, census.payload).census,
+  });
+  renderExecutive(facts);
+}
 
 /**
  * Turn a month into the half-open window the API takes.
@@ -4403,6 +4729,7 @@ if (el.viewAudit) el.viewAudit.addEventListener('click', () => setView('audit'))
 if (el.viewFleet) el.viewFleet.addEventListener('click', () => setView('fleet'));
 if (el.viewIncidents) el.viewIncidents.addEventListener('click', () => setView('incidents'));
 if (el.viewPolicy) el.viewPolicy.addEventListener('click', () => setView('policy'));
+if (el.viewExecutive) el.viewExecutive.addEventListener('click', () => setView('executive'));
 
 // The studio re-renders on every keystroke into the editor (so the operator
 // sees the refusal sentence appear as they type a malformed line) and on
