@@ -1035,3 +1035,80 @@ fn the_broker_decides_before_the_second_engine_so_a_refusal_is_attributed_to_the
     assert_eq!(proxy.secondary_refusals()[0].destination, PERMITTED);
 }
 
+// ── two documented properties that no test constrained ────────────────────────────────
+
+#[test]
+fn the_normalized_form_travels_with_the_refusal_and_is_the_form_the_engine_decided_against() {
+    // Test-rigor finding R5 (second adversarial review): `SecondaryRefusal.normalized` is documented
+    // as "the form the filter actually decided against, which makes a normalization bypass
+    // visible", and no test read it: replacing it with `String::new()` left both suites green.
+    //
+    // A host written with capitals and a trailing dot is the case the field exists for: the
+    // destination the proxy resolved and the form the engine decided against differ, and a reader
+    // of the refusal has to be able to see both. The odd form has to be what the WARRANT permits,
+    // because the broker matches the bound verbatim -- it does not normalize -- and a call it
+    // refuses never reaches the second engine (the order test above). That is worth knowing on
+    // its own: the broker's exact match refuses in the safe direction, so a normalization bypass
+    // can only be attempted against the engine that normalizes, which is why the field exists.
+    let odd = "API.GitHub.COM.";
+    let mut proxy = proxy_over(&[odd], Some(SecondaryFilter::default_deny()));
+    let engine_saw = SecondaryFilter::default_deny().decide(odd).normalized;
+    assert!(
+        !engine_saw.is_empty(),
+        "control: the engine normalizes this host to something",
+    );
+
+    let call = ToolCall {
+        tool: TOOL.to_string(),
+        arguments: [("url".to_string(), format!("https://{odd}/x"))]
+            .into_iter()
+            .collect(),
+        side_effect: SideEffectClass::Read,
+    };
+    let decision = proxy.decide(&call);
+    assert!(
+        matches!(&decision, Decision::Deny { bound, .. } if *bound == SECONDARY_FILTER_BOUND),
+        "{decision:?}",
+    );
+    let recorded = proxy.secondary_refusals();
+    assert_eq!(recorded.len(), 1);
+    assert_eq!(
+        recorded[0].normalized, engine_saw,
+        "the refusal carries the form the engine decided against, read off its decision",
+    );
+    assert_ne!(
+        recorded[0].normalized, recorded[0].destination,
+        "and for this host it differs from the destination as named, which is what makes a \
+         normalization bypass visible: {:?}",
+        recorded[0],
+    );
+}
+
+#[test]
+fn an_unreadable_operator_file_is_a_refusal_to_build_a_filter_and_not_a_silent_default() {
+    // Test-rigor finding R6 (second adversarial review): `SecondaryConfigError`'s doc says "Every
+    // variant is a refusal to build a filter, never a silent fallback", and `from_operator_config`
+    // says a missing file "is NOT an error to be swallowed here". Only the Malformed arm was
+    // asserted; replacing the Unreadable arm with `return Ok(Self::default_deny())` left both
+    // suites green. That fallback would be the exact silent default the doc forbids, and it would
+    // report `compiled_default` for a run the operator believed was reading their file.
+    let directory =
+        std::env::temp_dir().join(format!("warrantor-secondary-absent-{}", std::process::id()));
+    let absent = directory.join("no-such-egress-filter.json");
+    assert!(!absent.exists(), "control: the fixture path must not exist");
+    let built = SecondaryFilter::from_operator_config(&absent);
+    assert!(
+        matches!(
+            &built,
+            Err(warrantor_warrant::egress::SecondaryConfigError::Unreadable { path, .. })
+                if path.contains("no-such-egress-filter.json")
+        ),
+        "an absent operator file must refuse to build a filter and name the path: {built:?}",
+    );
+    // The error names the path the operator has to look at, in the sentence a CLI would print.
+    let message = built.expect_err("refused").to_string();
+    assert!(
+        message.contains("could not be read") && message.contains("no-such-egress-filter.json"),
+        "{message}",
+    );
+}
