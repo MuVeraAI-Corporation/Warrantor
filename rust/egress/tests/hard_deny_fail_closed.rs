@@ -45,6 +45,7 @@ fn verdict_for(address: &str) -> EgressVerdict {
         tls_identity: None,
         permitted_methods: vec!["GET".to_string()],
         expires_at: u64::MAX,
+        max_data_class: None,
     });
     catalog.digest = catalog.compute_digest();
     decide(&request("probe"), Some(&catalog))

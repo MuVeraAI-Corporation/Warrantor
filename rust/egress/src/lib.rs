@@ -97,6 +97,11 @@ pub struct CatalogEntry {
     pub tls_identity: Option<String>,
     pub permitted_methods: Vec<String>,
     pub expires_at: u64,
+    /// The highest payload data class a governed HTTP call may carry to this endpoint, as the
+    /// lower-case word (`public`, `internal`, `confidential`, `restricted`). `None` means
+    /// `public` only. Skipped when absent so the digest of an existing catalog is unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_data_class: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -400,6 +405,7 @@ pub fn test_catalog() -> DestinationCatalog {
         tls_identity: Some("db.prod.internal".to_string()),
         permitted_methods: vec!["GET".to_string(), "POST".to_string()],
         expires_at: u64::MAX,
+        max_data_class: None,
     }];
     let mut cat = DestinationCatalog {
         version: "v1".to_string(),
@@ -512,6 +518,7 @@ mod tests {
             tls_identity: None,
             permitted_methods: vec!["GET".to_string()],
             expires_at: u64::MAX,
+            max_data_class: None,
         });
         cat.digest = cat.compute_digest();
         let r = req("net.egress:metadata", "metadata", &["net.egress"]);
@@ -564,6 +571,7 @@ mod tests {
             tls_identity: Some("api.example.com".to_string()),
             permitted_methods: vec!["GET".to_string()],
             expires_at: u64::MAX,
+            max_data_class: None,
         });
         cat.digest = cat.compute_digest();
         let mut r = req("net.egress:new-api", "new-api", &["net.egress"]);
@@ -624,5 +632,19 @@ mod tests {
         assert!(looks_like_address("10.0.0.1:443"));
         assert!(!looks_like_address("net.egress:db:prod"));
         assert!(!looks_like_address("db:prod.customers"));
+    }
+
+    /// A catalog written before the ceiling existed must still load, and must load as the
+    /// smallest ceiling: absent means none, not unlimited.
+    #[test]
+    fn an_entry_without_a_data_class_ceiling_deserializes_with_none() {
+        let old = r#"{"logical_endpoint":"api.example.com","addresses":["api.example.com"],
+                     "tls_identity":null,"permitted_methods":["GET"],"expires_at":1}"#;
+        let entry: CatalogEntry = serde_json::from_str(old).expect("old shape loads");
+        assert_eq!(entry.max_data_class, None);
+        // And an entry with no ceiling serializes without the field, so digests of existing
+        // catalogs do not move.
+        let json = serde_json::to_string(&entry).expect("serializes");
+        assert!(!json.contains("max_data_class"), "{json}");
     }
 }
