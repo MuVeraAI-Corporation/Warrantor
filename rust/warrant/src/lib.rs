@@ -46,6 +46,7 @@ pub mod daemon;
 pub mod effect_sdk;
 pub mod effects;
 pub mod egress;
+pub mod exec;
 pub mod guard;
 pub mod harness;
 pub mod lock;
