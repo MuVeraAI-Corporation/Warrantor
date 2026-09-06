@@ -432,7 +432,8 @@ impl SecondaryFilter {
 
 // ── the independence count ────────────────────────────────────────────────────────────
 
-/// What the independence count does NOT cover. Printed under the count on every surface.
+/// What the independence count does NOT cover. Required beside the count on every render target
+/// the gate names; rendered by no product code (see *Where this constant is required*).
 ///
 /// One constant, one place, for the same reason as [`ENFORCEMENT_NOTE`].
 ///
@@ -456,15 +457,37 @@ impl SecondaryFilter {
 /// A rendered number and its label must come from the same record, so prefer
 /// [`independence_sentence`] over quoting this constant with a number beside it. This constant
 /// carries only the clauses that hold in every configuration.
+///
+/// # The second correction this wording carries
+///
+/// The previous value opened its second sentence *"Two policy engines decide at that one point"*,
+/// under the promise above that the constant holds in every configuration. It did not: the shipped
+/// binary wires no second engine (`Proxy::new` sets `secondary: None`, and nothing in
+/// `warrantor.rs` constructs a [`SecondaryFilter`]), so in the only configuration the product runs
+/// one engine decides. An engine count is a number, and a number belongs in
+/// [`independence_sentence`], which reads it off the record; this constant now names no count at
+/// all, and the Rust suite asserts that it carries no digit and no spelled-out engine count. The
+/// same doc comment also said the constant was *"printed under the count on every surface"*: no
+/// product code renders it. What is true is below.
+///
+/// # Where this constant is required
+///
+/// `tools/ci/network_independence.py` requires its two load-bearing clauses -- what the count
+/// *is* and what *escapes* it -- within twelve lines of the rendered count on each of the three
+/// render targets it names (`docs/05-network-common-mode-analysis.md`, `README.md`,
+/// `docs/W1-delivery-gaps.md`), and requires `docs/05`'s "What the count excludes" paragraph to
+/// be this value verbatim (`the_analysis_paragraph_is_the_constant`). The escape clause is
+/// asserted by value in `rust/warrant/tests/network_independence.rs` and in the I-09 corpus.
 pub const INDEPENDENCE_NOTE: &str =
     "The count above is a count of enforcement points acting on a destination this warrant \
-     permits. Two policy engines decide at that one point, so the engine count is a count of \
-     policy domains and is not a second boundary: both engines run inside the Warrantor MCP proxy, \
-     so a shell command, a harness built-in, or any socket the agent opens itself passes neither \
-     of them. There is no network namespace, seccomp filter or firewall behind this count, and the \
-     confinement profile does not add one for a warrant that permits any host -- it omits \
-     --unshare-net precisely then. A hostname that resolves into a private or metadata range is \
-     not caught: neither engine resolves DNS.";
+     permits. Every policy engine that decides a destination -- the broker always, and a second \
+     engine only once one is wired -- runs inside the Warrantor MCP proxy at that one point, so \
+     the engine count is a count of policy domains and is not a second boundary: a shell command, \
+     a harness built-in, or any socket the agent opens itself passes neither the proxy nor any \
+     engine inside it. There is no network namespace, seccomp filter or firewall behind this \
+     count, and the confinement profile does not add one for a warrant that permits any host -- \
+     it omits --unshare-net precisely then. A hostname that resolves into a private or metadata \
+     range is not caught: no engine at that point resolves DNS.";
 
 /// The count clause, rendered from the record rather than written beside it.
 ///

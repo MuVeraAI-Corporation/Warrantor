@@ -27,7 +27,10 @@ this prose. A sentence here that disagrees with the code fails the build.
 ### Layer A — the MCP proxy chokepoint
 
 Real, reachable, and the only layer that decides per host. `rust/warrant/src/proxy.rs` lines
-391-425 run every destination a call names through **both** engines:
+391-425 run every destination a call names through the broker and, only when a caller has wired
+one, through the second engine. The shipped binary wires none: `Proxy::new` sets
+`secondary: None` and nothing in `warrantor.rs` constructs a `SecondaryFilter`, so a shipped run
+decides with **one** engine and the second `if let` below is never entered:
 
 ```rust
 for destination in crate::egress::destinations_of(call) {
@@ -225,6 +228,14 @@ not.
 as `SecondaryFilter` in `rust/warrant/src/egress.rs` and consulted inside the existing loop in
 `Proxy::decide`, deny-only.
 
+Reachable is not reached. Nothing in the shipped binary constructs a `SecondaryFilter`:
+`Proxy::new` sets `secondary: None`, `warrantor.rs` has no caller of `with_secondary_filter` or
+`from_operator_config`, and no CLI flag or configuration path leads to either. A shipped run
+therefore decides with **one** policy engine, and the record publishes
+`policy_engines_the_product_runs: 1`. Two engines decide only once a Rust caller of the library
+wires the second, and everything in this section about "both evaluators" describes that wired
+configuration.
+
 What that buys, precisely:
 
 - A **second evaluator** with a **different default** (`DecisionReason::DefaultDeny` on an empty
@@ -253,23 +264,30 @@ proxy denies every destination as `CatalogUnavailable` (`rust/warrant/src/egress
 196-201) and there is no permitted destination left to guard. The count of independent
 intercepts on a permitted host is therefore **1**, and L2-03 stays `status=none`.
 
+### What the count excludes
+
+The count above is a count of enforcement points acting on a destination this warrant permits.
+Every policy engine that decides a destination -- the broker always, and a second engine only once
+one is wired -- runs inside the Warrantor MCP proxy at that one point, so the engine count is a
+count of policy domains and is not a second boundary: a shell command, a harness built-in, or any
+socket the agent opens itself passes neither the proxy nor any engine inside it. There is no network
+namespace, seccomp filter or firewall behind this count, and the confinement profile does not add
+one for a warrant that permits any host -- it omits --unshare-net precisely then. A hostname that
+resolves into a private or metadata range is not caught: no engine at that point resolves DNS.
+
+This paragraph is `egress::INDEPENDENCE_NOTE` in `rust/warrant/src/egress.rs`, verbatim:
+`tools/ci/network_independence.py::analysis_paragraph_is_the_constant` reads the constant out of
+the Rust source and fails the build if this paragraph is anything else. The same gate requires the
+constant's two load-bearing clauses -- what the count is, and what escapes it -- within twelve
+lines of the rendered count on each of the three render targets it names (this document,
+`README.md`, `docs/W1-delivery-gaps.md`), not merely somewhere in the same file, for the same
+reason `ENFORCEMENT_NOTE` exists: a bare count is read as containment. No product code renders the
+constant; the three Markdown copies are the only surfaces, and the evidence file for Task 5.4
+transcribes the gate's output without being one of them.
+
 L0-10's verification clause asks that *"for each catastrophic effect class an artifact lists at
 least two controls with disjoint failure domains."* For network egress, this artifact lists one, and
 says so.
-
-### What the count excludes
-
-The count above is a count of enforcement points acting on a destination this warrant permits, and
-it is one. Both engines run inside the Warrantor MCP proxy, so a shell command, a harness built-in,
-or any socket the agent opens itself passes neither of them. Two policy engines decide at that one
-point, so the *engine* count is the count of policy domains and is not a second boundary. There is
-no network namespace, seccomp filter or firewall behind this count, and the confinement profile does
-not add one for a warrant that permits any host -- it omits `--unshare-net` precisely then. A
-hostname that resolves into a private or metadata range is not caught: neither engine resolves DNS.
-
-This paragraph is `egress::INDEPENDENCE_NOTE` in `rust/warrant/src/egress.rs`, required beside the
-count on every surface that prints it -- within twelve lines of it, not merely somewhere in the same
-file -- for the same reason `ENFORCEMENT_NOTE` exists: a bare count is read as containment.
 
 > **Correction, found independently by both adversarial review lenses.** This section, the Rust
 > constant it quotes and the CI rule that pinned it all used to open *"The count above is a count of

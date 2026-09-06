@@ -13,6 +13,7 @@ from pathlib import Path
 import network_independence
 import pytest
 from network_independence import (
+    ANALYSIS_DOCUMENT,
     AXES,
     CAVEAT_WINDOW,
     CITATIONS,
@@ -25,12 +26,14 @@ from network_independence import (
     REQUIRED_CAVEAT_CLAUSES,
     SHARED,
     Independence,
+    analysis_paragraph_is_the_constant,
     axes_match_the_rust_constant,
     citations_resolve,
     cluster_layer_absent,
     engines_the_product_runs,
     failed_probes,
     flowed,
+    independence_note_from_the_rust_source,
     load_record,
     main,
     measure,
@@ -356,6 +359,50 @@ def test_a_citation_needle_that_has_moved_out_of_the_source_fails(
     problems = citations_resolve()
     assert len(problems) == 1
     assert "is gone" in problems[0]
+
+
+# ── the paragraph that claims to be the constant ─────────────────────────────────────
+
+
+def test_the_constant_is_read_out_of_the_rust_source_as_one_line() -> None:
+    """The literal is split over lines with continuations; joined, it is the value the binary carries."""
+
+    note = independence_note_from_the_rust_source()
+    assert note.startswith("The count above is a count of enforcement points")
+    assert "\n" not in note and "\\" not in note, "continuations must be joined, not copied"
+    assert "  " not in note, "a continuation elides the next line's leading whitespace"
+    assert not any(character.isdigit() for character in note), (
+        "the constant carries no engine count; numbers come from independence_sentence"
+    )
+
+
+def test_the_analysis_paragraph_is_the_constant_in_the_real_tree() -> None:
+    """CORRECTION (second review). docs/05 said 'This paragraph is egress::INDEPENDENCE_NOTE' and
+    it was a paraphrase that had drifted: it still said two engines decide, in a product that ships
+    one. The paragraph is now required to be the constant's own value."""
+
+    assert analysis_paragraph_is_the_constant() == []
+
+
+def test_a_paragraph_that_drifts_from_the_constant_fails_the_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The negative direction: the exact drift the review found, replayed on the escape clause."""
+
+    real_read = network_independence.read
+
+    def drifted(relative: str) -> str:
+        text = real_read(relative)
+        if relative == ANALYSIS_DOCUMENT:
+            assert "passes neither the proxy" in text
+            return text.replace("passes neither the proxy", "passes through both the proxy")
+        return text
+
+    monkeypatch.setattr(network_independence, "read", drifted)
+    problems = analysis_paragraph_is_the_constant()
+    assert len(problems) == 1
+    assert ANALYSIS_DOCUMENT in problems[0] and "not the constant's value" in problems[0]
+    assert main([]) == 1, "a drifted paragraph must fail the build, not merely be reported"
 
 
 def test_the_cluster_layer_the_analysis_denies_is_asserted_not_described() -> None:

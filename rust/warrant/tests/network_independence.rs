@@ -514,9 +514,57 @@ fn the_note_names_all_three_absent_enforcement_mechanisms() {
         "the withdrawn remedy clause must stay withdrawn: {INDEPENDENCE_NOTE}",
     );
     assert!(
-        INDEPENDENCE_NOTE.contains("neither engine resolves DNS"),
+        INDEPENDENCE_NOTE.contains("no engine at that point resolves DNS"),
         "the shared DNS blind spot is the concrete exploit the anti-correlation opens",
     );
+
+    // THE ESCAPE CLAUSE, asserted by value. A Mediated bound's sentence must state what escapes
+    // it (Task 0.4), and this is the one clause of the constant the suite did not pin: the
+    // adversarial review replaced "passes neither" with "passes through both" and both suites
+    // stayed green, because only the Python gate required it, and only on the Markdown copies.
+    assert!(
+        INDEPENDENCE_NOTE.contains("passes neither the proxy nor any engine inside it"),
+        "the note must name what escapes the count, and it is everything that does not traverse \
+         the proxy: {INDEPENDENCE_NOTE}",
+    );
+    assert!(
+        !INDEPENDENCE_NOTE.contains("passes through both"),
+        "the inverted escape clause reads as containment: {INDEPENDENCE_NOTE}",
+    );
+
+    // NO ENGINE COUNT IN THE CONSTANT. Its doc promises it carries only clauses that hold in every
+    // configuration, and it used to say "Two policy engines decide at that one point" while the
+    // shipped binary decides with one. A number belongs in `independence_sentence`, which reads it
+    // off the record for the configuration that is actually running.
+    assert!(
+        !INDEPENDENCE_NOTE.chars().any(|c| c.is_ascii_digit()),
+        "the constant carries no number; numbers come from independence_sentence: \
+         {INDEPENDENCE_NOTE}",
+    );
+    for spelled in [
+        "one policy engine",
+        "One policy engine",
+        "two policy engines",
+        "Two policy engines",
+        "both engines",
+        "neither engine",
+        "neither of them",
+    ] {
+        assert!(
+            !INDEPENDENCE_NOTE.contains(spelled),
+            "{spelled:?} is an engine count in words, true of only one configuration: \
+             {INDEPENDENCE_NOTE}",
+        );
+    }
+    // And the two configurations the product can be in both carry their own number, read off the
+    // record, so nothing is lost by taking the count out of the constant.
+    let alone = independence_sentence(&independence(&bounds(&[PERMITTED]), None));
+    let paired = independence_sentence(&independence(
+        &bounds(&[PERMITTED]),
+        Some(&SecondaryFilter::default_deny()),
+    ));
+    assert!(alone.contains("1 policy engine decides"), "{alone}");
+    assert!(paired.contains("2 policy engines decide"), "{paired}");
 }
 
 #[test]

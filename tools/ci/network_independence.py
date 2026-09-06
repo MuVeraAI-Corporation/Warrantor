@@ -541,6 +541,58 @@ def note_accompanies_every_count(record: dict) -> list[str]:
     return wrong
 
 
+# Where the analysis document quotes the constant as a paragraph, and the file the constant lives in.
+ANALYSIS_DOCUMENT = "docs/05-network-common-mode-analysis.md"
+NOTE_SOURCE = "rust/warrant/src/egress.rs"
+NOTE_MARKER = "pub const INDEPENDENCE_NOTE: &str ="
+
+
+def independence_note_from_the_rust_source() -> str:
+    """The value of `egress::INDEPENDENCE_NOTE`, read out of the Rust source.
+
+    The constant is one string literal split over lines with `\\` continuations, which elide the
+    newline and the next line's leading whitespace. Joining them the way rustc does gives the value
+    the binary carries, so the Markdown copy can be required to be THAT rather than a paraphrase.
+    """
+
+    source = read(NOTE_SOURCE)
+    if NOTE_MARKER not in source:
+        raise ValueError(f"{NOTE_SOURCE}: {NOTE_MARKER!r} is gone; the note cannot be read")
+    literal = source.split(NOTE_MARKER, 1)[1].split('";', 1)[0]
+    pieces = []
+    for line in literal.splitlines():
+        stripped = line.strip()
+        if stripped.startswith('"'):
+            stripped = stripped[1:]
+        if stripped.endswith("\\"):
+            stripped = stripped[:-1]
+        pieces.append(stripped)
+    return "".join(pieces)
+
+
+def analysis_paragraph_is_the_constant() -> list[str]:
+    """`docs/05`'s "What the count excludes" paragraph must be `INDEPENDENCE_NOTE`, verbatim.
+
+    CORRECTION (second adversarial review). The document says "This paragraph is
+    `egress::INDEPENDENCE_NOTE`", and it was not: the constant was corrected and the paragraph
+    drifted, so the analysis went on saying "Two policy engines decide at that one point" about a
+    product that ships one. A sentence written beside a record is what this repository's Rule 2
+    forbids; the paragraph is now required to be the constant's own value, read from the Rust
+    source, compared flowed and with Markdown code spans removed.
+    """
+
+    expected = flowed(independence_note_from_the_rust_source())
+    actual = flowed(read(ANALYSIS_DOCUMENT)).replace("`", "")
+    if expected not in actual:
+        return [
+            f"{ANALYSIS_DOCUMENT}: the paragraph it calls egress::INDEPENDENCE_NOTE is not the "
+            f"constant's value. Expected, verbatim from {NOTE_SOURCE}: {expected!r}. A paragraph "
+            "that drifts from the constant is a sentence written beside the record instead of "
+            "derived from it."
+        ]
+    return []
+
+
 def flowed(text: str) -> str:
     """One line, single-spaced, with Markdown line furniture removed.
 
@@ -644,6 +696,7 @@ def main(argv: list[str] | None = None) -> int:
             mismatches.append(f"{field}: recorded {record.get(field)!r}, measured {value!r}")
     mismatches += renders_agree(record)
     mismatches += note_accompanies_every_count(record)
+    mismatches += analysis_paragraph_is_the_constant()
 
     if mismatches:
         for mismatch in mismatches:

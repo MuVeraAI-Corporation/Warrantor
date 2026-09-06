@@ -980,7 +980,7 @@ machine-readable record: [`evidence/network-independence.json`](../evidence/netw
 A permitted destination is guarded by **one independent intercept, not two**. That number is a
 count of enforcement points acting on a destination the warrant permits, and it is one: both policy
 engines run inside the Warrantor MCP proxy, so a shell command, a harness built-in, or any socket the
-agent opens itself passes neither of them, and neither resolves DNS. The two layers the product
+agent opens itself passes neither the proxy nor any engine inside it, and no engine at that point resolves DNS. The two layers the product
 describes are not merely coupled, they are **anti-correlated by one config field**:
 
 - `WarrantBounds::egress_hosts` non-empty → the proxy decides per destination, and

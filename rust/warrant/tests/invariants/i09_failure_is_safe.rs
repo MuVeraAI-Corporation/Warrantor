@@ -467,4 +467,20 @@ fn the_notes_refuse_to_imply_a_second_boundary() {
         !independence.contains('\n'),
         "the note is rendered under a count on one-line surfaces, so it must not carry a newline",
     );
+    // SECOND CORRECTION. The escape clause is the half of a Mediated sentence Task 0.4 requires,
+    // and it was the one clause no Rust test pinned: "passes neither" became "passes through
+    // both" under an adversarial mutation and this corpus stayed at 85 passed. And the constant
+    // said "Two policy engines decide at that one point" -- a count true only when a caller wires
+    // the second engine, which the shipped binary never does. Both are asserted here now.
+    assert!(
+        independence.contains("passes neither the proxy nor any engine inside it"),
+        "INDEPENDENCE_NOTE must state what escapes the count: {independence}",
+    );
+    assert!(
+        !independence.chars().any(|c| c.is_ascii_digit())
+            && !independence.contains("Two policy engines")
+            && !independence.contains("both engines"),
+        "the constant holds in every configuration, so it may carry no engine count; the number \
+         is rendered by independence_sentence from the record: {independence}",
+    );
 }
