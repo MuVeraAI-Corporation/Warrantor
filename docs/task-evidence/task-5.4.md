@@ -1,6 +1,6 @@
 # Task 5.4: common-mode independence analysis for double network isolation
 
-> **Rebased 2026-09-06** onto `main` at `92b6018`; the merged-tree gate and the three conflict
+> **Rebased 2026-09-06** onto `main` at `065961b`; the merged-tree gate and the three conflict
 > resolutions are in the last section, *Review lane, phase 1*.
 
 Branch `feat/task-5.4-network-common-mode`, based on **local `main` at `f9c3523`** — not
@@ -659,7 +659,7 @@ PR CI tests the branch against the *old* main.
 
 ---
 
-## Review lane, phase 1: rebased onto `main` at `92b6018` (2026-09-06)
+## Review lane, phase 1: rebased onto `main` at `065961b` (2026-09-06)
 
 Everything above this line was measured on the branch as built, from local `main` at `f9c3523`.
 This section is the review lane's own record: the branch brought onto today's `main`, the three
@@ -669,24 +669,25 @@ with one above, the one below is the merged tree's and the one above is the bran
 correct for the tree they were read from.
 
 **Branch:** `feat/task-5.4-network-common-mode` · **Was:** `289cc88` on `main` @ `f9c3523` ·
-**Now:** rebased onto `main` @ `92b6018` (38 commits ahead of the old base)
+**Now:** rebased onto `main` @ `065961b` (45 commits ahead of the old base; see *main moved four times* below)
 **Worktree:** `M:/wt-w3-5.4` · **Target dir:** `M:/wt-review-shared-target` (shared, `CARGO_BUILD_JOBS=2`)
 
 **Commits, in order, after the rebase:**
 
 | commit | was | what |
 |---|---|---|
-| `9e1ebc8` | `2905bd6` | the measurement, the second engine, the gate, the record, the analysis document |
-| `57950c8` | `4aee0b5` | US-English on this branch's added lines |
-| `86487dd` | `6864ec1` | the two egress notes asserted by value, because CRLF broke the source match |
-| `1f77981` | `82118f8` | the first fresh-worktree gate capture |
-| `c72e7b3` | `50ef8b9` | the review fix: label each count with the number it is true of |
-| `d0d710b` | `950ab00` | the record of the twelve-finding refutation |
-| `5302b6a` | `7281d93` | the second fresh-worktree gate capture |
-| `05e8f9d` | `289cc88` | the fifteenth mutation row |
-| `0c342ab` | (new) | the four `proxy.rs` anchors the rebase moved, re-derived; the merged loop quoted |
-| `a7cabad` | (new) | the wiring record re-measured on the rebased tree: `edges` 22 → 23 |
-| (this file) | (new) | this section |
+| `84d32c5` | `2905bd6` | the measurement, the second engine, the gate, the record, the analysis document |
+| `7687e51` | `4aee0b5` | US-English on this branch's added lines |
+| `a71d8ac` | `6864ec1` | the two egress notes asserted by value, because CRLF broke the source match |
+| `55101de` | `82118f8` | the first fresh-worktree gate capture |
+| `a9cea87` | `50ef8b9` | the review fix: label each count with the number it is true of |
+| `408f8e7` | `950ab00` | the record of the twelve-finding refutation |
+| `6557511` | `7281d93` | the second fresh-worktree gate capture |
+| `e159068` | `289cc88` | the fifteenth mutation row |
+| `16f12ea` | (new) | the four `proxy.rs` anchors the rebase moved, re-derived; the merged loop quoted |
+| `cad254a` | (new) | the wiring record re-measured on the rebased tree: `edges` 22 → 23 |
+| `60b8d4c` | (new) | this section, as first written against `main` @ `92b6018` |
+| (this file) | (new) | this section brought onto `main` @ `065961b`; the gate re-run in full |
 
 ### The exit gate, quoted verbatim from the plan
 
@@ -694,7 +695,7 @@ correct for the tree they were read from.
 
 > **Exit gate.** `python tools/ci/network_independence.py && cargo test -p warrantor-warrant --test network_independence -j 2 && python tools/ci/check_invariant_ratchet.py && python tools/ci/wiring_census.py` exits 0, with the ratchet line reading `invariant ratchet: ok (67 passing at floor 67, 19 recorded findings at ceiling 19)` and the census line reading `wiring census: 10 of 39 crates reachable`; any rendered independence count that does not match `evidence/network-independence.json` fails the first command by name.
 
-**RUN.** The chain was run verbatim on the rebased tree at `a7cabad`, from the repository root
+**RUN.** The chain was run verbatim on the final rebased tree (HEAD `60b8d4c`, base `main` @ `065961b`), from the repository root
 with the census invoked from `rust/` as CI does; the transcript is the block below, captured with
 the exit code taken before any pipe. The first clause holds: the chain exits 0. The two literal
 lines the plan predicts do **not** appear and cannot on any base after `e4b5f10`, because the plan
@@ -727,6 +728,21 @@ the behavior the branch claims for it.
 So: the plan's run is performed and its exit condition is met; its two predicted numbers are stale
 predictions, not unmet conditions, and a ledger entry that cites this task should cite the lines
 above, not the plan's.
+
+### `main` moved four times while this lane ran
+
+`main` was `92b6018` when the lane started and `065961b` when it finished: `9bac709` (the
+plan and its expansions), `68272e6` + `b950b36` (the US-English gate refuses a dirty tree; Task 2.1's
+evidence), `ed7c068` + `9292b03` (Britishisms on old lines of the delivery-gaps file), then `065961b`
+(American English across thirty-two documents). The first rebase produced the three conflicts below;
+the other three were conflict-free, because none of those commits touches a file this branch touches.
+**`rust/` on `main` is byte-identical from `9bac709` through `065961b`** (`git diff 9bac709 main
+-- rust` is empty), so every cargo run in this section tested exactly the Rust tree that HEAD holds.
+The non-cargo gates and the plan's exit-gate chain were re-run at the final HEAD; the full cargo gate
+was run at bases `9bac709` and `9292b03` and not repeated for `065961b`, which changed no file cargo
+reads. `wiring_census.py --write` on the final tree changed nothing. The lane checked
+`git merge-base --is-ancestor main HEAD` last, so a fifth move after that check is possible and would
+need another rebase before merge.
 
 ### The rebase: three conflicts, each settled by the rule for its kind
 
@@ -764,6 +780,30 @@ this worktree; the clippy log shows 41 `Checking`/`Compiling` lines and no reuse
 from an rlib compiled elsewhere would have been a false pass, and a red one from it — which is what
 happened — is the only reason it was noticed.
 
+### The shared target raced this gate once, and the failure it produced was not this tree's
+
+The first full run on the final tree exited `TEST=101` and `DOC=1`. Two tests in
+`rust/warrant/tests/instructions.rs` failed: the usage text of `warrantor.exe` named a `scorer`
+command and `--asserted-by`, `--confined`, `--register-threshold` flags that the parser in this tree
+does not accept. None of those strings exists in this worktree (`grep -rl` finds zero files); all
+of them exist in Task 13.7's worktrees, and `M:/wt-review-shared-target/debug/warrantor.exe` had
+been rewritten eighteen seconds before the check. That test runs `CARGO_BIN_EXE_warrantor`, which
+is one path for every worktree sharing the target, so it compared another lane's binary against
+this lane's source. The doc-test failure was the same race from the other side: `extern location
+for warrantor_api does not exist: ...libwarrantor_api-cad523720e39a4c8.rlib`, an rlib another
+lane's build replaced between two of this run's steps (`Blocking waiting for file lock` appears
+three times in that log). Cargo stopped at the first failed test binary, so that run's sum (91
+suites, 1096 passed, 2 failed, 4 ignored) is partial and is not the number recorded below.
+
+Both were re-run from this worktree's sources after touching them: `--test instructions` 6 passed,
+`--doc` 40 suites 1 passed, both exit 0. The whole `--all-targets` gate was then run twice more on
+the same Rust tree, plain and with `--no-fail-fast`, and the same two tests failed both times on
+the same foreign `scorer` binary (rewritten at 06:33:21 and 06:41:56, mid-run each time); every
+other suite passed, and `--test instructions` alone passed again immediately after. The race is a
+property of the shared target with seventy worktrees on it, not of this branch, and it can recur on
+any lane's run: a lane that sees `instructions.rs` name a command its tree lacks should check the
+binary's mtime before reading the failure as its own.
+
 ### The full gate on the rebased tree, exactly as measured
 
 Guard before every cargo invocation: `disk guard: 292.4 GB free on M:\, require 60 GB -> OK` and
@@ -773,11 +813,15 @@ any pipe. `git status --porcelain` was empty before the gate and after every com
 ```text
 cargo fmt --all -- --check                                  FMT=0
 cargo clippy --workspace --all-targets -- -D warnings       CLIPPY=0   (41 crates rebuilt here)
-cargo test --workspace --all-targets                        CARGO=0
+cargo test --workspace --all-targets   (base 9bac709, same rust/) CARGO=0
   120 suites, 1565 passed, 0 failed, 20 ignored             (summed over every `test result:` line)
-cargo test --workspace --doc                                DOC=0
+cargo test --workspace --all-targets --no-fail-fast (base 9292b03) CARGO=101, the race above
+  120 suites, 1563 passed, 2 failed, 20 ignored; the 2 are instructions.rs on a foreign binary,
+  and `cargo test -p warrantor-warrant --test instructions` right after: 1 suite, 6 passed, exit 0
+cargo test --workspace --doc           (bases 9bac709 and 9292b03) DOC=0
   40 suites, 1 passed, 0 failed, 0 ignored
-  => 160 suites, 1566 passed, 0 failed, 20 ignored
+  => 160 suites, 1566 passed, 0 failed, 20 ignored on the green run; the only run that did not
+     exit 0 failed on two tests of another worktree's binary and on nothing in this tree
   network_independence: 15 passed          invariants corpus: 85 passed, 15 ignored
 (cd rust && python ../tools/ci/wiring_census.py)            CENSUS=0
   wiring census: 13 of 41 crates reachable from warrantor-warrant over 23 path edges
@@ -787,14 +831,15 @@ python tools/ci/check_invariant_ratchet.py --show-findings  RATCHET=0
 python tools/ci/check_invariants.py                         LEDGER=0
   invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1
 python tools/ci/check_docs.py                               DOCS=0
-  RESULT: PASS - 300 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+  RESULT: PASS - 301 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
 python tools/ci/check_us_english.py main                    USEN=0
   us-english: ok
-python tools/ci/network_independence.py                     NETIND=0
+python tools/ci/network_independence.py                     NETIND=0   (red on the first rebase until the anchors were re-derived; green since)
   1 independent intercept on a permitted destination; 6 shared axes of 8;
   1 policy engine decides in the product, 2 once an operator wires the second
 (cd rust && python -m pytest ../tools/ci/test_network_independence.py \
-    ../tools/ci/test_wiring_census.py -q)                   PYTEST=0   42 passed
+    ../tools/ci/test_wiring_census.py ../tools/ci/test_check_us_english.py -q)
+                                                            PYTEST=0   54 passed
 ```
 
 **Numbers that moved from the branch's own capture, and why.** Suites `145 → 160` and passing
@@ -803,7 +848,7 @@ plus `--doc` separately, so the two captures are not the same command; neither i
 `12 of 40 → 13 of 41` and edges `21 → 23`: `main` added a crate and an edge; this branch's edge is
 still exactly one of the 23, and orphans are `28` on both, so the count did not rise. Ratchet
 `85 / 15`: unchanged, read from the merged corpus's own line — `main` is at `82`, this branch raises
-it to `85`, and the merged corpus really has 85 passing. `docs` `268 → 300` files: `main`'s.
+it to `85`, and the merged corpus really has 85 passing. `docs` `268 → 301` files: `main`'s.
 
 ### The tier of every bound, on the merged tree
 
@@ -837,6 +882,6 @@ Items 1–12 above stand. Added on the merged tree:
 
 ### Not pushed, not merged
 
-Eleven commits on `feat/task-5.4-network-common-mode`, now on `main` @ `92b6018`. Nothing was
+Twelve commits on `feat/task-5.4-network-common-mode`, now on `main` @ `065961b`. Nothing was
 pushed, nothing was merged, and no other worktree was written to. A human merges, one branch at a
 time, per [[merging parallel PRs safely]].
