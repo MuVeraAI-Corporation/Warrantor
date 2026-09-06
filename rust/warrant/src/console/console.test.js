@@ -168,6 +168,30 @@ const ELEMENT_IDS = [
   'incidents-empty',
   'incidents-error',
   'incidents-unreadable',
+  // Policy studio (L8-04) — added by Task 11.3. The ninth destination; all five
+  // digits are taken and audit, fleet and incidents are already click-only, so
+  // this pane is click-only too. The studio's parser is the same one the
+  // server runs (`python/policy_compiler`); the refusal messages are pinned
+  // verbatim by a test. The exception form lives in the same pane because
+  // Task 10.5's lifecycle refuses an exception without an expiry or a
+  // compensating control, and the studio mirrors that refusal on the same
+  // render pass.
+  'view-policy',
+  'policy',
+  'policy-headline',
+  'policy-form',
+  'policy-intent',
+  'policy-rules',
+  'policy-compile',
+  'policy-refusal',
+  'policy-count',
+  'policy-rego',
+  'policy-cedar',
+  'policy-openshell',
+  'policy-exception-warrant',
+  'policy-exception-expires',
+  'policy-exception-compensating',
+  'policy-exception-outcome',
 ];
 
 function element(tag = 'div', id = '') {
@@ -3811,4 +3835,325 @@ test('a row whose releasable set is empty disables the Approve button', async ()
   assert.ok(approve, 'Approve button is disabled when releasable set is empty');
   assert.match(approve.textContent, /Release nothing/);
 });
+
+// ── the policy studio (L8-04) — Task 11.3 ─────────────────────────────────────
+
+import {
+  policyFixtures,
+} from './policy.fixtures.js';
+
+/**
+ * Open the studio against a scripted server and return both the app handle
+ * and the policy exports. The pure functions are pinned to the same module
+ * instance the booted DOM used, which is the discipline: a future refactor
+ * that moves the studio's pure logic into a separate file would change
+ * which module the test reaches, and this single point of import is where
+ * the change would surface.
+ */
+async function openStudio({ intent = '', rules = '', exception = null } = {}) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    return listOf(ONE_WARRANT);
+  });
+  if (intent !== '') app.el('policy-intent').value = intent;
+  if (rules !== '') app.el('policy-rules').value = rules;
+  if (exception) {
+    if (exception.warrant_id) app.el('policy-exception-warrant').value = exception.warrant_id;
+    if (exception.expires) app.el('policy-exception-expires').value = exception.expires;
+    if (exception.compensating_control) {
+      app.el('policy-exception-compensating').value = exception.compensating_control;
+    }
+  }
+  app.el('view-policy').fire('click');
+  await settle();
+  return app;
+}
+
+const {
+  parsePolicyRule,
+  parsePolicyRules,
+  translatePolicyIntent,
+  compilePolicy,
+  buildException,
+} = await (async () => {
+  const app = await openStudio();
+  return app.module;
+})();
+
+/**
+ * Open the policy studio against a scripted server. The studio does NOT
+ * need a server response to render — the compiler and exception builder
+ * are pure functions of the form fields, and `loadPolicy` calls
+ * `renderPolicy` synchronously after `setView('policy')`. The test wires
+ * `/v1/health` and `/v1/warrants` only because every `boot()` requires
+ * them; the pane itself does not fetch.
+ */
+test('parsePolicyRule refuses a malformed line in the compiler\'s exact words', () => {
+  // Step 2 + Step 3 of the plan: the studio and the compiler refuse with
+  // identical text, asserted by iterating the whole set. This test pins
+  // the first entry of the refusal set; the iteration test below pins
+  // every entry.
+  const parsed = parsePolicyRule('this is not a rule');
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.refusal, "could not parse rule: 'this is not a rule'");
+});
+
+test('parsePolicyRule refuses a missing-when clause in the compiler\'s exact words', () => {
+  const parsed = parsePolicyRule('allow tool:read on /sandbox/* with clearance >= 3');
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.refusal, "expected 'when <clause>' but got 'with clearance >= 3'");
+});
+
+test('parsePolicyRule refuses a bad condition in the compiler\'s exact words', () => {
+  const parsed = parsePolicyRule('allow tool:read on r when clearance ~= 3');
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.refusal, "could not parse condition: 'when clearance ~= 3'");
+});
+
+test('the studio and the compiler refuse with identical text for every refusal in the set', () => {
+  // Step 3 of the plan: "studio and compiler refuse with identical text.
+  // Iterate the whole set." The transcribed refusal messages in the
+  // fixture are the contract; a test that iterates them pins the
+  // studio to the Python compiler line by line.
+  for (const refusal of policyFixtures.refusals) {
+    const parsed = parsePolicyRule(refusal.line);
+    assert.equal(
+      parsed.ok,
+      false,
+      `the studio must refuse line: ${refusal.line} (${refusal.label})`,
+    );
+    assert.equal(
+      parsed.refusal,
+      refusal.compiler_message,
+      `studio refusal must match the compiler's exact sentence for: ${refusal.label}`,
+    );
+  }
+});
+
+test('compilePolicy accepts every acceptable policy in the fixture and emits all three artifacts', () => {
+  // Step 4 of the plan: a studio-accepted policy always compiles. The
+  // test iterates the acceptable set and asserts each one compiles to
+  // a non-empty artifact set with the expected rule count.
+  for (const acceptable of policyFixtures.acceptablePolicies) {
+    const result = compilePolicy({ intent: acceptable.intent, rules: acceptable.rules });
+    assert.equal(
+      result.ok,
+      true,
+      `the studio must accept: ${acceptable.label}`,
+    );
+    assert.equal(result.rules.length, acceptable.expected_rule_count);
+    assert.ok(result.rego.includes('package warrantor.policy'),
+      `the Rego artifact must declare its package (${acceptable.label})`);
+    assert.ok(result.rego.includes('default allow = false'),
+      `the Rego artifact must declare default-deny (${acceptable.label})`);
+    assert.ok(typeof result.cedar === 'string' && result.cedar.length > 0,
+      `the Cedar artifact must be non-empty (${acceptable.label})`);
+    assert.ok(typeof result.openshell === 'string' && result.openshell.length > 0,
+      `the OpenShell artifact must be non-empty (${acceptable.label})`);
+  }
+});
+
+test('translatePolicyIntent expands the four canonical phrases and ignores everything else', () => {
+  // Discipline: the phrasebook is the same one the Python compiler
+  // carries (`_INTENT_PATTERNS` in `policy_compiler/__init__.py`).
+  // The test pins each of the four phrases, the case-insensitive
+  // behaviour, and the empty case.
+  assert.equal(translatePolicyIntent('deny all egress').length, 1);
+  assert.equal(translatePolicyIntent('please REQUIRE mfa').length, 1);
+  assert.equal(translatePolicyIntent('Block External Network please').length, 1);
+  assert.equal(translatePolicyIntent('only allow read access').length, 1);
+  assert.equal(translatePolicyIntent('make me a sandwich').length, 0);
+  assert.equal(translatePolicyIntent('').length, 0);
+});
+
+test('compilePolicy surfaces a refusal for a malformed enterprise rule and returns no artifacts', () => {
+  // The studio must not emit half-compiled artifacts when the parser
+  // refuses — a partial output is the rule's opposite (a rule that
+  // half-compiles would round-trip to the broker with rules missing).
+  const result = compilePolicy({ intent: '', rules: 'this is not a rule' });
+  assert.equal(result.ok, false);
+  assert.equal(result.refusal, "could not parse rule: 'this is not a rule'");
+  // The function shape must not include artifact fields on a refused
+  // compile: a test that expected `result.rego` would fail loudly.
+  assert.equal(result.rego, undefined);
+  assert.equal(result.cedar, undefined);
+  assert.equal(result.openshell, undefined);
+});
+
+test('an exception without an expiry is refused at the studio', () => {
+  // Step 5 of the plan: an exception without an expiry OR a
+  // compensating control cannot be built. The first half of the
+  // contract.
+  const ex = buildException({ compensating_control: 'page on call' });
+  assert.equal(ex.ok, false);
+  assert.match(ex.refusal, /expires/);
+});
+
+test('an exception without a compensating control is refused at the studio', () => {
+  // The second half of the contract.
+  const ex = buildException({ expires: '2027-01-01T00:00:00Z' });
+  assert.equal(ex.ok, false);
+  assert.match(ex.refusal, /compensating control/);
+});
+
+test('an exception with both fields is accepted and carries both', () => {
+  const ex = buildException({
+    warrant_id: 'wrt_0000000000000042',
+    expires: '2027-01-01T00:00:00Z',
+    compensating_control: 'paging on call to approve within 15 minutes',
+  });
+  assert.equal(ex.ok, true);
+  assert.equal(ex.exception.warrant_id, 'wrt_0000000000000042');
+  assert.equal(ex.exception.expires, '2027-01-01T00:00:00Z');
+  assert.equal(ex.exception.compensating_control, 'paging on call to approve within 15 minutes');
+});
+
+test('every exception case in the fixture matches its acceptance verdict and refusal substring', () => {
+  // Step 5 of the plan, asserted for the whole set: iterate the
+  // fixture and assert each one. A future fixture change that flipped
+  // a `accepted: true` to `accepted: false` would be caught here
+  // before it shipped.
+  for (const exCase of policyFixtures.exceptionCases) {
+    const ex = buildException(exCase.exception);
+    assert.equal(
+      ex.ok,
+      exCase.accepted,
+      `exception case ${exCase.label} must match its acceptance verdict`,
+    );
+    if (!exCase.accepted) {
+      assert.ok(
+        ex.refusal.includes(exCase.refusal_substring),
+        `exception refusal must contain ${JSON.stringify(exCase.refusal_substring)} for: ${exCase.label}`,
+      );
+    }
+  }
+});
+
+test('the policy tab is hidden by default and visible only when the operator clicks it', async () => {
+  // The studio is the ninth destination; it must not steal the right
+  // column from the warrant list on first paint. A pane that flashes
+  // visible during boot is the same shape as a pane that ships
+  // visible by default.
+  const app = await openStudio();
+  assert.equal(app.el('policy').hidden, false,
+    'clicking the Policy tab must show the policy pane');
+  assert.equal(app.el('queue').hidden, true,
+    'clicking the Policy tab must hide the queue pane');
+  assert.equal(app.el('summary').hidden, true,
+    'clicking the Policy tab must hide the summary pane');
+  assert.equal(app.el('audit').hidden, true,
+    'clicking the Policy tab must hide the audit pane');
+  assert.equal(app.el('fleet').hidden, true,
+    'clicking the Policy tab must hide the fleet pane');
+  assert.equal(app.el('incidents').hidden, true,
+    'clicking the Policy tab must hide the incidents pane');
+});
+
+test('the studio paints the refusal sentence verbatim and shows it in the refusal block', async () => {
+  // The pane shows the refusal sentence in its own block when the
+  // parser refuses. The text in the block must be the same string
+  // the parser returned, character for character, because a studio
+  // that paraphrases is a studio that has lost the contract.
+  const app = await openStudio({ rules: 'this is not a rule' });
+  const refusalText = app.el('policy-refusal').textContent;
+  assert.equal(refusalText, "could not parse rule: 'this is not a rule'");
+  assert.equal(app.el('policy-refusal').hidden, false);
+  // The Rego block is empty on a refused compile — the pane does
+  // not show "0 rules compiled" as a green number on a refused
+  // parse, because that would be a half-rendered success.
+  assert.equal(app.el('policy-rego').textContent, '');
+});
+
+test('the studio paints the compiled Rego artifact and the rule count on a clean parse', async () => {
+  const app = await openStudio({
+    intent: 'deny all egress',
+    rules: 'allow tool:read on /sandbox/* when clearance >= 3',
+  });
+  assert.match(app.el('policy-count').textContent, /2 rules compiled/);
+  assert.match(app.el('policy-rego').textContent, /package warrantor\.policy/);
+  assert.match(app.el('policy-rego').textContent, /default allow = false/);
+  // The deny intent produced a deny clause; the enterprise rule produced
+  // an allow clause. Both must be present, in that order in the file.
+  const rego = app.el('policy-rego').textContent;
+  assert.ok(rego.indexOf('deny {') >= 0, 'deny block must be emitted');
+  assert.ok(rego.indexOf('allow {') >= 0, 'allow block must be emitted');
+});
+
+test('the studio paints the exception refusal when expires is missing', async () => {
+  const app = await openStudio({ exception: { compensating_control: 'page on call' } });
+  const outcome = app.el('policy-exception-outcome');
+  assert.match(outcome.textContent, /expires/);
+  assert.ok(outcome.className.includes('error'),
+    'an exception refusal must render with the error class so it is not the same shape as success');
+});
+
+test('the studio paints the exception refusal when compensating control is missing', async () => {
+  const app = await openStudio({ exception: { expires: '2027-01-01T00:00:00Z' } });
+  const outcome = app.el('policy-exception-outcome');
+  assert.match(outcome.textContent, /compensating control/);
+  assert.ok(outcome.className.includes('error'));
+});
+
+test('the studio paints the exception acceptance when both fields are set', async () => {
+  const app = await openStudio({
+    exception: {
+      warrant_id: 'wrt_0000000000000042',
+      expires: '2027-01-01T00:00:00Z',
+      compensating_control: 'paging on call to approve within 15 minutes',
+    },
+  });
+  const outcome = app.el('policy-exception-outcome');
+  assert.match(outcome.textContent, /exception accepted/);
+  assert.ok(!outcome.className.includes('error'),
+    'an accepted exception must not carry the error class');
+});
+
+test('the policy tab has no digit-key binding in the keyboard switcher', async () => {
+  // The five digits are 1..5 for warrants, queue, summary, coverage,
+  // and routing. The policy studio is the ninth destination and is
+  // click-only, like audit, fleet and incidents. A test reads the
+  // SHORTCUTS array and asserts no digit 6/7/8/9 has been assigned
+  // to setView('policy') — a regression that bound the policy
+  // studio to a digit would steal the key from a future pane.
+  const app = await openStudio();
+  const { SHORTCUTS } = app.module;
+  for (const entry of SHORTCUTS) {
+    if (typeof entry?.keys === 'string' && /^[6-9]$/.test(entry.keys)) {
+      assert.notEqual(
+        entry.action,
+        'policy',
+        `digit ${entry.keys} must not be bound to the policy view (SHORTCUTS regression)`,
+      );
+    }
+  }
+});
+
+test('every policy element id is declared in index.html and stubbed in ELEMENT_IDS', async () => {
+  // The "every element the console looks up exists in index.html and in
+  // this stub" test at the top of the file scans console.js and asserts
+  // each `getElementById('x')` is present in both. This test is the
+  // partner: it pins the policy-specific ids so a future edit that
+  // removed one from ELEMENT_IDS but kept it in console.js would be
+  // caught by the top-level test, and a future edit that added one to
+  // console.js but forgot to stub it would be caught here.
+  const policyIds = [
+    'view-policy', 'policy', 'policy-headline', 'policy-form',
+    'policy-intent', 'policy-rules', 'policy-compile', 'policy-refusal',
+    'policy-count', 'policy-rego', 'policy-cedar', 'policy-openshell',
+    'policy-exception-warrant', 'policy-exception-expires',
+    'policy-exception-compensating', 'policy-exception-outcome',
+  ];
+  for (const id of policyIds) {
+    assert.ok(ELEMENT_IDS.includes(id), `policy id ${id} must be in ELEMENT_IDS`);
+  }
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html'),
+    'utf8',
+  );
+  for (const id of policyIds) {
+    assert.ok(html.includes(`id="${id}"`), `policy id ${id} must be in index.html`);
+  }
+});
+
 

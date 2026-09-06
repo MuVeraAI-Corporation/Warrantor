@@ -74,6 +74,7 @@
           <button id="view-audit" class="view" type="button">Audit</button>
           <button id="view-fleet" class="view" type="button">Fleet</button>
           <button id="view-incidents" class="view" type="button">Incidents</button>
+          <button id="view-policy" class="view" type="button">Policy</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -545,6 +546,117 @@
 
         <div id="fleet-summary" class="fleet-summary"></div>
         <ul id="fleet-agents" class="fleet-agents"></ul>
+      </section>
+
+      <!-- The policy studio (L8-04).
+           A non-developer surface for the same compiler the server runs
+           (`python/policy_compiler`). The studio parses the operator's input
+           and refuses with the compiler's exact sentences, because a studio
+           that accepts a policy the compiler refuses has taught the operator
+           something false about their own controls. The refusal block is
+           visible on every render and the compiled artifacts are blank until
+           the parser is happy; a silent acceptance is the rule's opposite.
+
+           The exception form sits in the same pane because the lifecycle
+           (Task 10.5) refuses an exception without an expiry or a compensating
+           control, and the studio mirrors that refusal in its own words on
+           the same render pass. A studio that lets the operator build an
+           exception the server will reject is the same failure, one layer
+           down. -->
+      <section id="policy" class="policy" hidden aria-labelledby="policy-headline">
+        <h2 id="policy-headline">Policy studio &mdash; the same parser the server runs</h2>
+
+        <p class="note">
+          The studio parses what you type with the same parser that compiles
+          the warrants on this machine. A line that the compiler will reject
+          is refused here in the same words, so the refusal you see is the
+          refusal the broker will raise. The three artifacts below are
+          Rego (the language the broker runs), Cedar, and OpenShell; a
+          policy that compiles here will compile on the server.
+        </p>
+
+        <form id="policy-form" class="policy-form">
+          <label for="policy-intent">Intent (one sentence in plain English)</label>
+          <input
+            id="policy-intent"
+            type="text"
+            spellcheck="true"
+            autocomplete="off"
+            placeholder="deny all egress"
+            aria-describedby="policy-help"
+          />
+          <p id="policy-help" class="note">
+            The phrasebook recognizes four intents: <em>deny all egress</em>,
+            <em>require mfa</em>, <em>block external network</em>, and
+            <em>only allow read</em>. Anything else is treated as no intent
+            and the rules below carry the policy.
+          </p>
+
+          <label for="policy-rules">Rules (one per line, <code>allow|deny</code> <code>action</code> on <code>resource</code> [when <code>attribute op value</code>])</label>
+          <textarea
+            id="policy-rules"
+            rows="6"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="allow tool:read on /sandbox/* when clearance >= 3"
+            aria-describedby="policy-rules-help"
+          ></textarea>
+          <p id="policy-rules-help" class="note">
+            Blank lines and lines starting with <code>#</code> are ignored.
+            Operators are the same kind the server accepts; a rule that does
+            not parse here will not compile on the server.
+          </p>
+
+          <button id="policy-compile" type="submit">Compile</button>
+        </form>
+
+        <p id="policy-refusal" class="empty error" hidden></p>
+        <p id="policy-count" class="note"></p>
+
+        <div class="section">
+          <h3>Rego &mdash; the language the broker runs</h3>
+          <pre id="policy-rego" class="policy-artifact"></pre>
+        </div>
+
+        <div class="section">
+          <h3>Cedar &mdash; preview</h3>
+          <pre id="policy-cedar" class="policy-artifact"></pre>
+        </div>
+
+        <div class="section">
+          <h3>OpenShell YAML &mdash; preview</h3>
+          <pre id="policy-openshell" class="policy-artifact"></pre>
+        </div>
+
+        <div class="section">
+          <h3>Exception &mdash; the lifecycle refuses one without an expiry or a compensating control</h3>
+          <p class="note">
+            An exception without an <code>expires</code> date is a silent policy edit
+            &mdash; it never stops applying, so the bound it loosens never tightens
+            again. An exception without a <code>compensating_control</code> is a
+            loosening with nothing to compensate for, which is the mechanism by which
+            a governed system becomes an ungoverned one without anybody deciding to.
+            The studio mirrors the server-side refusal (Task 10.5) in its own words,
+            so the operator learns the rule here, not from a server error after the
+            fact.
+          </p>
+          <div class="policy-exception-form">
+            <label for="policy-exception-warrant">Warrant</label>
+            <input id="policy-exception-warrant" type="text" autocomplete="off" placeholder="wrt_..." />
+            <label for="policy-exception-expires">Expires (ISO 8601 date or datetime)</label>
+            <input id="policy-exception-expires" type="text" autocomplete="off" placeholder="2027-01-01T00:00:00Z" />
+            <label for="policy-exception-compensating">Compensating control</label>
+            <input id="policy-exception-compensating" type="text" autocomplete="off" placeholder="paging on call to approve within 15 minutes" />
+          </div>
+          <p id="policy-exception-outcome" class="note"></p>
+        </div>
+
+        <p class="note">
+          The compiled policy is not saved by the studio. Compilation is a
+          preview: the operator sees what the server will produce, and a
+          change to the live policy still happens at a terminal, the way
+          every other authority-bearing act in this product does.
+        </p>
       </section>
 
       <!-- The first-run panel.

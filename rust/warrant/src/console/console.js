@@ -104,6 +104,31 @@ const el = {
   incidentsEmpty: document.getElementById('incidents-empty'),
   incidentsError: document.getElementById('incidents-error'),
   incidentsUnreadable: document.getElementById('incidents-unreadable'),
+  // Policy studio (L8-04) — Task 11.3. The ninth destination; all five digits
+  // are taken and audit, fleet and incidents are already click-only, so this
+  // pane is click-only too. The studio runs the same parse + emit as the
+  // Python `policy_compiler` and refuses with the compiler's exact sentences,
+  // because a studio that accepts a policy the compiler refuses (or vice
+  // versa) has taught the operator something false about their own controls.
+  // Exceptions are added on the same pane because the lifecycle (Task 10.5)
+  // refuses one without an expiry or a compensating control, and the studio
+  // mirrors that refusal in its own words.
+  viewPolicy: document.getElementById('view-policy'),
+  policy: document.getElementById('policy'),
+  policyHeadline: document.getElementById('policy-headline'),
+  policyForm: document.getElementById('policy-form'),
+  policyIntent: document.getElementById('policy-intent'),
+  policyRules: document.getElementById('policy-rules'),
+  policyCompile: document.getElementById('policy-compile'),
+  policyRefusal: document.getElementById('policy-refusal'),
+  policyCount: document.getElementById('policy-count'),
+  policyRego: document.getElementById('policy-rego'),
+  policyCedar: document.getElementById('policy-cedar'),
+  policyOpenshell: document.getElementById('policy-openshell'),
+  policyExceptionWarrant: document.getElementById('policy-exception-warrant'),
+  policyExceptionExpires: document.getElementById('policy-exception-expires'),
+  policyExceptionCompensating: document.getElementById('policy-exception-compensating'),
+  policyException: document.getElementById('policy-exception-outcome'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -427,7 +452,8 @@ function applyEmptyState(kind) {
   const audit = state.view === 'audit';
   const fleet = state.view === 'fleet';
   const incidents = state.view === 'incidents';
-  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents;
+  const policy = state.view === 'policy';
+  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
   el.settings && (el.settings.hidden = !settings);
@@ -436,6 +462,7 @@ function applyEmptyState(kind) {
   el.audit && (el.audit.hidden = !audit);
   el.fleet && (el.fleet.hidden = !fleet);
   el.incidents && (el.incidents.hidden = !incidents);
+  el.policy && (el.policy.hidden = !policy);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -491,6 +518,7 @@ async function setView(value) {
     [el.viewAudit, 'audit'],
     [el.viewFleet, 'fleet'],
     [el.viewIncidents, 'incidents'],
+    [el.viewPolicy, 'policy'],
   ]) {
     if (!button) continue;
     button.classList.toggle('is-on', value === name);
@@ -505,6 +533,7 @@ async function setView(value) {
   if (value === 'audit') await loadAudit();
   if (value === 'fleet') await loadFleet();
   if (value === 'incidents') await loadIncidents();
+  if (value === 'policy') await loadPolicy();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -2771,7 +2800,404 @@ async function loadIncidents() {
   renderIncidents(incidentsFacts(answered, status, payload));
 }
 
-// ── the summary: bounds that refused, and what a model said about what they allowed ──
+// ── the policy studio: a non-developer surface for the same compiler the server runs ──
+
+/**
+ * Parse one DSL rule line. Mirrors `python/policy_compiler/src/policy_compiler/__init__.py`
+ * (`parse_rule`) exactly. The refusal messages are byte-identical to the Python's, because
+ * a studio that refuses in different words from the compiler has taught the operator something
+ * false about their own controls — the failure Task 11.3 exists to prevent.
+ *
+ * Grammar (one rule per line)::
+ *
+ *     <effect> <action> on <resource> [when <attribute> <op> <value>]
+ *
+ * `<effect>` is `allow` or `deny`. `<op>` is one of `==`, `!=`, `>=`, `<=`, `>`, `<`. The
+ * literal `always` may stand in for a condition to make the rule unconditional.
+ *
+ * @param {string} line A single rule line, with optional leading/trailing whitespace.
+ * @returns {{ok: true, rule: object} | {ok: false, refusal: string}}
+ */
+/**
+ * Python-style repr for a string. The compiler in
+ * `python/policy_compiler/src/policy_compiler/__init__.py` raises
+ * `f"could not parse rule: {line!r}"` — `{!r}` calls `repr()`, which on a
+ * Python string returns single-quoted text. `JSON.stringify` would return
+ * double-quoted text and the two refusal sentences would diverge. The
+ * studio's contract is byte-equivalence to the Python sentence, so the
+ * studio uses its own `repr`-shaped helper.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function pyrepr(text) {
+  const s = String(text ?? '');
+  // Python escapes single quotes with backslash, double quotes are bare.
+  // Backslash itself is escaped first so it does not eat the quote escape.
+  const escaped = s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return `'${escaped}'`;
+}
+
+export function parsePolicyRule(line) {
+  const text = String(line ?? '');
+  const match = /^\s*(allow|deny)\s+([A-Za-z0-9_:./\-*]+)\s+on\s+([A-Za-z0-9_:./\-*/]+)(.*)$/.exec(text);
+  if (!match) {
+    return { ok: false, refusal: `could not parse rule: ${pyrepr(text)}` };
+  }
+  const effect = match[1];
+  const action = match[2];
+  const resource = match[3];
+  const rest = (match[4] || '').trim();
+  if (!rest) {
+    return { ok: true, rule: { effect, action, resource, conditional: false } };
+  }
+  if (rest === 'when always') {
+    return { ok: true, rule: { effect, action, resource, conditional: false } };
+  }
+  if (!rest.startsWith('when')) {
+    return { ok: false, refusal: `expected 'when <clause>' but got ${pyrepr(rest)}` };
+  }
+  const condMatch = /^\s*when\s+([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=|>=|<=|>|<)\s*([A-Za-z0-9_.'"\-]+)\s*$/.exec(rest);
+  if (!condMatch) {
+    return { ok: false, refusal: `could not parse condition: ${pyrepr(rest)}` };
+  }
+  const attribute = condMatch[1];
+  const op = condMatch[2];
+  const value = condMatch[3].replace(/^['"]|['"]$/g, '');
+  return { ok: true, rule: { effect, action, resource, attribute, op, value, conditional: true } };
+}
+
+/**
+ * Parse a multi-line DSL document. Blank lines and lines starting with `#` are ignored.
+ *
+ * Mirrors `parse_rules` in `python/policy_compiler/src/policy_compiler/__init__.py`.
+ *
+ * @param {string} text A multi-line DSL document.
+ * @returns {{ok: true, rules: object[]} | {ok: false, refusal: string}}
+ */
+export function parsePolicyRules(text) {
+  const rules = [];
+  for (const raw of String(text ?? '').split(/\r?\n/)) {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const parsed = parsePolicyRule(trimmed);
+    if (!parsed.ok) return parsed;
+    rules.push(parsed.rule);
+  }
+  return { ok: true, rules };
+}
+
+/**
+ * Translate a natural-language intent into a list of seed rules. The phrasebook
+ * is the same one the Python compiler's `translate_intent` uses. An unknown
+ * intent returns an empty list — the enterprise rules carry the real policy.
+ *
+ * @param {string} intent The natural-language intent.
+ * @returns {object[]} The seed rules.
+ */
+export function translatePolicyIntent(intent) {
+  const out = [];
+  const lower = String(intent ?? '').toLowerCase();
+  if (/\bdeny\s+all\s+egress\b/.test(lower)) {
+    out.push({ effect: 'deny', action: 'tool:http', resource: '*', conditional: false });
+  }
+  if (/\brequire\s+mfa\b/.test(lower)) {
+    out.push({ effect: 'allow', action: 'tool:*', resource: '*', attribute: 'mfa', op: '==', value: 'true', conditional: true });
+  }
+  if (/\bblock\s+external\s+network\b/.test(lower)) {
+    out.push({ effect: 'deny', action: 'tool:net', resource: 'external/*', conditional: false });
+  }
+  if (/\bonly\s+allow\s+read\b/.test(lower)) {
+    out.push({ effect: 'allow', action: 'tool:read', resource: '*', conditional: false });
+  }
+  return out;
+}
+
+/**
+ * Render a single rule as a Rego clause, matching the Python's `RegoPolicyEmitter`.
+ *
+ * @param {object} rule One parsed rule.
+ * @returns {string} The Rego condition line, without a trailing comma.
+ */
+function regoConditionForRule(rule) {
+  let resource;
+  if (rule.resource.endsWith('/*')) {
+    const prefix = rule.resource.slice(0, -2);
+    resource = `startsWith(input.resource, "${prefix}/")`;
+  } else if (rule.resource === '*') {
+    resource = 'true';
+  } else {
+    resource = `input.resource == "${rule.resource}"`;
+  }
+  let action;
+  if (rule.action === 'tool:*') {
+    action = 'startsWith(input.action, "tool:")';
+  } else if (rule.action.endsWith('*')) {
+    const prefix = rule.action.slice(0, -1);
+    action = `startsWith(input.action, "${prefix}")`;
+  } else {
+    action = `input.action == "${rule.action}"`;
+  }
+  let cond;
+  if (!rule.conditional) {
+    cond = 'true';
+  } else {
+    cond = `input.identity.attributes.${rule.attribute} ${rule.op} ${rule.value}`;
+  }
+  return [action, resource, cond].filter((p) => p !== '').join(', ');
+}
+
+/**
+ * Emit a list of rules as a Rego module. Mirrors `RegoPolicyEmitter.emit` in the Python
+ * compiler; the module string is byte-equivalent for byte-equivalent input. Deny wins
+ * (the canonical least-privilege default).
+ *
+ * @param {object[]} rules Parsed rules.
+ * @returns {string} The Rego module.
+ */
+export function regoPolicyEmit(rules) {
+  const allowLines = [];
+  const denyLines = [];
+  for (const r of rules) {
+    const cond = regoConditionForRule(r);
+    if (r.effect === 'allow') allowLines.push(`    ${cond}`);
+    else denyLines.push(`    ${cond}`);
+  }
+  const out = ['package warrantor.policy', '', 'default allow = false  # deny by default'];
+  if (allowLines.length > 0) {
+    out.push('allow {');
+    out.push(...allowLines);
+    out.push('}');
+  }
+  if (denyLines.length > 0) {
+    out.push('deny {');
+    out.push(...denyLines);
+    out.push('}');
+    out.push('allow {');
+    out.push('    not deny');
+    out.push('    # (only when no deny rule matched)');
+    out.push('}');
+  }
+  return out.join('\n') + '\n';
+}
+
+/**
+ * Build the OpenShell YAML view of a rule list. Mirrors `OpenShellEmitter.emit`.
+ *
+ * @param {object[]} rules Parsed rules.
+ * @returns {string} The YAML body.
+ */
+export function openShellPolicyEmit(rules) {
+  const lines = ['version: "1"', 'rules:'];
+  for (const r of rules) {
+    lines.push(`  - effect: ${r.effect}`);
+    lines.push(`    action: "${r.action}"`);
+    lines.push(`    resource: "${r.resource}"`);
+    if (r.conditional) {
+      lines.push('    when:');
+      lines.push(`      attribute: "${r.attribute}"`);
+      lines.push(`      op: "${r.op}"`);
+      lines.push(`      value: "${r.value}"`);
+    } else {
+      lines.push('    when: always');
+    }
+  }
+  return lines.join('\n') + '\n';
+}
+
+/**
+ * Build the Cedar view of a rule list. Mirrors `CedarPolicyEmitter.emit`; the
+ * rendering is intentionally simpler than the Rego form because the studio
+ * surfaces it as a preview, not as the language the broker runs.
+ *
+ * @param {object[]} rules Parsed rules.
+ * @returns {string} The Cedar policy body.
+ */
+export function cedarPolicyEmit(rules) {
+  const lines = [];
+  rules.forEach((r, i) => {
+    const keyword = r.effect === 'deny' ? 'forbid' : 'permit';
+    let resource;
+    if (r.resource === '*') {
+      resource = 'resource is Resource';
+    } else if (r.resource.endsWith('/*')) {
+      const prefix = r.resource.slice(0, -2);
+      resource = `resource like "${prefix}/*"`;
+    } else {
+      resource = `resource == "${r.resource}"`;
+    }
+    let action;
+    if (r.action === 'tool:*') {
+      action = 'action like "tool:*"';
+    } else if (r.action.endsWith('*')) {
+      action = `action like "${r.action}"`;
+    } else {
+      action = `action == "${r.action}"`;
+    }
+    const parts = [action, resource];
+    if (r.conditional) {
+      const v = r.value;
+      const isBool = v.toLowerCase() === 'true' || v.toLowerCase() === 'false';
+      const isNum = /^-?\d+(\.\d+)?$/.test(v);
+      const literal = isBool || isNum ? v : `"${v}"`;
+      parts.push(`when { principal.attrs["${r.attribute}"] ${r.op} ${literal} }`);
+    }
+    lines.push(`${keyword} (\n  principal is Agent,\n  ${parts.join(',\n  ')}\n);  // rule #${i + 1}`);
+  });
+  return lines.join('\n') + '\n';
+}
+
+/**
+ * The studio's compiler entry point. Combines NL intent + enterprise rules into
+ * a `CompiledPolicy` with the same shape the Python compiler returns, or surfaces
+ * the Python's exact refusal message on parse failure.
+ *
+ * The function is pure: no DOM, no fetch, no clock. The pane builds the input
+ * fields, calls this, and renders the result. A test that constructs the inputs
+ * directly pins the contract.
+ *
+ * @param {{intent?: string, rules?: string}} input
+ * @returns {{ok: true, rules: object[], rego: string, cedar: string, openshell: string} | {ok: false, refusal: string}}
+ */
+export function compilePolicy(input) {
+  const intent = String(input?.intent ?? '');
+  const rulesText = String(input?.rules ?? '');
+  const rules = [];
+  if (intent) rules.push(...translatePolicyIntent(intent));
+  if (rulesText) {
+    const parsed = parsePolicyRules(rulesText);
+    if (!parsed.ok) return parsed;
+    rules.push(...parsed.rules);
+  }
+  return {
+    ok: true,
+    rules,
+    rego: regoPolicyEmit(rules),
+    cedar: cedarPolicyEmit(rules),
+    openshell: openShellPolicyEmit(rules),
+  };
+}
+
+/**
+ * Build an exception from the studio's exception form. Mirrors Task 10.5: an
+ * exception without an `expires` date or a `compensating_control` sentence is
+ * refused at creation. The studio must agree with the lifecycle, because a
+ * studio that lets the operator build an exception the server will reject has
+ * taught the operator something false about the system they are operating.
+ *
+ * The refusal message names the missing field by name, so the operator can fix
+ * the form without guessing. The substring is part of the contract and pinned
+ * by a test (`exception without expiry or compensating control cannot be built`).
+ *
+ * @param {{warrant_id?: string, expires?: string, compensating_control?: string}} exception
+ * @returns {{ok: true, exception: object} | {ok: false, refusal: string}}
+ */
+export function buildException(exception) {
+  const expires = String(exception?.expires ?? '').trim();
+  const compensating = String(exception?.compensating_control ?? '').trim();
+  if (!expires && !compensating) {
+    return {
+      ok: false,
+      refusal:
+        'exception must carry an expires date and a compensating control; ' +
+        'both are missing, so the lifecycle would refuse this at creation',
+    };
+  }
+  if (!expires) {
+    return {
+      ok: false,
+      refusal:
+        'exception must carry an expires date; the lifecycle refuses an exception that never expires',
+    };
+  }
+  if (!compensating) {
+    return {
+      ok: false,
+      refusal:
+        'exception must carry a compensating control; the lifecycle refuses an exception with nothing to compensate for',
+    };
+  }
+  return {
+    ok: true,
+    exception: {
+      warrant_id: String(exception?.warrant_id ?? '').trim(),
+      expires,
+      compensating_control: compensating,
+    },
+  };
+}
+
+/**
+ * Read the studio's textareas, run `compilePolicy`, and paint the result.
+ * Pure-render: called from a button click and from tests.
+ */
+export function renderPolicy() {
+  if (!el.policy) return;
+  const intent = el.policyIntent?.value ?? '';
+  const rulesText = el.policyRules?.value ?? '';
+  const exceptionFields = {
+    warrant_id: el.policyExceptionWarrant?.value ?? '',
+    expires: el.policyExceptionExpires?.value ?? '',
+    compensating_control: el.policyExceptionCompensating?.value ?? '',
+  };
+  const result = compilePolicy({ intent, rules: rulesText });
+
+  // Refusal block. Visible only when the parser refused; the verdict
+  // sentence is rendered verbatim from the parser so the studio and the
+  // compiler can never drift in their words.
+  if (el.policyRefusal) {
+    if (!result.ok) {
+      el.policyRefusal.textContent = result.refusal;
+      el.policyRefusal.hidden = false;
+    } else {
+      el.policyRefusal.hidden = true;
+      el.policyRefusal.textContent = '';
+    }
+  }
+
+  // Compiled artifacts. The Rego block is the one the broker runs; the
+  // Cedar and OpenShell blocks are previews, included so a non-developer
+  // reader can see the same policy rendered three ways and confirm none
+  // of them have quietly gained a rule.
+  if (el.policyCount) {
+    el.policyCount.textContent = result.ok
+      ? `${result.rules.length} rule${result.rules.length === 1 ? '' : 's'} compiled`
+      : 'not compiled';
+  }
+  if (el.policyRego) {
+    el.policyRego.textContent = result.ok ? result.rego : '';
+  }
+  if (el.policyCedar) {
+    el.policyCedar.textContent = result.ok ? result.cedar : '';
+  }
+  if (el.policyOpenshell) {
+    el.policyOpenshell.textContent = result.ok ? result.openshell : '';
+  }
+
+  // Exception block. The lifecycle refuses one without `expires` or
+  // `compensating_control`; the studio mirrors that refusal in its own
+  // words, on the same render pass.
+  if (el.policyException) {
+    const ex = buildException(exceptionFields);
+    if (ex.ok) {
+      el.policyException.textContent =
+        `exception accepted: warrant ${ex.exception.warrant_id || '(unset)'} ` +
+        `expires ${ex.exception.expires}; compensating control: ${ex.exception.compensating_control}`;
+      el.policyException.classList.remove('error');
+    } else {
+      el.policyException.textContent = ex.refusal;
+      el.policyException.classList.add('error');
+    }
+  }
+}
+
+/** Load the policy studio from the DOM. Click-only — no number key. */
+async function loadPolicy() {
+  if (!el.policy) return;
+  renderPolicy();
+}
+
+
 
 /**
  * Turn a month into the half-open window the API takes.
@@ -3976,6 +4402,24 @@ el.viewRouting.addEventListener('click', () => setView('routing'));
 if (el.viewAudit) el.viewAudit.addEventListener('click', () => setView('audit'));
 if (el.viewFleet) el.viewFleet.addEventListener('click', () => setView('fleet'));
 if (el.viewIncidents) el.viewIncidents.addEventListener('click', () => setView('incidents'));
+if (el.viewPolicy) el.viewPolicy.addEventListener('click', () => setView('policy'));
+
+// The studio re-renders on every keystroke into the editor (so the operator
+// sees the refusal sentence appear as they type a malformed line) and on
+// every change to the exception form. The compile button is a no-op beyond
+// that — the result is already painted — and exists only because the
+// typical non-developer expects one.
+if (el.policyForm) {
+  el.policyForm.addEventListener('submit', (event) => {
+    event.preventDefault?.();
+    renderPolicy();
+  });
+}
+if (el.policyIntent) el.policyIntent.addEventListener('input', renderPolicy);
+if (el.policyRules) el.policyRules.addEventListener('input', renderPolicy);
+if (el.policyExceptionExpires) el.policyExceptionExpires.addEventListener('input', renderPolicy);
+if (el.policyExceptionCompensating) el.policyExceptionCompensating.addEventListener('input', renderPolicy);
+if (el.policyExceptionWarrant) el.policyExceptionWarrant.addEventListener('input', renderPolicy);
 
 el.summaryForm.addEventListener('submit', (event) => {
   event.preventDefault?.();

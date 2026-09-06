@@ -850,3 +850,58 @@ kbd {
   .row.is-on { outline: 2px solid Highlight; }
   .verdict::before { forced-color-adjust: none; }
 }
+
+/* ── the policy studio (L8-04) ───────────────────────────────────────────── */
+
+/* Form layout: a single column with the intent input, the rules textarea,
+   the compile button, then the artifacts in three blocks. The exception
+   sub-form is its own row of three fields, mirroring the same shape. */
+.policy-form { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
+.policy-form label { font-weight: 600; }
+.policy-form input[type="text"],
+.policy-form textarea {
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 6px 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.policy-form textarea {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  resize: vertical;
+  min-height: 9em;
+}
+.policy-form button[type="submit"] {
+  justify-self: start;
+}
+
+.policy-exception-form { display: grid; gap: var(--space-2); margin-bottom: var(--space-2); }
+.policy-exception-form input[type="text"] {
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 6px 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.policy-exception-form label { font-weight: 600; }
+
+.policy-artifact {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  color: var(--ink);
+}
+
+#policy-exception-outcome.error { color: var(--severity-warn); }
+#policy-exception-outcome:not(.error) { color: var(--ink-strong); }
