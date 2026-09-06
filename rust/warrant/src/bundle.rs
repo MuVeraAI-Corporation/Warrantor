@@ -55,7 +55,7 @@ use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
 use crate::report::sha256_hex;
-use crate::trust::{check_name, Directory, PinnedIssuer, TRUST_FORMAT};
+use crate::trust::{check_name, Directory, ImportProvenance, PinnedIssuer, TRUST_FORMAT};
 
 /// The wire format of a trust bundle.
 pub const BUNDLE_FORMAT: &str = "warrantor.trust-bundle/1";
@@ -198,7 +198,22 @@ pub fn export(directory: &Directory, issued_by: &str, at: u64, issuer: &SigningK
         format: BUNDLE_FORMAT.to_string(),
         issued_by: issued_by.to_string(),
         issued_at: at,
-        issuers: directory.issuers.clone(),
+        // Provenance is the importer's record, not the exporter's: it is stripped here so the
+        // signed pre-image never covers an unsigned claim, and a re-exported pin travels as an
+        // ordinary pin the exporter vouches for.
+        issuers: directory
+            .issuers
+            .iter()
+            .map(|(name, pin)| {
+                (
+                    name.clone(),
+                    PinnedIssuer {
+                        imported_from: None,
+                        ..pin.clone()
+                    },
+                )
+            })
+            .collect(),
     };
     let signature = issuer.sign(&pre_image(&claims));
     TrustBundle {
@@ -346,6 +361,9 @@ pub fn import(
         .ok_or_else(|| BundleError::NotTrusted {
             signed_by: bundle.signed_by.clone(),
         })?;
+    // Computed once and written into every inherited pin's provenance; the report carries the
+    // same digest, so a reader can tie a pin back to the exact file it was imported from.
+    let bundle_digest = sha256_hex(bundle_bytes);
 
     let mut outcomes = BTreeMap::new();
     for (name, incoming) in &bundle.claims.issuers {
@@ -389,7 +407,12 @@ pub fn import(
                         // would make every inherited pin look freshly verified.
                         pinned_at: incoming.pinned_at,
                         note,
-                        imported_from: None,
+                        imported_from: Some(ImportProvenance {
+                            signer_name: signer_name.clone(),
+                            issued_by: bundle.claims.issued_by.clone(),
+                            issued_at: bundle.claims.issued_at,
+                            bundle_digest: bundle_digest.clone(),
+                        }),
                     },
                 );
                 outcomes.insert(name.clone(), ImportOutcome::Added);
@@ -401,7 +424,7 @@ pub fn import(
         issued_by: bundle.claims.issued_by.clone(),
         signer_name,
         issued_at: bundle.claims.issued_at,
-        bundle_digest: sha256_hex(bundle_bytes),
+        bundle_digest,
         outcomes,
     })
 }
@@ -451,6 +474,37 @@ mod tests {
                 .expect("pin");
         }
         directory
+    }
+
+    #[test]
+    fn an_imported_pin_records_where_it_came_from_and_a_re_export_does_not_carry_it() {
+        let signer = key(9);
+        let bundle = export(
+            &directory_with(&[("ana", 1)]),
+            "security-team",
+            5_000,
+            &signer,
+        );
+        let bytes = serde_json::to_vec(&bundle).expect("serialize");
+        let parsed = parse(&bytes).expect("parses");
+        let mut mine = directory_with(&[("sec", 9)]);
+        let report = import(&mut mine, &parsed, &bytes).expect("imports");
+
+        let from = mine.issuers["ana"]
+            .imported_from
+            .clone()
+            .expect("inherited pins say so");
+        assert_eq!(from.signer_name, "sec");
+        assert_eq!(from.issued_by, "security-team");
+        assert_eq!(from.issued_at, 5_000);
+        assert_eq!(from.bundle_digest, report.bundle_digest);
+
+        // Provenance is this machine's record, outside the signed pre-image. A re-export must not
+        // carry it: an unsigned field that a reader might take for a signed one is worse than none.
+        let again = export(&mine, "me", 6_000, &key(3));
+        assert!(again.claims.issuers["ana"].imported_from.is_none());
+        let wire = serde_json::to_string(&again).expect("serialize");
+        assert!(!wire.contains("imported_from"), "{wire}");
     }
 
     #[test]
