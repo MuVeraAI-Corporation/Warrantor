@@ -267,5 +267,131 @@ is `warrantor-eval-guard`.
 
 ## Gate output, verbatim, with exit codes
 
-See the section below, which was captured last in a fresh detached worktree.
+Captured in a **fresh detached worktree** at `M:/wt-fresh-13.7`, created with
+`git worktree add --detach M:/wt-fresh-13.7 feat/scorer-isolation`, first at `b4873d4` and then re-run
+unchanged on the branch tip — which is the commit carrying this section, and which touches no code.
+This is the check that caught the worst defect of the previous wave: a `.gitignore`-excluded evidence
+file that `git add` skipped silently, leaving the implementer green and the branch red for everyone
+else.
+
+```
+$ git status --porcelain
+                                        # empty
+$ git ls-files <every path a test opens>
+README.md
+docs/W1-delivery-gaps.md
+docs/task-evidence/task-13.7.md
+docs/task-evidence/task-5.3.md
+evidence/invariants.json
+evidence/wiring-coverage.json
+rust/eval-guard/src/cli.rs
+rust/eval-guard/src/lib.rs
+rust/warrant/Cargo.toml
+rust/warrant/src/scorer.rs
+rust/warrant/tests/scorer_isolation.rs
+tools/ci/invariant-ratchet.json
+                                        # all twelve TRACKED
+$ git check-ignore -v <the same twelve>
+CHECK_IGNORE=1                          # exit 1 = no ignore rule matched any of them
+
+$ cd rust && cargo fmt --check
+FMT=0
+$ cargo clippy --all-targets -- -D warnings > cl.log 2>&1
+CLIPPY=0
+$ cargo test --workspace -j 1 > ws.log 2>&1
+CARGO=0
+    # 145 suites: passed=1534 failed=0 ignored=19
+    # (base was 144 / 1507 / 0 / 20 -- one new suite, +27 passing, one ignore converted)
+
+$ cd .. && python tools/ci/wiring_census.py
+wiring census: 13 of 40 crates reachable from warrantor-warrant over 21 path edges
+CENSUS=0
+$ python tools/ci/check_invariant_ratchet.py
+invariant ratchet: ok (83 passing at floor 83, 14 recorded findings at ceiling 14)
+RATCHET=0
+$ python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=0, partial=9, unimplemented=1
+LEDGER=0
+$ python tools/ci/check_us_english.py main
+us-english: 2663 added line(s) across 16 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok
+USEN=0
+$ python tools/ci/check_docs.py
+RESULT: PASS - 267 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+DOCS=0
+
+$ python -m pytest tools/ci/test_wiring_census.py tools/ci/test_check_invariants.py \
+                   tools/ci/test_check_us_english.py -q -p no:cacheprovider
+28 passed in 31.83s
+$ python -m ruff check tools/ci/
+All checks passed!
+```
+
+`orphaned=0` in the ledger line is the one number worth pausing on: I-09 was the last `orphaned`
+entry, and it moved to `partial`, not to `enforced`. The gap text says why in as many words.
+
+**One environmental failure, recorded rather than hidden.** The first `cargo test --workspace -j 2` in
+the fresh worktree died with `rustc-LLVM ERROR: out of memory` / `STATUS_STACK_BUFFER_OVERRUN` while
+compiling `warrantor-warrant`. It is a host resource failure, not a code failure — the same class as
+this box's recorded fork-exhaustion hazard — and the retry at `-j 1` is the run above. Nothing was
+changed between the two runs.
+
+## Red-before-green, and two mutation checks
+
+Four assertions were seen failing for the right reason before the code that satisfies them existed:
+
+```
+tests::a_measured_pass_and_an_asserted_pass_do_not_produce_the_same_signed_bytes ... FAILED
+  left:  [1,0,0,0, 2,0,0,0, 3,0,0,0, 4,0,0,0, 7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7, 1,1,1,1, 0,241,83,101,0,0,0,0]
+  right: [1,0,0,0, 2,0,0,0, 3,0,0,0, 4,0,0,0, 7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7, 1,1,1,1, 0,241,83,101,0,0,0,0]
+  # byte-identical: the provenance was not in the signed bytes at all
+
+tests::an_attestation_relabelled_as_a_different_source_no_longer_verifies ... FAILED
+  # the relabelled attestation still verified
+
+the_profile_leaves_the_settle_key_readable_and_must_name_that_gap ... FAILED
+  # the seven divergences the profile emitted were write_paths, egress_hosts, tools,
+  # staged_classes, budget_cents_observed, delegation_depth, expires_at -- none about the store
+
+adversary::the_documents_ordinal_for_the_next_ignore_is_read_from_the_ratchet_and_not_from_the_plan ... FAILED
+  # the ceiling had moved 15 -> 14 and both gated sentences still said 15/16
+```
+
+The Step 10 monitor tests were written after the module rather than before it, which is a departure
+from test-first and is recorded as such. To show they have teeth, two deliberate mutations were driven
+against the finished code and each produced exactly one red test:
+
+| Mutation | Result |
+|---|---|
+| `escalate` finds any operator holding `Stop`, dropping `&& !allows(Settle)` | `an_escalation_is_addressed_to_an_operator_who_cannot_settle_the_warrant_being_graded` FAILED — `left: "releaser"`, `right: "env-owner"`. The registry deliberately lists a `releaser` holding **both** `Stop` and `Settle` **first**, which is what gives the assertion teeth. |
+| `trend_checked`'s ordering comparison disabled | `a_threshold_registered_after_the_first_run_is_refused` FAILED — returned `Ok(ProbingTrend { … registered_at: 1786000100 })` where `Err(ThresholdRegisteredAfterTheRun { run_at: 1786000000, … })` was required. |
+
+Both mutations were reverted; the run above is the reverted tree.
+
+## The base moved under this branch, and every number here is against `f9c3523`
+
+`main` was at `f9c3523` when this branch was cut and is at `2ec0638` now: two further merges landed
+from another lane while this work ran (Task 1.2 `feat/egress-capability-catalog`, Task 1.3
+`feat/task-1.3`). This branch is **not** rebased onto them, and `git merge-base main HEAD` is still
+`f9c3523`.
+
+So every measurement in this document — 145 suites / 1534 passing / 19 ignored, census 13 of 40 over
+21 edges, ratchet 83/14 — is against `f9c3523`, and none of it is evidence about the merge. That
+distinction is not pedantic here: this project has already had five green branches batch-merged and
+break `main` five ways, because PR CI tests *branch plus old main*. The two landed merges touch
+`rust/warrant/src/stop.rs`, `src/report.rs`, `src/serve.rs`, `tests/instructions.rs` and the invariant
+corpus, and `tests/instructions.rs` and the ratchet counters are both files this branch also changes.
+
+**Whoever merges must rebase onto the current `main`, re-derive `passing_floor` and `ignored_ceiling`
+from the merged corpus's own `test result:` line rather than from this document, and re-run the census
+before believing 13.** The one number that should be stable across the rebase is the direction: the
+orphan count fell by one, and `warrantor-sandbox-runtime` is still an orphan on purpose.
+
+## No existing assertion was weakened
+
+The one test that changed status is the I-09 finding, and its assertion is byte-identical to the
+ignored form: `manifest.contains("warrantor-eval-guard")`. Three assertions were **added** beside it.
+`tests/instructions.rs::ACCEPTED_FLAGS` gained `confined` and `register-threshold`, which is the
+mechanism working as designed — that test refuses a flag the usage text names and the parser does not
+accept, and it went red until the flags were real.
 
