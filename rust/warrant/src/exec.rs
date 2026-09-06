@@ -202,3 +202,147 @@ pub fn sha256_file(path: &Path) -> Result<(String, u64), String> {
     }
     Ok((hex::encode(hasher.finalize()), total))
 }
+
+/// One EXEC attempt, written before anything is spawned.
+///
+/// `path` is carried, unlike [`crate::runs::RunRecord`], because a digest with no statement of
+/// what was digested is not replayable evidence. It is the one field here that can name a
+/// location; the store class is listed in `docs/W1-delivery-gaps.md` §3.5 for that reason.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecReceipt {
+    /// Wire format: [`EXEC_RECEIPT_FORMAT`].
+    pub format: String,
+    /// The warrant under which execution was attempted.
+    pub warrant_id: String,
+    /// Epoch seconds.
+    pub at: u64,
+    /// Preflight or spawn.
+    pub phase: ExecPhase,
+    /// The surface asked for.
+    pub surface: ExecSurface,
+    /// SHA-256 of the file that would have run. Present on every verdict.
+    pub sha256: String,
+    /// Length of that file in bytes.
+    pub bytes: u64,
+    /// The resolved file.
+    pub path: String,
+    /// The decision.
+    pub verdict: ExecVerdict,
+    /// The notary gate a refusal is attributed to; `None` unless refused. Only the gate --
+    /// never the declared set -- the same rule as `warrantor_notary::Verdict::Deny`.
+    pub gate: Option<warrantor_notary::Gate>,
+}
+
+/// Decide whether `program` may run on `surface` under a warrant's declared execution surface.
+///
+/// Resolves, hashes, and compares. Performs nothing.
+///
+/// # Errors
+/// A sentence when the program cannot be resolved or read. That is not a verdict: an artifact
+/// that cannot be hashed has no digest to admit, and the caller must treat it as a refusal.
+pub fn admit(
+    declared: Option<&BTreeSet<ExecAdmission>>,
+    surface: ExecSurface,
+    program: &str,
+    cwd: Option<&Path>,
+    warrant_id: &str,
+    phase: ExecPhase,
+    at: u64,
+) -> Result<ExecReceipt, String> {
+    let path = resolve_program(program, cwd)?;
+    let (sha256, bytes) = sha256_file(&path)?;
+    let (verdict, gate) = match declared {
+        None => (ExecVerdict::Unpinned, None),
+        Some(set) => {
+            let wanted = ExecAdmission { surface, sha256: sha256.clone() };
+            if set.contains(&wanted) {
+                (ExecVerdict::Admitted, None)
+            } else {
+                (ExecVerdict::Refused, Some(warrantor_notary::Gate::Artifacts))
+            }
+        }
+    };
+    Ok(ExecReceipt {
+        format: EXEC_RECEIPT_FORMAT.to_string(),
+        warrant_id: warrant_id.to_string(),
+        at,
+        phase,
+        surface,
+        sha256,
+        bytes,
+        path: path.to_string_lossy().to_string(),
+        verdict,
+        gate,
+    })
+}
+
+/// The sentence printed when a spawn is refused. Names the gate, the surface and the digest of
+/// what was attempted; never the admitted set.
+#[must_use]
+pub fn refusal_sentence(receipt: &ExecReceipt) -> String {
+    format!(
+        "exec refused at gate artifacts: the {} artifact at {} (sha256 {}) is not admitted by \
+         {}. Nothing was spawned. Pin exactly the bytes you mean on a NEW warrant with \
+         `warrantor grant ... --exec {}=<sha256>` (get it with `warrantor exec digest <path>`), \
+         or grant without --exec to record digests without refusing.",
+        receipt.surface.word(),
+        receipt.path,
+        receipt.sha256,
+        receipt.warrant_id,
+        receipt.surface.word()
+    )
+}
+
+/// Where a warrant's EXEC receipts live: `root/exec/<warrant-id>.jsonl`.
+#[must_use]
+pub fn log_path(root: &Path, warrant_id: &str) -> PathBuf {
+    root.join("exec").join(format!("{warrant_id}.jsonl"))
+}
+
+/// Append one receipt, `fsync`-free but flushed, before the spawn it describes.
+///
+/// # Errors
+/// A sentence on I/O failure. The caller refuses to spawn on it: a spawn with no receipt is
+/// exactly the unreceipted execution this module exists to end.
+pub fn record(root: &Path, receipt: &ExecReceipt) -> Result<(), String> {
+    let path = log_path(root, &receipt.warrant_id);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("cannot create {}: {e}", parent.display()))?;
+    }
+    let line = serde_json::to_string(receipt)
+        .map_err(|e| format!("cannot serialize an exec receipt: {e}"))?;
+    use std::io::Write as _;
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map_err(|e| format!("cannot open {}: {e}", path.display()))?;
+    writeln!(file, "{line}").map_err(|e| format!("cannot append to {}: {e}", path.display()))?;
+    file.flush().map_err(|e| format!("cannot flush {}: {e}", path.display()))
+}
+
+/// A warrant's receipts, with the count of lines that would not parse (never skipped silently).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ExecLog {
+    /// The receipts, in the order written.
+    pub receipts: Vec<ExecReceipt>,
+    /// Lines that exist and would not parse.
+    pub unreadable_lines: usize,
+}
+
+/// Read one warrant's receipts. An absent log is an empty log.
+#[must_use]
+pub fn read_for(root: &Path, warrant_id: &str) -> ExecLog {
+    let Ok(raw) = std::fs::read_to_string(log_path(root, warrant_id)) else {
+        return ExecLog::default();
+    };
+    let mut log = ExecLog::default();
+    for line in raw.lines().filter(|l| !l.trim().is_empty()) {
+        match serde_json::from_str::<ExecReceipt>(line) {
+            Ok(r) if r.format == EXEC_RECEIPT_FORMAT => log.receipts.push(r),
+            _ => log.unreadable_lines += 1,
+        }
+    }
+    log
+}

@@ -85,3 +85,84 @@ fn a_bare_name_is_resolved_on_path_and_never_in_the_worktree() {
         artifact()
     );
 }
+
+fn pinned(digest: &str) -> BTreeSet<ExecAdmission> {
+    [ExecAdmission { surface: ExecSurface::Process, sha256: digest.to_string() }]
+        .into_iter()
+        .collect()
+}
+
+#[test]
+fn a_renamed_artifact_gets_the_same_verdict_and_a_modified_one_is_refused() {
+    let dir = tempdir("admit");
+    let renamed = dir.join(if cfg!(windows) { "renamed.exe" } else { "renamed" });
+    std::fs::copy(artifact(), &renamed).expect("copy");
+    let modified = dir.join(if cfg!(windows) { "warrantor.exe" } else { "warrantor" });
+    let mut bytes = std::fs::read(artifact()).expect("read");
+    bytes.push(0x00);
+    std::fs::write(&modified, &bytes).expect("write");
+    let (digest, _) = exec::sha256_file(&artifact()).expect("digest");
+    let declared = pinned(&digest);
+
+    let same = exec::admit(Some(&declared), ExecSurface::Process,
+        &renamed.to_string_lossy(), None, "wrt_x", ExecPhase::Spawn, NOW).expect("admit");
+    assert_eq!(same.verdict, ExecVerdict::Admitted);
+    assert_eq!(same.sha256, digest, "the receipt carries the digest, not the name");
+    assert_eq!(same.gate, None);
+
+    // Same NAME as the real binary, different bytes.
+    let changed = exec::admit(Some(&declared), ExecSurface::Process,
+        &modified.to_string_lossy(), None, "wrt_x", ExecPhase::Spawn, NOW).expect("admit");
+    assert_eq!(changed.verdict, ExecVerdict::Refused);
+    assert_eq!(changed.gate, Some(warrantor_notary::Gate::Artifacts));
+    let sentence = exec::refusal_sentence(&changed);
+    assert!(sentence.contains("artifacts"), "{sentence}");
+    assert!(
+        !sentence.contains(&digest),
+        "a refusal must not disclose which digests ARE admitted (Deny carries only the gate)"
+    );
+}
+
+#[test]
+fn an_undeclared_surface_is_unpinned_and_a_declared_empty_surface_refuses_everything() {
+    let unpinned = exec::admit(None, ExecSurface::Process, &artifact().to_string_lossy(),
+        None, "wrt_x", ExecPhase::Preflight, NOW).expect("admit");
+    assert_eq!(unpinned.verdict, ExecVerdict::Unpinned);
+    assert_eq!(unpinned.sha256.len(), 64, "unpinned still carries the digest");
+
+    let strict_empty: BTreeSet<ExecAdmission> = BTreeSet::new();
+    let refused = exec::admit(Some(&strict_empty), ExecSurface::Process,
+        &artifact().to_string_lossy(), None, "wrt_x", ExecPhase::Preflight, NOW).expect("admit");
+    assert_eq!(refused.verdict, ExecVerdict::Refused, "E-04: undeclared is refused under strict");
+
+    // Admitted on one surface is not admitted on another.
+    let (digest, _) = exec::sha256_file(&artifact()).expect("digest");
+    let upstream_only: BTreeSet<ExecAdmission> =
+        [ExecAdmission { surface: ExecSurface::Upstream, sha256: digest }].into_iter().collect();
+    let wrong_surface = exec::admit(Some(&upstream_only), ExecSurface::Process,
+        &artifact().to_string_lossy(), None, "wrt_x", ExecPhase::Preflight, NOW).expect("admit");
+    assert_eq!(wrong_surface.verdict, ExecVerdict::Refused);
+}
+
+#[test]
+fn a_program_that_cannot_be_hashed_cannot_be_admitted() {
+    let err = exec::admit(None, ExecSurface::Process, "no-such-program-2f9c",
+        None, "wrt_x", ExecPhase::Spawn, NOW).expect_err("unresolvable");
+    assert!(err.contains("PATH"), "{err}");
+}
+
+#[test]
+fn receipts_append_as_versioned_jsonl_and_read_back() {
+    let root = tempdir("receipts");
+    let receipt = exec::admit(None, ExecSurface::Process, &artifact().to_string_lossy(),
+        None, "wrt_r", ExecPhase::Spawn, NOW).expect("admit");
+    exec::record(&root, &receipt).expect("record");
+    exec::record(&root, &receipt).expect("record again");
+    let raw = std::fs::read_to_string(exec::log_path(&root, "wrt_r")).expect("read");
+    assert_eq!(raw.lines().count(), 2);
+    assert!(raw.contains(&format!("\"format\":\"{EXEC_RECEIPT_FORMAT}\"")), "{raw}");
+    let log = exec::read_for(&root, "wrt_r");
+    assert_eq!(log.receipts.len(), 2);
+    assert_eq!(log.unreadable_lines, 0);
+    assert_eq!(log.receipts[0].sha256, receipt.sha256);
+}
