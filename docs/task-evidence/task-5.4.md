@@ -346,6 +346,7 @@ CAUGHT   exit=1    C2   cluster egress NetworkPolicy added  (was exit 0, corpus 
 CAUGHT   exit=1    C2   the named NetworkPolicy deleted     (was unchecked entirely)
 CAUGHT   exit=1    T4   proxy.rs anchor set back to 227-234 (was unchecked entirely)
 CAUGHT   exit=1    T7   record publishes the operator count (was the published value)
+CAUGHT   exit=1    C1   withdrawn clause ADDED beside a correct one, on the real docs/05 surface
 CONTROL  exit=0         unmutated tree: network independence: ok
 
 CAUGHT   exit=101  T1   SecondaryRefusal.rule hardcoded     -> the_rendered_rule_is_the_engine_s_own_reason_and_not_one_literal
@@ -360,6 +361,13 @@ CONTROL  exit=0         unmutated tree: 85 passed / 15 ignored, 15 passed
 ```
 
 `git status --porcelain` was empty after each revert, checked by the same script.
+
+The second C1 row is the one that isolates the **refusal** rule from the requirement rule. The first
+C1 row replaces the correct clause with the withdrawn one, so the required-clause check alone would
+catch it; the second leaves the correct clause in place and *adds* the withdrawn one beside the count,
+which only `REFUSED_CAVEAT_CLAUSES` can see. It reports: *"labels the count on line 226 with the
+withdrawn clause ... Quoting it to record why it was withdrawn is fine, more than 12 lines from the
+count."*
 
 ### One scope decision, stated rather than left implicit
 
@@ -602,7 +610,7 @@ NETIND=0
 PYTEST=0
 ```
 
-One later commit exists: the one that pastes this capture into this file. Nothing outside this
+Two later commits exist: the one that pastes this capture into this file, and one that adds the fifteenth mutation row above. Nothing outside this
 markdown block changed, and `check_docs.py`, `check_us_english.py main` and
 `network_independence.py` were re-run at that commit -- the three gates a markdown edit can move --
 with identical output. `RUST_MIN_STACK=33554432` was exported for every cargo command: without it
@@ -634,7 +642,7 @@ The second is the more important direction. A gate that recomputed a *fresh* num
 derivation moved would keep publishing a measured-looking value that nothing supports; this one
 refuses to publish at all.
 
-**And fourteen more reds, one per surviving mutation**, in the CORRECTION section above. Those are the
+**And fifteen more reds, one per surviving mutation**, in the CORRECTION section above. Those are the
 ones that matter for this branch's second pass: seven of them were **exit 0 at `82118f8`**, which is
 what "refuted" meant.
 
