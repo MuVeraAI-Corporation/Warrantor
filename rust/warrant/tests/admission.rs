@@ -21,7 +21,19 @@ use warrantor_warrant::trust::Directory;
 use warrantor_warrant::upstream::{UpstreamSet, UpstreamSpec};
 use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds};
 
-const NOW: u64 = 1_786_000_000;
+/// The epoch base every fixture time is relative to: the real process clock, taken once per
+/// test process. The CLI under test verifies against the wall clock, so a fixture pinned to a
+/// fixed past epoch would have every manifest it signs expire before the binary reads it.
+fn now_base() -> u64 {
+    use std::sync::OnceLock;
+    static BASE: OnceLock<u64> = OnceLock::new();
+    *BASE.get_or_init(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    })
+}
 
 fn key(byte: u8) -> SigningKey {
     SigningKey::from_bytes(&[byte; 32])
@@ -60,8 +72,8 @@ fn selftest_manifest(echo_effects: &[Syscall]) -> ManifestClaims {
         kind: AdmissionKind::Tool,
         version: "1.0.0".to_string(),
         issuer: "vendor".to_string(),
-        issued_at: NOW,
-        expires_at: NOW + 86_400,
+        issued_at: now_base(),
+        expires_at: now_base() + 86_400,
         subject_digest: None,
         tools,
     }
@@ -70,7 +82,7 @@ fn selftest_manifest(echo_effects: &[Syscall]) -> ManifestClaims {
 fn pinned(root: &Path, name: &str, vendor: &SigningKey) -> Directory {
     let mut directory = Directory::load(root).expect("empty");
     directory
-        .pin(name, &vendor.verifying_key(), NOW, "test pin")
+        .pin(name, &vendor.verifying_key(), now_base(), "test pin")
         .expect("pin");
     directory.save(root).expect("save");
     directory
@@ -88,7 +100,7 @@ fn an_unsigned_manifest_is_refused_and_the_refusal_is_receipted() {
     };
     let set = AdmittedSet::open(&root);
     let err = set
-        .admit(&unsigned, &directory, &machine, NOW + 1)
+        .admit(&unsigned, &directory, &machine, now_base() + 1)
         .expect_err("unsigned is refused");
     assert_eq!(err, AdmissionError::Unsigned);
     assert!(set.load("selftest").expect("read").is_none(), "nothing was admitted");
@@ -106,7 +118,7 @@ fn an_unpinned_issuer_is_refused_with_the_pin_command() {
     let signed = sign_manifest(selftest_manifest(&[Syscall::Attest]), &vendor);
     let directory = Directory::load(&root).expect("empty");
     let err = AdmittedSet::open(&root)
-        .admit(&signed, &directory, &key(1), NOW + 1)
+        .admit(&signed, &directory, &key(1), now_base() + 1)
         .expect_err("nobody pinned vendor");
     assert_eq!(err, AdmissionError::UnpinnedIssuer("vendor".to_string()));
     assert!(err.to_string().contains("warrantor issuer add vendor"), "{err}");
@@ -121,7 +133,7 @@ fn a_pinned_signed_manifest_is_admitted_receipted_and_revocable() {
     let signed = sign_manifest(selftest_manifest(&[Syscall::Attest]), &vendor);
     let set = AdmittedSet::open(&root);
 
-    let receipt = set.admit(&signed, &directory, &machine, NOW + 1).expect("admitted");
+    let receipt = set.admit(&signed, &directory, &machine, now_base() + 1).expect("admitted");
     assert_eq!(receipt.claims.decision, AdmissionDecision::Admitted);
     assert_eq!(receipt.claims.manifest_digest, manifest_digest(&signed));
     assert_eq!(receipt.claims.issuer_name, "vendor");
@@ -134,17 +146,17 @@ fn a_pinned_signed_manifest_is_admitted_receipted_and_revocable() {
     assert_eq!(set.load("selftest").expect("read"), Some(signed.clone()));
 
     let revoked = set
-        .revoke("selftest", "operator: vendor advisory", &machine, NOW + 2)
+        .revoke("selftest", "operator: vendor advisory", &machine, now_base() + 2)
         .expect("revoked");
     assert_eq!(revoked.claims.decision, AdmissionDecision::Revoked);
     assert_eq!(
         set.is_revoked("selftest").expect("read"),
-        Some((NOW + 2, "operator: vendor advisory".to_string()))
+        Some((now_base() + 2, "operator: vendor advisory".to_string()))
     );
     assert!(set.load("selftest").expect("read").is_none(), "revoked is not loaded");
     assert!(
         matches!(
-            set.admit(&signed, &directory, &machine, NOW + 3),
+            set.admit(&signed, &directory, &machine, now_base() + 3),
             Err(AdmissionError::Revoked { .. })
         ),
         "re-presenting the same manifest does not lift a revocation"
@@ -161,7 +173,7 @@ fn stored_open(id: &str, tools: &[&str], egress: &[&str]) -> StoredWarrant {
         write_paths: BTreeSet::new(),
         egress_hosts: egress.iter().map(|h| (*h).to_string()).collect(),
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
-        expires_at: NOW + 3600,
+        expires_at: now_base() + 3600,
         budget_cents_observed: None,
         delegation_depth: 1,
     };
@@ -170,7 +182,7 @@ fn stored_open(id: &str, tools: &[&str], egress: &[&str]) -> StoredWarrant {
         "admission",
         "spiffe://muveraai.com/agent/a",
         bounds,
-        NOW,
+        now_base(),
         &key(2).verifying_key(),
         &key(1),
     )
@@ -196,7 +208,7 @@ fn selftest_spec() -> UpstreamSpec {
 }
 
 fn now() -> u64 {
-    NOW + 10
+    now_base() + 10
 }
 
 fn text_arg(text: &str) -> BTreeMap<String, Value> {
@@ -213,7 +225,7 @@ fn admitted_endpoint(
     let machine = key(1);
     let directory = pinned(root, "vendor", &vendor);
     let set = AdmittedSet::open(root);
-    set.admit(signed, &directory, &machine, NOW + 1).expect("admitted");
+    set.admit(signed, &directory, &machine, now_base() + 1).expect("admitted");
     let upstreams = UpstreamSet::start(&[selftest_spec()], Duration::from_secs(30)).expect("attach");
     let mut registry = DecompositionRegistry::builtin();
     registry
@@ -273,4 +285,130 @@ fn a_tool_whose_manifest_declares_net_may_name_a_destination_the_warrant_allows(
     // The warrant's egress bound still decides destinations the manifest permits.
     let refused = endpoint.call("selftest.echo", &text_arg("see https://other.example/x"));
     assert!(refused.is_error && refused.text.contains("egress_hosts"), "{}", refused.text);
+}
+
+/// Run the real binary against `root`, with the binary's own directory on PATH so an
+/// `--upstream 'x=warrantor selftest-upstream'` value never has to carry a path with spaces.
+fn warrantor(root: &Path, args: &[&str]) -> std::process::Output {
+    let bin = PathBuf::from(env!("CARGO_BIN_EXE_warrantor"));
+    let mut paths = vec![bin.parent().expect("a directory").to_path_buf()];
+    if let Some(existing) = std::env::var_os("PATH") {
+        paths.extend(std::env::split_paths(&existing));
+    }
+    let mut all: Vec<String> = args.iter().map(|a| (*a).to_string()).collect();
+    all.push("--root".to_string());
+    all.push(root.to_string_lossy().to_string());
+    std::process::Command::new(&bin)
+        .args(&all)
+        .env("PATH", std::env::join_paths(paths).expect("joinable"))
+        .output()
+        .expect("run warrantor")
+}
+
+fn shown_hex(root: &Path) -> String {
+    String::from_utf8_lossy(&warrantor(root, &["issuer", "show-hex"]).stdout)
+        .lines()
+        .find_map(|l| l.strip_prefix("issuer public key  ").map(str::trim).map(str::to_string))
+        .expect("a key line")
+}
+
+fn machine_key(root: &Path) -> SigningKey {
+    let bytes = std::fs::read(root.join("keys/issuer.key")).expect("the store's issuer key");
+    SigningKey::from_bytes(&bytes.as_slice().try_into().expect("32 bytes"))
+}
+
+#[test]
+fn the_cli_signs_admits_exports_verifies_offline_and_refuses_an_unadmitted_server() {
+    let root = tempdir("cli");
+    let vendor_root = tempdir("cli-vendor");
+    // The vendor signs with its own store's issuer key; this machine pins that key by name.
+    let claims_path = vendor_root.join("selftest.claims.json");
+    std::fs::write(
+        &claims_path,
+        serde_json::to_vec_pretty(&selftest_manifest(&[Syscall::Attest])).expect("json"),
+    )
+    .expect("write claims");
+    let manifest_path = vendor_root.join("selftest.manifest.json");
+    let signed = warrantor(
+        &vendor_root,
+        &["tools", "sign", claims_path.to_str().expect("utf-8"), "--out", manifest_path.to_str().expect("utf-8")],
+    );
+    assert!(signed.status.success(), "{}", String::from_utf8_lossy(&signed.stderr));
+    let vendor_hex = shown_hex(&vendor_root);
+
+    // Unpinned: refused, and the refusal is in the ledger.
+    let refused = warrantor(&root, &["tools", "admit", manifest_path.to_str().expect("utf-8")]);
+    assert!(!refused.status.success());
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("issuer add vendor"));
+    assert_eq!(AdmittedSet::open(&root).receipts().expect("ledger").len(), 1);
+
+    assert!(warrantor(&root, &["issuer", "add", "vendor", &vendor_hex]).status.success());
+    let admitted = warrantor(&root, &["tools", "admit", manifest_path.to_str().expect("utf-8")]);
+    assert!(admitted.status.success(), "{}", String::from_utf8_lossy(&admitted.stderr));
+    let listed = String::from_utf8_lossy(&warrantor(&root, &["tools", "list"]).stdout).to_string();
+    assert!(listed.contains("admitted") && listed.contains("selftest"), "{listed}");
+
+    // Export, then verify on a store that has pinned nothing, against the admitting key.
+    let export = root.join("selftest.admission.json");
+    assert!(warrantor(&root, &["tools", "export", "selftest", "--out", export.to_str().expect("utf-8")]).status.success());
+    let machine_hex = shown_hex(&root);
+    let clean = tempdir("cli-clean");
+    let verdict = warrantor(&clean, &["verify", export.to_str().expect("utf-8"), "--issuer", &machine_hex]);
+    assert!(verdict.status.success(), "{}", String::from_utf8_lossy(&verdict.stderr));
+    let out = String::from_utf8_lossy(&verdict.stdout);
+    assert!(out.contains("VERIFIED") && out.contains("not checked against a pin on this machine"), "{out}");
+    let no_anchor = warrantor(&clean, &["verify", export.to_str().expect("utf-8")]);
+    assert!(!no_anchor.status.success(), "an export without an anchor verifies nothing");
+
+    // A session under --require-admission refuses a server with no admitted manifest.
+    let stored = stored_open("w-cli", &["other.echo"], &[]);
+    warrantor_warrant::store::WarrantStore::open(&root).expect("store").create(&stored).expect("create");
+    let refused = warrantor(
+        &root,
+        &["mcp", "--agent", "w-cli", "--require-admission", "--upstream", "other=warrantor selftest-upstream"],
+    );
+    assert!(!refused.status.success());
+    let err = String::from_utf8_lossy(&refused.stderr);
+    assert!(err.contains("no admitted manifest") && err.contains("tools admit"), "{err}");
+}
+
+#[test]
+fn a_server_publishing_beyond_its_manifest_is_revoked_at_attach_and_the_revocation_is_receipted() {
+    let root = tempdir("attach");
+    let vendor = key(7);
+    // Names `echo` only; the selftest server also publishes `now`.
+    let mut only_echo = selftest_manifest(&[Syscall::Attest]);
+    only_echo.tools.remove("now");
+    let signed = sign_manifest(only_echo, &vendor);
+    let manifest_path = root.join("selftest.manifest.json");
+    std::fs::write(&manifest_path, serde_json::to_vec_pretty(&signed).expect("json")).expect("write");
+    let vendor_hex = hex::encode(vendor.verifying_key().to_bytes());
+    assert!(warrantor(&root, &["issuer", "add", "vendor", &vendor_hex]).status.success());
+    assert!(warrantor(&root, &["tools", "admit", manifest_path.to_str().expect("utf-8")]).status.success());
+
+    let stored = stored_open("w-attach", &["selftest.echo"], &[]);
+    warrantor_warrant::store::WarrantStore::open(&root).expect("store").create(&stored).expect("create");
+    let session = warrantor(
+        &root,
+        &["mcp", "--agent", "w-attach", "--upstream", "selftest=warrantor selftest-upstream"],
+    );
+    assert!(!session.status.success(), "the session must not start");
+    let err = String::from_utf8_lossy(&session.stderr);
+    assert!(err.contains("revoked") && err.contains("\"now\""), "{err}");
+
+    let set = AdmittedSet::open(&root);
+    assert!(set.is_revoked("selftest").expect("read").is_some());
+    let receipts = set.receipts().expect("ledger");
+    let last = receipts.last().expect("the revocation");
+    assert_eq!(last.claims.decision, AdmissionDecision::Revoked);
+    assert!(last.claims.reason.contains("now"), "{}", last.claims.reason);
+    verify_receipt(last, &machine_key(&root).verifying_key()).expect("the revocation verifies");
+
+    // Revoked servers are refused at the next attach too, with or without --require-admission.
+    let again = warrantor(
+        &root,
+        &["mcp", "--agent", "w-attach", "--upstream", "selftest=warrantor selftest-upstream"],
+    );
+    assert!(!again.status.success());
+    assert!(String::from_utf8_lossy(&again.stderr).contains("was revoked at"));
 }

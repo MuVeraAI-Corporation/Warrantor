@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use ed25519_dalek::{SigningKey, VerifyingKey};
+use warrantor_warrant::admission;
 use warrantor_warrant::anchor;
 use warrantor_warrant::archive_client::{self, ArchiveAnswer, ArchiveConfig, ArchiveTransport};
 use warrantor_warrant::autofile;
@@ -268,6 +269,7 @@ const VALUELESS_FLAGS: &[&str] = &[
     "guard",
     "notify",
     "allow-settle",
+    "require-admission",
     "allow-notify-command",
     "i-accept-cleartext-on-this-network",
     "upstream-strict",
@@ -498,9 +500,12 @@ warrantor — bounded authority for coding agents
   holdings
   prune   [--apply]
   report  <warrant-id> [--export <path> [--archive [<url>]]]
-  verify  <exported-report.json | exported-stop.json | exported-spend.json | exported-conformance.json>
+  verify  <exported-report.json | exported-stop.json | exported-spend.json | exported-conformance.json | exported-admission.json>
   issuer  add <name> <hex> [--note \"...\"] | list | remove <name> | show-hex
           | export --out <file> [--as <label>] | import <file> [--apply]
+  tools   sign <claims.json> [--key <path>] --out <file> | admit <manifest.json> | list
+          | revoke <server> --reason \"...\" | export <server> --out <file>
+          | check-skill <server> <file>
   archive enrol --url <url> --code <code> [--replace] | push <file>
                 | fetch <sha256> --out <path> | list <warrant-id> | auto [settle|off]
                 | summary
@@ -525,7 +530,8 @@ warrantor — bounded authority for coding agents
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
           [--upstream 'name=command args' ...] [--upstream-timeout 30s]
           [--upstream-effects '<tool>=<verb>+<verb>' ...] [--upstream-effects-file <path> ...]
-          [--upstream-strict]   (verbs: net cred exec mutate msg spend delegate actuate attest)
+          [--upstream-strict] [--require-admission]
+                               (verbs: net cred exec mutate msg spend delegate actuate attest)
   anchor  show | verify
   guard   doctor [--guard-endpoint URL] [--guard-model M] [--guard-num-ctx N]
           | bench --cases <file.jsonl>
@@ -1271,7 +1277,8 @@ fn write_export_anchored<T: serde::Serialize>(
 fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
     let Some(path) = args.positional.first() else {
         return fail(
-            "usage: warrantor verify <exported-report.json | exported-stop.json> [--issuer <hex | name>]",
+            "usage: warrantor verify <exported-report.json | exported-stop.json | \
+             exported-admission.json> [--issuer <hex | name>]",
         );
     };
     // Parsed BEFORE the file is read, so a mistyped key is a refusal about the key rather than a
@@ -1309,18 +1316,20 @@ fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
         Some(f) if f == conformance::CONFORMANCE_RECEIPT_FORMAT => {
             verify_conformance_export(path, &body, anchor)
         }
+        Some(f) if f == admission::EXPORT_FORMAT => verify_admission_export(path, &body, anchor),
         Some(f) if f == effects::EFFECT_REGISTRY_FORMAT => fail(&format!(
             "{path} is a {f} document: an effect registry, which is configuration, not evidence. \
              Nothing in it is signed, so there is nothing here to verify. Load it with \
              `warrantor mcp --upstream-effects-file {path}`."
         )),
         Some(other) => fail(&format!(
-            "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {} and {}.",
+            "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {}, {} and {}.",
             report::REPORT_EXPORT_FORMAT,
             stop::STOP_EXPORT_FORMAT,
             spend::LEDGER_EXPORT_FORMAT,
             warrantor_warrant::catalog::CATALOG_FORMAT,
-            conformance::CONFORMANCE_RECEIPT_FORMAT
+            conformance::CONFORMANCE_RECEIPT_FORMAT,
+            admission::EXPORT_FORMAT
         )),
         None => fail(&format!(
             "{path} has no format field, so it is not a warrantor evidence file."
@@ -1696,6 +1705,321 @@ fn cmd_issuer_remove(args: &Args, root: &Path) -> ExitCode {
          key under the same name, so do it by the same out-of-band check as the first pin. \
          Files still verify against the raw key, and every verdict already given stands."
     );
+    ExitCode::SUCCESS
+}
+
+/// `warrantor tools <sign|admit|list|revoke|export|check-skill>`: signed admission manifests (L4-09).
+fn cmd_tools(args: &Args, root: &Path) -> ExitCode {
+    match args.positional.first().map(String::as_str) {
+        Some("sign") => cmd_tools_sign(args, root),
+        Some("admit") => cmd_tools_admit(args, root),
+        Some("list") => cmd_tools_list(root),
+        Some("revoke") => cmd_tools_revoke(args, root),
+        Some("export") => cmd_tools_export(args, root),
+        Some("check-skill") => cmd_tools_check_skill(args, root),
+        Some(other) => fail(&format!(
+            "unknown tools verb {other:?}. warrantor tools has six: sign, admit, list, revoke, \
+             export, check-skill."
+        )),
+        None => fail(
+            "usage: warrantor tools sign <claims.json> [--key <path>] --out <file>\n       \
+             warrantor tools admit <manifest.json>\n       warrantor tools list\n       \
+             warrantor tools revoke <server> --reason \"...\"\n       warrantor tools export \
+             <server> --out <file>\n       warrantor tools check-skill <server> <file>",
+        ),
+    }
+}
+
+fn read_manifest(path: &str) -> Result<admission::SignedManifest, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("read {path}: {e}"))?;
+    serde_json::from_slice(&bytes)
+        .map_err(|e| format!("{path} is not a {}: {e}", admission::MANIFEST_FORMAT))
+}
+
+fn cmd_tools_sign(args: &Args, root: &Path) -> ExitCode {
+    let (Some(claims_path), Some(out)) = (args.positional.get(1), args.flags.get("out")) else {
+        return fail("usage: warrantor tools sign <claims.json> [--key <path>] --out <file>");
+    };
+    let key_path = args
+        .flags
+        .get("key")
+        .map_or_else(|| root.join("keys/issuer.key"), PathBuf::from);
+    let key = match load_or_create_key(&key_path, KeyKind::Issuer) {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    let bytes = match std::fs::read(claims_path) {
+        Ok(b) => b,
+        Err(e) => return fail(&format!("read {claims_path}: {e}")),
+    };
+    let claims: admission::ManifestClaims = match serde_json::from_slice(&bytes) {
+        Ok(c) => c,
+        Err(e) => {
+            return fail(&format!(
+                "{claims_path} is not a {} claims file: {e}",
+                admission::MANIFEST_FORMAT
+            ))
+        }
+    };
+    let signed = admission::sign_manifest(claims, &key);
+    if let Err(e) = admission::verify_manifest(&signed, &key.verifying_key(), now()) {
+        return fail(&format!("{claims_path} would not verify even freshly signed: {e}"));
+    }
+    let body = serde_json::to_vec_pretty(&signed).expect("a manifest serializes");
+    if let Err(e) = std::fs::write(out, body) {
+        return fail(&format!("write {out}: {e}"));
+    }
+    println!("signed   {} v{} -> {out}", signed.claims.server, signed.claims.version);
+    println!(
+        "issuer   {}. The admitting machine must pin this key under that name, checked out of \
+         band:\n         warrantor issuer add {} {}",
+        signed.claims.issuer,
+        signed.claims.issuer,
+        hex::encode(key.verifying_key().to_bytes())
+    );
+    ExitCode::SUCCESS
+}
+
+fn cmd_tools_admit(args: &Args, root: &Path) -> ExitCode {
+    let Some(path) = args.positional.get(1) else {
+        return fail("usage: warrantor tools admit <manifest.json>");
+    };
+    let manifest = match read_manifest(path) {
+        Ok(m) => m,
+        Err(e) => return fail(&e),
+    };
+    let directory = match trust::Directory::load(root) {
+        Ok(d) => d,
+        Err(e) => return fail(&e),
+    };
+    let signer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    match admission::AdmittedSet::open(root).admit(&manifest, &directory, &signer, now()) {
+        Ok(receipt) => {
+            println!(
+                "admitted {} v{} (issuer {}, manifest {})",
+                manifest.claims.server,
+                manifest.claims.version,
+                manifest.claims.issuer,
+                &receipt.claims.manifest_digest[..16]
+            );
+            for (tool, entry) in &manifest.claims.tools {
+                let verbs: Vec<&str> = entry.effects.iter().map(|s| s.as_str()).collect();
+                println!(
+                    "  {}.{tool}: {}  data {:?}",
+                    manifest.claims.server,
+                    verbs.join("+"),
+                    entry.data_classes
+                );
+            }
+            println!(
+                "record   {}",
+                admission::admitted_path(root, &manifest.claims.server).display()
+            );
+            println!("receipt  {}", admission::ledger_path(root).display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&format!(
+            "{e}\nThe refusal is receipted in {}.",
+            admission::ledger_path(root).display()
+        )),
+    }
+}
+
+fn cmd_tools_list(root: &Path) -> ExitCode {
+    let set = admission::AdmittedSet::open(root);
+    let receipts = match set.receipts() {
+        Ok(r) => r,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let servers: BTreeSet<String> = receipts
+        .iter()
+        .map(|r| r.claims.server.clone())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if servers.is_empty() {
+        println!("no manifests have been admitted on this machine. warrantor tools admit <manifest.json>");
+        return ExitCode::SUCCESS;
+    }
+    for server in servers {
+        match (set.load(&server), set.is_revoked(&server)) {
+            (Ok(Some(m)), _) => println!(
+                "admitted   {server:<20} v{} issuer {} expires {} ({:?})",
+                m.claims.version, m.claims.issuer, m.claims.expires_at, m.claims.kind
+            ),
+            (Ok(None), Ok(Some((at, reason)))) => println!("revoked    {server:<20} at {at}: {reason}"),
+            (Ok(None), Ok(None)) => println!("refused    {server:<20} (never admitted; see the ledger)"),
+            (Err(e), _) | (_, Err(e)) => println!("unreadable {server:<20} {e}"),
+        }
+    }
+    ExitCode::SUCCESS
+}
+
+fn cmd_tools_revoke(args: &Args, root: &Path) -> ExitCode {
+    let (Some(server), Some(reason)) = (args.positional.get(1), args.flags.get("reason")) else {
+        return fail("usage: warrantor tools revoke <server> --reason \"...\"");
+    };
+    let signer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    match admission::AdmittedSet::open(root).revoke(server, reason, &signer, now()) {
+        Ok(receipt) => {
+            println!("revoked  {server} at {}: {reason}", receipt.claims.at);
+            println!(
+                "Every session started from now refuses to attach {server} until a manifest is \
+                 admitted again by name."
+            );
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&e.to_string()),
+    }
+}
+
+/// The export: the admitted manifest (absent once revoked) plus every receipt naming its server.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct AdmissionExport {
+    format: String,
+    server: String,
+    manifest: Option<admission::SignedManifest>,
+    receipts: Vec<admission::Receipt>,
+}
+
+fn cmd_tools_export(args: &Args, root: &Path) -> ExitCode {
+    let (Some(server), Some(out)) = (args.positional.get(1), args.flags.get("out")) else {
+        return fail("usage: warrantor tools export <server> --out <file>");
+    };
+    let set = admission::AdmittedSet::open(root);
+    let manifest = match set.load(server) {
+        Ok(m) => m,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let receipts: Vec<admission::Receipt> = match set.receipts() {
+        Ok(r) => r.into_iter().filter(|r| &r.claims.server == server).collect(),
+        Err(e) => return fail(&e.to_string()),
+    };
+    if receipts.is_empty() {
+        return fail(&format!(
+            "nothing has been decided about {server:?} on this machine; there is nothing to export"
+        ));
+    }
+    let export = AdmissionExport {
+        format: admission::EXPORT_FORMAT.to_string(),
+        server: server.clone(),
+        manifest,
+        receipts,
+    };
+    let body = serde_json::to_vec_pretty(&export).expect("an export serializes");
+    match std::fs::write(out, body) {
+        Ok(()) => {
+            println!("exported {server} -> {out}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(&format!("write {out}: {e}")),
+    }
+}
+
+/// Compare a skill file's SHA-256 with the admitted skill manifest's `subject_digest`.
+///
+/// OBSERVED, and said so: a skill is loaded by the harness, never through the proxy, so this
+/// checks a file an operator points at and refuses nothing at load time.
+fn cmd_tools_check_skill(args: &Args, root: &Path) -> ExitCode {
+    let (Some(server), Some(file)) = (args.positional.get(1), args.positional.get(2)) else {
+        return fail("usage: warrantor tools check-skill <server> <file>");
+    };
+    let manifest = match admission::AdmittedSet::open(root).load(server) {
+        Ok(Some(m)) if m.claims.kind == admission::AdmissionKind::Skill => m,
+        Ok(Some(_)) => return fail(&format!("{server:?} is admitted as a tool server, not a skill")),
+        Ok(None) => return fail(&format!("{server:?} has no admitted manifest on this machine")),
+        Err(e) => return fail(&e.to_string()),
+    };
+    let bytes = match std::fs::read(file) {
+        Ok(b) => b,
+        Err(e) => return fail(&format!("read {file}: {e}")),
+    };
+    let actual = report::sha256_hex(&bytes);
+    let expected = manifest.claims.subject_digest.clone().unwrap_or_default();
+    if actual == expected {
+        println!(
+            "MATCHES   {file} is byte-identical to the skill {server:?} admitted (sha256 {actual}).\n\
+             This is an OBSERVED check of a file you named: nothing stops a harness loading a \
+             different one."
+        );
+        ExitCode::SUCCESS
+    } else {
+        fail(&format!(
+            "MISMATCH  {file} has sha256 {actual}; the admitted skill {server:?} is {expected}. \
+             Do not load it."
+        ))
+    }
+}
+
+/// `warrantor verify` arm for [`admission::EXPORT_FORMAT`].
+fn verify_admission_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitCode {
+    let Some(anchor) = anchor else {
+        return fail(
+            "an admission export verifies against the ADMITTING machine's issuer key, and the \
+             export carries no key this command will take on its own word: pass --issuer \
+             <name|hex>",
+        );
+    };
+    let export: AdmissionExport = match serde_json::from_slice(body) {
+        Ok(e) => e,
+        Err(e) => return fail(&format!("{path} is not a {}: {e}", admission::EXPORT_FORMAT)),
+    };
+    for (i, receipt) in export.receipts.iter().enumerate() {
+        if let Err(e) = admission::verify_receipt(receipt, &anchor.key) {
+            return fail(&format!("{path}: receipt {} does not verify: {e}", i + 1));
+        }
+    }
+    let origin = match &anchor.origin {
+        AnchorOrigin::Pinned { name, pinned_at } => format!("pinned as {name} at {pinned_at}"),
+        AnchorOrigin::GivenOnTheCommandLine => "given on the command line".to_string(),
+    };
+    println!(
+        "VERIFIED  {} receipt(s) about {:?}, signed by the admitting machine's key ({origin})",
+        export.receipts.len(),
+        export.server
+    );
+    for receipt in &export.receipts {
+        let digest = &receipt.claims.manifest_digest;
+        println!(
+            "  {:<9} at {}  manifest {}  {}",
+            format!("{:?}", receipt.claims.decision).to_lowercase(),
+            receipt.claims.at,
+            &digest[..digest.len().min(16)],
+            receipt.claims.reason
+        );
+    }
+    if let Some(manifest) = &export.manifest {
+        let recorded = export.receipts.iter().rev().find(|r| {
+            r.claims.decision == admission::AdmissionDecision::Admitted
+                && !r.claims.issuer_key.is_empty()
+        });
+        match recorded.and_then(|r| trust::parse_key(&r.claims.issuer_key).ok()) {
+            Some(vendor_key) => match admission::verify_manifest(manifest, &vendor_key, 0) {
+                Ok(()) => println!(
+                    "manifest  signed by the vendor key the admitting machine recorded as {:?}. \
+                     That key is taken from the receipt and is not checked against a pin on \
+                     this machine; what is established is that the admitting machine's decision \
+                     has not changed since it was made.",
+                    manifest.claims.issuer
+                ),
+                Err(e) => {
+                    return fail(&format!(
+                        "{path}: the manifest does not verify against the vendor key the receipt \
+                         recorded: {e}"
+                    ))
+                }
+            },
+            None => println!(
+                "manifest  present, but no admission receipt records a vendor key, so its \
+                 signature is not checked here."
+            ),
+        }
+    }
     ExitCode::SUCCESS
 }
 
@@ -5261,8 +5585,9 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                             set.describe_attached(),
                             timeout.as_secs()
                         );
+                        let published = set.published_tools();
                         endpoint = endpoint.with_upstreams(set);
-                        let decompositions = match upstream_decompositions(args) {
+                        let mut decompositions = match upstream_decompositions(args) {
                             Ok(registry) => registry,
                             Err(e) => return fail(&e),
                         };
@@ -5280,7 +5605,91 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                                 }
                             );
                         }
+                        // Admission (L4-09). Decided before a single call is forwarded: a revoked
+                        // server, a server publishing beyond its manifest, or, under
+                        // --require-admission, a server with no manifest at all stops the
+                        // session here. The manifest's declarations join the effect registry so
+                        // classification stays on one path, and a manifest that disagrees with a
+                        // flag on this command line is a conflict, never last-wins.
+                        let admitted = admission::AdmittedSet::open(root);
+                        let require = args.flags.contains_key("require-admission");
+                        let signer = match load_or_create_key(
+                            &root.join("keys/issuer.key"),
+                            KeyKind::Issuer,
+                        ) {
+                            Ok(k) => k,
+                            Err(e) => return fail(&e),
+                        };
+                        let mut manifests: BTreeMap<String, admission::SignedManifest> =
+                            BTreeMap::new();
+                        for spec in &specs {
+                            match admitted.load(&spec.name) {
+                                Err(e) => return fail(&e.to_string()),
+                                Ok(None) => {
+                                    if let Ok(Some((at, reason))) = admitted.is_revoked(&spec.name) {
+                                        return fail(&format!(
+                                            "upstream {:?} was revoked at {at} ({reason}) and \
+                                             will not be attached. Admit a new manifest by name \
+                                             to restore it.",
+                                            spec.name
+                                        ));
+                                    }
+                                    if require {
+                                        return fail(&format!(
+                                            "upstream {:?} has no admitted manifest, and this \
+                                             session was started with --require-admission. A \
+                                             tool server that cannot present a manifest is \
+                                             refused. Admit one: warrantor tools admit \
+                                             <manifest.json>",
+                                            spec.name
+                                        ));
+                                    }
+                                }
+                                Ok(Some(manifest)) => {
+                                    if let Err(e) = admission::check_publication(&manifest, &published) {
+                                        // The server's OWN behavior disagrees with its manifest:
+                                        // revoked, receipted, refused, in that order.
+                                        if let Err(w) = admitted.revoke(&spec.name, &e.to_string(), &signer, now()) {
+                                            eprintln!(
+                                                "warrantor: could not receipt the revocation of {:?}: {w}",
+                                                spec.name
+                                            );
+                                        }
+                                        return fail(&format!(
+                                            "{e}. The manifest is revoked and the revocation is \
+                                             receipted in {}; this session will not start.",
+                                            admission::ledger_path(root).display()
+                                        ));
+                                    }
+                                    let declared = match admission::decompositions_of(&manifest) {
+                                        Ok(d) => d,
+                                        Err(e) => return fail(&e),
+                                    };
+                                    if let Err(e) = decompositions.merge(declared) {
+                                        return fail(&format!(
+                                            "the admitted manifest for {:?} disagrees with a \
+                                             declaration on this command line: {e}. The manifest \
+                                             is the issuer's statement; drop the flag or revoke \
+                                             the manifest, but do not run with both.",
+                                            spec.name
+                                        ));
+                                    }
+                                    manifests.insert(spec.name.clone(), manifest);
+                                }
+                            }
+                        }
+                        if !manifests.is_empty() {
+                            eprintln!(
+                                "warrantor: admission -- {} server(s) governed by an admitted \
+                                 manifest: {}.",
+                                manifests.len(),
+                                manifests.keys().cloned().collect::<Vec<_>>().join(", ")
+                            );
+                        }
                         endpoint = endpoint.with_decompositions(decompositions, policy);
+                        if !manifests.is_empty() {
+                            endpoint = endpoint.with_admission(admitted, manifests, signer);
+                        }
                         // Said once, at the terminal, to the person who can act on it. The model is
                         // not told: a tool that is granted but unreachable is a fact about wiring,
                         // and an agent cannot fix wiring.
@@ -5463,6 +5872,14 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                          write is staged rather than performed.",
                         unclassified.len(),
                         unclassified.join(", ")
+                    );
+                }
+                if endpoint.admission_refusals() > 0 {
+                    eprintln!(
+                        "warrantor: admission -- {} call(s) refused because the tool's manifest \
+                         disclaims the effect the call named. Receipted in {}.",
+                        endpoint.admission_refusals(),
+                        admission::ledger_path(root).display()
                     );
                 }
                 if let Some((forwarded, failures)) = endpoint.forwarding_counts() {
@@ -7025,6 +7442,7 @@ fn main() -> ExitCode {
         "report" => cmd_report(&args, &store, &root),
         "verify" => cmd_verify(&args, &root),
         "issuer" => cmd_issuer(&args, &root),
+        "tools" => cmd_tools(&args, &root),
         "archive" => cmd_archive(&args, &root),
         "egress" => cmd_egress(&args, &store, &root),
         "spend" => cmd_spend(&args, &store, &root),
