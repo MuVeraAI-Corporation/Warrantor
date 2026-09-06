@@ -74,6 +74,20 @@ const el = {
   auditEmpty: document.getElementById('audit-empty'),
   auditError: document.getElementById('audit-error'),
   auditUnreadable: document.getElementById('audit-unreadable'),
+  // Fleet register (L8-02, L8-08) — Task 11.1. The seventh destination; all five
+  // digits are taken and audit is already click-only, so this pane is click-only
+  // too. Each row carries the agent's strongest tier, the authority the
+  // registry resolved, and the coverage limits the warrants advertise. An
+  // agent whose authority could not be resolved renders as `unresolved`, not
+  // `unrestricted` — those are different failures with the same blast radius.
+  viewFleet: document.getElementById('view-fleet'),
+  fleet: document.getElementById('fleet'),
+  fleetHeadline: document.getElementById('fleet-headline'),
+  fleetSummary: document.getElementById('fleet-summary'),
+  fleetAgents: document.getElementById('fleet-agents'),
+  fleetEmpty: document.getElementById('fleet-empty'),
+  fleetError: document.getElementById('fleet-error'),
+  fleetUnreadable: document.getElementById('fleet-unreadable'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -395,13 +409,15 @@ function applyEmptyState(kind) {
   const coverage = state.view === 'coverage';
   const routing = state.view === 'routing';
   const audit = state.view === 'audit';
-  const elsewhere = summary || queue || settings || coverage || routing || audit;
+  const fleet = state.view === 'fleet';
+  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
   el.settings && (el.settings.hidden = !settings);
   el.coverage && (el.coverage.hidden = !coverage);
   el.routing && (el.routing.hidden = !routing);
   el.audit && (el.audit.hidden = !audit);
+  el.fleet && (el.fleet.hidden = !fleet);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -455,6 +471,7 @@ async function setView(value) {
     [el.viewCoverage, 'coverage'],
     [el.viewRouting, 'routing'],
     [el.viewAudit, 'audit'],
+    [el.viewFleet, 'fleet'],
   ]) {
     if (!button) continue;
     button.classList.toggle('is-on', value === name);
@@ -467,6 +484,7 @@ async function setView(value) {
   if (value === 'coverage') await loadCoverage();
   if (value === 'routing') await loadRouting();
   if (value === 'audit') await loadAudit();
+  if (value === 'fleet') await loadFleet();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -2148,6 +2166,167 @@ async function loadAudit() {
   renderAudit(auditFacts(answered, status, payload));
 }
 
+// ── the fleet register: every agent, with the authority the registry can resolve ────────
+
+/**
+ * Tier vocabulary the register speaks. The strongest word ("enforced")
+ * is never composed by the console; the server picks it from the agent's
+ * warrant set. `unresolved` is its own state, not a default to
+ * `unrestricted` — the rule the plan pins in the exit gate.
+ *
+ * `unknown` is the fallback for a tier word the renderer does not
+ * recognize (same discipline `tierLine` follows in `boundTierLines`).
+ */
+const FLEET_TIER_WORDS = Object.freeze(['enforced', 'mediated', 'observed', 'unresolved']);
+
+/**
+ * Read `/v1/agents` into the shape the pane renders.
+ *
+ * The route returns the warrant records the existing `/v1/warrants`
+ * route returns, regrouped by `subject`. The function refuses any
+ * non-array, because "the request returned an object whose agents field
+ * is a string" is not the same fact as "the request returned no agents".
+ *
+ * The function does NOT re-derive the tier from the warrants — a console
+ * that recomputed the strongest tier would be a second implementation of
+ * the warrant tier vocabulary, and the two would drift the moment the
+ * server's tier ordering changed.
+ *
+ * @param {boolean} answered
+ * @param {number} status
+ * @param {any} payload
+ */
+export function fleetFacts(answered, status, payload) {
+  const unusable = { readable: false, agents: [], formatError: null };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data;
+  if (!data || typeof data !== 'object') return unusable;
+  if (!Array.isArray(data.agents)) {
+    return { readable: false, agents: [], formatError: 'agents is not an array' };
+  }
+  return { readable: true, agents: data.agents, formatError: null };
+}
+
+/**
+ * The sentence at the top of the fleet pane.
+ *
+ * Five states, not one: an unreadable registry, an empty register, a
+ * register with only resolved agents, a register with at least one
+ * unresolved agent, and a register where every agent is enforced.
+ * Collapsing any two of these would tell the reader "the registry is
+ * clean" when it is not.
+ */
+export function fleetHeadline(facts) {
+  if (!facts.readable) {
+    return 'This fleet register could not be read. That is not the same as no agents running on this machine.';
+  }
+  if (facts.agents.length === 0) {
+    return 'No agents are registered on this machine.';
+  }
+  const tiers = facts.agents.map((a) => a?.tier);
+  const unresolved = tiers.filter((t) => t === 'unresolved').length;
+  const enforced = tiers.filter((t) => t === 'enforced').length;
+  if (unresolved > 0) {
+    return `${facts.agents.length} agent(s) registered; ${unresolved} could not be resolved by the registry. The unresolved count is rendered, not collapsed.`;
+  }
+  if (enforced === facts.agents.length) {
+    return `${facts.agents.length} agent(s) registered, every warrant anchored-and-enforced.`;
+  }
+  return `${facts.agents.length} agent(s) registered; the tier per row is the strongest bound the registry resolved for that agent.`;
+}
+
+/** The sentence that names the agent's tier in prose. */
+function fleetTierSentence(tier) {
+  switch (tier) {
+    case 'enforced':
+      return 'tier: enforced — every bound the agent advertises is anchored and signed.';
+    case 'mediated':
+      return 'tier: mediated — broker-mediated; what does not go through the broker is not decided by it.';
+    case 'observed':
+      return 'tier: observed — recorded, not refused as it happens.';
+    case 'unresolved':
+      return 'tier: unresolved — the registry could not pin this agent to a root grant.';
+    default:
+      return 'tier: not stated — the server returned a tier word the register does not recognize.';
+  }
+}
+
+/** The sentence that names the agent's authority in prose. */
+function fleetAuthoritySentence(authority) {
+  if (!authority || typeof authority !== 'object' || !authority.root) {
+    return 'authority: unresolved — the registry did not return a chain root for this subject.';
+  }
+  return `authority: ${authority.state ?? 'unresolved'} — root ${authority.root} (${authority.delegations ?? 0} delegation(s))`;
+}
+
+/** One row in the register. Each row carries subject, tier, authority, coverage limits. */
+function fleetAgentCard(agent) {
+  const card = node('article', 'fleet-agent');
+  const head = node('div', 'fleet-agent-head');
+  head.append(node('span', 'fleet-agent-subject', agent.subject ?? '(unnamed)'));
+  const tierWord = agent.tier ?? 'unknown';
+  const tierSpan = node('span', `fleet-agent-tier tier-${tierWord}`);
+  tierSpan.textContent = `tier: ${tierWord}`;
+  head.append(tierSpan);
+  card.append(head);
+
+  card.append(node('p', 'fleet-agent-authority', fleetAuthoritySentence(agent.authority)));
+
+  const ids = Array.isArray(agent.warrant_ids) ? agent.warrant_ids : [];
+  card.append(node(
+    'p',
+    'fleet-agent-warrants',
+    `${ids.length} warrant(s): ${ids.length > 0 ? ids.join(', ') : '(none)'}`
+  ));
+
+  const limits = node('ul', 'fleet-agent-limits');
+  limits.append(node('li', null, 'Coverage limits — what this agent is NOT covered for:'));
+  for (const limit of agent.coverage_limits ?? []) {
+    limits.append(node('li', null, limit));
+  }
+  card.append(limits);
+
+  // The tier sentence in prose, beside the row. A reader who cannot resolve the
+  // color of the tier pill still sees the word in prose. The same discipline
+  // the queue's tierLine and the audit's verdictSentence follow.
+  card.append(node('p', 'fleet-agent-tier-sentence', fleetTierSentence(tierWord)));
+
+  return card;
+}
+
+/** Render the fleet pane from the facts. */
+export function renderFleet(facts) {
+  if (!el.fleet) return;
+  if (!facts || !facts.readable) {
+    el.fleetError.hidden = false;
+    el.fleetError.textContent =
+      'This fleet register could not be read. A register that cannot list its agents cannot tell the operator what is running, and the page is blank on purpose.';
+    el.fleetEmpty.hidden = true;
+    el.fleetUnreadable.textContent = facts?.formatError ?? '';
+    el.fleetSummary.replaceChildren();
+    el.fleetAgents.replaceChildren();
+    return;
+  }
+  el.fleetError.hidden = true;
+  el.fleetEmpty.hidden = facts.agents.length > 0;
+  el.fleetSummary.replaceChildren(node('p', null, fleetHeadline(facts)));
+  el.fleetAgents.replaceChildren();
+  for (const agent of facts.agents) {
+    el.fleetAgents.append(fleetAgentCard(agent));
+  }
+}
+
+/** Load agents from the backend route and paint. */
+async function loadFleet() {
+  if (!el.fleet) return;
+  const { answered, status, payload } = await call('/v1/agents');
+  if (answered && status === 401) {
+    showGate('That token was not accepted.');
+    return;
+  }
+  renderFleet(fleetFacts(answered, status, payload));
+}
+
 // ── the summary: bounds that refused, and what a model said about what they allowed ──
 
 /**
@@ -3349,6 +3528,7 @@ if (el.viewCoverage) el.viewCoverage.addEventListener('click', () => setView('co
 
 el.viewRouting.addEventListener('click', () => setView('routing'));
 if (el.viewAudit) el.viewAudit.addEventListener('click', () => setView('audit'));
+if (el.viewFleet) el.viewFleet.addEventListener('click', () => setView('fleet'));
 
 el.summaryForm.addEventListener('submit', (event) => {
   event.preventDefault?.();

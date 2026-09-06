@@ -141,6 +141,18 @@ const ELEMENT_IDS = [
   'audit-pack-receipts',
   'audit-pack-verdict',
   'audit-pack-bundle',
+  // Fleet register (L8-02, L8-08) — added by Task 11.1. The seventh destination;
+  // all five digits are taken and audit is already click-only, so this pane is
+  // click-only too. The pane renders each agent once with the strongest tier
+  // across the agent's warrants, and surfaces `unresolved` as its own state.
+  'view-fleet',
+  'fleet',
+  'fleet-headline',
+  'fleet-summary',
+  'fleet-agents',
+  'fleet-empty',
+  'fleet-error',
+  'fleet-unreadable',
 ];
 
 function element(tag = 'div', id = '') {
@@ -2856,8 +2868,9 @@ test('the audit pane renders every pack from fixtures, with no backend running',
   });
   assert.equal(app.el('audit-error').hidden, true);
   assert.equal(app.el('audit-empty').hidden, true);
-  // The verifier is async (Web Crypto). Wait long enough for all three packs to render.
-  for (let i = 0; i < 10; i++) await settle();
+  // The verifier is async (Web Crypto) and runs sequentially per pack. Three packs
+  // need three digests; the wait loop lets each one resolve before the next starts.
+  for (let i = 0; i < 30; i++) await settle();
   const cards = app.el('audit-packs').children.filter((c) => c.tagName === 'article');
   assert.ok(cards.length >= 3, `every pack renders as its own article card — got ${cards.length}`);
 });
@@ -2981,5 +2994,177 @@ test('the audit pane appears when view-audit is clicked, and only then', async (
   app.el('view-warrants').fire('click');
   await settle();
   assert.equal(app.el('audit').hidden, true, 'switching away must hide the pane');
+});
+
+// ── Task 11.1 — the fleet console and the agent inventory register (L8-02, L8-08) ──
+//
+// An inventory that lists agents but not their authority is a nameplate, not a register.
+// The exit gate is the strongest tier per agent, never collapsed, and unresolved renders as
+// its own state.
+
+import {
+  resolvedAgent,
+  mediatedAgent,
+  observedAgent,
+  unresolvedAgent,
+  fleetFixtures,
+} from './fleet.fixtures.js';
+
+/** Open the fleet pane against an answer body. */
+async function openFleet(fleet) {
+  const booted = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/agents') return fleet;
+    return listOf(ONE_WARRANT);
+  });
+  booted.el('view-fleet').fire('click');
+  await settle();
+  return booted;
+}
+
+test('a row without an authority column is rejected by the renderer', async () => {
+  // The exit gate, Step 2. An agent row without an authority column is a nameplate,
+  // not a register. The renderer MUST surface the authority as its own element; a
+  // row that did not include it would render with `authority: unresolved` in
+  // prose, never silently as a missing field.
+  const { module, el } = await openFleet({
+    status: 200,
+    body: { data: { agents: [resolvedAgent, mediatedAgent, unresolvedAgent] } },
+  });
+  const facts = module.fleetFacts(true, 200, {
+    data: { agents: [resolvedAgent, mediatedAgent, unresolvedAgent] },
+  });
+  assert.equal(facts.readable, true);
+  module.renderFleet(facts);
+  await settle();
+  const cards = Array.from(el('fleet-agents').children ?? []);
+  assert.ok(cards.length === 3, 'every agent renders as its own card');
+  for (const card of cards) {
+    const authority = card.children.find((c) => c.className === 'fleet-agent-authority');
+    assert.ok(authority, 'every card must carry an authority element');
+    assert.ok(textOf(authority).length > 0, 'every authority element must carry prose');
+  }
+});
+
+test('unresolved authority renders as `unresolved`, never as unrestricted', async () => {
+  // The exit gate, Step 3. An agent whose authority could not be resolved renders as
+  // `unresolved`, not as `unrestricted`. Those are different failures with the same
+  // blast radius — the renderer's job is to distinguish them in prose.
+  const { module, el } = await openFleet({
+    status: 200,
+    body: { data: { agents: [unresolvedAgent] } },
+  });
+  const facts = module.fleetFacts(true, 200, { data: { agents: [unresolvedAgent] } });
+  module.renderFleet(facts);
+  await settle();
+  const card = el('fleet-agents').children[0];
+  const head = card.children.find((c) => c.className === 'fleet-agent-head');
+  const tier = head?.children.find((c) => c.className?.startsWith('fleet-agent-tier'));
+  // The unresolved agent carries tier "unresolved"; the tier pill class must reflect that.
+  assert.match(tier.className, /tier-unresolved/);
+  const tierSentence = card.children.find((c) => c.className === 'fleet-agent-tier-sentence');
+  assert.match(textOf(tierSentence), /tier: unresolved/);
+  // And the renderer must NOT say "unrestricted" anywhere on the card. A renderer that
+  // collapsed unresolved into unrestricted would be the rule's opposite.
+  const all = textOf(card);
+  assert.ok(!/unrestricted/.test(all), 'unresolved must not be rendered as unrestricted');
+});
+
+test('the fleet view renders from fixtures, with no backend running', async () => {
+  // The pane reads from the scripted response. With no body the pane shows the empty
+  // paragraph; with agents the pane shows one card per agent.
+  const app = await openFleet({ status: 200, body: { data: { agents: fleetFixtures } } });
+  await settle();
+  assert.equal(app.el('fleet-error').hidden, true);
+  assert.equal(app.el('fleet-empty').hidden, true);
+  const cards = app.el('fleet-agents').children.filter((c) => c.tagName === 'article');
+  assert.ok(cards.length === fleetFixtures.length, `every fixture renders as a card — got ${cards.length}`);
+});
+
+test('the fleet pane renders the empty-state paragraph when there are no agents', async () => {
+  // A blank fleet is the absence of a registry, not the record "no agents running".
+  // The empty-state paragraph is the only thing shown; the error paragraph and the
+  // per-agent cards stay hidden.
+  const app = await openFleet({ status: 200, body: { data: { agents: [] } } });
+  await settle();
+  assert.equal(app.el('fleet-empty').hidden, false);
+  assert.equal(app.el('fleet-error').hidden, true);
+});
+
+test('the fleet pane renders the error paragraph when the backend does not answer', async () => {
+  // The pane refuses to render "no agents" when the request did not complete.
+  const app = await openFleet({ status: 500, body: { data: null } });
+  await settle();
+  assert.equal(app.el('fleet-error').hidden, false);
+});
+
+test('every fleet agent renders its coverage limits, not a single green tick', async () => {
+  // The exit gate, Step 5. Every agent row carries its coverage limits — the sentences
+  // that name what the agent is NOT covered for. A renderer that collapsed the limits
+  // into a single green tick would be the rule's opposite.
+  for (const fixture of fleetFixtures) {
+    assert.ok(
+      Array.isArray(fixture.coverage_limits) && fixture.coverage_limits.length > 0,
+      `every agent must carry a non-empty coverage_limits list — ${fixture.subject} does not`,
+    );
+  }
+  const { module, el } = await openFleet({
+    status: 200,
+    body: { data: { agents: [resolvedAgent, mediatedAgent] } },
+  });
+  module.renderFleet(module.fleetFacts(true, 200, { data: { agents: [resolvedAgent, mediatedAgent] } }));
+  await settle();
+  const cards = Array.from(el('fleet-agents').children);
+  for (const card of cards) {
+    const limits = card.children.find((c) => c.className === 'fleet-agent-limits');
+    assert.ok(limits, 'every card must carry a coverage-limits list');
+    const items = (limits.children ?? []).filter((c) => c.tagName === 'li');
+    assert.ok(items.length >= 2, 'the limits list has a header plus at least one entry');
+  }
+});
+
+test('the fleet pane distinguishes enforced from observed in prose', async () => {
+  // The plan's central rule: a merely-observed bound must never look identical to a
+  // cryptographically enforced one. The renderer surfaces tier words in two places —
+  // the pill class and the prose sentence — and a same-class collapse would be the
+  // rule's opposite.
+  const { module, el } = await openFleet({
+    status: 200,
+    body: { data: { agents: [resolvedAgent, observedAgent] } },
+  });
+  module.renderFleet(module.fleetFacts(true, 200, { data: { agents: [resolvedAgent, observedAgent] } }));
+  await settle();
+  const cards = Array.from(el('fleet-agents').children);
+  const pillClasses = cards.map((card) => {
+    const head = card.children.find((c) => c.className === 'fleet-agent-head');
+    return head?.children.find((c) => c.className?.startsWith('fleet-agent-tier'))?.className;
+  });
+  const tierWords = cards.map((card) => textOf(
+    card.children.find((c) => c.className === 'fleet-agent-tier-sentence'),
+  ));
+  assert.ok(pillClasses[0].includes('tier-enforced'));
+  assert.ok(pillClasses[1].includes('tier-observed'));
+  assert.notEqual(tierWords[0], tierWords[1]);
+  assert.match(tierWords[0], /tier: enforced/);
+  assert.match(tierWords[1], /tier: observed/);
+});
+
+test('the fleet pane is click-only: seven destinations share five digits', async () => {
+  // The five digits are owned by warrants / queue / summary / coverage / routing.
+  // settings, audit and fleet are click-only. A pane that grabbed digit 6 or 7
+  // would have rebound the keyboard handler without updating the SHORTCUTS row.
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'console.js'), 'utf8');
+  assert.ok(!/case\s+'6':\s*setView\('fleet'\)/.test(source), 'fleet must not own a digit key');
+  assert.ok(!/case\s+'7':\s*setView\('fleet'\)/.test(source), 'fleet must not own a digit key');
+});
+
+test('the fleet pane appears when view-fleet is clicked, and only then', async () => {
+  // Click reveals; click elsewhere hides. Same rule as the audit pane.
+  const app = await openFleet({ status: 200, body: { data: { agents: [] } } });
+  assert.equal(app.el('fleet').hidden, false, 'clicking view-fleet must reveal the pane');
+  app.el('view-warrants').fire('click');
+  await settle();
+  assert.equal(app.el('fleet').hidden, true, 'switching away must hide the pane');
 });
 

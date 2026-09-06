@@ -72,6 +72,7 @@
           <button id="view-coverage" class="view" type="button">Coverage map</button>
           <button id="view-routing" class="view" type="button">Routing</button>
           <button id="view-audit" class="view" type="button">Audit</button>
+          <button id="view-fleet" class="view" type="button">Fleet</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -457,6 +458,45 @@
         </p>
 
         <ul id="audit-packs" class="audit-packs"></ul>
+      </section>
+
+      <!-- The fleet register (L8-02, L8-08).
+           An inventory that lists agents but not their authority is a nameplate, not a register.
+           The pane renders each agent once, with the strongest tier among the agent's warrants,
+           the authority chain that resolved them, and the coverage limits the warrants carry.
+           An agent whose authority could not be resolved renders as `unresolved`, never as
+           `unrestricted` — those are different failures with the same blast radius.
+
+           The list is read once on activation, never polled. A register that re-rendered under
+           the operator would reorder a row while they were scanning it; the page is meant to
+           be read top-to-bottom, with the strongest tier first. -->
+      <section id="fleet" class="fleet" hidden aria-labelledby="fleet-headline">
+        <h2 id="fleet-headline">Fleet — every agent, with the authority the registry can resolve</h2>
+
+        <p class="note">
+          Each row below is one agent — one <code>subject</code> the registry knows about, and
+          every warrant that subject owns. The <strong>tier</strong> is the strongest bound
+          strength the agent's warrants advertise; an agent whose warrants are all
+          <em>observed</em> never renders as <em>enforced</em>. The <strong>authority</strong>
+          column is the chain root the registry resolved for the subject; an agent the
+          registry cannot pin renders as <code>unresolved</code>, not as <code>unrestricted</code>.
+          The <strong>coverage limits</strong> are the sentences that name what each warrant
+          does NOT cover, one per warrant.
+        </p>
+
+        <p id="fleet-error" class="empty error" hidden>
+          The fleet could not be read. A register that cannot list its agents cannot tell the
+          operator what is running, and the page is blank on purpose.
+        </p>
+        <p id="fleet-unreadable" class="note error"></p>
+        <p id="fleet-empty" class="empty" hidden>
+          No agents are registered on this machine. An empty register is the absence of a
+          registry, not the record "no agents running". Shadow-agent discovery is Task 13.1's
+          surface; this pane only renders agents the registry already knows about.
+        </p>
+
+        <div id="fleet-summary" class="fleet-summary"></div>
+        <ul id="fleet-agents" class="fleet-agents"></ul>
       </section>
 
       <!-- The first-run panel.
