@@ -1613,13 +1613,24 @@ causal verdict, and that is deliberate: verification is about integrity, so a re
 denial has to keep verifying, or a denial could be made to look like tampering. A reader who wants the
 causal verdict computes it from the receipt.
 
-**Neither I-04 nor I-07 moved.** Both rows above say so. `tools/ci/invariant-ratchet.json` keeps
-`passing_floor: 82` and `ignored_ceiling: 15`, and all three candidate `#[ignore]`s
+**Neither I-04 nor I-07 moved.** Both rows above say so. Task 10.1 does not edit
+`tools/ci/invariant-ratchet.json`; on `main` @ `ce5d02d` that file records `passing_floor: 85` and
+`ignored_ceiling: 15` (Task 5.4 raised the floor from the 82 this paragraph first named), and all
+three candidate `#[ignore]`s
 (`i07_evidence_precedes_commitment.rs`'s one, and both of `i04_current_policy.rs`'s) stay ignored.
 Task 10.1 adds no evaluation point and never calls `issue_pre_commit`. The full assessment is in
 `docs/task-evidence/task-10.1.md`.
 
-**One open finding handed forward.** There are now three independent canonical-JSON implementations in
-this workspace — `rust/notary/src/lib.rs`, `rust/evidence/src/lib.rs` and
-`rust/post-quantum/src/lib.rs` — against spec 11 §1's rule that no security invariant may have two
-authoritative implementations. Task 10.1 added no fourth and consolidated none of the three.
+**One open finding handed forward, re-counted.** This section first said there were "three
+independent canonical-JSON implementations in this workspace — `rust/notary/src/lib.rs`,
+`rust/evidence/src/lib.rs` and `rust/post-quantum/src/lib.rs`". That count is wrong, and understating
+the finding is the wrong direction to be wrong in: `grep -rn "fn canonicalize_value" rust/` returns
+**sixteen** private implementations, one per crate — `agent-manifest`, `computer-use`,
+`containment-conformance`, `content-moderation`, `csam-defense`, `data-plane`, `egress`, `evidence`,
+`misinformation-defense`, `notary`, `plugin-api`, `post-quantum`, `responsible-ai`, `retrieval`,
+`self-governance` and `spend` — and every one of the sixteen crates signs bytes with `ed25519_dalek`
+over its own canonicalizer's output. Sixteen were present at this branch's base (`5d3e44d`) and
+sixteen are present on `main`, so the count was already wrong when it was written, not overtaken by
+another lane (evidence-truth review, 2026-09-06). Against spec 11 §1's rule that no security
+invariant may have two authoritative implementations, the finding is therefore fifteen-fold rather
+than threefold. Task 10.1 added no seventeenth and consolidated none of the sixteen.

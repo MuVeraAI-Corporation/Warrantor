@@ -211,10 +211,10 @@ executed. That containment is real and it is not enforcement.
 | A dependent hop preceding its dependency is refused, by index | **Observed (Tier C)** | `CausalRefusal::OrderBroken`, over the ordering relation among handles | Same. The order is judged, never enforced |
 | A hop whose recorded index is not its position is refused | **Observed (Tier C)** | `CausalRefusal::IndexBroken` | Only that every refusal above names a number that means something |
 | `step_count` cannot disagree with the list it counts | **Observed (Tier C)** | `CausalRefusal::CountMismatch` | Nothing about whether the list itself is complete |
-| The route describes the staged log the reader is holding | **Observed (Tier C)** | `causal_verdict_pinned` (`evidence:957`) against `StagingQueue::head_digest` (`staging:472`). Test: `a_section_signed_before_the_log_grew_is_refused_against_the_grown_log` | A reader who never calls it learns nothing. The staged log, the witness log and the issuer key are on one disk — `StagedChainMark`'s own doc already says this is not a defense against an editor with write access |
+| The route describes the staged log the reader is holding | **Observed (Tier C)** | `causal_verdict_pinned` (`evidence:957`) against `StagingQueue::head_digest` (`staging:474` on this branch — the cell cited `staging:472`, which is the line on `main`, before this branch's own additions moved it). Test: `a_section_signed_before_the_log_grew_is_refused_against_the_grown_log` | A reader who never calls it learns nothing. The staged log, the witness log and the issuer key are on one disk — `StagedChainMark`'s own doc already says this is not a defense against an editor with write access |
 | A v1 receipt yields a named refusal, never a pass | **Observed (Tier C)** | `CausalRefusal::Unrepresentable`; `::Uninterpretable` for a section under a version this build cannot read | Nothing retro-fits a route onto a historical receipt. By design: a v1 receipt is v1 forever |
 | A newer format is refused as a version, not as a forgery | **Observed (Tier C)** | `check_predicate_version` (`evidence:663`) runs **before** the signature check in `verify_receipt` (`evidence:681`); `deny_unknown_fields` on `WarPredicate` and `notary::ReceiptBody` | Builds already deployed have neither, so they still mis-report a v2 receipt as `InvalidSignature`. This protects future readers, not past ones |
-| The bundle's rendered causal sentence is true of the section it describes | **Observed (Tier C)** | `limitations()` renders the hop count and the chain head **from** `Causality`; test `the_bundles_causal_sentence_is_rendered_from_the_section_it_describes` asserts both appear | Nothing about whether the section is a complete account of what the agent did |
+| The bundle's rendered causal sentence is true of the section it describes | **Observed (Tier C)** | `limitations()` renders the hop count and the chain head **from** `Causality`; test `the_bundles_causal_sentence_is_rendered_from_the_section_it_describes` asserts the whole sentence equals a golden, over a one-hop and a three-hop queue | Nothing about whether the section is a complete account of what the agent did |
 
 `bound_strengths()` is deliberately **not** edited. The causal verdict is not a warrant bound, and
 adding a row would put a Tier C claim into a table whose readers scan for `Enforced`.
@@ -224,25 +224,45 @@ adding a row would put a Tier C claim into a table whose readers scan for `Enfor
 `limitations()` in `rust/warrant/src/report.rs` now renders one of two sentences, chosen by whether a
 route was read:
 
-> The causal verdict is computed over the staged-effect order this notary recorded — *N* hop(s),
-> pinned to staged-log chain head *H* — and it makes the recorded pathway tamper-evident: an operator
-> cannot later rewrite the route without breaking a signature or that chain digest. It does **not**
-> prove the recorded route is the route the agent actually took. Effects reach that record by being
-> STAGED, and nothing intercepts the agent at each hop, so a route that never passed through the
-> staging queue is invisible here. Ordering is this machine's observation of its own queue and not a
-> distributed guarantee: two Warrantor installations produce two independent orders and nothing
-> reconciles them.
+> No causal verdict was computed when this report was built, and `verify_export` computes none. A
+> reader computes it with `warrantor_evidence::causal_verdict` over `evidence_receipt.predicate`,
+> which records the staged-effect order this notary read — *N* hop(s), pinned to staged-log chain
+> head *H*. The signature over that record makes the recorded pathway tamper-evident to a reader who
+> verifies it: an operator without the issuer key cannot rewrite the route undetected. An operator
+> holding the issuer key can re-sign a different route, and nothing in this bundle shows that it
+> happened; the verdict then judges whatever route was signed. It does **not** prove the recorded
+> route is the route the agent actually took. Effects reach that record by being STAGED, and nothing
+> intercepts the agent at each hop, so a route that never passed through the staging queue is
+> invisible here. Ordering is this machine's observation of its own queue and not a distributed
+> guarantee: two Warrantor installations produce two independent orders and nothing reconciles them.
 
 > No staged route was read when this report was built, so its evidence receipt carries no causality
 > section, and a causal verdict over that receipt refuses as unrepresentable rather than passing. That
 > is not a statement that nothing was staged.
 
-*N* and *H* are read off the section, not written beside it. Two tests hold this:
-`no_source_file_under_rust_claims_the_pathway_is_proven_or_enforced` fails if the words "prove the
-pathway", "pathway proven", "route verified", "causally enforced" or "proves the pathway" appear in
-any `.rs` file under `rust/`, and
-`the_products_limitations_carry_the_tamper_evident_sentence_rather_than_a_proof_claim` fails if
-`report.rs` loses the tamper-evidence clause or the two disclaimers.
+The first wording of this sentence opened "The causal verdict **is computed** over the staged-effect
+order this notary recorded", in the present tense, about a computation the product never performs —
+nothing in `rust/warrant` calls `causal_verdict`, and `verify_export` checks integrity by design. It
+also said an operator "cannot later rewrite the route without breaking a signature or that chain
+digest", which is false for the operator the tier table already names. Both were corrected in the
+code and here (claim-honesty review, 2026-09-06); the text above is what a bundle carries now.
+
+*N* and *H* are read off the section, not written beside it. Three tests hold this:
+
+- `the_bundles_causal_sentence_is_rendered_from_the_section_it_describes`
+  (`rust/warrant/tests/causal_trace.rs`) holds the **exact** sentence as a golden and compares it with
+  `assert_eq!` over a one-hop and a three-hop queue, so a hard-coded hop count cannot agree with both
+  fixtures and no clause can be appended after the last full stop. It replaced a pair of fragment
+  checks that a mutation walked past twice (mutation review, 2026-09-06).
+- `the_products_limitations_carry_the_tamper_evident_sentence_rather_than_a_proof_claim` fails if
+  `report.rs` loses the tamper-evidence clause or the two disclaimers, and now also fails on the
+  present-tense "The causal verdict is computed".
+- `no_source_file_under_rust_claims_the_pathway_is_proven_or_enforced` is a **denylist of phrases**
+  and not a semantic guard: it fails when any of the 23 literal phrases it lists — "prove the
+  pathway", "pathway proven", "route verified", "causally enforced", "proves the pathway" and the
+  eighteen the review lane used to walk past those five, among them "the pathway is enforced" and
+  "the route is proven" — appears in a `.rs` file under `rust/`. A proof claim in other words still
+  passes it, which is why the golden above and not this list is what holds the shipped sentence.
 
 ---
 
@@ -324,8 +344,13 @@ otherwise untouched.
 | `i04_current_policy.rs` — `the_product_evaluates_policy_more_than_once_per_action` | `notary::verdict(` appears more than once in `rust/warrant/src` | **No.** Task 10.1 adds no evaluation point. One notary call per report, unchanged |
 | `i04_current_policy.rs` — `the_post_commit_receipt_records_its_own_policy_evaluation` | `post_commit.…decision.evaluated_at != pre_commit.…decision.evaluated_at` | **No.** Reachable from `rust/evidence`, but its finding is Task 2.3's commit-time re-evaluation, not causality. Claiming it would mean changing `issue_post_commit` for a reason this task does not own |
 
-`tools/ci/invariant-ratchet.json` keeps `passing_floor: 82` and `ignored_ceiling: 15`, unchanged, and
-no assertion in the corpus was weakened or deleted. **Nothing converted.** The corpus's own ordinal
+`tools/ci/invariant-ratchet.json` is not edited by this branch, so whatever `main` records is what
+this branch inherits; on `main` @ `ce5d02d` the file records `passing_floor: 85` and
+`ignored_ceiling: 15`, Task 5.4 having raised the floor from the 82 this paragraph first named. Read
+from the merged corpus's own line rather than from the artifact, the invariants suite on this
+branch's final tip prints `test result: ok. 85 passed; 0 failed; 15 ignored`, and the ratchet answers
+`ok (85 passing at floor 85, 15 recorded findings at ceiling 15)` — the floor is met, not raised, by
+this task. No assertion in the corpus was weakened or deleted. **Nothing converted.** The corpus's own ordinal
 gate is unaffected, because this task adds no `#[ignore]`: `ignored_ceiling` is 15, so ignore number
 16 would raise it, and that sentence stays in `docs/W1-delivery-gaps.md` and
 `docs/task-evidence/task-5.3.md` where the gate reads it.
@@ -437,9 +462,16 @@ Specific, not modest.
 8. **It says nothing about the nine sibling `issue_receipt` implementations.** `computer-use`,
    `content-moderation`, `csam-defense`, `data-plane`, `egress`, `misinformation-defense`,
    `retrieval`, `spend` and `notary` each define their own `issue_receipt` with its own body type and
-   canonicalizer. None carries a route, none carries a version field, and only `notary::ReceiptBody`
-   gained `deny_unknown_fields`. The chain went into `evidence::WarPredicate` precisely because it is
-   the one envelope all ten funnel through, but the ten bodies themselves remain unversioned.
+   canonicalizer. `grep -rn "fn issue_receipt" rust/*/src/` returns exactly those nine. None carries a
+   route, none carries a version field, and only `notary::ReceiptBody` gained `deny_unknown_fields`,
+   so **nine** bodies remain unversioned. This item first said the chain went into
+   `evidence::WarPredicate` "precisely because it is the one envelope all ten funnel through", which
+   is false and was the more flattering way to be wrong: **not one of the nine crates depends on
+   `warrantor-evidence`** — `grep -l warrantor-evidence rust/<crate>/Cargo.toml` finds nothing in any
+   of them — so no sibling receipt funnels through `WarPredicate` and this task did not reach them
+   even indirectly. What is true is narrower: `rust/warrant` is the one crate that depends on both
+   `warrantor-evidence` and `warrantor-notary`, and it is `warrant`'s own report receipt, alone, that
+   carries the route (claim-honesty review, 2026-09-06).
 9. **Per-effect receipts carry no route.** `settle::pre_commit_predicate` stays v1, so
    `causal_verdict` over a per-effect receipt returns `Unrepresentable`. That is the honest answer for
    a one-hop record, and it means the per-effect chain is not causally checked — only the report
@@ -558,8 +590,14 @@ Both archive suites are at the required counts, unchanged. The refusals naming a
 `comment://staged/wrt_f02/2`, tool `github.comment`) and
 `a_hop_depending_on_a_handle_no_earlier_hop_minted_is_a_violation` (index 2, missing
 `pr://staged/wrt_f02/99`); their controls are `the_identical_chain_with_every_hop_granted_passes` and
-`a_well_formed_order_passes`. Nine of the nineteen tests are refusals and ten are acceptances, and the
-first mutation above shows exactly that split going red and staying green respectively.
+`a_well_formed_order_passes`. Nine of the nineteen tests **in that run** were refusals and ten were
+acceptances, and the first mutation above shows exactly that split going red and staying green
+respectively. Both halves of that count moved after the adversarial review added two tests: on the
+final tip the suite holds 21 tests, and the same mutation gives `11 passed; 10 failed` — the tenth
+refusal being
+`a_causality_section_under_a_version_this_build_cannot_read_is_uninterpretable_not_a_pass`, added
+because deleting the branch it covers had left every suite green. The re-run is in the corrections
+section at the end of this file.
 
 ---
 
@@ -914,3 +952,260 @@ causal suite, `a_correct_outcome_reached_through_an_ungranted_middle_hop_is_a_vi
 `index == 2` and that the rendered refusal contains `hop 2` — a refusal naming a hop by index — and
 `the_identical_chain_with_every_hop_granted_passes` is the accepted well-formed control; both passed
 in this run. The ledger may cite Task 10.1 as built.
+
+---
+
+## Corrections after adversarial review — 2026-09-06, third pass
+
+Three lenses read this branch at `f3d4dc0` on `main` @ `065961b` — claim-honesty (6 findings),
+test-rigor by mutation (9), evidence-truth (5). This section closes all twenty, says which were
+refuted rather than fixed, and records what the branch looks like afterward.
+
+**What the review record actually contained, stated so nobody over-reads this section.** The
+workflow result file for this wave carries, for Task 10.1, the three lens headers and their finding
+*counts* — six, nine and five — with an empty `closed` list and no per-finding text; there is no
+`full` entry for this lane in it. So the finding set below was reconstructed from three sources, each
+of which is a primary record: the three fix commits an interrupted fix lane had already made on this
+branch, whose messages name their lens and finding number; that lane's prepared but uncommitted work
+and its mutation driver and logs, which name each mutation, its exact substitution and its outcome;
+and this lane's own re-derivation of every behavior-asserting sentence the branch adds against the
+code that makes it true. Nineteen mutations are named in that driver, of which six survived. Where a
+lens finding was numbered but its text is not in any record, this section says so rather than
+inventing one: **claim-honesty 5 and evidence-truth 3, 4 and 5 are not recoverable by number**, and
+what stands in their place is the re-derivation below, which found four further false or stale
+sentences of its own.
+
+### Fixed in code, each with the mutation that now goes red
+
+- **Claim-honesty 1 — the bundle's causal sentence said the product computes the verdict.** The
+  signed sentence opened "The causal verdict is computed over the staged-effect order this notary
+  recorded", in the present tense, and nothing in `rust/warrant` calls `causal_verdict`;
+  `verify_export` checks integrity by design. It also told an operator they "cannot later rewrite
+  the route without breaking a signature or that chain digest", which is false for the party the
+  tier table already names. Fixed in `b895837`: the sentence now says no verdict was computed here,
+  names who computes it and from which field, and carries the issuer-key escape inside the bundle
+  rather than only in this file. Completed in `ce00050`, which makes the presence test refuse the
+  present-tense wording instead of only requiring the new one — a presence test cannot prove an
+  absence, so the false wording could otherwise have been restored beside the true one.
+- **Claim-honesty 2 — a commit message overstated the rule-3 test.** `d78c8b8` said the test "fails
+  if any .rs file under rust/ ever claims the pathway is proven or enforced"; it matched five
+  literal phrases, and "the pathway is enforced" and "the route is proven" walked past it. The
+  denylist went from 5 phrases to 23 in `3b1ecf3`, and in `a9dd778` the test's own doc comment says
+  what it is — a denylist of literal phrases, not a semantic guard — and points at the golden test
+  that holds the shipped sentence exactly. Published history cannot be rewritten, so the correction
+  lives where the next reader looks. The mutation that inserts "the pathway is enforced by this
+  verdict and the route is proven" into `settle.rs` now fails the test (`0 passed; 1 failed`).
+- **Claim-honesty 3, with the test-rigor finding on the same test — `Cargo.toml` claimed a guarantee
+  the dev-dependency did not buy.** It said importing `authority-spec` meant the per-class test
+  "iterates the real enum instead of a list of strings that would silently go stale when a class is
+  added"; the test looped over five hand-written variants, and a sixth class compiled and passed.
+  Fixed in `01326bf`: the list is built from an exhaustive `match` with no wildcard arm, so a new
+  variant is `error[E0004]` in the test, and both comments now say that instead. Adding a sixth
+  `SideEffectClass` variant fails to compile the test with
+  `error[E0004]: non-exhaustive patterns: SideEffectClass::Mutation not covered`.
+- **Claim-honesty 6 / evidence-truth (the issuer-key escape).** Covered by the same fix as
+  claim-honesty 1: the escape is now in the signed bundle's own sentence.
+- **Test-rigor M06 — the `Uninterpretable` branch was described and exercised by nothing.**
+  Deleting it left every suite green, so a build that read a v9 route under the v2 rule would have
+  PASSED it. Fixed in `21e5b92` with a test over an unknown version and over no version at all;
+  M06 re-applied against it gives `20 passed; 1 failed`.
+- **Test-rigor M07 — `UnversionedCausality` was covered only by the Python mirror.** Deleting the
+  Rust arm left every Rust suite green. Fixed in `ef66ec4`: the frozen-fixture suite now requires
+  `verify_receipt` to refuse an unversioned causal section as `UnversionedCausality` and not as
+  `InvalidSignature`, which is the misreport the gate exists to prevent. M07 re-applied gives
+  `9 passed; 1 failed`.
+- **Test-rigor M11 and M13, with evidence-truth 1 and 2 — two fragment checks let a hard-coded hop
+  count and an appended Enforced-tier claim into a signed bundle.** M11 hard-codes the count as `3`,
+  which matched the only three-hop fixture; M13 appends "Every hop was enforced at the moment of
+  attempt." after the honest fragments. Both shipped green. Fixed in `cf8d5e9`: the test holds the
+  exact sentence as a golden and compares with `assert_eq!` over a one-hop and a three-hop queue, so
+  no hard-coded count agrees with both fixtures and nothing can be appended after the last full
+  stop. Both mutations now give `7 passed; 1 failed`.
+- **Test-rigor M19 — no CI tool in this repository reads tier vocabulary.** Relabeling every causal
+  refusal `Enforced` in this file's summary table left `check_docs.py`, `check_invariants.py` and
+  `check_us_english.py` all at exit 0. Fixed in `c89c352`: a test walks every Markdown table row in
+  this file and refuses a cell whose tier word is `Enforced` or `Mediated`, and refuses to pass on a
+  file it did not really read by requiring at least forty rows. M19 now fails that test alone.
+
+### Refuted, with the reproduction that shows why
+
+- **Test-rigor M16 — rendering the staging order instead of the release order survives every test.**
+  Reproduced: applied, `causal_trace` stays green (`8 passed`). It is **not** a defect, because the
+  two orders cannot differ through this API: `stage` refuses a dependency on a handle it has not
+  minted, so dependencies always point backward and `release_order` returns the staging order. What
+  *was* wrong is what made the mutation look live — a doc comment claiming the orders "differ
+  whenever an agent stages out of dependency sequence", which the API does not allow, and a fixture
+  comment promising an "interesting case" built in a test that does not exist. `827d9c5` corrects
+  both and adds the test that pins the enabling invariant: a forward reference is refused at `stage`
+  with the handle-provenance message, a refused stage writes nothing to the log, and the trace, the
+  release order and the staging order are one sequence. That test goes red first on the day `stage`
+  starts accepting a forward reference, which is the day the mutation stops being equivalent.
+- **One artifact of the review itself, recorded rather than fixed.** The mutation lens's own restore
+  of this Markdown file was not byte-identical (`sha 92ef8d9a` before, `942d703d` after) because it
+  restored through `git checkout` and this file is CRLF in the working copy. Git reported no
+  modification, and this lane verified the file against `HEAD` before editing it. The fix lane's
+  driver stopped using `git checkout` for this reason; nothing in the branch changed.
+
+### Found by this lane's own re-derivation, not by a numbered finding
+
+- **This file quoted a sentence the product no longer prints.** "The sentence that ships in the
+  product" still carried the pre-`b895837` wording. Corrected to the sentence `limitations()` renders
+  now, with a note saying what the first wording claimed and why it was false.
+- **The same section described the tests that hold it wrongly.** It named two tests, said the
+  denylist matched five phrases, and said the golden test "asserts both appear". On this tip there
+  are three tests, the denylist holds 23 phrases, and the golden asserts whole-sentence equality over
+  two hop counts. All three descriptions corrected, here and in the tier table row.
+- **A tier-table anchor pointed at `main`'s line, not this branch's.** The cell cited
+  `StagingQueue::head_digest` at `staging:472`; on this branch it is at `staging:474`, because the
+  branch's own additions moved it. Both numbers are now stated.
+- **The ledger undercounted its own open finding by thirteen.** `docs/W1-delivery-gaps.md` §5.4 said
+  there are "three independent canonical-JSON implementations in this workspace" and named three
+  files. `grep -rn "fn canonicalize_value" rust/` returns **sixteen**, one per crate, and every one
+  of the sixteen crates signs bytes with `ed25519_dalek` over its own canonicalizer's output.
+  Sixteen were present at this branch's base `5d3e44d` and sixteen are on `main`, so the count was
+  wrong when written rather than overtaken. Understating an open finding is the wrong direction to be
+  wrong in, and the ledger now says sixteen.
+- **"What this task does NOT establish" item 8 claimed a funnel that does not exist.** It said the
+  chain went into `evidence::WarPredicate` "precisely because it is the one envelope all ten funnel
+  through". Not one of the nine sibling `issue_receipt` crates depends on `warrantor-evidence` at
+  all, so no sibling receipt funnels through `WarPredicate`; `rust/warrant` is the one crate that
+  depends on both `warrantor-evidence` and `warrantor-notary`, and its own report receipt is the only
+  one that carries a route. Nine bodies, not ten, remain unversioned.
+- **Two ratchet numbers were stale after the rebase.** This file and the ledger both said
+  `tools/ci/invariant-ratchet.json` keeps `passing_floor: 82`. On today's `main` the file records
+  `passing_floor: 85` — Task 5.4 raised it — and this branch does not touch that file. Both
+  sentences now say 85, measured from the merged tree rather than typed.
+
+### The full gate on the final tip, exit codes captured before any pipe
+
+Every cargo number in this subsection was measured on `827d9c5`, the last commit that changes code:
+the commits after it touch only `docs/task-evidence/task-10.1.md` and `docs/W1-delivery-gaps.md`, and
+the one test that reads a Markdown file — the tier-cell test — was re-run against this section's own
+text and passed (`causal_verdict`: 21 passed). It was measured in `M:/wt-w6-10.1` with
+`CARGO_TARGET_DIR=M:/wt-rv-10.1-target` — a directory owned by this lane alone — and
+`CARGO_BUILD_JOBS=2`. Both disk guards ran before every cargo invocation.
+
+**The wait, recorded because it shaped the run.** `python tools/ci/disk_guard.py --require-commit 5`
+refused for roughly fifty minutes at the start of this lane, hovering between 0.7 GB and 4.9 GB of
+commit charge while sibling lanes built. Nothing was deleted and no process was killed; the lane did
+its git and prose work while polling, and every cargo step below ran after the guard cleared at
+20.7 GB. Disk was never the constraint: `--require 80` answered `OK` on every call, never below
+231 GB free.
+
+```
+$ git rev-parse --short main
+ce5d02d
+$ git merge-base --is-ancestor main HEAD ; echo $?
+0
+
+$ cd rust && cargo fmt --all -- --check                                   exit 0
+$ cargo clippy --workspace --all-targets -- -D warnings                   exit 0   (0 error/warning lines)
+$ cargo test --workspace --all-targets                                    exit 0
+  125 "test result:" lines: 1624 passed, 0 failed, 20 ignored
+$ cargo test --workspace --doc                                            exit 0
+   40 "test result:" lines:    1 passed, 0 failed,  0 ignored
+  (165 suites in total, 1625 passed, 0 failed, 20 ignored. The previous section measured
+   163 / 1588 / 20 on `71190e4`; the two new suites are this branch's own additions and the
+   rest of the rise is what `main` gained in Task 5.4 and Task 7.1.)
+
+  This task's suites, from the workspace run:
+     append_only.rs                               7 passed; 0 failed; 2 ignored
+     verification_does_not_depend_on_the_archive  6 passed; 0 failed; 0 ignored
+     causal_verdict.rs                           21 passed; 0 failed; 0 ignored
+     v1_predicates_still_verify.rs               10 passed; 0 failed; 0 ignored
+     v1_receipt_fixture.rs                        5 passed; 0 failed; 0 ignored
+     causal_trace.rs                              8 passed; 0 failed; 0 ignored
+
+$ cd rust && python ../tools/ci/wiring_census.py                          exit 0
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 23 path edges
+  (13 of 41 unchanged; 22 path edges -> 23 came from `main`, not from this branch, whose
+   shipping dependency table is untouched by every commit in this pass.)
+$ python tools/ci/check_invariant_ratchet.py --show-findings              exit 0
+invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 15)
+  (Its own invariants run prints `test result: ok. 85 passed; 0 failed; 15 ignored` and its
+   findings run prints `FAILED. 1 passed; 14 failed` by design — recorded findings fail on
+   purpose. The floor is MET, not raised: this branch converts no `#[ignore]` and adds none.)
+$ python tools/ci/check_invariants.py                                     exit 0
+invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1  UNCHANGED
+$ python tools/ci/check_docs.py                                           exit 0
+RESULT: PASS - 302 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+$ python tools/ci/check_us_english.py main                                exit 0
+us-english: 3372 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok
+  (Diff mode reads commits, so the two Markdown files this section edits were additionally
+   checked with `check_us_english.py --files`, which reads every line: `us-english: ok`.)
+$ PYTHONPATH=<both src dirs> python -m pytest python/warrantor_evidence/tests/test_evidence.py python/warrantor_notary/tests/test_notary.py -q
+36 passed
+```
+
+### The mutations re-proved on this tip, each restored byte-identical
+
+Every mutation below was applied to the final tip, run against the smallest test set that should
+catch it, then restored; the driver asserts `sha256(before) == sha256(after)` and printed the digest
+for each file it touched. `git status --porcelain` named only the two Markdown files this section
+edits, before and after.
+
+| mutation | what it changes | result on this tip |
+|---|---|---|
+| M06 | `readable_causality` drops the `Uninterpretable` branch | RED — `causal_verdict` 20 passed, 1 failed |
+| M07 | `check_predicate_version` drops the `UnversionedCausality` arm | RED — `v1_predicates_still_verify` 9 passed, 1 failed |
+| M11 | `limitations()` hard-codes the hop count as `3` | RED — `causal_trace` 7 passed, 1 failed |
+| M13 | an "every hop was enforced at the moment of attempt" clause appended to the shipped sentence | RED twice — `causal_trace` 7/1 and `causal_verdict` 20/1 |
+| M16 | `causal_trace` renders the staging order instead of `release_order` | GREEN, as the refutation predicts — `causal_trace` 8 passed |
+| M19 | every causal refusal in this file's summary table relabeled to the strongest tier word | RED — the tier-cell test alone, 0 passed, 1 failed |
+| CH2 | a proof-and-enforcement claim in other words inserted into `settle.rs` | RED — the denylist test, 0 passed, 1 failed |
+| CH3 | a sixth `SideEffectClass` variant added to `authority-spec` | RED at compile — `error[E0004]: non-exhaustive patterns: SideEffectClass::Mutation not covered` |
+| the recount | `causal_verdict` returns `Ok(())` unconditionally | RED — 11 passed, 10 failed: every refusal test red, every acceptance green |
+
+### Tier, restated for the final tip
+
+Nothing about the tier changed in this pass, and now a test holds it rather than a reviewer's eye.
+`rust/warrant/src/lib.rs` is still byte-identical to `main`, so `BoundStrength` and
+`bound_strengths()` gained no row for this bound and no signed bounds table carries a tier word for
+it. The shipped sentence in `limitations()` carries no tier word at all — checked by rendering it
+through `build`+`sign` in the golden test rather than by reading the source. In one line each, with
+what escapes:
+
+| bound | word | what escapes it |
+|---|---|---|
+| the signed effect order | Tier A — cryptographic, deliberately not the word `Enforced` | the issuer key re-signs any route, and the bundle's own sentence now says so; a reader who never verifies detects nothing; the refusal is at verification, not at the moment of attempt |
+| every causal refusal (`UnauthorizedHop`, `OrderBroken`, `IndexBroken`, `CountMismatch`, the queue-head pin, `Unrepresentable`, `Uninterpretable`, the version gate) | Observed — Tier C | nothing refuses a hop when it happens; a route that never passed through the staging queue is invisible; the staged log, the witness log and the issuer key share one disk |
+
+Nothing on this branch is `Mediated` and nothing is `Enforced`. The word for a refusal in this
+product's own code is Observed, and `causal_verdict` has no shipping caller at all — `build` records
+the route and `verify_export` checks integrity, so the verdict is computed only by a reader who calls
+it. That is stated in the bundle, in the code comment above the sentence, and in item 8 of "What this
+task does NOT establish".
+
+### Acceptance — RUN on the final tip
+
+The plan's Task 10.1 has no paragraph headed "Acceptance"; its exit gate is the paragraph headed
+**Exit gate**, quoted verbatim under "The exit gate this task set for itself" above. The branch
+performs that run, and the transcript below is that command on the tip this section commits.
+
+```
+$ cd rust && cargo test -p warrantor-evidence --test causal_verdict --test v1_predicates_still_verify
+     Running tests\causal_verdict.rs
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.18s
+     Running tests\v1_predicates_still_verify.rs
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+EXITGATE_EVIDENCE=0
+$ cargo test -p warrantor-archive --test append_only --test verification_does_not_depend_on_the_archive
+     Running tests\append_only.rs
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.22s
+     Running tests\verification_does_not_depend_on_the_archive.rs
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+EXITGATE_ARCHIVE=0
+```
+
+Both archive suites show the required **7 passed, 2 ignored** and **6 passed, 0 failed**, unchanged
+by everything this pass added. The refusal naming a hop by index is
+`a_correct_outcome_reached_through_an_ungranted_middle_hop_is_a_violation` (index 2, handle
+`comment://staged/wrt_f02/2`, tool `github.comment`) and the accepted well-formed control is
+`the_identical_chain_with_every_hop_granted_passes`; both passed in this run, and the recount
+mutation above shows all ten refusals going red while all eleven acceptances stay green. The ledger
+may cite Task 10.1 as built on this record.
+
+One thing this record still does not contain, said plainly because the exit gate does not ask for it
+and no lane has done it: there is no live `warrantor grant / stage / settle` transcript anywhere in
+this file. Every number above comes from test runs over fixtures.
