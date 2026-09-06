@@ -47,3 +47,41 @@ fn an_admission_is_a_surface_and_a_lowercase_hex_digest_and_nothing_else() {
         assert!(err.contains("process") || err.contains("64"), "{bad}: {err}");
     }
 }
+
+#[test]
+fn a_renamed_copy_has_the_same_digest_and_a_one_byte_change_does_not() {
+    let dir = tempdir("digest");
+    let renamed = dir.join(if cfg!(windows) { "agent-renamed.exe" } else { "agent-renamed" });
+    std::fs::copy(artifact(), &renamed).expect("copy");
+    let modified = dir.join(if cfg!(windows) { "agent-modified.exe" } else { "agent-modified" });
+    let mut bytes = std::fs::read(artifact()).expect("read");
+    bytes.push(0x00);
+    std::fs::write(&modified, &bytes).expect("write");
+
+    let (original, size) = exec::sha256_file(&artifact()).expect("digest");
+    assert_eq!(original.len(), 64);
+    assert_eq!(size, std::fs::metadata(artifact()).expect("meta").len());
+    assert_eq!(exec::sha256_file(&renamed).expect("digest").0, original);
+    assert_ne!(exec::sha256_file(&modified).expect("digest").0, original);
+}
+
+#[test]
+fn a_bare_name_is_resolved_on_path_and_never_in_the_worktree() {
+    // A file the agent wrote into its own worktree must not shadow a tool of the same name: that
+    // is the supply-chain shape, and CreateProcess's cwd-first search order is exactly the trap.
+    let worktree = tempdir("shadow");
+    let shadow_name = if cfg!(windows) { "warrantor-shadow.exe" } else { "warrantor-shadow" };
+    std::fs::copy(artifact(), worktree.join(shadow_name)).expect("copy");
+    let err = exec::resolve_program("warrantor-shadow", Some(&worktree))
+        .expect_err("a bare name is looked up on PATH only");
+    assert!(err.contains("PATH"), "{err}");
+    // An explicit relative path is joined to the worktree, and an absolute one is taken as is.
+    let relative = format!("./{shadow_name}");
+    let resolved = exec::resolve_program(&relative, Some(&worktree)).expect("relative");
+    assert!(resolved.starts_with(&worktree), "{}", resolved.display());
+    assert_eq!(resolved.file_name().and_then(|n| n.to_str()), Some(shadow_name));
+    assert_eq!(
+        exec::resolve_program(&artifact().to_string_lossy(), None).expect("absolute"),
+        artifact()
+    );
+}

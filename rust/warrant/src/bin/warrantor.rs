@@ -4565,31 +4565,10 @@ fn home_dir() -> Result<PathBuf, String> {
 
 /// Resolve a command on `PATH`, the way a shell would.
 ///
-/// Written rather than shelled out to `which`/`where`, which differ between platforms, are absent
-/// in minimal containers, and on Windows answer about a different search order than the one a
-/// spawned process actually gets.
+/// The body lives in the library so the EXEC admission gate resolves the same way the `agents`
+/// verb does; see `warrantor_warrant::exec::resolve_on_path`.
 fn resolve_on_path(command: &str) -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    // On Windows a bare name is tried against each PATHEXT suffix; elsewhere the name is the file.
-    let extensions: Vec<String> = if cfg!(windows) {
-        std::env::var("PATHEXT")
-            .unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string())
-            .split(';')
-            .filter(|e| !e.is_empty())
-            .map(str::to_string)
-            .collect()
-    } else {
-        vec![String::new()]
-    };
-    for directory in std::env::split_paths(&path) {
-        for extension in &extensions {
-            let candidate = directory.join(format!("{command}{extension}"));
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-        }
-    }
-    None
+    warrantor_warrant::exec::resolve_on_path(command)
 }
 
 /// This executable's own path, as an absolute string for a generated configuration.
