@@ -681,6 +681,46 @@ fn the_products_limitations_carry_the_tamper_evident_sentence_rather_than_a_proo
     );
 }
 
+/// The tier words in this task's evidence file are held by a test and not only by a reviewer's
+/// eye. No CI tool reads tier vocabulary: the mutation-review lane (2026-09-06) relabeled every
+/// causal refusal `Enforced` in the file's summary table and `check_docs.py`, `check_invariants.py`
+/// and `check_us_english.py` all exited 0. A refusal in this product's own code is Observed or
+/// Mediated, never Enforced, and this file's cells say so; this walks every table cell in the file
+/// and refuses a cell whose tier word is `Enforced` or `Mediated`.
+#[test]
+fn the_evidence_files_tier_cells_never_promote_a_causal_refusal_to_enforced_or_mediated() {
+    let path = repository_root().join("docs/task-evidence/task-10.1.md");
+    let text = std::fs::read_to_string(&path).expect("the Task 10.1 evidence file is readable");
+    let mut rows = 0usize;
+    let mut offenders: Vec<String> = Vec::new();
+    for (number, line) in text.lines().enumerate() {
+        let row = line.trim();
+        if !row.starts_with('|') {
+            continue;
+        }
+        rows += 1;
+        for cell in row.split('|') {
+            let word = cell
+                .trim()
+                .trim_start_matches('*')
+                .trim_start_matches('`')
+                .trim();
+            if word.starts_with("Enforced") || word.starts_with("Mediated") {
+                offenders.push(format!("line {}: {}", number + 1, cell.trim()));
+            }
+        }
+    }
+    assert!(
+        rows >= 40,
+        "only {rows} table rows were read from {}; the tables were not scanned",
+        path.display()
+    );
+    assert!(
+        offenders.is_empty(),
+        "a tier cell in the evidence file names a word the causal verdict never earns: {offenders:?}"
+    );
+}
+
 /// Collapse Rust's `\`-at-end-of-line string continuations, which eat the newline and the next
 /// line's indentation.
 ///
