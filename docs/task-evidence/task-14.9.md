@@ -10,7 +10,7 @@ rebase and no number was carried across one.
 
 **Review worktree:** `M:/wt-w6-14.9` · `CARGO_TARGET_DIR=M:/wt-rv-14.9-target`. Every number
 under the *Rebase* heading was measured on **commit 4** of the table below, which is the last commit
-on this branch that changes anything a gate reads. Commits 5 and 6 add only text, so every
+on this branch that changes anything a gate reads. Every commit after it adds only text, so every
 number in it describes the tree a reviewer merges. Those later commits are deliberately **not**
 named by hash anywhere in this file: a file cannot carry the hash of the commit that adds it, and a
 hash written in one before its content settled would be the same stale rendering this task gates.
@@ -21,10 +21,11 @@ tips `3c2baa9` and `fb6e45c`.
 
 **Dates:** built 2026-09-05; corrected and re-verified after the rebase 2026-09-06.
 
-**Commits, in order.** Six, and this table gives no current hash on purpose. Three rebases replayed
-every one of them, so any hash written here is stale the next time `main` moves — and a rendered value
-that goes stale because nothing re-derives it is the exact defect this task exists to gate. Re-derive
-the column with `git log --format='%h %s' main..HEAD`; the order below is the order that prints.
+**Commits, in order.** This table gives no current hash on purpose. Three rebases replayed every one
+of them, so any hash written here is stale the next time `main` moves — and a rendered value that goes
+stale because nothing re-derives it is the exact defect this task exists to gate. Re-derive the column
+with `git log --reverse --format='%h %s' main..HEAD`, which prints oldest first and so matches the
+order below; plain `git log` prints newest first and would reverse it.
 
 | # | originally | Steps | what |
 |---|---|---|---|
@@ -32,15 +33,16 @@ the column with `git log --format='%h %s' main..HEAD`; the order below is the or
 | 2 | `fb6e45c` | 9 | `check_published_state`: the same-version rewrite and the fabricated retained text |
 | 3 | `237facc` | 10 | the fresh-worktree verification at `fb6e45c`, verbatim |
 | 4 | — | 11 | the two records `main` moved, corrected by appending a version rather than editing |
-| 5 | — | 11 | the *Rebase* section: the gate re-measured on the tip a reviewer merges. Text only |
-| 6 | — | 11 | the self-reference fix and the durable form of this table. Text only |
+| 5 and after | — | 11 | this file's *Rebase* section and its re-measurements after each further rebase. **Text only** — nothing a gate reads |
 
-The *originally* column holds the hashes the sections above were written against. Those commits are
-**not reachable from this branch** any more — they were replayed three times. They are kept because a
-measurement belongs to the tree it was taken on, and renaming them to today's hashes would assert
-that those runs happened on trees which did not exist when they were made. Commits 4 to 6 are named
-by position rather than hash for the same reason the *Rebase* section names none: this file cannot
-carry the hash of the commit that adds it.
+Rows 1 to 4 are the whole of what a gate sees; the count of rows after 4 is not fixed, because each
+time `main` moved this lane re-ran the gate and rewrote the numbers, and a row added for each of those
+would need a row added for itself. The *originally* column holds the hashes the sections above were
+written against. Those commits are **not reachable from this branch** any more — they were replayed
+three times. They are kept because a measurement belongs to the tree it was taken on, and renaming
+them to today's hashes would assert that those runs happened on trees which did not exist when they
+were made. Commit 4 onward is named by position rather than hash for the same reason the *Rebase*
+section names none: this file cannot carry the hash of the commit that adds it.
 
 Every section below names the commit its numbers came from, because two of them moved on the rebase
 and the ledger refused the branch until they were corrected. The section *Rebase onto local `main` at
