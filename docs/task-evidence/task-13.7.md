@@ -487,6 +487,9 @@ tools/ci/invariant-ratchet.json
                                         # all twelve TRACKED
 $ git check-ignore -v <the same twelve>
 CHECK_IGNORE=1                          # exit 1 = no ignore rule matched any of them
+    # the re-run at this tip checked SEVENTEEN: the twelve plus src/bin/warrantor.rs, src/sandbox.rs,
+    # src/serve.rs, tests/instructions.rs and tests/invariants/i09_failure_is_safe.rs, which the
+    # correction pass reads or writes. `git ls-files` returned 17 of 17 and check-ignore matched none.
 
 $ cd rust && cargo fmt --check
 FMT=0
@@ -508,7 +511,7 @@ $ python tools/ci/check_invariants.py
 invariant ledger: 12 invariants; enforced=2, orphaned=0, partial=9, unimplemented=1
 LEDGER=0
 $ python tools/ci/check_us_english.py main
-us-english: 4099 added line(s) across 16 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: 4102 added line(s) across 16 file(s), since main; matcher = vendored verify-us-english.mjs
 us-english: ok
 USEN=0
     # this gate diffs `main...HEAD` -- COMMITTED content -- and the count includes this document, so a
