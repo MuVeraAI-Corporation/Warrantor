@@ -1,8 +1,23 @@
 //! L4-01 — the effect decomposition registry.
 //!
 //! Every tool the proxy forwards is a composition of the nine effect syscalls, or it is
-//! unclassified. The kernel authorizes, checks and receipts syscalls, never tool names: a tool
-//! called `deploy_to_prod` is EXEC plus NET plus MUTATE, and those are the policy units.
+//! unclassified. A tool called `deploy_to_prod` is EXEC plus NET plus MUTATE, and the blueprint's
+//! goal is that those become the policy units.
+//!
+//! **What that is today: a declaration vocabulary, and nothing more.** The kernel does not yet
+//! authorize, check or receipt a syscall. Authorization is still a tool-NAME allowlist
+//! (`proxy.rs` `bounds.tools.contains(&call.tool)`), so the `deploy_to_prod` above is admitted or
+//! refused by its name while its declared syscalls play no part. Observe mode and the staging
+//! decision both read a projected `SideEffectClass`, not a syscall. And no evidence surface
+//! records one: `receipts.rs`, `bundle.rs`, `report.rs`, `settle.rs`, `staging.rs` and `proxy.rs`
+//! contain zero occurrences of `Syscall`, so `warrantor report` still prints a staged effect as
+//! the tool name `github.create_pr`.
+//!
+//! What a decomposition decides here is narrower and worth stating exactly: whether a forwarded
+//! tool is classified by declaration or refused as undeclared, and which `SideEffectClass` the
+//! proxy sees through `Syscall::projection`. Task 2.3 moves staging onto syscalls; until it lands,
+//! a present-tense sentence about the kernel authorizing syscalls would be a guarantee no line of
+//! code makes true.
 //!
 //! # What this refuses to be
 //!

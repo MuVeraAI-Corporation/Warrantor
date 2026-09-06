@@ -5128,6 +5128,18 @@ fn cmd_status(store: &WarrantStore, root: &Path) -> ExitCode {
 ///
 /// Registering the control endpoint inside a supervised agent would hand it settle authority. The
 /// flag split makes that a deliberate act rather than a default.
+/// What a typed `--upstream-effects` or `--upstream-strict` means when no server is attached.
+///
+/// A const so a test can assert on the sentence itself. The first version of this message said
+/// "every permitted call is already answered with the no-upstream refusal", which is false for the
+/// staged effects this product exists to mediate: `Decision::Stage` is reached BEFORE the
+/// `Decision::Forward if self.upstreams.is_none()` arm, so a permitted `github.create_pr` is staged
+/// and performed at settle while the operator has just been told nothing consequential can happen.
+/// `a_staged_effect_needs_no_upstream_and_is_still_published` in tests/upstream.rs names the same
+/// fact; nothing tied the two together until this const existed.
+const NO_UPSTREAM_DECLARATION_DISCLOSURE: &str =
+    "warrantor: upstream -- no --upstream server is attached, so the effect decompositions and      --upstream-strict decide nothing in this session: nothing is forwarded, so nothing is      classified or refused as undeclared. The values were checked, not applied. This does NOT mean      nothing happens: a permitted call to a staged effect is still staged and performed at settle,      because staging is decided before forwarding is.";
+
 fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
@@ -5209,12 +5221,7 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                     || !args.all("upstream-effects-file").is_empty()
                     || upstream_policy(args) == UnclassifiedPolicy::Refuse
                 {
-                    eprintln!(
-                        "warrantor: upstream -- no --upstream server is attached, so the effect \
-                         decompositions and --upstream-strict decide nothing in this session: \
-                         every permitted call is already answered with the no-upstream refusal. \
-                         The values were checked, not applied."
-                    );
+                    eprintln!("{NO_UPSTREAM_DECLARATION_DISCLOSURE}");
                 }
             }
             Ok(specs) => {
@@ -5448,8 +5455,10 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                 if !unclassified.is_empty() {
                     eprintln!(
                         "warrantor: upstream -- {} tool(s) had no declared effect decomposition: \
-                         {}. Under --upstream-strict they were refused; otherwise they were \
-                         forwarded with a GUESSED decomposition (read). Declare each with \
+                         {}. Under --upstream-strict they were refused; otherwise each was \
+                         given a GUESSED decomposition (read) -- and then forwarded, or, with \
+                         no upstream attached, met with the no-upstream refusal. Declare each \
+                         with \
                          --upstream-effects '<tool>=mutate' (or the verbs it really has) so a \
                          write is staged rather than performed.",
                         unclassified.len(),
@@ -7281,6 +7290,39 @@ mod argument_parsing {
 /// is not reachable from an integration test without spawning a process.
 #[cfg(test)]
 mod upstream_effects_cli {
+
+    /// The no-upstream disclosure must not claim more than the code does.
+    ///
+    /// Its first version said "every permitted call is already answered with the no-upstream
+    /// refusal". That is false for exactly the calls this product exists to mediate: staging is
+    /// decided before forwarding, so a permitted `github.create_pr` is staged and performed at
+    /// settle while the operator has just been told nothing consequential can happen. An operator
+    /// who types `--upstream-strict` and reads that sentence would believe writes were impossible.
+    #[test]
+    fn the_no_upstream_disclosure_does_not_claim_every_call_is_refused() {
+        let disclosure = super::NO_UPSTREAM_DECLARATION_DISCLOSURE;
+
+        // The false clause, in the shapes it could come back as.
+        assert!(
+            !disclosure.contains("every permitted call"),
+            "the disclosure claims every permitted call is refused; staged effects are not: {disclosure}"
+        );
+        assert!(
+            !disclosure.contains("already answered with the no-upstream refusal"),
+            "the disclosure still carries the retracted justification: {disclosure}"
+        );
+
+        // And the paired positive: it must SAY what still happens, or an operator reading
+        // "decide nothing" has been told a half-truth.
+        assert!(
+            disclosure.contains("staged") && disclosure.contains("settle"),
+            "the disclosure must say that a staged effect is still staged and performed at              settle: {disclosure}"
+        );
+        assert!(
+            disclosure.contains("decide nothing in this session"),
+            "the true half -- that the declarations decide nothing -- must survive: {disclosure}"
+        );
+    }
     use super::{parse_tokens, upstream_decompositions, upstream_policy};
     use warrantor_warrant::effects::{
         DecompositionRegistry, UnclassifiedPolicy, EFFECT_REGISTRY_FORMAT,
