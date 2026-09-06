@@ -198,8 +198,42 @@ def test_the_tag_reader_refuses_to_turn_a_version_suffix_into_a_configuration_cl
         "some/model:",
         "",
         "qwen3guard",
+        # A model NAME whose suffix starts with the same letter as a quantization label. The
+        # first reader asked only whether the suffix started with Q and held a digit, so these
+        # two were recorded as quantizations called "Qwen3" and "Qwen3-4B" and written into the
+        # result document as provenance -- a wrong-and-unchecked field, which this function's own
+        # docstring calls worse than an absent one.
+        "hf.co/some/repo:Qwen3",
+        "hf.co/some/repo:Qwen3-4B",
+        "some/model:F8",
+        "some/model:Q",
     ):
         assert serving.quantisation_in_tag(tag) is None, tag
+    # The shapes it must still read, including the ones no committed tag uses yet.
+    for tag, expected in (
+        ("some/model:Q6_K", "Q6_K"),
+        ("some/model:BF16", "BF16"),
+        ("some/model:F32", "F32"),
+        ("some/model:q4_k_m", "q4_k_m"),
+    ):
+        assert serving.quantisation_in_tag(tag) == expected, tag
+
+
+def test_the_descriptor_records_no_quantization_for_a_name_shaped_suffix() -> None:
+    """The evaluator writes this field into a signed result document, so a guess ships as fact.
+
+    ``OllamaGuardBackend`` resolves the quantization from the tag when the tag names one. With
+    the first-letter reader, ``:Qwen3`` resolved to "Qwen3" and the descriptor recorded it. The
+    gate would still have refused the document -- Qwen3 is not Q4_K_M -- so no false parity was
+    reachable; what shipped was a false provenance value in the document itself.
+    """
+
+    assert "quantisation" not in OllamaGuardBackend(model="hf.co/some/repo:Qwen3").descriptor()
+    assert (
+        OllamaGuardBackend(model="hf.co/some/repo:Qwen3", quantisation="Q4_K_M")
+        .descriptor()["quantisation"]
+        == "Q4_K_M"
+    ), "an operator who says what is served is still recorded; only guessing is refused"
 
 
 def test_the_baseline_literal_carries_five_keys_and_is_refused_on_the_other_two() -> None:

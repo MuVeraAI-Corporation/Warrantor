@@ -39,6 +39,7 @@ argument.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any, Final
 
@@ -107,6 +108,16 @@ REQUIRED_KEYS: Final[tuple[str, ...]] = (
 )
 
 
+#: The shape of a GGUF quantization label. Applied with ``fullmatch`` to the whole upper-cased tag
+#: suffix, so the segment must be a label and not merely begin with one. ``F16``/``F32``/``BF16``
+#: are the float widths; ``Q`` and ``IQ`` take a block count and then any number of block-type
+#: parts, which covers ``Q8_0``, ``Q6_K``, ``Q4_K_M`` and ``IQ4_XS``. A whole-shape match rather
+#: than a first-letter test because a first-letter test made ``Qwen3`` a quantization.
+_QUANTISATION_LABEL: Final[re.Pattern[str]] = re.compile(
+    "(?:BF16|F16|F32|(?:I?Q)[0-9]+(?:_[0-9A-Z]+)*)"
+)
+
+
 def deployed_digest() -> str:
     """Digest over :data:`DEPLOYED`, so a decision can be pinned to the configuration it assumed.
 
@@ -163,22 +174,27 @@ def recorded_serving_configuration(backend: Mapping[str, Any]) -> dict[str, Any]
 def quantisation_in_tag(model_tag: str) -> str | None:
     """The quantization an Ollama model tag names, or ``None`` when it names none.
 
-    Deliberately narrow. Only the segment after the FINAL colon is considered, and only when it
-    reads like a quantization label -- ``Q4_K_M``, ``Q8_0``, ``F16``, ``BF16``, ``IQ4_XS``. A tag
-    whose suffix is a version (``:latest``, ``:v2``), or which has no colon at all, returns
-    ``None``, which the gate treats as a refusal. Guessing more widely would turn ``:latest`` into
-    a configuration claim, and a provenance field that is wrong and unchecked is worse than an
-    absent one -- ``baselines._ollama_backend``'s own docstring records that lesson, from a record
-    whose ``model_tag`` said 0.6B while its ``backend["model"]`` said 4B.
+    Deliberately narrow, and narrow by SHAPE rather than by first letter. Only the segment after
+    the FINAL colon is considered, and only when the whole segment matches
+    :data:`_QUANTISATION_LABEL`: a float width (``F16``, ``F32``, ``BF16``) or a ``Q``/``IQ`` block
+    count with its optional block-type parts (``Q8_0``, ``Q4_K_M``, ``Q6_K``, ``IQ4_XS``). A tag
+    whose suffix is a version (``:latest``, ``:v2``), a model name (``:Qwen3``, ``:Qwen3-4B``), or
+    which has no colon at all, returns ``None``, which the gate treats as a refusal.
+
+    The first version of this reader asked whether the suffix started with ``Q``, ``F16``, ``F32``,
+    ``BF16`` or ``IQ`` and contained any digit, which made ``:Qwen3`` a quantization named
+    ``Qwen3`` -- and the evaluator then wrote that string into a signed result document as
+    provenance. Guessing that widely is the failure this function's own next sentence names: a
+    provenance field that is wrong and unchecked is worse than an absent one --
+    ``baselines._ollama_backend``'s own docstring records that lesson, from a record whose
+    ``model_tag`` said 0.6B while its ``backend["model"]`` said 4B.
     """
 
     _, separator, suffix = model_tag.rpartition(":")
     candidate = suffix.strip()
     if not separator or not candidate:
         return None
-    if candidate.upper().startswith(("Q", "F16", "F32", "BF16", "IQ")) and any(
-        character.isdigit() for character in candidate
-    ):
+    if _QUANTISATION_LABEL.fullmatch(candidate.upper()):
         return candidate
     return None
 
