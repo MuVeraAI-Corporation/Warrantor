@@ -85,6 +85,56 @@ tool set refuses under `bound: "tools"` and the egress decision is never reached
 nothing. Fixed by putting the tool in the allowlist; the reason is recorded as a comment in
 `proxy_over`, because this is a false pass that any future test in this file could repeat.
 
+## A third red, and it is the one the fresh-worktree gate exists for
+
+`the_notes_refuse_to_imply_a_second_boundary` passed in the working worktree and **failed in the
+fresh detached checkout**:
+
+```
+rust/warrant/src/egress.rs no longer contains "There is no network \
+     namespace, seccomp
+filter or firewall: an agent that opens a socket itself is not bound by \
+     them.".
+test result: FAILED. 84 passed; 1 failed; 15 ignored
+```
+
+The first version asserted a `harness::source_contains` fragment **spanning two source lines**. This
+repository checks out **CRLF** on Windows, so the file the test read had `
+` line endings and a
+needle containing `
+` could not match. The author's worktree held the files as written, with LF, so
+it was green there.
+
+```
+$ file rust/warrant/src/egress.rs      (fresh checkout)
+Unicode text, UTF-8 text, with CRLF line terminators
+CRLF count: 869   bare LF: 0
+```
+
+**This is [[windows rust paths are ungated]] in miniature, and it would have shipped green.** CI runs
+the workspace on Linux, where the checkout is LF, so the gate that would have caught it does not run
+on the platform where it breaks — the same shape as the kill-switch contract breach that memory
+records.
+
+Fixed by asserting the **constants' runtime values** rather than their source text. Both notes are
+`pub const &str`, and a string continuation elides its newline, so the values contain no line breaks
+at all: the assertion is now both portable and stronger, because it survives any reformatting of the
+source. A source-text assertion is the right tool only for something with no runtime representation,
+and neither note is that. The reasoning is recorded in the test's own doc comment so the next author
+does not reintroduce it.
+
+Audited the rest of this branch for the same fragility:
+- `tools/ci/network_independence.py` is safe by construction. `Path.read_text()` opens in universal-
+  newline mode, so `
+` is translated to `
+` before any needle is matched — including the one
+  `RENDER_TARGETS` needle that deliberately spans a line break.
+- `rust/warrant/tests/network_independence.rs` reads `INDEPENDENCE_NOTE` as a value, never as source.
+- The only remaining `source_contains` in `i09` is the pre-existing single-line one on
+  `eval-guard/src/cli.rs`, untouched.
+
+---
+
 ---
 
 ## Gate output, verbatim, with exit codes

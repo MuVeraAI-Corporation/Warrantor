@@ -361,20 +361,42 @@ fn the_only_second_layer_is_emitted_exactly_when_no_destination_is_permitted() {
 /// The two sentences that state where egress holds must keep naming the things that are absent. A
 /// surface that drops either clause is how a Tier B bound gets read as Tier A, and how a count of
 /// policy domains gets read as a count of enforcement points.
+///
+/// # Why this reads the CONSTANTS and not their source text
+///
+/// The first version of this test used [`harness::source_contains`] with a fragment spanning two
+/// source lines. It passed on the author's worktree and **failed in a fresh checkout**, because this
+/// repository checks out CRLF on Windows: a needle containing `\n` cannot match a file whose lines
+/// end `\r\n`. That is the [[windows rust paths are ungated]] failure in miniature — Linux CI would
+/// have stayed green while every Windows contributor went red.
+///
+/// Both notes are `pub const &str` reachable at run time, and a string continuation elides its
+/// newline, so the *values* contain no line breaks at all. Asserting the value is therefore both
+/// stronger (it survives any reformatting of the source) and portable. A source-text assertion is
+/// the right tool only for something with no runtime representation, and neither of these is that.
 #[test]
 fn the_notes_refuse_to_imply_a_second_boundary() {
-    harness::source_contains(
-        "rust/warrant/src/egress.rs",
-        "There is no network \\\n     namespace, seccomp filter or firewall: an agent that opens a \
-         socket itself is not bound by \\\n     them.",
+    let enforcement = warrantor_warrant::egress::ENFORCEMENT_NOTE;
+    assert!(
+        enforcement.contains("There is no network namespace, seccomp filter or firewall"),
         "ENFORCEMENT_NOTE is the only place the product says where egress holds; if it stops \
-         naming what is absent, the independence count reads as an enforcement count.",
+         naming what is absent, the independence count reads as an enforcement count. It reads: \
+         {enforcement}",
     );
-    harness::source_contains(
-        "rust/warrant/src/egress.rs",
-        "is a count of policy domains, not a count of enforcement points",
+    assert!(
+        enforcement.contains("an agent that opens a socket itself is not bound by them"),
+        "and it must keep naming what escapes, not merely what is absent: {enforcement}",
+    );
+
+    let independence = warrantor_warrant::egress::INDEPENDENCE_NOTE;
+    assert!(
+        independence.contains("is a count of policy domains, not a count of enforcement points"),
         "INDEPENDENCE_NOTE must keep refusing the enforcement-point reading in those words: \
          tools/ci/network_independence.py requires the clause on every surface that prints the \
-         count, and this is the one place it is authored.",
+         count, and this is the one place it is authored. It reads: {independence}",
+    );
+    assert!(
+        !independence.contains('\n'),
+        "the note is rendered under a count on one-line surfaces, so it must not carry a newline",
     );
 }
